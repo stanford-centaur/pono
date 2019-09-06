@@ -49,78 +49,12 @@ void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
 
 Term RelationalTransitionSystem::curr(const smt::Term term)
 {
-  UnorderedTermMap cache;
-  TermVec to_visit {term};
-  Term t;
-  while(to_visit.size())
-  {
-    t = to_visit.back();
-    to_visit.pop_back();
-    if (cache.find(t) == cache.end())
-    {
-      // doesn't get updated yet, just marking as visited
-      cache[t] = t;
-      to_visit.push_back(t);
-      for (auto c : t)
-      {
-        to_visit.push_back(c);
-      }
-    }
-    else if(next_states_map_.find(t) != next_states_map_.end())
-    {
-      cache[t] = next_states_map_[t];
-    }
-    else
-    {
-      TermVec cached_children;
-      for (auto c : t)
-      {
-        cached_children.push_back(cache.at(c));
-      }
-      Term rebuilt = solver_->make_term(t->get_op(), cached_children);
-      cache[t] = rebuilt;
-    }
-  }
-
-  return cache[term];
+  return solver_->substitute(term, next_states_map_);
 }
 
 Term RelationalTransitionSystem::next(const smt::Term term)
 {
-  UnorderedTermMap cache;
-  TermVec to_visit {term};
-  Term t;
-  while(to_visit.size())
-  {
-    t = to_visit.back();
-    to_visit.pop_back();
-    if (cache.find(t) == cache.end())
-    {
-      // doesn't get updated yet, just marking as visited
-      cache[t] = t;
-      to_visit.push_back(t);
-      for (auto c : t)
-      {
-        to_visit.push_back(c);
-      }
-    }
-    else if(states_map_.find(t) != states_map_.end())
-    {
-      cache[t] = states_map_[t];
-    }
-    else
-    {
-      TermVec cached_children;
-      for (auto c : t)
-      {
-        cached_children.push_back(cache.at(c));
-      }
-      Term rebuilt = solver_->make_term(t->get_op(), cached_children);
-      cache[t] = rebuilt;
-    }
-  }
-
-  return cache[term];
+  return solver_->substitute(term, states_map_);
 }
 
 bool RelationalTransitionSystem::is_curr_var(const smt::Term sv)
