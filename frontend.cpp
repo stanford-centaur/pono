@@ -2,6 +2,7 @@ extern "C"
 {
   #include "btor2parser/btor2parser.h"
 }
+#include "gmpxx.h"
 
 #include "assert.h"
 #include <iostream>
@@ -26,8 +27,14 @@ int main(int argc, char** argv)
   Sort linesort;
   TermVec args;
   unordered_map<int, Sort> sorts;
-  unordered_map<int, term> terms;
+  unordered_map<int, Term> terms;
   string symbol;
+
+  mpz_class cval;
+  const unordered_map<Btor2Tag, int> base(
+                                          { {BTOR2_TAG_const, 2},
+                                            {BTOR2_TAG_constd, 10},
+                                            {BTOR2_TAG_consth, 16} });
 
   Btor2Parser* reader;
   Btor2LineIterator it;
@@ -79,15 +86,7 @@ int main(int argc, char** argv)
       linesort=sorts.at(l->sort.id);
     }
 
-    /******************************** Gather term arguments ********************************/
-    args.clear();
-    args.reserve(l->nargs);
-    for(i = 0; i < l->nargs; i++)
-    {
-      args.push_back(terms.at(l->args[i]));
-    }
-
-    /******************************** Handle term creation ********************************/
+    /******************************** Handle special cases ********************************/
     if (l->tag == BTOR2_TAG_state)
     {
       if (l->symbol)
@@ -126,6 +125,31 @@ int main(int argc, char** argv)
       }
 
       fts.name_term(symbol, terms.at(l->id));
+    }
+    else if (l->constant)
+    {
+      cval = mpz_class(l->constant, base.at(l->tag));
+      terms[l->id] = s->make_value(cval.get_str(10), linesort);
+    }
+    else if (l->tag == BTOR2_TAG_one)
+    {
+      cval = mpz_class("1", 10);
+      terms[l->id] = s->make_value(cval.get_str(10), linesort);
+    }
+    else if (l->tag == BTOR2_TAG_ones)
+    {
+      cval = mpz_class(string(linesort->get_width(), '1').c_str(), 2);
+      terms[l->id] = s->make_value(cval.get_str(10), linesort);
+    }
+
+
+    /******************************** Gather term arguments ********************************/
+    // TODO: handle sext etc...
+    args.clear();
+    args.reserve(l->nargs);
+    for(i = 0; i < l->nargs; i++)
+    {
+      args.push_back(terms.at(l->args[i]));
     }
 
   }
