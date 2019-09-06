@@ -34,16 +34,6 @@ void RelationalTransitionSystem::set_trans(const smt::Term trans)
   trans_ = trans;
 }
 
-void RelationalTransitionSystem::constrain_init(const smt::Term constraint)
-{
-  // TODO: Only do this check in debug mode
-  if (!known_symbols(constraint))
-  {
-    throw "Unknown symbols";
-  }
-  init_ = solver_->make_term(And, init_, constraint);
-}
-
 void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
 {
   // TODO: Only do this check in debug mode

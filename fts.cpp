@@ -17,6 +17,16 @@ void FunctionalTransitionSystem::set_init(const Term init)
   init_ = init;
 }
 
+void FunctionalTransitionSystem::constrain_init(const smt::Term constraint)
+{
+  // TODO: Only do this check in debug mode
+  if (!known_symbols(constraint))
+  {
+    throw "Unknown symbols";
+  }
+  init_ = solver_->make_term(And, init_, constraint);
+}
+
 void FunctionalTransitionSystem::set_next(const Term state, const Term val)
 {
   // TODO: only do this check in debug mode

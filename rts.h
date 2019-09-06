@@ -35,11 +35,6 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
    */
   void set_trans(const smt::Term trans);
 
-  /* Add to the initial state constraints
-   * @param constraint new constraint on initial states
-   */
-  void constrain_init(const smt::Term constraint);
-
   /* Add to the transition relation constraints
    * @param constraint new constraint on transition relation
    */

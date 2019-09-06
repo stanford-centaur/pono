@@ -23,6 +23,11 @@ class FunctionalTransitionSystem
    */
   void set_init(const smt::Term init);
 
+  /* Add to the initial state constraints
+   * @param constraint new constraint on initial states
+   */
+  void constrain_init(const smt::Term constraint);
+
   /* Set the transition function of a state variable
    *   val is constrained to only use current state variables
    * @param state the state variable you are updating
