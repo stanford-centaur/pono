@@ -20,12 +20,16 @@ class Unroller
 
   smt::term at_time(smt::term t, unsigned int k);
 
-  smt::untime untime(smt::term t);
+  smt::term untime(smt::term t);
 
  private:
 
-  const RelationalTransitionSystem &ts_;
+  smt::term var_at_time(smt::term v, unsigned int k);
+  UnorderedTermMap time_cache_at_time(unsigned int k);
 
+  const RelationalTransitionSystem &ts_;
+  smt::SmtSolver &solver_;
+  
   typedef std::vector<UnorderedTermMap *> TimeCache;
   TimeCache time_cache_;
   UnorderedTermMap untime_cache_;
