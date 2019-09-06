@@ -70,9 +70,9 @@ class FunctionalTransitionSystem
   // getters
   smt::SmtSolver & solver() { return solver_; };
 
-  const UnorderedTermSet & states() { return states_; };
+  const smt::UnorderedTermSet & states() { return states_; };
 
-  const UnorderedTermSet & inputs() { return inputs_; };
+  const smt::UnorderedTermSet & inputs() { return inputs_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
