@@ -30,9 +30,9 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
 
 void FunctionalTransitionSystem::add_constraint(const Term constraint)
 {
-  trans_ = solver_->make_term(And, trans_, constraint);
+  constraints_ = solver_->make_term(And, constraints_, constraint);
   // add the next-state version
-  trans_ = solver_->make_term(And, trans_, to_next_func(constraint));
+  constraints_ = solver_->make_term(And, constraints_, to_next_func(constraint));
 }
 
 Term FunctionalTransitionSystem::make_input(const string name, const Sort sort)

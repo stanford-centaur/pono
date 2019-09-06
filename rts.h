@@ -16,6 +16,14 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
    RelationalTransitionSystem(smt::SmtSolver & s)
      : FunctionalTransitionSystem(s), trans_(s->make_value(true)) {}
 
+  /* Add constraint to the system
+   * This is an invariant constraint, enforced over all time
+   * Overloaded to add directly to trans_ instead of constraints_
+   *   (constraints_ is unused for relational transition system)
+   * @param constraint the boolean constraint term to add
+   */
+  void add_constraint(const smt::Term constraint);
+
   /* Sets init and trans to the provided values
    * @param init the new initial state constraints (boolean sort)
    * @param trans the new transition relation constraints (boolean sort)

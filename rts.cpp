@@ -6,6 +6,13 @@ using namespace std;
 namespace cosa
 {
 
+void RelationalTransitionSystem::add_constraint(const Term constraint)
+{
+  trans_ = solver_->make_term(And, trans_, constraint);
+  // add the next-state version
+  trans_ = solver_->make_term(And, trans_, to_next_func(constraint));
+}
+
 void RelationalTransitionSystem::set_behavior(const smt::Term init, const smt::Term trans)
 {
   // TODO: Only do this check in debug mode
