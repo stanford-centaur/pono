@@ -18,6 +18,89 @@ using namespace std;
 using namespace smt;
 using namespace cosa;
 
+// converts booleans to bitvector of size one
+Term bool_to_bv(SmtSolver & s, Term t)
+{
+  if (t->get_sort()->get_sort_kind() == BOOL)
+  {
+    Sort bv1sort = s->make_sort(BV, 1);
+    return s->make_term(Ite, s->make_value(1, bv1sort), s->make_value(0, bv1sort));
+  }
+  else
+  {
+    return t;
+  }
+}
+
+// converts bitvector of size one to boolean
+Term bv_to_bool(SmtSolver & s, Term t)
+{
+  Sort sort = t->get_sort();
+  if (sort->get_sort_kind() == BV)
+  {
+    if (sort->get_width() != 1)
+    {
+      throw "Can't convert non-width 1 bitvector to bool.";
+    }
+    return s->make_term(Equal, t, s->make_value(1, s->make_sort(BV, 1)));
+  }
+  else
+  {
+    return t;
+  }
+}
+
+// lazy conversion
+
+// takes a list of booleans / bitvectors of size one
+// and lazily converts them to the majority
+TermVec lazy_convert(SmtSolver & s, TermVec tvec)
+{
+  TermVec res;
+  res.reserve(tvec.size());
+
+  unsigned int num_bools = 0;
+  Sort sort;
+  UnorderedSortSet sortset;
+  for (auto t : tvec)
+  {
+    res.push_back(t);
+
+    sort = t->get_sort();
+    sortset.insert(sort);
+
+    if (sort->get_sort_kind() == BOOL)
+    {
+      num_bools++;
+    }
+    else if (!(sort->get_sort_kind() == BV &&
+               sort->get_width() == 1))
+    {
+      throw "Expecting only bitvectors of size one and booleans";
+    }
+  }
+
+  if (sortset.size() > 1)
+  {
+    if (num_bools > tvec.size()/2)
+    {
+      for(auto t : tvec)
+      {
+        res.push_back(bv_to_bool(s, t));
+      }
+    }
+    else
+    {
+      for(auto t : tvec)
+      {
+        res.push_back(bool_to_bv(s, t));
+      }
+    }
+  }
+
+  return res;
+}
+
 int main(int argc, char** argv)
 {
   SmtSolver s = BoolectorSolverFactory::create();
