@@ -5,8 +5,7 @@
 
 #include "smt.h"
 
-namespace cosa
-{
+namespace cosa {
   
   /* 
    * unroller inspired by the ic3ia unroller:
