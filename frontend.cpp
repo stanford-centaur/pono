@@ -25,16 +25,31 @@ int main(int argc, char** argv)
   FunctionalTransitionSystem fts(s);
 
   Sort linesort;
-  TermVec args;
+  TermVec termargs;
   unordered_map<int, Sort> sorts;
   unordered_map<int, Term> terms;
   string symbol;
 
   mpz_class cval;
-  const unordered_map<Btor2Tag, int> base(
+  const unordered_map<Btor2Tag, int> basemap(
                                           { {BTOR2_TAG_const, 2},
                                             {BTOR2_TAG_constd, 10},
                                             {BTOR2_TAG_consth, 16} });
+  const unordered_set<Btor2Tag> overflow_ops({BTOR2_TAG_uaddo,
+                                              BTOR2_TAG_saddo,
+                                              //BTOR2_TAG_udivo, // not supposed to exist?
+                                              BTOR2_TAG_sdivo,
+                                              BTOR2_TAG_umulo,
+                                              BTOR2_TAG_smulo,
+                                              BTOR2_TAG_usubo,
+                                              BTOR2_TAG_ssubo});
+  const unordered_map<Btor2Tag, PrimOp> opmap(
+                                              {{},
+                                              }
+    );
+
+  TermVec badvec;
+  TermVec justicevec;
 
   Btor2Parser* reader;
   Btor2LineIterator it;
@@ -86,6 +101,18 @@ int main(int argc, char** argv)
       linesort=sorts.at(l->sort.id);
     }
 
+    /******************************** Gather term arguments ********************************/
+    termargs.clear();
+    termargs.reserve(l->nargs);
+    for(i = 0; i < l->nargs; i++)
+    {
+      if (terms.find(l->args[i]) == terms.end())
+      {
+        break;
+      }
+      termargs.push_back(terms.at(l->args[i]));
+    }
+
     /******************************** Handle special cases ********************************/
     if (l->tag == BTOR2_TAG_state)
     {
@@ -124,11 +151,27 @@ int main(int argc, char** argv)
         symbol = "output" + to_string(l->id);
       }
 
-      fts.name_term(symbol, terms.at(l->id));
+      fts.name_term(symbol, termargs[0]);
+    }
+    else if (l->tag == BTOR2_TAG_init)
+    {
+      fts.constrain_init(s->make_term(Equal, termargs));
+    }
+    else if (l->tag == BTOR2_TAG_next)
+    {
+      fts.set_next(termargs[0], termargs[1]);
+    }
+    else if (l->tag == BTOR2_TAG_bad)
+    {
+      badvec.push_back(termargs[0]);
+    }
+    else if (l->tag == BTOR2_TAG_justice)
+    {
+      justicevec.push_back(termargs[0]);
     }
     else if (l->constant)
     {
-      cval = mpz_class(l->constant, base.at(l->tag));
+      cval = mpz_class(l->constant, basemap.at(l->tag));
       terms[l->id] = s->make_value(cval.get_str(10), linesort);
     }
     else if (l->tag == BTOR2_TAG_one)
@@ -141,15 +184,27 @@ int main(int argc, char** argv)
       cval = mpz_class(string(linesort->get_width(), '1').c_str(), 2);
       terms[l->id] = s->make_value(cval.get_str(10), linesort);
     }
-
-
-    /******************************** Gather term arguments ********************************/
-    // TODO: handle sext etc...
-    args.clear();
-    args.reserve(l->nargs);
-    for(i = 0; i < l->nargs; i++)
+    else if (l->tag == BTOR2_TAG_slice)
     {
-      args.push_back(terms.at(l->args[i]));
+      terms[l->id] = s->make_term(Op(Extract, l->args[1], l->args[2]), termargs[0]);
+    }
+    else if (l->tag == BTOR2_TAG_sext)
+    {
+      terms[l->id] = s->make_term(Op(Sign_Extend, l->args[1]), termargs[0]);
+    }
+    else if (overflow_ops.find(l->tag) != overflow_ops.end())
+    {
+      // TODO: finish this
+      int width = linesort->get_width();
+      Term t0 = s->make_term(Op(Zero_Extend, 1), termargs[0]);
+      Term t1 = s->make_term(Op(Zero_Extend, 1), termargs[1]);
+      terms[l->id] = s->make_term(Op(Extract, width, width),
+                                  s->make_term(opmap.at(l->tag), t0, t1));
+    }
+    /******************************** Handle general case ********************************/
+    else
+    {
+      terms[l->id] = s->make_term(opmap.at(l->tag), termargs);
     }
 
   }
