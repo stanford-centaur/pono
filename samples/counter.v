@@ -2,10 +2,13 @@ module counter(clk, in, out);
    parameter WIDTH=8;
 
    input                    clk, in;
-   output reg [WIDTH-1:0]   out;
+   output wire [WIDTH-1:0]   out;
+
+   reg [WIDTH:0]             internal = 0;
+   assign out = internal;
 
    always @(posedge clk) begin
-      out <= out + in;
+      internal <= internal + in;
    end
 
    reg initstate = 1'b1;
@@ -16,7 +19,7 @@ module counter(clk, in, out);
 
    always @* begin
       // unsafe
-      assert(out < 10);
+      assert(internal < 10);
    end
 
 endmodule // counter

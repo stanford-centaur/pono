@@ -68,7 +68,11 @@ class FunctionalTransitionSystem
   void name_term(const std::string name, const smt::Term t);
 
   // getters
-  smt::SmtSolver & get_solver() { return solver_; };
+  smt::SmtSolver & solver() { return solver_; };
+
+  const smt::UnorderedTermSet & states() { return states_; };
+
+  const smt::UnorderedTermSet & inputs() { return inputs_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
@@ -81,7 +85,7 @@ class FunctionalTransitionSystem
   smt::UnorderedTermMap & state_updates() { return state_updates_; };
 
   /* @return the named terms mapping */
-  std::unordered_map<std::string, smt::Term> & get_named_terms() { return named_terms_; };
+  std::unordered_map<std::string, smt::Term> & named_terms() { return named_terms_; };
 
  protected:
   // solver
