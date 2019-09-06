@@ -55,8 +55,8 @@ namespace cosa {
     UnorderedTermMap &subst = *(time_cache_[k]);
 
     if (subst.size() == 0) {
-      const UnorderedTermSet state_vars = ts_.state_vars();
-      const UnorderedTermSet input_vars = ts_.input_vars();
+      const UnorderedTermSet state_vars = ts_.states();
+      const UnorderedTermSet input_vars = ts_.inputs();
     
       for (size_t i = 0; i < state_vars.size(); ++i) {
 	smt::term v = state_vars[i];
