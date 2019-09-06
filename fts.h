@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "smt.h"
+#include "smt-switch/smt.h"
 
 namespace cosa
 {
@@ -62,6 +62,7 @@ class FunctionalTransitionSystem
   void name_term(const std::string name, const smt::Term t);
 
   // getters
+  smt::SmtSolver & get_solver() { return solver_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
