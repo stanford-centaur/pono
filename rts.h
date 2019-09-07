@@ -14,15 +14,7 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
 {
  public:
    RelationalTransitionSystem(smt::SmtSolver & s)
-     : FunctionalTransitionSystem(s), trans_(s->make_value(true)) {}
-
-  /* Add constraint to the system
-   * This is an invariant constraint, enforced over all time
-   * Overloaded to add directly to trans_ instead of constraints_
-   *   (constraints_ is unused for relational transition system)
-   * @param constraint the boolean constraint term to add
-   */
-  void add_constraint(const smt::Term constraint);
+     : FunctionalTransitionSystem(s) {}
 
   /* Sets init and trans to the provided values
    * @param init the new initial state constraints (boolean sort)
@@ -45,12 +37,6 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
    * @return the term with all current state variables
    */
   smt::Term curr(const smt::Term term);
-
-  /* Map all current state variables to next state variables in the term
-   * @param t the term to map
-   * @return the term with all next state variables
-   */
-  smt::Term next(const smt::Term term);
 
   /* @param sv the state variable to check
    * @return true if sv is a current state variable
@@ -77,9 +63,7 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
   smt::Term make_state(const std::string name, const smt::Sort sort);
 
  protected:
-  smt::Term trans_;
   smt::UnorderedTermSet next_states_;
-  smt::UnorderedTermMap states_map_;
   smt::UnorderedTermMap next_states_map_;
 
   // helpers and checkers

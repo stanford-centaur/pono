@@ -36,13 +36,14 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
   }
 
   state_updates_[state] = val;
+  trans_ = solver_->make_term(And, trans_, solver_->make_term(Equal, next(state), val));
 }
 
 void FunctionalTransitionSystem::add_constraint(const Term constraint)
 {
-  constraints_ = solver_->make_term(And, constraints_, constraint);
+  trans_ = solver_->make_term(And, trans_, constraint);
   // add the next-state version
-  constraints_ = solver_->make_term(And, constraints_, to_next_func(constraint));
+  trans_ = solver_->make_term(And, trans_, next(constraint));
 }
 
 Term FunctionalTransitionSystem::make_input(const string name, const Sort sort)
@@ -55,9 +56,11 @@ Term FunctionalTransitionSystem::make_input(const string name, const Sort sort)
 Term FunctionalTransitionSystem::make_state(const string name, const Sort sort)
 {
   Term state = solver_->make_term(name, sort);
+  Term next_state = solver_->make_term(name + ".next", sort);
   // this is never used, so it shouldn't hurt performance
   // only here for consistency with relational transition system states_ data structure
   states_.insert(state);
+  states_map_[state] = next_state;
   return state;
 }
 
@@ -68,6 +71,11 @@ void FunctionalTransitionSystem::name_term(const string name, const Term t)
     throw "Name has already been used.";
   }
   named_terms_[name] = t;
+}
+
+Term FunctionalTransitionSystem::next(const smt::Term term)
+{
+  return solver_->substitute(term, states_map_);
 }
 
 // protected methods

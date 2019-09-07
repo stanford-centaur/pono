@@ -6,13 +6,6 @@ using namespace std;
 namespace cosa
 {
 
-void RelationalTransitionSystem::add_constraint(const Term constraint)
-{
-  trans_ = solver_->make_term(And, trans_, constraint);
-  // add the next-state version
-  trans_ = solver_->make_term(And, trans_, to_next_func(constraint));
-}
-
 void RelationalTransitionSystem::set_behavior(const smt::Term init, const smt::Term trans)
 {
   // TODO: Only do this check in debug mode
@@ -49,11 +42,6 @@ Term RelationalTransitionSystem::curr(const smt::Term term)
   return solver_->substitute(term, next_states_map_);
 }
 
-Term RelationalTransitionSystem::next(const smt::Term term)
-{
-  return solver_->substitute(term, states_map_);
-}
-
 bool RelationalTransitionSystem::is_curr_var(const smt::Term sv)
 {
   return (states_.find(sv) != states_.end());
@@ -74,41 +62,6 @@ Term RelationalTransitionSystem::make_state(const string name, const Sort sort)
   states_map_[state] = next_state;
   next_states_map_[next_state] = state;
   return state;
-}
-
-bool RelationalTransitionSystem::known_symbols(const Term term)
-{
-  UnorderedTermSet visited;
-  TermVec to_visit{term};
-  Term t;
-  while(to_visit.size())
-  {
-    t = to_visit.back();
-    to_visit.pop_back();
-
-    if(visited.find(term) != visited.end())
-    {
-      // cache hit
-      continue;
-    }
-
-    if(t->is_symbolic_const() &&
-       !((inputs_.find(t) != inputs_.end()) ||
-         (states_.find(t) != states_.end()) ||
-         (next_states_.find(t) != next_states_.end())
-         ))
-    {
-      return false;
-    }
-
-    visited.insert(t);
-    for (auto c : t)
-    {
-      to_visit.push_back(c);
-    }
-  }
-
-  return true;
 }
 
 // protected methods
@@ -132,6 +85,41 @@ bool RelationalTransitionSystem::no_next(smt::Term term)
     if(t->is_symbolic_const() &&
        !((inputs_.find(t) != inputs_.end()) ||
          (states_.find(t) != states_.end())
+         ))
+    {
+      return false;
+    }
+
+    visited.insert(t);
+    for (auto c : t)
+    {
+      to_visit.push_back(c);
+    }
+  }
+
+  return true;
+}
+
+bool RelationalTransitionSystem::known_symbols(const Term term)
+{
+  UnorderedTermSet visited;
+  TermVec to_visit{term};
+  Term t;
+  while(to_visit.size())
+  {
+    t = to_visit.back();
+    to_visit.pop_back();
+
+    if(visited.find(term) != visited.end())
+    {
+      // cache hit
+      continue;
+    }
+
+    if(t->is_symbolic_const() &&
+       !((inputs_.find(t) != inputs_.end()) ||
+         (states_.find(t) != states_.end()) ||
+         (next_states_.find(t) != next_states_.end())
          ))
     {
       return false;

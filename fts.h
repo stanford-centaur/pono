@@ -15,7 +15,7 @@ class FunctionalTransitionSystem
     FunctionalTransitionSystem(smt::SmtSolver & s)
       : solver_(s),
         init_(s->make_value(true)),
-        constraints_(s->make_value(true))
+        trans_(s->make_value(true))
      {}
 
   /* Sets initial states to the provided formula
@@ -67,6 +67,12 @@ class FunctionalTransitionSystem
    */
   void name_term(const std::string name, const smt::Term t);
 
+  /* Map all current state variables to next state variables in the term
+   * @param t the term to map
+   * @return the term with all next state variables
+   */
+  smt::Term next(const smt::Term term);
+
   // getters
   smt::SmtSolver & solver() { return solver_; };
 
@@ -94,20 +100,26 @@ class FunctionalTransitionSystem
   // initial state constraint
   smt::Term init_;
 
+  // transition relation (functional in this class)
+  smt::Term trans_;
+
   // next state update function
   smt::UnorderedTermMap state_updates_;
 
   // system state variables
   smt::UnorderedTermSet states_;
 
+  // maps state variables to next state variables
+  // note: the next state variables are only used
+  //       on the left hand side of equalities in
+  //       trans for this functional class
+  smt::UnorderedTermMap states_map_;
+
   // system inputs
   smt::UnorderedTermSet inputs_;
 
   // mapping from names to terms
   std::unordered_map<std::string, smt::Term> named_terms_;
-
-  // invariant constraints on the system
-  smt::Term constraints_;
 
   // helpers and checkers
 

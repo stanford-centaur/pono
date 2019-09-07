@@ -185,6 +185,12 @@ TermVec BTOR2Encoder::lazy_convert(TermVec tvec)
 void BTOR2Encoder::parse(std::string filename)
 {
   FILE* input_file = fopen(filename.c_str(), "r");
+
+  if(!input_file)
+  {
+    throw "Could not open " + filename;
+  }
+
   reader = btor2parser_new();
 
   if(!btor2parser_read_lines(reader, input_file))
