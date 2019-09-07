@@ -14,6 +14,7 @@ extern "C"
 #include <string>
 #include <unordered_map>
 
+#include "exceptions.h"
 #include "fts.h"
 #include "smt-switch/smt.h"
 

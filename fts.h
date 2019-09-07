@@ -6,6 +6,8 @@
 
 #include "smt-switch/smt.h"
 
+#include "exceptions.h"
+
 namespace cosa
 {
 

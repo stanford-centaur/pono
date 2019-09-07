@@ -11,7 +11,7 @@ void FunctionalTransitionSystem::set_init(const Term init)
   // TODO: only do this check in debug mode
   if (!known_symbols(init))
   {
-    throw "Unknown symbols in formula";
+    throw CosaException("Unknown symbols in formula");
   }
 
   init_ = init;
@@ -22,7 +22,7 @@ void FunctionalTransitionSystem::constrain_init(const smt::Term constraint)
   // TODO: Only do this check in debug mode
   if (!known_symbols(constraint))
   {
-    throw "Unknown symbols";
+    throw CosaException("Unknown symbols");
   }
   init_ = solver_->make_term(And, init_, constraint);
 }
@@ -32,7 +32,7 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
   // TODO: only do this check in debug mode
   if(states_.find(state) == states_.end())
   {
-    throw "Unknown state variable";
+    throw CosaException("Unknown state variable");
   }
 
   state_updates_[state] = val;
@@ -68,7 +68,7 @@ void FunctionalTransitionSystem::name_term(const string name, const Term t)
 {
   if (named_terms_.find(name) != named_terms_.end())
   {
-    throw "Name has already been used.";
+    throw CosaException("Name has already been used.");
   }
   named_terms_[name] = t;
 }

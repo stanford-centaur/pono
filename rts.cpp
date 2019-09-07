@@ -11,7 +11,7 @@ void RelationalTransitionSystem::set_behavior(const smt::Term init, const smt::T
   // TODO: Only do this check in debug mode
   if(!known_symbols(init) || !known_symbols(trans))
   {
-    throw "Unknown symbols";
+    throw CosaException("Unknown symbols");
   }
   init_ = init;
   trans_ = trans;
@@ -22,7 +22,7 @@ void RelationalTransitionSystem::set_trans(const smt::Term trans)
   // TODO: Only do this check in debug mode
   if (!known_symbols(trans))
   {
-    throw "Unknown symbols";
+    throw CosaException("Unknown symbols");
   }
   trans_ = trans;
 }
@@ -32,7 +32,7 @@ void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
   // TODO: Only do this check in debug mode
   if (!known_symbols(constraint))
   {
-    throw "Unknown symbols";
+    throw CosaException("Unknown symbols");
   }
   trans_ = solver_->make_term(And, trans_, constraint);
 }

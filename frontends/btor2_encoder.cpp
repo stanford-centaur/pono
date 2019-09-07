@@ -124,7 +124,7 @@ Term BTOR2Encoder::bv_to_bool(Term t)
   {
     if (sort->get_width() != 1)
     {
-      throw "Can't convert non-width 1 bitvector to bool.";
+      throw CosaException("Can't convert non-width 1 bitvector to bool.");
     }
     return s->make_term(Equal, t, s->make_value(1, s->make_sort(BV, 1)));
   }
@@ -188,14 +188,14 @@ void BTOR2Encoder::parse(std::string filename)
 
   if(!input_file)
   {
-    throw "Could not open " + filename;
+    throw CosaException("Could not open " + filename);
   }
 
   reader = btor2parser_new();
 
   if(!btor2parser_read_lines(reader, input_file))
   {
-    throw "Error parsing btor file.";
+    throw CosaException("Error parsing btor file.");
   }
 
   it = btor2parser_iter_init(reader);
@@ -277,7 +277,7 @@ void BTOR2Encoder::parse(std::string filename)
         }
       default:
         // TODO: maybe only check this in debug? or could always check cause it's really bad
-        throw "Unknown sort tag";
+        throw CosaException("Unknown sort tag");
       }
     }
     else if (l->tag == BTOR2_TAG_constraint)
