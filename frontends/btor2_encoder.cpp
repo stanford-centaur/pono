@@ -1,134 +1,28 @@
-extern "C"
-{
-  #include "btor2parser/btor2parser.h"
-}
-#include "gmpxx.h"
+#include "btor2_encoder.h"
 
-#include "assert.h"
 #include <iostream>
-#include "math.h"
-#include <stdio.h>
-#include <string>
-#include <unordered_map>
 
-#include "fts.h"
-#include "smt-switch/smt.h"
-#include "smt-switch/boolector_factory.h"
-
-using namespace std;
 using namespace smt;
-using namespace cosa;
+using namespace std;
 
-// converts booleans to bitvector of size one
-Term bool_to_bv(SmtSolver & s, Term t)
+namespace cosa
 {
-  if (t->get_sort()->get_sort_kind() == BOOL)
-  {
-    Sort bv1sort = s->make_sort(BV, 1);
-    return s->make_term(Ite, s->make_value(1, bv1sort), s->make_value(0, bv1sort));
-  }
-  else
-  {
-    return t;
-  }
-}
 
-// converts bitvector of size one to boolean
-Term bv_to_bool(SmtSolver & s, Term t)
-{
-  Sort sort = t->get_sort();
-  if (sort->get_sort_kind() == BV)
-  {
-    if (sort->get_width() != 1)
-    {
-      throw "Can't convert non-width 1 bitvector to bool.";
-    }
-    return s->make_term(Equal, t, s->make_value(1, s->make_sort(BV, 1)));
-  }
-  else
-  {
-    return t;
-  }
-}
+// Maps for use in conversion
+const unordered_map<Btor2Tag, int> basemap(
+                                           { {BTOR2_TAG_const, 2},
+                                             {BTOR2_TAG_constd, 10},
+                                             {BTOR2_TAG_consth, 16} });
+const unordered_set<Btor2Tag> overflow_ops({BTOR2_TAG_uaddo,
+                                            BTOR2_TAG_saddo,
+                                            //BTOR2_TAG_udivo, // not supposed to exist?
+                                            BTOR2_TAG_sdivo,
+                                            BTOR2_TAG_umulo,
+                                            BTOR2_TAG_smulo,
+                                            BTOR2_TAG_usubo,
+                                            BTOR2_TAG_ssubo});
 
-// lazy conversion
-
-// takes a list of booleans / bitvectors of size one
-// and lazily converts them to the majority
-TermVec lazy_convert(SmtSolver & s, TermVec tvec)
-{
-  TermVec res;
-  res.reserve(tvec.size());
-
-  unsigned int num_bools = 0;
-  Sort sort;
-  UnorderedSortSet sortset;
-  for (auto t : tvec)
-  {
-    res.push_back(t);
-
-    sort = t->get_sort();
-    sortset.insert(sort);
-
-    if (sort->get_sort_kind() == BOOL)
-    {
-      num_bools++;
-    }
-    else if (!(sort->get_sort_kind() == BV &&
-               sort->get_width() == 1))
-    {
-      throw "Expecting only bitvectors of size one and booleans";
-    }
-  }
-
-  if (sortset.size() > 1)
-  {
-    if (num_bools > tvec.size()/2)
-    {
-      for(auto t : tvec)
-      {
-        res.push_back(bv_to_bool(s, t));
-      }
-    }
-    else
-    {
-      for(auto t : tvec)
-      {
-        res.push_back(bool_to_bv(s, t));
-      }
-    }
-  }
-
-  return res;
-}
-
-int main(int argc, char** argv)
-{
-  SmtSolver s = BoolectorSolverFactory::create();
-  s->set_opt("produce-models", true);
-  FunctionalTransitionSystem fts(s);
-
-  Sort linesort;
-  TermVec termargs;
-  unordered_map<int, Sort> sorts;
-  unordered_map<int, Term> terms;
-  string symbol;
-
-  mpz_class cval;
-  const unordered_map<Btor2Tag, int> basemap(
-                                          { {BTOR2_TAG_const, 2},
-                                            {BTOR2_TAG_constd, 10},
-                                            {BTOR2_TAG_consth, 16} });
-  const unordered_set<Btor2Tag> overflow_ops({BTOR2_TAG_uaddo,
-                                              BTOR2_TAG_saddo,
-                                              //BTOR2_TAG_udivo, // not supposed to exist?
-                                              BTOR2_TAG_sdivo,
-                                              BTOR2_TAG_umulo,
-                                              BTOR2_TAG_smulo,
-                                              BTOR2_TAG_usubo,
-                                              BTOR2_TAG_ssubo});
-  // TODO: do this for booleans
-  const unordered_map<Btor2Tag, PrimOp> bvopmap(
+const unordered_map<Btor2Tag, smt::PrimOp> bvopmap(
                                               {  { BTOR2_TAG_add, BVAdd },
                                                  { BTOR2_TAG_and, BVAnd },
                                                  // { BTOR2_TAG_bad, },
@@ -145,7 +39,7 @@ int main(int argc, char** argv)
                                                  //{ BTOR2_TAG_inc, },
                                                  //{ BTOR2_TAG_init, },
                                                  //{ BTOR2_TAG_input, },
-                                                 { BTOR2_TAG_ite, Ite },
+                                                 //{ BTOR2_TAG_ite, Ite },
                                                  //{ BTOR2_TAG_justice, },
                                                  { BTOR2_TAG_mul, BVMul },
                                                  { BTOR2_TAG_nand, BVNand },
@@ -199,34 +93,98 @@ int main(int argc, char** argv)
                                                  //{ BTOR2_TAG_zero, }
                                               });
 
-  const unordered_map<Btor2Tag, PrimOp> boolopmap(
+const unordered_map<Btor2Tag, smt::PrimOp> boolopmap(
                                                   { { BTOR2_TAG_and, And },
                                                     { BTOR2_TAG_or, Or },
                                                     { BTOR2_TAG_xor, Xor },
                                                     { BTOR2_TAG_not, Not },
                                                     { BTOR2_TAG_implies, Implies },
                                                     { BTOR2_TAG_iff, Iff },
-                                                    { BTOR2_TAG_ite, Ite },
                                                     { BTOR2_TAG_eq, Equal },
                                                     { BTOR2_TAG_neq, Distinct }
                                                   });
 
-  TermVec badvec;
-  TermVec justicevec;
-  TermVec fairvec;
-
-  Btor2Parser* reader;
-  Btor2LineIterator it;
-  Btor2Line* l;
-  size_t i;
-
-  if (argc != 2)
+Term BTOR2Encoder::bool_to_bv(Term t)
+{
+  if (t->get_sort()->get_sort_kind() == BOOL)
   {
-    throw "Incorrect number of arguments, takes one btor file.";
+    Sort bv1sort = s->make_sort(BV, 1);
+    return s->make_term(Ite, s->make_value(1, bv1sort), s->make_value(0, bv1sort));
+  }
+  else
+  {
+    return t;
+  }
+}
+
+Term BTOR2Encoder::bv_to_bool(Term t)
+{
+  Sort sort = t->get_sort();
+  if (sort->get_sort_kind() == BV)
+  {
+    if (sort->get_width() != 1)
+    {
+      throw "Can't convert non-width 1 bitvector to bool.";
+    }
+    return s->make_term(Equal, t, s->make_value(1, s->make_sort(BV, 1)));
+  }
+  else
+  {
+    return t;
+  }
+}
+
+TermVec BTOR2Encoder::lazy_convert(TermVec tvec)
+{
+  TermVec res;
+  res.reserve(tvec.size());
+
+  unsigned int num_bools = 0;
+  bool wide_bvs;
+  Sort sort;
+  UnorderedSortSet sortset;
+  for (auto t : tvec)
+  {
+    res.push_back(t);
+
+    sort = t->get_sort();
+    sortset.insert(sort);
+
+    if (sort->get_sort_kind() == BOOL)
+    {
+      num_bools++;
+    }
+    else if (!(sort->get_sort_kind() == BV &&
+               sort->get_width() == 1))
+    {
+      wide_bvs = true;
+    }
   }
 
-  FILE* input_file = fopen(argv[1], "r");
+  if (sortset.size() > 1)
+  {
+    if (num_bools > tvec.size()/2 && !wide_bvs)
+    {
+      for(auto t : tvec)
+      {
+        res.push_back(bv_to_bool(t));
+      }
+    }
+    else
+    {
+      for(auto t : tvec)
+      {
+        res.push_back(bool_to_bv(t));
+      }
+    }
+  }
 
+  return res;
+}
+
+void BTOR2Encoder::parse(std::string filename)
+{
+  FILE* input_file = fopen(filename.c_str(), "r");
   reader = btor2parser_new();
 
   if(!btor2parser_read_lines(reader, input_file))
@@ -297,7 +255,6 @@ int main(int argc, char** argv)
     }
     else if(l->tag == BTOR2_TAG_sort)
     {
-      // TODO: handle the sort tags
       switch(l->sort.tag)
       {
       case BTOR2_TAG_SORT_bitvec:
@@ -319,7 +276,7 @@ int main(int argc, char** argv)
     }
     else if (l->tag == BTOR2_TAG_constraint)
     {
-      fts.add_constraint(bv_to_bool(s, termargs[0]));
+      fts.add_constraint(bv_to_bool(termargs[0]));
     }
     else if (l->tag == BTOR2_TAG_init)
     {
@@ -335,12 +292,12 @@ int main(int argc, char** argv)
     }
     else if (l->tag == BTOR2_TAG_justice)
     {
-      cout << "Warning: ignoring justice term" << endl;
+      std::cout << "Warning: ignoring justice term" << std::endl;
       justicevec.push_back(termargs[0]);
     }
     else if (l->tag == BTOR2_TAG_fair)
     {
-      cout << "Warning: ignoring fair term" << endl;
+      std::cout << "Warning: ignoring fair term" << std::endl;
       fairvec.push_back(termargs[0]);
     }
     else if (l->constant)
@@ -360,49 +317,49 @@ int main(int argc, char** argv)
     }
     else if (l->tag == BTOR2_TAG_slice)
     {
-      terms[l->id] = s->make_term(Op(Extract, l->args[1], l->args[2]), bool_to_bv(s, termargs[0]));
+      terms[l->id] = s->make_term(Op(Extract, l->args[1], l->args[2]), bool_to_bv(termargs[0]));
     }
     else if (l->tag == BTOR2_TAG_sext)
     {
-      terms[l->id] = s->make_term(Op(Sign_Extend, l->args[1]), bool_to_bv(s, termargs[0]));
+      terms[l->id] = s->make_term(Op(Sign_Extend, l->args[1]), bool_to_bv(termargs[0]));
     }
     else if (l->tag == BTOR2_TAG_uext)
     {
-      terms[l->id] = s->make_term(Op(Zero_Extend, l->args[1]), bool_to_bv(s, termargs[0]));
+      terms[l->id] = s->make_term(Op(Zero_Extend, l->args[1]), bool_to_bv(termargs[0]));
     }
     else if (l->tag == BTOR2_TAG_rol)
     {
-      terms[l->id] = s->make_term(Op(Rotate_Left, l->args[1]), bool_to_bv(s, termargs[0]));
+      terms[l->id] = s->make_term(Op(Rotate_Left, l->args[1]), bool_to_bv(termargs[0]));
     }
     else if (l->tag == BTOR2_TAG_ror)
     {
-      terms[l->id] = s->make_term(Op(Rotate_Right, l->args[1]), bool_to_bv(s, termargs[0]));
+      terms[l->id] = s->make_term(Op(Rotate_Right, l->args[1]), bool_to_bv(termargs[0]));
     }
     else if (l->tag == BTOR2_TAG_inc)
     {
-      Term t = bool_to_bv(s, termargs[0]);
+      Term t = bool_to_bv(termargs[0]);
       terms[l->id] = s->make_term(BVAdd, t, s->make_value(1, t->get_sort()));
     }
     else if (l->tag == BTOR2_TAG_dec)
     {
-      Term t = bool_to_bv(s, termargs[0]);
+      Term t = bool_to_bv(termargs[0]);
       terms[l->id] = s->make_term(BVSub, t, s->make_value(1, t->get_sort()));
     }
     else if (l->tag == BTOR2_TAG_redand)
     {
-      Term t = bool_to_bv(s, termargs[0]);
+      Term t = bool_to_bv(termargs[0]);
       Term ones = s->make_value(pow(2, t->get_sort()->get_width())-1, t->get_sort());
       terms[l->id] = s->make_term(BVComp, t, ones);
     }
     else if (l->tag == BTOR2_TAG_redor)
     {
-      Term t = bool_to_bv(s, termargs[0]);
-      Term zero = s->make_term(0, t->get_sort());
+      Term t = bool_to_bv(termargs[0]);
+      Term zero = s->make_value(0, t->get_sort());
       terms[l->id] = s->make_term(BVComp, t, zero);
     }
     else if (l->tag == BTOR2_TAG_redxor)
     {
-      Term t = bool_to_bv(s, termargs[0]);
+      Term t = bool_to_bv(termargs[0]);
       unsigned int width = t->get_sort()->get_width();
       Term res = s->make_term(Op(Extract, width-1, width-1), t);
       for (int i = width-1; i >= 0; i--)
@@ -411,11 +368,16 @@ int main(int argc, char** argv)
       }
       terms[l->id] = res;
     }
+    else if (l->tag == BTOR2_TAG_ite)
+    {
+      Term cond = bv_to_bool(termargs[0]);
+      TermVec tv = lazy_convert({termargs[1], termargs[2]});
+      terms[l->id] = s->make_term(Ite, cond, tv[0], tv[1]);
+    }
     else if (overflow_ops.find(l->tag) != overflow_ops.end())
     {
-      Term t0 = bool_to_bv(s, termargs[0]);
-      Term t1 = bool_to_bv(s, termargs[0]);
-      // TODO: finish this
+      Term t0 = bool_to_bv(termargs[0]);
+      Term t1 = bool_to_bv(termargs[0]);
       int width = linesort->get_width();
       t0 = s->make_term(Op(Zero_Extend, 1), t0);
       t1 = s->make_term(Op(Zero_Extend, 1), t1);
@@ -427,13 +389,13 @@ int main(int argc, char** argv)
     {
       if(boolopmap.find(l->tag) != boolopmap.end())
       {
-        termargs = lazy_convert(s, termargs);
+        termargs = lazy_convert(termargs);
       }
       else
       {
         for (int i = 0; i < termargs.size(); i++)
         {
-          termargs[i] = bool_to_bv(s, termargs[i]);
+          termargs[i] = bool_to_bv(termargs[i]);
         }
       }
       terms[l->id] = s->make_term(bvopmap.at(l->tag), termargs);
@@ -442,5 +404,7 @@ int main(int argc, char** argv)
   }
 
   btor2parser_delete(reader);
+
+}
 
 }
