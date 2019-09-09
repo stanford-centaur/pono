@@ -10,7 +10,7 @@ namespace cosa
 class Properties
 {
 public:
-  Properties(RelationalTransitionSystem &ts);
+  Properties(const RelationalTransitionSystem &ts);
   ~Properties();
 
   void add_prop(const smt::Term p);
@@ -21,8 +21,7 @@ public:
 
 private:
 
-  RelationalTransitionSystem &ts_;
-  smt::SmtSolver &solver_;
+  const RelationalTransitionSystem &ts_;
   
   std::vector<smt::Term> prop_;
   

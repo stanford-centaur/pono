@@ -6,9 +6,8 @@ using namespace smt;
 namespace cosa
 {
 
-  Properties::Properties(RelationalTransitionSystem &ts):
-    ts_(ts),
-    solver_(ts.solver())
+  Properties::Properties(const RelationalTransitionSystem &ts):
+    ts_(ts)
   {
   }
 
