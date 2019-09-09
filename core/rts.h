@@ -43,21 +43,21 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
    *
    * Returns false for any other term
    */
-  bool is_curr_var(const smt::Term sv);
+  bool is_curr_var(const smt::Term sv) const;
 
   /* @param sv the state variable to check
    * @return true if sv is a next state variable
    *
    * Returns false for any other term
    */
-  bool is_next_var(const smt::Term sv);
+  bool is_next_var(const smt::Term sv) const;
 
   // getters
 
   /* Returns the transition relation
    * @return a boolean term representing the transition relation
    */
-  smt::Term trans() { return trans_; };
+  smt::Term trans() const { return trans_; };
 
   // overloaded
   smt::Term make_state(const std::string name, const smt::Sort sort);
@@ -69,10 +69,10 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
   // helpers and checkers
 
   /* Returns true iff all the symbols in the formula are current states or inputs */
-  bool no_next(smt::Term term);
+  bool no_next(smt::Term term) const;
 
   // overloaded
-  bool known_symbols(const smt::Term term);
+  bool known_symbols(const smt::Term term) const;
 
 };
 
