@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-#include "smt.h"
+#include "smt-switch/smt.h"
 
 #include "fts.h"
 
