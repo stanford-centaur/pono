@@ -3,7 +3,7 @@
 
 #include "rts.h"
 
-#include "smt.h"
+#include "smt-switch/smt.h"
 
 namespace cosa {
   
@@ -16,23 +16,24 @@ namespace cosa {
 class Unroller
 {
  public:
-  Unroller(const RelationalTransitionSystem &ts);
+  Unroller(RelationalTransitionSystem &ts);
+  ~Unroller();
 
-  smt::term at_time(smt::term t, unsigned int k);
+  smt::Term at_time(smt::Term t, unsigned int k);
 
-  smt::term untime(smt::term t);
+  smt::Term untime(smt::Term t);
 
  private:
 
-  smt::term var_at_time(smt::term v, unsigned int k);
-  UnorderedTermMap time_cache_at_time(unsigned int k);
+  smt::Term var_at_time(smt::Term v, unsigned int k);
+  smt::UnorderedTermMap &time_cache_at_time(unsigned int k);
 
-  const RelationalTransitionSystem &ts_;
+  RelationalTransitionSystem &ts_;
   smt::SmtSolver &solver_;
   
-  typedef std::vector<UnorderedTermMap *> TimeCache;
+  typedef std::vector<smt::UnorderedTermMap *> TimeCache;
   TimeCache time_cache_;
-  UnorderedTermMap untime_cache_;
+  smt::UnorderedTermMap untime_cache_;
   
 }; // class Unroller
 
