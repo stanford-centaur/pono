@@ -73,7 +73,7 @@ void FunctionalTransitionSystem::name_term(const string name, const Term t)
   named_terms_[name] = t;
 }
 
-Term FunctionalTransitionSystem::next(const smt::Term term)
+Term FunctionalTransitionSystem::next(const smt::Term term) const 
 {
   return solver_->substitute(term, states_map_);
 }

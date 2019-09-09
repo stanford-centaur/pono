@@ -4,9 +4,10 @@
 
 namespace cosa {
 
-  Unroller::Unroller(RelationalTransitionSystem &ts):
+  Unroller::Unroller(const RelationalTransitionSystem &ts,
+		     smt::SmtSolver &solver):
     ts_(ts),
-    solver_(ts.solver())
+    solver_(solver)
   {
   }
 
@@ -33,12 +34,12 @@ namespace cosa {
     return ret;
   }
 
-  smt::Term Unroller::untime(smt::Term t)
+  smt::Term Unroller::untime(smt::Term t) const
   {
     return solver_->substitute(t, untime_cache_);
   }
 
-  smt::Term Unroller::var_at_time(smt::Term v, unsigned int k)
+  smt::Term Unroller::var_at_time(smt::Term v, unsigned int k) const
   {
     assert(v->is_symbolic_const());
 

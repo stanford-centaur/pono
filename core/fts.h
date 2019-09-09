@@ -73,27 +73,27 @@ class FunctionalTransitionSystem
    * @param t the term to map
    * @return the term with all next state variables
    */
-  smt::Term next(const smt::Term term);
+  smt::Term next(const smt::Term term) const;
 
   // getters
   smt::SmtSolver & solver() { return solver_; };
 
-  const smt::UnorderedTermSet & states() { return states_; };
+  const smt::UnorderedTermSet & states() const { return states_; };
 
-  const smt::UnorderedTermSet & inputs() { return inputs_; };
+  const smt::UnorderedTermSet & inputs() const { return inputs_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
    */
-  smt::Term init() { return init_; };
+  smt::Term init() const { return init_; };
 
   /* Returns the next state updates
    * @return a map of functional next state updates
    */
-  smt::UnorderedTermMap & state_updates() { return state_updates_; };
+  const smt::UnorderedTermMap & state_updates() const { return state_updates_; };
 
   /* @return the named terms mapping */
-  std::unordered_map<std::string, smt::Term> & named_terms() { return named_terms_; };
+  const std::unordered_map<std::string, smt::Term> & named_terms() const { return named_terms_; };
 
  protected:
   // solver

@@ -37,17 +37,17 @@ void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
   trans_ = solver_->make_term(And, trans_, constraint);
 }
 
-Term RelationalTransitionSystem::curr(const smt::Term term)
+Term RelationalTransitionSystem::curr(const smt::Term term) const
 {
   return solver_->substitute(term, next_states_map_);
 }
 
-bool RelationalTransitionSystem::is_curr_var(const smt::Term sv)
+bool RelationalTransitionSystem::is_curr_var(const smt::Term sv) const
 {
   return (states_.find(sv) != states_.end());
 }
 
-bool RelationalTransitionSystem::is_next_var(const smt::Term sv)
+bool RelationalTransitionSystem::is_next_var(const smt::Term sv) const
 {
   return (next_states_.find(sv) != next_states_.end());
 }
@@ -66,7 +66,7 @@ Term RelationalTransitionSystem::make_state(const string name, const Sort sort)
 
 // protected methods
 
-bool RelationalTransitionSystem::no_next(smt::Term term)
+bool RelationalTransitionSystem::no_next(smt::Term term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{term};
@@ -100,7 +100,7 @@ bool RelationalTransitionSystem::no_next(smt::Term term)
   return true;
 }
 
-bool RelationalTransitionSystem::known_symbols(const Term term)
+bool RelationalTransitionSystem::known_symbols(const Term term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{term};
