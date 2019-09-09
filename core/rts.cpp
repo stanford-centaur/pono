@@ -37,6 +37,16 @@ void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
   trans_ = solver_->make_term(And, trans_, constraint);
 }
 
+void FunctionalTransitionSystem::add_constraint(const Term constraint)
+{
+  trans_ = solver_->make_term(And, trans_, constraint);
+  if (only_curr(constraint))
+  {
+    // add the next-state version
+    trans_ = solver_->make_term(And, trans_, next(constraint));
+  }
+}
+
 Term RelationalTransitionSystem::curr(const smt::Term term) const
 {
   return solver_->substitute(term, next_states_map_);
@@ -66,26 +76,23 @@ Term RelationalTransitionSystem::make_state(const string name, const Sort sort)
 
 // protected methods
 
-bool RelationalTransitionSystem::no_next(smt::Term term) const
+bool RelationalTransitionSystem::only_curr(smt::Term term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{term};
   Term t;
-  while(to_visit.size())
+  while (to_visit.size())
   {
     t = to_visit.back();
     to_visit.pop_back();
 
-    if(visited.find(term) != visited.end())
+    if (visited.find(term) != visited.end())
     {
       // cache hit
       continue;
     }
 
-    if(t->is_symbolic_const() &&
-       !((inputs_.find(t) != inputs_.end()) ||
-         (states_.find(t) != states_.end())
-         ))
+    if (t->is_symbolic_const() && !(states_.find(t) != states_.end()))
     {
       return false;
     }
