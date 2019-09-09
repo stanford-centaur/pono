@@ -108,8 +108,8 @@ Term BTOR2Encoder::bool_to_bv(Term t)
 {
   if (t->get_sort()->get_sort_kind() == BOOL)
   {
-    Sort bv1sort = s->make_sort(BV, 1);
-    return s->make_term(Ite, s->make_value(1, bv1sort), s->make_value(0, bv1sort));
+    Sort bv1sort = solver_->make_sort(BV, 1);
+    return solver_->make_term(Ite, solver_->make_value(1, bv1sort), solver_->make_value(0, bv1sort));
   }
   else
   {
@@ -126,7 +126,7 @@ Term BTOR2Encoder::bv_to_bool(Term t)
     {
       throw CosaException("Can't convert non-width 1 bitvector to bool.");
     }
-    return s->make_term(Equal, t, s->make_value(1, s->make_sort(BV, 1)));
+    return solver_->make_term(Equal, t, solver_->make_value(1, solver_->make_sort(BV, 1)));
   }
   else
   {
@@ -191,88 +191,88 @@ void BTOR2Encoder::parse(std::string filename)
     throw CosaException("Could not open " + filename);
   }
 
-  reader = btor2parser_new();
+  reader_ = btor2parser_new();
 
-  if(!btor2parser_read_lines(reader, input_file))
+  if(!btor2parser_read_lines(reader_, input_file))
   {
     throw CosaException("Error parsing btor file.");
   }
 
-  it = btor2parser_iter_init(reader);
-  while((l = btor2parser_iter_next(&it)))
+  it_ = btor2parser_iter_init(reader_);
+  while((l_ = btor2parser_iter_next(&it_)))
   {
     /******************************** Identify sort ********************************/
-    if (l->tag != BTOR2_TAG_sort && l->sort.id)
+    if (l_->tag != BTOR2_TAG_sort && l_->sort.id)
     {
-      linesort=sorts.at(l->sort.id);
+      linesort_=sorts_.at(l_->sort.id);
     }
 
     /******************************** Gather term arguments ********************************/
-    termargs.clear();
-    termargs.reserve(l->nargs);
-    for(i = 0; i < l->nargs; i++)
+    termargs_.clear();
+    termargs_.reserve(l_->nargs);
+    for(i_ = 0; i_ < l_->nargs; i_++)
     {
-      if (terms.find(l->args[i]) == terms.end())
+      if (terms_.find(l_->args[i_]) == terms_.end())
       {
         break;
       }
-      termargs.push_back(terms.at(l->args[i]));
+      termargs_.push_back(terms_.at(l_->args[i_]));
     }
 
     /******************************** Handle special cases ********************************/
-    if (l->tag == BTOR2_TAG_state)
+    if (l_->tag == BTOR2_TAG_state)
     {
-      if (l->symbol)
+      if (l_->symbol)
       {
-        symbol = l->symbol;
+        symbol_ = l_->symbol;
       }
       else
       {
-        symbol = "state" + to_string(l->id);
+        symbol_ = "state" + to_string(l_->id);
       }
 
-      terms[l->id] = fts.make_state(symbol, linesort);
+      terms_[l_->id] = fts_.make_state(symbol_, linesort_);
     }
-    else if (l->tag == BTOR2_TAG_input)
+    else if (l_->tag == BTOR2_TAG_input)
     {
-      if (l->symbol)
+      if (l_->symbol)
       {
-        symbol = l->symbol;
+        symbol_ = l_->symbol;
       }
       else
       {
-        symbol = "input" + to_string(l->id);
+        symbol_ = "input" + to_string(l_->id);
       }
 
-      terms[l->id] = fts.make_input(symbol, linesort);
+      terms_[l_->id] = fts_.make_input(symbol_, linesort_);
     }
-    else if (l->tag == BTOR2_TAG_output)
+    else if (l_->tag == BTOR2_TAG_output)
     {
-      if (l->symbol)
+      if (l_->symbol)
       {
-        symbol = l->symbol;
+        symbol_ = l_->symbol;
       }
       else
       {
-        symbol = "output" + to_string(l->id);
+        symbol_ = "output" + to_string(l_->id);
       }
 
-      fts.name_term(symbol, termargs[0]);
+      fts_.name_term(symbol_, termargs_[0]);
     }
-    else if(l->tag == BTOR2_TAG_sort)
+    else if(l_->tag == BTOR2_TAG_sort)
     {
-      switch(l->sort.tag)
+      switch(l_->sort.tag)
       {
       case BTOR2_TAG_SORT_bitvec:
         {
-          linesort=s->make_sort(BV, l->sort.bitvec.width);
-          sorts[l->id]=linesort;
+          linesort_=solver_->make_sort(BV, l_->sort.bitvec.width);
+          sorts_[l_->id]=linesort_;
           break;
         }
       case BTOR2_TAG_SORT_array:
         {
-          linesort=s->make_sort(ARRAY, sorts.at(l->sort.array.index), sorts.at(l->sort.array.element));
-          sorts[l->id]=linesort;
+          linesort_=solver_->make_sort(ARRAY, sorts_.at(l_->sort.array.index), sorts_.at(l_->sort.array.element));
+          sorts_[l_->id]=linesort_;
           break;
         }
       default:
@@ -280,136 +280,136 @@ void BTOR2Encoder::parse(std::string filename)
         throw CosaException("Unknown sort tag");
       }
     }
-    else if (l->tag == BTOR2_TAG_constraint)
+    else if (l_->tag == BTOR2_TAG_constraint)
     {
-      fts.add_constraint(bv_to_bool(termargs[0]));
+      fts_.add_constraint(bv_to_bool(termargs_[0]));
     }
-    else if (l->tag == BTOR2_TAG_init)
+    else if (l_->tag == BTOR2_TAG_init)
     {
-      fts.constrain_init(s->make_term(Equal, termargs));
+      fts_.constrain_init(solver_->make_term(Equal, termargs_));
     }
-    else if (l->tag == BTOR2_TAG_next)
+    else if (l_->tag == BTOR2_TAG_next)
     {
-      fts.set_next(termargs[0], termargs[1]);
+      fts_.set_next(termargs_[0], termargs_[1]);
     }
-    else if (l->tag == BTOR2_TAG_bad)
+    else if (l_->tag == BTOR2_TAG_bad)
     {
-      badvec.push_back(termargs[0]);
+      badvec_.push_back(termargs_[0]);
     }
-    else if (l->tag == BTOR2_TAG_justice)
+    else if (l_->tag == BTOR2_TAG_justice)
     {
       std::cout << "Warning: ignoring justice term" << std::endl;
-      justicevec.push_back(termargs[0]);
+      justicevec_.push_back(termargs_[0]);
     }
-    else if (l->tag == BTOR2_TAG_fair)
+    else if (l_->tag == BTOR2_TAG_fair)
     {
       std::cout << "Warning: ignoring fair term" << std::endl;
-      fairvec.push_back(termargs[0]);
+      fairvec_.push_back(termargs_[0]);
     }
-    else if (l->constant)
+    else if (l_->constant)
     {
-      cval = mpz_class(l->constant, basemap.at(l->tag));
-      terms[l->id] = s->make_value(cval.get_str(10), linesort);
+      cval_ = mpz_class(l_->constant, basemap.at(l_->tag));
+      terms_[l_->id] = solver_->make_value(cval_.get_str(10), linesort_);
     }
-    else if (l->tag == BTOR2_TAG_one)
+    else if (l_->tag == BTOR2_TAG_one)
     {
-      cval = mpz_class("1", 10);
-      terms[l->id] = s->make_value(cval.get_str(10), linesort);
+      cval_ = mpz_class("1", 10);
+      terms_[l_->id] = solver_->make_value(cval_.get_str(10), linesort_);
     }
-    else if (l->tag == BTOR2_TAG_ones)
+    else if (l_->tag == BTOR2_TAG_ones)
     {
-      cval = mpz_class(string(linesort->get_width(), '1').c_str(), 2);
-      terms[l->id] = s->make_value(cval.get_str(10), linesort);
+      cval_ = mpz_class(string(linesort_->get_width(), '1').c_str(), 2);
+      terms_[l_->id] = solver_->make_value(cval_.get_str(10), linesort_);
     }
-    else if (l->tag == BTOR2_TAG_slice)
+    else if (l_->tag == BTOR2_TAG_slice)
     {
-      terms[l->id] = s->make_term(Op(Extract, l->args[1], l->args[2]), bool_to_bv(termargs[0]));
+      terms_[l_->id] = solver_->make_term(Op(Extract, l_->args[1], l_->args[2]), bool_to_bv(termargs_[0]));
     }
-    else if (l->tag == BTOR2_TAG_sext)
+    else if (l_->tag == BTOR2_TAG_sext)
     {
-      terms[l->id] = s->make_term(Op(Sign_Extend, l->args[1]), bool_to_bv(termargs[0]));
+      terms_[l_->id] = solver_->make_term(Op(Sign_Extend, l_->args[1]), bool_to_bv(termargs_[0]));
     }
-    else if (l->tag == BTOR2_TAG_uext)
+    else if (l_->tag == BTOR2_TAG_uext)
     {
-      terms[l->id] = s->make_term(Op(Zero_Extend, l->args[1]), bool_to_bv(termargs[0]));
+      terms_[l_->id] = solver_->make_term(Op(Zero_Extend, l_->args[1]), bool_to_bv(termargs_[0]));
     }
-    else if (l->tag == BTOR2_TAG_rol)
+    else if (l_->tag == BTOR2_TAG_rol)
     {
-      terms[l->id] = s->make_term(Op(Rotate_Left, l->args[1]), bool_to_bv(termargs[0]));
+      terms_[l_->id] = solver_->make_term(Op(Rotate_Left, l_->args[1]), bool_to_bv(termargs_[0]));
     }
-    else if (l->tag == BTOR2_TAG_ror)
+    else if (l_->tag == BTOR2_TAG_ror)
     {
-      terms[l->id] = s->make_term(Op(Rotate_Right, l->args[1]), bool_to_bv(termargs[0]));
+      terms_[l_->id] = solver_->make_term(Op(Rotate_Right, l_->args[1]), bool_to_bv(termargs_[0]));
     }
-    else if (l->tag == BTOR2_TAG_inc)
+    else if (l_->tag == BTOR2_TAG_inc)
     {
-      Term t = bool_to_bv(termargs[0]);
-      terms[l->id] = s->make_term(BVAdd, t, s->make_value(1, t->get_sort()));
+      Term t = bool_to_bv(termargs_[0]);
+      terms_[l_->id] = solver_->make_term(BVAdd, t, solver_->make_value(1, t->get_sort()));
     }
-    else if (l->tag == BTOR2_TAG_dec)
+    else if (l_->tag == BTOR2_TAG_dec)
     {
-      Term t = bool_to_bv(termargs[0]);
-      terms[l->id] = s->make_term(BVSub, t, s->make_value(1, t->get_sort()));
+      Term t = bool_to_bv(termargs_[0]);
+      terms_[l_->id] = solver_->make_term(BVSub, t, solver_->make_value(1, t->get_sort()));
     }
-    else if (l->tag == BTOR2_TAG_redand)
+    else if (l_->tag == BTOR2_TAG_redand)
     {
-      Term t = bool_to_bv(termargs[0]);
-      Term ones = s->make_value(pow(2, t->get_sort()->get_width())-1, t->get_sort());
-      terms[l->id] = s->make_term(BVComp, t, ones);
+      Term t = bool_to_bv(termargs_[0]);
+      Term ones = solver_->make_value(pow(2, t->get_sort()->get_width())-1, t->get_sort());
+      terms_[l_->id] = solver_->make_term(BVComp, t, ones);
     }
-    else if (l->tag == BTOR2_TAG_redor)
+    else if (l_->tag == BTOR2_TAG_redor)
     {
-      Term t = bool_to_bv(termargs[0]);
-      Term zero = s->make_value(0, t->get_sort());
-      terms[l->id] = s->make_term(BVComp, t, zero);
+      Term t = bool_to_bv(termargs_[0]);
+      Term zero = solver_->make_value(0, t->get_sort());
+      terms_[l_->id] = solver_->make_term(BVComp, t, zero);
     }
-    else if (l->tag == BTOR2_TAG_redxor)
+    else if (l_->tag == BTOR2_TAG_redxor)
     {
-      Term t = bool_to_bv(termargs[0]);
+      Term t = bool_to_bv(termargs_[0]);
       unsigned int width = t->get_sort()->get_width();
-      Term res = s->make_term(Op(Extract, width-1, width-1), t);
+      Term res = solver_->make_term(Op(Extract, width-1, width-1), t);
       for (int i = width-1; i >= 0; i--)
       {
-        res = s->make_term(BVXor, res, s->make_term(Op(Extract, i, i), t));
+        res = solver_->make_term(BVXor, res, solver_->make_term(Op(Extract, i, i), t));
       }
-      terms[l->id] = res;
+      terms_[l_->id] = res;
     }
-    else if (l->tag == BTOR2_TAG_ite)
+    else if (l_->tag == BTOR2_TAG_ite)
     {
-      Term cond = bv_to_bool(termargs[0]);
-      TermVec tv = lazy_convert({termargs[1], termargs[2]});
-      terms[l->id] = s->make_term(Ite, cond, tv[0], tv[1]);
+      Term cond = bv_to_bool(termargs_[0]);
+      TermVec tv = lazy_convert({termargs_[1], termargs_[2]});
+      terms_[l_->id] = solver_->make_term(Ite, cond, tv[0], tv[1]);
     }
-    else if (overflow_ops.find(l->tag) != overflow_ops.end())
+    else if (overflow_ops.find(l_->tag) != overflow_ops.end())
     {
-      Term t0 = bool_to_bv(termargs[0]);
-      Term t1 = bool_to_bv(termargs[0]);
-      int width = linesort->get_width();
-      t0 = s->make_term(Op(Zero_Extend, 1), t0);
-      t1 = s->make_term(Op(Zero_Extend, 1), t1);
-      terms[l->id] = s->make_term(Op(Extract, width, width),
-                                  s->make_term(bvopmap.at(l->tag), t0, t1));
+      Term t0 = bool_to_bv(termargs_[0]);
+      Term t1 = bool_to_bv(termargs_[0]);
+      int width = linesort_->get_width();
+      t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
+      t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
+      terms_[l_->id] = solver_->make_term(Op(Extract, width, width),
+                                  solver_->make_term(bvopmap.at(l_->tag), t0, t1));
     }
     /******************************** Handle general case ********************************/
     else
     {
-      if(boolopmap.find(l->tag) != boolopmap.end())
+      if(boolopmap.find(l_->tag) != boolopmap.end())
       {
-        termargs = lazy_convert(termargs);
+        termargs_ = lazy_convert(termargs_);
       }
       else
       {
-        for (int i = 0; i < termargs.size(); i++)
+        for (int i = 0; i < termargs_.size(); i++)
         {
-          termargs[i] = bool_to_bv(termargs[i]);
+          termargs_[i] = bool_to_bv(termargs_[i]);
         }
       }
-      terms[l->id] = s->make_term(bvopmap.at(l->tag), termargs);
+      terms_[l_->id] = solver_->make_term(bvopmap.at(l_->tag), termargs_);
     }
 
   }
 
-  btor2parser_delete(reader);
+  btor2parser_delete(reader_);
 
 }
 
