@@ -24,8 +24,8 @@ namespace cosa
   {
   public:
     BTOR2Encoder(std::string filename, FunctionalTransitionSystem & fts)
-      : fts(fts),
-        s(fts.solver())
+      : fts_(fts),
+        solver_(fts.solver())
      {
        parse(filename);
      };
@@ -45,25 +45,25 @@ namespace cosa
     void parse(std::string filename);
 
     // Important members
-    smt::SmtSolver & s;
-    cosa::FunctionalTransitionSystem & fts;
+    smt::SmtSolver & solver_;
+    cosa::FunctionalTransitionSystem & fts_;
 
     // Useful variables
-    smt::Sort linesort;
-    smt::TermVec termargs;
-    std::unordered_map<int, smt::Sort> sorts;
-    std::unordered_map<int, smt::Term> terms;
-    std::string symbol;
-    mpz_class cval;
+    smt::Sort linesort_;
+    smt::TermVec termargs_;
+    std::unordered_map<int, smt::Sort> sorts_;
+    std::unordered_map<int, smt::Term> terms_;
+    std::string symbol_;
+    mpz_class cval_;
 
-    smt::TermVec badvec;
-    smt::TermVec justicevec;
-    smt::TermVec fairvec;
+    smt::TermVec badvec_;
+    smt::TermVec justicevec_;
+    smt::TermVec fairvec_;
 
-    Btor2Parser* reader;
-    Btor2LineIterator it;
-    Btor2Line* l;
-    size_t i;
+    Btor2Parser* reader_;
+    Btor2LineIterator it_;
+    Btor2Line* l_;
+    size_t i_;
 
   };
 }
