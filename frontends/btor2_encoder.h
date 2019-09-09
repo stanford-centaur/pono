@@ -30,6 +30,10 @@ namespace cosa
        parse(filename);
      };
 
+    smt::TermVec badvec() { return badvec_; };
+    smt::TermVec justicevec() { return justicevec_; };
+    smt::TermVec fairvec() { return fairvec_; };
+
   protected:
 
     // converts booleans to bitvector of size one
