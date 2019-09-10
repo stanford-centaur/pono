@@ -55,7 +55,7 @@ namespace cosa
     solver_->pop();
 
     solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
-    solver_->assert_formula(unroller_.at_time(property_.prop, i));
+    solver_->assert_formula(unroller_.at_time(property_.prop(), i));
     
     return true;
   }
