@@ -21,7 +21,7 @@ namespace cosa
   KInduction::initialize()
   {
     reached_k_ = -1;
-    //solver_->reset_assertions();
+    solver_->reset_assertions();
   }
 
   ProverResult KInduction::check_until(size_t k)
