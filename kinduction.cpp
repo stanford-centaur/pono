@@ -24,17 +24,17 @@ namespace cosa
     //solver_->reset_assertions();
   }
 
-  bool KInduction::check_until(size_t k)
+  ProverResult KInduction::check_until(size_t k)
   {
     for (size_t i = 0; i <= k; ++i) {
       if (!base_step(i)) {
-	return false;
+	return ProverResult::FALSE;
       }
       if (inductive_step(i)) {
-	return true;
+	return ProverResult::TRUE;
       }
     }
-    //TODO: return unknown
+    return ProverResult::UNKNOWN;
   }
   
   bool KInduction::base_step(size_t i)

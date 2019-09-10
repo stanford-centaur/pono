@@ -25,24 +25,24 @@ namespace cosa
     solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
   }
   
-  bool Bmc::check_until(size_t k)
+  ProverResult Bmc::check_until(size_t k)
   {
     for (size_t i = 0; i <= k; ++i) {
       if (!step(i)) {
-	return false;
+	return ProverResult::FALSE;
       }
     }
-    return true;
+    return ProverResult::UNKNOWN;
   }
 
-  bool Bmc::prove()
+  ProverResult Bmc::prove()
   {
     for (size_t i = 0; ; ++i) {
       if (!step(i)) {
-	return false;
+	return ProverResult::FALSE;
       }
     }
-    return true;
+    return ProverResult::UNKNOWN;
   }
   
   bool Bmc::step(size_t i)
