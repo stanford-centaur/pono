@@ -15,6 +15,8 @@ public:
   Bmc(const Property &p, smt::SmtSolver &solver);
   ~Bmc();
 
+  void initialize();
+  
   bool check_until(size_t k);
   
 private:

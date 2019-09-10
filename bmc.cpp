@@ -11,13 +11,19 @@ namespace cosa
     solver_(solver),
     unroller_(ts_, solver_)
   {
-    solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+    initialize();
   }
 
   Bmc::~Bmc()
   {
   }
 
+  void Bmc::initialize()
+  {
+    //solver_->reset_assertions();
+    solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+  }
+  
   bool Bmc::check_until(size_t k)
   {
     size_t i = 0;
@@ -38,13 +44,13 @@ namespace cosa
       solver_->assert_formula(unroller_.at_time(ts_.trans(), i-1));
     }
 
-    //solver_->push();
+    solver_->push();
     solver_->assert_formula(unroller_.at_time(bad, i));
     Result r = solver_->check_sat();
     if (r.is_sat()) {
       res = false;
     } else {
-      //solver_->pop();
+      solver_->pop();
     }
     
     return res;
