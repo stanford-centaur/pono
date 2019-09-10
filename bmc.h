@@ -20,7 +20,7 @@ public:
   
 private:
 
-  bool step();
+  bool step(size_t i);
    
   const RelationalTransitionSystem &ts_;
   const Property &property_;
