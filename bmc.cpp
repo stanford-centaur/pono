@@ -20,14 +20,14 @@ namespace cosa
 
   void Bmc::initialize()
   {
+    reached_k_ = -1;
     //solver_->reset_assertions();
     solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
   }
   
   bool Bmc::check_until(size_t k)
   {
-    size_t i = 0;
-    while (i <= k) {
+    for (size_t i = 0; i <= k; ++i) {
       if (!step(i)) {
 	return false;
       }
@@ -35,8 +35,24 @@ namespace cosa
     return true;
   }
 
+  bool Bmc::prove()
+  {
+    for (size_t i = 0; ; ++i) {
+      if (!step(i)) {
+	return false;
+      }
+    }
+    return true;
+  }
+  
   bool Bmc::step(size_t i)
   {
+    if (i <= reached_k_) {
+      return true;
+    }
+    
+    std::cout << "Checking BMC Bound " << i << std::endl;
+
     bool res = true;
     Term bad = solver_->make_term(PrimOp::Not, property_.prop());
 
@@ -52,7 +68,9 @@ namespace cosa
     } else {
       solver_->pop();
     }
-    
+
+    ++reached_k_;
+
     return res;
   }
   

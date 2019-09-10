@@ -18,6 +18,8 @@ public:
   void initialize();
   
   bool check_until(size_t k);
+
+  bool prove();
   
 private:
 
@@ -29,6 +31,8 @@ private:
   smt::SmtSolver &solver_;
 
   Unroller unroller_;
+
+  size_t reached_k_;
 
 }; // class Bmc
   
