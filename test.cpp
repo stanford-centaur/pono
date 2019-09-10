@@ -2,6 +2,10 @@
 
 #include "smt-switch/boolector_factory.h"
 
+#include "prop.h"
+
+#include "bmc.h"
+
 #include <iostream>
 
 using namespace cosa;
@@ -21,7 +25,7 @@ int main(int argc, char ** argv)
   s->set_opt("produce-models", true);
   RelationalTransitionSystem rts(s);
 
-  BTOR2Encoder(filename, rts);
+  BTOR2Encoder btor_enc(filename, rts);
 
   cout << "Created FunctionalTransitionSystem with:\n";
   cout << "\t" << rts.inputs().size() << " input variables." << endl;
@@ -39,5 +43,11 @@ int main(int argc, char ** argv)
     cout << "\t" << s << endl;
   }
 
+  Property p(rts, s->make_term(PrimOp::Not, btor_enc.badvec()[0]));
+  cout << "Property:" << endl;
+  cout << p.prop() << endl;
+
+  Bmc bmc(p, s);
+  
   return 0;
 }
