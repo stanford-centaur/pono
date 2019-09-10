@@ -12,8 +12,7 @@ namespace cosa
 class Bmc
 {
 public:
-  Bmc(const RelationalTransitionSystem &ts, const Property &p,
-      smt::SmtSolver &solver);
+  Bmc(const Property &p, smt::SmtSolver &solver);
   ~Bmc();
 
   bool check_until(size_t k);

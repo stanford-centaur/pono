@@ -5,12 +5,11 @@ using namespace smt;
 namespace cosa
 {
 
-  Bmc::Bmc(const RelationalTransitionSystem &ts, const Property &p,
-	   SmtSolver &solver):
-    ts_(ts),
+  Bmc::Bmc(const Property &p, SmtSolver &solver):
+    ts_(p.transition_system()),
     property_(p),
     solver_(solver),
-    unroller_(ts, solver)
+    unroller_(ts_, solver_)
   {
     solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
   }
