@@ -43,11 +43,17 @@ int main(int argc, char ** argv)
     cout << "\t" << s << endl;
   }
 
+  cout << "Init:" << endl;
+  cout << "\t" << rts.init() << endl;
+
+  cout << "Trans:" << endl;
+  cout << "\t" << rts.trans() << endl;
+
   Property p(rts, s->make_term(PrimOp::Not, btor_enc.badvec()[0]));
   cout << "Property:" << endl;
   cout << p.prop() << endl;
 
   Bmc bmc(p, s);
-  
+
   return 0;
 }
