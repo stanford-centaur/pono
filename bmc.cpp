@@ -21,7 +21,7 @@ namespace cosa
   void Bmc::initialize()
   {
     reached_k_ = -1;
-    //solver_->reset_assertions();
+    solver_->reset_assertions();
     solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
   }
   
