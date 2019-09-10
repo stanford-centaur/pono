@@ -37,7 +37,7 @@ void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
   trans_ = solver_->make_term(And, trans_, constraint);
 }
 
-void FunctionalTransitionSystem::add_constraint(const Term constraint)
+void RelationalTransitionSystem::add_constraint(const Term constraint)
 {
   trans_ = solver_->make_term(And, trans_, constraint);
   if (only_curr(constraint))
@@ -76,7 +76,7 @@ Term RelationalTransitionSystem::make_state(const string name, const Sort sort)
 
 // protected methods
 
-bool RelationalTransitionSystem::only_curr(smt::Term term) const
+bool RelationalTransitionSystem::only_curr(const smt::Term term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{term};

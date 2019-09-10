@@ -231,7 +231,7 @@ void BTOR2Encoder::parse(std::string filename)
         symbol_ = "state" + to_string(l_->id);
       }
 
-      terms_[l_->id] = fts_.make_state(symbol_, linesort_);
+      terms_[l_->id] = rts_.make_state(symbol_, linesort_);
     }
     else if (l_->tag == BTOR2_TAG_input)
     {
@@ -244,7 +244,7 @@ void BTOR2Encoder::parse(std::string filename)
         symbol_ = "input" + to_string(l_->id);
       }
 
-      terms_[l_->id] = fts_.make_input(symbol_, linesort_);
+      terms_[l_->id] = rts_.make_input(symbol_, linesort_);
     }
     else if (l_->tag == BTOR2_TAG_output)
     {
@@ -257,7 +257,7 @@ void BTOR2Encoder::parse(std::string filename)
         symbol_ = "output" + to_string(l_->id);
       }
 
-      fts_.name_term(symbol_, termargs_[0]);
+      rts_.name_term(symbol_, termargs_[0]);
     }
     else if(l_->tag == BTOR2_TAG_sort)
     {
@@ -282,15 +282,15 @@ void BTOR2Encoder::parse(std::string filename)
     }
     else if (l_->tag == BTOR2_TAG_constraint)
     {
-      fts_.add_constraint(bv_to_bool(termargs_[0]));
+      rts_.add_constraint(bv_to_bool(termargs_[0]));
     }
     else if (l_->tag == BTOR2_TAG_init)
     {
-      fts_.constrain_init(solver_->make_term(Equal, termargs_));
+      rts_.constrain_init(solver_->make_term(Equal, termargs_));
     }
     else if (l_->tag == BTOR2_TAG_next)
     {
-      fts_.set_next(termargs_[0], termargs_[1]);
+      rts_.set_next(termargs_[0], termargs_[1]);
     }
     else if (l_->tag == BTOR2_TAG_bad)
     {

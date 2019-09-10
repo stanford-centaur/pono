@@ -15,7 +15,7 @@ extern "C"
 #include <unordered_map>
 
 #include "exceptions.h"
-#include "fts.h"
+#include "rts.h"
 #include "smt-switch/smt.h"
 
 namespace cosa
@@ -23,9 +23,9 @@ namespace cosa
   class BTOR2Encoder
   {
   public:
-    BTOR2Encoder(std::string filename, FunctionalTransitionSystem & fts)
-      : fts_(fts),
-        solver_(fts.solver())
+    BTOR2Encoder(std::string filename, RelationalTransitionSystem & rts)
+      : rts_(rts),
+        solver_(rts.solver())
      {
        parse(filename);
      };
@@ -50,7 +50,7 @@ namespace cosa
 
     // Important members
     smt::SmtSolver & solver_;
-    cosa::FunctionalTransitionSystem & fts_;
+    cosa::RelationalTransitionSystem & rts_;
 
     // Useful variables
     smt::Sort linesort_;

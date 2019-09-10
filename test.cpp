@@ -19,22 +19,22 @@ int main(int argc, char ** argv)
 
   SmtSolver s = BoolectorSolverFactory::create();
   s->set_opt("produce-models", true);
-  FunctionalTransitionSystem fts(s);
+  RelationalTransitionSystem rts(s);
 
-  BTOR2Encoder(filename, fts);
+  BTOR2Encoder(filename, rts);
 
   cout << "Created FunctionalTransitionSystem with:\n";
-  cout << "\t" << fts.inputs().size() << " input variables." << endl;
-  cout << "\t" << fts.states().size() << " state variables." << endl;
+  cout << "\t" << rts.inputs().size() << " input variables." << endl;
+  cout << "\t" << rts.states().size() << " state variables." << endl;
 
   cout << "Inputs:" << endl;
-  for (auto i : fts.inputs())
+  for (auto i : rts.inputs())
   {
     cout << "\t" << i << endl;
   }
 
   cout << "States:" << endl;
-  for (auto s : fts.states())
+  for (auto s : rts.states())
   {
     cout << "\t" << s << endl;
   }
