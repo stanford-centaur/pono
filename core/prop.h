@@ -15,6 +15,10 @@ public:
 
   const smt::Term prop() const { return prop_; }
 
+  const RelationalTransitionSystem &transition_system() const {
+    return ts_;
+  }
+
 private:
 
   const RelationalTransitionSystem &ts_;
