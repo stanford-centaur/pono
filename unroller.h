@@ -1,5 +1,4 @@
-#ifndef UNROLLER_H
-#define UNROLLER_H
+#pragma once
 
 #include "rts.h"
 
@@ -39,4 +38,3 @@ class Unroller
 
 } // namespace cosa
 
-#endif
