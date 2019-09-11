@@ -18,7 +18,7 @@ namespace cosa
   {
   }
 
-  KInduction::initialize()
+  void KInduction::initialize()
   {
     reached_k_ = -1;
     solver_->reset_assertions();
@@ -38,6 +38,19 @@ namespace cosa
     return ProverResult::UNKNOWN;
   }
 
+  ProverResult KInduction::prove()
+  {
+    for (int i = 0; ; ++i) {
+      if (!base_step(i)) {
+	return ProverResult::FALSE;
+      }
+      if (inductive_step(i)) {
+	return ProverResult::TRUE;
+      }
+    }
+    return ProverResult::UNKNOWN;
+  }
+  
   bool KInduction::base_step(int i)
   {
     if (i <= reached_k_) {

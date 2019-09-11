@@ -5,7 +5,7 @@
 #include "unroller.h"
 
 #include "smt-switch/smt.h"
-#include "properresult.h"
+#include "proverresult.h"
 
 namespace cosa
 {
@@ -19,7 +19,8 @@ public:
   void initialize();
 
   ProverResult check_until(int k);
-  
+
+  ProverResult prove();
 private:
 
   bool base_step(int i);
