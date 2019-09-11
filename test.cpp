@@ -23,6 +23,7 @@ int main(int argc, char ** argv)
 
   SmtSolver s = BoolectorSolverFactory::create();
   s->set_opt("produce-models", true);
+  s->set_opt("incremental", true);
   RelationalTransitionSystem rts(s);
 
   BTOR2Encoder btor_enc(filename, rts);
@@ -49,6 +50,9 @@ int main(int argc, char ** argv)
   cout << "Trans:" << endl;
   cout << "\t" << rts.trans() << endl;
 
+  // FIXME: this will break for more than one property
+  //        because symbol hashing takes place in Unroller
+  //        but we reuse the same solver
   for (auto i : btor_enc.badvec()) {
     Property p(rts, s->make_term(PrimOp::Not, i));
     cout << "Property:" << endl;
@@ -56,7 +60,7 @@ int main(int argc, char ** argv)
 
     Bmc bmc(p, s);
 
-    ProverResult r = bmc.check_until(20);
+    ProverResult r = bmc.check_until(11);
     if (r == FALSE) {
       cout << i << " is FALSE" << endl;
     } else if (r == TRUE) {
@@ -64,7 +68,7 @@ int main(int argc, char ** argv)
     } else {
       cout << i << " is UNKNOWN" << endl;
     }
+
   }
-  
   return 0;
 }
