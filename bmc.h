@@ -18,13 +18,13 @@ public:
 
   void initialize();
   
-  ProverResult check_until(size_t k);
+  ProverResult check_until(int k);
 
   ProverResult prove();
   
 private:
 
-  bool step(size_t i);
+  bool step(int i);
    
   const RelationalTransitionSystem &ts_;
   const Property &property_;
@@ -33,7 +33,7 @@ private:
 
   Unroller unroller_;
 
-  size_t reached_k_;
+  int reached_k_;
 
 }; // class Bmc
   

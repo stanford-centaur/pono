@@ -18,14 +18,14 @@ public:
 
   void initialize();
 
-  ProverResult check_until(size_t k);
+  ProverResult check_until(int k);
   
 private:
 
-  bool base_step(size_t i);
-  bool inductive_step(size_t i);
+  bool base_step(int i);
+  bool inductive_step(int i);
 
-  void add_simple_path_constraint(size_t i, size_t j);
+  void add_simple_path_constraint(int i, int j);
 
   const RelationalTransitionSystem &ts_;
   const Property &property_;
@@ -33,7 +33,7 @@ private:
   smt::SmtSolver &solver_;
   Unroller unroller_;
 
-  size_t reached_k_;
+  int reached_k_;
   
 }; // class KInduction
   

@@ -24,9 +24,9 @@ namespace cosa
     solver_->reset_assertions();
   }
 
-  ProverResult KInduction::check_until(size_t k)
+  ProverResult KInduction::check_until(int k)
   {
-    for (size_t i = 0; i <= k; ++i) {
+    for (int i = 0; i <= k; ++i) {
       if (!base_step(i)) {
 	return ProverResult::FALSE;
       }
@@ -37,7 +37,7 @@ namespace cosa
     return ProverResult::UNKNOWN;
   }
   
-  bool KInduction::base_step(size_t i)
+  bool KInduction::base_step(int i)
   {
     if (i <= reached_k_) {
       return true;
@@ -60,7 +60,7 @@ namespace cosa
     return true;
   }
 
-  bool KInduction::inductive_step(size_t i)
+  bool KInduction::inductive_step(int i)
   {
     if (i <= reached_k_) {
       return false;
@@ -81,7 +81,7 @@ namespace cosa
     return false;
   }
 
-  void KInduction::add_simple_path_constraint(size_t i, size_t j)
+  void KInduction::add_simple_path_constraint(int i, int j)
   {
     //TODO
   }

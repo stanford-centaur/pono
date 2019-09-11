@@ -20,14 +20,14 @@ namespace cosa
 
   void Bmc::initialize()
   {
-    reached_k_ = 0;
+    reached_k_ = -1;
     solver_->reset_assertions();
     solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
   }
   
-  ProverResult Bmc::check_until(size_t k)
+  ProverResult Bmc::check_until(int k)
   {
-    for (size_t i = 0; i <= k; ++i) {
+    for (int i = 0; i <= k; ++i) {
       if (!step(i)) {
 	return ProverResult::FALSE;
       }
@@ -37,7 +37,7 @@ namespace cosa
 
   ProverResult Bmc::prove()
   {
-    for (size_t i = 0; ; ++i) {
+    for (int i = 0; ; ++i) {
       if (!step(i)) {
 	return ProverResult::FALSE;
       }
@@ -45,7 +45,7 @@ namespace cosa
     return ProverResult::UNKNOWN;
   }
   
-  bool Bmc::step(size_t i)
+  bool Bmc::step(int i)
   {
     if (i <= reached_k_) {
       return true;
