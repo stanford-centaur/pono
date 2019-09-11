@@ -49,14 +49,22 @@ int main(int argc, char ** argv)
   cout << "Trans:" << endl;
   cout << "\t" << rts.trans() << endl;
 
-  Property p(rts, s->make_term(PrimOp::Not, btor_enc.badvec()[0]));
-  cout << "Property:" << endl;
-  cout << p.prop() << endl;
+  for (auto i : btor_enc.badvec()) {
+    Property p(rts, s->make_term(PrimOp::Not, i));
+    cout << "Property:" << endl;
+    cout << p.prop() << endl;
 
-  Bmc bmc(p, s);
+    Bmc bmc(p, s);
 
-  ProverResult r = bmc.check_until(20);
-  cout << (r == FALSE) << endl;
-
+    ProverResult r = bmc.check_until(20);
+    if (r == FALSE) {
+      cout << i << " is FALSE" << endl;
+    } else if (r == TRUE) {
+      cout << i << " is TRUE" << endl;
+    } else {
+      cout << i << " is UNKNOWN" << endl;
+    }
+  }
+  
   return 0;
 }
