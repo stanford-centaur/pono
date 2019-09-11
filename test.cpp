@@ -55,5 +55,8 @@ int main(int argc, char ** argv)
 
   Bmc bmc(p, s);
 
+  ProverResult r = bmc.check_until(20);
+  cout << (r == FALSE) << endl;
+
   return 0;
 }
