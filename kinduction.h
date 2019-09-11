@@ -34,6 +34,8 @@ private:
   Unroller unroller_;
 
   int reached_k_;
+
+  smt::Term simple_path_;
   
 }; // class KInduction
   
