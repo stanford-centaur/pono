@@ -49,7 +49,7 @@ namespace cosa
     solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
     solver_->assert_formula(unroller_.at_time(bad, i));
     Result r = solver_->check_sat();
-    if (r.is_sat) {
+    if (r.is_sat()) {
       return false;
     }
     solver_->pop();
@@ -71,7 +71,7 @@ namespace cosa
     solver_->push();
     solver_->assert_formula(unroller_.at_time(bad, i+1));
     Result r = solver_->check_sat();
-    if (r.is_unsat) {
+    if (r.is_unsat()) {
       return true;
     }
     solver_->pop();
