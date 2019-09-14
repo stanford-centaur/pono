@@ -51,6 +51,32 @@ namespace cosa
     return ProverResult::UNKNOWN;
   }
   
+  bool KInduction::witness(std::vector<UnorderedTermMap> &out)
+  {
+    // TODO: make sure the solver state is SAT
+    
+    for (int i = 0; i <= reached_k_; ++i) {
+      out.push_back(UnorderedTermMap());
+      UnorderedTermMap &map = out.back();
+
+      for (auto v : ts_.states()) {
+	Term vi = unroller_.at_time(v, i);
+	Term r = solver_->get_value(vi);
+	map[v] = r;
+      }
+
+      if (i != reached_k_) {
+	for (auto v : ts_.inputs()) {
+	  Term vi = unroller_.at_time(v, i);
+	  Term r = solver_->get_value(vi);
+	  map[v] = r;
+	}
+      }
+    }
+    
+    return true;
+  }
+  
   bool KInduction::base_step(int i)
   {
     if (i <= reached_k_) {

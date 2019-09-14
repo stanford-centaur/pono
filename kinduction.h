@@ -21,6 +21,9 @@ public:
   ProverResult check_until(int k);
 
   ProverResult prove();
+
+  bool witness(std::vector<smt::UnorderedTermMap> &out);
+
 private:
 
   bool base_step(int i);

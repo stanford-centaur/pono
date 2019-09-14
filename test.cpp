@@ -62,7 +62,17 @@ int main(int argc, char ** argv)
 
     ProverResult r = bmc.check_until(11);
     if (r == FALSE) {
-      cout << i << " is FALSE" << endl;
+      cout << i << " is FALSE" << endl << endl;
+      std::vector<UnorderedTermMap> cex;
+      if (bmc.witness(cex)) {
+	for (size_t j = 0; j < cex.size(); ++j) {
+	  cout << "-------- " << j << " --------" << endl;
+	  const UnorderedTermMap &map = cex[j];
+	  for (auto v : map) {
+	    cout << v.first << " := " << v.second << endl;
+	  }
+	}
+      }
     } else if (r == TRUE) {
       cout << i << " is TRUE" << endl;
     } else {
