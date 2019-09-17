@@ -4,6 +4,7 @@
 #include "smt-switch/boolector_factory.h"
 
 #include "bmc.h"
+#include "defaults.h"
 #include "frontends/btor2_encoder.h"
 #include "kinduction.h"
 #include "prop.h"
@@ -12,10 +13,9 @@ using namespace cosa;
 using namespace smt;
 using namespace std;
 
-
 /************************************* Option Handling setup *****************************************/
 // from optionparser-1.7 examples -- example_arg.cc
-enum optionIndex { UNKNOWN_OPTION, HELP, INDUCTION, PROP };
+enum optionIndex { UNKNOWN_OPTION, HELP, INDUCTION, BOUND, PROP };
 
 struct Arg : public option::Arg
 {
@@ -44,6 +44,7 @@ const option::Descriptor usage[] =
     "Options:"},
    {HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit."},
    {INDUCTION, 0, "i", "induction", Arg::None, "  --induction, -i \tUse temporal k-induction."},
+   {BOUND, 0, "k", "bound", Arg::Numeric, "  --bound, -k \tBound to check up until."},
    {PROP, 0, "p", "prop", Arg::Numeric, "  --prop, -p \tProperty index to check (default: 0)."},
    {0,0,0,0,0,0}
   };
@@ -86,8 +87,9 @@ int main(int argc, char ** argv)
     return 1;
   }
 
-  bool induction=false;
-  unsigned int prop_idx=0;
+  bool induction=default_induction;
+  unsigned int prop_idx=default_prop_idx;
+  unsigned int bound=default_bound;
 
   for (int i = 0; i < parse.optionsCount(); ++i)
   {
@@ -98,6 +100,9 @@ int main(int argc, char ** argv)
       // not possible, because handled further above and exits the program
     case INDUCTION:
       induction=true;
+      break;
+    case BOUND:
+      bound=atoi(opt.arg);
       break;
     case PROP:
       prop_idx=atoi(opt.arg);
@@ -149,14 +154,16 @@ int main(int argc, char ** argv)
   std::shared_ptr<Prover> prover;
   if (induction)
   {
+    cout << "Running k-induction" << endl;
     prover = std::make_shared<KInduction>(p, s);
   }
   else
   {
+    cout << "Running bounded model checking" << endl;
     prover = std::make_shared<Bmc>(p, s);
   }
 
-  ProverResult r = prover->check_until(11);
+  ProverResult r = prover->check_until(bound);
   if (r == FALSE) {
     cout << "Property " << prop_idx << " is FALSE" << endl;
     std::vector<UnorderedTermMap> cex;
