@@ -21,7 +21,11 @@ namespace cosa
   void KInduction::initialize()
   {
     reached_k_ = -1;
-    solver_->reset_assertions();
+    // NOTE: There's an implicit assumption that this solver is only used for
+    // model checking once Otherwise there could be conflicting assertions to
+    // the solver or it could just be polluted with redundant assertions in the
+    // future we can use solver_->reset_assertions(), but it is not currently
+    // supported in boolector
     simple_path_ = solver_->make_value(true);
   }
 

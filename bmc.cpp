@@ -21,10 +21,14 @@ namespace cosa
   void Bmc::initialize()
   {
     reached_k_ = -1;
-    solver_->reset_assertions();
+    // NOTE: There's an implicit assumption that this solver is only used for
+    // model checking once Otherwise there could be conflicting assertions to
+    // the solver or it could just be polluted with redundant assertions in the
+    // future we can use solver_->reset_assertions(), but it is not currently
+    // supported in boolector
     solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
   }
-  
+
   ProverResult Bmc::check_until(int k)
   {
     for (int i = 0; i <= k; ++i) {
@@ -67,16 +71,16 @@ namespace cosa
 	}
       }
     }
-    
+
     return true;
   }
-  
+
   bool Bmc::step(int i)
   {
     if (i <= reached_k_) {
       return true;
     }
-    
+
     std::cout << "Checking BMC Bound " << i << std::endl;
 
     bool res = true;
@@ -99,5 +103,5 @@ namespace cosa
 
     return res;
   }
-  
+
 } // namespace cosa
