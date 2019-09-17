@@ -6,11 +6,12 @@
 
 #include "unroller.h"
 #include "proverresult.h"
+#include "prover.h"
 
 namespace cosa
 {
 
-class Bmc
+class Bmc : public Prover
 {
 public:
   Bmc(const Property &p, smt::SmtSolver &solver);

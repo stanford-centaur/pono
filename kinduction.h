@@ -3,6 +3,7 @@
 #include "rts.h"
 #include "prop.h"
 #include "unroller.h"
+#include "prover.h"
 
 #include "smt-switch/smt.h"
 #include "proverresult.h"
@@ -10,7 +11,7 @@
 namespace cosa
 {
 
-class KInduction
+class KInduction : public Prover
 {
 public:
   KInduction(const Property &p, smt::SmtSolver &solver);

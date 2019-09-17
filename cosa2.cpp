@@ -1,11 +1,12 @@
 #include <iostream>
 
-#include "smt-switch/boolector_factory.h"
 #include "optionparser.h"
+#include "smt-switch/boolector_factory.h"
 
-#include "frontends/btor2_encoder.h"
-#include "prop.h"
 #include "bmc.h"
+#include "frontends/btor2_encoder.h"
+#include "kinduction.h"
+#include "prop.h"
 
 using namespace cosa;
 using namespace smt;
@@ -143,18 +144,23 @@ int main(int argc, char ** argv)
   }
 
   Term bad = btor_enc.badvec()[prop_idx];
-
   Property p(rts, s->make_term(PrimOp::Not, bad));
-  cout << "Property:" << endl;
-  cout << p.prop() << endl;
 
-  Bmc bmc(p, s);
+  std::shared_ptr<Prover> prover;
+  if (induction)
+  {
+    prover = std::make_shared<KInduction>(p, s);
+  }
+  else
+  {
+    prover = std::make_shared<Bmc>(p, s);
+  }
 
-  ProverResult r = bmc.check_until(11);
+  ProverResult r = prover->check_until(11);
   if (r == FALSE) {
     cout << "Property " << prop_idx << " is FALSE" << endl;
     std::vector<UnorderedTermMap> cex;
-    if (bmc.witness(cex)) {
+    if (prover->witness(cex)) {
       for (size_t j = 0; j < cex.size(); ++j) {
         cout << "-------- " << j << " --------" << endl;
         const UnorderedTermMap &map = cex[j];
