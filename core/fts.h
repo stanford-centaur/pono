@@ -1,5 +1,4 @@
-#ifndef FUNCTIONAL_TRANSITION_SYSTEM_H
-#define FUNCTIONAL_TRANSITION_SYSTEM_H
+#pragma once
 
 #include <string>
 #include <unordered_map>
@@ -136,5 +135,3 @@ class FunctionalTransitionSystem
 };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef RELATIONAL_TRANSITION_SYSTEM_H
-#define RELATIONAL_TRANSITION_SYSTEM_H
+#pragma once
 
 #include <unordered_map>
 
@@ -83,5 +82,3 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
 };
 
 }
-
-#endif

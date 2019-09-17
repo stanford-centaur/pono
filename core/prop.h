@@ -1,5 +1,4 @@
-#ifndef PROP_H
-#define PROP_H
+#pragma once
 
 #include "smt-switch/smt.h"
 #include "rts.h"
@@ -28,5 +27,3 @@ private:
 }; // class Property
 
 } // namespace cosa
-
-#endif
