@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
   option::Stats stats(usage, argc, argv);
 
 #ifdef __GNUC__
-    // GCC supports C99 VLAs for C++ with proper constructor calls.
+g    // GCC supports C99 VLAs for C++ with proper constructor calls.
   option::Option options[stats.options_max], buffer[stats.buffer_max];
 #else
     // use calloc() to allocate 0-initialized memory. It's not the same
