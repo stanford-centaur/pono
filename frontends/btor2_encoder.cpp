@@ -321,6 +321,10 @@ void BTOR2Encoder::parse(std::string filename)
       cval_ = mpz_class(string(linesort_->get_width(), '1').c_str(), 2);
       terms_[l_->id] = solver_->make_value(cval_.get_str(10), linesort_);
     }
+    else if (l_->tag == BTOR2_TAG_zero)
+    {
+      terms_[l_->id] = solver_->make_value(0, linesort_);
+    }
     else if (l_->tag == BTOR2_TAG_slice)
     {
       terms_[l_->id] = solver_->make_term(Op(Extract, l_->args[1], l_->args[2]), bool_to_bv(termargs_[0]));
