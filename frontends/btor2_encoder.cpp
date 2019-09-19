@@ -362,8 +362,7 @@ void BTOR2Encoder::parse(std::string filename)
       Term t = bool_to_bv(termargs_[0]);
       unsigned int width = t->get_sort()->get_width();
       Term res = solver_->make_term(Op(Extract, width-1, width-1), t);
-      for (int i = width-1; i >= 0; i--)
-      {
+      for (int i = width - 2; i >= 0; i--) {
         res = solver_->make_term(BVXor, res, solver_->make_term(Op(Extract, i, i), t));
       }
       terms_[l_->id] = res;
@@ -372,6 +371,7 @@ void BTOR2Encoder::parse(std::string filename)
       TermVec tv = lazy_convert({termargs_[1], termargs_[2]});
       terms_[l_->id] = solver_->make_term(Ite, cond, tv[0], tv[1]);
     } else if (overflow_ops.find(l_->tag) != overflow_ops.end()) {
+      // TODO: check if these overflow_ops are correct
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[0]);
       int width = linesort_->get_width();
