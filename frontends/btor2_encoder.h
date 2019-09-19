@@ -68,7 +68,8 @@ namespace cosa
     Btor2LineIterator it_;
     Btor2Line* l_;
     size_t i_;
-
+    int64_t idx_;
+    bool negated_;
   };
 }
 

@@ -39,6 +39,8 @@ void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
 
 void RelationalTransitionSystem::add_constraint(const Term constraint)
 {
+  // TODO: Figure out if init_ case should go within only_curr
+  init_  = solver_->make_term(And, init_, constraint);
   trans_ = solver_->make_term(And, trans_, constraint);
   if (only_curr(constraint))
   {

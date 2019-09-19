@@ -41,6 +41,7 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
 
 void FunctionalTransitionSystem::add_constraint(const Term constraint)
 {
+  init_  = solver_->make_term(And, init_, constraint);
   trans_ = solver_->make_term(And, trans_, constraint);
   // add the next-state version
   trans_ = solver_->make_term(And, trans_, next(constraint));

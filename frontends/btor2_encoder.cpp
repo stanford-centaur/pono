@@ -212,11 +212,31 @@ void BTOR2Encoder::parse(std::string filename)
     termargs_.reserve(l_->nargs);
     for(i_ = 0; i_ < l_->nargs; i_++)
     {
-      if (terms_.find(l_->args[i_]) == terms_.end())
+      negated_ = false;
+      idx_ = l_->args[i_];
+      if (idx_ < 0)
       {
-        break;
+        negated_ = true;
+        idx_ = -idx_;
       }
-      termargs_.push_back(terms_.at(l_->args[i_]));
+      if (terms_.find(idx_) == terms_.end())
+      {
+        throw CosaException("Missing term for id " + std::to_string(idx_));
+      }
+
+      Term term_ = terms_.at(idx_);
+      if (negated_)
+      {
+        if (term_->get_sort()->get_sort_kind() == BV)
+        {
+          term_ = solver_->make_term(BVNot, term_);
+        }
+        else
+        {
+          term_ = solver_->make_term(Not, term_);
+        }
+      }
+      termargs_.push_back(term_);
     }
 
     /******************************** Handle special cases ********************************/
@@ -243,7 +263,6 @@ void BTOR2Encoder::parse(std::string filename)
       {
         symbol_ = "input" + to_string(l_->id);
       }
-
       terms_[l_->id] = rts_.make_input(symbol_, linesort_);
     }
     else if (l_->tag == BTOR2_TAG_output)
