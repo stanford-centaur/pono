@@ -5,7 +5,6 @@ extern "C"
 {
 #include "btor2parser/btor2parser.h"
 }
-#include "gmpxx.h"
 
 #include "assert.h"
 #include <iostream>
@@ -57,7 +56,6 @@ namespace cosa
     std::unordered_map<int, smt::Sort> sorts_;
     std::unordered_map<int, smt::Term> terms_;
     std::string symbol_;
-    mpz_class cval_;
 
     smt::TermVec badvec_;
     smt::TermVec justicevec_;

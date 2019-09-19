@@ -321,8 +321,8 @@ void BTOR2Encoder::parse(std::string filename)
     }
     else if (l_->constant)
     {
-      cval_ = mpz_class(l_->constant, basemap.at(l_->tag));
-      terms_[l_->id] = solver_->make_value(cval_.get_str(10), linesort_);
+      terms_[l_->id] =
+          solver_->make_value(l_->constant, linesort_, basemap.at(l_->tag));
     }
     else if (l_->tag == BTOR2_TAG_one)
     {
@@ -330,8 +330,8 @@ void BTOR2Encoder::parse(std::string filename)
     }
     else if (l_->tag == BTOR2_TAG_ones)
     {
-      cval_ = mpz_class(string(linesort_->get_width(), '1').c_str(), 2);
-      terms_[l_->id] = solver_->make_value(cval_.get_str(10), linesort_);
+      terms_[l_->id] = solver_->make_value(string(linesort_->get_width(), '1'),
+                                           linesort_, 2);
     } else if (l_->tag == BTOR2_TAG_zero) {
       terms_[l_->id] = solver_->make_value(0, linesort_);
     } else if (l_->tag == BTOR2_TAG_slice) {
