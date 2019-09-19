@@ -214,25 +214,19 @@ void BTOR2Encoder::parse(std::string filename)
     {
       negated_ = false;
       idx_ = l_->args[i_];
-      if (idx_ < 0)
-      {
+      if (idx_ < 0) {
         negated_ = true;
         idx_ = -idx_;
       }
-      if (terms_.find(idx_) == terms_.end())
-      {
+      if (terms_.find(idx_) == terms_.end()) {
         throw CosaException("Missing term for id " + std::to_string(idx_));
       }
 
       Term term_ = terms_.at(idx_);
-      if (negated_)
-      {
-        if (term_->get_sort()->get_sort_kind() == BV)
-        {
+      if (negated_) {
+        if (term_->get_sort()->get_sort_kind() == BV) {
           term_ = solver_->make_term(BVNot, term_);
-        }
-        else
-        {
+        } else {
           term_ = solver_->make_term(Not, term_);
         }
       }
@@ -339,55 +333,33 @@ void BTOR2Encoder::parse(std::string filename)
     {
       cval_ = mpz_class(string(linesort_->get_width(), '1').c_str(), 2);
       terms_[l_->id] = solver_->make_value(cval_.get_str(10), linesort_);
-    }
-    else if (l_->tag == BTOR2_TAG_zero)
-    {
+    } else if (l_->tag == BTOR2_TAG_zero) {
       terms_[l_->id] = solver_->make_value(0, linesort_);
-    }
-    else if (l_->tag == BTOR2_TAG_slice)
-    {
+    } else if (l_->tag == BTOR2_TAG_slice) {
       terms_[l_->id] = solver_->make_term(Op(Extract, l_->args[1], l_->args[2]), bool_to_bv(termargs_[0]));
-    }
-    else if (l_->tag == BTOR2_TAG_sext)
-    {
+    } else if (l_->tag == BTOR2_TAG_sext) {
       terms_[l_->id] = solver_->make_term(Op(Sign_Extend, l_->args[1]), bool_to_bv(termargs_[0]));
-    }
-    else if (l_->tag == BTOR2_TAG_uext)
-    {
+    } else if (l_->tag == BTOR2_TAG_uext) {
       terms_[l_->id] = solver_->make_term(Op(Zero_Extend, l_->args[1]), bool_to_bv(termargs_[0]));
-    }
-    else if (l_->tag == BTOR2_TAG_rol)
-    {
+    } else if (l_->tag == BTOR2_TAG_rol) {
       terms_[l_->id] = solver_->make_term(Op(Rotate_Left, l_->args[1]), bool_to_bv(termargs_[0]));
-    }
-    else if (l_->tag == BTOR2_TAG_ror)
-    {
+    } else if (l_->tag == BTOR2_TAG_ror) {
       terms_[l_->id] = solver_->make_term(Op(Rotate_Right, l_->args[1]), bool_to_bv(termargs_[0]));
-    }
-    else if (l_->tag == BTOR2_TAG_inc)
-    {
+    } else if (l_->tag == BTOR2_TAG_inc) {
       Term t = bool_to_bv(termargs_[0]);
       terms_[l_->id] = solver_->make_term(BVAdd, t, solver_->make_value(1, t->get_sort()));
-    }
-    else if (l_->tag == BTOR2_TAG_dec)
-    {
+    } else if (l_->tag == BTOR2_TAG_dec) {
       Term t = bool_to_bv(termargs_[0]);
       terms_[l_->id] = solver_->make_term(BVSub, t, solver_->make_value(1, t->get_sort()));
-    }
-    else if (l_->tag == BTOR2_TAG_redand)
-    {
+    } else if (l_->tag == BTOR2_TAG_redand) {
       Term t = bool_to_bv(termargs_[0]);
       Term ones = solver_->make_value(pow(2, t->get_sort()->get_width())-1, t->get_sort());
       terms_[l_->id] = solver_->make_term(BVComp, t, ones);
-    }
-    else if (l_->tag == BTOR2_TAG_redor)
-    {
+    } else if (l_->tag == BTOR2_TAG_redor) {
       Term t = bool_to_bv(termargs_[0]);
       Term zero = solver_->make_value(0, t->get_sort());
       terms_[l_->id] = solver_->make_term(BVComp, t, zero);
-    }
-    else if (l_->tag == BTOR2_TAG_redxor)
-    {
+    } else if (l_->tag == BTOR2_TAG_redxor) {
       Term t = bool_to_bv(termargs_[0]);
       unsigned int width = t->get_sort()->get_width();
       Term res = solver_->make_term(Op(Extract, width-1, width-1), t);
@@ -396,15 +368,11 @@ void BTOR2Encoder::parse(std::string filename)
         res = solver_->make_term(BVXor, res, solver_->make_term(Op(Extract, i, i), t));
       }
       terms_[l_->id] = res;
-    }
-    else if (l_->tag == BTOR2_TAG_ite)
-    {
+    } else if (l_->tag == BTOR2_TAG_ite) {
       Term cond = bv_to_bool(termargs_[0]);
       TermVec tv = lazy_convert({termargs_[1], termargs_[2]});
       terms_[l_->id] = solver_->make_term(Ite, cond, tv[0], tv[1]);
-    }
-    else if (overflow_ops.find(l_->tag) != overflow_ops.end())
-    {
+    } else if (overflow_ops.find(l_->tag) != overflow_ops.end()) {
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[0]);
       int width = linesort_->get_width();
@@ -413,9 +381,9 @@ void BTOR2Encoder::parse(std::string filename)
       terms_[l_->id] = solver_->make_term(Op(Extract, width, width),
                                   solver_->make_term(bvopmap.at(l_->tag), t0, t1));
     }
-    /******************************** Handle general case ********************************/
-    else
-    {
+    /******************************** Handle general case
+       ********************************/
+    else {
       if(boolopmap.find(l_->tag) != boolopmap.end())
       {
         termargs_ = lazy_convert(termargs_);
@@ -429,7 +397,6 @@ void BTOR2Encoder::parse(std::string filename)
       }
       terms_[l_->id] = solver_->make_term(bvopmap.at(l_->tag), termargs_);
     }
-
   }
 
   btor2parser_delete(reader_);

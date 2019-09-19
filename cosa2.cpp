@@ -38,16 +38,18 @@ struct Arg : public option::Arg
   }
 };
 
-const option::Descriptor usage[] =
-  {
-   {UNKNOWN_OPTION, 0, "", "", Arg::None, "USAGE: cosa2 [options] <btor file>\n\n"
-    "Options:"},
-   {HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit."},
-   {INDUCTION, 0, "i", "induction", Arg::None, "  --induction, -i \tUse temporal k-induction."},
-   {BOUND, 0, "k", "bound", Arg::Numeric, "  --bound, -k \tBound to check up until."},
-   {PROP, 0, "p", "prop", Arg::Numeric, "  --prop, -p \tProperty index to check (default: 0)."},
-   {0,0,0,0,0,0}
-  };
+const option::Descriptor usage[] = {
+    {UNKNOWN_OPTION, 0, "", "", Arg::None,
+     "USAGE: cosa2 [options] <btor file>\n\n"
+     "Options:"},
+    {HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit."},
+    {INDUCTION, 0, "i", "induction", Arg::None,
+     "  --induction, -i \tUse temporal k-induction."},
+    {BOUND, 0, "k", "bound", Arg::Numeric,
+     "  --bound, -k \tBound to check up until."},
+    {PROP, 0, "p", "prop", Arg::Numeric,
+     "  --prop, -p \tProperty index to check (default: 0)."},
+    {0, 0, 0, 0, 0, 0}};
 /*********************************** end Option Handling setup ***************************************/
 
 int main(int argc, char ** argv)
@@ -87,9 +89,9 @@ int main(int argc, char ** argv)
     return 1;
   }
 
-  bool induction=default_induction;
-  unsigned int prop_idx=default_prop_idx;
-  unsigned int bound=default_bound;
+  bool induction = default_induction;
+  unsigned int prop_idx = default_prop_idx;
+  unsigned int bound = default_bound;
 
   for (int i = 0; i < parse.optionsCount(); ++i)
   {
@@ -102,7 +104,7 @@ int main(int argc, char ** argv)
       induction=true;
       break;
     case BOUND:
-      bound=atoi(opt.arg);
+      bound = atoi(opt.arg);
       break;
     case PROP:
       prop_idx=atoi(opt.arg);
