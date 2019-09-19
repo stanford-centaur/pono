@@ -357,7 +357,7 @@ void BTOR2Encoder::parse(std::string filename)
     } else if (l_->tag == BTOR2_TAG_redor) {
       Term t = bool_to_bv(termargs_[0]);
       Term zero = solver_->make_value(0, t->get_sort());
-      terms_[l_->id] = solver_->make_term(BVComp, t, zero);
+      terms_[l_->id] = solver_->make_term(Distinct, t, zero);
     } else if (l_->tag == BTOR2_TAG_redxor) {
       Term t = bool_to_bv(termargs_[0]);
       unsigned int width = t->get_sort()->get_width();
