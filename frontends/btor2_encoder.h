@@ -9,7 +9,6 @@ extern "C"
 
 #include "assert.h"
 #include <iostream>
-#include "math.h"
 #include <stdio.h>
 #include <string>
 #include <unordered_map>

@@ -352,7 +352,7 @@ void BTOR2Encoder::parse(std::string filename)
       terms_[l_->id] = solver_->make_term(BVSub, t, solver_->make_value(1, t->get_sort()));
     } else if (l_->tag == BTOR2_TAG_redand) {
       Term t = bool_to_bv(termargs_[0]);
-      Term ones = solver_->make_value(pow(2, t->get_sort()->get_width())-1, t->get_sort());
+      Term ones = solver_->make_value(std::string(t->get_sort()->get_width(), '1'), t->get_sort(), 2);
       terms_[l_->id] = solver_->make_term(BVComp, t, ones);
     } else if (l_->tag == BTOR2_TAG_redor) {
       Term t = bool_to_bv(termargs_[0]);
