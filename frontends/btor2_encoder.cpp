@@ -299,7 +299,22 @@ void BTOR2Encoder::parse(std::string filename)
     }
     else if (l_->tag == BTOR2_TAG_init)
     {
-      rts_.constrain_init(solver_->make_term(Equal, termargs_));
+      if (termargs_.size() != 2) {
+        throw CosaException("Expecting two term arguments to init");
+      } else if (linesort_ != termargs_[0]->get_sort()) {
+        throw CosaException(
+            "Expecting to init sort to match first argument's sort");
+      }
+
+      if (linesort_->get_sort_kind() == BV) {
+        rts_.constrain_init(solver_->make_term(Equal, termargs_));
+      } else if (linesort_->get_sort_kind() == ARRAY) {
+        rts_.constrain_init(solver_->make_term(
+            Equal, termargs_[0], solver_->make_value(termargs_[1], linesort_)));
+      } else {
+        throw CosaException("Unhandled sort: " +
+                            termargs_[0]->get_sort()->to_string());
+      }
     }
     else if (l_->tag == BTOR2_TAG_next)
     {
