@@ -402,20 +402,23 @@ void BTOR2Encoder::parse(std::string filename)
       Term t0_top = solver_->make_term(Op(Extract, width - 1, width - 1), t0);
       Term t1_top = solver_->make_term(Op(Extract, width - 1, width - 1), t1);
       Term sum_top = solver_->make_term(Op(Extract, width - 1, width - 1), sum);
-      term_[l_->id] =
+      terms_[l_->id] =
           solver_->make_term(Equal, solver_->make_term(Equal, t0_top, t1_top),
                              solver_->make_term(Distinct, t0_top, sum_top));
     } else if (l_->tag == BTOR2_TAG_sdivo) {
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[1]);
       int width = t0->get_sort()->get_width();
+      Sort sort = solver_->make_sort(BV, width);
       Term sum = solver_->make_term(BVAdd, t0, t1);
       // overflow occurs if
       // t0 is int_min (e.g. 1 followed by zeros) and
       // t1 is -1
-      std::string int_min("1");
-      int_min += std::string(width - 1, "0");
-      std::string negone = std::string(width, "1");
+      std::string sint_min("1");
+      sint_min += std::string(width - 1, '0');
+      std::string snegone = std::string(width, '1');
+      Term int_min = solver_->make_value(sint_min, sort, 2);
+      Term negone = solver_->make_value(snegone, sort, 2);
       terms_[l_->id] =
           solver_->make_term(And, solver_->make_term(Equal, t0, int_min),
                              solver_->make_term(Equal, t1, negone));
