@@ -13,14 +13,6 @@ const unordered_map<Btor2Tag, int> basemap(
                                            { {BTOR2_TAG_const, 2},
                                              {BTOR2_TAG_constd, 10},
                                              {BTOR2_TAG_consth, 16} });
-const unordered_set<Btor2Tag> overflow_ops({BTOR2_TAG_uaddo,
-                                            BTOR2_TAG_saddo,
-                                            //BTOR2_TAG_udivo, // not supposed to exist?
-                                            BTOR2_TAG_sdivo,
-                                            BTOR2_TAG_umulo,
-                                            BTOR2_TAG_smulo,
-                                            BTOR2_TAG_usubo,
-                                            BTOR2_TAG_ssubo});
 
 const unordered_map<Btor2Tag, smt::PrimOp> bvopmap(
                                               {  { BTOR2_TAG_add, BVAdd },
@@ -385,18 +377,116 @@ void BTOR2Encoder::parse(std::string filename)
       Term cond = bv_to_bool(termargs_[0]);
       TermVec tv = lazy_convert({termargs_[1], termargs_[2]});
       terms_[l_->id] = solver_->make_term(Ite, cond, tv[0], tv[1]);
-    } else if (overflow_ops.find(l_->tag) != overflow_ops.end()) {
-      // TODO: check if these overflow_ops are correct
+    } else if (l_->tag == BTOR2_TAG_uaddo) {
       Term t0 = bool_to_bv(termargs_[0]);
-      Term t1 = bool_to_bv(termargs_[0]);
-      int width = linesort_->get_width();
-      t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
-      t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
-      terms_[l_->id] = solver_->make_term(Op(Extract, width, width),
-                                  solver_->make_term(bvopmap.at(l_->tag), t0, t1));
+      Term t1 = bool_to_bv(termargs_[1]);
+
+      int orig_width = t0->get_sort()->get_width();
+
+      t0 = solver_->make_term(Op(Zero_Extend, 1), termargs_[0]);
+      t1 = solver_->make_term(Op(Zero_Extend, 1), termargs_[0]);
+
+      Term sum = solver_->make_term(BVAdd, t0, t1);
+      // overflow occurs if there's a carry out bit
+      terms_[l_->id] =
+          solver_->make_term(Op(Extract, orig_width, orig_width), sum);
+    } else if (l_->tag == BTOR2_TAG_saddo) {
+      // From https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
+      Term t0 = bool_to_bv(termargs_[0]);
+      Term t1 = bool_to_bv(termargs_[1]);
+      int width = t0->get_sort()->get_width();
+      Term sum = solver_->make_term(BVAdd, t0, t1);
+      // overflow occurs if
+      // both operands are positive and the result is negative or
+      // both operands are negative and the result is positive
+      Term t0_top = solver_->make_term(Op(Extract, width - 1, width - 1), t0);
+      Term t1_top = solver_->make_term(Op(Extract, width - 1, width - 1), t1);
+      Term sum_top = solver_->make_term(Op(Extract, width - 1, width - 1), sum);
+      term_[l_->id] =
+          solver_->make_term(Equal, solver_->make_term(Equal, t0_top, t1_top),
+                             solver_->make_term(Distinct, t0_top, sum_top));
+    } else if (l_->tag == BTOR2_TAG_sdivo) {
+      Term t0 = bool_to_bv(termargs_[0]);
+      Term t1 = bool_to_bv(termargs_[1]);
+      int width = t0->get_sort()->get_width();
+      Term sum = solver_->make_term(BVAdd, t0, t1);
+      // overflow occurs if
+      // t0 is int_min (e.g. 1 followed by zeros) and
+      // t1 is -1
+      std::string int_min("1");
+      int_min += std::string(width - 1, "0");
+      std::string negone = std::string(width, "1");
+      terms_[l_->id] =
+          solver_->make_term(And, solver_->make_term(Equal, t0, int_min),
+                             solver_->make_term(Equal, t1, negone));
+    } else if (l_->tag == BTOR2_TAG_umulo) {
+      // from Hacker's Delight
+      // overflow if hi(x*y) != 0
+      Term t0 = bool_to_bv(termargs_[0]);
+      Term t1 = bool_to_bv(termargs_[1]);
+
+      int orig_width = t0->get_sort()->get_width();
+
+      t0 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
+      t1 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
+
+      Term prod = solver_->make_term(BVMul, t0, t1);
+      // overflow occurs if the upper bits are non-zero
+      terms_[l_->id] = solver_->make_term(
+          Distinct,
+          solver_->make_term(Op(Extract, 2 * orig_width - 1, orig_width), prod),
+          solver_->make_value(0, solver_->make_sort(BV, orig_width)));
+    } else if (l_->tag == BTOR2_TAG_smulo) {
+      // from Hacker's Delight
+      // overflow if hi(x*y) != (lo(x*y) >>s (width-1))
+      Term t0 = bool_to_bv(termargs_[0]);
+      Term t1 = bool_to_bv(termargs_[1]);
+
+      int orig_width = t0->get_sort()->get_width();
+
+      t0 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
+      t1 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
+
+      Term prod = solver_->make_term(BVMul, t0, t1);
+      Term hi =
+          solver_->make_term(Op(Extract, 2 * orig_width - 1, orig_width), prod);
+      Term lo = solver_->make_term(Op(Extract, orig_width - 1, 0), prod);
+      terms_[l_->id] = solver_->make_term(
+          Distinct, hi,
+          solver_->make_term(
+              BVAshr, lo,
+              solver_->make_value(orig_width - 1,
+                                  solver_->make_sort(BV, orig_width))));
+    } else if (l_->tag == BTOR2_TAG_usubo) {
+      // From
+      // https://wiki.sei.cmu.edu/confluence/display/c/INT30-C.+Ensure+that+unsigned+integer+operations+do+not+wrap
+      Term t0 = bool_to_bv(termargs_[0]);
+      Term t1 = bool_to_bv(termargs_[1]);
+      // overflow occurs if left arg is less than right arg
+      terms_[l_->id] = solver_->make_term(BVUlt, t0, t1);
+    } else if (l_->tag == BTOR2_TAG_ssubo) {
+      // From https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
+      // overflow occurs if signs are different and subtrahend sign matches
+      // result sign
+      // TODO: check this, not sure if it can overflow when signs aren't
+      // different
+      //       seems like maybe not but should double check
+      Term t0 = bool_to_bv(termargs_[0]);
+      Term t1 = bool_to_bv(termargs_[1]);
+
+      int width = t0->get_sort()->get_width();
+
+      Term diff = solver_->make_term(BVSub, t0, t1);
+      Term t0_top = solver_->make_term(Op(Extract, width - 1, width - 1), t0);
+      Term t1_top = solver_->make_term(Op(Extract, width - 1, width - 1), t1);
+      Term diff_top =
+          solver_->make_term(Op(Extract, width - 1, width - 1), diff);
+      terms_[l_->id] =
+          solver_->make_term(And, solver_->make_term(Distinct, t0_top, t1_top),
+                             solver_->make_term(Equal, t1_top, diff_top));
     }
     /******************************** Handle general case
-       ********************************/
+     ********************************/
     else {
       if(boolopmap.find(l_->tag) != boolopmap.end())
       {
