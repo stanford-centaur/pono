@@ -55,6 +55,9 @@ Term FunctionalTransitionSystem::make_input(const string name, const Sort sort)
 {
   Term input = solver_->make_term(name, sort);
   inputs_.insert(input);
+  // for invariant constraints, need to assert over next inputs
+  Term next_input = solver_->make_term(name + ".next", sort);
+  next_map_[input] = next_input;
   return input;
 }
 
@@ -65,7 +68,7 @@ Term FunctionalTransitionSystem::make_state(const string name, const Sort sort)
   // this is never used, so it shouldn't hurt performance
   // only here for consistency with relational transition system states_ data structure
   states_.insert(state);
-  states_map_[state] = next_state;
+  next_map_[state] = next_state;
   return state;
 }
 
@@ -80,7 +83,7 @@ void FunctionalTransitionSystem::name_term(const string name, const Term t)
 
 Term FunctionalTransitionSystem::next(const smt::Term term) const 
 {
-  return solver_->substitute(term, states_map_);
+  return solver_->substitute(term, next_map_);
 }
 
 // protected methods
@@ -101,8 +104,8 @@ bool FunctionalTransitionSystem::only_curr(const smt::Term term) const
       continue;
     }
 
-    if (t->is_symbolic_const() && (states_.find(t) == states_.end()))
-    {
+    if (t->is_symbolic_const() && (states_.find(t) == states_.end()) &&
+        (inputs_.find(t) == inputs_.end())) {
       return false;
     }
 

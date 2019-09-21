@@ -39,7 +39,7 @@ void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
 
 Term RelationalTransitionSystem::curr(const smt::Term term) const
 {
-  return solver_->substitute(term, next_states_map_);
+  return solver_->substitute(term, curr_map_);
 }
 
 bool RelationalTransitionSystem::is_curr_var(const smt::Term sv) const
@@ -52,6 +52,18 @@ bool RelationalTransitionSystem::is_next_var(const smt::Term sv) const
   return (next_states_.find(sv) != next_states_.end());
 }
 
+// overloaded -- keep track of backwards mapping
+Term RelationalTransitionSystem::make_input(const string name,
+                                            const Sort sort) {
+  Term input = solver_->make_term(name, sort);
+  inputs_.insert(input);
+  // for invariant constraints, need to assert over next inputs
+  Term next_input = solver_->make_term(name + ".next", sort);
+  next_map_[input] = next_input;
+  curr_map_[next_input] = input;
+  return input;
+}
+
 // overloaded methods (using next-state variables)
 Term RelationalTransitionSystem::make_state(const string name, const Sort sort)
 {
@@ -59,8 +71,8 @@ Term RelationalTransitionSystem::make_state(const string name, const Sort sort)
   Term next_state = solver_->make_term(name + ".next", sort);
   states_.insert(state);
   next_states_.insert(next_state);
-  states_map_[state] = next_state;
-  next_states_map_[next_state] = state;
+  next_map_[state] = next_state;
+  curr_map_[next_state] = state;
   return state;
 }
 

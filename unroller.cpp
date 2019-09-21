@@ -89,9 +89,13 @@ namespace cosa {
       for (auto it = input_vars.begin(), end = input_vars.end();
            it != end; ++it) {
         smt::Term v = *it;
+        smt::Term vn = ts_.next(v);
         smt::Term new_v = var_at_time(v, k);
+        smt::Term new_vn = var_at_time(v, k + 1);
         subst[v] = new_v;
+        subst[vn] = new_vn;
         untime_cache_[new_v] = v;
+        untime_cache_[new_vn] = vn;
       }
     }
 

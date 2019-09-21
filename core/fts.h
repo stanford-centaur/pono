@@ -110,11 +110,11 @@ class FunctionalTransitionSystem
   // system state variables
   smt::UnorderedTermSet states_;
 
-  // maps state variables to next state variables
+  // maps states and inputs variables to next versions
   // note: the next state variables are only used
   //       on the left hand side of equalities in
   //       trans for this functional class
-  smt::UnorderedTermMap states_map_;
+  smt::UnorderedTermMap next_map_;
 
   // system inputs
   smt::UnorderedTermSet inputs_;

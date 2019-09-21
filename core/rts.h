@@ -59,11 +59,15 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
   smt::Term trans() const { return trans_; };
 
   // overloaded
+  smt::Term make_input(const std::string name, const smt::Sort sort);
+
+  // overloaded
   smt::Term make_state(const std::string name, const smt::Sort sort);
 
  protected:
   smt::UnorderedTermSet next_states_;
-  smt::UnorderedTermMap next_states_map_;
+  // maps next back to curr
+  smt::UnorderedTermMap curr_map_;
 
   // helpers and checkers
 
