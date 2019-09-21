@@ -26,12 +26,6 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
    */
   void set_trans(const smt::Term trans);
 
-  /* Add constraint to the system
-   * This is an invariant constraint, enforced over all time
-   * @param constraint the boolean constraint term to add
-   */
-  void add_constraint(const smt::Term constraint);
-
   /* Add to the transition relation constraints
    * @param constraint new constraint on transition relation
    */
@@ -72,9 +66,6 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
   smt::UnorderedTermMap next_states_map_;
 
   // helpers and checkers
-
-  /* Returns true iff all the symbols in the formula are current states */
-  bool only_curr(const smt::Term term) const;
 
   // overloaded
   bool known_symbols(const smt::Term term) const;

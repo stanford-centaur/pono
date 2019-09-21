@@ -41,10 +41,14 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
 
 void FunctionalTransitionSystem::add_constraint(const Term constraint)
 {
+  // TODO: Figure out if init_ case should go within only_curr
   init_ = solver_->make_term(And, init_, constraint);
   trans_ = solver_->make_term(And, trans_, constraint);
-  // add the next-state version
-  trans_ = solver_->make_term(And, trans_, next(constraint));
+  if (only_curr(constraint))
+  {
+    // add the next-state version
+    trans_ = solver_->make_term(And, trans_, next(constraint));
+  }
 }
 
 Term FunctionalTransitionSystem::make_input(const string name, const Sort sort)
@@ -80,6 +84,37 @@ Term FunctionalTransitionSystem::next(const smt::Term term) const
 }
 
 // protected methods
+
+bool FunctionalTransitionSystem::only_curr(const smt::Term term) const
+{
+  UnorderedTermSet visited;
+  TermVec to_visit{term};
+  Term t;
+  while (to_visit.size())
+  {
+    t = to_visit.back();
+    to_visit.pop_back();
+
+    if (visited.find(t) != visited.end())
+    {
+      // cache hit
+      continue;
+    }
+
+    if (t->is_symbolic_const() && (states_.find(t) == states_.end()))
+    {
+      return false;
+    }
+
+    visited.insert(t);
+    for (auto c : t)
+    {
+      to_visit.push_back(c);
+    }
+  }
+
+  return true;
+}
 
 bool FunctionalTransitionSystem::known_symbols(const smt::Term term)
 {

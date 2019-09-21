@@ -124,6 +124,9 @@ class FunctionalTransitionSystem
 
   // helpers and checkers
 
+  /* Returns true iff all the symbols in the formula are current states */
+  bool only_curr(const smt::Term term) const;
+
   /* Returns true iff all the symbols in the formula are known */
   bool known_symbols(const smt::Term term);
 
