@@ -506,6 +506,7 @@ void BTOR2Encoder::parse(std::string filename)
     }
   }
 
+  fclose (input_file);
   btor2parser_delete(reader_);
 
 }
