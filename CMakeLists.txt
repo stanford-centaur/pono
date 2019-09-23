@@ -26,12 +26,29 @@ add_executable(cosa2
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   )
 
+# Check that dependencies are there
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch/smt.h")
+  message(FATAL_ERROR "Missing smt-switch headers -- try running ./contrib/setup-smt-switch.sh")
+endif()
+
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.so")
+  message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
+endif()
+
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.so")
+  message(FATAL_ERROR "Missing smt-switch boolector library -- try running ./contrib/setup-smt-switch.sh")
+endif()
+
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
+  message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
+endif()
+
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/utils")
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/core")
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/btor2tools/src")
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/smt-switch/local/include")
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src")
+target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
+target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
-target_link_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/smt-switch/local/lib")
+target_link_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib")
 target_link_libraries(cosa2 smt-switch)
 target_link_libraries(cosa2 smt-switch-btor)
