@@ -16,6 +16,11 @@ namespace cosa {
     for (auto i : time_cache_) {
       delete i;
     }
+
+    for (auto i : time_var_map_)
+    {
+      delete i;
+    }
   }
 
   smt::Term Unroller::at_time(smt::Term t, unsigned int k)
