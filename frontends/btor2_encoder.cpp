@@ -464,7 +464,7 @@ void BTOR2Encoder::parse(std::string filename)
       // From https://github.com/Boolector/boolector/blob/cd757d099433d95ffdb2a839504b220eff18ee51/src/btorexp.c#L1236
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[1]);
-      unsigned int width = t0->get_width();
+      unsigned int width = t0->get_sort()->get_width();
       Sort sort = solver_->make_sort(BV, width+1);
       t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
       t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
