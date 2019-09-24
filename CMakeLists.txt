@@ -18,7 +18,7 @@ include_directories("${PROJECT_SOURCE_DIR}/options")
 
 add_executable(cosa2
   "${PROJECT_SOURCE_DIR}/cosa2.cpp"
-  "${PROJECT_SOURCE_DIR}/btor2tools/build/libbtor2parser.a"
+  "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/libbtor2parser.a"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
