@@ -41,13 +41,15 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
 
 void FunctionalTransitionSystem::add_invar(const Term constraint)
 {
-  // TODO: Figure out if init_ case should go within only_curr
-  init_ = solver_->make_term(And, init_, constraint);
-  trans_ = solver_->make_term(And, trans_, constraint);
   if (only_curr(constraint))
   {
+    init_ = solver_->make_term(And, init_, constraint);
+    trans_ = solver_->make_term(And, trans_, constraint);
     // add the next-state version
     trans_ = solver_->make_term(And, trans_, next(constraint));
+  } else {
+    throw CosaException(
+        "Invariants should be over current states and inputs only.");
   }
 }
 
