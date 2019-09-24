@@ -49,6 +49,5 @@ target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/contrib/optionpar
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
-target_link_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib")
-target_link_libraries(cosa2 smt-switch)
-target_link_libraries(cosa2 smt-switch-btor)
+target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.so")
+target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.so")
