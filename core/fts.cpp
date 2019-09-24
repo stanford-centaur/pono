@@ -35,12 +35,14 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
     throw CosaException("Unknown state variable");
   }
 
+  // TODO: check only_curr on val in debug mode
   state_updates_[state] = val;
   trans_ = solver_->make_term(And, trans_, solver_->make_term(Equal, next(state), val));
 }
 
 void FunctionalTransitionSystem::add_invar(const Term constraint)
 {
+  // TODO: only check this in debug mode
   if (only_curr(constraint))
   {
     init_ = solver_->make_term(And, init_, constraint);
