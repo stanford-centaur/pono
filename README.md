@@ -2,7 +2,12 @@
 Next generation cosa.
 
 ## Setup
-Running `./setup-smt-switch.sh` will build smt-switch with boolector and install it in ./local.
+
+* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with boolector.
+* Run `./contrib/setup-btor2tools.sh`.
+* Run `./configure.sh`.
+* Run `cd build`.
+* Run `make`.
 
 ## Existing code
 
