@@ -129,18 +129,6 @@ int main(int argc, char ** argv)
   cout << "\t" << rts.inputs().size() << " input variables." << endl;
   cout << "\t" << rts.states().size() << " state variables." << endl;
 
-  cout << "Inputs:" << endl;
-  for (auto i : rts.inputs())
-  {
-    cout << "\t" << i << endl;
-  }
-
-  cout << "States:" << endl;
-  for (auto s : rts.states())
-  {
-    cout << "\t" << s << endl;
-  }
-
   unsigned int num_bad = btor_enc.badvec().size();
   if (prop_idx >= num_bad)
   {
