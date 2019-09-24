@@ -8,7 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/core")
+include_directories("${PROJECT_SOURCE_DIR}/engines")
 include_directories("${PROJECT_SOURCE_DIR}/frontends")
+include_directories("${PROJECT_SOURCE_DIR}/options")
 
 # TODO: Use find_package
 # find package
@@ -20,10 +22,10 @@ add_executable(cosa2
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
-  "${PROJECT_SOURCE_DIR}/unroller.cpp"
-  "${PROJECT_SOURCE_DIR}/bmc.cpp"
-  "${PROJECT_SOURCE_DIR}/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
+  "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   )
 
 # Check that dependencies are there
