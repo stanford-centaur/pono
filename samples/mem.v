@@ -17,4 +17,9 @@ module mem(clk, wr, addr, data_in, data_out);
    end
 
    assign data_out = mem[addr];
+
+   always @* begin
+      assert (mem[addr] != mem[addr + 1]);
+   end
+
 endmodule // mem
