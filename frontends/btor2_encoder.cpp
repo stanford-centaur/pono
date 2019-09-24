@@ -461,12 +461,18 @@ void BTOR2Encoder::parse(std::string filename)
               solver_->make_value(orig_width - 1,
                                   solver_->make_sort(BV, orig_width))));
     } else if (l_->tag == BTOR2_TAG_usubo) {
-      // From
-      // https://wiki.sei.cmu.edu/confluence/display/c/INT30-C.+Ensure+that+unsigned+integer+operations+do+not+wrap
+      // From https://github.com/Boolector/boolector/blob/cd757d099433d95ffdb2a839504b220eff18ee51/src/btorexp.c#L1236
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[1]);
-      // overflow occurs if left arg is less than right arg
-      terms_[l_->id] = solver_->make_term(BVUlt, t0, t1);
+      unsigned int width = t0->get_width();
+      Sort sort = solver_->make_sort(BV, width+1);
+      t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
+      t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
+      Term one = solver_->make_value(1, sort);
+      Term add1 = solver_->make_term(BVAdd, t1, one);
+      Term add2 = solver_->make_term(BVAdd, t0, add1);
+      terms_[l_->id] = solver_->make_term(BVNot,
+                                          solver_->make_term(Op(Extract, width, width), add2));
     } else if (l_->tag == BTOR2_TAG_ssubo) {
       // From https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
       // overflow occurs if signs are different and subtrahend sign matches
