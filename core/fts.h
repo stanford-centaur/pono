@@ -40,7 +40,7 @@ class FunctionalTransitionSystem
    * This is an invariant constraint, enforced over all time
    * @param constraint the boolean constraint term to add
   */
-  void add_constraint(const smt::Term constraint);
+  void add_invar(const smt::Term constraint);
 
   /* Create an input of a given sort
    * @param name the name of the input

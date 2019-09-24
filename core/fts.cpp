@@ -39,7 +39,7 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
   trans_ = solver_->make_term(And, trans_, solver_->make_term(Equal, next(state), val));
 }
 
-void FunctionalTransitionSystem::add_constraint(const Term constraint)
+void FunctionalTransitionSystem::add_invar(const Term constraint)
 {
   // TODO: Figure out if init_ case should go within only_curr
   init_ = solver_->make_term(And, init_, constraint);

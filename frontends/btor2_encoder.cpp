@@ -287,7 +287,7 @@ void BTOR2Encoder::parse(std::string filename)
     }
     else if (l_->tag == BTOR2_TAG_constraint)
     {
-      rts_.add_constraint(bv_to_bool(termargs_[0]));
+      rts_.add_invar(bv_to_bool(termargs_[0]));
     }
     else if (l_->tag == BTOR2_TAG_init)
     {
