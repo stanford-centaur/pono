@@ -28,11 +28,11 @@ namespace cosa
        parse(filename);
      };
 
-     smt::TermVec &badvec() { return badvec_; };
-     smt::TermVec &justicevec() { return justicevec_; };
-     smt::TermVec &fairvec() { return fairvec_; };
-     smt::TermVec &inputsvec() { return inputsvec_; }
-     smt::TermVec &statesvec() { return statesvec_; }
+     const smt::TermVec &badvec() const { return badvec_; };
+     const smt::TermVec &justicevec() const { return justicevec_; };
+     const smt::TermVec &fairvec() const { return fairvec_; };
+     const smt::TermVec &inputsvec() const { return inputsvec_; }
+     const smt::TermVec &statesvec() const { return statesvec_; }
 
    protected:
      // converts booleans to bitvector of size one
