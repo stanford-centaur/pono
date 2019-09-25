@@ -96,8 +96,7 @@ const unordered_map<Btor2Tag, smt::PrimOp> boolopmap(
                                                     { BTOR2_TAG_neq, Distinct }
                                                   });
 
-Term BTOR2Encoder::bool_to_bv(Term t)
-{
+Term BTOR2Encoder::bool_to_bv(const Term &t) const {
   if (t->get_sort()->get_sort_kind() == BOOL)
   {
     Sort bv1sort = solver_->make_sort(BV, 1);
@@ -109,8 +108,7 @@ Term BTOR2Encoder::bool_to_bv(Term t)
   }
 }
 
-Term BTOR2Encoder::bv_to_bool(Term t)
-{
+Term BTOR2Encoder::bv_to_bool(const Term &t) const {
   Sort sort = t->get_sort();
   if (sort->get_sort_kind() == BV)
   {
@@ -126,8 +124,7 @@ Term BTOR2Encoder::bv_to_bool(Term t)
   }
 }
 
-TermVec BTOR2Encoder::lazy_convert(TermVec tvec)
-{
+TermVec BTOR2Encoder::lazy_convert(const TermVec &tvec) const {
   TermVec res;
   res.reserve(tvec.size());
 
@@ -174,8 +171,7 @@ TermVec BTOR2Encoder::lazy_convert(TermVec tvec)
   return res;
 }
 
-void BTOR2Encoder::parse(std::string filename)
-{
+void BTOR2Encoder::parse(const std::string filename) {
   FILE* input_file = fopen(filename.c_str(), "r");
 
   if(!input_file)
@@ -518,7 +514,5 @@ void BTOR2Encoder::parse(std::string filename)
 
   fclose (input_file);
   btor2parser_delete(reader_);
-
 }
-
 }

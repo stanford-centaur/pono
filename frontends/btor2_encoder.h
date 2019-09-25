@@ -36,16 +36,16 @@ namespace cosa
 
    protected:
      // converts booleans to bitvector of size one
-     smt::Term bool_to_bv(smt::Term t);
+     smt::Term bool_to_bv(const smt::Term &t) const;
      // converts bitvector of size one to boolean
-     smt::Term bv_to_bool(smt::Term t);
+     smt::Term bv_to_bool(const smt::Term &t) const;
      // lazy conversion
      // takes a list of booleans / bitvectors of size one
      // and lazily converts them to the majority
-     smt::TermVec lazy_convert(smt::TermVec);
+     smt::TermVec lazy_convert(const smt::TermVec &) const;
 
      // parse a btor2 file
-     void parse(std::string filename);
+     void parse(const std::string filename);
 
      // Important members
      smt::SmtSolver &solver_;
