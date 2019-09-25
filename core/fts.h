@@ -22,32 +22,32 @@ class FunctionalTransitionSystem
   /* Sets initial states to the provided formula
    * @param init the new initial state constraints
    */
-  void set_init(const smt::Term init);
+  void set_init(const smt::Term & init);
 
   /* Add to the initial state constraints
    * @param constraint new constraint on initial states
    */
-  void constrain_init(const smt::Term constraint);
+  void constrain_init(const smt::Term & constraint);
 
   /* Set the transition function of a state variable
    *   val is constrained to only use current state variables
    * @param state the state variable you are updating
    * @param val the value it should get
    */
-  void set_next(const smt::Term state, const smt::Term val);
+  void set_next(const smt::Term & state, const smt::Term & val);
 
   /* Add constraint to the system
    * This is an invariant constraint, enforced over all time
    * @param constraint the boolean constraint term to add
   */
-  void add_invar(const smt::Term constraint);
+  void add_invar(const smt::Term & constraint);
 
   /* Create an input of a given sort
    * @param name the name of the input
    * @param sort the sort of the input
    * @return the input term
    */
-  smt::Term make_input(const std::string name, const smt::Sort sort);
+  smt::Term make_input(const std::string name, const smt::Sort & sort);
 
   /* Create an state of a given sort
    * @param name the name of the state
@@ -56,7 +56,7 @@ class FunctionalTransitionSystem
    *
    * Can get next state var with next(const smt::Term t)
    */
-  smt::Term make_state(const std::string name, const smt::Sort sort);
+  smt::Term make_state(const std::string name, const smt::Sort & sort);
 
   /* Gives a term a name
    *   This can be used to track particular values in a witness
@@ -66,13 +66,13 @@ class FunctionalTransitionSystem
    * Throws an exception if the name has already been used
    *  Note: giving multiple names to the same term is allowed
    */
-  void name_term(const std::string name, const smt::Term t);
+  void name_term(const std::string name, const smt::Term & t);
 
   /* Map all current state variables to next state variables in the term
    * @param t the term to map
    * @return the term with all next state variables
    */
-  smt::Term next(const smt::Term term) const;
+  smt::Term next(const smt::Term & term) const;
 
   // getters
   smt::SmtSolver & solver() { return solver_; };
@@ -125,15 +125,15 @@ class FunctionalTransitionSystem
   // helpers and checkers
 
   /* Returns true iff all the symbols in the formula are current states */
-  bool only_curr(const smt::Term term) const;
+  bool only_curr(const smt::Term & term) const;
 
   /* Returns true iff all the symbols in the formula are known */
-  bool known_symbols(const smt::Term term);
+  bool known_symbols(const smt::Term & term);
 
   // Note: this method is not exposed, because the user should not be able to
   //       build terms with next states
   /* Replace all current states by their next-state updates, functionally */
-  smt::Term to_next_func(smt::Term term);
+  smt::Term to_next_func(const smt::Term & term);
 
 };
 

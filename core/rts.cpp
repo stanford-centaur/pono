@@ -6,7 +6,7 @@ using namespace std;
 namespace cosa
 {
 
-void RelationalTransitionSystem::set_behavior(const smt::Term init, const smt::Term trans)
+void RelationalTransitionSystem::set_behavior(const Term & init, const Term & trans)
 {
   // TODO: Only do this check in debug mode
   if(!known_symbols(init) || !known_symbols(trans))
@@ -17,7 +17,7 @@ void RelationalTransitionSystem::set_behavior(const smt::Term init, const smt::T
   trans_ = trans;
 }
 
-void RelationalTransitionSystem::set_trans(const smt::Term trans)
+void RelationalTransitionSystem::set_trans(const Term & trans)
 {
   // TODO: Only do this check in debug mode
   if (!known_symbols(trans))
@@ -27,7 +27,7 @@ void RelationalTransitionSystem::set_trans(const smt::Term trans)
   trans_ = trans;
 }
 
-void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
+void RelationalTransitionSystem::constrain_trans(const Term & constraint)
 {
   // TODO: Only do this check in debug mode
   if (!known_symbols(constraint))
@@ -37,24 +37,24 @@ void RelationalTransitionSystem::constrain_trans(const smt::Term constraint)
   trans_ = solver_->make_term(And, trans_, constraint);
 }
 
-Term RelationalTransitionSystem::curr(const smt::Term term) const
+Term RelationalTransitionSystem::curr(const Term & term) const
 {
   return solver_->substitute(term, curr_map_);
 }
 
-bool RelationalTransitionSystem::is_curr_var(const smt::Term sv) const
+bool RelationalTransitionSystem::is_curr_var(const Term & sv) const
 {
   return (states_.find(sv) != states_.end());
 }
 
-bool RelationalTransitionSystem::is_next_var(const smt::Term sv) const
+bool RelationalTransitionSystem::is_next_var(const Term & sv) const
 {
   return (next_states_.find(sv) != next_states_.end());
 }
 
 // overloaded -- keep track of backwards mapping
 Term RelationalTransitionSystem::make_input(const string name,
-                                            const Sort sort) {
+                                            const Sort & sort) {
   Term input = solver_->make_term(name, sort);
   inputs_.insert(input);
   // for invariant constraints, need to assert over next inputs
@@ -65,7 +65,7 @@ Term RelationalTransitionSystem::make_input(const string name,
 }
 
 // overloaded methods (using next-state variables)
-Term RelationalTransitionSystem::make_state(const string name, const Sort sort)
+Term RelationalTransitionSystem::make_state(const string name, const Sort & sort)
 {
   Term state = solver_->make_term(name, sort);
   Term next_state = solver_->make_term(name + ".next", sort);
@@ -78,7 +78,7 @@ Term RelationalTransitionSystem::make_state(const string name, const Sort sort)
 
 // protected methods
 
-bool RelationalTransitionSystem::known_symbols(const Term term) const
+bool RelationalTransitionSystem::known_symbols(const Term & term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{term};

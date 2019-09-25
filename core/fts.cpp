@@ -6,7 +6,7 @@ using namespace std;
 namespace cosa
 {
 
-void FunctionalTransitionSystem::set_init(const Term init)
+void FunctionalTransitionSystem::set_init(const Term & init)
 {
   // TODO: only do this check in debug mode
   if (!known_symbols(init))
@@ -17,7 +17,7 @@ void FunctionalTransitionSystem::set_init(const Term init)
   init_ = init;
 }
 
-void FunctionalTransitionSystem::constrain_init(const smt::Term constraint)
+void FunctionalTransitionSystem::constrain_init(const Term & constraint)
 {
   // TODO: Only do this check in debug mode
   if (!known_symbols(constraint))
@@ -27,7 +27,7 @@ void FunctionalTransitionSystem::constrain_init(const smt::Term constraint)
   init_ = solver_->make_term(And, init_, constraint);
 }
 
-void FunctionalTransitionSystem::set_next(const Term state, const Term val)
+void FunctionalTransitionSystem::set_next(const Term & state, const Term & val)
 {
   // TODO: only do this check in debug mode
   if(states_.find(state) == states_.end())
@@ -41,7 +41,7 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
 }
 
-void FunctionalTransitionSystem::add_invar(const Term constraint)
+void FunctionalTransitionSystem::add_invar(const Term & constraint)
 {
   // TODO: only check this in debug mode
   if (only_curr(constraint))
@@ -57,7 +57,7 @@ void FunctionalTransitionSystem::add_invar(const Term constraint)
   }
 }
 
-Term FunctionalTransitionSystem::make_input(const string name, const Sort sort)
+Term FunctionalTransitionSystem::make_input(const string name, const Sort & sort)
 {
   Term input = solver_->make_term(name, sort);
   inputs_.insert(input);
@@ -67,7 +67,7 @@ Term FunctionalTransitionSystem::make_input(const string name, const Sort sort)
   return input;
 }
 
-Term FunctionalTransitionSystem::make_state(const string name, const Sort sort)
+Term FunctionalTransitionSystem::make_state(const string name, const Sort & sort)
 {
   Term state = solver_->make_term(name, sort);
   Term next_state = solver_->make_term(name + ".next", sort);
@@ -78,7 +78,7 @@ Term FunctionalTransitionSystem::make_state(const string name, const Sort sort)
   return state;
 }
 
-void FunctionalTransitionSystem::name_term(const string name, const Term t)
+void FunctionalTransitionSystem::name_term(const string name, const Term & t)
 {
   if (named_terms_.find(name) != named_terms_.end())
   {
@@ -87,14 +87,14 @@ void FunctionalTransitionSystem::name_term(const string name, const Term t)
   named_terms_[name] = t;
 }
 
-Term FunctionalTransitionSystem::next(const smt::Term term) const
+Term FunctionalTransitionSystem::next(const Term & term) const
 {
   return solver_->substitute(term, next_map_);
 }
 
 // protected methods
 
-bool FunctionalTransitionSystem::only_curr(const smt::Term term) const
+bool FunctionalTransitionSystem::only_curr(const Term & term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{term};
@@ -125,7 +125,7 @@ bool FunctionalTransitionSystem::only_curr(const smt::Term term) const
   return true;
 }
 
-bool FunctionalTransitionSystem::known_symbols(const smt::Term term)
+bool FunctionalTransitionSystem::known_symbols(const Term & term)
 {
   UnorderedTermSet visited;
   TermVec to_visit{term};
@@ -159,7 +159,7 @@ bool FunctionalTransitionSystem::known_symbols(const smt::Term term)
   return true;
 }
 
-Term FunctionalTransitionSystem::to_next_func(Term term)
+Term FunctionalTransitionSystem::to_next_func(const Term & term)
 {
   return solver_->substitute(term, state_updates_);
 }
