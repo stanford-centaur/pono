@@ -69,6 +69,8 @@ void print_witness_btor(const BTOR2Encoder &btor_enc, const vector<UnorderedTerm
       cout << i << " " << init_map.at(inputs[i]) << " " << inputs[i] << "@" << k << endl;
     }
   }
+
+  cout << "." << endl;
 }
 
 int main(int argc, char ** argv)
