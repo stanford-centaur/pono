@@ -89,6 +89,9 @@ void FunctionalTransitionSystem::name_term(const string name, const Term & t)
 
 Term FunctionalTransitionSystem::next(const Term & term) const
 {
+  if (next_map_.find(term) != next_map_.end()) {
+    return next_map_.at(term);
+  }
   return solver_->substitute(term, next_map_);
 }
 
