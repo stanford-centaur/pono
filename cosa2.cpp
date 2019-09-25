@@ -52,6 +52,25 @@ const option::Descriptor usage[] = {
     {0, 0, 0, 0, 0, 0}};
 /*********************************** end Option Handling setup ***************************************/
 
+void print_witness_btor(const BTOR2Encoder &btor_enc, const vector<UnorderedTermMap> &cex)
+{
+  const TermVec inputs = btor_enc.inputsvec();
+  const TermVec states = btor_enc.statesvec();
+
+  const UnorderedTermMap &init_map = cex[0];
+  cout << "#0" << endl;
+  for (size_t i = 0, size = states.size(); i < size; ++i) {
+    cout << i << " " << init_map.at(states[i]) << " " << states[i] << "@0" << endl;
+  }
+
+  for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
+    cout << "@" << k << endl;
+    for (size_t i = 0, size = inputs.size(); i < size; ++i) {
+      cout << i << " " << init_map.at(inputs[i]) << " " << inputs[i] << "@" << k << endl;
+    }
+  }
+}
+
 int main(int argc, char ** argv)
 {
   argc-=(argc>0); argv+=(argc>0); // skip program name argv[0] if present
@@ -155,21 +174,25 @@ int main(int argc, char ** argv)
 
   ProverResult r = prover->check_until(bound);
   if (r == FALSE) {
-    cout << "Property " << prop_idx << " is FALSE" << endl;
-    std::vector<UnorderedTermMap> cex;
+    cout << "sat" << endl;
+    cout << "b" << prop_idx << endl;
+    vector<UnorderedTermMap> cex;
     if (prover->witness(cex)) {
-      for (size_t j = 0; j < cex.size(); ++j) {
-        cout << "-------- " << j << " --------" << endl;
-        const UnorderedTermMap &map = cex[j];
-        for (auto v : map) {
-          cout << v.first << " := " << v.second << endl;
-        }
-      }
+      print_witness_btor(btor_enc, cex);
+      // for (size_t j = 0; j < cex.size(); ++j) {
+      //   cout << "-------- " << j << " --------" << endl;
+      //   const UnorderedTermMap &map = cex[j];
+      //   for (auto v : map) {
+      //     cout << v.first << " := " << v.second << endl;
+      //   }
+      // }
     }
   } else if (r == TRUE) {
-    cout << "Property " << prop_idx << " is TRUE" << endl;
+    cout << "unsat" << endl;
+    cout << "b" << prop_idx << endl;
   } else {
-    cout << "Property " << prop_idx << " is UNKNOWN" << endl;
+    cout << "unknown" << endl;
+    cout << "b" << prop_idx << endl;
   }
 
   return 0;
