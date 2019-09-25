@@ -237,7 +237,9 @@ void BTOR2Encoder::parse(std::string filename)
         symbol_ = "state" + to_string(l_->id);
       }
 
-      terms_[l_->id] = rts_.make_state(symbol_, linesort_);
+      Term state = rts_.make_state(symbol_, linesort_);
+      terms_[l_->id] = state;
+      statesvec_.push_back(state);
     }
     else if (l_->tag == BTOR2_TAG_input)
     {
@@ -249,7 +251,9 @@ void BTOR2Encoder::parse(std::string filename)
       {
         symbol_ = "input" + to_string(l_->id);
       }
-      terms_[l_->id] = rts_.make_input(symbol_, linesort_);
+      Term input = rts_.make_input(symbol_, linesort_);
+      terms_[l_->id] = input;
+      inputsvec_.push_back(input);
     }
     else if (l_->tag == BTOR2_TAG_output)
     {
