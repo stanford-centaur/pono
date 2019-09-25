@@ -37,7 +37,8 @@ void FunctionalTransitionSystem::set_next(const Term state, const Term val)
 
   // TODO: check only_curr on val in debug mode
   state_updates_[state] = val;
-  trans_ = solver_->make_term(And, trans_, solver_->make_term(Equal, next(state), val));
+  trans_ = solver_->make_term(
+      And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
 }
 
 void FunctionalTransitionSystem::add_invar(const Term constraint)
@@ -48,7 +49,8 @@ void FunctionalTransitionSystem::add_invar(const Term constraint)
     init_ = solver_->make_term(And, init_, constraint);
     trans_ = solver_->make_term(And, trans_, constraint);
     // add the next-state version
-    trans_ = solver_->make_term(And, trans_, next(constraint));
+    trans_ = solver_->make_term(And, trans_,
+                                solver_->substitute(constraint, next_map_));
   } else {
     throw CosaException(
         "Invariants should be over current states and inputs only.");
@@ -85,7 +87,7 @@ void FunctionalTransitionSystem::name_term(const string name, const Term t)
   named_terms_[name] = t;
 }
 
-Term FunctionalTransitionSystem::next(const smt::Term term) const 
+Term FunctionalTransitionSystem::next(const smt::Term term) const
 {
   return solver_->substitute(term, next_map_);
 }
