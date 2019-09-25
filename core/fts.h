@@ -68,12 +68,6 @@ class FunctionalTransitionSystem
    */
   void name_term(const std::string name, const smt::Term & t);
 
-  /* Map all current state variables to next state variables in the term
-   * @param t the term to map
-   * @return the term with all next state variables
-   */
-  smt::Term next(const smt::Term & term) const;
-
   // getters
   smt::SmtSolver & solver() { return solver_; };
 

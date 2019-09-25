@@ -42,6 +42,14 @@ Term RelationalTransitionSystem::curr(const Term & term) const
   return solver_->substitute(term, curr_map_);
 }
 
+Term RelationalTransitionSystem::next(const Term & term) const
+{
+  if (next_map_.find(term) != next_map_.end()) {
+    return next_map_.at(term);
+  }
+  return solver_->substitute(term, next_map_);
+}
+
 bool RelationalTransitionSystem::is_curr_var(const Term & sv) const
 {
   return (states_.find(sv) != states_.end());

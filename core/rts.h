@@ -37,6 +37,12 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
    */
   smt::Term curr(const smt::Term & term) const;
 
+  /* Map all current state variables to next state variables in the term
+   * @param t the term to map
+   * @return the term with all next state variables
+   */
+  smt::Term next(const smt::Term & term) const;
+
   /* @param sv the state variable to check
    * @return true if sv is a current state variable
    *

@@ -87,14 +87,6 @@ void FunctionalTransitionSystem::name_term(const string name, const Term & t)
   named_terms_[name] = t;
 }
 
-Term FunctionalTransitionSystem::next(const Term & term) const
-{
-  if (next_map_.find(term) != next_map_.end()) {
-    return next_map_.at(term);
-  }
-  return solver_->substitute(term, next_map_);
-}
-
 // protected methods
 
 bool FunctionalTransitionSystem::only_curr(const Term & term) const
