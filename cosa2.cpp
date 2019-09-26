@@ -90,15 +90,15 @@ void print_witness_btor(const BTOR2Encoder &btor_enc, const vector<UnorderedTerm
   const TermVec states = btor_enc.statesvec();
 
   const UnorderedTermMap &init_map = cex[0];
-  cout << "#0" << endl;
+  logger.log(0, "#0");
   for (size_t i = 0, size = states.size(); i < size; ++i) {
-    cout << i << " " << init_map.at(states[i]) << " " << states[i] << "@0" << endl;
+    logger.log(0, "{} {} {}@0", i, init_map.at(states[i]), states[i]);
   }
 
   for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
-    cout << "@" << k << endl;
+    logger.log(0, "@{}", k);
     for (size_t i = 0, size = inputs.size(); i < size; ++i) {
-      cout << i << " " << init_map.at(inputs[i]) << " " << inputs[i] << "@" << k << endl;
+      logger.log(0, "{} {} {}@{}", i, init_map.at(inputs[i]), inputs[i], k);
     }
   }
 
