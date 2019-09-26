@@ -89,27 +89,70 @@ const option::Descriptor usage[] = {
 /*********************************** end Option Handling setup
  * ***************************************/
 
+void print_btor_vals_at_time(const TermVec & vec,
+                             const UnorderedTermMap & valmap,
+                             unsigned int time)
+{
+  SortKind sk;
+  std::string val;
+  std::string elem;
+  TermVec store_children(3);
+  for (size_t i = 0, size = vec.size(); i < size; ++i)
+  {
+    sk = vec[i]->get_sort()->get_sort_kind();
+    if (sk == BV)
+    {
+      // TODO: this makes assumptions on format of value from boolector
+      //       to support other solvers, we need to be more general
+      // Remove the #b prefix
+      val = valmap.at(vec[i])->to_string();
+      val = val.substr(2, val.length() - 2);
+      logger.log(0, "{} {} {}@{}", i, val, vec[i], time);
+    }
+    else if (sk == ARRAY)
+    {
+      Term tmp = valmap.at(vec[i]);
+      while (tmp->get_op() == Store)
+      {
+        int num = 0;
+        for (auto c : tmp)
+        {
+          store_children[num] = c;
+          num++;
+        }
+
+        // TODO: this makes assumptions on format of value from boolector
+        //       to support other solvers, we need to be more general
+        // Remove the #b prefix
+        val = store_children[1]->to_string();
+        val = val.substr(2, val.length() - 2);
+        elem = store_children[2]->to_string();
+        elem = elem.substr(2, elem.length() - 2);
+
+        logger.log(0, "{} [{}] {} {}@{}", i, val, elem, vec[i], time);
+        tmp = store_children[0];
+      }
+    }
+    else
+    {
+      throw CosaException("Unhandled sort kind: " + ::smt::to_string(sk));
+    }
+  }
+}
+
 void print_witness_btor(const BTOR2Encoder & btor_enc,
                         const vector<UnorderedTermMap> & cex)
 {
   const TermVec inputs = btor_enc.inputsvec();
   const TermVec states = btor_enc.statesvec();
 
-  const UnorderedTermMap & init_map = cex[0];
   logger.log(0, "#0");
-  for (size_t i = 0, size = states.size(); i < size; ++i)
-  {
-    logger.log(0, "{} {} {}@0", i, init_map.at(states[i]), states[i]);
-  }
+  print_btor_vals_at_time(states, cex.at(0), 0);
 
   for (size_t k = 0, cex_size = cex.size(); k + 1 < cex_size; ++k)
   {
-    const UnorderedTermMap & at_time = cex[k];
     logger.log(0, "@{}", k);
-    for (size_t i = 0, size = inputs.size(); i < size; ++i)
-    {
-      logger.log(0, "{} {} {}@{}", i, at_time.at(inputs[i]), inputs[i], k);
-    }
+    print_btor_vals_at_time(inputs, cex.at(k), k);
   }
 
   cout << "." << endl;
