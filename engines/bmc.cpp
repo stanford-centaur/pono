@@ -81,7 +81,7 @@ namespace cosa
       return true;
     }
 
-    std::cout << "Checking BMC Bound " << i << std::endl;
+    // std::cout << "Checking BMC Bound " << i << std::endl;
 
     bool res = true;
     Term bad = solver_->make_term(PrimOp::Not, property_.prop());

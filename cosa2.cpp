@@ -146,9 +146,9 @@ int main(int argc, char ** argv)
   RelationalTransitionSystem rts(s);
   BTOR2Encoder btor_enc(filename, rts);
 
-  cout << "Created TransitionSystem with:\n";
-  cout << "\t" << rts.inputs().size() << " input variables." << endl;
-  cout << "\t" << rts.states().size() << " state variables." << endl;
+  // cout << "Created TransitionSystem with:\n";
+  // cout << "\t" << rts.inputs().size() << " input variables." << endl;
+  // cout << "\t" << rts.states().size() << " state variables." << endl;
 
   unsigned int num_bad = btor_enc.badvec().size();
   if (prop_idx >= num_bad)
@@ -165,12 +165,12 @@ int main(int argc, char ** argv)
   std::shared_ptr<Prover> prover;
   if (induction)
   {
-    cout << "Running k-induction" << endl;
+    // cout << "Running k-induction" << endl;
     prover = std::make_shared<KInduction>(p, s);
   }
   else
   {
-    cout << "Running bounded model checking" << endl;
+    // cout << "Running bounded model checking" << endl;
     prover = std::make_shared<Bmc>(p, s);
   }
 
