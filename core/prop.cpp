@@ -3,17 +3,13 @@
 
 using namespace smt;
 
-namespace cosa
+namespace cosa {
+
+Property::Property(const RelationalTransitionSystem & ts, Term p)
+    : ts_(ts), prop_(p)
 {
+}
 
-  Property::Property(const RelationalTransitionSystem &ts, Term p):
-    ts_(ts),
-    prop_(p)
-  {
-  }
+Property::~Property() {}
 
-  Property::~Property()
-  {
-  }
-
-} // namespace cosa
+}  // namespace cosa

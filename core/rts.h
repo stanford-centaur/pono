@@ -6,19 +6,19 @@
 
 #include "fts.h"
 
-namespace cosa
-{
+namespace cosa {
 
 class RelationalTransitionSystem : public FunctionalTransitionSystem
 {
  public:
-   RelationalTransitionSystem(smt::SmtSolver & s)
-     : FunctionalTransitionSystem(s) {}
+  RelationalTransitionSystem(smt::SmtSolver & s) : FunctionalTransitionSystem(s)
+  {
+  }
 
   /* Sets init and trans to the provided values
    * @param init the new initial state constraints (boolean sort)
    * @param trans the new transition relation constraints (boolean sort)
-  */
+   */
   void set_behavior(const smt::Term & init, const smt::Term & trans);
 
   /* Sets transition relation to the provided formula
@@ -79,7 +79,6 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
 
   // overloaded
   bool known_symbols(const smt::Term & term) const;
-
 };
 
-}
+}  // namespace cosa

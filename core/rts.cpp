@@ -3,13 +3,13 @@
 using namespace smt;
 using namespace std;
 
-namespace cosa
-{
+namespace cosa {
 
-void RelationalTransitionSystem::set_behavior(const Term & init, const Term & trans)
+void RelationalTransitionSystem::set_behavior(const Term & init,
+                                              const Term & trans)
 {
   // TODO: Only do this check in debug mode
-  if(!known_symbols(init) || !known_symbols(trans))
+  if (!known_symbols(init) || !known_symbols(trans))
   {
     throw CosaException("Unknown symbols");
   }
@@ -44,7 +44,8 @@ Term RelationalTransitionSystem::curr(const Term & term) const
 
 Term RelationalTransitionSystem::next(const Term & term) const
 {
-  if (next_map_.find(term) != next_map_.end()) {
+  if (next_map_.find(term) != next_map_.end())
+  {
     return next_map_.at(term);
   }
   return solver_->substitute(term, next_map_);
@@ -62,7 +63,8 @@ bool RelationalTransitionSystem::is_next_var(const Term & sv) const
 
 // overloaded -- keep track of backwards mapping
 Term RelationalTransitionSystem::make_input(const string name,
-                                            const Sort & sort) {
+                                            const Sort & sort)
+{
   Term input = solver_->make_term(name, sort);
   inputs_.insert(input);
   // for invariant constraints, need to assert over next inputs
@@ -73,7 +75,8 @@ Term RelationalTransitionSystem::make_input(const string name,
 }
 
 // overloaded methods (using next-state variables)
-Term RelationalTransitionSystem::make_state(const string name, const Sort & sort)
+Term RelationalTransitionSystem::make_state(const string name,
+                                            const Sort & sort)
 {
   Term state = solver_->make_term(name, sort);
   Term next_state = solver_->make_term(name + ".next", sort);
@@ -89,24 +92,23 @@ Term RelationalTransitionSystem::make_state(const string name, const Sort & sort
 bool RelationalTransitionSystem::known_symbols(const Term & term) const
 {
   UnorderedTermSet visited;
-  TermVec to_visit{term};
+  TermVec to_visit{ term };
   Term t;
-  while(to_visit.size())
+  while (to_visit.size())
   {
     t = to_visit.back();
     to_visit.pop_back();
 
-    if(visited.find(t) != visited.end())
+    if (visited.find(t) != visited.end())
     {
       // cache hit
       continue;
     }
 
-    if(t->is_symbolic_const() &&
-       !((inputs_.find(t) != inputs_.end()) ||
-         (states_.find(t) != states_.end()) ||
-         (next_states_.find(t) != next_states_.end())
-         ))
+    if (t->is_symbolic_const()
+        && !((inputs_.find(t) != inputs_.end())
+             || (states_.find(t) != states_.end())
+             || (next_states_.find(t) != next_states_.end())))
     {
       return false;
     }
@@ -121,4 +123,4 @@ bool RelationalTransitionSystem::known_symbols(const Term & term) const
   return true;
 }
 
-}
+}  // namespace cosa

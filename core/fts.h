@@ -7,17 +7,15 @@
 
 #include "exceptions.h"
 
-namespace cosa
-{
+namespace cosa {
 
 class FunctionalTransitionSystem
 {
  public:
-    FunctionalTransitionSystem(smt::SmtSolver & s)
-      : solver_(s),
-        init_(s->make_value(true)),
-        trans_(s->make_value(true))
-     {}
+  FunctionalTransitionSystem(smt::SmtSolver & s)
+      : solver_(s), init_(s->make_value(true)), trans_(s->make_value(true))
+  {
+  }
 
   /* Sets initial states to the provided formula
    * @param init the new initial state constraints
@@ -39,7 +37,7 @@ class FunctionalTransitionSystem
   /* Add constraint to the system
    * This is an invariant constraint, enforced over all time
    * @param constraint the boolean constraint term to add
-  */
+   */
   void add_invar(const smt::Term & constraint);
 
   /* Create an input of a given sort
@@ -83,10 +81,16 @@ class FunctionalTransitionSystem
   /* Returns the next state updates
    * @return a map of functional next state updates
    */
-  const smt::UnorderedTermMap & state_updates() const { return state_updates_; };
+  const smt::UnorderedTermMap & state_updates() const
+  {
+    return state_updates_;
+  };
 
   /* @return the named terms mapping */
-  const std::unordered_map<std::string, smt::Term> & named_terms() const { return named_terms_; };
+  const std::unordered_map<std::string, smt::Term> & named_terms() const
+  {
+    return named_terms_;
+  };
 
  protected:
   // solver
@@ -128,7 +132,6 @@ class FunctionalTransitionSystem
   //       build terms with next states
   /* Replace all current states by their next-state updates, functionally */
   smt::Term to_next_func(const smt::Term & term);
-
 };
 
-}
+}  // namespace cosa

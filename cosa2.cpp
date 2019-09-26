@@ -14,7 +14,8 @@ using namespace cosa;
 using namespace smt;
 using namespace std;
 
-/************************************* Option Handling setup *****************************************/
+/************************************* Option Handling setup
+ * *****************************************/
 // from optionparser-1.7 examples -- example_arg.cc
 enum optionIndex
 {
@@ -28,19 +29,22 @@ enum optionIndex
 
 struct Arg : public option::Arg
 {
-  static void printError(const char* msg1, const option::Option& opt, const char* msg2)
+  static void printError(const char * msg1,
+                         const option::Option & opt,
+                         const char * msg2)
   {
     fprintf(stderr, "%s", msg1);
     fwrite(opt.name, opt.namelen, 1, stderr);
     fprintf(stderr, "%s", msg2);
   }
 
-  static option::ArgStatus Numeric(const option::Option& option, bool msg)
+  static option::ArgStatus Numeric(const option::Option & option, bool msg)
   {
-    char* endptr = 0;
-    if (option.arg != 0 && strtol(option.arg, &endptr, 10)){};
-    if (endptr != option.arg && *endptr == 0)
-      return option::ARG_OK;
+    char * endptr = 0;
+    if (option.arg != 0 && strtol(option.arg, &endptr, 10))
+    {
+    };
+    if (endptr != option.arg && *endptr == 0) return option::ARG_OK;
 
     if (msg) printError("Option '", option, "' requires a numeric argument\n");
     return option::ARG_ILLEGAL;
@@ -82,16 +86,19 @@ const option::Descriptor usage[] = {
     "  --verbosity, -v \tVerbosity for printing to standard out." },
   { 0, 0, 0, 0, 0, 0 }
 };
-/*********************************** end Option Handling setup ***************************************/
+/*********************************** end Option Handling setup
+ * ***************************************/
 
-void print_witness_btor(const BTOR2Encoder &btor_enc, const vector<UnorderedTermMap> &cex)
+void print_witness_btor(const BTOR2Encoder & btor_enc,
+                        const vector<UnorderedTermMap> & cex)
 {
   const TermVec inputs = btor_enc.inputsvec();
   const TermVec states = btor_enc.statesvec();
 
-  const UnorderedTermMap &init_map = cex[0];
+  const UnorderedTermMap & init_map = cex[0];
   logger.log(0, "#0");
-  for (size_t i = 0, size = states.size(); i < size; ++i) {
+  for (size_t i = 0, size = states.size(); i < size; ++i)
+  {
     logger.log(0, "{} {} {}@0", i, init_map.at(states[i]), states[i]);
   }
 
@@ -99,7 +106,8 @@ void print_witness_btor(const BTOR2Encoder &btor_enc, const vector<UnorderedTerm
   {
     const UnorderedTermMap & at_time = cex[k];
     logger.log(0, "@{}", k);
-    for (size_t i = 0, size = inputs.size(); i < size; ++i) {
+    for (size_t i = 0, size = inputs.size(); i < size; ++i)
+    {
       logger.log(0, "{} {} {}@{}", i, at_time.at(inputs[i]), inputs[i], k);
     }
   }
@@ -109,8 +117,9 @@ void print_witness_btor(const BTOR2Encoder &btor_enc, const vector<UnorderedTerm
 
 int main(int argc, char ** argv)
 {
-  argc-=(argc>0); argv+=(argc>0); // skip program name argv[0] if present
-  option::Stats  stats(usage, argc, argv);
+  argc -= (argc > 0);
+  argv += (argc > 0);  // skip program name argv[0] if present
+  option::Stats stats(usage, argc, argv);
   std::vector<option::Option> options(stats.options_max);
   std::vector<option::Option> buffer(stats.buffer_max);
   option::Parser parse(usage, argc, argv, &options[0], &buffer[0]);
@@ -133,7 +142,7 @@ int main(int argc, char ** argv)
   }
 
   bool unknown_options = false;
-  for (option::Option* opt = options[UNKNOWN_OPTION]; opt; opt = opt->next())
+  for (option::Option * opt = options[UNKNOWN_OPTION]; opt; opt = opt->next())
   {
     unknown_options = true;
   }
@@ -151,25 +160,19 @@ int main(int argc, char ** argv)
 
   for (int i = 0; i < parse.optionsCount(); ++i)
   {
-    option::Option& opt = buffer[i];
+    option::Option & opt = buffer[i];
     switch (opt.index())
     {
-    case HELP:
-      // not possible, because handled further above and exits the program
-    case INDUCTION:
-      induction=true;
-      break;
-    case BOUND:
-      bound = atoi(opt.arg);
-      break;
-    case PROP:
-      prop_idx=atoi(opt.arg);
-      break;
-    case VERBOSITY: verbosity = atoi(opt.arg); break;
-    case UNKNOWN_OPTION:
-      // not possible because Arg::Unknown returns ARG_ILLEGAL
-      // which aborts the parse with an error
-      break;
+      case HELP:
+        // not possible, because handled further above and exits the program
+      case INDUCTION: induction = true; break;
+      case BOUND: bound = atoi(opt.arg); break;
+      case PROP: prop_idx = atoi(opt.arg); break;
+      case VERBOSITY: verbosity = atoi(opt.arg); break;
+      case UNKNOWN_OPTION:
+        // not possible because Arg::Unknown returns ARG_ILLEGAL
+        // which aborts the parse with an error
+        break;
     }
   }
 
@@ -214,11 +217,13 @@ int main(int argc, char ** argv)
   }
 
   ProverResult r = prover->check_until(bound);
-  if (r == FALSE) {
+  if (r == FALSE)
+  {
     cout << "sat" << endl;
     cout << "b" << prop_idx << endl;
     vector<UnorderedTermMap> cex;
-    if (prover->witness(cex)) {
+    if (prover->witness(cex))
+    {
       print_witness_btor(btor_enc, cex);
       // for (size_t j = 0; j < cex.size(); ++j) {
       //   cout << "-------- " << j << " --------" << endl;
@@ -228,10 +233,14 @@ int main(int argc, char ** argv)
       //   }
       // }
     }
-  } else if (r == TRUE) {
+  }
+  else if (r == TRUE)
+  {
     cout << "unsat" << endl;
     cout << "b" << prop_idx << endl;
-  } else {
+  }
+  else
+  {
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;
   }

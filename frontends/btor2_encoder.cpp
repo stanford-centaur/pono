@@ -5,102 +5,101 @@
 using namespace smt;
 using namespace std;
 
-namespace cosa
-{
+namespace cosa {
 
 // Maps for use in conversion
-const unordered_map<Btor2Tag, int> basemap(
-                                           { {BTOR2_TAG_const, 2},
-                                             {BTOR2_TAG_constd, 10},
-                                             {BTOR2_TAG_consth, 16} });
+const unordered_map<Btor2Tag, int> basemap({ { BTOR2_TAG_const, 2 },
+                                             { BTOR2_TAG_constd, 10 },
+                                             { BTOR2_TAG_consth, 16 } });
 
-const unordered_map<Btor2Tag, smt::PrimOp> bvopmap(
-                                              {  { BTOR2_TAG_add, BVAdd },
-                                                 { BTOR2_TAG_and, BVAnd },
-                                                 // { BTOR2_TAG_bad, },
-                                                 { BTOR2_TAG_concat, Concat },
-                                                 //{ BTOR2_TAG_const, },
-                                                 //{ BTOR2_TAG_constraint, },
-                                                 //{ BTOR2_TAG_constd, },
-                                                 //{ BTOR2_TAG_consth, },
-                                                 //{ BTOR2_TAG_dec, },
-                                                 { BTOR2_TAG_eq, BVComp },
-                                                 //{ BTOR2_TAG_fair, },
-                                                 { BTOR2_TAG_iff, Iff },
-                                                 { BTOR2_TAG_implies, Implies },
-                                                 //{ BTOR2_TAG_inc, },
-                                                 //{ BTOR2_TAG_init, },
-                                                 //{ BTOR2_TAG_input, },
-                                                 //{ BTOR2_TAG_ite, Ite },
-                                                 //{ BTOR2_TAG_justice, },
-                                                 { BTOR2_TAG_mul, BVMul },
-                                                 { BTOR2_TAG_nand, BVNand },
-                                                 { BTOR2_TAG_neq, Distinct},
-                                                 { BTOR2_TAG_neg, BVNeg },
-                                                 //{ BTOR2_TAG_next, },
-                                                 { BTOR2_TAG_nor, BVNor },
-                                                 { BTOR2_TAG_not, BVNot },
-                                                 //{ BTOR2_TAG_one, },
-                                                 //{ BTOR2_TAG_ones, },
-                                                 { BTOR2_TAG_or, BVOr },
-                                                 //{ BTOR2_TAG_output, },
-                                                 { BTOR2_TAG_read, Select },
-                                                 //{ BTOR2_TAG_redand, },
-                                                 //{ BTOR2_TAG_redor, },
-                                                 //{ BTOR2_TAG_redxor, },
-                                                 // { BTOR2_TAG_rol, },
-                                                 // { BTOR2_TAG_ror, },
-                                                 //{ BTOR2_TAG_saddo, },
-                                                 { BTOR2_TAG_sdiv, BVSdiv },
-                                                 //{ BTOR2_TAG_sdivo, },
-                                                 //{ BTOR2_TAG_sext, },
-                                                 { BTOR2_TAG_sgt, BVSgt },
-                                                 { BTOR2_TAG_sgte, BVSge },
-                                                 //{ BTOR2_TAG_slice, },
-                                                 { BTOR2_TAG_sll, BVShl },
-                                                 { BTOR2_TAG_slt, BVSlt },
-                                                 { BTOR2_TAG_slte, BVSle },
-                                                 //{ BTOR2_TAG_sort, },
-                                                 { BTOR2_TAG_smod, BVSmod },
-                                                 //{ BTOR2_TAG_smulo, },
-                                                 { BTOR2_TAG_sra, BVAshr },
-                                                 { BTOR2_TAG_srem, BVSrem },
-                                                 { BTOR2_TAG_srl, BVLshr },
-                                                 //{ BTOR2_TAG_ssubo, },
-                                                 //{ BTOR2_TAG_state, },
-                                                 { BTOR2_TAG_sub, BVSub },
-                                                 //{ BTOR2_TAG_uaddo, },
-                                                 { BTOR2_TAG_udiv, BVUdiv },
-                                                 //{ BTOR2_TAG_uext, },
-                                                 { BTOR2_TAG_ugt, BVUgt },
-                                                 { BTOR2_TAG_ugte, BVUge },
-                                                 { BTOR2_TAG_ult, BVUlt },
-                                                 { BTOR2_TAG_ulte, BVUle },
-                                                 //{ BTOR2_TAG_umulo, },
-                                                 { BTOR2_TAG_urem, BVUrem },
-                                                 //{ BTOR2_TAG_usubo, },
-                                                 { BTOR2_TAG_write, Store },
-                                                 { BTOR2_TAG_xnor, BVXnor },
-                                                 { BTOR2_TAG_xor, BVXor },
-                                                 //{ BTOR2_TAG_zero, }
-                                              });
+const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
+    { BTOR2_TAG_add, BVAdd },
+    { BTOR2_TAG_and, BVAnd },
+    // { BTOR2_TAG_bad, },
+    { BTOR2_TAG_concat, Concat },
+    //{ BTOR2_TAG_const, },
+    //{ BTOR2_TAG_constraint, },
+    //{ BTOR2_TAG_constd, },
+    //{ BTOR2_TAG_consth, },
+    //{ BTOR2_TAG_dec, },
+    { BTOR2_TAG_eq, BVComp },
+    //{ BTOR2_TAG_fair, },
+    { BTOR2_TAG_iff, Iff },
+    { BTOR2_TAG_implies, Implies },
+    //{ BTOR2_TAG_inc, },
+    //{ BTOR2_TAG_init, },
+    //{ BTOR2_TAG_input, },
+    //{ BTOR2_TAG_ite, Ite },
+    //{ BTOR2_TAG_justice, },
+    { BTOR2_TAG_mul, BVMul },
+    { BTOR2_TAG_nand, BVNand },
+    { BTOR2_TAG_neq, Distinct },
+    { BTOR2_TAG_neg, BVNeg },
+    //{ BTOR2_TAG_next, },
+    { BTOR2_TAG_nor, BVNor },
+    { BTOR2_TAG_not, BVNot },
+    //{ BTOR2_TAG_one, },
+    //{ BTOR2_TAG_ones, },
+    { BTOR2_TAG_or, BVOr },
+    //{ BTOR2_TAG_output, },
+    { BTOR2_TAG_read, Select },
+    //{ BTOR2_TAG_redand, },
+    //{ BTOR2_TAG_redor, },
+    //{ BTOR2_TAG_redxor, },
+    // { BTOR2_TAG_rol, },
+    // { BTOR2_TAG_ror, },
+    //{ BTOR2_TAG_saddo, },
+    { BTOR2_TAG_sdiv, BVSdiv },
+    //{ BTOR2_TAG_sdivo, },
+    //{ BTOR2_TAG_sext, },
+    { BTOR2_TAG_sgt, BVSgt },
+    { BTOR2_TAG_sgte, BVSge },
+    //{ BTOR2_TAG_slice, },
+    { BTOR2_TAG_sll, BVShl },
+    { BTOR2_TAG_slt, BVSlt },
+    { BTOR2_TAG_slte, BVSle },
+    //{ BTOR2_TAG_sort, },
+    { BTOR2_TAG_smod, BVSmod },
+    //{ BTOR2_TAG_smulo, },
+    { BTOR2_TAG_sra, BVAshr },
+    { BTOR2_TAG_srem, BVSrem },
+    { BTOR2_TAG_srl, BVLshr },
+    //{ BTOR2_TAG_ssubo, },
+    //{ BTOR2_TAG_state, },
+    { BTOR2_TAG_sub, BVSub },
+    //{ BTOR2_TAG_uaddo, },
+    { BTOR2_TAG_udiv, BVUdiv },
+    //{ BTOR2_TAG_uext, },
+    { BTOR2_TAG_ugt, BVUgt },
+    { BTOR2_TAG_ugte, BVUge },
+    { BTOR2_TAG_ult, BVUlt },
+    { BTOR2_TAG_ulte, BVUle },
+    //{ BTOR2_TAG_umulo, },
+    { BTOR2_TAG_urem, BVUrem },
+    //{ BTOR2_TAG_usubo, },
+    { BTOR2_TAG_write, Store },
+    { BTOR2_TAG_xnor, BVXnor },
+    { BTOR2_TAG_xor, BVXor },
+    //{ BTOR2_TAG_zero, }
+});
 
 const unordered_map<Btor2Tag, smt::PrimOp> boolopmap(
-                                                  { { BTOR2_TAG_and, And },
-                                                    { BTOR2_TAG_or, Or },
-                                                    { BTOR2_TAG_xor, Xor },
-                                                    { BTOR2_TAG_not, Not },
-                                                    { BTOR2_TAG_implies, Implies },
-                                                    { BTOR2_TAG_iff, Iff },
-                                                    { BTOR2_TAG_eq, Equal },
-                                                    { BTOR2_TAG_neq, Distinct }
-                                                  });
+    { { BTOR2_TAG_and, And },
+      { BTOR2_TAG_or, Or },
+      { BTOR2_TAG_xor, Xor },
+      { BTOR2_TAG_not, Not },
+      { BTOR2_TAG_implies, Implies },
+      { BTOR2_TAG_iff, Iff },
+      { BTOR2_TAG_eq, Equal },
+      { BTOR2_TAG_neq, Distinct } });
 
-Term BTOR2Encoder::bool_to_bv(const Term &t) const {
+Term BTOR2Encoder::bool_to_bv(const Term & t) const
+{
   if (t->get_sort()->get_sort_kind() == BOOL)
   {
     Sort bv1sort = solver_->make_sort(BV, 1);
-    return solver_->make_term(Ite, solver_->make_value(1, bv1sort), solver_->make_value(0, bv1sort));
+    return solver_->make_term(
+        Ite, solver_->make_value(1, bv1sort), solver_->make_value(0, bv1sort));
   }
   else
   {
@@ -108,7 +107,8 @@ Term BTOR2Encoder::bool_to_bv(const Term &t) const {
   }
 }
 
-Term BTOR2Encoder::bv_to_bool(const Term &t) const {
+Term BTOR2Encoder::bv_to_bool(const Term & t) const
+{
   Sort sort = t->get_sort();
   if (sort->get_sort_kind() == BV)
   {
@@ -116,7 +116,8 @@ Term BTOR2Encoder::bv_to_bool(const Term &t) const {
     {
       throw CosaException("Can't convert non-width 1 bitvector to bool.");
     }
-    return solver_->make_term(Equal, t, solver_->make_value(1, solver_->make_sort(BV, 1)));
+    return solver_->make_term(
+        Equal, t, solver_->make_value(1, solver_->make_sort(BV, 1)));
   }
   else
   {
@@ -124,7 +125,8 @@ Term BTOR2Encoder::bv_to_bool(const Term &t) const {
   }
 }
 
-TermVec BTOR2Encoder::lazy_convert(const TermVec &tvec) const {
+TermVec BTOR2Encoder::lazy_convert(const TermVec & tvec) const
+{
   TermVec res;
   res.reserve(tvec.size());
 
@@ -143,8 +145,7 @@ TermVec BTOR2Encoder::lazy_convert(const TermVec &tvec) const {
     {
       num_bools++;
     }
-    else if (!(sort->get_sort_kind() == BV &&
-               sort->get_width() == 1))
+    else if (!(sort->get_sort_kind() == BV && sort->get_width() == 1))
     {
       wide_bvs = true;
     }
@@ -152,16 +153,16 @@ TermVec BTOR2Encoder::lazy_convert(const TermVec &tvec) const {
 
   if (sortset.size() > 1)
   {
-    if (num_bools > tvec.size()/2 && !wide_bvs)
+    if (num_bools > tvec.size() / 2 && !wide_bvs)
     {
-      for(auto t : tvec)
+      for (auto t : tvec)
       {
         res.push_back(bv_to_bool(t));
       }
     }
     else
     {
-      for(auto t : tvec)
+      for (auto t : tvec)
       {
         res.push_back(bool_to_bv(t));
       }
@@ -171,57 +172,67 @@ TermVec BTOR2Encoder::lazy_convert(const TermVec &tvec) const {
   return res;
 }
 
-void BTOR2Encoder::parse(const std::string filename) {
-  FILE* input_file = fopen(filename.c_str(), "r");
+void BTOR2Encoder::parse(const std::string filename)
+{
+  FILE * input_file = fopen(filename.c_str(), "r");
 
-  if(!input_file)
+  if (!input_file)
   {
     throw CosaException("Could not open " + filename);
   }
 
   reader_ = btor2parser_new();
 
-  if(!btor2parser_read_lines(reader_, input_file))
+  if (!btor2parser_read_lines(reader_, input_file))
   {
     throw CosaException("Error parsing btor file.");
   }
 
   it_ = btor2parser_iter_init(reader_);
-  while((l_ = btor2parser_iter_next(&it_)))
+  while ((l_ = btor2parser_iter_next(&it_)))
   {
-    /******************************** Identify sort ********************************/
+    /******************************** Identify sort
+     * ********************************/
     if (l_->tag != BTOR2_TAG_sort && l_->sort.id)
     {
-      linesort_=sorts_.at(l_->sort.id);
+      linesort_ = sorts_.at(l_->sort.id);
     }
 
-    /******************************** Gather term arguments ********************************/
+    /******************************** Gather term arguments
+     * ********************************/
     termargs_.clear();
     termargs_.reserve(l_->nargs);
-    for(i_ = 0; i_ < l_->nargs; i_++)
+    for (i_ = 0; i_ < l_->nargs; i_++)
     {
       negated_ = false;
       idx_ = l_->args[i_];
-      if (idx_ < 0) {
+      if (idx_ < 0)
+      {
         negated_ = true;
         idx_ = -idx_;
       }
-      if (terms_.find(idx_) == terms_.end()) {
+      if (terms_.find(idx_) == terms_.end())
+      {
         throw CosaException("Missing term for id " + std::to_string(idx_));
       }
 
       Term term_ = terms_.at(idx_);
-      if (negated_) {
-        if (term_->get_sort()->get_sort_kind() == BV) {
+      if (negated_)
+      {
+        if (term_->get_sort()->get_sort_kind() == BV)
+        {
           term_ = solver_->make_term(BVNot, term_);
-        } else {
+        }
+        else
+        {
           term_ = solver_->make_term(Not, term_);
         }
       }
       termargs_.push_back(term_);
     }
 
-    /******************************** Handle special cases ********************************/
+    /******************************** Handle special cases
+     * ********************************/
     if (l_->tag == BTOR2_TAG_state)
     {
       if (l_->symbol)
@@ -264,25 +275,28 @@ void BTOR2Encoder::parse(const std::string filename) {
 
       rts_.name_term(symbol_, termargs_[0]);
     }
-    else if(l_->tag == BTOR2_TAG_sort)
+    else if (l_->tag == BTOR2_TAG_sort)
     {
-      switch(l_->sort.tag)
+      switch (l_->sort.tag)
       {
-      case BTOR2_TAG_SORT_bitvec:
+        case BTOR2_TAG_SORT_bitvec:
         {
-          linesort_=solver_->make_sort(BV, l_->sort.bitvec.width);
-          sorts_[l_->id]=linesort_;
+          linesort_ = solver_->make_sort(BV, l_->sort.bitvec.width);
+          sorts_[l_->id] = linesort_;
           break;
         }
-      case BTOR2_TAG_SORT_array:
+        case BTOR2_TAG_SORT_array:
         {
-          linesort_=solver_->make_sort(ARRAY, sorts_.at(l_->sort.array.index), sorts_.at(l_->sort.array.element));
-          sorts_[l_->id]=linesort_;
+          linesort_ = solver_->make_sort(ARRAY,
+                                         sorts_.at(l_->sort.array.index),
+                                         sorts_.at(l_->sort.array.element));
+          sorts_[l_->id] = linesort_;
           break;
         }
-      default:
-        // TODO: maybe only check this in debug? or could always check cause it's really bad
-        throw CosaException("Unknown sort tag");
+        default:
+          // TODO: maybe only check this in debug? or could always check cause
+          // it's really bad
+          throw CosaException("Unknown sort tag");
       }
     }
     else if (l_->tag == BTOR2_TAG_constraint)
@@ -291,21 +305,29 @@ void BTOR2Encoder::parse(const std::string filename) {
     }
     else if (l_->tag == BTOR2_TAG_init)
     {
-      if (termargs_.size() != 2) {
+      if (termargs_.size() != 2)
+      {
         throw CosaException("Expecting two term arguments to init");
-      } else if (linesort_ != termargs_[0]->get_sort()) {
+      }
+      else if (linesort_ != termargs_[0]->get_sort())
+      {
         throw CosaException(
             "Expecting to init sort to match first argument's sort");
       }
 
-      if (linesort_->get_sort_kind() == BV) {
+      if (linesort_->get_sort_kind() == BV)
+      {
         rts_.constrain_init(solver_->make_term(Equal, termargs_));
-      } else if (linesort_->get_sort_kind() == ARRAY) {
+      }
+      else if (linesort_->get_sort_kind() == ARRAY)
+      {
         rts_.constrain_init(solver_->make_term(
             Equal, termargs_[0], solver_->make_value(termargs_[1], linesort_)));
-      } else {
-        throw CosaException("Unhandled sort: " +
-                            termargs_[0]->get_sort()->to_string());
+      }
+      else
+      {
+        throw CosaException("Unhandled sort: "
+                            + termargs_[0]->get_sort()->to_string());
       }
     }
     else if (l_->tag == BTOR2_TAG_next)
@@ -337,47 +359,83 @@ void BTOR2Encoder::parse(const std::string filename) {
     }
     else if (l_->tag == BTOR2_TAG_ones)
     {
-      terms_[l_->id] = solver_->make_value(string(linesort_->get_width(), '1'),
-                                           linesort_, 2);
-    } else if (l_->tag == BTOR2_TAG_zero) {
+      terms_[l_->id] = solver_->make_value(
+          string(linesort_->get_width(), '1'), linesort_, 2);
+    }
+    else if (l_->tag == BTOR2_TAG_zero)
+    {
       terms_[l_->id] = solver_->make_value(0, linesort_);
-    } else if (l_->tag == BTOR2_TAG_slice) {
-      terms_[l_->id] = solver_->make_term(Op(Extract, l_->args[1], l_->args[2]), bool_to_bv(termargs_[0]));
-    } else if (l_->tag == BTOR2_TAG_sext) {
-      terms_[l_->id] = solver_->make_term(Op(Sign_Extend, l_->args[1]), bool_to_bv(termargs_[0]));
-    } else if (l_->tag == BTOR2_TAG_uext) {
-      terms_[l_->id] = solver_->make_term(Op(Zero_Extend, l_->args[1]), bool_to_bv(termargs_[0]));
-    } else if (l_->tag == BTOR2_TAG_rol) {
-      terms_[l_->id] = solver_->make_term(Op(Rotate_Left, l_->args[1]), bool_to_bv(termargs_[0]));
-    } else if (l_->tag == BTOR2_TAG_ror) {
-      terms_[l_->id] = solver_->make_term(Op(Rotate_Right, l_->args[1]), bool_to_bv(termargs_[0]));
-    } else if (l_->tag == BTOR2_TAG_inc) {
+    }
+    else if (l_->tag == BTOR2_TAG_slice)
+    {
+      terms_[l_->id] = solver_->make_term(Op(Extract, l_->args[1], l_->args[2]),
+                                          bool_to_bv(termargs_[0]));
+    }
+    else if (l_->tag == BTOR2_TAG_sext)
+    {
+      terms_[l_->id] = solver_->make_term(Op(Sign_Extend, l_->args[1]),
+                                          bool_to_bv(termargs_[0]));
+    }
+    else if (l_->tag == BTOR2_TAG_uext)
+    {
+      terms_[l_->id] = solver_->make_term(Op(Zero_Extend, l_->args[1]),
+                                          bool_to_bv(termargs_[0]));
+    }
+    else if (l_->tag == BTOR2_TAG_rol)
+    {
+      terms_[l_->id] = solver_->make_term(Op(Rotate_Left, l_->args[1]),
+                                          bool_to_bv(termargs_[0]));
+    }
+    else if (l_->tag == BTOR2_TAG_ror)
+    {
+      terms_[l_->id] = solver_->make_term(Op(Rotate_Right, l_->args[1]),
+                                          bool_to_bv(termargs_[0]));
+    }
+    else if (l_->tag == BTOR2_TAG_inc)
+    {
       Term t = bool_to_bv(termargs_[0]);
-      terms_[l_->id] = solver_->make_term(BVAdd, t, solver_->make_value(1, t->get_sort()));
-    } else if (l_->tag == BTOR2_TAG_dec) {
+      terms_[l_->id] =
+          solver_->make_term(BVAdd, t, solver_->make_value(1, t->get_sort()));
+    }
+    else if (l_->tag == BTOR2_TAG_dec)
+    {
       Term t = bool_to_bv(termargs_[0]);
-      terms_[l_->id] = solver_->make_term(BVSub, t, solver_->make_value(1, t->get_sort()));
-    } else if (l_->tag == BTOR2_TAG_redand) {
+      terms_[l_->id] =
+          solver_->make_term(BVSub, t, solver_->make_value(1, t->get_sort()));
+    }
+    else if (l_->tag == BTOR2_TAG_redand)
+    {
       Term t = bool_to_bv(termargs_[0]);
-      Term ones = solver_->make_value(std::string(t->get_sort()->get_width(), '1'), t->get_sort(), 2);
+      Term ones = solver_->make_value(
+          std::string(t->get_sort()->get_width(), '1'), t->get_sort(), 2);
       terms_[l_->id] = solver_->make_term(BVComp, t, ones);
-    } else if (l_->tag == BTOR2_TAG_redor) {
+    }
+    else if (l_->tag == BTOR2_TAG_redor)
+    {
       Term t = bool_to_bv(termargs_[0]);
       Term zero = solver_->make_value(0, t->get_sort());
       terms_[l_->id] = solver_->make_term(Distinct, t, zero);
-    } else if (l_->tag == BTOR2_TAG_redxor) {
+    }
+    else if (l_->tag == BTOR2_TAG_redxor)
+    {
       Term t = bool_to_bv(termargs_[0]);
       unsigned int width = t->get_sort()->get_width();
-      Term res = solver_->make_term(Op(Extract, width-1, width-1), t);
-      for (int i = width - 2; i >= 0; i--) {
-        res = solver_->make_term(BVXor, res, solver_->make_term(Op(Extract, i, i), t));
+      Term res = solver_->make_term(Op(Extract, width - 1, width - 1), t);
+      for (int i = width - 2; i >= 0; i--)
+      {
+        res = solver_->make_term(
+            BVXor, res, solver_->make_term(Op(Extract, i, i), t));
       }
       terms_[l_->id] = res;
-    } else if (l_->tag == BTOR2_TAG_ite) {
+    }
+    else if (l_->tag == BTOR2_TAG_ite)
+    {
       Term cond = bv_to_bool(termargs_[0]);
-      TermVec tv = lazy_convert({termargs_[1], termargs_[2]});
+      TermVec tv = lazy_convert({ termargs_[1], termargs_[2] });
       terms_[l_->id] = solver_->make_term(Ite, cond, tv[0], tv[1]);
-    } else if (l_->tag == BTOR2_TAG_uaddo) {
+    }
+    else if (l_->tag == BTOR2_TAG_uaddo)
+    {
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[1]);
 
@@ -390,7 +448,9 @@ void BTOR2Encoder::parse(const std::string filename) {
       // overflow occurs if there's a carry out bit
       terms_[l_->id] =
           solver_->make_term(Op(Extract, orig_width, orig_width), sum);
-    } else if (l_->tag == BTOR2_TAG_saddo) {
+    }
+    else if (l_->tag == BTOR2_TAG_saddo)
+    {
       // From https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[1]);
@@ -403,9 +463,12 @@ void BTOR2Encoder::parse(const std::string filename) {
       Term t1_top = solver_->make_term(Op(Extract, width - 1, width - 1), t1);
       Term sum_top = solver_->make_term(Op(Extract, width - 1, width - 1), sum);
       terms_[l_->id] =
-          solver_->make_term(Equal, solver_->make_term(Equal, t0_top, t1_top),
+          solver_->make_term(Equal,
+                             solver_->make_term(Equal, t0_top, t1_top),
                              solver_->make_term(Distinct, t0_top, sum_top));
-    } else if (l_->tag == BTOR2_TAG_sdivo) {
+    }
+    else if (l_->tag == BTOR2_TAG_sdivo)
+    {
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[1]);
       int width = t0->get_sort()->get_width();
@@ -420,9 +483,12 @@ void BTOR2Encoder::parse(const std::string filename) {
       Term int_min = solver_->make_value(sint_min, sort, 2);
       Term negone = solver_->make_value(snegone, sort, 2);
       terms_[l_->id] =
-          solver_->make_term(And, solver_->make_term(Equal, t0, int_min),
+          solver_->make_term(And,
+                             solver_->make_term(Equal, t0, int_min),
                              solver_->make_term(Equal, t1, negone));
-    } else if (l_->tag == BTOR2_TAG_umulo) {
+    }
+    else if (l_->tag == BTOR2_TAG_umulo)
+    {
       // from Hacker's Delight
       // overflow if hi(x*y) != 0
       Term t0 = bool_to_bv(termargs_[0]);
@@ -439,7 +505,9 @@ void BTOR2Encoder::parse(const std::string filename) {
           Distinct,
           solver_->make_term(Op(Extract, 2 * orig_width - 1, orig_width), prod),
           solver_->make_value(0, solver_->make_sort(BV, orig_width)));
-    } else if (l_->tag == BTOR2_TAG_smulo) {
+    }
+    else if (l_->tag == BTOR2_TAG_smulo)
+    {
       // from Hacker's Delight
       // overflow if hi(x*y) != (lo(x*y) >>s (width-1))
       Term t0 = bool_to_bv(termargs_[0]);
@@ -455,25 +523,32 @@ void BTOR2Encoder::parse(const std::string filename) {
           solver_->make_term(Op(Extract, 2 * orig_width - 1, orig_width), prod);
       Term lo = solver_->make_term(Op(Extract, orig_width - 1, 0), prod);
       terms_[l_->id] = solver_->make_term(
-          Distinct, hi,
+          Distinct,
+          hi,
           solver_->make_term(
-              BVAshr, lo,
+              BVAshr,
+              lo,
               solver_->make_value(orig_width - 1,
                                   solver_->make_sort(BV, orig_width))));
-    } else if (l_->tag == BTOR2_TAG_usubo) {
-      // From https://github.com/Boolector/boolector/blob/cd757d099433d95ffdb2a839504b220eff18ee51/src/btorexp.c#L1236
+    }
+    else if (l_->tag == BTOR2_TAG_usubo)
+    {
+      // From
+      // https://github.com/Boolector/boolector/blob/cd757d099433d95ffdb2a839504b220eff18ee51/src/btorexp.c#L1236
       Term t0 = bool_to_bv(termargs_[0]);
       Term t1 = bool_to_bv(termargs_[1]);
       unsigned int width = t0->get_sort()->get_width();
-      Sort sort = solver_->make_sort(BV, width+1);
+      Sort sort = solver_->make_sort(BV, width + 1);
       t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
       t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
       Term one = solver_->make_value(1, sort);
       Term add1 = solver_->make_term(BVAdd, t1, one);
       Term add2 = solver_->make_term(BVAdd, t0, add1);
-      terms_[l_->id] = solver_->make_term(BVNot,
-                                          solver_->make_term(Op(Extract, width, width), add2));
-    } else if (l_->tag == BTOR2_TAG_ssubo) {
+      terms_[l_->id] = solver_->make_term(
+          BVNot, solver_->make_term(Op(Extract, width, width), add2));
+    }
+    else if (l_->tag == BTOR2_TAG_ssubo)
+    {
       // From https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
       // overflow occurs if signs are different and subtrahend sign matches
       // result sign
@@ -491,13 +566,15 @@ void BTOR2Encoder::parse(const std::string filename) {
       Term diff_top =
           solver_->make_term(Op(Extract, width - 1, width - 1), diff);
       terms_[l_->id] =
-          solver_->make_term(And, solver_->make_term(Distinct, t0_top, t1_top),
+          solver_->make_term(And,
+                             solver_->make_term(Distinct, t0_top, t1_top),
                              solver_->make_term(Equal, t1_top, diff_top));
     }
     /******************************** Handle general case
      ********************************/
-    else {
-      if(boolopmap.find(l_->tag) != boolopmap.end())
+    else
+    {
+      if (boolopmap.find(l_->tag) != boolopmap.end())
       {
         termargs_ = lazy_convert(termargs_);
       }
@@ -512,7 +589,7 @@ void BTOR2Encoder::parse(const std::string filename) {
     }
   }
 
-  fclose (input_file);
+  fclose(input_file);
   btor2parser_delete(reader_);
 }
-}
+}  // namespace cosa

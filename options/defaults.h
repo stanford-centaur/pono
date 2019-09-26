@@ -9,4 +9,4 @@ static const unsigned int default_bound = 10;
 static const unsigned int default_verbosity = 0;
 /********************************* End Default Values
  * ********************************/
-} // namespace cosa
+}  // namespace cosa

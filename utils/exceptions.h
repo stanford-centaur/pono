@@ -20,12 +20,12 @@ class CosaException : public std::exception
    *                 Hence, responsibility for deleting the char* lies
    *                 with the caller.
    */
-  explicit CosaException(const char* message) : msg(message) {}
+  explicit CosaException(const char * message) : msg(message) {}
 
   /** Constructor (C++ STL strings).
    *  @param message The error message.
    */
-  explicit CosaException(const std::string& message) : msg(message) {}
+  explicit CosaException(const std::string & message) : msg(message) {}
 
   /** Destructor.
    * Virtual to allow for subclassing.
@@ -37,7 +37,7 @@ class CosaException : public std::exception
    *          is in posession of the Exception object. Callers must
    *          not attempt to free the memory.
    */
-  virtual const char* what() const throw() { return msg.c_str(); }
+  virtual const char * what() const throw() { return msg.c_str(); }
 
  protected:
   /** Error message.
