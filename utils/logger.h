@@ -147,7 +147,17 @@ class Log
   /* set verbosity -- can only be set once
    * @param v the verbosity to set
    */
-  void set_verbosity(unsigned int v) { verbosity = v; }
+  void set_verbosity(unsigned int v)
+  {
+    if (!verbosity_set)
+    {
+      verbosity = v;
+    }
+    else
+    {
+      throw CosaException("Can only set logger verbosity once.");
+    }
+  }
 
  protected:
   int verbosity;

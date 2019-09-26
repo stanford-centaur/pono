@@ -8,6 +8,7 @@
 #include "frontends/btor2_encoder.h"
 #include "kinduction.h"
 #include "prop.h"
+#include "utils/logger.h"
 
 using namespace cosa;
 using namespace smt;
@@ -15,7 +16,15 @@ using namespace std;
 
 /************************************* Option Handling setup *****************************************/
 // from optionparser-1.7 examples -- example_arg.cc
-enum optionIndex { UNKNOWN_OPTION, HELP, INDUCTION, BOUND, PROP };
+enum optionIndex
+{
+  UNKNOWN_OPTION,
+  HELP,
+  INDUCTION,
+  BOUND,
+  PROP,
+  VERBOSITY
+};
 
 struct Arg : public option::Arg
 {
@@ -39,17 +48,40 @@ struct Arg : public option::Arg
 };
 
 const option::Descriptor usage[] = {
-    {UNKNOWN_OPTION, 0, "", "", Arg::None,
-     "USAGE: cosa2 [options] <btor file>\n\n"
-     "Options:"},
-    {HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit."},
-    {INDUCTION, 0, "i", "induction", Arg::None,
-     "  --induction, -i \tUse temporal k-induction."},
-    {BOUND, 0, "k", "bound", Arg::Numeric,
-     "  --bound, -k \tBound to check up until."},
-    {PROP, 0, "p", "prop", Arg::Numeric,
-     "  --prop, -p \tProperty index to check (default: 0)."},
-    {0, 0, 0, 0, 0, 0}};
+  { UNKNOWN_OPTION,
+    0,
+    "",
+    "",
+    Arg::None,
+    "USAGE: cosa2 [options] <btor file>\n\n"
+    "Options:" },
+  { HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit." },
+  { INDUCTION,
+    0,
+    "i",
+    "induction",
+    Arg::None,
+    "  --induction, -i \tUse temporal k-induction." },
+  { BOUND,
+    0,
+    "k",
+    "bound",
+    Arg::Numeric,
+    "  --bound, -k \tBound to check up until." },
+  { PROP,
+    0,
+    "p",
+    "prop",
+    Arg::Numeric,
+    "  --prop, -p \tProperty index to check (default: 0)." },
+  { VERBOSITY,
+    0,
+    "v",
+    "verbosity",
+    Arg::Numeric,
+    " --verbosity, -v \tVerbosity for printing to standard out." },
+  { 0, 0, 0, 0, 0, 0 }
+};
 /*********************************** end Option Handling setup ***************************************/
 
 void print_witness_btor(const BTOR2Encoder &btor_enc, const vector<UnorderedTermMap> &cex)
@@ -113,6 +145,7 @@ int main(int argc, char ** argv)
   bool induction = default_induction;
   unsigned int prop_idx = default_prop_idx;
   unsigned int bound = default_bound;
+  unsigned int verbosity = default_verbosity;
 
   for (int i = 0; i < parse.optionsCount(); ++i)
   {
@@ -130,12 +163,16 @@ int main(int argc, char ** argv)
     case PROP:
       prop_idx=atoi(opt.arg);
       break;
+    case VERBOSITY: verbosity = atoi(opt.arg); break;
     case UNKNOWN_OPTION:
       // not possible because Arg::Unknown returns ARG_ILLEGAL
       // which aborts the parse with an error
       break;
     }
   }
+
+  // set logger verbosity -- can only be set once
+  logger.set_verbosity(verbosity);
 
   string filename(parse.nonOption(0));
 
