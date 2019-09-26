@@ -1,4 +1,5 @@
 #include "bmc.h"
+#include "utils/logger.h"
 
 using namespace smt;
 
@@ -91,6 +92,7 @@ namespace cosa
     }
 
     solver_->push();
+    logger.log(1, "Checking bmc at bound: {}", i);
     solver_->assert_formula(unroller_.at_time(bad, i));
     Result r = solver_->check_sat();
     if (r.is_sat()) {

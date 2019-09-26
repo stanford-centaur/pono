@@ -1,4 +1,5 @@
 #include "kinduction.h"
+#include "utils/logger.h"
 
 using namespace smt;
 
@@ -32,9 +33,11 @@ namespace cosa
   ProverResult KInduction::check_until(int k)
   {
     for (int i = 0; i <= k; ++i) {
+      logger.log(1, "Checking k-induction base case at bound: {}", i);
       if (!base_step(i)) {
 	return ProverResult::FALSE;
       }
+      logger.log(1, "Checking k-induction inductive step at bound: {}", i);
       if (inductive_step(i)) {
 	return ProverResult::TRUE;
       }
