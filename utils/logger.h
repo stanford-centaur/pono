@@ -8,6 +8,8 @@
 
 #include <smt-switch/smt.h>
 
+#include "utils/exceptions.h"
+
 /****************************** Support for printing smt-switch objects
  * *********************************/
 
@@ -103,6 +105,8 @@ struct fmt::formatter<smt::Result>
  * ************************************************/
 // Meant to be used as a singleton class -- instantiated as logger below
 
+namespace cosa {
+
 class Log
 {
  public:
@@ -164,4 +168,6 @@ class Log
   bool verbosity_set;
 };
 
-Log logger;
+// globally avaiable logger instance
+extern Log logger;
+}  // namespace cosa
