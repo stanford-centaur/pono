@@ -95,10 +95,12 @@ void print_witness_btor(const BTOR2Encoder &btor_enc, const vector<UnorderedTerm
     logger.log(0, "{} {} {}@0", i, init_map.at(states[i]), states[i]);
   }
 
-  for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
+  for (size_t k = 0, cex_size = cex.size(); k + 1 < cex_size; ++k)
+  {
+    const UnorderedTermMap & at_time = cex[k];
     logger.log(0, "@{}", k);
     for (size_t i = 0, size = inputs.size(); i < size; ++i) {
-      logger.log(0, "{} {} {}@{}", i, init_map.at(inputs[i]), inputs[i], k);
+      logger.log(0, "{} {} {}@{}", i, at_time.at(inputs[i]), inputs[i], k);
     }
   }
 
