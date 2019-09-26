@@ -47,6 +47,7 @@ endif()
 
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/utils")
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/core")
+target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/contrib/")
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src")
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
