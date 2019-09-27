@@ -188,6 +188,9 @@ void BTOR2Encoder::parse(const std::string filename)
     throw CosaException("Error parsing btor file.");
   }
 
+  uint64_t num_states = 0;
+  std::unordered_map<int64_t, uint64_t> id2statenum;
+
   it_ = btor2parser_iter_init(reader_);
   while ((l_ = btor2parser_iter_next(&it_)))
   {
@@ -247,6 +250,10 @@ void BTOR2Encoder::parse(const std::string filename)
       Term state = rts_.make_state(symbol_, linesort_);
       terms_[l_->id] = state;
       statesvec_.push_back(state);
+      // will be removed from this map if there's a next function for this state
+      no_next_states_[num_states] = state;
+      id2statenum[l_->id] = num_states;
+      num_states++;
     }
     else if (l_->tag == BTOR2_TAG_input)
     {
@@ -333,6 +340,7 @@ void BTOR2Encoder::parse(const std::string filename)
     else if (l_->tag == BTOR2_TAG_next)
     {
       rts_.set_next(termargs_[0], termargs_[1]);
+      no_next_states_.erase(id2statenum.at(l_->args[0]));
     }
     else if (l_->tag == BTOR2_TAG_bad)
     {

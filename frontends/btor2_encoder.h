@@ -7,6 +7,7 @@ extern "C" {
 
 #include <stdio.h>
 #include <iostream>
+#include <map>
 #include <string>
 #include <unordered_map>
 #include "assert.h"
@@ -30,6 +31,10 @@ class BTOR2Encoder
   const smt::TermVec & fairvec() const { return fairvec_; };
   const smt::TermVec & inputsvec() const { return inputsvec_; }
   const smt::TermVec & statesvec() const { return statesvec_; }
+  const std::map<uint64_t, smt::Term> & no_next_states() const
+  {
+    return no_next_states_;
+  }
 
  protected:
   // converts booleans to bitvector of size one
@@ -52,6 +57,7 @@ class BTOR2Encoder
   // maintains the order from the btor file
   smt::TermVec inputsvec_;
   smt::TermVec statesvec_;
+  std::map<uint64_t, smt::Term> no_next_states_;
 
   // Useful variables
   smt::Sort linesort_;
