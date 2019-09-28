@@ -156,6 +156,9 @@ int main(int argc, char ** argv)
 
   string filename(parse.nonOption(0));
 
+  try
+  {
+
   SmtSolver s = BoolectorSolverFactory::create();
   s->set_opt("produce-models", true);
   s->set_opt("incremental", true);
@@ -208,16 +211,26 @@ int main(int argc, char ** argv)
       //   }
       // }
     }
+    return 1;
   }
   else if (r == TRUE)
   {
     cout << "unsat" << endl;
     cout << "b" << prop_idx << endl;
+    return 0;
   }
   else
   {
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;
+    return 2;
+  }
+
+  }
+  catch (CosaException & ce)
+  {
+    cout << ce.what() << endl;
+    return 3;
   }
 
   return 0;
