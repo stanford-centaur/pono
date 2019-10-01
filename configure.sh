@@ -28,6 +28,8 @@ install_prefix=default
 build_type=default
 debug=default
 
+buildtype=Release
+
 while [ $# -gt 0 ]
 do
     case $1 in
@@ -53,19 +55,18 @@ do
             esac
             ;;
         --debug)
-            debug=yes
+            debug=yes;
+            buildtype=Debug
             ;;
         *) die "unexpected argument: $1";;
     esac
     shift
 done
 
-cmake_opts=""
+cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype"
+
 [ $install_prefix != default ] \
     && cmake_opts="$cmake_opts -DCMAKE_INSTALL_PREFIX=$install_prefix"
-
-[ $debug != default ] \
-    && cmake_opts="$cmake_opts -DCMAKE_BUILD_TYPE=Debug"
 
 root_dir=$(pwd)
 
