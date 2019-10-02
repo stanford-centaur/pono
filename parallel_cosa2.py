@@ -28,14 +28,18 @@ if __name__ == "__main__":
         while processes:
             for i, p in enumerate(processes):
                 if p.poll() is not None:
-                    out, _ = p.communicate()
-                    if out is not None:
-                        print(out.decode('utf-8', errors='replace'))
-
                     # return code for unknown is 2 -- keep solving
                     if p.returncode == 2:
                         processes.remove(p)
+                        # print unknown if this is the last process
+                        if not processes:
+                            out, _ = p.communicate()
+                            if out is not None:
+                                print(out.decode('utf-8', errors='replace'))
                     else:
+                        out, _ = p.communicate()
+                        if out is not None:
+                            print(out.decode('utf-8', errors='replace'))
                         for pp in processes:
                             if pp != p:
                                 pp.terminate()
