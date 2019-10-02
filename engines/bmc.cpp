@@ -67,14 +67,11 @@ bool Bmc::witness(std::vector<UnorderedTermMap> & out)
       map[v] = r;
     }
 
-    if (i != reached_k_)
+    for (auto v : ts_.inputs())
     {
-      for (auto v : ts_.inputs())
-      {
-        Term vi = unroller_.at_time(v, i);
-        Term r = solver_->get_value(vi);
-        map[v] = r;
-      }
+      Term vi = unroller_.at_time(v, i);
+      Term r = solver_->get_value(vi);
+      map[v] = r;
     }
   }
 

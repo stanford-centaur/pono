@@ -132,7 +132,7 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
     }
 
     // inputs
-    if (k + 1 < cex_size)
+    if (k < cex_size)
     {
       logger.log(0, "@{}", k);
       print_btor_vals_at_time(inputs, cex.at(k), k);
