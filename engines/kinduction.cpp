@@ -130,7 +130,7 @@ bool KInduction::inductive_step(int i)
 
   const Term f = solver_->make_value(false);
   Term constraint;
-  bool added_to_simple_path = true;
+  bool added_to_simple_path = false;
 
   do 
   {
