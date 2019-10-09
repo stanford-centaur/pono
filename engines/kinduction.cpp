@@ -128,12 +128,11 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(unroller_.at_time(bad, i + 1));
   Result r = solver_->check_sat();
 
-  Term f = solver_->make_value(false);
+  const Term f = solver_->make_value(false);
   Term constraint;
-  bool keep_checking = true;
   bool added_to_simple_path = false;
 
-  while (keep_checking)
+  while (true)
   {
     if (r.is_unsat())
     {
@@ -158,13 +157,13 @@ bool KInduction::inductive_step(int i)
 
     if (added_to_simple_path)
     {
+      logger.log(2, "Adding Simple Path Clause");
       solver_->assert_formula(constraint);
       r = solver_->check_sat();
-      keep_checking = (r.is_sat() && added_to_simple_path);
     }
     else
     {
-      keep_checking = false;
+      break;
     }
   }
 
