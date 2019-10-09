@@ -130,9 +130,9 @@ bool KInduction::inductive_step(int i)
 
   const Term f = solver_->make_value(false);
   Term constraint;
-  bool added_to_simple_path = false;
+  bool added_to_simple_path = true;
 
-  while (true)
+  do 
   {
     if (r.is_unsat())
     {
@@ -161,11 +161,7 @@ bool KInduction::inductive_step(int i)
       solver_->assert_formula(constraint);
       r = solver_->check_sat();
     }
-    else
-    {
-      break;
-    }
-  }
+  } while (added_to_simple_path);
 
   solver_->pop();
 
