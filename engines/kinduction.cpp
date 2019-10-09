@@ -121,15 +121,14 @@ bool KInduction::inductive_step(int i)
     return false;
   }
 
+  const Term f = solver_->make_value(false);
   Term bad = solver_->make_term(PrimOp::Not, property_.prop());
 
   solver_->push();
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad, i + 1));
-  Result r = solver_->check_sat();
 
-  const Term f = solver_->make_value(false);
-  Term constraint;
+  Result r = solver_->check_sat();
   bool added_to_simple_path = false;
 
   do 
@@ -139,7 +138,9 @@ bool KInduction::inductive_step(int i)
       return true;
     }
 
+    Term constraint;
     added_to_simple_path = false;
+
     for (int j = 0; j < i && !added_to_simple_path; ++j)
     {
       for (int l = j + 1; l < i; ++l)
