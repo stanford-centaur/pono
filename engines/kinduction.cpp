@@ -135,7 +135,7 @@ bool KInduction::inductive_step(int i)
   {
     Term f = solver_->make_value(false);
 
-    Term simple_path_constraint;
+    Term constraint;
     bool keep_checking = true;
     bool added_to_simple_path = false;
     while (keep_checking)
@@ -143,10 +143,10 @@ bool KInduction::inductive_step(int i)
       added_to_simple_path = false;
       for (int j = 0; j < i; ++j)
       {
-        simple_path_constraint = simple_path_constraint(i, j);
-        if (solver_->get_value(simple_path_constraint) == f)
+        constraint = simple_path_constraint(i, j);
+        if (solver_->get_value(constraint) == f)
         {
-          simple_path_ = solver_->make_term(PrimOp::And, simple_path_, simple_path_constraint);
+          simple_path_ = solver_->make_term(PrimOp::And, simple_path_, constraint);
           added_to_simple_path = true;
         }
       }
