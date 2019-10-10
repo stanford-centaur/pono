@@ -25,8 +25,8 @@ const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
     // { BTOR2_TAG_eq, BVComp }, // handled this specially, because could also
     // have array arguments
     //{ BTOR2_TAG_fair, },
-    { BTOR2_TAG_iff, Iff },
-    { BTOR2_TAG_implies, Implies },
+    { BTOR2_TAG_iff, BVComp },
+    // { BTOR2_TAG_implies, Implies }, // boolop only
     //{ BTOR2_TAG_inc, },
     //{ BTOR2_TAG_init, },
     //{ BTOR2_TAG_input, },
@@ -649,13 +649,25 @@ void BTOR2Encoder::parse(const std::string filename)
      ********************************/
     else
     {
+      if (!termargs_.size())
+      {
+        throw CosaException("Expecting non-zero number of terms");
+      }
+
       if (boolopmap.find(l_->tag) != boolopmap.end())
       {
-        termargs_ = lazy_convert(termargs_);
-
-        if (!termargs_.size())
+        if (bvopmap.find(l_->tag) == bvopmap.end())
         {
-          throw CosaException("Expecting non-zero number of terms");
+          // only a boolean op
+          // convert all to bools
+          for (size_t i = 0; i < termargs_.size(); i++)
+          {
+            termargs_[i] = bv_to_bool(termargs_[i]);
+          }
+        }
+        else
+        {
+          termargs_ = lazy_convert(termargs_);
         }
 
         SortKind sk = termargs_[0]->get_sort()->get_sort_kind();
