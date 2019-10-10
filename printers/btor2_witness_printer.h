@@ -1,5 +1,9 @@
+#include <iterator>
 #include <map>
+#include <sstream>
 #include <vector>
+
+#include "gmpxx.h"
 
 #include "smt-switch/smt.h"
 
@@ -7,13 +11,66 @@
 
 namespace cosa {
 
+std::string as_bits(std::string val)
+{
+  // TODO: this makes assumptions on format of value from boolector
+  //       to support other solvers, we need to be more general
+  std::string res = val;
+
+  if (val.length() < 2)
+  {
+    throw CosaException("Don't know how to interpret value: " + val);
+  }
+
+  if (res.substr(0, 2) == "#b")
+  {
+    // remove the #b prefix
+    res = res.substr(2, val.length() - 2);
+  }
+  else if (res.substr(0, 2) == "#x")
+  {
+    throw CosaException("Not supporting hexadecimal format yet.");
+  }
+  else
+  {
+    res = res.substr(5, res.length() - 5);
+    std::istringstream iss(res);
+    std::vector<std::string> tokens(std::istream_iterator<std::string>{ iss },
+                                    std::istream_iterator<std::string>());
+
+    if (tokens.size() != 2)
+    {
+      throw CosaException("Failed to interpret " + val);
+    }
+
+    res = tokens[0];
+    // get rid of ")"
+    std::string width_str = tokens[1].substr(0, tokens[1].length() - 1);
+    size_t width = std::stoull(width_str);
+    mpz_class cval(res);
+    res = cval.get_str(2);
+    size_t strlen = res.length();
+
+    if (strlen < width)
+    {
+      // pad with zeros
+      res = std::string(width - strlen, '0') + res;
+    }
+    else if (strlen > width)
+    {
+      // remove prepended zeros
+      res = res.erase(0, strlen - width);
+    }
+    return res;
+  }
+  return res;
+}
+
 void print_btor_vals_at_time(const smt::TermVec & vec,
                              const smt::UnorderedTermMap & valmap,
                              unsigned int time)
 {
   smt::SortKind sk;
-  std::string val;
-  std::string elem;
   smt::TermVec store_children(3);
   for (size_t i = 0, size = vec.size(); i < size; ++i)
   {
@@ -22,10 +79,12 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
     {
       // TODO: this makes assumptions on format of value from boolector
       //       to support other solvers, we need to be more general
-      // Remove the #b prefix
-      val = valmap.at(vec[i])->to_string();
-      val = val.substr(2, val.length() - 2);
-      logger.log(0, "{} {} {}@{}", i, val, vec[i], time);
+      logger.log(0,
+                 "{} {} {}@{}",
+                 i,
+                 as_bits(valmap.at(vec[i])->to_string()),
+                 vec[i],
+                 time);
     }
     else if (sk == smt::ARRAY)
     {
@@ -39,15 +98,13 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
           num++;
         }
 
-        // TODO: this makes assumptions on format of value from boolector
-        //       to support other solvers, we need to be more general
-        // Remove the #b prefix
-        val = store_children[1]->to_string();
-        val = val.substr(2, val.length() - 2);
-        elem = store_children[2]->to_string();
-        elem = elem.substr(2, elem.length() - 2);
-
-        logger.log(0, "{} [{}] {} {}@{}", i, val, elem, vec[i], time);
+        logger.log(0,
+                   "{} [{}] {} {}@{}",
+                   i,
+                   as_bits(store_children[1]->to_string()),
+                   as_bits(store_children[2]->to_string()),
+                   vec[i],
+                   time);
         tmp = store_children[0];
       }
     }
@@ -63,8 +120,6 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
                              unsigned int time)
 {
   smt::SortKind sk;
-  std::string val;
-  std::string elem;
   smt::TermVec store_children(3);
   for (auto entry : m)
   {
@@ -74,9 +129,12 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
       // TODO: this makes assumptions on format of value from boolector
       //       to support other solvers, we need to be more general
       // Remove the #b prefix
-      val = valmap.at(entry.second)->to_string();
-      val = val.substr(2, val.length() - 2);
-      logger.log(0, "{} {} {}@{}", entry.first, val, entry.second, time);
+      logger.log(0,
+                 "{} {} {}@{}",
+                 entry.first,
+                 as_bits(valmap.at(entry.second)->to_string()),
+                 entry.second,
+                 time);
     }
     else if (sk == smt::ARRAY)
     {
@@ -90,16 +148,13 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
           num++;
         }
 
-        // TODO: this makes assumptions on format of value from boolector
-        //       to support other solvers, we need to be more general
-        // Remove the #b prefix
-        val = store_children[1]->to_string();
-        val = val.substr(2, val.length() - 2);
-        elem = store_children[2]->to_string();
-        elem = elem.substr(2, elem.length() - 2);
-
-        logger.log(
-            0, "{} [{}] {} {}@{}", entry.first, val, elem, entry.second, time);
+        logger.log(0,
+                   "{} [{}] {} {}@{}",
+                   entry.first,
+                   as_bits(store_children[1]->to_string()),
+                   as_bits(store_children[2]->to_string()),
+                   entry.second,
+                   time);
         tmp = store_children[0];
       }
     }
