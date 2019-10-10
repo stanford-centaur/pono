@@ -100,8 +100,10 @@ Term BTOR2Encoder::bool_to_bv(const Term & t) const
   if (t->get_sort()->get_sort_kind() == BOOL)
   {
     Sort bv1sort = solver_->make_sort(BV, 1);
-    return solver_->make_term(
-        Ite, solver_->make_value(1, bv1sort), solver_->make_value(0, bv1sort));
+    return solver_->make_term(Ite,
+                              t,
+                              solver_->make_value(1, bv1sort),
+                              solver_->make_value(0, bv1sort));
   }
   else
   {
@@ -157,16 +159,16 @@ TermVec BTOR2Encoder::lazy_convert(const TermVec & tvec) const
   {
     if (num_bools > tvec.size() / 2 && !wide_bvs)
     {
-      for (auto t : tvec)
+      for (size_t i = 0; i < res.size(); i++)
       {
-        res.push_back(bv_to_bool(t));
+        res[i] = bv_to_bool(res[i]);
       }
     }
     else
     {
-      for (auto t : tvec)
+      for (size_t i = 0; i < res.size(); i++)
       {
-        res.push_back(bool_to_bv(t));
+        res[i] = bool_to_bv(res[i]);
       }
     }
   }
@@ -626,6 +628,7 @@ void BTOR2Encoder::parse(const std::string filename)
       if (boolopmap.find(l_->tag) != boolopmap.end())
       {
         termargs_ = lazy_convert(termargs_);
+
         if (!termargs_.size())
         {
           throw CosaException("Expecting non-zero number of terms");
