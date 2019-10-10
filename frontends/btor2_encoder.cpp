@@ -26,7 +26,7 @@ const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
     // have array arguments
     //{ BTOR2_TAG_fair, },
     { BTOR2_TAG_iff, BVComp },
-    // { BTOR2_TAG_implies, Implies }, // boolop only
+    // { BTOR2_TAG_implies, Implies }, // handle specially (needs to work with boolector AND other solvers), gets complicated with bools and BV(1) are aliased
     //{ BTOR2_TAG_inc, },
     //{ BTOR2_TAG_init, },
     //{ BTOR2_TAG_input, },
@@ -89,7 +89,7 @@ const unordered_map<Btor2Tag, smt::PrimOp> boolopmap(
       { BTOR2_TAG_or, Or },
       { BTOR2_TAG_xor, Xor },
       { BTOR2_TAG_not, Not },
-      { BTOR2_TAG_implies, Implies },
+      // { BTOR2_TAG_implies, Implies },
       { BTOR2_TAG_iff, Iff },
       // { BTOR2_TAG_eq, Equal }, // handling specially -- could have array
       // arguments
@@ -478,6 +478,47 @@ void BTOR2Encoder::parse(const std::string filename)
         terms_[l_->id] = solver_->make_term(Equal, t0, t1);
       }
     }
+    else if (l_->tag == BTOR2_TAG_implies)
+    {
+      if (termargs_.size() != 2)
+      {
+        throw CosaException("Expecting two arguments to eq");
+      }
+      Term t0 = termargs_[0];
+      Term t1 = termargs_[1];
+      Sort s0 = t0->get_sort();
+      Sort s1 = t1->get_sort();
+      SortKind sk0 = s0->get_sort_kind();
+      SortKind sk1 = s0->get_sort_kind();
+
+      if (s0 != s1)
+      {
+        if (((sk0 == BV) && (sk1 == BOOL)) || ((sk0 == BOOL) && (sk1 == BV)))
+        {
+          // cast to bools
+          t0 = bv_to_bool(t0);
+          t1 = bv_to_bool(t1);
+          sk0 = BOOL;
+          sk1 = BOOL;
+        }
+        else
+        {
+          throw CosaException(
+                              "Expecting arguments to eq to have the same sort");
+        }
+      }
+
+      if (sk0 == BV)
+      {
+        terms_[l_->id] = solver_->make_term(BVOr,
+                                            solver_->make_term(BVNot, t0),
+                                            t1);
+      }
+      else
+      {
+        terms_[l_->id] = solver_->make_term(Implies, t0, t1);
+      }
+    }
     else if (l_->tag == BTOR2_TAG_redand)
     {
       Term t = bool_to_bv(termargs_[0]);
@@ -656,6 +697,8 @@ void BTOR2Encoder::parse(const std::string filename)
 
       if (boolopmap.find(l_->tag) != boolopmap.end())
       {
+
+        // TODO: potentially remove this, have to treat specially for boolector vs other solvers anyway
         if (bvopmap.find(l_->tag) == bvopmap.end())
         {
           // only a boolean op
@@ -664,6 +707,7 @@ void BTOR2Encoder::parse(const std::string filename)
           {
             termargs_[i] = bv_to_bool(termargs_[i]);
           }
+
         }
         else
         {
