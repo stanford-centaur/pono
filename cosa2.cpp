@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "optionparser.h"
-#include "smt-switch/boolector_factory.h"
+#include "smt-switch/msat_factory.h"
 
 #include "bmc.h"
 #include "defaults.h"
@@ -159,7 +159,7 @@ int main(int argc, char ** argv)
   try
   {
 
-  SmtSolver s = BoolectorSolverFactory::create();
+  SmtSolver s = MsatSolverFactory::create();
   s->set_opt("produce-models", "true");
   s->set_opt("incremental", "true");
 
