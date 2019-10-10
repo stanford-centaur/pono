@@ -18,7 +18,6 @@ include_directories("${PROJECT_SOURCE_DIR}/options")
 
 add_executable(cosa2
   "${PROJECT_SOURCE_DIR}/cosa2.cpp"
-  "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/libbtor2parser.a"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -55,3 +54,4 @@ target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/l
 
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.so")
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.so")
+target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/libbtor2parser.a")
