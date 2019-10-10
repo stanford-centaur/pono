@@ -160,8 +160,8 @@ int main(int argc, char ** argv)
   {
 
   SmtSolver s = BoolectorSolverFactory::create();
-  s->set_opt("produce-models", true);
-  s->set_opt("incremental", true);
+  s->set_opt("produce-models", "true");
+  s->set_opt("incremental", "true");
 
   RelationalTransitionSystem rts(s);
   BTOR2Encoder btor_enc(filename, rts);
