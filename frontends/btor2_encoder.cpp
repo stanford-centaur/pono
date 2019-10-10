@@ -343,12 +343,36 @@ void BTOR2Encoder::parse(const std::string filename)
     }
     else if (l_->tag == BTOR2_TAG_next)
     {
-      rts_.set_next(termargs_[0], termargs_[1]);
+      if (termargs_.size() != 2)
+      {
+        throw CosaException("Expecting two arguments to next");
+      }
+
+      Term t0 = termargs_[0];
+      Term t1 = termargs_[1];
+      Sort s0 = t0->get_sort();
+      Sort s1 = t1->get_sort();
+      SortKind sk0 = s0->get_sort_kind();
+      SortKind sk1 = s1->get_sort_kind();
+
+      if (s0 == s1)
+      {
+        rts_.set_next(t0, t1);
+      }
+      else if (((sk0 == BV) && (sk1 == BOOL)) || ((sk0 == BOOL) && (sk1 == BV)))
+      {
+        // need to cast
+        rts_.set_next(bool_to_bv(t0), bool_to_bv(t1));
+      }
+      else
+      {
+        throw CosaException("Got two different sorts in next update.");
+      }
       no_next_states_.erase(id2statenum.at(l_->args[0]));
     }
     else if (l_->tag == BTOR2_TAG_bad)
     {
-      badvec_.push_back(termargs_[0]);
+      badvec_.push_back(bv_to_bool(termargs_[0]));
     }
     else if (l_->tag == BTOR2_TAG_justice)
     {
