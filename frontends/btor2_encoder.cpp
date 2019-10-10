@@ -22,7 +22,8 @@ const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
     //{ BTOR2_TAG_constd, },
     //{ BTOR2_TAG_consth, },
     //{ BTOR2_TAG_dec, },
-    { BTOR2_TAG_eq, BVComp },
+    // { BTOR2_TAG_eq, BVComp }, // handled this specially, because could also
+    // have array arguments
     //{ BTOR2_TAG_fair, },
     { BTOR2_TAG_iff, Iff },
     { BTOR2_TAG_implies, Implies },
@@ -90,7 +91,8 @@ const unordered_map<Btor2Tag, smt::PrimOp> boolopmap(
       { BTOR2_TAG_not, Not },
       { BTOR2_TAG_implies, Implies },
       { BTOR2_TAG_iff, Iff },
-      { BTOR2_TAG_eq, Equal },
+      // { BTOR2_TAG_eq, Equal }, // handling specially -- could have array
+      // arguments
       { BTOR2_TAG_neq, Distinct } });
 
 Term BTOR2Encoder::bool_to_bv(const Term & t) const
@@ -411,6 +413,45 @@ void BTOR2Encoder::parse(const std::string filename)
       terms_[l_->id] =
           solver_->make_term(BVSub, t, solver_->make_value(1, t->get_sort()));
     }
+    else if (l_->tag == BTOR2_TAG_eq)
+    {
+      if (termargs_.size() != 2)
+      {
+        throw CosaException("Expecting two arguments to eq");
+      }
+      Term t0 = termargs_[0];
+      Term t1 = termargs_[1];
+      Sort s0 = t0->get_sort();
+      Sort s1 = t1->get_sort();
+      SortKind sk0 = s0->get_sort_kind();
+      SortKind sk1 = s0->get_sort_kind();
+
+      if (s0 != s1)
+      {
+        if (((sk0 == BV) && (sk1 == BOOL)) || ((sk0 == BOOL) && (sk1 == BV)))
+        {
+          // cast to bit-vectors
+          t0 = bool_to_bv(t0);
+          t1 = bool_to_bv(t1);
+          sk0 = BV;
+          sk1 = BV;
+        }
+        else
+        {
+          throw CosaException(
+              "Expecting arguments to eq to have the same sort");
+        }
+      }
+
+      if (sk0 == BV)
+      {
+        terms_[l_->id] = solver_->make_term(BVComp, t0, t1);
+      }
+      else
+      {
+        terms_[l_->id] = solver_->make_term(Equal, t0, t1);
+      }
+    }
     else if (l_->tag == BTOR2_TAG_redand)
     {
       Term t = bool_to_bv(termargs_[0]);
@@ -585,6 +626,24 @@ void BTOR2Encoder::parse(const std::string filename)
       if (boolopmap.find(l_->tag) != boolopmap.end())
       {
         termargs_ = lazy_convert(termargs_);
+        if (!termargs_.size())
+        {
+          throw CosaException("Expecting non-zero number of terms");
+        }
+
+        SortKind sk = termargs_[0]->get_sort()->get_sort_kind();
+        if (sk == BV)
+        {
+          terms_[l_->id] = solver_->make_term(bvopmap.at(l_->tag), termargs_);
+        }
+        else if (sk == BOOL)
+        {
+          terms_[l_->id] = solver_->make_term(boolopmap.at(l_->tag), termargs_);
+        }
+        else
+        {
+          throw CosaException("Unexpected sort");
+        }
       }
       else
       {
@@ -592,8 +651,8 @@ void BTOR2Encoder::parse(const std::string filename)
         {
           termargs_[i] = bool_to_bv(termargs_[i]);
         }
+        terms_[l_->id] = solver_->make_term(bvopmap.at(l_->tag), termargs_);
       }
-      terms_[l_->id] = solver_->make_term(bvopmap.at(l_->tag), termargs_);
     }
   }
 
