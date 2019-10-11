@@ -24,6 +24,7 @@ add_executable(cosa2
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/interpolant.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   )

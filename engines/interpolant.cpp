@@ -1,3 +1,5 @@
+#include "smt-switch/exceptions.h"
+
 #include "interpolant.h"
 #include "utils/logger.h"
 
@@ -17,10 +19,12 @@ InterpolantMC::InterpolantMC(const Property & p,
   initialize();
 }
 
-InterpolantMC::initialize()
+InterpolantMC::~InterpolantMC() {}
+
+void InterpolantMC::initialize()
 {
-  reached_k = -1;
-  concrete_cex = false;
+  reached_k_ = -1;
+  concrete_cex_ = false;
 
   // reset assertions is not supported by all solvers
   // but MathSAT is the only supported solver that can do interpolation
@@ -50,12 +54,12 @@ InterpolantMC::initialize()
   bad_ = interpolator_->make_term(Not, property_.prop());
   init0_ = unroller_.at_time(ts_.init(), 0);
   R_ = init0_;
-  Ri = interpolator_->make_value(true);
-  transA_ = unroller_.at_timer(ts_.trans(), 0);
+  Ri_ = interpolator_->make_value(true);
+  transA_ = unroller_.at_time(ts_.trans(), 0);
   transB_ = interpolator_->make_value(true);
 }
 
-ProverResult check_until(int k)
+ProverResult InterpolantMC::check_until(int k)
 {
   try
   {
@@ -71,14 +75,14 @@ ProverResult check_until(int k)
       }
     }
   }
-  catch (smt::InternalSolverException & e)
+  catch (InternalSolverException & e)
   {
     logger.log(1, "Failed when computing interpolant.");
   }
   return ProverResult::UNKNOWN;
 }
 
-ProverResult prove()
+ProverResult InterpolantMC::prove()
 {
   try
   {
@@ -94,7 +98,7 @@ ProverResult prove()
       }
     }
   }
-  catch (smt::InternalSolverException & e)
+  catch (InternalSolverException & e)
   {
     logger.log(1, "Failed when computing interpolant.");
   }
@@ -140,23 +144,23 @@ bool InterpolantMC::step(int i)
   Term bad_i = unroller_.at_time(bad_, i);
   bool got_interpolant = true;
 
-  R = init0_;
+  R_ = init0_;
 
   while (got_interpolant)
   {
     if (i > 0)
     {
       got_interpolant = interpolator_->get_interpolant(
-          interpolator_->make_term(And, R, transA_),
+          interpolator_->make_term(And, R_, transA_),
           interpolator_->make_term(And, transB_, bad_i),
           Ri_);
     }
     else
     {
-      got_interpolant = interpolator_->get_interpolant(R, bad_i, Ri_);
+      got_interpolant = interpolator_->get_interpolant(R_, bad_i, Ri_);
     }
 
-    if (!got_interpolant && (R == init0_))
+    if (!got_interpolant && (R_ == init0_))
     {
       // found a concrete counter example
       // replay it in the solver with model generation
@@ -175,12 +179,7 @@ bool InterpolantMC::step(int i)
       }
       return false;
     }
-    else if (!got_interpolant)
-    {
-      // need to go to the next bound
-      return false;
-    }
-    else
+    else if (got_interpolant)
     {
       // map Ri to time 0
       Ri_ = interpolator_->substitute(Ri_, map_1_to_0);
@@ -206,6 +205,8 @@ bool InterpolantMC::step(int i)
     transB_ = interpolator_->make_term(
         And, transB_, unroller_.at_time(ts_.trans(), i));
   }
+
+  return false;
 }
 
 bool InterpolantMC::check_overapprox()
