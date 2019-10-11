@@ -5,9 +5,9 @@ using namespace smt;
 
 namespace cosa {
 
-InterpolationMC::InterpolationMC(const Property & p,
-                                 smt::SmtSolver & itp,
-                                 smt::SmtSolver & slv)
+InterpolantMC::InterpolantMC(const Property & p,
+                             smt::SmtSolver & itp,
+                             smt::SmtSolver & slv)
     : ts_(p.transition_system()),
       property_(p),
       interpolator_(itp),
@@ -17,9 +17,11 @@ InterpolationMC::InterpolationMC(const Property & p,
   initialize();
 }
 
-InterpolationMC::initialize()
+InterpolantMC::initialize()
 {
   reached_k = -1;
+  concrete_cex = false;
+
   // reset assertions is not supported by all solvers
   // but MathSAT is the only supported solver that can do interpolation
   // so this should be safe
@@ -29,7 +31,7 @@ InterpolationMC::initialize()
   }
   catch (NotImplementedException & e)
   {
-    throw CosaException("Got unexpected solver in InterpolationMC.");
+    throw CosaException("Got unexpected solver in InterpolantMC.");
   }
 
   // populate map from time 1 to time 0
@@ -53,12 +55,87 @@ InterpolationMC::initialize()
   transB_ = interpolator_->make_value(true);
 }
 
-bool InterpolationMC::step(int i)
+ProverResult check_until(int k)
+{
+  try
+  {
+    for (int i = 0; i <= k; ++i)
+    {
+      if (step(i))
+      {
+        return ProverResult::TRUE;
+      }
+      else if (concrete_cex_)
+      {
+        return ProverResult::FALSE;
+      }
+    }
+  }
+  catch (smt::InternalSolverException & e)
+  {
+    logger.log(1, "Failed when computing interpolant.");
+  }
+  return ProverResult::UNKNOWN;
+}
+
+ProverResult prove()
+{
+  try
+  {
+    for (int i = 0;; ++i)
+    {
+      if (step(i))
+      {
+        return ProverResult::TRUE;
+      }
+      else if (concrete_cex_)
+      {
+        return ProverResult::FALSE;
+      }
+    }
+  }
+  catch (smt::InternalSolverException & e)
+  {
+    logger.log(1, "Failed when computing interpolant.");
+  }
+  return ProverResult::UNKNOWN;
+}
+
+bool InterpolantMC::witness(std::vector<UnorderedTermMap> & out)
+{
+  // TODO: make sure the solver state is SAT
+
+  for (int i = 0; i <= reached_k_; ++i)
+  {
+    out.push_back(UnorderedTermMap());
+    UnorderedTermMap & map = out.back();
+
+    for (auto v : ts_.states())
+    {
+      Term vi = solver_->transfer_term(unroller_.at_time(v, i));
+      Term r = solver_->get_value(vi);
+      map[v] = r;
+    }
+
+    for (auto v : ts_.inputs())
+    {
+      Term vi = solver_->transfer_term(unroller_.at_time(v, i));
+      Term r = solver_->get_value(vi);
+      map[v] = r;
+    }
+  }
+
+  return true;
+}
+
+bool InterpolantMC::step(int i)
 {
   if (i <= reached_k_)
   {
     return false;
   }
+
+  logger.log(1, "Checking interpolation at bound: {}", i);
 
   Term bad_i = unroller_.at_time(bad_, i);
   bool got_interpolant = true;
@@ -71,19 +148,19 @@ bool InterpolationMC::step(int i)
     {
       got_interpolant = interpolator_->get_interpolant(
           interpolator_->make_term(And, R, transA_),
-          interpolator_->make_term(transB_, bad_i),
+          interpolator_->make_term(And, transB_, bad_i),
           Ri_);
     }
     else
     {
-      got_interpolant = interpolator_->get_interpolant(
-          R, interpolator_->make_term(transB_, bad_i), Ri_);
+      got_interpolant = interpolator_->get_interpolant(R, bad_i, Ri_);
     }
 
     if (!got_interpolant && (R == init0_))
     {
       // found a concrete counter example
       // replay it in the solver with model generation
+      concrete_cex_ = true;
       Term solver_init = solver_->transfer_term(init0_);
       Term solver_trans = solver_->make_term(And,
                                              solver_->transfer_term(transA_),
@@ -121,11 +198,17 @@ bool InterpolationMC::step(int i)
     }
   }
 
-  // extend the unrolling
-  transB_ = interpolator_->make_term(And, transB_);
+  // Note: important that it's for i > 0
+  // transB can't have any symbols from time 0 in it
+  if (i > 0)
+  {
+    // extend the unrolling
+    transB_ = interpolator_->make_term(
+        And, transB_, unroller_.at_time(ts_.trans(), i));
+  }
 }
 
-bool InterpolationMC::check_overapprox()
+bool InterpolantMC::check_overapprox()
 {
   solver_->reset_assertions();
   Term Rp = solver_->transfer_term(R_);

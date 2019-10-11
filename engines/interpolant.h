@@ -10,14 +10,12 @@
 
 namespace cosa {
 
-class InterpolationMC : public Prover
+class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
-  InterpolationMC(const Property & p,
-                  smt::SmtSolver & itp,
-                  smt::SmtSolver & slv);
-  ~InterpolationMC();
+  InterpolantMC(const Property & p, smt::SmtSolver & itp, smt::SmtSolver & slv);
+  ~InterpolantMC();
 
   void initialize();
 
@@ -42,6 +40,9 @@ class InterpolationMC : public Prover
 
   int reached_k_;
 
+  // set to true when a concrete_cex is found
+  bool concrete_cex_;
+
   smt::UnorderedTermMap map_1_to_0;
 
   smt::Term init0_;
@@ -52,6 +53,6 @@ class InterpolationMC : public Prover
 
   smt::Term bad_;
 
-};  // class InterpolationMC
+};  // class InterpolantMC
 
 }  // namespace cosa
