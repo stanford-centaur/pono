@@ -18,33 +18,50 @@ if __name__ == "__main__":
     bound = args.bound
     verbosity = '1' if args.verbosity else '0'
 
-    p0 = subprocess.Popen(['./cosa2', '-v', verbosity, '-k', bound, btor_file],
+    bmc = subprocess.Popen(['./cosa2', '-e', 'bmc', '-v', verbosity, '-k', bound, btor_file],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p1 = subprocess.Popen(['./cosa2', '-v', verbosity, '-k', bound, '-i', btor_file],
+    induc = subprocess.Popen(['./cosa2', '-e', 'ind', '-v', verbosity, '-k', bound, btor_file],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    processes = [p0, p1]
+    interp = subprocess.Popen(['./cosa2', '-e', 'interp', '-v', verbosity, '-k', bound, btor_file],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    interp_processes = set({interp})
+    processes = [bmc, induc, interp]
 
     try:
         while processes:
             for i, p in enumerate(processes):
                 if p.poll() is not None:
-                    # return code for unknown is 2 -- keep solving
-                    if p.returncode == 2:
+                    # return code for unknown is 2
+                    # anything higher than that is an error
+                    # keep solving unless there are no more running processes
+                    if p.returncode >= 2:
                         processes.remove(p)
-                        # print unknown if this is the last process
+                        # print unknown only if this is the last process
                         if not processes:
                             out, _ = p.communicate()
                             if out is not None:
                                 print(out.decode('utf-8', errors='replace'))
                     else:
-                        out, _ = p.communicate()
-                        if out is not None:
-                            print(out.decode('utf-8', errors='replace'))
-                        for pp in processes:
-                            if pp != p:
-                                pp.terminate()
-                        processes = []
-                        break
+                        # HACK don't return counter-examples from interpolation-based procedure
+                        #      mathsat might return constant arrays in witness which can't be
+                        #      printed in btor2 format
+                        if p in interp_processes and p.returncode == 1:
+                            processes.remove(p)
+                            # this shouldln't happen but let's handle it just in case
+                            if not processes:
+                                out, _ = bmc.communicate()
+                                print(out.decode('utf-8', errors='replace'))
+                                break
+                        else:
+                            out, _ = p.communicate()
+                            if out is not None:
+                                print(out.decode('utf-8', errors='replace'))
+                            for pp in processes:
+                                if pp != p:
+                                    pp.terminate()
+                            processes = []
+                            break
 
             if processes:
                 time.sleep(.01)
@@ -53,12 +70,18 @@ if __name__ == "__main__":
         if args.verbosity:
             # on keyboard interrupt print the pipes if they haven't already been printed
             print("Got an interrupt, printing output")
-            if p0.returncode is None:
+            if bmc.returncode is None:
                 print("BMC output:")
-                out, _ = p0.communicate()
+                out, _ = bmc.communicate()
                 print(out.decode('utf-8', errors='replace'))
 
-            if p1.returncode is None:
+            if induc.returncode is None:
                 print("K-induction output:")
-                out, _ = p1.communicate()
+                out, _ = induc.communicate()
                 print(out.decode('utf-8', errors='replace'))
+
+            if interp.returncode is None:
+                print("Interpolation-based model checking output:")
+                out, _ = induc.communicate()
+                print(out.decode('utf-8', errors='replace'))
+
