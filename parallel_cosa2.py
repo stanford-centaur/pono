@@ -68,20 +68,18 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt as e:
         if args.verbosity:
-            # on keyboard interrupt print the pipes if they haven't already been printed
+            # on keyboard interrupt, print the pipes
+            # nothing should have printed yet, otherwise we would have already exited
             print("Got an interrupt, printing output")
-            if bmc.returncode is None:
-                print("BMC output:")
-                out, _ = bmc.communicate()
-                print(out.decode('utf-8', errors='replace'))
 
-            if induc.returncode is None:
-                print("K-induction output:")
-                out, _ = induc.communicate()
-                print(out.decode('utf-8', errors='replace'))
+            print("BMC output:")
+            out, _ = bmc.communicate()
+            print(out.decode('utf-8', errors='replace'))
 
-            if interp.returncode is None:
-                print("Interpolation-based model checking output:")
-                out, _ = induc.communicate()
-                print(out.decode('utf-8', errors='replace'))
+            print("K-induction output:")
+            out, _ = induc.communicate()
+            print(out.decode('utf-8', errors='replace'))
 
+            print("Interpolation-based model checking output:")
+            out, _ = interp.communicate()
+            print(out.decode('utf-8', errors='replace'))
