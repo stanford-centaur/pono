@@ -23,7 +23,7 @@ enum optionIndex
 {
   UNKNOWN_OPTION,
   HELP,
-  INDUCTION,
+  ENGINE,
   BOUND,
   PROP,
   VERBOSITY
@@ -51,6 +51,15 @@ struct Arg : public option::Arg
     if (msg) printError("Option '", option, "' requires a numeric argument\n");
     return option::ARG_ILLEGAL;
   }
+
+  static option::ArgStatus NonEmpty(const option::Option & option, bool msg)
+  {
+    if (option.arg != 0 && option.arg[0] != 0) return option::ARG_OK;
+
+    if (msg)
+      printError("Option '", option, "' requires a non-empty argument\n");
+    return option::ARG_ILLEGAL;
+  }
 };
 
 const option::Descriptor usage[] = {
@@ -62,12 +71,12 @@ const option::Descriptor usage[] = {
     "USAGE: cosa2 [options] <btor file>\n\n"
     "Options:" },
   { HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit." },
-  { INDUCTION,
+  { ENGINE,
     0,
-    "i",
-    "induction",
-    Arg::None,
-    "  --induction, -i \tUse temporal k-induction." },
+    "e",
+    "engine",
+    Arg::NonEmpty,
+    "  --engine, -e <engine> \tSelect engine from [bmc, ind, int]." },
   { BOUND,
     0,
     "k",
@@ -129,7 +138,7 @@ int main(int argc, char ** argv)
     return 1;
   }
 
-  bool induction = default_induction;
+  std::string engine = default_engine;
   unsigned int prop_idx = default_prop_idx;
   unsigned int bound = default_bound;
   unsigned int verbosity = default_verbosity;
@@ -141,7 +150,7 @@ int main(int argc, char ** argv)
     {
       case HELP:
         // not possible, because handled further above and exits the program
-      case INDUCTION: induction = true; break;
+      case ENGINE: engine = opt.arg; break;
       case BOUND: bound = atoi(opt.arg); break;
       case PROP: prop_idx = atoi(opt.arg); break;
       case VERBOSITY: verbosity = atoi(opt.arg); break;
@@ -150,6 +159,11 @@ int main(int argc, char ** argv)
         // which aborts the parse with an error
         break;
     }
+  }
+
+  if (engine != "bmc" && engine != "ind" && engine != "int")
+  {
+    throw CosaException("Unrecognized engine selection: " + engine);
   }
 
   // set logger verbosity -- can only be set once
@@ -184,15 +198,22 @@ int main(int argc, char ** argv)
   Property p(rts, s->make_term(PrimOp::Not, bad));
 
   std::shared_ptr<Prover> prover;
-  if (induction)
+  if (engine == "bmc")
   {
-    // cout << "Running k-induction" << endl;
+    prover = std::make_shared<Bmc>(p, s);
+  }
+  else if (engine == "ind")
+  {
     prover = std::make_shared<KInduction>(p, s);
+  }
+  else if (engine == "int")
+  {
+    // TODO
+    throw CosaException("Unimplemented engine: " + engine);
   }
   else
   {
-    // cout << "Running bounded model checking" << endl;
-    prover = std::make_shared<Bmc>(p, s);
+    throw CosaException("Unimplemented engine: " + engine);
   }
 
   ProverResult r = prover->check_until(bound);
