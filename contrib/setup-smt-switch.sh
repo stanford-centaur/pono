@@ -10,7 +10,8 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     git clone https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
-    ./configure.sh --btor --prefix=local
+    ./contrib/setup-msat.sh
+    ./configure.sh --btor --msat --prefix=local
     cd build
     make -j$(nproc)
     make test
