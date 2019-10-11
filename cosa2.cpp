@@ -113,19 +113,19 @@ int main(int argc, char ** argv)
 
   if (parse.error())
   {
-    return 1;
+    return 3;
   }
 
   if (options[HELP] || argc == 0)
   {
     option::printUsage(cout, usage);
-    return 0;
+    return 2; // unknown is 2
   }
 
   if (parse.nonOptionsCount() != 1)
   {
     option::printUsage(cout, usage);
-    return 1;
+    return 3;
   }
 
   bool unknown_options = false;
@@ -137,7 +137,7 @@ int main(int argc, char ** argv)
   if (unknown_options)
   {
     option::printUsage(cout, usage);
-    return 1;
+    return 3;
   }
 
   std::string engine = default_engine;
@@ -194,17 +194,13 @@ int main(int argc, char ** argv)
     RelationalTransitionSystem rts(s);
     BTOR2Encoder btor_enc(filename, rts);
 
-    // cout << "Created TransitionSystem with:\n";
-    // cout << "\t" << rts.inputs().size() << " input variables." << endl;
-    // cout << "\t" << rts.states().size() << " state variables." << endl;
-
     unsigned int num_bad = btor_enc.badvec().size();
     if (prop_idx >= num_bad)
     {
       cout << "Property index " << prop_idx;
       cout << " is greater than the number of bad tags in the btor file (";
       cout << num_bad << ")" << endl;
-      return 1;
+      return 3;
     }
 
     Term bad = btor_enc.badvec()[prop_idx];
@@ -267,5 +263,5 @@ int main(int argc, char ** argv)
     return 3;
   }
 
-  return 0;
+  return 3;
 }
