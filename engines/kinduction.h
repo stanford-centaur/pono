@@ -29,6 +29,7 @@ class KInduction : public Prover
   bool inductive_step(int i);
 
   smt::Term simple_path_constraint(int i, int j);
+  bool  lazy_simple_path_check(int i);
 
   const RelationalTransitionSystem & ts_;
   const Property & property_;

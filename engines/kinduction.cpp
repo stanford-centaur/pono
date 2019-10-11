@@ -121,14 +121,44 @@ bool KInduction::inductive_step(int i)
     return false;
   }
 
-  const Term f = solver_->make_value(false);
   Term bad = solver_->make_term(PrimOp::Not, property_.prop());
 
   solver_->push();
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad, i + 1));
 
+  if (lazy_simple_path_check(i))
+  {
+    return true;
+  }
+
+  solver_->pop();
+
+  ++reached_k_;
+
+  return false;
+}
+
+Term KInduction::simple_path_constraint(int i, int j)
+{
+  // TODO: what if there are no states?
+  //       kind of a weird situation, but possible -- don't want to assume false
+  Term disj = solver_->make_value(false);
+  for (auto v : ts_.states())
+  {
+    Term vi = unroller_.at_time(v, i);
+    Term vj = unroller_.at_time(v, j);
+    Term eq = solver_->make_term(PrimOp::Equal, vi, vj);
+    Term neq = solver_->make_term(PrimOp::Not, eq);
+    disj = solver_->make_term(PrimOp::Or, disj, neq);
+  }
+  return disj;
+}
+
+bool KInduction::lazy_simple_path_check(int i)
+{
   Result r = solver_->check_sat();
+  const Term f = solver_->make_value(false);
   bool added_to_simple_path = false;
 
   do 
@@ -164,27 +194,7 @@ bool KInduction::inductive_step(int i)
     }
   } while (added_to_simple_path);
 
-  solver_->pop();
-
-  ++reached_k_;
-
   return false;
-}
-
-Term KInduction::simple_path_constraint(int i, int j)
-{
-  // TODO: what if there are no states?
-  //       kind of a weird situation, but possible -- don't want to assume false
-  Term disj = solver_->make_value(false);
-  for (auto v : ts_.states())
-  {
-    Term vi = unroller_.at_time(v, i);
-    Term vj = unroller_.at_time(v, j);
-    Term eq = solver_->make_term(PrimOp::Equal, vi, vj);
-    Term neq = solver_->make_term(PrimOp::Not, eq);
-    disj = solver_->make_term(PrimOp::Or, disj, neq);
-  }
-  return disj;
 }
 
 }  // namespace cosa
