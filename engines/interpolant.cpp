@@ -165,6 +165,7 @@ bool InterpolantMC::step(int i)
       // found a concrete counter example
       // replay it in the solver with model generation
       concrete_cex_ = true;
+      solver_->reset_assertions();
       Term solver_init = solver_->transfer_term(init0_);
       Term solver_trans = solver_->make_term(And,
                                              solver_->transfer_term(transA_),
