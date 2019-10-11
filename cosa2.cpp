@@ -1,4 +1,5 @@
 #include <iostream>
+#include "assert.h"
 
 #include "optionparser.h"
 #include "smt-switch/msat_factory.h"
@@ -173,81 +174,97 @@ int main(int argc, char ** argv)
 
   try
   {
-
-  SmtSolver s = MsatSolverFactory::create();
-  s->set_opt("produce-models", "true");
-  s->set_opt("incremental", "true");
-
-  RelationalTransitionSystem rts(s);
-  BTOR2Encoder btor_enc(filename, rts);
-
-  // cout << "Created TransitionSystem with:\n";
-  // cout << "\t" << rts.inputs().size() << " input variables." << endl;
-  // cout << "\t" << rts.states().size() << " state variables." << endl;
-
-  unsigned int num_bad = btor_enc.badvec().size();
-  if (prop_idx >= num_bad)
-  {
-    cout << "Property index " << prop_idx;
-    cout << " is greater than the number of bad tags in the btor file (";
-    cout << num_bad << ")" << endl;
-    return 1;
-  }
-
-  Term bad = btor_enc.badvec()[prop_idx];
-  Property p(rts, s->make_term(PrimOp::Not, bad));
-
-  std::shared_ptr<Prover> prover;
-  if (engine == "bmc")
-  {
-    prover = std::make_shared<Bmc>(p, s);
-  }
-  else if (engine == "ind")
-  {
-    prover = std::make_shared<KInduction>(p, s);
-  }
-  else if (engine == "int")
-  {
-    // TODO
-    throw CosaException("Unimplemented engine: " + engine);
-  }
-  else
-  {
-    throw CosaException("Unimplemented engine: " + engine);
-  }
-
-  ProverResult r = prover->check_until(bound);
-  if (r == FALSE)
-  {
-    cout << "sat" << endl;
-    cout << "b" << prop_idx << endl;
-    vector<UnorderedTermMap> cex;
-    if (prover->witness(cex))
+    SmtSolver s;
+    SmtSolver second_solver;
+    if (engine == "int")
     {
-      print_witness_btor(btor_enc, cex);
-      // for (size_t j = 0; j < cex.size(); ++j) {
-      //   cout << "-------- " << j << " --------" << endl;
-      //   const UnorderedTermMap &map = cex[j];
-      //   for (auto v : map) {
-      //     cout << v.first << " := " << v.second << endl;
-      //   }
-      // }
+      s = MsatSolverFactory::create_interpolating_solver();
+      second_solver = MsatSolverFactory::create();
     }
-    return 1;
-  }
-  else if (r == TRUE)
-  {
-    cout << "unsat" << endl;
-    cout << "b" << prop_idx << endl;
-    return 0;
-  }
-  else
-  {
-    cout << "unknown" << endl;
-    cout << "b" << prop_idx << endl;
-    return 2;
-  }
+    else
+    {
+      s = MsatSolverFactory::create();
+      s->set_opt("produce-models", "true");
+      s->set_opt("incremental", "true");
+    }
 
+    RelationalTransitionSystem rts(s);
+    BTOR2Encoder btor_enc(filename, rts);
+
+    // cout << "Created TransitionSystem with:\n";
+    // cout << "\t" << rts.inputs().size() << " input variables." << endl;
+    // cout << "\t" << rts.states().size() << " state variables." << endl;
+
+    unsigned int num_bad = btor_enc.badvec().size();
+    if (prop_idx >= num_bad)
+    {
+      cout << "Property index " << prop_idx;
+      cout << " is greater than the number of bad tags in the btor file (";
+      cout << num_bad << ")" << endl;
+      return 1;
+    }
+
+    Term bad = btor_enc.badvec()[prop_idx];
+    Property p(rts, s->make_term(PrimOp::Not, bad));
+
+    std::shared_ptr<Prover> prover;
+    if (engine == "bmc")
+    {
+      prover = std::make_shared<Bmc>(p, s);
+    }
+    else if (engine == "ind")
+    {
+      prover = std::make_shared<KInduction>(p, s);
+    }
+    else if (engine == "int")
+    {
+      prover = std::make_shared<InterpolantMC>(p, s, second_solver);
+    }
+    else
+    {
+      throw CosaException("Unimplemented engine: " + engine);
+    }
+
+    ProverResult r = prover->check_until(bound);
+    if (r == FALSE)
+    {
+      cout << "sat" << endl;
+      cout << "b" << prop_idx << endl;
+      vector<UnorderedTermMap> cex;
+      if (prover->witness(cex))
+      {
+        print_witness_btor(btor_enc, cex);
+        // for (size_t j = 0; j < cex.size(); ++j) {
+        //   cout << "-------- " << j << " --------" << endl;
+        //   const UnorderedTermMap &map = cex[j];
+        //   for (auto v : map) {
+        //     cout << v.first << " := " << v.second << endl;
+        //   }
+        // }
+      }
+      return 1;
+    }
+    else if (r == TRUE)
+    {
+      // temporary while debugging
+      if (engine == "int")
+      {
+        cout << "Got BUGGY interpolation result don't trust me" << endl;
+        cout << "unknown" << endl;
+        cout << "b" << prop_idx << endl;
+        return 2;
+      }
+
+      cout << "unsat" << endl;
+      cout << "b" << prop_idx << endl;
+      return 0;
+    }
+    else
+    {
+      cout << "unknown" << endl;
+      cout << "b" << prop_idx << endl;
+      return 2;
+    }
   }
   catch (CosaException & ce)
   {
