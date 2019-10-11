@@ -127,7 +127,7 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad, i + 1));
 
-  if (lazy_simple_path_check(i))
+  if (check_simple_path_lazy(i))
   {
     return true;
   }
@@ -155,7 +155,7 @@ Term KInduction::simple_path_constraint(int i, int j)
   return disj;
 }
 
-bool KInduction::lazy_simple_path_check(int i)
+bool KInduction::check_simple_path_lazy(int i)
 {
   Result r = solver_->check_sat();
   const Term f = solver_->make_value(false);
