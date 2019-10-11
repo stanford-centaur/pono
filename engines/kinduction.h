@@ -24,7 +24,7 @@ class KInduction : public Prover
 
   bool witness(std::vector<smt::UnorderedTermMap> & out);
 
- private:
+ protected:
   bool base_step(int i);
   bool inductive_step(int i);
 
