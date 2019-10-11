@@ -163,8 +163,13 @@ bool InterpolantMC::step(int i)
       // Can't get an interpolant at bound 0
       // only checking for trivial bug
       solver_->reset_assertions();
-      Result r = solver_->check_sat_assuming(
-          { solver_->transfer_term(R_), solver_->transfer_term(bad_i) });
+
+      solver_->push();
+      solver_->assert_formula(solver_->transfer_term(R_));
+      solver_->assert_formula(solver_->transfer_term(bad_i));
+      Result r = solver_->check_sat();
+      solver_->pop();
+
       got_interpolant = false;
       is_sat = r.is_sat();
     }
