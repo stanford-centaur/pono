@@ -246,15 +246,6 @@ int main(int argc, char ** argv)
     }
     else if (r == TRUE)
     {
-      // temporary while debugging
-      if (engine == "int")
-      {
-        cout << "Got BUGGY interpolation result don't trust me" << endl;
-        cout << "unknown" << endl;
-        cout << "b" << prop_idx << endl;
-        return 2;
-      }
-
       cout << "unsat" << endl;
       cout << "b" << prop_idx << endl;
       return 0;

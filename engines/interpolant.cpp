@@ -140,9 +140,11 @@ bool InterpolantMC::step(int i)
   }
 
   logger.log(1, "Checking interpolation at bound: {}", i);
-
   Term bad_i = unroller_.at_time(bad_, i);
+
+  // These bools are always opposite except at i = 0
   bool got_interpolant = true;
+  bool is_sat = false;
 
   R_ = init0_;
 
@@ -154,13 +156,20 @@ bool InterpolantMC::step(int i)
           interpolator_->make_term(And, R_, transA_),
           interpolator_->make_term(And, transB_, bad_i),
           Ri_);
+      is_sat = !got_interpolant;
     }
     else
     {
-      got_interpolant = interpolator_->get_interpolant(R_, bad_i, Ri_);
+      // Can't get an interpolant at bound 0
+      // only checking for trivial bug
+      solver_->reset_assertions();
+      Result r = solver_->check_sat_assuming(
+          { solver_->transfer_term(R_), solver_->transfer_term(bad_i) });
+      got_interpolant = false;
+      is_sat = r.is_sat();
     }
 
-    if (!got_interpolant && (R_ == init0_))
+    if (is_sat && (R_ == init0_))
     {
       // found a concrete counter example
       // replay it in the solver with model generation
@@ -178,6 +187,7 @@ bool InterpolantMC::step(int i)
       {
         throw CosaException("Internal error: Expecting satisfiable result");
       }
+      ++reached_k_;
       return false;
     }
     else if (got_interpolant)
@@ -207,6 +217,7 @@ bool InterpolantMC::step(int i)
         And, transB_, unroller_.at_time(ts_.trans(), i));
   }
 
+  ++reached_k_;
   return false;
 }
 
