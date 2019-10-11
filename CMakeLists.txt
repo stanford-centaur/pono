@@ -38,6 +38,10 @@ if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.so
   message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.so")
+  message(FATAL_ERROR "Missing smt-switch boolector library -- try running ./contrib/setup-smt-switch.sh")
+endif()
+
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.so")
   message(FATAL_ERROR "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh")
 endif()
@@ -54,6 +58,7 @@ target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/s
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.so")
+target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.so")
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.so")
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/libbtor2parser.a")
 target_link_libraries(cosa2 PUBLIC gmp)

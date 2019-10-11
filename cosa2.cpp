@@ -2,6 +2,7 @@
 #include "assert.h"
 
 #include "optionparser.h"
+#include "smt-switch/boolector_factory.h"
 #include "smt-switch/msat_factory.h"
 
 #include "bmc.h"
@@ -77,7 +78,7 @@ const option::Descriptor usage[] = {
     "e",
     "engine",
     Arg::NonEmpty,
-    "  --engine, -e <engine> \tSelect engine from [bmc, ind, int]." },
+    "  --engine, -e <engine> \tSelect engine from [bmc, ind, interp]." },
   { BOUND,
     0,
     "k",
@@ -162,7 +163,7 @@ int main(int argc, char ** argv)
     }
   }
 
-  if (engine != "bmc" && engine != "ind" && engine != "int")
+  if (engine != "bmc" && engine != "ind" && engine != "interp")
   {
     throw CosaException("Unrecognized engine selection: " + engine);
   }
@@ -176,14 +177,16 @@ int main(int argc, char ** argv)
   {
     SmtSolver s;
     SmtSolver second_solver;
-    if (engine == "int")
+    if (engine == "interp")
     {
+      // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create_interpolating_solver();
       second_solver = MsatSolverFactory::create();
     }
     else
     {
-      s = MsatSolverFactory::create();
+      // boolector is faster but doesn't support interpolants
+      s = BoolectorSolverFactory::create();
       s->set_opt("produce-models", "true");
       s->set_opt("incremental", "true");
     }
@@ -216,8 +219,9 @@ int main(int argc, char ** argv)
     {
       prover = std::make_shared<KInduction>(p, s);
     }
-    else if (engine == "int")
+    else if (engine == "interp")
     {
+      assert(second_solver != NULL);
       prover = std::make_shared<InterpolantMC>(p, s, second_solver);
     }
     else
