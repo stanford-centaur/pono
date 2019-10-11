@@ -1,18 +1,17 @@
 #include "bmc_simplepath.h"
+
 #include "utils/logger.h"
 
 using namespace smt;
 
 namespace cosa {
 
-BmcSimplePath::BmcSimplePath(const Property &p, smt::SmtSolver &solver)
-		      : super(p, solver)
+BmcSimplePath::BmcSimplePath(const Property & p, smt::SmtSolver & solver)
+    : super(p, solver)
 {
 }
 
-BmcSimplePath::~BmcSimplePath()
-{
-}
+BmcSimplePath::~BmcSimplePath() {}
 
 ProverResult BmcSimplePath::check_until(int k)
 {
@@ -73,4 +72,4 @@ bool BmcSimplePath::cover_step(int i)
   return false;
 }
 
-} // namespace cosa
+}  // namespace cosa
