@@ -6,6 +6,7 @@
 #include "smt-switch/msat_factory.h"
 
 #include "bmc.h"
+#include "bmc_simplepath.h"
 #include "defaults.h"
 #include "frontends/btor2_encoder.h"
 #include "interpolant.h"
@@ -78,7 +79,8 @@ const option::Descriptor usage[] = {
     "e",
     "engine",
     Arg::NonEmpty,
-    "  --engine, -e <engine> \tSelect engine from [bmc, ind, interp]." },
+    "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, "
+    "interp]." },
   { BOUND,
     0,
     "k",
@@ -163,7 +165,8 @@ int main(int argc, char ** argv)
     }
   }
 
-  if (engine != "bmc" && engine != "ind" && engine != "interp")
+  if (engine != "bmc" && engine != "bmc-sp" && engine != "ind"
+      && engine != "interp")
   {
     throw CosaException("Unrecognized engine selection: " + engine);
   }
@@ -210,6 +213,10 @@ int main(int argc, char ** argv)
     if (engine == "bmc")
     {
       prover = std::make_shared<Bmc>(p, s);
+    }
+    else if (engine == "bmc-sp")
+    {
+      prover = std::make_shared<BmcSimplePath>(p, s);
     }
     else if (engine == "ind")
     {
