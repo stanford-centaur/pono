@@ -44,6 +44,18 @@ if __name__ == "__main__":
                2: "K-Induction",
                3: "Interpolant-based"}
 
+    output_map = {p: "" for p in all_processes}
+
+
+    def print_process_output(proc):
+        if output_map[proc]:
+            print(output_map[proc], end='')
+        for line in proc.stdout:
+            print(line.decode('utf-8', errors='replace'), end='')
+        print()
+        sys.stdout.flush()
+
+
     def handle_signal(signum, frame):
         # send signal recieved to subprocesses
         global shutdown
@@ -51,18 +63,15 @@ if __name__ == "__main__":
             shutdown = True
             for proc in processes:
                 if proc.poll() is None:
-                    proc.terminate()
+                    proc.kill()
 
             global verbosity
             if verbosity:
-                # this is too slow
-                # out, err = proc.communicate()
-                # print(out.decode('utf-8', errors='replace'))
+                # too slow to communicate with process in signal handling
+                # use cached lines
                 for i, proc in enumerate(all_processes):
                     print("{} output:".format(pos_map[i]))
-                    for line in proc.stdout:
-                        print(line.decode('utf-8'), end='')
-                    print()
+                    print(output_map[proc])
                     sys.stdout.flush()
             sys.exit(0)
 
@@ -71,7 +80,7 @@ if __name__ == "__main__":
 
 
     while not shutdown:
-        for i, p in enumerate(processes):
+        for p in processes:
             if p.poll() is not None:
                 # return code for unknown is 2
                 # anything higher than that is an error
@@ -80,10 +89,7 @@ if __name__ == "__main__":
                     processes.remove(p)
                     # print unknown only if this is the last process
                     if not processes:
-                        out, _ = p.communicate()
-                        if out is not None:
-                            print(out.decode('utf-8', errors='replace'))
-                            sys.stdout.flush()
+                        print_process_output(p)
                         shutdown = True
                 else:
                     # HACK don't return counter-examples from interpolation-based procedure
@@ -93,16 +99,11 @@ if __name__ == "__main__":
                         processes.remove(p)
                         # this shouldn't happen but let's handle it just in case
                         if not processes:
-                            out, _ = bmc.communicate()
-                            print(out.decode('utf-8', errors='replace'))
-                            sys.stdout.flush()
+                            print_process_output(bmc)
                             shutdown = True
                             break
                     else:
-                        out, _ = p.communicate()
-                        if out is not None:
-                            print(out.decode('utf-8', errors='replace'))
-                            sys.stdout.flush()
+                        print_process_output(p)
                         for pp in processes:
                             if pp != p:
                                 pp.terminate()
@@ -113,6 +114,13 @@ if __name__ == "__main__":
         # just a double check
         if not processes:
             shutdown = True
+            break
 
         if not shutdown:
-            time.sleep(.01)
+            time.sleep(.001)
+
+        for i, p in enumerate(all_processes):
+            if p.poll() is None:
+                try: line = p.stdout.readline()
+                except: continue
+                output_map[p] += line.decode('utf-8', errors='replace')
