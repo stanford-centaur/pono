@@ -20,13 +20,15 @@ if __name__ == "__main__":
 
     bmc = subprocess.Popen(['./cosa2', '-e', 'bmc', '-v', verbosity, '-k', bound, btor_file],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    bmc_sp = subprocess.Popen(['./cosa2', '-e', 'bmc-sp', '-v', verbosity, '-k', bound, btor_file],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     induc = subprocess.Popen(['./cosa2', '-e', 'ind', '-v', verbosity, '-k', bound, btor_file],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     interp = subprocess.Popen(['./cosa2', '-e', 'interp', '-v', verbosity, '-k', bound, btor_file],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     interp_processes = set({interp})
-    processes = [bmc, induc, interp]
+    processes = [bmc, bmc_sp, induc, interp]
 
     try:
         while processes:
@@ -48,7 +50,7 @@ if __name__ == "__main__":
                         #      printed in btor2 format
                         if p in interp_processes and p.returncode == 1:
                             processes.remove(p)
-                            # this shouldln't happen but let's handle it just in case
+                            # this shouldn't happen but let's handle it just in case
                             if not processes:
                                 out, _ = bmc.communicate()
                                 print(out.decode('utf-8', errors='replace'))
@@ -74,6 +76,10 @@ if __name__ == "__main__":
 
             print("BMC output:")
             out, _ = bmc.communicate()
+            print(out.decode('utf-8', errors='replace'))
+
+            print("BMC-Simple-Path output:")
+            out, _ = bmc_sp.communicate()
             print(out.decode('utf-8', errors='replace'))
 
             print("K-induction output:")
