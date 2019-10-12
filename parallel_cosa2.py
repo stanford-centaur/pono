@@ -5,6 +5,7 @@ import signal
 import subprocess
 import sys
 import time
+import os
 
 if __name__ == "__main__":
 
@@ -48,21 +49,21 @@ if __name__ == "__main__":
         global shutdown
         if not shutdown:
             shutdown = True
-            for i, proc in enumerate(all_processes):
+            for proc in processes:
                 if proc.poll() is None:
                     proc.terminate()
 
-                global verbosity
-                if verbosity:
-                    # this is too slow
-                    # out, err = proc.communicate()
-                    # print(out.decode('utf-8', errors='replace'))
-
+            global verbosity
+            if verbosity:
+                # this is too slow
+                # out, err = proc.communicate()
+                # print(out.decode('utf-8', errors='replace'))
+                for i, proc in enumerate(all_processes):
                     print("{} output:".format(pos_map[i]))
                     for line in proc.stdout:
                         print(line.decode('utf-8'), end='')
                     print()
-            sys.stdout.flush()
+                    sys.stdout.flush()
             sys.exit(0)
 
     signal.signal(signal.SIGINT, handle_signal)
