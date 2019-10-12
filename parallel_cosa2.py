@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     # this one is updated
     processes = [bmc, bmc_sp, induc, interp]
-    pos_map = {0: "BMC:",
+    pos_map = {0: "BMC",
                1: "BMC+SimplePath",
                2: "K-Induction",
                3: "Interpolant-based"}
