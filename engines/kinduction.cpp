@@ -122,19 +122,16 @@ bool KInduction::inductive_step(int i)
   }
 
   Term bad = solver_->make_term(PrimOp::Not, property_.prop());
-  for (int j = 0; j < i; ++j)
-  {
-    add_simple_path_constraint(i, j);
-  }
 
   solver_->push();
-  solver_->assert_formula(simple_path_);  // TODO: model-based simple-path
+  solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad, i + 1));
-  Result r = solver_->check_sat();
-  if (r.is_unsat())
+
+  if (check_simple_path_lazy(i))
   {
     return true;
   }
+
   solver_->pop();
 
   ++reached_k_;
@@ -142,8 +139,10 @@ bool KInduction::inductive_step(int i)
   return false;
 }
 
-void KInduction::add_simple_path_constraint(int i, int j)
+Term KInduction::simple_path_constraint(int i, int j)
 {
+  // TODO: what if there are no states?
+  //       kind of a weird situation, but possible -- don't want to assume false
   Term disj = solver_->make_value(false);
   for (auto v : ts_.states())
   {
@@ -153,7 +152,49 @@ void KInduction::add_simple_path_constraint(int i, int j)
     Term neq = solver_->make_term(PrimOp::Not, eq);
     disj = solver_->make_term(PrimOp::Or, disj, neq);
   }
-  simple_path_ = solver_->make_term(PrimOp::And, simple_path_, disj);
+  return disj;
+}
+
+bool KInduction::check_simple_path_lazy(int i)
+{
+  Result r = solver_->check_sat();
+  const Term f = solver_->make_value(false);
+  bool added_to_simple_path = false;
+
+  do 
+  {
+    if (r.is_unsat())
+    {
+      return true;
+    }
+
+    Term constraint;
+    added_to_simple_path = false;
+
+    for (int j = 0; j < i && !added_to_simple_path; ++j)
+    {
+      for (int l = j + 1; l < i; ++l)
+      {
+        constraint = simple_path_constraint(j, l);
+        if (solver_->get_value(constraint) == f)
+        {
+          simple_path_ =
+              solver_->make_term(PrimOp::And, simple_path_, constraint);
+          added_to_simple_path = true;
+          break;
+        }
+      }
+    }
+
+    if (added_to_simple_path)
+    {
+      logger.log(2, "Adding Simple Path Clause");
+      solver_->assert_formula(constraint);
+      r = solver_->check_sat();
+    }
+  } while (added_to_simple_path);
+
+  return false;
 }
 
 }  // namespace cosa
