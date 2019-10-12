@@ -180,6 +180,7 @@ bool KInduction::check_simple_path_lazy(int i)
         {
           simple_path_ =
               solver_->make_term(PrimOp::And, simple_path_, constraint);
+          solver_->assert_formula(constraint);
           added_to_simple_path = true;
           break;
         }
@@ -189,7 +190,6 @@ bool KInduction::check_simple_path_lazy(int i)
     if (added_to_simple_path)
     {
       logger.log(2, "Adding Simple Path Clause");
-      solver_->assert_formula(constraint);
       r = solver_->check_sat();
     }
   } while (added_to_simple_path);
