@@ -7,6 +7,25 @@ import sys
 import time
 import os
 
+## Non-blocking reads for subprocess
+## https://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
+
+import sys
+from subprocess import PIPE, Popen
+from threading  import Thread
+
+# try:
+#     from queue import Queue, Empty
+# except ImportError:
+#     from Queue import Queue, Empty  # python 2.x
+
+ON_POSIX = 'posix' in sys.builtin_module_names
+
+def enqueue_output(out, l):
+    for line in iter(out.readline, b''):
+        l.append(line.decode('utf-8'))
+    # out.close()
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run BMC and K-induction in parallel")
@@ -22,40 +41,45 @@ if __name__ == "__main__":
     verbosity = args.verbosity
     verbosity_option = '1' if args.verbosity else '0'
 
-    bmc = subprocess.Popen(['./cosa2', '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
-                           stdout=subprocess.PIPE)
-    bmc_sp = subprocess.Popen(['./cosa2', '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
-                              stdout=subprocess.PIPE)
-    induc = subprocess.Popen(['./cosa2', '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
-                          stdout=subprocess.PIPE)
-    interp = subprocess.Popen(['./cosa2', '-e', 'interp', '-v', verbosity_option, '-k', bound, btor_file],
-                          stdout=subprocess.PIPE)
+    commands = {
+        "BMC": ['./cosa2', '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
+        "BMC+SimplePath": ['./cosa2', '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
+        "K-Induction": ['./cosa2', '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
+        "Interpolant-based": ['./cosa2', '-e', 'interp', '-v', verbosity_option, '-k', bound, btor_file]
+    }
 
-    shutdown = False
+    interp_processes = set()
+    all_processes = []
+    queues = {}
+    name_map = {}
 
-    # these stay constant
-    interp_processes = set({interp})
-    all_processes = [bmc, bmc_sp, induc, interp]
+    # this one gets updated on the fly as processes end
+    processes = []
 
-    # this one is updated
-    processes = [bmc, bmc_sp, induc, interp]
-    pos_map = {0: "BMC",
-               1: "BMC+SimplePath",
-               2: "K-Induction",
-               3: "Interpolant-based"}
+    for name, cmd in commands.items():
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, close_fds=ON_POSIX)
+        if 'interp' in cmd:
+            interp_processes.add(proc)
+        processes.append(proc)
+        all_processes.append(proc)
+        name_map[proc] = name
 
-    output_map = {p: "" for p in all_processes}
+        # instantiate watcher thread
+        q = []
+        t = Thread(target=enqueue_output, args=(proc.stdout, q))
+        queues[proc] = q
+        t.daemon = True
+        t.start()
 
 
     def print_process_output(proc):
-        if output_map[proc]:
-            print(output_map[proc], end='')
-        for line in proc.stdout:
-            print(line.decode('utf-8', errors='replace'), end='')
+        for line in queues[proc]:
+            print(line, end='')
         print()
         sys.stdout.flush()
 
 
+    shutdown = False
     def handle_signal(signum, frame):
         # send signal recieved to subprocesses
         global shutdown
@@ -63,15 +87,17 @@ if __name__ == "__main__":
             shutdown = True
             for proc in processes:
                 if proc.poll() is None:
-                    proc.kill()
+                    proc.terminate()
 
             global verbosity
             if verbosity:
                 # too slow to communicate with process in signal handling
                 # use cached lines
-                for i, proc in enumerate(all_processes):
-                    print("{} output:".format(pos_map[i]))
-                    print(output_map[proc])
+                for proc in all_processes:
+                    print("{} output:".format(name_map[proc]))
+                    for line in queues[proc]:
+                        print(line, end='')
+                    print()
                     sys.stdout.flush()
             sys.exit(0)
 
@@ -104,10 +130,6 @@ if __name__ == "__main__":
                             break
                     else:
                         print_process_output(p)
-                        for pp in processes:
-                            if pp != p:
-                                pp.terminate()
-                        processes = []
                         shutdown = True
                         break
 
@@ -118,9 +140,3 @@ if __name__ == "__main__":
 
         if not shutdown:
             time.sleep(.001)
-
-        for i, p in enumerate(all_processes):
-            if p.poll() is None:
-                try: line = p.stdout.readline()
-                except: continue
-                output_map[p] += line.decode('utf-8', errors='replace')
