@@ -484,7 +484,7 @@ void BTOR2Encoder::parse(const std::string filename)
     {
       if (termargs_.size() != 2)
       {
-        throw CosaException("Expecting two arguments to eq");
+        throw CosaException("Expecting two arguments to implies");
       }
       Term t0 = termargs_[0];
       Term t1 = termargs_[1];
@@ -506,7 +506,7 @@ void BTOR2Encoder::parse(const std::string filename)
         else
         {
           throw CosaException(
-              "Expecting arguments to eq to have the same sort");
+              "Expecting arguments to implies to have the same sort");
         }
       }
 
