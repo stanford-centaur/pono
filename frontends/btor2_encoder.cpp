@@ -452,7 +452,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Sort s0 = t0->get_sort();
       Sort s1 = t1->get_sort();
       SortKind sk0 = s0->get_sort_kind();
-      SortKind sk1 = s0->get_sort_kind();
+      SortKind sk1 = s1->get_sort_kind();
 
       if (s0 != s1)
       {
@@ -491,7 +491,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Sort s0 = t0->get_sort();
       Sort s1 = t1->get_sort();
       SortKind sk0 = s0->get_sort_kind();
-      SortKind sk1 = s0->get_sort_kind();
+      SortKind sk1 = s1->get_sort_kind();
 
       if (s0 != s1)
       {
