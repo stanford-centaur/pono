@@ -7,7 +7,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone -b btor-smtcomp19 https://github.com/makaimann/smt-switch
+    git clone -b hwmcc19 https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
     ./contrib/setup-msat.sh
