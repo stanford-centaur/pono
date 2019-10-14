@@ -45,7 +45,7 @@ const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
     //{ BTOR2_TAG_ones, },
     { BTOR2_TAG_or, BVOr },
     //{ BTOR2_TAG_output, },
-    { BTOR2_TAG_read, Select },
+    // { BTOR2_TAG_read, Select }, // handle specially -- make sure it's casted to bv
     //{ BTOR2_TAG_redand, },
     //{ BTOR2_TAG_redor, },
     //{ BTOR2_TAG_redxor, },
@@ -80,7 +80,7 @@ const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
     //{ BTOR2_TAG_umulo, },
     { BTOR2_TAG_urem, BVUrem },
     //{ BTOR2_TAG_usubo, },
-    { BTOR2_TAG_write, Store },
+    //{ BTOR2_TAG_write, Store }, // handle specially -- make sure it's casted to bv
     { BTOR2_TAG_xnor, BVXnor },
     { BTOR2_TAG_xor, BVXor },
     //{ BTOR2_TAG_zero, }
@@ -688,6 +688,19 @@ void BTOR2Encoder::parse(const std::string filename)
           solver_->make_term(And,
                              solver_->make_term(Distinct, t0_top, t1_top),
                              solver_->make_term(Equal, t1_top, diff_top));
+    }
+    else if (l_->tag == BTOR2_TAG_read)
+    {
+      Term arr = termargs_[0];
+      Term idx = bool_to_bv(termargs_[1]);
+      terms_[l_->id] = solver_->make_term(Select, arr, idx);
+    }
+    else if (l_->tag == BTOR2_TAG_write)
+    {
+      Term arr = termargs_[0];
+      Term idx = bool_to_bv(termargs_[1]);
+      Term elem = bool_to_bv(termargs_[2]);
+      terms_[l_->id] = solver_->make_term(Store, arr, idx, elem);
     }
     /******************************** Handle general case
      ********************************/
