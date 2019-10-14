@@ -548,8 +548,10 @@ void BTOR2Encoder::parse(const std::string filename)
     else if (l_->tag == BTOR2_TAG_ite)
     {
       Term cond = bv_to_bool(termargs_[0]);
-      TermVec tv = lazy_convert({ termargs_[1], termargs_[2] });
-      terms_[l_->id] = solver_->make_term(Ite, cond, tv[0], tv[1]);
+      // Always cast to bit-vectors because mathsat doesn't support ite over bools
+      Term t1 = bool_to_bv(termargs_[1]);
+      Term t2 = bool_to_bv(termargs_[2]);
+      terms_[l_->id] = solver_->make_term(Ite, cond, t1, t2);
     }
     else if (l_->tag == BTOR2_TAG_uaddo)
     {
