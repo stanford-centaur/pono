@@ -267,6 +267,22 @@ int main(int argc, char ** argv)
   catch (CosaException & ce)
   {
     cout << ce.what() << endl;
+    cout << "unknown" << endl;
+    cout << "b" << prop_idx << endl;
+    return 3;
+  }
+  catch (SmtException & se)
+  {
+    cout << se.what() << endl;
+    cout << "unknown" << endl;
+    cout << "b" << prop_idx << endl;
+    return 3;
+  }
+  catch (...)
+  {
+    cout << "Caught generic exception..." << endl;
+    cout << "unknown" << endl;
+    cout << "b" << prop_idx << endl;
     return 3;
   }
 
