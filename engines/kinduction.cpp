@@ -127,7 +127,7 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad, i + 1));
 
-  if (check_simple_path_lazy(i))
+  if (check_simple_path_lazy(i+1))
   {
     return true;
   }
@@ -173,7 +173,7 @@ bool KInduction::check_simple_path_lazy(int i)
 
     for (int j = 0; j < i && !added_to_simple_path; ++j)
     {
-      for (int l = j + 1; l < i; ++l)
+      for (int l = j + 1; l <= i; ++l)
       {
         constraint = simple_path_constraint(j, l);
         if (solver_->get_value(constraint) == f)
