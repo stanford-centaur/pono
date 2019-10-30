@@ -40,6 +40,7 @@ class KInduction : public Prover
   int reached_k_;
 
   smt::Term simple_path_;
+  std::vector<std::unordered_map<int, smt::Term> > simple_path_cons_cache_;
 
 };  // class KInduction
 
