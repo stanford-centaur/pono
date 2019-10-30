@@ -25,7 +25,7 @@ Unroller::~Unroller()
 
 smt::Term Unroller::at_time(smt::Term t, unsigned int k)
 {
-  smt::UnorderedTermMap cache = time_cache_at_time(k);
+  smt::UnorderedTermMap & cache = time_cache_at_time(k);
 
   auto it = cache.find(t);
   if (it != cache.end())
