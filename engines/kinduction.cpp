@@ -142,18 +142,6 @@ Term KInduction::simple_path_constraint(int i, int j)
 {
   // TODO: what if there are no states?
   //       kind of a weird situation, but possible -- don't want to assume false
-  while (simple_path_cons_cache_.size() <= i)
-  {
-    simple_path_cons_cache_.push_back(std::unordered_map<int, Term>());
-  }
-  std::unordered_map<int, Term> & cache = simple_path_cons_cache_[i];
-
-  auto it = cache.find(j);
-  if (it != cache.end())
-  {
-    return it->second;
-  }
-
   Term disj = false_;
   for (auto v : ts_.states())
   {
@@ -163,7 +151,6 @@ Term KInduction::simple_path_constraint(int i, int j)
     Term neq = solver_->make_term(PrimOp::Not, eq);
     disj = solver_->make_term(PrimOp::Or, disj, neq);
   }
-  cache[j] = disj;
   return disj;
 }
 

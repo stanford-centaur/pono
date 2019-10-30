@@ -43,7 +43,6 @@ class KInduction : public Prover
   smt::Term bad_;
   smt::Term false_;
   smt::Term simple_path_;
-  std::vector<std::unordered_map<int, smt::Term> > simple_path_cons_cache_;
 
 };  // class KInduction
 
