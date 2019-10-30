@@ -24,6 +24,9 @@ void KInduction::initialize()
   // the solver or it could just be polluted with redundant assertions in the
   // future we can use solver_->reset_assertions(), but it is not currently
   // supported in boolector
+  init0_ = unroller_.at_time(ts_.init(), 0);
+  bad_ = solver_->make_term(PrimOp::Not, property_.prop());
+  false_ = solver_->make_value(false);
   simple_path_ = solver_->make_value(true);
 }
 
@@ -95,11 +98,9 @@ bool KInduction::base_step(int i)
     return true;
   }
 
-  Term bad = solver_->make_term(PrimOp::Not, property_.prop());
-
   solver_->push();
-  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
-  solver_->assert_formula(unroller_.at_time(bad, i));
+  solver_->assert_formula(init0_);
+  solver_->assert_formula(unroller_.at_time(bad_, i));
   Result r = solver_->check_sat();
   if (r.is_sat())
   {
@@ -121,11 +122,9 @@ bool KInduction::inductive_step(int i)
     return false;
   }
 
-  Term bad = solver_->make_term(PrimOp::Not, property_.prop());
-
   solver_->push();
   solver_->assert_formula(simple_path_);
-  solver_->assert_formula(unroller_.at_time(bad, i + 1));
+  solver_->assert_formula(unroller_.at_time(bad_, i + 1));
 
   if (check_simple_path_lazy(i+1))
   {
@@ -155,7 +154,7 @@ Term KInduction::simple_path_constraint(int i, int j)
     return it->second;
   }
 
-  Term disj = solver_->make_value(false);
+  Term disj = false_;
   for (auto v : ts_.states())
   {
     Term vi = unroller_.at_time(v, i);
@@ -171,7 +170,6 @@ Term KInduction::simple_path_constraint(int i, int j)
 bool KInduction::check_simple_path_lazy(int i)
 {
   Result r = solver_->check_sat();
-  const Term f = solver_->make_value(false);
   bool added_to_simple_path = false;
 
   do 
@@ -189,7 +187,7 @@ bool KInduction::check_simple_path_lazy(int i)
       for (int l = j + 1; l <= i; ++l)
       {
         constraint = simple_path_constraint(j, l);
-        if (solver_->get_value(constraint) == f)
+        if (solver_->get_value(constraint) == false_)
         {
           simple_path_ =
               solver_->make_term(PrimOp::And, simple_path_, constraint);

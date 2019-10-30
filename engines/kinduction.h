@@ -39,6 +39,9 @@ class KInduction : public Prover
 
   int reached_k_;
 
+  smt::Term init0_;
+  smt::Term bad_;
+  smt::Term false_;
   smt::Term simple_path_;
   std::vector<std::unordered_map<int, smt::Term> > simple_path_cons_cache_;
 
