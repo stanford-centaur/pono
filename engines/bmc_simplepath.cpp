@@ -55,7 +55,7 @@ bool BmcSimplePath::cover_step(int i)
   }
 
   solver_->push();
-  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+  solver_->assert_formula(init0_);
   Term not_init = solver_->make_term(PrimOp::Not, ts_.init());
   for (int j = 1; j <= i; ++j)
   {
