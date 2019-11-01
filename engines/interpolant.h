@@ -41,8 +41,6 @@ class InterpolantMC : public Prover
   // set to true when a concrete_cex is found
   bool concrete_cex_;
 
-  smt::UnorderedTermMap map_1_to_0;
-
   smt::Term init0_;
   smt::Term transA_;
   smt::Term transB_;
