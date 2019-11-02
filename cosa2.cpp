@@ -142,7 +142,7 @@ int main(int argc, char ** argv)
     return 3;
   }
 
-  std::string engine = default_engine;
+  Engine engine = default_engine;
   unsigned int prop_idx = default_prop_idx;
   unsigned int bound = default_bound;
   unsigned int verbosity = default_verbosity;
@@ -154,7 +154,7 @@ int main(int argc, char ** argv)
     {
       case HELP:
         // not possible, because handled further above and exits the program
-      case ENGINE: engine = opt.arg; break;
+      case ENGINE: engine = to_engine(opt.arg); break;
       case BOUND: bound = atoi(opt.arg); break;
       case PROP: prop_idx = atoi(opt.arg); break;
       case VERBOSITY: verbosity = atoi(opt.arg); break;
@@ -163,12 +163,6 @@ int main(int argc, char ** argv)
         // which aborts the parse with an error
         break;
     }
-  }
-
-  if (engine != "bmc" && engine != "bmc-sp" && engine != "ind"
-      && engine != "interp")
-  {
-    throw CosaException("Unrecognized engine selection: " + engine);
   }
 
   // set logger verbosity -- can only be set once
@@ -180,7 +174,7 @@ int main(int argc, char ** argv)
   {
     SmtSolver s;
     SmtSolver second_solver;
-    if (engine == "interp")
+    if (engine == INTERP)
     {
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create_interpolating_solver();
@@ -210,26 +204,26 @@ int main(int argc, char ** argv)
     Property p(rts, s->make_term(PrimOp::Not, bad));
 
     std::shared_ptr<Prover> prover;
-    if (engine == "bmc")
+    if (engine == BMC)
     {
       prover = std::make_shared<Bmc>(p, s);
     }
-    else if (engine == "bmc-sp")
+    else if (engine == BMC_SP)
     {
       prover = std::make_shared<BmcSimplePath>(p, s);
     }
-    else if (engine == "ind")
+    else if (engine == KIND)
     {
       prover = std::make_shared<KInduction>(p, s);
     }
-    else if (engine == "interp")
+    else if (engine == INTERP)
     {
       assert(second_solver != NULL);
       prover = std::make_shared<InterpolantMC>(p, s, second_solver);
     }
     else
     {
-      throw CosaException("Unimplemented engine: " + engine);
+      throw CosaException("Unimplemented engine.");
     }
 
     ProverResult r = prover->check_until(bound);
