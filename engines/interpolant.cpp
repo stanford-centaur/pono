@@ -42,13 +42,11 @@ void InterpolantMC::initialize()
   for (auto s : ts_.states())
   {
     Term s0 = unroller_.at_time(s, 0);
-    map_1_to_0[unroller_.at_time(s, 1)] = s0;
   }
 
   for (auto i : ts_.inputs())
   {
     Term i0 = unroller_.at_time(i, 0);
-    map_1_to_0[unroller_.at_time(i, 1)] = i0;
   }
 
   bad_ = interpolator_->make_term(Not, property_.prop());
@@ -198,7 +196,7 @@ bool InterpolantMC::step(int i)
     else if (got_interpolant)
     {
       // map Ri to time 0
-      Ri_ = interpolator_->substitute(Ri_, map_1_to_0);
+      Ri_ = unroller_.at_time(unroller_.untime(Ri_), 0);
 
       if (check_overapprox())
       {
