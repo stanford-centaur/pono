@@ -18,6 +18,7 @@ Bmc::~Bmc() {}
 
 void Bmc::initialize()
 {
+  bad_ = solver_->make_term(PrimOp::Not, property_.prop());
   reached_k_ = -1;
   // NOTE: There's an implicit assumption that this solver is only used for
   // model checking once Otherwise there could be conflicting assertions to
@@ -88,8 +89,6 @@ bool Bmc::step(int i)
   // std::cout << "Checking BMC Bound " << i << std::endl;
 
   bool res = true;
-  Term bad = solver_->make_term(PrimOp::Not, property_.prop());
-
   if (i > 0)
   {
     solver_->assert_formula(unroller_.at_time(ts_.trans(), i - 1));
@@ -97,7 +96,7 @@ bool Bmc::step(int i)
 
   solver_->push();
   logger.log(1, "Checking bmc at bound: {}", i);
-  solver_->assert_formula(unroller_.at_time(bad, i));
+  solver_->assert_formula(unroller_.at_time(bad_, i));
   Result r = solver_->check_sat();
   if (r.is_sat())
   {

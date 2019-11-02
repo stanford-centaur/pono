@@ -36,6 +36,8 @@ class Bmc : public Prover
 
   int reached_k_;
 
+  smt::Term bad_;
+
 };  // class Bmc
 
 }  // namespace cosa
