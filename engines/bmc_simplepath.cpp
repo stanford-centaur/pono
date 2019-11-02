@@ -33,18 +33,7 @@ ProverResult BmcSimplePath::check_until(int k)
 
 ProverResult BmcSimplePath::prove()
 {
-  for (int i = 0;; ++i)
-  {
-    if (!base_step(i))
-    {
-      return ProverResult::FALSE;
-    }
-    if (cover_step(i))
-    {
-      return ProverResult::TRUE;
-    }
-  }
-  return ProverResult::UNKNOWN;
+  return check_until(INT_MAX);
 }
 
 bool BmcSimplePath::cover_step(int i)

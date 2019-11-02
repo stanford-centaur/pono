@@ -50,18 +50,7 @@ ProverResult KInduction::check_until(int k)
 
 ProverResult KInduction::prove()
 {
-  for (int i = 0;; ++i)
-  {
-    if (!base_step(i))
-    {
-      return ProverResult::FALSE;
-    }
-    if (inductive_step(i))
-    {
-      return ProverResult::TRUE;
-    }
-  }
-  return ProverResult::UNKNOWN;
+  return check_until(INT_MAX);
 }
 
 bool KInduction::witness(std::vector<UnorderedTermMap> & out)

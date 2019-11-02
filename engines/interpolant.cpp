@@ -82,25 +82,7 @@ ProverResult InterpolantMC::check_until(int k)
 
 ProverResult InterpolantMC::prove()
 {
-  try
-  {
-    for (int i = 0;; ++i)
-    {
-      if (step(i))
-      {
-        return ProverResult::TRUE;
-      }
-      else if (concrete_cex_)
-      {
-        return ProverResult::FALSE;
-      }
-    }
-  }
-  catch (InternalSolverException & e)
-  {
-    logger.log(1, "Failed when computing interpolant.");
-  }
-  return ProverResult::UNKNOWN;
+  return check_until(INT_MAX);
 }
 
 bool InterpolantMC::witness(std::vector<UnorderedTermMap> & out)

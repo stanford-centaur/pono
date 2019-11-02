@@ -42,14 +42,7 @@ ProverResult Bmc::check_until(int k)
 
 ProverResult Bmc::prove()
 {
-  for (int i = 0;; ++i)
-  {
-    if (!step(i))
-    {
-      return ProverResult::FALSE;
-    }
-  }
-  return ProverResult::UNKNOWN;
+  return check_until(INT_MAX);
 }
 
 bool Bmc::witness(std::vector<UnorderedTermMap> & out)
