@@ -18,11 +18,9 @@ class KInduction : public Prover
 
   void initialize();
 
-  ProverResult check_until(int k);
-
-  ProverResult prove();
-
-  bool witness(std::vector<smt::UnorderedTermMap> & out);
+  ProverResult check_until(int k) override;
+  ProverResult prove() override;
+  bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
  protected:
   bool base_step(int i);
