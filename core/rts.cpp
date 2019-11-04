@@ -65,10 +65,10 @@ bool RelationalTransitionSystem::is_next_var(const Term & sv) const
 Term RelationalTransitionSystem::make_input(const string name,
                                             const Sort & sort)
 {
-  Term input = solver_->make_term(name, sort);
+  Term input = solver_->make_symbol(name, sort);
   inputs_.insert(input);
   // for invariant constraints, need to assert over next inputs
-  Term next_input = solver_->make_term(name + ".next", sort);
+  Term next_input = solver_->make_symbol(name + ".next", sort);
   next_map_[input] = next_input;
   curr_map_[next_input] = input;
   return input;
@@ -78,8 +78,8 @@ Term RelationalTransitionSystem::make_input(const string name,
 Term RelationalTransitionSystem::make_state(const string name,
                                             const Sort & sort)
 {
-  Term state = solver_->make_term(name, sort);
-  Term next_state = solver_->make_term(name + ".next", sort);
+  Term state = solver_->make_symbol(name, sort);
+  Term next_state = solver_->make_symbol(name + ".next", sort);
   states_.insert(state);
   next_states_.insert(next_state);
   next_map_[state] = next_state;

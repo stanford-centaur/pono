@@ -13,7 +13,7 @@ class FunctionalTransitionSystem
 {
  public:
   FunctionalTransitionSystem(smt::SmtSolver & s)
-      : solver_(s), init_(s->make_value(true)), trans_(s->make_value(true))
+      : solver_(s), init_(s->make_term(true)), trans_(s->make_term(true))
   {
   }
 

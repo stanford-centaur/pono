@@ -170,15 +170,15 @@ int main(int argc, char ** argv)
 
   string filename(parse.nonOption(0));
 
-  try
+  // try
+  // {
+  SmtSolver s;
+  SmtSolver second_solver;
+  if (engine == INTERP)
   {
-    SmtSolver s;
-    SmtSolver second_solver;
-    if (engine == INTERP)
-    {
-      // need mathsat for interpolant based model checking
-      s = MsatSolverFactory::create_interpolating_solver();
-      second_solver = MsatSolverFactory::create();
+    // need mathsat for interpolant based model checking
+    s = MsatSolverFactory::create_interpolating_solver();
+    second_solver = MsatSolverFactory::create();
     }
     else
     {
@@ -257,28 +257,28 @@ int main(int argc, char ** argv)
       cout << "b" << prop_idx << endl;
       return 2;
     }
-  }
-  catch (CosaException & ce)
-  {
-    cout << ce.what() << endl;
-    cout << "unknown" << endl;
-    cout << "b" << prop_idx << endl;
-    return 3;
-  }
-  catch (SmtException & se)
-  {
-    cout << se.what() << endl;
-    cout << "unknown" << endl;
-    cout << "b" << prop_idx << endl;
-    return 3;
-  }
-  catch (...)
-  {
-    cout << "Caught generic exception..." << endl;
-    cout << "unknown" << endl;
-    cout << "b" << prop_idx << endl;
-    return 3;
-  }
+    //  }
+    // catch (CosaException & ce)
+    // {
+    //   cout << ce.what() << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << prop_idx << endl;
+    //   return 3;
+    // }
+    // catch (SmtException & se)
+    // {
+    //   cout << se.what() << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << prop_idx << endl;
+    //   return 3;
+    // }
+    // catch (...)
+    // {
+    //   cout << "Caught generic exception..." << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << prop_idx << endl;
+    //   return 3;
+    // }
 
-  return 3;
+    return 3;
 }

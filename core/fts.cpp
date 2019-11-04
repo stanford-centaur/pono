@@ -61,10 +61,10 @@ void FunctionalTransitionSystem::add_invar(const Term & constraint)
 Term FunctionalTransitionSystem::make_input(const string name,
                                             const Sort & sort)
 {
-  Term input = solver_->make_term(name, sort);
+  Term input = solver_->make_symbol(name, sort);
   inputs_.insert(input);
   // for invariant constraints, need to assert over next inputs
-  Term next_input = solver_->make_term(name + ".next", sort);
+  Term next_input = solver_->make_symbol(name + ".next", sort);
   next_map_[input] = next_input;
   return input;
 }
@@ -72,8 +72,8 @@ Term FunctionalTransitionSystem::make_input(const string name,
 Term FunctionalTransitionSystem::make_state(const string name,
                                             const Sort & sort)
 {
-  Term state = solver_->make_term(name, sort);
-  Term next_state = solver_->make_term(name + ".next", sort);
+  Term state = solver_->make_symbol(name, sort);
+  Term next_state = solver_->make_symbol(name + ".next", sort);
   // this is never used, so it shouldn't hurt performance
   // only here for consistency with relational transition system states_ data
   // structure
