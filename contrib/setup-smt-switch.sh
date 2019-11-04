@@ -7,7 +7,8 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    # Temporarily pull branch of smt-switch
+    git clone -b change-interface https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
     ./contrib/setup-msat.sh
