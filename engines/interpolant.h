@@ -10,11 +10,12 @@
 
 namespace cosa {
 
-class KInduction : public Prover
+class InterpolantMC : public Prover
 {
  public:
-  KInduction(const Property & p, smt::SmtSolver & solver);
-  ~KInduction();
+  // IMPORTANT: assume the property was built using the interpolating solver
+  InterpolantMC(const Property & p, smt::SmtSolver & itp, smt::SmtSolver & slv);
+  ~InterpolantMC();
 
   void initialize();
 
@@ -22,26 +23,32 @@ class KInduction : public Prover
   ProverResult prove() override;
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
- protected:
-  bool base_step(int i);
-  bool inductive_step(int i);
-
-  smt::Term simple_path_constraint(int i, int j);
-  bool check_simple_path_lazy(int i);
-
+ private:
   const RelationalTransitionSystem & ts_;
   const Property & property_;
 
+  bool step(int i);
+
+  /* checks if the current Ri overapproximates R */
+  bool check_overapprox();
+
+  smt::SmtSolver & interpolator_;
   smt::SmtSolver & solver_;
   Unroller unroller_;
 
   int reached_k_;
 
-  smt::Term init0_;
-  smt::Term bad_;
-  smt::Term false_;
-  smt::Term simple_path_;
+  // set to true when a concrete_cex is found
+  bool concrete_cex_;
 
-};  // class KInduction
+  smt::Term init0_;
+  smt::Term transA_;
+  smt::Term transB_;
+  smt::Term R_;
+  smt::Term Ri_;
+
+  smt::Term bad_;
+
+};  // class InterpolantMC
 
 }  // namespace cosa

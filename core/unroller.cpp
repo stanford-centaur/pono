@@ -23,9 +23,9 @@ Unroller::~Unroller()
   }
 }
 
-smt::Term Unroller::at_time(smt::Term t, unsigned int k)
+smt::Term Unroller::at_time(const smt::Term & t, unsigned int k)
 {
-  smt::UnorderedTermMap cache = time_cache_at_time(k);
+  smt::UnorderedTermMap & cache = time_cache_at_time(k);
 
   auto it = cache.find(t);
   if (it != cache.end())
@@ -40,12 +40,12 @@ smt::Term Unroller::at_time(smt::Term t, unsigned int k)
   return ret;
 }
 
-smt::Term Unroller::untime(smt::Term t) const
+smt::Term Unroller::untime(const smt::Term & t) const
 {
   return solver_->substitute(t, untime_cache_);
 }
 
-smt::Term Unroller::var_at_time(smt::Term v, unsigned int k)
+smt::Term Unroller::var_at_time(const smt::Term & v, unsigned int k)
 {
   assert(v->is_symbolic_const());
   assert(time_var_map_.size() > k);

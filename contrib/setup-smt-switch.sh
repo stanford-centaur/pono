@@ -7,10 +7,11 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    git clone -b hwmcc19 https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
-    ./configure.sh --btor --prefix=local
+    ./contrib/setup-msat.sh
+    ./configure.sh --btor --msat --prefix=local
     cd build
     make -j$(nproc)
     make test

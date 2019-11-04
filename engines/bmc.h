@@ -18,11 +18,9 @@ class Bmc : public Prover
 
   void initialize();
 
-  ProverResult check_until(int k);
-
-  ProverResult prove();
-
-  bool witness(std::vector<smt::UnorderedTermMap> & out);
+  ProverResult check_until(int k) override;
+  ProverResult prove() override;
+  bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
  private:
   bool step(int i);
@@ -35,6 +33,8 @@ class Bmc : public Prover
   Unroller unroller_;
 
   int reached_k_;
+
+  smt::Term bad_;
 
 };  // class Bmc
 

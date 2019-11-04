@@ -7,8 +7,19 @@ import sys
 import time
 import os
 
+## Non-blocking reads for subprocess
+## https://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
+
 import sys
 from subprocess import PIPE, Popen
+from threading  import Thread
+
+ON_POSIX = 'posix' in sys.builtin_module_names
+
+def enqueue_output(out, l):
+    for line in iter(out.readline, b''):
+        l.append(line.decode('utf-8'))
+    # out.close()
 
 if __name__ == "__main__":
 
@@ -26,10 +37,10 @@ if __name__ == "__main__":
     verbosity_option = '1' if args.verbosity else '0'
 
     commands = {
-        "BMC": ['./cosa2', '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
-        "BMC+SimplePath": ['./cosa2', '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
-        "K-Induction": ['./cosa2', '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
-        "Interpolant-based": ['./cosa2', '-e', 'interp', '-v', verbosity_option, '-k', bound, btor_file]
+        "BMC": ['./cosa2-btor-msat', '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
+        "BMC+SimplePath": ['./cosa2-btor-msat', '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
+        "K-Induction": ['./cosa2-btor-msat', '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
+        "Interpolant-based": ['./cosa2-btor-msat', '-e', 'interp', '-v', verbosity_option, '-k', bound, btor_file]
     }
 
     interp_processes = set()
@@ -41,19 +52,24 @@ if __name__ == "__main__":
     processes = []
 
     for name, cmd in commands.items():
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, close_fds=ON_POSIX)
         if 'interp' in cmd:
             interp_processes.add(proc)
         processes.append(proc)
         all_processes.append(proc)
         name_map[proc] = name
 
+        # instantiate watcher thread
+        q = []
+        t = Thread(target=enqueue_output, args=(proc.stdout, q))
+        queues[proc] = q
+        t.daemon = True
+        t.start()
+
+
     def print_process_output(proc):
-        if proc.poll() is None:
-            proc.terminate()
-            proc.kill()
-        out, _ = proc.communicate()
-        print(out.decode('utf-8'))
+        for line in queues[proc]:
+            print(line, end='')
         print()
         sys.stdout.flush()
 
@@ -64,12 +80,18 @@ if __name__ == "__main__":
         global shutdown
         if not shutdown:
             shutdown = True
+            for proc in processes:
+                if proc.poll() is None:
+                    proc.terminate()
 
             global verbosity
             if verbosity:
+                # too slow to communicate with process in signal handling
+                # use cached lines
                 for proc in all_processes:
                     print("{} output:".format(name_map[proc]))
-                    print_process_output(proc)
+                    for line in queues[proc]:
+                        print(line, end='')
                     print()
                     sys.stdout.flush()
             sys.exit(0)

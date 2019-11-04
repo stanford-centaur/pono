@@ -45,7 +45,7 @@ const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
     //{ BTOR2_TAG_ones, },
     { BTOR2_TAG_or, BVOr },
     //{ BTOR2_TAG_output, },
-    { BTOR2_TAG_read, Select },
+    // { BTOR2_TAG_read, Select }, // handle specially -- make sure it's casted to bv
     //{ BTOR2_TAG_redand, },
     //{ BTOR2_TAG_redor, },
     //{ BTOR2_TAG_redxor, },
@@ -80,7 +80,7 @@ const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
     //{ BTOR2_TAG_umulo, },
     { BTOR2_TAG_urem, BVUrem },
     //{ BTOR2_TAG_usubo, },
-    { BTOR2_TAG_write, Store },
+    //{ BTOR2_TAG_write, Store }, // handle specially -- make sure it's casted to bv
     { BTOR2_TAG_xnor, BVXnor },
     { BTOR2_TAG_xor, BVXor },
     //{ BTOR2_TAG_zero, }
@@ -452,7 +452,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Sort s0 = t0->get_sort();
       Sort s1 = t1->get_sort();
       SortKind sk0 = s0->get_sort_kind();
-      SortKind sk1 = s0->get_sort_kind();
+      SortKind sk1 = s1->get_sort_kind();
 
       if (s0 != s1)
       {
@@ -484,14 +484,14 @@ void BTOR2Encoder::parse(const std::string filename)
     {
       if (termargs_.size() != 2)
       {
-        throw CosaException("Expecting two arguments to eq");
+        throw CosaException("Expecting two arguments to implies");
       }
       Term t0 = termargs_[0];
       Term t1 = termargs_[1];
       Sort s0 = t0->get_sort();
       Sort s1 = t1->get_sort();
       SortKind sk0 = s0->get_sort_kind();
-      SortKind sk1 = s0->get_sort_kind();
+      SortKind sk1 = s1->get_sort_kind();
 
       if (s0 != s1)
       {
@@ -506,7 +506,7 @@ void BTOR2Encoder::parse(const std::string filename)
         else
         {
           throw CosaException(
-              "Expecting arguments to eq to have the same sort");
+              "Expecting arguments to implies to have the same sort");
         }
       }
 
@@ -548,8 +548,10 @@ void BTOR2Encoder::parse(const std::string filename)
     else if (l_->tag == BTOR2_TAG_ite)
     {
       Term cond = bv_to_bool(termargs_[0]);
-      TermVec tv = lazy_convert({ termargs_[1], termargs_[2] });
-      terms_[l_->id] = solver_->make_term(Ite, cond, tv[0], tv[1]);
+      // Always cast to bit-vectors because mathsat doesn't support ite over bools
+      Term t1 = bool_to_bv(termargs_[1]);
+      Term t2 = bool_to_bv(termargs_[2]);
+      terms_[l_->id] = solver_->make_term(Ite, cond, t1, t2);
     }
     else if (l_->tag == BTOR2_TAG_uaddo)
     {
@@ -686,6 +688,19 @@ void BTOR2Encoder::parse(const std::string filename)
           solver_->make_term(And,
                              solver_->make_term(Distinct, t0_top, t1_top),
                              solver_->make_term(Equal, t1_top, diff_top));
+    }
+    else if (l_->tag == BTOR2_TAG_read)
+    {
+      Term arr = termargs_[0];
+      Term idx = bool_to_bv(termargs_[1]);
+      terms_[l_->id] = solver_->make_term(Select, arr, idx);
+    }
+    else if (l_->tag == BTOR2_TAG_write)
+    {
+      Term arr = termargs_[0];
+      Term idx = bool_to_bv(termargs_[1]);
+      Term elem = bool_to_bv(termargs_[2]);
+      terms_[l_->id] = solver_->make_term(Store, arr, idx, elem);
     }
     /******************************** Handle general case
      ********************************/
