@@ -3,7 +3,7 @@ Next generation cosa.
 
 ## Setup
 
-* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with boolector.
+* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with boolector and mathsat.
 * Run `./contrib/setup-btor2tools.sh`.
 * Run `./configure.sh`.
 * Run `cd build`.
