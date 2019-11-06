@@ -58,7 +58,7 @@ smt::Term Unroller::var_at_time(const smt::Term & v, unsigned int k)
 
   std::string name = v->to_string();
   name += "@" + std::to_string(k);
-  smt::Term timed_v = solver_->make_term(name, v->get_sort());
+  smt::Term timed_v = solver_->make_symbol(name, v->get_sort());
   time_var_map_[k]->operator[](v) = timed_v;
 
   return timed_v;

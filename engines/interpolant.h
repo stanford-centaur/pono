@@ -34,6 +34,8 @@ class InterpolantMC : public Prover
 
   smt::SmtSolver & interpolator_;
   smt::SmtSolver & solver_;
+  // for translating terms to solver_
+  smt::TermTranslator tt_;
   Unroller unroller_;
 
   int reached_k_;

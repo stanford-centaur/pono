@@ -235,13 +235,6 @@ int main(int argc, char ** argv)
       if (prover->witness(cex))
       {
         print_witness_btor(btor_enc, cex);
-        // for (size_t j = 0; j < cex.size(); ++j) {
-        //   cout << "-------- " << j << " --------" << endl;
-        //   const UnorderedTermMap &map = cex[j];
-        //   for (auto v : map) {
-        //     cout << v.first << " := " << v.second << endl;
-        //   }
-        // }
       }
       return 1;
     }

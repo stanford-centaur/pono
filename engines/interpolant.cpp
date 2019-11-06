@@ -14,6 +14,7 @@ InterpolantMC::InterpolantMC(const Property & p,
       property_(p),
       interpolator_(itp),
       solver_(slv),
+      tt_(slv),
       unroller_(ts_, interpolator_)
 {
   initialize();
@@ -52,9 +53,9 @@ void InterpolantMC::initialize()
   bad_ = interpolator_->make_term(Not, property_.prop());
   init0_ = unroller_.at_time(ts_.init(), 0);
   R_ = init0_;
-  Ri_ = interpolator_->make_value(true);
+  Ri_ = interpolator_->make_term(true);
   transA_ = unroller_.at_time(ts_.trans(), 0);
-  transB_ = interpolator_->make_value(true);
+  transB_ = interpolator_->make_term(true);
 }
 
 ProverResult InterpolantMC::check_until(int k)
@@ -96,14 +97,14 @@ bool InterpolantMC::witness(std::vector<UnorderedTermMap> & out)
 
     for (auto v : ts_.states())
     {
-      Term vi = solver_->transfer_term(unroller_.at_time(v, i));
+      Term vi = tt_.transfer_term(unroller_.at_time(v, i));
       Term r = solver_->get_value(vi);
       map[v] = r;
     }
 
     for (auto v : ts_.inputs())
     {
-      Term vi = solver_->transfer_term(unroller_.at_time(v, i));
+      Term vi = tt_.transfer_term(unroller_.at_time(v, i));
       Term r = solver_->get_value(vi);
       map[v] = r;
     }
@@ -145,8 +146,8 @@ bool InterpolantMC::step(int i)
       solver_->reset_assertions();
 
       solver_->push();
-      solver_->assert_formula(solver_->transfer_term(R_));
-      solver_->assert_formula(solver_->transfer_term(bad_i));
+      solver_->assert_formula(tt_.transfer_term(R_));
+      solver_->assert_formula(tt_.transfer_term(bad_i));
       Result r = solver_->check_sat();
       solver_->pop();
 
@@ -160,11 +161,10 @@ bool InterpolantMC::step(int i)
       // replay it in the solver with model generation
       concrete_cex_ = true;
       solver_->reset_assertions();
-      Term solver_init = solver_->transfer_term(init0_);
-      Term solver_trans = solver_->make_term(And,
-                                             solver_->transfer_term(transA_),
-                                             solver_->transfer_term(transB_));
-      Term solver_bad = solver_->transfer_term(bad_i);
+      Term solver_init = tt_.transfer_term(init0_);
+      Term solver_trans = solver_->make_term(
+          And, tt_.transfer_term(transA_), tt_.transfer_term(transB_));
+      Term solver_bad = tt_.transfer_term(bad_i);
       solver_->assert_formula(solver_->make_term(
           And, solver_init, solver_->make_term(And, solver_trans, solver_bad)));
       Result r = solver_->check_sat();
@@ -209,8 +209,8 @@ bool InterpolantMC::step(int i)
 bool InterpolantMC::check_overapprox()
 {
   solver_->reset_assertions();
-  Term Rp = solver_->transfer_term(R_);
-  Term Rpi = solver_->transfer_term(Ri_);
+  Term Rp = tt_.transfer_term(R_);
+  Term Rpi = tt_.transfer_term(Ri_);
   solver_->assert_formula(
       solver_->make_term(And, Rpi, solver_->make_term(Not, Rp)));
   Result r = solver_->check_sat();

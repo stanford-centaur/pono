@@ -102,10 +102,8 @@ Term BTOR2Encoder::bool_to_bv(const Term & t) const
   if (t->get_sort()->get_sort_kind() == BOOL)
   {
     Sort bv1sort = solver_->make_sort(BV, 1);
-    return solver_->make_term(Ite,
-                              t,
-                              solver_->make_value(1, bv1sort),
-                              solver_->make_value(0, bv1sort));
+    return solver_->make_term(
+        Ite, t, solver_->make_term(1, bv1sort), solver_->make_term(0, bv1sort));
   }
   else
   {
@@ -123,7 +121,7 @@ Term BTOR2Encoder::bv_to_bool(const Term & t) const
       throw CosaException("Can't convert non-width 1 bitvector to bool.");
     }
     return solver_->make_term(
-        Equal, t, solver_->make_value(1, solver_->make_sort(BV, 1)));
+        Equal, t, solver_->make_term(1, solver_->make_sort(BV, 1)));
   }
   else
   {
@@ -335,7 +333,7 @@ void BTOR2Encoder::parse(const std::string filename)
       else if (linesort_->get_sort_kind() == ARRAY)
       {
         rts_.constrain_init(solver_->make_term(
-            Equal, termargs_[0], solver_->make_value(termargs_[1], linesort_)));
+            Equal, termargs_[0], solver_->make_term(termargs_[1], linesort_)));
       }
       else
       {
@@ -389,20 +387,20 @@ void BTOR2Encoder::parse(const std::string filename)
     else if (l_->constant)
     {
       terms_[l_->id] =
-          solver_->make_value(l_->constant, linesort_, basemap.at(l_->tag));
+          solver_->make_term(l_->constant, linesort_, basemap.at(l_->tag));
     }
     else if (l_->tag == BTOR2_TAG_one)
     {
-      terms_[l_->id] = solver_->make_value(1, linesort_);
+      terms_[l_->id] = solver_->make_term(1, linesort_);
     }
     else if (l_->tag == BTOR2_TAG_ones)
     {
-      terms_[l_->id] = solver_->make_value(
-          string(linesort_->get_width(), '1'), linesort_, 2);
+      terms_[l_->id] =
+          solver_->make_term(string(linesort_->get_width(), '1'), linesort_, 2);
     }
     else if (l_->tag == BTOR2_TAG_zero)
     {
-      terms_[l_->id] = solver_->make_value(0, linesort_);
+      terms_[l_->id] = solver_->make_term(0, linesort_);
     }
     else if (l_->tag == BTOR2_TAG_slice)
     {
@@ -433,13 +431,13 @@ void BTOR2Encoder::parse(const std::string filename)
     {
       Term t = bool_to_bv(termargs_[0]);
       terms_[l_->id] =
-          solver_->make_term(BVAdd, t, solver_->make_value(1, t->get_sort()));
+          solver_->make_term(BVAdd, t, solver_->make_term(1, t->get_sort()));
     }
     else if (l_->tag == BTOR2_TAG_dec)
     {
       Term t = bool_to_bv(termargs_[0]);
       terms_[l_->id] =
-          solver_->make_term(BVSub, t, solver_->make_value(1, t->get_sort()));
+          solver_->make_term(BVSub, t, solver_->make_term(1, t->get_sort()));
     }
     else if (l_->tag == BTOR2_TAG_eq)
     {
@@ -523,14 +521,14 @@ void BTOR2Encoder::parse(const std::string filename)
     else if (l_->tag == BTOR2_TAG_redand)
     {
       Term t = bool_to_bv(termargs_[0]);
-      Term ones = solver_->make_value(
+      Term ones = solver_->make_term(
           std::string(t->get_sort()->get_width(), '1'), t->get_sort(), 2);
       terms_[l_->id] = solver_->make_term(BVComp, t, ones);
     }
     else if (l_->tag == BTOR2_TAG_redor)
     {
       Term t = bool_to_bv(termargs_[0]);
-      Term zero = solver_->make_value(0, t->get_sort());
+      Term zero = solver_->make_term(0, t->get_sort());
       terms_[l_->id] = solver_->make_term(Distinct, t, zero);
     }
     else if (l_->tag == BTOR2_TAG_redxor)
@@ -599,8 +597,8 @@ void BTOR2Encoder::parse(const std::string filename)
       std::string sint_min("1");
       sint_min += std::string(width - 1, '0');
       std::string snegone = std::string(width, '1');
-      Term int_min = solver_->make_value(sint_min, sort, 2);
-      Term negone = solver_->make_value(snegone, sort, 2);
+      Term int_min = solver_->make_term(sint_min, sort, 2);
+      Term negone = solver_->make_term(snegone, sort, 2);
       terms_[l_->id] =
           solver_->make_term(And,
                              solver_->make_term(Equal, t0, int_min),
@@ -623,7 +621,7 @@ void BTOR2Encoder::parse(const std::string filename)
       terms_[l_->id] = solver_->make_term(
           Distinct,
           solver_->make_term(Op(Extract, 2 * orig_width - 1, orig_width), prod),
-          solver_->make_value(0, solver_->make_sort(BV, orig_width)));
+          solver_->make_term(0, solver_->make_sort(BV, orig_width)));
     }
     else if (l_->tag == BTOR2_TAG_smulo)
     {
@@ -647,8 +645,8 @@ void BTOR2Encoder::parse(const std::string filename)
           solver_->make_term(
               BVAshr,
               lo,
-              solver_->make_value(orig_width - 1,
-                                  solver_->make_sort(BV, orig_width))));
+              solver_->make_term(orig_width - 1,
+                                 solver_->make_sort(BV, orig_width))));
     }
     else if (l_->tag == BTOR2_TAG_usubo)
     {
@@ -660,7 +658,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Sort sort = solver_->make_sort(BV, width + 1);
       t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
       t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
-      Term one = solver_->make_value(1, sort);
+      Term one = solver_->make_term(1, sort);
       Term add1 = solver_->make_term(BVAdd, t1, one);
       Term add2 = solver_->make_term(BVAdd, t0, add1);
       terms_[l_->id] = solver_->make_term(

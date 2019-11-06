@@ -26,8 +26,8 @@ void KInduction::initialize()
   // supported in boolector
   init0_ = unroller_.at_time(ts_.init(), 0);
   bad_ = solver_->make_term(PrimOp::Not, property_.prop());
-  false_ = solver_->make_value(false);
-  simple_path_ = solver_->make_value(true);
+  false_ = solver_->make_term(false);
+  simple_path_ = solver_->make_term(true);
 }
 
 ProverResult KInduction::check_until(int k)
