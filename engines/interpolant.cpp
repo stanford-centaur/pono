@@ -10,12 +10,7 @@ namespace cosa {
 InterpolantMC::InterpolantMC(const Property & p,
                              smt::SmtSolver & itp,
                              smt::SmtSolver & slv)
-    : ts_(p.transition_system()),
-      property_(p),
-      interpolator_(itp),
-      solver_(slv),
-      tt_(slv),
-      unroller_(ts_, interpolator_)
+    : super(p, slv), interpolator_(itp), tt_(slv)
 {
   initialize();
 }
@@ -24,7 +19,8 @@ InterpolantMC::~InterpolantMC() {}
 
 void InterpolantMC::initialize()
 {
-  reached_k_ = -1;
+  super::initialize();
+
   concrete_cex_ = false;
 
   // reset assertions is not supported by all solvers
@@ -50,7 +46,7 @@ void InterpolantMC::initialize()
     Term i0 = unroller_.at_time(i, 0);
   }
 
-  bad_ = interpolator_->make_term(Not, property_.prop());
+  // bad_ = interpolator_->make_term(Not, property_.prop());
   init0_ = unroller_.at_time(ts_.init(), 0);
   R_ = init0_;
   Ri_ = interpolator_->make_term(true);
@@ -79,33 +75,6 @@ ProverResult InterpolantMC::check_until(int k)
     logger.log(1, "Failed when computing interpolant.");
   }
   return ProverResult::UNKNOWN;
-}
-
-bool InterpolantMC::witness(std::vector<UnorderedTermMap> & out)
-{
-  // TODO: make sure the solver state is SAT
-
-  for (int i = 0; i <= reached_k_; ++i)
-  {
-    out.push_back(UnorderedTermMap());
-    UnorderedTermMap & map = out.back();
-
-    for (auto v : ts_.states())
-    {
-      Term vi = tt_.transfer_term(unroller_.at_time(v, i));
-      Term r = solver_->get_value(vi);
-      map[v] = r;
-    }
-
-    for (auto v : ts_.inputs())
-    {
-      Term vi = tt_.transfer_term(unroller_.at_time(v, i));
-      Term r = solver_->get_value(vi);
-      map[v] = r;
-    }
-  }
-
-  return true;
 }
 
 bool InterpolantMC::step(int i)
