@@ -3,13 +3,16 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
+SMT_SWITCH_VERSION=b0829bc993b3523423d159fbcbb36249ff87b5c7
+
 mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
     # Temporarily pull branch of smt-switch
-    git clone -b change-interface https://github.com/makaimann/smt-switch
+    git clone https://github.com/makaimann/smt-switch
     cd smt-switch
+    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
     ./contrib/setup-msat.sh
     ./configure.sh --btor --msat --prefix=local
