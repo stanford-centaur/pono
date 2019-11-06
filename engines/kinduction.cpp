@@ -48,11 +48,6 @@ ProverResult KInduction::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-ProverResult KInduction::prove()
-{
-  return check_until(INT_MAX);
-}
-
 bool KInduction::witness(std::vector<UnorderedTermMap> & out)
 {
   // TODO: make sure the solver state is SAT

@@ -40,11 +40,6 @@ ProverResult Bmc::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-ProverResult Bmc::prove()
-{
-  return check_until(INT_MAX);
-}
-
 bool Bmc::witness(std::vector<UnorderedTermMap> & out)
 {
   // TODO: make sure the solver state is SAT

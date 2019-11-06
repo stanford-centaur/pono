@@ -81,11 +81,6 @@ ProverResult InterpolantMC::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-ProverResult InterpolantMC::prove()
-{
-  return check_until(INT_MAX);
-}
-
 bool InterpolantMC::witness(std::vector<UnorderedTermMap> & out)
 {
   // TODO: make sure the solver state is SAT
