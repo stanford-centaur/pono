@@ -14,7 +14,7 @@ class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
-  InterpolantMC(const Property & p, smt::SmtSolver & itp, smt::SmtSolver & slv);
+  InterpolantMC(const Property & p, smt::SmtSolver & slv, smt::SmtSolver & itp);
   ~InterpolantMC();
 
   typedef Prover super;
@@ -30,8 +30,10 @@ class InterpolantMC : public Prover
   bool check_overapprox();
 
   smt::SmtSolver & interpolator_;
+  // for translating terms to interpolator_
+  smt::TermTranslator to_interpolator_;
   // for translating terms to solver_
-  smt::TermTranslator tt_;
+  smt::TermTranslator to_solver_;
 
   // set to true when a concrete_cex is found
   bool concrete_cex_;

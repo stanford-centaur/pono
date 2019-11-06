@@ -177,8 +177,8 @@ int main(int argc, char ** argv)
     if (engine == INTERP)
     {
       // need mathsat for interpolant based model checking
-      s = MsatSolverFactory::create_interpolating_solver();
-      second_solver = MsatSolverFactory::create();
+      s = MsatSolverFactory::create();
+      second_solver = MsatSolverFactory::create_interpolating_solver();
     }
     else
     {
