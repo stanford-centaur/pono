@@ -5,11 +5,8 @@ using namespace smt;
 
 namespace cosa {
 
-KInduction::KInduction(const Property & p, smt::SmtSolver & solver)
-    : ts_(p.transition_system()),
-      property_(p),
-      solver_(solver),
-      unroller_(ts_, solver_)
+KInduction::KInduction(const Property & p, SmtSolver & solver)
+    : super(p, solver)
 {
   initialize();
 }
@@ -18,14 +15,13 @@ KInduction::~KInduction() {}
 
 void KInduction::initialize()
 {
-  reached_k_ = -1;
+  super::initialize();
   // NOTE: There's an implicit assumption that this solver is only used for
   // model checking once Otherwise there could be conflicting assertions to
   // the solver or it could just be polluted with redundant assertions in the
   // future we can use solver_->reset_assertions(), but it is not currently
   // supported in boolector
   init0_ = unroller_.at_time(ts_.init(), 0);
-  bad_ = solver_->make_term(PrimOp::Not, property_.prop());
   false_ = solver_->make_term(false);
   simple_path_ = solver_->make_term(true);
 }
@@ -46,38 +42,6 @@ ProverResult KInduction::check_until(int k)
     }
   }
   return ProverResult::UNKNOWN;
-}
-
-ProverResult KInduction::prove()
-{
-  return check_until(INT_MAX);
-}
-
-bool KInduction::witness(std::vector<UnorderedTermMap> & out)
-{
-  // TODO: make sure the solver state is SAT
-
-  for (int i = 0; i <= reached_k_; ++i)
-  {
-    out.push_back(UnorderedTermMap());
-    UnorderedTermMap & map = out.back();
-
-    for (auto v : ts_.states())
-    {
-      Term vi = unroller_.at_time(v, i);
-      Term r = solver_->get_value(vi);
-      map[v] = r;
-    }
-
-    for (auto v : ts_.inputs())
-    {
-      Term vi = unroller_.at_time(v, i);
-      Term r = solver_->get_value(vi);
-      map[v] = r;
-    }
-  }
-
-  return true;
 }
 
 bool KInduction::base_step(int i)

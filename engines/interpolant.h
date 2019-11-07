@@ -14,31 +14,26 @@ class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
-  InterpolantMC(const Property & p, smt::SmtSolver & itp, smt::SmtSolver & slv);
+  InterpolantMC(const Property & p, smt::SmtSolver & slv, smt::SmtSolver & itp);
   ~InterpolantMC();
 
-  void initialize();
+  typedef Prover super;
+
+  void initialize() override;
 
   ProverResult check_until(int k) override;
-  ProverResult prove() override;
-  bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
  private:
-  const RelationalTransitionSystem & ts_;
-  const Property & property_;
-
   bool step(int i);
 
   /* checks if the current Ri overapproximates R */
   bool check_overapprox();
 
   smt::SmtSolver & interpolator_;
-  smt::SmtSolver & solver_;
+  // for translating terms to interpolator_
+  smt::TermTranslator to_interpolator_;
   // for translating terms to solver_
-  smt::TermTranslator tt_;
-  Unroller unroller_;
-
-  int reached_k_;
+  smt::TermTranslator to_solver_;
 
   // set to true when a concrete_cex is found
   bool concrete_cex_;
@@ -48,8 +43,6 @@ class InterpolantMC : public Prover
   smt::Term transB_;
   smt::Term R_;
   smt::Term Ri_;
-
-  smt::Term bad_;
 
 };  // class InterpolantMC
 

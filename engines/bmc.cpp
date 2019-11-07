@@ -5,11 +5,7 @@ using namespace smt;
 
 namespace cosa {
 
-Bmc::Bmc(const Property & p, SmtSolver & solver)
-    : ts_(p.transition_system()),
-      property_(p),
-      solver_(solver),
-      unroller_(ts_, solver_)
+Bmc::Bmc(const Property & p, SmtSolver & solver) : super(p, solver)
 {
   initialize();
 }
@@ -18,8 +14,7 @@ Bmc::~Bmc() {}
 
 void Bmc::initialize()
 {
-  bad_ = solver_->make_term(PrimOp::Not, property_.prop());
-  reached_k_ = -1;
+  super::initialize();
   // NOTE: There's an implicit assumption that this solver is only used for
   // model checking once Otherwise there could be conflicting assertions to
   // the solver or it could just be polluted with redundant assertions in the
@@ -40,46 +35,12 @@ ProverResult Bmc::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-ProverResult Bmc::prove()
-{
-  return check_until(INT_MAX);
-}
-
-bool Bmc::witness(std::vector<UnorderedTermMap> & out)
-{
-  // TODO: make sure the solver state is SAT
-
-  for (int i = 0; i <= reached_k_; ++i)
-  {
-    out.push_back(UnorderedTermMap());
-    UnorderedTermMap & map = out.back();
-
-    for (auto v : ts_.states())
-    {
-      Term vi = unroller_.at_time(v, i);
-      Term r = solver_->get_value(vi);
-      map[v] = r;
-    }
-
-    for (auto v : ts_.inputs())
-    {
-      Term vi = unroller_.at_time(v, i);
-      Term r = solver_->get_value(vi);
-      map[v] = r;
-    }
-  }
-
-  return true;
-}
-
 bool Bmc::step(int i)
 {
   if (i <= reached_k_)
   {
     return true;
   }
-
-  // std::cout << "Checking BMC Bound " << i << std::endl;
 
   bool res = true;
   if (i > 0)

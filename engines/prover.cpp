@@ -1,0 +1,59 @@
+#include "prover.h"
+
+#include <climits>
+
+using namespace smt;
+
+namespace cosa {
+
+Prover::Prover(const Property & p, smt::SmtSolver & s)
+    : ts_(p.transition_system()),
+      property_(p),
+      solver_(s),
+      unroller_(ts_, solver_)
+{
+}
+
+Prover::~Prover()
+{
+}
+
+void Prover::initialize()
+{
+  reached_k_ = -1;
+  bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
+}
+
+ProverResult Prover::prove()
+{
+  return check_until(INT_MAX);
+}
+
+bool Prover::witness(std::vector<UnorderedTermMap> & out)
+{
+  // TODO: make sure the solver state is SAT
+
+  for (int i = 0; i <= reached_k_; ++i)
+  {
+    out.push_back(UnorderedTermMap());
+    UnorderedTermMap & map = out.back();
+
+    for (auto v : ts_.states())
+    {
+      Term vi = unroller_.at_time(v, i);
+      Term r = solver_->get_value(vi);
+      map[v] = r;
+    }
+
+    for (auto v : ts_.inputs())
+    {
+      Term vi = unroller_.at_time(v, i);
+      Term r = solver_->get_value(vi);
+      map[v] = r;
+    }
+  }
+
+  return true;
+}
+
+} // namespace cosa

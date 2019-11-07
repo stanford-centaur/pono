@@ -6,7 +6,7 @@ using namespace smt;
 
 namespace cosa {
 
-BmcSimplePath::BmcSimplePath(const Property & p, smt::SmtSolver & solver)
+BmcSimplePath::BmcSimplePath(const Property & p, SmtSolver & solver)
     : super(p, solver)
 {
 }
@@ -29,11 +29,6 @@ ProverResult BmcSimplePath::check_until(int k)
     }
   }
   return ProverResult::UNKNOWN;
-}
-
-ProverResult BmcSimplePath::prove()
-{
-  return check_until(INT_MAX);
 }
 
 bool BmcSimplePath::cover_step(int i)

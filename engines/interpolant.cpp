@@ -8,15 +8,26 @@ using namespace smt;
 namespace cosa {
 
 InterpolantMC::InterpolantMC(const Property & p,
-                             smt::SmtSolver & itp,
-                             smt::SmtSolver & slv)
-    : ts_(p.transition_system()),
-      property_(p),
-      interpolator_(itp),
-      solver_(slv),
-      tt_(slv),
-      unroller_(ts_, interpolator_)
+                             SmtSolver & slv,
+                             SmtSolver & itp)
+    : super(p, slv), interpolator_(itp), to_interpolator_(itp), to_solver_(slv)
 {
+  // symbols are already created in solver
+  // need to add symbols at time 1 to cache
+  // (only time 1 because Craig Interpolant has to share symbols between A and
+  // B)
+  UnorderedTermMap & cache = to_solver_.get_cache();
+  Term tmp1;
+  for (auto s : ts_.states())
+  {
+    tmp1 = unroller_.at_time(s, 1);
+    cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
+  }
+  for (auto i : ts_.inputs())
+  {
+    tmp1 = unroller_.at_time(i, 1);
+    cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
+  }
   initialize();
 }
 
@@ -24,7 +35,8 @@ InterpolantMC::~InterpolantMC() {}
 
 void InterpolantMC::initialize()
 {
-  reached_k_ = -1;
+  super::initialize();
+
   concrete_cex_ = false;
 
   // reset assertions is not supported by all solvers
@@ -50,12 +62,11 @@ void InterpolantMC::initialize()
     Term i0 = unroller_.at_time(i, 0);
   }
 
-  bad_ = interpolator_->make_term(Not, property_.prop());
   init0_ = unroller_.at_time(ts_.init(), 0);
   R_ = init0_;
-  Ri_ = interpolator_->make_term(true);
+  Ri_ = solver_->make_term(true);
   transA_ = unroller_.at_time(ts_.trans(), 0);
-  transB_ = interpolator_->make_term(true);
+  transB_ = solver_->make_term(true);
 }
 
 ProverResult InterpolantMC::check_until(int k)
@@ -81,38 +92,6 @@ ProverResult InterpolantMC::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-ProverResult InterpolantMC::prove()
-{
-  return check_until(INT_MAX);
-}
-
-bool InterpolantMC::witness(std::vector<UnorderedTermMap> & out)
-{
-  // TODO: make sure the solver state is SAT
-
-  for (int i = 0; i <= reached_k_; ++i)
-  {
-    out.push_back(UnorderedTermMap());
-    UnorderedTermMap & map = out.back();
-
-    for (auto v : ts_.states())
-    {
-      Term vi = tt_.transfer_term(unroller_.at_time(v, i));
-      Term r = solver_->get_value(vi);
-      map[v] = r;
-    }
-
-    for (auto v : ts_.inputs())
-    {
-      Term vi = tt_.transfer_term(unroller_.at_time(v, i));
-      Term r = solver_->get_value(vi);
-      map[v] = r;
-    }
-  }
-
-  return true;
-}
-
 bool InterpolantMC::step(int i)
 {
   if (i <= reached_k_)
@@ -133,10 +112,21 @@ bool InterpolantMC::step(int i)
   {
     if (i > 0)
     {
+      Term int_R = to_interpolator_.transfer_term(R_);
+      Term int_transA = to_interpolator_.transfer_term(transA_);
+      Term int_transB = to_interpolator_.transfer_term(transB_);
+      Term int_bad = to_interpolator_.transfer_term(bad_i);
+      Term int_Ri;
       got_interpolant = interpolator_->get_interpolant(
-          interpolator_->make_term(And, R_, transA_),
-          interpolator_->make_term(And, transB_, bad_i),
-          Ri_);
+          interpolator_->make_term(And, int_R, int_transA),
+          interpolator_->make_term(And, int_transB, int_bad),
+          int_Ri);
+
+      if (got_interpolant)
+      {
+        Ri_ = to_solver_.transfer_term(int_Ri);
+      }
+
       is_sat = !got_interpolant;
     }
     else
@@ -146,8 +136,8 @@ bool InterpolantMC::step(int i)
       solver_->reset_assertions();
 
       solver_->push();
-      solver_->assert_formula(tt_.transfer_term(R_));
-      solver_->assert_formula(tt_.transfer_term(bad_i));
+      solver_->assert_formula(R_);
+      solver_->assert_formula(bad_i);
       Result r = solver_->check_sat();
       solver_->pop();
 
@@ -161,12 +151,9 @@ bool InterpolantMC::step(int i)
       // replay it in the solver with model generation
       concrete_cex_ = true;
       solver_->reset_assertions();
-      Term solver_init = tt_.transfer_term(init0_);
-      Term solver_trans = solver_->make_term(
-          And, tt_.transfer_term(transA_), tt_.transfer_term(transB_));
-      Term solver_bad = tt_.transfer_term(bad_i);
+      Term solver_trans = solver_->make_term(And, transA_, transB_);
       solver_->assert_formula(solver_->make_term(
-          And, solver_init, solver_->make_term(And, solver_trans, solver_bad)));
+          And, init0_, solver_->make_term(And, solver_trans, bad_i)));
       Result r = solver_->check_sat();
       if (!r.is_sat())
       {
@@ -188,7 +175,7 @@ bool InterpolantMC::step(int i)
       else
       {
         logger.log(1, "Extending initial states.");
-        R_ = interpolator_->make_term(Or, R_, Ri_);
+        R_ = solver_->make_term(Or, R_, Ri_);
       }
     }
   }
@@ -198,8 +185,8 @@ bool InterpolantMC::step(int i)
   if (i > 0)
   {
     // extend the unrolling
-    transB_ = interpolator_->make_term(
-        And, transB_, unroller_.at_time(ts_.trans(), i));
+    transB_ =
+        solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
   }
 
   ++reached_k_;
@@ -209,8 +196,8 @@ bool InterpolantMC::step(int i)
 bool InterpolantMC::check_overapprox()
 {
   solver_->reset_assertions();
-  Term Rp = tt_.transfer_term(R_);
-  Term Rpi = tt_.transfer_term(Ri_);
+  Term Rp = R_;
+  Term Rpi = Ri_;
   solver_->assert_formula(
       solver_->make_term(And, Rpi, solver_->make_term(Not, Rp)));
   Result r = solver_->check_sat();

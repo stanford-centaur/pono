@@ -13,7 +13,6 @@ class BmcSimplePath : public KInduction
   typedef KInduction super;
 
   ProverResult check_until(int k) override;
-  ProverResult prove() override;
 
  private:
   bool cover_step(int i);
