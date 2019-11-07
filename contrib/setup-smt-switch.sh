@@ -4,7 +4,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
 # get a particular version of smt-switch
-SMT_SWITCH_VERSION=56a4c7877bf734a0d887c15c488efb8df5d7d843
+SMT_SWITCH_VERSION=8c4b1f880d5e8b116a1956dbc433abf5c23438c8
 
 mkdir -p $DEPS
 
