@@ -6,7 +6,7 @@ using namespace smt;
 
 namespace cosa {
 
-BmcSimplePath::BmcSimplePath(const Property & p, smt::SmtSolver & solver)
+BmcSimplePath::BmcSimplePath(const Property & p, SmtSolver & solver)
     : super(p, solver)
 {
 }

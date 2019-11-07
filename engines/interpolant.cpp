@@ -8,8 +8,8 @@ using namespace smt;
 namespace cosa {
 
 InterpolantMC::InterpolantMC(const Property & p,
-                             smt::SmtSolver & slv,
-                             smt::SmtSolver & itp)
+                             SmtSolver & slv,
+                             SmtSolver & itp)
     : super(p, slv), interpolator_(itp), to_interpolator_(itp), to_solver_(slv)
 {
   // symbols are already created in solver

@@ -5,7 +5,7 @@ using namespace smt;
 
 namespace cosa {
 
-KInduction::KInduction(const Property & p, smt::SmtSolver & solver)
+KInduction::KInduction(const Property & p, SmtSolver & solver)
     : super(p, solver)
 {
   initialize();
