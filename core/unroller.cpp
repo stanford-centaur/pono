@@ -43,15 +43,17 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
   assert(v->is_symbolic_const());
   assert(time_var_map_.size() > k);
 
-  if (time_var_map_[k].find(v) != time_var_map_[k].end())
+  UnorderedTermMap & cache = time_var_map_[k];
+  auto it = cache.find(v);
+  if (it != cache.end())
   {
-    return time_var_map_[k].at(v);
+    return it->second;
   }
 
   std::string name = v->to_string();
   name += "@" + std::to_string(k);
   Term timed_v = solver_->make_symbol(name, v->get_sort());
-  time_var_map_[k][v] = timed_v;
+  cache[v] = timed_v;
 
   return timed_v;
 }
