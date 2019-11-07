@@ -41,9 +41,13 @@ Term Unroller::untime(const Term & t) const
 Term Unroller::var_at_time(const Term & v, unsigned int k)
 {
   assert(v->is_symbolic_const());
-  assert(time_var_map_.size() > k);
 
+  while (time_var_map_.size() <= k)
+  {
+    time_var_map_.push_back(UnorderedTermMap());
+  }
   UnorderedTermMap & cache = time_var_map_[k];
+
   auto it = cache.find(v);
   if (it != cache.end())
   {
@@ -60,11 +64,6 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
 
 UnorderedTermMap & Unroller::time_cache_at_time(unsigned int k)
 {
-  while (time_var_map_.size() <= k + 1)
-  {
-    time_var_map_.push_back(UnorderedTermMap());
-  }
-
   while (time_cache_.size() <= k)
   {
     time_cache_.push_back(UnorderedTermMap());
