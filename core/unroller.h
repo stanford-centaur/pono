@@ -29,7 +29,7 @@ class Unroller
   const RelationalTransitionSystem & ts_;
   smt::SmtSolver & solver_;
 
-  typedef std::vector<smt::UnorderedTermMap *> TimeCache;
+  typedef std::vector<smt::UnorderedTermMap> TimeCache;
   TimeCache time_cache_;
   TimeCache time_var_map_;
   smt::UnorderedTermMap untime_cache_;
