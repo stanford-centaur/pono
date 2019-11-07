@@ -20,13 +20,11 @@ InterpolantMC::InterpolantMC(const Property & p,
   Term tmp1;
   for (auto s : ts_.states())
   {
-    unroller_.at_time(s, 0);
     tmp1 = unroller_.at_time(s, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
   for (auto i : ts_.inputs())
   {
-    unroller_.at_time(i, 0);
     tmp1 = unroller_.at_time(i, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
