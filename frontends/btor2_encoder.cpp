@@ -332,8 +332,18 @@ void BTOR2Encoder::parse(const std::string filename)
       }
       else if (linesort_->get_sort_kind() == ARRAY)
       {
-        rts_.constrain_init(solver_->make_term(
-            Equal, termargs_[0], solver_->make_term(termargs_[1], linesort_)));
+        if (termargs_[1]->get_sort()->get_sort_kind() == BV)
+        {
+          rts_.constrain_init(
+              solver_->make_term(Equal,
+                                 termargs_[0],
+                                 solver_->make_term(termargs_[1], linesort_)));
+        }
+        else
+        {
+          rts_.constrain_init(
+              solver_->make_term(Equal, termargs_[0], termargs_[1]));
+        }
       }
       else
       {
