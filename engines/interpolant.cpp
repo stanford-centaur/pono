@@ -27,13 +27,11 @@ void InterpolantMC::initialize()
   // B)
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term tmp1;
-  for (auto s : ts_.states())
-  {
+  for (auto s : ts_.states()) {
     tmp1 = unroller_.at_time(s, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
-  for (auto i : ts_.inputs())
-  {
+  for (auto i : ts_.inputs()) {
     tmp1 = unroller_.at_time(i, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
@@ -43,23 +41,19 @@ void InterpolantMC::initialize()
   // reset assertions is not supported by all solvers
   // but MathSAT is the only supported solver that can do interpolation
   // so this should be safe
-  try
-  {
+  try {
     interpolator_->reset_assertions();
   }
-  catch (NotImplementedException & e)
-  {
+  catch (NotImplementedException & e) {
     throw CosaException("Got unexpected solver in InterpolantMC.");
   }
 
   // populate map from time 1 to time 0
-  for (auto s : ts_.states())
-  {
+  for (auto s : ts_.states()) {
     Term s0 = unroller_.at_time(s, 0);
   }
 
-  for (auto i : ts_.inputs())
-  {
+  for (auto i : ts_.inputs()) {
     Term i0 = unroller_.at_time(i, 0);
   }
 
@@ -72,22 +66,16 @@ void InterpolantMC::initialize()
 
 ProverResult InterpolantMC::check_until(int k)
 {
-  try
-  {
-    for (int i = 0; i <= k; ++i)
-    {
-      if (step(i))
-      {
+  try {
+    for (int i = 0; i <= k; ++i) {
+      if (step(i)) {
         return ProverResult::TRUE;
-      }
-      else if (concrete_cex_)
-      {
+      } else if (concrete_cex_) {
         return ProverResult::FALSE;
       }
     }
   }
-  catch (InternalSolverException & e)
-  {
+  catch (InternalSolverException & e) {
     logger.log(1, "Failed when computing interpolant.");
   }
   return ProverResult::UNKNOWN;
@@ -95,8 +83,7 @@ ProverResult InterpolantMC::check_until(int k)
 
 bool InterpolantMC::step(int i)
 {
-  if (i <= reached_k_)
-  {
+  if (i <= reached_k_) {
     return false;
   }
 
@@ -109,10 +96,8 @@ bool InterpolantMC::step(int i)
 
   R_ = init0_;
 
-  while (got_interpolant)
-  {
-    if (i > 0)
-    {
+  while (got_interpolant) {
+    if (i > 0) {
       Term int_R = to_interpolator_.transfer_term(R_);
       Term int_transA = to_interpolator_.transfer_term(transA_);
       Term int_transB = to_interpolator_.transfer_term(transB_);
@@ -123,15 +108,12 @@ bool InterpolantMC::step(int i)
           interpolator_->make_term(And, int_transB, int_bad),
           int_Ri);
 
-      if (got_interpolant)
-      {
+      if (got_interpolant) {
         Ri_ = to_solver_.transfer_term(int_Ri);
       }
 
       is_sat = !got_interpolant;
-    }
-    else
-    {
+    } else {
       // Can't get an interpolant at bound 0
       // only checking for trivial bug
       solver_->reset_assertions();
@@ -146,8 +128,7 @@ bool InterpolantMC::step(int i)
       is_sat = r.is_sat();
     }
 
-    if (is_sat && (R_ == init0_))
-    {
+    if (is_sat && (R_ == init0_)) {
       // found a concrete counter example
       // replay it in the solver with model generation
       concrete_cex_ = true;
@@ -156,25 +137,19 @@ bool InterpolantMC::step(int i)
       solver_->assert_formula(solver_->make_term(
           And, init0_, solver_->make_term(And, solver_trans, bad_i)));
       Result r = solver_->check_sat();
-      if (!r.is_sat())
-      {
+      if (!r.is_sat()) {
         throw CosaException("Internal error: Expecting satisfiable result");
       }
       ++reached_k_;
       return false;
-    }
-    else if (got_interpolant)
-    {
+    } else if (got_interpolant) {
       // map Ri to time 0
       Ri_ = unroller_.at_time(unroller_.untime(Ri_), 0);
 
-      if (check_overapprox())
-      {
+      if (check_overapprox()) {
         logger.log(1, "Found a proof at bound: {}", i);
         return true;
-      }
-      else
-      {
+      } else {
         logger.log(1, "Extending initial states.");
         R_ = solver_->make_term(Or, R_, Ri_);
       }
@@ -183,8 +158,7 @@ bool InterpolantMC::step(int i)
 
   // Note: important that it's for i > 0
   // transB can't have any symbols from time 0 in it
-  if (i > 0)
-  {
+  if (i > 0) {
     // extend the unrolling
     transB_ =
         solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
@@ -202,12 +176,9 @@ bool InterpolantMC::check_overapprox()
   solver_->assert_formula(
       solver_->make_term(And, Rpi, solver_->make_term(Not, Rp)));
   Result r = solver_->check_sat();
-  if (r.is_unsat())
-  {
+  if (r.is_unsat()) {
     return true;
-  }
-  else
-  {
+  } else {
     return false;
   }
 }

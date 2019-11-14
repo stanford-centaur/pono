@@ -28,16 +28,13 @@ void KInduction::initialize()
 
 ProverResult KInduction::check_until(int k)
 {
-  for (int i = 0; i <= k; ++i)
-  {
+  for (int i = 0; i <= k; ++i) {
     logger.log(1, "Checking k-induction base case at bound: {}", i);
-    if (!base_step(i))
-    {
+    if (!base_step(i)) {
       return ProverResult::FALSE;
     }
     logger.log(1, "Checking k-induction inductive step at bound: {}", i);
-    if (inductive_step(i))
-    {
+    if (inductive_step(i)) {
       return ProverResult::TRUE;
     }
   }
@@ -46,8 +43,7 @@ ProverResult KInduction::check_until(int k)
 
 bool KInduction::base_step(int i)
 {
-  if (i <= reached_k_)
-  {
+  if (i <= reached_k_) {
     return true;
   }
 
@@ -55,8 +51,7 @@ bool KInduction::base_step(int i)
   solver_->assert_formula(init0_);
   solver_->assert_formula(unroller_.at_time(bad_, i));
   Result r = solver_->check_sat();
-  if (r.is_sat())
-  {
+  if (r.is_sat()) {
     ++reached_k_;
     return false;
   }
@@ -70,8 +65,7 @@ bool KInduction::base_step(int i)
 
 bool KInduction::inductive_step(int i)
 {
-  if (i <= reached_k_)
-  {
+  if (i <= reached_k_) {
     return false;
   }
 
@@ -79,8 +73,7 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad_, i + 1));
 
-  if (check_simple_path_lazy(i+1))
-  {
+  if (check_simple_path_lazy(i + 1)) {
     return true;
   }
 
@@ -96,8 +89,7 @@ Term KInduction::simple_path_constraint(int i, int j)
   // TODO: what if there are no states?
   //       kind of a weird situation, but possible -- don't want to assume false
   Term disj = false_;
-  for (auto v : ts_.states())
-  {
+  for (auto v : ts_.states()) {
     Term vi = unroller_.at_time(v, i);
     Term vj = unroller_.at_time(v, j);
     Term eq = solver_->make_term(PrimOp::Equal, vi, vj);
@@ -112,23 +104,18 @@ bool KInduction::check_simple_path_lazy(int i)
   Result r = solver_->check_sat();
   bool added_to_simple_path = false;
 
-  do 
-  {
-    if (r.is_unsat())
-    {
+  do {
+    if (r.is_unsat()) {
       return true;
     }
 
     Term constraint;
     added_to_simple_path = false;
 
-    for (int j = 0; j < i && !added_to_simple_path; ++j)
-    {
-      for (int l = j + 1; l <= i; ++l)
-      {
+    for (int j = 0; j < i && !added_to_simple_path; ++j) {
+      for (int l = j + 1; l <= i; ++l) {
         constraint = simple_path_constraint(j, l);
-        if (solver_->get_value(constraint) == false_)
-        {
+        if (solver_->get_value(constraint) == false_) {
           simple_path_ =
               solver_->make_term(PrimOp::And, simple_path_, constraint);
           solver_->assert_formula(constraint);
@@ -138,8 +125,7 @@ bool KInduction::check_simple_path_lazy(int i)
       }
     }
 
-    if (added_to_simple_path)
-    {
+    if (added_to_simple_path) {
       logger.log(2, "Adding Simple Path Clause");
       r = solver_->check_sat();
     }

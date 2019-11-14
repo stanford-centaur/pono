@@ -17,29 +17,22 @@ std::string as_bits(std::string val)
   //       to support other solvers, we need to be more general
   std::string res = val;
 
-  if (val.length() < 2)
-  {
+  if (val.length() < 2) {
     throw CosaException("Don't know how to interpret value: " + val);
   }
 
-  if (res.substr(0, 2) == "#b")
-  {
+  if (res.substr(0, 2) == "#b") {
     // remove the #b prefix
     res = res.substr(2, val.length() - 2);
-  }
-  else if (res.substr(0, 2) == "#x")
-  {
+  } else if (res.substr(0, 2) == "#x") {
     throw CosaException("Not supporting hexadecimal format yet.");
-  }
-  else
-  {
+  } else {
     res = res.substr(5, res.length() - 5);
     std::istringstream iss(res);
     std::vector<std::string> tokens(std::istream_iterator<std::string>{ iss },
                                     std::istream_iterator<std::string>());
 
-    if (tokens.size() != 2)
-    {
+    if (tokens.size() != 2) {
       throw CosaException("Failed to interpret " + val);
     }
 
@@ -51,13 +44,10 @@ std::string as_bits(std::string val)
     res = cval.get_str(2);
     size_t strlen = res.length();
 
-    if (strlen < width)
-    {
+    if (strlen < width) {
       // pad with zeros
       res = std::string(width - strlen, '0') + res;
-    }
-    else if (strlen > width)
-    {
+    } else if (strlen > width) {
       // remove prepended zeros
       res = res.erase(0, strlen - width);
     }
@@ -72,11 +62,9 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
-  for (size_t i = 0, size = vec.size(); i < size; ++i)
-  {
+  for (size_t i = 0, size = vec.size(); i < size; ++i) {
     sk = vec[i]->get_sort()->get_sort_kind();
-    if (sk == smt::BV)
-    {
+    if (sk == smt::BV) {
       // TODO: this makes assumptions on format of value from boolector
       //       to support other solvers, we need to be more general
       logger.log(0,
@@ -85,15 +73,11 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
                  as_bits(valmap.at(vec[i])->to_string()),
                  vec[i],
                  time);
-    }
-    else if (sk == smt::ARRAY)
-    {
+    } else if (sk == smt::ARRAY) {
       smt::Term tmp = valmap.at(vec[i]);
-      while (tmp->get_op() == smt::Store)
-      {
+      while (tmp->get_op() == smt::Store) {
         int num = 0;
-        for (auto c : tmp)
-        {
+        for (auto c : tmp) {
           store_children[num] = c;
           num++;
         }
@@ -108,20 +92,13 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
         tmp = store_children[0];
       }
 
-      if (tmp->get_op() == smt::Const_Array)
-      {
+      if (tmp->get_op() == smt::Const_Array) {
         smt::Term const_val = *(tmp->begin());
-        logger.log(0,
-                   "{} {} {}@{}",
-                   i,
-                   as_bits(const_val->to_string()),
-                   vec[i],
-                   time);
+        logger.log(
+            0, "{} {} {}@{}", i, as_bits(const_val->to_string()), vec[i], time);
       }
 
-    }
-    else
-    {
+    } else {
       throw CosaException("Unhandled sort kind: " + ::smt::to_string(sk));
     }
   }
@@ -133,11 +110,9 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
-  for (auto entry : m)
-  {
+  for (auto entry : m) {
     sk = entry.second->get_sort()->get_sort_kind();
-    if (sk == smt::BV)
-    {
+    if (sk == smt::BV) {
       // TODO: this makes assumptions on format of value from boolector
       //       to support other solvers, we need to be more general
       // Remove the #b prefix
@@ -147,15 +122,11 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
                  as_bits(valmap.at(entry.second)->to_string()),
                  entry.second,
                  time);
-    }
-    else if (sk == smt::ARRAY)
-    {
+    } else if (sk == smt::ARRAY) {
       smt::Term tmp = valmap.at(entry.second);
-      while (tmp->get_op() == smt::Store)
-      {
+      while (tmp->get_op() == smt::Store) {
         int num = 0;
-        for (auto c : tmp)
-        {
+        for (auto c : tmp) {
           store_children[num] = c;
           num++;
         }
@@ -170,20 +141,17 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
         tmp = store_children[0];
       }
 
-      if (tmp->get_op() == smt::Const_Array)
-        {
-          smt::Term const_val = *(tmp->begin());
-          logger.log(0,
-                     "{} {} {}@{}",
-                     entry.first,
-                     as_bits(const_val->to_string()),
-                     entry.second,
-                     time);
-        }
+      if (tmp->get_op() == smt::Const_Array) {
+        smt::Term const_val = *(tmp->begin());
+        logger.log(0,
+                   "{} {} {}@{}",
+                   entry.first,
+                   as_bits(const_val->to_string()),
+                   entry.second,
+                   time);
+      }
 
-    }
-    else
-    {
+    } else {
       throw CosaException("Unhandled sort kind: " + ::smt::to_string(sk));
     }
   }
@@ -201,18 +169,15 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
   logger.log(0, "#0");
   print_btor_vals_at_time(states, cex.at(0), 0);
 
-  for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k)
-  {
+  for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
     // states without next
-    if (k && has_states_without_next)
-    {
+    if (k && has_states_without_next) {
       logger.log(0, "#{}", k);
       print_btor_vals_at_time(no_next_states, cex.at(k), k);
     }
 
     // inputs
-    if (k < cex_size)
-    {
+    if (k < cex_size) {
       logger.log(0, "@{}", k);
       print_btor_vals_at_time(inputs, cex.at(k), k);
     }

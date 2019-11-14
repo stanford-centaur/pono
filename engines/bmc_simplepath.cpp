@@ -15,16 +15,13 @@ BmcSimplePath::~BmcSimplePath() {}
 
 ProverResult BmcSimplePath::check_until(int k)
 {
-  for (int i = 0; i <= k; ++i)
-  {
+  for (int i = 0; i <= k; ++i) {
     logger.log(1, "Checking Bmc at bound: {}", i);
-    if (!base_step(i))
-    {
+    if (!base_step(i)) {
       return ProverResult::FALSE;
     }
     logger.log(1, "Checking simple path at bound: {}", i);
-    if (cover_step(i))
-    {
+    if (cover_step(i)) {
       return ProverResult::TRUE;
     }
   }
@@ -33,20 +30,17 @@ ProverResult BmcSimplePath::check_until(int k)
 
 bool BmcSimplePath::cover_step(int i)
 {
-  if (i <= reached_k_)
-  {
+  if (i <= reached_k_) {
     return false;
   }
 
   solver_->push();
   solver_->assert_formula(init0_);
   Term not_init = solver_->make_term(PrimOp::Not, ts_.init());
-  for (int j = 1; j <= i; ++j)
-  {
+  for (int j = 1; j <= i; ++j) {
     solver_->assert_formula(unroller_.at_time(not_init, j));
   }
-  if (check_simple_path_lazy(i))
-  {
+  if (check_simple_path_lazy(i)) {
     return true;
   }
   solver_->pop();
