@@ -6,23 +6,19 @@ using namespace smt;
 
 namespace cosa {
 
-Unroller::Unroller(const RelationalTransitionSystem & ts,
-                   SmtSolver & solver)
+Unroller::Unroller(const RelationalTransitionSystem & ts, SmtSolver & solver)
     : ts_(ts), solver_(solver)
 {
 }
 
-Unroller::~Unroller()
-{
-}
+Unroller::~Unroller() {}
 
 Term Unroller::at_time(const Term & t, unsigned int k)
 {
   UnorderedTermMap & cache = time_cache_at_time(k);
 
   auto it = cache.find(t);
-  if (it != cache.end())
-  {
+  if (it != cache.end()) {
     return it->second;
   }
 
@@ -42,15 +38,13 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
 {
   assert(v->is_symbolic_const());
 
-  while (time_var_map_.size() <= k)
-  {
+  while (time_var_map_.size() <= k) {
     time_var_map_.push_back(UnorderedTermMap());
   }
   UnorderedTermMap & cache = time_var_map_[k];
 
   auto it = cache.find(v);
-  if (it != cache.end())
-  {
+  if (it != cache.end()) {
     return it->second;
   }
 
@@ -64,14 +58,12 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
 
 UnorderedTermMap & Unroller::time_cache_at_time(unsigned int k)
 {
-  while (time_cache_.size() <= k)
-  {
+  while (time_cache_.size() <= k) {
     time_cache_.push_back(UnorderedTermMap());
     UnorderedTermMap & subst = time_cache_.back();
     const unsigned int t = time_cache_.size() - 1;
 
-    for (auto v : ts_.states())
-    {
+    for (auto v : ts_.states()) {
       Term vn = ts_.next(v);
       Term new_v = var_at_time(v, t);
       Term new_vn = var_at_time(v, t + 1);
@@ -80,8 +72,7 @@ UnorderedTermMap & Unroller::time_cache_at_time(unsigned int k)
       untime_cache_[new_v] = v;
       untime_cache_[new_vn] = vn;
     }
-    for (auto v : ts_.inputs())
-    {
+    for (auto v : ts_.inputs()) {
       Term vn = ts_.next(v);
       Term new_v = var_at_time(v, t);
       Term new_vn = var_at_time(v, t + 1);

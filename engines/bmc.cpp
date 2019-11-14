@@ -25,10 +25,8 @@ void Bmc::initialize()
 
 ProverResult Bmc::check_until(int k)
 {
-  for (int i = 0; i <= k; ++i)
-  {
-    if (!step(i))
-    {
+  for (int i = 0; i <= k; ++i) {
+    if (!step(i)) {
       return ProverResult::FALSE;
     }
   }
@@ -37,14 +35,12 @@ ProverResult Bmc::check_until(int k)
 
 bool Bmc::step(int i)
 {
-  if (i <= reached_k_)
-  {
+  if (i <= reached_k_) {
     return true;
   }
 
   bool res = true;
-  if (i > 0)
-  {
+  if (i > 0) {
     solver_->assert_formula(unroller_.at_time(ts_.trans(), i - 1));
   }
 
@@ -52,12 +48,9 @@ bool Bmc::step(int i)
   logger.log(1, "Checking bmc at bound: {}", i);
   solver_->assert_formula(unroller_.at_time(bad_, i));
   Result r = solver_->check_sat();
-  if (r.is_sat())
-  {
+  if (r.is_sat()) {
     res = false;
-  }
-  else
-  {
+  } else {
     solver_->pop();
   }
 

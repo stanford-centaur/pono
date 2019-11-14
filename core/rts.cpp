@@ -9,8 +9,7 @@ void RelationalTransitionSystem::set_behavior(const Term & init,
                                               const Term & trans)
 {
   // TODO: Only do this check in debug mode
-  if (!known_symbols(init) || !known_symbols(trans))
-  {
+  if (!known_symbols(init) || !known_symbols(trans)) {
     throw CosaException("Unknown symbols");
   }
   init_ = init;
@@ -20,8 +19,7 @@ void RelationalTransitionSystem::set_behavior(const Term & init,
 void RelationalTransitionSystem::set_trans(const Term & trans)
 {
   // TODO: Only do this check in debug mode
-  if (!known_symbols(trans))
-  {
+  if (!known_symbols(trans)) {
     throw CosaException("Unknown symbols");
   }
   trans_ = trans;
@@ -30,8 +28,7 @@ void RelationalTransitionSystem::set_trans(const Term & trans)
 void RelationalTransitionSystem::constrain_trans(const Term & constraint)
 {
   // TODO: Only do this check in debug mode
-  if (!known_symbols(constraint))
-  {
+  if (!known_symbols(constraint)) {
     throw CosaException("Unknown symbols");
   }
   trans_ = solver_->make_term(And, trans_, constraint);
@@ -44,8 +41,7 @@ Term RelationalTransitionSystem::curr(const Term & term) const
 
 Term RelationalTransitionSystem::next(const Term & term) const
 {
-  if (next_map_.find(term) != next_map_.end())
-  {
+  if (next_map_.find(term) != next_map_.end()) {
     return next_map_.at(term);
   }
   return solver_->substitute(term, next_map_);
@@ -94,13 +90,11 @@ bool RelationalTransitionSystem::known_symbols(const Term & term) const
   UnorderedTermSet visited;
   TermVec to_visit{ term };
   Term t;
-  while (to_visit.size())
-  {
+  while (to_visit.size()) {
     t = to_visit.back();
     to_visit.pop_back();
 
-    if (visited.find(t) != visited.end())
-    {
+    if (visited.find(t) != visited.end()) {
       // cache hit
       continue;
     }
@@ -108,14 +102,12 @@ bool RelationalTransitionSystem::known_symbols(const Term & term) const
     if (t->is_symbolic_const()
         && !((inputs_.find(t) != inputs_.end())
              || (states_.find(t) != states_.end())
-             || (next_states_.find(t) != next_states_.end())))
-    {
+             || (next_states_.find(t) != next_states_.end()))) {
       return false;
     }
 
     visited.insert(t);
-    for (auto c : t)
-    {
+    for (auto c : t) {
       to_visit.push_back(c);
     }
   }

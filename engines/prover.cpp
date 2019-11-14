@@ -14,9 +14,7 @@ Prover::Prover(const Property & p, smt::SmtSolver & s)
 {
 }
 
-Prover::~Prover()
-{
-}
+Prover::~Prover() {}
 
 void Prover::initialize()
 {
@@ -24,29 +22,23 @@ void Prover::initialize()
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
 }
 
-ProverResult Prover::prove()
-{
-  return check_until(INT_MAX);
-}
+ProverResult Prover::prove() { return check_until(INT_MAX); }
 
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
 {
   // TODO: make sure the solver state is SAT
 
-  for (int i = 0; i <= reached_k_; ++i)
-  {
+  for (int i = 0; i <= reached_k_; ++i) {
     out.push_back(UnorderedTermMap());
     UnorderedTermMap & map = out.back();
 
-    for (auto v : ts_.states())
-    {
+    for (auto v : ts_.states()) {
       Term vi = unroller_.at_time(v, i);
       Term r = solver_->get_value(vi);
       map[v] = r;
     }
 
-    for (auto v : ts_.inputs())
-    {
+    for (auto v : ts_.inputs()) {
       Term vi = unroller_.at_time(v, i);
       Term r = solver_->get_value(vi);
       map[v] = r;
@@ -56,4 +48,4 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
   return true;
 }
 
-} // namespace cosa
+}  // namespace cosa
