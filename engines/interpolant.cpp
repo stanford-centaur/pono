@@ -12,6 +12,15 @@ InterpolantMC::InterpolantMC(const Property & p,
                              SmtSolver & itp)
     : super(p, slv), interpolator_(itp), to_interpolator_(itp), to_solver_(slv)
 {
+  initialize();
+}
+
+InterpolantMC::~InterpolantMC() {}
+
+void InterpolantMC::initialize()
+{
+  super::initialize();
+
   // symbols are already created in solver
   // need to add symbols at time 1 to cache
   // (only time 1 because Craig Interpolant has to share symbols between A and
@@ -28,14 +37,6 @@ InterpolantMC::InterpolantMC(const Property & p,
     tmp1 = unroller_.at_time(i, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
-  initialize();
-}
-
-InterpolantMC::~InterpolantMC() {}
-
-void InterpolantMC::initialize()
-{
-  super::initialize();
 
   concrete_cex_ = false;
 
