@@ -189,6 +189,7 @@ int main(int argc, char ** argv)
 
     Term bad = btor_enc.badvec()[prop_idx];
     Property p(rts, s->make_term(PrimOp::Not, bad));
+    logger.log(1, "Solving property: {}", p.prop());
 
     std::shared_ptr<Prover> prover;
     if (engine == BMC) {
