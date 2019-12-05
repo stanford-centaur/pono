@@ -4,13 +4,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
 # get a particular version of smt-switch
-SMT_SWITCH_VERSION=8c4b1f880d5e8b116a1956dbc433abf5c23438c8
+SMT_SWITCH_VERSION=955bf85e14f11b4a8225ae71099e200e02388d9e
 
 mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    # Temporarily pull branch of smt-switch
     git clone https://github.com/makaimann/smt-switch
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
