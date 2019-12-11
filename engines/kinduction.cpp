@@ -86,6 +86,8 @@ bool KInduction::inductive_step(int i)
 
 Term KInduction::simple_path_constraint(int i, int j)
 {
+  assert(ts_.states());
+
   Term disj = false_;
   for (auto v : ts_.states()) {
     Term vi = unroller_.at_time(v, i);
@@ -94,6 +96,7 @@ Term KInduction::simple_path_constraint(int i, int j)
     Term neq = solver_->make_term(PrimOp::Not, eq);
     disj = solver_->make_term(PrimOp::Or, disj, neq);
   }
+
   return disj;
 }
 
