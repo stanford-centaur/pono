@@ -101,21 +101,21 @@ Term KInduction::simple_path_constraint(int i, int j)
 
 bool KInduction::check_simple_path_lazy(int i)
 {
-  Result r = solver_->check_sat();
   bool added_to_simple_path = false;
 
   do {
+    Result r = solver_->check_sat();
     if (r.is_unsat()) {
       return true;
     }
 
-    Term constraint;
     added_to_simple_path = false;
 
     for (int j = 0; j < i && !added_to_simple_path; ++j) {
       for (int l = j + 1; l <= i; ++l) {
-        constraint = simple_path_constraint(j, l);
+        Term constraint = simple_path_constraint(j, l);
         if (solver_->get_value(constraint) == false_) {
+	  logger.log(2, "Adding Simple Path Clause");
           simple_path_ =
               solver_->make_term(PrimOp::And, simple_path_, constraint);
           solver_->assert_formula(constraint);
@@ -125,10 +125,6 @@ bool KInduction::check_simple_path_lazy(int i)
       }
     }
 
-    if (added_to_simple_path) {
-      logger.log(2, "Adding Simple Path Clause");
-      r = solver_->check_sat();
-    }
   } while (added_to_simple_path);
 
   return false;
