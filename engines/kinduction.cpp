@@ -73,7 +73,7 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad_, i + 1));
 
-  if (check_simple_path_lazy(i + 1)) {
+  if (ts_.states().size() && check_simple_path_lazy(i + 1)) {
     return true;
   }
 
@@ -86,8 +86,6 @@ bool KInduction::inductive_step(int i)
 
 Term KInduction::simple_path_constraint(int i, int j)
 {
-  // TODO: what if there are no states?
-  //       kind of a weird situation, but possible -- don't want to assume false
   Term disj = false_;
   for (auto v : ts_.states()) {
     Term vi = unroller_.at_time(v, i);
