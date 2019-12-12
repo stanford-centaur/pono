@@ -1,5 +1,4 @@
-#ifndef BTOR2_ENCODER_H
-#define BTOR2_ENCODER_H
+#pragma once
 
 extern "C" {
 #include "btor2parser/btor2parser.h"
@@ -79,4 +78,3 @@ class BTOR2Encoder
 };
 }  // namespace cosa
 
-#endif
