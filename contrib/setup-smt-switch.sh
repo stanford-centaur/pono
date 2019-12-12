@@ -4,7 +4,33 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
 # get a particular version of smt-switch
-SMT_SWITCH_VERSION=955bf85e14f11b4a8225ae71099e200e02388d9e
+SMT_SWITCH_VERSION=3076e1bd36a37b441844ae59b22ced0d9455fa81
+
+usage () {
+    cat <<EOF
+Usage: $0 [<option> ...]
+
+Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
+
+-h, --help              display this message and exit
+--with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
+-y, --auto-yes          automatically agree to conditions (default: off)
+EOF
+    exit 0
+}
+
+CONF_OPTS=default
+
+while [ $# -gt 0 ]
+do
+    case $1 in
+        -h|--help) usage;;
+        --with-msat) CONF_OPTS=--msat;;
+        -y|--auto-yes) MSAT_OPTS=--auto-yes;;
+        *) die "unexpected argument: $1";;
+    esac
+    shift
+done
 
 mkdir -p $DEPS
 
@@ -14,8 +40,10 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
-    ./contrib/setup-msat.sh
-    ./configure.sh --btor --msat --prefix=local
+    if [[ "$CONF_OPTS" != default ]]; then
+        ./contrib/setup-msat.sh $MSAT_OPTS
+    fi
+    ./configure.sh --btor $CONF_OPTS --prefix=local
     cd build
     make -j$(nproc)
     make test

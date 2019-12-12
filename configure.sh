@@ -13,6 +13,8 @@ Configures the CMAKE build environment.
 -h, --help              display this message and exit
 --prefix=STR            install directory       (default: /usr/local/)
 --build-dir=STR         custom build directory  (default: build)
+--with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
+                        Required for interpolant based model checking
 --debug                 build debug with debug symbols (default: off)
 EOF
   exit 0
@@ -26,6 +28,7 @@ die () {
 build_dir=build
 install_prefix=default
 build_type=default
+with_msat=default
 debug=default
 
 buildtype=Release
@@ -54,6 +57,7 @@ do
                 *) build_dir=$(pwd)/$build_dir ;; # make absolute path
             esac
             ;;
+        --with-msat) with_msat=ON;;
         --debug)
             debug=yes;
             buildtype=Debug
@@ -67,6 +71,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype"
 
 [ $install_prefix != default ] \
     && cmake_opts="$cmake_opts -DCMAKE_INSTALL_PREFIX=$install_prefix"
+
+[ $with_msat != default ] \
+    && cmake_opts="$cmake_opts -DWITH_MSAT=$with_msat"
 
 root_dir=$(pwd)
 
