@@ -73,7 +73,7 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad_, i + 1));
 
-  if (check_simple_path_lazy(i + 1)) {
+  if (ts_.states().size() && check_simple_path_lazy(i + 1)) {
     return true;
   }
 
@@ -86,8 +86,8 @@ bool KInduction::inductive_step(int i)
 
 Term KInduction::simple_path_constraint(int i, int j)
 {
-  // TODO: what if there are no states?
-  //       kind of a weird situation, but possible -- don't want to assume false
+  assert(ts_.states());
+
   Term disj = false_;
   for (auto v : ts_.states()) {
     Term vi = unroller_.at_time(v, i);
@@ -96,26 +96,27 @@ Term KInduction::simple_path_constraint(int i, int j)
     Term neq = solver_->make_term(PrimOp::Not, eq);
     disj = solver_->make_term(PrimOp::Or, disj, neq);
   }
+
   return disj;
 }
 
 bool KInduction::check_simple_path_lazy(int i)
 {
-  Result r = solver_->check_sat();
   bool added_to_simple_path = false;
 
   do {
+    Result r = solver_->check_sat();
     if (r.is_unsat()) {
       return true;
     }
 
-    Term constraint;
     added_to_simple_path = false;
 
     for (int j = 0; j < i && !added_to_simple_path; ++j) {
       for (int l = j + 1; l <= i; ++l) {
-        constraint = simple_path_constraint(j, l);
+        Term constraint = simple_path_constraint(j, l);
         if (solver_->get_value(constraint) == false_) {
+	  logger.log(2, "Adding Simple Path Clause");
           simple_path_ =
               solver_->make_term(PrimOp::And, simple_path_, constraint);
           solver_->assert_formula(constraint);
@@ -125,10 +126,6 @@ bool KInduction::check_simple_path_lazy(int i)
       }
     }
 
-    if (added_to_simple_path) {
-      logger.log(2, "Adding Simple Path Clause");
-      r = solver_->check_sat();
-    }
   } while (added_to_simple_path);
 
   return false;
