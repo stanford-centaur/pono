@@ -16,8 +16,6 @@ There are two Transition System interfaces:
 * FunctionalTransitionSystem in fts.*
 * RelationalTransitionSystem in rts.*
 
-For BTOR, we should be able to use the FunctionalTransitionSystem.
-
 
 ### Smt-Switch
 Smt-switch is a C++ solver-agnostic API for SMT solvers. The main thing to remember is that everything is a pointer. Objects might be "typedef-ed" with `using` statements, but they're still `shared_ptr`s. Thus, when using a solver or a term, you need to use `->` accesses.
