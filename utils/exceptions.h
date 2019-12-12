@@ -15,8 +15,7 @@
  **/
 
 
-#ifndef COSA_EXCEPTIONS_H
-#define COSA_EXCEPTIONS_H
+#pragma once
 
 #include <exception>
 #include <string>
@@ -62,4 +61,3 @@ class CosaException : public std::exception
   std::string msg;
 };
 
-#endif

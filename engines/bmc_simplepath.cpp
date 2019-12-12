@@ -57,7 +57,7 @@ bool BmcSimplePath::cover_step(int i)
   for (int j = 1; j <= i; ++j) {
     solver_->assert_formula(unroller_.at_time(not_init, j));
   }
-  if (check_simple_path_lazy(i)) {
+  if (ts_.states().size() &&check_simple_path_lazy(i)) {
     return true;
   }
   solver_->pop();
