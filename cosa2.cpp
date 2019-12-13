@@ -20,7 +20,9 @@
 
 #include "optionparser.h"
 #include "smt-switch/boolector_factory.h"
-#include "smt-switch/msat_factory.h"
+#ifdef WITH_MSAT
+  #include "smt-switch/msat_factory.h"
+#endif
 
 #include "bmc.h"
 #include "bmc_simplepath.h"
@@ -183,9 +185,17 @@ int main(int argc, char ** argv)
     SmtSolver s;
     SmtSolver second_solver;
     if (engine == INTERP) {
+      #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create();
       second_solver = MsatSolverFactory::create_interpolating_solver();
+      #else
+      throw CosaException("Interpolation-based model checking requires MathSAT and "
+                          "this version of cosa2 is built without MathSAT.\nPlease "
+                          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+                          "Note: MathSAT has a custom license and you must assume all "
+                          "responsibility for meeting the license requirements.");
+      #endif
     } else {
       // boolector is faster but doesn't support interpolants
       s = BoolectorSolverFactory::create();

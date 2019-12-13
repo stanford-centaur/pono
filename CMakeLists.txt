@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if (WITH_MSAT)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
+endif()
+
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/core")
 include_directories("${PROJECT_SOURCE_DIR}/engines")
@@ -31,21 +35,29 @@ add_executable(cosa2
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   )
 
+if (APPLE)
+  set(SHARED_LIBRARY_EXT dylib)
+else()
+  set(SHARED_LIBRARY_EXT so)
+endif()
+
 # Check that dependencies are there
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch/smt.h")
   message(FATAL_ERROR "Missing smt-switch headers -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.so")
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.${SHARED_LIBRARY_EXT}")
   message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.so")
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.${SHARED_LIBRARY_EXT}")
   message(FATAL_ERROR "Missing smt-switch boolector library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.so")
-  message(FATAL_ERROR "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh")
+if (WITH_MSAT)
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.${SHARED_LIBRARY_EXT}")
+    message(FATAL_ERROR "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-msat")
+  endif()
 endif()
 
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
@@ -59,8 +71,10 @@ target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/contrib/optionpar
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
 target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
-target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.so")
-target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.so")
-target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.so")
+target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.${SHARED_LIBRARY_EXT}")
+target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.${SHARED_LIBRARY_EXT}")
+if (WITH_MSAT)
+  target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.${SHARED_LIBRARY_EXT}")
+endif()
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/libbtor2parser.a")
 target_link_libraries(cosa2 PUBLIC gmp)
