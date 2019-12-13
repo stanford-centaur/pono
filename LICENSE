@@ -27,3 +27,19 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+-------------------------------------------------------------------------------
+ Third-Party Software
+-------------------------------------------------------------------------------
+
+The cosa2 source code includes third-party software which has its own
+copyright and licensing terms, as described below.
+
+The 'contrib/fmt' directory contains third-party software. The
+copyright and licensing information is in the 'contrib/fmt/format.h'
+file.
+
+The 'contrib/optionparser-1.7' directory contains third-party
+software. The copyright and licensing information is in the
+'contrib/optionparser-1.7/src/optionparser.h' file.
