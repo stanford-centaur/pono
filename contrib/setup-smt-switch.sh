@@ -19,13 +19,15 @@ EOF
     exit 0
 }
 
-CONF_OPTS=default
+WITH_MSAT=default
 
 while [ $# -gt 0 ]
 do
     case $1 in
         -h|--help) usage;;
-        --with-msat) CONF_OPTS=--msat;;
+        --with-msat)
+            WITH_MSAT=ON
+            CONF_OPTS=--msat;;
         -y|--auto-yes) MSAT_OPTS=--auto-yes;;
         *) die "unexpected argument: $1";;
     esac
@@ -40,7 +42,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
-    if [[ "$CONF_OPTS" != default ]]; then
+    if [[ "$WITH_MSAT" != default ]]; then
         ./contrib/setup-msat.sh $MSAT_OPTS
     fi
     ./configure.sh --btor $CONF_OPTS --prefix=local
