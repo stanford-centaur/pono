@@ -103,7 +103,7 @@ bool KInduction::inductive_step(int i)
 
 Term KInduction::simple_path_constraint(int i, int j)
 {
-  assert(ts_.states());
+  assert(ts_.states().size());
 
   Term disj = false_;
   for (auto v : ts_.states()) {
