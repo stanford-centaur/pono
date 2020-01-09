@@ -19,6 +19,11 @@ EOF
     exit 0
 }
 
+die () {
+    echo "*** configure.sh: $*" 1>&2
+    exit 1
+}
+
 WITH_MSAT=default
 
 while [ $# -gt 0 ]
