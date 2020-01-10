@@ -189,7 +189,7 @@ void BTOR2Encoder::parse(const std::string filename)
   reader_ = btor2parser_new();
 
   if (!btor2parser_read_lines(reader_, input_file)) {
-    throw CosaException("Error parsing btor file.");
+    throw CosaException(std::string(btor2parser_error(reader_)));
   }
 
   uint64_t num_states = 0;
