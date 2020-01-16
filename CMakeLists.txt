@@ -15,6 +15,9 @@ include_directories("${PROJECT_SOURCE_DIR}/core")
 include_directories("${PROJECT_SOURCE_DIR}/engines")
 include_directories("${PROJECT_SOURCE_DIR}/frontends")
 include_directories("${PROJECT_SOURCE_DIR}/options")
+include_directories("/usr/local/include")
+
+link_directories("/usr/local/lib")
 
 # TODO: Use find_package
 # find package
