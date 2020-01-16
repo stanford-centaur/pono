@@ -23,8 +23,7 @@ link_directories("/usr/local/lib")
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
-add_executable(cosa2
-  "${PROJECT_SOURCE_DIR}/cosa2.cpp"
+add_library(cosa2
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -67,12 +66,13 @@ if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
 endif()
 
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/utils")
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/core")
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/contrib/")
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src")
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
+target_include_directories(cosa2 PUBLIC
+  "${PROJECT_SOURCE_DIR}/utils"
+  "${PROJECT_SOURCE_DIR}/core"
+  "${PROJECT_SOURCE_DIR}/contrib/"
+  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.${SHARED_LIBRARY_EXT}")
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.${SHARED_LIBRARY_EXT}")
@@ -81,3 +81,23 @@ if (WITH_MSAT)
 endif()
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2 PUBLIC gmp)
+
+add_executable(cosa2-bin "${PROJECT_SOURCE_DIR}/cosa2.cpp")
+set_target_properties(cosa2-bin PROPERTIES OUTPUT_NAME cosa2)
+
+target_include_directories(cosa2-bin PUBLIC
+  "${PROJECT_SOURCE_DIR}/utils"
+  "${PROJECT_SOURCE_DIR}/core"
+  "${PROJECT_SOURCE_DIR}/contrib/"
+  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
+
+target_link_libraries(cosa2-bin PUBLIC cosa2)
+target_link_libraries(cosa2-bin PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.${SHARED_LIBRARY_EXT}")
+target_link_libraries(cosa2-bin PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.${SHARED_LIBRARY_EXT}")
+if (WITH_MSAT)
+  target_link_libraries(cosa2-bin PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.${SHARED_LIBRARY_EXT}")
+endif()
+target_link_libraries(cosa2-bin PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
+target_link_libraries(cosa2-bin PUBLIC gmp)
