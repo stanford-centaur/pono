@@ -35,6 +35,7 @@ add_library(cosa2
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/fault_injector.cpp"
   )
 
 if (APPLE)
@@ -69,6 +70,7 @@ endif()
 target_include_directories(cosa2 PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
   "${PROJECT_SOURCE_DIR}/core"
+  "${PROJECT_SOURCE_DIR}/modifiers"
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
   "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
@@ -88,6 +90,7 @@ set_target_properties(cosa2-bin PROPERTIES OUTPUT_NAME cosa2)
 target_include_directories(cosa2-bin PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
   "${PROJECT_SOURCE_DIR}/core"
+  "${PROJECT_SOURCE_DIR}/modifiers"
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
   "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"

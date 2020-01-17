@@ -34,6 +34,25 @@ class FunctionalTransitionSystem
   {
   }
 
+ FunctionalTransitionSystem(const FunctionalTransitionSystem & fts)
+   : solver_(fts.solver_),
+     init_(fts.init_),
+     trans_(fts.trans_)
+  {
+  }
+
+ FunctionalTransitionSystem& operator=(FunctionalTransitionSystem & fts)
+ {
+  if (this != &fts)
+  {
+   solver_ = fts.solver_;
+   init_ = fts.init_;
+   trans_ = fts.trans_;
+  }
+
+  return *this;
+ }
+
   /* Sets initial states to the provided formula
    * @param init the new initial state constraints
    */
@@ -111,7 +130,7 @@ class FunctionalTransitionSystem
 
  protected:
   // solver
-  smt::SmtSolver & solver_;
+  smt::SmtSolver solver_;
 
   // initial state constraint
   smt::Term init_;
