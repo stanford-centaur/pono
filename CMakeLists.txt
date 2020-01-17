@@ -36,6 +36,7 @@ add_library(cosa2
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/fault_injector.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/sorting_network.cpp"
   )
 
 if (APPLE)
