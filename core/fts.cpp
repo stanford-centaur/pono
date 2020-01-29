@@ -45,7 +45,7 @@ void FunctionalTransitionSystem::set_next(const Term & state, const Term & val)
 {
   // TODO: only do this check in debug mode
   if (states_.find(state) == states_.end()) {
-    throw CosaException("Unknown state variable");
+    throw CosaException("Unknown state variable: " + state->to_string());
   }
 
   // TODO: check only_curr on val in debug mode

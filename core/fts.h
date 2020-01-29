@@ -36,8 +36,13 @@ class FunctionalTransitionSystem
 
  FunctionalTransitionSystem(const FunctionalTransitionSystem & fts)
    : solver_(fts.solver_),
-     init_(fts.init_),
-     trans_(fts.trans_)
+    init_(fts.init_),
+    trans_(fts.trans_),
+    state_updates_(fts.state_updates_),
+    states_(fts.states_),
+    next_map_(fts.next_map_),
+    inputs_(fts.inputs_),
+    named_terms_(fts.named_terms_)
   {
   }
 
@@ -48,6 +53,11 @@ class FunctionalTransitionSystem
    solver_ = fts.solver_;
    init_ = fts.init_;
    trans_ = fts.trans_;
+   state_updates_ = fts.state_updates_;
+   states_ = fts.states_;
+   next_map_ = fts.next_map_;
+   inputs_ = fts.inputs_;
+   named_terms_ = fts.named_terms_;
   }
 
   return *this;

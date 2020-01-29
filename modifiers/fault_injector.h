@@ -28,7 +28,7 @@ namespace cosa
   class FaultInjector
   {
   public:
-    FaultInjector(RelationalTransitionSystem& fts) : fts_(fts), faulty_fts_(fts.solver())
+    FaultInjector(RelationalTransitionSystem& fts) : fts_(fts), faulty_fts_(fts_)
     {
       do_fault_injection();
     };
