@@ -20,7 +20,7 @@
 
 #include "smt-switch/smt.h"
 
-#include "fts.h"
+#include "rts.h"
 
 namespace cosa
 {
@@ -28,12 +28,12 @@ namespace cosa
   class FaultInjector
   {
   public:
-    FaultInjector(FunctionalTransitionSystem& fts) : fts_(fts), faulty_fts_(fts.solver())
+    FaultInjector(RelationalTransitionSystem& fts) : fts_(fts), faulty_fts_(fts.solver())
     {
       do_fault_injection();
     };
 
-    FunctionalTransitionSystem faulty_transition_system() const { return faulty_fts_; };
+    RelationalTransitionSystem faulty_transition_system() const { return faulty_fts_; };
 
     smt::TermVec fault_sigs() const { return fault_sigs_; };
 
@@ -41,8 +41,8 @@ namespace cosa
 
     void do_fault_injection();
 
-    FunctionalTransitionSystem & fts_;
-    FunctionalTransitionSystem faulty_fts_;
+    RelationalTransitionSystem & fts_;
+    RelationalTransitionSystem faulty_fts_;
 
     smt::UnorderedTermMap state2faultsel_;
     smt::UnorderedTermMap faultsel2state_;
