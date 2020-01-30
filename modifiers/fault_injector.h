@@ -37,6 +37,9 @@ namespace cosa
 
     smt::TermVec fault_sigs() const { return fault_sigs_; };
 
+    smt::Term get_val_from_sig(smt::Term & s) const { return faultsig2val_.at(s); };
+    std::string get_name_from_sig(smt::Term & s) const { return faultsig2name_.at(s); };
+
   protected:
 
     void do_fault_injection();
@@ -45,13 +48,15 @@ namespace cosa
     RelationalTransitionSystem faulty_fts_;
 
     smt::UnorderedTermMap state2faultsel_;
-    smt::UnorderedTermMap faultsel2state_;
+    smt::UnorderedTermMap faultsel2val_;
 
     smt::UnorderedTermMap state2faultval_;
-    smt::UnorderedTermMap faultval2state_;
+    smt::UnorderedTermMap faultval2val_;
 
     smt::UnorderedTermMap state2faultsig_;
-    smt::UnorderedTermMap faultsig2state_;
+    smt::UnorderedTermMap faultsig2val_;
+
+    std::unordered_map<smt::Term, std::string> faultsig2name_;
 
     smt::TermVec fault_sigs_;
   };

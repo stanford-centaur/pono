@@ -43,23 +43,57 @@ void FaultInjector::do_fault_injection()
 
     faultsel = faulty_fts_.make_input("faultsel_" + s->to_string(), boolsort);
     state2faultsel_[s] = faultsel;
-    faultsel2state_[faultsel] = s;
+    faultsel2val_[faultsel] = s;
 
     faultsig = faulty_fts_.make_state("FAULT_" + s->to_string(), boolsort);
     state2faultsig_[s] = faultsig;
-    faultsig2state_[faultsig] = s;
+    faultsig2val_[faultsig] = s;
+    faultsig2name_[faultsig] = s->to_string();
 
     faulty_fts_.constrain_init(solver->make_term(Equal, faultsig, solver->make_term(false)));
     faulty_fts_.set_next(faultsig, solver->make_term(Or, faultsig, faultsel));
 
     faultval = faulty_fts_.make_input("faultval_" + s->to_string(), s->get_sort());
     state2faultval_[s] = faultval;
-    faultval2state_[faultval] = s;
+    faultval2val_[faultval] = s;
 
     faulty_fts_.set_next(s, solver->make_term(Ite,
                                               faultsig,
                                               faultval,
                                               elem.second));
+    fault_sigs_.push_back(faultsig);
+  }
+
+  Term val;
+  string name;
+  for (auto elem : fts_.named_terms())
+  {
+    name = elem.first;
+    val = elem.second;
+
+    faultsel = faulty_fts_.make_state("faultsel_" + name, boolsort);
+
+    faultsig = faulty_fts_.make_state("FAULT_" + name, boolsort);
+    faultsig2name_[faultsig] = name;
+    faultsig2val_[faultsig] = val;
+
+    faulty_fts_.constrain_init(solver->make_term(Equal, faultsig, solver->make_term(false)));
+
+    Term update = solver->make_term(Or, faulty_fts_.next(faultsel),
+                                    solver->make_term(Or, faultsig, faultsel));
+    faulty_fts_.constrain_trans(solver->make_term(Equal,
+                                                  faulty_fts_.next(faultsig),
+                                                  update));
+    // faulty_fts_.set_next(faultsig, solver->make_term(Or, faultsig, faultsel));
+
+    faultval = faulty_fts_.make_input("faultval_" + name, val->get_sort());
+
+    faulty_fts_.remove_name(name);
+    faulty_fts_.name_term(name,
+                          solver->make_term(Ite,
+                                            faultsel,
+                                            faultval,
+                                            val));
     fault_sigs_.push_back(faultsig);
   }
 }

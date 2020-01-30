@@ -112,6 +112,9 @@ class FunctionalTransitionSystem
    */
   void name_term(const std::string name, const smt::Term & t);
 
+  /* Removes a named term from the map*/
+  void remove_name(const std::string name) { named_terms_.erase(name); };
+
   // getters
   smt::SmtSolver & solver() { return solver_; };
 
