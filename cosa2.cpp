@@ -263,8 +263,9 @@ int main(int argc, char ** argv)
     cout << "b" << prop_idx << endl;
     return 3;
   }
-  catch (...) {
+  catch (std::exception & e) {
     cout << "Caught generic exception..." << endl;
+    cout << e.what() << endl;
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;
     return 3;
