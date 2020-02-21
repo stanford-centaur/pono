@@ -19,7 +19,7 @@
 
 #include "prop.h"
 #include "proverresult.h"
-#include "rts.h"
+#include "ts.h"
 #include "smt-switch/smt.h"
 #include "unroller.h"
 

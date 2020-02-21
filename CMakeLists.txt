@@ -25,7 +25,7 @@ link_directories("/usr/local/lib")
 
 add_library(cosa2
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
-  "${PROJECT_SOURCE_DIR}/core/rts.cpp"
+  "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
