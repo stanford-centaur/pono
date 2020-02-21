@@ -35,8 +35,9 @@ void TransitionSystem::set_behavior(const Term & init, const Term & trans)
 void TransitionSystem::set_init(const Term & init)
 {
   // TODO: only do this check in debug mode
-  if (!known_symbols(init)) {
-    throw CosaException("Unknown symbols in formula");
+  if (!only_curr(init)) {
+    throw CosaException(
+        "Initial state constraints should only use current state variables");
   }
 
   init_ = init;
@@ -45,8 +46,9 @@ void TransitionSystem::set_init(const Term & init)
 void TransitionSystem::constrain_init(const Term & constraint)
 {
   // TODO: Only do this check in debug mode
-  if (!known_symbols(constraint)) {
-    throw CosaException("Unknown symbols");
+  if (!only_curr(constraint)) {
+    throw CosaException(
+        "Initial state constraints should only use current state variables");
   }
   init_ = solver_->make_term(And, init_, constraint);
 }
