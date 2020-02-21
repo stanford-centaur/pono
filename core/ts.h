@@ -69,6 +69,7 @@ class TransitionSystem
 
   /* Add an invariant constraint to the system
    * This is enforced over all time
+   * Specifically, it adds the constraint over both current and next variables
    * @param constraint the boolean constraint term to add (should contain only
    * state variables)
    */
@@ -78,6 +79,14 @@ class TransitionSystem
    * @param constraint to add (should not contain any next-state variables)
    */
   void constrain_inputs(const smt::Term & constraint);
+
+  /** Convenience function for adding a constraint to the system
+   * if the constraint only has current states, equivalent to add_invar
+   * if there are only current states and inputs, equivalent to
+   *   constrain_inputs
+   * throws an exception if it has next states (should go in trans)
+   */
+  void add_constraint(const smt::Term & constraint);
 
   /* Gives a term a name
    *   This can be used to track particular values in a witness

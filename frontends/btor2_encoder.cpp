@@ -16,6 +16,7 @@
 
 
 #include "btor2_encoder.h"
+#include "term_analysis.h"
 
 #include <iostream>
 
