@@ -22,8 +22,7 @@ using namespace std;
 
 namespace cosa {
 
-void RelationalTransitionSystem::set_behavior(const Term & init,
-                                              const Term & trans)
+void TransitionSystem::set_behavior(const Term & init, const Term & trans)
 {
   // TODO: Only do this check in debug mode
   if (!known_symbols(init) || !known_symbols(trans)) {
@@ -33,7 +32,7 @@ void RelationalTransitionSystem::set_behavior(const Term & init,
   trans_ = trans;
 }
 
-void RelationalTransitionSystem::set_init(const Term & init)
+void TransitionSystem::set_init(const Term & init)
 {
   // TODO: only do this check in debug mode
   if (!known_symbols(init)) {
@@ -43,7 +42,7 @@ void RelationalTransitionSystem::set_init(const Term & init)
   init_ = init;
 }
 
-void RelationalTransitionSystem::constrain_init(const Term & constraint)
+void TransitionSystem::constrain_init(const Term & constraint)
 {
   // TODO: Only do this check in debug mode
   if (!known_symbols(constraint)) {
@@ -52,7 +51,7 @@ void RelationalTransitionSystem::constrain_init(const Term & constraint)
   init_ = solver_->make_term(And, init_, constraint);
 }
 
-void RelationalTransitionSystem::set_trans(const Term & trans)
+void TransitionSystem::set_trans(const Term & trans)
 {
   // TODO: Only do this check in debug mode
   if (!known_symbols(trans)) {
@@ -61,7 +60,7 @@ void RelationalTransitionSystem::set_trans(const Term & trans)
   trans_ = trans;
 }
 
-void RelationalTransitionSystem::constrain_trans(const Term & constraint)
+void TransitionSystem::constrain_trans(const Term & constraint)
 {
   // TODO: Only do this check in debug mode
   if (!known_symbols(constraint)) {
@@ -70,7 +69,7 @@ void RelationalTransitionSystem::constrain_trans(const Term & constraint)
   trans_ = solver_->make_term(And, trans_, constraint);
 }
 
-void RelationalTransitionSystem::set_next(const Term & state, const Term & val)
+void TransitionSystem::set_next(const Term & state, const Term & val)
 {
   // TODO: only do this check in debug mode
   if (states_.find(state) == states_.end()) {
@@ -83,7 +82,7 @@ void RelationalTransitionSystem::set_next(const Term & state, const Term & val)
                               And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
 }
 
-void RelationalTransitionSystem::add_invar(const Term & constraint)
+void TransitionSystem::add_invar(const Term & constraint)
 {
   // TODO: only check this in debug mode
   if (only_curr(constraint)) {
@@ -97,7 +96,7 @@ void RelationalTransitionSystem::add_invar(const Term & constraint)
   }
 }
 
-void RelationalTransitionSystem::constrain_inputs(const Term & constraint)
+void TransitionSystem::constrain_inputs(const Term & constraint)
 {
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
@@ -106,7 +105,7 @@ void RelationalTransitionSystem::constrain_inputs(const Term & constraint)
   }
 }
 
-void RelationalTransitionSystem::name_term(const string name, const Term & t)
+void TransitionSystem::name_term(const string name, const Term & t)
 {
   if (named_terms_.find(name) != named_terms_.end()) {
     throw CosaException("Name has already been used.");
@@ -114,8 +113,7 @@ void RelationalTransitionSystem::name_term(const string name, const Term & t)
   named_terms_[name] = t;
 }
 
-Term RelationalTransitionSystem::make_input(const string name,
-                                            const Sort & sort)
+Term TransitionSystem::make_input(const string name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
   inputs_.insert(input);
@@ -126,8 +124,7 @@ Term RelationalTransitionSystem::make_input(const string name,
   return input;
 }
 
-Term RelationalTransitionSystem::make_state(const string name,
-                                            const Sort & sort)
+Term TransitionSystem::make_state(const string name, const Sort & sort)
 {
   Term state = solver_->make_symbol(name, sort);
   Term next_state = solver_->make_symbol(name + ".next", sort);
@@ -138,12 +135,12 @@ Term RelationalTransitionSystem::make_state(const string name,
   return state;
 }
 
-Term RelationalTransitionSystem::curr(const Term & term) const
+Term TransitionSystem::curr(const Term & term) const
 {
   return solver_->substitute(term, curr_map_);
 }
 
-Term RelationalTransitionSystem::next(const Term & term) const
+Term TransitionSystem::next(const Term & term) const
 {
   if (next_map_.find(term) != next_map_.end()) {
     return next_map_.at(term);
@@ -151,19 +148,19 @@ Term RelationalTransitionSystem::next(const Term & term) const
   return solver_->substitute(term, next_map_);
 }
 
-bool RelationalTransitionSystem::is_curr_var(const Term & sv) const
+bool TransitionSystem::is_curr_var(const Term & sv) const
 {
   return (states_.find(sv) != states_.end());
 }
 
-bool RelationalTransitionSystem::is_next_var(const Term & sv) const
+bool TransitionSystem::is_next_var(const Term & sv) const
 {
   return (next_states_.find(sv) != next_states_.end());
 }
 
 // protected methods
 
-bool RelationalTransitionSystem::only_curr(const Term & term) const
+bool TransitionSystem::only_curr(const Term & term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{ term };
@@ -190,7 +187,7 @@ bool RelationalTransitionSystem::only_curr(const Term & term) const
   return true;
 }
 
-bool RelationalTransitionSystem::no_next(const Term & term) const
+bool TransitionSystem::no_next(const Term & term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{ term };
@@ -218,7 +215,7 @@ bool RelationalTransitionSystem::no_next(const Term & term) const
   return true;
 }
 
-bool RelationalTransitionSystem::known_symbols(const Term & term) const
+bool TransitionSystem::known_symbols(const Term & term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{ term };
