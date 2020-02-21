@@ -93,6 +93,7 @@ class BTOR2Encoder
   size_t i_;
   int64_t idx_;
   bool negated_;
+  size_t witness_id_{ 0 };  ///< id of any introduced witnesses for properties
 };
 }  // namespace cosa
 
