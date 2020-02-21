@@ -203,7 +203,7 @@ int main(int argc, char ** argv)
       s->set_opt("incremental", "true");
     }
 
-    RelationalTransitionSystem rts(s);
+    TransitionSystem rts(s);
     BTOR2Encoder btor_enc(filename, rts);
 
     unsigned int num_bad = btor_enc.badvec().size();

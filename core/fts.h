@@ -23,12 +23,10 @@
 
 namespace cosa {
 
-class FunctionalTransitionSystem : public RelationalTransitionSystem
+class FunctionalTransitionSystem : public TransitionSystem
 {
  public:
- FunctionalTransitionSystem(smt::SmtSolver & s) : RelationalTransitionSystem(s)
-  {
-  }
+  FunctionalTransitionSystem(smt::SmtSolver & s) : TransitionSystem(s) {}
 
   /* deleted methods
      some methods are not supported for functional transition systems

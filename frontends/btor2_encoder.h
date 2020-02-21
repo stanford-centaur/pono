@@ -37,7 +37,7 @@ namespace cosa {
 class BTOR2Encoder
 {
  public:
-  BTOR2Encoder(std::string filename, RelationalTransitionSystem & rts)
+  BTOR2Encoder(std::string filename, TransitionSystem & rts)
       : rts_(rts), solver_(rts.solver())
   {
     parse(filename);
@@ -68,7 +68,7 @@ class BTOR2Encoder
 
   // Important members
   smt::SmtSolver & solver_;
-  cosa::RelationalTransitionSystem & rts_;
+  cosa::TransitionSystem & rts_;
 
   // vectors of inputs and states
   // maintains the order from the btor file

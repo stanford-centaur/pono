@@ -23,7 +23,7 @@ using namespace smt;
 
 namespace cosa {
 
-Unroller::Unroller(const RelationalTransitionSystem & ts, SmtSolver & solver)
+Unroller::Unroller(const TransitionSystem & ts, SmtSolver & solver)
     : ts_(ts), solver_(solver)
 {
 }

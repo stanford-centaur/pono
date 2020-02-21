@@ -39,7 +39,7 @@ class Prover
   ProverResult prove();
 
  protected:
-  const RelationalTransitionSystem & ts_;
+  const TransitionSystem & ts_;
   const Property & property_;
 
   smt::SmtSolver & solver_;

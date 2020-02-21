@@ -32,7 +32,7 @@ namespace cosa {
 class Unroller
 {
  public:
-  Unroller(const RelationalTransitionSystem & ts, smt::SmtSolver & solver);
+  Unroller(const TransitionSystem & ts, smt::SmtSolver & solver);
   ~Unroller();
 
   smt::Term at_time(const smt::Term & t, unsigned int k);
@@ -43,7 +43,7 @@ class Unroller
   smt::Term var_at_time(const smt::Term & v, unsigned int k);
   smt::UnorderedTermMap & time_cache_at_time(unsigned int k);
 
-  const RelationalTransitionSystem & ts_;
+  const TransitionSystem & ts_;
   smt::SmtSolver & solver_;
 
   typedef std::vector<smt::UnorderedTermMap> TimeCache;

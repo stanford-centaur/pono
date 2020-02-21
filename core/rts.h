@@ -26,11 +26,11 @@
 
 namespace cosa {
 
-class RelationalTransitionSystem
+class TransitionSystem
 {
  public:
-  RelationalTransitionSystem(smt::SmtSolver & s)
-   : solver_(s), init_(s->make_term(true)), trans_(s->make_term(true))
+  TransitionSystem(smt::SmtSolver & s)
+      : solver_(s), init_(s->make_term(true)), trans_(s->make_term(true))
   {
   }
 
