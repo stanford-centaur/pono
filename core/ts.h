@@ -172,6 +172,12 @@ class TransitionSystem
    */
   smt::Term trans() const { return trans_; };
 
+  /** Whether the transition system is functional
+   *  NOTE: This does *not* actually analyze the transition relation
+   *  it only returns true if it's a FunctionalTransitionSystem object
+   */
+  bool is_functional() const { return false; };
+
  protected:
   // solver
   smt::SmtSolver & solver_;
