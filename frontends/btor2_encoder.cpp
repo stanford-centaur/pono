@@ -16,6 +16,7 @@
 
 
 #include "btor2_encoder.h"
+#include "term_analysis.h"
 
 #include <iostream>
 
@@ -330,7 +331,28 @@ void BTOR2Encoder::parse(const std::string filename)
       }
       no_next_states_.erase(id2statenum.at(l_->args[0]));
     } else if (l_->tag == BTOR2_TAG_bad) {
-      badvec_.push_back(bv_to_bool(termargs_[0]));
+      Term bad = bv_to_bool(termargs_[0]);
+      UnorderedTermSet free_symbols = get_free_symbols(bad);
+      const UnorderedTermSet & states = rts_.states();
+
+      bool need_witness = false;
+      for (auto s : free_symbols) {
+        if (states.find(s) == states.end()) {
+          need_witness = true;
+          break;
+        }
+      }
+
+      if (need_witness) {
+        Term witness =
+            rts_.make_state("witness_" + std::to_string(witness_id_++),
+                            solver_->make_sort(BOOL));
+        rts_.constrain_init(solver_->make_term(Not, witness));
+        rts_.set_next(witness, bad);
+        badvec_.push_back(witness);
+      } else {
+        badvec_.push_back(bad);
+      }
     } else if (l_->tag == BTOR2_TAG_justice) {
       std::cout << "Warning: ignoring justice term" << std::endl;
       justicevec_.push_back(termargs_[0]);
