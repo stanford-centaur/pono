@@ -105,6 +105,21 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
   }
 }
 
+void TransitionSystem::add_constraint(const Term & constraint)
+{
+  if (only_curr(constraint)) {
+    init_ = solver_->make_term(And, init_, constraint);
+    trans_ = solver_->make_term(And, trans_, constraint);
+    // add over next states
+    trans_ = solver_->make_term(
+        And, trans_, solver_->substitute(constraint, next_map_));
+  } else if (no_next(constraint)) {
+    trans_ = solver_->make_term(And, trans_, constraint);
+  } else {
+    throw CosaException("Constraint cannot have next states");
+  }
+}
+
 void TransitionSystem::name_term(const string name, const Term & t)
 {
   if (named_terms_.find(name) != named_terms_.end()) {
