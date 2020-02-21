@@ -15,7 +15,7 @@
  **/
 
 
-#include "rts.h"
+#include "ts.h"
 
 using namespace smt;
 using namespace std;

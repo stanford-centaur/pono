@@ -30,7 +30,7 @@ extern "C" {
 #include "assert.h"
 
 #include "exceptions.h"
-#include "rts.h"
+#include "ts.h"
 #include "smt-switch/smt.h"
 
 namespace cosa {
