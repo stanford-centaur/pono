@@ -49,6 +49,8 @@ class FunctionalTransitionSystem : public TransitionSystem
   // overloaded
   smt::Term make_state(const std::string name, const smt::Sort & sort);
 
+  // overloaded
+  bool is_functional() const { return true; };
 
  protected:
 
