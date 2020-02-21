@@ -49,4 +49,10 @@ void get_free_symbols(Term & term, UnorderedTermSet & out_symbols)
   }
 }
 
+UnorderedTermSet get_free_symbols(smt::Term & term)
+{
+  UnorderedTermSet free_symbols;
+  get_free_symbols(term, free_symbols);
+  return free_symbols;
+}
 }
