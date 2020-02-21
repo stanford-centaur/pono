@@ -218,6 +218,9 @@ int main(int argc, char ** argv)
     Property p(rts, s->make_term(PrimOp::Not, bad));
     logger.log(1, "Solving property: {}", p.prop());
 
+    logger.log(3, "INIT:\n{}", rts.init());
+    logger.log(3, "TRANS:\n{}", rts.trans());
+
     std::shared_ptr<Prover> prover;
     if (engine == BMC) {
       prover = std::make_shared<Bmc>(p, s);
