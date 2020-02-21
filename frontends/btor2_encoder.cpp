@@ -16,7 +16,6 @@
 
 
 #include "btor2_encoder.h"
-#include "term_analysis.h"
 
 #include <iostream>
 
@@ -283,7 +282,7 @@ void BTOR2Encoder::parse(const std::string filename)
           throw CosaException("Unknown sort tag");
       }
     } else if (l_->tag == BTOR2_TAG_constraint) {
-      rts_.add_invar(bv_to_bool(termargs_[0]));
+      rts_.add_constraint(bv_to_bool(termargs_[0]));
     } else if (l_->tag == BTOR2_TAG_init) {
       if (termargs_.size() != 2) {
         throw CosaException("Expecting two term arguments to init");
