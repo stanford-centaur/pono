@@ -93,8 +93,16 @@ void RelationalTransitionSystem::add_invar(const Term & constraint)
     trans_ = solver_->make_term(
                                 And, trans_, solver_->substitute(constraint, next_map_));
   } else {
-    throw CosaException(
-                        "Invariants should be over current states and inputs only.");
+    throw CosaException("Invariants should be over current states only.");
+  }
+}
+
+void RelationalTransitionSystem::constrain_inputs(const Term & constraint)
+{
+  if (no_next(constraint)) {
+    trans_ = solver_->make_term(And, trans_, constraint);
+  } else {
+    throw CosaException("Cannot have next-states in an input constraint.");
   }
 }
 
@@ -156,6 +164,33 @@ bool RelationalTransitionSystem::is_next_var(const Term & sv) const
 // protected methods
 
 bool RelationalTransitionSystem::only_curr(const Term & term) const
+{
+  UnorderedTermSet visited;
+  TermVec to_visit{ term };
+  Term t;
+  while (to_visit.size()) {
+    t = to_visit.back();
+    to_visit.pop_back();
+
+    if (visited.find(t) != visited.end()) {
+      // cache hit
+      continue;
+    }
+
+    if (t->is_symbolic_const() && (states_.find(t) == states_.end())) {
+      return false;
+    }
+
+    visited.insert(t);
+    for (auto c : t) {
+      to_visit.push_back(c);
+    }
+  }
+
+  return true;
+}
+
+bool RelationalTransitionSystem::no_next(const Term & term) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{ term };
