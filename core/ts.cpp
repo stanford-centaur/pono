@@ -134,10 +134,6 @@ Term TransitionSystem::make_input(const string name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
   inputs_.insert(input);
-  // for invariant constraints, need to assert over next inputs
-  Term next_input = solver_->make_symbol(name + ".next", sort);
-  next_map_[input] = next_input;
-  curr_map_[next_input] = input;
   return input;
 }
 
