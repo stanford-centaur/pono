@@ -321,11 +321,11 @@ void BTOR2Encoder::parse(const std::string filename)
       SortKind sk1 = s1->get_sort_kind();
 
       if (s0 == s1) {
-        rts_.set_next(t0, t1);
+        rts_.assign_next(t0, t1);
       } else if (((sk0 == BV) && (sk1 == BOOL))
                  || ((sk0 == BOOL) && (sk1 == BV))) {
         // need to cast
-        rts_.set_next(bool_to_bv(t0), bool_to_bv(t1));
+        rts_.assign_next(bool_to_bv(t0), bool_to_bv(t1));
       } else {
         throw CosaException("Got two different sorts in next update.");
       }
@@ -348,7 +348,7 @@ void BTOR2Encoder::parse(const std::string filename)
             rts_.make_state("witness_" + std::to_string(witness_id_++),
                             solver_->make_sort(BOOL));
         rts_.constrain_init(solver_->make_term(Not, witness));
-        rts_.set_next(witness, bad);
+        rts_.assign_next(witness, bad);
         badvec_.push_back(witness);
       } else {
         badvec_.push_back(bad);

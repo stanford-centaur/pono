@@ -71,7 +71,7 @@ void TransitionSystem::constrain_trans(const Term & constraint)
   trans_ = solver_->make_term(And, trans_, constraint);
 }
 
-void TransitionSystem::set_next(const Term & state, const Term & val)
+void TransitionSystem::assign_next(const Term & state, const Term & val)
 {
   // TODO: only do this check in debug mode
   if (states_.find(state) == states_.end()) {

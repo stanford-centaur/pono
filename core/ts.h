@@ -62,10 +62,11 @@ class TransitionSystem
 
   /* Set the transition function of a state variable
    *   val is constrained to only use current state variables
+   * Represents a functional update
    * @param state the state variable you are updating
    * @param val the value it should get
    */
-  void set_next(const smt::Term & state, const smt::Term & val);
+  void assign_next(const smt::Term & state, const smt::Term & val);
 
   /* Add an invariant constraint to the system
    * This is enforced over all time
