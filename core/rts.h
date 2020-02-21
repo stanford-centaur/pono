@@ -67,11 +67,17 @@ class RelationalTransitionSystem
    */
   void set_next(const smt::Term & state, const smt::Term & val);
 
-  /* Add constraint to the system
-   * This is an invariant constraint, enforced over all time
-   * @param constraint the boolean constraint term to add
+  /* Add an invariant constraint to the system
+   * This is enforced over all time
+   * @param constraint the boolean constraint term to add (should contain only
+   * state variables)
    */
   void add_invar(const smt::Term & constraint);
+
+  /** Add a constraint over inputs
+   * @param constraint to add (should not contain any next-state variables)
+   */
+  void constrain_inputs(const smt::Term & constraint);
 
   /* Gives a term a name
    *   This can be used to track particular values in a witness
@@ -191,6 +197,10 @@ class RelationalTransitionSystem
 
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;
+
+  /* Returns true iff all the symbols in the formula are inputs and current
+   * states */
+  bool no_next(const smt::Term & term) const;
 
   /* Returns true iff all the symbols in the formula are known */
   bool known_symbols(const smt::Term & term) const;
