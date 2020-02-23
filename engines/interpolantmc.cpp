@@ -17,7 +17,7 @@
 
 #include "smt-switch/exceptions.h"
 
-#include "interpolant.h"
+#include "interpolantmc.h"
 #include "utils/logger.h"
 
 using namespace smt;
