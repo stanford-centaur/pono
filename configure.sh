@@ -16,6 +16,8 @@ Configures the CMAKE build environment.
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
                         Required for interpolant based model checking
 --debug                 build debug with debug symbols (default: off)
+--python                compile with python bindings (default: off)
+--py2                   use python2 interpreter (default: python3)
 EOF
   exit 0
 }
@@ -30,6 +32,8 @@ install_prefix=default
 build_type=default
 with_msat=default
 debug=default
+python=default
+py2=default
 
 buildtype=Release
 
@@ -62,6 +66,12 @@ do
             debug=yes;
             buildtype=Debug
             ;;
+        --python)
+            python=yes
+            ;;
+        --py2)
+            py2=yes
+            ;;
         *) die "unexpected argument: $1";;
     esac
     shift
@@ -74,6 +84,12 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype"
 
 [ $with_msat != default ] \
     && cmake_opts="$cmake_opts -DWITH_MSAT=$with_msat"
+
+[ $python != default ] \
+    && cmake_opts="$cmake_opts -DBUILD_PYTHON_BINDINGS=ON"
+
+[ $py2 != default ] \
+    && cmake_opts="$cmake_opts -DUSE_PYTHON2=ON"
 
 root_dir=$(pwd)
 
