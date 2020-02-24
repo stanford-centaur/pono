@@ -153,6 +153,11 @@ class TransitionSystem
    */
   smt::Term init() const { return init_; };
 
+  /* Returns the transition relation
+   * @return a boolean term representing the transition relation
+   */
+  smt::Term trans() const { return trans_; };
+
   /* Returns the next state updates
    * @return a map of functional next state updates
    */
@@ -166,11 +171,6 @@ class TransitionSystem
   {
     return named_terms_;
   };
-
-  /* Returns the transition relation
-   * @return a boolean term representing the transition relation
-   */
-  smt::Term trans() const { return trans_; };
 
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
