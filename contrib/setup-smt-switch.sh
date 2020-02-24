@@ -4,7 +4,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
 # get a particular version of smt-switch
-SMT_SWITCH_VERSION=c57ec0b148c82b64e8e1b6e031227d16fe8cd464
+SMT_SWITCH_VERSION=ca7c76f9678f5bf51a64377cb5008334f2569408
 
 usage () {
     cat <<EOF
@@ -15,6 +15,7 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 -h, --help              display this message and exit
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 -y, --auto-yes          automatically agree to conditions (default: off)
+--python                build python bindings (default: off)
 EOF
     exit 0
 }
@@ -25,6 +26,7 @@ die () {
 }
 
 WITH_MSAT=default
+CONF_OPTS=""
 
 while [ $# -gt 0 ]
 do
@@ -32,8 +34,10 @@ do
         -h|--help) usage;;
         --with-msat)
             WITH_MSAT=ON
-            CONF_OPTS=--msat;;
+            CONF_OPTS="$CONF_OPTS --msat";;
         -y|--auto-yes) MSAT_OPTS=--auto-yes;;
+        --python)
+            CONF_OPTS="$CONF_OPTS --python";;
         *) die "unexpected argument: $1";;
     esac
     shift
