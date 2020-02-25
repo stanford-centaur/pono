@@ -22,26 +22,6 @@ using namespace std;
 
 namespace cosa {
 
-TransitionSystem::TransitionSystem(const TransitionSystem & ts)
-    : solver_(ts.solver_),
-      init_(ts.init_),
-      trans_(ts.trans_),
-      state_updates_(ts.state_updates_),
-      states_(ts.states_),
-      next_map_(ts.next_map_),
-      inputs_(ts.inputs_),
-      named_terms_(ts.named_terms_),
-      next_states_(ts.next_states_),
-      curr_map_(ts.curr_map_)
-{
-}
-
-TransitionSystem & TransitionSystem::operator=(TransitionSystem ts)
-{
-  swap(*this, ts);
-  return *this;
-}
-
 void TransitionSystem::set_behavior(const Term & init, const Term & trans)
 {
   // TODO: Only do this check in debug mode

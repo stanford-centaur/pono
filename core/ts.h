@@ -29,37 +29,10 @@ namespace cosa {
 class TransitionSystem
 {
  public:
-  /** In-place swap functionality for copy-and-swap idiom
-   *  See:
-   * https://stackoverflow.com/questions/3279543/what-is-the-copy-and-swap-idiom
-   *  @param first - the first transition system
-   *  @param second - the second transition system (to swap with first)
-   */
-  friend void swap(TransitionSystem & first, TransitionSystem & second)
-  {
-    using std::swap;
-
-    // swap each of the members
-    swap(first.solver_, second.solver_);
-    swap(first.init_, second.init_);
-    swap(first.trans_, second.trans_);
-    swap(first.state_updates_, second.state_updates_);
-    swap(first.states_, second.states_);
-    swap(first.next_map_, second.next_map_);
-    swap(first.inputs_, second.inputs_);
-    swap(first.named_terms_, second.named_terms_);
-    swap(first.next_states_, second.next_states_);
-    swap(first.curr_map_, second.curr_map_);
-  }
-
   TransitionSystem(smt::SmtSolver & s)
       : solver_(s), init_(s->make_term(true)), trans_(s->make_term(true))
   {
   }
-
-  TransitionSystem(const TransitionSystem & ts);
-
-  TransitionSystem & operator=(TransitionSystem ts);
 
   /* Sets init and trans to the provided values
    * @param init the new initial state constraints (boolean sort)
