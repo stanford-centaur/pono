@@ -8,7 +8,7 @@ cdef class TransitionSystem:
     cdef c_TransitionSystem* cts
     cdef SmtSolver _solver
     def __cinit__(self, SmtSolver s):
-        cts = new c_TransitionSystem(s.css)
+        self.cts = new c_TransitionSystem(s.css)
         self._solver = s
 
     def set_behavior(self, Term init, Term trans):
