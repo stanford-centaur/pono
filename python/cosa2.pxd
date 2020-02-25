@@ -1,36 +1,36 @@
 from libcpp.string cimport string
 from libcpp.unordered_map cimport unordered_map
 
-from smt_switch_imp cimport Sort, Term, SmtSolver, TermVec, UnorderedTermMap, UnorderedTermSet
+from smt_switch cimport c_Sort, c_Term, c_SmtSolver, c_TermVec, c_UnorderedTermMap, c_UnorderedTermSet
 
 
 cdef extern from "ts.h" namespace "cosa":
     cdef cppclass TransitionSystem:
-        TransitionSystem(SmtSolver & s) except +
-        void set_behavior(const Term & init, const Term & trans) except +
-        void set_init(const Term & init) except +
-        void constrain_init(const Term & constraint) except +
-        void set_trans(const Term & trans) except +
-        void constrain_trans(const Term & constraint) except +
-        void assign_next(const Term & state, const Term & val) except +
-        void add_invar(const Term & constraint) except +
-        void constrain_inputs(const Term & constraint) except +
-        void add_constraint(const Term & constraint) except +
-        void name_term(const string name, const Term & t) except +
-        Term make_input(const string name, const Sort & sort) except +
-        Term make_state(const string name, const Sort & sort) except +
-        Term curr(const Term & term) except +
-        Term next(const Term & term) except +
-        Term is_curr_var(const Term & sv) except +
-        Term is_next_var(const Term & sv) except +
-        SmtSolver & solver() except +
-        const UnorderedTermSet & states() except +
-        const UnorderedTermSet & inputs() except +
-        Term init() except +
-        Term trans() except +
-        const UnorderedTermMap & state_updates() except +
+        TransitionSystem(c_SmtSolver & s) except +
+        void set_behavior(const c_Term & init, const c_Term & trans) except +
+        void set_init(const c_Term & init) except +
+        void constrain_init(const c_Term & constraint) except +
+        void set_trans(const c_Term & trans) except +
+        void constrain_trans(const c_Term & constraint) except +
+        void assign_next(const c_Term & state, const c_Term & val) except +
+        void add_invar(const c_Term & constraint) except +
+        void constrain_inputs(const c_Term & constraint) except +
+        void add_constraint(const c_Term & constraint) except +
+        void name_term(const string name, const c_Term & t) except +
+        c_Term make_input(const string name, const c_Sort & sort) except +
+        c_Term make_state(const string name, const c_Sort & sort) except +
+        c_Term curr(const c_Term & term) except +
+        c_Term next(const c_Term & term) except +
+        bint is_curr_var(const c_Term & sv) except +
+        bint is_next_var(const c_Term & sv) except +
+        c_SmtSolver & solver() except +
+        const c_UnorderedTermSet & states() except +
+        const c_UnorderedTermSet & inputs() except +
+        c_Term init() except +
+        c_Term trans() except +
+        const c_UnorderedTermMap & state_updates() except +
         # TODO: add this back in
-        # unordered_map<string, Term> & named_terms() except +
+        # unordered_map<string, c_Term> & named_terms() except +
         bint is_functional() except +
 
 

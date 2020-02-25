@@ -11,6 +11,7 @@ if (WITH_MSAT)
 endif()
 
 include_directories("${PROJECT_SOURCE_DIR}")
+include_directories("${PROJECT_SOURCE_DIR}/utils")
 include_directories("${PROJECT_SOURCE_DIR}/core")
 include_directories("${PROJECT_SOURCE_DIR}/engines")
 include_directories("${PROJECT_SOURCE_DIR}/frontends")
@@ -23,7 +24,7 @@ link_directories("/usr/local/lib")
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
-add_library(cosa2
+add_library(cosa2 SHARED
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -70,14 +71,21 @@ endif()
 # rely on cmake modules from smt-switch (required anyway)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/deps/smt-switch/cmake)
 
+target_include_directories(cosa2 PUBLIC
+  "${PROJECT_SOURCE_DIR}/utils"
+  "${PROJECT_SOURCE_DIR}/core"
+  "${PROJECT_SOURCE_DIR}/contrib/"
+  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
+
+include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
+
 # Should we build python bindings
 option (BUILD_PYTHON_BINDINGS
    "Build Python bindings")
 option (USE_PYTHON2
    "Use Python2 for bindings")
 
-# Decide on Python version before setting up googletest
-# Otherwise might use wrong version
 if (BUILD_PYTHON_BINDINGS)
   if (USE_PYTHON2)
     message("-- We understand: it's hard to let go. We'll try to use Python2, but it's not really supported, so no promises.")
@@ -87,14 +95,6 @@ if (BUILD_PYTHON_BINDINGS)
   endif()
   add_subdirectory(python)
 endif()
-
-target_include_directories(cosa2 PUBLIC
-  "${PROJECT_SOURCE_DIR}/utils"
-  "${PROJECT_SOURCE_DIR}/core"
-  "${PROJECT_SOURCE_DIR}/contrib/"
-  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.${SHARED_LIBRARY_EXT}")
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.${SHARED_LIBRARY_EXT}")

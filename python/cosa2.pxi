@@ -1,82 +1,83 @@
+from cython.operator cimport dereference as dref
 from cosa2 cimport TransitionSystem as c_TransitionSystem
 
-from smt_switch import SmtSolver, Sort, Term
+from smt_switch cimport SmtSolver, Sort, Term
 
 
 cdef class TransitionSystem:
-    cdef c_TransitionSystem cts
+    cdef c_TransitionSystem* cts
+    cdef SmtSolver _solver
     def __cinit__(self, SmtSolver s):
-        cts = c_TransitionSystem(s.css)
+        cts = new c_TransitionSystem(s.css)
+        self._solver = s
 
     def set_behavior(self, Term init, Term trans):
-        self.cts.set_behavior(init.ct, trans.ct)
+        dref(self.cts).set_behavior(init.ct, trans.ct)
 
     def set_init(self, Term init):
-        self.cts.set_init(init.ct)
+        dref(self.cts).set_init(init.ct)
 
     def constrain_init(self, Term constraint):
-        self.cts.constrain_init(constraint.ct)
+        dref(self.cts).constrain_init(constraint.ct)
 
     def set_trans(self, Term trans):
-        self.cts.set_trans(trans.ct)
+        dref(self.cts).set_trans(trans.ct)
 
     def constrain_trans(self, Term constraint):
-        self.cts.constrain_trans(constraint.ct)
+        dref(self.cts).constrain_trans(constraint.ct)
 
     def assign_next(self, Term state, Term val):
-        self.cts.assign_next(state.ct, val.ct)
+        dref(self.cts).assign_next(state.ct, val.ct)
 
     def add_invar(self, Term constraint):
-        self.cts.add_invar(constraint.ct)
+        dref(self.cts).add_invar(constraint.ct)
 
     def constrain_inputs(self, Term constraint):
-        self.cts.constrain_inputs(constraint.ct)
+        dref(self.cts).constrain_inputs(constraint.ct)
 
     def add_constraint(self, Term constraint):
-        self.cts.add_constraint(constraint.ct)
+        dref(self.cts).add_constraint(constraint.ct)
 
     def name_term(self, str name, Term t):
-        self.cts.name_term(name.encode(), t.ct)
+        dref(self.cts).name_term(name.encode(), t.ct)
 
     def make_input(self, str name, Sort sort):
-        cdef Term term = Term()
-        term.ct = self.cts.make_input(name.encode(), sort.cs)
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cts).make_input(name.encode(), sort.cs)
         return term
 
     def make_state(self, str name, Sort sort):
-        cdef Term term = Term()
-        term.ct = self.cts.make_state(name.encode(), sort.cs)
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cts).make_state(name.encode(), sort.cs)
         return term
 
     def curr(self, Term t):
-        cdef Term term = Term()
-        term.ct = self.cts.curr(t.ct)
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cts).curr(t.ct)
         return term
 
     def next(self, Term t):
-        cdef Term term = Term()
-        term.ct = self.cts.next(t.ct)
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cts).next(t.ct)
         return term
 
     def is_curr_var(self, Term sv):
-        return self.cts.is_curr_var(sv.ct)
+        return dref(self.cts).is_curr_var(sv.ct)
 
     def is_next_var(self, Term sv):
-        return self.cts.is_next_var(sv.ct)
+        return dref(self.cts).is_next_var(sv.ct)
 
     @property
     def solver(self):
-        cdef SmtSolver ss = SmtSolver()
-        ss.css = self.cts.solver()
-        return ss
+        return self._solver
 
     # TODO: uncomment these (might need more iteration operators)
     # @property
     # def states(self):
     #     states_set = set()
 
-    #     cdef Term term = Term()
-    #     for s in self.cts.states():
+    #     cdef Term term = Term(self._solver)
+    #     for s in dref(self.cts).states():
     #         term.ct = s
     #         states_set.insert(term)
 
@@ -86,8 +87,8 @@ cdef class TransitionSystem:
     # def inputs(self):
     #     inputs_set = set()
 
-    #     cdef Term term = Term()
-    #     for s in self.cts.inputs():
+    #     cdef Term term = Term(self._solver)
+    #     for s in dref(self.cts).inputs():
     #         term.ct = s
     #         inputs_set.insert(term)
 
@@ -96,10 +97,10 @@ cdef class TransitionSystem:
     # @property
     # def state_updates(self):
     #     updates = {}
-    #     cdef Term k = Term()
-    #     cdef Term v = Term()
+    #     cdef Term k = Term(self._solver)
+    #     cdef Term v = Term(self._solver)
 
-    #     for elem in self.cts.state_updates():
+    #     for elem in dref(self.cts).state_updates():
     #         k.ct = elem.first
     #         v.ct = elem.second
     #         updates[k] = v
@@ -110,8 +111,8 @@ cdef class TransitionSystem:
     # def named_terms(self):
     #     names2terms = {}
 
-    #     cdef Term term = Term()
-    #     for elem in self.cts.named_terms():
+    #     cdef Term term = Term(self._solver)
+    #     for elem in dref(self.cts).named_terms():
     #         term.ct = elem.second
     #         names2terms[elem.first.decode()] = term
 
@@ -119,15 +120,15 @@ cdef class TransitionSystem:
 
     @property
     def init(self):
-        cdef Term term = Term()
-        term.ct = self.cts.init()
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cts).init()
         return term
 
     @property
     def trans(self):
-        cdef Term term = Term()
-        term.ct = self.cts.trans()
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cts).trans()
         return term
 
     def is_functional(self):
-        return self.cts.is_functional()
+        return dref(self.cts).is_functional()
