@@ -104,7 +104,7 @@ class TransitionSystem
    * @param sort the sort of the input
    * @return the input term
    */
-  smt::Term make_input(const std::string name, const smt::Sort & sort);
+  virtual smt::Term make_input(const std::string name, const smt::Sort & sort);
 
   /* Create an state of a given sort
    * @param name the name of the state
@@ -113,7 +113,7 @@ class TransitionSystem
    *
    * Can get next state var with next(const smt::Term t)
    */
-  smt::Term make_state(const std::string name, const smt::Sort & sort);
+  virtual smt::Term make_state(const std::string name, const smt::Sort & sort);
 
   /* Map all next state variables to current state variables in the term
    * @param t the term to map
@@ -176,7 +176,7 @@ class TransitionSystem
    *  NOTE: This does *not* actually analyze the transition relation
    *  it only returns true if it's a FunctionalTransitionSystem object
    */
-  bool is_functional() const { return false; };
+  virtual bool is_functional() const { return false; };
 
  protected:
   // solver
