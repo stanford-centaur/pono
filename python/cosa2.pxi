@@ -1,12 +1,16 @@
 from cython.operator cimport dereference as dref, preincrement as inc
 from libcpp.unordered_set cimport unordered_set
+from libcpp.unordered_map cimport unordered_map
 
 from cosa2 cimport TransitionSystem as c_TransitionSystem
 
-from smt_switch cimport SmtSolver, Sort, Term, c_Term, TermHashFunction
+from smt_switch cimport SmtSolver, Sort, Term, c_Term
 
-ctypedef const unordered_set[c_Term, TermHashFunction]* const_UnorderedTermSetPtr
-ctypedef unordered_set[c_Term, TermHashFunction].const_iterator c_UnorderedTermSet_const_iterator
+ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr
+ctypedef unordered_set[c_Term].const_iterator c_UnorderedTermSet_const_iterator
+
+ctypedef const unordered_map[c_Term, c_Term]* const_UnorderedTermMapPtr
+ctypedef unordered_map[c_Term, c_Term].const_iterator c_UnorderedTermMap_const_iterator
 
 cdef class TransitionSystem:
     cdef c_TransitionSystem* cts
@@ -109,17 +113,23 @@ cdef class TransitionSystem:
 
         return inputs_set
 
-    # TODO add these in
     # @property
     # def state_updates(self):
     #     updates = {}
-    #     cdef Term k = Term(self._solver)
-    #     cdef Term v = Term(self._solver)
 
-    #     for elem in dref(self.cts).state_updates():
-    #         k.ct = elem.first
-    #         v.ct = elem.second
+    #     cdef const_UnorderedTermMapPtr c_updates_map = &dref(self.cts).state_updates()
+    #     cdef c_UnorderedTermMap_const_iterator it = c_updates_map.const_begin()
+    #     cdef c_UnorderedTermMap_const_iterator e = c_updates_map.const_end()
+
+    #     cdef Term k
+    #     cdef Term v
+    #     while it != e:
+    #         k = Term(self._solver)
+    #         v = Term(self._solver)
+    #         k.ct = dref(it).first
+    #         v.ct = dref(it).second
     #         updates[k] = v
+    #         inc(it)
 
     #     return updates
 

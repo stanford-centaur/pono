@@ -2,9 +2,9 @@ from libcpp.string cimport string
 from libcpp.unordered_map cimport unordered_map
 from libcpp.unordered_set cimport unordered_set
 
-from smt_switch cimport c_Sort, c_Term, c_SmtSolver, c_TermVec, c_UnorderedTermMap, TermHashFunction
+from smt_switch cimport c_Sort, c_Term, c_SmtSolver, c_TermVec, c_UnorderedTermMap
 
-ctypedef unordered_set[c_Term, TermHashFunction] c_UnorderedTermSet
+ctypedef unordered_set[c_Term] c_UnorderedTermSet
 
 
 cdef extern from "ts.h" namespace "cosa":
