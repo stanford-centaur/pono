@@ -220,10 +220,6 @@ class TransitionSystem
 
   /* Returns true iff all the symbols in the formula are known */
   bool known_symbols(const smt::Term & term) const;
-
-  // friends
-  // convenient to access private members for unrolling
-  friend class Unroller;
 };
 
 }  // namespace cosa
