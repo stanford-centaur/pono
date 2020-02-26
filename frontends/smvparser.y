@@ -531,11 +531,12 @@ complex_identifier: tok_name{
                 $$ = $1;
  }
               | complex_identifier '.' tok_name{
-               $$ = strcat($1,$3);
+                throw CosaException("No module component access now"); 
+               //$$ = strcat($1,$3);
  }
               | complex_identifier '.' integer_val{
                 throw CosaException("No module component access now"); 
-                $$ = $1 + $3;
+                //$$ = $1 + $3;
  };
 
 type_identifier: real_type{
