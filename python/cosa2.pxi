@@ -1,8 +1,12 @@
-from cython.operator cimport dereference as dref
+from cython.operator cimport dereference as dref, preincrement as inc
+from libcpp.unordered_set cimport unordered_set
+
 from cosa2 cimport TransitionSystem as c_TransitionSystem
 
-from smt_switch cimport SmtSolver, Sort, Term
+from smt_switch cimport SmtSolver, Sort, Term, c_Term, TermHashFunction
 
+ctypedef const unordered_set[c_Term, TermHashFunction]* const_UnorderedTermSetPtr
+ctypedef unordered_set[c_Term, TermHashFunction].const_iterator c_UnorderedTermSet_const_iterator
 
 cdef class TransitionSystem:
     cdef c_TransitionSystem* cts
@@ -71,29 +75,41 @@ cdef class TransitionSystem:
     def solver(self):
         return self._solver
 
-    # TODO: uncomment these (might need more iteration operators)
-    # @property
-    # def states(self):
-    #     states_set = set()
+    @property
+    def states(self):
+        states_set = set()
 
-    #     cdef Term term = Term(self._solver)
-    #     for s in dref(self.cts).states():
-    #         term.ct = s
-    #         states_set.insert(term)
+        cdef const_UnorderedTermSetPtr c_states_set = &dref(self.cts).states()
+        cdef c_UnorderedTermSet_const_iterator it = c_states_set.const_begin()
+        cdef c_UnorderedTermSet_const_iterator e  = c_states_set.const_end()
 
-    #     return states_set
+        cdef Term term
+        while it != e:
+            term = Term(self._solver)
+            term.ct = dref(it)
+            states_set.add(term)
+            inc(it)
 
-    # @property
-    # def inputs(self):
-    #     inputs_set = set()
+        return states_set
 
-    #     cdef Term term = Term(self._solver)
-    #     for s in dref(self.cts).inputs():
-    #         term.ct = s
-    #         inputs_set.insert(term)
+    @property
+    def inputs(self):
+        inputs_set = set()
 
-    #     return inputs_set
+        cdef const_UnorderedTermSetPtr c_inputs_set = &dref(self.cts).inputs()
+        cdef c_UnorderedTermSet_const_iterator it = c_inputs_set.const_begin()
+        cdef c_UnorderedTermSet_const_iterator e  = c_inputs_set.const_end()
 
+        cdef Term term
+        while it != e:
+            term = Term(self._solver)
+            term.ct = dref(it)
+            inputs_set.add(term)
+            inc(it)
+
+        return inputs_set
+
+    # TODO add these in
     # @property
     # def state_updates(self):
     #     updates = {}
