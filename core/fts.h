@@ -20,6 +20,7 @@
 #include <unordered_map>
 
 #include "ts.h"
+#include "utils/exceptions.h"
 
 namespace cosa {
 
@@ -35,13 +36,26 @@ class FunctionalTransitionSystem : public TransitionSystem
      next state symbol and the right is only over current states
      and inputs
   */
-  void set_behavior(const smt::Term & init, const smt::Term & trans) = delete;
-  void set_trans(const smt::Term & trans) = delete;
-  void constrain_trans(const smt::Term & constraint) = delete;
-  smt::Term curr(const smt::Term & term) const = delete;
-  smt::Term next(const smt::Term & term) const = delete;
-  smt::Term is_curr_var(const smt::Term & sv) const = delete;
-  smt::Term is_next_var(const smt::Term & sv) const = delete;
+  void set_behavior(const smt::Term & init, const smt::Term & trans) override
+  {
+    throw CosaException("Can't call set_behavior on a FunctionalTransitionSystem");
+  }
+  void set_trans(const smt::Term & trans) override
+  {
+    throw CosaException("Can't call set_trans on a FunctionalTransitionSystem");
+  }
+  void constrain_trans(const smt::Term & constraint) override
+  {
+    throw CosaException("Can't call constrain_trans on a FunctionalTransitionSystem");
+  }
+  smt::Term next(const smt::Term & term) const override
+  {
+    throw CosaException("Can't call next on a FunctionalTransitionSystem");
+  }
+  bool is_next_var(const smt::Term & sv) const override
+  {
+    throw CosaException("Can't call set_behavior on a FunctionalTransitionSystem");
+  }
 
   // overloaded
   smt::Term make_input(const std::string name, const smt::Sort & sort) override;
