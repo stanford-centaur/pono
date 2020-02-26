@@ -192,4 +192,4 @@ cdef class Property:
 
     @property
     def transition_system(self):
-        return self.tts
+        return self.ts
