@@ -44,13 +44,13 @@ class FunctionalTransitionSystem : public TransitionSystem
   smt::Term is_next_var(const smt::Term & sv) const = delete;
 
   // overloaded
-  smt::Term make_input(const std::string name, const smt::Sort & sort);
+  smt::Term make_input(const std::string name, const smt::Sort & sort) override;
 
   // overloaded
-  smt::Term make_state(const std::string name, const smt::Sort & sort);
+  smt::Term make_state(const std::string name, const smt::Sort & sort) override;
 
   // overloaded
-  bool is_functional() const { return true; };
+  bool is_functional() const override { return true; };
 
  protected:
 
