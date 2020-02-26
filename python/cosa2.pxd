@@ -37,8 +37,8 @@ cdef extern from "ts.h" namespace "cosa":
 
 
 cdef extern from "fts.h" namespace "cosa":
-    cdef cppclass FunctionalTransitionSystem:
-        pass
+    cdef cppclass FunctionalTransitionSystem(TransitionSystem):
+        FunctionalTransitionSystem(c_SmtSolver & s) except +
 
 
 cdef extern from "prop.h" namespace "cosa":

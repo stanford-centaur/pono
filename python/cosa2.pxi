@@ -3,7 +3,7 @@ from libcpp.string cimport string
 from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
 
-from cosa2 cimport TransitionSystem as c_TransitionSystem
+from cosa2 cimport TransitionSystem as c_TransitionSystem, FunctionalTransitionSystem as c_FunctionalTransitionSystem
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 
@@ -165,3 +165,9 @@ cdef class TransitionSystem:
 
     def is_functional(self):
         return dref(self.cts).is_functional()
+
+
+cdef class FunctionalTransitionSystem(TransitionSystem):
+    def __cinit__(self, SmtSolver s):
+        self.cts = new c_FunctionalTransitionSystem(s.css)
+        self._solver = s
