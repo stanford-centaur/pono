@@ -1,10 +1,11 @@
 from cython.operator cimport dereference as dref, preincrement as inc
+from libcpp.string cimport string
 from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
 
 from cosa2 cimport TransitionSystem as c_TransitionSystem
 
-from smt_switch cimport SmtSolver, Sort, Term, c_Term
+from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 
 ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr
 ctypedef unordered_set[c_Term].const_iterator c_UnorderedTermSet_const_iterator
@@ -113,36 +114,42 @@ cdef class TransitionSystem:
 
         return inputs_set
 
-    # @property
-    # def state_updates(self):
-    #     updates = {}
+    @property
+    def state_updates(self):
+        updates = {}
 
-    #     cdef const_UnorderedTermMapPtr c_updates_map = &dref(self.cts).state_updates()
-    #     cdef c_UnorderedTermMap_const_iterator it = c_updates_map.const_begin()
-    #     cdef c_UnorderedTermMap_const_iterator e = c_updates_map.const_end()
+        cdef const_UnorderedTermMapPtr c_updates_map = &dref(self.cts).state_updates()
+        cdef c_UnorderedTermMap_const_iterator it = c_updates_map.const_begin()
+        cdef c_UnorderedTermMap_const_iterator e = c_updates_map.const_end()
 
-    #     cdef Term k
-    #     cdef Term v
-    #     while it != e:
-    #         k = Term(self._solver)
-    #         v = Term(self._solver)
-    #         k.ct = dref(it).first
-    #         v.ct = dref(it).second
-    #         updates[k] = v
-    #         inc(it)
+        cdef Term k
+        cdef Term v
+        while it != e:
+            k = Term(self._solver)
+            v = Term(self._solver)
+            k.ct = dref(it).first
+            v.ct = dref(it).second
+            updates[k] = v
+            inc(it)
 
-    #     return updates
+        return updates
 
-    # @property
-    # def named_terms(self):
-    #     names2terms = {}
+    @property
+    def named_terms(self):
+        names2terms = {}
 
-    #     cdef Term term = Term(self._solver)
-    #     for elem in dref(self.cts).named_terms():
-    #         term.ct = elem.second
-    #         names2terms[elem.first.decode()] = term
+        cdef unordered_map[string, c_Term]* c_named_terms = &dref(self.cts).named_terms()
+        cdef unordered_map[string, c_Term].const_iterator it = c_named_terms.const_begin()
+        cdef unordered_map[string, c_Term].const_iterator e = c_named_terms.const_end()
 
-    #     return names2terms
+        cdef Term term
+        while it != e:
+            term = Term(self._solver)
+            term.ct = dref(it).second
+            names2terms[(<string?> dref(it).first).decode()] = term
+            inc(it)
+
+        return names2terms
 
     @property
     def init(self):

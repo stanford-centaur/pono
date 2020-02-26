@@ -32,8 +32,7 @@ cdef extern from "ts.h" namespace "cosa":
         c_Term init() except +
         c_Term trans() except +
         const c_UnorderedTermMap & state_updates() except +
-        # TODO: add this back in
-        # unordered_map<string, c_Term> & named_terms() except +
+        unordered_map[string, c_Term] & named_terms() except +
         bint is_functional() except +
 
 
