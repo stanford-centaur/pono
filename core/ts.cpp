@@ -78,7 +78,11 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
     throw CosaException("Unknown state variable");
   }
 
-  // TODO: check only_curr on val in debug mode
+  if (!no_next(val))
+  {
+    throw CosaException("Got next state variable in RHS of functional assignment");
+  }
+
   state_updates_[state] = val;
   trans_ = solver_->make_term(
                               And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
