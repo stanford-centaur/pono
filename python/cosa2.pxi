@@ -3,7 +3,9 @@ from libcpp.string cimport string
 from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
 
-from cosa2 cimport TransitionSystem as c_TransitionSystem, FunctionalTransitionSystem as c_FunctionalTransitionSystem
+from cosa2 cimport TransitionSystem as c_TransitionSystem
+from cosa2 cimport FunctionalTransitionSystem as c_FunctionalTransitionSystem
+from cosa2 cimport Property as c_Property
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 
@@ -16,6 +18,8 @@ ctypedef unordered_map[c_Term, c_Term].const_iterator c_UnorderedTermMap_const_i
 cdef class TransitionSystem:
     cdef c_TransitionSystem* cts
     cdef SmtSolver _solver
+    # Note: don't want to allow null TransitionSystems
+    # means there's no way to instantiate a transition system without the solver
     def __cinit__(self, SmtSolver s):
         self.cts = new c_TransitionSystem(s.css)
         self._solver = s
@@ -171,3 +175,21 @@ cdef class FunctionalTransitionSystem(TransitionSystem):
     def __cinit__(self, SmtSolver s):
         self.cts = new c_FunctionalTransitionSystem(s.css)
         self._solver = s
+
+
+cdef class Property:
+    cdef c_Property* cp
+    cdef TransitionSystem ts
+    def __cinit__(self, TransitionSystem ts, Term p):
+        self.cp = new c_Property(ts.cts[0], p.ct)
+        self.ts = ts
+
+    @property
+    def prop(self):
+        cdef Term p = Term(self.cts.solver)
+        p.ct = dref(self.cp).prop()
+        return p
+
+    @property
+    def transition_system(self):
+        return self.tts

@@ -43,7 +43,9 @@ cdef extern from "fts.h" namespace "cosa":
 
 cdef extern from "prop.h" namespace "cosa":
     cdef cppclass Property:
-        pass
+        Property(const TransitionSystem& ts, c_Term p) except +
+        const c_Term prop() except +
+        const TransitionSystem & transition_system() except +
 
 
 cdef extern from "unroller.h" namespace "cosa":
