@@ -105,7 +105,7 @@ const option::Descriptor usage[] = {
     "k",
     "bound",
     Arg::Numeric,
-    "  --bound, -k \tBound to check up until." },
+    "  --bound, -k \tBound to check up until (default: 10)." },
   { PROP,
     0,
     "p",
