@@ -1,6 +1,7 @@
 from libcpp.string cimport string
 from libcpp.unordered_map cimport unordered_map
 from libcpp.unordered_set cimport unordered_set
+from libcpp.vector cimport vector
 
 from smt_switch cimport c_Sort, c_Term, c_SmtSolver, c_TermVec, c_UnorderedTermMap
 
@@ -58,6 +59,24 @@ cdef extern from "core/unroller.h" namespace "cosa":
         Unroller(const TransitionSystem & ts, c_SmtSolver & solver) except +
         c_Term at_time(const c_Term & t, unsigned int k) except +
         c_Term untime(const c_Term & t) except +
+
+
+cdef extern from "core/proverresult.h" namespace "cosa":
+    cdef cppclass ProverResult:
+        pass
+
+    cdef ProverResult UNKNOWN
+    cdef ProverResult FALSE
+    cdef ProverResult TRUE
+
+
+cdef extern from "engines/prover.h" namespace "cosa":
+    cdef cppclass Prover:
+        Prover(const Property & p, c_SmtSolver & s) except +
+        void initialize() except +
+        ProverResult check_until(int k) except +
+        bint witness(vector[c_UnorderedTermMap] & out) except +
+        ProverResult prove() except +
 
 
 cdef extern from "engines/bmc.h" namespace "cosa":
