@@ -1,3 +1,0 @@
-/Users/yahanyang/Desktop/Research/cosa2/build/CMakeFiles/rebuild_cache.dir
-/Users/yahanyang/Desktop/Research/cosa2/build/CMakeFiles/edit_cache.dir
-/Users/yahanyang/Desktop/Research/cosa2/build/CMakeFiles/cosa2.dir
