@@ -7,7 +7,7 @@ from smt_switch cimport c_Sort, c_Term, c_SmtSolver, c_TermVec, c_UnorderedTermM
 ctypedef unordered_set[c_Term] c_UnorderedTermSet
 
 
-cdef extern from "ts.h" namespace "cosa":
+cdef extern from "core/ts.h" namespace "cosa":
     cdef cppclass TransitionSystem:
         TransitionSystem(c_SmtSolver & s) except +
         void set_init(const c_Term & init) except +
@@ -33,7 +33,7 @@ cdef extern from "ts.h" namespace "cosa":
         bint is_functional() except +
 
 
-cdef extern from "rts.h" namespace "cosa":
+cdef extern from "core/rts.h" namespace "cosa":
     cdef cppclass RelationalTransitionSystem(TransitionSystem):
         RelationalTransitionSystem(c_SmtSolver & s) except +
         void set_behavior(const c_Term & init, const c_Term & trans) except +
@@ -41,33 +41,38 @@ cdef extern from "rts.h" namespace "cosa":
         void constrain_trans(const c_Term & constraint) except +
 
 
-cdef extern from "fts.h" namespace "cosa":
+cdef extern from "core/fts.h" namespace "cosa":
     cdef cppclass FunctionalTransitionSystem(TransitionSystem):
         FunctionalTransitionSystem(c_SmtSolver & s) except +
 
 
-cdef extern from "prop.h" namespace "cosa":
+cdef extern from "core/prop.h" namespace "cosa":
     cdef cppclass Property:
         Property(const TransitionSystem& ts, c_Term p) except +
         const c_Term prop() except +
         const TransitionSystem & transition_system() except +
 
 
-cdef extern from "unroller.h" namespace "cosa":
+cdef extern from "core/unroller.h" namespace "cosa":
     cdef cppclass Unroller:
         pass
 
 
-cdef extern from "bmc.h" namespace "cosa":
+cdef extern from "engines/bmc.h" namespace "cosa":
     cdef cppclass Bmc:
         pass
 
 
-cdef extern from "kinduction.h" namespace "cosa":
+cdef extern from "engines/kinduction.h" namespace "cosa":
     cdef cppclass KInduction:
         pass
 
 
-cdef extern from "interpolantmc.h" namespace "cosa":
+cdef extern from "engines/interpolantmc.h" namespace "cosa":
     cdef cppclass InterpolantMC:
+        pass
+
+
+cdef extern from "frontends/btor2_encoder.h" namespace "cosa":
+    cdef cppclass BTOR2Encoder:
         pass
