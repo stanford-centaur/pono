@@ -84,6 +84,7 @@ endif()
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2 PUBLIC gmp)
 
+enable_testing()
 # Add tests subdirectory
 # The CMakeLists.txt file there sets up googletest
 # and builds all the parametrized tests
