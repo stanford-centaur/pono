@@ -16,12 +16,14 @@ ctypedef unordered_set[c_Term].const_iterator c_UnorderedTermSet_const_iterator
 ctypedef const unordered_map[c_Term, c_Term]* const_UnorderedTermMapPtr
 ctypedef unordered_map[c_Term, c_Term].const_iterator c_UnorderedTermMap_const_iterator
 
-cdef class TransitionSystem:
+cdef class __AbstractTransitionSystem:
     cdef c_TransitionSystem* cts
     cdef SmtSolver _solver
     # Note: don't want to allow null TransitionSystems
     # means there's no way to instantiate a transition system without the solver
     def __cinit__(self, SmtSolver s):
+        # if not specified, this creates a relational transition system under the hood
+        self.cts = new c_RelationalTransitionSystem(s.css)
         self._solver = s
 
     def set_init(self, Term init):
@@ -162,7 +164,7 @@ cdef class TransitionSystem:
         return dref(self.cts).is_functional()
 
 
-cdef class RelationalTransitionSystem(TransitionSystem):
+cdef class RelationalTransitionSystem(__AbstractTransitionSystem):
     def __cinit__(self, SmtSolver s):
         self.cts = new c_RelationalTransitionSystem(s.css)
         self._solver = s
@@ -177,7 +179,7 @@ cdef class RelationalTransitionSystem(TransitionSystem):
         dref(<c_RelationalTransitionSystem * ?> self.cts).constrain_trans(constraint.ct)
 
 
-cdef class FunctionalTransitionSystem(TransitionSystem):
+cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
     def __cinit__(self, SmtSolver s):
         self.cts = new c_FunctionalTransitionSystem(s.css)
         self._solver = s
@@ -185,8 +187,8 @@ cdef class FunctionalTransitionSystem(TransitionSystem):
 
 cdef class Property:
     cdef c_Property* cp
-    cdef TransitionSystem ts
-    def __cinit__(self, TransitionSystem ts, Term p):
+    cdef __AbstractTransitionSystem ts
+    def __cinit__(self, __AbstractTransitionSystem ts, Term p):
         self.cp = new c_Property(ts.cts[0], p.ct)
         self.ts = ts
 
