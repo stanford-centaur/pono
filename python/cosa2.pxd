@@ -80,18 +80,23 @@ cdef extern from "engines/prover.h" namespace "cosa":
 
 
 cdef extern from "engines/bmc.h" namespace "cosa":
-    cdef cppclass Bmc:
-        pass
+    cdef cppclass Bmc(Prover):
+        Bmc(const Property & p, c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/kinduction.h" namespace "cosa":
-    cdef cppclass KInduction:
-        pass
+    cdef cppclass KInduction(Prover):
+        KInduction(const Property & p, c_SmtSolver & solver) except +
+
+
+cdef extern from "engines/bmc_simplepath.h" namespace "cosa":
+    cdef cppclass BMCSimplePath(KInduction):
+        BMCSimplePath(const Property & p, c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/interpolantmc.h" namespace "cosa":
-    cdef cppclass InterpolantMC:
-        pass
+    cdef cppclass InterpolantMC(Prover):
+        InterpolantMC(const Property & p, c_SmtSolver & s, c_SmtSolver & interpolator) except +
 
 
 cdef extern from "frontends/btor2_encoder.h" namespace "cosa":
