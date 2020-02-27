@@ -7,6 +7,7 @@ from cosa2 cimport TransitionSystem as c_TransitionSystem
 from cosa2 cimport RelationalTransitionSystem as c_RelationalTransitionSystem
 from cosa2 cimport FunctionalTransitionSystem as c_FunctionalTransitionSystem
 from cosa2 cimport Property as c_Property
+from cosa2 cimport Unroller as c_Unroller
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 
@@ -201,3 +202,21 @@ cdef class Property:
     @property
     def transition_system(self):
         return self.ts
+
+
+cdef class Unroller:
+    cdef c_Unroller* cu
+    cdef SmtSolver _solver
+    def __cinit__(self, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cu = new c_Unroller(ts.cts[0], s.css)
+        self._solver = s
+
+    def at_time(self, Term t, unsigned int k):
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cu).at_time(t.ct, k)
+        return term
+
+    def untime(self, Term t):
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cu).untime(t.ct)
+        return term

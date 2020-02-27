@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 
 #include "core/fts.h"
+#include "core/rts.h"
 #include "core/unroller.h"
 #include "utils/exceptions.h"
 
@@ -18,10 +19,10 @@ using namespace std;
 
 namespace cosa_tests {
 
-class UnitTests : public ::testing::Test,
-                  public ::testing::WithParamInterface<SolverEnum>
+class UnrollerUnitTests : public ::testing::Test,
+                          public ::testing::WithParamInterface<SolverEnum>
 {
- protected:
+protected:
   void SetUp() override
   {
     s = available_solvers().at(GetParam())();
@@ -31,7 +32,7 @@ class UnitTests : public ::testing::Test,
   Sort bvsort;
 };
 
-TEST_P(UnitTests, FTS_Unroll)
+TEST_P(UnrollerUnitTests, FTS_Unroll)
 {
   FunctionalTransitionSystem fts(s);
   Term x = fts.make_state("x", bvsort);
@@ -42,16 +43,18 @@ TEST_P(UnitTests, FTS_Unroll)
   ASSERT_EQ(x0, u.at_time(x, 0));
 }
 
-TEST_P(UnitTests, FTS_Exceptions)
+TEST_P(UnrollerUnitTests, RTS_Unroll)
 {
-  FunctionalTransitionSystem fts(s);
-  Term x = fts.make_state("x", bvsort);
-  Term xp1_n = fts.next(s->make_term(BVAdd, x, s->make_term(1, bvsort)));
-  ASSERT_THROW(fts.assign_next(x, xp1_n), CosaException);
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_state("x", bvsort);
+  rts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+
+  Unroller u(rts, s);
+  Term x0 = u.at_time(x, 0);
+  ASSERT_EQ(x0, u.at_time(x, 0));
+  Term x1 = u.at_time(x, 1);
+  ASSERT_NE(x1, x0);
+  ASSERT_EQ(x1, u.at_time(x, 1));
 }
 
-INSTANTIATE_TEST_SUITE_P(ParameterizedSolverUnitTests,
-                         UnitTests,
-                         testing::ValuesIn(available_solver_enums()));
-
-}  // namespace cosa_tests
+}
