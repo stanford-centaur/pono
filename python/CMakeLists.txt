@@ -13,8 +13,6 @@ add_cython_target(pycosa2 CXX)
 add_library(pycosa2 MODULE ${pycosa2})
 
 target_link_libraries(pycosa2 cosa2)
-target_link_directories(pycosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/")
-target_link_libraries(pycosa2 smt-switch)
 target_include_directories(pycosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch")
 
 python_extension_module(pycosa2)
