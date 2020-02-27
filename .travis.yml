@@ -32,7 +32,12 @@ jobs:
       osx_image: xcode9
 
 script:
+  # brew sometimes fails on something even after a successful python installation
+  # we don't want the build to fail
+  - ./scripts/travis-setup-osx-python.sh || true
+  - sudo python3 -m pip install Cython=00.29 --install-option="--no-cython-compile"
   - ./contrib/setup-smt-switch.sh --with-msat --auto-yes
   - ./contrib/setup-btor2tools.sh
-  - ./configure.sh --with-msat
+  - ./configure.sh --with-msat --python --debug
   - cd build && make -j2 && make test
+  - pytest ./tests
