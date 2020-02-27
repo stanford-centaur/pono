@@ -13,6 +13,7 @@ Usage: $0 [<option> ...]
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
 -h, --help              display this message and exit
+--with-cvc4             include CVC4 (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 -y, --auto-yes          automatically agree to conditions (default: off)
 --python                build python bindings (default: off)
@@ -26,6 +27,7 @@ die () {
 }
 
 WITH_MSAT=default
+WITH_CVC4=default
 CONF_OPTS=""
 
 while [ $# -gt 0 ]
@@ -35,6 +37,9 @@ do
         --with-msat)
             WITH_MSAT=ON
             CONF_OPTS="$CONF_OPTS --msat";;
+        --with-cvc4)
+            WITH_CVC4=ON
+            CONF_OPTS="$CONF_OPTS --cvc4";;
         -y|--auto-yes) MSAT_OPTS=--auto-yes;;
         --python)
             CONF_OPTS="$CONF_OPTS --python";;
@@ -51,9 +56,15 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
+
     if [[ "$WITH_MSAT" != default ]]; then
         ./contrib/setup-msat.sh $MSAT_OPTS
     fi
+
+    if [[ "$WITH_CVC4" != default ]]; then
+        ./contrib/setup-cvc4.sh
+    fi
+
     ./configure.sh --btor $CONF_OPTS --prefix=local
     cd build
     make -j$(nproc)

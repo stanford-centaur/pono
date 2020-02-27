@@ -26,6 +26,7 @@
 
 #include "bmc.h"
 #include "bmc_simplepath.h"
+#include "core/fts.h"
 #include "defaults.h"
 #include "frontends/btor2_encoder.h"
 #include "interpolantmc.h"
@@ -104,7 +105,7 @@ const option::Descriptor usage[] = {
     "k",
     "bound",
     Arg::Numeric,
-    "  --bound, -k \tBound to check up until." },
+    "  --bound, -k \tBound to check up until (default: 10)." },
   { PROP,
     0,
     "p",
@@ -203,7 +204,7 @@ int main(int argc, char ** argv)
       s->set_opt("incremental", "true");
     }
 
-    TransitionSystem rts(s);
+    FunctionalTransitionSystem rts(s);
     BTOR2Encoder btor_enc(filename, rts);
 
     unsigned int num_bad = btor_enc.badvec().size();

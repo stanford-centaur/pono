@@ -34,12 +34,6 @@ class TransitionSystem
   {
   }
 
-  /* Sets init and trans to the provided values
-   * @param init the new initial state constraints (boolean sort)
-   * @param trans the new transition relation constraints (boolean sort)
-   */
-  virtual void set_behavior(const smt::Term & init, const smt::Term & trans);
-
   /* Sets initial states to the provided formula
    * @param init the new initial state constraints
    */
@@ -49,16 +43,6 @@ class TransitionSystem
    * @param constraint new constraint on initial states
    */
   void constrain_init(const smt::Term & constraint);
-
-  /* Sets transition relation to the provided formula
-   * @param trans the new transition relation
-   */
-  virtual void set_trans(const smt::Term & trans);
-
-  /* Add to the transition relation constraints
-   * @param constraint new constraint on transition relation
-   */
-  virtual void constrain_trans(const smt::Term & constraint);
 
   /* Set the transition function of a state variable
    *   val is constrained to only use current state variables
@@ -104,7 +88,7 @@ class TransitionSystem
    * @param sort the sort of the input
    * @return the input term
    */
-  virtual smt::Term make_input(const std::string name, const smt::Sort & sort);
+  smt::Term make_input(const std::string name, const smt::Sort & sort);
 
   /* Create an state of a given sort
    * @param name the name of the state
@@ -113,7 +97,7 @@ class TransitionSystem
    *
    * Can get next state var with next(const smt::Term t)
    */
-  virtual smt::Term make_state(const std::string name, const smt::Sort & sort);
+  smt::Term make_state(const std::string name, const smt::Sort & sort);
 
   /* Map all next state variables to current state variables in the term
    * @param t the term to map
@@ -125,7 +109,7 @@ class TransitionSystem
    * @param t the term to map
    * @return the term with all next state variables
    */
-  virtual smt::Term next(const smt::Term & term) const;
+  smt::Term next(const smt::Term & term) const;
 
   /* @param sv the state variable to check
    * @return true if sv is a current state variable
@@ -139,7 +123,7 @@ class TransitionSystem
    *
    * Returns false for any other term
    */
-  virtual bool is_next_var(const smt::Term & sv) const;
+  bool is_next_var(const smt::Term & sv) const;
 
   // getters
   smt::SmtSolver & solver() { return solver_; };
@@ -176,7 +160,7 @@ class TransitionSystem
    *  NOTE: This does *not* actually analyze the transition relation
    *  it only returns true if it's a FunctionalTransitionSystem object
    */
-  virtual bool is_functional() const { return false; };
+  virtual bool is_functional() const = 0;
 
  protected:
   // solver
@@ -219,7 +203,7 @@ class TransitionSystem
   bool no_next(const smt::Term & term) const;
 
   /* Returns true iff all the symbols in the formula are known */
-  bool known_symbols(const smt::Term & term) const;
+  virtual bool known_symbols(const smt::Term & term) const;
 };
 
 }  // namespace cosa

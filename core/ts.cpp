@@ -22,16 +22,6 @@ using namespace std;
 
 namespace cosa {
 
-void TransitionSystem::set_behavior(const Term & init, const Term & trans)
-{
-  // TODO: Only do this check in debug mode
-  if (!known_symbols(init) || !known_symbols(trans)) {
-    throw CosaException("Unknown symbols");
-  }
-  init_ = init;
-  trans_ = trans;
-}
-
 void TransitionSystem::set_init(const Term & init)
 {
   // TODO: only do this check in debug mode
@@ -53,24 +43,6 @@ void TransitionSystem::constrain_init(const Term & constraint)
   init_ = solver_->make_term(And, init_, constraint);
 }
 
-void TransitionSystem::set_trans(const Term & trans)
-{
-  // TODO: Only do this check in debug mode
-  if (!known_symbols(trans)) {
-    throw CosaException("Unknown symbols");
-  }
-  trans_ = trans;
-}
-
-void TransitionSystem::constrain_trans(const Term & constraint)
-{
-  // TODO: Only do this check in debug mode
-  if (!known_symbols(constraint)) {
-    throw CosaException("Unknown symbols");
-  }
-  trans_ = solver_->make_term(And, trans_, constraint);
-}
-
 void TransitionSystem::assign_next(const Term & state, const Term & val)
 {
   // TODO: only do this check in debug mode
@@ -78,7 +50,11 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
     throw CosaException("Unknown state variable");
   }
 
-  // TODO: check only_curr on val in debug mode
+  if (!no_next(val))
+  {
+    throw CosaException("Got next state variable in RHS of functional assignment");
+  }
+
   state_updates_[state] = val;
   trans_ = solver_->make_term(
                               And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
