@@ -26,6 +26,10 @@ if (WITH_MSAT)
   add_definitions(-DWITH_MSAT)
 endif()
 
+if (WITH_CVC4)
+  add_definitions(-DWITH_CVC4)
+endif()
+
 add_library(available-solvers SHARED
   "${PROJECT_SOURCE_DIR}/tests/available_solvers.cpp")
 target_include_directories(available-solvers PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")

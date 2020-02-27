@@ -15,6 +15,7 @@ Configures the CMAKE build environment.
 --build-dir=STR         custom build directory  (default: build)
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
                         Required for interpolant based model checking
+--with-cvc4             build with CVC4 support (default: off)
 --debug                 build debug with debug symbols (default: off)
 EOF
   exit 0
@@ -29,6 +30,7 @@ build_dir=build
 install_prefix=default
 build_type=default
 with_msat=default
+with_cvc4=default
 debug=default
 
 buildtype=Release
@@ -58,6 +60,7 @@ do
             esac
             ;;
         --with-msat) with_msat=ON;;
+        --with-cvc4) with_cvc4=ON;;
         --debug)
             debug=yes;
             buildtype=Debug
@@ -74,6 +77,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype"
 
 [ $with_msat != default ] \
     && cmake_opts="$cmake_opts -DWITH_MSAT=$with_msat"
+
+[ $with_cvc4 != default ] \
+    && cmake_opts="$cmake_opts -DWITH_CVC4=$with_cvc4"
 
 root_dir=$(pwd)
 
