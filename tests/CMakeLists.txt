@@ -33,6 +33,8 @@ endif()
 add_library(available-solvers SHARED
   "${PROJECT_SOURCE_DIR}/tests/available_solvers.cpp")
 target_include_directories(available-solvers PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
+# Rely on cmake link forwarding to link available-solvers with relevant smt-switch libs
+target_link_libraries(available-solvers PUBLIC cosa2)
 
 add_executable(test_fts "${PROJECT_SOURCE_DIR}/tests/test_fts.cpp")
 target_link_libraries(test_fts gtest_main)
