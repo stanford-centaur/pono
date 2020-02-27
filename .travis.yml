@@ -40,5 +40,5 @@ script:
   - ./contrib/setup-smt-switch.sh --with-msat --auto-yes --python
   - ./contrib/setup-btor2tools.sh
   - ./configure.sh --with-msat --python --debug
-  - cd build && make -j2 && make test
+  - cd build && make -j2 && make test && cd ../
   - bash -c "PYTHONPATH=$PYTHONPATH:./build/python pytest ./tests"
