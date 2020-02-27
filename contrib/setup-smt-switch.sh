@@ -71,7 +71,7 @@ else
     echo "$DEPS/smt-switch already exists. If you want to rebuild, please remove it manually."
 fi
 
-if [ -f $DEPS/smt-switch/local/lib/libsmt-switch.so ] && [ -f $DEPS/smt-switch/local/lib/libsmt-switch-btor.so ] ; then \
+if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]; then
     echo "It appears smt-switch with boolector was successfully installed to $DEPS/smt-switch/local."
     echo "You may now build cosa2 with: ./configure.sh && cd build && make"
 else
