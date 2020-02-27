@@ -33,5 +33,6 @@ jobs:
 
 script:
   - ./contrib/setup-smt-switch.sh --with-msat --auto-yes
+  - ./contrib/setup-btor2tools.sh
   - ./configure.sh --with-msat
   - cd build && make -j2 && make test
