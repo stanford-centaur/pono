@@ -2,14 +2,22 @@ from cython.operator cimport dereference as dref, preincrement as inc
 from libcpp.string cimport string
 from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
+from libcpp.vector cimport vector
 
 from cosa2 cimport TransitionSystem as c_TransitionSystem
 from cosa2 cimport RelationalTransitionSystem as c_RelationalTransitionSystem
 from cosa2 cimport FunctionalTransitionSystem as c_FunctionalTransitionSystem
 from cosa2 cimport Property as c_Property
 from cosa2 cimport Unroller as c_Unroller
+from cosa2 cimport ProverResult as c_ProverResult, \
+    UNKNOWN as c_UNKNOWN, \
+    FALSE as c_FALSE, \
+    TRUE as c_TRUE
+from cosa2 cimport Prover as c_Prover
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
+
+from enum import Enum
 
 ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr
 ctypedef unordered_set[c_Term].const_iterator c_UnorderedTermSet_const_iterator
@@ -220,3 +228,60 @@ cdef class Unroller:
         cdef Term term = Term(self._solver)
         term.ct = dref(self.cu).untime(t.ct)
         return term
+
+
+cdef class __AbstractProver:
+    cdef c_Prover* cp
+    cdef SmtSolver _solver
+    def __cinit__(self, SmtSolver s):
+        self._solver = s
+
+    def initialize(self):
+        dref(self.cp).initialize()
+
+    def check_until(self, int k):
+        '''
+        Checks until bound k, returns True, False or None (if unknown)
+        '''
+        cdef int r = <int> dref(self.cp).check_until(k)
+        if r == (<int> c_UNKNOWN):
+            return None
+        elif r == (<int> c_FALSE):
+            return False
+        elif r == (<int> c_TRUE):
+            return True
+
+    def witness(self):
+        cdef vector[c_UnorderedTermMap] cw
+        success = dref(self.cp).witness(cw)
+
+        if not success:
+            return None
+
+        cdef Term kt
+        cdef Term vt
+        w = []
+        for m in cw:
+            d = dict()
+            for elem in m:
+                kt = Term(self._solver)
+                kt.ct = (<c_Term?> elem.first)
+                vt = Term(self._solver)
+                vt.ct = (<c_Term?> elem.second)
+                d[kt] = vt
+            w.append(d)
+
+        return w
+
+    def prove(self):
+        '''
+        Tries to prove property unboundedly, returns True, False or None (if unknown)
+        '''
+        cdef int r = <int> dref(self.cp).prove()
+
+        if r == (<int> c_UNKNOWN):
+            return None
+        elif r == (<int> c_FALSE):
+            return False
+        elif r == (<int> c_TRUE):
+            return True
