@@ -14,6 +14,10 @@ from cosa2 cimport UNKNOWN as c_UNKNOWN
 from cosa2 cimport FALSE as c_FALSE
 from cosa2 cimport TRUE as c_TRUE
 from cosa2 cimport Prover as c_Prover
+from cosa2 cimport Bmc as c_Bmc
+from cosa2 cimport KInduction as c_KInduction
+from cosa2 cimport BmcSimplePath as c_BmcSimplePath
+from cosa2 cimport InterpolantMC as c_InterpolantMC
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 
@@ -232,8 +236,10 @@ cdef class Unroller:
 
 cdef class __AbstractProver:
     cdef c_Prover* cp
+    cdef Property _property
     cdef SmtSolver _solver
-    def __cinit__(self, SmtSolver s):
+    def __cinit__(self, Property p, SmtSolver s):
+        self._property = p
         self._solver = s
 
     def initialize(self):
@@ -285,3 +291,31 @@ cdef class __AbstractProver:
             return False
         elif r == (<int> c_TRUE):
             return True
+
+    @property
+    def prop(self):
+        return self._property
+
+
+cdef class Bmc(__AbstractProver):
+    def __cinit__(self, Property p, SmtSolver s):
+        self.cp = new c_Bmc(p.cp[0], s.css)
+        self._solver = s
+
+
+cdef class KInduction(__AbstractProver):
+    def __cinit__(self, Property p, SmtSolver s):
+        self.cp = new c_KInduction(p.cp[0], s.css)
+        self._solver = s
+
+
+cdef class BmcSimplePath(__AbstractProver):
+    def __cinit__(self, Property p, SmtSolver s):
+        self.cp = new c_BmcSimplePath(p.cp[0], s.css)
+        self._solver = s
+
+
+cdef class InterpolantMC(__AbstractProver):
+    def __cinit__(self, Property p, SmtSolver s, SmtSolver interp):
+        self.cp = new c_InterpolantMC(p.cp[0], s.css, interp.css)
+        self._solver = s

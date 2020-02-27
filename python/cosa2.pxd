@@ -90,8 +90,8 @@ cdef extern from "engines/kinduction.h" namespace "cosa":
 
 
 cdef extern from "engines/bmc_simplepath.h" namespace "cosa":
-    cdef cppclass BMCSimplePath(KInduction):
-        BMCSimplePath(const Property & p, c_SmtSolver & solver) except +
+    cdef cppclass BmcSimplePath(KInduction):
+        BmcSimplePath(const Property & p, c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/interpolantmc.h" namespace "cosa":
