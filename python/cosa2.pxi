@@ -9,10 +9,10 @@ from cosa2 cimport RelationalTransitionSystem as c_RelationalTransitionSystem
 from cosa2 cimport FunctionalTransitionSystem as c_FunctionalTransitionSystem
 from cosa2 cimport Property as c_Property
 from cosa2 cimport Unroller as c_Unroller
-from cosa2 cimport ProverResult as c_ProverResult, \
-    UNKNOWN as c_UNKNOWN, \
-    FALSE as c_FALSE, \
-    TRUE as c_TRUE
+from cosa2 cimport ProverResult as c_ProverResult
+from cosa2 cimport UNKNOWN as c_UNKNOWN
+from cosa2 cimport FALSE as c_FALSE
+from cosa2 cimport TRUE as c_TRUE
 from cosa2 cimport Prover as c_Prover
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
