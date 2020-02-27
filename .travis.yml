@@ -36,8 +36,9 @@ script:
   # we don't want the build to fail
   - ./scripts/travis-setup-osx-python.sh || true
   - sudo python3 -m pip install Cython==0.29 --install-option="--no-cython-compile"
+  - sudo python3 -m pip install pytest
   - ./contrib/setup-smt-switch.sh --with-msat --auto-yes --python
   - ./contrib/setup-btor2tools.sh
   - ./configure.sh --with-msat --python --debug
   - cd build && make -j2 && make test
-  - pytest ./tests
+  - bash -c "PYTHONPATH=$PYTHONPATH:./build/python pytest ./tests"
