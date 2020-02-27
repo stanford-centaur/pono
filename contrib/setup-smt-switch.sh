@@ -52,9 +52,11 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    # TODO switch back to master
+    git clone -b cython-declarations-fix https://github.com/makaimann/smt-switch
     cd smt-switch
-    git checkout -f $SMT_SWITCH_VERSION
+    # Put this back in after switching back to master
+#    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
 
     if [[ "$WITH_MSAT" != default ]]; then
