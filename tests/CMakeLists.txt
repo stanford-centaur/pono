@@ -22,8 +22,16 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
                  ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
                  EXCLUDE_FROM_ALL)
 
+if (WITH_MSAT)
+  add_definitions(-DWITH_MSAT)
+endif()
+
+add_library(available-solvers SHARED
+  "${PROJECT_SOURCE_DIR}/tests/available_solvers.cpp")
+target_include_directories(available-solvers PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
 add_executable(test_fts "${PROJECT_SOURCE_DIR}/tests/test_fts.cpp")
 target_link_libraries(test_fts gtest_main)
 target_link_libraries(test_fts cosa2)
+target_link_libraries(test_fts available-solvers)
 add_test(NAME test_fts COMMAND test_fts)
