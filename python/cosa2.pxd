@@ -10,11 +10,8 @@ ctypedef unordered_set[c_Term] c_UnorderedTermSet
 cdef extern from "ts.h" namespace "cosa":
     cdef cppclass TransitionSystem:
         TransitionSystem(c_SmtSolver & s) except +
-        void set_behavior(const c_Term & init, const c_Term & trans) except +
         void set_init(const c_Term & init) except +
         void constrain_init(const c_Term & constraint) except +
-        void set_trans(const c_Term & trans) except +
-        void constrain_trans(const c_Term & constraint) except +
         void assign_next(const c_Term & state, const c_Term & val) except +
         void add_invar(const c_Term & constraint) except +
         void constrain_inputs(const c_Term & constraint) except +
@@ -34,6 +31,14 @@ cdef extern from "ts.h" namespace "cosa":
         const c_UnorderedTermMap & state_updates() except +
         unordered_map[string, c_Term] & named_terms() except +
         bint is_functional() except +
+
+
+cdef extern from "rts.h" namespace "cosa":
+    cdef cppclass RelationalTransitionSystem(TransitionSystem):
+        RelationalTransitionSystem(c_SmtSolver & s) except +
+        void set_behavior(const c_Term & init, const c_Term & trans) except +
+        void set_trans(const c_Term & trans) except +
+        void constrain_trans(const c_Term & constraint) except +
 
 
 cdef extern from "fts.h" namespace "cosa":

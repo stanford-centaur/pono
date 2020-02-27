@@ -4,6 +4,7 @@ from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
 
 from cosa2 cimport TransitionSystem as c_TransitionSystem
+from cosa2 cimport RelationalTransitionSystem as c_RelationalTransitionSystem
 from cosa2 cimport FunctionalTransitionSystem as c_FunctionalTransitionSystem
 from cosa2 cimport Property as c_Property
 
@@ -21,23 +22,13 @@ cdef class TransitionSystem:
     # Note: don't want to allow null TransitionSystems
     # means there's no way to instantiate a transition system without the solver
     def __cinit__(self, SmtSolver s):
-        self.cts = new c_TransitionSystem(s.css)
         self._solver = s
-
-    def set_behavior(self, Term init, Term trans):
-        dref(self.cts).set_behavior(init.ct, trans.ct)
 
     def set_init(self, Term init):
         dref(self.cts).set_init(init.ct)
 
     def constrain_init(self, Term constraint):
         dref(self.cts).constrain_init(constraint.ct)
-
-    def set_trans(self, Term trans):
-        dref(self.cts).set_trans(trans.ct)
-
-    def constrain_trans(self, Term constraint):
-        dref(self.cts).constrain_trans(constraint.ct)
 
     def assign_next(self, Term state, Term val):
         dref(self.cts).assign_next(state.ct, val.ct)
@@ -169,6 +160,21 @@ cdef class TransitionSystem:
 
     def is_functional(self):
         return dref(self.cts).is_functional()
+
+
+cdef class RelationalTransitionSystem(TransitionSystem):
+    def __cinit__(self, SmtSolver s):
+        self.cts = new c_RelationalTransitionSystem(s.css)
+        self._solver = s
+
+    def set_behavior(self, Term init, Term trans):
+        dref(<c_RelationalTransitionSystem * ?> self.cts).set_behavior(init.ct, trans.ct)
+
+    def set_trans(self, Term trans):
+        dref(<c_RelationalTransitionSystem * ?> self.cts).set_trans(trans.ct)
+
+    def constrain_trans(self, Term constraint):
+        dref(<c_RelationalTransitionSystem * ?> self.cts).constrain_trans(constraint.ct)
 
 
 cdef class FunctionalTransitionSystem(TransitionSystem):
