@@ -8,9 +8,6 @@
 #include "core/unroller.h"
 #include "utils/exceptions.h"
 
-#include "smt-switch/boolector_factory.h"
-#include "smt-switch/smt.h"
-
 #include "available_solvers.h"
 
 using namespace cosa;
