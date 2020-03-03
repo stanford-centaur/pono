@@ -23,10 +23,10 @@ namespace cosa
 
 void get_free_symbols(Term & term, UnorderedTermSet & out_symbols)
 {
-  smt::TermVec to_visit({term});
-  smt::UnorderedTermSet visited;
+  TermVec to_visit({term});
+  UnorderedTermSet visited;
 
-  smt::Term t;
+  Term t;
   while(to_visit.size())
   {
     t = to_visit.back();
@@ -49,7 +49,7 @@ void get_free_symbols(Term & term, UnorderedTermSet & out_symbols)
   }
 }
 
-UnorderedTermSet get_free_symbols(smt::Term & term)
+UnorderedTermSet get_free_symbols(Term & term)
 {
   UnorderedTermSet free_symbols;
   get_free_symbols(term, free_symbols);
