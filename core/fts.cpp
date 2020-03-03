@@ -26,31 +26,7 @@ namespace cosa {
 
 bool FunctionalTransitionSystem::known_symbols(const Term & term) const
 {
-  UnorderedTermSet visited;
-  TermVec to_visit{ term };
-  Term t;
-  while (to_visit.size()) {
-    t = to_visit.back();
-    to_visit.pop_back();
-
-    if (visited.find(term) != visited.end()) {
-      // cache hit
-      continue;
-    }
-
-    if (t->is_symbolic_const()
-        && !((inputs_.find(t) != inputs_.end())
-             || (states_.find(t) != states_.end()))) {
-      return false;
-    }
-
-    visited.insert(t);
-    for (auto c : t) {
-      to_visit.push_back(c);
-    }
-  }
-
-  return true;
+  return contains(term, UnorderedTermSetPtrVec{&states_, &inputs_});
 }
 
 Term FunctionalTransitionSystem::to_next_func(const Term & term)
