@@ -26,7 +26,7 @@ namespace cosa {
 
 bool FunctionalTransitionSystem::known_symbols(const Term & term) const
 {
-  return contains(term, UnorderedTermSetPtrVec{&states_, &inputs_});
+  return contains(term, UnorderedTermSetPtrVec{ &states_, &inputs_ });
 }
 
 Term FunctionalTransitionSystem::to_next_func(const Term & term)

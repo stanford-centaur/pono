@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
@@ -9,11 +9,10 @@
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include "ts.h"
 
@@ -50,14 +49,14 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
     throw CosaException("Unknown state variable");
   }
 
-  if (!no_next(val))
-  {
-    throw CosaException("Got next state variable in RHS of functional assignment");
+  if (!no_next(val)) {
+    throw CosaException(
+        "Got next state variable in RHS of functional assignment");
   }
 
   state_updates_[state] = val;
   trans_ = solver_->make_term(
-                              And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
+      And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
 }
 
 void TransitionSystem::add_invar(const Term & constraint)
@@ -68,7 +67,7 @@ void TransitionSystem::add_invar(const Term & constraint)
     trans_ = solver_->make_term(And, trans_, constraint);
     // add the next-state version
     trans_ = solver_->make_term(
-                                And, trans_, solver_->substitute(constraint, next_map_));
+        And, trans_, solver_->substitute(constraint, next_map_));
   } else {
     throw CosaException("Invariants should be over current states only.");
   }
@@ -149,7 +148,8 @@ bool TransitionSystem::is_next_var(const Term & sv) const
 
 // protected methods
 
-bool TransitionSystem::contains(const Term & term, UnorderedTermSetPtrVec term_sets) const
+bool TransitionSystem::contains(const Term & term,
+                                UnorderedTermSetPtrVec term_sets) const
 {
   UnorderedTermSet visited;
   TermVec to_visit{ term };
@@ -165,17 +165,14 @@ bool TransitionSystem::contains(const Term & term, UnorderedTermSetPtrVec term_s
 
     if (t->is_symbolic_const()) {
       bool in_atleast_one = false;
-      for (auto ts : term_sets)
-      {
-        if (ts->find(t) != ts->end())
-        {
+      for (auto ts : term_sets) {
+        if (ts->find(t) != ts->end()) {
           in_atleast_one = true;
           break;
         }
       }
 
-      if (!in_atleast_one)
-      {
+      if (!in_atleast_one) {
         return false;
       }
     }
@@ -191,17 +188,18 @@ bool TransitionSystem::contains(const Term & term, UnorderedTermSetPtrVec term_s
 
 bool TransitionSystem::only_curr(const Term & term) const
 {
-  return contains(term, UnorderedTermSetPtrVec{&states_});
+  return contains(term, UnorderedTermSetPtrVec{ &states_ });
 }
 
 bool TransitionSystem::no_next(const Term & term) const
 {
-  return contains(term, UnorderedTermSetPtrVec{&states_, &inputs_});
+  return contains(term, UnorderedTermSetPtrVec{ &states_, &inputs_ });
 }
 
 bool TransitionSystem::known_symbols(const Term & term) const
 {
-  return contains(term, UnorderedTermSetPtrVec{&states_, &inputs_, &next_states_});
+  return contains(term,
+                  UnorderedTermSetPtrVec{ &states_, &inputs_, &next_states_ });
 }
 
 }  // namespace cosa
