@@ -19,8 +19,8 @@
 
 #include "prop.h"
 #include "proverresult.h"
-#include "ts.h"
 #include "smt-switch/smt.h"
+#include "ts.h"
 #include "unroller.h"
 
 namespace cosa {

@@ -30,8 +30,8 @@ extern "C" {
 #include "assert.h"
 
 #include "exceptions.h"
-#include "ts.h"
 #include "smt-switch/smt.h"
+#include "ts.h"
 
 namespace cosa {
 class BTOR2Encoder

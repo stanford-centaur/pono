@@ -18,31 +18,26 @@
 
 using namespace smt;
 
-namespace cosa
-{
+namespace cosa {
 
 void get_free_symbols(Term & term, UnorderedTermSet & out_symbols)
 {
-  TermVec to_visit({term});
+  TermVec to_visit({ term });
   UnorderedTermSet visited;
 
   Term t;
-  while(to_visit.size())
-  {
+  while (to_visit.size()) {
     t = to_visit.back();
     to_visit.pop_back();
 
-    if (visited.find(t) == visited.end())
-    {
+    if (visited.find(t) == visited.end()) {
       visited.insert(t);
       // add children to queue
-      for (auto tt : t)
-      {
+      for (auto tt : t) {
         to_visit.push_back(tt);
       }
 
-      if (t->is_symbolic_const())
-      {
+      if (t->is_symbolic_const()) {
         out_symbols.insert(t);
       }
     }
@@ -55,4 +50,4 @@ UnorderedTermSet get_free_symbols(Term & term)
   get_free_symbols(term, free_symbols);
   return free_symbols;
 }
-}
+}  // namespace cosa
