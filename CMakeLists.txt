@@ -67,7 +67,7 @@ endif()
 
 if (WITH_CVC4)
   if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.${SHARED_LIBRARY_EXT}")
-    message(FATAL_ERROR "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-cvc4")
+    message(FATAL_ERROR "Missing smt-switch cvc4 library -- try running ./contrib/setup-smt-switch.sh --with-cvc4")
   endif()
 endif()
 

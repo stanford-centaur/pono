@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
@@ -9,11 +9,10 @@
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #pragma once
 
@@ -193,7 +192,18 @@ class TransitionSystem
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
 
+  typedef std::vector<const smt::UnorderedTermSet *> UnorderedTermSetPtrVec;
+
   // helpers and checkers
+
+  /** Returns true iff all symbols in term are present in at least one of the
+   * term sets
+   *  @param term the term to check
+   *  @param term_sets a vector of sets to check membership for each symbol in
+   * term
+   *  @return true iff all symbols in term are in at least one of the term sets
+   */
+  bool contains(const smt::Term & term, UnorderedTermSetPtrVec term_sets) const;
 
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;
