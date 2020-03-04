@@ -204,8 +204,8 @@ int main(int argc, char ** argv)
       s->set_opt("incremental", "true");
     }
 
-    FunctionalTransitionSystem rts(s);
-    BTOR2Encoder btor_enc(filename, rts);
+    FunctionalTransitionSystem fts(s);
+    BTOR2Encoder btor_enc(filename, fts);
 
     unsigned int num_bad = btor_enc.badvec().size();
     if (prop_idx >= num_bad) {
@@ -216,11 +216,11 @@ int main(int argc, char ** argv)
     }
 
     Term bad = btor_enc.badvec()[prop_idx];
-    Property p(rts, s->make_term(PrimOp::Not, bad));
+    Property p(fts, s->make_term(PrimOp::Not, bad));
     logger.log(1, "Solving property: {}", p.prop());
 
-    logger.log(3, "INIT:\n{}", rts.init());
-    logger.log(3, "TRANS:\n{}", rts.trans());
+    logger.log(3, "INIT:\n{}", fts.init());
+    logger.log(3, "TRANS:\n{}", fts.trans());
 
     std::shared_ptr<Prover> prover;
     if (engine == BMC) {
