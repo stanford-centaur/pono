@@ -102,3 +102,7 @@ cdef extern from "engines/interpolantmc.h" namespace "cosa":
 cdef extern from "frontends/btor2_encoder.h" namespace "cosa":
     cdef cppclass BTOR2Encoder:
         pass
+
+
+cdef extern from "utils/logger.h" namespace "cosa":
+    void set_global_logger_verbosity(unsigned int v) except +
