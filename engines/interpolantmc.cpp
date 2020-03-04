@@ -168,6 +168,7 @@ bool InterpolantMC::step(int i)
         return true;
       } else {
         logger.log(1, "Extending initial states.");
+        logger.log(3, "Using interpolant: {}", Ri_);
         R_ = solver_->make_term(Or, R_, Ri_);
       }
     }
