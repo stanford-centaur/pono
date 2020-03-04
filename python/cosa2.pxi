@@ -207,7 +207,7 @@ cdef class Property:
 
     @property
     def prop(self):
-        cdef Term p = Term(self.cts.solver)
+        cdef Term p = Term(self.ts.solver)
         p.ct = dref(self.cp).prop()
         return p
 
@@ -238,9 +238,6 @@ cdef class __AbstractProver:
     cdef c_Prover* cp
     cdef Property _property
     cdef SmtSolver _solver
-    def __cinit__(self, Property p, SmtSolver s):
-        self._property = p
-        self._solver = s
 
     def initialize(self):
         dref(self.cp).initialize()
