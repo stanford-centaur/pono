@@ -17,23 +17,23 @@
 
 #pragma once
 
-#include "rts.h"
 #include "smt-switch/smt.h"
+#include "ts.h"
 
 namespace cosa {
 
 class Property
 {
  public:
-  Property(const RelationalTransitionSystem & ts, smt::Term p);
+  Property(const TransitionSystem & ts, smt::Term p);
   ~Property();
 
   const smt::Term prop() const { return prop_; }
 
-  const RelationalTransitionSystem & transition_system() const { return ts_; }
+  const TransitionSystem & transition_system() const { return ts_; }
 
  private:
-  const RelationalTransitionSystem & ts_;
+  const TransitionSystem & ts_;
 
   smt::Term prop_;
 

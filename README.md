@@ -16,7 +16,7 @@ Next generation cosa.
 ### Transition Systems
 There are two Transition System interfaces:
 * FunctionalTransitionSystem in fts.*
-* RelationalTransitionSystem in rts.*
+* TransitionSystem in rts.*
 
 
 ### Smt-Switch

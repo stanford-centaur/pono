@@ -25,6 +25,7 @@ link_directories("/usr/local/lib")
 
 add_library(cosa2
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
@@ -35,6 +36,7 @@ add_library(cosa2
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
   )
 
 if (APPLE)
@@ -62,6 +64,12 @@ if (WITH_MSAT)
   endif()
 endif()
 
+if (WITH_CVC4)
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.${SHARED_LIBRARY_EXT}")
+    message(FATAL_ERROR "Missing smt-switch cvc4 library -- try running ./contrib/setup-smt-switch.sh --with-cvc4")
+  endif()
+endif()
+
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
 endif()
@@ -79,8 +87,17 @@ target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/
 if (WITH_MSAT)
   target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.${SHARED_LIBRARY_EXT}")
 endif()
+if (WITH_CVC4)
+  target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.${SHARED_LIBRARY_EXT}")
+endif()
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2 PUBLIC gmp)
+
+enable_testing()
+# Add tests subdirectory
+# The CMakeLists.txt file there sets up googletest
+# and builds all the parametrized tests
+add_subdirectory(tests)
 
 add_executable(cosa2-bin "${PROJECT_SOURCE_DIR}/cosa2.cpp")
 set_target_properties(cosa2-bin PROPERTIES OUTPUT_NAME cosa2)
