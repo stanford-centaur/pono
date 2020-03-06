@@ -1,7 +1,7 @@
 import pytest
 import smt_switch as ss
 from smt_switch.sortkinds import BV
-from smt_switch.primops import BVAdd, BVSub, Equal, Ite
+from smt_switch.primops import And, BVAdd, BVSub, Equal, Ite
 import pycosa2 as c
 import available_solvers
 
@@ -88,3 +88,22 @@ def test_interp(solver_and_interpolator):
     res = interp.check_until(10)
 
     assert res is True, "InterpolantMC be able to solve this property"
+
+@pytest.mark.parametrize("create_solver", ss.solvers.values())
+def test_kind_inductive_prop(create_solver):
+    s = create_solver()
+    s.set_opt('produce-models', 'true')
+    s.set_opt('incremental', 'true')
+    prop = build_simple_alu_fts(s)
+
+    states = {str(sv):sv for sv in prop.transition_system.states}
+
+    prop = c.Property(prop.transition_system,
+                      s.make_term(And,
+                                  s.make_term(Equal, states['cfg'], s.make_term(0, s.make_sort(BV, 1))),
+                                  prop.prop))
+
+    kind = c.KInduction(prop, s)
+    res = kind.check_until(10)
+
+    assert res is True, "KInduction should be able to solve this manually strengthened property"
