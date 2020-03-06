@@ -26,6 +26,7 @@
 
 #include "bmc.h"
 #include "bmc_simplepath.h"
+#include "core/fts.h"
 #include "defaults.h"
 #include "frontends/btor2_encoder.h"
 #include "interpolant.h"
@@ -104,7 +105,7 @@ const option::Descriptor usage[] = {
     "k",
     "bound",
     Arg::Numeric,
-    "  --bound, -k \tBound to check up until." },
+    "  --bound, -k \tBound to check up until (default: 10)." },
   { PROP,
     0,
     "p",
@@ -203,8 +204,8 @@ int main(int argc, char ** argv)
       s->set_opt("incremental", "true");
     }
 
-    RelationalTransitionSystem rts(s);
-    BTOR2Encoder btor_enc(filename, rts);
+    FunctionalTransitionSystem fts(s);
+    BTOR2Encoder btor_enc(filename, fts);
 
     unsigned int num_bad = btor_enc.badvec().size();
     if (prop_idx >= num_bad) {
@@ -215,8 +216,11 @@ int main(int argc, char ** argv)
     }
 
     Term bad = btor_enc.badvec()[prop_idx];
-    Property p(rts, s->make_term(PrimOp::Not, bad));
+    Property p(fts, s->make_term(PrimOp::Not, bad));
     logger.log(1, "Solving property: {}", p.prop());
+
+    logger.log(3, "INIT:\n{}", fts.init());
+    logger.log(3, "TRANS:\n{}", fts.trans());
 
     std::shared_ptr<Prover> prover;
     if (engine == BMC) {
@@ -263,8 +267,9 @@ int main(int argc, char ** argv)
     cout << "b" << prop_idx << endl;
     return 3;
   }
-  catch (...) {
+  catch (std::exception & e) {
     cout << "Caught generic exception..." << endl;
+    cout << e.what() << endl;
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;
     return 3;

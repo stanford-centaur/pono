@@ -23,7 +23,7 @@ using namespace smt;
 
 namespace cosa {
 
-Unroller::Unroller(const RelationalTransitionSystem & ts, SmtSolver & solver)
+Unroller::Unroller(const TransitionSystem & ts, SmtSolver & solver)
     : ts_(ts), solver_(solver)
 {
 }
@@ -90,13 +90,9 @@ UnorderedTermMap & Unroller::time_cache_at_time(unsigned int k)
       untime_cache_[new_vn] = vn;
     }
     for (auto v : ts_.inputs()) {
-      Term vn = ts_.next(v);
       Term new_v = var_at_time(v, t);
-      Term new_vn = var_at_time(v, t + 1);
       subst[v] = new_v;
-      subst[vn] = new_vn;
       untime_cache_[new_v] = v;
-      untime_cache_[new_vn] = vn;
     }
   }
 
