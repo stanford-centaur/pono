@@ -25,7 +25,7 @@ namespace cosa {
 class Property
 {
  public:
-  Property(const TransitionSystem & ts, smt::Term p);
+  Property(const TransitionSystem & ts, const smt::Term & p);
   ~Property();
 
   const smt::Term prop() const { return prop_; }
