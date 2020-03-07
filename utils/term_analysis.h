@@ -23,10 +23,11 @@ namespace cosa {
 /** adds all the free (not bound to a quantifier) symbols
  *  in a Term to an existing set
  */
-void get_free_symbols(smt::Term & term, smt::UnorderedTermSet & out_symbols);
+void get_free_symbols(const smt::Term & term,
+                      smt::UnorderedTermSet & out_symbols);
 
 /** returns all the free (not bound to a quantifier) symbols
  *  in a Term
  */
-smt::UnorderedTermSet get_free_symbols(smt::Term & term);
+smt::UnorderedTermSet get_free_symbols(const smt::Term & term);
 }  // namespace cosa
