@@ -23,7 +23,8 @@ using namespace smt;
 
 namespace cosa {
 
-Property::Property(const TransitionSystem & ts, Term p) : ts_(ts), prop_(p)
+Property::Property(const TransitionSystem & ts, const Term & p)
+    : ts_(ts), prop_(p)
 {
   const UnorderedTermSet & states = ts.states();
   UnorderedTermSet free_symbols = get_free_symbols(p);
