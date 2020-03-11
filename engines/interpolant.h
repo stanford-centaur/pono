@@ -19,7 +19,7 @@
 
 #include "prop.h"
 #include "prover.h"
-#include "rts.h"
+#include "ts.h"
 #include "unroller.h"
 
 #include "proverresult.h"

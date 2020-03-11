@@ -4,7 +4,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
 # get a particular version of smt-switch
-SMT_SWITCH_VERSION=3076e1bd36a37b441844ae59b22ced0d9455fa81
+SMT_SWITCH_VERSION=ca7c76f9678f5bf51a64377cb5008334f2569408
 
 usage () {
     cat <<EOF
@@ -13,6 +13,7 @@ Usage: $0 [<option> ...]
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
 -h, --help              display this message and exit
+--with-cvc4             include CVC4 (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 -y, --auto-yes          automatically agree to conditions (default: off)
 EOF
@@ -25,6 +26,7 @@ die () {
 }
 
 WITH_MSAT=default
+WITH_CVC4=default
 
 while [ $# -gt 0 ]
 do
@@ -32,7 +34,10 @@ do
         -h|--help) usage;;
         --with-msat)
             WITH_MSAT=ON
-            CONF_OPTS=--msat;;
+            CONF_OPTS="$CONF_OPTS --msat";;
+        --with-cvc4)
+            WITH_CVC4=ON
+            CONF_OPTS="$CONF_OPTS --cvc4";;
         -y|--auto-yes) MSAT_OPTS=--auto-yes;;
         *) die "unexpected argument: $1";;
     esac
@@ -47,9 +52,15 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
+
     if [[ "$WITH_MSAT" != default ]]; then
         ./contrib/setup-msat.sh $MSAT_OPTS
     fi
+
+    if [[ "$WITH_CVC4" != default ]]; then
+        ./contrib/setup-cvc4.sh
+    fi
+
     ./configure.sh --btor $CONF_OPTS --prefix=local
     cd build
     make -j$(nproc)
@@ -60,7 +71,7 @@ else
     echo "$DEPS/smt-switch already exists. If you want to rebuild, please remove it manually."
 fi
 
-if [ -f $DEPS/smt-switch/local/lib/libsmt-switch.so ] && [ -f $DEPS/smt-switch/local/lib/libsmt-switch-btor.so ] ; then \
+if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]; then
     echo "It appears smt-switch with boolector was successfully installed to $DEPS/smt-switch/local."
     echo "You may now build cosa2 with: ./configure.sh && cd build && make"
 else
