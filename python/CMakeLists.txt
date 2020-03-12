@@ -17,4 +17,6 @@ target_include_directories(pycosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch
 
 python_extension_module(pycosa2)
 
+configure_file(setup.py.in setup.py)
+
 install(TARGETS pycosa2 DESTINATION lib)

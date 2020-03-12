@@ -38,7 +38,9 @@ script:
   - sudo python3 -m pip install Cython==0.29 --install-option="--no-cython-compile"
   - sudo python3 -m pip install pytest
   - ./contrib/setup-smt-switch.sh --with-msat --auto-yes --python
+  - sudo python3 -m pip install -e ./deps/smt-switch/build/python
   - ./contrib/setup-btor2tools.sh
   - ./configure.sh --with-msat --python --debug
   - cd build && make -j2 && make test && cd ../
-  - bash -c "PYTHONPATH=$PYTHONPATH:./build/python:./deps/smt-switch/local/lib/ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./deps/smt-switch/local/lib pytest ./tests"
+  - sudo python3 -m pip install -e ./build/python
+  - pytest ./tests

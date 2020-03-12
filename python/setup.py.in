@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+
+# This script is automatically configured with cmake when Cosa2
+# is built with --python. It is called during make install
+# to automatically install the python bindings using setuptools
+# It assumes that pip is available
+
+from setuptools import setup
+
+setup(name='pycosa2',
+      long_description="Python bindings for the model checker Cosa2",
+      version='${COSA2_MAJOR}.${COSA2_MINOR}.${COSA2_RELEASE}',
+      url='https://github.com/upscale-project/cosa2',
+      license='BSD',
+      test_requires=['pytest'],
+      package_data={'': ['pycosa2.so']},
+      zip_safe=False)
