@@ -20,31 +20,19 @@ include_directories("/usr/local/include")
 
 link_directories("/usr/local/lib")
 
-# TODO: Use find_package
-# find package
-#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
-
-add_library(cosa2
-  "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
-  "${PROJECT_SOURCE_DIR}/core/ts.cpp"
-  "${PROJECT_SOURCE_DIR}/core/rts.cpp"
-  "${PROJECT_SOURCE_DIR}/core/fts.cpp"
-  "${PROJECT_SOURCE_DIR}/core/prop.cpp"
-  "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/interpolant.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
-  "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
-  "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
-  )
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/install")
+find_package(BISON 3.4.2 REQUIRED)
+find_package(FLEX 2.6.4 REQUIRED)
 
 if (APPLE)
   set(SHARED_LIBRARY_EXT dylib)
 else()
   set(SHARED_LIBRARY_EXT so)
 endif()
+
+# TODO: Use find_package
+# find package
+#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
 # Check that dependencies are there
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch/smt.h")
@@ -74,6 +62,22 @@ endif()
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
 endif()
+
+add_library(cosa2
+  "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/core/ts.cpp"
+  "${PROJECT_SOURCE_DIR}/core/rts.cpp"
+  "${PROJECT_SOURCE_DIR}/core/fts.cpp"
+  "${PROJECT_SOURCE_DIR}/core/prop.cpp"
+  "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/interpolant.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
+  )
 
 target_include_directories(cosa2 PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
