@@ -63,8 +63,13 @@ if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
 endif()
 
+# Generate the SMV parser using Flex/Bison
+BISON_TARGET(SMVParser ${PROJECT_SOURCE_DIR}/frontends/smvparser.y
+  ${CMAKE_CURRENT_BINARY_DIR}/smvparser.cpp
+  DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/smvparser.h)
+
+
 add_library(cosa2
-  "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -77,6 +82,9 @@ add_library(cosa2
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
+  "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
+  "${BISON_SMVParser_OUTPUTS}"
   )
 
 target_include_directories(cosa2 PUBLIC
