@@ -1,4 +1,4 @@
-#include "encoder.h"
+#include "smv_encoder.h"
 
     // Important members
 // void smvEncoder::parse(std::string filename){
