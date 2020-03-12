@@ -93,7 +93,10 @@ target_include_directories(cosa2 PUBLIC
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
   "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include"
+  # generated Bison headers go in build directory
+  "${CMAKE_CURRENT_BINARY_DIR}"
+  )
 
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.${SHARED_LIBRARY_EXT}")
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.${SHARED_LIBRARY_EXT}")
