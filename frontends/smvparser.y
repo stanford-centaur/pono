@@ -1,3 +1,4 @@
+%require "3.4.2"
 %{
     #include <cstdio>
     #include <iostream>

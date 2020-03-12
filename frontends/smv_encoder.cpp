@@ -19,4 +19,3 @@
 // void smvEncoder::read(std::string filename){
 //   yyparse(*this);
 // }
-

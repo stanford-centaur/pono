@@ -29,6 +29,7 @@
 #include "core/fts.h"
 #include "defaults.h"
 #include "frontends/btor2_encoder.h"
+#include "frontends/smv_encoder.h"
 #include "interpolant.h"
 #include "kinduction.h"
 #include "printers/btor2_witness_printer.h"

@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SMV_ENCODER_H
-#define SMV_ENCODER_H
 
 #include <stdio.h>
 #include <iostream>
@@ -36,5 +34,3 @@ class smvEncoder{
   //std::string symbol_;  // namespace cosa
 
 } ;
-
-#endif
