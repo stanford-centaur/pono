@@ -11,17 +11,18 @@
 #include "smt-switch/smt.h"
 #include "smvparser.h"
 
-class smvEncoder{
-
-  public: smvEncoder(std::string filename, cosa::RelationalTransitionSystem & rts)
+class smvEncoder
+{
+ public:
+  smvEncoder(std::string filename, cosa::RelationalTransitionSystem & rts)
       : rts_(rts), solver_(rts.solver())
   {
     parse(filename);
   };
 
-  public:
-    // Important members
-  //void read(std::string filename);
+ public:
+  // Important members
+  // void read(std::string filename);
   void parse(std::string filename);
 
   smt::TermVec propvec() { return propvec_; }
@@ -34,6 +35,5 @@ class smvEncoder{
   std::vector<smt::Term> propvec_;
 
   int id;
-  //std::string symbol_;  // namespace cosa
-
-} ;
+  // std::string symbol_;  // namespace cosa
+};

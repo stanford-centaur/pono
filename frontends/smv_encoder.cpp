@@ -1,6 +1,6 @@
 #include "smv_encoder.h"
 
-    // Important members
+// Important members
 // void smvEncoder::parse(std::string filename){
 //     FILE *myfile = fopen(filename.c_str(), "r");
 //   // make sure ist's valid:

@@ -245,8 +245,7 @@ int main(int argc, char ** argv)
     //       and also only create the transition system once
     ProverResult r;
     string file_ext = filename.substr(filename.find_last_of(".") + 1);
-    if (file_ext == "btor2" || file_ext == "btor")
-    {
+    if (file_ext == "btor2" || file_ext == "btor") {
       logger.log(2, "Parsing BTOR2 file: {}", filename);
 
       FunctionalTransitionSystem fts(s);
@@ -282,9 +281,7 @@ int main(int argc, char ** argv)
         status_code = 2;
       }
 
-    }
-    else if (file_ext == "smv")
-    {
+    } else if (file_ext == "smv") {
       logger.log(2, "Parsing SMV file: {}", filename);
       RelationalTransitionSystem rts(s);
       smvEncoder smv_enc(filename, rts);
@@ -311,14 +308,10 @@ int main(int argc, char ** argv)
           }
         }
       }
-    }
-    else
-    {
+    } else {
       throw CosaException("Unrecognized file extension " + file_ext
                           + " for file " + filename);
     }
-
-
   }
   catch (CosaException & ce) {
     cout << ce.what() << endl;
