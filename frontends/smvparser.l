@@ -1,5 +1,5 @@
 %{
-  #include "smvparser.tab.h"
+  #include "smvparser.h"
   #include"node.h"
   #include "smv_encoder.h"
   using namespace std;

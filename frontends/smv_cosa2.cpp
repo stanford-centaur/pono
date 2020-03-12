@@ -3,7 +3,6 @@
 #include "smt-switch/boolector_factory.h"
 #include "node.h"
 #include "smv_encoder.h"
-#include "smvparser.tab.h"
 
 #include "bmc.h"
 #include "bmc_simplepath.h"
