@@ -19,7 +19,7 @@ addons:
       - python3
       - python3-pip
       - python3-setuptools
-      - flex
+      - ruby
 
 jobs:
   include:
@@ -33,6 +33,7 @@ jobs:
       osx_image: xcode9.2
 
 script:
+  - source ./scripts/travis-mac-install.sh
   - ./contrib/setup-smt-switch.sh --with-msat --auto-yes
   - ./contrib/setup-btor2tools.sh
   - ./contrib/setup-bison.sh
