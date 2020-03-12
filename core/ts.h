@@ -161,7 +161,7 @@ class TransitionSystem
    *  NOTE: This does *not* actually analyze the transition relation
    *  it only returns true if it's a FunctionalTransitionSystem object
    */
-  virtual bool is_functional() const = 0;
+  virtual bool is_functional() const { return false; };
 
  protected:
   // solver

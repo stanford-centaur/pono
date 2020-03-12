@@ -79,6 +79,7 @@ add_library(cosa2
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
+  "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/interpolant.cpp"

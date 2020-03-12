@@ -17,9 +17,16 @@
 
 #pragma once
 
+#include <string>
+
+namespace cosa {
 typedef enum
 {
   UNKNOWN = -1,
   FALSE = 0,
   TRUE = 1
 } ProverResult;
+
+std::string to_string(ProverResult r);
+
+}  // namespace cosa
