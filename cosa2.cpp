@@ -208,7 +208,7 @@ int main(int argc, char ** argv)
     FunctionalTransitionSystem fts(s);
     BTOR2Encoder btor_enc(filename, fts);
 
-    unsigned int num_bad = btor_enc.badvec().size();
+    unsigned int num_bad = btor_enc.propvec().size();
     if (prop_idx >= num_bad) {
       cout << "Property index " << prop_idx;
       cout << " is greater than the number of bad tags in the btor file (";
@@ -216,8 +216,8 @@ int main(int argc, char ** argv)
       return 3;
     }
 
-    Term bad = btor_enc.badvec()[prop_idx];
-    Property p(fts, s->make_term(PrimOp::Not, bad));
+    Term bad = btor_enc.propvec()[prop_idx];
+    Property p(fts, bad);
     logger.log(1, "Solving property: {}", p.prop());
 
     logger.log(3, "INIT:\n{}", fts.init());
