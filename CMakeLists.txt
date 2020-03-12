@@ -108,6 +108,7 @@ if (WITH_CVC4)
 endif()
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2 PUBLIC gmp)
+target_link_libraries(cosa2 PUBLIC y)
 
 enable_testing()
 # Add tests subdirectory
@@ -134,3 +135,4 @@ if (WITH_MSAT)
 endif()
 target_link_libraries(cosa2-bin PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2-bin PUBLIC gmp)
+target_link_libraries(cosa2-bin PUBLIC y)

@@ -33,6 +33,8 @@ class TransitionSystem
   {
   }
 
+  virtual ~TransitionSystem() {};
+
   /* Sets initial states to the provided formula
    * @param init the new initial state constraints
    */

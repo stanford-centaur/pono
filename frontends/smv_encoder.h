@@ -23,6 +23,9 @@ class smvEncoder{
     // Important members
   //void read(std::string filename);
   void parse(std::string filename);
+
+  smt::TermVec propvec() { return propvec_; }
+
   smt::SmtSolver & solver_;
   cosa::RelationalTransitionSystem & rts_;
   std::unordered_map<std::string, smt::Sort> sorts_;

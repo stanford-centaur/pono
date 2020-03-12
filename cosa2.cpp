@@ -205,23 +205,57 @@ int main(int argc, char ** argv)
       s->set_opt("incremental", "true");
     }
 
-    FunctionalTransitionSystem fts(s);
-    BTOR2Encoder btor_enc(filename, fts);
+    string file_ext = filename.substr(filename.find_last_of(".") + 1);
 
-    unsigned int num_bad = btor_enc.propvec().size();
+    // debugging
+    cout << "Got file extension: " << file_ext << endl;
+
+    // TODO: make this less ugly, just need to keep it in scope if using
+    //       it would be better to have a generic encoder
+    //       and also only create the transition system once
+    TransitionSystem *pts;
+    TermVec propvec;
+
+    if (file_ext == "btor2" || file_ext == "btor")
+    {
+      logger.log(2, "Parsing BTOR2 file: {}", filename);
+
+      pts = new FunctionalTransitionSystem(s);
+      BTOR2Encoder btor_enc(filename, *pts);
+      propvec = btor_enc.propvec();
+    }
+    else if (file_ext == "smv")
+    {
+      logger.log(2, "Parsing SMV file: {}", filename);
+      RelationalTransitionSystem * rts = new RelationalTransitionSystem(s);
+      pts = rts;
+      smvEncoder smv_enc(filename, *rts);
+      propvec = smv_enc.propvec();
+    }
+    else
+    {
+      logger.log(0, "Unrecognized file extension {} for file {}", file_ext, filename);
+      // TODO: have better clean up instead of deleting pointer before every return
+      delete pts;
+      return 3;
+    }
+
+    unsigned int num_bad = propvec.size();
     if (prop_idx >= num_bad) {
       cout << "Property index " << prop_idx;
       cout << " is greater than the number of bad tags in the btor file (";
       cout << num_bad << ")" << endl;
+      // TODO: have better clean up instead of deleting pointer before every return
+      delete pts;
       return 3;
     }
 
-    Term bad = btor_enc.propvec()[prop_idx];
-    Property p(fts, bad);
+    Term prop = propvec[prop_idx];
+    Property p(*pts, prop);
     logger.log(1, "Solving property: {}", p.prop());
 
-    logger.log(3, "INIT:\n{}", fts.init());
-    logger.log(3, "TRANS:\n{}", fts.trans());
+    logger.log(3, "INIT:\n{}", pts->init());
+    logger.log(3, "TRANS:\n{}", pts->trans());
 
     std::shared_ptr<Prover> prover;
     if (engine == BMC) {
@@ -242,17 +276,24 @@ int main(int argc, char ** argv)
       cout << "sat" << endl;
       cout << "b" << prop_idx << endl;
       vector<UnorderedTermMap> cex;
-      if (prover->witness(cex)) {
-        print_witness_btor(btor_enc, cex);
-      }
+      // TODO: Put this back in
+      // if (prover->witness(cex)) {
+      //   print_witness_btor(btor_enc, cex);
+      // }
+      // TODO: have better clean up instead of deleting pointer before every return
+      delete pts;
       return 1;
     } else if (r == TRUE) {
       cout << "unsat" << endl;
       cout << "b" << prop_idx << endl;
+      // TODO: have better clean up instead of deleting pointer before every return
+      delete pts;
       return 0;
     } else {
       cout << "unknown" << endl;
       cout << "b" << prop_idx << endl;
+      // TODO: have better clean up instead of deleting pointer before every return
+      delete pts;
       return 2;
     }
   }
@@ -260,12 +301,14 @@ int main(int argc, char ** argv)
     cout << ce.what() << endl;
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;
+    // TODO: have better clean up instead of deleting pointer before every return
     return 3;
   }
   catch (SmtException & se) {
     cout << se.what() << endl;
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;
+    // TODO: have better clean up instead of deleting pointer before every return
     return 3;
   }
   catch (std::exception & e) {
@@ -273,6 +316,7 @@ int main(int argc, char ** argv)
     cout << e.what() << endl;
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;
+    // TODO: have better clean up instead of deleting pointer before every return
     return 3;
   }
 
