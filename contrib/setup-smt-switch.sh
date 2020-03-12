@@ -3,9 +3,6 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-# get a particular version of smt-switch
-SMT_SWITCH_VERSION=ca7c76f9678f5bf51a64377cb5008334f2569408
-
 usage () {
     cat <<EOF
 Usage: $0 [<option> ...]
@@ -55,8 +52,6 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     # TODO switch back to master
     git clone -b cython-declarations-fix https://github.com/makaimann/smt-switch
     cd smt-switch
-    # Put this back in after switching back to master
-#    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
 
     if [[ "$WITH_MSAT" != default ]]; then

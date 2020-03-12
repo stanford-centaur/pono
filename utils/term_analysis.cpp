@@ -20,7 +20,7 @@ using namespace smt;
 
 namespace cosa {
 
-void get_free_symbols(Term & term, UnorderedTermSet & out_symbols)
+void get_free_symbols(const Term & term, UnorderedTermSet & out_symbols)
 {
   TermVec to_visit({ term });
   UnorderedTermSet visited;
@@ -44,7 +44,7 @@ void get_free_symbols(Term & term, UnorderedTermSet & out_symbols)
   }
 }
 
-UnorderedTermSet get_free_symbols(Term & term)
+UnorderedTermSet get_free_symbols(const Term & term)
 {
   UnorderedTermSet free_symbols;
   get_free_symbols(term, free_symbols);
