@@ -37,6 +37,7 @@ python3 -m venv env
 source ./env/bin/activate
 pip install Cython==0.29 pytest
 ./contrib/setup-smt-switch.sh --python
+./contrib/setup-btor2tools.sh
 pip install -e ./deps/smt-switch/build/python
 ./configure.sh --python
 cd build
