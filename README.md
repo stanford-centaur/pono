@@ -37,7 +37,7 @@ A particularly useful command if you're having trouble is `show`, which can show
 
 ### Yosys Quick Start
 
-Below is an example file with comments explaining each command that produces a BTOR2 file for <./samples/counter-false.v>. This should be enough for most use cases
+Below is an example file with comments explaining each command that produces a BTOR2 file for [./samples/counter-false.v](./samples/counter-false.v). This should be enough for most use cases
 
 Once you have `yosys` installed, copy the text below into `gen-btor.ys` in the top-level of this repository. Then, running `yosys -s gen-btor.ys` will produce the BTOR2 file.
 
