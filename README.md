@@ -35,7 +35,7 @@ You can also run yosys interactively by running yosys with no arguments. Then yo
 
 A particularly useful command if you're having trouble is `show`, which can show the current state of the circuit in Yosys.
 
-## Quick Start
+### Yosys Quick Start
 
 Below is an example file with comments explaining each command that produces a BTOR2 file for <./samples/counter-false.v>. This should be enough for most use cases
 
