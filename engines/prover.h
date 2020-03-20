@@ -19,8 +19,8 @@
 
 #include "prop.h"
 #include "proverresult.h"
-#include "rts.h"
 #include "smt-switch/smt.h"
+#include "ts.h"
 #include "unroller.h"
 
 namespace cosa {
@@ -39,7 +39,7 @@ class Prover
   ProverResult prove();
 
  protected:
-  const RelationalTransitionSystem & ts_;
+  const TransitionSystem & ts_;
   const Property & property_;
 
   smt::SmtSolver & solver_;

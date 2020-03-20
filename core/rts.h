@@ -1,36 +1,29 @@
 /*********************                                                        */
-/*! \file 
- ** \verbatim
- ** Top contributors (to current version):
- **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
- ** Copyright (c) 2019 by the authors listed in the file AUTHORS
- ** in the top-level source directory) and their institutional affiliations.
- ** All rights reserved.  See the file LICENSE in the top-level source
- ** directory for licensing information.\endverbatim
- **
- ** \brief 
- **
- ** 
- **/
-
+/*! \file rts.h
+** \verbatim
+** Top contributors (to current version):
+**   Makai Mann
+** This file is part of the cosa2 project.
+** Copyright (c) 2019 by the authors listed in the file AUTHORS
+** in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief Implements a relational transition system interface
+**
+**
+**/
 
 #pragma once
 
-#include <unordered_map>
-
-#include "smt-switch/smt.h"
-
-#include "fts.h"
+#include "core/ts.h"
 
 namespace cosa {
 
-class RelationalTransitionSystem : public FunctionalTransitionSystem
+class RelationalTransitionSystem : public TransitionSystem
 {
  public:
-  RelationalTransitionSystem(smt::SmtSolver & s) : FunctionalTransitionSystem(s)
-  {
-  }
+  RelationalTransitionSystem(smt::SmtSolver & s) : TransitionSystem(s) {}
 
   /* Sets init and trans to the provided values
    * @param init the new initial state constraints (boolean sort)
@@ -48,54 +41,7 @@ class RelationalTransitionSystem : public FunctionalTransitionSystem
    */
   void constrain_trans(const smt::Term & constraint);
 
-  /* Map all next state variables to current state variables in the term
-   * @param t the term to map
-   * @return the term with all current state variables
-   */
-  smt::Term curr(const smt::Term & term) const;
-
-  /* Map all current state variables to next state variables in the term
-   * @param t the term to map
-   * @return the term with all next state variables
-   */
-  smt::Term next(const smt::Term & term) const;
-
-  /* @param sv the state variable to check
-   * @return true if sv is a current state variable
-   *
-   * Returns false for any other term
-   */
-  bool is_curr_var(const smt::Term & sv) const;
-
-  /* @param sv the state variable to check
-   * @return true if sv is a next state variable
-   *
-   * Returns false for any other term
-   */
-  bool is_next_var(const smt::Term & sv) const;
-
-  // getters
-
-  /* Returns the transition relation
-   * @return a boolean term representing the transition relation
-   */
-  smt::Term trans() const { return trans_; };
-
-  // overloaded
-  smt::Term make_input(const std::string name, const smt::Sort & sort);
-
-  // overloaded
-  smt::Term make_state(const std::string name, const smt::Sort & sort);
-
- protected:
-  smt::UnorderedTermSet next_states_;
-  // maps next back to curr
-  smt::UnorderedTermMap curr_map_;
-
-  // helpers and checkers
-
-  // overloaded
-  bool known_symbols(const smt::Term & term) const;
+  bool is_functional() const override { return false; };
 };
 
 }  // namespace cosa

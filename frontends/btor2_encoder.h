@@ -30,20 +30,20 @@ extern "C" {
 #include "assert.h"
 
 #include "exceptions.h"
-#include "rts.h"
 #include "smt-switch/smt.h"
+#include "ts.h"
 
 namespace cosa {
 class BTOR2Encoder
 {
  public:
-  BTOR2Encoder(std::string filename, RelationalTransitionSystem & rts)
-      : rts_(rts), solver_(rts.solver())
+  BTOR2Encoder(std::string filename, TransitionSystem & ts)
+      : ts_(ts), solver_(ts.solver())
   {
     parse(filename);
   };
 
-  const smt::TermVec & badvec() const { return badvec_; };
+  const smt::TermVec & propvec() const { return propvec_; };
   const smt::TermVec & justicevec() const { return justicevec_; };
   const smt::TermVec & fairvec() const { return fairvec_; };
   const smt::TermVec & inputsvec() const { return inputsvec_; }
@@ -68,7 +68,7 @@ class BTOR2Encoder
 
   // Important members
   smt::SmtSolver & solver_;
-  cosa::RelationalTransitionSystem & rts_;
+  cosa::TransitionSystem & ts_;
 
   // vectors of inputs and states
   // maintains the order from the btor file
@@ -83,7 +83,7 @@ class BTOR2Encoder
   std::unordered_map<int, smt::Term> terms_;
   std::string symbol_;
 
-  smt::TermVec badvec_;
+  smt::TermVec propvec_;
   smt::TermVec justicevec_;
   smt::TermVec fairvec_;
 
@@ -93,6 +93,7 @@ class BTOR2Encoder
   size_t i_;
   int64_t idx_;
   bool negated_;
+  size_t witness_id_{ 0 };  ///< id of any introduced witnesses for properties
 };
 }  // namespace cosa
 

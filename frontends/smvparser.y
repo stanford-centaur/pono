@@ -1,15 +1,16 @@
+%require "3.4.2"
 %{
-    #include<cstdio>
-    #include<iostream>
-    #include<string>
-    #include"encoder.h"
-    #include"node.h"
+    #include <cstdio>
+    #include <iostream>
+    #include <string>
+    #include "smv_encoder.h"
+    #include "node.h"
     #include "smt-switch/smt.h"
     using namespace std;
     extern FILE *yyin;
     extern int yylex();
     extern int yyparse(smvEncoder &enc);
-    extern int line_num;  
+    extern int line_num;
     extern void yyerror(smvEncoder &enc, const char*s){cout<< "error at" << line_num << s<<endl; exit(-1);};
 
 %}
@@ -37,9 +38,9 @@
 %token INPUT OUTPUT
 %token tok_next tok_init signed_word unsigned_word arrayword arrayinteger tok_array
 %token pi ABS MAX MIN SIN COS EXP TAN ln of word1
-%token tok_bool tok_toint tok_count swconst uwconst tok_sizeof tok_floor extend resize tok_typeof 
+%token tok_bool tok_toint tok_count swconst uwconst tok_sizeof tok_floor extend resize tok_typeof
 %token tok_unsigned tok_signed tok_word tok_set in time_type
-%token TO ASSIGNSYM IF_ELSE 
+%token TO ASSIGNSYM IF_ELSE
 %token ENDL
 
 %token <num> integer_val real_val
@@ -51,7 +52,7 @@
 %left OP_CON
 %left UMINUS
 %left '*' '/' OP_MOD
-%left '+' '-' 
+%left '+' '-'
 %left OP_SHIFTR OP_SHIFTL
 %left UNION
 %left OP_EQ OP_NEQ '<' '>' OP_LTE OP_GTE
@@ -61,17 +62,17 @@
 %right OP_IMPLY
 
 %type <n> type_identifier word_type array_type word_value basic_expr next_expr next_formula constant
-%type <num> sizev 
+%type <num> sizev
 %type <bl> boolean_constant
 %type <str> complex_identifier define_identifier
 
 %%
-header: 
+header:
     ENDL
     | define_decl
     | constants_decl
     | assign_decl
-    | ivar_test 
+    | ivar_test
     | var_test
     | init_test
     | trans_test
@@ -105,7 +106,7 @@ module_header:
     MODULE tok_main;
 
 define_decl:
-    DEFINE define_body 
+    DEFINE define_body
     | DEFINE ENDL define_body;
 
 define_body: complex_identifier ASSIGNSYM basic_expr ';' ENDL{
@@ -123,31 +124,31 @@ constants_decl:
 constants_body: complex_identifier
             | constants_body ',' complex_identifier ';' ENDL;
 
-assign_decl: ASSIGN assign_list 
+assign_decl: ASSIGN assign_list
             | ASSIGN ENDL assign_list;
 
 assign_list: assign_test ';' ENDL
             | assign_list assign_test ';' ENDL;
 
 assign_test: complex_identifier ASSIGNSYM basic_expr {
-          node *a = $3; 
+          node *a = $3;
           smt::Term state = a->getTerm();
 }
         | tok_init '('complex_identifier ')' ASSIGNSYM basic_expr{
-          node *a = $6; 
+          node *a = $6;
           smt::Term init = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           enc.rts_.constrain_init(e);
         }
         | tok_next '('complex_identifier ')' ASSIGNSYM next_expr {
-          node *a = $6; 
+          node *a = $6;
           smt::Term state = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, state, a->getTerm());
           enc.rts_.constrain_trans(e);
         };
 
 ivar_test:
-    IVAR ENDL ivar_list ENDL 
+    IVAR ENDL ivar_list ENDL
     | IVAR ENDL ivar_list
     | ivar_test ivar_list ENDL
     | ivar_test ivar_list;
@@ -214,7 +215,7 @@ trans_test: TRANS next_formula ';' ENDL ENDL{
             enc.rts_.constrain_trans(a->getTerm());
             //cout <<"find a trans"<<endl;
 };
-            
+
 
 invarspec_test: INVARSPEC basic_expr ';' ENDL ENDL{
                 //cout<<"find an invarspec" <<endl;
@@ -255,7 +256,7 @@ constant: boolean_constant {
       smt::Term con = enc.solver_->make_term($1);
       $$ = new node(con);
 }
-          | integer_constant 
+          | integer_constant
           | real_constant
           | word_value {
            $$ = $1;
@@ -311,7 +312,7 @@ boolean_constant: TOK_TRUE{
                 $$ = true;
           }
                 | TOK_FALSE{
-                $$ = false;    
+                $$ = false;
           };
 
 define_identifier: complex_identifier{
@@ -492,7 +493,7 @@ basic_expr: constant {
             | basic_expr UNION '(' basic_expr ')'
             |'{' set_body_expr '}'
             | basic_expr in basic_expr
-            | basic_expr IF_ELSE basic_expr ':' basic_expr          
+            | basic_expr IF_ELSE basic_expr ':' basic_expr
           | WRITE'('basic_expr','basic_expr','basic_expr')'{
             node *a = $3;
             node *b = $5;
@@ -506,9 +507,9 @@ basic_expr: constant {
             smt::Term read_r =  enc.solver_->make_term(smt::Select, a->getTerm(),b->getTerm());
             $$ = new node(read_r);
           }
-          | CONSTARRAY '(' tok_typeof '(' complex_identifier ')' ',' basic_expr ')' 
-          | CONSTARRAY '(' arrayword sizev of type_identifier ',' basic_expr ')' 
-          | CONSTARRAY '(' arrayinteger of type_identifier ',' basic_expr ')' 
+          | CONSTARRAY '(' tok_typeof '(' complex_identifier ')' ',' basic_expr ')'
+          | CONSTARRAY '(' arrayword sizev of type_identifier ',' basic_expr ')'
+          | CONSTARRAY '(' arrayinteger of type_identifier ',' basic_expr ')'
           | next_expr{
             $$ = $1;
           };
@@ -524,18 +525,18 @@ basic_expr_list: basic_expr
 
 set_body_expr: basic_expr
                 | set_body_expr ',' basic_expr;
-        
+
 symbolic_constant: complex_identifier;
 
 complex_identifier: tok_name{
                 $$ = $1;
  }
               | complex_identifier '.' tok_name{
-                throw CosaException("No module component access now"); 
+                throw CosaException("No module component access now");
                //$$ = strcat($1,$3);
  }
               | complex_identifier '.' integer_val{
-                throw CosaException("No module component access now"); 
+                throw CosaException("No module component access now");
                 //$$ = $1 + $3;
  };
 
@@ -547,7 +548,7 @@ type_identifier: real_type{
                 | integer_type{
                   smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
                   $$ =  new node (sort_);
-                  throw CosaException("No integer type now in boolector");  
+                  throw CosaException("No integer type now in boolector");
                 }
                 | bool_type {
                 smt::Sort sort_ = enc.solver_->make_sort(smt::BOOL);
@@ -561,7 +562,7 @@ type_identifier: real_type{
                 }
                 | word_type {
                 $$ = $1;
-}           
+}
                 | integer_val TO integer_val;
 
 word_type: signed_word sizev {
@@ -601,5 +602,5 @@ void smvEncoder::parse(std::string filename){
     std::cout << "NO input file!" << std::endl;
   }
   yyin = myfile;
-  yyparse(*this); 
+  yyparse(*this);
 }

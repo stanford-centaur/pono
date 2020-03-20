@@ -1,7 +1,7 @@
 %{
-  #include "smvparser.tab.h" 
+  #include "smvparser.h"
   #include"node.h"
-  #include "encoder.h"
+  #include "smv_encoder.h"
   using namespace std;
   int line_num = 1;
 
