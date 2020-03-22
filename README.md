@@ -59,6 +59,9 @@ hierarchy -check;
 # nomap means it will keep them as arrays
 memory -nomap;
 
+# flatten the design hierarchy
+flatten;
+
 # (optional) use an "explicit" clock
 # e.g. every state is a half cycle of the
 # fastest clock
