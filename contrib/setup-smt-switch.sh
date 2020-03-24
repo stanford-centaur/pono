@@ -49,8 +49,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    # TODO switch back to master
-    git clone -b cython-declarations-fix https://github.com/makaimann/smt-switch
+    git clone https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
 
