@@ -18,6 +18,7 @@ from cosa2 cimport Bmc as c_Bmc
 from cosa2 cimport KInduction as c_KInduction
 from cosa2 cimport BmcSimplePath as c_BmcSimplePath
 from cosa2 cimport InterpolantMC as c_InterpolantMC
+from cosa2 cimport BTOR2Encoder as c_BTOR2Encoder
 from cosa2 cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
@@ -317,6 +318,12 @@ cdef class InterpolantMC(__AbstractProver):
     def __cinit__(self, Property p, SmtSolver s, SmtSolver interp):
         self.cp = new c_InterpolantMC(p.cp[0], s.css, interp.css)
         self._solver = s
+
+
+cdef class BTOR2Encoder:
+    cdef c_BTOR2Encoder * cbe
+    def __cinit__(self, str filename, __AbstractTransitionSystem ts):
+        self.cbe = new c_BTOR2Encoder(filename.encode(), dref(ts.cts))
 
 
 def set_global_logger_verbosity(int v):
