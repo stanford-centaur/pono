@@ -101,6 +101,7 @@ cdef extern from "engines/interpolantmc.h" namespace "cosa":
 
 cdef extern from "frontends/btor2_encoder.h" namespace "cosa":
     cdef cppclass BTOR2Encoder:
+        BTOR2Encoder(string filename, TransitionSystem & ts) except +
         pass
 
 
