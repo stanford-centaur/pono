@@ -1,11 +1,14 @@
 %{
-  #include "smvparser.tab.h" 
-  #include"node.h"
-  #include "encoder.h"
+  #include"smv_node.h"
+  #include "smv_encoder.h"
+  #include "smvparser.tab.hh" 
   using namespace std;
   int line_num = 1;
-
+  #include <string>
+  #undef yyterminate
+  #define yyterminate()  return(cosa::smvparser::make_END())
 %}
+
 %option yylineno
 %option noyywrap
 %x COMMENT
@@ -13,115 +16,116 @@
 %%
 
 [ \t]     ;
-MODULE {return MODULE;}
-main  {return tok_main;}
-IVAR   {return IVAR;}
-VAR  {return VAR;}
-INVAR   {return INVAR;}
-FROZENVAR   {return FROZENVAR;}
-INVARSPEC   {return INVARSPEC;}
-INIT   {return INIT;}
-TRANS   {return TRANS;}
-READ   {return READ;}
-WRITE   {return WRITE;}
-ASSIGN   {return ASSIGN;}
-CONSTARRAY   {return CONSTARRAY;}
-CONSTANTS   {return CONSTANTS;}
-FUN   {return FUN;}
-DEFINE {return DEFINE;}
+MODULE {return cosa::smvparser::make_MODULE();}
+main  {return cosa::smvparser::make_tok_main();}
+IVAR   {return cosa::smvparser::make_IVAR();}
+VAR  {return cosa::smvparser::make_VAR();}
+INVAR   {return cosa::smvparser::make_INVAR();}
+FROZENVAR   {return cosa::smvparser::make_FROZENVAR();}
+INVARSPEC   {return cosa::smvparser::make_INVARSPEC();}
+INIT   {return cosa::smvparser::make_INIT();}
+TRANS   {return cosa::smvparser::make_TRANS();}
+READ   {return cosa::smvparser::make_READ();}
+WRITE   {return cosa::smvparser::make_WRITE();}
+ASSIGN   {return cosa::smvparser::make_ASSIGN();}
+CONSTARRAY   {return cosa::smvparser::make_CONSTARRAY();}
+CONSTANTS   {return cosa::smvparser::make_CONSTANTS();}
+FUN   {return cosa::smvparser::make_FUN();}
+DEFINE {return cosa::smvparser::make_DEFINE();}
 
-next  {return tok_next;}
-init {return tok_init;}
+next  {return cosa::smvparser::make_tok_next();}
+init {return cosa::smvparser::make_tok_init();}
 
-TRUE   {return TOK_TRUE;}
-FALSE   {return TOK_FALSE;}
+TRUE   {return cosa::smvparser::make_TOK_TRUE(true);}
+FALSE   {return cosa::smvparser::make_TOK_FALSE(false);}
 
-"signed word" {return signed_word;}
-"unsigned word" {return unsigned_word;}
-"array word"   {return arrayword;}
-"array integer"   {return arrayinteger;}
-"array" {return tok_array;}
+"signed word" {return cosa::smvparser::make_signed_word();}
+"unsigned word" {return cosa::smvparser::make_unsigned_word();}
+"array word"   {return cosa::smvparser::make_arrayword();}
+"array integer"   {return cosa::smvparser::make_arrayinteger();}
+"array" {return cosa::smvparser::make_tok_array();}
 
-pi {return pi;}
-abs {return ABS;}
-max {return MAX;}
-min {return MIN;}
-sin {return SIN;}
-cos {return COS;}
-exp {return EXP;}
-tan {return TAN;}
-ln {return ln;}
-of  {return of;}
-word1 {return word1;}
-bool {return tok_bool;}
-toint   {return tok_toint;}
-count {return tok_count;}
-swconst {return swconst;}
-uwconst {return uwconst;}
-sizeof {return tok_sizeof;}
-floor {return tok_floor;}
-extend {return extend;}
-resize {return resize;}
-typeof {return tok_typeof;}
+pi {return cosa::smvparser::make_pi();}
+abs {return cosa::smvparser::make_ABS();}
+max {return cosa::smvparser::make_MAX();}
+min {return cosa::smvparser::make_MIN();}
+sin {return cosa::smvparser::make_SIN();}
+cos {return cosa::smvparser::make_COS();}
+exp {return cosa::smvparser::make_EXP();}
+tan {return cosa::smvparser::make_TAN();}
+ln {return cosa::smvparser::make_ln();}
+of  {return cosa::smvparser::make_of();}
+word1 {return cosa::smvparser::make_word1();}
+bool {return cosa::smvparser::make_tok_bool();}
+toint   {return cosa::smvparser::make_tok_toint();}
+count {return cosa::smvparser::make_tok_count();}
+swconst {return cosa::smvparser::make_swconst();}
+uwconst {return cosa::smvparser::make_uwconst();}
+sizeof {return cosa::smvparser::make_tok_sizeof();}
+floor {return cosa::smvparser::make_tok_floor();}
+extend {return cosa::smvparser::make_extend();}
+resize {return cosa::smvparser::make_resize();}
+typeof {return cosa::smvparser::make_tok_typeof();}
 
-unsigned   {return tok_unsigned;}
-signed   {return tok_signed;}
-boolean   {return bool_type;}
-real  {return real_type;}
-integer   {return integer_type;}
-clock   {return clock_type;}
-word   {return tok_word;}
-set {return tok_set;}
-in {return in;}
-time {return time_type;}
+unsigned   {return cosa::smvparser::make_tok_unsigned();}
+signed   {return cosa::smvparser::make_tok_signed();}
+boolean   {return cosa::smvparser::make_bool_type();}
+real  {return cosa::smvparser::make_real_type();}
+integer   {return cosa::smvparser::make_integer_type();}
+ck   {return cosa::smvparser::make_clock_type();}
+word   {return cosa::smvparser::make_tok_word();}
+set {return cosa::smvparser::make_tok_set();}
+"in" {return cosa::smvparser::make_OP_in();}
+time {return cosa::smvparser::make_time_type();}
 
-"->"  {return OP_IMPLY;}
-"<->"  {return OP_BI;}
-"!"  {return '!';}
-"::"  {return OP_CON;}
-"-"  {return '-';}
-"+"  {return '+';}
-"*"  {return '*';}
-"/"  {return '/'; }
-"mod"  {return OP_MOD;}
-">>"  {return OP_SHIFTR;}
-"<<"  {return OP_SHIFTL;}
-"union"  {return UNION;}
-"="  {return '=';}
-"!="  {return OP_NEQ;}
-">"  {return '>';}
-"<"  {return '<';}
-"<="  {return OP_LTE;}
-">="  {return OP_GTE;}
-"&"  {return '&';}
-"|"  {return '|';}
-"xor"  {return OP_XOR;}
-"xnor"  {return OP_XNOR;}
+"->"  {return cosa::smvparser::make_OP_IMPLY();}
+"<->"  {return cosa::smvparser::make_OP_BI();}
+"!"  {return cosa::smvparser::make_OP_NOT();}
+"::"  {return cosa::smvparser::make_OP_CON();}
+"-"  {return cosa::smvparser::make_OP_MINUS();}
+"+"  {return cosa::smvparser::make_OP_PLUS();}
+"*"  {return cosa::smvparser::make_OP_MUL();}
+"/"  {return cosa::smvparser::make_OP_DIV(); }
+"mod"  {return cosa::smvparser::make_OP_MOD();}
+">>"  {return cosa::smvparser::make_OP_SHIFTR();}
+"<<"  {return cosa::smvparser::make_OP_SHIFTL();}
+"union"  {return cosa::smvparser::make_UNION();}
+"="  {return cosa::smvparser::make_OP_EQ();}
+"!="  {return cosa::smvparser::make_OP_NEQ();}
+">"  {return cosa::smvparser::make_OP_GT();}
+"<"  {return cosa::smvparser::make_OP_LT();}
+"<="  {return cosa::smvparser::make_OP_LTE();}
+">="  {return cosa::smvparser::make_OP_GTE();}
+"&"  {return cosa::smvparser::make_OP_AND();}
+"|"  {return cosa::smvparser::make_OP_OR();}
+"xor"  {return cosa::smvparser::make_OP_XOR();}
+"xnor"  {return cosa::smvparser::make_OP_XNOR();}
 
-".." {return TO;}
-"(" {return '(';}
-")" {return ')';}
-"[" {return '[';}
-"]" {return ']';}
-"{" {return '{';}
-"}" {return '}';}
-";" {return ';';}
-":" {return ':';}
-"," {return ',';}
-":=" {return ASSIGNSYM;}
+".." {return cosa::smvparser::make_TO();}
+"(" {return cosa::smvparser::make_LPARE();}
+")" {return cosa::smvparser::make_RPARE();}
+"[" {return cosa::smvparser::make_LBRA();}
+"]" {return cosa::smvparser::make_RBRA();}
+"{" {return cosa::smvparser::make_LBRACE();}
+"}" {return cosa::smvparser::make_RBRACE();}
+";" {return cosa::smvparser::make_SEMICOLON();}
+":" {return cosa::smvparser::make_COLON();}
+"," {return cosa::smvparser::make_COMMA();}
+":=" {return cosa::smvparser::make_ASSIGNSYM();}
 "--".*  {}
-"?"  {return IF_ELSE;}
-"_" {return '_';}
+"?"  {return cosa::smvparser::make_IF_ELSE();}
+"_" {return cosa::smvparser::make_UNDER();}
 
-0(b|d|o|h)/[0-9]+_[0-9]+ {BEGIN(WORD_INIT); yylval.str = strdup(yytext); return word_index1;}
-0(u|s)(b|d|o|h)/[0-9]+_[0-9]+ {BEGIN(WORD_INIT); yylval.str = strdup(yytext); return word_index2;}
-<WORD_INIT>[0-9]+/_[0-9]+ {BEGIN(WORD_BASE);yylval.num = atoi(yytext);return integer_val;}
-<WORD_BASE>_/[0-9]+ {BEGIN(WORD_VALUE);return '_';}
-<WORD_VALUE>[0-9]+ {BEGIN(INITIAL); yylval.num = atoi(yytext); return integer_val;}
+0(b|d|o|h)/[0-9]+_[0-9]+ {BEGIN(WORD_INIT); return cosa::smvparser::make_word_index1(yytext);}
+0(u|s)(b|d|o|h)/[0-9]+_[0-9]+ {BEGIN(WORD_INIT);  return cosa::smvparser::make_word_index2(yytext);}
+<WORD_INIT>[0-9]+/_[0-9]+ {BEGIN(WORD_BASE); return cosa::smvparser::make_integer_val(atoi(yytext));}
+<WORD_BASE>_/[0-9]+ {BEGIN(WORD_VALUE); return cosa::smvparser::make_UNDER();}
+<WORD_VALUE>[0-9]+ {BEGIN(INITIAL); return cosa::smvparser::make_integer_val(atoi(yytext));}
 
-[0-9]+           {yylval.num = atoi(yytext);return integer_val;}
-[a-zA-Z][A-Za-z0-9_\$#-]*  {yylval.str = strdup(yytext); return tok_name;}
-\n   {line_num++; return ENDL;}
-.                {return '.';};
+[0-9]+           {return cosa::smvparser::make_integer_val(atoi(yytext));}
+[a-zA-Z_][A-Za-z0-9_\$#-]*  {return cosa::smvparser::make_tok_name(yytext);}
+\n   {}
+.                {return cosa::smvparser::make_DOT();};
+<<EOF>>    return cosa::smvparser::make_END();
 
 %%

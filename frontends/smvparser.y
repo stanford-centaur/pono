@@ -2,144 +2,172 @@
     #include<cstdio>
     #include<iostream>
     #include<string>
-    #include"encoder.h"
-    #include"node.h"
+    #include"stdlib.h"
+    #include"smv_encoder.h"
+    #include"smv_node.h"
     #include "smt-switch/smt.h"
     using namespace std;
     extern FILE *yyin;
-    extern int yylex();
-    extern int yyparse(smvEncoder &enc);
-    extern int line_num;  
-    extern void yyerror(smvEncoder &enc, const char*s){cout<< "error at" << line_num << s<<endl; exit(-1);};
-
+    extern int yylineno;
 %}
 
 %code requires{
-  #include "node.h"
-  class smvEncoder;
+  #include "smv_node.h"
+  #include <string>
+  namespace cosa{
+    class smvEncoder;
+  }
 }
 
+%skeleton "lalr1.cc"
+%require "3.2"
+%language "c++"
+%defines 
+%lex-param {smvEncoder &enc}
 %parse-param {smvEncoder &enc}
 
+%define parse.trace
 %define parse.error verbose
-%locations
-
-
-%union{
-  node *n;
-  char *str;
-  int num;
-  bool bl;
+%define api.token.constructor
+%define api.value.type variant
+%define api.namespace{cosa}
+%define api.parser.class{smvparser}
+%code {
+  #include "smv_encoder.h"
 }
+
+//%union{
+//  node *n;
+//  char *str;
+//  //std::string str;
+//  int num;
+//  bool bl;
+//}
 
 %token MODULE tok_main IVAR INVAR VAR FROZENVAR INVARSPEC
 %token INIT TRANS READ WRITE ASSIGN CONSTARRAY CONSTANTS FUN DEFINE
-%token INPUT OUTPUT
 %token tok_next tok_init signed_word unsigned_word arrayword arrayinteger tok_array
 %token pi ABS MAX MIN SIN COS EXP TAN ln of word1
 %token tok_bool tok_toint tok_count swconst uwconst tok_sizeof tok_floor extend resize tok_typeof 
-%token tok_unsigned tok_signed tok_word tok_set in time_type
+%token tok_unsigned tok_signed tok_word tok_set OP_in time_type
 %token TO ASSIGNSYM IF_ELSE 
 %token ENDL
 
-%token <num> integer_val real_val
-%token <str> bool_type integer_type real_type clock_type set_tok array_tok word_index1 word_index2
-%token <str> tok_name
-%token <bl> TOK_TRUE TOK_FALSE
+%token <int> integer_val real_val
+%token bool_type integer_type real_type clock_type set_tok array_tok 
+%token <std::string> word_index1 word_index2
+%token <std::string> tok_name
+%token <bool> TOK_TRUE TOK_FALSE
+%token 
+END 0
+LPARE "("
+RPARE ")"
+COMMA  ","
+UNDER "_" 
+COLON ":"
+SEMICOLON ";"
+LBRA "["
+RBRA "]"
+LBRACE "{"
+RBRACE "}" 
+OP_PLUS "+"
+OP_MINUS "-"
+OP_MUL "*"
+OP_DIV "/"
+DOT ".";
 
-%left '!'
-%left OP_CON
-%left UMINUS
-%left '*' '/' OP_MOD
-%left '+' '-' 
-%left OP_SHIFTR OP_SHIFTL
-%left UNION
-%left OP_EQ OP_NEQ '<' '>' OP_LTE OP_GTE
-%left '&'
-%left OP_OR OP_XOR OP_XNOR
-%left OP_BI
 %right OP_IMPLY
+%left OP_BI
+%left IF_ELSE
+%left OP_OR OP_XOR OP_XNOR
+%left OP_AND
+%left OP_EQ OP_NEQ OP_LT OP_GT OP_LTE OP_GTE
+%left OP_in
+%left UNION
+%left OP_SHIFTR OP_SHIFTL
+%left "+" "-" 
+%left "*" "/" OP_MOD
+%precedence UMINUS
+%left OP_CON
+%left OP_NOT
+%left "[" ":" "]"
 
-%type <n> type_identifier word_type array_type word_value basic_expr next_expr next_formula constant
-%type <num> sizev 
-%type <bl> boolean_constant
-%type <str> complex_identifier define_identifier
-
+%type <node*> type_identifier word_type array_type word_value basic_expr next_expr constant
+%type <int> sizev 
+%type <bool> boolean_constant
+%type <int> integer_constant real_constant
+%nterm <std::string> complex_identifier 
 %%
-header: 
-    ENDL
-    | define_decl
+
+header:
+     define_decl
     | constants_decl
     | assign_decl
     | ivar_test 
     | var_test
-    | init_test
-    | trans_test
     | frozenvar_test
+    | init_constraint
+    | trans_constraint
+    | invar_constraint
     | invarspec_test
-//   | function_test
-    | header ENDL
     | header define_decl
     | header constants_decl
     | header assign_decl
     | header ivar_test
     | header var_test
-    | header init_test
-    | header trans_test
     | header frozenvar_test
+    | header init_constraint
+    | header trans_constraint
+    | header invar_constraint
     | header invarspec_test
-//    | header function_test
-    | module_header ENDL
     | module_header define_decl
     | module_header constants_decl
     | module_header assign_decl
     | module_header ivar_test
     | module_header var_test
-    | module_header init_test
     | module_header frozenvar_test
-    | module_header trans_test
-    | module_header invarspec_test
-//    | module_header function_test;
+    | module_header init_constraint
+    | module_header trans_constraint
+    | module_header invar_constraint
+    | module_header invarspec_test;
 
 module_header:
     MODULE tok_main;
 
 define_decl:
-    DEFINE define_body 
-    | DEFINE ENDL define_body;
+    DEFINE define_body
+    | define_decl define_body;
 
-define_body: complex_identifier ASSIGNSYM basic_expr ';' ENDL{
+define_body: complex_identifier ASSIGNSYM basic_expr ";" { 
               node *a = $3;
-              enc.terms_[$1] = a-> getTerm();
-}
-            | define_body complex_identifier ASSIGNSYM basic_expr ';' ENDL {
-              node *a = $4;
-              enc.terms_[$2] = a-> getTerm();
-            };
+              smt::Term define_var = a->getTerm();
+              //cout << "find a define" <<$1 <<endl;
+              enc.terms_[$1] = define_var;              
+};
 
 constants_decl:
     CONSTANTS constants_body ;
 
 constants_body: complex_identifier
-            | constants_body ',' complex_identifier ';' ENDL;
+            | constants_body "," complex_identifier ";" ;
 
-assign_decl: ASSIGN assign_list 
-            | ASSIGN ENDL assign_list;
+assign_decl: ASSIGN assign_list;
 
-assign_list: assign_test ';' ENDL
-            | assign_list assign_test ';' ENDL;
+assign_list: assign_test ";" 
+            | assign_list assign_test ";";
 
 assign_test: complex_identifier ASSIGNSYM basic_expr {
           node *a = $3; 
+          //smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           smt::Term state = a->getTerm();
 }
-        | tok_init '('complex_identifier ')' ASSIGNSYM basic_expr{
+        | tok_init "(" complex_identifier ")" ASSIGNSYM basic_expr{
           node *a = $6; 
           smt::Term init = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           enc.rts_.constrain_init(e);
         }
-        | tok_next '('complex_identifier ')' ASSIGNSYM next_expr {
+        | tok_next "("complex_identifier ")" ASSIGNSYM next_expr {
           node *a = $6; 
           smt::Term state = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, state, a->getTerm());
@@ -147,44 +175,36 @@ assign_test: complex_identifier ASSIGNSYM basic_expr {
         };
 
 ivar_test:
-    IVAR ENDL ivar_list ENDL 
-    | IVAR ENDL ivar_list
-    | ivar_test ivar_list ENDL
+    IVAR ivar_list
     | ivar_test ivar_list;
 
 
 ivar_list:
-    complex_identifier ':' type_identifier ';' ENDL{
+    complex_identifier ":" type_identifier ";" {
          //cout <<"find an ivar"<<endl;
          node *a = $3;
          smt::Term input = enc.rts_.make_input($1, a->getSort());
          enc.terms_[$1] = input;
-         //free($1);
     };
 
 var_test:
-    VAR ENDL var_list ENDL
-   | var_test var_list ENDL
-   | VAR ENDL var_list
+    VAR var_list
    | var_test var_list;
 
 var_list:
-    complex_identifier ':' type_identifier ';' ENDL{
+    complex_identifier ":" type_identifier ";"{
          node *a = $3;
          smt::Term state = enc.rts_.make_state($1, a->getSort());
          enc.terms_[$1] = state;
          //cout<<"find a var" <<endl;
-         //free($1);
     };
 
 frozenvar_test:
-  FROZENVAR ENDL frozenvar_list ENDL
-  | frozenvar_test frozenvar_list ENDL
-  | FROZENVAR ENDL frozenvar_list
-  | frozenvar_test frozenvar_test;
+  FROZENVAR frozenvar_list
+  | frozenvar_test frozenvar_list ;
 
 frozenvar_list:
-  complex_identifier ':' type_identifier ';' ENDL{
+  complex_identifier ":" type_identifier ";" {
       node *a = $3;
       smt::Term state = enc.rts_.make_state($1, a->getSort());
       enc.terms_[$1] = state;
@@ -192,81 +212,75 @@ frozenvar_list:
       smt::Term e = enc.solver_->make_term(smt::Equal, n, state);
       enc.rts_.constrain_trans(e);
       //cout<<"find a frozen var" <<endl;
-      //free($1);
   };
 
-init_test: INIT basic_expr ';' ENDL ENDL{
-        node *a = $2;
-        enc.rts_.constrain_init(a->getTerm());
-}
-      | INIT basic_expr ';' ENDL{
-        node *a = $2;
+init_constraint: INIT init_list
+                | init_constraint init_list;
+
+init_list: basic_expr ";"{
+        node *a = $1;
         enc.rts_.constrain_init(a->getTerm());
       };
 
-trans_test: TRANS next_formula ';' ENDL ENDL{
-            node *a = $2;
-            enc.rts_.constrain_trans(a->getTerm());
-            //cout <<"find a trans"<<endl;
-}
-            | TRANS next_formula ';' ENDL{
-            node *a = $2;
+trans_constraint: TRANS trans_list
+                | trans_constraint trans_list;
+
+trans_list: basic_expr ";"{
+            node *a = $1;
             enc.rts_.constrain_trans(a->getTerm());
             //cout <<"find a trans"<<endl;
 };
+
+invar_constraint: INVAR invar_list
+                | invar_constraint invar_list;
+
+invar_list: basic_expr ";"{
+            node *a = $1;
+            enc.rts_.constrain_trans(a->getTerm());
+            //cout <<"find a invar"<<endl;
+};
             
 
-invarspec_test: INVARSPEC basic_expr ';' ENDL ENDL{
+invarspec_test: INVARSPEC invarspec_list;
+
+invarspec_list: basic_expr ";" {
                 //cout<<"find an invarspec" <<endl;
-                node *a = $2;
+                node *a = $1;
                 smt::Term prop = a->getTerm();
                 enc.propvec_.push_back(prop);
-}
-                | INVARSPEC basic_expr ';' ENDL {
-                //cout<<"find an invarspec" <<endl;
-                node *a = $2;
-                smt::Term prop = a->getTerm();
-                enc.propvec_.push_back(prop);
-                }
-                | INVARSPEC basic_expr ';'{
-                //cout<<"find an invarspec" <<endl;
-                node *a = $2;
-                smt::Term prop = a->getTerm();
-                enc.propvec_.push_back(prop);
-              };
-
-//function_test: FUN function_list ';' ENDL ENDL
-//              | FUN ENDL function_list ';' ENDL ;
-
-//function_list: function_declaration
-//              | function_list function_declaration
-//function_declaration: complex_identifier ':' function_type_specifier
-//function_type_specifier: function_args_type_specifier OP_IMPLY type_identifier
-//function_args_type_specifier: type_identifier
-//                | function_args_type_specifier '*' type_identifier
-//fun_test: FUN ENDL basic_expr ':' integer_type '*' integer_type OP_IMPLY word_type ';' ENDL next_line;
-//          | FUN ENDL basic_expr ':' integer_type '*' integer_type OP_IMPLY word_type ';' ENDL ;
-
-next_formula: basic_expr {
-              $$ = $1;
 };
 
 constant: boolean_constant {
       smt::Term con = enc.solver_->make_term($1);
       $$ = new node(con);
 }
-          | integer_constant 
-          | real_constant
+          | integer_constant {
+            smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
+            cout << "construct an integer" << $1 <<endl;
+            smt::Term con = enc.solver_->make_term($1,sort_);
+            $$ = new node(con);
+}
+          | real_constant{
+            smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
+            smt::Term con = enc.solver_->make_term($1,sort_);
+            $$ = new node(con);
+          }
           | word_value {
            $$ = $1;
           }
-          | clock_constant
-          | symbolic_constant
-          | range_constant;
+          | clock_constant{
+            throw CosaException("No clock constant now");
+          }
+//          | symbolic_constant{
+//            throw CosaException("No symbolic constant now");
+//          }
+          | range_constant{
+            throw CosaException("No range constant now");
+          };
 
-word_value: word_index1 integer_val '_' integer_val {
+word_value: word_index1 integer_val "_" integer_val {
           smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
-          char* temp = $1;
+          std::string temp = $1;
           int base = 2;
           switch (temp[1]){
             case 'b':
@@ -284,9 +298,9 @@ word_value: word_index1 integer_val '_' integer_val {
           std::string int_val = std::to_string($4);
           smt::Term num = enc.solver_->make_term(int_val, sort_, base);
           $$ = new node(num); }
-        | word_index2 integer_val '_' integer_val {
+        | word_index2 integer_val "_" integer_val {
           smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
-          char* temp = $1;
+          std::string temp = $1;
           int base = 2;
           switch (temp[2]){
             case 'b':
@@ -314,15 +328,18 @@ boolean_constant: TOK_TRUE{
                 $$ = false;    
           };
 
-define_identifier: complex_identifier{
-                $$ = $1;
-};
+//define_identifier: complex_identifier{
+//                $$ = $1;
+//};
 
 integer_constant: integer_val{
-  throw CosaException("No integer constant now");
+  //cout << "find integer val" << $1 << endl;
+  $$ = $1;
+  //throw CosaException("No integer constant now");
 };
 real_constant: real_val{
-  throw CosaException("No real constant now");
+  $$ = $1;
+  //throw CosaException("No real constant now");
 };
 range_constant: integer_val TO integer_val{
   throw CosaException("No range constant now");
@@ -346,17 +363,21 @@ basic_expr: constant {
             //| EXP '(' basic_expr ')'
             //| TAN '(' basic_expr ')'
             //| ln '(' basic_expr ')'
-            | '(' basic_expr ')'{
+            | "(" basic_expr ")"{
               $$ = $2;
             }
-            | '!' basic_expr
-            | basic_expr '&' basic_expr {
+            | OP_NOT basic_expr {
+              node *a = $2;
+              smt::Term e = enc.solver_->make_term(smt::Not, a->getTerm());
+              $$ = new node(e);
+            }
+            | basic_expr OP_AND basic_expr {
               node *a = $1;
               node *b = $3;
               smt::Term e = enc.solver_->make_term(smt::BVAnd, a->getTerm(), b->getTerm());
               $$ = new node(e);
             }
-            | basic_expr '|' basic_expr{
+            | basic_expr OP_OR basic_expr{
               node *a = $1;
               node *b = $3;
               smt::Term e = enc.solver_->make_term(smt::BVOr, a->getTerm(), b->getTerm());
@@ -386,7 +407,7 @@ basic_expr: constant {
               smt::Term e = enc.solver_->make_term(smt::Iff, a->getTerm(), b->getTerm());
               $$ = new node(e);
             }
-            | basic_expr '=' basic_expr {
+            | basic_expr OP_EQ basic_expr {
               node *a = $1;
               node *b = $3;
               smt::Term e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
@@ -398,52 +419,86 @@ basic_expr: constant {
               smt::Term e = enc.solver_->make_term(smt::Distinct, a->getTerm(), b->getTerm());
               $$ = new node(e);
             }
-            | basic_expr '<' basic_expr  {
+            | basic_expr OP_LT basic_expr  {
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }
             }
-            | basic_expr '>' basic_expr {
+            | basic_expr OP_GT basic_expr {
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+                  cout << "int greater than" <<endl;
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
+                  cout << "bv greater than" <<endl;
+                  $$ = new node(res);
+              }
             }
             | basic_expr OP_LTE basic_expr{
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ((kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              } 
             }
             | basic_expr OP_GTE basic_expr{
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ((kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }
             }
-            | '-' basic_expr {
-
+            | OP_MINUS basic_expr %prec UMINUS{
+                node *a = $2;
+                smt::Term res = enc.solver_->make_term(smt::BVNeg, a->getTerm());
+                $$ = new node(res);
             }
-            | basic_expr '+' basic_expr{
+            | basic_expr "+" basic_expr{
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVAdd, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVAdd, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }
             }
-            | basic_expr '-' basic_expr{
+            | basic_expr "-" basic_expr{
               node *a = $1;
               node *b = $3;
               smt::Term res = enc.solver_->make_term(smt::BVSub, a->getTerm(), b->getTerm());
               $$ = new node(res);
             }
-            | basic_expr '*' basic_expr{
+            | basic_expr "*" basic_expr{
               node *a = $1;
               node *b = $3;
               smt::Term res = enc.solver_->make_term(smt::BVMul, a->getTerm(), b->getTerm());
               $$ = new node(res);
             }
-            | basic_expr '/' basic_expr{
+            | basic_expr "/" basic_expr{
               node *a = $1;
               node *b = $3;
               smt::Term res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
@@ -467,87 +522,131 @@ basic_expr: constant {
               smt::Term res = enc.solver_->make_term(smt::BVShl, a->getTerm(), b->getTerm());
               $$ = new node(res);
             }
-            | basic_expr '[' integer_val ']'
-            | basic_expr '[' basic_expr ':' basic_expr ']'
+            | basic_expr sizev {
+              throw CosaException("No word1");
+            }
             | basic_expr OP_CON basic_expr  {
               node *a = $1;
               node *b = $3;
               smt::Term res = enc.solver_->make_term(smt::Concat, a->getTerm(), b->getTerm());
               $$ = new node(res);
             }
-            | word1 '(' basic_expr ')'
-            | tok_bool '(' basic_expr ')'
-            | tok_toint '(' basic_expr ')'
-            | tok_count '(' basic_expr_list ')'
-            | swconst '(' basic_expr ')'
-            | uwconst '(' basic_expr ')'
-            | tok_signed '(' basic_expr ')'
-            | tok_unsigned '(' basic_expr ')'
-            | tok_sizeof '(' basic_expr ')'
-            | tok_floor '(' basic_expr ')'
-            | extend '(' basic_expr ')'
-            | resize '(' basic_expr ')'
-            | signed_word sizev '(' basic_expr ')'
-            | unsigned_word sizev '(' basic_expr ')'
-            | basic_expr UNION '(' basic_expr ')'
-            |'{' set_body_expr '}'
-            | basic_expr in basic_expr
-            | basic_expr IF_ELSE basic_expr ':' basic_expr          
-          | WRITE'('basic_expr','basic_expr','basic_expr')'{
+            | basic_expr "[" basic_expr ":" basic_expr "]"{
+              throw CosaException("No word1");
+            }
+            | word1 "(" basic_expr ")" {
+              throw CosaException("No word1");
+            }
+            | tok_bool "(" basic_expr ")"{
+              throw CosaException("No type convert");
+            }
+            | tok_toint "(" basic_expr ")"{
+              throw CosaException("No type convert");
+            }
+            | tok_count "(" basic_expr_list ")"{
+              throw CosaException("No type convert");
+            }
+            | swconst "(" basic_expr ")"{
+              throw CosaException("No type convert");
+            }
+            | uwconst "(" basic_expr ")"{
+              throw CosaException("No type convert");
+            }
+            | tok_signed "(" basic_expr ")"{
+                $$ = $3;
+            }
+            | tok_unsigned "(" basic_expr ")"{
+                $$ = $3;
+            }
+            | tok_sizeof "(" basic_expr ")"{
+              throw CosaException("No array size");
+            }
+            | tok_floor "(" basic_expr ")"{
+              throw CosaException("No floor operation");
+            }
+            | extend "(" basic_expr ")"{
+              throw CosaException("No extend now");
+            }
+            | resize "(" basic_expr ")" {
+              throw CosaException("No resize");
+            }
+            | signed_word sizev "(" basic_expr ")"{
+               throw CosaException("No resize");
+            }
+            | unsigned_word sizev "(" basic_expr ")"{
+               throw CosaException("No resize");
+            }
+            | basic_expr UNION  basic_expr {
+               throw CosaException("No union");
+            }
+            |"{" set_body_expr "}" {
+               throw CosaException("No set");
+            }
+            | basic_expr OP_in basic_expr {
+               throw CosaException("No array");
+            }
+            | basic_expr IF_ELSE basic_expr ":" basic_expr  {
+               throw CosaException("No case now");
+            }        
+          | WRITE "(" basic_expr "," basic_expr "," basic_expr ")"{
             node *a = $3;
             node *b = $5;
             node *c = $7;
             smt::Term write_r =  enc.solver_->make_term(smt::Store, a->getTerm(),b->getTerm(),c->getTerm());
             $$ = new node(write_r);
           }
-          | READ '(' basic_expr ',' basic_expr ')'{
+          | READ "(" basic_expr "," basic_expr ")"{
             node *a = $3;
             node *b = $5;
             smt::Term read_r =  enc.solver_->make_term(smt::Select, a->getTerm(),b->getTerm());
             $$ = new node(read_r);
           }
-          | CONSTARRAY '(' tok_typeof '(' complex_identifier ')' ',' basic_expr ')' 
-          | CONSTARRAY '(' arrayword sizev of type_identifier ',' basic_expr ')' 
-          | CONSTARRAY '(' arrayinteger of type_identifier ',' basic_expr ')' 
+          | CONSTARRAY "(" tok_typeof "(" complex_identifier ")" "," basic_expr ")" {
+             throw CosaException("No constarray");
+          }
+          | CONSTARRAY "(" arrayword sizev of type_identifier "," basic_expr ")" {
+            throw CosaException("No constarray");
+          }
+          | CONSTARRAY "(" arrayinteger of type_identifier "," basic_expr ")" {
+            throw CosaException("No constarray");
+          }
           | next_expr{
             $$ = $1;
           };
 
-next_expr: tok_next '(' basic_expr ')'{
+next_expr: tok_next "(" basic_expr ")"{
           node *a = $3;
           smt::Term n = enc.rts_.next(a->getTerm());
           $$ = new node(n);
 };
 
 basic_expr_list: basic_expr
-                | basic_expr_list ',' basic_expr;
+                | basic_expr_list "," basic_expr;
 
 set_body_expr: basic_expr
-                | set_body_expr ',' basic_expr;
+                | set_body_expr "," basic_expr;
         
-symbolic_constant: complex_identifier;
+//symbolic_constant: complex_identifier;
 
 complex_identifier: tok_name{
                 $$ = $1;
  }
-              | complex_identifier '.' tok_name{
-                throw CosaException("No module component access now"); 
-               //$$ = strcat($1,$3);
+              | complex_identifier "." tok_name{
+                $$ = $1 + "." + $3;
  }
-              | complex_identifier '.' integer_val{
-                throw CosaException("No module component access now"); 
-                //$$ = $1 + $3;
+              | complex_identifier "." integer_val{
+                $$ = $1 + "." + std::to_string($3);
  };
 
 type_identifier: real_type{
                 smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
                 $$ =  new node (sort_);
-                throw CosaException("No real type now in boolector");
+                //throw CosaException("No real type now in boolector");
                 }
                 | integer_type{
                   smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
                   $$ =  new node (sort_);
-                  throw CosaException("No integer type now in boolector");  
+                  //throw CosaException("No integer type now in boolector");  
                 }
                 | bool_type {
                 smt::Sort sort_ = enc.solver_->make_sort(smt::BOOL);
@@ -557,12 +656,14 @@ type_identifier: real_type{
                   throw CosaException("No clock type now");
                 }
                 | array_type{
-                  $$ = $1;
+                  $$ = $1 ;
                 }
                 | word_type {
                 $$ = $1;
 }           
-                | integer_val TO integer_val;
+                | integer_val TO integer_val{
+                  throw CosaException("No range now");
+                };
 
 word_type: signed_word sizev {
         smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
@@ -586,20 +687,32 @@ array_type: arrayword sizev of type_identifier{
           | arrayinteger of type_identifier{
             throw CosaException("no array integer type now");
           }
-          | array_tok of type_identifier;
+          | array_tok of type_identifier{
+            throw CosaException("No other array now");
+          };
 
 sizev:
-    '[' integer_val ']'{
+    "[" integer_val "]"{
         $$  = $2;
     };
 %%
 
-void smvEncoder::parse(std::string filename){
+void cosa::smvEncoder::parse(std::string filename){
     FILE *myfile = fopen(filename.c_str(), "r");
-  // make sure ist's valid:
+    std::string file = filename; 
+  // make sure file is valid:
   if (!myfile) {
     std::cout << "NO input file!" << std::endl;
+    exit(-1);
   }
   yyin = myfile;
-  yyparse(*this); 
+  cosa::smvparser parse (*this);
+  parse();
+}
+
+void
+cosa::smvparser::error (const std::string& m)
+{
+  std::cerr << yylineno << ":" << m << '\n';
+   exit(-1);
 }

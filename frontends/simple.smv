@@ -6,23 +6,24 @@ IVAR
 VAR 
   y: boolean;
   x_A: boolean;
-  x : unsigned word[4] ;
+  x.y : unsigned word[4] ;
   mem : array word[4] of word[8] ;
 
 FROZENVAR
   y_A : unsigned word[4] ;
 
-INIT x = 0ud4_0 ;
-INIT y_A = 0h4_9;
+INIT 
+  y_A = 0h4_9;
 
 DEFINE
-  x_y :=  x >= 0ud4_0;
+  x_y :=  x.y = 0ud4_0;
 
 ASSIGN
   init(y) := TRUE;
 
---TRANS next(mem) = WRITE(mem, y_A, data) ;
-TRANS next(x) = y_A + 0ud4_011;
+TRANS 
+  next(mem) = WRITE(mem, y_A, data) ;
+  next(x.y) = y_A + 0ud4_011;
 
-INVARSPEC y = FALSE ;
+INVARSPEC x_y ;
 

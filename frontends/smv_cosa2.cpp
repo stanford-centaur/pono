@@ -1,9 +1,10 @@
+
 #include "rts.h"
 #include "smt-switch/smt.h"
 #include "smt-switch/boolector_factory.h"
-#include "node.h"
-#include "encoder.h"
-#include "smvparser.tab.h"
+#include "smv_node.h"
+#include "smv_encoder.h"
+#include "smvparser.tab.hh"
 
 #include "bmc.h"
 #include "bmc_simplepath.h"
@@ -12,7 +13,7 @@
 #include "kinduction.h"
 #include "prop.h"
 #include "logger.h"
-//#include "smt-switch/msat_factory.h"
+#include "smt-switch/msat_factory.h"
 
 using namespace smt;
 using namespace cosa;
@@ -24,14 +25,13 @@ int main(int, char** argv) {
   
   SmtSolver s = BoolectorSolverFactory::create();
   //SmtSolver s = MsatSolverFactory::create();
-        s->set_opt("produce-models", "true");
-      s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  s->set_opt("incremental", "true");
   RelationalTransitionSystem rts(s);
   std::cout << "++++++++++++++++++++++++++ PRINT SIMPLE SYSTEM ++++++++++++++++++++++++++" << std::endl;
   std::cout << argv[1] << std::endl;
   smvEncoder smv_enc(argv[1], rts);
   unsigned int prop_idx = default_prop_idx;
-  //std::cout << "++++++++++++++++++++++++++ PRINT SIMPLE SYSTEM ++++++++++++++++++++++++++" << std::endl;
   std::cout << "INPUTS" << std::endl;
   for (auto i : rts.inputs())
   {
