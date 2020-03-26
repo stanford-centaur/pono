@@ -14,6 +14,8 @@
 **
 **/
 
+#pragma once
+
 #include "core/ts.h"
 #pragma once
 namespace cosa {
