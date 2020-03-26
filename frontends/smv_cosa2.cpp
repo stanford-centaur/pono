@@ -1,10 +1,18 @@
+<<<<<<< HEAD
 
+=======
+#include "node.h"
+>>>>>>> 44d2ceaecf4d9970ec21f0c3c959ac316c20fbcc
 #include "rts.h"
-#include "smt-switch/smt.h"
 #include "smt-switch/boolector_factory.h"
+<<<<<<< HEAD
 #include "smv_node.h"
 #include "smv_encoder.h"
 #include "smvparser.tab.hh"
+=======
+#include "smt-switch/smt.h"
+#include "smv_encoder.h"
+>>>>>>> 44d2ceaecf4d9970ec21f0c3c959ac316c20fbcc
 
 #include "bmc.h"
 #include "bmc_simplepath.h"

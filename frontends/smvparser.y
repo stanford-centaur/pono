@@ -1,3 +1,4 @@
+%require "3.4.2"
 %{
     #include<cstdio>
     #include<iostream>
@@ -103,7 +104,7 @@ header:
      define_decl
     | constants_decl
     | assign_decl
-    | ivar_test 
+    | ivar_test
     | var_test
     | frozenvar_test
     | init_constraint
@@ -167,8 +168,13 @@ assign_test: complex_identifier ASSIGNSYM basic_expr {
           smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           enc.rts_.constrain_init(e);
         }
+<<<<<<< HEAD
         | tok_next "("complex_identifier ")" ASSIGNSYM next_expr {
           node *a = $6; 
+=======
+        | tok_next '('complex_identifier ')' ASSIGNSYM next_expr {
+          node *a = $6;
+>>>>>>> 44d2ceaecf4d9970ec21f0c3c959ac316c20fbcc
           smt::Term state = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, state, a->getTerm());
           enc.rts_.constrain_trans(e);
@@ -239,7 +245,7 @@ invar_list: basic_expr ";"{
             enc.rts_.constrain_trans(a->getTerm());
             //cout <<"find a invar"<<endl;
 };
-            
+
 
 invarspec_test: INVARSPEC invarspec_list;
 
@@ -325,7 +331,7 @@ boolean_constant: TOK_TRUE{
                 $$ = true;
           }
                 | TOK_FALSE{
-                $$ = false;    
+                $$ = false;
           };
 
 //define_identifier: complex_identifier{
