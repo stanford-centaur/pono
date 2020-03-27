@@ -244,10 +244,9 @@ int main(int argc, char ** argv)
     //       it would be better to have a generic encoder
     //       and also only create the transition system once
     ProverResult r;
-    string file_ext = filename.substr(filename.find_last_of(".") + 1);
+    string file_ext = filename.substr(filename.find_last_of(".") + 1);  
     if (file_ext == "btor2" || file_ext == "btor") {
-      logger.log(2, "Parsing BTOR2 file: {}", filename);
-
+      logger.log(2, "Parsing BTOR2 file: {}", filename); 
       FunctionalTransitionSystem fts(s);
       BTOR2Encoder btor_enc(filename, fts);
       const TermVec & propvec = btor_enc.propvec();

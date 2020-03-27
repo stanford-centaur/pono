@@ -109,11 +109,11 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
         tmp = store_children[0];
       }
 
-      if (tmp->get_op().is_null() && tmp->is_value()) {
-        smt::Term const_val = *(tmp->begin());
-        logger.log(
-            0, "{} {} {}@{}", i, as_bits(const_val->to_string()), vec[i], time);
-      }
+    //   if (tmp->get_op().is_null() && tmp->is_value()) {
+    //     smt::Term const_val = *(tmp->begin());
+    //     logger.log(
+    //         0, "{} {} {}@{}", i, as_bits(const_val->to_string()), vec[i], time);
+    //   }
 
     } else {
       throw CosaException("Unhandled sort kind: " + ::smt::to_string(sk));
@@ -158,15 +158,15 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
         tmp = store_children[0];
       }
 
-      if (tmp->get_op().is_null() && tmp->is_value()) {
-        smt::Term const_val = *(tmp->begin());
-        logger.log(0,
-                   "{} {} {}@{}",
-                   entry.first,
-                   as_bits(const_val->to_string()),
-                   entry.second,
-                   time);
-      }
+      // if (tmp->get_op().is_null() && tmp->is_value()) {
+      //   smt::Term const_val = *(tmp->begin());
+      //   logger.log(0,
+      //              "{} {} {}@{}",
+      //              entry.first,
+      //              as_bits(const_val->to_string()),
+      //              entry.second,
+      //              time);
+      // }
 
     } else {
       throw CosaException("Unhandled sort kind: " + ::smt::to_string(sk));

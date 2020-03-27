@@ -17,8 +17,10 @@ include_directories("${PROJECT_SOURCE_DIR}/engines")
 include_directories("${PROJECT_SOURCE_DIR}/frontends")
 include_directories("${PROJECT_SOURCE_DIR}/options")
 include_directories("/usr/local/include")
+include_directories("/usr/local/Cellar/gmp/6.2.0/include")
 
 link_directories("/usr/local/lib")
+link_directories("/usr/local/Cellar/gmp/6.2.0/lib")
 
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
 find_package(BISON 3.4.2 REQUIRED)
@@ -114,10 +116,7 @@ if (WITH_CVC4)
 endif()
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2 PUBLIC gmp)
-<<<<<<< HEAD
-=======
 target_link_libraries(cosa2 PUBLIC y)
->>>>>>> 44d2ceaecf4d9970ec21f0c3c959ac316c20fbcc
 
 enable_testing()
 # Add tests subdirectory
@@ -144,8 +143,4 @@ if (WITH_MSAT)
 endif()
 target_link_libraries(cosa2-bin PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2-bin PUBLIC gmp)
-<<<<<<< HEAD
-
-=======
 target_link_libraries(cosa2-bin PUBLIC y)
->>>>>>> 44d2ceaecf4d9970ec21f0c3c959ac316c20fbcc

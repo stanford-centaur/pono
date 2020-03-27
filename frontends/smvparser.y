@@ -168,13 +168,8 @@ assign_test: complex_identifier ASSIGNSYM basic_expr {
           smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           enc.rts_.constrain_init(e);
         }
-<<<<<<< HEAD
         | tok_next "("complex_identifier ")" ASSIGNSYM next_expr {
           node *a = $6; 
-=======
-        | tok_next '('complex_identifier ')' ASSIGNSYM next_expr {
-          node *a = $6;
->>>>>>> 44d2ceaecf4d9970ec21f0c3c959ac316c20fbcc
           smt::Term state = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, state, a->getTerm());
           enc.rts_.constrain_trans(e);
