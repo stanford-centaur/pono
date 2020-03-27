@@ -490,26 +490,50 @@ basic_expr: constant {
             | basic_expr "-" basic_expr{
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVSub, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVSub, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }
             }
             | basic_expr "*" basic_expr{
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVMul, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVMul, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }
             }
             | basic_expr "/" basic_expr{
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }
             }
             | basic_expr OP_MOD basic_expr{
               node *a = $1;
               node *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
-              $$ = new node(res);
+              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+                  smt::Term res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }else{
+                  smt::Term res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
+                  $$ = new node(res);
+              }
             }
             | basic_expr OP_SHIFTR basic_expr{
               node *a = $1;
