@@ -439,10 +439,8 @@ basic_expr: constant {
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
                   $$ = new node(res);
-                  cout << "int greater than" <<endl;
               }else{
                   smt::Term res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
-                  cout << "bv greater than" <<endl;
                   $$ = new node(res);
               }
             }
