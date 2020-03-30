@@ -248,18 +248,20 @@ void VCDWitnessPrinter::GenHeader(std::ostream & fout) const {
     fout << buffer << std::endl;
   }
   fout << "$end" << std::endl;
-  fout << "$timescale 1ns $end" << std::endl;
+  fout << "$version CoSA2 $end" << std::endl;
+  fout << "$timescale 1 ns $end" << std::endl;
   DumpScopes(fout);
   fout << "$enddefinitions $end" << std::endl;
 } // GenHeader
 
 void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
   std::unordered_map<std::string, std::string> & valbuf,
-  std::ostream & fout) const {
+  uint64_t t, std::ostream & fout) const {
   for (auto && hash_sig_pair : hash2sig_bv_) {
     auto pos = valmap.find(hash_sig_pair.second->ast);
     if (pos == valmap.end()) {
-      logger.log(0, "missing val in valmap: {} ,{}, {}" ,
+      logger.log(0, "missing value in provided trace @{}: {} ,{}, {}" ,
+        t,
         hash_sig_pair.second->full_name,
         hash_sig_pair.first, 
         hash_sig_pair.second->ast->to_string());
@@ -277,12 +279,16 @@ void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
 
 void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
   std::unordered_map<std::string, std::string> & valprev,
-  std::ostream & fout) const {
+  uint64_t t, std::ostream & fout) const {
 
   for (auto && hash_sig_pair : hash2sig_bv_) {
     auto pos = valmap.find(hash_sig_pair.second->ast);
     if (pos == valmap.end()) {
-      // logger.log(0, "missing val in valmap {}" , hash_sig_pair.second->to_string());
+      logger.log(0, "missing value in provided trace @{}: {} ,{}, {}" ,
+        t,
+        hash_sig_pair.second->full_name,
+        hash_sig_pair.first, 
+        hash_sig_pair.second->ast->to_string());
       continue;
     }
     auto val = as_bits(pos->second->to_string());
@@ -310,10 +316,10 @@ void VCDWitnessPrinter::DumpValues(std::ostream & fout,
   std::unordered_map<std::string, std::string> hash_to_value_map;
   // used to store the previous value for comparison
   fout << "#0" << std::endl;
-  dump_all(cex.at(0), hash_to_value_map, fout);
+  dump_all(cex.at(0), hash_to_value_map, 0, fout);
   for (uint64_t t = 1; t < cex.size(); ++t ) {
     fout << "#" << t << std::endl;
-    dump_diff(cex.at(t), hash_to_value_map, fout);
+    dump_diff(cex.at(t), hash_to_value_map, t, fout);
   }
   fout << "#" << cex.size() << std::endl;
 }

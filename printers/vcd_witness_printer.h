@@ -84,10 +84,10 @@ protected:
 
   void dump_all(const smt::UnorderedTermMap & valmap,
     std::unordered_map<std::string, std::string> & valbuf,
-    std::ostream & fout) const;
+    uint64_t tick, std::ostream & fout) const;
   void dump_diff(const smt::UnorderedTermMap & valmap,
     std::unordered_map<std::string, std::string> & valprev,
-    std::ostream & fout) const;
+    uint64_t tick, std::ostream & fout) const;
 
 public:
   // in case you want to use separately
