@@ -154,25 +154,25 @@ VCDWitnessPrinter::VCDWitnessPrinter(const BTOR2Encoder & btor_enc,
 
   // you also need to figure out the indices used for each array
   // and dump these values when needed and dump the default value
-  logger.log(0, "-------------Input Dump-----------------");
+  logger.log(3, "-------------Input Dump-----------------");
   for (auto && i: inputs_) {
-    logger.log(0, "{}", i->to_string());
+    logger.log(3, "{}", i->to_string());
   }
-  logger.log(0, "-------------State Dump-----------------");
+  logger.log(3, "-------------State Dump-----------------");
   for (auto && s: states_) {
-    logger.log(0, "{}", s->to_string());
+    logger.log(3, "{}", s->to_string());
   }
-  logger.log(0, "-------------No Next States-----------------");
+  logger.log(3, "-------------No Next States-----------------");
   for (auto && s: no_next_states_) {
-    logger.log(0, "{}", s.second->to_string());
+    logger.log(3, "{}", s.second->to_string());
   }
 }
 
 void VCDWitnessPrinter::DebugDump(const std::vector<smt::UnorderedTermMap> & cex) const {
   for (uint64_t fidx = 0; fidx < cex.size(); ++ fidx) {
-    logger.log(0, "------------- CEX : F{} -----------------", fidx);
+    logger.log(3, "------------- CEX : F{} -----------------", fidx);
     for (auto && t : cex.at(fidx)) {
-      logger.log(0, "{} -> {}", t.first->to_string(), t.second->to_string() );
+      logger.log(3, "{} -> {}", t.first->to_string(), t.second->to_string() );
     }
   }
 }
@@ -333,6 +333,7 @@ void VCDWitnessPrinter::DumpTraceToFile(const std::string & vcd_file_name,
     throw CosaException("Unable to write to : " + vcd_file_name);
   GenHeader(fout);
   DumpValues(fout, cex);
+  logger.log(0, "Trace written to " + vcd_file_name);
 }
 
 } // namespace cosa
