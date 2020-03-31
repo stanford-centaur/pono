@@ -83,6 +83,10 @@ memory -nomap;
 # flatten the design hierarchy
 flatten;
 
+# (optional) uncomment and set values to simulate reset signal
+# use -resetn for an active low pin
+# sim -clock <clockpin> -reset <resetpin> -n <number of cycles> -w <top_module>
+
 # (optional) use an "explicit" clock
 # e.g. every state is a half cycle of the
 # fastest clock
