@@ -1,10 +1,10 @@
 name: Python Wheels
 
-on:
-  push:
-    tags:
-      - '*'
-
+#on:
+#  push:
+#    tags:
+#      - '*'
+on: [push]
 
 jobs:
   build:
@@ -48,6 +48,6 @@ jobs:
           echo repository=https://upload.pypi.org/legacy/  >> ~/.pypirc
           echo username=makaim                             >> ~/.pypirc
           echo password=$PYPI_PASSWORD                     >> ~/.pypirc
-          twine upload --config-file ~/.pypirc --skip-existing wheelhouse/*
+          # twine upload --config-file ~/.pypirc --skip-existing wheelhouse/*
       env:
           PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
