@@ -497,7 +497,7 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
         if (prev_pos == valprev.end()) {
           valprev.insert(std::make_pair(addr_pos->second, data ));
           fout << data << " " << addr_pos->second << std::endl;
-          logger.log(0, "Bug, {} was not cached before time : {}.",
+          logger.log(0, "{} was not cached before time : {}.",
             sig_array_ptr->full_name+"["+addr+"]", std::to_string(t));
         } else {
           if (prev_pos->second != data) {
@@ -521,7 +521,7 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
         if (prev_pos == valprev.end()) {
           valprev.insert(std::make_pair(addr_pos->second, data_default ));
           fout << data_default << " " << addr_pos->second << std::endl;
-          logger.log(0, "Bug, {} was not cached before time : {}.",
+          logger.log(0, "{} was not cached before time : {}.",
             sig_array_ptr->full_name+"[default]", std::to_string(t));
         } else {
           if (prev_pos->second != data_default) {
