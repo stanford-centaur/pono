@@ -261,7 +261,6 @@ void BTOR2Encoder::parse(const std::string filename)
       } else {
         symbol_ = "output" + to_string(l_->id);
       }
-
       ts_.name_term(symbol_, termargs_[0]);
     } else if (l_->tag == BTOR2_TAG_sort) {
       switch (l_->sort.tag) {
@@ -642,6 +641,13 @@ void BTOR2Encoder::parse(const std::string filename)
         }
         terms_[l_->id] = solver_->make_term(bvopmap.at(l_->tag), termargs_);
       }
+    }
+
+    // use the symbol to name the term (if applicable)
+    // input, output, and state already named
+    if (l_->symbol && l_->tag != BTOR2_TAG_input && l_->tag != BTOR2_TAG_output
+        && l_->tag != BTOR2_TAG_state) {
+      ts_.name_term(l_->symbol, terms_[l_->id]);
     }
   }
 
