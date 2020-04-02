@@ -45,7 +45,12 @@ struct VCDSignal {
 }; 
 
 struct VCDArray : public VCDSignal {
-  std::set<std::string> indices;
+  std::unordered_map<std::string, std::string> indices2hash;
+  VCDArray (
+    const std::string & _vcd_name, 
+    const std::string & _full_name,
+    const smt::Term & _ast, uint64_t w) :
+    VCDSignal(_vcd_name, _full_name, "", _ast, w) {}
 };
 
 struct VCDScope {
@@ -65,17 +70,21 @@ protected:
   const std::map<uint64_t, smt::Term> no_next_states_;
   const bool has_states_without_next_;
   const std::unordered_map<std::string, smt::Term> & named_terms_;
+  const std::vector<smt::UnorderedTermMap> & cex_;
   
   VCDScope root_scope_;
   // hash id --> signal object
-  std::unordered_map<std::string, VCDSignal *> hash2sig_bv_;
+  std::vector<VCDSignal *> allsig_bv_;
+  std::vector<VCDArray  *> allsig_array_;
 
   // given a name like a.b.c, find the right scope and
   // create if it does not exists
   void check_insert_scope(const std::string& full_name, 
     bool is_reg, const smt::Term & ast);
   // another function for array maybe?
-  // check_insert_scope
+  void check_insert_scope_array(const std::string& full_name, 
+    const std::unordered_set<std::string> & indices, bool has_default,
+    const smt::Term & ast);
 
   uint64_t hash_id_cnt_;
   std::string new_hash_id();
@@ -89,20 +98,23 @@ protected:
     std::unordered_map<std::string, std::string> & valprev,
     uint64_t tick, std::ostream & fout) const;
 
-public:
-  // in case you want to use separately
+
+protected:
+
   void DumpScopes(std::ostream & fout) const;
   void GenHeader(std::ostream & fout) const;
-  void DumpValues(std::ostream & fout, 
-    const std::vector<smt::UnorderedTermMap> & cex) const;
+  void DumpValues(std::ostream & fout) const;
 
-  void DumpTraceToFile(const std::string & vcd_file_name, 
-    const std::vector<smt::UnorderedTermMap> & cex) const;
+
   
+public:
   VCDWitnessPrinter(const BTOR2Encoder & btor_enc,
-                    const TransitionSystem & ts);
+                    const TransitionSystem & ts,
+                    const std::vector<smt::UnorderedTermMap> & cex);
 
-  void DebugDump(const std::vector<smt::UnorderedTermMap> & cex) const;
+
+  void DumpTraceToFile(const std::string & vcd_file_name) const;
+  void DebugDump() const;
 
 }; // class VCDWitnessPrinter
 

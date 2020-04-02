@@ -114,16 +114,65 @@ static std::string as_bits(std::string val)
 }
 
 
+static std::string as_decimal(std::string val)
+{
+  // TODO: this makes assumptions on format of value from boolector
+  //       to support other solvers, we need to be more general
+  std::string res = val;
+
+  if (val.length() < 2) {
+    throw CosaException("Don't know how to interpret value: " + val);
+  }
+
+  if (res.substr(0, 2) == "#b") {
+    // #b prefix -> b
+    res = res.substr(2, val.length() - 1);
+    mpz_class cval(res, 2);
+    res = cval.get_str(10);
+  } else if (res.substr(0, 2) == "#x") {
+    throw CosaException("Not supporting hexadecimal format yet.");
+  } else {
+    res = res.substr(5, res.length() - 5);
+    std::istringstream iss(res);
+    std::vector<std::string> tokens(std::istream_iterator<std::string>{ iss },
+                                    std::istream_iterator<std::string>());
+
+    if (tokens.size() != 2) {
+      throw CosaException("Failed to interpret " + val);
+    }
+
+    res = tokens[0];
+    // get rid of ")"
+    std::string width_str = tokens[1].substr(0, tokens[1].length() - 1);
+    size_t width = std::stoull(width_str);
+    mpz_class cval(res);
+    res = cval.get_str(10);
+    // no need for padding
+    // size_t strlen = res.length();
+    // if (strlen < width) {
+    //   // pad with zeros
+    //   res = std::string(width - strlen, '0') + res;
+    // } else if (strlen > width) {
+    //   // remove prepended zeros
+    //   res = res.erase(0, strlen - width);
+    // }
+    return res;
+  }
+  return res;
+}
+
 // ------------- CLASS FUNCTIONS ------------------ //
 
 
 VCDWitnessPrinter::VCDWitnessPrinter(const BTOR2Encoder & btor_enc,
-                    const TransitionSystem & ts) :
+                    const TransitionSystem & ts,
+                    const std::vector<smt::UnorderedTermMap> & cex) :
   inputs_(btor_enc.inputsvec()),
   states_(btor_enc.statesvec()),
   no_next_states_(btor_enc.no_next_states()),
   has_states_without_next_(!no_next_states_.empty()),
   named_terms_(ts.named_terms()),
+  cex_(cex),
   hash_id_cnt_(0)
 {
   // figure out the variables and their scopes
@@ -139,9 +188,37 @@ VCDWitnessPrinter::VCDWitnessPrinter(const BTOR2Encoder & btor_enc,
   }
 
   for (auto && state : states_) {
-    if(state->get_sort()->get_sort_kind() == smt::ARRAY)
-      continue;
-    check_insert_scope(state->to_string(), true, state);
+    if(state->get_sort()->get_sort_kind() == smt::ARRAY) {
+      // we need to preprocess cex to know the indices
+      std::unordered_set<std::string> indices;
+      bool has_default_value = false;
+
+      for(auto && valmap : cex) { // for each step 
+        auto array_assign_pos = valmap.find(state);
+        if ( array_assign_pos == valmap.end() )
+          continue; // we find no assignment at this step
+          // should not be the case, but we skip anyway
+        // peel the (store (store ...) ), find the indices
+        
+        smt::Term tmp = array_assign_pos->second;
+        smt::TermVec store_children(3);
+        while (tmp->get_op() == smt::Store) {
+          int num = 0;
+          for (auto c : tmp) {
+            store_children[num] = c;
+            num++;
+          }
+          indices.insert(as_decimal(store_children[1]->to_string()));
+          tmp = store_children[0];
+        }
+
+        if (tmp->get_op().is_null() && tmp->is_value())
+          has_default_value = true;
+      } // for each frame, collect 
+      check_insert_scope_array(state->to_string(), indices, has_default_value, state );
+    }
+    else
+      check_insert_scope(state->to_string(), true, state);
   }
 
 
@@ -166,12 +243,13 @@ VCDWitnessPrinter::VCDWitnessPrinter(const BTOR2Encoder & btor_enc,
   for (auto && s: no_next_states_) {
     logger.log(3, "{}", s.second->to_string());
   }
-}
+} // VCDWitnessPrinter -- constructor
 
-void VCDWitnessPrinter::DebugDump(const std::vector<smt::UnorderedTermMap> & cex) const {
-  for (uint64_t fidx = 0; fidx < cex.size(); ++ fidx) {
+
+void VCDWitnessPrinter::DebugDump() const {
+  for (uint64_t fidx = 0; fidx < cex_.size(); ++ fidx) {
     logger.log(3, "------------- CEX : F{} -----------------", fidx);
-    for (auto && t : cex.at(fidx)) {
+    for (auto && t : cex_.at(fidx)) {
       logger.log(3, "{} -> {}", t.first->to_string(), t.second->to_string() );
     }
   }
@@ -210,8 +288,46 @@ void VCDWitnessPrinter::check_insert_scope(const std::string& full_name, bool is
     VCDSignal(
       short_name + width2range(width), 
       full_name,  hashid , ast, width)));
-  hash2sig_bv_.insert(std::make_pair(hashid, &(signal_set.at(short_name)) ));
+  allsig_bv_.push_back( &(signal_set.at(short_name)) );
 }
+
+void VCDWitnessPrinter::check_insert_scope_array(const std::string& full_name, 
+  const std::unordered_set<std::string> & indices, bool has_default,
+  const smt::Term & ast) {
+
+  auto scopes = split(full_name, ".");
+  VCDScope * root = & root_scope_;
+  for (size_t idx = 0; idx < scopes.size() - 1; ++idx) {
+    const auto & next_scope = scopes.at(idx);
+    auto pos = root->subscopes.find(next_scope);
+    if (pos != root->subscopes.end()) { // we find it
+      root = & (pos->second);
+    } else { // we need to insert this scope
+      root->subscopes.insert(std::make_pair(next_scope, VCDScope()));
+      root = &( root->subscopes.at(next_scope) );
+    }
+  } // at the end of this loop, we are at the scope to insert our variable
+  const auto & short_name = scopes.back();
+  uint64_t data_width = ast->get_sort()->get_elemsort()->get_width();
+
+  std::map<std::string, VCDArray> & signal_set = root->arrays;
+
+  if (signal_set.find(short_name) != signal_set.end()) {
+    // TODO: only check in Debug
+    throw CosaException(full_name + " has been registered already");
+  }
+
+  signal_set.insert(std::make_pair(short_name,
+    VCDArray(short_name, full_name,  ast, data_width)));
+  auto & indices2hash = signal_set.at(short_name).indices2hash;
+  for (const auto & index : indices)
+    indices2hash.insert(std::make_pair(index, new_hash_id()));
+  if (has_default)
+    indices2hash.insert(std::make_pair("default", new_hash_id()));
+  allsig_array_.push_back( &(signal_set.at(short_name)) );
+  // to do: add indices and their hashes
+}
+
 
 
 void VCDWitnessPrinter::dump_current_scope(std::ostream & fout, const VCDScope *scope) const {
@@ -222,6 +338,13 @@ void VCDWitnessPrinter::dump_current_scope(std::ostream & fout, const VCDScope *
   for (auto && w : scope->wires) {
     fout << "$var wire " << w.second.data_width << " " << w.second.hash << " "
          << w.second.vcd_name << " $end" << std::endl;
+  }
+  for (auto && a : scope->arrays) {
+    auto data_width = a.second.data_width;
+    for (auto && idx_hash_pair : a.second.indices2hash)
+      fout << "$var reg " << data_width << " " << idx_hash_pair.second << " "
+           << a.second.vcd_name+"[" + idx_hash_pair.first + "]" + width2range(data_width)
+           << " $end" << std::endl;
   }
   // let's go for the submodules
   for (auto pos = scope->subscopes.begin() ; pos != scope->subscopes.end() ; ++ pos) {
@@ -257,23 +380,69 @@ void VCDWitnessPrinter::GenHeader(std::ostream & fout) const {
 void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
   std::unordered_map<std::string, std::string> & valbuf,
   uint64_t t, std::ostream & fout) const {
-  for (auto && hash_sig_pair : hash2sig_bv_) {
-    auto pos = valmap.find(hash_sig_pair.second->ast);
+  for (auto && sig_bv_ptr : allsig_bv_) {
+    auto pos = valmap.find(sig_bv_ptr->ast);
     if (pos == valmap.end()) {
       logger.log(0, "missing value in provided trace @{}: {} ,{}, {}" ,
         t,
-        hash_sig_pair.second->full_name,
-        hash_sig_pair.first, 
-        hash_sig_pair.second->ast->to_string());
+        sig_bv_ptr->full_name,
+        sig_bv_ptr->hash, 
+        sig_bv_ptr->ast->to_string());
       continue;
     }
     auto val = as_bits(pos->second->to_string());
     valbuf.insert(std::make_pair(
-      hash_sig_pair.first,
+      sig_bv_ptr->hash,
       val
     ));
-    fout << val << " " << hash_sig_pair.first << std::endl;
-  }
+    fout << val << " " << sig_bv_ptr->hash << std::endl;
+  } // for all bv signals
+
+  for (auto && sig_array_ptr : allsig_array_) {
+    auto pos = valmap.find(sig_array_ptr->ast);
+    if (pos == valmap.end()) {
+      logger.log(0, "missing value in provided trace @{}: {} , {}" ,
+        t,
+        sig_array_ptr->full_name,
+        sig_array_ptr->ast->to_string());
+      continue;
+    }
+    smt::Term memvalue = pos->second;
+    smt::TermVec store_children(3);
+    while (memvalue->get_op() == smt::Store) {
+      int num = 0;
+      for (auto c : memvalue) {
+        store_children[num] = c;
+        num++;
+      }
+
+      auto addr = as_decimal(store_children[1]->to_string());
+      auto data = as_bits(store_children[2]->to_string());
+      auto addr_pos = sig_array_ptr->indices2hash.find(addr);
+      if (addr_pos != sig_array_ptr->indices2hash.end()) {
+        valbuf.insert(std::make_pair(addr_pos->second, data));
+        fout << data << " " << addr_pos->second << std::endl;
+      } else {
+        logger.log(0, "missing addr index for array: {}: , addr : {}" ,
+          sig_array_ptr->full_name, addr);
+      }
+
+      memvalue = store_children[0];
+    }
+
+    if (memvalue->get_op().is_null() && memvalue->is_value()) {
+      smt::Term const_val = *(memvalue->begin());
+      auto data_default = as_bits(const_val->to_string());
+      auto addr_pos = sig_array_ptr->indices2hash.find("default");
+      if (addr_pos != sig_array_ptr->indices2hash.end()) {
+        valbuf.insert(std::make_pair(addr_pos->second, data_default));
+        fout << data_default << " " << addr_pos->second << std::endl;
+      } else {
+        logger.log(0, "missing addr index for array: {}: , addr : {}" ,
+          sig_array_ptr->full_name, "-default-");
+      }
+    } // handling the inner constant default
+  } // for all array signals
   // TODO : mems
 }
 
@@ -281,58 +450,127 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
   std::unordered_map<std::string, std::string> & valprev,
   uint64_t t, std::ostream & fout) const {
 
-  for (auto && hash_sig_pair : hash2sig_bv_) {
-    auto pos = valmap.find(hash_sig_pair.second->ast);
+  for (auto && sig_bv_ptr : allsig_bv_) {
+    auto pos = valmap.find(sig_bv_ptr->ast);
     if (pos == valmap.end()) {
       logger.log(0, "missing value in provided trace @{}: {} ,{}, {}" ,
         t,
-        hash_sig_pair.second->full_name,
-        hash_sig_pair.first, 
-        hash_sig_pair.second->ast->to_string());
+        sig_bv_ptr->full_name,
+        sig_bv_ptr->hash, 
+        sig_bv_ptr->ast->to_string());
       continue;
     }
     auto val = as_bits(pos->second->to_string());
-    auto prev_pos = valprev.find(hash_sig_pair.first);
-    if (prev_pos == valprev.end())
-      throw CosaException("Bug, "+ hash_sig_pair.first + " is not cached.");
+    auto prev_pos = valprev.find(sig_bv_ptr->hash);
+    if (prev_pos == valprev.end()) {
+      valprev.insert(std::make_pair(sig_bv_ptr->hash, val ));
+      fout << val << " " << sig_bv_ptr->hash << std::endl;
+      logger.log(0, "Bug, {} was not cached before time : {}.",
+        sig_bv_ptr->full_name, std::to_string(t));
+      continue;
+    }
     if ( prev_pos->second == val )
       continue;
     // update old value and print
     prev_pos->second = val;
-    fout << val << " " << hash_sig_pair.first << std::endl;
-  }
+    fout << val << " " << sig_bv_ptr->hash << std::endl;
+  } // for all bv signals
+
+
+  for (auto && sig_array_ptr : allsig_array_) {
+    auto pos = valmap.find(sig_array_ptr->ast);
+    if (pos == valmap.end()) {
+      logger.log(0, "missing value in provided trace @{}: {}, {}" ,
+        t,
+        sig_array_ptr->full_name,
+        sig_array_ptr->ast->to_string());
+      continue;
+    }
+    smt::Term memvalue = pos->second;
+    smt::TermVec store_children(3);
+    while (memvalue->get_op() == smt::Store) { // peel the (store (store ...))
+      int num = 0;
+      for (auto c : memvalue) {
+        store_children[num] = c;
+        num++;
+      }
+
+      auto addr = as_decimal(store_children[1]->to_string());
+      auto data = as_bits(store_children[2]->to_string());
+      auto addr_pos = sig_array_ptr->indices2hash.find(addr);
+      if (addr_pos != sig_array_ptr->indices2hash.end()) {
+        auto prev_pos = valprev.find(addr_pos->second);
+        if (prev_pos == valprev.end()) {
+          valprev.insert(std::make_pair(addr_pos->second, data ));
+          fout << data << " " << addr_pos->second << std::endl;
+          logger.log(0, "Bug, {} was not cached before time : {}.",
+            sig_array_ptr->full_name+"["+addr+"]", std::to_string(t));
+        } else {
+          if (prev_pos->second != data) {
+            prev_pos->second = data; // update the value
+            fout << data << " " << addr_pos->second << std::endl;
+          }
+        } // exists in prev pos or not
+      } else {
+        logger.log(0, "missing addr index for array: {}: , addr : {}" ,
+          sig_array_ptr->full_name, addr);
+      }
+      memvalue = store_children[0];
+    }
+
+    if (memvalue->get_op().is_null() && memvalue->is_value()) {
+      smt::Term const_val = *(memvalue->begin());
+      auto data_default = as_bits(const_val->to_string());
+      auto addr_pos = sig_array_ptr->indices2hash.find("default");
+      if (addr_pos != sig_array_ptr->indices2hash.end()) {
+        auto prev_pos = valprev.find(addr_pos->second);
+        if (prev_pos == valprev.end()) {
+          valprev.insert(std::make_pair(addr_pos->second, data_default ));
+          fout << data_default << " " << addr_pos->second << std::endl;
+          logger.log(0, "Bug, {} was not cached before time : {}.",
+            sig_array_ptr->full_name+"[default]", std::to_string(t));
+        } else {
+          if (prev_pos->second != data_default) {
+            prev_pos->second = data_default; // update the value
+            fout << data_default << " " << addr_pos->second << std::endl;
+          }
+        } // exists in prev pos or not
+      } else {
+        logger.log(0, "missing addr index for array: {}: , addr : {}" ,
+          sig_array_ptr->full_name, "-default-");
+      }
+    } // handling the inner constant default
+  } // for all array signals
 }
 
-void VCDWitnessPrinter::DumpValues(std::ostream & fout, 
-  const std::vector<smt::UnorderedTermMap> & cex) const {
+void VCDWitnessPrinter::DumpValues(std::ostream & fout) const {
   // at time 0 we dump all the values
   // and then at each later time, we compare and
   // see if there is any difference, if not
   // we just skip it
   // finally add an empty time-tick
-  if (cex.empty())
+  if (cex_.empty())
     throw CosaException("No trace to dump");
 
   std::unordered_map<std::string, std::string> hash_to_value_map;
   // used to store the previous value for comparison
   fout << "#0" << std::endl;
-  dump_all(cex.at(0), hash_to_value_map, 0, fout);
-  for (uint64_t t = 1; t < cex.size(); ++t ) {
+  dump_all(cex_.at(0), hash_to_value_map, 0, fout);
+  for (uint64_t t = 1; t < cex_.size(); ++t ) {
     fout << "#" << t << std::endl;
-    dump_diff(cex.at(t), hash_to_value_map, t, fout);
+    dump_diff(cex_.at(t), hash_to_value_map, t, fout);
   }
-  fout << "#" << cex.size() << std::endl;
+  fout << "#" << cex_.size() << std::endl;
 }
 
 
-void VCDWitnessPrinter::DumpTraceToFile(const std::string & vcd_file_name, 
-  const std::vector<smt::UnorderedTermMap> & cex) const {
+void VCDWitnessPrinter::DumpTraceToFile(const std::string & vcd_file_name) const {
   
   std::ofstream fout(vcd_file_name);
   if (!fout.is_open())
     throw CosaException("Unable to write to : " + vcd_file_name);
   GenHeader(fout);
-  DumpValues(fout, cex);
+  DumpValues(fout);
   logger.log(0, "Trace written to " + vcd_file_name);
 }
 

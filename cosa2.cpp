@@ -254,8 +254,8 @@ int main(int argc, char ** argv)
       if (prover->witness(cex)) {
         print_witness_btor(btor_enc, cex);
         if (!vcd_name.empty()) {
-          VCDWitnessPrinter vcdprinter(btor_enc, fts);
-          vcdprinter.DumpTraceToFile(vcd_name, cex);
+          VCDWitnessPrinter vcdprinter(btor_enc, fts, cex);
+          vcdprinter.DumpTraceToFile(vcd_name);
         }
       }
       return 1;
