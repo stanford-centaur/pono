@@ -107,3 +107,7 @@ cdef extern from "frontends/btor2_encoder.h" namespace "cosa":
 
 cdef extern from "utils/logger.h" namespace "cosa":
     void set_global_logger_verbosity(unsigned int v) except +
+
+
+cdef extern from "utils/term_analysis.h" namespace "cosa":
+    void get_free_symbols(const c_Term & term, c_UnorderedTermSet & out_symbols) except +

@@ -20,11 +20,13 @@ from cosa2 cimport BmcSimplePath as c_BmcSimplePath
 from cosa2 cimport InterpolantMC as c_InterpolantMC
 from cosa2 cimport BTOR2Encoder as c_BTOR2Encoder
 from cosa2 cimport set_global_logger_verbosity as c_set_global_logger_verbosity
+from cosa2 cimport get_free_symbols as c_get_free_symbols
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 
 from enum import Enum
 
+ctypedef unordered_set[c_Term] c_UnorderedTermSet
 ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr
 ctypedef unordered_set[c_Term].const_iterator c_UnorderedTermSet_const_iterator
 
@@ -328,3 +330,16 @@ cdef class BTOR2Encoder:
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)
+
+
+def get_free_symbols(Term term):
+    cdef c_UnorderedTermSet out_symbols
+    c_get_free_symbols(term.ct, out_symbols)
+
+    python_out_set = set()
+    for s in out_symbols:
+        t = Term(term._solver)
+        t.ct = s
+        python_out_set.add(t)
+
+    return python_out_set
