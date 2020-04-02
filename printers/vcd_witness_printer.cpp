@@ -383,11 +383,9 @@ void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
   for (auto && sig_bv_ptr : allsig_bv_) {
     auto pos = valmap.find(sig_bv_ptr->ast);
     if (pos == valmap.end()) {
-      logger.log(0, "missing value in provided trace @{}: {} ,{}, {}" ,
+      logger.log(0, "missing value in provided trace @{}: {}" ,
         t,
-        sig_bv_ptr->full_name,
-        sig_bv_ptr->hash, 
-        sig_bv_ptr->ast->to_string());
+        sig_bv_ptr->full_name);
       continue;
     }
     auto val = as_bits(pos->second->to_string());
@@ -401,10 +399,9 @@ void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
   for (auto && sig_array_ptr : allsig_array_) {
     auto pos = valmap.find(sig_array_ptr->ast);
     if (pos == valmap.end()) {
-      logger.log(0, "missing value in provided trace @{}: {} , {}" ,
+      logger.log(0, "missing value in provided trace @{}: {}" ,
         t,
-        sig_array_ptr->full_name,
-        sig_array_ptr->ast->to_string());
+        sig_array_ptr->full_name);
       continue;
     }
     smt::Term memvalue = pos->second;
@@ -453,11 +450,9 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
   for (auto && sig_bv_ptr : allsig_bv_) {
     auto pos = valmap.find(sig_bv_ptr->ast);
     if (pos == valmap.end()) {
-      logger.log(0, "missing value in provided trace @{}: {} ,{}, {}" ,
+      logger.log(0, "missing value in provided trace @{}: {}" ,
         t,
-        sig_bv_ptr->full_name,
-        sig_bv_ptr->hash, 
-        sig_bv_ptr->ast->to_string());
+        sig_bv_ptr->full_name);
       continue;
     }
     auto val = as_bits(pos->second->to_string());
@@ -480,10 +475,9 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
   for (auto && sig_array_ptr : allsig_array_) {
     auto pos = valmap.find(sig_array_ptr->ast);
     if (pos == valmap.end()) {
-      logger.log(0, "missing value in provided trace @{}: {}, {}" ,
+      logger.log(0, "missing value in provided trace @{}: {}" ,
         t,
-        sig_array_ptr->full_name,
-        sig_array_ptr->ast->to_string());
+        sig_array_ptr->full_name);
       continue;
     }
     smt::Term memvalue = pos->second;
