@@ -16,7 +16,7 @@
   #include "smv_node.h"
   #include <string>
   namespace cosa{
-    class smvEncoder;
+    class SmvEncoder;
   }
 }
 
@@ -24,8 +24,8 @@
 %require "3.2"
 %language "c++"
 %defines 
-%lex-param {smvEncoder &enc}
-%parse-param {smvEncoder &enc}
+%lex-param {SmvEncoder &enc}
+%parse-param {SmvEncoder &enc}
 
 %define parse.trace
 %define parse.error verbose
@@ -55,7 +55,7 @@
 %token ENDL
 
 %token <int> integer_val real_val
-%token bool_type integer_type real_type clock_type set_tok array_tok 
+%token bool_type integer_type real_type set_tok array_tok 
 %token <std::string> word_index1 word_index2
 %token <std::string> tok_name
 %token <bool> TOK_TRUE TOK_FALSE
@@ -269,9 +269,6 @@ constant: boolean_constant {
           | word_value {
            $$ = $1;
           }
-          | clock_constant{
-            throw CosaException("No clock constant now");
-          }
 //          | symbolic_constant{
 //            throw CosaException("No symbolic constant now");
 //          }
@@ -344,9 +341,6 @@ real_constant: real_val{
 };
 range_constant: integer_val TO integer_val{
   throw CosaException("No range constant now");
-};
-clock_constant: time_type{
-  throw CosaException("No clock constant now");
 };
 basic_expr: constant {
             $$ = $1;
@@ -675,9 +669,6 @@ type_identifier: real_type{
                 smt::Sort sort_ = enc.solver_->make_sort(smt::BOOL);
                 $$ =  new node (sort_);
                 }
-                | clock_type{
-                  throw CosaException("No clock type now");
-                }
                 | array_type{
                   $$ = $1 ;
                 }
@@ -720,7 +711,7 @@ sizev:
     };
 %%
 
-void cosa::smvEncoder::parse(std::string filename){
+void cosa::SmvEncoder::parse(std::string filename){
     FILE *myfile = fopen(filename.c_str(), "r");
     std::string file = filename; 
   // make sure file is valid:

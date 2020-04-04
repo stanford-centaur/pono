@@ -1,6 +1,6 @@
-#ifndef NODE_H
-#define NODE_H
 #pragma once
+
+
 #include <stdio.h>
 #include <iostream>
 #include <map>
@@ -11,14 +11,19 @@
 #include "exceptions.h"
 #include "smt-switch/smt.h"
 
+/* node to help construct syntax tree in the parser */
+
 struct node {
       smt::Term tm;
       smt::Sort st;
+      std::string type;
 
       node (smt::Sort s){
+            type = "SORT";
             st = s;
       }
       node (smt::Term t){
+            type = "TERM";
             tm = t;
       }
 
@@ -28,8 +33,8 @@ struct node {
       smt::Term getTerm(){
             return tm;
       }
+
+      std::string getType(){
+            return type;
+      }
 };
-
-
-
-#endif

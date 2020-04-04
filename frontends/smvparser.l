@@ -72,7 +72,6 @@ signed   {return cosa::smvparser::make_tok_signed();}
 boolean   {return cosa::smvparser::make_bool_type();}
 real  {return cosa::smvparser::make_real_type();}
 integer   {return cosa::smvparser::make_integer_type();}
-ck   {return cosa::smvparser::make_clock_type();}
 word   {return cosa::smvparser::make_tok_word();}
 set {return cosa::smvparser::make_tok_set();}
 "in" {return cosa::smvparser::make_OP_in();}
