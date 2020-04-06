@@ -19,7 +19,6 @@
 #include "smt-switch/boolector_factory.h"
 
 #include "vcd_witness_printer.h"
-// #include "btor2_witness_printer.h"
 
 #include <iostream>
 #include <fstream>
@@ -30,13 +29,12 @@ using namespace std;
 namespace cosa {
 
 static const char date_time_format [] = "%A %Y/%m/%d  %H:%M:%S";
-// const std::string_view vcd_header (R"**(
+// The format of header :
 // $date
 // %date%
 // $end
 // $version COSA2 $end
 // $timescale 1 ns $end
-// )**");
 
 // ------------- HELPER FUNCTIONS ------------------ //
 
@@ -57,17 +55,17 @@ static std::vector<std::string> split(const std::string& str,
 }
 
 
-/// convert a widith to a verilog string
+// convert a widith to a verilog string
 static std::string width2range(uint64_t w) {
   if (w > 1)
     return std::string("[") + std::to_string(w - 1) + ":0]";
   return "";
 }
 
-/// copied from btor2_witness_printer,
-/// so that we don't need to include
-/// because its header contains also 
-/// implementation, this creates troubles
+// copied from btor2_witness_printer,
+// so that we don't need to include
+// because its header contains also 
+// implementation, this creates troubles
 static std::string as_bits(std::string val)
 {
   // TODO: this makes assumptions on format of value from boolector
@@ -113,7 +111,7 @@ static std::string as_bits(std::string val)
   return res;
 }
 
-
+// convert boolector value to decimal
 static std::string as_decimal(std::string val)
 {
   // TODO: this makes assumptions on format of value from boolector
@@ -147,15 +145,6 @@ static std::string as_decimal(std::string val)
     size_t width = std::stoull(width_str);
     mpz_class cval(res);
     res = cval.get_str(10);
-    // no need for padding
-    // size_t strlen = res.length();
-    // if (strlen < width) {
-    //   // pad with zeros
-    //   res = std::string(width - strlen, '0') + res;
-    // } else if (strlen > width) {
-    //   // remove prepended zeros
-    //   res = res.erase(0, strlen - width);
-    // }
     return res;
   }
   return res;
@@ -221,27 +210,10 @@ VCDWitnessPrinter::VCDWitnessPrinter(const BTOR2Encoder & btor_enc,
       check_insert_scope(state->to_string(), true, state);
   }
 
-
   for (auto && input : inputs_) {
     if(input->get_sort()->get_sort_kind() == smt::ARRAY)
       continue;
     check_insert_scope(input->to_string(), false, input);
-  }
-
-
-  // you also need to figure out the indices used for each array
-  // and dump these values when needed and dump the default value
-  logger.log(3, "-------------Input Dump-----------------");
-  for (auto && i: inputs_) {
-    logger.log(3, "{}", i->to_string());
-  }
-  logger.log(3, "-------------State Dump-----------------");
-  for (auto && s: states_) {
-    logger.log(3, "{}", s->to_string());
-  }
-  logger.log(3, "-------------No Next States-----------------");
-  for (auto && s: no_next_states_) {
-    logger.log(3, "{}", s.second->to_string());
   }
 } // VCDWitnessPrinter -- constructor
 
@@ -253,7 +225,7 @@ void VCDWitnessPrinter::DebugDump() const {
       logger.log(3, "{} -> {}", t.first->to_string(), t.second->to_string() );
     }
   }
-}
+} // DebugDump
 
 std::string VCDWitnessPrinter::new_hash_id() {
   return "v" + std::to_string(hash_id_cnt_++);
@@ -289,7 +261,7 @@ void VCDWitnessPrinter::check_insert_scope(const std::string& full_name, bool is
       short_name + width2range(width), 
       full_name,  hashid , ast, width)));
   allsig_bv_.push_back( &(signal_set.at(short_name)) );
-}
+} // end of check_insert_scope
 
 void VCDWitnessPrinter::check_insert_scope_array(const std::string& full_name, 
   const std::unordered_set<std::string> & indices, bool has_default,
@@ -326,7 +298,7 @@ void VCDWitnessPrinter::check_insert_scope_array(const std::string& full_name,
     indices2hash.insert(std::make_pair("default", new_hash_id()));
   allsig_array_.push_back( &(signal_set.at(short_name)) );
   // to do: add indices and their hashes
-}
+} // end of check_insert_scope_array
 
 
 
@@ -375,7 +347,7 @@ void VCDWitnessPrinter::GenHeader(std::ostream & fout) const {
   fout << "$timescale 1 ns $end" << std::endl;
   DumpScopes(fout);
   fout << "$enddefinitions $end" << std::endl;
-} // GenHeader
+} // end of GenHeader
 
 void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
   std::unordered_map<std::string, std::string> & valbuf,
@@ -441,7 +413,7 @@ void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
     } // handling the inner constant default
   } // for all array signals
   // TODO : mems
-}
+} // end of VCDWitnessPrinter::dump_all
 
 void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
   std::unordered_map<std::string, std::string> & valprev,
@@ -535,7 +507,7 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
       }
     } // handling the inner constant default
   } // for all array signals
-}
+} // end of VCDWitnessPrinter::dump_diff
 
 void VCDWitnessPrinter::DumpValues(std::ostream & fout) const {
   // at time 0 we dump all the values
@@ -559,7 +531,6 @@ void VCDWitnessPrinter::DumpValues(std::ostream & fout) const {
 
 
 void VCDWitnessPrinter::DumpTraceToFile(const std::string & vcd_file_name) const {
-  
   std::ofstream fout(vcd_file_name);
   if (!fout.is_open())
     throw CosaException("Unable to write to : " + vcd_file_name);
