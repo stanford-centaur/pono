@@ -252,8 +252,8 @@ void VCDWitnessPrinter::check_insert_scope(const std::string& full_name, bool is
   std::map<std::string, VCDSignal> & signal_set = is_reg ? root->regs : root->wires;
 
   if (signal_set.find(short_name) != signal_set.end()) {
-    // TODO: only check in Debug
-    throw CosaException(full_name + " has been registered already");
+    logger.log(1, full_name + " has been registered already");
+    return;
   }
   auto hashid = new_hash_id();
   signal_set.insert(std::make_pair(short_name,
