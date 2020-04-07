@@ -283,7 +283,7 @@ int main(int argc, char ** argv)
     } else if (file_ext == "smv") {
       logger.log(2, "Parsing SMV file: {}", filename);
       RelationalTransitionSystem rts(s);
-      SmvEncoder smv_enc(filename, rts);
+      SMVEncoder smv_enc(filename, rts);
       const TermVec & propvec = smv_enc.propvec();
       unsigned int num_props = propvec.size();
       if (prop_idx >= num_props) {

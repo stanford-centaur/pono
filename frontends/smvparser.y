@@ -16,7 +16,7 @@
   #include "smv_node.h"
   #include <string>
   namespace cosa{
-    class SmvEncoder;
+    class SMVEncoder;
   }
 }
 
@@ -24,8 +24,8 @@
 %require "3.2"
 %language "c++"
 %defines 
-%lex-param {SmvEncoder &enc}
-%parse-param {SmvEncoder &enc}
+%lex-param {SMVEncoder &enc}
+%parse-param {SMVEncoder &enc}
 
 %define parse.trace
 %define parse.error verbose
@@ -36,14 +36,6 @@
 %code {
   #include "smv_encoder.h"
 }
-
-//%union{
-//  node *n;
-//  char *str;
-//  //std::string str;
-//  int num;
-//  bool bl;
-//}
 
 %token MODULE tok_main IVAR INVAR VAR FROZENVAR INVARSPEC
 %token INIT TRANS READ WRITE ASSIGN CONSTARRAY CONSTANTS FUN DEFINE
@@ -93,7 +85,7 @@ DOT ".";
 %left OP_NOT
 %left "[" ":" "]"
 
-%type <node*> type_identifier word_type array_type word_value basic_expr next_expr constant case_body case_expr
+%type <node*> type_identifier word_type array_type word_value basic_expr next_expr constant 
 %type <int> sizev 
 %type <bool> boolean_constant
 %type <int> integer_constant real_constant
@@ -636,21 +628,21 @@ next_expr: tok_next "(" basic_expr ")"{
           smt::Term n = enc.rts_.next(a->getTerm());
           $$ = new node(n);
 };
-case_expr: tok_case case_body tok_esac{
-          // $$ = $2;
-};
+// case_expr: tok_case case_body tok_esac{
+//           $$ = $2;
+// };
 
-case_body: basic_expr ":" basic_expr ";"{
-          // node *a = $1;
-          // smt::Term n = a->getTerm();
-          // if (n == ){
-          //   $$ = $3;
-          // }
-          // else {
-          //   $$ = null;
-          // }
-}
-| case_body basic_expr ":" basic_expr ";" ; 
+// case_body: basic_expr ":" basic_expr ";"{
+//           node *a = $1;
+//           smt::Term n = a->getTerm();
+//           if (n == ){
+//             $$ = $3;
+//           }
+//           else {
+//             $$ = null;
+//           }
+// }
+// | case_body basic_expr ":" basic_expr ";" ; 
 
 basic_expr_list: basic_expr
                 | basic_expr_list "," basic_expr;
@@ -726,7 +718,7 @@ sizev:
     };
 %%
 
-void cosa::SmvEncoder::parse(std::string filename){
+void cosa::SMVEncoder::parse(std::string filename){
     FILE *myfile = fopen(filename.c_str(), "r");
     std::string file = filename; 
   // make sure file is valid:
