@@ -64,7 +64,11 @@ flatten;
 
 # (optional) uncomment and set values to simulate reset signal
 # use -resetn for an active low pin
-# sim -clock <clockpin> -reset <resetpin> -n <number of cycles> -w <top_module>
+# -n configures the number of cycles to simulate
+# -rstlen configures how long the reset is active (recommended to keep it active for the whole simulation)
+# -w tells it to write back the final state of the simulation as the initial state in the btor2 file
+# another useful option is -zinit which zero initializes any uninitialized state
+# sim -clock <clockpin> -reset <resetpin> -n <number of cycles> -rstlen <number of cycles> -w <top_module>
 
 # (optional) use an "explicit" clock
 # e.g. every state is a half cycle of the
