@@ -392,7 +392,7 @@ void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
         valbuf.insert(std::make_pair(addr_pos->second, data));
         fout << data << " " << addr_pos->second << std::endl;
       } else {
-        logger.log(0, "missing addr index for array: {}: , addr : {}" ,
+        logger.log(1, "missing addr index for array: {}: , addr : {}" ,
           sig_array_ptr->full_name, addr);
       }
 
