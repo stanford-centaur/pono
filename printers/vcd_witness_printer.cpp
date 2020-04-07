@@ -502,7 +502,7 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
           }
         } // exists in prev pos or not
       } else {
-        logger.log(0, "missing addr index for array: {}: , addr : {}" ,
+        logger.log(1, "missing addr index for array: {}: , addr : {}" ,
           sig_array_ptr->full_name, "-default-");
       }
     } // handling the inner constant default
