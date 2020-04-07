@@ -432,7 +432,7 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
     if (prev_pos == valprev.end()) {
       valprev.insert(std::make_pair(sig_bv_ptr->hash, val ));
       fout << val << " " << sig_bv_ptr->hash << std::endl;
-      logger.log(0, "Bug, {} was not cached before time : {}.",
+      logger.log(1, "Bug, {} was not cached before time : {}.",
         sig_bv_ptr->full_name, std::to_string(t));
       continue;
     }
