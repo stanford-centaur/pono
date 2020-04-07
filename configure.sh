@@ -17,6 +17,8 @@ Configures the CMAKE build environment.
                         Required for interpolant based model checking
 --with-cvc4             build with CVC4 support (default: off)
 --debug                 build debug with debug symbols (default: off)
+--static-lib            build a static library (default: shared)
+--static                build a static executable (default: dynamic); implies --static-lib
 EOF
   exit 0
 }
@@ -32,6 +34,8 @@ build_type=default
 with_msat=default
 with_cvc4=default
 debug=default
+lib_type=SHARED
+static_exec=NO
 
 buildtype=Release
 
@@ -65,12 +69,19 @@ do
             debug=yes;
             buildtype=Debug
             ;;
+        --static-lib)
+            lib_type=STATIC
+            ;;
+        --static)
+            static_exec=YES;
+            lib_type=STATIC;
+            ;;
         *) die "unexpected argument: $1";;
     esac
     shift
 done
 
-cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype"
+cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DCOSA2_LIB_TYPE=${lib_type} -DCOSA2_STATIC_EXEC=${static_exec}"
 
 [ $install_prefix != default ] \
     && cmake_opts="$cmake_opts -DCMAKE_INSTALL_PREFIX=$install_prefix"
