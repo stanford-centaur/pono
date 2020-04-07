@@ -447,7 +447,7 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
   for (auto && sig_array_ptr : allsig_array_) {
     auto pos = valmap.find(sig_array_ptr->ast);
     if (pos == valmap.end()) {
-      logger.log(0, "missing value in provided trace @{}: {}" ,
+      logger.log(1, "missing value in provided trace @{}: {}" ,
         t,
         sig_array_ptr->full_name);
       continue;
