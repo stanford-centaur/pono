@@ -69,7 +69,7 @@ FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
 
 ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
 
-add_library(cosa2
+add_library(cosa2 "${COSA2_LIB_TYPE}"
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -132,3 +132,8 @@ target_include_directories(cosa2-bin PUBLIC
   "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
 target_link_libraries(cosa2-bin PUBLIC cosa2)
+
+if ("${COSA2_STATIC_EXEC}" STREQUAL "YES")
+  target_link_libraries(cosa2-bin PUBLIC -static)
+endif()
+
