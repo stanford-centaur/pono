@@ -28,7 +28,7 @@ link_directories("/usr/local/lib")
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
-add_library(cosa2 SHARED
+add_library(cosa2 "${COSA2_LIB_TYPE}"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
@@ -132,3 +132,8 @@ target_include_directories(cosa2-bin PUBLIC
   "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 
 target_link_libraries(cosa2-bin PUBLIC cosa2)
+
+if ("${COSA2_STATIC_EXEC}" STREQUAL "YES")
+  target_link_libraries(cosa2-bin PUBLIC -static)
+endif()
+

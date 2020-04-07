@@ -19,6 +19,8 @@ Configures the CMAKE build environment.
 --debug                 build debug with debug symbols (default: off)
 --python                compile with python bindings (default: off)
 --py2                   use python2 interpreter (default: python3)
+--static-lib            build a static library (default: shared)
+--static                build a static executable (default: dynamic); implies --static-lib
 EOF
   exit 0
 }
@@ -36,6 +38,8 @@ with_cvc4=default
 debug=default
 python=default
 py2=default
+lib_type=SHARED
+static_exec=NO
 
 buildtype=Release
 
@@ -75,12 +79,19 @@ do
         --py2)
             py2=yes
             ;;
+        --static-lib)
+            lib_type=STATIC
+            ;;
+        --static)
+            static_exec=YES;
+            lib_type=STATIC;
+            ;;
         *) die "unexpected argument: $1";;
     esac
     shift
 done
 
-cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype"
+cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DCOSA2_LIB_TYPE=${lib_type} -DCOSA2_STATIC_EXEC=${static_exec}"
 
 [ $install_prefix != default ] \
     && cmake_opts="$cmake_opts -DCMAKE_INSTALL_PREFIX=$install_prefix"
