@@ -21,6 +21,8 @@ include_directories("${PROJECT_SOURCE_DIR}/engines")
 include_directories("${PROJECT_SOURCE_DIR}/frontends")
 include_directories("${PROJECT_SOURCE_DIR}/options")
 include_directories("/usr/local/include")
+# For lazybv2int
+include_directories("${PROJECT_SOURCE_DIR}/deps/lazybv2int/src")
 
 link_directories("/usr/local/lib")
 
@@ -108,6 +110,9 @@ endif()
 if (WITH_CVC4)
   target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.a")
 endif()
+
+# for lazybv2int
+target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/lazybv2int/build/liblazybv2int.a")
 
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.a")
 target_link_libraries(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
