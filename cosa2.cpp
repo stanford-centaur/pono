@@ -35,6 +35,10 @@
 #include "prop.h"
 #include "utils/logger.h"
 
+#include "smtlibsolver.h"
+
+using namespace lbv2i;
+
 using namespace cosa;
 using namespace smt;
 using namespace std;
@@ -185,24 +189,33 @@ int main(int argc, char ** argv)
   try {
     SmtSolver s;
     SmtSolver second_solver;
+
+    SmtSolver underlying_solver = MsatSolverFactory::create();
+    // always running in lazy mode
+    s = std::make_shared<LBV2ISolver>(underlying_solver, true);
+    s->set_opt("produce-models", "true");
+    s->set_opt("incremental", "true");
+
     if (engine == INTERP) {
-      #ifdef WITH_MSAT
-      // need mathsat for interpolant based model checking
-      s = MsatSolverFactory::create();
-      second_solver = MsatSolverFactory::create_interpolating_solver();
-      #else
-      throw CosaException("Interpolation-based model checking requires MathSAT and "
-                          "this version of cosa2 is built without MathSAT.\nPlease "
-                          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-                          "Note: MathSAT has a custom license and you must assume all "
-                          "responsibility for meeting the license requirements.");
-      #endif
-    } else {
-      // boolector is faster but doesn't support interpolants
-      s = BoolectorSolverFactory::create();
-      s->set_opt("produce-models", "true");
-      s->set_opt("incremental", "true");
+      throw CosaException("Interpolation not supported for lazybv2int yet");
+      // #ifdef WITH_MSAT
+      // // need mathsat for interpolant based model checking
+      // s = MsatSolverFactory::create();
+      // second_solver = MsatSolverFactory::create_interpolating_solver();
+      // #else
+      // throw CosaException("Interpolation-based model checking requires MathSAT and "
+      //                     "this version of cosa2 is built without MathSAT.\nPlease "
+      //                     "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+      //                     "Note: MathSAT has a custom license and you must assume all "
+      //                     "responsibility for meeting the license requirements.");
+      // #endif
     }
+    // else {
+    //   // boolector is faster but doesn't support interpolants
+    //   s = BoolectorSolverFactory::create();
+    //   s->set_opt("produce-models", "true");
+    //   s->set_opt("incremental", "true");
+    // }
 
     FunctionalTransitionSystem fts(s);
     BTOR2Encoder btor_enc(filename, fts);
@@ -240,10 +253,10 @@ int main(int argc, char ** argv)
     if (r == FALSE) {
       cout << "sat" << endl;
       cout << "b" << prop_idx << endl;
-      vector<UnorderedTermMap> cex;
-      if (prover->witness(cex)) {
-        print_witness_btor(btor_enc, cex);
-      }
+      // vector<UnorderedTermMap> cex;
+      // if (prover->witness(cex)) {
+      //   print_witness_btor(btor_enc, cex);
+      // }
       return 1;
     } else if (r == TRUE) {
       cout << "unsat" << endl;
