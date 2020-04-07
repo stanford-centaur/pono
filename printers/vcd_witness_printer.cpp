@@ -355,7 +355,7 @@ void VCDWitnessPrinter::dump_all(const smt::UnorderedTermMap & valmap,
   for (auto && sig_bv_ptr : allsig_bv_) {
     auto pos = valmap.find(sig_bv_ptr->ast);
     if (pos == valmap.end()) {
-      logger.log(0, "missing value in provided trace @{}: {}" ,
+      logger.log(1, "missing value in provided trace @{}: {}" ,
         t,
         sig_bv_ptr->full_name);
       continue;
