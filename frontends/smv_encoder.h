@@ -12,12 +12,13 @@
 #include "smvparser.h"
 
 //#define YY_DECL yy::parser::symbol_type yylex(yy::parser::semantic_type * const lval, yy::parser::location_type *location)
-#define YY_DECL cosa::smvparser::symbol_type yylex(cosa::SmvEncoder &enc)
+#define YY_DECL cosa::smvparser::symbol_type yylex(cosa::SmvEncoder & enc)
 YY_DECL;
 namespace cosa{
-class SmvEncoder{
-
-  public: SmvEncoder(std::string filename, cosa::RelationalTransitionSystem & rts)
+class SmvEncoder
+{
+ public:
+  SmvEncoder(std::string filename, cosa::RelationalTransitionSystem & rts)
       : rts_(rts), solver_(rts.solver())
   {
     parse(filename);
@@ -36,6 +37,5 @@ class SmvEncoder{
   std::vector<smt::Sort> sortvec_;
   std::vector<smt::Term> propvec_;
 
-} ; //class SmvEncoder
-} //namespace cosa
-
+};  // class SmvEncoder
+}  // namespace cosa

@@ -35,6 +35,8 @@ DEFINE {return cosa::smvparser::make_DEFINE();}
 
 next  {return cosa::smvparser::make_tok_next();}
 init {return cosa::smvparser::make_tok_init();}
+case {return cosa::smvparser::make_tok_case();}
+esac {return cosa::smvparser::make_tok_esac();}
 
 TRUE   {return cosa::smvparser::make_TOK_TRUE(true);}
 FALSE   {return cosa::smvparser::make_TOK_FALSE(false);}
@@ -74,7 +76,7 @@ real  {return cosa::smvparser::make_real_type();}
 integer   {return cosa::smvparser::make_integer_type();}
 word   {return cosa::smvparser::make_tok_word();}
 set {return cosa::smvparser::make_tok_set();}
-"in" {return cosa::smvparser::make_OP_in();}
+in {return cosa::smvparser::make_OP_in();}
 time {return cosa::smvparser::make_time_type();}
 
 "->"  {return cosa::smvparser::make_OP_IMPLY();}

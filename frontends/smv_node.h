@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <stdio.h>
 #include <iostream>
 #include <map>
@@ -19,12 +18,12 @@ struct node {
       std::string type;
 
       node (smt::Sort s){
-            type = "SORT";
-            st = s;
+        type = "SORT";
+        st = s;
       }
       node (smt::Term t){
-            type = "TERM";
-            tm = t;
+        type = "TERM";
+        tm = t;
       }
 
       smt::Sort getSort(){
@@ -34,7 +33,5 @@ struct node {
             return tm;
       }
 
-      std::string getType(){
-            return type;
-      }
+      std::string getType() { return type; }
 };

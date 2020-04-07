@@ -47,7 +47,7 @@
 
 %token MODULE tok_main IVAR INVAR VAR FROZENVAR INVARSPEC
 %token INIT TRANS READ WRITE ASSIGN CONSTARRAY CONSTANTS FUN DEFINE
-%token tok_next tok_init signed_word unsigned_word arrayword arrayinteger tok_array
+%token tok_next tok_init signed_word unsigned_word arrayword arrayinteger tok_array tok_case tok_esac
 %token pi ABS MAX MIN SIN COS EXP TAN ln of word1
 %token tok_bool tok_toint tok_count swconst uwconst tok_sizeof tok_floor extend resize tok_typeof 
 %token tok_unsigned tok_signed tok_word tok_set OP_in time_type
@@ -93,7 +93,7 @@ DOT ".";
 %left OP_NOT
 %left "[" ":" "]"
 
-%type <node*> type_identifier word_type array_type word_value basic_expr next_expr constant
+%type <node*> type_identifier word_type array_type word_value basic_expr next_expr constant case_body case_expr
 %type <int> sizev 
 %type <bool> boolean_constant
 %type <int> integer_constant real_constant
@@ -636,6 +636,21 @@ next_expr: tok_next "(" basic_expr ")"{
           smt::Term n = enc.rts_.next(a->getTerm());
           $$ = new node(n);
 };
+case_expr: tok_case case_body tok_esac{
+          // $$ = $2;
+};
+
+case_body: basic_expr ":" basic_expr ";"{
+          // node *a = $1;
+          // smt::Term n = a->getTerm();
+          // if (n == ){
+          //   $$ = $3;
+          // }
+          // else {
+          //   $$ = null;
+          // }
+}
+| case_body basic_expr ":" basic_expr ";" ; 
 
 basic_expr_list: basic_expr
                 | basic_expr_list "," basic_expr;
