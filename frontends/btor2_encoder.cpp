@@ -17,6 +17,7 @@
 
 #include "btor2_encoder.h"
 #include "term_analysis.h"
+#include "utils/logger.h"
 
 #include <iostream>
 
@@ -701,7 +702,12 @@ void BTOR2Encoder::parse(const std::string filename)
     // input, output, and state already named
     if (l_->symbol && l_->tag != BTOR2_TAG_input && l_->tag != BTOR2_TAG_output
         && l_->tag != BTOR2_TAG_state) {
-      ts_.name_term(l_->symbol, terms_[l_->id]);
+      try {
+        ts_.name_term(l_->symbol, terms_[l_->id]);
+      }
+      catch (CosaException & e) {
+        logger.log(1, "BTOR2Encoder Warning: {}", e.what());
+      }
     }
   }
 
