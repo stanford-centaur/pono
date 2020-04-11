@@ -42,6 +42,7 @@ add_library(cosa2 SHARED
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
+  "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   )
 
 if (APPLE)
