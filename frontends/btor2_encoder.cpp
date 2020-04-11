@@ -17,6 +17,7 @@
 
 #include "btor2_encoder.h"
 #include "term_analysis.h"
+#include "utils/logger.h"
 
 #include <iostream>
 
@@ -179,6 +180,56 @@ TermVec BTOR2Encoder::lazy_convert(const TermVec & tvec) const
   return res;
 }
 
+
+// to handle the case where yosys generate sth. like this
+// state (with no name)
+// output (with name)
+// for Verilog :  output reg xxx;
+
+// this function go over the file and record this case
+// when we encounter it again we shall replace the state's name
+void BTOR2Encoder::preprocess(const std::string& filename) {
+  FILE * input_file = fopen(filename.c_str(), "r");
+
+  if (!input_file) {
+    throw CosaException("Could not open " + filename);
+  }
+
+  reader_ = btor2parser_new();
+
+  if (!btor2parser_read_lines(reader_, input_file)) {
+    throw CosaException(std::string(btor2parser_error(reader_)));
+  }
+
+  it_ = btor2parser_iter_init(reader_);
+
+  std::unordered_set<uint64_t> unamed_state_ids;
+  while ((l_ = btor2parser_iter_next(&it_))) {
+  
+    if (l_->tag == BTOR2_TAG_state) {
+      if (!l_->symbol) { // if we see state has no name, record it
+        unamed_state_ids.insert(l_->id);
+      }
+    } else if (l_->tag == BTOR2_TAG_output && l_->symbol) {
+      // if we see an output with name
+      if (l_->nargs == 0)
+        throw CosaException("Missing term for id " + std::to_string(l_->id));
+      // we'd like to know if it refers to a state without name
+      auto pos = unamed_state_ids.find(l_->args[0]); // so, *pos is its btor id
+      if ( pos != unamed_state_ids.end()) {
+        // in such case, we record that we can name if with this new name
+        auto state_name_pos = state_renaming_table.find(*pos);
+        if ( state_name_pos == state_renaming_table.end() ) {
+          state_renaming_table.insert(std::make_pair(*pos, l_->symbol));
+        } // otherwise we already have a name for it, then just ignore this one
+      }
+    } // end of if input
+  } // end of while
+
+  fclose(input_file);
+  btor2parser_delete(reader_);
+} // end of preprocess
+
 void BTOR2Encoder::parse(const std::string filename)
 {
   FILE * input_file = fopen(filename.c_str(), "r");
@@ -236,7 +287,11 @@ void BTOR2Encoder::parse(const std::string filename)
       if (l_->symbol) {
         symbol_ = l_->symbol;
       } else {
-        symbol_ = "state" + to_string(l_->id);
+        auto renaming_lookup_pos = state_renaming_table.find(l_->id);
+        if (renaming_lookup_pos != state_renaming_table.end() )
+          symbol_ = renaming_lookup_pos->second;
+        else
+          symbol_ = "state" + to_string(l_->id);
       }
 
       Term state = ts_.make_state(symbol_, linesort_);
@@ -261,7 +316,6 @@ void BTOR2Encoder::parse(const std::string filename)
       } else {
         symbol_ = "output" + to_string(l_->id);
       }
-
       ts_.name_term(symbol_, termargs_[0]);
     } else if (l_->tag == BTOR2_TAG_sort) {
       switch (l_->sort.tag) {
@@ -641,6 +695,18 @@ void BTOR2Encoder::parse(const std::string filename)
           termargs_[i] = bool_to_bv(termargs_[i]);
         }
         terms_[l_->id] = solver_->make_term(bvopmap.at(l_->tag), termargs_);
+      }
+    }
+
+    // use the symbol to name the term (if applicable)
+    // input, output, and state already named
+    if (l_->symbol && l_->tag != BTOR2_TAG_input && l_->tag != BTOR2_TAG_output
+        && l_->tag != BTOR2_TAG_state) {
+      try {
+        ts_.name_term(l_->symbol, terms_[l_->id]);
+      }
+      catch (CosaException & e) {
+        logger.log(1, "BTOR2Encoder Warning: {}", e.what());
       }
     }
   }

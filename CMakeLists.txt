@@ -26,6 +26,10 @@ list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
 find_package(BISON 3.4.2 REQUIRED)
 find_package(FLEX 2.6.4 REQUIRED)
 
+# TODO: Use find_package
+# find package
+#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
+
 if (APPLE)
   set(SHARED_LIBRARY_EXT dylib)
 else()
@@ -91,6 +95,7 @@ add_library(cosa2
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
