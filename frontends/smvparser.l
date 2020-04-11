@@ -119,11 +119,11 @@ time {return cosa::smvparser::make_time_type();}
 
 0(b|d|o|h)/[0-9]+_[0-9]+ {BEGIN(WORD_INIT); return cosa::smvparser::make_word_index1(yytext);}
 0(u|s)(b|d|o|h)/[0-9]+_[0-9]+ {BEGIN(WORD_INIT);  return cosa::smvparser::make_word_index2(yytext);}
-<WORD_INIT>[0-9]+/_[0-9]+ {BEGIN(WORD_BASE); return cosa::smvparser::make_integer_val(atoi(yytext));}
+<WORD_INIT>[0-9]+/_[0-9]+ {BEGIN(WORD_BASE); return cosa::smvparser::make_integer_val(yytext);}
 <WORD_BASE>_/[0-9]+ {BEGIN(WORD_VALUE); return cosa::smvparser::make_UNDER();}
-<WORD_VALUE>[0-9]+ {BEGIN(INITIAL); return cosa::smvparser::make_integer_val(atoi(yytext));}
+<WORD_VALUE>[0-9]+ {BEGIN(INITIAL); return cosa::smvparser::make_integer_val(yytext);}
 
-[0-9]+           {return cosa::smvparser::make_integer_val(atoi(yytext));}
+[0-9]+           {return cosa::smvparser::make_integer_val(yytext);}
 [a-zA-Z_][A-Za-z0-9_\$#-]*  {return cosa::smvparser::make_tok_name(yytext);}
 \n   {}
 .                {return cosa::smvparser::make_DOT();};

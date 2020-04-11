@@ -11,7 +11,6 @@
 #include "smt-switch/smt.h"
 #include "smvparser.h"
 
-//#define YY_DECL yy::parser::symbol_type yylex(yy::parser::semantic_type * const lval, yy::parser::location_type *location)
 #define YY_DECL cosa::smvparser::symbol_type yylex(cosa::SMVEncoder & enc)
 YY_DECL;
 namespace cosa{

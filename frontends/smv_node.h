@@ -11,27 +11,28 @@
 #include "smt-switch/smt.h"
 
 /* node to help construct syntax tree in the parser */
-
-struct node {
+namespace cosa{
+struct SMVnode {
+      enum Nodetype{TermNode,SortNode};
       smt::Term tm;
       smt::Sort st;
-      std::string type;
-
-      node (smt::Sort s){
-        type = "SORT";
+      Nodetype nt;
+      SMVnode (smt::Sort s){
+        nt = SortNode;
         st = s;
       }
-      node (smt::Term t){
-        type = "TERM";
+      SMVnode (smt::Term t){
+        nt = TermNode;
         tm = t;
       }
-
+      Nodetype getNodeType(){
+         return nt;
+      }
       smt::Sort getSort(){
             return st;
       }
       smt::Term getTerm(){
             return tm;
       }
-
-      std::string getType() { return type; }
-};
+}; // struct SMVNode
+} //namespace cosa
