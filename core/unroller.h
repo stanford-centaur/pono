@@ -48,7 +48,6 @@ class Unroller
 
   typedef std::vector<smt::UnorderedTermMap> TimeCache;
   TimeCache time_cache_;
-  TimeCache time_var_map_;
   smt::UnorderedTermMap untime_cache_;
 
 };  // class Unroller
