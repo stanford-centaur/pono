@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
@@ -9,11 +9,10 @@
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include <iostream>
 #include "assert.h"
@@ -254,9 +253,9 @@ int main(int argc, char ** argv)
     //       it would be better to have a generic encoder
     //       and also only create the transition system once
     ProverResult r;
-    string file_ext = filename.substr(filename.find_last_of(".") + 1);  
+    string file_ext = filename.substr(filename.find_last_of(".") + 1);
     if (file_ext == "btor2" || file_ext == "btor") {
-      logger.log(2, "Parsing BTOR2 file: {}", filename); 
+      logger.log(2, "Parsing BTOR2 file: {}", filename);
       FunctionalTransitionSystem fts(s);
       BTOR2Encoder btor_enc(filename, fts);
       const TermVec & propvec = btor_enc.propvec();
@@ -279,7 +278,7 @@ int main(int argc, char ** argv)
         if (cex.size()) {
           print_witness_btor(btor_enc, cex);
           if (!vcd_name.empty()) {
-            VCDWitnessPrinter vcdprinter(btor_enc, fts, cex);
+            VCDWitnessPrinter vcdprinter(fts, cex);
             vcdprinter.DumpTraceToFile(vcd_name);
           }
         }
@@ -319,6 +318,10 @@ int main(int argc, char ** argv)
             cout << "\t" << elem.first << " : " << elem.second << endl;
           }
         }
+        if (!vcd_name.empty()) {
+          VCDWitnessPrinter vcdprinter(rts, cex);
+          vcdprinter.DumpTraceToFile(vcd_name);
+        }
       }
     } else {
       throw CosaException("Unrecognized file extension " + file_ext
@@ -341,6 +344,6 @@ int main(int argc, char ** argv)
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;
   }
-        
+
   return status_code;
 }
