@@ -19,6 +19,7 @@ addons:
       - python3
       - python3-pip
       - python3-setuptools
+      - ruby
 
 jobs:
   include:
@@ -29,10 +30,12 @@ jobs:
       dist: bionic
       compiler: clang
     - os: osx
-      osx_image: xcode9
+      osx_image: xcode9.2
 
 script:
+  - source ./scripts/travis-mac-install.sh
   - ./contrib/setup-smt-switch.sh --with-msat --auto-yes
   - ./contrib/setup-btor2tools.sh
+  - ./contrib/setup-bison.sh
   - ./configure.sh --with-msat
   - cd build && make -j2 && make test

@@ -401,11 +401,11 @@ void BTOR2Encoder::parse(const std::string filename)
         Term witness =
             ts_.make_state("witness_" + std::to_string(witness_id_++),
                            solver_->make_sort(BOOL));
-        ts_.constrain_init(solver_->make_term(Not, witness));
-        ts_.assign_next(witness, bad);
-        badvec_.push_back(witness);
+        ts_.constrain_init(witness);
+        ts_.assign_next(witness, solver_->make_term(Not, bad));
+        propvec_.push_back(witness);
       } else {
-        badvec_.push_back(bad);
+        propvec_.push_back(solver_->make_term(Not, bad));
       }
     } else if (l_->tag == BTOR2_TAG_justice) {
       std::cout << "Warning: ignoring justice term" << std::endl;
