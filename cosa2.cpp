@@ -310,7 +310,6 @@ int main(int argc, char ** argv)
       Property p(rts, prop);
       std::vector<UnorderedTermMap> cex;
       r = check_prop(engine, bound, p, s, second_solver, cex);
-
       logger.log(0, "Property {} is {}", prop_idx, to_string(r));
 
       if (r == FALSE) {
