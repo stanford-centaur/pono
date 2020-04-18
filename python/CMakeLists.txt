@@ -8,15 +8,15 @@ find_package(Cython 0.29 REQUIRED)
 
 include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python")
 
-add_cython_target(pycosa2 CXX)
+add_cython_target(cosa2 CXX)
 
-add_library(pycosa2 MODULE ${pycosa2})
+add_library(cosa2 MODULE ${cosa2})
 
-target_link_libraries(pycosa2 cosa2)
-target_include_directories(pycosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch")
+target_link_libraries(cosa2 cosa2-lib)
+target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch")
 
-python_extension_module(pycosa2)
+python_extension_module(cosa2)
 
 configure_file(setup.py.in setup.py)
 
-install(TARGETS pycosa2 DESTINATION lib)
+install(TARGETS cosa2 DESTINATION lib)

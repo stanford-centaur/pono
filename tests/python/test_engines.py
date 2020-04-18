@@ -2,7 +2,7 @@ import pytest
 import smt_switch as ss
 from smt_switch.sortkinds import BV
 from smt_switch.primops import And, BVAdd, BVSub, Equal, Ite
-import pycosa2 as c
+import cosa2 as c
 import available_solvers
 
 def build_simple_alu_fts(s:ss.SmtSolver)->c.Property:
