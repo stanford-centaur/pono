@@ -17,8 +17,9 @@
 
 #pragma once
 
-namespace cosa
-{
+#include <string>
+
+namespace cosa {
 
 typedef enum
 {
@@ -27,4 +28,6 @@ typedef enum
   TRUE = 1
 } ProverResult;
 
-}
+std::string to_string(ProverResult r);
+
+}  // namespace cosa

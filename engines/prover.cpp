@@ -60,6 +60,11 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
       Term r = solver_->get_value(vi);
       map[v] = r;
     }
+
+    for (auto elem : ts_.named_terms()) {
+      Term ti = unroller_.at_time(elem.second, i);
+      map[elem.second] = solver_->get_value(ti);
+    }
   }
 
   return true;

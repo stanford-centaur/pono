@@ -9,6 +9,7 @@ set(COSA2_RELEASE 0) # Release component of Cosa2 version
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
@@ -21,35 +22,28 @@ include_directories("${PROJECT_SOURCE_DIR}/engines")
 include_directories("${PROJECT_SOURCE_DIR}/frontends")
 include_directories("${PROJECT_SOURCE_DIR}/options")
 include_directories("/usr/local/include")
+include_directories("/usr/local/Cellar/gmp/6.2.0/include")
 
 link_directories("/usr/local/lib")
+link_directories("/usr/local/Cellar/gmp/6.2.0/lib")
+
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
+find_package(BISON 3.4.2 REQUIRED)
+find_package(FLEX 2.6.4 REQUIRED)
 
 # TODO: Use find_package
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
-
-add_library(cosa2-lib SHARED
-  "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
-  "${PROJECT_SOURCE_DIR}/core/ts.cpp"
-  "${PROJECT_SOURCE_DIR}/core/rts.cpp"
-  "${PROJECT_SOURCE_DIR}/core/fts.cpp"
-  "${PROJECT_SOURCE_DIR}/core/prop.cpp"
-  "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
-  "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
-  "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
-  "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
-  )
 
 if (APPLE)
   set(SHARED_LIBRARY_EXT dylib)
 else()
   set(SHARED_LIBRARY_EXT so)
 endif()
+
+# TODO: Use find_package
+# find package
+#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
 # Check that dependencies are there
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch/smt.h")
@@ -83,14 +77,46 @@ endif()
 # rely on cmake modules from smt-switch (required anyway)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/deps/smt-switch/cmake)
 
+# Generate the SMV parser using Flex/Bison
+BISON_TARGET(SMVParser ${PROJECT_SOURCE_DIR}/frontends/smvparser.y
+  ${CMAKE_CURRENT_BINARY_DIR}/smvparser.cpp
+  DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/smvparser.h)
+
+FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
+  ${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp)
+
+ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
+
+add_library(cosa2-lib SHARED
+  "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/core/ts.cpp"
+  "${PROJECT_SOURCE_DIR}/core/rts.cpp"
+  "${PROJECT_SOURCE_DIR}/core/fts.cpp"
+  "${PROJECT_SOURCE_DIR}/core/prop.cpp"
+  "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
+  "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
+  "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
+  "${BISON_SMVParser_OUTPUTS}"
+  "${FLEX_SMVScanner_OUTPUTS}"
+  )
+
 target_include_directories(cosa2-lib PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
   "${PROJECT_SOURCE_DIR}/core"
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
-
-include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
+  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include"
+  # generated Bison headers go in build directory
+  "${CMAKE_CURRENT_BINARY_DIR}"
+  )
 
 # Should we build python bindings
 option (BUILD_PYTHON_BINDINGS
@@ -116,8 +142,10 @@ endif()
 if (WITH_CVC4)
   target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.${SHARED_LIBRARY_EXT}")
 endif()
+
 target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2-lib PUBLIC gmp)
+target_link_libraries(cosa2-lib PUBLIC y)
 
 enable_testing()
 # Add tests subdirectory
@@ -144,3 +172,4 @@ if (WITH_MSAT)
 endif()
 target_link_libraries(cosa2-bin PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2-bin PUBLIC gmp)
+target_link_libraries(cosa2-bin PUBLIC y)

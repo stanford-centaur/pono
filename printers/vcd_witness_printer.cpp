@@ -152,17 +152,13 @@ static std::string as_decimal(std::string val)
 
 // ------------- CLASS FUNCTIONS ------------------ //
 
-
-VCDWitnessPrinter::VCDWitnessPrinter(const BTOR2Encoder & btor_enc,
-                    const TransitionSystem & ts,
-                    const std::vector<smt::UnorderedTermMap> & cex) :
-  inputs_(btor_enc.inputsvec()),
-  states_(btor_enc.statesvec()),
-  no_next_states_(btor_enc.no_next_states()),
-  has_states_without_next_(!no_next_states_.empty()),
-  named_terms_(ts.named_terms()),
-  cex_(cex),
-  hash_id_cnt_(0)
+VCDWitnessPrinter::VCDWitnessPrinter(
+    const TransitionSystem & ts, const std::vector<smt::UnorderedTermMap> & cex)
+    : inputs_(ts.inputs()),
+      states_(ts.states()),
+      named_terms_(ts.named_terms()),
+      cex_(cex),
+      hash_id_cnt_(0)
 {
   // figure out the variables and their scopes
   for (auto && name_term_pair : named_terms_) {
