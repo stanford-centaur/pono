@@ -404,8 +404,11 @@ void BTOR2Encoder::parse(const std::string filename)
         ts_.constrain_init(witness);
         ts_.assign_next(witness, solver_->make_term(Not, bad));
         propvec_.push_back(witness);
+        terms_[l_->id] = witness;
       } else {
-        propvec_.push_back(solver_->make_term(Not, bad));
+        Term prop = solver_->make_term(Not, bad);
+        propvec_.push_back(prop);
+        terms_[l_->id] = prop;
       }
     } else if (l_->tag == BTOR2_TAG_justice) {
       std::cout << "Warning: ignoring justice term" << std::endl;
