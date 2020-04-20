@@ -20,8 +20,9 @@
 
 #include "vcd_witness_printer.h"
 
-#include <iostream>
+#include <algorithm>
 #include <fstream>
+#include <iostream>
 
 using namespace smt;
 using namespace std;
@@ -227,9 +228,12 @@ std::string VCDWitnessPrinter::new_hash_id() {
   return "v" + std::to_string(hash_id_cnt_++);
 }
 
-void VCDWitnessPrinter::check_insert_scope(const std::string& full_name, bool is_reg,
-  const smt::Term & ast)
+void VCDWitnessPrinter::check_insert_scope(std::string full_name,
+                                           bool is_reg,
+                                           const smt::Term & ast)
 {
+  // vcd doesn't like colons in name
+  std::replace(full_name.begin(), full_name.end(), ':', '_');
   auto scopes = split(full_name, ".");
   VCDScope * root = & root_scope_;
   for (size_t idx = 0; idx < scopes.size() - 1; ++idx) {
@@ -259,10 +263,14 @@ void VCDWitnessPrinter::check_insert_scope(const std::string& full_name, bool is
   allsig_bv_.push_back( &(signal_set.at(short_name)) );
 } // end of check_insert_scope
 
-void VCDWitnessPrinter::check_insert_scope_array(const std::string& full_name, 
-  const std::unordered_set<std::string> & indices, bool has_default,
-  const smt::Term & ast) {
-
+void VCDWitnessPrinter::check_insert_scope_array(
+    std::string full_name,
+    const std::unordered_set<std::string> & indices,
+    bool has_default,
+    const smt::Term & ast)
+{
+  // vcd doesn't like colons in name
+  std::replace(full_name.begin(), full_name.end(), ':', '_');
   auto scopes = split(full_name, ".");
   VCDScope * root = & root_scope_;
   for (size_t idx = 0; idx < scopes.size() - 1; ++idx) {

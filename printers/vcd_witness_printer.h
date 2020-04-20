@@ -82,11 +82,11 @@ protected:
 
  // given a name like a.b.c, find the right scope and
  // create if it does not exists
- void check_insert_scope(const std::string & full_name,
+ void check_insert_scope(std::string full_name,
                          bool is_reg,
                          const smt::Term & ast);
  // another function for array maybe?
- void check_insert_scope_array(const std::string & full_name,
+ void check_insert_scope_array(std::string full_name,
                                const std::unordered_set<std::string> & indices,
                                bool has_default,
                                const smt::Term & ast);
