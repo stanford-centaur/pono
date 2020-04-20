@@ -57,7 +57,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
         ./contrib/setup-cvc4.sh
     fi
 
-    ./configure.sh --btor $CONF_OPTS --prefix=local
+    ./configure.sh --btor $CONF_OPTS --prefix=local --static
     cd build
     make -j$(nproc)
     make test
