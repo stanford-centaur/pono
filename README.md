@@ -55,6 +55,13 @@ prep -top counter;
 # of the hierarchy
 hierarchy -check;
 
+# If an assumption is flopped, you might
+# see strange behavior at the last state
+# (because the clock hasn't toggled)
+# this command ensures that assumptions
+# hold at every state
+chformal -assume -early;
+
 # this processes memories
 # nomap means it will keep them as arrays
 memory -nomap;
@@ -78,13 +85,6 @@ flatten;
 # IMPORTANT NOTE: the clocks are not
 # automatically toggled if you use this option
 # clk2fflogic;
-
-# If an assumption is flopped, you might
-# see strange behavior at the last state
-# (because the clock hasn't toggled)
-# this command ensures that assumptions
-# hold at every state
-chformal -assume -early;
 
 # This turns all undriven signals into
 # inputs
