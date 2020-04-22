@@ -258,16 +258,16 @@ int main(int argc, char ** argv)
       logger.log(2, "Parsing BTOR2 file: {}", filename);
       FunctionalTransitionSystem fts(s);
       BTOR2Encoder btor_enc(filename, fts);
-      const TermVec & propvec = btor_enc.propvec();
-      unsigned int num_props = propvec.size();
+      const TermVec & badvec = btor_enc.badvec();
+      unsigned int num_props = badvec.size();
       if (prop_idx >= num_props) {
         throw CosaException(
             "Property index " + to_string(prop_idx)
             + " is greater than the number of properties in file " + filename
             + " (" + to_string(num_props) + ")");
       }
-      Term prop = propvec[prop_idx];
-      Property p(fts, prop);
+      Term bad = badvec[prop_idx];
+      Property p(fts, s->make_term(Not, bad));
       vector<UnorderedTermMap> cex;
       r = check_prop(engine, bound, p, s, second_solver, cex);
 
