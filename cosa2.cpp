@@ -252,7 +252,6 @@ int main(int argc, char ** argv)
       opts.full_refinement = true;
     }
 
-    // always running in lazy mode
     SmtSolver s = std::make_shared<LBV2ISolver>(underlying_solver, lazy);
     s->set_opt("produce-models", "true");
     s->set_opt("incremental", "true");
