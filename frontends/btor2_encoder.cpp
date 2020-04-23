@@ -404,8 +404,11 @@ void BTOR2Encoder::parse(const std::string filename)
         ts_.constrain_init(witness);
         ts_.assign_next(witness, solver_->make_term(Not, bad));
         propvec_.push_back(witness);
+        terms_[l_->id] = witness;
       } else {
-        propvec_.push_back(solver_->make_term(Not, bad));
+        Term prop = solver_->make_term(Not, bad);
+        propvec_.push_back(prop);
+        terms_[l_->id] = prop;
       }
     } else if (l_->tag == BTOR2_TAG_justice) {
       std::cout << "Warning: ignoring justice term" << std::endl;
@@ -701,9 +704,9 @@ void BTOR2Encoder::parse(const std::string filename)
     // use the symbol to name the term (if applicable)
     // input, output, and state already named
     if (l_->symbol && l_->tag != BTOR2_TAG_input && l_->tag != BTOR2_TAG_output
-        && l_->tag != BTOR2_TAG_state) {
+        && l_->tag != BTOR2_TAG_state && terms_.find(l_->id) != terms_.end()) {
       try {
-        ts_.name_term(l_->symbol, terms_[l_->id]);
+        ts_.name_term(l_->symbol, terms_.at(l_->id));
       }
       catch (CosaException & e) {
         logger.log(1, "BTOR2Encoder Warning: {}", e.what());
