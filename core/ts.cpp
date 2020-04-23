@@ -100,7 +100,7 @@ void TransitionSystem::add_constraint(const Term & constraint)
 void TransitionSystem::name_term(const string name, const Term & t)
 {
   if (named_terms_.find(name) != named_terms_.end()) {
-    throw CosaException("Name has already been used.");
+    throw CosaException("Name " + name + " has already been used.");
   }
   named_terms_[name] = t;
 }

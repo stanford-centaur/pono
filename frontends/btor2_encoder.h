@@ -40,10 +40,11 @@ class BTOR2Encoder
   BTOR2Encoder(std::string filename, TransitionSystem & ts)
       : ts_(ts), solver_(ts.solver())
   {
+    preprocess(filename);
     parse(filename);
   };
 
-  const smt::TermVec & badvec() const { return badvec_; };
+  const smt::TermVec & propvec() const { return propvec_; };
   const smt::TermVec & justicevec() const { return justicevec_; };
   const smt::TermVec & fairvec() const { return fairvec_; };
   const smt::TermVec & inputsvec() const { return inputsvec_; }
@@ -62,7 +63,9 @@ class BTOR2Encoder
   // takes a list of booleans / bitvectors of size one
   // and lazily converts them to the majority
   smt::TermVec lazy_convert(const smt::TermVec &) const;
-
+  
+  // preprocess a btor2 file
+  void preprocess(const std::string & filename);
   // parse a btor2 file
   void parse(const std::string filename);
 
@@ -75,6 +78,7 @@ class BTOR2Encoder
   smt::TermVec inputsvec_;
   smt::TermVec statesvec_;
   std::map<uint64_t, smt::Term> no_next_states_;
+  std::unordered_map<uint64_t, std::string> state_renaming_table;
 
   // Useful variables
   smt::Sort linesort_;
@@ -83,7 +87,7 @@ class BTOR2Encoder
   std::unordered_map<int, smt::Term> terms_;
   std::string symbol_;
 
-  smt::TermVec badvec_;
+  smt::TermVec propvec_;
   smt::TermVec justicevec_;
   smt::TermVec fairvec_;
 

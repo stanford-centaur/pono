@@ -109,7 +109,8 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
         tmp = store_children[0];
       }
 
-      if (tmp->get_op().is_null() && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
+      if (tmp->get_op().is_null()
+          && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
         smt::Term const_val = *(tmp->begin());
         logger.log(
             0, "{} {} {}@{}", i, as_bits(const_val->to_string()), vec[i], time);
@@ -158,7 +159,8 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
         tmp = store_children[0];
       }
 
-      if (tmp->get_op().is_null() && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
+      if (tmp->get_op().is_null()
+          && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
         smt::Term const_val = *(tmp->begin());
         logger.log(0,
                    "{} {} {}@{}",
