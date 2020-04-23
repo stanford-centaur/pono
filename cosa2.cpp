@@ -22,6 +22,7 @@
 #ifdef WITH_MSAT
   #include "smt-switch/msat_factory.h"
 #endif
+#include "smt-switch/cvc4_factory.h"
 
 #include "bmc.h"
 #include "bmc_simplepath.h"
@@ -162,9 +163,9 @@ ProverResult check_prop(Engine engine,
   }
 
   ProverResult r = prover->check_until(bound);
-  if (r == FALSE) {
-    prover->witness(cex);
-  }
+  // if (r == FALSE) {
+  //   prover->witness(cex);
+  // }
   return r;
 }
 
@@ -232,12 +233,11 @@ int main(int argc, char ** argv)
   int status_code = 3;
 
   try {
-    SmtSolver s;
     SmtSolver second_solver;
 
-    SmtSolver underlying_solver = MsatSolverFactory::create();
+    SmtSolver underlying_solver = CVC4SolverFactory::create();
     // always running in lazy mode
-    s = std::make_shared<LBV2ISolver>(underlying_solver, true);
+    SmtSolver s = std::make_shared<LBV2ISolver>(underlying_solver, true);
     s->set_opt("produce-models", "true");
     s->set_opt("incremental", "true");
 
