@@ -39,6 +39,8 @@
 
 #include "smtlibsolver.h"
 
+#include "opts.h"
+
 using namespace lbv2i;
 
 using namespace cosa;
@@ -56,7 +58,8 @@ enum optionIndex
   BOUND,
   PROP,
   VERBOSITY,
-  VCDNAME
+  VCDNAME,
+  LAZY
 };
 
 struct Arg : public option::Arg
@@ -131,6 +134,7 @@ const option::Descriptor usage[] = {
     "vcd",
     Arg::NonEmpty,
     "  --vcd \tName of Value Change Dump (VCD) if witness exists." },
+  { LAZY, 0, "", "lazy", Arg::None, "  --lazy \trun lazybv2int in lazy mode"},
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -187,6 +191,12 @@ int main(int argc, char ** argv)
     return 2;  // unknown is 2
   }
 
+  bool lazy = false;
+  if (options[LAZY])
+  {
+    lazy = true;
+  }
+
   if (parse.nonOptionsCount() != 1) {
     option::printUsage(cout, usage);
     return 3;
@@ -236,8 +246,14 @@ int main(int argc, char ** argv)
     SmtSolver second_solver;
 
     SmtSolver underlying_solver = CVC4SolverFactory::create();
+    opts.lazy = lazy;
+    if (lazy)
+    {
+      opts.full_refinement = true;
+    }
+
     // always running in lazy mode
-    SmtSolver s = std::make_shared<LBV2ISolver>(underlying_solver, true);
+    SmtSolver s = std::make_shared<LBV2ISolver>(underlying_solver, lazy);
     s->set_opt("produce-models", "true");
     s->set_opt("incremental", "true");
 
