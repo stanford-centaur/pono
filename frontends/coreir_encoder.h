@@ -30,6 +30,7 @@ class CoreIREncoder
   smt::SmtSolver solver_;
   CoreIR::Context * c_;
   CoreIR::Module * top_;
+  CoreIR::Module * mod_;
   CoreIR::ModuleDef * def_;
   size_t num_clocks_;
   bool can_abstract_clock_;
