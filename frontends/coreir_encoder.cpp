@@ -29,12 +29,13 @@ const unordered_map<string, PrimOp> boolopmap(
 const unordered_map<string, PrimOp> bvopmap(
     { { "not", BVNot },   { "and", BVAnd },   { "or", BVOr },
       { "xor", BVXor },   { "shl", BVShl },   { "lshr", BVLshr },
-      { "ashr", BVAshr }, { "neg", BVNeg },   { "add", BVSub },
-      { "mul", BVMul },   { "udiv", BVUdiv }, { "urem", BVUrem },
-      { "sdiv", BVSdiv }, { "srem", BVSrem }, { "smod", BVSmod },
-      { "eq", Equal },    { "slt", BVSlt },   { "sgt", BVSgt },
-      { "sle", BVSle },   { "sge", BVSge },   { "ult", BVUlt },
-      { "ugt", BVUgt },   { "ule", BVUle },   { "uge", BVUge } });
+      { "ashr", BVAshr }, { "neg", BVNeg },   { "add", BVAdd },
+      { "sub", BVSub },   { "mul", BVMul },   { "udiv", BVUdiv },
+      { "urem", BVUrem }, { "sdiv", BVSdiv }, { "srem", BVSrem },
+      { "smod", BVSmod }, { "eq", Equal },    { "slt", BVSlt },
+      { "sgt", BVSgt },   { "sle", BVSle },   { "sge", BVSge },
+      { "ult", BVUlt },   { "ugt", BVUgt },   { "ule", BVUle },
+      { "uge", BVUge } });
 
 namespace cosa {
 
@@ -172,31 +173,28 @@ void CoreIREncoder::process_instance(CoreIR::Instance * inst)
   string name = mod_->getGenerator()->getName();
   t_ = nullptr;
   if (nsname == "corebit" && boolopmap.find(name) != boolopmap.end()) {
-    // TODO: implement these cases
     if (name != "not") {
-      ;
-      ;
+      t_ = solver_->make_term(boolopmap.at(name),
+                              w2term_.at(inst->sel("in0")),
+                              w2term_.at(inst->sel("in1")));
     } else {
       // special case for not because unary
-      ;
-      ;
+      t_ = solver_->make_term(boolopmap.at(name), w2term_.at(inst->sel("in")));
     }
   } else if (nsname == "coreir" && bvopmap.find(name) != bvopmap.end()) {
-    // TODO: implement this
     if (name != "not" && name != "neg") {
-      ;
-      ;
+      t_ = solver_->make_term(bvopmap.at(name),
+                              w2term_.at(inst->sel("in0")),
+                              w2term_.at(inst->sel("in1")));
     } else {
       // special case for not and neg because unary
-      ;
-      ;
+      t_ = solver_->make_term(bvopmap.at(name), w2term_.at(inst->sel("in")));
     }
   } else if (name == "reg" || name == "reg_arst") {
-    // NOTE: inputs two registers are not wired up until later
+    // NOTE: inputs to registers are not wired up until later
     sort_ = solver_->make_sort(
         BV, inst->getModuleRef()->getGenArgs().at("width")->get<int>());
     t_ = ts_.make_state(inst->toString(), sort_);
-    cout << "made a state variable for " << t_ << " : " << sort_ << endl;
   } else if (nsname == "coreir" && name == "const") {
     size_t w = mod_->getGenArgs().at("width")->get<int>();
     sort_ = solver_->make_sort(BV, w);
@@ -204,19 +202,17 @@ void CoreIREncoder::process_instance(CoreIR::Instance * inst)
         (inst->getModArgs().at("value"))->get<BitVec>().binary_string(),
         sort_,
         2);
-    cout << "created const " << t_ << " : " << sort_ << endl;
   } else if (nsname == "corebit" && name == "const") {
     sort_ = solver_->make_sort(BOOL);
     t_ = solver_->make_term((inst->getModArgs().at("value"))->get<bool>());
-    cout << "created const " << t_ << " : " << sort_ << endl;
   } else if (name == "mux") {
-    cout << "TODO finish the other parts so that the mux works!" << endl;
-    // Term cond = w2term_.at(inst->sel("sel"));
-    // Term in0 = w2term_.at(inst->sel("in0"));
-    // Term in1 = w2term_.at(inst->sel("in1"));
-    // t_ = solver_->make_term(Ite, cond, in0, in1);
+    Term cond = w2term_.at(inst->sel("sel"));
+    Term in0 = w2term_.at(inst->sel("in0"));
+    Term in1 = w2term_.at(inst->sel("in1"));
+    // in1 and in0 swap because a mux selects the first value when sel is 0
+    // (e.g. false)
+    t_ = solver_->make_term(Ite, cond, in1, in0);
   } else {
-    // TODO: Implement this!
     cout << "got instance " << inst->toString() << " : "
          << inst->getModuleRef()->getName() << " but don't know what to do yet!"
          << endl;
@@ -227,22 +223,30 @@ void CoreIREncoder::process_instance(CoreIR::Instance * inst)
     return;
   }
 
-  // TODO: replace this when done
-  // if (!t_) {
-  //   throw CosaException("CoreIREncoder error: no term created for module
-  //   type: "
-  //                       + mod_->getName());
-  // }
+  if (!t_) {
+    throw CosaException("CoreIREncoder error: no term created for module type: "
+                        + mod_->getName());
+  }
 
   w2term_[inst] = t_;
   w2term_[inst->sel("out")] = t_;
   ts_.name_term(inst->sel("out")->toString(), t_);
 
-  for (auto dst : inst->sel("out")->getConnectedWireables()) {
-    w2term_[dst] = t_;
-    ts_.name_term(dst->toString(), t_);
-    cout << "\tgot connection: " << inst->sel("out")->toString() << " --> "
-         << dst->toString() << endl;
+  Term tmpterm;
+  for (auto conn : inst->sel("out")->getLocalConnections()) {
+    if (isa<CoreIR::Select>(conn.first)
+        && isNumber((sel_ = cast<CoreIR::Select>(conn.first))->getSelStr())) {
+      size_t idx = stoi(sel_->getSelStr());
+      tmpterm = solver_->make_term(Op(Extract, idx, idx), t_);
+      tmpterm = solver_->make_term(Equal, tmpterm, bv1_);
+      w2term_[conn.first] = tmpterm;
+    } else {
+      tmpterm = t_;
+    }
+
+    // name and save the value for the input
+    w2term_[conn.second] = tmpterm;
+    ts_.name_term(conn.second->toString(), tmpterm);
   }
 }
 
