@@ -212,6 +212,42 @@ void CoreIREncoder::process_instance(CoreIR::Instance * inst)
     // in1 and in0 swap because a mux selects the first value when sel is 0
     // (e.g. false)
     t_ = solver_->make_term(Ite, cond, in1, in0);
+  } else if (name == "slice") {
+    Values values = mod_->getGenArgs();
+    int hi = values.at("hi")->get<int>();
+    int lo = values.at("lo")->get<int>();
+    t_ = solver_->make_term(Op(Extract, hi, lo), w2term_.at(inst->sel("in")));
+  } else if (name == "concat") {
+    t_ = solver_->make_term(
+        Concat, w2term_.at(inst->sel("in0")), w2term_.at(inst->sel("in1")));
+  } else if (nsname == "coreir" && name == "undriven") {
+    sort_ = solver_->make_sort(BV, mod_->getGenArgs().at("width")->get<int>());
+    t_ = ts_.make_input(inst->toString(), sort_);
+  } else if (nsname == "corebit" && name == "undriven") {
+    t_ = ts_.make_input(inst->toString(), boolsort_);
+  } else if (name == "andr") {
+    // reduce and over bits is only 1 if all bits are 1
+    Term in = w2term_.at(inst->sel("in"));
+    Sort insort = in->get_sort();
+    Term allones =
+        solver_->make_term(std::string(insort->get_width(), '1'), insort, 2);
+    t_ = solver_->make_term(Equal, in, allones);
+  } else if (name == "orr") {
+    // reduce or over bits is 1 unless all bits are zero
+    Term in = w2term_.at(inst->sel("in"));
+    Sort insort = in->get_sort();
+    Term zero = solver_->make_term(0, insort);
+    t_ = solver_->make_term(Distinct, in, zero);
+  } else if (name == "xorr") {
+    Term in = w2term_.at(inst->sel("in"));
+    Sort insort = in->get_sort();
+    int idx = insort->get_width() - 1;
+    t_ = solver_->make_term(Op(Extract, idx, idx), in);
+    while (idx > 0) {
+      idx--;
+      t_ = solver_->make_term(
+          BVXor, t_, solver_->make_term(Op(Extract, idx, idx), in));
+    }
   } else {
     cout << "got instance " << inst->toString() << " : "
          << inst->getModuleRef()->getName() << " but don't know what to do yet!"

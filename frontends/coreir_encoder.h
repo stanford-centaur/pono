@@ -18,6 +18,7 @@ class CoreIREncoder
         can_abstract_clock_(true)
   {
     bvsort1_ = solver_->make_sort(smt::BV, 1);
+    boolsort_ = solver_->make_sort(smt::BOOL);
     bv1_ = solver_->make_term(1, bvsort1_);
     parse(filename);
   }
@@ -40,6 +41,7 @@ class CoreIREncoder
 
   // useful reusable variables
   smt::Sort bvsort1_;
+  smt::Sort boolsort_;
   smt::Term bv1_;
 
   // useful temporary variables
