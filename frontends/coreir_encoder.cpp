@@ -193,6 +193,18 @@ void CoreIREncoder::parse(std::string filename)
     } else {
       throw CosaException("Explicit clock not supported in CoreIREncoder.");
     }
+
+    Values vals = reg->getModArgs();
+    if (vals.find("init") != vals.end()) {
+      Term regterm = w2term_.at(reg);
+      Term initval =
+          solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
+                             regterm->get_sort(),
+                             2);
+      ts_.constrain_init(solver_->make_term(Equal, regterm, initval));
+    }
+
+    // TODO: handle resets, other clock edges, and initial states
   }
 }
 
