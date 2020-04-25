@@ -90,6 +90,7 @@ void CoreIREncoder::parse(std::string filename)
 
   // create registers and store the number of inputs for each instance
   vector<Instance *> instances;
+  set<Instance *> registers;
   unordered_map<Instance *, size_t> num_inputs;
   bool async;
   for (auto ipair : def_->getInstances()) {
@@ -99,6 +100,7 @@ void CoreIREncoder::parse(std::string filename)
       // cannot abstract clock if there are asynchronous resets
       can_abstract_clock_ &= !async;
 
+      registers.insert(ipair.second);
       // put registers into instances first (processed last)
       instances.push_back(ipair.second);
     }
@@ -145,14 +147,17 @@ void CoreIREncoder::parse(std::string filename)
         parent = dst->getTopParent();
         if (Instance::classof(parent)) {
           parent_inst = dyn_cast<Instance>(parent);
-          // states have already been added so ignore those
-          if (!instance_of(parent_inst, "coreir", "reg")
-              && !instance_of(parent_inst, "coreir", "reg_arst")) {
-            covered_inputs[parent_inst].insert(dst);
-            if (num_inputs[parent_inst]
-                == covered_inputs.at(parent_inst).size()) {
-              instances.push_back(parent_inst);
-            }
+
+          // registers have already been added to instances so ignore those
+          if (instance_of(parent_inst, "coreir", "reg")
+              || instance_of(parent_inst, "coreir", "reg_arst")) {
+            continue;
+          }
+
+          covered_inputs[parent_inst].insert(dst);
+          if (num_inputs[parent_inst]
+              == covered_inputs.at(parent_inst).size()) {
+            instances.push_back(parent_inst);
           }
         }
         // TODO: consider have an else case here to create the global inputs
