@@ -118,6 +118,12 @@ void CoreIREncoder::parse(std::string filename)
     }
   }
 
+  if (!can_abstract_clock_) {
+    throw CosaException(
+        "CoreIREncoder can only support abstracted clocks for now. Got "
+        "reg_arst or multiple clocks");
+  }
+
   logger.log(1,
              "INFO {} abstract clock for CoreIR file {}",
              can_abstract_clock_ ? "can" : "cannot",
@@ -168,6 +174,25 @@ void CoreIREncoder::parse(std::string filename)
 
   if (processed_instances != def_->getInstances().size()) {
     throw CosaException("Issue: not all instances processed in CoreIR Encoder");
+  }
+
+  // now make a second pass over registers to assign the next state updates
+  for (auto reg : registers) {
+    if (!reg->getModArgs().at("clk_posedge")->get<bool>()) {
+      throw CosaException(
+          "CoreIREncoder does not support negative edge triggered registers "
+          "yet.");
+    }
+
+    if (can_abstract_clock_) {
+      if (w2term_.find(reg->sel("in")) != w2term_.end()) {
+        ts_.assign_next(w2term_.at(reg), w2term_.at(reg->sel("in")));
+      } else {
+        logger.log(1, "Warning: no driver for register {}", reg->toString());
+      }
+    } else {
+      throw CosaException("Explicit clock not supported in CoreIREncoder.");
+    }
   }
 }
 
