@@ -44,7 +44,7 @@ class BTOR2Encoder
     parse(filename);
   };
 
-  const smt::TermVec & badvec() const { return badvec_; };
+  const smt::TermVec & propvec() const { return propvec_; };
   const smt::TermVec & justicevec() const { return justicevec_; };
   const smt::TermVec & fairvec() const { return fairvec_; };
   const smt::TermVec & inputsvec() const { return inputsvec_; }
@@ -87,7 +87,7 @@ class BTOR2Encoder
   std::unordered_map<int, smt::Term> terms_;
   std::string symbol_;
 
-  smt::TermVec badvec_;
+  smt::TermVec propvec_;
   smt::TermVec justicevec_;
   smt::TermVec fairvec_;
 

@@ -403,10 +403,10 @@ void BTOR2Encoder::parse(const std::string filename)
                            solver_->make_sort(BOOL));
         ts_.constrain_init(solver_->make_term(Not, witness));
         ts_.assign_next(witness, bad);
-        badvec_.push_back(witness);
+        propvec_.push_back(solver_->make_term(Not, witness));
         terms_[l_->id] = witness;
       } else {
-        badvec_.push_back(bad);
+        propvec_.push_back(solver_->make_term(Not, bad));
         terms_[l_->id] = bad;
       }
     } else if (l_->tag == BTOR2_TAG_justice) {
