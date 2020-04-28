@@ -22,6 +22,7 @@
 #ifdef WITH_MSAT
   #include "smt-switch/msat_factory.h"
 #endif
+#include "smt-switch/api_trace_solver.h"
 
 #include "bmc.h"
 #include "bmc_simplepath.h"
@@ -228,26 +229,31 @@ int main(int argc, char ** argv)
   int status_code = 3;
 
   try {
-    SmtSolver s;
+    SmtSolver underlying = BoolectorSolverFactory::create();
+    SmtSolver s = make_shared<ApiTraceSolver>(underlying);
+    s->set_opt("incremental", "true");
+    s->set_opt("produce-models", "true");
     SmtSolver second_solver;
     if (engine == INTERP) {
-      #ifdef WITH_MSAT
-      // need mathsat for interpolant based model checking
-      s = MsatSolverFactory::create();
-      second_solver = MsatSolverFactory::create_interpolating_solver();
-      #else
-      throw CosaException("Interpolation-based model checking requires MathSAT and "
-                          "this version of cosa2 is built without MathSAT.\nPlease "
-                          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-                          "Note: MathSAT has a custom license and you must assume all "
-                          "responsibility for meeting the license requirements.");
-      #endif
-    } else {
-      // boolector is faster but doesn't support interpolants
-      s = BoolectorSolverFactory::create();
-      s->set_opt("produce-models", "true");
-      s->set_opt("incremental", "true");
+      throw CosaException("Not doing interpolation");
+      // #ifdef WITH_MSAT
+      // // need mathsat for interpolant based model checking
+      // s = MsatSolverFactory::create();
+      // second_solver = MsatSolverFactory::create_interpolating_solver();
+      // #else
+      // throw CosaException("Interpolation-based model checking requires MathSAT and "
+      //                     "this version of cosa2 is built without MathSAT.\nPlease "
+      //                     "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+      //                     "Note: MathSAT has a custom license and you must assume all "
+      //                     "responsibility for meeting the license requirements.");
+      // #endif
     }
+    // else {
+      // // boolector is faster but doesn't support interpolants
+      // s = BoolectorSolverFactory::create();
+      // s->set_opt("produce-models", "true");
+      // s->set_opt("incremental", "true");
+    // }
 
     // TODO: make this less ugly, just need to keep it in scope if using
     //       it would be better to have a generic encoder
@@ -273,6 +279,7 @@ int main(int argc, char ** argv)
 
       // print btor output
       if (r == FALSE) {
+        s->dump_api_trace("dumped_api_trace.cpp");
         cout << "sat" << endl;
         cout << "b" << prop_idx << endl;
         if (cex.size()) {
