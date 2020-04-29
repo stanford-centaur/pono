@@ -60,6 +60,16 @@ if (WITH_CVC4)
   endif()
 endif()
 
+if (WITH_COREIR)
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
+    message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
+  endif()
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
+    message(FATAL_ERROR "Missing verilogAST library from coreir. Try running ./contrib/setup-coreir.sh")
+  endif()
+endif()
+
+
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
 endif()
@@ -94,6 +104,7 @@ add_library(cosa2-lib "${COSA2_LIB_TYPE}"
   "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
@@ -126,14 +137,25 @@ if (BUILD_PYTHON_BINDINGS)
 endif()
 
 target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.a")
+
 if (WITH_MSAT)
   target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.a")
 endif()
+
 if (WITH_CVC4)
+
   target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.a")
 endif()
+
 target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.a")
 target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
+
+if (WITH_COREIR)
+  target_include_directories(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
+  target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
+  target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
+endif()
+
 target_link_libraries(cosa2-lib PUBLIC gmp)
 target_link_libraries(cosa2-lib PUBLIC pthread)
 target_link_libraries(cosa2-lib PUBLIC y)
