@@ -42,6 +42,7 @@ script:
   - ./contrib/setup-smt-switch.sh --with-msat --auto-yes --python
   - sudo python3 -m pip install -e ./deps/smt-switch/build/python
   - ./contrib/setup-btor2tools.sh
+  - ./contrib/setup-bison.sh
   - ./configure.sh --with-msat --python --debug
   - cd build && make -j2 && make test && cd ../
   - sudo python3 -m pip install -e ./build/python
