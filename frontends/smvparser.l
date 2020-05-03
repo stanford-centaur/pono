@@ -2,15 +2,19 @@
   #include"smv_node.h"
   #include "smv_encoder.h"
   #include "smvparser.h" 
+  #include "smvscanner.h"
+  #undef YY_DECL
+  #define YY_DECL cosa::smvparser::symbol_type cosa::SMVscanner::yylex(SMVEncoder &encoder)
   using namespace std;
-  int line_num = 1;
   #include <string>
   #undef yyterminate
   #define yyterminate()  return(cosa::smvparser::make_END())
 %}
-
+%option c++
+%option yyclass="SMVscanner"
 %option yylineno
 %option noyywrap
+
 %x COMMENT
 %x WORD_INIT WORD_BASE WORD_VALUE
 %%
@@ -102,6 +106,7 @@ time {return cosa::smvparser::make_time_type();}
 "xor"  {return cosa::smvparser::make_OP_XOR();}
 "xnor"  {return cosa::smvparser::make_OP_XNOR();}
 
+\.    {return cosa::smvparser::make_DOT();};
 ".." {return cosa::smvparser::make_TO();}
 "(" {return cosa::smvparser::make_LPARE();}
 ")" {return cosa::smvparser::make_RPARE();}
@@ -117,6 +122,7 @@ time {return cosa::smvparser::make_time_type();}
 "?"  {return cosa::smvparser::make_IF_ELSE();}
 "_" {return cosa::smvparser::make_UNDER();}
 
+
 0(b|d|o|h)/[0-9]+_[0-9]+ {BEGIN(WORD_INIT); return cosa::smvparser::make_word_index1(yytext);}
 0(u|s)(b|d|o|h)/[0-9]+_[0-9]+ {BEGIN(WORD_INIT);  return cosa::smvparser::make_word_index2(yytext);}
 <WORD_INIT>[0-9]+/_[0-9]+ {BEGIN(WORD_BASE); return cosa::smvparser::make_integer_val(yytext);}
@@ -126,7 +132,7 @@ time {return cosa::smvparser::make_time_type();}
 [0-9]+           {return cosa::smvparser::make_integer_val(yytext);}
 [a-zA-Z_][A-Za-z0-9_\$#-]*  {return cosa::smvparser::make_tok_name(yytext);}
 \n   {}
-.                {return cosa::smvparser::make_DOT();};
+.    {}
 <<EOF>>    return cosa::smvparser::make_END();
 
 %%
