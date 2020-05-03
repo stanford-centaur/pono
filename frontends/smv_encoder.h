@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -10,9 +12,8 @@
 #include "rts.h"
 #include "smt-switch/smt.h"
 #include "smvparser.h"
+#include "smvscanner.h"
 
-#define YY_DECL cosa::smvparser::symbol_type yylex(cosa::SMVEncoder & enc)
-YY_DECL;
 namespace cosa{
 class SMVEncoder
 {
@@ -25,8 +26,9 @@ class SMVEncoder
 
  public:
   // Important members
-  void parse(std::string filename);
-
+  int parse(std::string filename);
+  int parseString(std::string newline);
+  void processCase();
   smt::TermVec propvec() { return propvec_; }
 
   smt::SmtSolver & solver_;
@@ -35,6 +37,8 @@ class SMVEncoder
   std::unordered_map<std::string, smt::Term> terms_;
   std::vector<smt::Sort> sortvec_;
   std::vector<smt::Term> propvec_;
-
+  std::unordered_map<std::string, smt::Term>  signedbv_;
+  std::unordered_map<std::string, smt::Term>  unsignedbv_;
+  std::unordered_map<smt::Term, smt::Term> caseterm_;
 };  // class SMVEncoder
 }  // namespace cosa
