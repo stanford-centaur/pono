@@ -29,7 +29,7 @@
 #include "defaults.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
-#include "interpolant.h"
+#include "interpolantmc.h"
 #include "kinduction.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"

@@ -17,7 +17,7 @@
 
 #include "smt-switch/exceptions.h"
 
-#include "interpolant.h"
+#include "interpolantmc.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -168,6 +168,7 @@ bool InterpolantMC::step(int i)
         return true;
       } else {
         logger.log(1, "Extending initial states.");
+        logger.log(3, "Using interpolant: {}", Ri_);
         R_ = solver_->make_term(Or, R_, Ri_);
       }
     }
