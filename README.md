@@ -28,6 +28,27 @@ Other useful files to visit include:
 * `smt-switch/include/ops.h`: this contains all the ops you might need
   * Note: create indexed ops like `Op(Extract, 7, 4)`
 
+## Python bindings
+To build the `cosa2` python bindings, first make sure that you have [Cython](https://cython.org/) version >= 0.29 installed. Then ensure that `smt-switch` and its python bindings are installed. Finally, you can configure with `./configure.sh --python` and then build normally. The sequence of commands would be as follows:
+```
+# Optional recommended step: start a python virtualenv
+# If you install in the virtualenv, you will need to activate it each time before using pycosa2
+# and deactivate the virtualenv with: deactivate
+python3 -m venv env
+source ./env/bin/activate
+pip install Cython==0.29 pytest
+./contrib/setup-smt-switch.sh --python
+./contrib/setup-btor2tools.sh
+pip install -e ./deps/smt-switch/build/python
+./configure.sh --python
+cd build
+make -j4
+pip install -e ./python
+cd ../
+# Test the bindings
+pytest ./tests
+```
+
 ## Generating BTOR2 from Verilog
 
 The best tool for creating BTOR2 from Verilog is [Yosys](https://github.com/YosysHQ/yosys). Yosys has an excellent manual [here](http://www.clifford.at/yosys/files/yosys_manual.pdf). 

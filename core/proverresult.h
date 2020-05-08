@@ -20,6 +20,7 @@
 #include <string>
 
 namespace cosa {
+
 typedef enum
 {
   UNKNOWN = -1,

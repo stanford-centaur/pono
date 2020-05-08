@@ -6,6 +6,17 @@
 
 #include "smt-switch/smt.h"
 
+// Always include boolector
+#include "smt-switch/boolector_factory.h"
+
+#if WITH_CVC4
+#include "smt-switch/cvc4_factory.h"
+#endif
+
+#if WITH_MSAT
+#include "smt-switch/msat_factory.h"
+#endif
+
 namespace cosa_tests {
 
 typedef ::smt::SmtSolver (*create_solver_fun)(void);
