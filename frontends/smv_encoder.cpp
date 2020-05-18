@@ -2,7 +2,7 @@
 #include "bmc.h"
 #include "bmc_simplepath.h"
 #include "defaults.h"
-#include "interpolant.h"
+#include "interpolantmc.h"
 #include "kinduction.h"
 #include "prop.h"
 
@@ -84,6 +84,7 @@ void cosa::SMVEncoder::preprocess(){
             rts_.constrain_trans(transterm_.front().second);
             transterm_.pop_front();
         }
+        rts_.constrain_trans(casestore_[element.first]);
     }
 
         while (transterm_.size()>0){
