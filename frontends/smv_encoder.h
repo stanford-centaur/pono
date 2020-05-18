@@ -46,8 +46,9 @@ class SMVEncoder
   smt::TermVec propvec() { return propvec_; }
 
   smt::SmtSolver & solver_;
+  smt::TermVec inputsvec_;
+  smt::TermVec statesvec_;
   cosa::RelationalTransitionSystem & rts_;
-  std::unordered_map<std::string, smt::Sort> sorts_;
   std::unordered_map<std::string, smt::Term> terms_;
   std::vector<smt::Sort> sortvec_;
   std::vector<smt::Term> propvec_;
