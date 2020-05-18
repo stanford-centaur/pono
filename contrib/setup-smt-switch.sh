@@ -52,8 +52,8 @@ mkdir -p $DEPS
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
     git clone https://github.com/makaimann/smt-switch
-    git checkout -f $SMT_SWITCH_VERSION
     cd smt-switch
+    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
 
     if [[ "$WITH_MSAT" != default ]]; then
