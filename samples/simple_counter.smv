@@ -2,13 +2,13 @@ MODULE main
 
 VAR
   counter:  unsigned word[8];
+
 INIT 
-counter = 0ud8_0 ;
+counter = 0ud8_0;
 
 TRANS 
-(counter > 0ud8_5) -> (next(counter) = 0ud8_0) ;
-TRANS  
-(counter <= 0ud8_5) -> (next(counter) = counter + 0ud8_1);
+(counter < 0ud8_5) -> (next(counter) = counter + 0ud8_1); 
+(counter > 0ud8_4) -> (next(counter) = 0ud8_0); 
 
 INVARSPEC 
-counter <= 0ud8_6;
+(counter <= 0ud8_6);

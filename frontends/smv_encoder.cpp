@@ -1,4 +1,14 @@
 #include "smv_encoder.h"
+#include "bmc.h"
+#include "bmc_simplepath.h"
+#include "defaults.h"
+#include "interpolant.h"
+#include "kinduction.h"
+#include "prop.h"
+
+using namespace smt;
+using namespace cosa;
+using namespace std;
 
 int cosa::SMVEncoder::parse(std::string filename){
     std::ifstream ifs;
@@ -25,30 +35,59 @@ int cosa::SMVEncoder::parseString(std::string newline){
 }
 
 void cosa::SMVEncoder::processCase(){
-    Engine engine = BMC;
+    Engine e = BMC;
     unsigned int bound = 10;
     unsigned int verbosity = default_verbosity;
-    Property p(rts, smc);
-    logger.log(1, "Solving property: {}", p.prop());
-    std::cout << "INVARSPEC " << p.prop() << std::endl;
-    std::shared_ptr<Prover> prover;
-    ProverResult r = prover->check_until(bound);
-    if (r == FALSE) {
-      cout << "Find a counterexample" << endl;
-      cout << "b" << prop_idx << endl;
-      vector<UnorderedTermMap> cex;
-      if (prover->witness(cex)) {
-        //print_witness_btor(smv_enc, cex);
-      }
-      return 1;
-    } else if (r == TRUE) {
-      //cout << "unsat" << endl;
-      cout<<"Proved"<<endl;
-      cout << "b" << prop_idx << endl;
-      return 0;
-    } else {
-      cout << "unknown" << endl;
-      cout << "b" << prop_idx << endl;
-      return 2;
+    std::shared_ptr<Prover> prov;
+    std::future_status status;
+    for (std::pair<int, smt::Term> element : casecheck_)
+	  {
+        while (transterm_.front().first < element.first){
+            rts_.constrain_trans(transterm_.front().second);
+            transterm_.pop_front();
+        }
+        //std::cout << "start case check" <<std::endl; 
+        solver_ ->push();
+        Property p1(rts_, element.second);
+        
+        prov = std::make_shared<Bmc>(p1, solver_);
+        auto fut = std::async (launch::async,[](std::shared_ptr<Prover> prov,unsigned int bound){return prov->check_until(bound);},prov,bound); 
+        std::future_status status;
+        status = fut.wait_for(std::chrono::seconds(180));
+        while(status != std::future_status::timeout){
+          if(status == std::future_status::ready){
+            if(fut.get()== UNKNOWN || fut.get()== TRUE){
+                 //std::cout<<"find true case" << element.first<<std::endl;
+                 rts_.constrain_trans(casestore_[element.first]);
+                 break;
+            }
+            else{
+                //std::cout<<"line num" << element.first;
+                throw CosaException("case error");
+            }  
+          }
+        }
+        if(status == std::future_status::timeout) throw CosaException("case timeout check error"); 
+        //std::cout<<"find true case and jump out of the loop" <<std::endl;  
+	  }
+    solver_->pop();
+        while (transterm_.size()>0){
+            rts_.constrain_trans(transterm_.front().second);
+            transterm_.pop_front();
+        }    
+}
+
+void cosa::SMVEncoder::preprocess(){
+    for (std::pair<int, smt::Term> element : casecheck_)
+	  {
+        while (transterm_.front().first < element.first){
+            rts_.constrain_trans(transterm_.front().second);
+            transterm_.pop_front();
+        }
     }
+
+        while (transterm_.size()>0){
+            rts_.constrain_trans(transterm_.front().second);
+            transterm_.pop_front();
+        }   
 }
