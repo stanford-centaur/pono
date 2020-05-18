@@ -18,12 +18,12 @@ def build_simple_ts(solver, TS):
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_cons_fts(create_solver):
-    solver = create_solver()
+    solver = create_solver(False)
     solver, ts = build_simple_ts(solver, c.FunctionalTransitionSystem)
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_query_fts(create_solver):
-    solver = create_solver()
+    solver = create_solver(False)
     solver, ts = build_simple_ts(solver, c.FunctionalTransitionSystem)
 
     assert len(ts.states) == 2
@@ -40,7 +40,7 @@ def test_query_fts(create_solver):
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_func_update_fts(create_solver):
-    solver = create_solver()
+    solver = create_solver(False)
     solver, ts = build_simple_ts(solver, c.FunctionalTransitionSystem)
 
     states = list(ts.states)
@@ -52,12 +52,12 @@ def test_func_update_fts(create_solver):
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_cons_rts(create_solver):
-    solver = create_solver()
+    solver = create_solver(False)
     solver, ts = build_simple_ts(solver, c.RelationalTransitionSystem)
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_query_rts(create_solver):
-    solver = create_solver()
+    solver = create_solver(False)
     solver, ts = build_simple_ts(solver, c.RelationalTransitionSystem)
 
     assert len(ts.states) == 2
