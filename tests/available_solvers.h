@@ -19,7 +19,7 @@
 
 namespace cosa_tests {
 
-typedef ::smt::SmtSolver (*create_solver_fun)(void);
+typedef ::smt::SmtSolver (*create_solver_fun)(bool);
 
 enum SolverEnum
 {

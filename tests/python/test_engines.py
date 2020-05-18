@@ -53,7 +53,7 @@ def build_simple_alu_fts(s:ss.SmtSolver)->c.Property:
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_bmc(create_solver):
-    s = create_solver()
+    s = create_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
     prop = build_simple_alu_fts(s)
@@ -65,7 +65,7 @@ def test_bmc(create_solver):
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_kind(create_solver):
-    s = create_solver()
+    s = create_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
     prop = build_simple_alu_fts(s)
@@ -77,7 +77,7 @@ def test_kind(create_solver):
 
 @pytest.mark.parametrize("solver_and_interpolator", available_solvers.solver_and_interpolators.values())
 def test_interp(solver_and_interpolator):
-    s = solver_and_interpolator[0]()
+    s = solver_and_interpolator[0](False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
     itp = solver_and_interpolator[1]()
@@ -91,7 +91,7 @@ def test_interp(solver_and_interpolator):
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_kind_inductive_prop(create_solver):
-    s = create_solver()
+    s = create_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
     prop = build_simple_alu_fts(s)

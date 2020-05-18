@@ -3,8 +3,6 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=d1676f083bf291382ce38f16ef8fb6db50e346ff
-
 usage () {
     cat <<EOF
 Usage: $0 [<option> ...]
@@ -14,7 +12,6 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 -h, --help              display this message and exit
 --with-cvc4             include CVC4 (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
--y, --auto-yes          automatically agree to conditions (default: off)
 --python                build python bindings (default: off)
 EOF
     exit 0
@@ -35,11 +32,10 @@ do
         -h|--help) usage;;
         --with-msat)
             WITH_MSAT=ON
-            CONF_OPTS="$CONF_OPTS --msat";;
+            CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
         --with-cvc4)
             WITH_CVC4=ON
             CONF_OPTS="$CONF_OPTS --cvc4";;
-        -y|--auto-yes) MSAT_OPTS=--auto-yes;;
         --python)
             CONF_OPTS="$CONF_OPTS --python";;
         *) die "unexpected argument: $1";;
@@ -53,12 +49,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
     git clone https://github.com/makaimann/smt-switch
     cd smt-switch
-    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
-
-    if [[ "$WITH_MSAT" != default ]]; then
-        ./contrib/setup-msat.sh $MSAT_OPTS
-    fi
 
     if [[ "$WITH_CVC4" != default ]]; then
         ./contrib/setup-cvc4.sh

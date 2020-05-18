@@ -27,7 +27,7 @@ def get_free_vars(t:ss.Term)->Set[ss.Term]:
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_fts_unroller(create_solver):
-    solver = create_solver()
+    solver = create_solver(False)
     bvsort4 = solver.make_sort(ss.sortkinds.BV, 4)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
@@ -65,7 +65,7 @@ def test_fts_unroller(create_solver):
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_fts_unroller(create_solver):
-    solver = create_solver()
+    solver = create_solver(False)
     bvsort4 = solver.make_sort(ss.sortkinds.BV, 4)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
