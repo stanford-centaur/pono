@@ -157,7 +157,7 @@ class InterpWinTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = ::smt::MsatSolverFactory::create();
+    s = ::smt::MsatSolverFactory::create(false);
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
     itp = ::smt::MsatSolverFactory::create_interpolating_solver();
