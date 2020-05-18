@@ -17,6 +17,8 @@ Configures the CMAKE build environment.
                         Required for interpolant based model checking
 --with-cvc4             build with CVC4 support (default: off)
 --debug                 build debug with debug symbols (default: off)
+--python                compile with python bindings (default: off)
+--py2                   use python2 interpreter (default: python3)
 --static-lib            build a static library (default: shared)
 --static                build a static executable (default: dynamic); implies --static-lib
 EOF
@@ -34,6 +36,8 @@ build_type=default
 with_msat=default
 with_cvc4=default
 debug=default
+python=default
+py2=default
 lib_type=SHARED
 static_exec=NO
 
@@ -69,6 +73,12 @@ do
             debug=yes;
             buildtype=Debug
             ;;
+        --python)
+            python=yes
+            ;;
+        --py2)
+            py2=yes
+            ;;
         --static-lib)
             lib_type=STATIC
             ;;
@@ -91,6 +101,12 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DCOSA2_LIB_TYPE=${lib_type} -DCOSA2_S
 
 [ $with_cvc4 != default ] \
     && cmake_opts="$cmake_opts -DWITH_CVC4=$with_cvc4"
+
+[ $python != default ] \
+    && cmake_opts="$cmake_opts -DBUILD_PYTHON_BINDINGS=ON"
+
+[ $py2 != default ] \
+    && cmake_opts="$cmake_opts -DUSE_PYTHON2=ON"
 
 root_dir=$(pwd)
 

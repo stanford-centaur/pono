@@ -20,4 +20,6 @@
 // declare a global logger
 namespace cosa {
 Log logger;
+
+void set_global_logger_verbosity(unsigned int v) { logger.set_verbosity(v); }
 }

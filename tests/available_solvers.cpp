@@ -1,16 +1,5 @@
 #include "available_solvers.h"
 
-// Always include boolector
-#include "smt-switch/boolector_factory.h"
-
-#if WITH_CVC4
-#include "smt-switch/cvc4_factory.h"
-#endif
-
-#if WITH_MSAT
-#include "smt-switch/msat_factory.h"
-#endif
-
 using namespace smt;
 
 namespace cosa_tests {

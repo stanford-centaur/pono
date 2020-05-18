@@ -187,4 +187,7 @@ class Log
 
 // globally avaiable logger instance
 extern Log logger;
+
+void set_global_logger_verbosity(unsigned int v);
+
 }  // namespace cosa
