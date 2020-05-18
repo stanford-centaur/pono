@@ -12,7 +12,6 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 -h, --help              display this message and exit
 --with-cvc4             include CVC4 (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
--y, --auto-yes          automatically agree to conditions (default: off)
 --python                build python bindings (default: off)
 EOF
     exit 0
@@ -37,7 +36,6 @@ do
         --with-cvc4)
             WITH_CVC4=ON
             CONF_OPTS="$CONF_OPTS --cvc4";;
-        -y|--auto-yes) MSAT_OPTS=--auto-yes;;
         --python)
             CONF_OPTS="$CONF_OPTS --python";;
         *) die "unexpected argument: $1";;
