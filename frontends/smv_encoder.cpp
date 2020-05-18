@@ -24,7 +24,7 @@ int cosa::SMVEncoder::parse(std::string filename){
   cosa::smvparser parse (smvscanner,*this);
   return parse();
 }
-
+//parse string
 int cosa::SMVEncoder::parseString(std::string newline){
   std::istringstream iss(newline);
   std::istream &s(iss);
