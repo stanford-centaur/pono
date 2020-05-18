@@ -57,7 +57,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     ./contrib/setup-btor.sh
 
     if [[ "$WITH_MSAT" != default ]]; then
-        ./contrib/setup-msat.sh $MSAT_OPTS
+        ./travis-scripts/setup-msat.sh $MSAT_OPTS
     fi
 
     if [[ "$WITH_CVC4" != default ]]; then
