@@ -35,7 +35,7 @@ do
         -h|--help) usage;;
         --with-msat)
             WITH_MSAT=ON
-            CONF_OPTS="$CONF_OPTS --msat";;
+            CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
         --with-cvc4)
             WITH_CVC4=ON
             CONF_OPTS="$CONF_OPTS --cvc4";;
@@ -55,10 +55,6 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     git checkout -f $SMT_SWITCH_VERSION
     cd smt-switch
     ./contrib/setup-btor.sh
-
-    if [[ "$WITH_MSAT" != default ]]; then
-        ./travis-scripts/setup-msat.sh $MSAT_OPTS
-    fi
 
     if [[ "$WITH_CVC4" != default ]]; then
         ./contrib/setup-cvc4.sh
