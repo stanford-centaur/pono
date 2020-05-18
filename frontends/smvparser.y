@@ -6,9 +6,10 @@
     #include"stdlib.h"
     #include"smv_encoder.h"
     #include"smv_node.h"
-    #include "smt-switch/smt.h"
+    // #include "smt-switch/smt.h"
     using namespace std;
-    extern int yylineno;
+    int case_start;
+    bool case_true;
 %}
 
 %code requires{
@@ -22,15 +23,15 @@
 
 %skeleton "lalr1.cc"
 %require "3.2"
+%locations 
 %defines 
 %lex-param {SMVEncoder &enc}
 %parse-param {SMVscanner &smvscanner}
 %parse-param {SMVEncoder &enc}
 
-%code{
-  #include "smv_encoder.h"
-  #include "smvscanner.h"
 
+%code{
+  #include "smvscanner.h"
   #undef yylex
   #define yylex smvscanner.yylex
 }
@@ -42,12 +43,12 @@
 %define api.namespace{cosa}
 %define api.parser.class{smvparser}
 
-%token MODULE tok_main IVAR INVAR VAR FROZENVAR INVARSPEC
-%token INIT TRANS READ WRITE ASSIGN CONSTARRAY CONSTANTS FUN DEFINE
-%token tok_next tok_init signed_word unsigned_word arrayword arrayinteger tok_array tok_case tok_esac
+%token MODULE MAIN IVAR INVAR VAR FROZENVAR INVARSPEC
+%token INIT TRANS READ WRITE ASSIGN CONSTARRAY CONSTANTS FUN DEFINE TOK_CASE TOK_ESAC TOK_INIT
+%token TOK_NEXT signed_word unsigned_word arrayword arrayinteger tok_array
 %token pi ABS MAX MIN SIN COS EXP TAN ln of word1
 %token tok_bool tok_toint tok_count swconst uwconst tok_sizeof tok_floor extend resize tok_typeof 
-%token tok_unsigned tok_signed tok_word tok_set OP_in time_type
+%token tok_unsigned tok_signed tok_word tok_set OP_IN time_type
 %token TO ASSIGNSYM IF_ELSE 
 %token ENDL
 
@@ -80,7 +81,7 @@ DOT ".";
 %left OP_OR OP_XOR OP_XNOR
 %left OP_AND
 %left OP_EQ OP_NEQ OP_LT OP_GT OP_LTE OP_GTE
-%left OP_in
+%left OP_IN
 %left UNION
 %left OP_SHIFTR OP_SHIFTL
 %left "+" "-" 
@@ -90,11 +91,12 @@ DOT ".";
 %left OP_NOT
 %left "[" ":" "]"
 
-%nterm <SMVnode*> type_identifier word_type array_type word_value basic_expr next_expr case_expr constant 
+%nterm <SMVnode*> type_identifier word_type array_type word_value basic_expr next_expr case_expr constant
 %nterm <int> sizev 
 %nterm <bool> boolean_constant
 %nterm <std::string> integer_constant real_constant
 %nterm <std::string> complex_identifier 
+
 %%
 
 header:
@@ -130,7 +132,7 @@ header:
     | module_header invarspec_test;
 
 module_header:
-    MODULE tok_main;
+    MODULE MAIN;
 
 define_decl:
     DEFINE define_body
@@ -139,7 +141,6 @@ define_decl:
 define_body: complex_identifier ASSIGNSYM basic_expr ";" { 
               SMVnode *a = $3;
               smt::Term define_var = a->getTerm();
-              //cout << "find a define" <<$1 <<endl;
               enc.terms_[$1] = define_var; 
               if (a->getBVType() == SMVnode::Unsigned){
                 enc.unsignedbv_[$1] = define_var; 
@@ -163,14 +164,15 @@ assign_test: complex_identifier ASSIGNSYM basic_expr {
           SMVnode *a = $3; 
           //smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           smt::Term state = a->getTerm();
+          enc.rts_.constrain_trans(state);
 }
-        | tok_init "(" complex_identifier ")" ASSIGNSYM basic_expr{
+        | TOK_INIT "(" complex_identifier ")" ASSIGNSYM basic_expr{
           SMVnode *a = $6; 
           smt::Term init = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           enc.rts_.constrain_init(e);
         }
-        | tok_next "("complex_identifier ")" ASSIGNSYM next_expr {
+        | TOK_NEXT "("complex_identifier ")" ASSIGNSYM next_expr {
           SMVnode *a = $6; 
           smt::Term state = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, state, a->getTerm());
@@ -184,7 +186,6 @@ ivar_test:
 
 ivar_list:
     complex_identifier ":" type_identifier ";" {
-         //cout <<"find an ivar"<<endl;
          SMVnode *a = $3;
          smt::Term input = enc.rts_.make_input($1, a->getSort());
          if (a->getBVType() == SMVnode::Unsigned){
@@ -228,7 +229,9 @@ frozenvar_list:
          } 
       smt::Term n = enc.rts_.next(state);
       smt::Term e = enc.solver_->make_term(smt::Equal, n, state);
-      enc.rts_.constrain_trans(e);
+      //enc.rts_.constrain_trans(e);
+      //std::cout<<"check frozenvar line num"<<enc.loc.end.line<<std::endl;
+      enc.transterm_.push_back(make_pair(enc.loc.end.line,e));
       //cout<<"find a frozen var" <<endl;
   };
 
@@ -245,7 +248,11 @@ trans_constraint: TRANS trans_list
 
 trans_list: basic_expr ";"{
             SMVnode *a = $1;
-            enc.rts_.constrain_trans(a->getTerm());
+            //enc.rts_.constrain_trans(a->getTerm());
+            //std::cout<<"check trans line num"<<enc.loc.end.line<<std::endl;
+            int i = enc.loc.end.line;
+            enc.transterm_.push_back(make_pair(i,a->getTerm()));
+            case_true = false;
             //cout <<"find a trans"<<endl;
 };
 
@@ -254,8 +261,9 @@ invar_constraint: INVAR invar_list
 
 invar_list: basic_expr ";"{
             SMVnode *a = $1;
-            enc.rts_.constrain_trans(a->getTerm());
-            //cout <<"find a invar"<<endl;
+            //enc.rts_.constrain_trans(a->getTerm());
+            //std::cout<<"check invar line num"<<enc.loc.end.line<<std::endl;
+            enc.transterm_.push_back(make_pair(enc.loc.end.line,a->getTerm()));
 };
 
 
@@ -744,12 +752,15 @@ basic_expr: constant {
             |"{" set_body_expr "}" {
                throw CosaException("No set");
             }
-            | basic_expr OP_in basic_expr {
+            | basic_expr OP_IN basic_expr {
                throw CosaException("No array");
             }
             | basic_expr IF_ELSE basic_expr ":" basic_expr  {
-               
-               throw CosaException("No case now");
+                 SMVnode *a = $1;
+                 SMVnode *b = $3;
+                 SMVnode *c = $5;
+                 smt::Term e = enc.solver_->make_term(smt::Ite, a->getTerm(),b->getTerm(),c->getTerm());
+                 $$ = new SMVnode(e);
             }        
           | WRITE "(" basic_expr "," basic_expr "," basic_expr ")"{
             SMVnode *a = $3;
@@ -773,27 +784,52 @@ basic_expr: constant {
           | CONSTARRAY "(" arrayinteger of type_identifier "," basic_expr ")" {
             throw CosaException("No constarray");
           }
-          | next_expr{
+          | case_expr {
+
             $$ = $1;
           }
-          | case_expr{
-             
+          | next_expr{
+            $$ = $1;
           };
 
-next_expr: tok_next "(" basic_expr ")"{
+next_expr: TOK_NEXT "(" basic_expr ")"{
           SMVnode *a = $3;
           smt::Term n = enc.rts_.next(a->getTerm());
           $$ = new SMVnode(n,a->getBVType());
 };
 
-case_expr: tok_case case_body tok_esac {
-        
+case_expr: TOK_CASE case_body TOK_ESAC {
+          std::pair<smt::Term,smt::Term> term_last = enc.caseterm_.back();
+          smt::Term cond = term_last.first;
+          smt::Term final_term = term_last.second;
+          enc.caseterm_.pop_back();
+          int total_num = enc.caseterm_.size();
+          for (int i = 0; i < total_num; i++){
+            //std::cout<<"find a case" <<std::endl;
+            std::pair<smt::Term,smt::Term> term_pair = enc.caseterm_.back();
+            enc.caseterm_.pop_back();
+            if (term_pair.first == enc.solver_->make_term(true))  case_true = true;
+            smt::Term e = enc.solver_->make_term(smt::Ite, term_pair.first, term_pair.second, final_term);
+            cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first);
+            final_term = e;
+          }
+          if (!case_true)   throw CosaException("case true error");
+          //std::cout<< "line num" << enc.loc.end.line <<std::endl;
+          enc.casestore_[case_start] = final_term;
+          enc.casecheck_[case_start] = cond;
+          $$ = new SMVnode(final_term);
 }
 
 case_body: basic_expr ":" basic_expr ";"{
-      caseterm_[$1] = $3;
+      case_start = enc.loc.end.line;
+      SMVnode *a = $1;
+      SMVnode *b = $3;
+      enc.caseterm_.clear();
+      enc.caseterm_.push_back(make_pair(a->getTerm(),b->getTerm()));
 } | case_body basic_expr ":" basic_expr ";" {
-      caseterm_[$2] = $4;
+      SMVnode *a = $2;
+      SMVnode *b = $4;
+      enc.caseterm_.push_back(make_pair(a->getTerm(),b->getTerm()));
 };
 
 basic_expr_list: basic_expr
@@ -870,8 +906,8 @@ sizev:
     };
 %%
 
-void cosa::smvparser::error (const std::string& m)
-{
-  std::cerr << m << '\n';
+void cosa::smvparser::error (const location &loc, const std::string& m)
+{ 
+  std::cerr << loc << " " <<  m << '\n';
    exit(-1);
 }
