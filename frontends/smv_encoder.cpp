@@ -27,7 +27,7 @@ int cosa::SMVEncoder::parseString(std::string newline){
   cosa::smvparser parse (smvscanner,*this);
   return parse();
 }
-
+//case condition check preprocess
 void cosa::SMVEncoder::processCase(){
   std::future_status status;
   for (std::pair<int, smt::Term> element : casecheck_) {

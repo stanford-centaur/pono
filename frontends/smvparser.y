@@ -7,8 +7,8 @@
     #include"smv_encoder.h"
     #include"smv_node.h"
     using namespace std;
-    int case_start;
-    bool case_true;
+    int case_start = 0;
+    bool case_true = false;
 %}
 
 %code requires{
@@ -50,7 +50,7 @@
 %token TO ASSIGNSYM IF_ELSE 
 %token ENDL
 
-%token <std::string> integer_val real_val
+%token <std::string> integer_val real_val fraction_prefix exponential_prefix
 %token bool_type integer_type real_type set_tok array_tok 
 %token <std::string> word_index1 word_index2
 %token <std::string> tok_name
@@ -89,10 +89,10 @@ DOT ".";
 %left OP_NOT
 %left "[" ":" "]"
 
-%nterm <SMVnode*> type_identifier word_type array_type word_value basic_expr next_expr case_expr constant
+%nterm <SMVnode*> type_identifier word_type array_type word_value basic_expr next_expr case_expr constant simple_expr
 %nterm <int> sizev 
 %nterm <bool> boolean_constant
-%nterm <std::string> integer_constant real_constant
+%nterm <std::string> integer_constant real_constant float_number fractional_number exponential_number
 %nterm <std::string> complex_identifier 
 
 %%
@@ -158,13 +158,13 @@ assign_decl: ASSIGN assign_list;
 assign_list: assign_test ";" 
             | assign_list assign_test ";";
 
-assign_test: complex_identifier ASSIGNSYM basic_expr {
+assign_test: complex_identifier ASSIGNSYM simple_expr {
           SMVnode *a = $3; 
           //smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           smt::Term state = a->getTerm();
           enc.rts_.constrain_trans(state);
 }
-        | TOK_INIT "(" complex_identifier ")" ASSIGNSYM basic_expr{
+        | TOK_INIT "(" complex_identifier ")" ASSIGNSYM simple_expr{
           SMVnode *a = $6; 
           smt::Term init = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
@@ -234,7 +234,7 @@ frozenvar_list:
 init_constraint: INIT init_list
                 | init_constraint init_list;
 
-init_list: basic_expr ";"{
+init_list: simple_expr ";"{
         SMVnode *a = $1;
         enc.rts_.constrain_init(a->getTerm());
       };
@@ -249,7 +249,6 @@ trans_list: basic_expr ";"{
             }else{
               enc.casestore_[case_start] = a->getTerm();
             }
-            //enc.transterm_.push_back(make_pair(i,a->getTerm()));
             case_true = false;
             //cout <<"find a trans"<<endl;
 };
@@ -257,10 +256,9 @@ trans_list: basic_expr ";"{
 invar_constraint: INVAR invar_list
                 | invar_constraint invar_list;
 
-invar_list: basic_expr ";"{
+invar_list: simple_expr ";"{
             SMVnode *a = $1;
             enc.rts_.constrain_trans(a->getTerm());
-            //std::cout<<"check invar line num"<<enc.loc.end.line<<std::endl;
             enc.transterm_.push_back(make_pair(enc.loc.end.line,a->getTerm()));
 };
 
@@ -291,9 +289,6 @@ constant: boolean_constant {
           | word_value {
            $$ = $1;
           }
-//          | symbolic_constant{
-//            throw CosaException("No symbolic constant now");
-//          }
           | range_constant{
             throw CosaException("No range constant now");
           };
@@ -361,18 +356,29 @@ boolean_constant: TOK_TRUE{
 //                $$ = $1;
 //};
 
-integer_constant: integer_val{
-  $$ = $1;
-  //throw CosaException("No integer constant now");
-};
+integer_constant: integer_val{ $$ = $1; };
+
 real_constant: real_val{
   $$ = $1;
-  //throw CosaException("No real constant now");
-};
+}| float_number { $$ = $1; }
+| fractional_number{  $$ = $1; }
+| exponential_number{ $$ = $1; };
+
+float_number: integer_val "." integer_val{ $$ = $1 + "." + $3; }
+
+fractional_number: fraction_prefix "'" integer_val "/" integer_val{ $$ = $1 + "'" + $3 + "/" + $5; }
+
+exponential_number: integer_val exponential_prefix "-" integer_val{  $$ =  $1 + $2 + "-" + $4; }
+| integer_val exponential_prefix integer_val{  $$ =  $1 + $2 + $3; }
+| float_number exponential_prefix "-" integer_val {  $$ =  $1 + $2 + "-" + $4; };
+
 range_constant: integer_val TO integer_val{
   throw CosaException("No range constant now");
 };
-basic_expr: constant {
+basic_expr: simple_expr{ $$ = $1;}
+          | next_expr{ $$ = $1;}
+
+simple_expr: constant {
             $$ = $1;
 }
             | complex_identifier {
@@ -797,9 +803,6 @@ basic_expr: constant {
             throw CosaException("No constarray");
           }
           | case_expr {
-            $$ = $1;
-          }
-          | next_expr{
             $$ = $1;
           };
 
