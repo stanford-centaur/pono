@@ -18,7 +18,8 @@ struct SMVnode
     TermNode,
     SortNode
   };
-  enum BVtype{
+  enum BVtype
+  {
     Signed,
     Unsigned,
     Integer,

@@ -18,7 +18,7 @@ int cosa::SMVEncoder::parse(std::string filename){
   cosa::smvparser parse (smvscanner,*this);
   return parse();
 }
-//parse string
+// parse string
 int cosa::SMVEncoder::parseString(std::string newline){
   std::istringstream iss(newline);
   std::istream &s(iss);
@@ -35,21 +35,26 @@ void cosa::SMVEncoder::processCase(){
         solver_ ->push();
         Term bad_ = solver_->make_term(smt::PrimOp::Not, element.second);
         solver_->assert_formula(bad_);
-        auto fut = std::async (launch::async,[](smt::SmtSolver solver_){Result r = solver_->check_sat(); return r.is_sat();},solver_); 
+        auto fut = std::async(
+            launch::async,
+            [](smt::SmtSolver solver_) {
+              Result r = solver_->check_sat();
+              return r.is_sat();
+            },
+            solver_);
         std::future_status status;
         status = fut.wait_for(std::chrono::seconds(100));
         while(status != std::future_status::timeout){
-        if(status == std::future_status::ready){
-          if(fut.get()== false){
-                 rts_.constrain_trans(casestore_[element.first]);
-                 break;
+          if (status == std::future_status::ready) {
+            if (fut.get() == false) {
+              rts_.constrain_trans(casestore_[element.first]);
+              break;
+            } else {
+              throw CosaException("case error");
             }
-            else{
-                throw CosaException("case error");
-            }  
           }
         }
-        if(status == std::future_status::timeout) throw CosaException("case timeout check error"); 
-        solver_->pop(); 
-	     } 
+        if(status == std::future_status::timeout) throw CosaException("case timeout check error");
+        solver_->pop();
+    }
 }
