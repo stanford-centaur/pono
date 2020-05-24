@@ -85,6 +85,7 @@ set {return cosa::smvparser::make_tok_set(_encoder.loc);}
 time {return cosa::smvparser::make_time_type(_encoder.loc);}
 in {return cosa::smvparser::make_OP_IN(_encoder.loc);}
 
+[fF] {return cosa::smvparser::make_fraction_prefix(yytext,_encoder.loc);}
 "->"  {return cosa::smvparser::make_OP_IMPLY(_encoder.loc);}
 "<->"  {return cosa::smvparser::make_OP_BI(_encoder.loc);}
 "!"  {return cosa::smvparser::make_OP_NOT(_encoder.loc);}
