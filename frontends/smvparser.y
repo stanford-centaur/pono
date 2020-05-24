@@ -6,7 +6,6 @@
     #include"stdlib.h"
     #include"smv_encoder.h"
     #include"smv_node.h"
-    // #include "smt-switch/smt.h"
     using namespace std;
     int case_start;
     bool case_true;
@@ -28,7 +27,6 @@
 %lex-param {SMVEncoder &enc}
 %parse-param {SMVscanner &smvscanner}
 %parse-param {SMVEncoder &enc}
-
 
 %code{
   #include "smvscanner.h"
@@ -210,7 +208,6 @@ var_list:
          } else if(a->getBVType() == SMVnode::Signed){
            enc.signedbv_[$1] = state;
          } 
-         //cout<<"find a var" <<endl;
     };
 
 frozenvar_test:
@@ -229,8 +226,7 @@ frozenvar_list:
          } 
       smt::Term n = enc.rts_.next(state);
       smt::Term e = enc.solver_->make_term(smt::Equal, n, state);
-      //enc.rts_.constrain_trans(e);
-      //std::cout<<"check frozenvar line num"<<enc.loc.end.line<<std::endl;
+      enc.rts_.constrain_trans(e);
       enc.transterm_.push_back(make_pair(enc.loc.end.line,e));
       //cout<<"find a frozen var" <<endl;
   };
@@ -248,10 +244,12 @@ trans_constraint: TRANS trans_list
 
 trans_list: basic_expr ";"{
             SMVnode *a = $1;
-            //enc.rts_.constrain_trans(a->getTerm());
-            //std::cout<<"check trans line num"<<enc.loc.end.line<<std::endl;
-            int i = enc.loc.end.line;
-            enc.transterm_.push_back(make_pair(i,a->getTerm()));
+            if(!case_true){
+              enc.rts_.constrain_trans(a->getTerm());
+            }else{
+              enc.casestore_[case_start] = a->getTerm();
+            }
+            //enc.transterm_.push_back(make_pair(i,a->getTerm()));
             case_true = false;
             //cout <<"find a trans"<<endl;
 };
@@ -261,7 +259,7 @@ invar_constraint: INVAR invar_list
 
 invar_list: basic_expr ";"{
             SMVnode *a = $1;
-            //enc.rts_.constrain_trans(a->getTerm());
+            enc.rts_.constrain_trans(a->getTerm());
             //std::cout<<"check invar line num"<<enc.loc.end.line<<std::endl;
             enc.transterm_.push_back(make_pair(enc.loc.end.line,a->getTerm()));
 };
@@ -283,7 +281,7 @@ constant: boolean_constant {
           | integer_constant {
             smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
             smt::Term con = enc.solver_->make_term($1,sort_);
-            $$ = new SMVnode(con);
+            $$ = new SMVnode(con,SMVnode::Integer);
 }
           | real_constant{
             smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
@@ -664,7 +662,7 @@ basic_expr: constant {
                   SMVnode::BVtype bvs_a = a->getBVType();
                   SMVnode::BVtype bvs_b = b->getBVType();
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
-                    smt::Term res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
+                    smt::Term res = enc.solver_->make_term(smt::BVUrem, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Unsigned);
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     smt::Term res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
@@ -701,8 +699,22 @@ basic_expr: constant {
                 $$ = new SMVnode(res,SMVnode::Unsigned);
               }               
             }
+            | basic_expr "[" integer_val "]" {
+                throw CosaException("No index Subscript");
+            }
             | basic_expr "[" basic_expr ":" basic_expr "]"{
-              throw CosaException("No word1");
+                SMVnode *a = $1;
+                SMVnode *b = $3;
+                SMVnode *c = $5;
+                SMVnode::BVtype bvs_a = a->getBVType();
+                SMVnode::BVtype bvs_b = b->getBVType();
+                SMVnode::BVtype bvs_c = c->getBVType();
+                if(bvs_a == SMVnode::BVnot || bvs_b != SMVnode::Integer || bvs_c != SMVnode::Integer){
+                  smt::Term res = enc.solver_->make_term(smt::Extract, a->getTerm(), b->getTerm(),c->getTerm());
+                  $$ = new SMVnode(res,SMVnode::Unsigned);
+                }else{
+                  throw CosaException("Bit selection type is uncompatible");
+                }
             }
             | word1 "(" basic_expr ")" {
               throw CosaException("No word1");
@@ -785,7 +797,6 @@ basic_expr: constant {
             throw CosaException("No constarray");
           }
           | case_expr {
-
             $$ = $1;
           }
           | next_expr{
@@ -805,16 +816,14 @@ case_expr: TOK_CASE case_body TOK_ESAC {
           enc.caseterm_.pop_back();
           int total_num = enc.caseterm_.size();
           for (int i = 0; i < total_num; i++){
-            //std::cout<<"find a case" <<std::endl;
+            //<<"find a case" <<std::endl;
             std::pair<smt::Term,smt::Term> term_pair = enc.caseterm_.back();
             enc.caseterm_.pop_back();
-            if (term_pair.first == enc.solver_->make_term(true))  case_true = true;
+            case_true = true;
             smt::Term e = enc.solver_->make_term(smt::Ite, term_pair.first, term_pair.second, final_term);
             cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first);
             final_term = e;
           }
-          if (!case_true)   throw CosaException("case true error");
-          //std::cout<< "line num" << enc.loc.end.line <<std::endl;
           enc.casestore_[case_start] = final_term;
           enc.casecheck_[case_start] = cond;
           $$ = new SMVnode(final_term);
@@ -837,8 +846,6 @@ basic_expr_list: basic_expr
 
 set_body_expr: basic_expr
                 | set_body_expr "," basic_expr;
-        
-//symbolic_constant: complex_identifier;
 
 complex_identifier: tok_name{
                 $$ = $1;
