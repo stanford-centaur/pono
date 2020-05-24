@@ -42,7 +42,7 @@ void cosa::SMVEncoder::processCase(){
         },
         solver_);
     std::future_status status;
-    status = fut.wait_for(std::chrono::seconds(100));
+    status = fut.wait_for(std::chrono::seconds(5));
     while (status != std::future_status::timeout) {
       if (status == std::future_status::ready) {
         if (fut.get() == false) {
