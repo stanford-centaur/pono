@@ -18,13 +18,6 @@
 #include "smvparser.h"
 #include "smvscanner.h"
 
-// #include "bmc.h"
-// #include "bmc_simplepath.h"
-// #include "defaults.h"
-// #include "interpolant.h"
-// #include "kinduction.h"
-// #include "prop.h"
-
 namespace cosa{
 class SMVEncoder
 {
@@ -33,7 +26,7 @@ class SMVEncoder
       : rts_(rts), solver_(rts.solver())
   {
     parse(filename);
-    preprocess();
+    processCase();
   };
 
  public:
@@ -57,6 +50,5 @@ class SMVEncoder
   std::unordered_map<int, smt::Term> casecheck_;
   std::unordered_map<int, smt::Term> casestore_;
   std::vector<std::pair<smt::Term, smt::Term>> caseterm_;
-  void build_case_node(smt::Term cond, smt::Term expr,int lineno);
 };  // class SMVEncoder
 }  // namespace cosa

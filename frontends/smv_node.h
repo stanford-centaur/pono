@@ -21,6 +21,7 @@ struct SMVnode
   enum BVtype{
     Signed,
     Unsigned,
+    Integer,
     BVnot
   };
   smt::Term tm;
