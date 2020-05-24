@@ -1,16 +1,18 @@
 #pragma once
 
 #include <stdio.h>
-#include <iostream>
-#include <sstream>
-#include <fstream>
-#include <map>
-#include <string>
-#include <vector>
+
+#include <chrono>  // std::chrono::milliseconds
 #include <deque>
-#include <future>         // std::async, std::future
-#include <chrono>         // std::chrono::milliseconds
+#include <fstream>
+#include <future>  // std::async, std::future
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
 #include <unordered_map>
+#include <vector>
+
 #include "assert.h"
 #include "exceptions.h"
 #include "rts.h"
@@ -33,7 +35,7 @@ class SMVEncoder
   // Important members
   int parse(std::string filename);
   int parseString(std::string newline);
-  location loc; 
+  location loc;
   void processCase();
   void preprocess();
   smt::TermVec propvec() { return propvec_; }
