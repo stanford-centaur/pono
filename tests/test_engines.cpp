@@ -34,7 +34,7 @@ class EngineUnitTests
   void SetUp() override
   {
     std::tuple<SolverEnum, TSEnum> t = GetParam();
-    s = available_solvers().at(std::get<0>(t))();
+    s = available_solvers().at(std::get<0>(t))(false);
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
 
@@ -157,7 +157,7 @@ class InterpWinTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = ::smt::MsatSolverFactory::create();
+    s = ::smt::MsatSolverFactory::create(false);
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
     itp = ::smt::MsatSolverFactory::create_interpolating_solver();
