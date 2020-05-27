@@ -97,6 +97,7 @@ add_library(cosa2-lib "${COSA2_LIB_TYPE}"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
+set_target_properties(cosa2-lib PROPERTIES OUTPUT_NAME cosa2)
 
 target_include_directories(cosa2-lib PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
