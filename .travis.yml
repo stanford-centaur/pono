@@ -20,7 +20,7 @@ addons:
       - python3-pip
       - python3-setuptools
       - ruby
-      - fl-dev
+      - libfl-dev
 
 jobs:
   include:
