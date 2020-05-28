@@ -10,8 +10,7 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
     export CPPFLAGS="-I/usr/local/opt/flex/include"
     # HACK: remove old version of FlexLexer.h that shows up in include path first
     # see comments here: https://github.com/vmware/cascade/issues/170
-    sudo rm -f /usr/include/Flex*
-    sudo rm -f /usr/include/flex*
+    sudo rm /Library/Developer/CommandLineTools/usr/include/Flex*
 else
     echo "NOT in OSX -- nothing to do"
 fi
