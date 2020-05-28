@@ -17,12 +17,8 @@
 
 #pragma once
 
-#include "prop.h"
-#include "prover.h"
-#include "ts.h"
-#include "unroller.h"
+#include "engines/prover.h"
 
-#include "proverresult.h"
 #include "smt-switch/smt.h"
 
 namespace cosa {

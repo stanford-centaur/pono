@@ -19,7 +19,7 @@
 
 #include <unordered_map>
 
-#include "ts.h"
+#include "core/ts.h"
 #include "utils/exceptions.h"
 
 namespace cosa {

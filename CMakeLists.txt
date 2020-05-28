@@ -168,3 +168,43 @@ if ("${COSA2_STATIC_EXEC}" STREQUAL "YES")
   target_link_libraries(cosa2-bin PUBLIC -static)
 endif()
 
+# install smt-switch
+install(TARGETS cosa2-lib DESTINATION lib)
+install(TARGETS cosa2-bin DESTINATION bin)
+
+# install public headers
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/core/"
+        DESTINATION include/cosa2/core
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
+        DESTINATION include/cosa2/utils
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/engines/"
+        DESTINATION include/cosa2/engines
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/frontends/"
+        DESTINATION include/cosa2/frontends
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/options/"
+        DESTINATION include/cosa2/options
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/contrib/fmt/"
+        DESTINATION include/cosa2/fmt
+        FILES_MATCHING PATTERN "*.h")
+
+# uninstall target
+# copied from https://gitlab.kitware.com/cmake/community/wikis/FAQ#can-i-do-make-uninstall-with-cmake
+if(NOT TARGET uninstall)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+        IMMEDIATE @ONLY)
+
+    add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+endif()

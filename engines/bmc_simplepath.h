@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "kinduction.h"
+#include "engines/kinduction.h"
 
 namespace cosa {
 
