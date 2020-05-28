@@ -6,8 +6,8 @@
 #include <string>
 #include <unordered_map>
 #include "assert.h"
-#include "exceptions.h"
-#include "rts.h"
+#include "utils/exceptions.h"
+#include "core/rts.h"
 #include "smt-switch/smt.h"
 #include "smvparser.h"
 

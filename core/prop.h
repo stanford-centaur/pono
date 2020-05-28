@@ -18,7 +18,7 @@
 #pragma once
 
 #include "smt-switch/smt.h"
-#include "ts.h"
+#include "core/ts.h"
 
 namespace cosa {
 

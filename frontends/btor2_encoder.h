@@ -29,9 +29,10 @@ extern "C" {
 #include <unordered_map>
 #include "assert.h"
 
-#include "exceptions.h"
+#include "core/ts.h"
+#include "utils/exceptions.h"
+
 #include "smt-switch/smt.h"
-#include "ts.h"
 
 namespace cosa {
 class BTOR2Encoder

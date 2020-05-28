@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "prop.h"
-#include "proverresult.h"
+#include "core/prop.h"
+#include "core/proverresult.h"
 #include "smt-switch/smt.h"
-#include "ts.h"
-#include "unroller.h"
+#include "core/ts.h"
+#include "core/unroller.h"
 
 namespace cosa {
 class Prover

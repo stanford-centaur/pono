@@ -168,23 +168,27 @@ install(TARGETS cosa2-bin DESTINATION bin)
 
 # install public headers
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/core/"
-        DESTINATION include/cosa2
+        DESTINATION include/cosa2/core
         FILES_MATCHING PATTERN "*.h")
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
-        DESTINATION include/cosa2
+        DESTINATION include/cosa2/utils
         FILES_MATCHING PATTERN "*.h")
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/engines/"
-        DESTINATION include/cosa2
+        DESTINATION include/cosa2/engines
         FILES_MATCHING PATTERN "*.h")
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/frontends/"
-        DESTINATION include/cosa2
+        DESTINATION include/cosa2/frontends
         FILES_MATCHING PATTERN "*.h")
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/options/"
-        DESTINATION include/cosa2
+        DESTINATION include/cosa2/options
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/contrib/fmt/"
+        DESTINATION include/cosa2/fmt
         FILES_MATCHING PATTERN "*.h")
 
 # uninstall target
