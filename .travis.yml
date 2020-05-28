@@ -28,7 +28,7 @@ jobs:
       osx_image: xcode9.2
 
 script:
-  - find /usr -name "FlexLexer.h"
+  - sudo find / -name "FlexLexer.h"
   # - source ./scripts/travis-mac-install.sh
   # # brew sometimes fails on something even after a successful python installation
   # # we don't want the build to fail
