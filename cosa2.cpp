@@ -159,9 +159,9 @@ ProverResult check_prop(Engine engine,
   }
 
   ProverResult r = prover->check_until(bound);
-  if (r == FALSE) {
-    prover->witness(cex);
-  }
+  // if (r == FALSE) {
+  //   prover->witness(cex);
+  // }
   return r;
 }
 
@@ -277,11 +277,11 @@ int main(int argc, char ** argv)
         cout << "sat" << endl;
         cout << "b" << prop_idx << endl;
         if (cex.size()) {
-          print_witness_btor(btor_enc, cex);
-          if (!vcd_name.empty()) {
-            VCDWitnessPrinter vcdprinter(btor_enc, fts, cex);
-            vcdprinter.DumpTraceToFile(vcd_name);
-          }
+          // print_witness_btor(btor_enc, cex);
+          // if (!vcd_name.empty()) {
+          //   VCDWitnessPrinter vcdprinter(fts, cex);
+          //   vcdprinter.DumpTraceToFile(vcd_name);
+          // }
         }
         status_code = 1;
       } else if (r == TRUE) {
