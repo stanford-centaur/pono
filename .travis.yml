@@ -34,11 +34,11 @@ script:
   # - sudo python3 -m pip install Cython==0.29 --install-option="--no-cython-compile"
   # - sudo python3 -m pip install pytest
   - ./travis-scripts/setup-msat.sh --auto-yes
-  - ./contrib/setup-smt-switch.sh --with-msat
+  - ./contrib/setup-smt-switch.sh
   # - sudo python3 -m pip install -e ./deps/smt-switch/build/python
   - ./contrib/setup-btor2tools.sh
   - ./contrib/setup-bison.sh
-  - ./configure.sh --with-msat --debug
+  - ./configure.sh --debug
   # - ./configure.sh --with-msat --python --debug
   - cd build && make -j2 && make test && cd ../
   # - sudo python3 -m pip install -e ./build/python
