@@ -11,6 +11,7 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
     # HACK: remove old version of FlexLexer.h that shows up in include path first
     # see comments here: https://github.com/vmware/cascade/issues/170
     sudo rm /Library/Developer/CommandLineTools/usr/include/Flex*
+    sudo rm /Applications/Xcode-9.2.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/Flex*
 else
     echo "NOT in OSX -- nothing to do"
 fi
