@@ -30,6 +30,8 @@ link_directories("/usr/local/Cellar/gmp/6.2.0/lib")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
 find_package(BISON 3.4.2 REQUIRED)
 find_package(FLEX 2.6.4 REQUIRED)
+message("-- Found flex headers at ${FLEX_INCLUDE_DIRS}")
+include_directories("${FLEX_INCLUDE_DIRS}")
 
 # TODO: Use find_package
 # find package
