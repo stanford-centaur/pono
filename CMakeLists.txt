@@ -31,6 +31,10 @@ list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
 find_package(BISON 3.4.2 REQUIRED)
 find_package(FLEX 2.6.4 REQUIRED)
 
+if (BISON_FOUND)
+  link_directories("${PROJECT_SOURCE_DIR}/deps/bison/bison-install/lib/")
+endif()
+
 # TODO: Use find_package
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
