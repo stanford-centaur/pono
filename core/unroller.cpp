@@ -32,16 +32,9 @@ Unroller::~Unroller() {}
 
 Term Unroller::at_time(const Term & t, unsigned int k)
 {
-  UnorderedTermMap & cache = time_cache_at_time(k);
-
-  auto it = cache.find(t);
-  if (it != cache.end()) {
-    return it->second;
-  }
-
+  UnorderedTermMap & cache = var_cache_at_time(k);
   Term ret = solver_->substitute(t, cache);
   untime_cache_[ret] = t;
-  cache[t] = ret;
 
   return ret;
 }
@@ -73,7 +66,7 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
   return timed_v;
 }
 
-UnorderedTermMap & Unroller::time_cache_at_time(unsigned int k)
+UnorderedTermMap & Unroller::var_cache_at_time(unsigned int k)
 {
   while (time_cache_.size() <= k) {
     time_cache_.push_back(UnorderedTermMap());
