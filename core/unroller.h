@@ -41,7 +41,7 @@ class Unroller
 
  private:
   smt::Term var_at_time(const smt::Term & v, unsigned int k);
-  smt::UnorderedTermMap & time_cache_at_time(unsigned int k);
+  smt::UnorderedTermMap & var_cache_at_time(unsigned int k);
 
   const TransitionSystem & ts_;
   smt::SmtSolver & solver_;
