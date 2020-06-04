@@ -39,9 +39,11 @@ script:
   - ./scripts/travis-setup-osx-python.sh || true
   - sudo python3 -m pip install Cython==0.29 --install-option="--no-cython-compile"
   - sudo python3 -m pip install pytest
-  - ./contrib/setup-smt-switch.sh --with-msat --auto-yes --python
+  - ./travis-scripts/setup-msat.sh --auto-yes
+  - ./contrib/setup-smt-switch.sh --with-msat --python
   - sudo python3 -m pip install -e ./deps/smt-switch/build/python
   - ./contrib/setup-btor2tools.sh
+  - ./contrib/setup-bison.sh
   - ./configure.sh --with-msat --python --debug
   - cd build && make -j2 && make test && cd ../
   - sudo python3 -m pip install -e ./build/python
