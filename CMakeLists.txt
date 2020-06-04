@@ -11,6 +11,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+add_definitions(-DCOSA2_SRC_DIR=${PROJECT_SOURCE_DIR})
+
 if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
 endif()
@@ -113,6 +115,7 @@ add_library(cosa2-lib "${COSA2_LIB_TYPE}"
   )
 
 if (WITH_COREIR)
+  add_definitions(-DWITH_COREIR)
   target_sources(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
@@ -155,6 +158,7 @@ if (WITH_CVC4)
 endif()
 
 if (WITH_COREIR)
+  target_include_directories(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
   target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
   target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
 endif()
