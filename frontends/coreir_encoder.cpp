@@ -76,6 +76,9 @@ void CoreIREncoder::parse(std::string filename)
   // start processing module
   def_ = top_->getDef();
 
+  // used to determine which inputs of an instance have been processed
+  unordered_map<Instance *, set<Wireable *>> covered_inputs;
+
   // create inputs for interface inputs and states for clocks
   for (auto elem : def_->getInterface()->getSelects()) {
     // flip the type (want to view from inside the module)
@@ -85,10 +88,35 @@ void CoreIREncoder::parse(std::string filename)
       w2term_[elem.second] = t_;
       num_clocks_++;
     } else if (type_->isInput() || type_->isInOut()) {
-      t_ = ts_.make_input(elem.first, solver_->make_sort(BV, type_->getSize()));
+      sort_ = compute_sort(elem.second);
+      t_ = ts_.make_input(elem.first, sort_);
       w2term_[elem.second] = t_;
+
+      Wireable * dst;
+      Wireable * parent;
+      Instance * parent_inst;
       for (auto conn : elem.second->getLocalConnections()) {
         wire_connection(conn);
+        dst = conn.second;
+        Type * typ = dst->getType();
+
+        // expecting to have a destination with type input or InOut
+        assert(typ->isInput() || typ->isInOut());
+
+        // parent is either an instance or a top-level input
+        parent = dst->getTopParent();
+        if (Instance::classof(parent)) {
+          parent_inst = dyn_cast<Instance>(parent);
+
+          Wireable * dst_parent = dst;
+          if (isa<CoreIR::Select>(dst)
+              && isNumber(cast<CoreIR::Select>(dst)->getSelStr())) {
+            // shouldn't count bit-selects as individual inputs
+            // need to get parent
+            dst_parent = cast<CoreIR::Select>(dst)->getParent();
+          }
+          covered_inputs[parent_inst].insert(dst_parent);
+        }
       }
     }
   }
@@ -139,7 +167,6 @@ void CoreIREncoder::parse(std::string filename)
 
   // process the rest in topological order
   size_t processed_instances = 0;
-  unordered_map<Instance *, set<Wireable *>> covered_inputs;
   unordered_set<Instance *> visited_instances;
   while (instances.size()) {
     inst_ = instances.back();
