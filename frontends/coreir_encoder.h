@@ -28,6 +28,12 @@ class CoreIREncoder
                                            std::string filename);
   void parse(std::string filename);
   void process_instance(CoreIR::Instance * inst);
+  /** Gets sort for an arbitrary Wireable using the Type
+   *  @param w the Wireable
+   *  @return an Smt-Switch Bool or BV sort
+   *  Note: currently does not support memories
+   */
+  smt::Sort compute_sort(CoreIR::Wireable * w);
 
   TransitionSystem & ts_;
   smt::SmtSolver solver_;
@@ -51,7 +57,6 @@ class CoreIREncoder
   CoreIR::Type * type_;
   CoreIR::Module * mod_;
   CoreIR::ModuleDef * def_;
-  CoreIR::Select * sel_;
 
   const std::vector<std::string> passes_ = {
     "clockifyinterface",

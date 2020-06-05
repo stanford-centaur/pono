@@ -316,36 +316,103 @@ void CoreIREncoder::process_instance(CoreIR::Instance * inst)
   ts_.name_term(inst->sel("out")->toString(), t_);
 
   Term tmpterm;
+  Wireable * src;
+  Wireable * dst;
+  CoreIR::Select * src_sel;
+  CoreIR::Select * dst_sel;
   for (auto conn : inst->sel("out")->getLocalConnections()) {
-    bool src_bit_select =
-        isa<CoreIR::Select>(conn.first)
-        && isNumber(cast<CoreIR::Select>(conn.first)->getSelStr());
-    bool dst_bit_select =
-        isa<CoreIR::Select>(conn.second)
-        && isNumber(cast<CoreIR::Select>(conn.second)->getSelStr());
+    src = conn.first;
+    dst = conn.second;
+    bool src_bit_select = isa<CoreIR::Select>(src)
+                          && isNumber(cast<CoreIR::Select>(src)->getSelStr());
+    bool dst_bit_select = isa<CoreIR::Select>(dst)
+                          && isNumber(cast<CoreIR::Select>(dst)->getSelStr());
 
     if (src_bit_select && !dst_bit_select) {
-      sel_ = cast<CoreIR::Select>(conn.first);
-      size_t idx = stoi(sel_->getSelStr());
+      src_sel = cast<CoreIR::Select>(src);
+      size_t idx = stoi(src_sel->getSelStr());
       tmpterm = solver_->make_term(Op(Extract, idx, idx), t_);
       tmpterm = solver_->make_term(Equal, tmpterm, bv1_);
-      w2term_[conn.first] = tmpterm;
+      w2term_[src] = tmpterm;
     } else if (!src_bit_select && dst_bit_select) {
-      std::cout << "in unhandled case !src_bit_select && dst_bit_select"
-                << std::endl;
-      throw std::exception();
+      dst_sel = cast<CoreIR::Select>(dst);
+      Wireable * parent = dst_sel->getParent();
+      size_t idx = stoi(dst_sel->getSelStr());
+
+      Term tparent;
+      if (w2term_.find(parent) == w2term_.end()) {
+        // create new "input" (actually more of a definition) for dst parent
+        // need a forward reference for it
+        sort_ = compute_sort(parent);
+        tparent = ts_.make_input(parent->toString(), sort_);
+      } else {
+        tparent = w2term_.at(parent);
+      }
+
+      // expecting a bit-vector, cannot select from a Bool
+      assert(tparent->get_sort()->get_sort_kind() == BV);
+
+      tmpterm = solver_->make_term(Op(Extract, idx, idx), tparent);
+      // would normally expect a boolean
+      // but some solvers (e.g. boolector)
+      // alias Bool and BV[1], thus we would get BV[1] here
+      if (t_->get_sort()->get_sort_kind() == BOOL) {
+        // convert to Bool
+        tmpterm = solver_->make_term(Equal, tmpterm, bv1_);
+      }
+      // constrain to be equivalent
+      ts_.add_constraint(solver_->make_term(Equal, t_, tmpterm));
+
     } else if (src_bit_select && dst_bit_select) {
-      std::cout << "in unhandled case src_bit_select && dst_bit_select"
-                << std::endl;
-      throw std::exception();
+      src_sel = cast<CoreIR::Select>(src);
+      dst_sel = cast<CoreIR::Select>(dst);
+      Wireable * dst_parent = dst_sel->getParent();
+      size_t src_idx = stoi(src_sel->getSelStr());
+      size_t dst_idx = stoi(dst_sel->getSelStr());
+
+      Term term_dst_parent;
+      if (w2term_.find(dst_parent) == w2term_.end()) {
+        // create new "input" (actually more of a definition) for dst parent
+        // need a forward reference for it
+        sort_ = compute_sort(dst_parent);
+        term_dst_parent = ts_.make_input(dst_parent->toString(), sort_);
+      } else {
+        term_dst_parent = w2term_.at(dst_parent);
+      }
+
+      // expecting bit-vectors, cannot select from a Bool
+      assert(term_dst_parent->get_sort()->get_sort_kind() == BV);
+      assert(t_->get_sort()->get_sort_kind() == BV);
+
+      tmpterm =
+          solver_->make_term(Op(Extract, dst_idx, dst_idx), term_dst_parent);
+      Term src_sel_term = solver_->make_term(Op(Extract, src_idx, src_idx), t_);
+
+      // constrain to be equivalent
+      ts_.add_constraint(solver_->make_term(Equal, src_sel_term, tmpterm));
+
     } else {
       tmpterm = t_;
     }
 
-    // name and save the value for the input
-    w2term_[conn.second] = tmpterm;
-    ts_.name_term(conn.second->toString(), tmpterm);
+    // name and save the value for the dst
+    w2term_[dst] = tmpterm;
+    ts_.name_term(dst->toString(), tmpterm);
   }
+}
+
+Sort CoreIREncoder::compute_sort(CoreIR::Wireable * w)
+{
+  Type * t = w->getType();
+  Sort s;
+  if (t->getKind() == CoreIR::Type::TypeKind::TK_Array) {
+    // bit-vector sort -- array of bits
+    s = solver_->make_sort(BV, t->getSize());
+  } else {
+    // boolean sort
+    s = solver_->make_sort(BOOL);
+  }
+  return s;
 }
 
 }  // namespace cosa
