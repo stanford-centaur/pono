@@ -79,6 +79,36 @@ void CoreIREncoder::parse(std::string filename)
   // used to determine which inputs of an instance have been processed
   unordered_map<Instance *, set<Wireable *>> covered_inputs;
 
+  // create registers and store the number of inputs for each instance
+  vector<Instance *> instances;
+  set<Instance *> registers;
+  unordered_map<Instance *, size_t> num_inputs;
+  bool async;
+  for (auto ipair : def_->getInstances()) {
+    type_ = ipair.second->getType();
+    if (instance_of(ipair.second, "coreir", "reg")
+        || (async = instance_of(ipair.second, "coreir", "arst"))) {
+      // cannot abstract clock if there are asynchronous resets
+      can_abstract_clock_ &= !async;
+
+      registers.insert(ipair.second);
+      // put registers into instances first (processed last)
+      instances.push_back(ipair.second);
+    }
+    size_t n = 0;
+    for (auto elem : ipair.second->getSelects()) {
+      Type * t = elem.second->getType();
+      if (t->isInput() || t->isInOut()) {
+        n++;
+      }
+    }
+    num_inputs[ipair.second] = n;
+    if (!n) {
+      // nodes with no inputs should be processed first
+      instances.push_back(ipair.second);
+    }
+  }
+
   // create inputs for interface inputs and states for clocks
   for (auto elem : def_->getInterface()->getSelects()) {
     // flip the type (want to view from inside the module)
@@ -116,6 +146,11 @@ void CoreIREncoder::parse(std::string filename)
             dst_parent = cast<CoreIR::Select>(dst)->getParent();
           }
           covered_inputs[parent_inst].insert(dst_parent);
+          // if all inputs are driven, then add onto stack to be processed
+          if (num_inputs[parent_inst]
+              == covered_inputs.at(parent_inst).size()) {
+            instances.push_back(parent_inst);
+          }
         }
       }
     }
@@ -124,35 +159,6 @@ void CoreIREncoder::parse(std::string filename)
   // can't abstract the clock if there's more than one
   can_abstract_clock_ &= (num_clocks_ <= 1);
 
-  // create registers and store the number of inputs for each instance
-  vector<Instance *> instances;
-  set<Instance *> registers;
-  unordered_map<Instance *, size_t> num_inputs;
-  bool async;
-  for (auto ipair : def_->getInstances()) {
-    type_ = ipair.second->getType();
-    if (instance_of(ipair.second, "coreir", "reg")
-        || (async = instance_of(ipair.second, "coreir", "arst"))) {
-      // cannot abstract clock if there are asynchronous resets
-      can_abstract_clock_ &= !async;
-
-      registers.insert(ipair.second);
-      // put registers into instances first (processed last)
-      instances.push_back(ipair.second);
-    }
-    size_t n = 0;
-    for (auto elem : ipair.second->getSelects()) {
-      Type * t = elem.second->getType();
-      if (t->isInput() || t->isInOut()) {
-        n++;
-      }
-    }
-    num_inputs[ipair.second] = n;
-    if (!n) {
-      // nodes with no inputs should be processed first
-      instances.push_back(ipair.second);
-    }
-  }
 
   if (!can_abstract_clock_) {
     throw CosaException(
@@ -211,6 +217,7 @@ void CoreIREncoder::parse(std::string filename)
         }
         covered_inputs[parent_inst].insert(dst_parent);
 
+        // if all inputs are driven, then add onto stack to be processed
         if (num_inputs[parent_inst] == covered_inputs.at(parent_inst).size()
             && visited_instances.find(parent_inst) == visited_instances.end()) {
           instances.push_back(parent_inst);
