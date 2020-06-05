@@ -119,7 +119,6 @@ if (WITH_COREIR)
   target_sources(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
-
 target_include_directories(cosa2-lib PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
   "${PROJECT_SOURCE_DIR}/core"
