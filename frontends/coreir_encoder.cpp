@@ -345,6 +345,8 @@ void CoreIREncoder::process_instance(CoreIR::Instance * inst)
         // need a forward reference for it
         sort_ = compute_sort(parent);
         tparent = ts_.make_input(parent->toString(), sort_);
+        // cache this symbol
+        w2term_[parent] = tparent;
       } else {
         tparent = w2term_.at(parent);
       }
