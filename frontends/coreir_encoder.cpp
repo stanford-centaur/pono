@@ -78,13 +78,13 @@ void CoreIREncoder::parse(std::string filename)
 
   // create inputs for interface inputs and states for clocks
   for (auto elem : def_->getInterface()->getSelects()) {
+    // flip the type (want to view from inside the module)
+    type_ = elem.second->getType()->getFlipped();
     if (elem.second->getType()->toString() == "coreir.clk") {
       t_ = ts_.make_state(elem.first, solver_->make_sort(BOOL));
       w2term_[elem.second] = t_;
       num_clocks_++;
-    }
-    type_ = elem.second->getType();
-    if (type_->isInput() || type_->isInOut()) {
+    } else if (type_->isInput() || type_->isInOut()) {
       t_ = ts_.make_input(elem.first, solver_->make_sort(BV, type_->getSize()));
       w2term_[elem.second] = t_;
     }
