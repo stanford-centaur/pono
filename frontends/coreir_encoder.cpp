@@ -137,9 +137,11 @@ void CoreIREncoder::parse(std::string filename)
   // process the rest in topological order
   size_t processed_instances = 0;
   unordered_map<Instance *, set<Wireable *>> covered_inputs;
+  unordered_set<Instance *> visited_instances;
   while (instances.size()) {
     inst_ = instances.back();
     instances.pop_back();
+    visited_instances.insert(inst_);
 
     process_instance(inst_);
     processed_instances++;
@@ -153,27 +155,32 @@ void CoreIREncoder::parse(std::string filename)
     for (auto conn : inst_->getLocalConnections()) {
       dst = conn.second;
       type_ = dst->getType();
-      if (type_->isInput() || type_->isInOut()) {
-        // parent is either an instance or a top-level input
-        parent = dst->getTopParent();
-        if (Instance::classof(parent)) {
-          parent_inst = dyn_cast<Instance>(parent);
-
-          // registers have already been added to instances so ignore those
-          if (instance_of(parent_inst, "coreir", "reg")
-              || instance_of(parent_inst, "coreir", "reg_arst")) {
-            continue;
-          }
-
-          covered_inputs[parent_inst].insert(dst);
-          if (num_inputs[parent_inst]
-              == covered_inputs.at(parent_inst).size()) {
-            instances.push_back(parent_inst);
-          }
-        }
-        // TODO: consider have an else case here to create the global inputs
-        // instead of doing it ahead of time earlier
+      if (!type_->isInput() && !type_->isInOut()) {
+        // connection goes in other direction
+        dst = conn.first;
+        type_ = dst->getType();
       }
+      // expecting to have a destination with type input or InOut
+      assert(type_->isInput() || type_->isInOut());
+      // parent is either an instance or a top-level input
+      parent = dst->getTopParent();
+      if (Instance::classof(parent)) {
+        parent_inst = dyn_cast<Instance>(parent);
+
+        // registers have already been added to instances so ignore those
+        if (instance_of(parent_inst, "coreir", "reg")
+            || instance_of(parent_inst, "coreir", "reg_arst")) {
+          continue;
+        }
+
+        covered_inputs[parent_inst].insert(dst);
+        if (num_inputs[parent_inst] == covered_inputs.at(parent_inst).size()
+            && visited_instances.find(parent_inst) == visited_instances.end()) {
+          instances.push_back(parent_inst);
+        }
+      }
+      // TODO: consider have an else case here to create the global inputs
+      // instead of doing it ahead of time earlier
     }
   }
 
