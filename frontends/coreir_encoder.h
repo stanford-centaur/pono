@@ -27,7 +27,15 @@ class CoreIREncoder
   static CoreIR::Module * read_coreir_file(CoreIR::Context * c,
                                            std::string filename);
   void parse(std::string filename);
-  void process_instance(CoreIR::Instance * inst);
+  CoreIR::Wireable * process_instance(CoreIR::Instance * inst);
+  /** wires up a connection by modifying w2term_
+   *  to point to the correct term
+   *  if necessary, it will create a "forward reference"
+   *  for the destination, e.g. if the destination is
+   *  connected via a select (and not the whole wire)
+   *  @param conn the connection
+   */
+  void wire_connection(CoreIR::Connection conn);
   /** Gets sort for an arbitrary Wireable using the Type
    *  @param w the Wireable
    *  @return an Smt-Switch Bool or BV sort
