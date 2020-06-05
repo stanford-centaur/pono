@@ -173,7 +173,16 @@ void CoreIREncoder::parse(std::string filename)
           continue;
         }
 
-        covered_inputs[parent_inst].insert(dst);
+        Wireable * dst_parent = dst;
+        if (isa<CoreIR::Select>(dst)
+            && isNumber(cast<CoreIR::Select>(dst)->getSelStr()))
+        {
+          // shouldn't count bit-selects as individual inputs
+          // need to get parent
+          dst_parent = cast<CoreIR::Select>(dst)->getParent();
+        }
+        covered_inputs[parent_inst].insert(dst_parent);
+
         if (num_inputs[parent_inst] == covered_inputs.at(parent_inst).size()
             && visited_instances.find(parent_inst) == visited_instances.end()) {
           instances.push_back(parent_inst);
