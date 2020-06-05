@@ -26,6 +26,7 @@ TEST_P(CoreIRUnitTests, Encode)
 {
   SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
   FunctionalTransitionSystem fts(s);
+  // COSA2_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(COSA2_SRC_DIR);
   filename += "/tests/encoders/inputs/coreir/";
   filename += get<1>(GetParam());
@@ -33,12 +34,12 @@ TEST_P(CoreIRUnitTests, Encode)
   CoreIREncoder ce(filename, fts);
 }
 
-INSTANTIATE_TEST_SUITE_P(ParameterizedSolverCoreIRUnitTests,
-                         CoreIRUnitTests,
-                         testing::Combine(testing::ValuesIn(available_solver_enums()),
-                                          testing::ValuesIn(vector<string>{
-                                              "counters.json"
-                                                })));
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedSolverCoreIRUnitTests,
+    CoreIRUnitTests,
+    testing::Combine(testing::ValuesIn(available_solver_enums()),
+                     testing::ValuesIn(vector<string>{ "counters.json",
+                                                       "SimpleALU.json" })));
 
 }  // namespace cosa_tests
 #endif

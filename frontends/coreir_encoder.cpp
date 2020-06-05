@@ -14,6 +14,11 @@ using namespace std;
 bool instance_of(CoreIR::Instance * inst, std::string ns, std::string name)
 {
   auto mod = inst->getModuleRef();
+  string modns = mod->getNamespace()->getName();
+  if (modns == "corebit") {
+    // corebit is not generated
+    return (ns == "corebit") && (name == mod->getName());
+  }
   if (!mod->isGenerated()) {
     return false;
   }
@@ -211,8 +216,8 @@ void CoreIREncoder::parse(std::string filename)
 void CoreIREncoder::process_instance(CoreIR::Instance * inst)
 {
   mod_ = inst->getModuleRef();
-  string nsname = mod_->getGenerator()->getNamespace()->getName();
-  string name = mod_->getGenerator()->getName();
+  string nsname = mod_->getNamespace()->getName();
+  string name = mod_->getName();
   t_ = nullptr;
   if (nsname == "corebit" && boolopmap.find(name) != boolopmap.end()) {
     if (name != "not") {
@@ -312,12 +317,27 @@ void CoreIREncoder::process_instance(CoreIR::Instance * inst)
 
   Term tmpterm;
   for (auto conn : inst->sel("out")->getLocalConnections()) {
-    if (isa<CoreIR::Select>(conn.first)
-        && isNumber((sel_ = cast<CoreIR::Select>(conn.first))->getSelStr())) {
+    bool src_bit_select =
+        isa<CoreIR::Select>(conn.first)
+        && isNumber(cast<CoreIR::Select>(conn.first)->getSelStr());
+    bool dst_bit_select =
+        isa<CoreIR::Select>(conn.second)
+        && isNumber(cast<CoreIR::Select>(conn.second)->getSelStr());
+
+    if (src_bit_select && !dst_bit_select) {
+      sel_ = cast<CoreIR::Select>(conn.first);
       size_t idx = stoi(sel_->getSelStr());
       tmpterm = solver_->make_term(Op(Extract, idx, idx), t_);
       tmpterm = solver_->make_term(Equal, tmpterm, bv1_);
       w2term_[conn.first] = tmpterm;
+    } else if (!src_bit_select && dst_bit_select) {
+      std::cout << "in unhandled case !src_bit_select && dst_bit_select"
+                << std::endl;
+      throw std::exception();
+    } else if (src_bit_select && dst_bit_select) {
+      std::cout << "in unhandled case src_bit_select && dst_bit_select"
+                << std::endl;
+      throw std::exception();
     } else {
       tmpterm = t_;
     }
