@@ -177,7 +177,17 @@ void CoreIREncoder::parse(std::string filename)
   while (instances.size()) {
     inst_ = instances.back();
     instances.pop_back();
-    visited_instances.insert(inst_);
+
+    if (visited_instances.find(inst_) != visited_instances.end())
+    {
+      // this module has already been processed
+      continue;
+    }
+    else
+    {
+      // mark this instance as visited
+      visited_instances.insert(inst_);
+    }
 
     Wireable * inst_out = process_instance(inst_);
     processed_instances++;
@@ -219,6 +229,7 @@ void CoreIREncoder::parse(std::string filename)
 
         // if all inputs are driven, then add onto stack to be processed
         if (num_inputs[parent_inst] == covered_inputs.at(parent_inst).size()
+            // optimization -- don't even add to stack if already visited
             && visited_instances.find(parent_inst) == visited_instances.end()) {
           instances.push_back(parent_inst);
         }
