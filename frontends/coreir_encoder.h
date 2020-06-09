@@ -17,6 +17,7 @@ class CoreIREncoder
         num_clocks_(0),
         can_abstract_clock_(true)
   {
+    c_->getLibraryManager()->loadLib("commonlib");
     bvsort1_ = solver_->make_sort(smt::BV, 1);
     boolsort_ = solver_->make_sort(smt::BOOL);
     bv1_ = solver_->make_term(1, bvsort1_);

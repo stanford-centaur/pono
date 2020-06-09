@@ -433,6 +433,7 @@ void CoreIREncoder::wire_connection(Connection conn)
       // need a forward reference for it
       sort_ = compute_sort(dst_parent);
       term_dst_parent = ts_.make_input(dst_parent->toString(), sort_);
+      w2term_[dst_parent] = term_dst_parent;
     } else {
       term_dst_parent = w2term_.at(dst_parent);
     }
