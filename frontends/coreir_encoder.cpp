@@ -79,7 +79,7 @@ void CoreIREncoder::parse(std::string filename)
   // used to determine which inputs of an instance have been processed
   unordered_map<Instance *, set<Wireable *>> covered_inputs;
 
-  // create registers and store the number of inputs for each instance
+  // create state elements and store the number of inputs for each instance
   vector<Instance *> instances;
   set<Instance *> registers;
   unordered_map<Instance *, size_t> num_inputs;
@@ -118,14 +118,21 @@ void CoreIREncoder::parse(std::string filename)
     }
   }
 
-  // create inputs for interface inputs and states for clocks
+  // create symbols for interface inputs and states for clocks
   for (auto elem : def_->getInterface()->getSelects()) {
     // flip the type (want to view from inside the module)
     type_ = elem.second->getType()->getFlipped();
-    if (elem.second->getType()->toString() == "coreir.clk") {
+
+    // both clock and arst need to be states because we need to call
+    // next on them for edge behavior
+    bool is_clk;
+    if ((is_clk = elem.second->getType()->toString() == "coreir.clk")
+        || elem.second->getType()->toString() == "coreir.arst") {
       t_ = ts_.make_state(elem.first, solver_->make_sort(BOOL));
       w2term_[elem.second] = t_;
-      num_clocks_++;
+      if (is_clk) {
+        num_clocks_++;
+      }
     } else if (type_->isInput() || type_->isInOut()) {
       sort_ = compute_sort(elem.second);
       t_ = ts_.make_input(elem.first, sort_);
