@@ -131,7 +131,7 @@ void CoreIREncoder::parse(std::string filename)
     bool is_clk;
     if ((is_clk = elem.second->getType()->toString() == "coreir.clk")
         || elem.second->getType()->toString() == "coreir.arst") {
-      t_ = ts_.make_state(elem.first, solver_->make_sort(BOOL));
+      t_ = ts_.make_state(elem.first, boolsort_);
       w2term_[elem.second] = t_;
       if (is_clk) {
         num_clocks_++;
@@ -299,7 +299,7 @@ Wireable * CoreIREncoder::process_instance(CoreIR::Instance * inst)
         sort_,
         2);
   } else if (nsname == "corebit" && name == "const") {
-    sort_ = solver_->make_sort(BOOL);
+    sort_ = boolsort_;
     t_ = solver_->make_term((inst->getModArgs().at("value"))->get<bool>());
   } else if (name == "mux") {
     Term cond = w2term_.at(inst->sel("sel"));
@@ -437,31 +437,27 @@ void CoreIREncoder::process_state_element(Instance * st)
     bool async = instance_of(st, "coreir", "reg_arst");
     if (async) {
       bool arst_posedge = st->getModArgs().at("arst_posedge")->get<bool>();
-      // make a fresh state variable for arst -- need to be able to call next
-      // on it different from clk which should be guaranteed to be a state
-      // variable
-      Term arst = ts_.make_state(st->sel("arst")->toString() + "_statevar",
-                                 solver_->make_sort(BOOL));
+      Term arst_driver;
       if (w2term_.find(st->sel("arst")) != w2term_.end()) {
-        Term arst_driver = w2term_.at(st->sel("arst"));
+        arst_driver = w2term_.at(st->sel("arst"));
         if (!ts_.only_curr(arst_driver)) {
           throw CosaException(
               "Driver for ARST has non-state variables -- causes semantic "
               "issues with transition system.");
         }
-        ts_.add_constraint(solver_->make_term(Equal, arst, arst_driver));
       } else {
         logger.log(
             1, "Warning: no driver for register arst: {}", st->toString());
+        arst_driver = ts_.make_state(st->sel("arst")->toString(), boolsort_);
       }
 
       Term active_arst;
       if (arst_posedge) {
         active_arst = solver_->make_term(
-            And, solver_->make_term(Not, arst), ts_.next(arst));
+            And, solver_->make_term(Not, arst_driver), ts_.next(arst_driver));
       } else {
         active_arst = solver_->make_term(
-            And, arst, solver_->make_term(Not, ts_.next(arst)));
+            And, arst_driver, solver_->make_term(Not, ts_.next(arst_driver)));
       }
 
       next_st = solver_->make_term(Ite, active_arst, initval, cur_stterm);
@@ -582,7 +578,7 @@ Sort CoreIREncoder::compute_sort(CoreIR::Wireable * w)
     s = solver_->make_sort(BV, t->getSize());
   } else {
     // boolean sort
-    s = solver_->make_sort(BOOL);
+    s = boolsort_;
   }
   return s;
 }
