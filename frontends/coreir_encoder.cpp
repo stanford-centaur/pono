@@ -91,11 +91,6 @@ void CoreIREncoder::parse(std::string filename)
       // cannot abstract clock if there are asynchronous resets
       can_abstract_clock_ &= !async;
 
-      if (async)
-      {
-        throw CosaException("Does not currently support asynchronous registers");
-      }
-
       registers.insert(ipair.second);
       // put registers into instances first (processed last)
       instances.push_back(ipair.second);

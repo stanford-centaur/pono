@@ -9,7 +9,7 @@
 #include "gtest/gtest.h"
 
 #include "available_solvers.h"
-#include "core/fts.h"
+#include "core/rts.h"
 #include "frontends/coreir_encoder.h"
 
 using namespace cosa;
@@ -25,13 +25,13 @@ class CoreIRUnitTests : public ::testing::Test,
 TEST_P(CoreIRUnitTests, Encode)
 {
   SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
-  FunctionalTransitionSystem fts(s);
+  RelationalTransitionSystem rts(s);
   // COSA2_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(COSA2_SRC_DIR);
   filename += "/tests/encoders/inputs/coreir/";
   filename += get<1>(GetParam());
   cout << "Reading file: " << filename << endl;
-  CoreIREncoder ce(filename, fts);
+  CoreIREncoder ce(filename, rts);
 }
 
 INSTANTIATE_TEST_SUITE_P(

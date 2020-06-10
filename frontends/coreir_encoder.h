@@ -3,14 +3,14 @@
 
 #include "coreir.h"
 
-#include "core/fts.h"
+#include "core/rts.h"
 #include "smt-switch/smt.h"
 
 namespace cosa {
 class CoreIREncoder
 {
  public:
-  CoreIREncoder(std::string filename, TransitionSystem & ts)
+  CoreIREncoder(std::string filename, RelationalTransitionSystem & ts)
       : ts_(ts),
         solver_(ts.solver()),
         c_(CoreIR::newContext()),
@@ -44,7 +44,7 @@ class CoreIREncoder
    */
   smt::Sort compute_sort(CoreIR::Wireable * w);
 
-  TransitionSystem & ts_;
+  RelationalTransitionSystem & ts_;
   smt::SmtSolver solver_;
   CoreIR::Context * c_;
   CoreIR::Module * top_;
