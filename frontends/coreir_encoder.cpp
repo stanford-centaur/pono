@@ -95,7 +95,7 @@ void CoreIREncoder::parse(std::string filename)
         can_abstract_clock_ = false;
       }
 
-      if (arst && !ipair.second->getModArgs().at("arst_posedge")->get<bool>()) {
+      if (arst) {
         // cannot abstract clock if there are asynchronous resets
         can_abstract_clock_ = false;
       }
@@ -130,36 +130,39 @@ void CoreIREncoder::parse(std::string filename)
       sort_ = compute_sort(elem.second);
       t_ = ts_.make_input(elem.first, sort_);
       w2term_[elem.second] = t_;
+    } else {
+      // if not a clock or global input, don't need to connect it yet
+      continue;
+    }
 
-      Wireable * dst;
-      Wireable * parent;
-      Instance * parent_inst;
-      for (auto conn : elem.second->getLocalConnections()) {
-        wire_connection(conn);
-        dst = conn.second;
-        Type * typ = dst->getType();
+    // assign all the connections to these global inputs
+    Wireable * dst;
+    Wireable * parent;
+    Instance * parent_inst;
+    for (auto conn : elem.second->getLocalConnections()) {
+      wire_connection(conn);
+      dst = conn.second;
+      Type * typ = dst->getType();
 
-        // expecting to have a destination with type input or InOut
-        assert(typ->isInput() || typ->isInOut());
+      // expecting to have a destination with type input or InOut
+      assert(typ->isInput() || typ->isInOut());
 
-        // parent is either an instance or a top-level input
-        parent = dst->getTopParent();
-        if (Instance::classof(parent)) {
-          parent_inst = dyn_cast<Instance>(parent);
+      // parent is either an instance or a top-level input
+      parent = dst->getTopParent();
+      if (Instance::classof(parent)) {
+        parent_inst = dyn_cast<Instance>(parent);
 
-          Wireable * dst_parent = dst;
-          if (isa<CoreIR::Select>(dst)
-              && isNumber(cast<CoreIR::Select>(dst)->getSelStr())) {
-            // shouldn't count bit-selects as individual inputs
-            // need to get parent
-            dst_parent = cast<CoreIR::Select>(dst)->getParent();
-          }
-          covered_inputs[parent_inst].insert(dst_parent);
-          // if all inputs are driven, then add onto stack to be processed
-          if (num_inputs[parent_inst]
-              == covered_inputs.at(parent_inst).size()) {
-            instances.push_back(parent_inst);
-          }
+        Wireable * dst_parent = dst;
+        if (isa<CoreIR::Select>(dst)
+            && isNumber(cast<CoreIR::Select>(dst)->getSelStr())) {
+          // shouldn't count bit-selects as individual inputs
+          // need to get parent
+          dst_parent = cast<CoreIR::Select>(dst)->getParent();
+        }
+        covered_inputs[parent_inst].insert(dst_parent);
+        // if all inputs are driven, then add onto stack to be processed
+        if (num_inputs[parent_inst] == covered_inputs.at(parent_inst).size()) {
+          instances.push_back(parent_inst);
         }
       }
     }
@@ -167,13 +170,6 @@ void CoreIREncoder::parse(std::string filename)
 
   // can't abstract the clock if there's more than one
   can_abstract_clock_ &= (num_clocks_ <= 1);
-
-
-  if (!can_abstract_clock_) {
-    throw CosaException(
-        "CoreIREncoder can only support abstracted clocks for now. Got "
-        "reg_arst or multiple clocks");
-  }
 
   logger.log(1,
              "INFO {} abstract clock for CoreIR file {}",
@@ -289,7 +285,7 @@ void CoreIREncoder::parse(std::string filename)
                             compute_sort(reg->sel("in")));
       }
 
-      assert(w2term_.find(reg) == w2term_.end());
+      assert(w2term_.find(reg) != w2term_.end());
       Term cur_regterm = w2term_.at(reg);
 
       bool clk_posedge = reg->getModArgs().at("clk_posedge")->get<bool>();
@@ -326,6 +322,11 @@ void CoreIREncoder::parse(std::string filename)
           // not
           //       purely made of state vars -- discuss with group
           Term arst_driver = w2term_.at(reg->sel("arst"));
+          if (!ts_.only_curr(arst_driver)) {
+            throw CosaException(
+                "Driver for ARST has non-state variables -- causes semantic "
+                "issues with transition system.");
+          }
           ts_.add_constraint(solver_->make_term(Equal, arst, arst_driver));
         } else {
           logger.log(
