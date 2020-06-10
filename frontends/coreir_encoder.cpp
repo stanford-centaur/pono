@@ -460,7 +460,7 @@ void CoreIREncoder::process_state_element(Instance * st)
             And, arst_driver, solver_->make_term(Not, ts_.next(arst_driver)));
       }
 
-      next_st = solver_->make_term(Ite, active_arst, initval, cur_stterm);
+      next_st = solver_->make_term(Ite, active_arst, initval, next_st);
     }
 
     ts_.constrain_trans(
