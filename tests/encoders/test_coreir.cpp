@@ -39,6 +39,7 @@ INSTANTIATE_TEST_SUITE_P(
     CoreIRUnitTests,
     testing::Combine(testing::ValuesIn(available_solver_enums()),
                      testing::ValuesIn(vector<string>{ "counters.json",
+                                                       "WrappedPE_nofloats.json",
                                                        "SimpleALU.json" })));
 
 }  // namespace cosa_tests
