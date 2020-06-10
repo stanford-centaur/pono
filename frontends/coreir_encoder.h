@@ -28,7 +28,30 @@ class CoreIREncoder
   static CoreIR::Module * read_coreir_file(CoreIR::Context * c,
                                            std::string filename);
   void parse(std::string filename);
+
+  /** looks up the smt encoding for the inst
+   *  computes the new term and uses wire_connection
+   *  to cache the connections.
+   *  Thus if inst.out drives a.in0 and b.in1, it will cache
+   *  a.in0 and b.in1 as the term for inst.out in w2term_
+   *
+   *  @param inst the instance to process
+   *  @return the instance output
+   */
   CoreIR::Wireable * process_instance(CoreIR::Instance * inst);
+
+  /** computes the next state updates for state elements
+   *  this is done as a second pass after all other
+   *  instances have been processed so that the drivers
+   *  for this state element are already available
+   *
+   *  relies on can_abstract_clock_ to determine which
+   *  encoding to use
+   *
+   *  @param st the state element Instance *
+   */
+  void process_state_element(CoreIR::Instance * st);
+
   /** wires up a connection by modifying w2term_
    *  to point to the correct term
    *  if necessary, it will create a "forward reference"
@@ -37,6 +60,7 @@ class CoreIREncoder
    *  @param conn the connection
    */
   void wire_connection(CoreIR::Connection conn);
+
   /** Gets sort for an arbitrary Wireable using the Type
    *  @param w the Wireable
    *  @return an Smt-Switch Bool or BV sort

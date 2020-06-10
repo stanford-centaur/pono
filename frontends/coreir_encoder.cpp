@@ -258,110 +258,7 @@ void CoreIREncoder::parse(std::string filename)
 
   // now make a second pass over state_elements to assign the next state updates
   for (auto st : state_elements) {
-    if (can_abstract_clock_) {
-      if (w2term_.find(st->sel("in")) != w2term_.end()) {
-        ts_.assign_next(w2term_.at(st), w2term_.at(st->sel("in")));
-      } else {
-        logger.log(1, "Warning: no driver for register {}", st->toString());
-      }
-
-      Values vals = st->getModArgs();
-      if (vals.find("init") != vals.end()) {
-        Term stterm = w2term_.at(st);
-        Term initval =
-            solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
-                               stterm->get_sort(),
-                               2);
-        ts_.constrain_init(solver_->make_term(Equal, stterm, initval));
-      }
-
-    } else {
-      Term clk;
-      if (w2term_.find(st->sel("clk")) != w2term_.end()) {
-        clk = w2term_.at(st->sel("clk"));
-      } else {
-        throw CosaException("Clock not wired for register: " + st->toString());
-      }
-
-      // expecting clk to be a state variable
-      assert(ts_.states().find(clk) != ts_.states().end());
-
-      Term in;
-      if (w2term_.find(st->sel("in")) != w2term_.end()) {
-        in = w2term_.at(st->sel("in"));
-      } else {
-        logger.log(1, "Warning: no driver for register {}", st->toString());
-        in = ts_.make_input(st->sel("in")->toString(),
-                            compute_sort(st->sel("in")));
-      }
-
-      assert(w2term_.find(st) != w2term_.end());
-      Term cur_stterm = w2term_.at(st);
-
-      bool clk_posedge = st->getModArgs().at("clk_posedge")->get<bool>();
-      Term active_clk;
-      if (clk_posedge) {
-        active_clk = solver_->make_term(
-            And, solver_->make_term(Not, clk), ts_.next(clk));
-      } else {
-        active_clk = solver_->make_term(
-            And, clk, solver_->make_term(Not, ts_.next(clk)));
-      }
-
-      Term next_st = solver_->make_term(Ite, active_clk, in, cur_stterm);
-
-      Term initval;
-      Values vals = st->getModArgs();
-      if (vals.find("init") != vals.end()) {
-        initval =
-            solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
-                               cur_stterm->get_sort(),
-                               2);
-      }
-
-      bool async = instance_of(st, "coreir", "reg_arst");
-      if (async) {
-        bool arst_posedge = st->getModArgs().at("arst_posedge")->get<bool>();
-        // make a fresh state variable for arst -- need to be able to call next
-        // on it different from clk which should be guaranteed to be a state
-        // variable
-        Term arst = ts_.make_state(st->sel("arst")->toString() + "_statevar",
-                                   solver_->make_sort(BOOL));
-        if (w2term_.find(st->sel("arst")) != w2term_.end()) {
-          // TODO: there can be semantic issues with drivers of arst that are
-          // not
-          //       purely made of state vars -- discuss with group
-          Term arst_driver = w2term_.at(st->sel("arst"));
-          if (!ts_.only_curr(arst_driver)) {
-            throw CosaException(
-                "Driver for ARST has non-state variables -- causes semantic "
-                "issues with transition system.");
-          }
-          ts_.add_constraint(solver_->make_term(Equal, arst, arst_driver));
-        } else {
-          logger.log(
-              1, "Warning: no driver for register arst: {}", st->toString());
-        }
-
-        Term active_arst;
-        if (arst_posedge) {
-          active_arst = solver_->make_term(
-              And, solver_->make_term(Not, arst), ts_.next(arst));
-        } else {
-          active_arst = solver_->make_term(
-              And, arst, solver_->make_term(Not, ts_.next(arst)));
-        }
-
-        next_st = solver_->make_term(Ite, active_arst, initval, cur_stterm);
-      }
-
-      ts_.constrain_trans(
-          solver_->make_term(Equal, ts_.next(cur_stterm), next_st));
-
-      if (initval) {
-        ts_.constrain_init(solver_->make_term(Equal, cur_stterm, initval));
-      }
-    }
+    process_state_element(st);
   }
 }
 
@@ -467,6 +364,116 @@ Wireable * CoreIREncoder::process_instance(CoreIR::Instance * inst)
   w2term_[inst->sel("out")] = t_;
   ts_.name_term(inst->sel("out")->toString(), t_);
   return inst->sel("out");
+}
+
+void CoreIREncoder::process_state_element(Instance * st)
+{
+  // expecting a state element
+  assert(instance_of(st, "coreir", "reg")
+         || instance_of(st, "coreir", "reg_arst")
+         || instance_of(st, "coreir", "mem"));
+
+  if (can_abstract_clock_) {
+    if (w2term_.find(st->sel("in")) != w2term_.end()) {
+      ts_.assign_next(w2term_.at(st), w2term_.at(st->sel("in")));
+    } else {
+      logger.log(1, "Warning: no driver for register {}", st->toString());
+    }
+
+    Values vals = st->getModArgs();
+    if (vals.find("init") != vals.end()) {
+      Term stterm = w2term_.at(st);
+      Term initval =
+          solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
+                             stterm->get_sort(),
+                             2);
+      ts_.constrain_init(solver_->make_term(Equal, stterm, initval));
+    }
+
+  } else {
+    Term clk;
+    if (w2term_.find(st->sel("clk")) != w2term_.end()) {
+      clk = w2term_.at(st->sel("clk"));
+    } else {
+      throw CosaException("Clock not wired for register: " + st->toString());
+    }
+
+    // expecting clk to be a state variable
+    assert(ts_.states().find(clk) != ts_.states().end());
+
+    Term in;
+    if (w2term_.find(st->sel("in")) != w2term_.end()) {
+      in = w2term_.at(st->sel("in"));
+    } else {
+      logger.log(1, "Warning: no driver for register {}", st->toString());
+      in = ts_.make_input(st->sel("in")->toString(),
+                          compute_sort(st->sel("in")));
+    }
+
+    assert(w2term_.find(st) != w2term_.end());
+    Term cur_stterm = w2term_.at(st);
+
+    bool clk_posedge = st->getModArgs().at("clk_posedge")->get<bool>();
+    Term active_clk;
+    if (clk_posedge) {
+      active_clk =
+          solver_->make_term(And, solver_->make_term(Not, clk), ts_.next(clk));
+    } else {
+      active_clk =
+          solver_->make_term(And, clk, solver_->make_term(Not, ts_.next(clk)));
+    }
+
+    Term next_st = solver_->make_term(Ite, active_clk, in, cur_stterm);
+
+    Term initval;
+    Values vals = st->getModArgs();
+    if (vals.find("init") != vals.end()) {
+      initval =
+          solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
+                             cur_stterm->get_sort(),
+                             2);
+    }
+
+    bool async = instance_of(st, "coreir", "reg_arst");
+    if (async) {
+      bool arst_posedge = st->getModArgs().at("arst_posedge")->get<bool>();
+      // make a fresh state variable for arst -- need to be able to call next
+      // on it different from clk which should be guaranteed to be a state
+      // variable
+      Term arst = ts_.make_state(st->sel("arst")->toString() + "_statevar",
+                                 solver_->make_sort(BOOL));
+      if (w2term_.find(st->sel("arst")) != w2term_.end()) {
+        Term arst_driver = w2term_.at(st->sel("arst"));
+        if (!ts_.only_curr(arst_driver)) {
+          throw CosaException(
+              "Driver for ARST has non-state variables -- causes semantic "
+              "issues with transition system.");
+        }
+        ts_.add_constraint(solver_->make_term(Equal, arst, arst_driver));
+      } else {
+        logger.log(
+            1, "Warning: no driver for register arst: {}", st->toString());
+      }
+
+      Term active_arst;
+      if (arst_posedge) {
+        active_arst = solver_->make_term(
+            And, solver_->make_term(Not, arst), ts_.next(arst));
+      } else {
+        active_arst = solver_->make_term(
+            And, arst, solver_->make_term(Not, ts_.next(arst)));
+      }
+
+      next_st = solver_->make_term(Ite, active_arst, initval, cur_stterm);
+    }
+
+    ts_.constrain_trans(
+        solver_->make_term(Equal, ts_.next(cur_stterm), next_st));
+
+    if (initval) {
+      ts_.constrain_init(solver_->make_term(Equal, cur_stterm, initval));
+    }
+  }
 }
 
 void CoreIREncoder::wire_connection(Connection conn)
