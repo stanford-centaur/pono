@@ -81,13 +81,11 @@ void CoreIREncoder::parse(std::string filename)
 
   // create state elements and store the number of inputs for each instance
   vector<Instance *> instances;
-  set<Instance *> registers;
+  set<Instance *> state_elements;
   unordered_map<Instance *, size_t> num_inputs;
   bool arst;
   for (auto ipair : def_->getInstances()) {
     type_ = ipair.second->getType();
-    // TODO: add memories to these -- could change name from registers to
-    // core_state or state_elems
     if (instance_of(ipair.second, "coreir", "reg")
         || (arst = instance_of(ipair.second, "coreir", "reg_arst"))) {
       if (!ipair.second->getModArgs().at("clk_posedge")->get<bool>()) {
@@ -100,10 +98,15 @@ void CoreIREncoder::parse(std::string filename)
         can_abstract_clock_ = false;
       }
 
-      registers.insert(ipair.second);
+      state_elements.insert(ipair.second);
       // put registers into instances first (processed last)
       instances.push_back(ipair.second);
+    } else if (instance_of(ipair.second, "coreir", "mem")) {
+      throw CosaException(
+          "Have not implemented memory encoding yet. Please post test case to "
+          "cosa2 GitHub issues.");
     }
+
     size_t n = 0;
     for (auto elem : ipair.second->getSelects()) {
       Type * t = elem.second->getType();
@@ -223,7 +226,7 @@ void CoreIREncoder::parse(std::string filename)
       if (Instance::classof(parent)) {
         parent_inst = dyn_cast<Instance>(parent);
 
-        // registers have already been added to instances so ignore those
+        // state_elements have already been added to instances so ignore those
         if (instance_of(parent_inst, "coreir", "reg")
             || instance_of(parent_inst, "coreir", "reg_arst")) {
           continue;
@@ -253,49 +256,49 @@ void CoreIREncoder::parse(std::string filename)
     throw CosaException("Issue: not all instances processed in CoreIR Encoder");
   }
 
-  // now make a second pass over registers to assign the next state updates
-  for (auto reg : registers) {
+  // now make a second pass over state_elements to assign the next state updates
+  for (auto st : state_elements) {
     if (can_abstract_clock_) {
-      if (w2term_.find(reg->sel("in")) != w2term_.end()) {
-        ts_.assign_next(w2term_.at(reg), w2term_.at(reg->sel("in")));
+      if (w2term_.find(st->sel("in")) != w2term_.end()) {
+        ts_.assign_next(w2term_.at(st), w2term_.at(st->sel("in")));
       } else {
-        logger.log(1, "Warning: no driver for register {}", reg->toString());
+        logger.log(1, "Warning: no driver for register {}", st->toString());
       }
 
-      Values vals = reg->getModArgs();
+      Values vals = st->getModArgs();
       if (vals.find("init") != vals.end()) {
-        Term regterm = w2term_.at(reg);
+        Term stterm = w2term_.at(st);
         Term initval =
             solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
-                               regterm->get_sort(),
+                               stterm->get_sort(),
                                2);
-        ts_.constrain_init(solver_->make_term(Equal, regterm, initval));
+        ts_.constrain_init(solver_->make_term(Equal, stterm, initval));
       }
 
     } else {
       Term clk;
-      if (w2term_.find(reg->sel("clk")) != w2term_.end()) {
-        clk = w2term_.at(reg->sel("clk"));
+      if (w2term_.find(st->sel("clk")) != w2term_.end()) {
+        clk = w2term_.at(st->sel("clk"));
       } else {
-        throw CosaException("Clock not wired for register: " + reg->toString());
+        throw CosaException("Clock not wired for register: " + st->toString());
       }
 
       // expecting clk to be a state variable
       assert(ts_.states().find(clk) != ts_.states().end());
 
       Term in;
-      if (w2term_.find(reg->sel("in")) != w2term_.end()) {
-        in = w2term_.at(reg->sel("in"));
+      if (w2term_.find(st->sel("in")) != w2term_.end()) {
+        in = w2term_.at(st->sel("in"));
       } else {
-        logger.log(1, "Warning: no driver for register {}", reg->toString());
-        in = ts_.make_input(reg->sel("in")->toString(),
-                            compute_sort(reg->sel("in")));
+        logger.log(1, "Warning: no driver for register {}", st->toString());
+        in = ts_.make_input(st->sel("in")->toString(),
+                            compute_sort(st->sel("in")));
       }
 
-      assert(w2term_.find(reg) != w2term_.end());
-      Term cur_regterm = w2term_.at(reg);
+      assert(w2term_.find(st) != w2term_.end());
+      Term cur_stterm = w2term_.at(st);
 
-      bool clk_posedge = reg->getModArgs().at("clk_posedge")->get<bool>();
+      bool clk_posedge = st->getModArgs().at("clk_posedge")->get<bool>();
       Term active_clk;
       if (clk_posedge) {
         active_clk = solver_->make_term(
@@ -305,30 +308,30 @@ void CoreIREncoder::parse(std::string filename)
             And, clk, solver_->make_term(Not, ts_.next(clk)));
       }
 
-      Term next_reg = solver_->make_term(Ite, active_clk, in, cur_regterm);
+      Term next_st = solver_->make_term(Ite, active_clk, in, cur_stterm);
 
       Term initval;
-      Values vals = reg->getModArgs();
+      Values vals = st->getModArgs();
       if (vals.find("init") != vals.end()) {
         initval =
             solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
-                               cur_regterm->get_sort(),
+                               cur_stterm->get_sort(),
                                2);
       }
 
-      bool async = instance_of(reg, "coreir", "reg_arst");
+      bool async = instance_of(st, "coreir", "reg_arst");
       if (async) {
-        bool arst_posedge = reg->getModArgs().at("arst_posedge")->get<bool>();
+        bool arst_posedge = st->getModArgs().at("arst_posedge")->get<bool>();
         // make a fresh state variable for arst -- need to be able to call next
         // on it different from clk which should be guaranteed to be a state
         // variable
-        Term arst = ts_.make_state(reg->sel("arst")->toString() + "_statevar",
+        Term arst = ts_.make_state(st->sel("arst")->toString() + "_statevar",
                                    solver_->make_sort(BOOL));
-        if (w2term_.find(reg->sel("arst")) != w2term_.end()) {
+        if (w2term_.find(st->sel("arst")) != w2term_.end()) {
           // TODO: there can be semantic issues with drivers of arst that are
           // not
           //       purely made of state vars -- discuss with group
-          Term arst_driver = w2term_.at(reg->sel("arst"));
+          Term arst_driver = w2term_.at(st->sel("arst"));
           if (!ts_.only_curr(arst_driver)) {
             throw CosaException(
                 "Driver for ARST has non-state variables -- causes semantic "
@@ -337,7 +340,7 @@ void CoreIREncoder::parse(std::string filename)
           ts_.add_constraint(solver_->make_term(Equal, arst, arst_driver));
         } else {
           logger.log(
-              1, "Warning: no driver for register arst: {}", reg->toString());
+              1, "Warning: no driver for register arst: {}", st->toString());
         }
 
         Term active_arst;
@@ -349,14 +352,14 @@ void CoreIREncoder::parse(std::string filename)
               And, arst, solver_->make_term(Not, ts_.next(arst)));
         }
 
-        next_reg = solver_->make_term(Ite, active_arst, initval, cur_regterm);
+        next_st = solver_->make_term(Ite, active_arst, initval, cur_stterm);
       }
 
       ts_.constrain_trans(
-          solver_->make_term(Equal, ts_.next(cur_regterm), next_reg));
+          solver_->make_term(Equal, ts_.next(cur_stterm), next_st));
 
       if (initval) {
-        ts_.constrain_init(solver_->make_term(Equal, cur_regterm, initval));
+        ts_.constrain_init(solver_->make_term(Equal, cur_stterm, initval));
       }
     }
   }
@@ -387,7 +390,7 @@ Wireable * CoreIREncoder::process_instance(CoreIR::Instance * inst)
       t_ = solver_->make_term(bvopmap.at(name), w2term_.at(inst->sel("in")));
     }
   } else if (name == "reg" || name == "reg_arst") {
-    // NOTE: inputs to registers are not wired up until later
+    // NOTE: inputs to state_elements are not wired up until later
     sort_ = solver_->make_sort(
         BV, inst->getModuleRef()->getGenArgs().at("width")->get<int>());
     t_ = ts_.make_state(inst->toString(), sort_);
