@@ -83,13 +83,22 @@ void CoreIREncoder::parse(std::string filename)
   vector<Instance *> instances;
   set<Instance *> registers;
   unordered_map<Instance *, size_t> num_inputs;
-  bool async;
+  bool arst;
   for (auto ipair : def_->getInstances()) {
     type_ = ipair.second->getType();
+    // TODO: add memories to these -- could change name from registers to
+    // core_state or state_elems
     if (instance_of(ipair.second, "coreir", "reg")
-        || (async = instance_of(ipair.second, "coreir", "reg_arst"))) {
-      // cannot abstract clock if there are asynchronous resets
-      can_abstract_clock_ &= !async;
+        || (arst = instance_of(ipair.second, "coreir", "reg_arst"))) {
+      if (!ipair.second->getModArgs().at("clk_posedge")->get<bool>()) {
+        // cannot abstract clock if there is negative edge clock behavior
+        can_abstract_clock_ = false;
+      }
+
+      if (arst && !ipair.second->getModArgs().at("arst_posedge")->get<bool>()) {
+        // cannot abstract clock if there are asynchronous resets
+        can_abstract_clock_ = false;
+      }
 
       registers.insert(ipair.second);
       // put registers into instances first (processed last)
@@ -243,33 +252,105 @@ void CoreIREncoder::parse(std::string filename)
 
   // now make a second pass over registers to assign the next state updates
   for (auto reg : registers) {
-    if (!reg->getModArgs().at("clk_posedge")->get<bool>()) {
-      throw CosaException(
-          "CoreIREncoder does not support negative edge triggered registers "
-          "yet.");
-    }
-
     if (can_abstract_clock_) {
       if (w2term_.find(reg->sel("in")) != w2term_.end()) {
         ts_.assign_next(w2term_.at(reg), w2term_.at(reg->sel("in")));
       } else {
         logger.log(1, "Warning: no driver for register {}", reg->toString());
       }
+
+      Values vals = reg->getModArgs();
+      if (vals.find("init") != vals.end()) {
+        Term regterm = w2term_.at(reg);
+        Term initval =
+            solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
+                               regterm->get_sort(),
+                               2);
+        ts_.constrain_init(solver_->make_term(Equal, regterm, initval));
+      }
+
     } else {
-      throw CosaException("Explicit clock not supported in CoreIREncoder.");
-    }
+      Term clk;
+      if (w2term_.find(reg->sel("clk")) != w2term_.end()) {
+        clk = w2term_.at(reg->sel("clk"));
+      } else {
+        throw CosaException("Clock not wired for register: " + reg->toString());
+      }
 
-    Values vals = reg->getModArgs();
-    if (vals.find("init") != vals.end()) {
-      Term regterm = w2term_.at(reg);
-      Term initval =
-          solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
-                             regterm->get_sort(),
-                             2);
-      ts_.constrain_init(solver_->make_term(Equal, regterm, initval));
-    }
+      // expecting clk to be a state variable
+      assert(ts_.states().find(clk) != ts_.states().end());
 
-    // TODO: handle resets, other clock edges, and initial states
+      Term in;
+      if (w2term_.find(reg->sel("in")) != w2term_.end()) {
+        in = w2term_.at(reg->sel("in"));
+      } else {
+        logger.log(1, "Warning: no driver for register {}", reg->toString());
+        in = ts_.make_input(reg->sel("in")->toString(),
+                            compute_sort(reg->sel("in")));
+      }
+
+      assert(w2term_.find(reg) == w2term_.end());
+      Term cur_regterm = w2term_.at(reg);
+
+      bool clk_posedge = reg->getModArgs().at("clk_posedge")->get<bool>();
+      Term active_clk;
+      if (clk_posedge) {
+        active_clk = solver_->make_term(
+            And, solver_->make_term(Not, clk), ts_.next(clk));
+      } else {
+        active_clk = solver_->make_term(
+            And, clk, solver_->make_term(Not, ts_.next(clk)));
+      }
+
+      Term next_reg = solver_->make_term(Ite, active_clk, in, cur_regterm);
+
+      Term initval;
+      Values vals = reg->getModArgs();
+      if (vals.find("init") != vals.end()) {
+        initval =
+            solver_->make_term(vals.at("init")->get<BitVec>().binary_string(),
+                               cur_regterm->get_sort(),
+                               2);
+      }
+
+      bool async = instance_of(reg, "coreir", "reg_arst");
+      if (async) {
+        bool arst_posedge = reg->getModArgs().at("arst_posedge")->get<bool>();
+        // make a fresh state variable for arst -- need to be able to call next
+        // on it different from clk which should be guaranteed to be a state
+        // variable
+        Term arst = ts_.make_state(reg->sel("arst")->toString() + "_statevar",
+                                   solver_->make_sort(BOOL));
+        if (w2term_.find(reg->sel("arst")) != w2term_.end()) {
+          // TODO: there can be semantic issues with drivers of arst that are
+          // not
+          //       purely made of state vars -- discuss with group
+          Term arst_driver = w2term_.at(reg->sel("arst"));
+          ts_.add_constraint(solver_->make_term(Equal, arst, arst_driver));
+        } else {
+          logger.log(
+              1, "Warning: no driver for register arst: {}", reg->toString());
+        }
+
+        Term active_arst;
+        if (arst_posedge) {
+          active_arst = solver_->make_term(
+              And, solver_->make_term(Not, arst), ts_.next(arst));
+        } else {
+          active_arst = solver_->make_term(
+              And, arst, solver_->make_term(Not, ts_.next(arst)));
+        }
+
+        next_reg = solver_->make_term(Ite, active_arst, initval, cur_regterm);
+      }
+
+      ts_.constrain_trans(
+          solver_->make_term(Equal, ts_.next(cur_regterm), next_reg));
+
+      if (initval) {
+        ts_.constrain_init(solver_->make_term(Equal, cur_regterm, initval));
+      }
+    }
   }
 }
 
@@ -462,6 +543,11 @@ void CoreIREncoder::wire_connection(Connection conn)
 
   } else {
     tmpterm = t_;
+  }
+
+  if (w2term_.find(dst) != w2term_.end()) {
+    throw CosaException("CoreIREncoder error. Multiple drivers for "
+                        + dst->toString());
   }
 
   // name and save the value for the dst
