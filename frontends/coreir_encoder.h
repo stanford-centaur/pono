@@ -24,6 +24,20 @@ class CoreIREncoder
     parse(filename);
   }
 
+  CoreIREncoder(CoreIR::Module * m, RelationalTransitionSystem & ts)
+      : top_(m),
+        ts_(ts),
+        solver_(ts.solver()),
+        c_(CoreIR::newContext()),
+        num_clocks_(0),
+        can_abstract_clock_(true)
+  {
+    c_->getLibraryManager()->loadLib("commonlib");
+    bvsort1_ = solver_->make_sort(smt::BV, 1);
+    boolsort_ = solver_->make_sort(smt::BOOL);
+    bv1_ = solver_->make_term(1, bvsort1_);
+  }
+
  protected:
   static CoreIR::Module * read_coreir_file(CoreIR::Context * c,
                                            std::string filename);
