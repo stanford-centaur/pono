@@ -21,7 +21,8 @@ class CoreIREncoder
     bvsort1_ = solver_->make_sort(smt::BV, 1);
     boolsort_ = solver_->make_sort(smt::BOOL);
     bv1_ = solver_->make_term(1, bvsort1_);
-    parse(filename);
+    top_ = read_coreir_file(c_, filename);
+    encode();
   }
 
   CoreIREncoder(CoreIR::Module * m, RelationalTransitionSystem & ts)
@@ -41,7 +42,9 @@ class CoreIREncoder
  protected:
   static CoreIR::Module * read_coreir_file(CoreIR::Context * c,
                                            std::string filename);
-  void parse(std::string filename);
+  // encodes the Module * stored in top_
+  // to the transition system ts_
+  void encode();
 
   /** looks up the smt encoding for the inst
    *  computes the new term and uses wire_connection

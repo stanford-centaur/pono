@@ -59,9 +59,10 @@ Module * CoreIREncoder::read_coreir_file(Context * c, std::string filename)
 
 // member functions
 
-void CoreIREncoder::parse(std::string filename)
+void CoreIREncoder::encode()
 {
-  top_ = read_coreir_file(c_, filename);
+  // expecting top_ to be non-null
+  assert(top_);
 
   /* running passes prints to stdout -- redirect output */
   // save old stdout
@@ -182,9 +183,9 @@ void CoreIREncoder::parse(std::string filename)
   can_abstract_clock_ &= (num_clocks_ <= 1);
 
   logger.log(1,
-             "INFO {} abstract clock for CoreIR file {}",
+             "INFO {} abstract clock for CoreIR Module {}",
              can_abstract_clock_ ? "can" : "cannot",
-             filename);
+             top_->getName());
 
   // process the rest in topological order
   size_t processed_instances = 0;
