@@ -102,7 +102,13 @@ cdef extern from "engines/interpolantmc.h" namespace "cosa":
 cdef extern from "frontends/btor2_encoder.h" namespace "cosa":
     cdef cppclass BTOR2Encoder:
         BTOR2Encoder(string filename, TransitionSystem & ts) except +
-        pass
+
+
+# WITH_COREIR is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
+IF WITH_COREIR == "ON":
+    cdef extern from "frontends/coreir_encoder.h" namespace "cosa":
+        cdef cppclass CoreIREncoder:
+            CoreIREncoder(string filename, RelationalTransitionSystem & ts) except +
 
 
 cdef extern from "utils/logger.h" namespace "cosa":

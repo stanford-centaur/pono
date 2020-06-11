@@ -19,6 +19,8 @@ from cosa2_imp cimport KInduction as c_KInduction
 from cosa2_imp cimport BmcSimplePath as c_BmcSimplePath
 from cosa2_imp cimport InterpolantMC as c_InterpolantMC
 from cosa2_imp cimport BTOR2Encoder as c_BTOR2Encoder
+IF WITH_COREIR == "ON":
+    from cosa2_imp cimport CoreIREncoder as c_CoreIREncoder
 from cosa2_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from cosa2_imp cimport get_free_symbols as c_get_free_symbols
 
@@ -326,6 +328,13 @@ cdef class BTOR2Encoder:
     cdef c_BTOR2Encoder * cbe
     def __cinit__(self, str filename, __AbstractTransitionSystem ts):
         self.cbe = new c_BTOR2Encoder(filename.encode(), dref(ts.cts))
+
+IF WITH_COREIR == "ON":
+    cdef class CoreIREncoder:
+        cdef c_CoreIREncoder * cbe
+        def __cinit__(self, str filename, RelationalTransitionSystem ts):
+            self.cbe = new c_CoreIREncoder(filename.encode(), dref((<c_RelationalTransitionSystem *> ts.cts)))
+
 
 
 def set_global_logger_verbosity(int v):
