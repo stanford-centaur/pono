@@ -54,4 +54,8 @@ TEST_P(UnrollerUnitTests, RTS_Unroll)
   ASSERT_EQ(x1, u.at_time(x, 1));
 }
 
+INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
+                         UnrollerUnitTests,
+                         testing::ValuesIn(available_solver_enums()));
+
 }
