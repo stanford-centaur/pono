@@ -16,6 +16,7 @@ Configures the CMAKE build environment.
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
                         Required for interpolant based model checking
 --with-cvc4             build with CVC4 support (default: off)
+--with-coreir           build the CoreIR frontend (default: off)
 --debug                 build debug with debug symbols (default: off)
 --python                compile with python bindings (default: off)
 --py2                   use python2 interpreter (default: python3)
@@ -35,6 +36,7 @@ install_prefix=default
 build_type=default
 with_msat=default
 with_cvc4=default
+with_coreir=default
 debug=default
 python=default
 py2=default
@@ -69,6 +71,7 @@ do
             ;;
         --with-msat) with_msat=ON;;
         --with-cvc4) with_cvc4=ON;;
+        --with-coreir) with_coreir=ON;;
         --debug)
             debug=yes;
             buildtype=Debug
@@ -101,6 +104,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DCOSA2_LIB_TYPE=${lib_type} -DCOSA2_S
 
 [ $with_cvc4 != default ] \
     && cmake_opts="$cmake_opts -DWITH_CVC4=$with_cvc4"
+
+[ $with_coreir != default ] \
+    && cmake_opts="$cmake_opts -DWITH_COREIR=$with_coreir"
 
 [ $python != default ] \
     && cmake_opts="$cmake_opts -DBUILD_PYTHON_BINDINGS=ON"

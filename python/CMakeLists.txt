@@ -8,6 +8,12 @@ find_package(Cython 0.29 REQUIRED)
 
 include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python")
 
+if (WITH_COREIR)
+  set(CYTHON_FLAGS "${CYTHON_FLAGS}" "--compile-time-env" "WITH_COREIR=ON")
+else()
+  set(CYTHON_FLAGS "${CYTHON_FLAGS}" "--compile-time-env" "WITH_COREIR=OFF")
+endif()
+
 add_cython_target(cosa2 CXX)
 
 add_library(cosa2 MODULE ${cosa2})

@@ -163,6 +163,13 @@ class TransitionSystem
    */
   virtual bool is_functional() const { return false; };
 
+  /* Returns true iff all the symbols in the formula are current states */
+  bool only_curr(const smt::Term & term) const;
+
+  /* Returns true iff all the symbols in the formula are inputs and current
+   * states */
+  bool no_next(const smt::Term & term) const;
+
  protected:
   // solver
   smt::SmtSolver & solver_;
@@ -206,13 +213,6 @@ class TransitionSystem
    *  @return true iff all symbols in term are in at least one of the term sets
    */
   bool contains(const smt::Term & term, UnorderedTermSetPtrVec term_sets) const;
-
-  /* Returns true iff all the symbols in the formula are current states */
-  bool only_curr(const smt::Term & term) const;
-
-  /* Returns true iff all the symbols in the formula are inputs and current
-   * states */
-  bool no_next(const smt::Term & term) const;
 
   /* Returns true iff all the symbols in the formula are known */
   virtual bool known_symbols(const smt::Term & term) const;

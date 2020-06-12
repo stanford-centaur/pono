@@ -11,6 +11,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+add_definitions(-DCOSA2_SRC_DIR=${PROJECT_SOURCE_DIR})
+
 if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
 endif()
@@ -64,6 +66,16 @@ if (WITH_CVC4)
   endif()
 endif()
 
+if (WITH_COREIR)
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
+    message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
+  endif()
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
+    message(FATAL_ERROR "Missing verilogAST library from coreir. Try running ./contrib/setup-coreir.sh")
+  endif()
+endif()
+
+
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
 endif()
@@ -102,6 +114,11 @@ add_library(cosa2-lib "${COSA2_LIB_TYPE}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
 
+if (WITH_COREIR)
+  add_definitions(-DWITH_COREIR)
+  target_sources(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
+endif()
+
 target_include_directories(cosa2-lib PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
   "${PROJECT_SOURCE_DIR}/core"
@@ -130,12 +147,21 @@ if (BUILD_PYTHON_BINDINGS)
 endif()
 
 target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.a")
+
 if (WITH_MSAT)
   target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.a")
 endif()
+
 if (WITH_CVC4)
   target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.a")
 endif()
+
+if (WITH_COREIR)
+  target_include_directories(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
+  target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
+  target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
+endif()
+
 target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.a")
 target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(cosa2-lib PUBLIC gmp)
