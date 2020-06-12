@@ -19,9 +19,7 @@
 
 #include "optionparser.h"
 #include "smt-switch/boolector_factory.h"
-#ifdef WITH_MSAT
-  #include "smt-switch/msat_factory.h"
-#endif
+#include "smt-switch/cvc4_factory.h"
 
 #include "bmc.h"
 #include "bmc_simplepath.h"
@@ -231,17 +229,19 @@ int main(int argc, char ** argv)
     SmtSolver s;
     SmtSolver second_solver;
     if (engine == INTERP) {
-      #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
-      s = MsatSolverFactory::create(false);
-      second_solver = MsatSolverFactory::create_interpolating_solver();
-      #else
-      throw CosaException("Interpolation-based model checking requires MathSAT and "
-                          "this version of cosa2 is built without MathSAT.\nPlease "
-                          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-                          "Note: MathSAT has a custom license and you must assume all "
-                          "responsibility for meeting the license requirements.");
-      #endif
+      s = CVC4SolverFactory::create(false);
+      s->set_opt("produce-models", "true");
+      s->set_opt("incremental", "true");
+      second_solver = CVC4SolverFactory::create_interpolating_solver();
+      second_solver->set_opt("produce-interpols", "conclusion");
+      second_solver->set_opt("sygus-active-gen", "enum");
+      // throw CosaException("Interpolation-based model checking requires MathSAT and "
+      //                     "this version of cosa2 is built without MathSAT.\nPlease "
+      //                     "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+      //                     "Note: MathSAT has a custom license and you must assume all "
+      //                     "responsibility for meeting the license requirements.");
+      // #endif
     } else {
       // boolector is faster but doesn't support interpolants
       s = BoolectorSolverFactory::create(false);
