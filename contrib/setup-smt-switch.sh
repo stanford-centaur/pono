@@ -10,7 +10,7 @@ Usage: $0 [<option> ...]
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
 -h, --help              display this message and exit
---with-cvc4             include CVC4 (default: off)
+--with-cvc4             include CVC4 (default: on)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 --python                build python bindings (default: off)
 EOF
@@ -23,7 +23,7 @@ die () {
 }
 
 WITH_MSAT=default
-WITH_CVC4=default
+WITH_CVC4=ON
 CONF_OPTS=""
 
 while [ $# -gt 0 ]
@@ -47,7 +47,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    git clone -b cvc4_interpol https://github.com/yoni206/smt-switch.git
     cd smt-switch
     ./contrib/setup-btor.sh
 
