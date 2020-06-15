@@ -32,16 +32,22 @@ BmcSimplePath::~BmcSimplePath() {}
 
 ProverResult BmcSimplePath::check_until(int k)
 {
+  // keep the solver instance clean by checking in a different context
+  solver_->push();
   for (int i = 0; i <= k; ++i) {
     logger.log(1, "Checking Bmc at bound: {}", i);
     if (!base_step(i)) {
+      compute_witness();
+      solver_->pop();
       return ProverResult::FALSE;
     }
     logger.log(1, "Checking simple path at bound: {}", i);
     if (cover_step(i)) {
+      solver_->pop();
       return ProverResult::TRUE;
     }
   }
+  solver_->pop();
   return ProverResult::UNKNOWN;
 }
 

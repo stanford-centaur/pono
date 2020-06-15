@@ -42,11 +42,16 @@ void Bmc::initialize()
 
 ProverResult Bmc::check_until(int k)
 {
+  // keep the solver instance clean by checking in a different context
+  solver_->push();
   for (int i = 0; i <= k; ++i) {
     if (!step(i)) {
+      compute_witness();
+      solver_->pop();
       return ProverResult::FALSE;
     }
   }
+  solver_->pop();
   return ProverResult::UNKNOWN;
 }
 

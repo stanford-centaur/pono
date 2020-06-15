@@ -43,11 +43,19 @@ ProverResult Prover::prove() { return check_until(INT_MAX); }
 
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
 {
+  for (auto time_step_map : witness_) {
+    out.push_back(time_step_map);
+  }
+  return true;
+}
+
+bool Prover::compute_witness()
+{
   // TODO: make sure the solver state is SAT
 
   for (int i = 0; i <= reached_k_; ++i) {
-    out.push_back(UnorderedTermMap());
-    UnorderedTermMap & map = out.back();
+    witness_.push_back(UnorderedTermMap());
+    UnorderedTermMap & map = witness_.back();
 
     for (auto v : ts_.states()) {
       Term vi = unroller_.at_time(v, i);

@@ -84,10 +84,15 @@ void InterpolantMC::initialize()
 ProverResult InterpolantMC::check_until(int k)
 {
   try {
+    // keep the solver instance clean by checking in a different context
+    solver_->push();
     for (int i = 0; i <= k; ++i) {
       if (step(i)) {
+        solver_->pop();
         return ProverResult::TRUE;
       } else if (concrete_cex_) {
+        compute_witness();
+        solver_->pop();
         return ProverResult::FALSE;
       }
     }
@@ -95,6 +100,7 @@ ProverResult InterpolantMC::check_until(int k)
   catch (InternalSolverException & e) {
     logger.log(1, "Failed when computing interpolant.");
   }
+  solver_->pop();
   return ProverResult::UNKNOWN;
 }
 

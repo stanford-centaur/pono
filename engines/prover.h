@@ -48,5 +48,9 @@ class Prover
   int reached_k_;
 
   smt::Term bad_;
+
+  std::vector<smt::UnorderedTermMap> witness_;
+
+  bool compute_witness();
 };
 }  // namespace cosa
