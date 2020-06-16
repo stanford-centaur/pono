@@ -97,7 +97,7 @@ cdef class __AbstractTransitionSystem:
         return self._solver
 
     @property
-    def states(self):
+    def statevars(self):
         states_set = set()
 
         cdef const_UnorderedTermSetPtr c_states_set = &dref(self.cts).statevars()
@@ -114,7 +114,7 @@ cdef class __AbstractTransitionSystem:
         return states_set
 
     @property
-    def inputs(self):
+    def inputvars(self):
         inputs_set = set()
 
         cdef const_UnorderedTermSetPtr c_inputs_set = &dref(self.cts).inputvars()
