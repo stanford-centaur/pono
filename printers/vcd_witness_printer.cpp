@@ -155,8 +155,8 @@ static std::string as_decimal(std::string val)
 
 VCDWitnessPrinter::VCDWitnessPrinter(
     const TransitionSystem & ts, const std::vector<smt::UnorderedTermMap> & cex)
-    : inputs_(ts.inputs()),
-      states_(ts.states()),
+    : inputs_(ts.inputvars()),
+      states_(ts.statevars()),
       named_terms_(ts.named_terms()),
       cex_(cex),
       hash_id_cnt_(0)

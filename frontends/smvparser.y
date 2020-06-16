@@ -176,7 +176,7 @@ ivar_list:
     complex_identifier ":" type_identifier ";" {
          //cout <<"find an ivar"<<endl;
          SMVnode *a = $3;
-         smt::Term input = enc.rts_.make_input($1, a->getSort());
+         smt::Term input = enc.rts_.make_inputvar($1, a->getSort());
          enc.terms_[$1] = input;
     };
 
@@ -187,7 +187,7 @@ var_test:
 var_list:
     complex_identifier ":" type_identifier ";"{
          SMVnode *a = $3;
-         smt::Term state = enc.rts_.make_state($1, a->getSort());
+         smt::Term state = enc.rts_.make_statevar($1, a->getSort());
          enc.terms_[$1] = state;
          //cout<<"find a var" <<endl;
     };
@@ -199,7 +199,7 @@ frozenvar_test:
 frozenvar_list:
   complex_identifier ":" type_identifier ";" {
       SMVnode *a = $3;
-      smt::Term state = enc.rts_.make_state($1, a->getSort());
+      smt::Term state = enc.rts_.make_statevar($1, a->getSort());
       enc.terms_[$1] = state;
       smt::Term n = enc.rts_.next(state);
       smt::Term e = enc.solver_->make_term(smt::Equal, n, state);

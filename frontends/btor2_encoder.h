@@ -49,7 +49,7 @@ class BTOR2Encoder
   const smt::TermVec & fairvec() const { return fairvec_; };
   const smt::TermVec & inputsvec() const { return inputsvec_; }
   const smt::TermVec & statesvec() const { return statesvec_; }
-  const std::map<uint64_t, smt::Term> & no_next_states() const
+  const std::map<uint64_t, smt::Term> & no_next_statevars() const
   {
     return no_next_states_;
   }

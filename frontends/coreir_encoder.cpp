@@ -132,14 +132,14 @@ void CoreIREncoder::encode()
     bool is_clk;
     if ((is_clk = elem.second->getType()->toString() == "coreir.clk")
         || elem.second->getType()->toString() == "coreir.arst") {
-      t_ = ts_.make_state(elem.first, boolsort_);
+      t_ = ts_.make_statevar(elem.first, boolsort_);
       w2term_[elem.second] = t_;
       if (is_clk) {
         num_clocks_++;
       }
     } else if (type_->isInput() || type_->isInOut()) {
       sort_ = compute_sort(elem.second);
-      t_ = ts_.make_input(elem.first, sort_);
+      t_ = ts_.make_inputvar(elem.first, sort_);
       w2term_[elem.second] = t_;
     } else {
       // if not a clock or global input, don't need to connect it yet
@@ -291,7 +291,7 @@ Wireable * CoreIREncoder::process_instance(CoreIR::Instance * inst)
     // NOTE: inputs to state_elements are not wired up until later
     sort_ = solver_->make_sort(
         BV, inst->getModuleRef()->getGenArgs().at("width")->get<int>());
-    t_ = ts_.make_state(inst->toString(), sort_);
+    t_ = ts_.make_statevar(inst->toString(), sort_);
   } else if (nsname == "coreir" && name == "const") {
     size_t w = mod_->getGenArgs().at("width")->get<int>();
     sort_ = solver_->make_sort(BV, w);
@@ -319,9 +319,9 @@ Wireable * CoreIREncoder::process_instance(CoreIR::Instance * inst)
         Concat, w2term_.at(inst->sel("in0")), w2term_.at(inst->sel("in1")));
   } else if (nsname == "coreir" && name == "undriven") {
     sort_ = solver_->make_sort(BV, mod_->getGenArgs().at("width")->get<int>());
-    t_ = ts_.make_input(inst->toString(), sort_);
+    t_ = ts_.make_inputvar(inst->toString(), sort_);
   } else if (nsname == "corebit" && name == "undriven") {
-    t_ = ts_.make_input(inst->toString(), boolsort_);
+    t_ = ts_.make_inputvar(inst->toString(), boolsort_);
   } else if (name == "andr") {
     // reduce and over bits is only 1 if all bits are 1
     Term in = w2term_.at(inst->sel("in"));
@@ -400,15 +400,15 @@ void CoreIREncoder::process_state_element(Instance * st)
     }
 
     // expecting clk to be a state variable
-    assert(ts_.states().find(clk) != ts_.states().end());
+    assert(ts_.statevars().find(clk) != ts_.statevars().end());
 
     Term in;
     if (w2term_.find(st->sel("in")) != w2term_.end()) {
       in = w2term_.at(st->sel("in"));
     } else {
       logger.log(1, "Warning: no driver for register {}", st->toString());
-      in = ts_.make_input(st->sel("in")->toString(),
-                          compute_sort(st->sel("in")));
+      in = ts_.make_inputvar(st->sel("in")->toString(),
+                             compute_sort(st->sel("in")));
     }
 
     assert(w2term_.find(st) != w2term_.end());
@@ -449,7 +449,7 @@ void CoreIREncoder::process_state_element(Instance * st)
       } else {
         logger.log(
             1, "Warning: no driver for register arst: {}", st->toString());
-        arst_driver = ts_.make_state(st->sel("arst")->toString(), boolsort_);
+        arst_driver = ts_.make_statevar(st->sel("arst")->toString(), boolsort_);
       }
 
       Term active_arst;
@@ -506,7 +506,7 @@ void CoreIREncoder::wire_connection(Connection conn)
       // create new "input" (actually more of a definition) for dst parent
       // need a forward reference for it
       sort_ = compute_sort(parent);
-      tparent = ts_.make_input(parent->toString(), sort_);
+      tparent = ts_.make_inputvar(parent->toString(), sort_);
       // cache this symbol
       w2term_[parent] = tparent;
     } else {
@@ -539,7 +539,7 @@ void CoreIREncoder::wire_connection(Connection conn)
       // create new "input" (actually more of a definition) for dst parent
       // need a forward reference for it
       sort_ = compute_sort(dst_parent);
-      term_dst_parent = ts_.make_input(dst_parent->toString(), sort_);
+      term_dst_parent = ts_.make_inputvar(dst_parent->toString(), sort_);
       w2term_[dst_parent] = term_dst_parent;
     } else {
       term_dst_parent = w2term_.at(dst_parent);

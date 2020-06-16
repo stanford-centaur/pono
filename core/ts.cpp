@@ -105,14 +105,14 @@ void TransitionSystem::name_term(const string name, const Term & t)
   named_terms_[name] = t;
 }
 
-Term TransitionSystem::make_input(const string name, const Sort & sort)
+Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
   inputs_.insert(input);
   return input;
 }
 
-Term TransitionSystem::make_state(const string name, const Sort & sort)
+Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
   Term state = solver_->make_symbol(name, sort);
   Term next_state = solver_->make_symbol(name + ".next", sort);

@@ -78,14 +78,14 @@ UnorderedTermMap & Unroller::var_cache_at_time(unsigned int k)
     UnorderedTermMap & subst = time_cache_.back();
     const unsigned int t = time_cache_.size() - 1;
 
-    for (auto v : ts_.states()) {
+    for (auto v : ts_.statevars()) {
       Term vn = ts_.next(v);
       Term new_v = var_at_time(v, t);
       Term new_vn = var_at_time(v, t + 1);
       subst[v] = new_v;
       subst[vn] = new_vn;
     }
-    for (auto v : ts_.inputs()) {
+    for (auto v : ts_.inputvars()) {
       Term new_v = var_at_time(v, t);
       subst[v] = new_v;
     }

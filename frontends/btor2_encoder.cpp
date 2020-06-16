@@ -295,7 +295,7 @@ void BTOR2Encoder::parse(const std::string filename)
           symbol_ = "state" + to_string(l_->id);
       }
 
-      Term state = ts_.make_state(symbol_, linesort_);
+      Term state = ts_.make_statevar(symbol_, linesort_);
       terms_[l_->id] = state;
       statesvec_.push_back(state);
       // will be removed from this map if there's a next function for this state
@@ -308,7 +308,7 @@ void BTOR2Encoder::parse(const std::string filename)
       } else {
         symbol_ = "input" + to_string(l_->id);
       }
-      Term input = ts_.make_input(symbol_, linesort_);
+      Term input = ts_.make_inputvar(symbol_, linesort_);
       terms_[l_->id] = input;
       inputsvec_.push_back(input);
     } else if (l_->tag == BTOR2_TAG_output) {
@@ -396,7 +396,7 @@ void BTOR2Encoder::parse(const std::string filename)
     } else if (l_->tag == BTOR2_TAG_bad) {
       Term bad = bv_to_bool(termargs_[0]);
       UnorderedTermSet free_symbols = get_free_symbols(bad);
-      const UnorderedTermSet & states = ts_.states();
+      const UnorderedTermSet & states = ts_.statevars();
 
       bool need_witness = false;
       for (auto s : free_symbols) {
@@ -408,8 +408,8 @@ void BTOR2Encoder::parse(const std::string filename)
 
       if (need_witness) {
         Term witness =
-            ts_.make_state("witness_" + std::to_string(witness_id_++),
-                           solver_->make_sort(BOOL));
+            ts_.make_statevar("witness_" + std::to_string(witness_id_++),
+                              solver_->make_sort(BOOL));
         ts_.constrain_init(witness);
         ts_.assign_next(witness, solver_->make_term(Not, bad));
         propvec_.push_back(witness);
