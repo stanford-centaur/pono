@@ -33,8 +33,8 @@ def test_fts_unroller(create_solver):
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
 
     ts = c.FunctionalTransitionSystem(solver)
-    x = ts.make_state('x', bvsort4)
-    mem = ts.make_state('mem', arrsort)
+    x = ts.make_statevar('x', bvsort4)
+    mem = ts.make_statevar('mem', arrsort)
 
     u = c.Unroller(ts, solver)
 
@@ -71,8 +71,8 @@ def test_fts_unroller(create_solver):
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
 
     ts = c.RelationalTransitionSystem(solver)
-    x = ts.make_state('x', bvsort4)
-    mem = ts.make_state('mem', arrsort)
+    x = ts.make_statevar('x', bvsort4)
+    mem = ts.make_statevar('mem', arrsort)
 
     u = c.Unroller(ts, solver)
 

@@ -182,7 +182,7 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
   const smt::TermVec inputs = btor_enc.inputsvec();
   const smt::TermVec states = btor_enc.statesvec();
   const std::map<uint64_t, smt::Term> no_next_states =
-      btor_enc.no_next_states();
+      btor_enc.no_next_statevars();
   bool has_states_without_next = no_next_states.size();
 
   logger.log(0, "#0");

@@ -201,7 +201,7 @@ var_test:
 var_list:
     complex_identifier ":" type_identifier ";"{
          SMVnode *a = $3;
-         smt::Term state = enc.rts_.make_state($1, a->getSort());
+         smt::Term state = enc.rts_.make_statevar($1, a->getSort());
          enc.terms_[$1] = state;
          if (a->getBVType() == SMVnode::Unsigned){
             enc.unsignedbv_[$1] = state; 
@@ -217,7 +217,7 @@ frozenvar_test:
 frozenvar_list:
   complex_identifier ":" type_identifier ";" {
       SMVnode *a = $3;
-      smt::Term state = enc.rts_.make_state($1, a->getSort());
+      smt::Term state = enc.rts_.make_statevar($1, a->getSort());
       enc.terms_[$1] = state;
       if (a->getBVType() == SMVnode::Unsigned){
             enc.unsignedbv_[$1] = state; 

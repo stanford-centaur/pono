@@ -66,14 +66,14 @@ cdef class __AbstractTransitionSystem:
     def name_term(self, str name, Term t):
         dref(self.cts).name_term(name.encode(), t.ct)
 
-    def make_input(self, str name, Sort sort):
+    def make_inputvar(self, str name, Sort sort):
         cdef Term term = Term(self._solver)
-        term.ct = dref(self.cts).make_input(name.encode(), sort.cs)
+        term.ct = dref(self.cts).make_inputvar(name.encode(), sort.cs)
         return term
 
-    def make_state(self, str name, Sort sort):
+    def make_statevar(self, str name, Sort sort):
         cdef Term term = Term(self._solver)
-        term.ct = dref(self.cts).make_state(name.encode(), sort.cs)
+        term.ct = dref(self.cts).make_statevar(name.encode(), sort.cs)
         return term
 
     def curr(self, Term t):
@@ -100,7 +100,7 @@ cdef class __AbstractTransitionSystem:
     def states(self):
         states_set = set()
 
-        cdef const_UnorderedTermSetPtr c_states_set = &dref(self.cts).states()
+        cdef const_UnorderedTermSetPtr c_states_set = &dref(self.cts).statevars()
         cdef c_UnorderedTermSet_const_iterator it = c_states_set.const_begin()
         cdef c_UnorderedTermSet_const_iterator e  = c_states_set.const_end()
 
@@ -117,7 +117,7 @@ cdef class __AbstractTransitionSystem:
     def inputs(self):
         inputs_set = set()
 
-        cdef const_UnorderedTermSetPtr c_inputs_set = &dref(self.cts).inputs()
+        cdef const_UnorderedTermSetPtr c_inputs_set = &dref(self.cts).inputvars()
         cdef c_UnorderedTermSet_const_iterator it = c_inputs_set.const_begin()
         cdef c_UnorderedTermSet_const_iterator e  = c_inputs_set.const_end()
 
