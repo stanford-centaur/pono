@@ -89,7 +89,7 @@ class TransitionSystem
    * @param sort the sort of the input
    * @return the input term
    */
-  smt::Term make_input(const std::string name, const smt::Sort & sort);
+  smt::Term make_inputvar(const std::string name, const smt::Sort & sort);
 
   /* Create an state of a given sort
    * @param name the name of the state
@@ -98,7 +98,7 @@ class TransitionSystem
    *
    * Can get next state var with next(const smt::Term t)
    */
-  smt::Term make_state(const std::string name, const smt::Sort & sort);
+  smt::Term make_statevar(const std::string name, const smt::Sort & sort);
 
   /* Map all next state variables to current state variables in the term
    * @param t the term to map
@@ -129,9 +129,9 @@ class TransitionSystem
   // getters
   smt::SmtSolver & solver() { return solver_; };
 
-  const smt::UnorderedTermSet & states() const { return states_; };
+  const smt::UnorderedTermSet & statevars() const { return states_; };
 
-  const smt::UnorderedTermSet & inputs() const { return inputs_; };
+  const smt::UnorderedTermSet & inputvars() const { return inputs_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state

@@ -48,7 +48,7 @@ class EngineUnitTests
     bvsort8 = s->make_sort(BV, 8);
 
     // "Hello, World"-style counter test
-    Term cnt = ts->make_state("cnt", bvsort8);
+    Term cnt = ts->make_statevar("cnt", bvsort8);
     ts->set_init(s->make_term(Equal, cnt, s->make_term(0, bvsort8)));
     ts->assign_next(
         cnt,
@@ -173,11 +173,11 @@ class InterpWinTests : public ::testing::Test,
     bvsort8 = s->make_sort(BV, 8);
 
     // Simple non-inductive system/property
-    Term cfg = ts->make_state("cfg", boolsort);
-    Term a = ts->make_input("a", bvsort8);
-    Term b = ts->make_input("b", bvsort8);
-    Term initstate = ts->make_state("initstate", boolsort);
-    Term out = ts->make_state("out", bvsort8);
+    Term cfg = ts->make_statevar("cfg", boolsort);
+    Term a = ts->make_inputvar("a", bvsort8);
+    Term b = ts->make_inputvar("b", bvsort8);
+    Term initstate = ts->make_statevar("initstate", boolsort);
+    Term out = ts->make_statevar("out", bvsort8);
     ts->add_constraint(s->make_term(
         Equal,
         out,
@@ -193,7 +193,7 @@ class InterpWinTests : public ::testing::Test,
         s->make_term(Implies,
                      s->make_term(Not, initstate),
                      s->make_term(Equal, out, s->make_term(BVAdd, a, b)));
-    Term witness = ts->make_state("witness", boolsort);
+    Term witness = ts->make_statevar("witness", boolsort);
     ts->constrain_init(witness);
     ts->assign_next(witness, prop);
     true_p = new Property(*ts, witness);

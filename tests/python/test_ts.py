@@ -6,8 +6,8 @@ def build_simple_ts(solver, TS):
     bvsort = solver.make_sort(ss.sortkinds.BV, 8)
 
     ts = TS(solver)
-    x = ts.make_state('x', bvsort)
-    y = ts.make_state('y', bvsort)
+    x = ts.make_statevar('x', bvsort)
+    y = ts.make_statevar('y', bvsort)
     xp1 = solver.make_term(ss.primops.BVAdd, x, solver.make_term(1, bvsort))
     ts.name_term('xp1', xp1)
     ts.assign_next(x, xp1)

@@ -18,15 +18,15 @@ cdef extern from "core/ts.h" namespace "cosa":
         void constrain_inputs(const c_Term & constraint) except +
         void add_constraint(const c_Term & constraint) except +
         void name_term(const string name, const c_Term & t) except +
-        c_Term make_input(const string name, const c_Sort & sort) except +
-        c_Term make_state(const string name, const c_Sort & sort) except +
+        c_Term make_inputvar(const string name, const c_Sort & sort) except +
+        c_Term make_statevar(const string name, const c_Sort & sort) except +
         c_Term curr(const c_Term & term) except +
         c_Term next(const c_Term & term) except +
         bint is_curr_var(const c_Term & sv) except +
         bint is_next_var(const c_Term & sv) except +
         c_SmtSolver & solver() except +
-        const c_UnorderedTermSet & states() except +
-        const c_UnorderedTermSet & inputs() except +
+        const c_UnorderedTermSet & statevars() except +
+        const c_UnorderedTermSet & inputvars() except +
         c_Term init() except +
         c_Term trans() except +
         const c_UnorderedTermMap & state_updates() except +

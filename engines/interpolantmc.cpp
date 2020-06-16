@@ -44,11 +44,11 @@ void InterpolantMC::initialize()
   // B)
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term tmp1;
-  for (auto s : ts_.states()) {
+  for (auto s : ts_.statevars()) {
     tmp1 = unroller_.at_time(s, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
-  for (auto i : ts_.inputs()) {
+  for (auto i : ts_.inputvars()) {
     tmp1 = unroller_.at_time(i, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
@@ -66,11 +66,11 @@ void InterpolantMC::initialize()
   }
 
   // populate map from time 1 to time 0
-  for (auto s : ts_.states()) {
+  for (auto s : ts_.statevars()) {
     Term s0 = unroller_.at_time(s, 0);
   }
 
-  for (auto i : ts_.inputs()) {
+  for (auto i : ts_.inputvars()) {
     Term i0 = unroller_.at_time(i, 0);
   }
 

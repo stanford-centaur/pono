@@ -26,7 +26,7 @@ namespace cosa {
 Property::Property(const TransitionSystem & ts, const Term & p)
     : ts_(ts), prop_(p)
 {
-  const UnorderedTermSet & states = ts.states();
+  const UnorderedTermSet & states = ts.statevars();
   UnorderedTermSet free_symbols = get_free_symbols(p);
   for (auto s : free_symbols) {
     if (states.find(s) == states.end()) {
