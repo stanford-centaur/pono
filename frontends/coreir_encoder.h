@@ -25,11 +25,13 @@ class CoreIREncoder
     encode();
   }
 
-  CoreIREncoder(CoreIR::Module * m, RelationalTransitionSystem & ts)
+  CoreIREncoder(CoreIR::Context * c,
+                CoreIR::Module * m,
+                RelationalTransitionSystem & ts)
       : top_(m),
         ts_(ts),
         solver_(ts.solver()),
-        c_(CoreIR::newContext()),
+        c_(c),
         num_clocks_(0),
         can_abstract_clock_(true)
   {
