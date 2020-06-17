@@ -96,7 +96,7 @@ def test_kind_inductive_prop(create_solver):
     s.set_opt('incremental', 'true')
     prop = build_simple_alu_fts(s)
 
-    states = {str(sv):sv for sv in prop.transition_system.states}
+    states = {str(sv):sv for sv in prop.transition_system.statevars}
 
     prop = c.Property(prop.transition_system,
                       s.make_term(And,
