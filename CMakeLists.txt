@@ -1,19 +1,10 @@
-cmake_minimum_required(VERSION 3.5.1)
+cmake_minimum_required(VERSION 3.1)
 
 project(cosa2)
 
 set(COSA2_MAJOR 0)   # Major component of Cosa2 version
 set(COSA2_MINOR 1)   # Minor component of Cosa2 version
 set(COSA2_RELEASE 0) # Release component of Cosa2 version
-
-# handle different versions of CMake
-if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
-  set(CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++17")
-  set(CMAKE_CXX17_EXTENSION_COMPILE_OPTION "-std=gnu++17")
-elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.1)
-  set(CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++1z")
-  set(CMAKE_CXX17_EXTENSION_COMPILE_OPTION "-std=gnu++1z")
-endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
