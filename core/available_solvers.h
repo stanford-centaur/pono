@@ -6,7 +6,7 @@
 
 #include "smt-switch/smt.h"
 
-namespace cosa_tests {
+namespace cosa {
 
 /** Creates an SmtSolver of the provided type */
 smt::SmtSolver create_solver(smt::SolverEnum se);
@@ -20,4 +20,4 @@ std::vector<smt::SolverEnum> available_solver_enums();
 // collect all the available interpolators
 std::vector<smt::SolverEnum> available_interpolator_enums();
 
-}  // namespace cosa_tests
+}  // namespace cosa

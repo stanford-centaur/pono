@@ -70,7 +70,7 @@ class BTOR2Encoder
   void parse(const std::string filename);
 
   // Important members
-  smt::SmtSolver & solver_;
+  smt::SmtSolver solver_;
   cosa::TransitionSystem & ts_;
 
   // vectors of inputs and states

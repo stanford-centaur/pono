@@ -17,7 +17,7 @@
 
 using namespace smt;
 
-namespace cosa_tests {
+namespace cosa {
 
 // list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
@@ -117,4 +117,4 @@ std::vector<SolverEnum> available_solver_enums() { return solver_enums; }
 
 std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; };
 
-}  // namespace cosa_tests
+}  // namespace cosa

@@ -21,6 +21,59 @@ using namespace std;
 
 namespace cosa {
 
+// special "copy constructor" with new solver specified
+TransitionSystem::TransitionSystem(const TransitionSystem & ts, SmtSolver s)
+{
+  if (ts.solver()->get_solver_enum() == BTOR && s->get_solver_enum() != BTOR
+      && s->get_solver_enum() != BTOR_LOGGING) {
+    ostringstream oss;
+    oss << "Attempting to copy transition system with solver "
+        << ts.solver()->get_solver_enum()
+        << " to a transition system with solver " << s->get_solver_enum()
+        << " is problematic because Boolector aliases "
+        << "booleans and bit-vectors of size one.\n"
+        << "Please either copy to another boolector instance "
+        << "or use another solver (including BTOR_LOGGING which "
+        << "handles sort aliasing) in the original system." << endl;
+    throw CosaException(oss.str());
+  }
+
+  TermTranslator tt(s);
+  solver_ = s;
+  init_ = tt.transfer_term(ts.init_);
+  trans_ = tt.transfer_term(ts.trans_);
+
+  // populate data structures with translated terms
+  for (auto elem : ts.state_updates_) {
+    state_updates_[tt.transfer_term(elem.first)] =
+        tt.transfer_term(elem.second);
+  }
+
+  for (auto v : ts.statevars_) {
+    statevars_.insert(tt.transfer_term(v));
+  }
+
+  for (auto elem : ts.next_map_) {
+    next_map_[tt.transfer_term(elem.first)] = tt.transfer_term(elem.second);
+  }
+
+  for (auto v : ts.inputvars_) {
+    inputvars_.insert(tt.transfer_term(v));
+  }
+
+  for (auto elem : ts.named_terms_) {
+    named_terms_[elem.first] = tt.transfer_term(elem.second);
+  }
+
+  for (auto v : ts.next_statevars_) {
+    next_statevars_.insert(tt.transfer_term(v));
+  }
+
+  for (auto elem : ts.curr_map_) {
+    curr_map_[tt.transfer_term(elem.first)] = tt.transfer_term(elem.second);
+  }
+}
+
 void TransitionSystem::set_init(const Term & init)
 {
   // TODO: only do this check in debug mode
@@ -45,7 +98,7 @@ void TransitionSystem::constrain_init(const Term & constraint)
 void TransitionSystem::assign_next(const Term & state, const Term & val)
 {
   // TODO: only do this check in debug mode
-  if (states_.find(state) == states_.end()) {
+  if (statevars_.find(state) == statevars_.end()) {
     throw CosaException("Unknown state variable");
   }
 
@@ -108,7 +161,7 @@ void TransitionSystem::name_term(const string name, const Term & t)
 Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
-  inputs_.insert(input);
+  inputvars_.insert(input);
   return input;
 }
 
@@ -116,8 +169,8 @@ Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
   Term state = solver_->make_symbol(name, sort);
   Term next_state = solver_->make_symbol(name + ".next", sort);
-  states_.insert(state);
-  next_states_.insert(next_state);
+  statevars_.insert(state);
+  next_statevars_.insert(next_state);
   next_map_[state] = next_state;
   curr_map_[next_state] = state;
   return state;
@@ -138,12 +191,12 @@ Term TransitionSystem::next(const Term & term) const
 
 bool TransitionSystem::is_curr_var(const Term & sv) const
 {
-  return (states_.find(sv) != states_.end());
+  return (statevars_.find(sv) != statevars_.end());
 }
 
 bool TransitionSystem::is_next_var(const Term & sv) const
 {
-  return (next_states_.find(sv) != next_states_.end());
+  return (next_statevars_.find(sv) != next_statevars_.end());
 }
 
 // protected methods
@@ -188,18 +241,19 @@ bool TransitionSystem::contains(const Term & term,
 
 bool TransitionSystem::only_curr(const Term & term) const
 {
-  return contains(term, UnorderedTermSetPtrVec{ &states_ });
+  return contains(term, UnorderedTermSetPtrVec{ &statevars_ });
 }
 
 bool TransitionSystem::no_next(const Term & term) const
 {
-  return contains(term, UnorderedTermSetPtrVec{ &states_, &inputs_ });
+  return contains(term, UnorderedTermSetPtrVec{ &statevars_, &inputvars_ });
 }
 
 bool TransitionSystem::known_symbols(const Term & term) const
 {
-  return contains(term,
-                  UnorderedTermSetPtrVec{ &states_, &inputs_, &next_states_ });
+  return contains(
+      term,
+      UnorderedTermSetPtrVec{ &statevars_, &inputvars_, &next_statevars_ });
 }
 
 }  // namespace cosa

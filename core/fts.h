@@ -27,7 +27,7 @@ namespace cosa {
 class FunctionalTransitionSystem : public TransitionSystem
 {
  public:
-  FunctionalTransitionSystem(smt::SmtSolver & s) : TransitionSystem(s) {}
+  FunctionalTransitionSystem(smt::SmtSolver s) : TransitionSystem(s) {}
 
   // overloaded
   bool is_functional() const override { return true; };

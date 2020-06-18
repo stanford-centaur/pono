@@ -16,11 +16,13 @@
 
 #pragma once
 
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
 #include "smt-switch/smt.h"
 
+#include "core/available_solvers.h"
 #include "exceptions.h"
 
 namespace cosa {
@@ -28,10 +30,20 @@ namespace cosa {
 class TransitionSystem
 {
  public:
-  TransitionSystem(smt::SmtSolver & s)
+  TransitionSystem(smt::SmtSolver s)
       : solver_(s), init_(s->make_term(true)), trans_(s->make_term(true))
   {
   }
+
+  TransitionSystem()
+      // the default solver is CVC4 because it supports the most theories
+      : solver_(create_solver(smt::CVC4)),
+        init_(solver_->make_term(true)),
+        trans_(solver_->make_term(true))
+  {
+  }
+
+  TransitionSystem(const TransitionSystem & ts, smt::SmtSolver s);
 
   virtual ~TransitionSystem(){};
 
@@ -127,11 +139,11 @@ class TransitionSystem
   bool is_next_var(const smt::Term & sv) const;
 
   // getters
-  smt::SmtSolver & solver() { return solver_; };
+  const smt::SmtSolver & solver() const { return solver_; };
 
-  const smt::UnorderedTermSet & statevars() const { return states_; };
+  const smt::UnorderedTermSet & statevars() const { return statevars_; };
 
-  const smt::UnorderedTermSet & inputvars() const { return inputs_; };
+  const smt::UnorderedTermSet & inputvars() const { return inputvars_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
@@ -172,7 +184,7 @@ class TransitionSystem
 
  protected:
   // solver
-  smt::SmtSolver & solver_;
+  smt::SmtSolver solver_;
 
   // initial state constraint
   smt::Term init_;
@@ -184,20 +196,20 @@ class TransitionSystem
   smt::UnorderedTermMap state_updates_;
 
   // system state variables
-  smt::UnorderedTermSet states_;
+  smt::UnorderedTermSet statevars_;
 
-  // maps states and inputs variables to next versions
+  // maps state variables to next versions
   // note: the next state variables are only used
   //       on the left hand side of equalities in
   //       trans for functional transition systems
   smt::UnorderedTermMap next_map_;
 
   // system inputs
-  smt::UnorderedTermSet inputs_;
+  smt::UnorderedTermSet inputvars_;
 
   // mapping from names to terms
   std::unordered_map<std::string, smt::Term> named_terms_;
-  smt::UnorderedTermSet next_states_;
+  smt::UnorderedTermSet next_statevars_;
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
 
