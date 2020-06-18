@@ -103,6 +103,7 @@ FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
 ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
 
 add_library(cosa2-lib "${COSA2_LIB_TYPE}"
+  "${PROJECT_SOURCE_DIR}/core/available_solvers.cpp"
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
