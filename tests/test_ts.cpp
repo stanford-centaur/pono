@@ -23,10 +23,11 @@ class TSUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
+    boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
   }
   SmtSolver s;
-  Sort bvsort;
+  Sort boolsort, bvsort;
 };
 
 TEST(FTSDefaults, DefaultSolverCVC4)
@@ -39,6 +40,52 @@ TEST(RTSDefaults, DefaultSolverCVC4)
 {
   RelationalTransitionSystem rts;
   ASSERT_TRUE(rts.solver()->get_solver_enum() == CVC4);
+}
+
+TEST_P(TSUnitTests, TransferTransitionSystem)
+{
+  RelationalTransitionSystem rts;
+  SmtSolver solver = rts.solver();
+
+  // Have to use sorts associated with this solver
+  // not with the parameterized solver "s"
+  Sort bvsort8 = solver->make_sort(BV, 8);
+  Sort bsort = solver->make_sort(BOOL);
+
+  Term x = rts.make_statevar("x", bvsort8);
+  Term y = rts.make_statevar("y", bvsort8);
+  Term incx = rts.make_inputvar("incx", bsort);
+  Term incy = rts.make_inputvar("incy", bsort);
+
+  rts.constrain_init(solver->make_term(Equal, x, y));
+  rts.assign_next(
+      x,
+      solver->make_term(
+          Ite,
+          incx,
+          solver->make_term(BVAdd, x, solver->make_term(1, bvsort8)),
+          x));
+
+  rts.assign_next(
+      y,
+      solver->make_term(
+          Ite,
+          incy,
+          solver->make_term(BVAdd, y, solver->make_term(1, bvsort8)),
+          y));
+  // ((x - y) >= 8) -> !inc_x
+  rts.add_constraint(solver->make_term(
+      Implies,
+      solver->make_term(
+          BVUge, solver->make_term(BVSub, x, y), solver->make_term(8, bvsort8)),
+      solver->make_term(Not, incx)));
+  // ((y - x) >= 8) -> !inc_y
+  rts.add_constraint(solver->make_term(
+      Implies,
+      solver->make_term(
+          BVUge, solver->make_term(BVSub, y, x), solver->make_term(8, bvsort8)),
+      solver->make_term(Not, incy)));
+  RelationalTransitionSystem copied_rts(rts, s);
 }
 
 TEST_P(TSUnitTests, FTS_IsFunc)
