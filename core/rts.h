@@ -23,7 +23,14 @@ namespace cosa {
 class RelationalTransitionSystem : public TransitionSystem
 {
  public:
+  RelationalTransitionSystem() : TransitionSystem() {}
+
   RelationalTransitionSystem(smt::SmtSolver s) : TransitionSystem(s) {}
+
+  RelationalTransitionSystem(const TransitionSystem & ts, smt::SmtSolver s)
+      : TransitionSystem(ts, s)
+  {
+  }
 
   /* Sets init and trans to the provided values
    * @param init the new initial state constraints (boolean sort)

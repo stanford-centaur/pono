@@ -1,4 +1,7 @@
-#include "available_solvers.h"
+#include "core/available_solvers.h"
+#include "utils/exceptions.h"
+
+#include <sstream>
 
 // Always include boolector
 #include "smt-switch/boolector_factory.h"
@@ -92,7 +95,9 @@ SmtSolver create_solver(SolverEnum se)
     }
 #endif
     default: {
-      throw SmtException("Unhandled solver enum");
+      std::ostringstream oss;
+      oss << "Not built with solver " << se;
+      throw CosaException(oss.str());
     }
   }
 }
@@ -108,7 +113,9 @@ SmtSolver create_interpolator(SolverEnum se)
     }
 #endif
     default: {
-      throw SmtException("Unhandled solver enum");
+      std::ostringstream oss;
+      oss << "Not built with interpolator " << se;
+      throw CosaException(oss.str());
     }
   }
 }

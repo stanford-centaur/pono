@@ -29,6 +29,18 @@ class TSUnitTests : public ::testing::Test,
   Sort bvsort;
 };
 
+TEST(FTSDefaults, DefaultSolverCVC4)
+{
+  FunctionalTransitionSystem fts;
+  ASSERT_TRUE(fts.solver()->get_solver_enum() == CVC4);
+}
+
+TEST(RTSDefaults, DefaultSolverCVC4)
+{
+  RelationalTransitionSystem rts;
+  ASSERT_TRUE(rts.solver()->get_solver_enum() == CVC4);
+}
+
 TEST_P(TSUnitTests, FTS_IsFunc)
 {
   FunctionalTransitionSystem fts(s);
