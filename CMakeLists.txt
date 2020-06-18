@@ -22,6 +22,18 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_definitions(-DCOSA2_SRC_DIR=${PROJECT_SOURCE_DIR})
 
+# always builds with Boolector and CVC4
+set(WITH_BTOR ON)
+set(WITH_CVC4 ON)
+
+if (WITH_BTOR)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_BTOR")
+endif()
+
+if (WITH_CVC4)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_CVC4")
+endif()
+
 if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
 endif()

@@ -10,7 +10,6 @@ Usage: $0 [<option> ...]
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
 -h, --help              display this message and exit
---with-cvc4             include CVC4 (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 --python                build python bindings (default: off)
 EOF
@@ -23,7 +22,6 @@ die () {
 }
 
 WITH_MSAT=default
-WITH_CVC4=default
 CONF_OPTS=""
 
 while [ $# -gt 0 ]
@@ -33,9 +31,6 @@ do
         --with-msat)
             WITH_MSAT=ON
             CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
-        --with-cvc4)
-            WITH_CVC4=ON
-            CONF_OPTS="$CONF_OPTS --cvc4";;
         --python)
             CONF_OPTS="$CONF_OPTS --python";;
         *) die "unexpected argument: $1";;
@@ -50,12 +45,8 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     git clone https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
-
-    if [[ "$WITH_CVC4" != default ]]; then
-        ./contrib/setup-cvc4.sh
-    fi
-
-    ./configure.sh --btor $CONF_OPTS --prefix=local --static
+    ./contrib/setup-cvc4.sh
+    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static
     cd build
     make -j$(nproc)
     make test
@@ -66,7 +57,7 @@ else
 fi
 
 if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]; then
-    echo "It appears smt-switch with boolector was successfully installed to $DEPS/smt-switch/local."
+    echo "It appears smt-switch with boolector and cvc4 was successfully installed to $DEPS/smt-switch/local."
     echo "You may now build cosa2 with: ./configure.sh && cd build && make"
 else
     echo "Building smt-switch failed."
