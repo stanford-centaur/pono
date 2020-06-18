@@ -22,7 +22,7 @@ class UnrollerUnitTests : public ::testing::Test,
 protected:
   void SetUp() override
   {
-    s = available_solvers().at(GetParam())(false);
+    s = create_solver(GetParam());
     bvsort = s->make_sort(BV, 8);
   }
   SmtSolver s;

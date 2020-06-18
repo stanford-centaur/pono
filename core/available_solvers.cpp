@@ -1,50 +1,120 @@
 #include "available_solvers.h"
 
+// Always include boolector
+#include "smt-switch/boolector_factory.h"
+
+#if WITH_CVC4
+#include "smt-switch/cvc4_factory.h"
+#endif
+
+#if WITH_MSAT
+#include "smt-switch/msat_factory.h"
+#endif
+
+#if WITH_YICES2
+#include "smt-switch/yices2_factory.h"
+#endif
+
 using namespace smt;
 
 namespace cosa_tests {
 
+// list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
-  BTOR,
+  BTOR, BTOR_LOGGING,
 
 #if WITH_CVC4
-      CVC4,
+      CVC4, CVC4_LOGGING,
 #endif
 
 #if WITH_MSAT
-      MSAT,
+      MSAT, MSAT_LOGGING,
+#endif
+
+#if WITH_YICES2
+      YICES2, YICES2_LOGGING,
 #endif
 });
 
-const CreateSolverFunsMap solvers({
-  { BTOR, BoolectorSolverFactory::create },
-
-#if WITH_CVC4
-      { CVC4, CVC4SolverFactory::create },
-#endif
-
+const std::vector<SolverEnum> itp_enums({
 #if WITH_MSAT
-      { MSAT, MsatSolverFactory::create },
+  MSAT_INTERPOLATOR
 #endif
 });
 
-CreateSolverFunsMap available_solvers() { return solvers; }
+SmtSolver create_solver(SolverEnum se)
+{
+  switch (se) {
+    case BTOR: {
+      return BoolectorSolverFactory::create(false);
+      break;
+      ;
+    }
+    case BTOR_LOGGING: {
+      return BoolectorSolverFactory::create(true);
+      break;
+      ;
+    }
+#if WITH_CVC4
+    case CVC4: {
+      return CVC4SolverFactory::create(false);
+      break;
+      ;
+    }
+    case CVC4_LOGGING: {
+      return CVC4SolverFactory::create(true);
+      break;
+      ;
+    }
+#endif
+#if WITH_MSAT
+    case MSAT: {
+      return MsatSolverFactory::create(false);
+      break;
+      ;
+    }
+    case MSAT_LOGGING: {
+      return MsatSolverFactory::create(true);
+      break;
+      ;
+    }
+#endif
+#if WITH_YICES2
+    case YICES2: {
+      return Yices2SolverFactory::create(false);
+      break;
+      ;
+    }
+    case YICES2_LOGGING: {
+      return Yices2SolverFactory::create(true);
+      break;
+      ;
+    }
+#endif
+    default: {
+      throw SmtException("Unhandled solver enum");
+    }
+  }
+}
+
+SmtSolver create_interpolator(SolverEnum se)
+{
+  switch (se) {
+#if WITH_MSAT
+    case MSAT_INTERPOLATOR: {
+      return MsatSolverFactory::create_interpolating_solver();
+      break;
+      ;
+    }
+#endif
+    default: {
+      throw SmtException("Unhandled solver enum");
+    }
+  }
+}
 
 std::vector<SolverEnum> available_solver_enums() { return solver_enums; }
 
-std::ostream & operator<<(std::ostream & o, SolverEnum e)
-{
-  switch (e) {
-    case BTOR: o << "BTOR"; break;
-    case CVC4: o << "CVC4"; break;
-    case MSAT: o << "MSAT"; break;
-    default:
-      // should print the integer representation
-      throw NotImplementedException("Unknown SolverEnum: " + std::to_string(e));
-      break;
-  }
-
-  return o;
-}
+std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; };
 
 }  // namespace cosa_tests

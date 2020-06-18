@@ -24,7 +24,7 @@ class CoreIRUnitTests : public ::testing::Test,
 
 TEST_P(CoreIRUnitTests, Encode)
 {
-  SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
+  SmtSolver s = create_solver(get<0>(GetParam()));
   RelationalTransitionSystem rts(s);
   // COSA2_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(COSA2_SRC_DIR);

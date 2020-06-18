@@ -34,7 +34,7 @@ class EngineUnitTests
   void SetUp() override
   {
     std::tuple<SolverEnum, TSEnum> t = GetParam();
-    s = available_solvers().at(std::get<0>(t))(false);
+    s = create_solver(std::get<0>(GetParam()));
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
 
