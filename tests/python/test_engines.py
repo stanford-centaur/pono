@@ -20,13 +20,13 @@ def build_simple_alu_fts(s:ss.SmtSolver)->c.Property:
     bvsort8 = s.make_sort(BV, 8)
 
     # Create the states
-    cfg = fts.make_state('cfg', bvsort1)
-    spec_res = fts.make_state('spec_res', bvsort8)
-    imp_res  = fts.make_state('imp_res', bvsort8)
+    cfg = fts.make_statevar('cfg', bvsort1)
+    spec_res = fts.make_statevar('spec_res', bvsort8)
+    imp_res  = fts.make_statevar('imp_res', bvsort8)
 
     # Create the inputs
-    a = fts.make_input('a', bvsort8)
-    b = fts.make_input('b', bvsort8)
+    a = fts.make_inputvar('a', bvsort8)
+    b = fts.make_inputvar('b', bvsort8)
 
     # Add logic for cfg
     ## Start at 0
@@ -96,7 +96,7 @@ def test_kind_inductive_prop(create_solver):
     s.set_opt('incremental', 'true')
     prop = build_simple_alu_fts(s)
 
-    states = {str(sv):sv for sv in prop.transition_system.states}
+    states = {str(sv):sv for sv in prop.transition_system.statevars}
 
     prop = c.Property(prop.transition_system,
                       s.make_term(And,

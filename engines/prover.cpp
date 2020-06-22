@@ -49,13 +49,13 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     out.push_back(UnorderedTermMap());
     UnorderedTermMap & map = out.back();
 
-    for (auto v : ts_.states()) {
+    for (auto v : ts_.statevars()) {
       Term vi = unroller_.at_time(v, i);
       Term r = solver_->get_value(vi);
       map[v] = r;
     }
 
-    for (auto v : ts_.inputs()) {
+    for (auto v : ts_.inputvars()) {
       Term vi = unroller_.at_time(v, i);
       Term r = solver_->get_value(vi);
       map[v] = r;

@@ -89,7 +89,7 @@ class TransitionSystem
    * @param sort the sort of the input
    * @return the input term
    */
-  smt::Term make_input(const std::string name, const smt::Sort & sort);
+  smt::Term make_inputvar(const std::string name, const smt::Sort & sort);
 
   /* Create an state of a given sort
    * @param name the name of the state
@@ -98,7 +98,7 @@ class TransitionSystem
    *
    * Can get next state var with next(const smt::Term t)
    */
-  smt::Term make_state(const std::string name, const smt::Sort & sort);
+  smt::Term make_statevar(const std::string name, const smt::Sort & sort);
 
   /* Map all next state variables to current state variables in the term
    * @param t the term to map
@@ -129,9 +129,9 @@ class TransitionSystem
   // getters
   smt::SmtSolver & solver() { return solver_; };
 
-  const smt::UnorderedTermSet & states() const { return states_; };
+  const smt::UnorderedTermSet & statevars() const { return states_; };
 
-  const smt::UnorderedTermSet & inputs() const { return inputs_; };
+  const smt::UnorderedTermSet & inputvars() const { return inputs_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
@@ -162,6 +162,13 @@ class TransitionSystem
    *  it only returns true if it's a FunctionalTransitionSystem object
    */
   virtual bool is_functional() const { return false; };
+
+  /* Returns true iff all the symbols in the formula are current states */
+  bool only_curr(const smt::Term & term) const;
+
+  /* Returns true iff all the symbols in the formula are inputs and current
+   * states */
+  bool no_next(const smt::Term & term) const;
 
  protected:
   // solver
@@ -206,13 +213,6 @@ class TransitionSystem
    *  @return true iff all symbols in term are in at least one of the term sets
    */
   bool contains(const smt::Term & term, UnorderedTermSetPtrVec term_sets) const;
-
-  /* Returns true iff all the symbols in the formula are current states */
-  bool only_curr(const smt::Term & term) const;
-
-  /* Returns true iff all the symbols in the formula are inputs and current
-   * states */
-  bool no_next(const smt::Term & term) const;
 
   /* Returns true iff all the symbols in the formula are known */
   virtual bool known_symbols(const smt::Term & term) const;

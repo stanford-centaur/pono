@@ -19,6 +19,8 @@ from cosa2_imp cimport KInduction as c_KInduction
 from cosa2_imp cimport BmcSimplePath as c_BmcSimplePath
 from cosa2_imp cimport InterpolantMC as c_InterpolantMC
 from cosa2_imp cimport BTOR2Encoder as c_BTOR2Encoder
+IF WITH_COREIR == "ON":
+    from cosa2_imp cimport CoreIREncoder as c_CoreIREncoder
 from cosa2_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from cosa2_imp cimport get_free_symbols as c_get_free_symbols
 
@@ -64,14 +66,14 @@ cdef class __AbstractTransitionSystem:
     def name_term(self, str name, Term t):
         dref(self.cts).name_term(name.encode(), t.ct)
 
-    def make_input(self, str name, Sort sort):
+    def make_inputvar(self, str name, Sort sort):
         cdef Term term = Term(self._solver)
-        term.ct = dref(self.cts).make_input(name.encode(), sort.cs)
+        term.ct = dref(self.cts).make_inputvar(name.encode(), sort.cs)
         return term
 
-    def make_state(self, str name, Sort sort):
+    def make_statevar(self, str name, Sort sort):
         cdef Term term = Term(self._solver)
-        term.ct = dref(self.cts).make_state(name.encode(), sort.cs)
+        term.ct = dref(self.cts).make_statevar(name.encode(), sort.cs)
         return term
 
     def curr(self, Term t):
@@ -95,10 +97,10 @@ cdef class __AbstractTransitionSystem:
         return self._solver
 
     @property
-    def states(self):
+    def statevars(self):
         states_set = set()
 
-        cdef const_UnorderedTermSetPtr c_states_set = &dref(self.cts).states()
+        cdef const_UnorderedTermSetPtr c_states_set = &dref(self.cts).statevars()
         cdef c_UnorderedTermSet_const_iterator it = c_states_set.const_begin()
         cdef c_UnorderedTermSet_const_iterator e  = c_states_set.const_end()
 
@@ -112,10 +114,10 @@ cdef class __AbstractTransitionSystem:
         return states_set
 
     @property
-    def inputs(self):
+    def inputvars(self):
         inputs_set = set()
 
-        cdef const_UnorderedTermSetPtr c_inputs_set = &dref(self.cts).inputs()
+        cdef const_UnorderedTermSetPtr c_inputs_set = &dref(self.cts).inputvars()
         cdef c_UnorderedTermSet_const_iterator it = c_inputs_set.const_begin()
         cdef c_UnorderedTermSet_const_iterator e  = c_inputs_set.const_end()
 
@@ -326,6 +328,13 @@ cdef class BTOR2Encoder:
     cdef c_BTOR2Encoder * cbe
     def __cinit__(self, str filename, __AbstractTransitionSystem ts):
         self.cbe = new c_BTOR2Encoder(filename.encode(), dref(ts.cts))
+
+IF WITH_COREIR == "ON":
+    cdef class CoreIREncoder:
+        cdef c_CoreIREncoder * cbe
+        def __cinit__(self, str filename, RelationalTransitionSystem ts):
+            self.cbe = new c_CoreIREncoder(filename.encode(), dref((<c_RelationalTransitionSystem *> ts.cts)))
+
 
 
 def set_global_logger_verbosity(int v):
