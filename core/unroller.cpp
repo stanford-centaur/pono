@@ -32,18 +32,15 @@ Unroller::~Unroller() {}
 
 Term Unroller::at_time(const Term & t, unsigned int k)
 {
-  UnorderedTermMap & cache = time_cache_at_time(k);
+  UnorderedTermMap & cache = var_cache_at_time(k);
 
+  // if t is a variable, it will be cached
   auto it = cache.find(t);
   if (it != cache.end()) {
     return it->second;
   }
 
-  Term ret = solver_->substitute(t, cache);
-  untime_cache_[ret] = t;
-  cache[t] = ret;
-
-  return ret;
+  return solver_->substitute(t, cache);
 }
 
 Term Unroller::untime(const Term & t) const
@@ -69,11 +66,12 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
   name += "@" + std::to_string(k);
   Term timed_v = solver_->make_symbol(name, v->get_sort());
   cache[v] = timed_v;
+  untime_cache_[timed_v] = v;
 
   return timed_v;
 }
 
-UnorderedTermMap & Unroller::time_cache_at_time(unsigned int k)
+UnorderedTermMap & Unroller::var_cache_at_time(unsigned int k)
 {
   while (time_cache_.size() <= k) {
     time_cache_.push_back(UnorderedTermMap());
@@ -86,13 +84,10 @@ UnorderedTermMap & Unroller::time_cache_at_time(unsigned int k)
       Term new_vn = var_at_time(v, t + 1);
       subst[v] = new_v;
       subst[vn] = new_vn;
-      untime_cache_[new_v] = v;
-      untime_cache_[new_vn] = vn;
     }
     for (auto v : ts_.inputs()) {
       Term new_v = var_at_time(v, t);
       subst[v] = new_v;
-      untime_cache_[new_v] = v;
     }
   }
 

@@ -31,6 +31,18 @@ list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
 find_package(BISON 3.4.2 REQUIRED)
 find_package(FLEX 2.6.4 REQUIRED)
 
+if (BISON_FOUND)
+  link_directories("${PROJECT_SOURCE_DIR}/deps/bison/bison-install/lib/")
+endif()
+
+message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
+message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
+
+if (APPLE)
+  message("setting include dir")
+  include_directories("/usr/local/opt/flex/include")
+endif()
+
 # TODO: Use find_package
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
