@@ -185,7 +185,11 @@ ivar_test:
 ivar_list:
     complex_identifier ":" type_identifier ";" {
          SMVnode *a = $3;
+<<<<<<< HEAD
          smt::Term input = enc.rts_.make_input($1, a->getSort());
+=======
+         smt::Term input = enc.rts_.make_inputvar($1, a->getSort());
+>>>>>>> fix a conflict bug
          if (a->getBVType() == SMVnode::Unsigned){
            enc.unsignedbv_[$1] = input; 
          }else if (a->getBVType() == SMVnode::Signed){
