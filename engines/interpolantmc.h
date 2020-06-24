@@ -61,6 +61,10 @@ class InterpolantMC : public Prover
   smt::Term R_;
   smt::Term Ri_;
 
+  // HACK hacked in for cvc4-interpol
+  bool has_extracts = false;
+  size_t interp_cnt = 0;
+
 };  // class InterpolantMC
 
 }  // namespace cosa

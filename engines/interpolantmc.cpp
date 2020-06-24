@@ -20,9 +20,28 @@
 #include "interpolantmc.h"
 #include "utils/logger.h"
 
+#include "smt-switch/identity_walker.h"
+
 using namespace smt;
 
 namespace cosa {
+
+class HasExtracts : public IdentityWalker
+{
+ public:
+  HasExtracts(SmtSolver & s) : IdentityWalker(s, false){};
+  WalkerStepResult visit_term(Term & term)
+  {
+    if (preorder_ && term->get_op().prim_op == Extract) {
+      extracts = true;
+    }
+    return Walker_Continue;
+  }
+  bool has_extracts() { return extracts; };
+
+ protected:
+  bool extracts = false;
+};
 
 InterpolantMC::InterpolantMC(const Property & p,
                              SmtSolver & slv,
@@ -79,6 +98,14 @@ void InterpolantMC::initialize()
   Ri_ = solver_->make_term(true);
   transA_ = unroller_.at_time(ts_.trans(), 0);
   transB_ = solver_->make_term(true);
+
+  HasExtracts he(solver_);
+  Term init = ts_.init();
+  Term trans = ts_.trans();
+  he.visit(init);
+  he.visit(trans);
+  he.visit(bad_);
+  has_extracts = he.has_extracts();
 }
 
 ProverResult InterpolantMC::check_until(int k)
@@ -120,13 +147,20 @@ bool InterpolantMC::step(int i)
       Term int_transB = to_interpolator_.transfer_term(transB_);
       Term int_bad = to_interpolator_.transfer_term(bad_i);
       Term int_Ri;
-      got_interpolant = interpolator_->get_interpolant(
-          interpolator_->make_term(And, int_R, int_transA),
-          interpolator_->make_term(And, int_transB, int_bad),
-          int_Ri);
+
+      Term A = interpolator_->make_term(And, int_R, int_transA);
+      Term B = interpolator_->make_term(And, int_transB, int_bad);
+      std::cout << "panda," << has_extracts << "," << interp_cnt << ","
+                << A->to_string().length() << "," << B->to_string().length()
+                << ",";
+      interp_cnt++;
+      got_interpolant = interpolator_->get_interpolant(A, B, int_Ri);
+      std::cout << got_interpolant << std::endl;
 
       if (got_interpolant) {
         Ri_ = to_solver_.transfer_term(int_Ri);
+      } else {
+        throw CosaException("Failed to get an interpolant");
       }
 
       is_sat = !got_interpolant;
