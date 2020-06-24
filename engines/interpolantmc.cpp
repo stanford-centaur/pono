@@ -159,8 +159,6 @@ bool InterpolantMC::step(int i)
 
       if (got_interpolant) {
         Ri_ = to_solver_.transfer_term(int_Ri);
-      } else {
-        throw CosaException("Failed to get an interpolant");
       }
 
       is_sat = !got_interpolant;
