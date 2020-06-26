@@ -133,6 +133,7 @@ in {return cosa::smvparser::make_OP_IN(_encoder.loc);}
 <WORD_VALUE>[0-9a-fA-F]+ {BEGIN(INITIAL); return cosa::smvparser::make_integer_val(yytext,_encoder.loc);}
 
 [0-9]+           {return cosa::smvparser::make_integer_val(yytext,_encoder.loc);}
+-[0-9]+           {return cosa::smvparser::make_neg_integer_val(yytext,_encoder.loc);}
 [a-zA-Z_][A-Za-z0-9_\$#-]*  {return cosa::smvparser::make_tok_name(yytext,_encoder.loc);}
 \n   {_encoder.loc.lines(yyleng);}
 .    {}
