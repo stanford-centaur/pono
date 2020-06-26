@@ -49,8 +49,10 @@ class SMVEncoder
   std::unordered_map<std::string, smt::Term>  unsignedbv_;
   std::deque<std::pair<int, smt::Term>> transterm_;
   std::vector<int> caselist_;
-  std::unordered_map<int, smt::Term> casecheck_;
-  std::unordered_map<int, smt::Term> casestore_;
+  std::vector<smt::Term> casecheck_;
+  std::vector<smt::Term> casestore_;
+  //std::unordered_map<int, smt::Term> casecheck_;
+  //std::unordered_map<int, smt::Term> casestore_;
   std::vector<std::pair<smt::Term, smt::Term>> caseterm_;
 };  // class SMVEncoder
 }  // namespace cosa

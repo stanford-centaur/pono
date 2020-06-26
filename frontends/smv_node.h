@@ -23,6 +23,7 @@ struct SMVnode
     Signed,
     Unsigned,
     Integer,
+    Boolean,
     BVnot
   };
   smt::Term tm;
