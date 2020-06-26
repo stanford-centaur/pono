@@ -274,7 +274,7 @@ invarspec_list: basic_expr ";" {
 
 constant: boolean_constant {
       smt::Term con = enc.solver_->make_term($1);
-      $$ = new SMVnode(con);
+      $$ = new SMVnode(con,SMVnode::Boolean);
 }
           | integer_constant {
             smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
@@ -290,7 +290,7 @@ constant: boolean_constant {
            $$ = $1;
           }
           | range_constant{
-            throw CosaException("No range constant now");
+            throw CosaException("Range constants are not yet supported");
           };
 
 word_value: word_index1 integer_val "_" integer_val {
@@ -715,7 +715,7 @@ simple_expr: constant {
                 SMVnode::BVtype bvs_a = a->getBVType();
                 SMVnode::BVtype bvs_b = b->getBVType();
                 SMVnode::BVtype bvs_c = c->getBVType();
-                if(bvs_a == SMVnode::BVnot || bvs_b != SMVnode::Integer || bvs_c != SMVnode::Integer){
+                if((bvs_a == SMVnode::Unsigned || bvs_a == SMVnode::Signed) && bvs_b == SMVnode::Integer && bvs_c == SMVnode::Integer){
                   smt::Term res = enc.solver_->make_term(smt::Extract, a->getTerm(), b->getTerm(),c->getTerm());
                   $$ = new SMVnode(res,SMVnode::Unsigned);
                 }else{
@@ -827,8 +827,8 @@ case_expr: TOK_CASE case_body TOK_ESAC {
             cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first);
             final_term = e;
           }
-          enc.casestore_[case_start] = final_term;
-          enc.casecheck_[case_start] = cond;
+          enc.casestore_.push_back(final_term);
+          enc.casecheck_.push_back(cond);
           $$ = new SMVnode(final_term);
 }
 

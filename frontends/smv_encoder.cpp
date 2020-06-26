@@ -34,8 +34,8 @@ void cosa::SMVEncoder::processCase()
 {
   std::future_status status;
   solver_->push();
-  for (std::pair<int, smt::Term> element : casecheck_) {
-    Term bad_ = solver_->make_term(smt::PrimOp::Not, element.second);
+  for (int i = 0; i < casecheck_.size(); i++) {
+    Term bad_ = solver_->make_term(smt::PrimOp::Not, casecheck_[i]);
     solver_->assert_formula(bad_);
     auto fut = std::async(
         launch::async,
@@ -49,7 +49,7 @@ void cosa::SMVEncoder::processCase()
     while (status != std::future_status::timeout) {
       if (status == std::future_status::ready) {
         if (fut.get()) {
-          rts_.constrain_trans(casestore_[element.first]);
+          rts_.constrain_trans(casestore_[i]);
           break;
         } else {
           throw CosaException("case error");
