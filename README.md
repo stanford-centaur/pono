@@ -1,5 +1,8 @@
-# cosa2
-Next generation cosa.
+# Pono: an SMT-based model checker built on [smt-switch](https://github.com/makaimann/smt-switch)
+Pono is a performant, adaptable, and extensible SMT-based model checker implemented in C++. It was developed as the next
+generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was originally named _cosa2_.
+
+**Temporarily** the binary, library, and python bindings will still use the name _cosa2_.
 
 ## Setup
 
