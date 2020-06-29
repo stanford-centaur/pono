@@ -37,7 +37,7 @@ Other useful files to visit include:
 To build the `cosa2` python bindings, first make sure that you have [Cython](https://cython.org/) version >= 0.29 installed. Then ensure that `smt-switch` and its python bindings are installed. Finally, you can configure with `./configure.sh --python` and then build normally. The sequence of commands would be as follows:
 ```
 # Optional recommended step: start a python virtualenv
-# If you install in the virtualenv, you will need to activate it each time before using pycosa2
+# If you install in the virtualenv, you will need to activate it each time before using pono
 # and deactivate the virtualenv with: deactivate
 python3 -m venv env
 source ./env/bin/activate
