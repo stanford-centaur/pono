@@ -67,7 +67,7 @@ fi
 
 if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]; then
     echo "It appears smt-switch with boolector was successfully installed to $DEPS/smt-switch/local."
-    echo "You may now build cosa2 with: ./configure.sh && cd build && make"
+    echo "You may now build pono with: ./configure.sh && cd build && make"
 else
     echo "Building smt-switch failed."
     echo "You might be missing some dependencies."

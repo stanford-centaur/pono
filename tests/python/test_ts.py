@@ -1,6 +1,6 @@
 import pytest
 import smt_switch as ss
-import cosa2 as c
+import pono as c
 
 def build_simple_ts(solver, TS):
     bvsort = solver.make_sort(ss.sortkinds.BV, 8)

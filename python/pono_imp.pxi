@@ -4,25 +4,25 @@ from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector
 
-from cosa2_imp cimport TransitionSystem as c_TransitionSystem
-from cosa2_imp cimport RelationalTransitionSystem as c_RelationalTransitionSystem
-from cosa2_imp cimport FunctionalTransitionSystem as c_FunctionalTransitionSystem
-from cosa2_imp cimport Property as c_Property
-from cosa2_imp cimport Unroller as c_Unroller
-from cosa2_imp cimport ProverResult as c_ProverResult
-from cosa2_imp cimport UNKNOWN as c_UNKNOWN
-from cosa2_imp cimport FALSE as c_FALSE
-from cosa2_imp cimport TRUE as c_TRUE
-from cosa2_imp cimport Prover as c_Prover
-from cosa2_imp cimport Bmc as c_Bmc
-from cosa2_imp cimport KInduction as c_KInduction
-from cosa2_imp cimport BmcSimplePath as c_BmcSimplePath
-from cosa2_imp cimport InterpolantMC as c_InterpolantMC
-from cosa2_imp cimport BTOR2Encoder as c_BTOR2Encoder
+from pono_imp cimport TransitionSystem as c_TransitionSystem
+from pono_imp cimport RelationalTransitionSystem as c_RelationalTransitionSystem
+from pono_imp cimport FunctionalTransitionSystem as c_FunctionalTransitionSystem
+from pono_imp cimport Property as c_Property
+from pono_imp cimport Unroller as c_Unroller
+from pono_imp cimport ProverResult as c_ProverResult
+from pono_imp cimport UNKNOWN as c_UNKNOWN
+from pono_imp cimport FALSE as c_FALSE
+from pono_imp cimport TRUE as c_TRUE
+from pono_imp cimport Prover as c_Prover
+from pono_imp cimport Bmc as c_Bmc
+from pono_imp cimport KInduction as c_KInduction
+from pono_imp cimport BmcSimplePath as c_BmcSimplePath
+from pono_imp cimport InterpolantMC as c_InterpolantMC
+from pono_imp cimport BTOR2Encoder as c_BTOR2Encoder
 IF WITH_COREIR == "ON":
-    from cosa2_imp cimport CoreIREncoder as c_CoreIREncoder
-from cosa2_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
-from cosa2_imp cimport get_free_symbols as c_get_free_symbols
+    from pono_imp cimport CoreIREncoder as c_CoreIREncoder
+from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
+from pono_imp cimport get_free_symbols as c_get_free_symbols
 
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 

@@ -37,10 +37,10 @@ if __name__ == "__main__":
     verbosity_option = '1' if args.verbosity else '0'
 
     commands = {
-        "BMC": ['./cosa2-btor-msat', '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
-        "BMC+SimplePath": ['./cosa2-btor-msat', '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
-        "K-Induction": ['./cosa2-btor-msat', '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
-        "Interpolant-based": ['./cosa2-btor-msat', '-e', 'interp', '-v', verbosity_option, '-k', bound, btor_file]
+        "BMC": ['./pono-btor-msat', '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
+        "BMC+SimplePath": ['./pono-btor-msat', '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
+        "K-Induction": ['./pono-btor-msat', '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
+        "Interpolant-based": ['./pono-btor-msat', '-e', 'interp', '-v', verbosity_option, '-k', bound, btor_file]
     }
 
     interp_processes = set()

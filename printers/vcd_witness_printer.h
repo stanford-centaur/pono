@@ -3,7 +3,7 @@
  ** \verbatim
  ** Top contributors (to current version):
  **   Hongce Zhang
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
@@ -25,7 +25,7 @@
 
 #include "utils/logger.h"
 
-namespace cosa {
+namespace pono {
 
 struct VCDSignal {
   std::string vcd_name; // maybe you want to add this : [N:0]
@@ -121,4 +121,4 @@ public:
 
 }; // class VCDWitnessPrinter
 
-}  // namespace cosa
+}  // namespace pono

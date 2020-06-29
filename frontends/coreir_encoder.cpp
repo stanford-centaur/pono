@@ -42,7 +42,7 @@ const unordered_map<string, PrimOp> bvopmap(
       { "ult", BVUlt },   { "ugt", BVUgt },   { "ule", BVUle },
       { "uge", BVUge } });
 
-namespace cosa {
+namespace pono {
 
 // static functions
 
@@ -52,7 +52,7 @@ Module * CoreIREncoder::read_coreir_file(Context * c, std::string filename)
   // load file
   if (!loadFromFile(c, filename, &m)) {
     c->die();
-    throw CosaException("Error reading CoreIR file: " + filename);
+    throw PonoException("Error reading CoreIR file: " + filename);
   }
   return m;
 }
@@ -103,9 +103,9 @@ void CoreIREncoder::encode()
       // put registers into instances first (processed last)
       instances.push_back(ipair.second);
     } else if (instance_of(ipair.second, "coreir", "mem")) {
-      throw CosaException(
+      throw PonoException(
           "Have not implemented memory encoding yet. Please post test case to "
-          "cosa2 GitHub issues.");
+          "pono GitHub issues.");
     }
 
     size_t n = 0;
@@ -254,7 +254,7 @@ void CoreIREncoder::encode()
   }
 
   if (processed_instances != def_->getInstances().size()) {
-    throw CosaException("Issue: not all instances processed in CoreIR Encoder");
+    throw PonoException("Issue: not all instances processed in CoreIR Encoder");
   }
 
   // now make a second pass over state_elements to assign the next state updates
@@ -357,7 +357,7 @@ Wireable * CoreIREncoder::process_instance(CoreIR::Instance * inst)
   }
 
   if (!t_) {
-    throw CosaException("CoreIREncoder error: no term created for module type: "
+    throw PonoException("CoreIREncoder error: no term created for module type: "
                         + mod_->getName());
   }
 
@@ -396,7 +396,7 @@ void CoreIREncoder::process_state_element(Instance * st)
     if (w2term_.find(st->sel("clk")) != w2term_.end()) {
       clk = w2term_.at(st->sel("clk"));
     } else {
-      throw CosaException("Clock not wired for register: " + st->toString());
+      throw PonoException("Clock not wired for register: " + st->toString());
     }
 
     // expecting clk to be a state variable
@@ -442,7 +442,7 @@ void CoreIREncoder::process_state_element(Instance * st)
       if (w2term_.find(st->sel("arst")) != w2term_.end()) {
         arst_driver = w2term_.at(st->sel("arst"));
         if (!ts_.only_curr(arst_driver)) {
-          throw CosaException(
+          throw PonoException(
               "Driver for ARST has non-state variables -- causes semantic "
               "issues with transition system.");
         }
@@ -561,7 +561,7 @@ void CoreIREncoder::wire_connection(Connection conn)
   }
 
   if (w2term_.find(dst) != w2term_.end()) {
-    throw CosaException("CoreIREncoder error. Multiple drivers for "
+    throw PonoException("CoreIREncoder error. Multiple drivers for "
                         + dst->toString());
   }
 
@@ -584,4 +584,4 @@ Sort CoreIREncoder::compute_sort(CoreIR::Wireable * w)
   return s;
 }
 
-}  // namespace cosa
+}  // namespace pono

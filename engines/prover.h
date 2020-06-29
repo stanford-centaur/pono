@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #pragma once
 
@@ -23,7 +22,7 @@
 #include "ts.h"
 #include "unroller.h"
 
-namespace cosa {
+namespace pono {
 class Prover
 {
  public:
@@ -49,4 +48,4 @@ class Prover
 
   smt::Term bad_;
 };
-}  // namespace cosa
+}  // namespace pono

@@ -3,7 +3,7 @@
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
-** This file is part of the cosa2 project.
+** This file is part of the pono project.
 ** Copyright (c) 2019 by the authors listed in the file AUTHORS
 ** in the top-level source directory) and their institutional affiliations.
 ** All rights reserved.  See the file LICENSE in the top-level source
@@ -18,7 +18,7 @@
 
 #include "smt-switch/smt.h"
 
-namespace cosa {
+namespace pono {
 
 /** adds all the free (not bound to a quantifier) symbols
  *  in a Term to an existing set
@@ -30,4 +30,4 @@ void get_free_symbols(const smt::Term & term,
  *  in a Term
  */
 smt::UnorderedTermSet get_free_symbols(const smt::Term & term);
-}  // namespace cosa
+}  // namespace pono

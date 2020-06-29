@@ -6,7 +6,7 @@
 #include "core/rts.h"
 #include "smt-switch/smt.h"
 
-namespace cosa {
+namespace pono {
 class CoreIREncoder
 {
  public:
@@ -124,4 +124,4 @@ class CoreIREncoder
     "cullzexts"
   };
 };
-}  // namespace cosa
+}  // namespace pono

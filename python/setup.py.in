@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-# This script is automatically configured with cmake when Cosa2
+# This script is automatically configured with cmake when Pono
 # is built with --python. It is called during make install
 # to automatically install the python bindings using setuptools
 # It assumes that pip is available
 
 from setuptools import setup
 
-setup(name='cosa2',
-      long_description="Python bindings for the model checker Cosa2",
-      version='${COSA2_MAJOR}.${COSA2_MINOR}.${COSA2_RELEASE}',
-      url='https://github.com/upscale-project/cosa2',
+setup(name='pono',
+      long_description="Python bindings for the model checker Pono",
+      version='${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}',
+      url='https://github.com/upscale-project/pono',
       license='BSD',
       test_requires=['pytest'],
-      package_data={'': ['cosa2.so']},
+      package_data={'': ['pono.so']},
       zip_safe=False)

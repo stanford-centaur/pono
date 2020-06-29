@@ -2,7 +2,7 @@
 Pono is a performant, adaptable, and extensible SMT-based model checker implemented in C++. It was developed as the next
 generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was originally named _cosa2_.
 
-**Temporarily** the binary, library, and python bindings will still use the name _cosa2_.
+**Temporarily** the binary, library, and python bindings will still use the name _pono_.
 
 ## Setup
 
@@ -34,7 +34,7 @@ Other useful files to visit include:
   * Note: create indexed ops like `Op(Extract, 7, 4)`
 
 ## Python bindings
-To build the `cosa2` python bindings, first make sure that you have [Cython](https://cython.org/) version >= 0.29 installed. Then ensure that `smt-switch` and its python bindings are installed. Finally, you can configure with `./configure.sh --python` and then build normally. The sequence of commands would be as follows:
+To build the `pono` python bindings, first make sure that you have [Cython](https://cython.org/) version >= 0.29 installed. Then ensure that `smt-switch` and its python bindings are installed. Finally, you can configure with `./configure.sh --python` and then build normally. The sequence of commands would be as follows:
 ```
 # Optional recommended step: start a python virtualenv
 # If you install in the virtualenv, you will need to activate it each time before using pono

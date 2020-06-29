@@ -1,6 +1,6 @@
 import pytest
 import smt_switch as ss
-import cosa2 as c
+import pono as c
 from typing import Set
 
 def get_free_vars(t:ss.Term)->Set[ss.Term]:
