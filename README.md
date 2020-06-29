@@ -2,7 +2,7 @@
 Pono is a performant, adaptable, and extensible SMT-based model checker implemented in C++. It was developed as the next
 generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was originally named _cosa2_.
 
-[Pono](http://wehewehe.org/gsdl2.85/cgi-bin/hdict?e=q-11000-00---off-0hdict--00-1----0-10-0---0---0direct-10-ED--4--textpukuielbert%2ctextmamaka-----0-1l--11-en-Zz-1---Zz-1-home-pono--00-3-1-00-0--4----0-0-11-10-0utfZz-8-00&a=d&d=D18537) is the Hawaiian word for goodness, proper, or correct. It is often used colloquially in the moral sense of "rightness," but also refers to "proper procedure" or "correctness." We use the word for multiple meanings. Our goal is that Pono can be a useful tool for people to verify the _correctness_ of systems, which is surely the _right_ thing to do.
+[Pono](http://wehewehe.org/gsdl2.85/cgi-bin/hdict?e=q-11000-00---off-0hdict--00-1----0-10-0---0---0direct-10-ED--4--textpukuielbert%2ctextmamaka-----0-1l--11-en-Zz-1---Zz-1-home-pono--00-3-1-00-0--4----0-0-11-10-0utfZz-8-00&a=d&d=D18537) is the Hawaiian word for proper, correct, or goodness. It is often used colloquially in the moral sense of "goodness" or "rightness," but also refers to "proper procedure" or "correctness." We use the word for multiple meanings. Our goal is that Pono can be a useful tool for people to verify the _correctness_ of systems, which is surely the _right_ thing to do.
 
 ## Setup
 
