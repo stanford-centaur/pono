@@ -122,6 +122,7 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
+set_target_properties(pono-lib OUTPUT_NAME pono)
 
 if (WITH_COREIR)
   add_definitions(-DWITH_COREIR)
