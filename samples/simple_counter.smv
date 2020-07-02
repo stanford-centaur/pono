@@ -2,7 +2,6 @@ MODULE main
 
 VAR
   counter:  unsigned word[8];
-<<<<<<< HEAD
   a : boolean;
   b : boolean;
 
@@ -14,19 +13,10 @@ counter = 0ud8_0;
 a = TRUE;
 b = FALSE;
 c = (a&!b);
-=======
-
-INIT 
-counter = 0ud8_0;
->>>>>>> 8fc33773a3375bd979feb77f5d06828717bd4793
 
 TRANS 
 (counter <= 0ud8_4) -> (next(counter) = counter + 0ud8_1); 
 (counter > 0ud8_4) -> (next(counter) = 0ud8_0); 
 
 INVARSPEC 
-<<<<<<< HEAD
 (counter <= 0ud8_5 & c);
-=======
-(counter <= 0ud8_5);
->>>>>>> 8fc33773a3375bd979feb77f5d06828717bd4793
