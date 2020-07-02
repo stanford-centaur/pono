@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include "smt-switch/exceptions.h"
 
@@ -22,7 +21,7 @@
 
 using namespace smt;
 
-namespace cosa {
+namespace pono {
 
 InterpolantMC::InterpolantMC(const Property & p,
                              SmtSolver & slv,
@@ -62,7 +61,7 @@ void InterpolantMC::initialize()
     interpolator_->reset_assertions();
   }
   catch (NotImplementedException & e) {
-    throw CosaException("Got unexpected solver in InterpolantMC.");
+    throw PonoException("Got unexpected solver in InterpolantMC.");
   }
 
   // populate map from time 1 to time 0
@@ -155,7 +154,7 @@ bool InterpolantMC::step(int i)
           And, init0_, solver_->make_term(And, solver_trans, bad_i)));
       Result r = solver_->check_sat();
       if (!r.is_sat()) {
-        throw CosaException("Internal error: Expecting satisfiable result");
+        throw PonoException("Internal error: Expecting satisfiable result");
       }
       ++reached_k_;
       return false;
@@ -201,4 +200,4 @@ bool InterpolantMC::check_overapprox()
   }
 }
 
-}  // namespace cosa
+}  // namespace pono

@@ -12,11 +12,11 @@
 #include "core/rts.h"
 #include "frontends/coreir_encoder.h"
 
-using namespace cosa;
+using namespace pono;
 using namespace smt;
 using namespace std;
 
-namespace cosa_tests {
+namespace pono_tests {
 
 class CoreIRUnitTests : public ::testing::Test,
                         public ::testing::WithParamInterface<tuple<SolverEnum, string>>
@@ -26,8 +26,8 @@ TEST_P(CoreIRUnitTests, Encode)
 {
   SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
   RelationalTransitionSystem rts(s);
-  // COSA2_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(COSA2_SRC_DIR);
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/coreir/";
   filename += get<1>(GetParam());
   cout << "Reading file: " << filename << endl;
@@ -42,5 +42,5 @@ INSTANTIATE_TEST_SUITE_P(
                                                        "WrappedPE_nofloats.json",
                                                        "SimpleALU.json" })));
 
-}  // namespace cosa_tests
+}  // namespace pono_tests
 #endif

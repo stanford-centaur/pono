@@ -3,7 +3,7 @@
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
@@ -20,7 +20,7 @@
 #include "optionparser.h"
 #include "smt-switch/boolector_factory.h"
 #ifdef WITH_MSAT
-  #include "smt-switch/msat_factory.h"
+#include "smt-switch/msat_factory.h"
 #endif
 
 #include "bmc.h"
@@ -36,7 +36,7 @@
 #include "prop.h"
 #include "utils/logger.h"
 
-using namespace cosa;
+using namespace pono;
 using namespace smt;
 using namespace std;
 
@@ -92,7 +92,7 @@ const option::Descriptor usage[] = {
     "",
     "",
     Arg::None,
-    "USAGE: cosa2 [options] <btor file>\n\n"
+    "USAGE: pono [options] <btor file>\n\n"
     "Options:" },
   { HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit." },
   { ENGINE,
@@ -154,7 +154,7 @@ ProverResult check_prop(Engine engine,
     assert(second_solver != NULL);
     prover = std::make_shared<InterpolantMC>(p, s, second_solver);
   } else {
-    throw CosaException("Unimplemented engine.");
+    throw PonoException("Unimplemented engine.");
   }
 
   ProverResult r = prover->check_until(bound);
@@ -231,17 +231,18 @@ int main(int argc, char ** argv)
     SmtSolver s;
     SmtSolver second_solver;
     if (engine == INTERP) {
-      #ifdef WITH_MSAT
+#ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create(false);
       second_solver = MsatSolverFactory::create_interpolating_solver();
-      #else
-      throw CosaException("Interpolation-based model checking requires MathSAT and "
-                          "this version of cosa2 is built without MathSAT.\nPlease "
-                          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-                          "Note: MathSAT has a custom license and you must assume all "
-                          "responsibility for meeting the license requirements.");
-      #endif
+#else
+      throw PonoException(
+          "Interpolation-based model checking requires MathSAT and "
+          "this version of pono is built without MathSAT.\nPlease "
+          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+          "Note: MathSAT has a custom license and you must assume all "
+          "responsibility for meeting the license requirements.");
+#endif
     } else {
       // boolector is faster but doesn't support interpolants
       s = BoolectorSolverFactory::create(false);
@@ -261,7 +262,7 @@ int main(int argc, char ** argv)
       const TermVec & propvec = btor_enc.propvec();
       unsigned int num_props = propvec.size();
       if (prop_idx >= num_props) {
-        throw CosaException(
+        throw PonoException(
             "Property index " + to_string(prop_idx)
             + " is greater than the number of properties in file " + filename
             + " (" + to_string(num_props) + ")");
@@ -300,7 +301,7 @@ int main(int argc, char ** argv)
       const TermVec & propvec = smv_enc.propvec();
       unsigned int num_props = propvec.size();
       if (prop_idx >= num_props) {
-        throw CosaException(
+        throw PonoException(
             "Property index " + to_string(prop_idx)
             + " is greater than the number of properties in file " + filename
             + " (" + to_string(num_props) + ")");
@@ -324,11 +325,11 @@ int main(int argc, char ** argv)
         }
       }
     } else {
-      throw CosaException("Unrecognized file extension " + file_ext
+      throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + filename);
     }
   }
-  catch (CosaException & ce) {
+  catch (PonoException & ce) {
     cout << ce.what() << endl;
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;

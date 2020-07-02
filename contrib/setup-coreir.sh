@@ -24,7 +24,7 @@ fi
 
 if [ -f $DEPS/coreir/local/lib/libcoreir.so ] ; then \
     echo "It appears coreir was successfully built in $DEPS/coreir/local."
-    echo "You may now build cosa2 with: ./configure.sh && cd build && make"
+    echo "You may now build pono with: ./configure.sh && cd build && make"
 else
     echo "Building coreir failed."
     echo "You might be missing some dependencies."
