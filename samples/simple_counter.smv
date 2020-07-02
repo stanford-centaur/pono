@@ -2,13 +2,21 @@ MODULE main
 
 VAR
   counter:  unsigned word[8];
+  a : boolean;
+  b : boolean;
+
+FROZENVAR
+  c : boolean;
 
 INIT 
 counter = 0ud8_0;
+a = TRUE;
+b = FALSE;
+c = (a&!b);
 
 TRANS 
 (counter <= 0ud8_4) -> (next(counter) = counter + 0ud8_1); 
 (counter > 0ud8_4) -> (next(counter) = 0ud8_0); 
 
 INVARSPEC 
-(counter <= 0ud8_5);
+(counter <= 0ud8_5 & c);

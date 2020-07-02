@@ -18,18 +18,19 @@ struct SMVnode
     TermNode,
     SortNode
   };
-  enum BVtype
+  enum Type
   {
     Signed,
     Unsigned,
     Integer,
     Boolean,
+    BV,
     BVnot
   };
   smt::Term tm;
   smt::Sort st;
   Nodetype nt;
-  BVtype bvt;
+  Type bvt;
   SMVnode(smt::Sort s)
   {
     nt = SortNode;
@@ -42,20 +43,20 @@ struct SMVnode
     tm = t;
     bvt = BVnot;
   }
-  SMVnode(smt::Sort s, BVtype bvtype)
+  SMVnode(smt::Sort s, Type type)
   {
     nt = SortNode;
     st = s;
-    bvt = bvtype;
+    bvt = type;
   }
-  SMVnode(smt::Term t, BVtype bvtype)
+  SMVnode(smt::Term t, Type type)
   {
     nt = TermNode;
     tm = t;
-    bvt = bvtype;
+    bvt = type;
   }
   Nodetype getNodeType() { return nt; }
-  BVtype getBVType() { return bvt; }
+  Type getType() { return bvt; }
   smt::Sort getSort() { return st; }
   smt::Term getTerm() { return tm; }
 };  // struct SMVNode
