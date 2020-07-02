@@ -51,6 +51,7 @@ static const Engine default_engine = BMC;
 static const unsigned int default_prop_idx = 0;
 static const unsigned int default_bound = 10;
 static const unsigned int default_verbosity = 0;
+static const bool default_no_witness = false;
 /********************************* End Default Values
  * ********************************/
 }  // namespace pono
