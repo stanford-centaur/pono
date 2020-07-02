@@ -50,7 +50,7 @@
 %token TO ASSIGNSYM IF_ELSE 
 %token ENDL
 
-%token <std::string> integer_val real_val fraction_prefix exponential_prefix
+%token <std::string> integer_val neg_integer_val real_val fraction_prefix exponential_prefix
 %token bool_type integer_type real_type set_tok array_tok 
 %token <std::string> word_index1 word_index2
 %token <std::string> tok_name
@@ -274,7 +274,7 @@ invarspec_list: basic_expr ";" {
 
 constant: boolean_constant {
       smt::Term con = enc.solver_->make_term($1);
-      $$ = new SMVnode(con);
+      $$ = new SMVnode(con,SMVnode::Boolean);
 }
           | integer_constant {
             smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
@@ -290,7 +290,7 @@ constant: boolean_constant {
            $$ = $1;
           }
           | range_constant{
-            throw CosaException("No range constant now");
+            throw CosaException("Range constants are not yet supported");
           };
 
 word_value: word_index1 integer_val "_" integer_val {
@@ -356,7 +356,8 @@ boolean_constant: TOK_TRUE{
 //                $$ = $1;
 //};
 
-integer_constant: integer_val{ $$ = $1; };
+integer_constant: integer_val{ $$ = $1; }
+                  | neg_integer_val {$$ = $1; };
 
 real_constant: real_val{
   $$ = $1;
@@ -690,9 +691,6 @@ simple_expr: constant {
               smt::Term res = enc.solver_->make_term(smt::BVShl, a->getTerm(), b->getTerm());
               $$ = new SMVnode(res,a->getBVType());
             }
-            | basic_expr sizev {
-              throw CosaException("No word1");
-            }
             | basic_expr OP_CON basic_expr  {
               SMVnode *a = $1;
               SMVnode *b = $3;
@@ -705,7 +703,7 @@ simple_expr: constant {
                 $$ = new SMVnode(res,SMVnode::Unsigned);
               }               
             }
-            | basic_expr "[" integer_val "]" {
+            | basic_expr sizev {
                 throw CosaException("No index Subscript");
             }
             | basic_expr "[" basic_expr ":" basic_expr "]"{
@@ -715,7 +713,7 @@ simple_expr: constant {
                 SMVnode::BVtype bvs_a = a->getBVType();
                 SMVnode::BVtype bvs_b = b->getBVType();
                 SMVnode::BVtype bvs_c = c->getBVType();
-                if(bvs_a == SMVnode::BVnot || bvs_b != SMVnode::Integer || bvs_c != SMVnode::Integer){
+                if((bvs_a == SMVnode::Unsigned || bvs_a == SMVnode::Signed) && bvs_b == SMVnode::Integer && bvs_c == SMVnode::Integer){
                   smt::Term res = enc.solver_->make_term(smt::Extract, a->getTerm(), b->getTerm(),c->getTerm());
                   $$ = new SMVnode(res,SMVnode::Unsigned);
                 }else{
@@ -827,8 +825,8 @@ case_expr: TOK_CASE case_body TOK_ESAC {
             cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first);
             final_term = e;
           }
-          enc.casestore_[case_start] = final_term;
-          enc.casecheck_[case_start] = cond;
+          enc.casestore_.push_back(final_term);
+          enc.casecheck_.push_back(cond);
           $$ = new SMVnode(final_term);
 }
 
