@@ -50,7 +50,7 @@
 %token TO ASSIGNSYM IF_ELSE 
 %token ENDL
 
-%token <std::string> integer_val neg_integer_val real_val fraction_prefix exponential_prefix
+%token <std::string> integer_val real_val fraction_prefix exponential_prefix
 %token bool_type integer_type real_type set_tok array_tok 
 %token <std::string> word_index1 word_index2
 %token <std::string> tok_name
@@ -140,9 +140,9 @@ define_body: complex_identifier ASSIGNSYM basic_expr ";" {
               SMVnode *a = $3;
               smt::Term define_var = a->getTerm();
               enc.terms_[$1] = define_var; 
-              if (a->getType() == SMVnode::Unsigned){
+              if (a->getBVType() == SMVnode::Unsigned){
                 enc.unsignedbv_[$1] = define_var; 
-              }else if (a->getType() == SMVnode::Signed){
+              }else if (a->getBVType() == SMVnode::Signed){
                 enc.signedbv_[$1] = define_var; 
               }             
 };
@@ -185,18 +185,10 @@ ivar_test:
 ivar_list:
     complex_identifier ":" type_identifier ";" {
          SMVnode *a = $3;
-<<<<<<< HEAD
-         smt::Term input = enc.rts_.make_input($1, a->getSort());
-=======
          smt::Term input = enc.rts_.make_inputvar($1, a->getSort());
-<<<<<<< HEAD
->>>>>>> fix a conflict bug
          if (a->getBVType() == SMVnode::Unsigned){
-=======
-         if (a->getType() == SMVnode::Unsigned){
->>>>>>> add more sort aliasing
            enc.unsignedbv_[$1] = input; 
-         }else if (a->getType() == SMVnode::Signed){
+         }else if (a->getBVType() == SMVnode::Signed){
            enc.signedbv_[$1] = input; 
          }
          enc.terms_[$1] = input;
@@ -211,9 +203,9 @@ var_list:
          SMVnode *a = $3;
          smt::Term state = enc.rts_.make_statevar($1, a->getSort());
          enc.terms_[$1] = state;
-         if (a->getType() == SMVnode::Unsigned){
+         if (a->getBVType() == SMVnode::Unsigned){
             enc.unsignedbv_[$1] = state; 
-         } else if(a->getType() == SMVnode::Signed){
+         } else if(a->getBVType() == SMVnode::Signed){
            enc.signedbv_[$1] = state;
          } 
     };
@@ -227,9 +219,9 @@ frozenvar_list:
       SMVnode *a = $3;
       smt::Term state = enc.rts_.make_statevar($1, a->getSort());
       enc.terms_[$1] = state;
-      if (a->getType() == SMVnode::Unsigned){
+      if (a->getBVType() == SMVnode::Unsigned){
             enc.unsignedbv_[$1] = state; 
-         } else if(a->getType() == SMVnode::Signed){
+         } else if(a->getBVType() == SMVnode::Signed){
            enc.signedbv_[$1] = state;
          } 
       smt::Term n = enc.rts_.next(state);
@@ -282,8 +274,7 @@ invarspec_list: basic_expr ";" {
 
 constant: boolean_constant {
       smt::Term con = enc.solver_->make_term($1);
-      if(con->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(con,SMVnode::BV);
-      else $$ = new SMVnode(con,SMVnode::Boolean);
+      $$ = new SMVnode(con);
 }
           | integer_constant {
             smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
@@ -299,7 +290,7 @@ constant: boolean_constant {
            $$ = $1;
           }
           | range_constant{
-            throw CosaException("Range constants are not yet supported");
+            throw CosaException("No range constant now");
           };
 
 word_value: word_index1 integer_val "_" integer_val {
@@ -324,7 +315,7 @@ word_value: word_index1 integer_val "_" integer_val {
         | word_index2 integer_val "_" integer_val {
           smt::Sort sort_ = enc.solver_->make_sort(smt::BV, stoi($2));
           std::string temp = $1;
-          SMVnode::Type bvt;
+          SMVnode::BVtype bvt;
           int base = 2;
           switch (temp[1]){
             case 'u':
@@ -365,8 +356,7 @@ boolean_constant: TOK_TRUE{
 //                $$ = $1;
 //};
 
-integer_constant: integer_val{ $$ = $1; }
-                  | neg_integer_val {$$ = $1; };
+integer_constant: integer_val{ $$ = $1; };
 
 real_constant: real_val{
   $$ = $1;
@@ -398,8 +388,7 @@ simple_expr: constant {
               } else if(enc.signedbv_.find($1) != enc.signedbv_.end()){
                 $$ = new SMVnode(tok, SMVnode::Signed);
               } else{
-                if(tok->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(tok,SMVnode::BV);
-                else if(tok -> get_sort()->get_sort_kind() == smt::BOOL) $$ = new SMVnode(tok,SMVnode::Boolean);
+                $$ = new SMVnode(tok);
               }
             }
             //| pi
@@ -416,15 +405,15 @@ simple_expr: constant {
             }
             | OP_NOT basic_expr {
               SMVnode *a = $2;
-              SMVnode::Type bvs_a = a->getType();
+              SMVnode::BVtype bvs_a = a->getBVType();
               smt::Term e = enc.solver_->make_term(smt::BVNot, a->getTerm());
               $$ = new SMVnode(e,bvs_a);
             }
             | basic_expr OP_AND basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              SMVnode::Type bvs_a = a->getType();
-              SMVnode::Type bvs_b = b->getType();
+              SMVnode::BVtype bvs_a = a->getBVType();
+              SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
                  throw CosaException("Unsigned/Signed unmatch");
               } else{
@@ -435,8 +424,8 @@ simple_expr: constant {
             | basic_expr OP_OR basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              SMVnode::Type bvs_a = a->getType();
-              SMVnode::Type bvs_b = b->getType();
+              SMVnode::BVtype bvs_a = a->getBVType();
+              SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
                  throw CosaException("Unsigned/Signed unmatch");
               } else{
@@ -447,8 +436,8 @@ simple_expr: constant {
             | basic_expr OP_XOR basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              SMVnode::Type bvs_a = a->getType();
-              SMVnode::Type bvs_b = b->getType();
+              SMVnode::BVtype bvs_a = a->getBVType();
+              SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
                  throw CosaException("Unsigned/Signed unmatch");
               } else{
@@ -459,8 +448,8 @@ simple_expr: constant {
             | basic_expr OP_XNOR basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              SMVnode::Type bvs_a = a->getType();
-              SMVnode::Type bvs_b = b->getType();
+              SMVnode::BVtype bvs_a = a->getBVType();
+              SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
                  throw CosaException("Unsigned/Signed unmatch");
               } else{
@@ -483,26 +472,25 @@ simple_expr: constant {
             | basic_expr OP_EQ basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              SMVnode::Type bvs_a = a->getType();
-              SMVnode::Type bvs_b = b->getType();
+              SMVnode::BVtype bvs_a = a->getBVType();
+              SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
                  throw CosaException("Unsigned/Signed unmatch");
               } else{
               smt::Term e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e,SMVnode::Boolean);
+              $$ = new SMVnode(e);
               }
             }
             | basic_expr OP_NEQ basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              SMVnode::Type bvs_a = a->getType();
-              SMVnode::Type bvs_b = b->getType();
+              SMVnode::BVtype bvs_a = a->getBVType();
+              SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
                  throw CosaException("Unsigned/Signed unmatch");
               } else{
                 smt::Term e = enc.solver_->make_term(smt::Distinct, a->getTerm(), b->getTerm());
-                if(e->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(e,SMVnode::BV);
-                else $$ = new SMVnode(e,SMVnode::Boolean);
+                $$ = new SMVnode(e);
               }
             }
             | basic_expr OP_LT basic_expr  {
@@ -511,19 +499,16 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
-                  if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                  else $$ = new SMVnode(res,SMVnode::Boolean);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     smt::Term res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
-                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                    $$ = new SMVnode(res);
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     smt::Term res = enc.solver_->make_term(smt::BVSlt, a->getTerm(), b->getTerm());
-                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                    $$ = new SMVnode(res);
                   } else{
                     throw CosaException ("Unsigned/Signed unmatch");
                   } 
@@ -535,19 +520,16 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
-                  if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                  else $$ = new SMVnode(res,SMVnode::Boolean);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     smt::Term res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
-                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                    $$ = new SMVnode(res);
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     smt::Term res = enc.solver_->make_term(smt::BVSgt, a->getTerm(), b->getTerm());
-                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                    $$ = new SMVnode(res);
                   } else{
                     throw CosaException ("Unsigned/Signed unmatch");
                   } 
@@ -559,19 +541,16 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ((kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());
-                  if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                  else $$ = new SMVnode(res,SMVnode::Boolean);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     smt::Term res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
-                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                    $$ = new SMVnode(res);
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     smt::Term res = enc.solver_->make_term(smt::BVSle, a->getTerm(), b->getTerm());
-                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                    $$ = new SMVnode(res);
                   } else{
                     throw CosaException ("Unsigned/Signed unmatch");
                   } 
@@ -583,19 +562,16 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ((kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm());
-                  if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                  else $$ = new SMVnode(res,SMVnode::Boolean);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     smt::Term res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
-                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                    $$ = new SMVnode(res);
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     smt::Term res = enc.solver_->make_term(smt::BVSge, a->getTerm(), b->getTerm());
-                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
-                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                    $$ = new SMVnode(res);
                   } else{
                     throw CosaException ("Unsigned/Signed unmatch");
                   } 
@@ -604,7 +580,7 @@ simple_expr: constant {
             | OP_MINUS basic_expr %prec UMINUS{
                 SMVnode *a = $2;
                 smt::Term res = enc.solver_->make_term(smt::BVNeg, a->getTerm());
-                $$ = new SMVnode(res,a->getType());
+                $$ = new SMVnode(res,a->getBVType());
             }
             | basic_expr "+" basic_expr{
               SMVnode *a = $1;
@@ -612,10 +588,10 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if(bvs_a != bvs_b){
                    throw CosaException("Unsigned/Signed unmatch");
                   } else{
@@ -630,10 +606,10 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if(bvs_a != bvs_b){
                    throw CosaException("Unsigned/Signed unmatch");
                   } else{
@@ -648,10 +624,10 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if(bvs_a != bvs_b){
                    throw CosaException("Unsigned/Signed unmatch");
                   } else{
@@ -666,10 +642,10 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     smt::Term res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Unsigned);
@@ -687,10 +663,10 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  $$ = new SMVnode(res);
               }else{
-                  SMVnode::Type bvs_a = a->getType();
-                  SMVnode::Type bvs_b = b->getType();
+                  SMVnode::BVtype bvs_a = a->getBVType();
+                  SMVnode::BVtype bvs_b = b->getBVType();
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     smt::Term res = enc.solver_->make_term(smt::BVUrem, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Unsigned);
@@ -706,19 +682,22 @@ simple_expr: constant {
               SMVnode *a = $1;
               SMVnode *b = $3;
               smt::Term res = enc.solver_->make_term(smt::BVLshr, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(res,a->getType());
+              $$ = new SMVnode(res,a->getBVType());
             }
             | basic_expr OP_SHIFTL basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
               smt::Term res = enc.solver_->make_term(smt::BVShl, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(res,a->getType());
+              $$ = new SMVnode(res,a->getBVType());
+            }
+            | basic_expr sizev {
+              throw CosaException("No word1");
             }
             | basic_expr OP_CON basic_expr  {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              SMVnode::Type bvs_a = a->getType();
-              SMVnode::Type bvs_b = b->getType();
+              SMVnode::BVtype bvs_a = a->getBVType();
+              SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
                 throw CosaException("Unsigned/Signed unmatch");
               } else{
@@ -726,14 +705,18 @@ simple_expr: constant {
                 $$ = new SMVnode(res,SMVnode::Unsigned);
               }               
             }
-            | basic_expr sizev {
+            | basic_expr "[" integer_val "]" {
                 throw CosaException("No index Subscript");
             }
-            | basic_expr "[" integer_val ":" integer_val "]"{
+            | basic_expr "[" basic_expr ":" basic_expr "]"{
                 SMVnode *a = $1;
-                SMVnode::Type bvs_a = a->getType();
-                if(bvs_a == SMVnode::Unsigned || bvs_a == SMVnode::Signed){
-                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Extract, stoi($3),stoi($5)), a->getTerm());
+                SMVnode *b = $3;
+                SMVnode *c = $5;
+                SMVnode::BVtype bvs_a = a->getBVType();
+                SMVnode::BVtype bvs_b = b->getBVType();
+                SMVnode::BVtype bvs_c = c->getBVType();
+                if(bvs_a == SMVnode::BVnot || bvs_b != SMVnode::Integer || bvs_c != SMVnode::Integer){
+                  smt::Term res = enc.solver_->make_term(smt::Extract, a->getTerm(), b->getTerm(),c->getTerm());
                   $$ = new SMVnode(res,SMVnode::Unsigned);
                 }else{
                   throw CosaException("Bit selection type is uncompatible");
@@ -826,7 +809,7 @@ simple_expr: constant {
 next_expr: TOK_NEXT "(" basic_expr ")"{
           SMVnode *a = $3;
           smt::Term n = enc.rts_.next(a->getTerm());
-          $$ = new SMVnode(n,a->getType());
+          $$ = new SMVnode(n,a->getBVType());
 };
 
 case_expr: TOK_CASE case_body TOK_ESAC {
@@ -844,8 +827,8 @@ case_expr: TOK_CASE case_body TOK_ESAC {
             cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first);
             final_term = e;
           }
-          enc.casestore_.push_back(final_term);
-          enc.casecheck_.push_back(cond);
+          enc.casestore_[case_start] = final_term;
+          enc.casecheck_[case_start] = cond;
           $$ = new SMVnode(final_term);
 }
 
@@ -884,13 +867,12 @@ type_identifier: real_type{
                 }
                 | integer_type{
                   smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
-                  $$ =  new SMVnode (sort_,SMVnode::Integer);
+                  $$ =  new SMVnode (sort_,SMVnode::BVnot);
                   //throw CosaException("No integer type now in boolector");  
                 }
                 | bool_type {
                 smt::Sort sort_ = enc.solver_->make_sort(smt::BOOL);
-                if (sort_->get_sort_kind() == smt::BOOL) $$ =  new SMVnode (sort_,SMVnode::BV);
-                else $$ =  new SMVnode (sort_,SMVnode::Boolean);
+                $$ =  new SMVnode (sort_,SMVnode::BVnot);
                 }
                 | array_type{
                   $$ = $1 ;

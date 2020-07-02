@@ -15,25 +15,12 @@ elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.1 OR APPLE)
   set(CMAKE_CXX17_EXTENSION_COMPILE_OPTION "-std=gnu++1z")
 endif()
 
-# handle different versions of CMake
-if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
-  set(CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++17")
-  set(CMAKE_CXX17_EXTENSION_COMPILE_OPTION "-std=gnu++17")
-elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.1 OR APPLE)
-  set(CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++1z")
-  set(CMAKE_CXX17_EXTENSION_COMPILE_OPTION "-std=gnu++1z")
-endif()
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-<<<<<<< HEAD
 add_definitions(-DPONO_SRC_DIR=${PROJECT_SOURCE_DIR})
-=======
-add_definitions(-DCOSA2_SRC_DIR=${PROJECT_SOURCE_DIR})
->>>>>>> CoreIR Encoder (#33)
 
 if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
@@ -139,17 +126,10 @@ set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 
 if (WITH_COREIR)
   add_definitions(-DWITH_COREIR)
-<<<<<<< HEAD
   target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
 target_include_directories(pono-lib PUBLIC
-=======
-  target_sources(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
-endif()
-
-target_include_directories(cosa2-lib PUBLIC
->>>>>>> CoreIR Encoder (#33)
   "${PROJECT_SOURCE_DIR}/utils"
   "${PROJECT_SOURCE_DIR}/core"
   "${PROJECT_SOURCE_DIR}/contrib/"
@@ -176,11 +156,7 @@ if (BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
 
-<<<<<<< HEAD
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.a")
-=======
-target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.a")
->>>>>>> CoreIR Encoder (#33)
 
 if (WITH_MSAT)
   target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.a")
@@ -196,25 +172,11 @@ if (WITH_COREIR)
   target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
 endif()
 
-<<<<<<< HEAD
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(pono-lib PUBLIC gmp)
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
-=======
-if (WITH_COREIR)
-  target_include_directories(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
-  target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
-  target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
-endif()
-
-target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.a")
-target_link_libraries(cosa2-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
-target_link_libraries(cosa2-lib PUBLIC gmp)
-target_link_libraries(cosa2-lib PUBLIC pthread)
-target_link_libraries(cosa2-lib PUBLIC y)
->>>>>>> CoreIR Encoder (#33)
 
 enable_testing()
 # Add tests subdirectory
