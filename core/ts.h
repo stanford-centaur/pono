@@ -45,6 +45,15 @@ class TransitionSystem
   {
   }
 
+  /** Specialized copy-constructor that moves terms to new solver
+   *  the solver is in the term translator
+   *  the TransitinSystem doesn't keep the TermTranslator because
+   *  it should not be connected to the other TransitionSystems
+   *  i.e. it should not have any references to old Terms
+   *  which would be kept in the TermTranslator cache
+   */
+  TransitionSystem(const TransitionSystem & other_ts, smt::TermTranslator & tt);
+
   virtual ~TransitionSystem(){};
 
   /* Sets initial states to the provided formula
@@ -141,9 +150,9 @@ class TransitionSystem
   // getters
   smt::SmtSolver & solver() { return solver_; };
 
-  const smt::UnorderedTermSet & statevars() const { return states_; };
+  const smt::UnorderedTermSet & statevars() const { return statevars_; };
 
-  const smt::UnorderedTermSet & inputvars() const { return inputs_; };
+  const smt::UnorderedTermSet & inputvars() const { return inputvars_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
@@ -328,7 +337,7 @@ class TransitionSystem
   smt::UnorderedTermMap state_updates_;
 
   // system state variables
-  smt::UnorderedTermSet states_;
+  smt::UnorderedTermSet statevars_;
 
   // maps states and inputs variables to next versions
   // note: the next state variables are only used
@@ -337,11 +346,11 @@ class TransitionSystem
   smt::UnorderedTermMap next_map_;
 
   // system inputs
-  smt::UnorderedTermSet inputs_;
+  smt::UnorderedTermSet inputvars_;
 
   // mapping from names to terms
   std::unordered_map<std::string, smt::Term> named_terms_;
-  smt::UnorderedTermSet next_states_;
+  smt::UnorderedTermSet next_statevars_;
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
 
