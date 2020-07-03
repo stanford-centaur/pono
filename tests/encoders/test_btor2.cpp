@@ -17,6 +17,10 @@ using namespace std;
 
 namespace pono_tests {
 
+// BTOR2 systems that are too large to check semantic equality
+// of the terms
+const unordered_set<string> large_files({ "ridecore.btor" });
+
 class Btor2UnitTests
     : public ::testing::Test,
       public ::testing::WithParamInterface<tuple<SolverEnum, string>>
@@ -97,13 +101,16 @@ TEST_P(Btor2UnitTests, CopyFromDefault)
   EXPECT_TRUE(r.is_unsat());
   fts_solver->pop();
 
-  // TRANS
-  fts_solver->push();
-  fts_solver->assert_formula(
-      fts_solver->make_term(Distinct, fts.trans(), fts_2.trans()));
-  r = fts_solver->check_sat();
-  EXPECT_TRUE(r.is_unsat());
-  fts_solver->pop();
+  // this check is too expensive on large systems
+  if (large_files.find(get<1>(GetParam())) == large_files.end()) {
+    // TRANS
+    fts_solver->push();
+    fts_solver->assert_formula(
+        fts_solver->make_term(Distinct, fts.trans(), fts_2.trans()));
+    r = fts_solver->check_sat();
+    EXPECT_TRUE(r.is_unsat());
+    fts_solver->pop();
+  }
 }
 
 TEST_P(Btor2UnitTests, CopyToDefault)
@@ -169,18 +176,27 @@ TEST_P(Btor2UnitTests, CopyToDefault)
   EXPECT_TRUE(r.is_unsat());
   s->pop();
 
-  // TRANS
-  s->push();
-  s->assert_formula(s->make_term(Distinct, fts.trans(), fts_2.trans()));
-  r = s->check_sat();
-  EXPECT_TRUE(r.is_unsat());
-  s->pop();
+  // HACK -- only check large systems with boolector
+  // otherwise the tests take too long for large files
+  if (large_files.find(get<1>(GetParam())) == large_files.end()
+      || s->get_solver_enum() == smt::BTOR) {
+    // TRANS
+    s->push();
+    s->assert_formula(s->make_term(Distinct, fts.trans(), fts_2.trans()));
+    r = s->check_sat();
+    EXPECT_TRUE(r.is_unsat());
+    s->pop();
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverBtor2UnitTests,
     Btor2UnitTests,
     testing::Combine(testing::ValuesIn(available_solver_enums()),
-                     testing::ValuesIn(vector<string>{ "counter.btor" })));
+                     testing::ValuesIn(vector<string>{ "counter.btor",
+                                                       "counter-true.btor",
+                                                       "mem.btor",
+                                                       "ridecore.btor",
+                                                       "state2input.btor" })));
 
 }  // namespace pono_tests
