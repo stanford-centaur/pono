@@ -14,6 +14,8 @@
  **
  **/
 
+#include "assert.h"
+
 #include "ts.h"
 
 using namespace smt;
@@ -25,33 +27,44 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
                                    TermTranslator & tt)
 {
   solver_ = tt.get_solver();
-  init_ = tt.transfer_term(other_ts.init_);
-  trans_ = tt.transfer_term(other_ts.trans_);
+  // transfer init and trans -- expect them to be boolean
+  // will cast if underlying solver aliases Bool/BV1
+  init_ = tt.transfer_term(other_ts.init_, BOOL);
+  trans_ = tt.transfer_term(other_ts.trans_, BOOL);
 
   // populate data structures with translated terms
-  for (auto elem : other_ts.state_updates_) {
-    state_updates_[tt.transfer_term(elem.first)] =
-        tt.transfer_term(elem.second);
-  }
 
   for (auto v : other_ts.statevars_) {
     statevars_.insert(tt.transfer_term(v));
-  }
-
-  for (auto elem : other_ts.next_map_) {
-    next_map_[tt.transfer_term(elem.first)] = tt.transfer_term(elem.second);
   }
 
   for (auto v : other_ts.inputvars_) {
     inputvars_.insert(tt.transfer_term(v));
   }
 
+  for (auto v : other_ts.next_statevars_) {
+    next_statevars_.insert(tt.transfer_term(v));
+  }
+
   for (auto elem : other_ts.named_terms_) {
     named_terms_[elem.first] = tt.transfer_term(elem.second);
   }
 
-  for (auto v : other_ts.next_statevars_) {
-    next_statevars_.insert(tt.transfer_term(v));
+  // variables might have already be in the TermTranslator cache
+  // with a different sort (due to sort aliasing)
+  // use the SortKind as a hint when transferring
+  // sorts of the two terms should match for state updates and next_map
+  Term key, val;
+  for (auto elem : other_ts.state_updates_) {
+    key = tt.transfer_term(elem.first);
+    val = tt.transfer_term(elem.second, key->get_sort()->get_sort_kind());
+    assert(key->get_sort() == val->get_sort());
+    state_updates_[key] = val;
+  }
+  for (auto elem : other_ts.next_map_) {
+    key = tt.transfer_term(elem.first);
+    val = tt.transfer_term(elem.second, key->get_sort()->get_sort_kind());
+    next_map_[key] = val;
   }
 
   for (auto elem : other_ts.curr_map_) {

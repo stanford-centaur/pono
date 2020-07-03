@@ -333,11 +333,20 @@ class TransitionSystem
   // transition relation (functional in this class)
   smt::Term trans_;
 
-  // next state update function
-  smt::UnorderedTermMap state_updates_;
-
   // system state variables
   smt::UnorderedTermSet statevars_;
+
+  // set of next state variables
+  smt::UnorderedTermSet next_statevars_;
+
+  // system inputs
+  smt::UnorderedTermSet inputvars_;
+
+  // mapping from names to terms
+  std::unordered_map<std::string, smt::Term> named_terms_;
+
+  // next state update function
+  smt::UnorderedTermMap state_updates_;
 
   // maps states and inputs variables to next versions
   // note: the next state variables are only used
@@ -345,12 +354,6 @@ class TransitionSystem
   //       trans for functional transition systems
   smt::UnorderedTermMap next_map_;
 
-  // system inputs
-  smt::UnorderedTermSet inputvars_;
-
-  // mapping from names to terms
-  std::unordered_map<std::string, smt::Term> named_terms_;
-  smt::UnorderedTermSet next_statevars_;
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
 
