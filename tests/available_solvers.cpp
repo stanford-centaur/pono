@@ -5,11 +5,7 @@ using namespace smt;
 namespace pono_tests {
 
 const std::vector<SolverEnum> solver_enums({
-  BTOR,
-
-#if WITH_CVC4
-      CVC4,
-#endif
+  BTOR, CVC4,
 
 #if WITH_MSAT
       MSAT,
@@ -17,11 +13,7 @@ const std::vector<SolverEnum> solver_enums({
 });
 
 const CreateSolverFunsMap solvers({
-  { BTOR, BoolectorSolverFactory::create },
-
-#if WITH_CVC4
-      { CVC4, CVC4SolverFactory::create },
-#endif
+  { BTOR, BoolectorSolverFactory::create }, { CVC4, CVC4SolverFactory::create },
 
 #if WITH_MSAT
       { MSAT, MsatSolverFactory::create },
