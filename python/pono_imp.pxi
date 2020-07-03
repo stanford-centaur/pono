@@ -24,16 +24,20 @@ IF WITH_COREIR == "ON":
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from pono_imp cimport get_free_symbols as c_get_free_symbols
 
-from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
+from smt_switch cimport SmtSolver, PrimOp, Op, c_SortKind, SortKind, \
+    c_Sort, Sort, Term, c_Term, c_UnorderedTermMap
 
 from enum import Enum
 
 ctypedef unordered_set[c_Term] c_UnorderedTermSet
 ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr
 ctypedef unordered_set[c_Term].const_iterator c_UnorderedTermSet_const_iterator
+ctypedef vector[c_Term] c_TermVec
 
 ctypedef const unordered_map[c_Term, c_Term]* const_UnorderedTermMapPtr
 ctypedef unordered_map[c_Term, c_Term].const_iterator c_UnorderedTermMap_const_iterator
+
+ctypedef vector[c_Sort] c_SortVec
 
 cdef class __AbstractTransitionSystem:
     cdef c_TransitionSystem* cts
@@ -181,6 +185,86 @@ cdef class __AbstractTransitionSystem:
 
     def is_functional(self):
         return dref(self.cts).is_functional()
+
+    def make_sort(self, arg0, arg1=None, arg2=None, arg3=None):
+        cdef Sort s = Sort(self)
+        cdef c_SortKind sk
+        cdef c_SortVec csv
+
+        if isinstance(arg0, str):
+            s.cs = dref(self.cts).make_sort(<const string> arg0.encode(), <int?> arg1)
+        elif isinstance(arg0, SortKind):
+            sk = (<SortKind> arg0).sk
+            if arg1 is None:
+                s.cs = dref(self.cts).make_sort(sk)
+            elif isinstance(arg1, int) and arg2 is None:
+                s.cs = dref(self.cts).make_sort(sk, <int> arg1)
+            elif isinstance(arg1, Sort) and arg2 is None:
+                s.cs = dref(self.cts).make_sort(sk, (<Sort> arg1).cs)
+            elif isinstance(arg1, list) and arg2 is None:
+                for a in arg1:
+                    csv.push_back((<Sort?> a).cs)
+                s.cs = dref(self.cts).make_sort(sk, csv)
+            elif arg3 is None:
+                s.cs = dref(self.cts).make_sort(sk, (<Sort?> arg1).cs, (<Sort?> arg2).cs)
+            elif arg3 is not None:
+                s.cs = dref(self.cts).make_sort(sk, (<Sort?> arg1).cs,
+                                                    (<Sort?> arg2).cs,
+                                                    (<Sort?> arg3).cs)
+            else:
+                raise ValueError("Cannot find matching function for {}".format([type(a)
+                                                                                for a in
+                                                                                [arg0, arg1, arg2, arg3]]))
+        else:
+            raise ValueError("Cannot find matching function for {}".format([type(a)
+                                                                            for a in
+                                                                            [arg0, arg1, arg2, arg3]]))
+        return s
+
+    def make_term(self, op_or_val, *args):
+        cdef Term term = Term(self)
+        cdef c_TermVec ctv
+
+        if isinstance(op_or_val, PrimOp):
+            op_or_val = Op(op_or_val)
+
+        # expand a list argument
+        if len(args) > 0:
+            if (isinstance(args[0], list) and len(args) > 1) or \
+               any([isinstance(a, list) for a in args[1:]]):
+                raise ValueError("Cannot call make_term with signature {}".format([type(a) for a in args]))
+            elif isinstance(args[0], list):
+                # expand arguments in list to be args
+                args = args[0]
+
+        if isinstance(op_or_val, Op):
+            if not op_or_val:
+                raise ValueError("Got a null Op in make_term")
+
+            if not args:
+                raise ValueError("Can't call make_term with an Op ({}) and no arguments".format(op_or_val))
+
+            for a in args:
+                ctv.push_back((<Term?> a).ct)
+            term.ct = dref(self.cts).make_term((<Op> op_or_val).op, ctv)
+        elif isinstance(op_or_val, bool) and len(args) == 0:
+            term.ct = dref(self.cts).make_term(<bint> op_or_val)
+        elif isinstance(op_or_val, str) and len(args) == 1 and isinstance(args[0], Sort):
+            term.ct = dref(self.cts).make_term(<const string> op_or_val.encode(), (<Sort> args[0]).cs)
+        elif isinstance(op_or_val, str) and len(args) == 2 and isinstance(args[0], Sort):
+            term.ct = dref(self.cts).make_term(<const string> op_or_val.encode(),
+                                               (<Sort> args[0]).cs,
+                                               <int?> args[1])
+        elif isinstance(op_or_val, int) and len(args) == 1 and isinstance(args[0], Sort):
+            # always use the string representation of integers (to handle large ints)
+            term.ct = dref(self.cts).make_term((<const string?> str(op_or_val).encode()), (<Sort> args[0]).cs)
+        elif isinstance(op_or_val, Term) and len(args) == 1 and isinstance(args[0], Sort):
+            # this is for creating a constant array
+            term.ct = dref(self.cts).make_term((<Term?> op_or_val).ct, (<Sort?> args[0]).cs)
+        else:
+            raise ValueError("Couldn't find matching function for {}".format([type(a)
+                                                                              for a in [op_or_val] + args]))
+        return term
 
 
 cdef class RelationalTransitionSystem(__AbstractTransitionSystem):
