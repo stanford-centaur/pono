@@ -10,11 +10,11 @@
 
 #include "available_solvers.h"
 
-using namespace cosa;
+using namespace pono;
 using namespace smt;
 using namespace std;
 
-namespace cosa_tests {
+namespace pono_tests {
 
 class UnrollerUnitTests : public ::testing::Test,
                           public ::testing::WithParamInterface<SolverEnum>

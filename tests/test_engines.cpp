@@ -14,11 +14,11 @@
 
 #include "available_solvers.h"
 
-using namespace cosa;
+using namespace pono;
 using namespace smt;
 using namespace std;
 
-namespace cosa_tests {
+namespace pono_tests {
 
 enum TSEnum
 {
@@ -246,4 +246,4 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedInterpWinTests,
                          testing::ValuesIn({ Functional, Relational }));
 #endif
 
-}  // namespace cosa_tests
+}  // namespace pono_tests

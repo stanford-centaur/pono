@@ -1,26 +1,25 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #pragma once
 
 #include <string>
 #include <unordered_map>
 
-namespace cosa {
+namespace pono {
 
 // Engine options
 enum Engine
@@ -42,7 +41,7 @@ const Engine to_engine(std::string s)
   if (str2engine.find(s) != str2engine.end()) {
     return str2engine.at(s);
   } else {
-    throw CosaException("Unrecognized engine: " + s);
+    throw PonoException("Unrecognized engine: " + s);
   }
 }
 
@@ -52,6 +51,7 @@ static const Engine default_engine = BMC;
 static const unsigned int default_prop_idx = 0;
 static const unsigned int default_bound = 10;
 static const unsigned int default_verbosity = 0;
+static const bool default_no_witness = false;
 /********************************* End Default Values
  * ********************************/
-}  // namespace cosa
+}  // namespace pono

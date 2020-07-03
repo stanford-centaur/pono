@@ -1,6 +1,6 @@
 #include "proverresult.h"
 
-namespace cosa {
+namespace pono {
 
 std::string to_string(ProverResult r)
 {
@@ -13,4 +13,4 @@ std::string to_string(ProverResult r)
   }
 }
 
-}  // namespace cosa
+}  // namespace pono

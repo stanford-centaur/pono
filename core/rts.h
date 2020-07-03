@@ -3,7 +3,7 @@
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
-** This file is part of the cosa2 project.
+** This file is part of the pono project.
 ** Copyright (c) 2019 by the authors listed in the file AUTHORS
 ** in the top-level source directory) and their institutional affiliations.
 ** All rights reserved.  See the file LICENSE in the top-level source
@@ -18,7 +18,7 @@
 
 #include "core/ts.h"
 
-namespace cosa {
+namespace pono {
 
 class RelationalTransitionSystem : public TransitionSystem
 {
@@ -44,4 +44,4 @@ class RelationalTransitionSystem : public TransitionSystem
   bool is_functional() const override { return false; };
 };
 
-}  // namespace cosa
+}  // namespace pono

@@ -1,26 +1,25 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Ahmed Irfan, Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include "bmc.h"
 #include "utils/logger.h"
 
 using namespace smt;
 
-namespace cosa {
+namespace pono {
 
 Bmc::Bmc(const Property & p, SmtSolver & solver) : super(p, solver)
 {
@@ -76,4 +75,4 @@ bool Bmc::step(int i)
   return res;
 }
 
-}  // namespace cosa
+}  // namespace pono

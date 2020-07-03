@@ -14,7 +14,7 @@
 %code requires{
   #include "smv_node.h"
   #include <string>
-  namespace cosa{
+  namespace pono{
     class SMVEncoder;
     class SMVscanner;
   }
@@ -38,7 +38,7 @@
 %define parse.error verbose
 %define api.token.constructor
 %define api.value.type variant
-%define api.namespace{cosa}
+%define api.namespace{pono}
 %define api.parser.class{smvparser}
 
 %token MODULE MAIN IVAR INVAR VAR FROZENVAR INVARSPEC
@@ -290,8 +290,11 @@ constant: boolean_constant {
           | word_value {
            $$ = $1;
           }
+//          | symbolic_constant{
+//            throw PonoException("No symbolic constant now");
+//          }
           | range_constant{
-            throw CosaException("Range constants are not yet supported");
+            throw PonoException("Range constants are not yet supported");
           };
 
 word_value: word_index1 integer_val "_" integer_val {
@@ -375,7 +378,7 @@ exponential_number: integer_val exponential_prefix "-" integer_val{  $$ =  $1 + 
 | float_number exponential_prefix "-" integer_val {  $$ =  $1 + $2 + "-" + $4; };
 
 range_constant: integer_val TO integer_val{
-  throw CosaException("No range constant now");
+  throw PonoException("No range constant now");
 };
 basic_expr: simple_expr{ $$ = $1;}
           | next_expr{ $$ = $1;}
@@ -720,7 +723,7 @@ simple_expr: constant {
               }               
             }
             | basic_expr sizev {
-                throw CosaException("No index Subscript");
+                throw PonoException("No index Subscript");
             }
             | basic_expr "[" integer_val ":" integer_val "]"{
                 SMVnode *a = $1;
@@ -729,26 +732,26 @@ simple_expr: constant {
                   smt::Term res = enc.solver_->make_term(smt::Op(smt::Extract, stoi($3),stoi($5)), a->getTerm());
                   $$ = new SMVnode(res,SMVnode::Unsigned);
                 }else{
-                  throw CosaException("Bit selection type is uncompatible");
+                  throw PonoException("Bit selection type is uncompatible");
                 }
             }
             | word1 "(" basic_expr ")" {
-              throw CosaException("No word1");
+              throw PonoException("No word1");
             }
             | tok_bool "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_toint "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_count "(" basic_expr_list ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | swconst "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | uwconst "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_signed "(" basic_expr ")"{
                 $$ = $3;
@@ -757,31 +760,31 @@ simple_expr: constant {
                 $$ = $3;
             }
             | tok_sizeof "(" basic_expr ")"{
-              throw CosaException("No array size");
+              throw PonoException("No array size");
             }
             | tok_floor "(" basic_expr ")"{
-              throw CosaException("No floor operation");
+              throw PonoException("No floor operation");
             }
             | extend "(" basic_expr ")"{
-              throw CosaException("No extend now");
+              throw PonoException("No extend now");
             }
             | resize "(" basic_expr ")" {
-              throw CosaException("No resize");
+              throw PonoException("No resize");
             }
             | signed_word sizev "(" basic_expr ")"{
-               throw CosaException("No resize");
+               throw PonoException("No resize");
             }
             | unsigned_word sizev "(" basic_expr ")"{
-               throw CosaException("No resize");
+               throw PonoException("No resize");
             }
             | basic_expr UNION  basic_expr {
-               throw CosaException("No union");
+               throw PonoException("No union");
             }
             |"{" set_body_expr "}" {
-               throw CosaException("No set");
+               throw PonoException("No set");
             }
             | basic_expr OP_IN basic_expr {
-               throw CosaException("No array");
+               throw PonoException("No array");
             }
             | basic_expr IF_ELSE basic_expr ":" basic_expr  {
                  SMVnode *a = $1;
@@ -804,13 +807,13 @@ simple_expr: constant {
             $$ = new SMVnode(read_r);
           }
           | CONSTARRAY "(" tok_typeof "(" complex_identifier ")" "," basic_expr ")" {
-             throw CosaException("No constarray");
+             throw PonoException("No constarray");
           }
           | CONSTARRAY "(" arrayword sizev of type_identifier "," basic_expr ")" {
-            throw CosaException("No constarray");
+            throw PonoException("No constarray");
           }
           | CONSTARRAY "(" arrayinteger of type_identifier "," basic_expr ")" {
-            throw CosaException("No constarray");
+            throw PonoException("No constarray");
           }
           | case_expr {
             $$ = $1;
@@ -873,12 +876,12 @@ complex_identifier: tok_name{
 type_identifier: real_type{
                 smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
                 $$ =  new SMVnode (sort_,SMVnode::BVnot);
-                //throw CosaException("No real type now in boolector");
+                //throw PonoException("No real type now in boolector");
                 }
                 | integer_type{
                   smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
                   $$ =  new SMVnode (sort_,SMVnode::Integer);
-                  //throw CosaException("No integer type now in boolector");  
+                  //throw PonoException("No integer type now in boolector");  
                 }
                 | bool_type {
                 smt::Sort sort_ = enc.solver_->make_sort(smt::BOOL);
@@ -892,7 +895,7 @@ type_identifier: real_type{
                 $$ = $1;
 }           
                 | integer_val TO integer_val{
-                  throw CosaException("No range now");
+                  throw PonoException("No range now");
                 };
 
 word_type: signed_word sizev {
@@ -915,10 +918,10 @@ array_type: arrayword sizev of type_identifier{
             $$ = new SMVnode(sort_);
           }
           | arrayinteger of type_identifier{
-            throw CosaException("no array integer type now");
+            throw PonoException("no array integer type now");
           }
           | array_tok of type_identifier{
-            throw CosaException("No other array now");
+            throw PonoException("No other array now");
           };
 
 sizev:

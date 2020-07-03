@@ -10,7 +10,7 @@
 #include "smt-switch/smt.h"
 
 /* node to help construct syntax tree in the parser */
-namespace cosa {
+namespace pono {
 struct SMVnode
 {
   enum Nodetype
@@ -60,4 +60,4 @@ struct SMVnode
   smt::Sort getSort() { return st; }
   smt::Term getTerm() { return tm; }
 };  // struct SMVNode
-}  // namespace cosa
+}  // namespace pono

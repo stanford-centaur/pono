@@ -20,11 +20,11 @@
 #include "smvparser.h"
 #include "smvscanner.h"
 
-namespace cosa{
+namespace pono{
 class SMVEncoder
 {
  public:
-  SMVEncoder(std::string filename, cosa::RelationalTransitionSystem & rts)
+  SMVEncoder(std::string filename, pono::RelationalTransitionSystem & rts)
       : rts_(rts), solver_(rts.solver())
   {
     parse(filename);
@@ -55,4 +55,4 @@ class SMVEncoder
   //std::unordered_map<int, smt::Term> casestore_;
   std::vector<std::pair<smt::Term, smt::Term>> caseterm_;
 };  // class SMVEncoder
-}  // namespace cosa
+}  // namespace pono

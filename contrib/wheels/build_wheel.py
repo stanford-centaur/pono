@@ -80,7 +80,7 @@ class CMakeBuild(build_ext):
 
         # build the main library
         subprocess.check_call(
-            ['cmake', '--build', '.', "--target", "cosa2"] + build_args, cwd=build_dir)
+            ['cmake', '--build', '.', "--target", "pono"] + build_args, cwd=build_dir)
         # build the python binding
         python_build_dir = os.path.join(build_dir, "python")
         subprocess.check_call(["make"], cwd=python_build_dir)
@@ -89,7 +89,7 @@ class CMakeBuild(build_ext):
         if not os.path.isdir(extdir):
             os.mkdir(extdir)
 
-        for lib_filename in glob.glob(os.path.join(python_build_dir, "pycosa2.*")):
+        for lib_filename in glob.glob(os.path.join(python_build_dir, "pypono.*")):
             if os.path.splitext(lib_filename)[1] == ".cxx":
                 continue
             dst_filename = os.path.join(extdir, os.path.basename(lib_filename))
@@ -97,13 +97,13 @@ class CMakeBuild(build_ext):
 
 
 setup(
-    name='cosa2',
+    name='pono',
     version='0.1.0',
     author='Makai Mann',
-    ext_modules=[CMakeExtension('cosa2')],
+    ext_modules=[CMakeExtension('pono')],
     cmdclass=dict(build_ext=CMakeBuild),
-    long_description='python bindings for the next generation cosa',
-    url='https://github.com/upscale-project/cosa2',
+    long_description='python bindings for the next generation pono',
+    url='https://github.com/upscale-project/pono',
     license='BSD',
     tests_require=['pytest'],
     zip_safe=False,
