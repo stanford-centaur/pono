@@ -182,6 +182,138 @@ class TransitionSystem
    * states */
   bool no_next(const smt::Term & term) const;
 
+  // term building functionality -- forwards to the underlying SmtSolver
+  // assumes all Terms/Sorts belong to solver_
+  // e.g. should only use it on terms created by this TransitionSystem
+
+  /* Make an uninterpreted sort
+   * SMTLIB: (declare-sort <name> <arity>)
+   * @param name the name of the sort
+   * @param arity the arity of the sort
+   * @return a Sort object
+   */
+  smt::Sort make_sort(const std::string name, uint64_t arity);
+
+  /* Create a sort
+   * @param sk the SortKind (BOOL, INT, REAL)
+   * @return a Sort object
+   */
+  smt::Sort make_sort(const smt::SortKind sk);
+
+  /* Create a sort
+   * @param sk the SortKind (BV)
+   * @param size (e.g. bitvector width for BV SortKind)
+   * @return a Sort object
+   */
+  smt::Sort make_sort(const smt::SortKind sk, uint64_t size);
+
+  /* Create a sort
+   * @param sk the SortKind
+   * @param sort1 first sort
+   * @return a Sort object
+   * this method is currently unused but kept for API consistency
+   */
+  smt::Sort make_sort(const smt::SortKind sk, const smt::Sort & sort1);
+
+  /* Create a sort
+   * @param sk the SortKind
+   * @param sort1 first sort
+   * @param sort2 second sort
+   * @return a Sort object
+   * When sk == ARRAY, sort1 is the index sort and sort2 is the element sort
+   */
+  smt::Sort make_sort(const smt::SortKind sk,
+                      const smt::Sort & sort1,
+                      const smt::Sort & sort2);
+
+  /* Create a sort
+   * @param sk the SortKind
+   * @param sort1 first sort
+   * @param sort2 second sort
+   * @param sort3 third sort
+   * @return a Sort object
+   */
+  smt::Sort make_sort(const smt::SortKind sk,
+                      const smt::Sort & sort1,
+                      const smt::Sort & sort2,
+                      const smt::Sort & sort3);
+
+  /* Create a sort
+   * @param sk the SortKind (FUNCTION)
+   * @param sorts a vector of sorts (for function SortKind, last sort is return
+   * type)
+   * @return a Sort object
+   * Note: This is the only way to make a function sort
+   */
+  smt::Sort make_sort(const smt::SortKind sk, const smt::SortVec & sorts);
+
+  /* Make a boolean value term
+   * @param b boolean value
+   * @return a value term with Sort BOOL and value b
+   */
+  smt::Term make_term(bool b);
+
+  /* Make a bit-vector, int or real value term
+   * @param i the value
+   * @param sort the sort to create
+   * @return a value term with Sort sort and value i
+   */
+  smt::Term make_term(int64_t i, const smt::Sort & sort);
+
+  /* Make a bit-vector, int, real or (in the future) string value term
+   * @param val the numeric value as a string, or a string value
+   * @param sort the sort to create
+   * @param base the base to interpret the value, for bit-vector sorts (ignored
+   * otherwise)
+   * @return a value term with Sort sort and value val
+   */
+  smt::Term make_term(const std::string val,
+                      const smt::Sort & sort,
+                      uint64_t base = 10);
+
+  /* Make a value of a particular sort, such as constant arrays
+   * @param val the Term used to create the value (.e.g constant array with 0)
+   * @param sort the sort of value to create
+   * @return a value term with Sort sort
+   */
+  smt::Term make_term(const smt::Term & val, const smt::Sort & sort);
+
+  /* Make a new term
+   * @param op the operator to use
+   * @param t the child term
+   * @return the created term
+   */
+  smt::Term make_term(const smt::Op op, const smt::Term & t);
+
+  /* Make a new term
+   * @param op the operator to use
+   * @param t0 the first child term
+   * @param t1 the second child term
+   * @return the created term
+   */
+  smt::Term make_term(const smt::Op op,
+                      const smt::Term & t0,
+                      const smt::Term & t1);
+
+  /* Make a new term
+   * @param op the operator to use
+   * @param t0 the first child term
+   * @param t1 the second child term
+   * @param t2 the third child term
+   * @return the created term
+   */
+  smt::Term make_term(const smt::Op op,
+                      const smt::Term & t0,
+                      const smt::Term & t1,
+                      const smt::Term & t2);
+
+  /* Make a new term
+   * @param op the operator to use
+   * @param terms vector of children
+   * @return the created term
+   */
+  smt::Term make_term(const smt::Op op, const smt::TermVec & terms);
+
  protected:
   // solver
   smt::SmtSolver solver_;

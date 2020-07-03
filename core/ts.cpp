@@ -146,6 +146,90 @@ bool TransitionSystem::is_next_var(const Term & sv) const
   return (next_states_.find(sv) != next_states_.end());
 }
 
+// term building methods -- forwards to SmtSolver solver_
+
+Sort TransitionSystem::make_sort(const std::string name, uint64_t arity)
+{
+  return solver_->make_sort(name, arity);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk)
+{
+  return solver_->make_sort(sk);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk, uint64_t size)
+{
+  return solver_->make_sort(sk, size);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk, const Sort & sort1)
+{
+  return solver_->make_sort(sk, sort1);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk,
+                                 const Sort & sort1,
+                                 const Sort & sort2)
+{
+  return solver_->make_sort(sk, sort1, sort2);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk,
+                                 const Sort & sort1,
+                                 const Sort & sort2,
+                                 const Sort & sort3)
+{
+  return solver_->make_sort(sk, sort1, sort2, sort3);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk, const SortVec & sorts)
+{
+  return solver_->make_sort(sk, sorts);
+}
+
+Term TransitionSystem::make_term(bool b) { return solver_->make_term(b); }
+
+Term TransitionSystem::make_term(int64_t i, const Sort & sort)
+{
+  return solver_->make_term(i, sort);
+}
+
+Term TransitionSystem::make_term(const std::string val,
+                                 const Sort & sort,
+                                 uint64_t base)
+{
+  return solver_->make_term(val, sort, base);
+}
+
+Term TransitionSystem::make_term(const Term & val, const Sort & sort)
+{
+  return solver_->make_term(val, sort);
+}
+
+Term TransitionSystem::make_term(const Op op, const Term & t)
+{
+  return solver_->make_term(op, t);
+}
+
+Term TransitionSystem::make_term(const Op op, const Term & t0, const Term & t1)
+{
+  return solver_->make_term(op, t0, t1);
+}
+
+Term TransitionSystem::make_term(const Op op,
+                                 const Term & t0,
+                                 const Term & t1,
+                                 const Term & t2)
+{
+  return solver_->make_term(op, t0, t1, t2);
+}
+
+Term TransitionSystem::make_term(const Op op, const TermVec & terms)
+{
+  return solver_->make_term(op, terms);
+}
+
 // protected methods
 
 bool TransitionSystem::contains(const Term & term,
