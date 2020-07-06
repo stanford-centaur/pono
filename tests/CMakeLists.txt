@@ -29,6 +29,7 @@ endif()
 add_library(available-solvers SHARED
   "${PROJECT_SOURCE_DIR}/tests/available_solvers.cpp")
 target_include_directories(available-solvers PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
+target_include_directories(available-solvers PUBLIC "${PROJECT_SOURCE_DIR}/tests/encoders")
 # Rely on cmake link forwarding to link available-solvers with relevant smt-switch libs
 target_link_libraries(available-solvers PUBLIC pono-lib)
 
@@ -51,6 +52,12 @@ target_link_libraries(test_engines gtest_main)
 target_link_libraries(test_engines pono-lib)
 target_link_libraries(test_engines available-solvers)
 add_test(NAME test_engines COMMAND test_engines)
+
+add_executable(test_btor2_ts_copy_equal "${PROJECT_SOURCE_DIR}/tests/test_btor2_ts_copy_equal.cpp")
+target_link_libraries(test_btor2_ts_copy_equal gtest_main)
+target_link_libraries(test_btor2_ts_copy_equal pono-lib)
+target_link_libraries(test_btor2_ts_copy_equal available-solvers)
+add_test(NAME test_btor2_ts_copy_equal COMMAND test_btor2_ts_copy_equal)
 
 add_executable(test_coreir "${PROJECT_SOURCE_DIR}/tests/encoders/test_coreir.cpp")
 target_link_libraries(test_coreir gtest_main)

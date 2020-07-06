@@ -1,6 +1,4 @@
 #ifdef WITH_COREIR
-#define STRHELPER(A) #A
-#define STRFY(A) STRHELPER(A)
 
 #include <string>
 #include <tuple>
@@ -9,6 +7,8 @@
 #include "gtest/gtest.h"
 
 #include "available_solvers.h"
+#include "test_encoder_inputs.h"
+
 #include "core/rts.h"
 #include "frontends/coreir_encoder.h"
 
@@ -38,9 +38,8 @@ INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCoreIRUnitTests,
     CoreIRUnitTests,
     testing::Combine(testing::ValuesIn(available_solver_enums()),
-                     testing::ValuesIn(vector<string>{ "counters.json",
-                                                       "WrappedPE_nofloats.json",
-                                                       "SimpleALU.json" })));
+                     // from test_encoder_inputs.h
+                     testing::ValuesIn(coreir_inputs)));
 
 }  // namespace pono_tests
 #endif
