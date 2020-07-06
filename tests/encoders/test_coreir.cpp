@@ -24,7 +24,7 @@ class CoreIRUnitTests : public ::testing::Test,
 
 TEST_P(CoreIRUnitTests, Encode)
 {
-  SmtSolver s = create_solver(GetParam());
+  SmtSolver s = create_solver(get<0>(GetParam()));
   RelationalTransitionSystem rts(s);
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(PONO_SRC_DIR);
