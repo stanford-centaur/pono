@@ -7,10 +7,11 @@
 #include "gtest/gtest.h"
 
 #include "available_solvers.h"
-#include "test_encoder_inputs.h"
 
 #include "core/rts.h"
 #include "frontends/coreir_encoder.h"
+
+#include "test_encoder_inputs.h"
 
 using namespace pono;
 using namespace smt;
