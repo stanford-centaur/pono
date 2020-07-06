@@ -24,7 +24,7 @@ class CoreIRUnitTests : public ::testing::Test,
 
 TEST_P(CoreIRUnitTests, Encode)
 {
-  SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
+  SmtSolver s = create_solver(GetParam());
   RelationalTransitionSystem rts(s);
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(PONO_SRC_DIR);
@@ -37,7 +37,7 @@ TEST_P(CoreIRUnitTests, Encode)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCoreIRUnitTests,
     CoreIRUnitTests,
-    testing::Combine(testing::ValuesIn(available_solver_enums()),
+    testing::Combine(testing::ValuesIn(available_no_logging_solver_enums()),
                      // from test_encoder_inputs.h
                      testing::ValuesIn(coreir_inputs)));
 

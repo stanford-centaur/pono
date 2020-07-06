@@ -31,6 +31,7 @@ include_directories("${PROJECT_SOURCE_DIR}/utils")
 include_directories("${PROJECT_SOURCE_DIR}/core")
 include_directories("${PROJECT_SOURCE_DIR}/engines")
 include_directories("${PROJECT_SOURCE_DIR}/frontends")
+include_directories("${PROJECT_SOURCE_DIR}/smt")
 include_directories("${PROJECT_SOURCE_DIR}/options")
 include_directories("/usr/local/include")
 include_directories("/usr/local/Cellar/gmp/6.2.0/include")
@@ -112,11 +113,12 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
-  "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
-  "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
-  "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
+  "${PROJECT_SOURCE_DIR}/smt/available_solvers.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )

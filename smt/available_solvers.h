@@ -1,0 +1,49 @@
+/*********************                                                        */
+/*! \file available_solvers.h
+** \verbatim
+** Top contributors (to current version):
+**   Makai Mann, Ahmed Irfan
+** This file is part of the pono project.
+** Copyright (c) 2019 by the authors listed in the file AUTHORS
+** in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief Utility functions for creating solvers and checking for which
+**        solvers this version of pono was built with.
+**
+**/
+
+#pragma once
+
+#include <iostream>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "smt-switch/smt.h"
+
+namespace pono {
+
+/** Creates an SmtSolver of the provided type */
+smt::SmtSolver create_solver(smt::SolverEnum se);
+
+/** Creates an interpolating SmtSolver of the provided type */
+smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);
+
+// collect all the available solvers
+std::vector<smt::SolverEnum> available_solver_enums();
+
+// collect all the available solvers without logging
+std::vector<smt::SolverEnum> available_no_logging_solver_enums();
+
+// collect all the available interpolating solvers
+std::vector<smt::SolverEnum> available_interpolator_enums();
+
+/** Filter the available solvers by a set of attributes
+ * @return all available solvers that have *all* the attributes
+ */
+std::vector<smt::SolverEnum> filter_solver_enums(
+    const std::unordered_set<smt::SolverAttribute> attributes);
+
+}  // namespace pono

@@ -28,20 +28,9 @@ class CopyUnitTests
 {
 };
 
-TEST_P(CopyUnitTests, Encode)
-{
-  SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
-  FunctionalTransitionSystem fts(s);
-  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/";
-  filename += get<1>(GetParam());
-  cout << "Reading file: " << filename << endl;
-  BTOR2Encoder be(filename, fts);
-}
-
 TEST_P(CopyUnitTests, CopyFromDefault)
 {
+  cout << "Copy to " << get<0>(GetParam()) << endl;
   FunctionalTransitionSystem fts;
   fts.solver()->set_opt("incremental", "true");
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
@@ -51,7 +40,7 @@ TEST_P(CopyUnitTests, CopyFromDefault)
   cout << "Reading file: " << filename << ", for copy test" << endl;
   BTOR2Encoder be(filename, fts);
 
-  SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
+  SmtSolver s = create_solver(get<0>(GetParam()));
   // a term translator that can translate from one other solver to this solver
   TermTranslator tt(s);
 
@@ -116,7 +105,8 @@ TEST_P(CopyUnitTests, CopyFromDefault)
 
 TEST_P(CopyUnitTests, CopyToDefault)
 {
-  SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
+  cout << "Copy from " << get<0>(GetParam()) << endl;
+  SmtSolver s = create_solver(get<0>(GetParam()));
   s->set_opt("incremental", "true");
   FunctionalTransitionSystem fts(s);
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
@@ -193,7 +183,7 @@ TEST_P(CopyUnitTests, CopyToDefault)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCopyUnitTests,
     CopyUnitTests,
-    testing::Combine(testing::ValuesIn(available_solver_enums()),
+    testing::Combine(testing::ValuesIn(available_no_logging_solver_enums()),
                      // from test_encoder_inputs.h
                      testing::ValuesIn(btor2_inputs)));
 
