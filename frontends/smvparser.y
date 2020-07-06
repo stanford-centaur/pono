@@ -228,19 +228,16 @@ frozenvar_list:
       smt::Term e = enc.solver_->make_term(smt::Equal, n, state);
       enc.rts_.constrain_trans(e);
       enc.transterm_.push_back(make_pair(enc.loc.end.line,e));
-      //cout<<"find a frozen var" <<endl;
   };
 
-init_constraint: INIT init_list
-                | init_constraint init_list;
+init_constraint: INIT init_list;
 
 init_list: simple_expr ";"{
         SMVnode *a = $1;
         enc.rts_.constrain_init(a->getTerm());
       };
 
-trans_constraint: TRANS trans_list
-                | trans_constraint trans_list;
+trans_constraint: TRANS trans_list;
 
 trans_list: basic_expr ";"{
             SMVnode *a = $1;
@@ -253,8 +250,7 @@ trans_list: basic_expr ";"{
             //cout <<"find a trans"<<endl;
 };
 
-invar_constraint: INVAR invar_list
-                | invar_constraint invar_list;
+invar_constraint: INVAR invar_list;
 
 invar_list: simple_expr ";"{
             SMVnode *a = $1;
@@ -285,14 +281,11 @@ constant: boolean_constant {
           | real_constant{
             smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
             smt::Term con = enc.solver_->make_term($1,sort_);
-            $$ = new SMVnode(con);
+            $$ = new SMVnode(con,SMVnode::Real);
           }
           | word_value {
            $$ = $1;
           }
-//          | symbolic_constant{
-//            throw PonoException("No symbolic constant now");
-//          }
           | range_constant{
             throw PonoException("Range constants are not yet supported");
           };
@@ -397,15 +390,6 @@ simple_expr: constant {
                 else if(tok -> get_sort()->get_sort_kind() == smt::BOOL) $$ = new SMVnode(tok,SMVnode::Boolean);
               }
             }
-            //| pi
-            //| ABS '(' basic_expr ')'
-            //| MAX '(' basic_expr ',' basic_expr ')'
-            //| MIN '(' basic_expr ',' basic_expr ')'
-            //| SIN '(' basic_expr ')'
-            //| COS '(' basic_expr ')'
-            //| EXP '(' basic_expr ')'
-            //| TAN '(' basic_expr ')'
-            //| ln '(' basic_expr ')'
             | "(" basic_expr ")"{
               $$ = $2;
             }
@@ -441,12 +425,6 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
-              if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
-                throw PonoException("Type system violation");
-              }
-              if(bvs_b != SMVnode::BV && bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
-                  throw PonoException("Type system violation");
-              }
               if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
                 throw PonoException("Type system violation");
               }
@@ -665,7 +643,8 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
@@ -683,7 +662,8 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
@@ -701,7 +681,8 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
@@ -719,7 +700,8 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
@@ -740,7 +722,8 @@ simple_expr: constant {
               smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
               if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Integer);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
@@ -848,6 +831,7 @@ simple_expr: constant {
                  SMVnode *b = $3;
                  SMVnode *c = $5;
                  smt::Term e = enc.solver_->make_term(smt::Ite, a->getTerm(),b->getTerm(),c->getTerm());
+                 
                  $$ = new SMVnode(e);
             }        
           | WRITE "(" basic_expr "," basic_expr "," basic_expr ")"{
@@ -932,7 +916,7 @@ complex_identifier: tok_name{
 
 type_identifier: real_type{
                 smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
-                $$ =  new SMVnode (sort_,SMVnode::BVnot);
+                $$ =  new SMVnode (sort_,SMVnode::Real);
                 //throw PonoException("No real type now in boolector");
                 }
                 | integer_type{

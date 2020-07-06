@@ -23,6 +23,7 @@ struct SMVnode
     Signed,
     Unsigned,
     Integer,
+    Real,
     Boolean,
     BV,
     BVnot
