@@ -23,6 +23,18 @@
 
 #include "smt-switch/smt.h"
 
+// these two always included
+#include "smt-switch/boolector_factory.h"
+#include "smt-switch/cvc4_factory.h"
+
+#if WITH_MSAT
+#include "smt-switch/msat_factory.h"
+#endif
+
+#if WITH_YICES2
+#include "smt-switch/yices2_factory.h"
+#endif
+
 namespace pono {
 
 /** Creates an SmtSolver of the provided type */
