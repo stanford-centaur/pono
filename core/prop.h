@@ -25,6 +25,14 @@ class Property
 {
  public:
   Property(const TransitionSystem & ts, const smt::Term & p);
+
+  /** Copies property to a new solver
+   *  @param prop the property to copy
+   *  @param tt the term translator to use
+   *  @return a property using the solver in tt
+   */
+  Property(const Property & prop, smt::TermTranslator & tt);
+
   ~Property();
 
   const smt::Term prop() const { return prop_; }
@@ -32,7 +40,7 @@ class Property
   const TransitionSystem & transition_system() const { return ts_; }
 
  private:
-  const TransitionSystem & ts_;
+  const TransitionSystem ts_;
 
   smt::Term prop_;
 

@@ -34,6 +34,11 @@ Property::Property(const TransitionSystem & ts, const Term & p)
   }
 }
 
+Property::Property(const Property & prop, TermTranslator & tt)
+    : ts_(prop.ts_, tt), prop_(tt.transfer_term(prop.prop_))
+{
+}
+
 Property::~Property() {}
 
 }  // namespace pono

@@ -51,6 +51,9 @@ class TransitionSystem
    *  it should not be connected to the other TransitionSystems
    *  i.e. it should not have any references to old Terms
    *  which would be kept in the TermTranslator cache
+   *  @param other_ts the transition system to copy
+   *  @param tt the term translator to use
+   *  @return a transition system using the solver in tt
    */
   TransitionSystem(const TransitionSystem & other_ts, smt::TermTranslator & tt);
 
