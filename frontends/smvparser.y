@@ -539,8 +539,9 @@ simple_expr: constant {
             | basic_expr OP_LT basic_expr  {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
                   else $$ = new SMVnode(res,SMVnode::Boolean);
@@ -563,8 +564,9 @@ simple_expr: constant {
             | basic_expr OP_GT basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
                   else $$ = new SMVnode(res,SMVnode::Boolean);
@@ -587,8 +589,9 @@ simple_expr: constant {
             | basic_expr OP_LTE basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ((kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
                   else $$ = new SMVnode(res,SMVnode::Boolean);
@@ -611,8 +614,9 @@ simple_expr: constant {
             | basic_expr OP_GTE basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ((kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
                   else $$ = new SMVnode(res,SMVnode::Boolean);
@@ -640,8 +644,9 @@ simple_expr: constant {
             | basic_expr "+" basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
@@ -659,8 +664,9 @@ simple_expr: constant {
             | basic_expr "-" basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
@@ -678,8 +684,9 @@ simple_expr: constant {
             | basic_expr "*" basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
@@ -697,8 +704,9 @@ simple_expr: constant {
             | basic_expr "/" basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
@@ -719,8 +727,9 @@ simple_expr: constant {
             | basic_expr OP_MOD basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
@@ -831,7 +840,6 @@ simple_expr: constant {
                  SMVnode *b = $3;
                  SMVnode *c = $5;
                  smt::Term e = enc.solver_->make_term(smt::Ite, a->getTerm(),b->getTerm(),c->getTerm());
-                 
                  $$ = new SMVnode(e);
             }        
           | WRITE "(" basic_expr "," basic_expr "," basic_expr ")"{
@@ -839,13 +847,18 @@ simple_expr: constant {
             SMVnode *b = $5;
             SMVnode *c = $7;
             smt::Term write_r =  enc.solver_->make_term(smt::Store, a->getTerm(),b->getTerm(),c->getTerm());
-            $$ = new SMVnode(write_r);
+            //std::cout << " get an array write"<< write_r ->get_sort()->get_sort_kind() << std::endl;
+            $$ = new SMVnode(write_r, SMVnode::WordArray);
           }
           | READ "(" basic_expr "," basic_expr ")"{
             SMVnode *a = $3;
             SMVnode *b = $5;
             smt::Term read_r =  enc.solver_->make_term(smt::Select, a->getTerm(),b->getTerm());
-            $$ = new SMVnode(read_r);
+            //std::cout << " get an array read"<< read_r ->get_sort()->get_sort_kind() << std::endl;
+            if(read_r->get_sort()->get_sort_kind() ==smt::REAL) $$ = new SMVnode(read_r,SMVnode::Real);
+            else if(read_r->get_sort()->get_sort_kind()==smt::INT) $$ = new SMVnode(read_r,SMVnode::Integer);
+            else if(read_r->get_sort()->get_sort_kind()==smt::BOOL) $$ = new SMVnode(read_r,SMVnode::Boolean);
+            else $$ = new SMVnode(read_r,SMVnode::Unsigned);
           }
           | CONSTARRAY "(" tok_typeof "(" complex_identifier ")" "," basic_expr ")" {
              throw PonoException("No constarray");
@@ -883,7 +896,10 @@ case_expr: TOK_CASE case_body TOK_ESAC {
           }
           enc.casestore_.push_back(final_term);
           enc.casecheck_.push_back(cond);
-          $$ = new SMVnode(final_term);
+          //std::cout << " get a case"<< final_term ->get_sort()->get_sort_kind() << std::endl;
+          if(final_term->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(final_term,SMVnode::BV);
+          else if (final_term->get_sort()->get_sort_kind() == smt::BOOL) $$ = new SMVnode(final_term,SMVnode::Boolean);
+          else $$ = new SMVnode(final_term,SMVnode::Unsigned);
 }
 
 case_body: basic_expr ":" basic_expr ";"{
@@ -956,7 +972,7 @@ array_type: arrayword sizev of type_identifier{
             smt::Sort arraysort = enc.solver_->make_sort(smt::BV,$2);
             SMVnode *a = $4;
             smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort,a->getSort());
-            $$ = new SMVnode(sort_);
+            $$ = new SMVnode(sort_,SMVnode::WordArray);
           }
           | arrayinteger of type_identifier{
             throw PonoException("no array integer type now");

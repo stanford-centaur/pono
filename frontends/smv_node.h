@@ -25,8 +25,9 @@ struct SMVnode
     Integer,
     Real,
     Boolean,
+    WordArray,
     BV,
-    BVnot
+    Default
   };
   smt::Term tm;
   smt::Sort st;
@@ -36,13 +37,13 @@ struct SMVnode
   {
     nt = SortNode;
     st = s;
-    bvt = BVnot;
+    bvt = Default;
   }
   SMVnode(smt::Term t)
   {
     nt = TermNode;
     tm = t;
-    bvt = BVnot;
+    bvt = Default;
   }
   SMVnode(smt::Sort s, Type type)
   {
