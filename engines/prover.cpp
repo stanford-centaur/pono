@@ -38,6 +38,7 @@ void Prover::initialize()
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
 }
 
+// TODO: function seems to be redundant?
 ProverResult Prover::prove() { return check_until(INT_MAX); }
 
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
