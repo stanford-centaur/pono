@@ -38,7 +38,7 @@ class Prover
   ProverResult prove();
 
  protected:
-  const smt::SmtSolver solver_;
+  smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
   smt::TermTranslator to_orig_ts_solver_;
   const Property property_;
