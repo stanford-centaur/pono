@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 
 #include "core/fts.h"
+#include "core/prop.h"
 #include "core/rts.h"
 #include "core/unroller.h"
 #include "utils/exceptions.h"
@@ -56,6 +57,22 @@ TEST_P(TSUnitTests, RTS_Exceptions)
   Term xp1_n = rts.next(s->make_term(BVAdd, x, s->make_term(1, bvsort)));
   ASSERT_THROW(rts.assign_next(x, xp1_n), PonoException);
   ASSERT_NO_THROW(rts.constrain_trans(s->make_term(Equal, rts.next(x), xp1_n)));
+}
+
+TEST_P(TSUnitTests, RTS_Copy)
+{
+  RelationalTransitionSystem rts(s);
+
+  RelationalTransitionSystem rts2 = rts;
+  TransitionSystem ts = rts;
+}
+
+TEST_P(TSUnitTests, Prop_Copy)
+{
+  RelationalTransitionSystem rts(s);
+  Property p(rts, s->make_term(true));
+
+  Property p2 = p;
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverTSUnitTests,
