@@ -22,7 +22,7 @@ using namespace smt;
 
 namespace pono {
 
-Prover::Prover(const Property & p, smt::SmtSolver & s)
+Prover::Prover(const Property & p, smt::SmtSolver s)
     : solver_(s),
       to_prover_solver_(s),
       to_orig_ts_solver_(p.transition_system().solver()),

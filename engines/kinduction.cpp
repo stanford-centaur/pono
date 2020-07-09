@@ -21,8 +21,7 @@ using namespace smt;
 
 namespace pono {
 
-KInduction::KInduction(const Property & p, SmtSolver & solver)
-    : super(p, solver)
+KInduction::KInduction(const Property & p, SmtSolver solver) : super(p, solver)
 {
   initialize();
 }

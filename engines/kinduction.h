@@ -23,7 +23,7 @@ namespace pono {
 class KInduction : public Prover
 {
  public:
-  KInduction(const Property & p, smt::SmtSolver & solver);
+  KInduction(const Property & p, smt::SmtSolver solver);
   ~KInduction();
 
   typedef Prover super;

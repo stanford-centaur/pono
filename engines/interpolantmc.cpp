@@ -23,9 +23,7 @@ using namespace smt;
 
 namespace pono {
 
-InterpolantMC::InterpolantMC(const Property & p,
-                             SmtSolver & slv,
-                             SmtSolver & itp)
+InterpolantMC::InterpolantMC(const Property & p, SmtSolver slv, SmtSolver itp)
     : super(p, slv), interpolator_(itp), to_interpolator_(itp), to_solver_(slv)
 {
   initialize();
