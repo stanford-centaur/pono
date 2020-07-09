@@ -151,7 +151,7 @@ class TransitionSystem
   bool is_next_var(const smt::Term & sv) const;
 
   // getters
-  smt::SmtSolver & solver() { return solver_; };
+  const smt::SmtSolver & solver() const { return solver_; };
 
   const smt::UnorderedTermSet & statevars() const { return statevars_; };
 

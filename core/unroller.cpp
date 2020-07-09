@@ -22,7 +22,7 @@ using namespace smt;
 
 namespace pono {
 
-Unroller::Unroller(const TransitionSystem & ts, SmtSolver & solver)
+Unroller::Unroller(const TransitionSystem & ts, const SmtSolver & solver)
     : ts_(ts), solver_(solver)
 {
 }

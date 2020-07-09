@@ -38,10 +38,12 @@ class Prover
   ProverResult prove();
 
  protected:
+  const smt::SmtSolver solver_;
+  smt::TermTranslator to_prover_solver_;
+  smt::TermTranslator to_orig_ts_solver_;
+  const Property property_;
   const TransitionSystem & ts_;
-  const Property & property_;
 
-  smt::SmtSolver & solver_;
   Unroller unroller_;
 
   int reached_k_;
