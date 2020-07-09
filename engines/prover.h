@@ -26,6 +26,7 @@ namespace pono {
 class Prover
 {
  public:
+  Prover(const Property & p, smt::SolverEnum se);
   Prover(const Property & p, smt::SmtSolver s);
   virtual ~Prover();
 

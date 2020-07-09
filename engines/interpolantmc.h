@@ -30,6 +30,7 @@ class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
+  InterpolantMC(const Property & p, smt::SolverEnum se);
   InterpolantMC(const Property & p, smt::SmtSolver slv, smt::SmtSolver itp);
   ~InterpolantMC();
 

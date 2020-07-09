@@ -15,12 +15,20 @@
  **/
 
 #include "prover.h"
+#include "available_solvers.h"
 
 #include <climits>
 
 using namespace smt;
 
 namespace pono {
+
+Prover::Prover(const Property & p, smt::SolverEnum se)
+    : Prover(p, create_solver(se))
+{
+  solver_->set_opt("incremental", "true");
+  solver_->set_opt("produce-models", "true");
+}
 
 Prover::Prover(const Property & p, smt::SmtSolver s)
     : solver_(s),

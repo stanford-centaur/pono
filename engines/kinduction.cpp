@@ -21,6 +21,11 @@ using namespace smt;
 
 namespace pono {
 
+KInduction::KInduction(const Property & p, SolverEnum se) : super(p, se)
+{
+  initialize();
+}
+
 KInduction::KInduction(const Property & p, SmtSolver solver) : super(p, solver)
 {
   initialize();

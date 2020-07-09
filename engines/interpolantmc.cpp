@@ -16,12 +16,22 @@
 
 #include "smt-switch/exceptions.h"
 
+#include "available_solvers.h"
 #include "interpolantmc.h"
 #include "utils/logger.h"
 
 using namespace smt;
 
 namespace pono {
+
+InterpolantMC::InterpolantMC(const Property & p, SolverEnum se)
+    : super(p, se),
+      interpolator_(create_interpolating_solver(se)),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_)
+{
+  initialize();
+}
 
 InterpolantMC::InterpolantMC(const Property & p, SmtSolver slv, SmtSolver itp)
   : super(p, slv), interpolator_(itp), to_interpolator_(interpolator_), to_solver_(solver_)

@@ -23,6 +23,7 @@ namespace pono {
 class Bmc : public Prover
 {
  public:
+  Bmc(const Property & p, smt::SolverEnum se);
   Bmc(const Property & p, smt::SmtSolver solver);
   ~Bmc();
 
