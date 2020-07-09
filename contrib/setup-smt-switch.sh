@@ -42,7 +42,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone -b sort-casting https://github.com/makaimann/smt-switch
+    git clone -b sort-casting-pr-2 https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
     ./contrib/setup-cvc4.sh
