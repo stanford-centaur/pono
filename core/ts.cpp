@@ -14,6 +14,7 @@
  **
  **/
 
+#include <functional>
 #include "assert.h"
 
 #include "ts.h"
@@ -26,28 +27,42 @@ namespace pono {
 TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
                                    TermTranslator & tt)
 {
+  function<Term(Term)> transfer;
+  function<Term(Term, SortKind)> transfer_as;
+  if (other_ts.solver() == tt.get_solver()) {
+    // if the solvers are the same, don't need to transfer
+    transfer = [](const Term & t) { return t; };
+    // assume you don't need to do sort-casting for terms from the same solver
+    transfer_as = [](const Term & t, SortKind sk) { return t; };
+  } else {
+    transfer = [&tt](const Term & t) { return tt.transfer_term(t); };
+    transfer_as = [&tt](const Term & t, SortKind sk) {
+      return tt.transfer_term(t, sk);
+    };
+  }
+
   solver_ = tt.get_solver();
   // transfer init and trans -- expect them to be boolean
   // will cast if underlying solver aliases Bool/BV1
-  init_ = tt.transfer_term(other_ts.init_, BOOL);
-  trans_ = tt.transfer_term(other_ts.trans_, BOOL);
+  init_ = transfer_as(other_ts.init_, BOOL);
+  trans_ = transfer_as(other_ts.trans_, BOOL);
 
   // populate data structures with translated terms
 
   for (auto v : other_ts.statevars_) {
-    statevars_.insert(tt.transfer_term(v));
+    statevars_.insert(transfer(v));
   }
 
   for (auto v : other_ts.inputvars_) {
-    inputvars_.insert(tt.transfer_term(v));
+    inputvars_.insert(transfer(v));
   }
 
   for (auto v : other_ts.next_statevars_) {
-    next_statevars_.insert(tt.transfer_term(v));
+    next_statevars_.insert(transfer(v));
   }
 
   for (auto elem : other_ts.named_terms_) {
-    named_terms_[elem.first] = tt.transfer_term(elem.second);
+    named_terms_[elem.first] = transfer(elem.second);
   }
 
   // variables might have already be in the TermTranslator cache
@@ -56,19 +71,19 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   // sorts of the two terms should match for state updates and next_map
   Term key, val;
   for (auto elem : other_ts.state_updates_) {
-    key = tt.transfer_term(elem.first);
-    val = tt.transfer_term(elem.second, key->get_sort()->get_sort_kind());
+    key = transfer(elem.first);
+    val = transfer_as(elem.second, key->get_sort()->get_sort_kind());
     assert(key->get_sort() == val->get_sort());
     state_updates_[key] = val;
   }
   for (auto elem : other_ts.next_map_) {
-    key = tt.transfer_term(elem.first);
-    val = tt.transfer_term(elem.second, key->get_sort()->get_sort_kind());
+    key = transfer(elem.first);
+    val = transfer_as(elem.second, key->get_sort()->get_sort_kind());
     next_map_[key] = val;
   }
 
   for (auto elem : other_ts.curr_map_) {
-    curr_map_[tt.transfer_term(elem.first)] = tt.transfer_term(elem.second);
+    curr_map_[transfer(elem.first)] = transfer(elem.second);
   }
 }
 
