@@ -11,6 +11,7 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
 -h, --help              display this message and exit
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
+--cvc4-home             use an already downloaded version of CVC4
 --python                build python bindings (default: off)
 EOF
     exit 0
@@ -23,6 +24,7 @@ die () {
 
 WITH_MSAT=default
 CONF_OPTS=""
+cvc4_home=default
 
 while [ $# -gt 0 ]
 do
@@ -33,6 +35,17 @@ do
             CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
         --python)
             CONF_OPTS="$CONF_OPTS --python";;
+        --cvc4-home) die "missing argument to $1 (see -h)" ;;
+        --cvc4-home=*)
+            cvc4_home=${1##*=}
+            # Check if cvc4_home is an absolute path and if not, make it
+            # absolute.
+            case $cvc4_home in
+                /*) ;;                            # absolute path
+                *) cvc4_home=$(pwd)/$cvc4_home ;; # make absolute path
+            esac
+            CONF_OPTS="$CONF_OPTS --cvc4-home=$cvc4_home"
+            ;;
         *) die "unexpected argument: $1";;
     esac
     shift
@@ -46,7 +59,9 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     git clone -b cvc4-const-arr-term-iter-fix https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
-    ./contrib/setup-cvc4.sh
+    if [ $cvc4_home = default ]; then
+        ./contrib/setup-cvc4.sh
+    fi
     ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static
     cd build
     make -j$(nproc)
