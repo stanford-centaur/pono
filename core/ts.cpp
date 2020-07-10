@@ -85,6 +85,8 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   for (auto elem : other_ts.curr_map_) {
     curr_map_[transfer(elem.first)] = transfer(elem.second);
   }
+
+  functional_ = other_ts.functional_;
 }
 
 void TransitionSystem::set_init(const Term & init)

@@ -34,12 +34,18 @@ TEST_P(TSUnitTests, FTS_IsFunc)
 {
   FunctionalTransitionSystem fts(s);
   ASSERT_TRUE(fts.is_functional());
+
+  TransitionSystem ts_copy = fts;
+  ASSERT_TRUE(ts_copy.is_functional());
 }
 
 TEST_P(TSUnitTests, RTS_IsFunc)
 {
   RelationalTransitionSystem rts(s);
   ASSERT_FALSE(rts.is_functional());
+
+  TransitionSystem ts_copy = rts;
+  ASSERT_FALSE(ts_copy.is_functional());
 }
 
 TEST_P(TSUnitTests, FTS_Exceptions)

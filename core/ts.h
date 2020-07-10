@@ -36,7 +36,8 @@ class TransitionSystem
   TransitionSystem()
       : solver_(smt::CVC4SolverFactory::create(false)),
         init_(solver_->make_term(true)),
-        trans_(solver_->make_term(true))
+        trans_(solver_->make_term(true)),
+        functional_(false)
   {
   }
 
@@ -183,9 +184,8 @@ class TransitionSystem
 
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
-   *  it only returns true if it's a FunctionalTransitionSystem object
    */
-  virtual bool is_functional() const { return false; };
+  virtual bool is_functional() const { return functional_; };
 
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;
@@ -359,6 +359,9 @@ class TransitionSystem
 
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
+
+  // whether the TransitionSystem is functional
+  bool functional_;
 
   typedef std::vector<const smt::UnorderedTermSet *> UnorderedTermSetPtrVec;
 
