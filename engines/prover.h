@@ -41,9 +41,11 @@ class Prover
  protected:
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
-  smt::TermTranslator to_orig_ts_solver_;
   const Property property_;
-  const TransitionSystem & ts_;
+  const TransitionSystem &
+      ts_;  ///< convenient reference to transition system in property
+  const TransitionSystem &
+      orig_ts_;  ///< reference to original TS before copied to new solver
 
   Unroller unroller_;
 

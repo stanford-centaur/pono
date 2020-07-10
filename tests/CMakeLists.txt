@@ -44,6 +44,11 @@ target_link_libraries(test_engines gtest_main)
 target_link_libraries(test_engines pono-lib)
 add_test(NAME test_engines COMMAND test_engines)
 
+add_executable(test_witness "${PROJECT_SOURCE_DIR}/tests/test_witness.cpp")
+target_link_libraries(test_witness gtest_main)
+target_link_libraries(test_witness pono-lib)
+add_test(NAME test_witness COMMAND test_witness)
+
 add_executable(test_btor2_ts_copy_equal "${PROJECT_SOURCE_DIR}/tests/test_btor2_ts_copy_equal.cpp")
 target_link_libraries(test_btor2_ts_copy_equal gtest_main)
 target_link_libraries(test_btor2_ts_copy_equal pono-lib)

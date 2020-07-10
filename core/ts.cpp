@@ -27,8 +27,8 @@ namespace pono {
 TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
                                    TermTranslator & tt)
 {
-  function<Term(Term)> transfer;
-  function<Term(Term, SortKind)> transfer_as;
+  function<Term(const Term &)> transfer;
+  function<Term(const Term &, SortKind)> transfer_as;
   if (other_ts.solver() == tt.get_solver()) {
     // if the solvers are the same, don't need to transfer
     transfer = [](const Term & t) { return t; };
