@@ -3,6 +3,8 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
+SMT_SWITCH_VERSION=80394b7c4fba5301621790ab31ea0cc9f8f821b8
+
 usage () {
     cat <<EOF
 Usage: $0 [<option> ...]
@@ -55,9 +57,9 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    # TEMP -- change back to master
-    git clone -b cvc4-const-arr-term-iter-fix https://github.com/makaimann/smt-switch
+    git clone https://github.com/makaimann/smt-switch
     cd smt-switch
+    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
     if [ $cvc4_home = default ]; then
         ./contrib/setup-cvc4.sh
