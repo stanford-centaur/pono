@@ -111,11 +111,11 @@ bool InterpolantMC::step(int i)
   bool is_sat = false;
 
   R_ = init0_;
+  Term int_transA = to_interpolator_.transfer_term(transA_);
 
   while (got_interpolant) {
     if (i > 0) {
       Term int_R = to_interpolator_.transfer_term(R_);
-      Term int_transA = to_interpolator_.transfer_term(transA_);
       Term int_transB = to_interpolator_.transfer_term(transB_);
       Term int_bad = to_interpolator_.transfer_term(bad_i);
       Term int_Ri;
@@ -188,11 +188,12 @@ bool InterpolantMC::step(int i)
 bool InterpolantMC::check_overapprox()
 {
   solver_->reset_assertions();
-  Term Rp = R_;
-  Term Rpi = Ri_;
   solver_->assert_formula(
-      solver_->make_term(And, Rpi, solver_->make_term(Not, Rp)));
+      solver_->make_term(And, Ri_, solver_->make_term(Not, R_)));
+
   Result r = solver_->check_sat();
+  assert(r.is_unsat() || r.is_sat());
+
   if (r.is_unsat()) {
     return true;
   } else {
