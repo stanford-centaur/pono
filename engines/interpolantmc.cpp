@@ -110,8 +110,6 @@ bool InterpolantMC::step(int i)
   bool got_interpolant = true;
   bool is_sat = false;
 
-  R_ = init0_;
-
   while (got_interpolant) {
     if (i > 0) {
       Term int_R = to_interpolator_.transfer_term(R_);
