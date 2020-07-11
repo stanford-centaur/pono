@@ -115,7 +115,6 @@ bool InterpolantMC::step(int i)
       if (check_entail(Ri, R)) {
         // check if the over-approximation has reached a fix-point
         logger.log(1, "Found a proof at bound: {}", i);
-
         return true;
       } else {
         logger.log(1, "Extending initial states.");
@@ -136,7 +135,6 @@ bool InterpolantMC::step(int i)
       if (!r.is_sat()) {
         throw PonoException("Internal error: Expecting satisfiable result");
       }
-
       return false;
     }
   }
@@ -146,7 +144,6 @@ bool InterpolantMC::step(int i)
   assert(i > 0);
   // extend the unrolling
   transB_ = solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
-
   ++reached_k_;
 
   return false;
@@ -164,7 +161,6 @@ bool InterpolantMC::step_0()
   } else {
     concrete_cex_ = true;
   }
-
   return false;
 }
 
@@ -181,20 +177,14 @@ void InterpolantMC::reset_assertions(SmtSolver & s)
   }
 }
 
-bool InterpolantMC::check_entail(Term & p, Term & q)
+bool InterpolantMC::check_entail(const Term & p, const Term & q)
 {
   reset_assertions(solver_);
   solver_->assert_formula(
       solver_->make_term(And, p, solver_->make_term(Not, q)));
-
   Result r = solver_->check_sat();
   assert(r.is_unsat() || r.is_sat());
-
-  if (r.is_unsat()) {
-    return true;
-  } else {
-    return false;
-  }
+  return r.is_unsat();
 }
 
 }  // namespace pono

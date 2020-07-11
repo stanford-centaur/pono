@@ -45,7 +45,7 @@ class InterpolantMC : public Prover
 
   void reset_assertions(smt::SmtSolver &s);
 
-  bool check_entail(smt::Term &p, smt::Term &q);
+  bool check_entail(const smt::Term & p, const smt::Term & q);
 
   smt::SmtSolver & interpolator_;
   // for translating terms to interpolator_
