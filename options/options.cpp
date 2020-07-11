@@ -15,14 +15,14 @@
  **/
 
 #include "options/options.h"
-#include "optionparser.h"
-#include <vector>
 #include <iostream>
 #include <string>
+#include <vector>
+#include "optionparser.h"
 
 using namespace std;
 
-  /************************************* Option Handling setup
+/************************************* Option Handling setup
  * *****************************************/
 // from optionparser-1.7 examples -- example_arg.cc
 enum optionIndex
@@ -109,7 +109,12 @@ const option::Descriptor usage[] = {
     "vcd",
     Arg::NonEmpty,
     "  --vcd \tName of Value Change Dump (VCD) if witness exists." },
-  { NOWITNESS, 0, "", "no-witness", Arg::None, "  --no-witness \tDisable printing of witness." },
+  { NOWITNESS,
+    0,
+    "",
+    "no-witness",
+    Arg::None,
+    "  --no-witness \tDisable printing of witness." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -118,7 +123,7 @@ const option::Descriptor usage[] = {
 namespace pono {
 
 bool PonoOptions::instance_created = false;
-  
+
 // declare a global options object
 PonoOptions pono_options;
 
@@ -126,8 +131,8 @@ PonoOptions pono_options;
 // respective options in the 'pono_options' object.
 // Returns 'ERROR' if there is something wrong with the given options
 // or 'PROPERTY_UNKNOWN' instead.
-PonoResult PonoOptions::parse_and_set_options (int argc, char ** argv)
-{  
+PonoResult PonoOptions::parse_and_set_options(int argc, char ** argv)
+{
   argc -= (argc > 0);
   argv += (argc > 0);  // skip program name argv[0] if present
   option::Stats stats(usage, argc, argv);
@@ -135,8 +140,7 @@ PonoResult PonoOptions::parse_and_set_options (int argc, char ** argv)
   std::vector<option::Option> buffer(stats.buffer_max);
   option::Parser parse(usage, argc, argv, &options[0], &buffer[0]);
 
-  if (parse.error())
-    return ERROR;
+  if (parse.error()) return ERROR;
 
   if (options[HELP] || argc == 0) {
     option::printUsage(cout, usage);
@@ -163,29 +167,32 @@ PonoResult PonoOptions::parse_and_set_options (int argc, char ** argv)
     for (int i = 0; i < parse.optionsCount(); ++i) {
       option::Option & opt = buffer[i];
       switch (opt.index()) {
-      case HELP:
-        // not possible, because handled further above and exits the program
-      case ENGINE: engine = to_engine(opt.arg); break;
-      case BOUND: bound = atoi(opt.arg); break;
-      case PROP: prop_idx = atoi(opt.arg); break;
-      case VERBOSITY: verbosity = atoi(opt.arg); break;
-      case VCDNAME:
-        vcd_name = opt.arg;
-        if (no_witness)
-          throw PonoException("Options '--vcd' and '--no-witness' are incompatible.");
-        break;
-      case NOWITNESS:
-        no_witness = true;
-        if (!vcd_name.empty())
-          throw PonoException("Options '--vcd' and '--no-witness' are incompatible.");
-        break;
-      case UNKNOWN_OPTION:
-        // not possible because Arg::Unknown returns ARG_ILLEGAL
-        // which aborts the parse with an error
-        break;
+        case HELP:
+          // not possible, because handled further above and exits the program
+        case ENGINE: engine = to_engine(opt.arg); break;
+        case BOUND: bound = atoi(opt.arg); break;
+        case PROP: prop_idx = atoi(opt.arg); break;
+        case VERBOSITY: verbosity = atoi(opt.arg); break;
+        case VCDNAME:
+          vcd_name = opt.arg;
+          if (no_witness)
+            throw PonoException(
+                "Options '--vcd' and '--no-witness' are incompatible.");
+          break;
+        case NOWITNESS:
+          no_witness = true;
+          if (!vcd_name.empty())
+            throw PonoException(
+                "Options '--vcd' and '--no-witness' are incompatible.");
+          break;
+        case UNKNOWN_OPTION:
+          // not possible because Arg::Unknown returns ARG_ILLEGAL
+          // which aborts the parse with an error
+          break;
       }
     }
-  } catch (PonoException & ce) {
+  }
+  catch (PonoException & ce) {
     cout << ce.what() << endl;
     return ERROR;
   }
@@ -195,5 +202,4 @@ PonoResult PonoOptions::parse_and_set_options (int argc, char ** argv)
   return PROPERTY_UNKNOWN;
 }
 
-
-} //namespace pono
+}  // namespace pono

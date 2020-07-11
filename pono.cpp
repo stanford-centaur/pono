@@ -31,11 +31,11 @@
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
 #include "kinduction.h"
+#include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
 #include "prop.h"
 #include "utils/logger.h"
-#include "options/options.h"
 #include "utils/ponoresult.h"
 
 using namespace pono;
@@ -170,10 +170,9 @@ int main(int argc, char ** argv)
 {
   // Set options via the global PonoOptions object 'pono_options'
   // defined in './options/options.h'.
-  PonoResult pono_result = pono_options.parse_and_set_options (argc, argv);
-  if (pono_result == ERROR)
-    return pono_result;
-  assert (pono_result == PROPERTY_UNKNOWN);
+  PonoResult pono_result = pono_options.parse_and_set_options(argc, argv);
+  if (pono_result == ERROR) return pono_result;
+  assert(pono_result == PROPERTY_UNKNOWN);
 
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity);
@@ -205,7 +204,8 @@ int main(int argc, char ** argv)
     //       it would be better to have a generic encoder
     //       and also only create the transition system once
     ProverResult r;
-    string file_ext = pono_options.filename.substr(pono_options.filename.find_last_of(".") + 1);
+    string file_ext = pono_options.filename.substr(
+        pono_options.filename.find_last_of(".") + 1);
     if (file_ext == "btor2" || file_ext == "btor") {
       logger.log(2, "Parsing BTOR2 file: {}", pono_options.filename);
       FunctionalTransitionSystem fts(s);
@@ -215,8 +215,8 @@ int main(int argc, char ** argv)
       if (pono_options.prop_idx >= num_props) {
         throw PonoException(
             "Property index " + to_string(pono_options.prop_idx)
-            + " is greater than the number of properties in file " + pono_options.filename
-            + " (" + to_string(num_props) + ")");
+            + " is greater than the number of properties in file "
+            + pono_options.filename + " (" + to_string(num_props) + ")");
       }
       Term prop = propvec[pono_options.prop_idx];
       Property p(fts, prop);
@@ -227,7 +227,7 @@ int main(int argc, char ** argv)
       if (r == FALSE) {
         cout << "sat" << endl;
         cout << "b" << pono_options.prop_idx << endl;
-        assert (!pono_options.no_witness || !cex.size());
+        assert(!pono_options.no_witness || !cex.size());
         if (cex.size()) {
           print_witness_btor(btor_enc, cex);
           if (!pono_options.vcd_name.empty()) {
@@ -255,8 +255,8 @@ int main(int argc, char ** argv)
       if (pono_options.prop_idx >= num_props) {
         throw PonoException(
             "Property index " + to_string(pono_options.prop_idx)
-            + " is greater than the number of properties in file " + pono_options.filename
-            + " (" + to_string(num_props) + ")");
+            + " is greater than the number of properties in file "
+            + pono_options.filename + " (" + to_string(num_props) + ")");
       }
       Term prop = propvec[pono_options.prop_idx];
       Property p(rts, prop);
@@ -266,28 +266,25 @@ int main(int argc, char ** argv)
 
       if (r == FALSE) {
         pono_result = PROPERTY_FALSE;
-        assert (!pono_options.no_witness || cex.size() == 0);
+        assert(!pono_options.no_witness || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
           for (auto elem : cex[t]) {
             cout << "\t" << elem.first << " : " << elem.second << endl;
           }
         }
-        assert (!pono_options.no_witness || pono_options.vcd_name.empty());
+        assert(!pono_options.no_witness || pono_options.vcd_name.empty());
         if (!pono_options.vcd_name.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
           vcdprinter.DumpTraceToFile(pono_options.vcd_name);
         }
-      }
-      else if (r == TRUE) {
+      } else if (r == TRUE) {
         cout << "unsat" << endl;
         pono_result = PROPERTY_TRUE;
+      } else {
+        cout << "unknown" << endl;
+        pono_result = PROPERTY_UNKNOWN;
       }
-      else
-        {
-          cout << "unknown" << endl;
-          pono_result = PROPERTY_UNKNOWN;
-        }
     } else {
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename);

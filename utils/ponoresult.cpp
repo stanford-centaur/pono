@@ -25,11 +25,10 @@ std::string to_string(PonoResult r)
     return "PROPERTY TRUE";
   } else if (r == PROPERTY_FALSE) {
     return "PROPERTY FALSE";
-  } else if (r == PROPERTY_UNKNOWN){
+  } else if (r == PROPERTY_UNKNOWN) {
     return "PROPERTY UNKNOWN";
-  }
-  else {
-    assert (r == ERROR);
+  } else {
+    assert(r == ERROR);
     return "ERROR";
   }
 }

@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "utils/ponoresult.h"
-#include "utils/exceptions.h"
 #include "options/defaults.h"
+#include "utils/exceptions.h"
+#include "utils/ponoresult.h"
 
 /*************************************** Options class
  * ************************************************/
@@ -28,30 +28,29 @@ namespace pono {
 
 class PonoOptions
 {
-
   // TODO: for now, all class members (i.e., Pono options) are public
   // and set via a call of 'parse_and_set_options()'. For more
   // flexibility, add get/set functions.
-  
+
  public:
+  PonoOptions()
+      : engine(default_engine),
+        prop_idx(default_prop_idx),
+        bound(default_bound),
+        verbosity(default_verbosity),
+        no_witness(default_no_witness)
+  {
+    if (!instance_created)
+      instance_created = true;
+    else
+      throw PonoException(
+          "Cannot create objects of class PonoOptions, "
+          "use global object 'pono_options' instead.");
+  }
 
- PonoOptions() :
-  engine(default_engine),
-    prop_idx(default_prop_idx),
-    bound(default_bound),
-    verbosity(default_verbosity),
-    no_witness(default_no_witness)
-    {
-      if (!instance_created)
-        instance_created = true;
-      else
-        throw PonoException("Cannot create objects of class PonoOptions, "\
-                            "use global object 'pono_options' instead.");
-    }
+  ~PonoOptions(){};
 
-  ~PonoOptions() {};
-  
-  PonoResult parse_and_set_options (int argc, char ** argv);
+  PonoResult parse_and_set_options(int argc, char ** argv);
 
   // Pono options
   Engine engine;
@@ -61,7 +60,7 @@ class PonoOptions
   bool no_witness;
   std::string vcd_name;
   std::string filename;
-  
+
  private:
   // flag to prevent creation of more than one class object
   static bool instance_created;
