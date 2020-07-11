@@ -54,14 +54,6 @@ void InterpolantMC::initialize()
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
 
-  // populate map from time 1 to time 0
-  for (auto s : ts_.statevars()) {
-    unroller_.at_time(s, 0);
-  }
-  for (auto i : ts_.inputvars()) {
-    unroller_.at_time(i, 0);
-  }
-
   concrete_cex_ = false;
   init0_ = unroller_.at_time(ts_.init(), 0);
   transA_ = unroller_.at_time(ts_.trans(), 0);
