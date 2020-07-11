@@ -85,28 +85,16 @@ bool InterpolantMC::step(int i)
 
   logger.log(1, "Checking interpolation at bound: {}", i);
 
-  Term bad_i = unroller_.at_time(bad_, i);
-
   if (i == 0) {
     // Can't get an interpolant at bound 0
     // only checking for trivial bug
-    reset_assertions(solver_);
-    solver_->assert_formula(init0_);
-    solver_->assert_formula(bad_i);
-
-    Result r = solver_->check_sat();
-    if (r.is_unsat()) {
-      ++reached_k_;
-    } else {
-      concrete_cex_ = true;
-    }
-
-    return false;
+    return step_0();
   }
 
+  Term bad_i = unroller_.at_time(bad_, i);
+  Term int_bad = to_interpolator_.transfer_term(bad_i);
   Term int_transA = to_interpolator_.transfer_term(transA_);
   Term int_transB = to_interpolator_.transfer_term(transB_);
-  Term int_bad = to_interpolator_.transfer_term(bad_i);
   Term R = init0_;
   Term Ri;
   bool got_interpolant = true;
@@ -160,6 +148,22 @@ bool InterpolantMC::step(int i)
   transB_ = solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
 
   ++reached_k_;
+
+  return false;
+}
+
+bool InterpolantMC::step_0()
+{
+  reset_assertions(solver_);
+  solver_->assert_formula(init0_);
+  solver_->assert_formula(unroller_.at_time(bad_, 0));
+
+  Result r = solver_->check_sat();
+  if (r.is_unsat()) {
+    ++reached_k_;
+  } else {
+    concrete_cex_ = true;
+  }
 
   return false;
 }

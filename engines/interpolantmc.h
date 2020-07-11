@@ -41,6 +41,7 @@ class InterpolantMC : public Prover
 
  private:
   bool step(int i);
+  bool step_0();
 
   void reset_assertions(smt::SmtSolver &s);
 
