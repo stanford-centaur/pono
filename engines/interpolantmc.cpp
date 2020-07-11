@@ -14,9 +14,9 @@
  **
  **/
 
-#include "smt-switch/exceptions.h"
-
 #include "interpolantmc.h"
+
+#include "smt-switch/exceptions.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -156,15 +156,14 @@ bool InterpolantMC::step(int i)
   // transB can't have any symbols from time 0 in it
   assert(i > 0);
   // extend the unrolling
-  transB_ =
-      solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
+  transB_ = solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
 
   ++reached_k_;
 
   return false;
 }
 
-void InterpolantMC::reset_assertions(SmtSolver &s)
+void InterpolantMC::reset_assertions(SmtSolver & s)
 {
   // reset assertions is not supported by all solvers
   // but MathSAT is the only supported solver that can do interpolation
@@ -177,7 +176,7 @@ void InterpolantMC::reset_assertions(SmtSolver &s)
   }
 }
 
-bool InterpolantMC::check_entail(Term &p, Term &q)
+bool InterpolantMC::check_entail(Term & p, Term & q)
 {
   reset_assertions(solver_);
   solver_->assert_formula(
