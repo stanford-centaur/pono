@@ -37,6 +37,8 @@ void InterpolantMC::initialize()
 {
   super::initialize();
 
+  reset_assertions(interpolator_);
+
   // symbols are already created in solver
   // need to add symbols at time 1 to cache
   // (only time 1 because Craig Interpolant has to share symbols between A and
@@ -52,30 +54,16 @@ void InterpolantMC::initialize()
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
 
-  concrete_cex_ = false;
-
-  // reset assertions is not supported by all solvers
-  // but MathSAT is the only supported solver that can do interpolation
-  // so this should be safe
-  try {
-    interpolator_->reset_assertions();
-  }
-  catch (NotImplementedException & e) {
-    throw PonoException("Got unexpected solver in InterpolantMC.");
-  }
-
   // populate map from time 1 to time 0
   for (auto s : ts_.statevars()) {
-    Term s0 = unroller_.at_time(s, 0);
+    unroller_.at_time(s, 0);
   }
-
   for (auto i : ts_.inputvars()) {
-    Term i0 = unroller_.at_time(i, 0);
+    unroller_.at_time(i, 0);
   }
 
+  concrete_cex_ = false;
   init0_ = unroller_.at_time(ts_.init(), 0);
-  R_ = init0_;
-  Ri_ = solver_->make_term(true);
   transA_ = unroller_.at_time(ts_.trans(), 0);
   transB_ = solver_->make_term(true);
 }
@@ -104,92 +92,104 @@ bool InterpolantMC::step(int i)
   }
 
   logger.log(1, "Checking interpolation at bound: {}", i);
+
   Term bad_i = unroller_.at_time(bad_, i);
 
-  // These bools are always opposite except at i = 0
-  bool got_interpolant = true;
-  bool is_sat = false;
+  if (i == 0) {
+    // Can't get an interpolant at bound 0
+    // only checking for trivial bug
+    reset_assertions(solver_);
+    solver_->assert_formula(init0_);
+    solver_->assert_formula(bad_i);
 
-  R_ = init0_;
-  Term int_transA = to_interpolator_.transfer_term(transA_);
-
-  while (got_interpolant) {
-    if (i > 0) {
-      Term int_R = to_interpolator_.transfer_term(R_);
-      Term int_transB = to_interpolator_.transfer_term(transB_);
-      Term int_bad = to_interpolator_.transfer_term(bad_i);
-      Term int_Ri;
-      got_interpolant = interpolator_->get_interpolant(
-          interpolator_->make_term(And, int_R, int_transA),
-          interpolator_->make_term(And, int_transB, int_bad),
-          int_Ri);
-
-      if (got_interpolant) {
-        Ri_ = to_solver_.transfer_term(int_Ri);
-      }
-
-      is_sat = !got_interpolant;
-    } else {
-      // Can't get an interpolant at bound 0
-      // only checking for trivial bug
-      solver_->reset_assertions();
-
-      solver_->push();
-      solver_->assert_formula(R_);
-      solver_->assert_formula(bad_i);
-      Result r = solver_->check_sat();
-      solver_->pop();
-
-      got_interpolant = false;
-      is_sat = r.is_sat();
+    Result r = solver_->check_sat();
+    concrete_cex_ = r.is_sat();
+    if (r.is_unsat()) {
+      ++reached_k_;
     }
 
-    if (is_sat && (R_ == init0_)) {
+    return false;
+  }
+
+  Term int_transA = to_interpolator_.transfer_term(transA_);
+  Term int_transB = to_interpolator_.transfer_term(transB_);
+  Term int_bad = to_interpolator_.transfer_term(bad_i);
+  Term R = init0_;
+  Term Ri;
+  bool got_interpolant = true;
+
+  while (got_interpolant) {
+    Term int_R = to_interpolator_.transfer_term(R);
+    Term int_Ri;
+    got_interpolant = interpolator_->get_interpolant(
+        interpolator_->make_term(And, int_R, int_transA),
+        interpolator_->make_term(And, int_transB, int_bad),
+        int_Ri);
+
+    if (got_interpolant) {
+      Ri = to_solver_.transfer_term(int_Ri);
+      // map Ri to time 0
+      Ri = unroller_.at_time(unroller_.untime(Ri), 0);
+
+      if (check_entail(Ri, R)) {
+        // check if the over-approximation has reached a fix-point
+        logger.log(1, "Found a proof at bound: {}", i);
+
+        return true;
+      } else {
+        logger.log(1, "Extending initial states.");
+        logger.log(3, "Using interpolant: {}", Ri);
+        R = solver_->make_term(Or, R, Ri);
+      }
+    } else if (R == init0_) {
       // found a concrete counter example
       // replay it in the solver with model generation
       concrete_cex_ = true;
-      solver_->reset_assertions();
+      reset_assertions(solver_);
+
       Term solver_trans = solver_->make_term(And, transA_, transB_);
       solver_->assert_formula(solver_->make_term(
           And, init0_, solver_->make_term(And, solver_trans, bad_i)));
+
       Result r = solver_->check_sat();
       if (!r.is_sat()) {
         throw PonoException("Internal error: Expecting satisfiable result");
       }
-      ++reached_k_;
-      return false;
-    } else if (got_interpolant) {
-      // map Ri to time 0
-      Ri_ = unroller_.at_time(unroller_.untime(Ri_), 0);
 
-      if (check_overapprox()) {
-        logger.log(1, "Found a proof at bound: {}", i);
-        return true;
-      } else {
-        logger.log(1, "Extending initial states.");
-        logger.log(3, "Using interpolant: {}", Ri_);
-        R_ = solver_->make_term(Or, R_, Ri_);
-      }
+      return false;
     }
   }
 
   // Note: important that it's for i > 0
   // transB can't have any symbols from time 0 in it
-  if (i > 0) {
-    // extend the unrolling
-    transB_ =
-        solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
-  }
+  assert(i > 0);
+  // extend the unrolling
+  transB_ =
+      solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
 
   ++reached_k_;
+
   return false;
 }
 
-bool InterpolantMC::check_overapprox()
+void InterpolantMC::reset_assertions(SmtSolver &s)
 {
-  solver_->reset_assertions();
+  // reset assertions is not supported by all solvers
+  // but MathSAT is the only supported solver that can do interpolation
+  // so this should be safe
+  try {
+    s->reset_assertions();
+  }
+  catch (NotImplementedException & e) {
+    throw PonoException("Got unexpected solver in InterpolantMC.");
+  }
+}
+
+bool InterpolantMC::check_entail(Term &p, Term &q)
+{
+  reset_assertions(solver_);
   solver_->assert_formula(
-      solver_->make_term(And, Ri_, solver_->make_term(Not, R_)));
+      solver_->make_term(And, p, solver_->make_term(Not, q)));
 
   Result r = solver_->check_sat();
   assert(r.is_unsat() || r.is_sat());

@@ -42,8 +42,9 @@ class InterpolantMC : public Prover
  private:
   bool step(int i);
 
-  /* checks if the current Ri overapproximates R */
-  bool check_overapprox();
+  void reset_assertions(smt::SmtSolver &s);
+
+  bool check_entail(smt::Term &p, smt::Term &q);
 
   smt::SmtSolver & interpolator_;
   // for translating terms to interpolator_
@@ -57,8 +58,6 @@ class InterpolantMC : public Prover
   smt::Term init0_;
   smt::Term transA_;
   smt::Term transB_;
-  smt::Term R_;
-  smt::Term Ri_;
 
 };  // class InterpolantMC
 
