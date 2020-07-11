@@ -95,9 +95,10 @@ bool InterpolantMC::step(int i)
     solver_->assert_formula(bad_i);
 
     Result r = solver_->check_sat();
-    concrete_cex_ = r.is_sat();
     if (r.is_unsat()) {
       ++reached_k_;
+    } else {
+      concrete_cex_ = true;
     }
 
     return false;
