@@ -17,7 +17,7 @@
 #pragma once
 
 #include <unordered_map>
-#include "utils/ponoresult.h"
+#include "core/proverresult.h"
 
 namespace pono {
 
@@ -57,7 +57,7 @@ class PonoOptions
 
   ~PonoOptions(){};
 
-  PonoResult parse_and_set_options(int argc, char ** argv);
+  ProverResult parse_and_set_options(int argc, char ** argv);
 
   Engine to_engine(std::string s);
 

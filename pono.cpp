@@ -35,7 +35,6 @@
 #include "printers/vcd_witness_printer.h"
 #include "prop.h"
 #include "utils/logger.h"
-#include "utils/ponoresult.h"
 
 using namespace pono;
 using namespace smt;
@@ -169,9 +168,9 @@ ProverResult check_prop(PonoOptions pono_options,
 int main(int argc, char ** argv)
 {
   PonoOptions pono_options;
-  PonoResult pono_result = pono_options.parse_and_set_options(argc, argv);
-  if (pono_result == ERROR) return pono_result;
-  assert(pono_result == PROPERTY_UNKNOWN);
+  ProverResult res = pono_options.parse_and_set_options(argc, argv);
+  if (res == ERROR) return res;
+  assert(res == pono::UNKNOWN);
 
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
@@ -202,7 +201,6 @@ int main(int argc, char ** argv)
     // TODO: make this less ugly, just need to keep it in scope if using
     //       it would be better to have a generic encoder
     //       and also only create the transition system once
-    ProverResult r;
     string file_ext = pono_options.filename_.substr(
         pono_options.filename_.find_last_of(".") + 1);
     if (file_ext == "btor2" || file_ext == "btor") {
@@ -220,10 +218,12 @@ int main(int argc, char ** argv)
       Term prop = propvec[pono_options.prop_idx_];
       Property p(fts, prop);
       vector<UnorderedTermMap> cex;
-      r = check_prop(pono_options, p, s, second_solver, cex);
-
+      res = check_prop(pono_options, p, s, second_solver, cex);
+      // we assume that a prover never returns 'ERROR'
+      assert (res != ERROR);
+      
       // print btor output
-      if (r == FALSE) {
+      if (res == FALSE) {
         cout << "sat" << endl;
         cout << "b" << pono_options.prop_idx_ << endl;
         assert(!pono_options.no_witness_ || !cex.size());
@@ -234,15 +234,13 @@ int main(int argc, char ** argv)
             vcdprinter.DumpTraceToFile(pono_options.vcd_name_);
           }
         }
-        pono_result = PROPERTY_FALSE;
-      } else if (r == TRUE) {
+      } else if (res == TRUE) {
         cout << "unsat" << endl;
         cout << "b" << pono_options.prop_idx_ << endl;
-        pono_result = PROPERTY_TRUE;
       } else {
+        assert (res == pono::UNKNOWN);
         cout << "unknown" << endl;
         cout << "b" << pono_options.prop_idx_ << endl;
-        pono_result = PROPERTY_UNKNOWN;
       }
 
     } else if (file_ext == "smv") {
@@ -260,11 +258,13 @@ int main(int argc, char ** argv)
       Term prop = propvec[pono_options.prop_idx_];
       Property p(rts, prop);
       std::vector<UnorderedTermMap> cex;
-      r = check_prop(pono_options, p, s, second_solver, cex);
-      logger.log(0, "Property {} is {}", pono_options.prop_idx_, to_string(r));
+      res = check_prop(pono_options, p, s, second_solver, cex);
+      // we assume that a prover never returns 'ERROR'
+      assert (res != ERROR);
 
-      if (r == FALSE) {
-        pono_result = PROPERTY_FALSE;
+      logger.log(0, "Property {} is {}", pono_options.prop_idx_, to_string(res));
+
+      if (res == FALSE) {
         assert(!pono_options.no_witness_ || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
@@ -277,12 +277,11 @@ int main(int argc, char ** argv)
           VCDWitnessPrinter vcdprinter(rts, cex);
           vcdprinter.DumpTraceToFile(pono_options.vcd_name_);
         }
-      } else if (r == TRUE) {
+      } else if (res == TRUE) {
         cout << "unsat" << endl;
-        pono_result = PROPERTY_TRUE;
       } else {
+        assert (res == pono::UNKNOWN);
         cout << "unknown" << endl;
-        pono_result = PROPERTY_UNKNOWN;
       }
     } else {
       throw PonoException("Unrecognized file extension " + file_ext
@@ -306,5 +305,5 @@ int main(int argc, char ** argv)
     cout << "b" << pono_options.prop_idx_ << endl;
   }
 
-  return pono_result;
+  return res;
 }

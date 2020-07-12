@@ -135,8 +135,8 @@ Engine PonoOptions::to_engine(std::string s)
 // Parse command line options given by 'argc' and 'argv' and set
 // respective options in the 'pono_options' object.
 // Returns 'ERROR' if there is something wrong with the given options
-// or 'PROPERTY_UNKNOWN' instead.
-PonoResult PonoOptions::parse_and_set_options(int argc, char ** argv)
+// or 'UNKNOWN' instead.
+ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
 {
   argc -= (argc > 0);
   argv += (argc > 0);  // skip program name argv[0] if present
@@ -149,7 +149,7 @@ PonoResult PonoOptions::parse_and_set_options(int argc, char ** argv)
 
   if (options[HELP] || argc == 0) {
     option::printUsage(cout, usage);
-    return PROPERTY_UNKNOWN;
+    return UNKNOWN;
   }
 
   if (parse.nonOptionsCount() != 1) {
@@ -204,7 +204,7 @@ PonoResult PonoOptions::parse_and_set_options(int argc, char ** argv)
 
   filename_ = parse.nonOption(0);
 
-  return PROPERTY_UNKNOWN;
+  return UNKNOWN;
 }
 
 }  // namespace pono

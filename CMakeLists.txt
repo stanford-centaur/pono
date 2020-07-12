@@ -128,7 +128,6 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/options/options.cpp"
-  "${PROJECT_SOURCE_DIR}/utils/ponoresult.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
