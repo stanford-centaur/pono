@@ -220,8 +220,8 @@ int main(int argc, char ** argv)
       vector<UnorderedTermMap> cex;
       res = check_prop(pono_options, p, s, second_solver, cex);
       // we assume that a prover never returns 'ERROR'
-      assert (res != ERROR);
-      
+      assert(res != ERROR);
+
       // print btor output
       if (res == FALSE) {
         cout << "sat" << endl;
@@ -238,7 +238,7 @@ int main(int argc, char ** argv)
         cout << "unsat" << endl;
         cout << "b" << pono_options.prop_idx_ << endl;
       } else {
-        assert (res == pono::UNKNOWN);
+        assert(res == pono::UNKNOWN);
         cout << "unknown" << endl;
         cout << "b" << pono_options.prop_idx_ << endl;
       }
@@ -260,9 +260,10 @@ int main(int argc, char ** argv)
       std::vector<UnorderedTermMap> cex;
       res = check_prop(pono_options, p, s, second_solver, cex);
       // we assume that a prover never returns 'ERROR'
-      assert (res != ERROR);
+      assert(res != ERROR);
 
-      logger.log(0, "Property {} is {}", pono_options.prop_idx_, to_string(res));
+      logger.log(
+          0, "Property {} is {}", pono_options.prop_idx_, to_string(res));
 
       if (res == FALSE) {
         assert(!pono_options.no_witness_ || cex.size() == 0);
@@ -280,7 +281,7 @@ int main(int argc, char ** argv)
       } else if (res == TRUE) {
         cout << "unsat" << endl;
       } else {
-        assert (res == pono::UNKNOWN);
+        assert(res == pono::UNKNOWN);
         cout << "unknown" << endl;
       }
     } else {

@@ -12,7 +12,7 @@ std::string to_string(ProverResult r)
   } else if (r == UNKNOWN) {
     return "UNKNOWN";
   } else {
-    assert (r == ERROR);
+    assert(r == ERROR);
     return "ERROR";
   }
 }
