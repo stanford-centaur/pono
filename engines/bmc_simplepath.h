@@ -24,6 +24,7 @@ class BmcSimplePath : public KInduction
 {
  public:
   BmcSimplePath(const Property & p, smt::SmtSolver & solver);
+  BmcSimplePath(PonoOptions & opt, const Property & p, smt::SmtSolver & solver);
   ~BmcSimplePath();
 
   typedef KInduction super;

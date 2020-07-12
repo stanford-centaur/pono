@@ -16,15 +16,28 @@
 
 #pragma once
 
-#include "options/defaults.h"
-#include "utils/exceptions.h"
+#include <unordered_map>
 #include "utils/ponoresult.h"
+
+namespace pono {
+
+// Engine options
+enum Engine
+{
+  BMC = 0,
+  BMC_SP,
+  KIND,
+  INTERP
+};
+
+const std::unordered_map<std::string, Engine> str2engine({ { "bmc", BMC },
+                                                           { "bmc-sp", BMC_SP },
+                                                           { "ind", KIND },
+                                                           { "interp",
+                                                             INTERP } });
 
 /*************************************** Options class
  * ************************************************/
-// Meant to be used as a singleton class
-
-namespace pono {
 
 class PonoOptions
 {
@@ -34,39 +47,47 @@ class PonoOptions
 
  public:
   PonoOptions()
-      : engine(default_engine),
-        prop_idx(default_prop_idx),
-        bound(default_bound),
-        verbosity(default_verbosity),
-        no_witness(default_no_witness)
+      : engine_(default_engine_),
+        prop_idx_(default_prop_idx_),
+        bound_(default_bound_),
+        verbosity_(default_verbosity_),
+        no_witness_(default_no_witness_)
   {
-    if (!instance_created)
-      instance_created = true;
-    else
-      throw PonoException(
-          "Cannot create objects of class PonoOptions, "
-          "use global object 'pono_options' instead.");
   }
+
+  /*
+  PonoOptions(const PonoOptions &obj)
+    {
+       engine_ = obj.engine_;
+       prop_idx_ = obj.prop_idx_;
+       bound_ = obj.bound_;
+       verbosity_ = obj.verbosity_;
+       no_witness_ = obj.no_witness_;
+    }
+  */
 
   ~PonoOptions(){};
 
   PonoResult parse_and_set_options(int argc, char ** argv);
 
+  Engine to_engine(std::string s);
+
   // Pono options
-  Engine engine;
-  unsigned int prop_idx;
-  unsigned int bound;
-  unsigned int verbosity;
-  bool no_witness;
-  std::string vcd_name;
-  std::string filename;
+  Engine engine_;
+  unsigned int prop_idx_;
+  unsigned int bound_;
+  unsigned int verbosity_;
+  bool no_witness_;
+  std::string vcd_name_;
+  std::string filename_;
 
  private:
-  // flag to prevent creation of more than one class object
-  static bool instance_created;
+  // Default options
+  Engine default_engine_ = BMC;
+  unsigned int default_prop_idx_ = 0;
+  unsigned int default_bound_ = 10;
+  unsigned int default_verbosity_ = 0;
+  bool default_no_witness_ = false;
 };
-
-// globally available options instance
-extern PonoOptions pono_options;
 
 }  // namespace pono

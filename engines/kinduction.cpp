@@ -27,6 +27,14 @@ KInduction::KInduction(const Property & p, SmtSolver & solver)
   initialize();
 }
 
+KInduction::KInduction(PonoOptions & opt,
+                       const Property & p,
+                       smt::SmtSolver & solver)
+    : super(opt, p, solver)
+{
+  initialize();
+}
+
 KInduction::~KInduction() {}
 
 void KInduction::initialize()

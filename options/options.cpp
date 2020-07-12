@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include "optionparser.h"
+#include "utils/exceptions.h"
 
 using namespace std;
 
@@ -122,10 +123,14 @@ const option::Descriptor usage[] = {
 
 namespace pono {
 
-bool PonoOptions::instance_created = false;
-
-// declare a global options object
-PonoOptions pono_options;
+Engine PonoOptions::to_engine(std::string s)
+{
+  if (str2engine.find(s) != str2engine.end()) {
+    return str2engine.at(s);
+  } else {
+    throw PonoException("Unrecognized engine: " + s);
+  }
+}
 
 // Parse command line options given by 'argc' and 'argv' and set
 // respective options in the 'pono_options' object.
@@ -169,19 +174,19 @@ PonoResult PonoOptions::parse_and_set_options(int argc, char ** argv)
       switch (opt.index()) {
         case HELP:
           // not possible, because handled further above and exits the program
-        case ENGINE: engine = to_engine(opt.arg); break;
-        case BOUND: bound = atoi(opt.arg); break;
-        case PROP: prop_idx = atoi(opt.arg); break;
-        case VERBOSITY: verbosity = atoi(opt.arg); break;
+        case ENGINE: engine_ = to_engine(opt.arg); break;
+        case BOUND: bound_ = atoi(opt.arg); break;
+        case PROP: prop_idx_ = atoi(opt.arg); break;
+        case VERBOSITY: verbosity_ = atoi(opt.arg); break;
         case VCDNAME:
-          vcd_name = opt.arg;
-          if (no_witness)
+          vcd_name_ = opt.arg;
+          if (no_witness_)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
         case NOWITNESS:
-          no_witness = true;
-          if (!vcd_name.empty())
+          no_witness_ = true;
+          if (!vcd_name_.empty())
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
@@ -197,7 +202,7 @@ PonoResult PonoOptions::parse_and_set_options(int argc, char ** argv)
     return ERROR;
   }
 
-  filename = parse.nonOption(0);
+  filename_ = parse.nonOption(0);
 
   return PROPERTY_UNKNOWN;
 }

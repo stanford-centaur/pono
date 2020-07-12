@@ -26,7 +26,6 @@
 #include "bmc.h"
 #include "bmc_simplepath.h"
 #include "core/fts.h"
-#include "defaults.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
@@ -135,7 +134,8 @@ const option::Descriptor usage[] = {
 /*********************************** end Option Handling setup
  * ***************************************/
 
-ProverResult check_prop(Property & p,
+ProverResult check_prop(PonoOptions pono_options,
+                        Property & p,
                         SmtSolver & s,
                         SmtSolver & second_solver,
                         std::vector<UnorderedTermMap> & cex)
@@ -146,21 +146,21 @@ ProverResult check_prop(Property & p,
   logger.log(3, "TRANS:\n{}", p.transition_system().trans());
 
   std::shared_ptr<Prover> prover;
-  if (pono_options.engine == BMC) {
-    prover = std::make_shared<Bmc>(p, s);
-  } else if (pono_options.engine == BMC_SP) {
-    prover = std::make_shared<BmcSimplePath>(p, s);
-  } else if (pono_options.engine == KIND) {
-    prover = std::make_shared<KInduction>(p, s);
-  } else if (pono_options.engine == INTERP) {
+  if (pono_options.engine_ == BMC) {
+    prover = std::make_shared<Bmc>(pono_options, p, s);
+  } else if (pono_options.engine_ == BMC_SP) {
+    prover = std::make_shared<BmcSimplePath>(pono_options, p, s);
+  } else if (pono_options.engine_ == KIND) {
+    prover = std::make_shared<KInduction>(pono_options, p, s);
+  } else if (pono_options.engine_ == INTERP) {
     assert(second_solver != NULL);
-    prover = std::make_shared<InterpolantMC>(p, s, second_solver);
+    prover = std::make_shared<InterpolantMC>(pono_options, p, s, second_solver);
   } else {
     throw PonoException("Unimplemented engine.");
   }
 
-  ProverResult r = prover->check_until(pono_options.bound);
-  if (r == FALSE && !pono_options.no_witness) {
+  ProverResult r = prover->check_until(pono_options.bound_);
+  if (r == FALSE && !pono_options.no_witness_) {
     prover->witness(cex);
   }
   return r;
@@ -168,19 +168,18 @@ ProverResult check_prop(Property & p,
 
 int main(int argc, char ** argv)
 {
-  // Set options via the global PonoOptions object 'pono_options'
-  // defined in './options/options.h'.
+  PonoOptions pono_options;
   PonoResult pono_result = pono_options.parse_and_set_options(argc, argv);
   if (pono_result == ERROR) return pono_result;
   assert(pono_result == PROPERTY_UNKNOWN);
 
   // set logger verbosity -- can only be set once
-  logger.set_verbosity(pono_options.verbosity);
+  logger.set_verbosity(pono_options.verbosity_);
 
   try {
     SmtSolver s;
     SmtSolver second_solver;
-    if (pono_options.engine == INTERP) {
+    if (pono_options.engine_ == INTERP) {
 #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create(false);
@@ -204,79 +203,79 @@ int main(int argc, char ** argv)
     //       it would be better to have a generic encoder
     //       and also only create the transition system once
     ProverResult r;
-    string file_ext = pono_options.filename.substr(
-        pono_options.filename.find_last_of(".") + 1);
+    string file_ext = pono_options.filename_.substr(
+        pono_options.filename_.find_last_of(".") + 1);
     if (file_ext == "btor2" || file_ext == "btor") {
-      logger.log(2, "Parsing BTOR2 file: {}", pono_options.filename);
+      logger.log(2, "Parsing BTOR2 file: {}", pono_options.filename_);
       FunctionalTransitionSystem fts(s);
-      BTOR2Encoder btor_enc(pono_options.filename, fts);
+      BTOR2Encoder btor_enc(pono_options.filename_, fts);
       const TermVec & propvec = btor_enc.propvec();
       unsigned int num_props = propvec.size();
-      if (pono_options.prop_idx >= num_props) {
+      if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(
-            "Property index " + to_string(pono_options.prop_idx)
+            "Property index " + to_string(pono_options.prop_idx_)
             + " is greater than the number of properties in file "
-            + pono_options.filename + " (" + to_string(num_props) + ")");
+            + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
-      Term prop = propvec[pono_options.prop_idx];
+      Term prop = propvec[pono_options.prop_idx_];
       Property p(fts, prop);
       vector<UnorderedTermMap> cex;
-      r = check_prop(p, s, second_solver, cex);
+      r = check_prop(pono_options, p, s, second_solver, cex);
 
       // print btor output
       if (r == FALSE) {
         cout << "sat" << endl;
-        cout << "b" << pono_options.prop_idx << endl;
-        assert(!pono_options.no_witness || !cex.size());
+        cout << "b" << pono_options.prop_idx_ << endl;
+        assert(!pono_options.no_witness_ || !cex.size());
         if (cex.size()) {
           print_witness_btor(btor_enc, cex);
-          if (!pono_options.vcd_name.empty()) {
+          if (!pono_options.vcd_name_.empty()) {
             VCDWitnessPrinter vcdprinter(fts, cex);
-            vcdprinter.DumpTraceToFile(pono_options.vcd_name);
+            vcdprinter.DumpTraceToFile(pono_options.vcd_name_);
           }
         }
         pono_result = PROPERTY_FALSE;
       } else if (r == TRUE) {
         cout << "unsat" << endl;
-        cout << "b" << pono_options.prop_idx << endl;
+        cout << "b" << pono_options.prop_idx_ << endl;
         pono_result = PROPERTY_TRUE;
       } else {
         cout << "unknown" << endl;
-        cout << "b" << pono_options.prop_idx << endl;
+        cout << "b" << pono_options.prop_idx_ << endl;
         pono_result = PROPERTY_UNKNOWN;
       }
 
     } else if (file_ext == "smv") {
-      logger.log(2, "Parsing SMV file: {}", pono_options.filename);
+      logger.log(2, "Parsing SMV file: {}", pono_options.filename_);
       RelationalTransitionSystem rts(s);
-      SMVEncoder smv_enc(pono_options.filename, rts);
+      SMVEncoder smv_enc(pono_options.filename_, rts);
       const TermVec & propvec = smv_enc.propvec();
       unsigned int num_props = propvec.size();
-      if (pono_options.prop_idx >= num_props) {
+      if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(
-            "Property index " + to_string(pono_options.prop_idx)
+            "Property index " + to_string(pono_options.prop_idx_)
             + " is greater than the number of properties in file "
-            + pono_options.filename + " (" + to_string(num_props) + ")");
+            + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
-      Term prop = propvec[pono_options.prop_idx];
+      Term prop = propvec[pono_options.prop_idx_];
       Property p(rts, prop);
       std::vector<UnorderedTermMap> cex;
-      r = check_prop(p, s, second_solver, cex);
-      logger.log(0, "Property {} is {}", pono_options.prop_idx, to_string(r));
+      r = check_prop(pono_options, p, s, second_solver, cex);
+      logger.log(0, "Property {} is {}", pono_options.prop_idx_, to_string(r));
 
       if (r == FALSE) {
         pono_result = PROPERTY_FALSE;
-        assert(!pono_options.no_witness || cex.size() == 0);
+        assert(!pono_options.no_witness_ || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
           for (auto elem : cex[t]) {
             cout << "\t" << elem.first << " : " << elem.second << endl;
           }
         }
-        assert(!pono_options.no_witness || pono_options.vcd_name.empty());
-        if (!pono_options.vcd_name.empty()) {
+        assert(!pono_options.no_witness_ || pono_options.vcd_name_.empty());
+        if (!pono_options.vcd_name_.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
-          vcdprinter.DumpTraceToFile(pono_options.vcd_name);
+          vcdprinter.DumpTraceToFile(pono_options.vcd_name_);
         }
       } else if (r == TRUE) {
         cout << "unsat" << endl;
@@ -287,24 +286,24 @@ int main(int argc, char ** argv)
       }
     } else {
       throw PonoException("Unrecognized file extension " + file_ext
-                          + " for file " + pono_options.filename);
+                          + " for file " + pono_options.filename_);
     }
   }
   catch (PonoException & ce) {
     cout << ce.what() << endl;
     cout << "unknown" << endl;
-    cout << "b" << pono_options.prop_idx << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
   }
   catch (SmtException & se) {
     cout << se.what() << endl;
     cout << "unknown" << endl;
-    cout << "b" << pono_options.prop_idx << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
   }
   catch (std::exception & e) {
     cout << "Caught generic exception..." << endl;
     cout << e.what() << endl;
     cout << "unknown" << endl;
-    cout << "b" << pono_options.prop_idx << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
   }
 
   return pono_result;
