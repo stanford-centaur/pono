@@ -55,17 +55,6 @@ class PonoOptions
   {
   }
 
-  /*
-  PonoOptions(const PonoOptions &obj)
-    {
-       engine_ = obj.engine_;
-       prop_idx_ = obj.prop_idx_;
-       bound_ = obj.bound_;
-       verbosity_ = obj.verbosity_;
-       no_witness_ = obj.no_witness_;
-    }
-  */
-
   ~PonoOptions(){};
 
   PonoResult parse_and_set_options(int argc, char ** argv);
@@ -83,11 +72,11 @@ class PonoOptions
 
  private:
   // Default options
-  Engine default_engine_ = BMC;
-  unsigned int default_prop_idx_ = 0;
-  unsigned int default_bound_ = 10;
-  unsigned int default_verbosity_ = 0;
-  bool default_no_witness_ = false;
+  static const Engine default_engine_ = BMC;
+  static const unsigned int default_prop_idx_ = 0;
+  static const unsigned int default_bound_ = 10;
+  static const unsigned int default_verbosity_ = 0;
+  static const bool default_no_witness_ = false;
 };
 
 }  // namespace pono
