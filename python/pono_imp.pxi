@@ -28,6 +28,11 @@ from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 
 from enum import Enum
 
+try:
+    import coreir
+except:
+    print("Warning: Pono built with CoreIR support but coreir python module not found")
+
 ctypedef unordered_set[c_Term] c_UnorderedTermSet
 ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr
 ctypedef unordered_set[c_Term].const_iterator c_UnorderedTermSet_const_iterator
