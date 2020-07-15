@@ -27,6 +27,13 @@ BmcSimplePath::BmcSimplePath(const Property & p, SmtSolver & solver)
 {
 }
 
+BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
+                             const Property & p,
+                             smt::SmtSolver & solver)
+    : super(opt, p, solver)
+{
+}
+
 BmcSimplePath::~BmcSimplePath() {}
 
 ProverResult BmcSimplePath::check_until(int k)

@@ -127,6 +127,7 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/options/options.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )

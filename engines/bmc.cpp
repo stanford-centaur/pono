@@ -26,6 +26,12 @@ Bmc::Bmc(const Property & p, SmtSolver & solver) : super(p, solver)
   initialize();
 }
 
+Bmc::Bmc(const PonoOptions & opt, const Property & p, smt::SmtSolver & solver)
+    : super(opt, p, solver)
+{
+  initialize();
+}
+
 Bmc::~Bmc() {}
 
 void Bmc::initialize()
