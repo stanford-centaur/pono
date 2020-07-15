@@ -45,7 +45,9 @@ script:
   - sudo python3 -m pip install -e ./deps/smt-switch/build/python
   - ./contrib/setup-btor2tools.sh
   - ./contrib/setup-bison.sh
-  - ./configure.sh --with-msat --python --debug
+  # need to source for now so that coreir binary is in PATH for pycoreir
+  - source ./contrib/setup-coreir.sh --python
+  - ./configure.sh --with-msat --python --debug --with-coreir
   - cd build && make -j2 && make test && cd ../
   - sudo python3 -m pip install -e ./build/python
   - pytest ./tests
