@@ -53,8 +53,8 @@ InterpolantMC::InterpolantMC(const PonoOptions & opt,
 
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
                              const Property & p,
-                             SmtSolver & slv,
-                             SmtSolver & itp)
+                             SmtSolver slv,
+                             SmtSolver itp)
     : super(opt, p, slv),
       interpolator_(itp),
       to_interpolator_(itp),
