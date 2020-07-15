@@ -37,6 +37,8 @@ class CoreIREncoder
     bvsort1_ = solver_->make_sort(smt::BV, 1);
     boolsort_ = solver_->make_sort(smt::BOOL);
     bv1_ = solver_->make_term(1, bvsort1_);
+
+    encode();
   }
 
  protected:
