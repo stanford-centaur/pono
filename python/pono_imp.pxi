@@ -347,7 +347,7 @@ IF WITH_COREIR == "ON":
             if isinstance(mod, str):
                 self.cbe = new c_CoreIREncoder((<string?> (mod.encode())), dref((<c_RelationalTransitionSystem *> ts.cts)))
             elif hasattr(mod, "ptr"):
-                adr = <uintptr_t>ctypes.addressof(mod.ptr)
+                adr = <uintptr_t> ctypes.addressof(mod.ptr.contents)
                 self.cbe = new c_CoreIREncoder((<c_Module *> adr), dref((<c_RelationalTransitionSystem *> ts.cts)))
             else:
                 raise ValueError("CoreIR encoder takes a pycoreir Context or a filename but got {}".format(mod))
