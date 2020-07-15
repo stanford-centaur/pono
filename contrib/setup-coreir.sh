@@ -61,9 +61,9 @@ if [ ! -d "$DEPS/coreir" ]; then
             exit 1
         fi
         pip install -e .
-        cd ../../
     fi
     cd $DIR
+    cd ../
 else
     echo "$DEPS/coreir already exists. If you want to rebuild, please remove it manually."
 fi
