@@ -21,6 +21,8 @@ addons:
       - python3-setuptools
       - ruby
       - libfl-dev
+      - libmpfr-dev
+      - libmpc-dev
 
 jobs:
   include:
