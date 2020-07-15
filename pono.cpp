@@ -170,6 +170,10 @@ int main(int argc, char ** argv)
   PonoOptions pono_options;
   ProverResult res = pono_options.parse_and_set_options(argc, argv);
   if (res == ERROR) return res;
+  // expected result returned by option parsing and setting is
+  // 'pono::UNKNOWN', indicating that options were correctly set and
+  // 'ERROR' otherwise, e.g. wrong command line options or
+  // incompatible options were passed
   assert(res == pono::UNKNOWN);
 
   // set logger verbosity -- can only be set once

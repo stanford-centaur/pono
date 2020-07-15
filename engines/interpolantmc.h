@@ -31,7 +31,7 @@ class InterpolantMC : public Prover
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
   InterpolantMC(const Property & p, smt::SmtSolver & slv, smt::SmtSolver & itp);
-  InterpolantMC(PonoOptions & opt,
+  InterpolantMC(const PonoOptions & opt,
                 const Property & p,
                 smt::SmtSolver & slv,
                 smt::SmtSolver & itp);

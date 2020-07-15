@@ -24,7 +24,7 @@ class Bmc : public Prover
 {
  public:
   Bmc(const Property & p, smt::SmtSolver & solver);
-  Bmc(PonoOptions & opt, const Property & p, smt::SmtSolver & solver);
+  Bmc(const PonoOptions & opt, const Property & p, smt::SmtSolver & solver);
   ~Bmc();
 
   typedef Prover super;

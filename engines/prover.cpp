@@ -30,7 +30,7 @@ Prover::Prover(const Property & p, smt::SmtSolver & s)
 {
 }
 
-Prover::Prover(PonoOptions & opt, const Property & p, smt::SmtSolver & s)
+Prover::Prover(const PonoOptions & opt, const Property & p, smt::SmtSolver & s)
     : options_(opt),
       ts_(p.transition_system()),
       property_(p),

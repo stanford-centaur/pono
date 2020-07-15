@@ -31,7 +31,7 @@ InterpolantMC::InterpolantMC(const Property & p,
   initialize();
 }
 
-InterpolantMC::InterpolantMC(PonoOptions & opt,
+InterpolantMC::InterpolantMC(const PonoOptions & opt,
                              const Property & p,
                              SmtSolver & slv,
                              SmtSolver & itp)

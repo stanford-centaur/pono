@@ -27,7 +27,7 @@ BmcSimplePath::BmcSimplePath(const Property & p, SmtSolver & solver)
 {
 }
 
-BmcSimplePath::BmcSimplePath(PonoOptions & opt,
+BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
                              const Property & p,
                              smt::SmtSolver & solver)
     : super(opt, p, solver)
