@@ -2,7 +2,7 @@
 /*! \file
  ** \verbatim
  ** Top contributors (to current version):
- **   Ahmed Irfan, Makai Mann
+ **   Ahmed Irfan, Makai Mann, Florian Lonsing
  ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
@@ -38,6 +38,27 @@ Prover::Prover(const Property & p, smt::SmtSolver s)
       property_(p, to_prover_solver_),
       ts_(property_.transition_system()),
       orig_ts_(p.transition_system()),
+      unroller_(ts_, solver_)
+{
+}
+
+Prover::Prover(const PonoOptions & opt, const Property & p, smt::SolverEnum se)
+  : Prover(p, se),
+    options_(opt)
+{
+}
+
+Prover::Prover(const PonoOptions & opt, const Property & p, smt::SmtSolver s)
+  : Prover(p, s)
+    options_(opt),
+{
+}
+
+Prover::Prover(const PonoOptions & opt, const Property & p, smt::SmtSolver & s)
+    : options_(opt),
+      ts_(p.transition_system()),
+      property_(p),
+      solver_(s),
       unroller_(ts_, solver_)
 {
 }

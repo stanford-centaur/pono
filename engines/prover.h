@@ -2,7 +2,7 @@
 /*! \file
  ** \verbatim
  ** Top contributors (to current version):
- **   Makai Mann, Ahmed Irfan
+ **   Makai Mann, Ahmed Irfan, Florian Lonsing
  ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "options/options.h"
 #include "prop.h"
 #include "proverresult.h"
 #include "smt-switch/smt.h"
@@ -28,6 +29,9 @@ class Prover
  public:
   Prover(const Property & p, smt::SolverEnum se);
   Prover(const Property & p, smt::SmtSolver s);
+  Prover(const PonoOptions & opt, const Property & p, smt::SolverEnum se);
+  Prover(const PonoOptions & opt, const Property & p, smt::SmtSolver s);
+
   virtual ~Prover();
 
   virtual void initialize();
@@ -52,5 +56,7 @@ class Prover
   int reached_k_;
 
   smt::Term bad_;
+
+  PonoOptions options_;
 };
 }  // namespace pono
