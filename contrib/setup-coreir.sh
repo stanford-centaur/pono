@@ -47,7 +47,7 @@ if [ ! -d "$DEPS/coreir" ]; then
     mkdir build
     cd build
     cmake .. -DCMAKE_INSTALL_PREFIX=$DEPS/coreir/local
-    make -j${NPROC}
+    make -j2
     make install
     if [[ "$ENABLE_PYTHON" != default ]]; then
         echo "Pip installing coreir Python bindings"
