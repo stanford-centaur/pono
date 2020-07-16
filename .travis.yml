@@ -29,18 +29,22 @@ jobs:
     - os: linux
       dist: bionic
       compiler: gcc
+      env: PYTHON_EXECUTABLE=python3.7
     - os: linux
       dist: bionic
       compiler: clang
+      env: PYTHON_EXECUTABLE=python3.7
     - os: osx
       osx_image: xcode12
+      # default python3 is python3.8 on mac
+      env: PYTHON_EXECUTABLE=python3.8
 
 script:
   # - source ./scripts/travis-mac-install.sh
   # # brew sometimes fails on something even after a successful python installation
   # # we don't want the build to fail
   - ./scripts/travis-setup-osx-python.sh || true
-  - python3 --version
+  - ${PYTHON_EXECUTABLE} --version
   # - sudo python3.7 -m pip install Cython==0.29 --install-option="--no-cython-compile"
   # - sudo python3.7 -m pip install pytest
   # - ./travis-scripts/setup-msat.sh --auto-yes
