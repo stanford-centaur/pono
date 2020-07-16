@@ -49,7 +49,8 @@ script:
   - ./contrib/setup-bison.sh
   # need to source for now so that coreir binary is in PATH for pycoreir
   # - source ./contrib/setup-coreir.sh --python
-  - ./configure.sh --with-msat --python --debug
+  - echo "$(which python3.7)"
+  - ./configure.sh --with-msat --python --debug --python-bin=$(which python3.7)
   - cd build && make -j2 && make test && cd ../
   - sudo python3.7 -m pip install -e ./build/python
   - python3.7 -m pytest ./tests
