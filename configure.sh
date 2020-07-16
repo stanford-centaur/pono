@@ -20,6 +20,7 @@ Configures the CMAKE build environment.
 --debug                 build debug with debug symbols (default: off)
 --python                compile with python bindings (default: off)
 --py2                   use python2 interpreter (default: python3)
+--python-bin            path to python binary
 --static-lib            build a static library (default: shared)
 --static                build a static executable (default: dynamic); implies --static-lib
 EOF
@@ -40,6 +41,7 @@ with_coreir=default
 debug=default
 python=default
 py2=default
+python_bin=default
 lib_type=SHARED
 static_exec=NO
 
@@ -82,6 +84,16 @@ do
         --py2)
             py2=yes
             ;;
+        --python-bin) die "missing argument to $1 (see -h)" ;;
+        --python-bin=*)
+            python_bin=${1##*=}
+            # Check if python_bin is an absolute path and if not, make it
+            # absolute.
+            case $python_bin in
+                /*) ;;                              # absolute path
+                *) python_bin=$(pwd)/$python_bin ;; # make absolute path
+            esac
+            ;;
         --static-lib)
             lib_type=STATIC
             ;;
@@ -113,6 +125,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $py2 != default ] \
     && cmake_opts="$cmake_opts -DUSE_PYTHON2=ON"
+
+[ $python_bin != default ] \
+    && cmake_opts="$cmake_opts -DPYTHON_EXECUTABLE:FILEPATH=$python_bin"
 
 root_dir=$(pwd)
 
