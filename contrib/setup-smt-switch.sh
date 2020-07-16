@@ -13,6 +13,7 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 --with-cvc4             include CVC4 (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 --python                build python bindings (default: off)
+--python-bin            path to python binary
 EOF
     exit 0
 }
@@ -38,6 +39,17 @@ do
             CONF_OPTS="$CONF_OPTS --cvc4";;
         --python)
             CONF_OPTS="$CONF_OPTS --python";;
+        --python-bin) die "missing argument to $1 (see -h)" ;;
+        --python-bin=*)
+            PYTHON_BIN=${1##*=}
+            # Check if PYTHON_BIN is an absolute path and if not, make it
+            # absolute.
+            case $PYTHON_BIN in
+                /*) ;;                              # absolute path
+                *) PYTHON_BIN=$(pwd)/$PYTHON_BIN ;; # make absolute path
+            esac
+            CONF_OPTS="$CONF_OPTS --python-bin=$PYTHON_BIN"
+            ;;
         *) die "unexpected argument: $1";;
     esac
     shift
@@ -47,7 +59,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    git clone -b python-bin https://github.com/makaimann/smt-switch
     cd smt-switch
     ./contrib/setup-btor.sh
 
