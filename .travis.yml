@@ -43,7 +43,7 @@ script:
   - sudo python3.7 -m pip install Cython==0.29 --install-option="--no-cython-compile"
   - sudo python3.7 -m pip install pytest
   - ./travis-scripts/setup-msat.sh --auto-yes
-  - ./contrib/setup-smt-switch.sh --with-msat --python
+  - ./contrib/setup-smt-switch.sh --with-msat --python --python-bin=$(which python3.7)
   - sudo python3.7 -m pip install -e ./deps/smt-switch/build/python
   - ./contrib/setup-btor2tools.sh
   - ./contrib/setup-bison.sh
