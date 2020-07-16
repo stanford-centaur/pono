@@ -40,21 +40,20 @@ jobs:
       env: PYTHON_EXECUTABLE=python3.8
 
 script:
-  # - source ./scripts/travis-mac-install.sh
-  # # brew sometimes fails on something even after a successful python installation
-  # # we don't want the build to fail
+  - source ./scripts/travis-mac-install.sh
+  # brew sometimes fails on something even after a successful python installation
+  # we don't want the build to fail
   - ./scripts/travis-setup-osx-python.sh || true
-  - ${PYTHON_EXECUTABLE} --version
-  # - sudo python3.7 -m pip install Cython==0.29 --install-option="--no-cython-compile"
-  # - sudo python3.7 -m pip install pytest
-  # - ./travis-scripts/setup-msat.sh --auto-yes
-  # - ./contrib/setup-smt-switch.sh --with-msat --python --python-bin=$(which python3.7)
-  # - sudo python3.7 -m pip install -e ./deps/smt-switch/build/python
-  # - ./contrib/setup-btor2tools.sh
-  # - ./contrib/setup-bison.sh
-  # # need to source for now so that coreir binary is in PATH for pycoreir
-  # # - source ./contrib/setup-coreir.sh --python
-  # - ./configure.sh --with-msat --python --debug --python-bin=$(which python3.7)
-  # - cd build && make -j2 && make test && cd ../
-  # - sudo python3.7 -m pip install -e ./build/python
-  # - python3.7 -m pytest ./tests
+  - sudo ${PYTHON_EXECUTABLE} -m pip install Cython==0.29 --install-option="--no-cython-compile"
+  - sudo ${PYTHON_EXECUTABLE} -m pip install pytest
+  - ./travis-scripts/setup-msat.sh --auto-yes
+  - ./contrib/setup-smt-switch.sh --with-msat --python --python-bin=${PYTHON_EXECUTABLE}
+  - sudo ${PYTHON_EXECUTABLE} -m pip install -e ./deps/smt-switch/build/python
+  - ./contrib/setup-btor2tools.sh
+  - ./contrib/setup-bison.sh
+  # need to source for now so that coreir binary is in PATH for pycoreir
+  - source ./contrib/setup-coreir.sh --python
+  - ./configure.sh --with-msat --python --debug --with-coreir --python-bin=${PYTHON_EXECUTABLE}
+  - cd build && make -j2 && make test && cd ../
+  - sudo ${PYTHON_EXECUTABLE} -m pip install -e ./build/python
+  - ${PYTHON_EXECUTABLE} -m pytest ./tests
