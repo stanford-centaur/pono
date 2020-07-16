@@ -16,7 +16,7 @@ addons:
       - libhamcrest-java
       - openjdk-8-jdk
       - swig3.0
-      - python3.7
+      - python3.7-dev
       - python3-pip
       - python3-setuptools
       - ruby
