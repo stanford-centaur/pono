@@ -52,7 +52,9 @@ script:
   - ./contrib/setup-btor2tools.sh
   - ./contrib/setup-bison.sh
   # need to source for now so that coreir binary is in PATH for pycoreir
-  - source ./contrib/setup-coreir.sh --python
+  - source ./contrib/setup-coreir.sh
+  - export PATH=./deps/coreir/local/bin/:$PATH
+  - cd deps && git clone https://github.com/leonardt/pycoreir.git && cd pycoreir && sudo ${PYTHON_EXECUTABLE} -m pip install -e ./ && cd ../../
   - ./configure.sh --with-msat --python --debug --with-coreir --python-bin=${PYTHON_EXECUTABLE}
   - cd build && make -j2 && make test && cd ../
   - sudo ${PYTHON_EXECUTABLE} -m pip install -e ./build/python
