@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include <iterator>
 #include <map>
@@ -26,7 +25,7 @@
 
 #include "utils/logger.h"
 
-namespace cosa {
+namespace pono {
 
 std::string as_bits(std::string val)
 {
@@ -35,14 +34,14 @@ std::string as_bits(std::string val)
   std::string res = val;
 
   if (val.length() < 2) {
-    throw CosaException("Don't know how to interpret value: " + val);
+    throw PonoException("Don't know how to interpret value: " + val);
   }
 
   if (res.substr(0, 2) == "#b") {
     // remove the #b prefix
     res = res.substr(2, val.length() - 2);
   } else if (res.substr(0, 2) == "#x") {
-    throw CosaException("Not supporting hexadecimal format yet.");
+    throw PonoException("Not supporting hexadecimal format yet.");
   } else {
     res = res.substr(5, res.length() - 5);
     std::istringstream iss(res);
@@ -50,7 +49,7 @@ std::string as_bits(std::string val)
                                     std::istream_iterator<std::string>());
 
     if (tokens.size() != 2) {
-      throw CosaException("Failed to interpret " + val);
+      throw PonoException("Failed to interpret " + val);
     }
 
     res = tokens[0];
@@ -117,7 +116,7 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
       }
 
     } else {
-      throw CosaException("Unhandled sort kind: " + ::smt::to_string(sk));
+      throw PonoException("Unhandled sort kind: " + ::smt::to_string(sk));
     }
   }
 }
@@ -171,7 +170,7 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
       }
 
     } else {
-      throw CosaException("Unhandled sort kind: " + ::smt::to_string(sk));
+      throw PonoException("Unhandled sort kind: " + ::smt::to_string(sk));
     }
   }
 }
@@ -205,4 +204,4 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
   logger.log(0, ".");
 }
 
-}  // namespace cosa
+}  // namespace pono

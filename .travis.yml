@@ -30,7 +30,7 @@ jobs:
       dist: bionic
       compiler: clang
     - os: osx
-      osx_image: xcode9.2
+      osx_image: xcode12
 
 script:
   - source ./scripts/travis-mac-install.sh

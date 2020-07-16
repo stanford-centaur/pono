@@ -17,7 +17,7 @@
 #include "smt-switch/msat_factory.h"
 #endif
 
-namespace cosa_tests {
+namespace pono_tests {
 
 typedef ::smt::SmtSolver (*create_solver_fun)(bool);
 
@@ -38,4 +38,4 @@ std::vector<SolverEnum> available_solver_enums();
 
 std::ostream & operator<<(std::ostream & o, SolverEnum e);
 
-}  // namespace cosa_tests
+}  // namespace pono_tests

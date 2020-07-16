@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Ahmed Irfan, Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include "prover.h"
 
@@ -21,7 +20,7 @@
 
 using namespace smt;
 
-namespace cosa {
+namespace pono {
 
 Prover::Prover(const Property & p, smt::SmtSolver & s)
     : ts_(p.transition_system()),
@@ -70,4 +69,4 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
   return true;
 }
 
-}  // namespace cosa
+}  // namespace pono

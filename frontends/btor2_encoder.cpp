@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include "btor2_encoder.h"
 #include "term_analysis.h"
@@ -25,7 +24,7 @@
 using namespace smt;
 using namespace std;
 
-namespace cosa {
+namespace pono {
 
 // Maps for use in conversion
 const unordered_map<Btor2Tag, int> basemap({ { BTOR2_TAG_const, 2 },
@@ -135,7 +134,7 @@ Term BTOR2Encoder::bv_to_bool(const Term & t) const
   Sort sort = t->get_sort();
   if (sort->get_sort_kind() == BV) {
     if (sort->get_width() != 1) {
-      throw CosaException("Can't convert non-width 1 bitvector to bool.");
+      throw PonoException("Can't convert non-width 1 bitvector to bool.");
     }
     return solver_->make_term(
         Equal, t, solver_->make_term(1, solver_->make_sort(BV, 1)));
@@ -193,13 +192,13 @@ void BTOR2Encoder::preprocess(const std::string& filename) {
   FILE * input_file = fopen(filename.c_str(), "r");
 
   if (!input_file) {
-    throw CosaException("Could not open " + filename);
+    throw PonoException("Could not open " + filename);
   }
 
   reader_ = btor2parser_new();
 
   if (!btor2parser_read_lines(reader_, input_file)) {
-    throw CosaException(std::string(btor2parser_error(reader_)));
+    throw PonoException(std::string(btor2parser_error(reader_)));
   }
 
   it_ = btor2parser_iter_init(reader_);
@@ -214,7 +213,7 @@ void BTOR2Encoder::preprocess(const std::string& filename) {
     } else if (l_->tag == BTOR2_TAG_output && l_->symbol) {
       // if we see an output with name
       if (l_->nargs == 0)
-        throw CosaException("Missing term for id " + std::to_string(l_->id));
+        throw PonoException("Missing term for id " + std::to_string(l_->id));
       // we'd like to know if it refers to a state without name
       auto pos = unamed_state_ids.find(l_->args[0]); // so, *pos is its btor id
       if ( pos != unamed_state_ids.end()) {
@@ -236,13 +235,13 @@ void BTOR2Encoder::parse(const std::string filename)
   FILE * input_file = fopen(filename.c_str(), "r");
 
   if (!input_file) {
-    throw CosaException("Could not open " + filename);
+    throw PonoException("Could not open " + filename);
   }
 
   reader_ = btor2parser_new();
 
   if (!btor2parser_read_lines(reader_, input_file)) {
-    throw CosaException(std::string(btor2parser_error(reader_)));
+    throw PonoException(std::string(btor2parser_error(reader_)));
   }
 
   uint64_t num_states = 0;
@@ -268,7 +267,7 @@ void BTOR2Encoder::parse(const std::string filename)
         idx_ = -idx_;
       }
       if (terms_.find(idx_) == terms_.end()) {
-        throw CosaException("Missing term for id " + std::to_string(idx_));
+        throw PonoException("Missing term for id " + std::to_string(idx_));
       }
 
       Term term_ = terms_.at(idx_);
@@ -336,7 +335,7 @@ void BTOR2Encoder::parse(const std::string filename)
         default:
           // TODO: maybe only check this in debug? or could always check cause
           // it's really bad
-          throw CosaException("Unknown sort tag");
+          throw PonoException("Unknown sort tag");
       }
     } else if (l_->tag == BTOR2_TAG_constraint) {
       Term constraint = bv_to_bool(termargs_[0]);
@@ -344,9 +343,9 @@ void BTOR2Encoder::parse(const std::string filename)
       terms_[l_->id] = constraint;
     } else if (l_->tag == BTOR2_TAG_init) {
       if (termargs_.size() != 2) {
-        throw CosaException("Expecting two term arguments to init");
+        throw PonoException("Expecting two term arguments to init");
       } else if (linesort_ != termargs_[0]->get_sort()) {
-        throw CosaException(
+        throw PonoException(
             "Expecting to init sort to match first argument's sort");
       }
 
@@ -362,7 +361,7 @@ void BTOR2Encoder::parse(const std::string filename)
           init_eq = solver_->make_term(Equal, termargs_[0], termargs_[1]);
         }
       } else {
-        throw CosaException("Unhandled sort: "
+        throw PonoException("Unhandled sort: "
                             + termargs_[0]->get_sort()->to_string());
       }
 
@@ -371,7 +370,7 @@ void BTOR2Encoder::parse(const std::string filename)
 
     } else if (l_->tag == BTOR2_TAG_next) {
       if (termargs_.size() != 2) {
-        throw CosaException("Expecting two arguments to next");
+        throw PonoException("Expecting two arguments to next");
       }
 
       Term t0 = termargs_[0];
@@ -390,7 +389,7 @@ void BTOR2Encoder::parse(const std::string filename)
         ts_.assign_next(bool_to_bv(t0), bool_to_bv(t1));
         terms_[l_->id] = bool_to_bv(t1);
       } else {
-        throw CosaException("Got two different sorts in next update.");
+        throw PonoException("Got two different sorts in next update.");
       }
       no_next_states_.erase(id2statenum.at(l_->args[0]));
     } else if (l_->tag == BTOR2_TAG_bad) {
@@ -462,7 +461,7 @@ void BTOR2Encoder::parse(const std::string filename)
           solver_->make_term(BVSub, t, solver_->make_term(1, t->get_sort()));
     } else if (l_->tag == BTOR2_TAG_eq) {
       if (termargs_.size() != 2) {
-        throw CosaException("Expecting two arguments to eq");
+        throw PonoException("Expecting two arguments to eq");
       }
       Term t0 = termargs_[0];
       Term t1 = termargs_[1];
@@ -479,7 +478,7 @@ void BTOR2Encoder::parse(const std::string filename)
           sk0 = BV;
           sk1 = BV;
         } else {
-          throw CosaException(
+          throw PonoException(
               "Expecting arguments to eq to have the same sort");
         }
       }
@@ -491,7 +490,7 @@ void BTOR2Encoder::parse(const std::string filename)
       }
     } else if (l_->tag == BTOR2_TAG_implies) {
       if (termargs_.size() != 2) {
-        throw CosaException("Expecting two arguments to implies");
+        throw PonoException("Expecting two arguments to implies");
       }
       Term t0 = termargs_[0];
       Term t1 = termargs_[1];
@@ -508,7 +507,7 @@ void BTOR2Encoder::parse(const std::string filename)
           sk0 = BOOL;
           sk1 = BOOL;
         } else {
-          throw CosaException(
+          throw PonoException(
               "Expecting arguments to implies to have the same sort");
         }
       }
@@ -680,7 +679,7 @@ void BTOR2Encoder::parse(const std::string filename)
      ********************************/
     else {
       if (!termargs_.size()) {
-        throw CosaException("Expecting non-zero number of terms");
+        throw PonoException("Expecting non-zero number of terms");
       }
 
       if (boolopmap.find(l_->tag) != boolopmap.end()) {
@@ -702,7 +701,7 @@ void BTOR2Encoder::parse(const std::string filename)
         } else if (sk == BOOL) {
           terms_[l_->id] = solver_->make_term(boolopmap.at(l_->tag), termargs_);
         } else {
-          throw CosaException("Unexpected sort");
+          throw PonoException("Unexpected sort");
         }
       } else {
         for (int i = 0; i < termargs_.size(); i++) {
@@ -719,7 +718,7 @@ void BTOR2Encoder::parse(const std::string filename)
       try {
         ts_.name_term(l_->symbol, terms_.at(l_->id));
       }
-      catch (CosaException & e) {
+      catch (PonoException & e) {
         logger.log(1, "BTOR2Encoder Warning: {}", e.what());
       }
     }
@@ -731,4 +730,4 @@ void BTOR2Encoder::parse(const std::string filename)
   fclose(input_file);
   btor2parser_delete(reader_);
 }
-}  // namespace cosa
+}  // namespace pono

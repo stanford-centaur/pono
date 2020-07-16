@@ -3,7 +3,7 @@
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
@@ -20,7 +20,7 @@
 #include "optionparser.h"
 #include "smt-switch/boolector_factory.h"
 #ifdef WITH_MSAT
-  #include "smt-switch/msat_factory.h"
+#include "smt-switch/msat_factory.h"
 #endif
 
 #include "bmc.h"
@@ -36,7 +36,7 @@
 #include "prop.h"
 #include "utils/logger.h"
 
-using namespace cosa;
+using namespace pono;
 using namespace smt;
 using namespace std;
 
@@ -51,7 +51,8 @@ enum optionIndex
   BOUND,
   PROP,
   VERBOSITY,
-  VCDNAME
+  VCDNAME,
+  NOWITNESS
 };
 
 struct Arg : public option::Arg
@@ -92,7 +93,7 @@ const option::Descriptor usage[] = {
     "",
     "",
     Arg::None,
-    "USAGE: cosa2 [options] <btor file>\n\n"
+    "USAGE: pono [options] <btor file>\n\n"
     "Options:" },
   { HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit." },
   { ENGINE,
@@ -126,6 +127,7 @@ const option::Descriptor usage[] = {
     "vcd",
     Arg::NonEmpty,
     "  --vcd \tName of Value Change Dump (VCD) if witness exists." },
+  { NOWITNESS, 0, "", "no-witness", Arg::None, "  --no-witness \tDisable printing of witness." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -136,7 +138,8 @@ ProverResult check_prop(Engine engine,
                         Property & p,
                         SmtSolver & s,
                         SmtSolver & second_solver,
-                        std::vector<UnorderedTermMap> & cex)
+                        std::vector<UnorderedTermMap> & cex,
+                        const bool no_witness)
 {
   logger.log(1, "Solving property: {}", p.prop());
 
@@ -154,11 +157,11 @@ ProverResult check_prop(Engine engine,
     assert(second_solver != NULL);
     prover = std::make_shared<InterpolantMC>(p, s, second_solver);
   } else {
-    throw CosaException("Unimplemented engine.");
+    throw PonoException("Unimplemented engine.");
   }
 
   ProverResult r = prover->check_until(bound);
-  if (r == FALSE) {
+  if (r == FALSE && !no_witness) {
     prover->witness(cex);
   }
   return r;
@@ -201,25 +204,41 @@ int main(int argc, char ** argv)
   unsigned int prop_idx = default_prop_idx;
   unsigned int bound = default_bound;
   unsigned int verbosity = default_verbosity;
+  bool no_witness = default_no_witness;
   std::string vcd_name;
 
-  for (int i = 0; i < parse.optionsCount(); ++i) {
-    option::Option & opt = buffer[i];
-    switch (opt.index()) {
+  // try-catch block used to detect incompatible options.
+  try {
+    for (int i = 0; i < parse.optionsCount(); ++i) {
+      option::Option & opt = buffer[i];
+      switch (opt.index()) {
       case HELP:
         // not possible, because handled further above and exits the program
       case ENGINE: engine = to_engine(opt.arg); break;
       case BOUND: bound = atoi(opt.arg); break;
       case PROP: prop_idx = atoi(opt.arg); break;
       case VERBOSITY: verbosity = atoi(opt.arg); break;
-      case VCDNAME: vcd_name = opt.arg; break;
+      case VCDNAME:
+        vcd_name = opt.arg;
+        if (no_witness)
+          throw PonoException("Options '--vcd' and '--no-witness' are incompatible.");
+        break;
+      case NOWITNESS:
+        no_witness = true;
+        if (!vcd_name.empty())
+          throw PonoException("Options '--vcd' and '--no-witness' are incompatible.");
+        break;
       case UNKNOWN_OPTION:
         // not possible because Arg::Unknown returns ARG_ILLEGAL
         // which aborts the parse with an error
         break;
+      }
     }
+  } catch (PonoException & ce) {
+    cout << ce.what() << endl;
+    return 3;
   }
-
+  
   // set logger verbosity -- can only be set once
   logger.set_verbosity(verbosity);
 
@@ -231,17 +250,18 @@ int main(int argc, char ** argv)
     SmtSolver s;
     SmtSolver second_solver;
     if (engine == INTERP) {
-      #ifdef WITH_MSAT
+#ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create(false);
       second_solver = MsatSolverFactory::create_interpolating_solver();
-      #else
-      throw CosaException("Interpolation-based model checking requires MathSAT and "
-                          "this version of cosa2 is built without MathSAT.\nPlease "
-                          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-                          "Note: MathSAT has a custom license and you must assume all "
-                          "responsibility for meeting the license requirements.");
-      #endif
+#else
+      throw PonoException(
+          "Interpolation-based model checking requires MathSAT and "
+          "this version of pono is built without MathSAT.\nPlease "
+          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+          "Note: MathSAT has a custom license and you must assume all "
+          "responsibility for meeting the license requirements.");
+#endif
     } else {
       // boolector is faster but doesn't support interpolants
       s = BoolectorSolverFactory::create(false);
@@ -261,7 +281,7 @@ int main(int argc, char ** argv)
       const TermVec & propvec = btor_enc.propvec();
       unsigned int num_props = propvec.size();
       if (prop_idx >= num_props) {
-        throw CosaException(
+        throw PonoException(
             "Property index " + to_string(prop_idx)
             + " is greater than the number of properties in file " + filename
             + " (" + to_string(num_props) + ")");
@@ -269,12 +289,13 @@ int main(int argc, char ** argv)
       Term prop = propvec[prop_idx];
       Property p(fts, prop);
       vector<UnorderedTermMap> cex;
-      r = check_prop(engine, bound, p, s, second_solver, cex);
+      r = check_prop(engine, bound, p, s, second_solver, cex, no_witness);
 
       // print btor output
       if (r == FALSE) {
         cout << "sat" << endl;
         cout << "b" << prop_idx << endl;
+        assert (!no_witness || !cex.size());
         if (cex.size()) {
           print_witness_btor(btor_enc, cex);
           if (!vcd_name.empty()) {
@@ -300,7 +321,7 @@ int main(int argc, char ** argv)
       const TermVec & propvec = smv_enc.propvec();
       unsigned int num_props = propvec.size();
       if (prop_idx >= num_props) {
-        throw CosaException(
+        throw PonoException(
             "Property index " + to_string(prop_idx)
             + " is greater than the number of properties in file " + filename
             + " (" + to_string(num_props) + ")");
@@ -308,27 +329,29 @@ int main(int argc, char ** argv)
       Term prop = propvec[prop_idx];
       Property p(rts, prop);
       std::vector<UnorderedTermMap> cex;
-      r = check_prop(engine, bound, p, s, second_solver, cex);
+      r = check_prop(engine, bound, p, s, second_solver, cex, no_witness);
       logger.log(0, "Property {} is {}", prop_idx, to_string(r));
 
       if (r == FALSE) {
+        assert (!no_witness || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
           for (auto elem : cex[t]) {
             cout << "\t" << elem.first << " : " << elem.second << endl;
           }
         }
+        assert (!no_witness || vcd_name.empty());
         if (!vcd_name.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
           vcdprinter.DumpTraceToFile(vcd_name);
         }
       }
     } else {
-      throw CosaException("Unrecognized file extension " + file_ext
+      throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + filename);
     }
   }
-  catch (CosaException & ce) {
+  catch (PonoException & ce) {
     cout << ce.what() << endl;
     cout << "unknown" << endl;
     cout << "b" << prop_idx << endl;

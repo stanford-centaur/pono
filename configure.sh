@@ -94,7 +94,7 @@ do
     shift
 done
 
-cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DCOSA2_LIB_TYPE=${lib_type} -DCOSA2_STATIC_EXEC=${static_exec}"
+cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STATIC_EXEC=${static_exec}"
 
 [ $install_prefix != default ] \
     && cmake_opts="$cmake_opts -DCMAKE_INSTALL_PREFIX=$install_prefix"

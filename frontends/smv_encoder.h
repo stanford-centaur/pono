@@ -20,11 +20,11 @@
 #include "smvparser.h"
 #include "smvscanner.h"
 
-namespace cosa{
+namespace pono{
 class SMVEncoder
 {
  public:
-  SMVEncoder(std::string filename, cosa::RelationalTransitionSystem & rts)
+  SMVEncoder(std::string filename, pono::RelationalTransitionSystem & rts)
       : rts_(rts), solver_(rts.solver())
   {
     module_flat = false;
@@ -46,7 +46,7 @@ class SMVEncoder
   smt::TermVec propvec() { return propvec_; }
 
   smt::SmtSolver & solver_;
-  cosa::RelationalTransitionSystem & rts_;
+  pono::RelationalTransitionSystem & rts_;
   std::unordered_map<std::string, smt::Term> terms_;
   std::vector<smt::Sort> sortvec_;
   std::vector<smt::Term> propvec_;
@@ -70,4 +70,4 @@ class SMVEncoder
   std::vector<cosa::SMVnode*> invar_list_;
   std::vector<cosa::SMVnode*> invarspec_list_;
 };  // class SMVEncoder
-}  // namespace cosa
+}  // namespace pono

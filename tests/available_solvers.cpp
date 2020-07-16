@@ -2,7 +2,7 @@
 
 using namespace smt;
 
-namespace cosa_tests {
+namespace pono_tests {
 
 const std::vector<SolverEnum> solver_enums({
   BTOR,
@@ -47,4 +47,4 @@ std::ostream & operator<<(std::ostream & o, SolverEnum e)
   return o;
 }
 
-}  // namespace cosa_tests
+}  // namespace pono_tests

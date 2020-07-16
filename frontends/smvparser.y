@@ -13,7 +13,7 @@
 %code requires{
   #include "smv_node.h"
   #include <string>
-  namespace cosa{
+  namespace pono{
     class SMVEncoder;
     class SMVscanner;
   }
@@ -37,7 +37,7 @@
 %define parse.error verbose
 %define api.token.constructor
 %define api.value.type variant
-%define api.namespace{cosa}
+%define api.namespace{pono}
 %define api.parser.class{smvparser}
 
 %token MODULE IVAR INVAR VAR FROZENVAR INVARSPEC
@@ -327,7 +327,7 @@ var_list:
     }
     | complex_identifier ":" module_type_identifier ";"{
       if(enc.module_flat){
-        throw CosaException("module preprocess error");
+        throw PonoException("module preprocess error");
       }else{
          enc.var_list_.push_back(new var_node_c($1,$3,SMVnode::ModuleT));
       }
@@ -475,7 +475,7 @@ constant: boolean_constant {
             }
           }
           | range_constant{
-            throw CosaException("No range constant now");
+            throw PonoException("No range constant now");
           };
 
 word_value: word_index1 integer_val "_" integer_val {
@@ -564,7 +564,7 @@ exponential_number: integer_val exponential_prefix "-" integer_val{  $$ =  $1 + 
 | float_number exponential_prefix "-" integer_val {  $$ =  $1 + $2 + "-" + $4; };
 
 range_constant: integer_val TO integer_val{
-  throw CosaException("No range constant now");
+  throw PonoException("No range constant now");
 };
 basic_expr: simple_expr{ $$ = $1;}
           | next_expr{ $$ = $1;}
@@ -610,7 +610,7 @@ simple_expr: constant {
               SMVnode::BVtype bvs_a = a->getBVType();
               SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
-                 throw CosaException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed unmatch");
               } else{
                 smt::Term e = enc.solver_->make_term(smt::BVAnd, a->getTerm(), b->getTerm());
                 $$ = new SMVnode(e,bvs_a);
@@ -626,7 +626,7 @@ simple_expr: constant {
               SMVnode::BVtype bvs_a = a->getBVType();
               SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
-                 throw CosaException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed unmatch");
               } else{
                 smt::Term e = enc.solver_->make_term(smt::BVOr, a->getTerm(), b->getTerm());
                 $$ = new SMVnode(e,bvs_a);
@@ -642,7 +642,7 @@ simple_expr: constant {
               SMVnode::BVtype bvs_a = a->getBVType();
               SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
-                 throw CosaException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed unmatch");
               } else{
                 smt::Term e = enc.solver_->make_term(smt::BVXor, a->getTerm(), b->getTerm());
                 $$ = new SMVnode(e,bvs_a);
@@ -658,7 +658,7 @@ simple_expr: constant {
               SMVnode::BVtype bvs_a = a->getBVType();
               SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
-                 throw CosaException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed unmatch");
               } else{
               smt::Term e = enc.solver_->make_term(smt::BVXnor, a->getTerm(), b->getTerm());
               $$ = new SMVnode(e,bvs_a);
@@ -694,7 +694,7 @@ simple_expr: constant {
               SMVnode::BVtype bvs_a = a->getBVType();
               SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
-                 throw CosaException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed unmatch");
               } else{
               smt::Term e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
               $$ = new SMVnode(e);
@@ -710,7 +710,7 @@ simple_expr: constant {
               SMVnode::BVtype bvs_a = a->getBVType();
               SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
-                 throw CosaException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed unmatch");
               } else{
                 smt::Term e = enc.solver_->make_term(smt::Distinct, a->getTerm(), b->getTerm());
                 $$ = new SMVnode(e);
@@ -737,7 +737,7 @@ simple_expr: constant {
                     smt::Term res = enc.solver_->make_term(smt::BVSlt, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res);
                   } else{
-                    throw CosaException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed unmatch");
                   } 
               }
               }else{
@@ -762,7 +762,7 @@ simple_expr: constant {
                     smt::Term res = enc.solver_->make_term(smt::BVSgt, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res);
                   } else{
-                    throw CosaException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed unmatch");
                   } 
               }
               }else{
@@ -787,7 +787,7 @@ simple_expr: constant {
                     smt::Term res = enc.solver_->make_term(smt::BVSle, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res);
                   } else{
-                    throw CosaException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed unmatch");
                   } 
               } 
               }else{
@@ -812,7 +812,7 @@ simple_expr: constant {
                     smt::Term res = enc.solver_->make_term(smt::BVSge, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res);
                   } else{
-                    throw CosaException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed unmatch");
                   } 
               }
               }else{
@@ -840,7 +840,7 @@ simple_expr: constant {
                   SMVnode::BVtype bvs_a = a->getBVType();
                   SMVnode::BVtype bvs_b = b->getBVType();
                   if(bvs_a != bvs_b){
-                   throw CosaException("Unsigned/Signed unmatch");
+                   throw PonoException("Unsigned/Signed unmatch");
                   } else{
                   smt::Term res = enc.solver_->make_term(smt::BVAdd, a->getTerm(), b->getTerm());
                   $$ = new SMVnode(res,bvs_a);
@@ -862,7 +862,7 @@ simple_expr: constant {
                   SMVnode::BVtype bvs_a = a->getBVType();
                   SMVnode::BVtype bvs_b = b->getBVType();
                   if(bvs_a != bvs_b){
-                   throw CosaException("Unsigned/Signed unmatch");
+                   throw PonoException("Unsigned/Signed unmatch");
                   } else{
                   smt::Term res = enc.solver_->make_term(smt::BVSub, a->getTerm(), b->getTerm());
                   $$ = new SMVnode(res,bvs_a);
@@ -884,7 +884,7 @@ simple_expr: constant {
                   SMVnode::BVtype bvs_a = a->getBVType();
                   SMVnode::BVtype bvs_b = b->getBVType();
                   if(bvs_a != bvs_b){
-                   throw CosaException("Unsigned/Signed unmatch");
+                   throw PonoException("Unsigned/Signed unmatch");
                   } else{
                   smt::Term res = enc.solver_->make_term(smt::BVMul, a->getTerm(), b->getTerm());
                   $$ = new SMVnode(res,bvs_a);
@@ -912,7 +912,7 @@ simple_expr: constant {
                     smt::Term res = enc.solver_->make_term(smt::BVSdiv, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Signed);
                   } else{
-                    throw CosaException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed unmatch");
                   } 
               }
               }else{
@@ -937,7 +937,7 @@ simple_expr: constant {
                     smt::Term res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Signed);
                   } else{
-                    throw CosaException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed unmatch");
                   } 
               }
               }else{
@@ -971,7 +971,7 @@ simple_expr: constant {
               SMVnode::BVtype bvs_a = a->getBVType();
               SMVnode::BVtype bvs_b = b->getBVType();
               if(bvs_a != bvs_b){
-                throw CosaException("Unsigned/Signed unmatch");
+                throw PonoException("Unsigned/Signed unmatch");
               } else{
                 smt::Term res = enc.solver_->make_term(smt::Concat, a->getTerm(), b->getTerm());
                 $$ = new SMVnode(res,SMVnode::Unsigned);
@@ -981,9 +981,9 @@ simple_expr: constant {
               }
             }
             | basic_expr sizev {
-                throw CosaException("No index Subscript");
+                throw PonoException("No index Subscript");
             }
-            | basic_expr "[" basic_expr ":" basic_expr "]"{
+            | basic_expr "[" integer_val ":" integer_val "]"{
               if(enc.module_flat){
                 SMVnode *a = $1;
                 SMVnode *b = $3;
@@ -995,29 +995,29 @@ simple_expr: constant {
                   smt::Term res = enc.solver_->make_term(smt::Extract, a->getTerm(), b->getTerm(),c->getTerm());
                   $$ = new SMVnode(res,SMVnode::Unsigned);
                 }else{
-                  throw CosaException("Bit selection type is uncompatible");
+                  throw PonoException("Bit selection type is uncompatible");
                 }
                 }else{
               $$ = new sel_expr($1,$3,$5);
               }
             }
             | word1 "(" basic_expr ")" {
-              throw CosaException("No word1");
+              throw PonoException("No word1");
             }
             | tok_bool "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_toint "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_count "(" basic_expr_list ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | swconst "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | uwconst "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_signed "(" basic_expr ")"{
                 if(enc.module_flat){
@@ -1034,31 +1034,31 @@ simple_expr: constant {
               }
             }
             | tok_sizeof "(" basic_expr ")"{
-              throw CosaException("No array size");
+              throw PonoException("No array size");
             }
             | tok_floor "(" basic_expr ")"{
-              throw CosaException("No floor operation");
+              throw PonoException("No floor operation");
             }
             | extend "(" basic_expr ")"{
-              throw CosaException("No extend now");
+              throw PonoException("No extend now");
             }
             | resize "(" basic_expr ")" {
-              throw CosaException("No resize");
+              throw PonoException("No resize");
             }
             | signed_word sizev "(" basic_expr ")"{
-               throw CosaException("No resize");
+               throw PonoException("No resize");
             }
             | unsigned_word sizev "(" basic_expr ")"{
-               throw CosaException("No resize");
+               throw PonoException("No resize");
             }
             | basic_expr UNION  basic_expr {
-               throw CosaException("No union");
+               throw PonoException("No union");
             }
             |"{" set_body_expr "}" {
-               throw CosaException("No set");
+               throw PonoException("No set");
             }
             | basic_expr OP_IN basic_expr {
-               throw CosaException("No array");
+               throw PonoException("No array");
             }
             | basic_expr IF_ELSE basic_expr ":" basic_expr  {
               if(enc.module_flat){
@@ -1093,13 +1093,13 @@ simple_expr: constant {
             }
           }
           | CONSTARRAY "(" tok_typeof "(" complex_identifier ")" "," basic_expr ")" {
-             throw CosaException("No constarray");
+             throw PonoException("No constarray");
           }
           | CONSTARRAY "(" arrayword sizev of type_identifier "," basic_expr ")" {
-            throw CosaException("No constarray");
+            throw PonoException("No constarray");
           }
           | CONSTARRAY "(" arrayinteger of type_identifier "," basic_expr ")" {
-            throw CosaException("No constarray");
+            throw PonoException("No constarray");
           }
           | case_expr {
             $$ = $1;
@@ -1209,7 +1209,7 @@ type_identifier: real_type{
                 $$ = $1;
                 }           
                 | integer_val TO integer_val{
-                  throw CosaException("No range now");
+                  throw PonoException("No range now");
                 };
 
 word_type: signed_word sizev {
@@ -1253,10 +1253,10 @@ array_type: arrayword sizev of type_identifier{
   }
           }
           | arrayinteger of type_identifier{
-            throw CosaException("no array integer type now");
+            throw PonoException("no array integer type now");
           }
           | array_tok of type_identifier{
-            throw CosaException("No other array now");
+            throw PonoException("No other array now");
           };
 
 sizev:
@@ -1265,7 +1265,7 @@ sizev:
     };
 %%
 
-void cosa::smvparser::error (const location &loc, const std::string& m)
+void pono::smvparser::error (const location &loc, const std::string& m)
 { 
   std::cerr << loc << " " <<  m << '\n';
    exit(-1);

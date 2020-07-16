@@ -3,7 +3,7 @@
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
@@ -19,13 +19,13 @@
 using namespace smt;
 using namespace std;
 
-namespace cosa {
+namespace pono {
 
 void TransitionSystem::set_init(const Term & init)
 {
   // TODO: only do this check in debug mode
   if (!only_curr(init)) {
-    throw CosaException(
+    throw PonoException(
         "Initial state constraints should only use current state variables");
   }
 
@@ -36,7 +36,7 @@ void TransitionSystem::constrain_init(const Term & constraint)
 {
   // TODO: Only do this check in debug mode
   if (!only_curr(constraint)) {
-    throw CosaException(
+    throw PonoException(
         "Initial state constraints should only use current state variables");
   }
   init_ = solver_->make_term(And, init_, constraint);
@@ -46,11 +46,11 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
 {
   // TODO: only do this check in debug mode
   if (states_.find(state) == states_.end()) {
-    throw CosaException("Unknown state variable");
+    throw PonoException("Unknown state variable");
   }
 
   if (!no_next(val)) {
-    throw CosaException(
+    throw PonoException(
         "Got next state variable in RHS of functional assignment");
   }
 
@@ -69,7 +69,7 @@ void TransitionSystem::add_invar(const Term & constraint)
     trans_ = solver_->make_term(
         And, trans_, solver_->substitute(constraint, next_map_));
   } else {
-    throw CosaException("Invariants should be over current states only.");
+    throw PonoException("Invariants should be over current states only.");
   }
 }
 
@@ -78,7 +78,7 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
   } else {
-    throw CosaException("Cannot have next-states in an input constraint.");
+    throw PonoException("Cannot have next-states in an input constraint.");
   }
 }
 
@@ -93,14 +93,14 @@ void TransitionSystem::add_constraint(const Term & constraint)
   } else if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
   } else {
-    throw CosaException("Constraint cannot have next states");
+    throw PonoException("Constraint cannot have next states");
   }
 }
 
 void TransitionSystem::name_term(const string name, const Term & t)
 {
   if (named_terms_.find(name) != named_terms_.end()) {
-    throw CosaException("Name " + name + " has already been used.");
+    throw PonoException("Name " + name + " has already been used.");
   }
   named_terms_[name] = t;
 }
@@ -202,4 +202,4 @@ bool TransitionSystem::known_symbols(const Term & term) const
                   UnorderedTermSetPtrVec{ &states_, &inputs_, &next_states_ });
 }
 
-}  // namespace cosa
+}  // namespace pono

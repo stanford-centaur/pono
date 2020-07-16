@@ -14,15 +14,15 @@ else()
   set(CYTHON_FLAGS "${CYTHON_FLAGS}" "--compile-time-env" "WITH_COREIR=OFF")
 endif()
 
-add_cython_target(cosa2 CXX)
+add_cython_target(pono CXX)
 
-add_library(cosa2 MODULE ${cosa2})
+add_library(pono MODULE ${pono})
 
-target_link_libraries(cosa2 cosa2-lib)
-target_include_directories(cosa2 PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch")
+target_link_libraries(pono pono-lib)
+target_include_directories(pono PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch")
 
-python_extension_module(cosa2)
+python_extension_module(pono)
 
 configure_file(setup.py.in setup.py)
 
-install(TARGETS cosa2 DESTINATION lib)
+install(TARGETS pono DESTINATION lib)

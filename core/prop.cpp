@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Ahmed Irfan, Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include "prop.h"
 #include "exceptions.h"
@@ -21,7 +20,7 @@
 
 using namespace smt;
 
-namespace cosa {
+namespace pono {
 
 Property::Property(const TransitionSystem & ts, const Term & p)
     : ts_(ts), prop_(p)
@@ -30,11 +29,11 @@ Property::Property(const TransitionSystem & ts, const Term & p)
   UnorderedTermSet free_symbols = get_free_symbols(p);
   for (auto s : free_symbols) {
     if (states.find(s) == states.end()) {
-      throw CosaException("Property should only use state variables");
+      throw PonoException("Property should only use state variables");
     }
   }
 }
 
 Property::~Property() {}
 
-}  // namespace cosa
+}  // namespace pono

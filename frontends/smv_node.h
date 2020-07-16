@@ -13,7 +13,7 @@
 
 using namespace std;
 /* node to help construct syntax tree in the parser */
-namespace cosa {
+namespace pono {
 class module_node;
 struct SMVnode
 {
@@ -235,10 +235,10 @@ class var_node_c : public SMVnode
 {
   std::string id;
   std::string type;
-  cosa::type_node * ty;
+  pono::type_node * ty;
 
  public:
-  var_node_c(std::string n, cosa::type_node * li, Vartype vr)
+  var_node_c(std::string n, pono::type_node * li, Vartype vr)
   {
     ty = li;
     type = li->getName();
@@ -246,7 +246,7 @@ class var_node_c : public SMVnode
     vt = vr;
   }
   std::string getName() { return id; }
-  cosa::type_node * getmodtype() { return ty; }
+  pono::type_node * getmodtype() { return ty; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -581,10 +581,10 @@ class identifier : public SMVnode
 };
 class par_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  par_expr(cosa::SMVnode * e) { ex = e; }
+  par_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -593,10 +593,10 @@ class par_expr : public SMVnode
 };
 class not_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  not_expr(cosa::SMVnode * e) { ex = e; }
+  not_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -605,11 +605,11 @@ class not_expr : public SMVnode
 };
 class and_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  and_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  and_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -622,11 +622,11 @@ class and_expr : public SMVnode
 };
 class or_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  or_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  or_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -639,11 +639,11 @@ class or_expr : public SMVnode
 };
 class xor_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  xor_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  xor_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -656,11 +656,11 @@ class xor_expr : public SMVnode
 };
 class xnor_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  xnor_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  xnor_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -673,11 +673,11 @@ class xnor_expr : public SMVnode
 };
 class imp_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  imp_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  imp_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -690,11 +690,11 @@ class imp_expr : public SMVnode
 };
 class iff_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  iff_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  iff_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -707,11 +707,11 @@ class iff_expr : public SMVnode
 };
 class eq_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  eq_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  eq_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -724,11 +724,11 @@ class eq_expr : public SMVnode
 };
 class neq_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  neq_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  neq_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -741,11 +741,11 @@ class neq_expr : public SMVnode
 };
 class lt_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  lt_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  lt_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -758,11 +758,11 @@ class lt_expr : public SMVnode
 };
 class gt_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  gt_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  gt_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -776,11 +776,11 @@ class gt_expr : public SMVnode
 
 class lte_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  lte_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  lte_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -793,11 +793,11 @@ class lte_expr : public SMVnode
 };
 class gte_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  gte_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  gte_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -810,10 +810,10 @@ class gte_expr : public SMVnode
 };
 class uminus_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  uminus_expr(cosa::SMVnode * e) { ex = e; }
+  uminus_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -822,11 +822,11 @@ class uminus_expr : public SMVnode
 };
 class add_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  add_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  add_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -839,11 +839,11 @@ class add_expr : public SMVnode
 };
 class sub_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  sub_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  sub_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -856,11 +856,11 @@ class sub_expr : public SMVnode
 };
 class mul_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  mul_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  mul_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -873,11 +873,11 @@ class mul_expr : public SMVnode
 };
 class div_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  div_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  div_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -890,11 +890,11 @@ class div_expr : public SMVnode
 };
 class mod_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  mod_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  mod_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -907,11 +907,11 @@ class mod_expr : public SMVnode
 };
 class sr_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  sr_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  sr_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -924,11 +924,11 @@ class sr_expr : public SMVnode
 };
 class sl_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  sl_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  sl_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -942,11 +942,11 @@ class sl_expr : public SMVnode
 
 class subscript_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  subscript_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  subscript_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -959,12 +959,12 @@ class subscript_expr : public SMVnode
 };
 class sel_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
-  cosa::SMVnode * ex3;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
+  pono::SMVnode * ex3;
 
  public:
-  sel_expr(cosa::SMVnode * e1, cosa::SMVnode * e2, cosa::SMVnode * e3)
+  sel_expr(pono::SMVnode * e1, pono::SMVnode * e2, pono::SMVnode * e3)
   {
     ex1 = e1;
     ex2 = e2;
@@ -978,11 +978,11 @@ class sel_expr : public SMVnode
 };
 class con_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  con_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  con_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -996,11 +996,11 @@ class con_expr : public SMVnode
 
 class read_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  read_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  read_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -1014,12 +1014,12 @@ class read_expr : public SMVnode
 
 class write_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
-  cosa::SMVnode * ex3;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
+  pono::SMVnode * ex3;
 
  public:
-  write_expr(cosa::SMVnode * e1, cosa::SMVnode * e2, cosa::SMVnode * e3)
+  write_expr(pono::SMVnode * e1, pono::SMVnode * e2, pono::SMVnode * e3)
   {
     ex1 = e1;
     ex2 = e2;
@@ -1033,10 +1033,10 @@ class write_expr : public SMVnode
 };
 class word1_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  word1_expr(cosa::SMVnode * e) { ex = e; }
+  word1_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1045,10 +1045,10 @@ class word1_expr : public SMVnode
 };
 class bool_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  bool_expr(cosa::SMVnode * e) { ex = e; }
+  bool_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1057,10 +1057,10 @@ class bool_expr : public SMVnode
 };
 class toint_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  toint_expr(cosa::SMVnode * e) { ex = e; }
+  toint_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1069,10 +1069,10 @@ class toint_expr : public SMVnode
 };
 class signed_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  signed_expr(cosa::SMVnode * e) { ex = e; }
+  signed_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1081,10 +1081,10 @@ class signed_expr : public SMVnode
 };
 class unsigned_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  unsigned_expr(cosa::SMVnode * e) { ex = e; }
+  unsigned_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1093,11 +1093,11 @@ class unsigned_expr : public SMVnode
 };
 class extend_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  extend_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  extend_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -1110,11 +1110,11 @@ class extend_expr : public SMVnode
 };
 class resize_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  resize_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  resize_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -1127,11 +1127,11 @@ class resize_expr : public SMVnode
 };
 class union_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  union_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  union_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -1144,10 +1144,10 @@ class union_expr : public SMVnode
 };
 class set_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  set_expr(cosa::SMVnode * e) { ex = e; }
+  set_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1156,11 +1156,11 @@ class set_expr : public SMVnode
 };
 class in_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  in_expr(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  in_expr(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -1173,12 +1173,12 @@ class in_expr : public SMVnode
 };
 class ite_expr : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
-  cosa::SMVnode * ex3;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
+  pono::SMVnode * ex3;
 
  public:
-  ite_expr(cosa::SMVnode * e1, cosa::SMVnode * e2, cosa::SMVnode * e3)
+  ite_expr(pono::SMVnode * e1, pono::SMVnode * e2, pono::SMVnode * e3)
   {
     ex1 = e1;
     ex2 = e2;
@@ -1192,10 +1192,10 @@ class ite_expr : public SMVnode
 };
 class floor_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  floor_expr(cosa::SMVnode * e) { ex = e; }
+  floor_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1204,10 +1204,10 @@ class floor_expr : public SMVnode
 };
 class case_expr : public SMVnode
 {
-  std::vector<cosa::SMVnode *> ex_l;
+  std::vector<pono::SMVnode *> ex_l;
 
  public:
-  case_expr(std::vector<cosa::SMVnode *> el) { ex_l = el; }
+  case_expr(std::vector<pono::SMVnode *> el) { ex_l = el; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1217,11 +1217,11 @@ class case_expr : public SMVnode
 
 class case_body_ex : public SMVnode
 {
-  cosa::SMVnode * ex1;
-  cosa::SMVnode * ex2;
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
 
  public:
-  case_body_ex(cosa::SMVnode * e1, cosa::SMVnode * e2)
+  case_body_ex(pono::SMVnode * e1, pono::SMVnode * e2)
   {
     ex1 = e1;
     ex2 = e2;
@@ -1234,10 +1234,10 @@ class case_body_ex : public SMVnode
 };
 class next_expr : public SMVnode
 {
-  cosa::SMVnode * ex;
+  pono::SMVnode * ex;
 
  public:
-  next_expr(cosa::SMVnode * e) { ex = e; }
+  next_expr(pono::SMVnode * e) { ex = e; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1245,4 +1245,4 @@ class next_expr : public SMVnode
                         ostream & s);
 };
 
-}  // namespace cosa
+}  // namespace pono
