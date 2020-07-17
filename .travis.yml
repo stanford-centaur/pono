@@ -23,6 +23,7 @@ addons:
       - libfl-dev
       - libmpfr-dev
       - libmpc-dev
+      - clang
 
 jobs:
   include:
