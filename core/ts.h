@@ -207,6 +207,11 @@ class TransitionSystem
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
 
+  // extra vector of terms to TransitionSystems that records constraints
+  // added to the transition relation
+  // For a functional system, you could now rebuild trans by AND-ing
+  // together all the equalities from state_updates_
+  // and these constraints
   smt::TermVec constraints_;  ///< constraints added via
                               ///< add_invar/constrain_inputs/add_constraint
 
