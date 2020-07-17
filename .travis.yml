@@ -47,7 +47,7 @@ script:
   - sudo ${PYTHON_EXECUTABLE} -m pip install Cython==0.29 --install-option="--no-cython-compile"
   - sudo ${PYTHON_EXECUTABLE} -m pip install pytest
   - ./travis-scripts/setup-msat.sh --auto-yes
-  - ./contrib/setup-smt-switch.sh --with-msat --python --python-bin=${PYTHON_EXECUTABLE}
+  - ./contrib/setup-smt-switch.sh --with-msat --python --python-bin=$(which ${PYTHON_EXECUTABLE})
   - sudo ${PYTHON_EXECUTABLE} -m pip install -e ./deps/smt-switch/build/python
   - ./contrib/setup-btor2tools.sh
   - ./contrib/setup-bison.sh
