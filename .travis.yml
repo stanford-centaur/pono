@@ -36,7 +36,7 @@ jobs:
     #   compiler: clang
     #   env: PYTHON_EXECUTABLE=python3.7
     - os: osx
-      osx_image: xcode12
+      osx_image: xcode10.2
       # default python3 is python3.8 on mac
       env: PYTHON_EXECUTABLE=python3.8
 
@@ -53,7 +53,7 @@ script:
   # - ./contrib/setup-btor2tools.sh
   # - ./contrib/setup-bison.sh
   # need to source for now so that coreir binary is in PATH for pycoreir
-  - CXXFLAGS=-Wno-error=return-stack-address ./contrib/setup-coreir.sh
+  - ./contrib/setup-coreir.sh
   # - export PATH=./deps/coreir/local/bin/:$PATH
   # - cd deps && git clone https://github.com/leonardt/pycoreir.git && cd pycoreir && sudo ${PYTHON_EXECUTABLE} -m pip install -e ./ && cd ../../
   # - ./configure.sh --with-msat --python --debug --with-coreir --python-bin=$(which ${PYTHON_EXECUTABLE})
