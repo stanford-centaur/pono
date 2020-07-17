@@ -51,7 +51,7 @@ else
     echo "$DEPS/coreir already exists. If you want to rebuild, please remove it manually."
 fi
 
-if [ -f $DEPS/coreir/local/lib/libcoreir.so ] ; then \
+if [ -f $DEPS/coreir/local/bin/coreir ] ; then \
     echo "It appears coreir was successfully built in $DEPS/coreir/local."
     echo "You may now build pono with: ./configure.sh && cd build && make"
 else
