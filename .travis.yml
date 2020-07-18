@@ -27,14 +27,14 @@ addons:
 
 jobs:
   include:
-    # - os: linux
-    #   dist: bionic
-    #   compiler: gcc
-    #   env: PYTHON_EXECUTABLE=python3.7
-    # - os: linux
-    #   dist: bionic
-    #   compiler: clang
-    #   env: PYTHON_EXECUTABLE=python3.7
+    - os: linux
+      dist: bionic
+      compiler: gcc
+      env: PYTHON_EXECUTABLE=python3.7
+    - os: linux
+      dist: bionic
+      compiler: clang
+      env: PYTHON_EXECUTABLE=python3.7
     - os: osx
       osx_image: xcode10.2
       # default python3 is python3.8 on mac
@@ -57,6 +57,6 @@ script:
   - cd deps && git clone https://github.com/leonardt/pycoreir.git && cd pycoreir && sudo ${PYTHON_EXECUTABLE} -m pip install -e ./ && cd ../../
   - ./configure.sh --with-msat --python --debug --with-coreir --python-bin=$(which ${PYTHON_EXECUTABLE})
   - export LD_LIBRARY_PATH=`pwd`/deps/coreir/local/lib
-  - cd build && make -j2 && ./tests/test_coreir
-  # - sudo ${PYTHON_EXECUTABLE} -m pip install -e ./build/python
-  # - ${PYTHON_EXECUTABLE} -m pytest ./tests
+  - cd build && make -j2 && make test && cd ../
+  - sudo ${PYTHON_EXECUTABLE} -m pip install -e ./build/python
+  - ${PYTHON_EXECUTABLE} -m pytest ./tests
