@@ -38,7 +38,7 @@ jobs:
     - os: osx
       osx_image: xcode12
       # default python3 is python3.8 on mac
-      env: PYTHON_EXECUTABLE=python3.8 CC=gcc-7 CXX=g++-7
+      env: PYTHON_EXECUTABLE=python3.8
 
 script:
   - source ./scripts/travis-mac-install.sh
@@ -52,7 +52,7 @@ script:
   - sudo ${PYTHON_EXECUTABLE} -m pip install -e ./deps/smt-switch/build/python
   - ./contrib/setup-btor2tools.sh
   - ./contrib/setup-bison.sh
-  - ./contrib/setup-coreir.sh
+  - CXX=g++-7 CC=gcc-7 ./contrib/setup-coreir.sh
   - export PATH=`pwd`/deps/coreir/local/bin/:$PATH
   - printenv PATH
   - cd deps && git clone https://github.com/leonardt/pycoreir.git && cd pycoreir && sudo ${PYTHON_EXECUTABLE} -m pip install -e ./ && cd ../../
