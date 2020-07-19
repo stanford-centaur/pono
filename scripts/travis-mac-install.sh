@@ -3,7 +3,7 @@
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
     ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
     export PATH=/usr/local/bin:/usr/local/sbin:$PATH
-    brew install gnu-getopt gmp flex
+    brew install gnu-getopt gmp flex gcc@7
     brew upgrade flex
     # Apple ships old Flex & Bison, so Homebrew versions should be used.
     export PATH="/usr/local/opt/flex/bin:$PATH"

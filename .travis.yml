@@ -36,9 +36,9 @@ jobs:
     #   compiler: clang
     #   env: PYTHON_EXECUTABLE=python3.7
     - os: osx
-      osx_image: xcode10.2
+      osx_image: xcode12
       # default python3 is python3.8 on mac
-      env: PYTHON_EXECUTABLE=python3.8
+      env: PYTHON_EXECUTABLE=python3.8 CC=gcc-7 CXX=g++-7
 
 script:
   - source ./scripts/travis-mac-install.sh
