@@ -22,7 +22,7 @@ fi
 
 if [ -f $DEPS/btor2tools/build/lib/libbtor2parser.a ] ; then \
     echo "It appears btor2tools was successfully built in $DEPS/btor2tools/build/lib."
-    echo "You may now build cosa2 with: ./configure.sh && cd build && make"
+    echo "You may now build pono with: ./configure.sh && cd build && make"
 else
     echo "Building btor2tools failed."
     echo "You might be missing some dependencies."

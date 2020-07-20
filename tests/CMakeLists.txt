@@ -34,22 +34,30 @@ add_library(available-solvers SHARED
   "${PROJECT_SOURCE_DIR}/tests/available_solvers.cpp")
 target_include_directories(available-solvers PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
 # Rely on cmake link forwarding to link available-solvers with relevant smt-switch libs
-target_link_libraries(available-solvers PUBLIC cosa2-lib)
+target_link_libraries(available-solvers PUBLIC pono-lib)
+
+include_directories("${PROJECT_SOURCE_DIR}/tests/")
 
 add_executable(test_ts "${PROJECT_SOURCE_DIR}/tests/test_ts.cpp")
 target_link_libraries(test_ts gtest_main)
-target_link_libraries(test_ts cosa2-lib)
+target_link_libraries(test_ts pono-lib)
 target_link_libraries(test_ts available-solvers)
 add_test(NAME test_ts COMMAND test_ts)
 
 add_executable(test_unroller "${PROJECT_SOURCE_DIR}/tests/test_unroller.cpp")
 target_link_libraries(test_unroller gtest_main)
-target_link_libraries(test_unroller cosa2-lib)
+target_link_libraries(test_unroller pono-lib)
 target_link_libraries(test_unroller available-solvers)
 add_test(NAME test_unroller COMMAND test_unroller)
 
 add_executable(test_engines "${PROJECT_SOURCE_DIR}/tests/test_engines.cpp")
 target_link_libraries(test_engines gtest_main)
-target_link_libraries(test_engines cosa2-lib)
+target_link_libraries(test_engines pono-lib)
 target_link_libraries(test_engines available-solvers)
 add_test(NAME test_engines COMMAND test_engines)
+
+add_executable(test_coreir "${PROJECT_SOURCE_DIR}/tests/encoders/test_coreir.cpp")
+target_link_libraries(test_coreir gtest_main)
+target_link_libraries(test_coreir pono-lib)
+target_link_libraries(test_coreir available-solvers)
+add_test(NAME test_coreir COMMAND test_coreir)

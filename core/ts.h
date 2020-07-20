@@ -3,7 +3,7 @@
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
@@ -23,7 +23,7 @@
 
 #include "utils/exceptions.h"
 
-namespace cosa {
+namespace pono {
 
 class TransitionSystem
 {
@@ -89,7 +89,7 @@ class TransitionSystem
    * @param sort the sort of the input
    * @return the input term
    */
-  smt::Term make_input(const std::string name, const smt::Sort & sort);
+  smt::Term make_inputvar(const std::string name, const smt::Sort & sort);
 
   /* Create an state of a given sort
    * @param name the name of the state
@@ -98,7 +98,7 @@ class TransitionSystem
    *
    * Can get next state var with next(const smt::Term t)
    */
-  smt::Term make_state(const std::string name, const smt::Sort & sort);
+  smt::Term make_statevar(const std::string name, const smt::Sort & sort);
 
   /* Map all next state variables to current state variables in the term
    * @param t the term to map
@@ -129,9 +129,9 @@ class TransitionSystem
   // getters
   smt::SmtSolver & solver() { return solver_; };
 
-  const smt::UnorderedTermSet & states() const { return states_; };
+  const smt::UnorderedTermSet & statevars() const { return states_; };
 
-  const smt::UnorderedTermSet & inputs() const { return inputs_; };
+  const smt::UnorderedTermSet & inputvars() const { return inputs_; };
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
@@ -157,11 +157,24 @@ class TransitionSystem
     return named_terms_;
   };
 
+  /** @return the constraints of the system
+   *  Note: these do not include next-state variable updates or initial state
+   * constraints
+   */
+  const smt::TermVec & constraints() const { return constraints_; };
+
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
    *  it only returns true if it's a FunctionalTransitionSystem object
    */
   virtual bool is_functional() const { return false; };
+
+  /* Returns true iff all the symbols in the formula are current states */
+  bool only_curr(const smt::Term & term) const;
+
+  /* Returns true iff all the symbols in the formula are inputs and current
+   * states */
+  bool no_next(const smt::Term & term) const;
 
  protected:
   // solver
@@ -194,6 +207,14 @@ class TransitionSystem
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
 
+  // extra vector of terms to TransitionSystems that records constraints
+  // added to the transition relation
+  // For a functional system, you could now rebuild trans by AND-ing
+  // together all the equalities from state_updates_
+  // and these constraints
+  smt::TermVec constraints_;  ///< constraints added via
+                              ///< add_invar/constrain_inputs/add_constraint
+
   typedef std::vector<const smt::UnorderedTermSet *> UnorderedTermSetPtrVec;
 
   // helpers and checkers
@@ -207,15 +228,8 @@ class TransitionSystem
    */
   bool contains(const smt::Term & term, UnorderedTermSetPtrVec term_sets) const;
 
-  /* Returns true iff all the symbols in the formula are current states */
-  bool only_curr(const smt::Term & term) const;
-
-  /* Returns true iff all the symbols in the formula are inputs and current
-   * states */
-  bool no_next(const smt::Term & term) const;
-
   /* Returns true iff all the symbols in the formula are known */
   virtual bool known_symbols(const smt::Term & term) const;
 };
 
-}  // namespace cosa
+}  // namespace pono

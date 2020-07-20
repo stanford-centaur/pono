@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #pragma once
 
@@ -21,13 +20,17 @@
 
 #include "smt-switch/smt.h"
 
-namespace cosa {
+namespace pono {
 
 class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
   InterpolantMC(const Property & p, smt::SmtSolver & slv, smt::SmtSolver & itp);
+  InterpolantMC(const PonoOptions & opt,
+                const Property & p,
+                smt::SmtSolver & slv,
+                smt::SmtSolver & itp);
   ~InterpolantMC();
 
   typedef Prover super;
@@ -38,9 +41,11 @@ class InterpolantMC : public Prover
 
  private:
   bool step(int i);
+  bool step_0();
 
-  /* checks if the current Ri overapproximates R */
-  bool check_overapprox();
+  void reset_assertions(smt::SmtSolver & s);
+
+  bool check_entail(const smt::Term & p, const smt::Term & q);
 
   smt::SmtSolver & interpolator_;
   // for translating terms to interpolator_
@@ -54,9 +59,7 @@ class InterpolantMC : public Prover
   smt::Term init0_;
   smt::Term transA_;
   smt::Term transB_;
-  smt::Term R_;
-  smt::Term Ri_;
 
 };  // class InterpolantMC
 
-}  // namespace cosa
+}  // namespace pono

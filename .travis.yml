@@ -20,6 +20,10 @@ addons:
       - python3-pip
       - python3-setuptools
       - ruby
+      - libfl-dev
+      # for pycoreir which is currently not tested on Travis
+      # - libmpfr-dev
+      # - libmpc-dev
 
 jobs:
   include:
@@ -30,7 +34,7 @@ jobs:
       dist: bionic
       compiler: clang
     - os: osx
-      osx_image: xcode9.2
+      osx_image: xcode12
 
 script:
   - source ./scripts/travis-mac-install.sh

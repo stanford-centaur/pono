@@ -3,7 +3,7 @@
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
-** This file is part of the cosa2 project.
+** This file is part of the pono project.
 ** Copyright (c) 2019 by the authors listed in the file AUTHORS
 ** in the top-level source directory) and their institutional affiliations.
 ** All rights reserved.  See the file LICENSE in the top-level source
@@ -18,7 +18,7 @@
 
 using namespace smt;
 
-namespace cosa {
+namespace pono {
 
 void get_free_symbols(const Term & term, UnorderedTermSet & out_symbols)
 {
@@ -50,4 +50,4 @@ UnorderedTermSet get_free_symbols(const Term & term)
   get_free_symbols(term, free_symbols);
   return free_symbols;
 }
-}  // namespace cosa
+}  // namespace pono

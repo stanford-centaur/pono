@@ -6,47 +6,51 @@
     #include"stdlib.h"
     #include"smv_encoder.h"
     #include"smv_node.h"
-    #include "smt-switch/smt.h"
     using namespace std;
-    extern FILE *yyin;
-    extern int yylineno;
+    int case_start = 0;
+    bool case_true = false;
 %}
 
 %code requires{
   #include "smv_node.h"
   #include <string>
-  namespace cosa{
+  namespace pono{
     class SMVEncoder;
+    class SMVscanner;
   }
 }
 
 %skeleton "lalr1.cc"
 %require "3.2"
-%language "c++"
+%locations 
 %defines 
 %lex-param {SMVEncoder &enc}
+%parse-param {SMVscanner &smvscanner}
 %parse-param {SMVEncoder &enc}
+
+%code{
+  #include "smvscanner.h"
+  #undef yylex
+  #define yylex smvscanner.yylex
+}
 
 %define parse.trace
 %define parse.error verbose
 %define api.token.constructor
 %define api.value.type variant
-%define api.namespace{cosa}
+%define api.namespace{pono}
 %define api.parser.class{smvparser}
-%code {
-  #include "smv_encoder.h"
-}
 
-%token MODULE tok_main IVAR INVAR VAR FROZENVAR INVARSPEC
-%token INIT TRANS READ WRITE ASSIGN CONSTARRAY CONSTANTS FUN DEFINE
-%token tok_next tok_init signed_word unsigned_word arrayword arrayinteger tok_array tok_case tok_esac
+%token MODULE MAIN IVAR INVAR VAR FROZENVAR INVARSPEC
+%token INIT TRANS READ WRITE ASSIGN CONSTARRAY CONSTANTS FUN DEFINE TOK_CASE TOK_ESAC TOK_INIT
+%token TOK_NEXT signed_word unsigned_word arrayword arrayinteger tok_array
 %token pi ABS MAX MIN SIN COS EXP TAN ln of word1
 %token tok_bool tok_toint tok_count swconst uwconst tok_sizeof tok_floor extend resize tok_typeof 
-%token tok_unsigned tok_signed tok_word tok_set OP_in time_type
+%token tok_unsigned tok_signed tok_word tok_set OP_IN time_type
 %token TO ASSIGNSYM IF_ELSE 
 %token ENDL
 
-%token <std::string> integer_val real_val
+%token <std::string> integer_val neg_integer_val real_val fraction_prefix exponential_prefix
 %token bool_type integer_type real_type set_tok array_tok 
 %token <std::string> word_index1 word_index2
 %token <std::string> tok_name
@@ -75,7 +79,7 @@ DOT ".";
 %left OP_OR OP_XOR OP_XNOR
 %left OP_AND
 %left OP_EQ OP_NEQ OP_LT OP_GT OP_LTE OP_GTE
-%left OP_in
+%left OP_IN
 %left UNION
 %left OP_SHIFTR OP_SHIFTL
 %left "+" "-" 
@@ -85,11 +89,12 @@ DOT ".";
 %left OP_NOT
 %left "[" ":" "]"
 
-%type <SMVnode*> type_identifier word_type array_type word_value basic_expr next_expr constant 
-%type <int> sizev 
-%type <bool> boolean_constant
-%type <std::string> integer_constant real_constant
+%nterm <SMVnode*> type_identifier word_type array_type word_value basic_expr next_expr case_expr constant simple_expr
+%nterm <int> sizev 
+%nterm <bool> boolean_constant
+%nterm <std::string> integer_constant real_constant float_number fractional_number exponential_number
 %nterm <std::string> complex_identifier 
+
 %%
 
 header:
@@ -125,7 +130,7 @@ header:
     | module_header invarspec_test;
 
 module_header:
-    MODULE tok_main;
+    MODULE MAIN;
 
 define_decl:
     DEFINE define_body
@@ -134,8 +139,12 @@ define_decl:
 define_body: complex_identifier ASSIGNSYM basic_expr ";" { 
               SMVnode *a = $3;
               smt::Term define_var = a->getTerm();
-              //cout << "find a define" <<$1 <<endl;
-              enc.terms_[$1] = define_var;              
+              enc.terms_[$1] = define_var; 
+              if (a->getType() == SMVnode::Unsigned){
+                enc.unsignedbv_[$1] = define_var; 
+              }else if (a->getType() == SMVnode::Signed){
+                enc.signedbv_[$1] = define_var; 
+              }             
 };
 
 constants_decl:
@@ -149,18 +158,19 @@ assign_decl: ASSIGN assign_list;
 assign_list: assign_test ";" 
             | assign_list assign_test ";";
 
-assign_test: complex_identifier ASSIGNSYM basic_expr {
+assign_test: complex_identifier ASSIGNSYM simple_expr {
           SMVnode *a = $3; 
           //smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           smt::Term state = a->getTerm();
+          enc.rts_.constrain_trans(state);
 }
-        | tok_init "(" complex_identifier ")" ASSIGNSYM basic_expr{
+        | TOK_INIT "(" complex_identifier ")" ASSIGNSYM simple_expr{
           SMVnode *a = $6; 
           smt::Term init = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, init, a->getTerm());
           enc.rts_.constrain_init(e);
         }
-        | tok_next "("complex_identifier ")" ASSIGNSYM next_expr {
+        | TOK_NEXT "("complex_identifier ")" ASSIGNSYM next_expr {
           SMVnode *a = $6; 
           smt::Term state = enc.terms_[$3];
           smt::Term e = enc.solver_->make_term(smt::Equal, state, a->getTerm());
@@ -174,9 +184,13 @@ ivar_test:
 
 ivar_list:
     complex_identifier ":" type_identifier ";" {
-         //cout <<"find an ivar"<<endl;
          SMVnode *a = $3;
-         smt::Term input = enc.rts_.make_input($1, a->getSort());
+         smt::Term input = enc.rts_.make_inputvar($1, a->getSort());
+         if (a->getType() == SMVnode::Unsigned){
+           enc.unsignedbv_[$1] = input; 
+         }else if (a->getType() == SMVnode::Signed){
+           enc.signedbv_[$1] = input; 
+         }
          enc.terms_[$1] = input;
     };
 
@@ -187,9 +201,13 @@ var_test:
 var_list:
     complex_identifier ":" type_identifier ";"{
          SMVnode *a = $3;
-         smt::Term state = enc.rts_.make_state($1, a->getSort());
+         smt::Term state = enc.rts_.make_statevar($1, a->getSort());
          enc.terms_[$1] = state;
-         //cout<<"find a var" <<endl;
+         if (a->getType() == SMVnode::Unsigned){
+            enc.unsignedbv_[$1] = state; 
+         } else if(a->getType() == SMVnode::Signed){
+           enc.signedbv_[$1] = state;
+         } 
     };
 
 frozenvar_test:
@@ -199,38 +217,45 @@ frozenvar_test:
 frozenvar_list:
   complex_identifier ":" type_identifier ";" {
       SMVnode *a = $3;
-      smt::Term state = enc.rts_.make_state($1, a->getSort());
+      smt::Term state = enc.rts_.make_statevar($1, a->getSort());
       enc.terms_[$1] = state;
+      if (a->getType() == SMVnode::Unsigned){
+            enc.unsignedbv_[$1] = state; 
+         } else if(a->getType() == SMVnode::Signed){
+           enc.signedbv_[$1] = state;
+         } 
       smt::Term n = enc.rts_.next(state);
       smt::Term e = enc.solver_->make_term(smt::Equal, n, state);
       enc.rts_.constrain_trans(e);
-      //cout<<"find a frozen var" <<endl;
+      enc.transterm_.push_back(make_pair(enc.loc.end.line,e));
   };
 
-init_constraint: INIT init_list
-                | init_constraint init_list;
+init_constraint: INIT init_list;
 
-init_list: basic_expr ";"{
+init_list: simple_expr ";"{
         SMVnode *a = $1;
         enc.rts_.constrain_init(a->getTerm());
       };
 
-trans_constraint: TRANS trans_list
-                | trans_constraint trans_list;
+trans_constraint: TRANS trans_list;
 
 trans_list: basic_expr ";"{
             SMVnode *a = $1;
-            enc.rts_.constrain_trans(a->getTerm());
+            if(!case_true){
+              enc.rts_.constrain_trans(a->getTerm());
+            }else{
+              enc.casestore_[case_start] = a->getTerm();
+            }
+            case_true = false;
             //cout <<"find a trans"<<endl;
 };
 
-invar_constraint: INVAR invar_list
-                | invar_constraint invar_list;
+invar_constraint: INVAR invar_list;
 
-invar_list: basic_expr ";"{
+invar_list: simple_expr ";"{
             SMVnode *a = $1;
             enc.rts_.constrain_trans(a->getTerm());
-            //cout <<"find a invar"<<endl;
+            enc.transterm_.push_back(make_pair(enc.loc.end.line,a->getTerm()));
 };
 
 
@@ -245,26 +270,24 @@ invarspec_list: basic_expr ";" {
 
 constant: boolean_constant {
       smt::Term con = enc.solver_->make_term($1);
-      $$ = new SMVnode(con);
+      if(con->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(con,SMVnode::BV);
+      else $$ = new SMVnode(con,SMVnode::Boolean);
 }
           | integer_constant {
             smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
             smt::Term con = enc.solver_->make_term($1,sort_);
-            $$ = new SMVnode(con);
+            $$ = new SMVnode(con,SMVnode::Integer);
 }
           | real_constant{
             smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
             smt::Term con = enc.solver_->make_term($1,sort_);
-            $$ = new SMVnode(con);
+            $$ = new SMVnode(con,SMVnode::Real);
           }
           | word_value {
            $$ = $1;
           }
-//          | symbolic_constant{
-//            throw CosaException("No symbolic constant now");
-//          }
           | range_constant{
-            throw CosaException("No range constant now");
+            throw PonoException("Range constants are not yet supported");
           };
 
 word_value: word_index1 integer_val "_" integer_val {
@@ -285,11 +308,22 @@ word_value: word_index1 integer_val "_" integer_val {
               base = 2;
           }
           smt::Term num = enc.solver_->make_term($4, sort_, base);
-          $$ = new SMVnode(num); }
+          $$ = new SMVnode(num, SMVnode::Unsigned); }
         | word_index2 integer_val "_" integer_val {
           smt::Sort sort_ = enc.solver_->make_sort(smt::BV, stoi($2));
           std::string temp = $1;
+          SMVnode::Type bvt;
           int base = 2;
+          switch (temp[1]){
+            case 'u':
+              bvt = SMVnode::Unsigned;
+              break;
+            case 's':
+              bvt = SMVnode::Signed;
+              break;
+            default:
+              bvt = SMVnode::Unsigned;
+          }
           switch (temp[2]){
             case 'b':
               base = 2;
@@ -304,7 +338,7 @@ word_value: word_index1 integer_val "_" integer_val {
               base = 2;
           }
           smt::Term num = enc.solver_->make_term($4, sort_, base);
-          $$ = new SMVnode(num);
+          $$ = new SMVnode(num,bvt);
    };
 
 
@@ -319,310 +353,565 @@ boolean_constant: TOK_TRUE{
 //                $$ = $1;
 //};
 
-integer_constant: integer_val{
-  $$ = $1;
-  //throw CosaException("No integer constant now");
-};
+integer_constant: integer_val{ $$ = $1; }
+                  | neg_integer_val {$$ = $1; };
+
 real_constant: real_val{
   $$ = $1;
-  //throw CosaException("No real constant now");
-};
+}| float_number { $$ = $1; }
+| fractional_number{  $$ = $1; }
+| exponential_number{ $$ = $1; };
+
+float_number: integer_val "." integer_val{ $$ = $1 + "." + $3; }
+
+fractional_number: fraction_prefix "'" integer_val "/" integer_val{ $$ = $1 + "'" + $3 + "/" + $5; }
+
+exponential_number: integer_val exponential_prefix "-" integer_val{  $$ =  $1 + $2 + "-" + $4; }
+| integer_val exponential_prefix integer_val{  $$ =  $1 + $2 + $3; }
+| float_number exponential_prefix "-" integer_val {  $$ =  $1 + $2 + "-" + $4; };
+
 range_constant: integer_val TO integer_val{
-  throw CosaException("No range constant now");
+  throw PonoException("No range constant now");
 };
-basic_expr: constant {
+basic_expr: simple_expr{ $$ = $1;}
+          | next_expr{ $$ = $1;}
+
+simple_expr: constant {
             $$ = $1;
 }
             | complex_identifier {
               smt::Term tok = enc.terms_.at($1);
-              $$ = new SMVnode(tok);
+              if (enc.unsignedbv_.find($1) != enc.unsignedbv_.end() ) {
+                $$ = new SMVnode(tok, SMVnode::Unsigned);
+              } else if(enc.signedbv_.find($1) != enc.signedbv_.end()){
+                $$ = new SMVnode(tok, SMVnode::Signed);
+              } else{
+                if(tok->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(tok,SMVnode::BV);
+                else if(tok -> get_sort()->get_sort_kind() == smt::BOOL) $$ = new SMVnode(tok,SMVnode::Boolean);
+              }
             }
-            //| pi
-            //| ABS '(' basic_expr ')'
-            //| MAX '(' basic_expr ',' basic_expr ')'
-            //| MIN '(' basic_expr ',' basic_expr ')'
-            //| SIN '(' basic_expr ')'
-            //| COS '(' basic_expr ')'
-            //| EXP '(' basic_expr ')'
-            //| TAN '(' basic_expr ')'
-            //| ln '(' basic_expr ')'
             | "(" basic_expr ")"{
               $$ = $2;
             }
             | OP_NOT basic_expr {
               SMVnode *a = $2;
-              smt::Term e = enc.solver_->make_term(smt::Not, a->getTerm());
-              $$ = new SMVnode(e);
+              SMVnode::Type bvs_a = a->getType();
+              if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
+                throw PonoException("Type system violation");
+              }
+              smt::Term e = enc.solver_->make_term(smt::BVNot, a->getTerm());
+              $$ = new SMVnode(e,bvs_a);
             }
             | basic_expr OP_AND basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::Term e = enc.solver_->make_term(smt::BVAnd, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e);
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
+                throw PonoException("Type system violation");
+              }
+              if(bvs_b != SMVnode::BV && bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
+                  throw PonoException("Type system violation");
+              }
+              if(bvs_a != bvs_b){
+                 throw PonoException("Unsigned/Signed unmatch");
+              } else{
+                smt::Term e = enc.solver_->make_term(smt::BVAnd, a->getTerm(), b->getTerm());
+                $$ = new SMVnode(e,bvs_a);
+              }
             }
             | basic_expr OP_OR basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::Term e = enc.solver_->make_term(smt::BVOr, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e);
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
+                throw PonoException("Type system violation");
+              }
+              if(bvs_b != SMVnode::BV && bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
+                  throw PonoException("Type system violation");
+              }
+              if(bvs_a != bvs_b){
+                 throw PonoException("Unsigned/Signed unmatch");
+              } else{
+                smt::Term e = enc.solver_->make_term(smt::BVOr, a->getTerm(), b->getTerm());
+                $$ = new SMVnode(e,bvs_a);
+              }
             }
             | basic_expr OP_XOR basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::Term e = enc.solver_->make_term(smt::BVXor, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e);
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
+                throw PonoException("Type system violation");
+              }
+              if(bvs_b != SMVnode::BV && bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
+                  throw PonoException("Type system violation");
+              }
+              if(bvs_a != bvs_b){
+                 throw PonoException("Unsigned/Signed unmatch");
+              } else{
+                smt::Term e = enc.solver_->make_term(smt::BVXor, a->getTerm(), b->getTerm());
+                $$ = new SMVnode(e,bvs_a);
+              }
             }
             | basic_expr OP_XNOR basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
+                throw PonoException("Type system violation");
+              }
+              if(bvs_b != SMVnode::BV && bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
+                  throw PonoException("Type system violation");
+              }
+              if(bvs_a != bvs_b){
+                 throw PonoException("Unsigned/Signed unmatch");
+              } else{
               smt::Term e = enc.solver_->make_term(smt::BVXnor, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e);
+              $$ = new SMVnode(e,bvs_a);
+              }
             }
             | basic_expr OP_IMPLY basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
+                throw PonoException("Type system violation");
+              }
+              if(bvs_b != SMVnode::BV && bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
+                  throw PonoException("Type system violation");
+              }
+              if(bvs_a != bvs_b){
+                 throw PonoException("Unsigned/Signed unmatch");
+              } else{
               smt::Term e = enc.solver_->make_term(smt::Implies, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e);
+              $$ = new SMVnode(e,bvs_a);
+              }
             }
             | basic_expr OP_BI basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != SMVnode::BV && bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
+                throw PonoException("Type system violation");
+              }
+              if(bvs_b != SMVnode::BV && bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
+                  throw PonoException("Type system violation");
+              }
+              if(bvs_a != bvs_b){
+                 throw PonoException("Unsigned/Signed unmatch");
+              } else{
               smt::Term e = enc.solver_->make_term(smt::Iff, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e);
+              $$ = new SMVnode(e,bvs_a);
+              }
             }
             | basic_expr OP_EQ basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != bvs_b){
+                 throw PonoException("Unsigned/Signed unmatch");
+              } else{
               smt::Term e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e);
+              if(e->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(e,SMVnode::BV);
+              else $$ = new SMVnode(e,SMVnode::Boolean);
+              }
             }
             | basic_expr OP_NEQ basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::Term e = enc.solver_->make_term(smt::Distinct, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(e);
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != bvs_b){
+                 throw PonoException("Unsigned/Signed unmatch");
+              } else{
+                smt::Term e = enc.solver_->make_term(smt::Distinct, a->getTerm(), b->getTerm());
+                if(e->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(e,SMVnode::BV);
+                else $$ = new SMVnode(e,SMVnode::Boolean);
+              }
             }
             | basic_expr OP_LT basic_expr  {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                  else $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
-                  smt::Term res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                    smt::Term res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
+                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                    smt::Term res = enc.solver_->make_term(smt::BVSlt, a->getTerm(), b->getTerm());
+                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                  } else{
+                    throw PonoException ("Unsigned/Signed unmatch");
+                  } 
               }
             }
             | basic_expr OP_GT basic_expr {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                  else $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
-                  smt::Term res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                    smt::Term res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
+                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                    smt::Term res = enc.solver_->make_term(smt::BVSgt, a->getTerm(), b->getTerm());
+                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                  } else{
+                    throw PonoException ("Unsigned/Signed unmatch");
+                  } 
               }
             }
             | basic_expr OP_LTE basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ((kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                  else $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
-                  smt::Term res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                    smt::Term res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
+                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                    smt::Term res = enc.solver_->make_term(smt::BVSle, a->getTerm(), b->getTerm());
+                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                  } else{
+                    throw PonoException ("Unsigned/Signed unmatch");
+                  } 
               } 
             }
             | basic_expr OP_GTE basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ((kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                  else $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
-                  smt::Term res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                    smt::Term res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
+                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                    smt::Term res = enc.solver_->make_term(smt::BVSge, a->getTerm(), b->getTerm());
+                    if(res->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(res,SMVnode::BV);
+                    else $$ = new SMVnode(res,SMVnode::Boolean);
+                  } else{
+                    throw PonoException ("Unsigned/Signed unmatch");
+                  } 
               }
             }
             | OP_MINUS basic_expr %prec UMINUS{
                 SMVnode *a = $2;
                 smt::Term res = enc.solver_->make_term(smt::BVNeg, a->getTerm());
-                $$ = new SMVnode(res);
+                $$ = new SMVnode(res,a->getType());
             }
             | basic_expr "+" basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if(bvs_a != bvs_b){
+                   throw PonoException("Unsigned/Signed unmatch");
+                  } else{
                   smt::Term res = enc.solver_->make_term(smt::BVAdd, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  $$ = new SMVnode(res,bvs_a);
+                }
               }
             }
             | basic_expr "-" basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if(bvs_a != bvs_b){
+                   throw PonoException("Unsigned/Signed unmatch");
+                  } else{
                   smt::Term res = enc.solver_->make_term(smt::BVSub, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  $$ = new SMVnode(res,bvs_a);
+                  }
               }
             }
             | basic_expr "*" basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if(bvs_a != bvs_b){
+                   throw PonoException("Unsigned/Signed unmatch");
+                  } else{
                   smt::Term res = enc.solver_->make_term(smt::BVMul, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  $$ = new SMVnode(res,bvs_a);
+                  } 
               }
             }
             | basic_expr "/" basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
-                  smt::Term res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                    smt::Term res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
+                    $$ = new SMVnode(res,SMVnode::Unsigned);
+                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                    smt::Term res = enc.solver_->make_term(smt::BVSdiv, a->getTerm(), b->getTerm());
+                    $$ = new SMVnode(res,SMVnode::Signed);
+                  } else{
+                    throw PonoException ("Unsigned/Signed unmatch");
+                  } 
               }
             }
             | basic_expr OP_MOD basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::SortKind kind_ = a->getTerm()->get_sort()->get_sort_kind();
-              if ( (kind_ == smt::INT) || (kind_ == smt::REAL) ){
+              smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
                   smt::Term res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
-                  smt::Term res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res);
+                  SMVnode::Type bvs_a = a->getType();
+                  SMVnode::Type bvs_b = b->getType();
+                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                    smt::Term res = enc.solver_->make_term(smt::BVUrem, a->getTerm(), b->getTerm());
+                    $$ = new SMVnode(res,SMVnode::Unsigned);
+                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                    smt::Term res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
+                    $$ = new SMVnode(res,SMVnode::Signed);
+                  } else{
+                    throw PonoException ("Unsigned/Signed unmatch");
+                  } 
               }
             }
             | basic_expr OP_SHIFTR basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
               smt::Term res = enc.solver_->make_term(smt::BVLshr, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(res);
+              $$ = new SMVnode(res,a->getType());
             }
             | basic_expr OP_SHIFTL basic_expr{
               SMVnode *a = $1;
               SMVnode *b = $3;
               smt::Term res = enc.solver_->make_term(smt::BVShl, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(res);
-            }
-            | basic_expr sizev {
-              throw CosaException("No word1");
+              $$ = new SMVnode(res,a->getType());
             }
             | basic_expr OP_CON basic_expr  {
               SMVnode *a = $1;
               SMVnode *b = $3;
-              smt::Term res = enc.solver_->make_term(smt::Concat, a->getTerm(), b->getTerm());
-              $$ = new SMVnode(res);
+              SMVnode::Type bvs_a = a->getType();
+              SMVnode::Type bvs_b = b->getType();
+              if(bvs_a != bvs_b){
+                throw PonoException("Unsigned/Signed unmatch");
+              } else{
+                smt::Term res = enc.solver_->make_term(smt::Concat, a->getTerm(), b->getTerm());
+                $$ = new SMVnode(res,SMVnode::Unsigned);
+              }               
             }
-            | basic_expr "[" basic_expr ":" basic_expr "]"{
-              throw CosaException("No word1");
+            | basic_expr sizev {
+                throw PonoException("No index Subscript");
+            }
+            | basic_expr "[" integer_val ":" integer_val "]"{
+                SMVnode *a = $1;
+                SMVnode::Type bvs_a = a->getType();
+                if(bvs_a == SMVnode::Unsigned || bvs_a == SMVnode::Signed){
+                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Extract, stoi($3),stoi($5)), a->getTerm());
+                  $$ = new SMVnode(res,SMVnode::Unsigned);
+                }else{
+                  throw PonoException("Bit selection type is uncompatible");
+                }
             }
             | word1 "(" basic_expr ")" {
-              throw CosaException("No word1");
+              throw PonoException("No word1");
             }
             | tok_bool "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_toint "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_count "(" basic_expr_list ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | swconst "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | uwconst "(" basic_expr ")"{
-              throw CosaException("No type convert");
+              throw PonoException("No type convert");
             }
             | tok_signed "(" basic_expr ")"{
                 $$ = $3;
-            }
+            }    //unsigned word convert to 
             | tok_unsigned "(" basic_expr ")"{
                 $$ = $3;
             }
             | tok_sizeof "(" basic_expr ")"{
-              throw CosaException("No array size");
+              throw PonoException("No array size");
             }
             | tok_floor "(" basic_expr ")"{
-              throw CosaException("No floor operation");
+              throw PonoException("No floor operation");
             }
             | extend "(" basic_expr ")"{
-              throw CosaException("No extend now");
+              throw PonoException("No extend now");
             }
             | resize "(" basic_expr ")" {
-              throw CosaException("No resize");
+              throw PonoException("No resize");
             }
             | signed_word sizev "(" basic_expr ")"{
-               throw CosaException("No resize");
+               throw PonoException("No resize");
             }
             | unsigned_word sizev "(" basic_expr ")"{
-               throw CosaException("No resize");
+               throw PonoException("No resize");
             }
             | basic_expr UNION  basic_expr {
-               throw CosaException("No union");
+               throw PonoException("No union");
             }
             |"{" set_body_expr "}" {
-               throw CosaException("No set");
+               throw PonoException("No set");
             }
-            | basic_expr OP_in basic_expr {
-               throw CosaException("No array");
+            | basic_expr OP_IN basic_expr {
+               throw PonoException("No array");
             }
             | basic_expr IF_ELSE basic_expr ":" basic_expr  {
-               throw CosaException("No case now");
+                 SMVnode *a = $1;
+                 SMVnode *b = $3;
+                 SMVnode *c = $5;
+                 smt::Term e = enc.solver_->make_term(smt::Ite, a->getTerm(),b->getTerm(),c->getTerm());
+                 $$ = new SMVnode(e);
             }        
           | WRITE "(" basic_expr "," basic_expr "," basic_expr ")"{
             SMVnode *a = $3;
             SMVnode *b = $5;
             SMVnode *c = $7;
             smt::Term write_r =  enc.solver_->make_term(smt::Store, a->getTerm(),b->getTerm(),c->getTerm());
-            $$ = new SMVnode(write_r);
+            //std::cout << " get an array write"<< write_r ->get_sort()->get_sort_kind() << std::endl;
+            $$ = new SMVnode(write_r, SMVnode::WordArray);
           }
           | READ "(" basic_expr "," basic_expr ")"{
             SMVnode *a = $3;
             SMVnode *b = $5;
             smt::Term read_r =  enc.solver_->make_term(smt::Select, a->getTerm(),b->getTerm());
-            $$ = new SMVnode(read_r);
+            //std::cout << " get an array read"<< read_r ->get_sort()->get_sort_kind() << std::endl;
+            if(read_r->get_sort()->get_sort_kind() ==smt::REAL) $$ = new SMVnode(read_r,SMVnode::Real);
+            else if(read_r->get_sort()->get_sort_kind()==smt::INT) $$ = new SMVnode(read_r,SMVnode::Integer);
+            else if(read_r->get_sort()->get_sort_kind()==smt::BOOL) $$ = new SMVnode(read_r,SMVnode::Boolean);
+            else $$ = new SMVnode(read_r,SMVnode::Unsigned);
           }
           | CONSTARRAY "(" tok_typeof "(" complex_identifier ")" "," basic_expr ")" {
-             throw CosaException("No constarray");
+             throw PonoException("No constarray");
           }
           | CONSTARRAY "(" arrayword sizev of type_identifier "," basic_expr ")" {
-            throw CosaException("No constarray");
+            throw PonoException("No constarray");
           }
           | CONSTARRAY "(" arrayinteger of type_identifier "," basic_expr ")" {
-            throw CosaException("No constarray");
+            throw PonoException("No constarray");
           }
-          | next_expr{
+          | case_expr {
             $$ = $1;
           };
 
-next_expr: tok_next "(" basic_expr ")"{
+next_expr: TOK_NEXT "(" basic_expr ")"{
           SMVnode *a = $3;
           smt::Term n = enc.rts_.next(a->getTerm());
-          $$ = new SMVnode(n);
+          $$ = new SMVnode(n,a->getType());
+};
+
+case_expr: TOK_CASE case_body TOK_ESAC {
+          std::pair<smt::Term,smt::Term> term_last = enc.caseterm_.back();
+          smt::Term cond = term_last.first;
+          smt::Term final_term = term_last.second;
+          enc.caseterm_.pop_back();
+          int total_num = enc.caseterm_.size();
+          for (int i = 0; i < total_num; i++){
+            //<<"find a case" <<std::endl;
+            std::pair<smt::Term,smt::Term> term_pair = enc.caseterm_.back();
+            enc.caseterm_.pop_back();
+            case_true = true;
+            smt::Term e = enc.solver_->make_term(smt::Ite, term_pair.first, term_pair.second, final_term);
+            cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first);
+            final_term = e;
+          }
+          enc.casestore_.push_back(final_term);
+          enc.casecheck_.push_back(cond);
+          //std::cout << " get a case"<< final_term ->get_sort()->get_sort_kind() << std::endl;
+          if(final_term->get_sort()->get_sort_kind() == smt::BV) $$ = new SMVnode(final_term,SMVnode::BV);
+          else if (final_term->get_sort()->get_sort_kind() == smt::BOOL) $$ = new SMVnode(final_term,SMVnode::Boolean);
+          else $$ = new SMVnode(final_term,SMVnode::Unsigned);
+}
+
+case_body: basic_expr ":" basic_expr ";"{
+      case_start = enc.loc.end.line;
+      SMVnode *a = $1;
+      SMVnode *b = $3;
+      enc.caseterm_.clear();
+      enc.caseterm_.push_back(make_pair(a->getTerm(),b->getTerm()));
+} | case_body basic_expr ":" basic_expr ";" {
+      SMVnode *a = $2;
+      SMVnode *b = $4;
+      enc.caseterm_.push_back(make_pair(a->getTerm(),b->getTerm()));
 };
 
 basic_expr_list: basic_expr
@@ -630,8 +919,6 @@ basic_expr_list: basic_expr
 
 set_body_expr: basic_expr
                 | set_body_expr "," basic_expr;
-        
-//symbolic_constant: complex_identifier;
 
 complex_identifier: tok_name{
                 $$ = $1;
@@ -645,17 +932,18 @@ complex_identifier: tok_name{
 
 type_identifier: real_type{
                 smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
-                $$ =  new SMVnode (sort_);
-                //throw CosaException("No real type now in boolector");
+                $$ =  new SMVnode (sort_,SMVnode::Real);
+                //throw PonoException("No real type now in boolector");
                 }
                 | integer_type{
                   smt::Sort sort_ = enc.solver_->make_sort(smt::INT);
-                  $$ =  new SMVnode (sort_);
-                  //throw CosaException("No integer type now in boolector");  
+                  $$ =  new SMVnode (sort_,SMVnode::Integer);
+                  //throw PonoException("No integer type now in boolector");  
                 }
                 | bool_type {
                 smt::Sort sort_ = enc.solver_->make_sort(smt::BOOL);
-                $$ =  new SMVnode (sort_);
+                if (sort_->get_sort_kind() == smt::BOOL) $$ =  new SMVnode (sort_,SMVnode::BV);
+                else $$ =  new SMVnode (sort_,SMVnode::Boolean);
                 }
                 | array_type{
                   $$ = $1 ;
@@ -664,33 +952,33 @@ type_identifier: real_type{
                 $$ = $1;
 }           
                 | integer_val TO integer_val{
-                  throw CosaException("No range now");
+                  throw PonoException("No range now");
                 };
 
 word_type: signed_word sizev {
         smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
-        $$ =  new SMVnode (sort_);
+        $$ =  new SMVnode (sort_,SMVnode::Signed);
 }
           | unsigned_word sizev{
         smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
-        $$ =  new SMVnode (sort_);
+        $$ =  new SMVnode (sort_,SMVnode::Unsigned);
 }
           | tok_word sizev{
         smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
-        $$ =  new SMVnode (sort_);
+        $$ =  new SMVnode (sort_,SMVnode::Unsigned);
 };
 
 array_type: arrayword sizev of type_identifier{
             smt::Sort arraysort = enc.solver_->make_sort(smt::BV,$2);
             SMVnode *a = $4;
             smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort,a->getSort());
-            $$ = new SMVnode(sort_);
+            $$ = new SMVnode(sort_,SMVnode::WordArray);
           }
           | arrayinteger of type_identifier{
-            throw CosaException("no array integer type now");
+            throw PonoException("no array integer type now");
           }
           | array_tok of type_identifier{
-            throw CosaException("No other array now");
+            throw PonoException("No other array now");
           };
 
 sizev:
@@ -699,22 +987,8 @@ sizev:
     };
 %%
 
-void cosa::SMVEncoder::parse(std::string filename){
-    FILE *myfile = fopen(filename.c_str(), "r");
-    std::string file = filename; 
-  // make sure file is valid:
-  if (!myfile) {
-    std::cout << "NO input file!" << std::endl;
-    exit(-1);
-  }
-  yyin = myfile;
-  cosa::smvparser parse (*this);
-  parse();
-}
-
-void
-cosa::smvparser::error (const std::string& m)
-{
-  std::cerr << yylineno << ":" << m << '\n';
+void pono::smvparser::error (const location &loc, const std::string& m)
+{ 
+  std::cerr << loc << " " <<  m << '\n';
    exit(-1);
 }

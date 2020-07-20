@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
- **   Ahmed Irfan, Makai Mann
- ** This file is part of the cosa2 project.
+ **   Ahmed Irfan, Makai Mann, Florian Lonsing
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include "prover.h"
 
@@ -21,10 +20,19 @@
 
 using namespace smt;
 
-namespace cosa {
+namespace pono {
 
 Prover::Prover(const Property & p, smt::SmtSolver & s)
     : ts_(p.transition_system()),
+      property_(p),
+      solver_(s),
+      unroller_(ts_, solver_)
+{
+}
+
+Prover::Prover(const PonoOptions & opt, const Property & p, smt::SmtSolver & s)
+    : options_(opt),
+      ts_(p.transition_system()),
       property_(p),
       solver_(s),
       unroller_(ts_, solver_)
@@ -49,13 +57,13 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     out.push_back(UnorderedTermMap());
     UnorderedTermMap & map = out.back();
 
-    for (auto v : ts_.states()) {
+    for (auto v : ts_.statevars()) {
       Term vi = unroller_.at_time(v, i);
       Term r = solver_->get_value(vi);
       map[v] = r;
     }
 
-    for (auto v : ts_.inputs()) {
+    for (auto v : ts_.inputvars()) {
       Term vi = unroller_.at_time(v, i);
       Term r = solver_->get_value(vi);
       map[v] = r;
@@ -70,4 +78,4 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
   return true;
 }
 
-}  // namespace cosa
+}  // namespace pono

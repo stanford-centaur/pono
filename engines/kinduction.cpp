@@ -1,29 +1,36 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Ahmed Irfan, Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #include "kinduction.h"
 #include "utils/logger.h"
 
 using namespace smt;
 
-namespace cosa {
+namespace pono {
 
 KInduction::KInduction(const Property & p, SmtSolver & solver)
     : super(p, solver)
+{
+  initialize();
+}
+
+KInduction::KInduction(const PonoOptions & opt,
+                       const Property & p,
+                       smt::SmtSolver & solver)
+    : super(opt, p, solver)
 {
   initialize();
 }
@@ -90,7 +97,7 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad_, i + 1));
 
-  if (ts_.states().size() && check_simple_path_lazy(i + 1)) {
+  if (ts_.statevars().size() && check_simple_path_lazy(i + 1)) {
     return true;
   }
 
@@ -103,10 +110,10 @@ bool KInduction::inductive_step(int i)
 
 Term KInduction::simple_path_constraint(int i, int j)
 {
-  assert(ts_.states().size());
+  assert(ts_.statevars().size());
 
   Term disj = false_;
-  for (auto v : ts_.states()) {
+  for (auto v : ts_.statevars()) {
     Term vi = unroller_.at_time(v, i);
     Term vj = unroller_.at_time(v, j);
     Term eq = solver_->make_term(PrimOp::Equal, vi, vj);
@@ -148,4 +155,4 @@ bool KInduction::check_simple_path_lazy(int i)
   return false;
 }
 
-}  // namespace cosa
+}  // namespace pono

@@ -1,30 +1,30 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Ahmed Irfan, Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #pragma once
 
 #include "engines/prover.h"
 
-namespace cosa {
+namespace pono {
 
 class Bmc : public Prover
 {
  public:
   Bmc(const Property & p, smt::SmtSolver & solver);
+  Bmc(const PonoOptions & opt, const Property & p, smt::SmtSolver & solver);
   ~Bmc();
 
   typedef Prover super;
@@ -38,4 +38,4 @@ class Bmc : public Prover
 
 };  // class Bmc
 
-}  // namespace cosa
+}  // namespace pono

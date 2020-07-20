@@ -1,4 +1,4 @@
-# This is a collection of tricky cases in cosa2
+# This is a collection of tricky cases in pono
 
 ## Solver Issues
 
