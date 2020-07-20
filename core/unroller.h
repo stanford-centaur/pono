@@ -43,7 +43,7 @@ class Unroller
   smt::UnorderedTermMap & var_cache_at_time(unsigned int k);
 
   const TransitionSystem & ts_;
-  const smt::SmtSolver & solver_;
+  const smt::SmtSolver solver_;
 
   typedef std::vector<smt::UnorderedTermMap> TimeCache;
   TimeCache time_cache_;
