@@ -32,7 +32,7 @@ Prover::Prover(const Property & p, smt::SolverEnum se)
   solver_->set_opt("produce-models", "true");
 }
 
-Prover::Prover(const Property & p, smt::SmtSolver s)
+Prover::Prover(const Property & p, const smt::SmtSolver & s)
     : solver_(s),
       to_prover_solver_(s),
       property_(p, to_prover_solver_),
@@ -49,7 +49,9 @@ Prover::Prover(const PonoOptions & opt, const Property & p, smt::SolverEnum se)
   solver_->set_opt("produce-models", "true");
 }
 
-Prover::Prover(const PonoOptions & opt, const Property & p, smt::SmtSolver s)
+Prover::Prover(const PonoOptions & opt,
+               const Property & p,
+               const smt::SmtSolver & s)
     : solver_(s),
       to_prover_solver_(solver_),
       property_(p, to_prover_solver_),

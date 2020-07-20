@@ -34,8 +34,13 @@ InterpolantMC::InterpolantMC(const Property & p, SolverEnum se)
   initialize();
 }
 
-InterpolantMC::InterpolantMC(const Property & p, SmtSolver slv, SmtSolver itp)
-  : super(p, slv), interpolator_(itp), to_interpolator_(interpolator_), to_solver_(solver_)
+InterpolantMC::InterpolantMC(const Property & p,
+                             const SmtSolver & slv,
+                             const SmtSolver & itp)
+    : super(p, slv),
+      interpolator_(itp),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_)
 {
   initialize();
 }
@@ -53,8 +58,8 @@ InterpolantMC::InterpolantMC(const PonoOptions & opt,
 
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
                              const Property & p,
-                             SmtSolver slv,
-                             SmtSolver itp)
+                             const SmtSolver & slv,
+                             const SmtSolver & itp)
     : super(opt, p, slv),
       interpolator_(itp),
       to_interpolator_(itp),

@@ -28,9 +28,9 @@ class Prover
 {
  public:
   Prover(const Property & p, smt::SolverEnum se);
-  Prover(const Property & p, smt::SmtSolver s);
+  Prover(const Property & p, const smt::SmtSolver & s);
   Prover(const PonoOptions & opt, const Property & p, smt::SolverEnum se);
-  Prover(const PonoOptions & opt, const Property & p, smt::SmtSolver s);
+  Prover(const PonoOptions & opt, const Property & p, const smt::SmtSolver & s);
 
   virtual ~Prover();
 
