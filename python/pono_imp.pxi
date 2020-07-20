@@ -1,4 +1,5 @@
 from cython.operator cimport dereference as dref, preincrement as inc
+from libc.stdint cimport uintptr_t
 from libcpp.string cimport string
 from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
@@ -20,6 +21,7 @@ from pono_imp cimport BmcSimplePath as c_BmcSimplePath
 from pono_imp cimport InterpolantMC as c_InterpolantMC
 from pono_imp cimport BTOR2Encoder as c_BTOR2Encoder
 IF WITH_COREIR == "ON":
+    from pono_imp cimport Module as c_Module
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from pono_imp cimport get_free_symbols as c_get_free_symbols
@@ -27,6 +29,14 @@ from pono_imp cimport get_free_symbols as c_get_free_symbols
 from smt_switch cimport SmtSolver, Sort, Term, c_Term, c_UnorderedTermMap
 
 from enum import Enum
+
+PYCOREIR_AVAILABLE=False
+try:
+    import coreir
+    import ctypes
+    PYCOREIR_AVAILABLE=True
+except:
+    print("Warning: Pono built with CoreIR support but coreir python module not found")
 
 ctypedef unordered_set[c_Term] c_UnorderedTermSet
 ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr
@@ -332,8 +342,15 @@ cdef class BTOR2Encoder:
 IF WITH_COREIR == "ON":
     cdef class CoreIREncoder:
         cdef c_CoreIREncoder * cbe
-        def __cinit__(self, str filename, RelationalTransitionSystem ts):
-            self.cbe = new c_CoreIREncoder(filename.encode(), dref((<c_RelationalTransitionSystem *> ts.cts)))
+        def __cinit__(self, mod, RelationalTransitionSystem ts):
+            cdef uintptr_t adr
+            if isinstance(mod, str):
+                self.cbe = new c_CoreIREncoder((<string?> (mod.encode())), dref((<c_RelationalTransitionSystem *> ts.cts)))
+            elif hasattr(mod, "ptr"):
+                adr = <uintptr_t> ctypes.addressof(mod.ptr.contents)
+                self.cbe = new c_CoreIREncoder((<c_Module *> adr), dref((<c_RelationalTransitionSystem *> ts.cts)))
+            else:
+                raise ValueError("CoreIR encoder takes a pycoreir Context or a filename but got {}".format(mod))
 
 
 

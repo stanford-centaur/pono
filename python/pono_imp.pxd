@@ -106,9 +106,14 @@ cdef extern from "frontends/btor2_encoder.h" namespace "pono":
 
 # WITH_COREIR is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
 IF WITH_COREIR == "ON":
+    cdef extern from "coreir.h" namespace "CoreIR":
+        cdef cppclass Module:
+            pass
+
     cdef extern from "frontends/coreir_encoder.h" namespace "pono":
         cdef cppclass CoreIREncoder:
             CoreIREncoder(string filename, RelationalTransitionSystem & ts) except +
+            CoreIREncoder(Module * top_mod, RelationalTransitionSystem & ts) except +
 
 
 cdef extern from "utils/logger.h" namespace "pono":
