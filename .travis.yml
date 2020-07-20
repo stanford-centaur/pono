@@ -21,6 +21,9 @@ addons:
       - python3-setuptools
       - ruby
       - libfl-dev
+      # for pycoreir which is currently not tested on Travis
+      # - libmpfr-dev
+      # - libmpc-dev
 
 jobs:
   include:

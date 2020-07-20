@@ -29,7 +29,7 @@ class CoreIREncoder
       : top_(m),
         ts_(ts),
         solver_(ts.solver()),
-        c_(CoreIR::newContext()),
+        c_(m->getContext()),
         num_clocks_(0),
         can_abstract_clock_(true)
   {
@@ -37,6 +37,8 @@ class CoreIREncoder
     bvsort1_ = solver_->make_sort(smt::BV, 1);
     boolsort_ = solver_->make_sort(smt::BOOL);
     bv1_ = solver_->make_term(1, bvsort1_);
+
+    encode();
   }
 
  protected:
