@@ -182,6 +182,12 @@ class TransitionSystem
     return named_terms_;
   };
 
+  /** @return the constraints of the system
+   *  Note: these do not include next-state variable updates or initial state
+   * constraints
+   */
+  const smt::TermVec & constraints() const { return constraints_; };
+
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
    */
@@ -362,6 +368,14 @@ class TransitionSystem
 
   // whether the TransitionSystem is functional
   bool functional_;
+
+  // extra vector of terms to TransitionSystems that records constraints
+  // added to the transition relation
+  // For a functional system, you could now rebuild trans by AND-ing
+  // together all the equalities from state_updates_
+  // and these constraints
+  smt::TermVec constraints_;  ///< constraints added via
+                              ///< add_invar/constrain_inputs/add_constraint
 
   typedef std::vector<const smt::UnorderedTermSet *> UnorderedTermSetPtrVec;
 

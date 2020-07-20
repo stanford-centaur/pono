@@ -133,9 +133,11 @@ void TransitionSystem::add_invar(const Term & constraint)
   if (only_curr(constraint)) {
     init_ = solver_->make_term(And, init_, constraint);
     trans_ = solver_->make_term(And, trans_, constraint);
+    Term next_constraint = solver_->substitute(constraint, next_map_);
     // add the next-state version
-    trans_ = solver_->make_term(
-        And, trans_, solver_->substitute(constraint, next_map_));
+    trans_ = solver_->make_term(And, trans_, next_constraint);
+    constraints_.push_back(constraint);
+    constraints_.push_back(next_constraint);
   } else {
     throw PonoException("Invariants should be over current states only.");
   }
@@ -145,6 +147,7 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
 {
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
+    constraints_.push_back(constraint);
   } else {
     throw PonoException("Cannot have next-states in an input constraint.");
   }
@@ -156,10 +159,13 @@ void TransitionSystem::add_constraint(const Term & constraint)
     init_ = solver_->make_term(And, init_, constraint);
     trans_ = solver_->make_term(And, trans_, constraint);
     // add over next states
-    trans_ = solver_->make_term(
-        And, trans_, solver_->substitute(constraint, next_map_));
+    Term next_constraint = solver_->substitute(constraint, next_map_);
+    trans_ = solver_->make_term(And, trans_, next_constraint);
+    constraints_.push_back(constraint);
+    constraints_.push_back(next_constraint);
   } else if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
+    constraints_.push_back(constraint);
   } else {
     throw PonoException("Constraint cannot have next states");
   }
