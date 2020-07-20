@@ -42,7 +42,7 @@ class Property
  private:
   const TransitionSystem ts_;
 
-  smt::Term prop_;
+  const smt::Term prop_;
 
 };  // class Property
 
