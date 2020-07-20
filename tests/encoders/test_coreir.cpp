@@ -34,6 +34,18 @@ TEST_P(CoreIRUnitTests, Encode)
   CoreIREncoder ce(filename, rts);
 }
 
+TEST_P(CoreIRUnitTests, EncodeForceAbstract)
+{
+  SmtSolver s = available_solvers().at(get<0>(GetParam()))(false);
+  RelationalTransitionSystem rts(s);
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  string filename = STRFY(PONO_SRC_DIR);
+  filename += "/tests/encoders/inputs/coreir/";
+  filename += get<1>(GetParam());
+  cout << "Reading file: " << filename << endl;
+  CoreIREncoder ce(filename, rts, true);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCoreIRUnitTests,
     CoreIRUnitTests,

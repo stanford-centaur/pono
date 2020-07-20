@@ -187,6 +187,10 @@ void CoreIREncoder::encode()
              can_abstract_clock_ ? "can" : "cannot",
              top_->getName());
 
+  if (!can_abstract_clock_ && force_abstract_clock_) {
+    logger.log(1, "INFO forcing clock abstraction based on user-provided flag");
+  }
+
   // process the rest in topological order
   size_t processed_instances = 0;
   unordered_set<Instance *> visited_instances;
@@ -374,7 +378,7 @@ void CoreIREncoder::process_state_element(Instance * st)
          || instance_of(st, "coreir", "reg_arst")
          || instance_of(st, "coreir", "mem"));
 
-  if (can_abstract_clock_) {
+  if (can_abstract_clock_ || force_abstract_clock_) {
     if (w2term_.find(st->sel("in")) != w2term_.end()) {
       ts_.assign_next(w2term_.at(st), w2term_.at(st->sel("in")));
     } else {
