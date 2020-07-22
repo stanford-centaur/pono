@@ -16,11 +16,13 @@
 #include "assert.h"
 #include "core/rts.h"
 #include "smt-switch/smt.h"
-#include "smvparser.h"
-#include "smvscanner.h"
 #include "utils/exceptions.h"
 
+#include "smvparser.h"
+#include "smvscanner.h"
+
 namespace pono {
+
 class SMVEncoder
 {
  public:
