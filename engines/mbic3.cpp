@@ -169,4 +169,14 @@ bool ModelBasedIC3::rel_ind_check(size_t i, const Clause & c)
   return r.is_unsat();
 }
 
+ProofGoal ModelBasedIC3::get_next_proof_goal()
+{
+  assert(has_proof_goals());
+  size_t i = proof_goals_.begin()->first;
+  ProofGoal pg(proof_goals_.at(i).back(), i);
+  // need to remove the proof goal
+  proof_goals_.at(i).pop_back();
+  return pg;
+}
+
 }  // namespace pono

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <algorithm>
+#include <map>
 #include <utility>
 #include "assert.h"
 
@@ -65,7 +66,9 @@ struct Cube
   Term term_;     // term representation of literals as conjunction
 }
 
-class ModelBasedIC3 : public Prover
+using ProofGoal = std::pair<Cube, size_t>
+
+    class ModelBasedIC3 : public Prover
 {
  public:
   ModelBasedIC3(const Property & p, const smt::SmtSolver & slv);
@@ -89,10 +92,14 @@ class ModelBasedIC3 : public Prover
    *  @return true iff c is relatively inductive
    */
   bool rel_ind_check(size_t i, const Clause & c) const;
+  /** Check if there are more proof goals
+   *  @return true iff there are more proof goals
+   */
+  bool has_proof_goals() const { return !proof_goals_.empty(); };
   /** Gets a new proof goal (and removes it from proof_goals_)
    *  @return a proof goal with the lowest available frame number
    */
-  Clause get_next_proof_goal();
+  ProofGoal get_next_proof_goal();
   /** Attempt to block all proof goals
    *  to ensure termination, always choose proof goal with
    *  smallest time
@@ -155,8 +162,9 @@ class ModelBasedIC3 : public Prover
   ///< for this implementation of IC3
   std::vector<smt::TermVec> frames_;
 
-  ///< outstanding proof goals
-  std::unordered_map<size_t, std::vector<Cube>> proof_goals_;
+  ///< outstanding proof goals -- kept sorted so lower ones
+  ///< can be handled first
+  std::map<size_t, std::vector<Cube>> proof_goals_;
 
   // useful terms
   Term true_;
