@@ -86,27 +86,27 @@ using ProofGoal = std::pair<Cube, size_t>
    *  post-condition: if true is returned, bad cube added to proof goals
    */
   bool intersects_bad();
-  /** Checks if clause c is relatively inductive to frame i
+  /** Checks if Term t is relatively inductive to frame i
    *  @param i the frame number
-   *  @param c the clause to check
-   *  @return true iff c is relatively inductive
+   *  @param t the term to check
+   *  @return true iff t is relatively inductive
    */
-  bool rel_ind_check(size_t i, const Clause & c) const;
-  /** Checks if clause c is relatively inductive to frame i
+  bool rel_ind_check(size_t i, const Term & t) const;
+  /** Checks if Term t is relatively inductive to frame i
    *  @param i the frame number
-   *  @param c the clause to check
+   *  @param t the term to check
    *  @param cti the cube to populate with a cti
-   *  @return true iff c is relatively inductive
+   *  @return true iff t is relatively inductive
    */
-  bool rel_ind_check(size_t i, const Clause & c, Cube & cti) const;
+  bool rel_ind_check(size_t i, const Term & t, Cube & cti) const;
   /** Helper for relative inductiveness checks
    *  Note: it does NOT push/pop the solver. Only meant for use
    *  in rel_ind_check
    *  @param i the frame number
-   *  @param c the clause to check
-   *  @return true iff the clause is relatively inductive
+   *  @param t the term to check
+   *  @return true iff t is relatively inductive
    */
-  bool rel_ind_check_helper(size_t i, const Clause & c) const;
+  bool rel_ind_check_helper(size_t i, const Term & t) const;
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -163,6 +163,14 @@ using ProofGoal = std::pair<Cube, size_t>
    *  @return true iff the cube intersects with the initial states
    */
   bool is_initial(const Cube & c) const;
+  /** Add all the terms at Frame i
+   *  Note: the frames_ data structure keeps terms only in the
+   *  highest frame where they are known to hold
+   *  Thus, asserting Fi actually needs to add terms
+   *  from Fi and all frames after it
+   *  @param i the frame number
+   */
+  void assert_frame(size_t i) const;
 
   // Data structures
 

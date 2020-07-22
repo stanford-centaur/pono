@@ -114,9 +114,7 @@ bool ModelBasedIC3::intersects_bad()
   solver_->push();
 
   // assert the frame (conjunction over clauses)
-  for (auto c : frames_.back()) {
-    solver_->assert_formula(c);
-  }
+  assert_frame(reached_k_);
 
   // see if it intersects with bad
   solver_->assert_formula(bad_);
@@ -133,7 +131,7 @@ bool ModelBasedIC3::intersects_bad()
       cube_vec.push_back(eq);
     }
     Cube c(solver_, cube_vec);
-    proof_goals_[reached_k_].push_back(c);
+    proof_goals_[reached_k_ - 1].push_back(c);
   }
 
   solver_->pop();
@@ -142,20 +140,20 @@ bool ModelBasedIC3::intersects_bad()
   return r.is_sat();
 }
 
-bool ModelBasedIC3::rel_ind_check(size_t i, const Clause & c)
+bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t)
 {
   solver_->push();
-  Result r = rel_ind_check_helper(i, c);
+  Result r = rel_ind_check_helper(i, t);
   solver_->pop();
 
   assert(!r.is_unknown());
   return r.is_unsat();
 }
 
-bool ModelBasedIC3::rel_ind_check(size_t i, const Clause & c, Cube & cti)
+bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t, Cube & cti)
 {
   solver_->push();
-  Result r = rel_ind_check_helper(i, c);
+  Result r = rel_ind_check_helper(i, t);
 
   if (r.is_sat()) {
     const UnorderedTermSet & statevars = ts_.statevars();
@@ -173,26 +171,22 @@ bool ModelBasedIC3::rel_ind_check(size_t i, const Clause & c, Cube & cti)
   return r.is_unsat();
 }
 
-Result ModelBasedIC3::rel_ind_check_helper(size_t i, const Clause & c)
+Result ModelBasedIC3::rel_ind_check_helper(size_t i, const Term & t)
 {
-  // Check F[i] /\ -c /\ T /\ c'
+  // Check F[i] /\ -t /\ T /\ t'
   assert(i < frames_.size());
 
   // F[i]
-  for (auto c : frames_[i]) {
-    solver_->assert_formula(c);
-  }
+  assert_frame(i);
 
-  // -c
-  Cube neg_c = negate(solver_, c);
-  solver_->assert_formula(neg_c.term_);
+  // -t
+  solver_->assert_formula(solver_->make_term(Not, t));
 
   // T
   solver_->assert_formula(ts_.trans());
 
-  // c'
-  Term cprime = ts_.next(c.term_);
-  solver_->assert_formula(cprime);
+  // t'
+  solver_->assert_formula(ts_.next(t));
 
   return solver_->check_sat();
 }
@@ -207,13 +201,13 @@ ProofGoal ModelBasedIC3::get_next_proof_goal()
   return pg;
 }
 
-bool block_all()
+bool ModelBasedIC3::block_all()
 {
   while (has_proof_goals()) {
     ProofGoal pg = get_next_proof_goal();
     // block can fail, which just means a
     // new proof goal will be added
-    if (!block(pg) && pg.first == 0) {
+    if (pg.first && !block(pg)) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
       return false;
@@ -221,6 +215,75 @@ bool block_all()
   }
   assert(!has_proof_goals());
   return true;
+}
+
+bool ModelBasedIC3::block(const ProofGoal & pg)
+{
+  size_t i = pg.first;
+  Cube & c = pg.second;
+
+  assert(i < frames_.size() - 1);
+
+  Cube cti;  // populated by rel_ind_check if returns false
+  if (rel_ind_check(i, c.term_, cti)) {
+    // can block this cube
+    Clause neg_c = negate(solver_, c);
+    Clause gen_blocking_clause = generalize_clause(i, neg_c);
+    frames_[i + 1].push_back(gen_blocking_clause);
+  } else if (i == 0) {
+    // can't block anymore -- this is a counterexample
+    return false;
+  } else {
+    // add a new proof goal
+    proof_goals_[i - 1].push_back(cex_generalize(i, cti));
+    return false;
+  }
+}
+
+void ModelBasedIC3::propagate()
+{
+  // assert that a new frame was just pushed
+  assert(!frames_.back().size());
+
+  for (size_t i = 1; i < frames_.size() - 1; ++i) {
+    unordered_set<size_t> indices_to_remove;
+    TermVec & Fi = frames_.at(i);
+    for (size_t j = 0; j < Fi.size(); ++j) {
+      if (rel_ind_check(i, Fi[j])) {
+        // mark for removal
+        indices_to_remove.insert(j);
+        // add to next frame
+        frames_[i + 1].push_back(Fi[j]);
+      }
+    }
+
+    // keep invariant that terms are kept at highest frame
+    // where they are known to hold
+    // need to remove some terms from the current frame
+    TermVec new_frame_i;
+    new_frame_i.reserve(Fi.size() - indices_to_remove.size());
+    for (size_t j = 0; j < Fi.size(); ++j) {
+      if (indices_to_remove.find(j) == indices_to_remove.end()) {
+        new_frame_i.push_back(Fi[j]);
+      }
+    }
+    frames_[i] = new_frame_i;
+  }
+}
+
+void ModelBasedIC3::push_frame()
+{
+  // pushes an empty frame
+  frames_.push_back({});
+}
+
+void ModelBasedIC3::assert_frame(size_t i) const
+{
+  for (size_t j = i; j <= reached_k_; ++j) {
+    for (auto c : frames_[j]) {
+      solver_->assert_formula(c);
+    }
+  }
 }
 
 }  // namespace pono
