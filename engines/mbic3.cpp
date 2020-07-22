@@ -30,7 +30,24 @@ void ModelBasedIC3::initialize()
 
 ProverResult ModelBasedIC3::check_until(int k)
 {
+  // TODO: Figure out if we need this
+  //       shouldn't have to do this special check
+  if (reached_k_ < 1) {
+    solver_->push();
+    solver_->assert_formula(ts_.init());
+    solver_->assert_formula(bad_);
+    Result r = solver_->check_sat();
+    if (r.is_sat()) {
+      return ProverResult::FALSE;
+    } else {
+      assert(r.is_unsat());
+      reached_k_ = 1;  // keep reached_k_ aligned with number of frames
+    }
+    solver_->pop();
+  }
+
   while (reached_k_ <= k) {
+    assert(reached_k_ == frames_.size());
     // blocking phase
     while (intersects_bad()) {
       assert(!proof_goals_.empty());
