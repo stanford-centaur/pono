@@ -67,14 +67,21 @@ struct Cube
 class ModelBasedIC3 : public Prover
 {
  public:
-  ModelBasedIC3(const Property & p, smt::SmtSolver slv);
+  ModelBasedIC3(const Property & p, const smt::SmtSolver & slv);
   ModelBasedIC3(const PonoOptions & opt, const Property p, smt::SmtSolver slv);
   ~ModelBasedIC3();
-  ProverResult prove() override;
-  ProverResult check_until(int k) override;
+
+  typedef Prover super;
+
   void initialize() override;
+  ProverResult check_until(int k) override;
 
  private:
+  /** Check if last frame intersects with bad
+   *  @return true iff the last frame intersects with bad
+   *  post-condition: if true is returned, bad cube added to proof goals
+   */
+  bool intersects_bad();
   /** Checks if clause c is relatively inductive to frame i
    *  @param i the frame number
    *  @param c the clause to check
@@ -85,6 +92,12 @@ class ModelBasedIC3 : public Prover
    *  @return a proof goal with the lowest available frame number
    */
   Clause get_next_proof_goal();
+  /** Attempt to block all proof goals
+   *  to ensure termination, always choose proof goal with
+   *  smallest time
+   *  @return true iff all proof goals were blocked
+   */
+  bool block_all();
   /** Attempt to block cube c at frame i
    *  @param i the frame number
    *  @param c the cube to try blocking
@@ -136,11 +149,17 @@ class ModelBasedIC3 : public Prover
 
   // Data structures
 
-  ///< the frames data structure
-  std::vector<std::vector<Clause>> frames_;
+  ///< the frames data structure.
+  ///< a vector of clauses (except at index 0 which is init)
+  ///< for this implementation of IC3
+  std::vector<smt::TermVec> frames_;
 
   ///< outstanding proof goals
   std::unordered_map<size_t, std::vector<Cube>> proof_goals_;
+
+  // useful terms
+  Term true_;
+  Term false_;
 };
 
 }  // namespace pono
