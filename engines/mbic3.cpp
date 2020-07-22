@@ -51,4 +51,37 @@ ProverResult ModelBasedIC3::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
+bool ModelBasedIC3::intersects_bad()
+{
+  solver_->push();
+
+  // assert the frame (conjunction over clauses)
+  for (auto c : frames_.back()) {
+    solver_->assert_formula(c);
+  }
+
+  // see if it intersects with bad
+  solver_->assert_formula(bad_);
+
+  Result r = solver_->check_sat();
+  if (r.is_sat()) {
+    // create a proof goal for the bad state
+    const UnorderedTermSet & statevars = ts_.statevars();
+    TermVec cube_vec;
+    cube_vec.reserve(statevars.size());
+    Term eq;
+    for (auto sv : statevars) {
+      eq = solver_->make_term(Equal, sv, solver_->get_value(sv));
+      cube_vec.push_back(eq);
+    }
+    Cube c(solver_, cube_vec);
+    proof_goals_[reached_k_].push_back(c);
+  }
+
+  solver_->pop();
+
+  assert(!r.is_unknown());
+  return r.is_sat();
+}
+
 }  // namespace pono
