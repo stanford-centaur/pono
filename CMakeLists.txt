@@ -232,6 +232,12 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/frontends/"
         DESTINATION include/pono/frontends
         FILES_MATCHING PATTERN "*.h")
 
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/smvparser.h"
+        DESTINATION include/pono/)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/location.hh"
+        DESTINATION include/pono/)
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/options/"
         DESTINATION include/pono/options
         FILES_MATCHING PATTERN "*.h")

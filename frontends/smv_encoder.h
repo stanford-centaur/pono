@@ -18,8 +18,8 @@
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
 
+#include "frontends/smvscanner.h"
 #include "smvparser.h"
-#include "smvscanner.h"
 
 namespace pono {
 
