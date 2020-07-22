@@ -179,4 +179,18 @@ ProofGoal ModelBasedIC3::get_next_proof_goal()
   return pg;
 }
 
+bool block_all()
+{
+  while (has_proof_goals()) {
+    ProofGoal pg = get_next_proof_goal();
+    if (!block(pg) && pg.first == 0) {
+      // if a proof goal cannot be blocked at zero
+      // then there's a counterexample
+      return false;
+    }
+  }
+  assert(!has_proof_goals());
+  return true;
+}
+
 }  // namespace pono

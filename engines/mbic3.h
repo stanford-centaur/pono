@@ -112,7 +112,7 @@ using ProofGoal = std::pair<Cube, size_t>
    *  @return true iff the cube was blocked, otherwise a new proof goal was
    * added to the proof goals
    */
-  bool block(size_t i, const Cube & c);
+  bool block(const ProofGoal & pg);
   /** Propagate all clauses to the highest frame possible */
   void propagate();
   /** Add a new frame*/
