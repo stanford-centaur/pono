@@ -1,6 +1,43 @@
+/*********************                                                  */
+/*! \file mbic3.cpp
+** \verbatim
+** Top contributors (to current version):
+**   Makai Mann, Ahmed Irfan, Florian Lonsing
+** This file is part of the pono project.
+** Copyright (c) 2019 by the authors listed in the file AUTHORS
+** in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief Simple implementation of IC3 operating on a functional
+**        transition system (exploiting this structure for
+**        predecessor computation) and uses models.
+**/
 #include "mbic3.h"
 
 namespace pono {
+
+// helpers
+
+Cube negate(const SmtSolver & slv, const Clause & c)
+{
+  TermVec cube_lits;
+  cube_lits.reserve(c.lits_.size());
+  for (auto l : c.lits_) {
+    cube_lits.push_back(slv.make_term(Not, l));
+  }
+  return Cube(slv, cube_lits);
+}
+
+Clause negate(const SmtSolver & slv, const Cube & c)
+{
+  TermVec clause_lits;
+  clause_lits.reserve(c.lits_.size());
+  for (auto l : c.lits_) {
+    clause_lits.push_back(slv.make_term(Not, l));
+  }
+  return Clause(slv, clause_lits);
+}
 
 ModelBasedIC3::ModelBasedIC3(const Property & p, const smt::SmtSolver & slv)
     : super(p, slv),
@@ -23,8 +60,10 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
 void ModelBasedIC3::initialize()
 {
   super::initialize();
+  frames_.clear();
+  proof_goals_.clear();
   // first frame is always the initial states
-  frames_ = { ts_.init() };
+  frames_.push_back({ ts_.init() });
   push_frame();
 }
 
@@ -99,6 +138,35 @@ bool ModelBasedIC3::intersects_bad()
 
   assert(!r.is_unknown());
   return r.is_sat();
+}
+
+bool ModelBasedIC3::rel_ind_check(size_t i, const Clause & c)
+{
+  // Check F[i] /\ -c /\ T /\ c'
+  assert(i < frames_.size());
+  solver_->push();
+
+  // F[i]
+  for (auto c : frames_[i]) {
+    solver_->assert_formula(c);
+  }
+
+  // -c
+  Cube neg_c = negate(solver_, c);
+  solver_->assert_formula(neg_c.term_);
+
+  // T
+  solver_->assert_formula(ts_.trans());
+
+  // c'
+  Term cprime = ts_.next(c.term_);
+  solver_->assert_formula(cprime);
+
+  Result r = solver_->check_sat();
+  solver_->pop();
+
+  assert(!r.is_unknown());
+  return r.is_unsat();
 }
 
 }  // namespace pono

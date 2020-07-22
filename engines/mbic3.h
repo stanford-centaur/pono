@@ -1,5 +1,5 @@
-/*********************                                                        */
-/*! \file
+/*********************                                                  */
+/*! \file mbic3.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann, Ahmed Irfan, Florian Lonsing
@@ -41,6 +41,7 @@ struct Clause
       term_ = solver->make_term(Or, term_, lits_[i]);
     }
   }
+
   TermVec lits_;  // list of literals sorted by hash
   Term term_;     // term representation of literals as disjunction
 }
