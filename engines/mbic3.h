@@ -9,10 +9,13 @@
 ** All rights reserved.  See the file LICENSE in the top-level source
 ** directory for licensing information.\endverbatim
 **
-** \brief Simple implementation of word-level IC3
-**
+** \brief Simple implementation of IC3 operating on a functional
+**        transition system (exploiting this structure for
+**        predecessor computation) and uses models.
 **/
+#include <algorithm>
 #include <utility>
+#include "assert.h"
 
 #include "prover.h"
 
@@ -20,11 +23,48 @@ namespace pono {
 
 // Both clauses and cubes can be represented as vectors of predicates
 // They are just negations of eachother
-using Clause = TermVec;
-using Cube = TermVec;
+
+struct Clause
+{
+  Clause(const smt::SmtSolver & solver, const TermVec & lits) : lits_(lits)
+  {
+    // sort literals
+    std::sort(lits_.begin(), lits_.end(), std::hash<Term>);
+    // shouldn't have an empty clause
+    assert(lits_.size());
+
+    // create term
+    term_ = lits_[0];
+    for (size_t i = 1; i < lits_.size(); ++i) {
+      term_ = solver->make_term(Or, term_, lits_[i]);
+    }
+  }
+  TermVec lits_;  // list of literals sorted by hash
+  Term term_;     // term representation of literals as disjunction
+}
+
+struct Cube
+{
+  Cube(const smt::SmtSolver & solver, const TermVec & lits) : lits_(lits)
+  {
+    // sort literals
+    std::sort(lits_.begin(), lits_.end(), std::hash<Term>);
+    // shouldn't have an empty cube
+    assert(lits_.size());
+
+    // create term
+    term_ = lits_[0];
+    for (size_t i = 1; i < lits_.size(); ++i) {
+      term_ = solver->make_term(And, term_, lits_[i]);
+    }
+  }
+  TermVec lits_;  // list of literals sorted by hash
+  Term term_;     // term representation of literals as conjunction
+}
+
 using ProofGoal = std::pair<Cube, size_t>;
 
-class IC3 : public Prover
+class ModelBasedIC3 : public Prover
 {
  public:
   IC3(const Property & p, smt::SmtSolver slv);
