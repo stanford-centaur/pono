@@ -13,6 +13,8 @@
 **        transition system (exploiting this structure for
 **        predecessor computation) and uses models.
 **/
+#pragma once
+
 #include <algorithm>
 #include <utility>
 #include "assert.h"
@@ -62,14 +64,12 @@ struct Cube
   Term term_;     // term representation of literals as conjunction
 }
 
-using ProofGoal = std::pair<Cube, size_t>;
-
 class ModelBasedIC3 : public Prover
 {
  public:
-  IC3(const Property & p, smt::SmtSolver slv);
-  IC3(const PonoOptions & opt, const Property p, smt::SmtSolver slv);
-  ~IC3();
+  ModelBasedIC3(const Property & p, smt::SmtSolver slv);
+  ModelBasedIC3(const PonoOptions & opt, const Property p, smt::SmtSolver slv);
+  ~ModelBasedIC3();
   ProverResult prove() override;
   ProverResult check_until(int k) override;
   void initialize() override;
@@ -80,8 +80,8 @@ class ModelBasedIC3 : public Prover
    *  @param c the clause to check
    *  @return true iff c is relatively inductive
    */
-  bool rel_ind_check(size_t i, Clause c);
-  /** Gets a new proof goal
+  bool rel_ind_check(size_t i, const Clause & c) const;
+  /** Gets a new proof goal (and removes it from proof_goals_)
    *  @return a proof goal with the lowest available frame number
    */
   Clause get_next_proof_goal();
@@ -91,7 +91,7 @@ class ModelBasedIC3 : public Prover
    *  @return true iff the cube was blocked, otherwise a new proof goal was
    * added to the proof goals
    */
-  bool block(size_t i, Cube c);
+  bool block(size_t i, const Cube & c);
   /** Propagate all clauses to the highest frame possible */
   void propagate();
   /** Add a new frame*/
@@ -102,32 +102,37 @@ class ModelBasedIC3 : public Prover
    *  @param c the clause to generalize
    *  @return a new clause
    */
-  Clause generalize_clause(size_t i, Clause c);
+  Clause generalize_clause(size_t i, const Clause & c) const;
   /** Helper for generalize when using inductive generalization
    *  @param i the frame number
    *  @param c the clause
    *  @return a new clause
    */
-  Clause down(size_t i, Clause c);
+  Clause down(size_t i, const Clause & c) const;
   /** Get the predecessor state of a counterexample
    *  @param i the frame number
    *  @param c the bad cube
    *  @return a cube representing the predecessor state
    */
-  Cube compute_predecessor(size_t i, Cube c);
+  Cube compute_predecessor(size_t i, const Cube & c) const;
   /** Generalize a counterexample
    *  @param i the frame number
    *  @param c the cube to generalize
    *  @return a new cube
    */
-  Cube cex_generalize(size_t i, Cube c);
+  Cube cex_generalize(size_t i, const Cube & c) const;
   /** Check if the algorithm has found an inductive invariant.
    *  Because clauses are only kept in the highest frame where they still hold
    *  this amounts to checking for any frame that is empty
    *  because this implies that it is equivalent to the next frame
    *  @return true iff the property has been proven
    */
-  bool is_proven();
+  bool is_proven() const;
+  /** Check if the cube intersects with the initial states
+   *  @param c the cube to check
+   *  @return true iff the cube intersects with the initial states
+   */
+  bool is_initial(const Cube & c) const;
 
   // Data structures
 
