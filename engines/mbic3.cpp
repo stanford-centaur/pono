@@ -15,6 +15,8 @@
 **/
 #include "mbic3.h"
 
+using namespace smt;
+
 namespace pono {
 
 // helpers
@@ -142,9 +144,39 @@ bool ModelBasedIC3::intersects_bad()
 
 bool ModelBasedIC3::rel_ind_check(size_t i, const Clause & c)
 {
+  solver_->push();
+  Result r = rel_ind_check_helper(i, c);
+  solver_->pop();
+
+  assert(!r.is_unknown());
+  return r.is_unsat();
+}
+
+bool ModelBasedIC3::rel_ind_check(size_t i, const Clause & c, Cube & cti)
+{
+  solver_->push();
+  Result r = rel_ind_check_helper(i, c);
+
+  if (r.is_sat()) {
+    const UnorderedTermSet & statevars = ts_.statevars();
+    TermVec cube_lits;
+    cube_lits.reserve(statevars.size());
+    for (auto sv : statevars) {
+      cube_lits.push_back(
+          solver_->make_term(Equal, sv, solver_->get_value(sv)));
+    }
+    cti = Cube(solver_, cube_lits);
+  }
+
+  solver_->pop();
+  assert(!r.is_unknown());
+  return r.is_unsat();
+}
+
+Result ModelBasedIC3::rel_ind_check_helper(size_t i, const Clause & c)
+{
   // Check F[i] /\ -c /\ T /\ c'
   assert(i < frames_.size());
-  solver_->push();
 
   // F[i]
   for (auto c : frames_[i]) {
@@ -162,11 +194,7 @@ bool ModelBasedIC3::rel_ind_check(size_t i, const Clause & c)
   Term cprime = ts_.next(c.term_);
   solver_->assert_formula(cprime);
 
-  Result r = solver_->check_sat();
-  solver_->pop();
-
-  assert(!r.is_unknown());
-  return r.is_unsat();
+  return solver_->check_sat();
 }
 
 ProofGoal ModelBasedIC3::get_next_proof_goal()
@@ -183,6 +211,8 @@ bool block_all()
 {
   while (has_proof_goals()) {
     ProofGoal pg = get_next_proof_goal();
+    // block can fail, which just means a
+    // new proof goal will be added
     if (!block(pg) && pg.first == 0) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample

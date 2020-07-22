@@ -92,6 +92,21 @@ using ProofGoal = std::pair<Cube, size_t>
    *  @return true iff c is relatively inductive
    */
   bool rel_ind_check(size_t i, const Clause & c) const;
+  /** Checks if clause c is relatively inductive to frame i
+   *  @param i the frame number
+   *  @param c the clause to check
+   *  @param cti the cube to populate with a cti
+   *  @return true iff c is relatively inductive
+   */
+  bool rel_ind_check(size_t i, const Clause & c, Cube & cti) const;
+  /** Helper for relative inductiveness checks
+   *  Note: it does NOT push/pop the solver. Only meant for use
+   *  in rel_ind_check
+   *  @param i the frame number
+   *  @param c the clause to check
+   *  @return true iff the clause is relatively inductive
+   */
+  bool rel_ind_check_helper(size_t i, const Clause & c) const;
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -130,12 +145,6 @@ using ProofGoal = std::pair<Cube, size_t>
    *  @return a new clause
    */
   Clause down(size_t i, const Clause & c) const;
-  /** Get the predecessor state of a counterexample
-   *  @param i the frame number
-   *  @param c the bad cube
-   *  @return a cube representing the predecessor state
-   */
-  Cube compute_predecessor(size_t i, const Cube & c) const;
   /** Generalize a counterexample
    *  @param i the frame number
    *  @param c the cube to generalize
