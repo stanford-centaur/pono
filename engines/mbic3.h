@@ -98,7 +98,7 @@ class ModelBasedIC3 : public Prover
    *  @param cti the cube to populate with a cti
    *  @return true iff t is relatively inductive
    */
-  bool rel_ind_check(size_t i, const Term & t, Cube & cti) const;
+  bool rel_ind_check(size_t i, const Term & t, Cube & out_cti) const;
   /** Helper for relative inductiveness checks
    *  Note: it does NOT push/pop the solver. Only meant for use
    *  in rel_ind_check

@@ -151,7 +151,7 @@ bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t)
   return r.is_unsat();
 }
 
-bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t, Cube & cti)
+bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t, Cube & out_cti)
 {
   solver_->push();
   Result r = rel_ind_check_helper(i, t);
@@ -164,7 +164,7 @@ bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t, Cube & cti)
       cube_lits.push_back(
           solver_->make_term(Equal, sv, solver_->get_value(sv)));
     }
-    cti = Cube(solver_, cube_lits);
+    out_cti = Cube(solver_, cube_lits);
   }
 
   solver_->pop();
@@ -226,7 +226,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   assert(i < frames_.size() - 1);
 
   Cube cti;  // populated by rel_ind_check if returns false
-  if (rel_ind_check(i, c.term_, cti)) {
+  if (rel_ind_check(i, solver_->make_term(Not, c.term_), cti)) {
     // can block this cube
     Clause neg_c = negate(solver_, c);
     Clause gen_blocking_clause = generalize_clause(i, neg_c);
