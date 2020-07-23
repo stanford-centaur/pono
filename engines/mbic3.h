@@ -128,8 +128,10 @@ class ModelBasedIC3 : public Prover
    * added to the proof goals
    */
   bool block(const ProofGoal & pg);
-  /** Propagate all clauses to the highest frame possible */
-  void propagate();
+  /** Try propagating all clauses from 'i'th frame to the next frame.
+   *  Returns true iff all the clauses are propagated.
+   */
+  bool propagate(size_t i);
   /** Add a new frame*/
   void push_frame();
   /** Attempt to generalize a clause

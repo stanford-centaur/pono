@@ -100,9 +100,10 @@ ProverResult ModelBasedIC3::check_until(int k)
 
     // propagation phase
     push_frame();
-    propagate();
-    if (is_proven()) {
-      return ProverResult::TRUE;
+    for (size_t i = 1; i < frames_.size() - 1; ++i) {
+      if (propagate(i)) {
+        return ProverResult::TRUE;
+      }
     }
   }
 
@@ -240,35 +241,55 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   }
 }
 
-void ModelBasedIC3::propagate()
+bool ModelBasedIC3::propagate(size_t i)
 {
-  // assert that a new frame was just pushed
-  assert(frames_.back().size() == 0);
+  assert(i < frames_.size());
 
-  for (size_t i = 1; i < frames_.size() - 1; ++i) {
-    unordered_set<size_t> indices_to_remove;
-    TermVec & Fi = frames_.at(i);
-    for (size_t j = 0; j < Fi.size(); ++j) {
-      if (rel_ind_check(i, Fi[j])) {
-        // mark for removal
-        indices_to_remove.insert(j);
-        // add to next frame
-        frames_[i + 1].push_back(Fi[j]);
-      }
+  unordered_set<size_t> indices_to_remove;
+  TermVec & Fi = frames_.at(i);
+
+  solver_->push();
+  assert_frame(i);
+  solver_->assert_formula(ts_.trans());
+
+  for (size_t j = 0; j < Fi.size(); ++j) {
+    Term &t = Fi[j];
+
+    // Relative inductiveness check
+    // Check F[i] /\ t /\ T /\ -t'
+    solver_->push();
+    solver_->assert_formula(t);
+    solver_->assert_formula(solver_->make_term(Not, ts_next(t)));
+
+    Result r = solver_->check_sat();
+    assert(! r.is_unknown());
+
+    if (r.is_unsat()) {
+      // mark for removal
+      indices_to_remove.insert(j);
+      // add to next frame
+      frames_[i + 1].push_back(Fi[j]);
     }
 
-    // keep invariant that terms are kept at highest frame
-    // where they are known to hold
-    // need to remove some terms from the current frame
-    TermVec new_frame_i;
-    new_frame_i.reserve(Fi.size() - indices_to_remove.size());
-    for (size_t j = 0; j < Fi.size(); ++j) {
-      if (indices_to_remove.find(j) == indices_to_remove.end()) {
-        new_frame_i.push_back(Fi[j]);
-      }
-    }
-    frames_[i] = new_frame_i;
+    solver_->pop();
   }
+
+  solver_->pop();
+
+  // keep invariant that terms are kept at highest frame
+  // where they are known to hold
+  // need to remove some terms from the current frame
+  TermVec new_frame_i;
+  new_frame_i.reserve(Fi.size() - indices_to_remove.size());
+  for (size_t j = 0; j < Fi.size(); ++j) {
+    if (indices_to_remove.find(j) == indices_to_remove.end()) {
+      new_frame_i.push_back(Fi[j]);
+    }
+  }
+
+  frames_[i] = new_frame_i;
+
+  return new_frame_i.empty();
 }
 
 void ModelBasedIC3::push_frame()
