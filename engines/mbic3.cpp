@@ -243,7 +243,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
 
 bool ModelBasedIC3::propagate(size_t i)
 {
-  assert(i < frames_.size());
+  assert(i + 1 < frames_.size());
 
   unordered_set<size_t> indices_to_remove;
   TermVec & Fi = frames_.at(i);
