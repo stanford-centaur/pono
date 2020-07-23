@@ -68,7 +68,7 @@ struct Cube
 
 using ProofGoal = std::pair<Cube, size_t>
 
-    class ModelBasedIC3 : public Prover
+class ModelBasedIC3 : public Prover
 {
  public:
   ModelBasedIC3(const Property & p, const smt::SmtSolver & slv);
