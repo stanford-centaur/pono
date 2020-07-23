@@ -173,20 +173,20 @@ bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t, Cube & cti)
 
 Result ModelBasedIC3::rel_ind_check_helper(size_t i, const Term & t)
 {
-  // Check F[i] /\ -t /\ T /\ t'
+  // Check F[i] /\ t /\ T /\ -t'
   assert(i < frames_.size());
 
   // F[i]
   assert_frame(i);
 
   // -t
-  solver_->assert_formula(solver_->make_term(Not, t));
+  solver_->assert_formula(t);
 
   // T
   solver_->assert_formula(ts_.trans());
 
   // t'
-  solver_->assert_formula(ts_.next(t));
+  solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
 
   return solver_->check_sat();
 }
