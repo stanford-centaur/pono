@@ -21,7 +21,7 @@ namespace pono {
 
 // helpers
 
-Cube negate(const SmtSolver & slv, const Clause & c)
+static Cube negate(const SmtSolver & slv, const Clause & c)
 {
   TermVec cube_lits;
   cube_lits.reserve(c.lits_.size());
@@ -31,7 +31,7 @@ Cube negate(const SmtSolver & slv, const Clause & c)
   return Cube(slv, cube_lits);
 }
 
-Clause negate(const SmtSolver & slv, const Cube & c)
+static Clause negate(const SmtSolver & slv, const Cube & c)
 {
   TermVec clause_lits;
   clause_lits.reserve(c.lits_.size());
@@ -243,7 +243,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
 void ModelBasedIC3::propagate()
 {
   // assert that a new frame was just pushed
-  assert(!frames_.back().size());
+  assert(frames_.back().size() == 0);
 
   for (size_t i = 1; i < frames_.size() - 1; ++i) {
     unordered_set<size_t> indices_to_remove;
