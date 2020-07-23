@@ -180,13 +180,13 @@ Result ModelBasedIC3::rel_ind_check_helper(size_t i, const Term & t)
   // F[i]
   assert_frame(i);
 
-  // -t
+  // t
   solver_->assert_formula(t);
 
   // T
   solver_->assert_formula(ts_.trans());
 
-  // t'
+  // -t'
   solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
 
   return solver_->check_sat();
