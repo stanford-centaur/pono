@@ -132,7 +132,7 @@ bool ModelBasedIC3::intersects_bad()
       cube_vec.push_back(eq);
     }
     Cube c(solver_, cube_vec);
-    proof_goals_[reached_k_ - 1].push_back(c);
+    proof_goals_[reached_k_].push_back(c);
   }
 
   solver_->pop();
@@ -141,21 +141,20 @@ bool ModelBasedIC3::intersects_bad()
   return r.is_sat();
 }
 
-bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t)
+bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_cti)
 {
   solver_->push();
-  Result r = rel_ind_check_helper(i, t);
-  solver_->pop();
+  assert(i < frames_.size());
+  // F[i]
+  assert_frame(i);
+  // -c
+  solver_->assert_formula(solver_->make_term(Not, c.term_));
+  // Trans
+  solver_->assert_formula(ts_.trans());
+  // c'
+  solver_->assert_formula(ts_.next(c.term_));
 
-  assert(!r.is_unknown());
-  return r.is_unsat();
-}
-
-bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t, Cube & out_cti)
-{
-  solver_->push();
-  Result r = rel_ind_check_helper(i, t);
-
+  Result r = solver_->check_sat();
   if (r.is_sat()) {
     const UnorderedTermSet & statevars = ts_.statevars();
     TermVec cube_lits;
@@ -170,26 +169,6 @@ bool ModelBasedIC3::rel_ind_check(size_t i, const Term & t, Cube & out_cti)
   solver_->pop();
   assert(!r.is_unknown());
   return r.is_unsat();
-}
-
-Result ModelBasedIC3::rel_ind_check_helper(size_t i, const Term & t)
-{
-  // Check F[i] /\ t /\ T /\ -t'
-  assert(i < frames_.size());
-
-  // F[i]
-  assert_frame(i);
-
-  // t
-  solver_->assert_formula(t);
-
-  // T
-  solver_->assert_formula(ts_.trans());
-
-  // -t'
-  solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
-
-  return solver_->check_sat();
 }
 
 ProofGoal ModelBasedIC3::get_next_proof_goal()
@@ -223,20 +202,23 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   size_t i = pg.first;
   Cube & c = pg.second;
 
-  assert(i < frames_.size() - 1);
+  assert(i < frames_.size());
+  assert(i >= 0);
+
+  if (i == 0) {
+    // can't block anymore -- this is a counterexample
+    return false;
+  }
 
   Cube cti;  // populated by rel_ind_check if returns false
-  if (rel_ind_check(i, solver_->make_term(Not, c.term_), cti)) {
+  if (get_predecessor(i-1, c, cti)) {
     // can block this cube
     Clause neg_c = negate(solver_, c);
     Clause gen_blocking_clause = generalize_clause(i, neg_c);
-    frames_[i + 1].push_back(gen_blocking_clause);
-  } else if (i == 0) {
-    // can't block anymore -- this is a counterexample
-    return false;
+    frames_[i].push_back(gen_blocking_clause);
   } else {
     // add a new proof goal
-    proof_goals_[i - 1].push_back(cex_generalize(i, cti));
+    proof_goals_[i - 1].push_back(generalize_predecessor(i-1, cti));
     return false;
   }
 }

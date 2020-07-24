@@ -86,27 +86,13 @@ class ModelBasedIC3 : public Prover
    *  post-condition: if true is returned, bad cube added to proof goals
    */
   bool intersects_bad();
-  /** Checks if Term t is relatively inductive to frame i
-   *  @param i the frame number
-   *  @param t the term to check
-   *  @return true iff t is relatively inductive
-   */
-  bool rel_ind_check(size_t i, const Term & t) const;
-  /** Checks if Term t is relatively inductive to frame i
+  /** Checks if the cube c is reachable from the frame i
    *  @param i the frame number
    *  @param t the term to check
    *  @param cti the cube to populate with a cti
-   *  @return true iff t is relatively inductive
+   *  @return true iff c is reachable from the frame i
    */
-  bool rel_ind_check(size_t i, const Term & t, Cube & out_cti) const;
-  /** Helper for relative inductiveness checks
-   *  Note: it does NOT push/pop the solver. Only meant for use
-   *  in rel_ind_check
-   *  @param i the frame number
-   *  @param t the term to check
-   *  @return true iff t is relatively inductive
-   */
-  bool rel_ind_check_helper(size_t i, const Term & t) const;
+  bool get_predecessor(size_t i, const Cube & c, Cube & out_cti) const;
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -152,7 +138,7 @@ class ModelBasedIC3 : public Prover
    *  @param c the cube to generalize
    *  @return a new cube
    */
-  Cube cex_generalize(size_t i, const Cube & c) const;
+  Cube generalize_predecessor(size_t i, const Cube & c) const;
   /** Check if the algorithm has found an inductive invariant.
    *  Because clauses are only kept in the highest frame where they still hold
    *  this amounts to checking for any frame that is empty
