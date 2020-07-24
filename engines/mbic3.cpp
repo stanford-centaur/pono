@@ -293,14 +293,14 @@ Clause ModelBasedIC3::down(size_t i, const Clause & c) const
   throw CosaException("Not yet implemented");
 }
 
-Cube generalize_cti(size_t i, const Cube & c) const
+Cube ModelBasedIC3::generalize_cti(size_t i, const Cube & c) const
 {
   // TODO: implement this
   // For now, just a NOP stub.
   return c;
 }
 
-bool is_initial(const Cube & c) const
+bool ModelBasedIC3::is_initial(const Cube & c) const
 {
   solver_->push();
   solver_->assert_formula(c.term_);
