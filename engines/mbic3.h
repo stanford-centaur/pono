@@ -101,12 +101,15 @@ class ModelBasedIC3 : public Prover
    */
   bool intersects_bad();
   /** Checks if the cube c is reachable from the frame i
+   *  @requires c -> F[i]
    *  @param i the frame number
    *  @param t the term to check
    *  @param cti the cube to populate with a cti
    *  @return true iff c is reachable from the frame i
+   *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
+   *           returns false : F[i-1] /\ T /\ c' is unsat
    */
-  bool get_predecessor(size_t i, const Cube & c, Cube & out_cti) const;
+  bool get_predecessor(size_t i, const Cube & c, Cube & pred) const;
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -138,11 +141,18 @@ class ModelBasedIC3 : public Prover
   void push_frame();
   /** Attempt to generalize a clause
    *  The standard approach is inductive generalization
+   *  @requires !get_predecessor(i, c, _)
    *  @param i the frame number to generalize it against
    *  @param c the clause to generalize
-   *  @return a new clause
+   *  @return a new term P
+   *  @ensures P -> !c /\ F[i-1] /\ P /\ T /\ !P' is unsat
+   *  F[i-1] /\ T |= !c'
+   *  get an interpolant I s.t.
+   *    F[i-1] /\ T -> I'
+   *    I' -> !c'
+   *    then you add I to F[i]
    */
-  Clause generalize_clause(size_t i, const Clause & c) const;
+  smt::Term inductive_generalization(size_t i, const Cube & c) const;
   /** Helper for generalize when using inductive generalization
    *  @param i the frame number
    *  @param c the clause
@@ -150,11 +160,13 @@ class ModelBasedIC3 : public Prover
    */
   Clause down(size_t i, const Clause & c) const;
   /** Generalize a counterexample
+   *  @requires get_predecessor(i, c)
    *  @param i the frame number
    *  @param c the cube to generalize
-   *  @return a new cube
+   *  @return a new cube d
+   *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
-  Cube generalize_cti(size_t i, const Cube & c) const;
+  Cube generalize_predecessor(size_t i, const Cube & c) const;
   /** Check if the cube intersects with the initial states
    *  @param c the cube to check
    *  @return true iff the cube intersects with the initial states

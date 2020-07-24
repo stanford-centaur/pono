@@ -173,7 +173,7 @@ bool ModelBasedIC3::get_predecessor(size_t i,
 
   solver_->pop();
   assert(!r.is_unknown());
-  return r.is_unsat();
+  return r.is_sat();
 }
 
 ProofGoal ModelBasedIC3::get_next_proof_goal()
@@ -209,22 +209,22 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
 
   assert(i < frames_.size());
   assert(i >= 0);
+  // TODO: assert c -> frames_[i]
 
   if (i == 0) {
     // can't block anymore -- this is a counterexample
     return false;
   }
 
-  Cube cti;  // populated by get_predecessor if returns false
-  if (get_predecessor(i-1, c, cti)) {
+  Cube pred;  // populated by get_predecessor if returns false
+  if (!get_predecessor(i - 1, c, pred)) {
     // can block this cube
-    Clause neg_c = negate(solver_, c);
-    Clause gen_blocking_clause = generalize_clause(i, neg_c);
-    frames_[i].push_back(gen_blocking_clause.term_);
+    Term gen_blocking_term = inductive_generalization(i - 1, c);
+    frames_[i].push_back(gen_blocking_term);
     return true;
   } else {
     // add a new proof goal
-    proof_goals_[i - 1].push_back(generalize_cti(i - 1, cti));
+    proof_goals_[i - 1].push_back(pred);
     return false;
   }
 }
@@ -285,11 +285,11 @@ void ModelBasedIC3::push_frame()
   frames_.push_back({});
 }
 
-Clause ModelBasedIC3::generalize_clause(size_t i, const Clause & c) const
+Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c) const
 {
-  // TODO: actual generalization
-  // For now, just a NOP stub
-  return c;
+  // TODO: implement this
+  // For now, just a NOP stub.
+  return c.term_;
 }
 
 Clause ModelBasedIC3::down(size_t i, const Clause & c) const
@@ -299,12 +299,12 @@ Clause ModelBasedIC3::down(size_t i, const Clause & c) const
   throw PonoException("Not yet implemented");
 }
 
-Cube ModelBasedIC3::generalize_cti(size_t i, const Cube & c) const
-{
-  // TODO: implement this
-  // For now, just a NOP stub.
-  return c;
-}
+// Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c) const
+// {
+//   // TODO: actual generalization
+//   // For now, just a NOP stub
+//   return c;
+// }
 
 bool ModelBasedIC3::is_initial(const Cube & c) const
 {
