@@ -16,12 +16,8 @@
 
 #pragma once
 
-#include "prop.h"
-#include "prover.h"
-#include "ts.h"
-#include "unroller.h"
+#include "engines/prover.h"
 
-#include "proverresult.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -51,7 +47,7 @@ class InterpolantMC : public Prover
   bool step(int i);
   bool step_0();
 
-  void reset_assertions(smt::SmtSolver &s);
+  void reset_assertions(smt::SmtSolver & s);
 
   bool check_entail(const smt::Term & p, const smt::Term & q);
 

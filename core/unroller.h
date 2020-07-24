@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "ts.h"
+#include "core/ts.h"
 
 #include "smt-switch/smt.h"
 

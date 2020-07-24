@@ -34,6 +34,7 @@ cdef extern from "core/ts.h" namespace "pono":
         c_Term trans() except +
         const c_UnorderedTermMap & state_updates() except +
         unordered_map[string, c_Term] & named_terms() except +
+        const c_TermVec & constraints() except +
         bint is_functional() except +
         c_Sort make_sort(const string name, uint64_t arity) except +
         c_Sort make_sort(const c_SortKind sk) except +

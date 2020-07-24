@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "prover.h"
+#include "engines/prover.h"
 
 namespace pono {
 

@@ -21,4 +21,4 @@ namespace pono {
 Log logger;
 
 void set_global_logger_verbosity(unsigned int v) { logger.set_verbosity(v); }
-}
+}  // namespace pono

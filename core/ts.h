@@ -22,7 +22,7 @@
 #include "smt-switch/cvc4_factory.h"
 #include "smt-switch/smt.h"
 
-#include "exceptions.h"
+#include "utils/exceptions.h"
 
 namespace pono {
 

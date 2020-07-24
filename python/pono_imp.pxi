@@ -27,7 +27,7 @@ from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosi
 from pono_imp cimport get_free_symbols as c_get_free_symbols
 
 from smt_switch cimport SmtSolver, PrimOp, Op, c_SortKind, SortKind, \
-    c_Sort, Sort, Term, c_Term, c_UnorderedTermMap
+    c_Sort, Sort, Term, c_Term, c_TermVec, c_UnorderedTermMap
 
 from enum import Enum
 
@@ -180,6 +180,16 @@ cdef class __AbstractTransitionSystem:
             inc(it)
 
         return names2terms
+
+    @property
+    def constraints(self):
+        convec = []
+        cdef c_TermVec c_cons = dref(self.cts).constraints()
+        for t in c_cons:
+            python_term = Term(self._solver)
+            python_term.ct = t
+            convec.append(python_term)
+        return convec
 
     @property
     def init(self):
