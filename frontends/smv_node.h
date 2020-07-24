@@ -6,7 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include "assert.h"
-#include "exceptions.h"
+#include "utils/exceptions.h"
 #include "smt-switch/smt.h"
 
 /* node to help construct syntax tree in the parser */

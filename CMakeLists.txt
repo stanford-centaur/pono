@@ -131,6 +131,7 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
+
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 
 if (WITH_COREIR)
@@ -210,3 +211,49 @@ if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
   target_link_libraries(pono-bin PUBLIC -static)
 endif()
 
+# install smt-switch
+install(TARGETS pono-lib DESTINATION lib)
+install(TARGETS pono-bin DESTINATION bin)
+
+# install public headers
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/core/"
+        DESTINATION include/pono/core
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
+        DESTINATION include/pono/utils
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/engines/"
+        DESTINATION include/pono/engines
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/frontends/"
+        DESTINATION include/pono/frontends
+        FILES_MATCHING PATTERN "*.h")
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/smvparser.h"
+        DESTINATION include/pono/)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/location.hh"
+        DESTINATION include/pono/)
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/options/"
+        DESTINATION include/pono/options
+        FILES_MATCHING PATTERN "*.h")
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/contrib/fmt/"
+        DESTINATION include/pono/fmt
+        FILES_MATCHING PATTERN "*.h")
+
+# uninstall target
+# copied from https://gitlab.kitware.com/cmake/community/wikis/FAQ#can-i-do-make-uninstall-with-cmake
+if(NOT TARGET uninstall)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+        IMMEDIATE @ONLY)
+
+    add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+endif()

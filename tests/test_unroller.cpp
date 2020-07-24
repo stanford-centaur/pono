@@ -58,4 +58,4 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
                          UnrollerUnitTests,
                          testing::ValuesIn(available_solver_enums()));
 
-}
+}  // namespace pono_tests
