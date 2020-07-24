@@ -239,9 +239,9 @@ bool ModelBasedIC3::propagate(size_t i)
 
     // Relative inductiveness check
     // Check F[i] /\ t /\ T /\ -t'
-    // NOTE: asserting t is redundant because t \in F[i] 
+    // NOTE: asserting t is redundant because t \in F[i]
     solver_->push();
-    solver_->assert_formula(solver_->make_term(Not, ts_next(t)));
+    solver_->assert_formula(solver_->make_term(Not, ts.next(t)));
 
     Result r = solver_->check_sat();
     assert(! r.is_unknown());
