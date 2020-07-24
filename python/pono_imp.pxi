@@ -27,7 +27,7 @@ from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosi
 from pono_imp cimport get_free_symbols as c_get_free_symbols
 
 from smt_switch cimport SmtSolver, PrimOp, Op, c_SortKind, SortKind, \
-    c_Sort, Sort, Term, c_Term, c_TermVec, c_UnorderedTermMap
+    c_Sort, c_SortVec, Sort, Term, c_Term, c_TermVec, c_UnorderedTermMap
 
 from enum import Enum
 
@@ -42,12 +42,9 @@ except:
 ctypedef unordered_set[c_Term] c_UnorderedTermSet
 ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr
 ctypedef unordered_set[c_Term].const_iterator c_UnorderedTermSet_const_iterator
-ctypedef vector[c_Term] c_TermVec
 
 ctypedef const unordered_map[c_Term, c_Term]* const_UnorderedTermMapPtr
 ctypedef unordered_map[c_Term, c_Term].const_iterator c_UnorderedTermMap_const_iterator
-
-ctypedef vector[c_Sort] c_SortVec
 
 cdef class __AbstractTransitionSystem:
     cdef c_TransitionSystem* cts
