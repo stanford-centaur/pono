@@ -27,53 +27,67 @@ namespace pono {
 // Both clauses and cubes can be represented as vectors of predicates
 // They are just negations of eachother
 
+/** Less than comparison the hash of two terms
+ *  for use in sorting
+ *  @param t0 the first term
+ *  @param t1 the second term
+ *  @return true iff t0's hash is less than t1's hash
+ */
+bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
+{
+  return (t0->hash() < t1->hash());
+}
+
 struct Clause
 {
-  Clause(const smt::SmtSolver & solver, const TermVec & lits) : lits_(lits)
+  Clause() {}
+  Clause(const smt::SmtSolver & solver, const smt::TermVec & lits) : lits_(lits)
   {
     // sort literals
-    std::sort(lits_.begin(), lits_.end(), std::hash<Term>);
+    std::sort(lits_.begin(), lits_.end(), term_hash_lt);
     // shouldn't have an empty clause
     assert(lits_.size());
 
     // create term
     term_ = lits_[0];
     for (size_t i = 1; i < lits_.size(); ++i) {
-      term_ = solver->make_term(Or, term_, lits_[i]);
+      term_ = solver->make_term(smt::Or, term_, lits_[i]);
     }
   }
 
-  TermVec lits_;  // list of literals sorted by hash
-  Term term_;     // term representation of literals as disjunction
-}
+  smt::TermVec lits_;  // list of literals sorted by hash
+  smt::Term term_;     // term representation of literals as disjunction
+};
 
 struct Cube
 {
-  Cube(const smt::SmtSolver & solver, const TermVec & lits) : lits_(lits)
+  Cube() {}
+  Cube(const smt::SmtSolver & solver, const smt::TermVec & lits) : lits_(lits)
   {
     // sort literals
-    std::sort(lits_.begin(), lits_.end(), std::hash<Term>);
+    std::sort(lits_.begin(), lits_.end(), term_hash_lt);
     // shouldn't have an empty cube
     assert(lits_.size());
 
     // create term
     term_ = lits_[0];
     for (size_t i = 1; i < lits_.size(); ++i) {
-      term_ = solver->make_term(And, term_, lits_[i]);
+      term_ = solver->make_term(smt::And, term_, lits_[i]);
     }
   }
-  TermVec lits_;  // list of literals sorted by hash
-  Term term_;     // term representation of literals as conjunction
-}
+  smt::TermVec lits_;  // list of literals sorted by hash
+  smt::Term term_;     // term representation of literals as conjunction
+};
 
-using ProofGoal = std::pair<Cube, size_t>
+using ProofGoal = std::pair<Cube, size_t>;
 
 class ModelBasedIC3 : public Prover
 {
  public:
-  ModelBasedIC3(const Property & p, const smt::SmtSolver & slv);
+  // TODO: make references const once engine-fresh-solver branch is merged
+  ModelBasedIC3(const Property & p, smt::SmtSolver & slv);
   ModelBasedIC3(const PonoOptions & opt, const Property p, smt::SmtSolver slv);
-  ~ModelBasedIC3();
+  virtual ~ModelBasedIC3();
 
   typedef Prover super;
 
@@ -167,8 +181,8 @@ class ModelBasedIC3 : public Prover
   std::map<size_t, std::vector<Cube>> proof_goals_;
 
   // useful terms
-  Term true_;
-  Term false_;
+  smt::Term true_;
+  smt::Term false_;
 };
 
 }  // namespace pono

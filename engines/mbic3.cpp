@@ -16,6 +16,7 @@
 #include "mbic3.h"
 
 using namespace smt;
+using namespace std;
 
 namespace pono {
 
@@ -26,7 +27,7 @@ static Cube negate(const SmtSolver & slv, const Clause & c)
   TermVec cube_lits;
   cube_lits.reserve(c.lits_.size());
   for (auto l : c.lits_) {
-    cube_lits.push_back(slv.make_term(Not, l));
+    cube_lits.push_back(slv->make_term(Not, l));
   }
   return Cube(slv, cube_lits);
 }
@@ -36,15 +37,15 @@ static Clause negate(const SmtSolver & slv, const Cube & c)
   TermVec clause_lits;
   clause_lits.reserve(c.lits_.size());
   for (auto l : c.lits_) {
-    clause_lits.push_back(slv.make_term(Not, l));
+    clause_lits.push_back(slv->make_term(Not, l));
   }
   return Clause(slv, clause_lits);
 }
 
-ModelBasedIC3::ModelBasedIC3(const Property & p, const smt::SmtSolver & slv)
+ModelBasedIC3::ModelBasedIC3(const Property & p, smt::SmtSolver & slv)
     : super(p, slv),
       true_(solver_->make_term(true)),
-      false_(solver_->make_term(false)),
+      false_(solver_->make_term(false))
 {
   initialize();
 }
@@ -54,10 +55,12 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
                              smt::SmtSolver slv)
     : super(opt, p, slv),
       true_(solver_->make_term(true)),
-      false_(solver_->make_term(false)),
+      false_(solver_->make_term(false))
 {
   initialize();
 }
+
+ModelBasedIC3::~ModelBasedIC3() {}
 
 void ModelBasedIC3::initialize()
 {
@@ -141,7 +144,9 @@ bool ModelBasedIC3::intersects_bad()
   return r.is_sat();
 }
 
-bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_cti)
+bool ModelBasedIC3::get_predecessor(size_t i,
+                                    const Cube & c,
+                                    Cube & out_cti) const
 {
   solver_->push();
   assert(i < frames_.size());
@@ -187,7 +192,7 @@ bool ModelBasedIC3::block_all()
     ProofGoal pg = get_next_proof_goal();
     // block can fail, which just means a
     // new proof goal will be added
-    if (!pg.first && !block(pg)) {
+    if (!pg.second && !block(pg)) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
       return false;
@@ -199,8 +204,8 @@ bool ModelBasedIC3::block_all()
 
 bool ModelBasedIC3::block(const ProofGoal & pg)
 {
-  size_t i = pg.first;
-  Cube & c = pg.second;
+  const Cube & c = pg.first;
+  size_t i = pg.second;
 
   assert(i < frames_.size());
   assert(i >= 0);
@@ -215,7 +220,8 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     // can block this cube
     Clause neg_c = negate(solver_, c);
     Clause gen_blocking_clause = generalize_clause(i, neg_c);
-    frames_[i].push_back(gen_blocking_clause);
+    frames_[i].push_back(gen_blocking_clause.term_);
+    return true;
   } else {
     // add a new proof goal
     proof_goals_[i - 1].push_back(generalize_cti(i - 1, cti));
@@ -241,7 +247,7 @@ bool ModelBasedIC3::propagate(size_t i)
     // Check F[i] /\ t /\ T /\ -t'
     // NOTE: asserting t is redundant because t \in F[i]
     solver_->push();
-    solver_->assert_formula(solver_->make_term(Not, ts.next(t)));
+    solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
 
     Result r = solver_->check_sat();
     assert(! r.is_unknown());
@@ -290,7 +296,7 @@ Clause ModelBasedIC3::down(size_t i, const Clause & c) const
 {
   // TODO: implement this when implementing inductive generalization
   // For now, just a stub
-  throw CosaException("Not yet implemented");
+  throw PonoException("Not yet implemented");
 }
 
 Cube ModelBasedIC3::generalize_cti(size_t i, const Cube & c) const
