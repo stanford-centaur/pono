@@ -107,9 +107,9 @@ class ModelBasedIC3 : public Prover
    *  @param cti the cube to populate with a cti
    *  @return true iff c is reachable from the frame i
    *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
-   *           returns false : F[i-1] /\ T /\ c' is unsat
+   *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool get_predecessor(size_t i, const Cube & c, Cube & pred) const;
+  bool get_predecessor(size_t i, const Cube & c, Cube & out_pred) const;
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -143,14 +143,9 @@ class ModelBasedIC3 : public Prover
    *  The standard approach is inductive generalization
    *  @requires !get_predecessor(i, c, _)
    *  @param i the frame number to generalize it against
-   *  @param c the clause to generalize
+   *  @param c the cube to find a general predecessor for
    *  @return a new term P
    *  @ensures P -> !c /\ F[i-1] /\ P /\ T /\ !P' is unsat
-   *  F[i-1] /\ T |= !c'
-   *  get an interpolant I s.t.
-   *    F[i-1] /\ T -> I'
-   *    I' -> !c'
-   *    then you add I to F[i]
    */
   smt::Term inductive_generalization(size_t i, const Cube & c) const;
   /** Helper for generalize when using inductive generalization

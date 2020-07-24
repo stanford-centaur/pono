@@ -146,12 +146,13 @@ bool ModelBasedIC3::intersects_bad()
 
 bool ModelBasedIC3::get_predecessor(size_t i,
                                     const Cube & c,
-                                    Cube & out_cti) const
+                                    Cube & out_pred) const
 {
   solver_->push();
+  assert(i > 0);
   assert(i < frames_.size());
-  // F[i]
-  assert_frame(i);
+  // F[i-1]
+  assert_frame(i - 1);
   // -c
   solver_->assert_formula(solver_->make_term(Not, c.term_));
   // Trans
@@ -161,14 +162,7 @@ bool ModelBasedIC3::get_predecessor(size_t i,
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
-    const UnorderedTermSet & statevars = ts_.statevars();
-    TermVec cube_lits;
-    cube_lits.reserve(statevars.size());
-    for (auto sv : statevars) {
-      cube_lits.push_back(
-          solver_->make_term(Equal, sv, solver_->get_value(sv)));
-    }
-    out_cti = Cube(solver_, cube_lits);
+    out_pred = generalize_predecessor(i, c);
   }
 
   solver_->pop();
@@ -217,9 +211,9 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   }
 
   Cube pred;  // populated by get_predecessor if returns false
-  if (!get_predecessor(i - 1, c, pred)) {
+  if (!get_predecessor(i, c, pred)) {
     // can block this cube
-    Term gen_blocking_term = inductive_generalization(i - 1, c);
+    Term gen_blocking_term = inductive_generalization(i, c);
     frames_[i].push_back(gen_blocking_term);
     return true;
   } else {
@@ -299,12 +293,17 @@ Clause ModelBasedIC3::down(size_t i, const Clause & c) const
   throw PonoException("Not yet implemented");
 }
 
-// Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c) const
-// {
-//   // TODO: actual generalization
-//   // For now, just a NOP stub
-//   return c;
-// }
+Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c) const
+{
+  // TODO: do actual generalization
+  const UnorderedTermSet & statevars = ts_.statevars();
+  TermVec cube_lits;
+  cube_lits.reserve(statevars.size());
+  for (auto sv : statevars) {
+    cube_lits.push_back(solver_->make_term(Equal, sv, solver_->get_value(sv)));
+  }
+  return Cube(solver_, cube_lits);
+}
 
 bool ModelBasedIC3::is_initial(const Cube & c) const
 {
