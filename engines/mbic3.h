@@ -115,7 +115,9 @@ class ModelBasedIC3 : public Prover
    */
   bool block(const ProofGoal & pg);
   /** Try propagating all clauses from 'i'th frame to the next frame.
-   *  Returns true iff all the clauses are propagated.
+   *  @param i the frame to propagate
+   *  @return true iff all the clauses are propagated (this means property was
+   * proven)
    */
   bool propagate(size_t i);
   /** Add a new frame*/
@@ -138,14 +140,7 @@ class ModelBasedIC3 : public Prover
    *  @param c the cube to generalize
    *  @return a new cube
    */
-  Cube generalize_predecessor(size_t i, const Cube & c) const;
-  /** Check if the algorithm has found an inductive invariant.
-   *  Because clauses are only kept in the highest frame where they still hold
-   *  this amounts to checking for any frame that is empty
-   *  because this implies that it is equivalent to the next frame
-   *  @return true iff the property has been proven
-   */
-  bool is_proven() const;
+  Cube generalize_cti(size_t i, const Cube & c) const;
   /** Check if the cube intersects with the initial states
    *  @param c the cube to check
    *  @return true iff the cube intersects with the initial states

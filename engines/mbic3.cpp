@@ -210,7 +210,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     return false;
   }
 
-  Cube cti;  // populated by rel_ind_check if returns false
+  Cube cti;  // populated by get_predecessor if returns false
   if (get_predecessor(i-1, c, cti)) {
     // can block this cube
     Clause neg_c = negate(solver_, c);
@@ -218,7 +218,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     frames_[i].push_back(gen_blocking_clause);
   } else {
     // add a new proof goal
-    proof_goals_[i - 1].push_back(generalize_predecessor(i-1, cti));
+    proof_goals_[i - 1].push_back(generalize_cti(i - 1, cti));
     return false;
   }
 }
@@ -277,6 +277,37 @@ void ModelBasedIC3::push_frame()
 {
   // pushes an empty frame
   frames_.push_back({});
+}
+
+Clause ModelBasedIC3::generalize_clause(size_t i, const Clause & c) const
+{
+  // TODO: actual generalization
+  // For now, just a NOP stub
+  return c;
+}
+
+Clause ModelBasedIC3::down(size_t i, const Clause & c) const
+{
+  // TODO: implement this when implementing inductive generalization
+  // For now, just a stub
+  throw CosaException("Not yet implemented");
+}
+
+Cube generalize_cti(size_t i, const Cube & c) const
+{
+  // TODO: implement this
+  // For now, just a NOP stub.
+  return c;
+}
+
+bool is_initial(const Cube & c) const
+{
+  solver_->push();
+  solver_->assert_formula(c.term_);
+  solver_->assert_formula(ts_.init());
+  Result r = solver_->check_sat();
+  solver_->pop();
+  return r.is_sat();
 }
 
 void ModelBasedIC3::assert_frame(size_t i) const
