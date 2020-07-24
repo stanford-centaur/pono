@@ -18,9 +18,11 @@ using namespace std;
 
 namespace pono_tests {
 
-class CoreIRUnitTests : public ::testing::Test,
-                        public ::testing::WithParamInterface<tuple<SolverEnum, string>>
-{};
+class CoreIRUnitTests
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<tuple<SolverEnum, string>>
+{
+};
 
 TEST_P(CoreIRUnitTests, Encode)
 {
@@ -49,10 +51,10 @@ TEST_P(CoreIRUnitTests, EncodeForceAbstract)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCoreIRUnitTests,
     CoreIRUnitTests,
-    testing::Combine(testing::ValuesIn(available_solver_enums()),
-                     testing::ValuesIn(vector<string>{ "counters.json",
-                                                       "WrappedPE_nofloats.json",
-                                                       "SimpleALU.json" })));
+    testing::Combine(
+        testing::ValuesIn(available_solver_enums()),
+        testing::ValuesIn(vector<string>{
+            "counters.json", "WrappedPE_nofloats.json", "SimpleALU.json" })));
 
 }  // namespace pono_tests
 #endif

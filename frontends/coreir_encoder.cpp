@@ -198,13 +198,10 @@ void CoreIREncoder::encode()
     inst_ = instances.back();
     instances.pop_back();
 
-    if (visited_instances.find(inst_) != visited_instances.end())
-    {
+    if (visited_instances.find(inst_) != visited_instances.end()) {
       // this module has already been processed
       continue;
-    }
-    else
-    {
+    } else {
       // mark this instance as visited
       visited_instances.insert(inst_);
     }
@@ -239,8 +236,7 @@ void CoreIREncoder::encode()
 
         Wireable * dst_parent = dst;
         if (isa<CoreIR::Select>(dst)
-            && isNumber(cast<CoreIR::Select>(dst)->getSelStr()))
-        {
+            && isNumber(cast<CoreIR::Select>(dst)->getSelStr())) {
           // shouldn't count bit-selects as individual inputs
           // need to get parent
           dst_parent = cast<CoreIR::Select>(dst)->getParent();

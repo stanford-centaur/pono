@@ -127,7 +127,12 @@ const option::Descriptor usage[] = {
     "vcd",
     Arg::NonEmpty,
     "  --vcd \tName of Value Change Dump (VCD) if witness exists." },
-  { NOWITNESS, 0, "", "no-witness", Arg::None, "  --no-witness \tDisable printing of witness." },
+  { NOWITNESS,
+    0,
+    "",
+    "no-witness",
+    Arg::None,
+    "  --no-witness \tDisable printing of witness." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup

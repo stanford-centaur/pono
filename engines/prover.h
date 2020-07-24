@@ -16,12 +16,13 @@
 
 #pragma once
 
+#include "core/prop.h"
+#include "core/proverresult.h"
+#include "core/ts.h"
+#include "core/unroller.h"
 #include "options/options.h"
-#include "prop.h"
-#include "proverresult.h"
+
 #include "smt-switch/smt.h"
-#include "ts.h"
-#include "unroller.h"
 
 namespace pono {
 class Prover

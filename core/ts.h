@@ -21,7 +21,7 @@
 
 #include "smt-switch/smt.h"
 
-#include "exceptions.h"
+#include "utils/exceptions.h"
 
 namespace pono {
 
