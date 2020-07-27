@@ -20,8 +20,8 @@
 
 #include "smt-switch/smt.h"
 
-#include "exceptions.h"
-#include "fts.h"
+#include "utils/exceptions.h"
+#include "core/fts.h"
 
 namespace pono {
 
