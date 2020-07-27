@@ -1,10 +1,10 @@
 #include "smv_encoder.h"
 
 using namespace smt;
-using namespace cosa;
+using namespace pono;
 using namespace std;
 
-int cosa::SMVEncoder::parse(std::string filename)
+int pono::SMVEncoder::parse(std::string filename)
 {
   std::ifstream ifs;
   ifs.open(filename);
@@ -13,23 +13,23 @@ int cosa::SMVEncoder::parse(std::string filename)
     exit(-1);
   }
   std::istream & s = ifs;
-  cosa::SMVscanner smvscanner(*this);
+  pono::SMVscanner smvscanner(*this);
   smvscanner.switch_streams(&s);
-  cosa::smvparser parse(smvscanner, *this);
+  pono::smvparser parse(smvscanner, *this);
   return parse();
 }
 // parse string
-int cosa::SMVEncoder::parseString(std::string newline)
+int pono::SMVEncoder::parseString(std::string newline)
 {
   std::istringstream iss(newline);
   std::istream & s(iss);
-  cosa::SMVscanner smvscanner(*this);
+  pono::SMVscanner smvscanner(*this);
   smvscanner.switch_streams(&s);
-  cosa::smvparser parse(smvscanner, *this);
+  pono::smvparser parse(smvscanner, *this);
   return parse();
 }
 // case condition check preprocess
-void cosa::SMVEncoder::processCase()
+void pono::SMVEncoder::processCase()
 {
   std::future_status status;
   for (std::pair<int, smt::Term> element : casecheck_) {
@@ -51,35 +51,36 @@ void cosa::SMVEncoder::processCase()
           rts_.constrain_trans(casestore_[element.first]);
           break;
         } else {
-          throw CosaException("case error");
+          throw PonoException("case error");
         }
       }
     }
     if (status == std::future_status::timeout)
-      throw CosaException("case timeout check error");
+      throw PonoException("case timeout check error");
     solver_->pop();
   }
 }
 //change the input stream to output stringstream 
-int cosa::SMVEncoder::parse_flat(std::istream & s)
+int pono::SMVEncoder::parse_flat(std::istream & s)
 {
-  cosa::SMVscanner smvscanner(*this);
+  pono::SMVscanner smvscanner(*this);
   smvscanner.switch_streams(&s);
-  cosa::smvparser parse(smvscanner, *this);
+  pono::smvparser parse(smvscanner, *this);
   return parse();
 }
 
 //modular SMV preprocess
-void cosa::SMVEncoder::preprocess()
+std::stringstream pono::SMVEncoder::preprocess()
 {
   module_node * main_n;
   if (module_list.find("main") != module_list.end()) {
     main_n = module_list.find("main")->second;
   } else {
-    throw CosaException("no main module find");
+    throw PonoException("no main module find");
   }
   std::stringstream str;
   str << "MODULE main" << std::endl;
   main_n->pre(module_list, str);
   parse_flat(str);
+  return str;
 }

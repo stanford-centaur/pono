@@ -9,13 +9,13 @@
 
 #include "smvparser.h"
 
-namespace cosa{
+namespace pono{
     class SMVEncoder;
     class SMVscanner : public yyFlexLexer{
         public:
         SMVscanner(SMVEncoder &encoder) : _encoder(encoder){}
         virtual ~SMVscanner() {}
-        virtual cosa::smvparser::symbol_type yylex(SMVEncoder &encoder);
+        virtual pono::smvparser::symbol_type yylex(SMVEncoder &encoder);
     private:
         SMVEncoder &_encoder;
     };

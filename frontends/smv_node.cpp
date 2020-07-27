@@ -1,6 +1,6 @@
 #include "smv_node.h"
 
-void cosa::module_node::pre(
+void pono::module_node::pre(
     std::unordered_map<std::string, module_node *> module_list,
     std::ostream & s)
 {
@@ -21,7 +21,7 @@ void cosa::module_node::pre(
       module_name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::module_node::preprocess(
+void pono::module_node::preprocess(
     std::string parent,
     std::string prefix,
     std::unordered_map<string, string> * new_prefix,
@@ -30,7 +30,7 @@ void cosa::module_node::preprocess(
     std::ostream & s)
 {
   if (par_li.size() != id_li.size()) {
-    throw CosaException("module declaration wrong");
+    throw PonoException("module declaration wrong");
   }
   for (int i = 0; i < id_li.size(); i++) {
     std::string s = par_li[i];
@@ -53,7 +53,7 @@ void cosa::module_node::preprocess(
       module_name, prefix, module_list, prefix_li, s);
 }
 
-void cosa::type_node::generate_ostream(
+void pono::type_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -63,7 +63,7 @@ void cosa::type_node::generate_ostream(
   s << type_name;
 }
 
-void cosa::var_node_c::generate_ostream(
+void pono::var_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -74,12 +74,12 @@ void cosa::var_node_c::generate_ostream(
     unordered_map<string, SMVnode *> new_par =
         module_list[name]->get_namelist();
     if (new_par.find(id) != new_par.end())
-      throw CosaException("duplicately defined");
+      throw PonoException("duplicately defined");
     s << new_prefix[name] << id << ":" << type << ";" << endl;
   }
 }
 
-void cosa::ivar_node_c::generate_ostream(
+void pono::ivar_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -88,11 +88,11 @@ void cosa::ivar_node_c::generate_ostream(
 {
   unordered_map<string, SMVnode *> new_par = module_list[name]->get_namelist();
   if (new_par.find(id) != new_par.end())
-    throw CosaException("duplicately defined");
+    throw PonoException("duplicately defined");
   s << new_prefix[name] << id << " : " << type << " ; " << endl;
 }
 
-void cosa::frozenvar_node_c::generate_ostream(
+void pono::frozenvar_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -101,11 +101,11 @@ void cosa::frozenvar_node_c::generate_ostream(
 {
   unordered_map<string, SMVnode *> new_par = module_list[name]->get_namelist();
   if (new_par.find(id) != new_par.end())
-    throw CosaException("duplicately defined");
+    throw PonoException("duplicately defined");
   s << new_prefix[name] << id << " : " << type << " ; " << endl;
 }
 
-void cosa::define_node_c::generate_ostream(
+void pono::define_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -114,13 +114,13 @@ void cosa::define_node_c::generate_ostream(
 {
   unordered_map<string, SMVnode *> new_par = module_list[name]->get_namelist();
   if (new_par.find(id) != new_par.end())
-    throw CosaException("duplicately defined");
+    throw PonoException("duplicately defined");
   s << prefix << id << " := ";
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " ;" << endl;
 }
 
-void cosa::assign_node_c::generate_ostream(
+void pono::assign_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -129,7 +129,7 @@ void cosa::assign_node_c::generate_ostream(
 {
   unordered_map<string, SMVnode *> new_par = module_list[name]->get_namelist();
   if (new_par.find(id) != new_par.end())
-    throw CosaException("duplicately defined");
+    throw PonoException("duplicately defined");
   if (pre == "")
     s << prefix << id << " := ";
   else
@@ -138,7 +138,7 @@ void cosa::assign_node_c::generate_ostream(
   s << " ;" << endl;
 }
 
-void cosa::init_node_c::generate_ostream(
+void pono::init_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -149,7 +149,7 @@ void cosa::init_node_c::generate_ostream(
   s << " ;" << endl;
 }
 
-void cosa::trans_node_c::generate_ostream(
+void pono::trans_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -160,7 +160,7 @@ void cosa::trans_node_c::generate_ostream(
   s << " ;" << endl;
 }
 
-void cosa::invar_node_c::generate_ostream(
+void pono::invar_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -171,7 +171,7 @@ void cosa::invar_node_c::generate_ostream(
   s << " ;" << endl;
 }
 
-void cosa::invarspec_node_c::generate_ostream(
+void pono::invarspec_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -182,7 +182,7 @@ void cosa::invarspec_node_c::generate_ostream(
   s << " ;" << endl;
 }
 
-void cosa::var_node::preprocess(
+void pono::var_node::preprocess(
     std::string module,
     std::string prefix,
     std::unordered_map<std::string, module_node *> module_list,
@@ -207,7 +207,7 @@ void cosa::var_node::preprocess(
   }
 }
 
-void cosa::var_node::generate_ostream(
+void pono::var_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -222,7 +222,7 @@ void cosa::var_node::generate_ostream(
   }
 }
 
-void cosa::ivar_node::generate_ostream(
+void pono::ivar_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -237,7 +237,7 @@ void cosa::ivar_node::generate_ostream(
   }
 }
 
-void cosa::frozenvar_node::generate_ostream(
+void pono::frozenvar_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -252,7 +252,7 @@ void cosa::frozenvar_node::generate_ostream(
   }
 }
 
-void cosa::define_node::generate_ostream(
+void pono::define_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -267,7 +267,7 @@ void cosa::define_node::generate_ostream(
   }
 }
 
-void cosa::assign_node::generate_ostream(
+void pono::assign_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -282,7 +282,7 @@ void cosa::assign_node::generate_ostream(
   }
 }
 
-void cosa::init_node::generate_ostream(
+void pono::init_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -297,7 +297,7 @@ void cosa::init_node::generate_ostream(
   }
 }
 
-void cosa::trans_node::generate_ostream(
+void pono::trans_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -312,7 +312,7 @@ void cosa::trans_node::generate_ostream(
   }
 }
 
-void cosa::invar_node::generate_ostream(
+void pono::invar_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -327,7 +327,7 @@ void cosa::invar_node::generate_ostream(
   }
 }
 
-void cosa::invarspec_node::generate_ostream(
+void pono::invarspec_node::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -342,7 +342,7 @@ void cosa::invarspec_node::generate_ostream(
   }
 }
 
-void cosa::constant::generate_ostream(
+void pono::constant::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -354,7 +354,7 @@ void cosa::constant::generate_ostream(
   s << " ";
 }
 
-void cosa::identifier::generate_ostream(
+void pono::identifier::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -372,7 +372,7 @@ void cosa::identifier::generate_ostream(
   }
 }
 
-void cosa::par_expr::generate_ostream(
+void pono::par_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -384,7 +384,7 @@ void cosa::par_expr::generate_ostream(
   s << " ) ";
 }
 
-void cosa::not_expr::generate_ostream(
+void pono::not_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -395,7 +395,7 @@ void cosa::not_expr::generate_ostream(
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::and_expr::generate_ostream(
+void pono::and_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -407,7 +407,7 @@ void cosa::and_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::or_expr::generate_ostream(
+void pono::or_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -419,7 +419,7 @@ void cosa::or_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::xor_expr::generate_ostream(
+void pono::xor_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -431,7 +431,7 @@ void cosa::xor_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::xnor_expr::generate_ostream(
+void pono::xnor_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -443,7 +443,7 @@ void cosa::xnor_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::imp_expr::generate_ostream(
+void pono::imp_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -455,7 +455,7 @@ void cosa::imp_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::iff_expr::generate_ostream(
+void pono::iff_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -467,7 +467,7 @@ void cosa::iff_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::eq_expr::generate_ostream(
+void pono::eq_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -479,7 +479,7 @@ void cosa::eq_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::neq_expr::generate_ostream(
+void pono::neq_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -491,7 +491,7 @@ void cosa::neq_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::lt_expr::generate_ostream(
+void pono::lt_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -503,7 +503,7 @@ void cosa::lt_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::gt_expr::generate_ostream(
+void pono::gt_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -515,7 +515,7 @@ void cosa::gt_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::lte_expr::generate_ostream(
+void pono::lte_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -527,7 +527,7 @@ void cosa::lte_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::gte_expr::generate_ostream(
+void pono::gte_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -539,7 +539,7 @@ void cosa::gte_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::uminus_expr::generate_ostream(
+void pono::uminus_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -550,7 +550,7 @@ void cosa::uminus_expr::generate_ostream(
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::add_expr::generate_ostream(
+void pono::add_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -562,7 +562,7 @@ void cosa::add_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::sub_expr::generate_ostream(
+void pono::sub_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -574,7 +574,7 @@ void cosa::sub_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::mul_expr::generate_ostream(
+void pono::mul_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -586,7 +586,7 @@ void cosa::mul_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::div_expr::generate_ostream(
+void pono::div_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -598,7 +598,7 @@ void cosa::div_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::mod_expr::generate_ostream(
+void pono::mod_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -610,7 +610,7 @@ void cosa::mod_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::sr_expr::generate_ostream(
+void pono::sr_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -622,7 +622,7 @@ void cosa::sr_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::sl_expr::generate_ostream(
+void pono::sl_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -634,7 +634,7 @@ void cosa::sl_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::subscript_expr::generate_ostream(
+void pono::subscript_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -647,7 +647,7 @@ void cosa::subscript_expr::generate_ostream(
   s << " ] ";
 }
 
-void cosa::sel_expr::generate_ostream(
+void pono::sel_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -655,14 +655,12 @@ void cosa::sel_expr::generate_ostream(
     ostream & s)
 {
   ex1->generate_ostream(name, prefix, module_list, new_prefix, s);
-  s << " [ ";
-  ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
-  s << " : ";
-  ex3->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " [ " << start;
+  s << " : " << end;
   s << " ] ";
 }
 
-void cosa::con_expr::generate_ostream(
+void pono::con_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -674,7 +672,7 @@ void cosa::con_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::read_expr::generate_ostream(
+void pono::read_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -688,7 +686,7 @@ void cosa::read_expr::generate_ostream(
   s << " ) ";
 }
 
-void cosa::write_expr::generate_ostream(
+void pono::write_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -703,7 +701,7 @@ void cosa::write_expr::generate_ostream(
   ex3->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::word1_expr::generate_ostream(
+void pono::word1_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -715,7 +713,7 @@ void cosa::word1_expr::generate_ostream(
   s << " ) ";
 }
 
-void cosa::bool_expr::generate_ostream(
+void pono::bool_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -727,7 +725,7 @@ void cosa::bool_expr::generate_ostream(
   s << " ) ";
 }
 
-void cosa::toint_expr::generate_ostream(
+void pono::toint_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -739,7 +737,7 @@ void cosa::toint_expr::generate_ostream(
   s << " ) ";
 }
 
-void cosa::signed_expr::generate_ostream(
+void pono::signed_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -751,7 +749,7 @@ void cosa::signed_expr::generate_ostream(
   s << " ) ";
 }
 
-void cosa::unsigned_expr::generate_ostream(
+void pono::unsigned_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -763,7 +761,7 @@ void cosa::unsigned_expr::generate_ostream(
   s << " ) ";
 }
 
-void cosa::extend_expr::generate_ostream(
+void pono::extend_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -776,7 +774,7 @@ void cosa::extend_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::resize_expr::generate_ostream(
+void pono::resize_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -789,7 +787,7 @@ void cosa::resize_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::union_expr::generate_ostream(
+void pono::union_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -801,7 +799,7 @@ void cosa::union_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::set_expr::generate_ostream(
+void pono::set_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -812,7 +810,7 @@ void cosa::set_expr::generate_ostream(
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::in_expr::generate_ostream(
+void pono::in_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -824,7 +822,7 @@ void cosa::in_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::ite_expr::generate_ostream(
+void pono::ite_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -838,7 +836,7 @@ void cosa::ite_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
-void cosa::floor_expr::generate_ostream(
+void pono::floor_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -850,7 +848,7 @@ void cosa::floor_expr::generate_ostream(
   s << " ) ";
 }
 
-void cosa::case_expr::generate_ostream(
+void pono::case_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -865,7 +863,7 @@ void cosa::case_expr::generate_ostream(
   s << " esac ";
 }
 
-void cosa::case_body_ex::generate_ostream(
+void pono::case_body_ex::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -879,7 +877,7 @@ void cosa::case_body_ex::generate_ostream(
   s << " ; ";
 }
 
-void cosa::next_expr::generate_ostream(
+void pono::next_expr::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,

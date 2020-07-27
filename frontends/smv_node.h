@@ -41,40 +41,70 @@ struct SMVnode
     INVAR,
     INVARSPEC
   };
-  enum BVtype
+  enum Type
   {
     Signed,
     Unsigned,
     Integer,
-    BVnot
+    Real,
+    Boolean,
+    WordArray,
+    Default
   };
   smt::Term tm;
   smt::Sort st;
   Nodetype nt;
-  BVtype bvt;
+  Type bvt;
   NodeMtype mt;
   Vartype vt;
+  Type ele_type;
   SMVnode()
   {
     nt = SortNode;
-    bvt = BVnot;
+    bvt = Default;
+    ele_type = Default;
+  }
+  SMVnode(smt::Sort s)
+  {
+    nt = SortNode;
+    st = s;
+    bvt = Default;
+    ele_type = Default;
   }
   SMVnode(smt::Term t)
   {
     nt = TermNode;
     tm = t;
-    bvt = BVnot;
+    bvt = Default;
+    ele_type = Default;
   }
-  SMVnode(smt::Term t, BVtype bvtype)
+  SMVnode(smt::Sort s, Type type)
+  {
+    nt = SortNode;
+    st = s;
+    bvt = type;
+    ele_type = Default;
+  }
+  SMVnode(smt::Term t, Type type)
   {
     nt = TermNode;
     tm = t;
-    bvt = bvtype;
+    bvt = type;
+    ele_type = Default;
   }
+  SMVnode(smt::Term t, Type type, Type element)
+  {
+    nt = TermNode;
+    tm = t;
+    bvt = type;
+    ele_type = element;
+  }
+
   Nodetype getNodeType() { return nt; }
   NodeMtype getNodeMType() { return mt; }
   Vartype getVarType() { return vt; }
-  BVtype getBVType() { return bvt; }
+  Type getType() { return bvt; }
+  Type getElementType() { return ele_type; }
   smt::Sort getSort() { return st; }
   smt::Term getTerm() { return tm; }
   virtual std::string getName() { return ""; }
@@ -200,7 +230,7 @@ class type_node : public SMVnode
 {
   std::string type_name;
   std::vector<SMVnode *> ex_li;
-
+  Type ele_type;
  public:
   type_node() {}
   type_node(std::string n) { type_name = n; }
@@ -209,18 +239,26 @@ class type_node : public SMVnode
     type_name = n;
     ex_li = li;
   }
-  type_node(smt::Sort s, BVtype bvtype)
+  type_node(smt::Sort s, Type type)
   {
     nt = SortNode;
     st = s;
-    bvt = bvtype;
+    bvt = type;
+  }
+
+  type_node(smt::Sort s, Type arraytype, Type type)
+  {
+    nt = SortNode;
+    st = s;
+    bvt = arraytype;
+    ele_type = type;
   }
 
   type_node(smt::Sort s)
   {
     nt = SortNode;
     st = s;
-    bvt = BVnot;
+    bvt = Default;
   }
   std::string getName() { return type_name; }
   std::vector<SMVnode *> get_list() { return ex_li; }
@@ -960,15 +998,15 @@ class subscript_expr : public SMVnode
 class sel_expr : public SMVnode
 {
   pono::SMVnode * ex1;
-  pono::SMVnode * ex2;
-  pono::SMVnode * ex3;
+  std::string start;
+  std::string end;
 
  public:
-  sel_expr(pono::SMVnode * e1, pono::SMVnode * e2, pono::SMVnode * e3)
+  sel_expr(pono::SMVnode * e1, std::string s1, std::string s2)
   {
     ex1 = e1;
-    ex2 = e2;
-    ex3 = e3;
+    start = s1;
+    end = s2;
   }
   void generate_ostream(std::string name,
                         std::string prefix,

@@ -31,7 +31,10 @@ class SMVEncoder
     parse(filename);
     preprocess();
     module_flat = true;
-    preprocess();
+    std::string flatten =filename.substr(0,filename.find_last_of(".")) + "_flatten.txt";
+    std::ofstream ofile(flatten);
+    ofile << preprocess().str();
+    ofile.close();
     processCase();
   };
 
@@ -42,7 +45,7 @@ class SMVEncoder
   int parseString(std::string newline);
   location loc;
   void processCase();
-  void preprocess();
+  std::stringstream preprocess();
   smt::TermVec propvec() { return propvec_; }
 
   smt::SmtSolver & solver_;
@@ -58,16 +61,17 @@ class SMVEncoder
   std::unordered_map<int, smt::Term> casestore_;
   std::vector<std::pair<smt::Term, smt::Term>> caseterm_;
   std::unordered_map<std::string,module_node*> module_list;
+  std::unordered_map<std::string, SMVnode::Type>  arrayty_;
   bool module_flat;
 
-  std::vector<cosa::SMVnode*> define_list_;
-  std::vector<cosa::SMVnode*> assign_list_;
-  std::vector<cosa::SMVnode*> ivar_list_;
-  std::vector<cosa::var_node_c*> var_list_;
-  std::vector<cosa::SMVnode*> frozenvar_list_;
-  std::vector<cosa::SMVnode*> init_list_;
-  std::vector<cosa::SMVnode*> trans_list_;
-  std::vector<cosa::SMVnode*> invar_list_;
-  std::vector<cosa::SMVnode*> invarspec_list_;
+  std::vector<pono::SMVnode*> define_list_;
+  std::vector<pono::SMVnode*> assign_list_;
+  std::vector<pono::SMVnode*> ivar_list_;
+  std::vector<pono::var_node_c*> var_list_;
+  std::vector<pono::SMVnode*> frozenvar_list_;
+  std::vector<pono::SMVnode*> init_list_;
+  std::vector<pono::SMVnode*> trans_list_;
+  std::vector<pono::SMVnode*> invar_list_;
+  std::vector<pono::SMVnode*> invarspec_list_;
 };  // class SMVEncoder
 }  // namespace pono
