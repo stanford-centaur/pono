@@ -95,6 +95,13 @@ class ModelBasedIC3 : public Prover
   ProverResult check_until(int k) override;
 
  private:
+  /** Perform a IC3 step
+   */
+  ProverResult step(int i);
+  /** Perform the base IC3 step (zero case)
+   */
+  ProverResult step_0();
+
   /** Check if last frame intersects with bad
    *  @return true iff the last frame intersects with bad
    *  post-condition: if true is returned, bad cube added to proof goals

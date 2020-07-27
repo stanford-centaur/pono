@@ -74,41 +74,64 @@ void ModelBasedIC3::initialize()
 
 ProverResult ModelBasedIC3::check_until(int k)
 {
-  // TODO: Figure out if we need this
-  //       shouldn't have to do this special check
-  if (reached_k_ < 1) {
-    solver_->push();
-    solver_->assert_formula(ts_.init());
-    solver_->assert_formula(bad_);
-    Result r = solver_->check_sat();
-    if (r.is_sat()) {
+  for (int i = 0; i <= k; ++i) {
+    ProverResult r = step(i);
+    if (r != ProverResult::UNKNOWN) {
+      return r;
+    }
+  }
+
+  return ProverResult::UNKNOWN;
+}
+
+ProverResult ModelBasedIC3::step(int i)
+{
+  if (i <= reached_k_) {
+    return ProverResult::UNKNOWN;
+  }
+
+  if (reached_k_ < 0) {
+    return step_0();
+  }
+
+  assert(reached_k_ == frames_.size());
+  // blocking phase
+  while (intersects_bad()) {
+    assert(!proof_goals_.empty());
+    if (!block_all()) {
+      // counter-example
       return ProverResult::FALSE;
-    } else {
-      assert(r.is_unsat());
-      reached_k_ = 1;  // keep reached_k_ aligned with number of frames
-    }
-    solver_->pop();
-  }
-
-  while (reached_k_ <= k) {
-    assert(reached_k_ == frames_.size());
-    // blocking phase
-    while (intersects_bad()) {
-      assert(!proof_goals_.empty());
-      if (!block_all()) {
-        // counter-example
-        return ProverResult::FALSE;
-      }
-    }
-
-    // propagation phase
-    push_frame();
-    for (size_t i = 1; i < frames_.size() - 1; ++i) {
-      if (propagate(i)) {
-        return ProverResult::TRUE;
-      }
     }
   }
+
+  // propagation phase
+  push_frame();
+  for (size_t j = 1; j < frames_.size() - 1; ++j) {
+    if (propagate(j)) {
+      return ProverResult::TRUE;
+    }
+  }
+
+  ++reached_k_;
+
+  return ProverResult::UNKNOWN;
+}
+
+ProverResult ModelBasedIC3::step_0()
+{
+  assert(reached_k_ < 0);
+
+  solver_->push();
+  solver_->assert_formula(ts_.init());
+  solver_->assert_formula(bad_);
+  Result r = solver_->check_sat();
+  if (r.is_sat()) {
+    return ProverResult::FALSE;
+  } else {
+    assert(r.is_unsat());
+    reached_k_ = 0;  // keep reached_k_ aligned with number of frames
+  }
+  solver_->pop();
 
   return ProverResult::UNKNOWN;
 }
