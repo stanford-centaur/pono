@@ -139,10 +139,12 @@ bool InterpolantMC::step(int i)
   while (got_interpolant) {
     Term int_R = to_interpolator_.transfer_term(R);
     Term int_Ri;
-    got_interpolant = interpolator_->get_interpolant(
+    Result r = interpolator_->get_interpolant(
         interpolator_->make_term(And, int_R, int_transA),
         interpolator_->make_term(And, int_transB, int_bad),
         int_Ri);
+
+    got_interpolant = r.is_unsat();
 
     if (got_interpolant) {
       Ri = to_solver_.transfer_term(int_Ri);
@@ -173,6 +175,11 @@ bool InterpolantMC::step(int i)
         throw PonoException("Internal error: Expecting satisfiable result");
       }
       return false;
+    }
+    else if (r.is_unknown())
+    {
+      // TODO: figure out if makes sense to increase bound and try again
+      throw PonoException("Interpolant generation failed.");
     }
   }
 
