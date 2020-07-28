@@ -96,6 +96,7 @@ class ModelBasedIC3 : public Prover
 
  private:
   /** Perform a IC3 step
+   *  @param i
    */
   ProverResult step(int i);
   /** Perform the base IC3 step (zero case)
@@ -107,7 +108,8 @@ class ModelBasedIC3 : public Prover
    *  post-condition: if true is returned, bad cube added to proof goals
    */
   bool intersects_bad();
-  /** Checks if the cube c is reachable from the frame i
+  /** Get the predecessor of a cube c in frame i
+   *  aka see if c is reachable from frame i-1
    *  @requires c -> F[i]
    *  @param i the frame number
    *  @param t the term to check
@@ -122,7 +124,10 @@ class ModelBasedIC3 : public Prover
    */
   bool has_proof_goals() const { return !proof_goals_.empty(); };
   /** Gets a new proof goal (and removes it from proof_goals_)
+   *  @requires has_proof_goals()
    *  @return a proof goal with the lowest available frame number
+   *  @alters proof_goals_
+   *  @ensures returned proof goal is from lowest frame in proof goals
    */
   ProofGoal get_next_proof_goal();
   /** Attempt to block all proof goals
@@ -138,8 +143,8 @@ class ModelBasedIC3 : public Prover
    * added to the proof goals
    */
   bool block(const ProofGoal & pg);
-  /** Try propagating all clauses from 'i'th frame to the next frame.
-   *  @param i the frame to propagate
+  /** Try propagating all clauses from frame index i to the next frame.
+   *  @param i the frame index to propagate
    *  @return true iff all the clauses are propagated (this means property was
    * proven)
    */

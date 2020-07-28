@@ -1,4 +1,4 @@
-/*********************                                                  */
+/*********************                                         */
 /*! \file mbic3.cpp
 ** \verbatim
 ** Top contributors (to current version):
@@ -94,7 +94,10 @@ ProverResult ModelBasedIC3::step(int i)
     return step_0();
   }
 
-  assert(reached_k_ == frames_.size());
+  // reached_k_ is the number of transitions that have been checked
+  // at this point there are reached_k_ + 1 frames that don't
+  // intersect bad, and reached_k_ + 2 frames overall
+  assert(reached_k_ + 2 == frames_.size());
   // blocking phase
   while (intersects_bad()) {
     assert(!proof_goals_.empty());
@@ -140,8 +143,8 @@ bool ModelBasedIC3::intersects_bad()
 {
   solver_->push();
 
-  // assert the frame (conjunction over clauses)
-  assert_frame(reached_k_);
+  // assert the last frame (conjunction over clauses)
+  assert_frame(reached_k_ + 1);
 
   // see if it intersects with bad
   solver_->assert_formula(bad_);
@@ -237,6 +240,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   if (!get_predecessor(i, c, pred)) {
     // can block this cube
     Term gen_blocking_term = inductive_generalization(i, c);
+    assert(!is_initial(gen_blocking_term));
     frames_[i].push_back(gen_blocking_term);
     return true;
   } else {
