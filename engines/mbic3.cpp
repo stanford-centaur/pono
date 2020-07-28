@@ -245,7 +245,6 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   if (!get_predecessor(i, c, pred)) {
     // can block this cube
     Term gen_blocking_term = inductive_generalization(i, c);
-    assert(!intersects_initial(gen_blocking_term));
     frames_[i].push_back(gen_blocking_term);
     return true;
   } else {
@@ -313,9 +312,12 @@ void ModelBasedIC3::push_frame()
 
 Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c) const
 {
-  // TODO: implement this
-  // For now, just a NOP stub.
-  return c.term_;
+  // TODO: implement generalization
+  // For now, just getting a blocking clause with no generalization
+
+  // TODO: keep in mind that you cannot drop a literal if it causes c to intersect with the initial states
+  assert(!intersects_initial(c.term_));
+  return solver_->make_term(Not, c.term_);
 }
 
 Clause ModelBasedIC3::down(size_t i, const Clause & c) const
