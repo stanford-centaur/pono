@@ -161,7 +161,7 @@ bool ModelBasedIC3::intersects_bad()
       cube_vec.push_back(eq);
     }
     Cube c(solver_, cube_vec);
-    proof_goals_[reached_k_].push_back(c);
+    proof_goals_[reached_k_+1].push_back(c);
   }
 
   solver_->pop();
@@ -201,8 +201,13 @@ ProofGoal ModelBasedIC3::get_next_proof_goal()
   assert(has_proof_goals());
   size_t i = proof_goals_.begin()->first;
   ProofGoal pg(proof_goals_.at(i).back(), i);
-  // need to remove the proof goal
+  // need to remove the proof goal and the map
+  // entry if there are no more cubes in the vector
   proof_goals_.at(i).pop_back();
+  if (proof_goals_.at(i).empty())
+  {
+    proof_goals_.erase(i);
+  }
   return pg;
 }
 
