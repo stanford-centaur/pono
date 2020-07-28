@@ -217,7 +217,7 @@ bool ModelBasedIC3::block_all()
     ProofGoal pg = get_next_proof_goal();
     // block can fail, which just means a
     // new proof goal will be added
-    if (!pg.second && !block(pg)) {
+    if (!block(pg) && !pg.second) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
       return false;
