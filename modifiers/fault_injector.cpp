@@ -26,6 +26,9 @@ namespace pono {
 
 void FaultInjector::do_fault_injection()
 {
+  // populate member variables for fault values
+  create_fault_vals();
+
   const UnorderedTermMap & state_updates = fts_.state_updates();
   SmtSolver & solver = faulty_fts_.solver();
 
@@ -51,14 +54,23 @@ void FaultInjector::do_fault_injection()
     faulty_fts_.assign_next(faultsig,
                             solver->make_term(Or, faultsig, faultsel));
 
-    faultval =
-        faulty_fts_.make_inputvar("faultval_" + s->to_string(), s->get_sort());
-    state2faultval_[s] = faultval;
-    faultval2state_[faultval] = s;
-
+    faultval = state2faultval_.at(s);
     faulty_fts_.assign_next(
         s, solver->make_term(Ite, faultsig, faultval, elem.second));
     fault_sigs_.push_back(faultsig);
+  }
+}
+
+void FaultInjector::create_fault_vals()
+{
+  Term faultval;
+  Term st;
+  for (auto elem : fts_.state_updates()) {
+    st = elem.first;
+    faultval = faulty_fts_.make_inputvar("faultval_" + st->to_string(),
+                                         st->get_sort());
+    state2faultval_[st] = faultval;
+    faultval2state_[faultval] = st;
   }
 }
 

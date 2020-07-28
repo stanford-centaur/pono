@@ -36,6 +36,8 @@ class FaultInjector
     do_fault_injection();
   };
 
+  virtual ~FaultInjector(){};
+
   FunctionalTransitionSystem faulty_transition_system() const
   {
     return faulty_fts_;
@@ -44,7 +46,12 @@ class FaultInjector
   smt::TermVec fault_sigs() const { return fault_sigs_; };
 
  protected:
-  void do_fault_injection();
+  virtual void do_fault_injection();
+
+  /** Creates the values that will be used in case of a fault
+   *  Side effect: populates state2faultval_ and faultval2state_
+   */
+  virtual void create_fault_vals();
 
   TransitionSystem & fts_;
   FunctionalTransitionSystem faulty_fts_;
