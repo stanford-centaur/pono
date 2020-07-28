@@ -174,11 +174,11 @@ class ModelBasedIC3 : public Prover
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
   Cube generalize_predecessor(size_t i, const Cube & c) const;
-  /** Check if the cube intersects with the initial states
-   *  @param c the cube to check
-   *  @return true iff the cube intersects with the initial states
+  /** Check if the term intersects with the initial states
+   *  @param t the term to check
+   *  @return true iff t intersects with the initial states
    */
-  bool is_initial(const Cube & c) const;
+  bool intersects_initial(const smt::Term & t) const;
   /** Add all the terms at Frame i
    *  Note: the frames_ data structure keeps terms only in the
    *  highest frame where they are known to hold

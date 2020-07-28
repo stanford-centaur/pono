@@ -240,7 +240,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   if (!get_predecessor(i, c, pred)) {
     // can block this cube
     Term gen_blocking_term = inductive_generalization(i, c);
-    assert(!is_initial(gen_blocking_term));
+    assert(!intersects_initial(gen_blocking_term));
     frames_[i].push_back(gen_blocking_term);
     return true;
   } else {
@@ -332,10 +332,10 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c) const
   return Cube(solver_, cube_lits);
 }
 
-bool ModelBasedIC3::is_initial(const Cube & c) const
+bool ModelBasedIC3::intersects_initial(const Term & t) const
 {
   solver_->push();
-  solver_->assert_formula(c.term_);
+  solver_->assert_formula(t);
   solver_->assert_formula(ts_.init());
   Result r = solver_->check_sat();
   solver_->pop();
