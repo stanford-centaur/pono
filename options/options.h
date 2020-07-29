@@ -53,7 +53,9 @@ class PonoOptions
         prop_idx_(default_prop_idx_),
         bound_(default_bound_),
         verbosity_(default_verbosity_),
-        no_witness_(default_no_witness_)
+        no_witness_(default_no_witness_),
+        ic3_cexgen_(default_ic3_cexgen_),
+        ic3_indgen_(default_ic3_indgen_)
   {
   }
 
@@ -72,6 +74,10 @@ class PonoOptions
   std::string vcd_name_;
   std::string filename_;
 
+  // ic3 options
+  bool ic3_cexgen_;  ///< generalize counterexamples in IC3
+  bool ic3_indgen_;  ///< inductive generalization in IC3
+
  private:
   // Default options
   static const Engine default_engine_ = BMC;
@@ -79,6 +85,8 @@ class PonoOptions
   static const unsigned int default_bound_ = 10;
   static const unsigned int default_verbosity_ = 0;
   static const bool default_no_witness_ = false;
+  static const bool default_ic3_cexgen_ = true;
+  static const bool default_ic3_indgen_ = true;
 };
 
 }  // namespace pono
