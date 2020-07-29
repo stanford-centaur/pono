@@ -20,28 +20,6 @@ using namespace std;
 
 namespace pono {
 
-// helpers
-
-static Cube negate(const SmtSolver & slv, const Clause & c)
-{
-  TermVec cube_lits;
-  cube_lits.reserve(c.lits_.size());
-  for (auto l : c.lits_) {
-    cube_lits.push_back(slv->make_term(Not, l));
-  }
-  return Cube(slv, cube_lits);
-}
-
-static Clause negate(const SmtSolver & slv, const Cube & c)
-{
-  TermVec clause_lits;
-  clause_lits.reserve(c.lits_.size());
-  for (auto l : c.lits_) {
-    clause_lits.push_back(slv->make_term(Not, l));
-  }
-  return Clause(slv, clause_lits);
-}
-
 ModelBasedIC3::ModelBasedIC3(const Property & p, smt::SmtSolver & slv)
     : super(p, slv),
       true_(solver_->make_term(true)),
