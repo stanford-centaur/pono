@@ -13,7 +13,8 @@
 **        transition system (exploiting this structure for
 **        predecessor computation) and uses models.
 **/
-#include "mbic3.h"
+#include "engines/mbic3.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -76,6 +77,7 @@ ProverResult ModelBasedIC3::step(int i)
   // at this point there are reached_k_ + 1 frames that don't
   // intersect bad, and reached_k_ + 2 frames overall
   assert(reached_k_ + 2 == frames_.size());
+  logger.log(1, "Blocking phase at frame {}", i);
   // blocking phase
   while (intersects_bad()) {
     assert(!proof_goals_.empty());
@@ -85,6 +87,7 @@ ProverResult ModelBasedIC3::step(int i)
     }
   }
 
+  logger.log(1, "Propagation phase at frame {}", i);
   // propagation phase
   push_frame();
   for (size_t j = 1; j < frames_.size() - 1; ++j) {
@@ -100,6 +103,7 @@ ProverResult ModelBasedIC3::step(int i)
 
 ProverResult ModelBasedIC3::step_0()
 {
+  logger.log(1, "Checking if initial states satisfy property");
   assert(reached_k_ < 0);
 
   solver_->push();
@@ -113,7 +117,6 @@ ProverResult ModelBasedIC3::step_0()
     reached_k_ = 0;  // keep reached_k_ aligned with number of frames
   }
   solver_->pop();
-
   return ProverResult::UNKNOWN;
 }
 
@@ -210,6 +213,9 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   const Cube & c = pg.first;
   size_t i = pg.second;
 
+  logger.log(
+      3, "Attempting to block proof goal <{}, {}>", c.term_->to_string(), i);
+
   assert(i < frames_.size());
   assert(i >= 0);
   // TODO: assert c -> frames_[i]
@@ -223,6 +229,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   if (!get_predecessor(i, c, pred)) {
     // can block this cube
     Term gen_blocking_term = inductive_generalization(i, c);
+    logger.log(3, "Blocking term at frame {}: {}", i, c.term_->to_string());
     frames_[i].push_back(gen_blocking_term);
     return true;
   } else {
