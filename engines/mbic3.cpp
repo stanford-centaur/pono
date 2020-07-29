@@ -94,6 +94,15 @@ void ModelBasedIC3::initialize()
   // first frame is always the initial states
   frames_.push_back({ ts_.init() });
   push_frame();
+
+  // check if there are arrays and fail if so
+  for (auto vec : { ts_.statevars(), ts_.inputvars() }) {
+    for (auto st : vec) {
+      if (st->get_sort()->get_sort_kind() == ARRAY) {
+        throw PonoException("ModelBasedIC3 does not support arrays yet");
+      }
+    }
+  }
 }
 
 ProverResult ModelBasedIC3::check_until(int k)
