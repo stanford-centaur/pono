@@ -351,7 +351,7 @@ bool ModelBasedIC3::intersects_initial(const Term & t) const
 
 void ModelBasedIC3::assert_frame(size_t i) const
 {
-  for (size_t j = i; j <= reached_k_; ++j) {
+  for (size_t j = i; j < frames_.size(); ++j) {
     for (auto c : frames_[j]) {
       solver_->assert_formula(c);
     }
