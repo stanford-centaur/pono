@@ -21,6 +21,51 @@ using namespace std;
 
 namespace pono {
 
+// Clause / Cube implementations
+
+/** Less than comparison of the hash of two terms
+ *  for use in sorting
+ *  @param t0 the first term
+ *  @param t1 the second term
+ *  @return true iff t0's hash is less than t1's hash
+ */
+bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
+{
+  return (t0->hash() < t1->hash());
+}
+
+Clause::Clause(const smt::SmtSolver & solver, const smt::TermVec & lits)
+    : lits_(lits)
+{
+  // sort literals
+  std::sort(lits_.begin(), lits_.end(), term_hash_lt);
+  // shouldn't have an empty clause
+  assert(lits_.size());
+
+  // create term
+  term_ = lits_[0];
+  for (size_t i = 1; i < lits_.size(); ++i) {
+    term_ = solver->make_term(smt::Or, term_, lits_[i]);
+  }
+}
+
+Cube::Cube(const smt::SmtSolver & solver, const smt::TermVec & lits)
+    : lits_(lits)
+{
+  // sort literals
+  std::sort(lits_.begin(), lits_.end(), term_hash_lt);
+  // shouldn't have an empty cube
+  assert(lits_.size());
+
+  // create term
+  term_ = lits_[0];
+  for (size_t i = 1; i < lits_.size(); ++i) {
+    term_ = solver->make_term(smt::And, term_, lits_[i]);
+  }
+}
+
+// main implementations
+
 ModelBasedIC3::ModelBasedIC3(const Property & p, smt::SmtSolver & slv)
     : super(p, slv),
       true_(solver_->make_term(true)),

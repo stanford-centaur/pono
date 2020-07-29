@@ -27,34 +27,10 @@ namespace pono {
 // Both clauses and cubes can be represented as vectors of predicates
 // They are just negations of eachother
 
-/** Less than comparison the hash of two terms
- *  for use in sorting
- *  @param t0 the first term
- *  @param t1 the second term
- *  @return true iff t0's hash is less than t1's hash
- */
-bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
-{
-  return (t0->hash() < t1->hash());
-}
-
 struct Clause
 {
   Clause() {}
-  Clause(const smt::SmtSolver & solver, const smt::TermVec & lits) : lits_(lits)
-  {
-    // sort literals
-    std::sort(lits_.begin(), lits_.end(), term_hash_lt);
-    // shouldn't have an empty clause
-    assert(lits_.size());
-
-    // create term
-    term_ = lits_[0];
-    for (size_t i = 1; i < lits_.size(); ++i) {
-      term_ = solver->make_term(smt::Or, term_, lits_[i]);
-    }
-  }
-
+  Clause(const smt::SmtSolver & solver, const smt::TermVec & lits);
   smt::TermVec lits_;  // list of literals sorted by hash
   smt::Term term_;     // term representation of literals as disjunction
 };
@@ -62,19 +38,7 @@ struct Clause
 struct Cube
 {
   Cube() {}
-  Cube(const smt::SmtSolver & solver, const smt::TermVec & lits) : lits_(lits)
-  {
-    // sort literals
-    std::sort(lits_.begin(), lits_.end(), term_hash_lt);
-    // shouldn't have an empty cube
-    assert(lits_.size());
-
-    // create term
-    term_ = lits_[0];
-    for (size_t i = 1; i < lits_.size(); ++i) {
-      term_ = solver->make_term(smt::And, term_, lits_[i]);
-    }
-  }
+  Cube(const smt::SmtSolver & solver, const smt::TermVec & lits);
   smt::TermVec lits_;  // list of literals sorted by hash
   smt::Term term_;     // term representation of literals as conjunction
 };
