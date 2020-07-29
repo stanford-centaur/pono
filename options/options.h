@@ -27,14 +27,16 @@ enum Engine
   BMC = 0,
   BMC_SP,
   KIND,
-  INTERP
+  INTERP,
+  MBIC3
 };
 
 const std::unordered_map<std::string, Engine> str2engine({ { "bmc", BMC },
                                                            { "bmc-sp", BMC_SP },
                                                            { "ind", KIND },
-                                                           { "interp",
-                                                             INTERP } });
+                                                           { "interp", INTERP },
+                                                           { "mbic3",
+                                                             MBIC3 } });
 
 /*************************************** Options class
  * ************************************************/

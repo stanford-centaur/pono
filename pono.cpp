@@ -30,6 +30,7 @@
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
 #include "kinduction.h"
+#include "mbic3.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
@@ -102,7 +103,7 @@ const option::Descriptor usage[] = {
     "engine",
     Arg::NonEmpty,
     "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, "
-    "interp]." },
+    "interp, mbic3]." },
   { BOUND,
     0,
     "k",
@@ -159,6 +160,8 @@ ProverResult check_prop(PonoOptions pono_options,
   } else if (pono_options.engine_ == INTERP) {
     assert(second_solver != NULL);
     prover = std::make_shared<InterpolantMC>(pono_options, p, s, second_solver);
+  } else if (pono_options.engine_ == MBIC3) {
+    prover = std::make_shared<ModelBasedIC3>(pono_options, p, s);
   } else {
     throw PonoException("Unimplemented engine.");
   }

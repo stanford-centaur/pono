@@ -86,7 +86,9 @@ class ModelBasedIC3 : public Prover
  public:
   // TODO: make references const once engine-fresh-solver branch is merged
   ModelBasedIC3(const Property & p, smt::SmtSolver & slv);
-  ModelBasedIC3(const PonoOptions & opt, const Property p, smt::SmtSolver slv);
+  ModelBasedIC3(const PonoOptions & opt,
+                const Property p,
+                smt::SmtSolver & slv);
   virtual ~ModelBasedIC3();
 
   typedef Prover super;

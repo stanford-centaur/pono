@@ -31,7 +31,7 @@ ModelBasedIC3::ModelBasedIC3(const Property & p, smt::SmtSolver & slv)
 
 ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
                              const Property p,
-                             smt::SmtSolver slv)
+                             smt::SmtSolver & slv)
     : super(opt, p, slv),
       true_(solver_->make_term(true)),
       false_(solver_->make_term(false))
