@@ -149,7 +149,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
 
   if (options[HELP] || argc == 0) {
     option::printUsage(cout, usage);
-    return UNKNOWN;
+    // want to exit main at top-level
+    return ERROR;
   }
 
   if (parse.nonOptionsCount() != 1) {
