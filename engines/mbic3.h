@@ -18,8 +18,8 @@
 #include <algorithm>
 #include <map>
 #include <utility>
-#include "assert.h"
 
+#include "assert.h"
 #include "prover.h"
 
 namespace pono {
@@ -154,12 +154,12 @@ class ModelBasedIC3 : public Prover
    */
   void assert_frame(size_t i) const;
 
-  void fix_if_intersects_initial(smt::TermVec &to_keep,
-                                 const smt::TermVec &rem);
+  void fix_if_intersects_initial(smt::TermVec & to_keep,
+                                 const smt::TermVec & rem);
 
-  smt::Term label(const smt::Term &t);
+  smt::Term label(const smt::Term & t);
 
-  smt::Term make_and(const smt::TermVec &vec) const;
+  smt::Term make_and(const smt::TermVec & vec) const;
 
   // Data structures
 

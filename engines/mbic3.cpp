@@ -14,6 +14,7 @@
 **        predecessor computation) and uses models.
 **/
 #include "engines/mbic3.h"
+
 #include "utils/logger.h"
 
 using namespace smt;
@@ -21,7 +22,7 @@ using namespace std;
 
 namespace pono {
 
-static void split_eq(SmtSolver &solver, const TermVec &in, TermVec &out)
+static void split_eq(SmtSolver & solver, const TermVec & in, TermVec & out)
 {
   TermVec args;
   for (auto a : in) {
@@ -33,7 +34,7 @@ static void split_eq(SmtSolver &solver, const TermVec &in, TermVec &out)
 
       Sort s = args[0]->get_sort();
       if (s->get_sort_kind() == SortKind::BOOL) {
-        out.push_back(a);//assert(false);
+        out.push_back(a);  // assert(false);
       } else if (s->get_sort_kind() == SortKind::BV) {
         out.push_back(solver->make_term(BVUle, args[0], args[1]));
         out.push_back(solver->make_term(BVUle, args[1], args[0]));
@@ -222,7 +223,7 @@ bool ModelBasedIC3::intersects_bad()
       cube_vec.push_back(eq);
     }
     Cube c(solver_, cube_vec);
-    proof_goals_[reached_k_+1].push_back(c);
+    proof_goals_[reached_k_ + 1].push_back(c);
   }
 
   solver_->pop();
@@ -231,9 +232,7 @@ bool ModelBasedIC3::intersects_bad()
   return r.is_sat();
 }
 
-bool ModelBasedIC3::get_predecessor(size_t i,
-                                    const Cube & c,
-                                    Cube & out_pred)
+bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_pred)
 {
   solver_->push();
   assert(i > 0);
@@ -268,8 +267,7 @@ ProofGoal ModelBasedIC3::get_next_proof_goal()
   // need to remove the proof goal and the map
   // entry if there are no more cubes in the vector
   proof_goals_.at(i).pop_back();
-  if (proof_goals_.at(i).empty())
-  {
+  if (proof_goals_.at(i).empty()) {
     proof_goals_.erase(i);
   }
   return pg;
@@ -335,7 +333,7 @@ bool ModelBasedIC3::propagate(size_t i)
   solver_->assert_formula(ts_.trans());
 
   for (size_t j = 0; j < Fi.size(); ++j) {
-    Term &t = Fi[j];
+    Term & t = Fi[j];
 
     // Relative inductiveness check
     // Check F[i] /\ t /\ T /\ -t'
@@ -344,7 +342,7 @@ bool ModelBasedIC3::propagate(size_t i)
     solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
 
     Result r = solver_->check_sat();
-    assert(! r.is_unknown());
+    assert(!r.is_unknown());
     if (r.is_unsat()) {
       // mark for removal
       indices_to_remove.insert(j);
@@ -389,7 +387,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
     TermVec lits;
     split_eq(solver_, c.lits_, lits);
 
-    while(lits.size() > 1 && progress) {
+    while (lits.size() > 1 && progress) {
       size_t prev_size = lits.size();
       for (auto a : lits) {
         // check if we can drop a
@@ -403,15 +401,15 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
         Term tmp_and_term = make_and(tmp);
         if (!intersects_initial(tmp_and_term)) {
           solver_->push();
-          assert_frame(i-1);
+          assert_frame(i - 1);
           solver_->assert_formula(ts_.trans());
           solver_->assert_formula(solver_->make_term(Not, tmp_and_term));
 
           bool_assump.clear();
           for (auto t : tmp) {
             Term l = label(t);
-            solver_->assert_formula(solver_->make_term(Implies,
-                                                       l, ts_.next(t)));
+            solver_->assert_formula(
+                solver_->make_term(Implies, l, ts_.next(t)));
             bool_assump.push_back(l);
           }
 
@@ -481,14 +479,13 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
     TermVec input_lits;
     input_lits.reserve(inputvars.size());
     for (auto v : inputvars) {
-      input_lits.push_back(solver_->make_term(Equal,
-                                              v, solver_->get_value(v)));
+      input_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
     }
 
     solver_->pop();
     solver_->push();
     // assert input assignments
-    for (auto &a : input_lits) {
+    for (auto & a : input_lits) {
       solver_->assert_formula(a);
     }
     // assert T
@@ -548,8 +545,8 @@ void ModelBasedIC3::assert_frame(size_t i) const
   }
 }
 
-void ModelBasedIC3::fix_if_intersects_initial(TermVec &to_keep,
-                                              const TermVec &rem)
+void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
+                                              const TermVec & rem)
 {
   if (rem.size() == 0) {
     return;
@@ -578,14 +575,14 @@ void ModelBasedIC3::fix_if_intersects_initial(TermVec &to_keep,
     for (size_t j = 0; j < bool_assump.size(); ++j) {
       if (core_set.find(bool_assump[j]) != core_set.end()) {
         to_keep.push_back(rem[j]);
-      } 
+      }
     }
   }
 
   solver_->pop();
 }
 
-Term ModelBasedIC3::label(const Term &t)
+Term ModelBasedIC3::label(const Term & t)
 {
   auto it = labels_.find(t);
   if (it != labels_.end()) {
@@ -594,14 +591,17 @@ Term ModelBasedIC3::label(const Term &t)
 
   unsigned i = 0;
   Term l;
-  while(true) {
+  while (true) {
     try {
-      l = solver_->make_symbol("assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
-                               solver_->make_sort(BOOL));
+      l = solver_->make_symbol(
+          "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
+          solver_->make_sort(BOOL));
       break;
-    } catch (IncorrectUsageException & e){
+    }
+    catch (IncorrectUsageException & e) {
       ++i;
-    } catch (SmtException & e) {
+    }
+    catch (SmtException & e) {
       throw e;
     }
   }
@@ -610,7 +610,7 @@ Term ModelBasedIC3::label(const Term &t)
   return l;
 }
 
-Term ModelBasedIC3::make_and(const smt::TermVec &vec) const
+Term ModelBasedIC3::make_and(const smt::TermVec & vec) const
 {
   assert(vec.size() > 0);
   Term res = vec[0];
