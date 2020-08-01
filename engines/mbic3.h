@@ -84,7 +84,7 @@ class ModelBasedIC3 : public Prover
    *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
    *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool get_predecessor(size_t i, const Cube & c, Cube & out_pred) const;
+  bool get_predecessor(size_t i, const Cube & c, Cube & out_pred);
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -125,7 +125,7 @@ class ModelBasedIC3 : public Prover
    *  @return a new term P
    *  @ensures P -> !c /\ F[i-1] /\ P /\ T /\ !P' is unsat
    */
-  smt::Term inductive_generalization(size_t i, const Cube & c) const;
+  smt::Term inductive_generalization(size_t i, const Cube & c);
   /** Helper for generalize when using inductive generalization
    *  @param i the frame number
    *  @param c the clause
@@ -139,7 +139,7 @@ class ModelBasedIC3 : public Prover
    *  @return a new cube d
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
-  Cube generalize_predecessor(size_t i, const Cube & c) const;
+  Cube generalize_predecessor(size_t i, const Cube & c);
   /** Check if the term intersects with the initial states
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
@@ -154,6 +154,13 @@ class ModelBasedIC3 : public Prover
    */
   void assert_frame(size_t i) const;
 
+  void fix_if_intersects_initial(smt::TermVec &to_keep,
+                                 const smt::TermVec &rem);
+
+  smt::Term label(const smt::Term &t);
+
+  smt::Term make_and(const smt::TermVec &vec) const;
+
   // Data structures
 
   ///< the frames data structure.
@@ -164,6 +171,8 @@ class ModelBasedIC3 : public Prover
   ///< outstanding proof goals -- kept sorted so lower ones
   ///< can be handled first
   std::map<size_t, std::vector<Cube>> proof_goals_;
+
+  smt::UnorderedTermMap labels_;
 
   // useful terms
   smt::Term true_;

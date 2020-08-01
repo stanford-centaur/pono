@@ -203,6 +203,8 @@ int main(int argc, char ** argv)
           "Note: MathSAT has a custom license and you must assume all "
           "responsibility for meeting the license requirements.");
 #endif
+    } else if (pono_options.engine_ == MBIC3) {
+      s = MsatSolverFactory::create(false);
     } else {
       // boolector is faster but doesn't support interpolants
       s = BoolectorSolverFactory::create(false);

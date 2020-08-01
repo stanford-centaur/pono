@@ -21,6 +21,32 @@ using namespace std;
 
 namespace pono {
 
+static void split_eq(SmtSolver &solver, const TermVec &in, TermVec &out)
+{
+  TermVec args;
+  for (auto a : in) {
+    if (a->get_op().prim_op == PrimOp::Equal) {
+      args.clear();
+      for (auto aa : a) {
+        args.push_back(aa);
+      }
+
+      Sort s = args[0]->get_sort();
+      if (s->get_sort_kind() == SortKind::BOOL) {
+        out.push_back(a);//assert(false);
+      } else if (s->get_sort_kind() == SortKind::BV) {
+        out.push_back(solver->make_term(BVUle, args[0], args[1]));
+        out.push_back(solver->make_term(BVUle, args[1], args[0]));
+      } else {
+        out.push_back(solver->make_term(Le, args[0], args[1]));
+        out.push_back(solver->make_term(Le, args[1], args[0]));
+      }
+    } else {
+      out.push_back(a);
+    }
+  }
+}
+
 // Clause / Cube implementations
 
 /** Less than comparison of the hash of two terms
@@ -207,7 +233,7 @@ bool ModelBasedIC3::intersects_bad()
 
 bool ModelBasedIC3::get_predecessor(size_t i,
                                     const Cube & c,
-                                    Cube & out_pred) const
+                                    Cube & out_pred)
 {
   solver_->push();
   assert(i > 0);
@@ -223,10 +249,13 @@ bool ModelBasedIC3::get_predecessor(size_t i,
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
+    // don't pop now. generalize predecessor needs model values
+    // generalize_predecessor will call solver_->pop();
     out_pred = generalize_predecessor(i, c);
+  } else {
+    solver_->pop();
   }
 
-  solver_->pop();
   assert(!r.is_unknown());
   return r.is_sat();
 }
@@ -284,6 +313,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     // can block this cube
     Term gen_blocking_term = inductive_generalization(i, c);
     logger.log(3, "Blocking term at frame {}: {}", i, c.term_->to_string());
+    logger.log(3, " with {}", gen_blocking_term->to_string());
     frames_[i].push_back(gen_blocking_term);
     return true;
   } else {
@@ -349,14 +379,82 @@ void ModelBasedIC3::push_frame()
   frames_.push_back({});
 }
 
-Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c) const
+Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
 {
-  // TODO: implement generalization
-  // For now, just getting a blocking clause with no generalization
+  Term res_cube = make_and(c.lits_);
 
-  // TODO: keep in mind that you cannot drop a literal if it causes c to intersect with the initial states
-  assert(!intersects_initial(c.term_));
-  return solver_->make_term(Not, c.term_);
+  if (options_.ic3_indgen_) {
+    bool progress = true;
+    TermVec bool_assump, tmp, new_tmp;
+    TermVec lits;
+    split_eq(solver_, c.lits_, lits);
+
+    while(lits.size() > 1 && progress) {
+      size_t prev_size = lits.size();
+      for (auto a : lits) {
+        // check if we can drop a
+        tmp.clear();
+        for (auto aa : lits) {
+          if (a != aa) {
+            tmp.push_back(aa);
+          }
+        }
+
+        Term tmp_and_term = make_and(tmp);
+        if (!intersects_initial(tmp_and_term)) {
+          solver_->push();
+          assert_frame(i-1);
+          solver_->assert_formula(ts_.trans());
+          solver_->assert_formula(solver_->make_term(Not, tmp_and_term));
+
+          bool_assump.clear();
+          for (auto t : tmp) {
+            Term l = label(t);
+            solver_->assert_formula(solver_->make_term(Implies,
+                                                       l, ts_.next(t)));
+            bool_assump.push_back(l);
+          }
+
+          Result r = solver_->check_sat_assuming(bool_assump);
+          assert(!r.is_unknown());
+
+          if (r.is_sat()) {
+            // we cannot drop a
+            solver_->pop();
+          } else {
+            // filter using unsatcore
+            TermVec removed;
+            new_tmp.clear();
+            TermVec core = solver_->get_unsat_core();
+            UnorderedTermSet core_set(core.begin(), core.end());
+            for (size_t j = 0; j < bool_assump.size(); ++j) {
+              if (core_set.find(bool_assump[j]) != core_set.end()) {
+                new_tmp.push_back(tmp[j]);
+              } else {
+                removed.push_back(tmp[j]);
+              }
+            }
+
+            solver_->pop();
+
+            // keep in mind that you cannot drop a literal if it causes c to
+            // intersect with the initial states
+            fix_if_intersects_initial(new_tmp, removed);
+
+            lits = new_tmp;
+            break;
+          }
+        }
+      }
+
+      progress = lits.size() < prev_size;
+    }
+
+    res_cube = make_and(lits);
+  }
+
+  assert(!intersects_initial(res_cube));
+  return solver_->make_term(Not, res_cube);
 }
 
 Clause ModelBasedIC3::down(size_t i, const Clause & c) const
@@ -366,16 +464,69 @@ Clause ModelBasedIC3::down(size_t i, const Clause & c) const
   throw PonoException("Not yet implemented");
 }
 
-Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c) const
+Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
 {
-  // TODO: do actual generalization
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec cube_lits;
   cube_lits.reserve(statevars.size());
-  for (auto sv : statevars) {
-    cube_lits.push_back(solver_->make_term(Equal, sv, solver_->get_value(sv)));
+  for (auto v : statevars) {
+    cube_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
   }
-  return Cube(solver_, cube_lits);
+
+  Cube res = Cube(solver_, cube_lits);
+
+  if (ts_.is_functional() && options_.ic3_cexgen_) {
+    // collect input assignments
+    const UnorderedTermSet & inputvars = ts_.inputvars();
+    TermVec input_lits;
+    input_lits.reserve(inputvars.size());
+    for (auto v : inputvars) {
+      input_lits.push_back(solver_->make_term(Equal,
+                                              v, solver_->get_value(v)));
+    }
+
+    solver_->pop();
+    solver_->push();
+    // assert input assignments
+    for (auto &a : input_lits) {
+      solver_->assert_formula(a);
+    }
+    // assert T
+    solver_->assert_formula(ts_.trans());
+    // assert -c'
+    solver_->assert_formula(solver_->make_term(Not, ts_.next(c.term_)));
+
+    // make and assert assumptions
+    TermVec bool_assump;
+    for (auto a : cube_lits) {
+      unsigned i = 0;
+      Term b = label(a);
+      bool_assump.push_back(b);
+      solver_->assert_formula(solver_->make_term(Implies, b, a));
+    }
+
+    Result r = solver_->check_sat_assuming(bool_assump);
+    assert(r.is_unsat());
+
+    // filter using unsatcore
+    TermVec red_cube_lits;
+    TermVec core = solver_->get_unsat_core();
+    UnorderedTermSet core_set(core.begin(), core.end());
+    for (size_t j = 0; j < bool_assump.size(); ++j) {
+      if (core_set.find(bool_assump[j]) != core_set.end()) {
+        red_cube_lits.push_back(cube_lits[j]);
+      }
+    }
+
+    assert(red_cube_lits.size() > 0);
+    res = Cube(solver_, red_cube_lits);
+  } else {
+    // TODO: write generalize_pred for relational transition systemms
+  }
+
+  solver_->pop();
+
+  return res;
 }
 
 bool ModelBasedIC3::intersects_initial(const Term & t) const
@@ -395,6 +546,78 @@ void ModelBasedIC3::assert_frame(size_t i) const
       solver_->assert_formula(c);
     }
   }
+}
+
+void ModelBasedIC3::fix_if_intersects_initial(TermVec &to_keep,
+                                              const TermVec &rem)
+{
+  if (rem.size() == 0) {
+    return;
+  }
+
+  solver_->push();
+  solver_->assert_formula(ts_.init());
+  for (auto a : to_keep) {
+    solver_->assert_formula(a);
+  }
+
+  Result r = solver_->check_sat();
+  if (r.is_sat()) {
+    TermVec bool_assump;
+    for (auto a : rem) {
+      Term l = label(a);
+      solver_->assert_formula(solver_->make_term(Implies, l, a));
+      bool_assump.push_back(l);
+    }
+
+    r = solver_->check_sat_assuming(bool_assump);
+    assert(r.is_unsat());
+
+    TermVec core = solver_->get_unsat_core();
+    UnorderedTermSet core_set(core.begin(), core.end());
+    for (size_t j = 0; j < bool_assump.size(); ++j) {
+      if (core_set.find(bool_assump[j]) != core_set.end()) {
+        to_keep.push_back(rem[j]);
+      } 
+    }
+  }
+
+  solver_->pop();
+}
+
+Term ModelBasedIC3::label(const Term &t)
+{
+  auto it = labels_.find(t);
+  if (it != labels_.end()) {
+    return labels_.at(t);
+  }
+
+  unsigned i = 0;
+  Term l;
+  while(true) {
+    try {
+      l = solver_->make_symbol("assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
+                               solver_->make_sort(BOOL));
+      break;
+    } catch (IncorrectUsageException & e){
+      ++i;
+    } catch (SmtException & e) {
+      throw e;
+    }
+  }
+
+  labels_[t] = l;
+  return l;
+}
+
+Term ModelBasedIC3::make_and(const smt::TermVec &vec) const
+{
+  assert(vec.size() > 0);
+  Term res = vec[0];
+  for (size_t i = 1; i < vec.size(); ++i) {
+    res = solver_->make_term(And, res, vec[i]);
+  }
+  return res;
 }
 
 }  // namespace pono
