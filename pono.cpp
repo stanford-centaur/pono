@@ -204,7 +204,11 @@ int main(int argc, char ** argv)
           "responsibility for meeting the license requirements.");
 #endif
     } else if (pono_options.engine_ == MBIC3) {
+#ifdef WITH_MSAT
       s = MsatSolverFactory::create(false);
+#else
+      throw PonoException("Model-based IC3 depends on MathSAT currently.");
+#endif
     } else {
       // boolector is faster but doesn't support interpolants
       s = BoolectorSolverFactory::create(false);
