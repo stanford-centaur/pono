@@ -32,12 +32,13 @@ from smt_switch cimport SmtSolver, PrimOp, Op, c_SortKind, SortKind, \
 from enum import Enum
 
 PYCOREIR_AVAILABLE=False
-try:
-    import coreir
-    import ctypes
-    PYCOREIR_AVAILABLE=True
-except:
-    print("Warning: Pono built with CoreIR support but coreir python module not found")
+IF WITH_COREIR == "ON":
+    try:
+        import coreir
+        import ctypes
+        PYCOREIR_AVAILABLE=True
+    except:
+        print("Warning: Pono built with CoreIR support but coreir python module not found")
 
 ctypedef unordered_set[c_Term] c_UnorderedTermSet
 ctypedef const unordered_set[c_Term]* const_UnorderedTermSetPtr

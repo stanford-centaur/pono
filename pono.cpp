@@ -17,7 +17,6 @@
 #include <iostream>
 #include "assert.h"
 
-#include "optionparser.h"
 #include "smt-switch/boolector_factory.h"
 #ifdef WITH_MSAT
 #include "smt-switch/msat_factory.h"
@@ -39,104 +38,6 @@
 using namespace pono;
 using namespace smt;
 using namespace std;
-
-/************************************* Option Handling setup
- * *****************************************/
-// from optionparser-1.7 examples -- example_arg.cc
-enum optionIndex
-{
-  UNKNOWN_OPTION,
-  HELP,
-  ENGINE,
-  BOUND,
-  PROP,
-  VERBOSITY,
-  VCDNAME,
-  NOWITNESS
-};
-
-struct Arg : public option::Arg
-{
-  static void printError(const char * msg1,
-                         const option::Option & opt,
-                         const char * msg2)
-  {
-    fprintf(stderr, "%s", msg1);
-    fwrite(opt.name, opt.namelen, 1, stderr);
-    fprintf(stderr, "%s", msg2);
-  }
-
-  static option::ArgStatus Numeric(const option::Option & option, bool msg)
-  {
-    char * endptr = 0;
-    if (option.arg != 0 && strtol(option.arg, &endptr, 10)) {
-    };
-    if (endptr != option.arg && *endptr == 0) return option::ARG_OK;
-
-    if (msg) printError("Option '", option, "' requires a numeric argument\n");
-    return option::ARG_ILLEGAL;
-  }
-
-  static option::ArgStatus NonEmpty(const option::Option & option, bool msg)
-  {
-    if (option.arg != 0 && option.arg[0] != 0) return option::ARG_OK;
-
-    if (msg)
-      printError("Option '", option, "' requires a non-empty argument\n");
-    return option::ARG_ILLEGAL;
-  }
-};
-
-const option::Descriptor usage[] = {
-  { UNKNOWN_OPTION,
-    0,
-    "",
-    "",
-    Arg::None,
-    "USAGE: pono [options] <btor file>\n\n"
-    "Options:" },
-  { HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit." },
-  { ENGINE,
-    0,
-    "e",
-    "engine",
-    Arg::NonEmpty,
-    "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, "
-    "interp]." },
-  { BOUND,
-    0,
-    "k",
-    "bound",
-    Arg::Numeric,
-    "  --bound, -k \tBound to check up until (default: 10)." },
-  { PROP,
-    0,
-    "p",
-    "prop",
-    Arg::Numeric,
-    "  --prop, -p \tProperty index to check (default: 0)." },
-  { VERBOSITY,
-    0,
-    "v",
-    "verbosity",
-    Arg::Numeric,
-    "  --verbosity, -v \tVerbosity for printing to standard out." },
-  { VCDNAME,
-    0,
-    "",
-    "vcd",
-    Arg::NonEmpty,
-    "  --vcd \tName of Value Change Dump (VCD) if witness exists." },
-  { NOWITNESS,
-    0,
-    "",
-    "no-witness",
-    Arg::None,
-    "  --no-witness \tDisable printing of witness." },
-  { 0, 0, 0, 0, 0, 0 }
-};
-/*********************************** end Option Handling setup
- * ***************************************/
 
 ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
