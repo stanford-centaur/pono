@@ -74,7 +74,20 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
   ASSERT_EQ(r, FALSE);
 }
 
+// TODO: Test over all solvers once boolector's unsat core is fixed
+
+vector<SolverEnum> get_solver_enums()
+{
+  vector<SolverEnum> solver_enums;
+  for (auto se : available_solver_enums()) {
+    if (se != BTOR) {
+      solver_enums.push_back(se);
+    }
+  }
+  return solver_enums;
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3UnitTests,
                          IC3UnitTests,
-                         testing::ValuesIn(available_solver_enums()));
+                         testing::ValuesIn(get_solver_enums()));
 }  // namespace pono_tests
