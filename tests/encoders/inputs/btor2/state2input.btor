@@ -1,0 +1,13 @@
+1 sort bitvec 4
+2 input 1 in
+3 const 1 0001
+4 state 1 state2input
+5 const 1 0000
+6 state 1 actualstate
+7 add 1 6 3
+8 next 1 6 7
+9 sort bitvec 1
+10 eq 9 4 6
+11 bad 10
+12 init 1 4 3
+13 init 1 6 5

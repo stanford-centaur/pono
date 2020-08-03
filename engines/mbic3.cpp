@@ -93,7 +93,15 @@ Cube::Cube(const smt::SmtSolver & solver, const smt::TermVec & lits)
 
 // main implementations
 
-ModelBasedIC3::ModelBasedIC3(const Property & p, smt::SmtSolver & slv)
+ModelBasedIC3::ModelBasedIC3(const Property & p, SolverEnum se)
+    : super(p, se),
+      true_(solver_->make_term(true)),
+      false_(solver_->make_term(false))
+{
+  initialize();
+}
+
+ModelBasedIC3::ModelBasedIC3(const Property & p, const SmtSolver & slv)
     : super(p, slv),
       true_(solver_->make_term(true)),
       false_(solver_->make_term(false))
@@ -102,8 +110,18 @@ ModelBasedIC3::ModelBasedIC3(const Property & p, smt::SmtSolver & slv)
 }
 
 ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
-                             const Property p,
-                             smt::SmtSolver & slv)
+                             const Property & p,
+                             const SolverEnum se)
+    : super(opt, p, se),
+      true_(solver_->make_term(true)),
+      false_(solver_->make_term(false))
+{
+  initialize();
+}
+
+ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
+                             const Property & p,
+                             const SmtSolver & slv)
     : super(opt, p, slv),
       true_(solver_->make_term(true)),
       false_(solver_->make_term(false))

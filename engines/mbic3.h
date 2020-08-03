@@ -48,11 +48,14 @@ using ProofGoal = std::pair<Cube, size_t>;
 class ModelBasedIC3 : public Prover
 {
  public:
-  // TODO: make references const once engine-fresh-solver branch is merged
-  ModelBasedIC3(const Property & p, smt::SmtSolver & slv);
+  ModelBasedIC3(const Property & p, smt::SolverEnum se);
+  ModelBasedIC3(const Property & p, const smt::SmtSolver & slv);
   ModelBasedIC3(const PonoOptions & opt,
-                const Property p,
-                smt::SmtSolver & slv);
+                const Property & p,
+                smt::SolverEnum se);
+  ModelBasedIC3(const PonoOptions & opt,
+                const Property & p,
+                const smt::SmtSolver & slv);
   virtual ~ModelBasedIC3();
 
   typedef Prover super;

@@ -20,9 +20,10 @@ class IC3UnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = available_solvers().at(GetParam())(false);
+    s = create_solver(GetParam());
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
+    s->set_opt("produce-unsat-cores", "true");
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
   }
@@ -80,7 +81,7 @@ vector<SolverEnum> get_solver_enums()
 {
   vector<SolverEnum> solver_enums;
   for (auto se : available_solver_enums()) {
-    if (se != BTOR) {
+    if (se != BTOR && se != BTOR_LOGGING) {
       solver_enums.push_back(se);
     }
   }

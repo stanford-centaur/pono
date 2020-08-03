@@ -34,6 +34,16 @@ Property::Property(const TransitionSystem & ts, const Term & p)
   }
 }
 
+Property::Property(const Property & prop, TermTranslator & tt)
+    : ts_(prop.ts_, tt),
+      // only need to transfer if solvers are different
+      // ts_ constructor does the same thing internally
+      prop_((prop.transition_system().solver() == tt.get_solver())
+                ? prop.prop_
+                : tt.transfer_term(prop.prop_))
+{
+}
+
 Property::~Property() {}
 
 }  // namespace pono

@@ -21,7 +21,12 @@ using namespace smt;
 
 namespace pono {
 
-KInduction::KInduction(const Property & p, SmtSolver & solver)
+KInduction::KInduction(const Property & p, SolverEnum se) : super(p, se)
+{
+  initialize();
+}
+
+KInduction::KInduction(const Property & p, const SmtSolver & solver)
     : super(p, solver)
 {
   initialize();
@@ -29,7 +34,15 @@ KInduction::KInduction(const Property & p, SmtSolver & solver)
 
 KInduction::KInduction(const PonoOptions & opt,
                        const Property & p,
-                       smt::SmtSolver & solver)
+                       SolverEnum se)
+    : super(opt, p, se)
+{
+  initialize();
+}
+
+KInduction::KInduction(const PonoOptions & opt,
+                       const Property & p,
+                       const smt::SmtSolver & solver)
     : super(opt, p, solver)
 {
   initialize();

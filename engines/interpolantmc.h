@@ -26,11 +26,17 @@ class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
-  InterpolantMC(const Property & p, smt::SmtSolver & slv, smt::SmtSolver & itp);
+  InterpolantMC(const Property & p, smt::SolverEnum se);
+  InterpolantMC(const Property & p,
+                const smt::SmtSolver & slv,
+                const smt::SmtSolver & itp);
   InterpolantMC(const PonoOptions & opt,
                 const Property & p,
-                smt::SmtSolver & slv,
-                smt::SmtSolver & itp);
+                smt::SolverEnum se);
+  InterpolantMC(const PonoOptions & opt,
+                const Property & p,
+                const smt::SmtSolver & slv,
+                const smt::SmtSolver & itp);
   ~InterpolantMC();
 
   typedef Prover super;
@@ -47,7 +53,7 @@ class InterpolantMC : public Prover
 
   bool check_entail(const smt::Term & p, const smt::Term & q);
 
-  smt::SmtSolver & interpolator_;
+  smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
   smt::TermTranslator to_interpolator_;
   // for translating terms to solver_

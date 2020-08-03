@@ -21,12 +21,25 @@ using namespace smt;
 
 namespace pono {
 
-Bmc::Bmc(const Property & p, SmtSolver & solver) : super(p, solver)
+Bmc::Bmc(const Property & p, smt::SolverEnum se) : super(p, se)
 {
   initialize();
 }
 
-Bmc::Bmc(const PonoOptions & opt, const Property & p, smt::SmtSolver & solver)
+Bmc::Bmc(const Property & p, const SmtSolver & solver) : super(p, solver)
+{
+  initialize();
+}
+
+Bmc::Bmc(const PonoOptions & opt, const Property & p, smt::SolverEnum se)
+    : super(opt, p, se)
+{
+  initialize();
+}
+
+Bmc::Bmc(const PonoOptions & opt,
+         const Property & p,
+         const smt::SmtSolver & solver)
     : super(opt, p, solver)
 {
   initialize();

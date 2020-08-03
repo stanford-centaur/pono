@@ -23,10 +23,14 @@ namespace pono {
 class BmcSimplePath : public KInduction
 {
  public:
-  BmcSimplePath(const Property & p, smt::SmtSolver & solver);
+  BmcSimplePath(const Property & p, smt::SolverEnum se);
+  BmcSimplePath(const Property & p, const smt::SmtSolver & solver);
   BmcSimplePath(const PonoOptions & opt,
                 const Property & p,
-                smt::SmtSolver & solver);
+                smt::SolverEnum se);
+  BmcSimplePath(const PonoOptions & opt,
+                const Property & p,
+                const smt::SmtSolver & solver);
   ~BmcSimplePath();
 
   typedef KInduction super;
