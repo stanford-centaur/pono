@@ -428,7 +428,9 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
     TermVec lits;
     split_eq(solver_, c.lits_, lits);
 
-    while (lits.size() > 1 && progress) {
+    int iter = 0;
+    // max 2 iterations
+    while (++iter <= 2 && lits.size() > 1 && progress) {
       size_t prev_size = lits.size();
       for (auto a : lits) {
         // check if we can drop a
