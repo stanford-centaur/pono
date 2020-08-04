@@ -261,16 +261,38 @@ bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_pred)
   solver_->assert_formula(solver_->make_term(Not, c.term_));
   // Trans
   solver_->assert_formula(ts_.trans());
-  // c'
-  solver_->assert_formula(ts_.next(c.term_));
 
-  Result r = solver_->check_sat();
+  // c'
+  TermVec bool_assump;
+  for (auto a : c.lits_) {
+    unsigned i = 0;
+    Term b = label(a);
+    bool_assump.push_back(b);
+    solver_->assert_formula(solver_->make_term(Implies, b, ts_.next(a)));
+  }
+
+  Result r = solver_->check_sat_assuming(bool_assump);
   if (r.is_sat()) {
     // don't pop now. generalize predecessor needs model values
     // generalize_predecessor will call solver_->pop();
     out_pred = generalize_predecessor(i, c);
   } else {
+    // filter using unsatcore
+    TermVec red_lits, rem;
+    TermVec core = solver_->get_unsat_core();
+    UnorderedTermSet core_set(core.begin(), core.end());
+    for (size_t j = 0; j < bool_assump.size(); ++j) {
+      if (core_set.find(bool_assump[j]) != core_set.end()) {
+        red_lits.push_back(c.lits_[j]);
+      } else {
+        rem.push_back(c.lits_[j]);
+      }
+    }
+
     solver_->pop();
+
+    fix_if_intersects_initial(red_lits, rem);
+    out_pred = Cube(solver_, red_lits);
   }
 
   assert(!r.is_unknown());
@@ -324,10 +346,11 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     return false;
   }
 
-  Cube pred;  // populated by get_predecessor if returns false
+  Cube pred;  // populated by get_predecessor
   if (!get_predecessor(i, c, pred)) {
     // can block this cube
-    Term gen_blocking_term = inductive_generalization(i, c);
+    Term gen_blocking_term = inductive_generalization(i, pred);
+    //pred is a subset of c
     logger.log(3, "Blocking term at frame {}: {}", i, c.term_->to_string());
     logger.log(3, " with {}", gen_blocking_term->to_string());
     frames_[i].push_back(gen_blocking_term);
