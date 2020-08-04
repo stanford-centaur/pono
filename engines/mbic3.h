@@ -156,6 +156,7 @@ class ModelBasedIC3 : public Prover
    *  @param i the frame number
    */
   void assert_frame(size_t i) const;
+  smt::Term get_frame(size_t i) const;
 
   void fix_if_intersects_initial(smt::TermVec & to_keep,
                                  const smt::TermVec & rem);

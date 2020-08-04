@@ -240,7 +240,39 @@ bool ModelBasedIC3::intersects_bad()
       eq = solver_->make_term(Equal, sv, solver_->get_value(sv));
       cube_vec.push_back(eq);
     }
-    Cube c(solver_, cube_vec);
+
+    // reduce the bad cube
+    solver_->pop();
+    solver_->push();
+
+    Term neg_assert =
+      solver_->make_term(Not, solver_->make_term(And, bad_,
+                                                 get_frame(reached_k_ + 1)));
+    solver_->assert_formula(neg_assert);
+
+    TermVec splits;
+    split_eq(solver_, cube_vec, splits);
+
+    TermVec bool_assump;
+    for (auto a : splits) {
+      unsigned i = 0;
+      Term b = label(a);
+      bool_assump.push_back(b);
+      solver_->assert_formula(solver_->make_term(Implies, b, a));
+    }
+
+    Result rr = solver_->check_sat_assuming(bool_assump);
+    assert(rr.is_unsat());
+    TermVec core = solver_->get_unsat_core();
+    UnorderedTermSet core_set(core.begin(), core.end());
+    TermVec red_lits;
+    for (size_t j = 0; j < bool_assump.size(); ++j) {
+      if (core_set.find(bool_assump[j]) != core_set.end()) {
+        red_lits.push_back(splits[j]);
+      }
+    }
+
+    Cube c(solver_, red_lits);
     proof_goals_[reached_k_ + 1].push_back(c);
   }
 
@@ -590,11 +622,18 @@ bool ModelBasedIC3::intersects_initial(const Term & t) const
 
 void ModelBasedIC3::assert_frame(size_t i) const
 {
+  solver_->assert_formula(get_frame(i));
+}
+
+Term ModelBasedIC3::get_frame(size_t i) const
+{
+  Term res = true_;
   for (size_t j = i; j < frames_.size(); ++j) {
     for (auto c : frames_[j]) {
-      solver_->assert_formula(c);
+      res = solver_->make_term(And, res, c);
     }
   }
+  return res;
 }
 
 void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
