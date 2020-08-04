@@ -425,6 +425,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
   if (options_.ic3_indgen_) {
     bool progress = true;
     TermVec bool_assump, tmp, new_tmp;
+    UnorderedTermSet keep;
     TermVec lits;
     split_eq(solver_, c.lits_, lits);
 
@@ -434,6 +435,9 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
       size_t prev_size = lits.size();
       for (auto a : lits) {
         // check if we can drop a
+        if (keep.find(a) != keep.end()) {
+          continue;
+        }
         tmp.clear();
         for (auto aa : lits) {
           if (a != aa) {
@@ -480,10 +484,15 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
 
             // keep in mind that you cannot drop a literal if it causes c to
             // intersect with the initial states
+            size_t size = new_tmp.size();
             fix_if_intersects_initial(new_tmp, removed);
+            // remember the literals which cannot be dropped
+            for (size_t i = size; i < new_tmp.size(); ++i) {
+              keep.insert(new_tmp[i]);
+            }
 
             lits = new_tmp;
-            break;
+            break; // next iteration
           }
         }
       }
