@@ -182,7 +182,7 @@ void TransitionSystem::name_term(const string name, const Term & t)
 Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
-  inputvars_.insert(input);
+  add_inputvar(input);
   return input;
 }
 
@@ -190,10 +190,7 @@ Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
   Term state = solver_->make_symbol(name, sort);
   Term next_state = solver_->make_symbol(name + ".next", sort);
-  statevars_.insert(state);
-  next_statevars_.insert(next_state);
-  next_map_[state] = next_state;
-  curr_map_[next_state] = state;
+  add_statevar(state, next_state);
   return state;
 }
 
@@ -305,6 +302,16 @@ Term TransitionSystem::make_term(const Op op, const TermVec & terms)
 }
 
 // protected methods
+
+void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
+{
+  statevars_.insert(cv);
+  next_statevars_.insert(nv);
+  next_map_[cv] = nv;
+  curr_map_[nv] = cv;
+}
+
+void TransitionSystem::add_inputvar(const Term & v) { inputvars_.insert(v); }
 
 bool TransitionSystem::contains(const Term & term,
                                 UnorderedTermSetPtrVec term_sets) const

@@ -26,8 +26,14 @@
 
 namespace pono {
 
+// forward declarations for friends
+class ArrayAbstractor;
+
 class TransitionSystem
 {
+  friend ArrayAbstractor;  // Abstractors need access to TransitionSystem
+                           // internals
+
  public:
   /** use CVC4 by default (doesn't require logging so pass false)
    *  it supports the most theories and doesn't rewrite-on-the-fly or alias
@@ -380,6 +386,17 @@ class TransitionSystem
   typedef std::vector<const smt::UnorderedTermSet *> UnorderedTermSetPtrVec;
 
   // helpers and checkers
+
+  /** Adds a state variable
+   *  @param cv the current state variable
+   *  @param nv the next state variable
+   */
+  void add_statevar(const smt::Term & cv, const smt::Term & nv);
+
+  /** Adds an input variable
+   *  @param v the input variable
+   */
+  void add_inputvar(const smt::Term & v);
 
   /** Returns true iff all symbols in term are present in at least one of the
    * term sets
