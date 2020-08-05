@@ -1,4 +1,4 @@
-/*********************                                                        */
+/*********************                                                  */
 /*! \file abstractor.h
 ** \verbatim
 ** Top contributors (to current version):
@@ -13,6 +13,7 @@
 **        create an abstract version of a transition system
 **
 **/
+#pragma once
 
 #include "core/fts.h"
 #include "core/rts.h"
@@ -31,6 +32,8 @@ class Abstractor
     }
     do_abstraction();
   }
+
+  virtual ~Abstractor() {}
 
   /** Returns the abstraction of a concrete term
    *  @param the concrete term to abstract
