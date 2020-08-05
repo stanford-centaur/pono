@@ -578,8 +578,9 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
     solver_->assert_formula(solver_->make_term(Not, ts_.next(c.term_)));
 
     // make and assert assumptions
-    TermVec bool_assump;
-    for (auto a : cube_lits) {
+    TermVec bool_assump, splits;
+    split_eq(solver_, cube_lits, splits);
+    for (auto a : splits) {
       unsigned i = 0;
       Term b = label(a);
       bool_assump.push_back(b);
@@ -595,7 +596,7 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
     UnorderedTermSet core_set(core.begin(), core.end());
     for (size_t j = 0; j < bool_assump.size(); ++j) {
       if (core_set.find(bool_assump[j]) != core_set.end()) {
-        red_cube_lits.push_back(cube_lits[j]);
+        red_cube_lits.push_back(splits[j]);
       }
     }
 
