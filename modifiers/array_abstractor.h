@@ -31,6 +31,23 @@ class ArrayAbstractor : public Abstractor
   smt::Term abstract(const smt::Term & t) const override;
   smt::Term concrete(const smt::Term & t) const override;
 
+  /** Looks up a read UF for an abstract array sort
+   *  @param sort the abstract array sort
+   *  @return the corresponding read UF term
+   */
+  smt::Term get_read_uf(const smt::Sort & sort) const;
+  /** Looks up a write UF for an abstract array sort
+   *  @param sort the abstract array sort
+   *  @return the corresponding write UF term
+   */
+  smt::Term get_write_uf(const smt::Sort & sort) const;
+  /** Looks up a array equality UF for an abstract array sort
+   *  @param sort the abstract array sort
+   *  @return the corresponding array equality UF term
+   *  NOTE: only valid if abstract_array_equality_ is true
+   */
+  smt::Term get_arrayeq_uf(const smt::Sort & sort) const;
+
  protected:
   void do_abstraction() override;
 
@@ -79,7 +96,7 @@ class ArrayAbstractor : public Abstractor
   ///< map from abstract array sort to write UF
   std::unordered_map<smt::Sort, smt::Term> write_ufs_;
   ///< map from abstract array sort to equality UF
-  std::unordered_map<smt::Sort, smt::Term> eq_ufs_;
+  std::unordered_map<smt::Sort, smt::Term> arrayeq_ufs_;
 };
 
 }  // namespace pono

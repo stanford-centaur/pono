@@ -35,16 +35,82 @@ ArrayAbstractor::ArrayAbstractor(const TransitionSystem & ts,
 
 Term ArrayAbstractor::abstract(const Term & t) const
 {
-  throw PonoException("NYI");
+  auto it = abstraction_cache_.find(t);
+  if (it == abstraction_cache_.end()) {
+    throw PonoException("Generic abstraction NYI");
+  }
+  return it->second;
 }
 
 Term ArrayAbstractor::concrete(const Term & t) const
 {
-  throw PonoException("NYI");
+  auto it = concretization_cache_.find(t);
+  if (it == concretization_cache_.end()) {
+    throw PonoException("Generic concretization NYI");
+  }
+  return it->second;
+}
+
+Term ArrayAbstractor::get_read_uf(const smt::Sort & sort) const
+{
+  auto it = read_ufs_.find(sort);
+  if (it == read_ufs_.end()) {
+    throw PonoException("No read UF found for" + sort->to_string());
+  }
+  return it->second;
+}
+
+Term ArrayAbstractor::get_write_uf(const smt::Sort & sort) const
+{
+  auto it = write_ufs_.find(sort);
+  if (it == write_ufs_.end()) {
+    throw PonoException("No write UF found for" + sort->to_string());
+  }
+  return it->second;
+}
+
+Term ArrayAbstractor::get_arrayeq_uf(const smt::Sort & sort) const
+{
+  // only makes sense to call if running with abstract_array_equality_
+  assert(abstract_array_equality_);
+  auto it = arrayeq_ufs_.find(sort);
+  if (it == arrayeq_ufs_.end()) {
+    throw PonoException("No write UF found for" + sort->to_string());
+  }
+  return it->second;
 }
 
 void ArrayAbstractor::do_abstraction() {
   abstract_vars();
+  // TODO: remove these debug prints
+  // cout << "S" << endl;
+  // for (auto v : abs_ts_.statevars())
+  // {
+  //   cout << v;
+  //   if (v->get_sort()->get_sort_kind() == UNINTERPRETED)
+  //   {
+  //     cout << ": " << get_read_uf(v->get_sort()) << endl;
+  //   }
+  //   else
+  //   {
+  //     cout << endl;
+  //   }
+  // }
+
+  // cout << "I" << endl;
+  // for (auto v : abs_ts_.inputvars())
+  // {
+  //   cout << v;
+  //   if (v->get_sort()->get_sort_kind() == UNINTERPRETED)
+  //   {
+  //     cout << ": " << get_read_uf(v->get_sort()) << endl;
+  //   }
+  //   else
+  //   {
+  //     cout << endl;
+  //   }
+  // }
+  // TODO: end of debug prints
   throw PonoException("got to end of implementation");
 }
 
@@ -97,6 +163,31 @@ Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
     Sort abs_sort = solver_->make_sort(
         "Array_" + idxsort->to_string() + "_" + elemsort->to_string(), 0);
     update_sort_cache(conc_sort, abs_sort);
+
+    // expecting UFs to not be created (this is a new abstract sort)
+    assert(read_ufs_.find(abs_sort) == read_ufs_.end());
+    assert(write_ufs_.find(abs_sort) == write_ufs_.end());
+    assert(arrayeq_ufs_.find(abs_sort) == arrayeq_ufs_.end());
+
+    // need to create new read and write UFs for it
+    // also equality ufs if enabled
+    Sort readsort =
+        solver_->make_sort(FUNCTION, { abs_sort, idxsort, elemsort });
+    read_ufs_[abs_sort] = solver_->make_symbol(
+        "absarr_read" + std::to_string(read_ufs_.size()), readsort);
+
+    Sort writesort =
+        solver_->make_sort(FUNCTION, { abs_sort, idxsort, elemsort, abs_sort });
+    write_ufs_[abs_sort] = solver_->make_symbol(
+        "absarr_write" + std::to_string(write_ufs_.size()), writesort);
+
+    if (abstract_array_equality_) {
+      Sort eqsort = solver_->make_sort(
+          FUNCTION, { abs_sort, abs_sort, solver_->make_sort(BOOL) });
+      arrayeq_ufs_[abs_sort] = solver_->make_symbol(
+          "absarr_eq" + std::to_string(arrayeq_ufs_.size()), eqsort);
+    }
+
     return abs_sort;
   }
 }
