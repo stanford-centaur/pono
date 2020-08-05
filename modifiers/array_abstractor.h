@@ -36,8 +36,10 @@ class ArrayAbstractor : public Abstractor
 
   /** Populates abstraction_cache_ and sort maps with array
    *  abstractions.
+   *  Adds all the variables to the abs_ts_
+   *    arrays are replaced with an abstraction.
    */
-  void abstract_array_vars();
+  void abstract_vars();
 
   /** Returns the abstract sort corresponding to a given
    *  array sort or creates one if necessary

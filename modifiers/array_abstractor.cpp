@@ -44,11 +44,11 @@ Term ArrayAbstractor::concrete(const Term & t) const
 }
 
 void ArrayAbstractor::do_abstraction() {
-  abstract_array_vars();
+  abstract_vars();
   throw PonoException("got to end of implementation");
 }
 
-void ArrayAbstractor::abstract_array_vars()
+void ArrayAbstractor::abstract_vars()
 {
   // TODO: figure out if other variables should be in cache
   //       with identity mapping (seems wasteful)
@@ -60,6 +60,8 @@ void ArrayAbstractor::abstract_array_vars()
       abs_var = abs_ts_.make_statevar("abs_" + sv->to_string(),
                                       abstract_array_sort(sort));
       update_term_cache(sv, abs_var);
+    } else {
+      abs_ts_.add_statevar(sv, conc_ts_.next(sv));
     }
   }
   for (auto iv : conc_ts_.inputvars()) {
@@ -68,6 +70,8 @@ void ArrayAbstractor::abstract_array_vars()
       abs_var = abs_ts_.make_statevar("abs_" + iv->to_string(),
                                       abstract_array_sort(sort));
       update_term_cache(iv, abs_var);
+    } else {
+      abs_ts_.add_inputvar(iv);
     }
   }
 }
