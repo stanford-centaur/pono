@@ -65,6 +65,7 @@ class ArrayAbstractor : public Abstractor
                          const smt::Sort & abs_sort);
 
   bool abstract_array_equality_;
+  const smt::SmtSolver & solver_;
 
   ///< maps concrete sorts to abstract sorts
   std::unordered_map<smt::Sort, smt::Sort> abstract_sorts_;

@@ -26,7 +26,9 @@ namespace pono {
 
 ArrayAbstractor::ArrayAbstractor(const TransitionSystem & ts,
                                  bool abstract_array_equality)
-    : super(ts), abstract_array_equality_(abstract_array_equality)
+    : super(ts),
+      abstract_array_equality_(abstract_array_equality),
+      solver_(abs_ts_.solver())
 {
   do_abstraction();
 }
@@ -55,22 +57,22 @@ void ArrayAbstractor::abstract_array_vars()
   for (auto sv : conc_ts_.statevars()) {
     sort = sv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
-      abs_var = abs_ts_->make_statevar("abs_" + sv->to_string(),
-                                       abstract_array_sort(sort));
+      abs_var = abs_ts_.make_statevar("abs_" + sv->to_string(),
+                                      abstract_array_sort(sort));
       update_term_cache(sv, abs_var);
     }
   }
   for (auto iv : conc_ts_.inputvars()) {
     sort = iv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
-      abs_var = abs_ts_->make_statevar("abs_" + iv->to_string(),
-                                       abstract_array_sort(sort));
+      abs_var = abs_ts_.make_statevar("abs_" + iv->to_string(),
+                                      abstract_array_sort(sort));
       update_term_cache(iv, abs_var);
     }
   }
 }
 
-Sort abstract_array_sort(const Sort & conc_sort)
+Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
 {
   assert(conc_sort->get_sort_kind() == ARRAY);
   if (abstract_sorts_.find(conc_sort) != abstract_sorts_.end()) {
@@ -91,10 +93,12 @@ Sort abstract_array_sort(const Sort & conc_sort)
     Sort abs_sort = solver_->make_sort(
         "Array_" + idxsort->to_string() + "_" + elemsort->to_string(), 0);
     update_sort_cache(conc_sort, abs_sort);
+    return abs_sort;
   }
 }
 
-void update_term_cache(const Term & conc_term, const Term & abs_term)
+void ArrayAbstractor::update_term_cache(const Term & conc_term,
+                                        const Term & abs_term)
 {
   // abstraction should never change
   assert(abstraction_cache_.find(conc_term) == abstraction_cache_.end());
@@ -104,7 +108,8 @@ void update_term_cache(const Term & conc_term, const Term & abs_term)
   concretization_cache_[abs_term] = conc_term;
 }
 
-void update_sort_cache(const Sort & conc_sort, const Sort & abs_sort)
+void ArrayAbstractor::update_sort_cache(const Sort & conc_sort,
+                                        const Sort & abs_sort)
 {
   // abstraction should never change
   assert(abstract_sorts_.find(conc_sort) == abstract_sorts_.end());

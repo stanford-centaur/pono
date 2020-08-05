@@ -23,12 +23,12 @@ namespace pono {
 class Abstractor
 {
  public:
-  Abstractor(const TransitionSystem & ts) : orig_ts_(ts),
+  Abstractor(const TransitionSystem & ts) : conc_ts_(ts)
   {
-    if (orig_ts_.is_functional()) {
-      abs_ts_ = FunctionalTransitionSystem(orig_ts_.solver());
+    if (conc_ts_.is_functional()) {
+      abs_ts_ = FunctionalTransitionSystem(conc_ts_.solver());
     } else {
-      abs_ts_ = RelationalTransitionSystem(orig_ts_.solver());
+      abs_ts_ = RelationalTransitionSystem(conc_ts_.solver());
     }
   }
 
@@ -39,9 +39,9 @@ class Abstractor
    *  @return the abstracted term
    *  This is a NOP implementation. Derived classes will implement this.
    */
-  smt::Term abstract(const smt::Term & t) const
+  virtual smt::Term abstract(const smt::Term & t) const
   {
-    Term res;
+    smt::Term res;
     if (abstraction_cache_.find(t) != abstraction_cache_.end()) {
       res = abstraction_cache_.at(t);
     } else {
@@ -55,9 +55,9 @@ class Abstractor
    *  @return the concrete version of the term
    *  This is a NOP implementation. Derived classes will implement this.
    */
-  smt::Term concrete(const smt::Term & t) const
+  virtual smt::Term concrete(const smt::Term & t) const
   {
-    Term res;
+    smt::Term res;
     if (concretization_cache_.find(t) != concretization_cache_.end()) {
       res = concretization_cache_.at(t);
     } else {
@@ -80,9 +80,9 @@ class Abstractor
    *  This is a NOP implementation. Derived classes will implement this.
    *  Should be called in derived class constructor.
    */
-  void do_abstraction(){};
+  virtual void do_abstraction(){};
 
-  const TransitionSystem & orig_ts_;
+  const TransitionSystem & conc_ts_;
   TransitionSystem abs_ts_;
 
   smt::UnorderedTermMap abstraction_cache_;
