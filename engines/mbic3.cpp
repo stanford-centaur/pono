@@ -253,18 +253,19 @@ bool ModelBasedIC3::intersects_bad()
     TermVec splits;
     split_eq(solver_, cube_vec, splits);
 
+    Term b;
     TermVec bool_assump;
     for (auto a : splits) {
       unsigned i = 0;
-      Term b = label(a);
+      b = label(a);
       bool_assump.push_back(b);
       solver_->assert_formula(solver_->make_term(Implies, b, a));
     }
 
     Result rr = solver_->check_sat_assuming(bool_assump);
     assert(rr.is_unsat());
-    TermVec core = solver_->get_unsat_core();
-    UnorderedTermSet core_set(core.begin(), core.end());
+    const TermVec &core = solver_->get_unsat_core();
+    const UnorderedTermSet core_set(core.begin(), core.end());
     TermVec red_lits;
     for (size_t j = 0; j < bool_assump.size(); ++j) {
       if (core_set.find(bool_assump[j]) != core_set.end()) {
@@ -295,10 +296,11 @@ bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_pred)
   solver_->assert_formula(ts_.trans());
 
   // c'
+  Term b;
   TermVec bool_assump;
   for (auto a : c.lits_) {
     unsigned i = 0;
-    Term b = label(a);
+    b = label(a);
     bool_assump.push_back(b);
     solver_->assert_formula(solver_->make_term(Implies, b, ts_.next(a)));
   }
@@ -311,8 +313,8 @@ bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_pred)
   } else {
     // filter using unsatcore
     TermVec red_lits, rem;
-    TermVec core = solver_->get_unsat_core();
-    UnorderedTermSet core_set(core.begin(), core.end());
+    const TermVec &core = solver_->get_unsat_core();
+    const UnorderedTermSet core_set(core.begin(), core.end());
     for (size_t j = 0; j < bool_assump.size(); ++j) {
       if (core_set.find(bool_assump[j]) != core_set.end()) {
         red_lits.push_back(c.lits_[j]);
@@ -399,14 +401,14 @@ bool ModelBasedIC3::propagate(size_t i)
   assert(i + 1 < frames_.size());
 
   unordered_set<size_t> indices_to_remove;
-  TermVec & Fi = frames_.at(i);
+  const TermVec & Fi = frames_.at(i);
 
   solver_->push();
   assert_frame(i);
   solver_->assert_formula(ts_.trans());
 
   for (size_t j = 0; j < Fi.size(); ++j) {
-    Term & t = Fi[j];
+    const Term & t = Fi[j];
 
     // Relative inductiveness check
     // Check F[i] /\ t /\ T /\ -t'
@@ -484,9 +486,10 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
           solver_->assert_formula(ts_.trans());
           solver_->assert_formula(solver_->make_term(Not, tmp_and_term));
 
+          Term l;
           bool_assump.clear();
           for (auto t : tmp) {
-            Term l = label(t);
+            l = label(t);
             solver_->assert_formula(
                 solver_->make_term(Implies, l, ts_.next(t)));
             bool_assump.push_back(l);
@@ -502,8 +505,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
             // filter using unsatcore
             TermVec removed;
             new_tmp.clear();
-            TermVec core = solver_->get_unsat_core();
-            UnorderedTermSet core_set(core.begin(), core.end());
+            const TermVec &core = solver_->get_unsat_core();
+            const UnorderedTermSet core_set(core.begin(), core.end());
             for (size_t j = 0; j < bool_assump.size(); ++j) {
               if (core_set.find(bool_assump[j]) != core_set.end()) {
                 new_tmp.push_back(tmp[j]);
@@ -555,7 +558,7 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
     cube_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
   }
 
-  Cube res = Cube(solver_, cube_lits);
+  Cube res(solver_, cube_lits);
 
   if (ts_.is_functional() && options_.ic3_cexgen_) {
     // collect input assignments
@@ -578,11 +581,11 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
     solver_->assert_formula(solver_->make_term(Not, ts_.next(c.term_)));
 
     // make and assert assumptions
+    Term b;
     TermVec bool_assump, splits;
     split_eq(solver_, cube_lits, splits);
     for (auto a : splits) {
-      unsigned i = 0;
-      Term b = label(a);
+      b = label(a);
       bool_assump.push_back(b);
       solver_->assert_formula(solver_->make_term(Implies, b, a));
     }
@@ -592,8 +595,8 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
 
     // filter using unsatcore
     TermVec red_cube_lits;
-    TermVec core = solver_->get_unsat_core();
-    UnorderedTermSet core_set(core.begin(), core.end());
+    const TermVec &core = solver_->get_unsat_core();
+    const UnorderedTermSet core_set(core.begin(), core.end());
     for (size_t j = 0; j < bool_assump.size(); ++j) {
       if (core_set.find(bool_assump[j]) != core_set.end()) {
         red_cube_lits.push_back(splits[j]);
@@ -652,9 +655,10 @@ void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
+    Term l;
     TermVec bool_assump;
     for (auto a : rem) {
-      Term l = label(a);
+      l = label(a);
       solver_->assert_formula(solver_->make_term(Implies, l, a));
       bool_assump.push_back(l);
     }
@@ -662,8 +666,8 @@ void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
     r = solver_->check_sat_assuming(bool_assump);
     assert(r.is_unsat());
 
-    TermVec core = solver_->get_unsat_core();
-    UnorderedTermSet core_set(core.begin(), core.end());
+    const TermVec &core = solver_->get_unsat_core();
+    const UnorderedTermSet core_set(core.begin(), core.end());
     for (size_t j = 0; j < bool_assump.size(); ++j) {
       if (core_set.find(bool_assump[j]) != core_set.end()) {
         to_keep.push_back(rem[j]);
