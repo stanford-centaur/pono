@@ -41,10 +41,15 @@ Term ArrayAbstractor::concrete(const Term & t) const
   throw PonoException("NYI");
 }
 
-void ArrayAbstractor::do_abstraction() { throw PonoException("NYI"); }
+void ArrayAbstractor::do_abstraction() {
+  abstract_array_vars();
+  throw PonoException("got to end of implementation");
+}
 
 void ArrayAbstractor::abstract_array_vars()
 {
+  // TODO: figure out if other variables should be in cache
+  //       with identity mapping (seems wasteful)
   Sort sort;
   Term abs_var;
   for (auto sv : conc_ts_.statevars()) {
@@ -73,8 +78,8 @@ Sort abstract_array_sort(const Sort & conc_sort)
   } else {
     // need to create a new uninterpreted sort
     // first: get (abstract) index and element sorts
-    Sort idxsort = conc_sort->get_indexsort();
     // TODO: figure out if getting the abstract sorts is necessary
+    Sort idxsort = conc_sort->get_indexsort();
     if (idxsort->get_sort_kind() == ARRAY) {
       idxsort = abstract_array_sort(idxsort);
     }
