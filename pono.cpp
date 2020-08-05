@@ -108,6 +108,8 @@ int main(int argc, char ** argv)
     } else if (pono_options.engine_ == MBIC3) {
 #ifdef WITH_MSAT
       s = MsatSolverFactory::create(false);
+      s->set_opt("incremental", "true");
+      s->set_opt("produce-models", "true");
 #else
       throw PonoException("Model-based IC3 depends on MathSAT currently.");
 #endif
