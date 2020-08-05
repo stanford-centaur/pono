@@ -25,7 +25,7 @@ class RelationalTransitionSystem : public TransitionSystem
  public:
   RelationalTransitionSystem() : TransitionSystem() {}
 
-  RelationalTransitionSystem(smt::SmtSolver & s) : TransitionSystem(s) {}
+  RelationalTransitionSystem(const smt::SmtSolver & s) : TransitionSystem(s) {}
 
   RelationalTransitionSystem(const TransitionSystem & other_ts,
                              smt::TermTranslator & tt)

@@ -41,7 +41,7 @@ class TransitionSystem
   {
   }
 
-  TransitionSystem(smt::SmtSolver & s)
+  TransitionSystem(const smt::SmtSolver & s)
       : solver_(s), init_(s->make_term(true)), trans_(s->make_term(true))
   {
   }

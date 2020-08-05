@@ -28,7 +28,7 @@ class FunctionalTransitionSystem : public TransitionSystem
  public:
   FunctionalTransitionSystem() : TransitionSystem() { functional_ = true; }
 
-  FunctionalTransitionSystem(smt::SmtSolver & s) : TransitionSystem(s)
+  FunctionalTransitionSystem(const smt::SmtSolver & s) : TransitionSystem(s)
   {
     functional_ = true;
   }
