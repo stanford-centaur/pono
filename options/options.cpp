@@ -35,7 +35,8 @@ enum optionIndex
   PROP,
   VERBOSITY,
   VCDNAME,
-  NOWITNESS
+  NOWITNESS,
+  CEGPROPHARR,
 };
 
 struct Arg : public option::Arg
@@ -116,6 +117,13 @@ const option::Descriptor usage[] = {
     "no-witness",
     Arg::None,
     "  --no-witness \tDisable printing of witness." },
+  { CEGPROPHARR,
+    0,
+    "",
+    "ceg-prophecy-arrays",
+    Arg::None,
+    "  --ceg-prophecy-arrays \tUse counter-example guided prophecy for "
+    "arrays." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -191,6 +199,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
+        case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

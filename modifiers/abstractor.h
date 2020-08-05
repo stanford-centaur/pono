@@ -23,13 +23,14 @@ namespace pono {
 class Abstractor
 {
  public:
-  Abstractor(const TransitionSystem & ts) : conc_ts_(ts)
+  Abstractor(const TransitionSystem & ts)
+      : conc_ts_(ts), abs_ts_(conc_ts_.solver())
   {
-    if (conc_ts_.is_functional()) {
-      abs_ts_ = FunctionalTransitionSystem(conc_ts_.solver());
-    } else {
-      abs_ts_ = RelationalTransitionSystem(conc_ts_.solver());
-    }
+    // TODO: handle functional / relational correctly
+    //       issue is constructor and copy assignment not working well
+    //       the abs_ts_ will be initialized with a default solver
+    //       resulted in a segfault in CVC4
+    //       currently just always using a relational system
   }
 
   virtual ~Abstractor() {}
@@ -83,7 +84,7 @@ class Abstractor
   virtual void do_abstraction(){};
 
   const TransitionSystem & conc_ts_;
-  TransitionSystem abs_ts_;
+  RelationalTransitionSystem abs_ts_;
 
   smt::UnorderedTermMap abstraction_cache_;
   smt::UnorderedTermMap concretization_cache_;

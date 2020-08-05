@@ -35,6 +35,9 @@
 #include "prop.h"
 #include "utils/logger.h"
 
+// TEMP do array abstraction directly here
+#include "modifiers/array_abstractor.h"
+
 using namespace pono;
 using namespace smt;
 using namespace std;
@@ -101,6 +104,13 @@ int main(int argc, char ** argv)
           "Note: MathSAT has a custom license and you must assume all "
           "responsibility for meeting the license requirements.");
 #endif
+    } else if (pono_options.ceg_prophecy_arrays_) {
+#ifdef WITH_MSAT
+      // need mathsat for integer solving
+      s = MsatSolverFactory::create(false);
+#else
+      throw PonoException("ProphIC3 only supported with MathSAT so far");
+#endif
     } else {
       // boolector is faster but doesn't support interpolants
       s = BoolectorSolverFactory::create(false);
@@ -126,9 +136,15 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
       Term prop = propvec[pono_options.prop_idx_];
-      Property p(fts, prop);
       vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, p, s, second_solver, cex);
+      if (pono_options.ceg_prophecy_arrays_) {
+        ArrayAbstractor aa(fts, false);
+        Property p(aa.abs_ts(), prop);
+        res = check_prop(pono_options, p, s, second_solver, cex);
+      } else {
+        Property p(fts, prop);
+        res = check_prop(pono_options, p, s, second_solver, cex);
+      }
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
