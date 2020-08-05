@@ -30,7 +30,6 @@ class Abstractor
     } else {
       abs_ts_ = RelationalTransitionSystem(orig_ts_.solver());
     }
-    do_abstraction();
   }
 
   virtual ~Abstractor() {}
@@ -79,6 +78,7 @@ class Abstractor
   /** Perform the abstraction
    *  This should populate the abstraction and concretization caches
    *  This is a NOP implementation. Derived classes will implement this.
+   *  Should be called in derived class constructor.
    */
   void do_abstraction(){};
 

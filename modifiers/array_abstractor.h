@@ -16,20 +16,55 @@
 
 #pragma once
 
-#include "array_abstractor.h"
+#include "abstractor.h"
 
 namespace pono {
 
 class ArrayAbstractor : public Abstractor
 {
  public:
-  ArrayAbstractor(const TransitionSystem & ts, bool abstract_array_equality);
+  ArrayAbstractor(const TransitionSystem & ts,
+                  bool abstract_array_equality = false);
+
+  typedef Abstractor super;
 
   smt::Term abstract(const smt::Term & t) const override;
   smt::Term concrete(const smt::Term & t) const override;
 
  protected:
   void do_abstraction() override;
+
+  /** Populates abstraction_cache_ and sort maps with array
+   *  abstractions.
+   */
+  void abstract_array_vars();
+
+  /** Returns the abstract sort corresponding to a given
+   *  array sort or creates one if necessary
+   *  @param sort the concrete array sort
+   *  @return the abstract array sort
+   */
+  smt::Sort abstract_array_sort(const smt::Sort & conc_sort);
+
+  /** Populates term caches from base class
+   *  abstraction_cache_ and concretization_cache_
+   *  @param conc_term the concrete term
+   *  @param abs_term the abstract term
+   *  asserts that values aren't overwritten
+   */
+  void update_term_cache(const smt::Term & conc_term,
+                         const smt::Term & abs_term);
+
+  /** Populates sort caches
+   *  abstract_sorts_ and concrete_sorts_
+   *  @param conc_sort the concrete sort
+   *  @param abs_sort the abstract sort
+   *  asserts that values aren't overwritten
+   */
+  void update_sort_cache(const smt::Sort & conc_sort,
+                         const smt::Sort & abs_sort);
+
+  bool abstract_array_equality_;
 
   ///< maps concrete sorts to abstract sorts
   std::unordered_map<smt::Sort, smt::Sort> abstract_sorts_;
