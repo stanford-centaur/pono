@@ -126,6 +126,7 @@ void ArrayAbstractor::abstract_vars()
       abs_var = abs_ts_.make_statevar("abs_" + sv->to_string(),
                                       abstract_array_sort(sort));
       update_term_cache(sv, abs_var);
+      update_term_cache(conc_ts_.next(sv), abs_ts_.next(abs_var));
     } else {
       abs_ts_.add_statevar(sv, conc_ts_.next(sv));
     }
