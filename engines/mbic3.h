@@ -99,6 +99,11 @@ class ModelBasedIC3 : public Prover
    *  @ensures returned proof goal is from lowest frame in proof goals
    */
   ProofGoal get_next_proof_goal();
+  /** Create and add a proof goal for cube c for frame i
+   *  @param c the cube of the proof goal
+   *  @param i the frame number for the proof goal
+   */
+  void add_proof_goal(const Cube & c, size_t i);
   /** Attempt to block all proof goals
    *  to ensure termination, always choose proof goal with
    *  smallest time
@@ -172,9 +177,8 @@ class ModelBasedIC3 : public Prover
   ///< for this implementation of IC3
   std::vector<smt::TermVec> frames_;
 
-  ///< outstanding proof goals -- kept sorted so lower ones
-  ///< can be handled first
-  std::map<size_t, std::vector<Cube>> proof_goals_;
+  ///< statck of outstanding proof goals
+  std::vector<ProofGoal> proof_goals_;
 
   smt::UnorderedTermMap labels_;
 
