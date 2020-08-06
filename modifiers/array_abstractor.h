@@ -16,20 +16,40 @@
 
 #pragma once
 
+#include "smt-switch/identity_walker.h"
+
 #include "abstractor.h"
 
 namespace pono {
 
+class ArrayAbstractor;  // forward declaration for AbstractionWalker
+
+// Helper classes for walking formulas
+class AbstractionWalker : public smt::IdentityWalker
+{
+ public:
+  AbstractionWalker(ArrayAbstractor & aa);
+};
+
+class ConcretizationWalker : public smt::IdentityWalker
+{
+ public:
+  ConcretizationWalker(ArrayAbstractor & aa);
+};
+
 class ArrayAbstractor : public Abstractor
 {
+  friend class AbstractionWalker;
+  friend class ConcretizationWalker;
+
  public:
   ArrayAbstractor(const TransitionSystem & ts,
                   bool abstract_array_equality = false);
 
   typedef Abstractor super;
 
-  smt::Term abstract(const smt::Term & t) const override;
-  smt::Term concrete(const smt::Term & t) const override;
+  smt::Term abstract(smt::Term & t) override;
+  smt::Term concrete(smt::Term & t) override;
 
   /** Looks up a read UF for an abstract array sort
    *  @param sort the abstract array sort
@@ -51,9 +71,9 @@ class ArrayAbstractor : public Abstractor
  protected:
   void do_abstraction() override;
 
-  /** Populates abstraction_cache_ and sort maps with array
-   *  abstractions.
-   *  Adds all the variables to the abs_ts_
+  /** Populates abs_walker_'s cache and sort maps (abstract_sorts_,
+   *  and concrete_sorts_) with array abstractions.
+   *  Adds all the variables to the abs_ts_ --
    *    arrays are replaced with an abstraction.
    */
   void abstract_vars();
@@ -66,7 +86,7 @@ class ArrayAbstractor : public Abstractor
   smt::Sort abstract_array_sort(const smt::Sort & conc_sort);
 
   /** Populates term caches from base class
-   *  abstraction_cache_ and concretization_cache_
+   *  abs_walker_ and conc_walker_ caches
    *  @param conc_term the concrete term
    *  @param abs_term the abstract term
    *  asserts that values aren't overwritten
@@ -85,6 +105,9 @@ class ArrayAbstractor : public Abstractor
 
   bool abstract_array_equality_;
   const smt::SmtSolver & solver_;
+
+  AbstractionWalker abs_walker_;
+  ConcretizationWalker conc_walker_;
 
   ///< maps concrete sorts to abstract sorts
   std::unordered_map<smt::Sort, smt::Sort> abstract_sorts_;

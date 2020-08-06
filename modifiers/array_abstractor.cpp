@@ -24,32 +24,30 @@ using namespace std;
 
 namespace pono {
 
+AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa)
+    : IdentityWalker(aa.solver_, false)  // false means don't clear cache
+{
+}
+
+ConcretizationWalker::ConcretizationWalker(ArrayAbstractor & aa)
+    : IdentityWalker(aa.solver_, false)  // false means don't clear cache
+{
+}
+
 ArrayAbstractor::ArrayAbstractor(const TransitionSystem & ts,
                                  bool abstract_array_equality)
     : super(ts),
       abstract_array_equality_(abstract_array_equality),
-      solver_(abs_ts_.solver())
+      solver_(abs_ts_.solver()),
+      abs_walker_(*this),
+      conc_walker_(*this)
 {
   do_abstraction();
 }
 
-Term ArrayAbstractor::abstract(const Term & t) const
-{
-  auto it = abstraction_cache_.find(t);
-  if (it == abstraction_cache_.end()) {
-    throw PonoException("Generic abstraction NYI");
-  }
-  return it->second;
-}
+Term ArrayAbstractor::abstract(Term & t) { return abs_walker_.visit(t); }
 
-Term ArrayAbstractor::concrete(const Term & t) const
-{
-  auto it = concretization_cache_.find(t);
-  if (it == concretization_cache_.end()) {
-    throw PonoException("Generic concretization NYI");
-  }
-  return it->second;
-}
+Term ArrayAbstractor::concrete(Term & t) { return conc_walker_.visit(t); }
 
 Term ArrayAbstractor::get_read_uf(const smt::Sort & sort) const
 {
@@ -196,6 +194,8 @@ Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
 void ArrayAbstractor::update_term_cache(const Term & conc_term,
                                         const Term & abs_term)
 {
+  UnorderedTermMap & abstraction_cache_ = abs_walker_.get_cache();
+  UnorderedTermMap & concretization_cache_ = conc_walker_.get_cache();
   // abstraction should never change
   assert(abstraction_cache_.find(conc_term) == abstraction_cache_.end());
   assert(concretization_cache_.find(abs_term) == concretization_cache_.end());
@@ -207,7 +207,7 @@ void ArrayAbstractor::update_term_cache(const Term & conc_term,
 void ArrayAbstractor::update_sort_cache(const Sort & conc_sort,
                                         const Sort & abs_sort)
 {
-  // abstraction should never change
+  // sort abstraction should never change
   assert(abstract_sorts_.find(conc_sort) == abstract_sorts_.end());
   assert(concrete_sorts_.find(abs_sort) == concrete_sorts_.end());
 

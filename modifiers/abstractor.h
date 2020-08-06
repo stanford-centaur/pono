@@ -38,17 +38,11 @@ class Abstractor
   /** Returns the abstraction of a concrete term
    *  @param the concrete term to abstract
    *  @return the abstracted term
-   *  This is a NOP implementation. Derived classes will implement this.
+   *  This is an empty implementation. Derived classes will implement this.
    */
-  virtual smt::Term abstract(const smt::Term & t) const
+  virtual smt::Term abstract(smt::Term & t)
   {
-    smt::Term res;
-    if (abstraction_cache_.find(t) != abstraction_cache_.end()) {
-      res = abstraction_cache_.at(t);
-    } else {
-      res = t;
-    }
-    return res;
+    throw PonoException("Abstractor base class does not implement methods.");
   }
 
   /** Returns the concretization of an abstract term
@@ -56,15 +50,9 @@ class Abstractor
    *  @return the concrete version of the term
    *  This is a NOP implementation. Derived classes will implement this.
    */
-  virtual smt::Term concrete(const smt::Term & t) const
+  virtual smt::Term concrete(smt::Term & t)
   {
-    smt::Term res;
-    if (concretization_cache_.find(t) != concretization_cache_.end()) {
-      res = concretization_cache_.at(t);
-    } else {
-      res = t;
-    }
-    return res;
+    throw PonoException("Abstractor base class does not implement methods.");
   }
 
   /** Getter for the abstracted transition system
@@ -85,9 +73,6 @@ class Abstractor
 
   const TransitionSystem & conc_ts_;
   RelationalTransitionSystem abs_ts_;
-
-  smt::UnorderedTermMap abstraction_cache_;
-  smt::UnorderedTermMap concretization_cache_;
 };
 
 }  // namespace pono
