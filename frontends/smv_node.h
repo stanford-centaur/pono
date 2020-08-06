@@ -13,6 +13,13 @@
 
 using namespace std;
 /* node to help construct syntax tree in the parser */
+/* SMV node is the basic node type in ast 
+ *  To flatten modular SMV: iterate twice before building system 
+ *  Two types of state variable (Vartype): basic type and module type are assigned when 
+ *  element_node stores a vector of SMVNode * that contain the corresponding type NodeMType
+ *  NodeMType includes VAR, IVAR, FROZENVAR, DEFINE, INIT, INVAR, TRANS, ASSIGN 
+*/
+
 namespace pono {
 class module_node;
 struct SMVnode
@@ -215,9 +222,10 @@ class module_node
   }
   unordered_map<string, SMVnode *> get_namelist() { return new_par; }
   std::string get_par() { return par_name; }
-  void pre(std::unordered_map<std::string, module_node *> module_list,
+  /* process modular smv starting from main module */
+  void process_main(std::unordered_map<std::string, module_node *> module_list,
            std::ostream & s);
-
+  /* preprocess method: output to stringstream following falttened smv file format */ 
   void preprocess(std::string parent,
                   std::string prefix,
                   std::unordered_map<string, string> * new_prefix,

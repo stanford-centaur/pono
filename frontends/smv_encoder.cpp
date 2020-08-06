@@ -76,11 +76,11 @@ std::stringstream pono::SMVEncoder::preprocess()
   if (module_list.find("main") != module_list.end()) {
     main_n = module_list.find("main")->second;
   } else {
-    throw PonoException("no main module find");
+    throw PonoException("no main module found");
   }
   std::stringstream str;
   str << "MODULE main" << std::endl;
-  main_n->pre(module_list, str);
+  main_n->process_main(module_list, str);
   parse_flat(str);
   return str;
 }

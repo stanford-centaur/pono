@@ -1,6 +1,6 @@
 #include "smv_node.h"
 
-void pono::module_node::pre(
+void pono::module_node::process_main(
     std::unordered_map<std::string, module_node *> module_list,
     std::ostream & s)
 {
