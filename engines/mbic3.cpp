@@ -179,7 +179,7 @@ ProverResult ModelBasedIC3::step(int i)
   logger.log(1, "Blocking phase at frame {}", i);
   // blocking phase
   while (intersects_bad()) {
-    assert(!proof_goals_.empty());
+    assert(has_proof_goals());
     if (!block_all()) {
       // counter-example
       return ProverResult::FALSE;
@@ -275,7 +275,7 @@ bool ModelBasedIC3::intersects_bad()
     }
 
     Cube c(solver_, red_lits);
-    proof_goals_[reached_k_ + 1].push_back(c);
+    add_proof_goal(c, reached_k_ + 1);
   }
 
   solver_->pop();
@@ -337,15 +337,14 @@ bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_pred)
 ProofGoal ModelBasedIC3::get_next_proof_goal()
 {
   assert(has_proof_goals());
-  size_t i = proof_goals_.begin()->first;
-  ProofGoal pg(proof_goals_.at(i).back(), i);
-  // need to remove the proof goal and the map
-  // entry if there are no more cubes in the vector
-  proof_goals_.at(i).pop_back();
-  if (proof_goals_.at(i).empty()) {
-    proof_goals_.erase(i);
-  }
+  ProofGoal pg = proof_goals_.back();
+  proof_goals_.pop_back();
   return pg;
+}
+
+void ModelBasedIC3::add_proof_goal(const Cube & c, size_t i)
+{
+  proof_goals_.push_back(ProofGoal(c, i));
 }
 
 bool ModelBasedIC3::block_all()
@@ -391,8 +390,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     frames_[i].push_back(gen_blocking_term);
     return true;
   } else {
-    // add a new proof goal
-    proof_goals_[i - 1].push_back(pred);
+    add_proof_goal(pred, i - 1);
     return false;
   }
 }
