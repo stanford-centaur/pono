@@ -65,7 +65,8 @@ class ModelBasedIC3 : public Prover
    */
   ProverResult step_0();
 
-  /** Check if last frame intersects with bad
+  /** Check if a transition from the second to last frame can result in a bad
+   * state
    *  @return true iff the last frame intersects with bad
    *  post-condition: if true is returned, bad cube added to proof goals
    */
