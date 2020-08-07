@@ -388,6 +388,9 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     logger.log(3, "Blocking term at frame {}: {}", i, c.term_->to_string());
     logger.log(3, " with {}", gen_blocking_term->to_string());
     frames_[i].push_back(gen_blocking_term);
+    if (i+1 < frames_.size()) {
+      add_proof_goal(c, i+1);
+    }
     return true;
   } else {
     add_proof_goal(pred, i - 1);
