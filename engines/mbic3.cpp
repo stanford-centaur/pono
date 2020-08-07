@@ -705,6 +705,13 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
   }
 
   solver_->pop();
+
+  if (j >= frames_.size())
+  {
+    // pushed to the top frame
+    return j-1;
+  }
+
   return j;
 }
 
