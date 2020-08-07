@@ -632,6 +632,11 @@ void ModelBasedIC3::assert_frame(size_t i) const
 
 Term ModelBasedIC3::get_frame(size_t i) const
 {
+  if (i == 0) {
+    assert(frames_[0].size() == 1);
+    return frames_[0][0];
+  }
+
   Term res = true_;
   for (size_t j = i; j < frames_.size(); ++j) {
     for (auto c : frames_[j]) {
