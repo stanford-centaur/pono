@@ -676,7 +676,7 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
 
   Result r;
   size_t j;
-  for (j = i; j < frames_.size(); ++j) {
+  for (j = i; j + 1 < frames_.size(); ++j) {
     solver_->push();
     assert_frame(j);
     r = solver_->check_sat();
@@ -687,12 +687,6 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
   }
 
   solver_->pop();
-
-  if (j >= frames_.size())
-  {
-    // pushed to the top frame
-    return j-1;
-  }
 
   return j;
 }
