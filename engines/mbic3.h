@@ -166,6 +166,8 @@ class ModelBasedIC3 : public Prover
   void fix_if_intersects_initial(smt::TermVec & to_keep,
                                  const smt::TermVec & rem);
 
+  size_t push_blocking_clause(size_t i, smt::Term c);
+
   smt::Term label(const smt::Term & t);
 
   smt::Term make_and(const smt::TermVec & vec) const;

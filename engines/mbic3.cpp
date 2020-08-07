@@ -387,9 +387,10 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     //pred is a subset of c
     logger.log(3, "Blocking term at frame {}: {}", i, c.term_->to_string());
     logger.log(3, " with {}", gen_blocking_term->to_string());
-    frames_[i].push_back(gen_blocking_term);
-    if (i+1 < frames_.size()) {
-      add_proof_goal(c, i+1);
+    size_t idx = push_blocking_clause(i, gen_blocking_term);
+    frames_[idx].push_back(gen_blocking_term);
+    if (idx + 1 < frames_.size()) {
+      add_proof_goal(c, idx + 1);
     }
     return true;
   } else {
@@ -682,6 +683,29 @@ void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
   }
 
   solver_->pop();
+}
+
+size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
+{
+  solver_->push();
+  solver_->assert_formula(c);
+  solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
+  solver_->assert_formula(ts_.trans());
+
+  Result r;
+  size_t j;
+  for (j = i; j < frames_.size(); ++j) {
+    solver_->push();
+    assert_frame(j);
+    r = solver_->check_sat();
+    solver_->pop();
+    if (r.is_sat()) {
+      break;
+    }
+  }
+
+  solver_->pop();
+  return j;
 }
 
 Term ModelBasedIC3::label(const Term & t)
