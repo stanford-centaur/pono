@@ -31,8 +31,8 @@ namespace pono {
 struct Conjunction
 {
   Conjunction() {}
-  Conjunction(const smt::SmtSolver & solver, const smt::TermVec & lits);
-  smt::TermVec lits_;  // list of literals sorted by hash
+  Conjunction(const smt::SmtSolver & solver, const smt::TermVec & conjuncts);
+  smt::TermVec conjuncts_;  // list of literals sorted by hash
   smt::Term term_;     // term representation of literals as conjunction
 };
 
