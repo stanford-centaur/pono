@@ -743,12 +743,26 @@ Term ModelBasedIC3::label(const Term & t)
   return l;
 }
 
-Term ModelBasedIC3::make_and(const smt::TermVec & vec) const
+Term ModelBasedIC3::make_and(smt::TermVec vec) const
 {
   assert(vec.size() > 0);
+  // sort the conjuncts
+  std::sort(vec.begin(), vec.end(), term_hash_lt);
   Term res = vec[0];
   for (size_t i = 1; i < vec.size(); ++i) {
     res = solver_->make_term(And, res, vec[i]);
+  }
+  return res;
+}
+
+Term ModelBasedIC3::make_or(smt::TermVec vec) const
+{
+  assert(vec.size() > 0);
+  // sort the conjuncts
+  std::sort(vec.begin(), vec.end(), term_hash_lt);
+  Term res = vec[0];
+  for (size_t i = 1; i < vec.size(); ++i) {
+    res = solver_->make_term(Or, res, vec[i]);
   }
   return res;
 }

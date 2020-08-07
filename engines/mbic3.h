@@ -170,7 +170,21 @@ class ModelBasedIC3 : public Prover
 
   smt::Term label(const smt::Term & t);
 
-  smt::Term make_and(const smt::TermVec & vec) const;
+  /** Creates a reduce and of the vector of boolean terms
+   *  It also sorts the vector by the hash
+   *  Note: this will fail for empty vectors
+   *  @param vec the vector of boolean terms
+   *  @return the conjunction of all the terms
+   */
+  smt::Term make_and(smt::TermVec vec) const;
+
+  /** Creates a reduce or of the vector of boolean terms
+   *  It also sorts the vector by the hash
+   *  Note: this will fail for empty vectors
+   *  @param vec the vector of boolean terms
+   *  @return the disjunction of all the terms
+   */
+  smt::Term make_or(smt::TermVec vec) const;
 
   // Data structures
 
