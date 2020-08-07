@@ -73,6 +73,9 @@ class Abstractor
 
   const TransitionSystem & conc_ts_;
   RelationalTransitionSystem abs_ts_;
+
+  smt::UnorderedTermMap abstraction_cache_;
+  smt::UnorderedTermMap concretization_cache_;
 };
 
 }  // namespace pono

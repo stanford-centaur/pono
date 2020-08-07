@@ -28,13 +28,13 @@ class ArrayAbstractor;  // forward declaration for AbstractionWalker
 class AbstractionWalker : public smt::IdentityWalker
 {
  public:
-  AbstractionWalker(ArrayAbstractor & aa);
+  AbstractionWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
 };
 
 class ConcretizationWalker : public smt::IdentityWalker
 {
  public:
-  ConcretizationWalker(ArrayAbstractor & aa);
+  ConcretizationWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
 };
 
 class ArrayAbstractor : public Abstractor

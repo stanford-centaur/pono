@@ -24,13 +24,17 @@ using namespace std;
 
 namespace pono {
 
-AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa)
-    : IdentityWalker(aa.solver_, false)  // false means don't clear cache
+AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa,
+                                     UnorderedTermMap * ext_cache)
+    : IdentityWalker(
+        aa.solver_, false, ext_cache)  // false means don't clear cache
 {
 }
 
-ConcretizationWalker::ConcretizationWalker(ArrayAbstractor & aa)
-    : IdentityWalker(aa.solver_, false)  // false means don't clear cache
+ConcretizationWalker::ConcretizationWalker(ArrayAbstractor & aa,
+                                           UnorderedTermMap * ext_cache)
+    : IdentityWalker(
+        aa.solver_, false, ext_cache)  // false means don't clear cache
 {
 }
 
@@ -39,8 +43,8 @@ ArrayAbstractor::ArrayAbstractor(const TransitionSystem & ts,
     : super(ts),
       abstract_array_equality_(abstract_array_equality),
       solver_(abs_ts_.solver()),
-      abs_walker_(*this),
-      conc_walker_(*this)
+      abs_walker_(*this, &abstraction_cache_),
+      conc_walker_(*this, &concretization_cache_)
 {
   do_abstraction();
 }
@@ -194,8 +198,6 @@ Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
 void ArrayAbstractor::update_term_cache(const Term & conc_term,
                                         const Term & abs_term)
 {
-  UnorderedTermMap & abstraction_cache_ = abs_walker_.get_cache();
-  UnorderedTermMap & concretization_cache_ = conc_walker_.get_cache();
   // abstraction should never change
   assert(abstraction_cache_.find(conc_term) == abstraction_cache_.end());
   assert(concretization_cache_.find(abs_term) == concretization_cache_.end());
