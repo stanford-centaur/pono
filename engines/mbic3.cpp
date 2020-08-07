@@ -48,7 +48,7 @@ static void split_eq(SmtSolver & solver, const TermVec & in, TermVec & out)
   }
 }
 
-// Clause / Cube implementations
+// Conjunction implementations
 
 /** Less than comparison of the hash of two terms
  *  for use in sorting
@@ -61,22 +61,8 @@ bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
   return (t0->hash() < t1->hash());
 }
 
-Clause::Clause(const smt::SmtSolver & solver, const smt::TermVec & lits)
-    : lits_(lits)
-{
-  // sort literals
-  std::sort(lits_.begin(), lits_.end(), term_hash_lt);
-  // shouldn't have an empty clause
-  assert(lits_.size());
-
-  // create term
-  term_ = lits_[0];
-  for (size_t i = 1; i < lits_.size(); ++i) {
-    term_ = solver->make_term(smt::Or, term_, lits_[i]);
-  }
-}
-
-Cube::Cube(const smt::SmtSolver & solver, const smt::TermVec & lits)
+Conjunction::Conjunction(const smt::SmtSolver & solver,
+                         const smt::TermVec & lits)
     : lits_(lits)
 {
   // sort literals
@@ -274,7 +260,7 @@ bool ModelBasedIC3::intersects_bad()
       }
     }
 
-    Cube c(solver_, red_lits);
+    Conjunction c(solver_, red_lits);
     add_proof_goal(c, reached_k_ + 1);
   }
 
@@ -284,7 +270,9 @@ bool ModelBasedIC3::intersects_bad()
   return r.is_sat();
 }
 
-bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_pred)
+bool ModelBasedIC3::get_predecessor(size_t i,
+                                    const Conjunction & c,
+                                    Conjunction & out_pred)
 {
   solver_->push();
   assert(i > 0);
@@ -327,7 +315,7 @@ bool ModelBasedIC3::get_predecessor(size_t i, const Cube & c, Cube & out_pred)
     solver_->pop();
 
     fix_if_intersects_initial(red_lits, rem);
-    out_pred = Cube(solver_, red_lits);
+    out_pred = Conjunction(solver_, red_lits);
   }
 
   assert(!r.is_unknown());
@@ -342,7 +330,7 @@ ProofGoal ModelBasedIC3::get_next_proof_goal()
   return pg;
 }
 
-void ModelBasedIC3::add_proof_goal(const Cube & c, size_t i)
+void ModelBasedIC3::add_proof_goal(const Conjunction & c, size_t i)
 {
   proof_goals_.push_back(ProofGoal(c, i));
 }
@@ -365,7 +353,7 @@ bool ModelBasedIC3::block_all()
 
 bool ModelBasedIC3::block(const ProofGoal & pg)
 {
-  const Cube & c = pg.first;
+  const Conjunction & c = pg.first;
   size_t i = pg.second;
 
   logger.log(
@@ -380,7 +368,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     return false;
   }
 
-  Cube pred;  // populated by get_predecessor
+  Conjunction pred;  // populated by get_predecessor
   if (!get_predecessor(i, c, pred)) {
     // can block this cube
     Term gen_blocking_term = inductive_generalization(i, pred);
@@ -455,9 +443,9 @@ void ModelBasedIC3::push_frame()
   frames_.push_back({});
 }
 
-Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
+Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 {
-  Term res_cube = make_and(c.lits_);
+  Term res_cube = c.term_;
 
   if (options_.ic3_indgen_) {
     bool progress = true;
@@ -544,14 +532,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Cube & c)
   return solver_->make_term(Not, res_cube);
 }
 
-Clause ModelBasedIC3::down(size_t i, const Clause & c) const
-{
-  // TODO: implement this when implementing inductive generalization
-  // For now, just a stub
-  throw PonoException("Not yet implemented");
-}
-
-Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
+Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
+                                                  const Conjunction & c)
 {
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec cube_lits;
@@ -560,7 +542,7 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
     cube_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
   }
 
-  Cube res(solver_, cube_lits);
+  Conjunction res(solver_, cube_lits);
 
   if (ts_.is_functional() && options_.ic3_cexgen_) {
     // collect input assignments
@@ -606,7 +588,7 @@ Cube ModelBasedIC3::generalize_predecessor(size_t i, const Cube & c)
     }
 
     assert(red_cube_lits.size() > 0);
-    res = Cube(solver_, red_cube_lits);
+    res = Conjunction(solver_, red_cube_lits);
   } else {
     // TODO: write generalize_pred for relational transition systemms
   }

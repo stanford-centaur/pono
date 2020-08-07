@@ -24,26 +24,19 @@
 
 namespace pono {
 
-// Both clauses and cubes can be represented as vectors of predicates
-// They are just negations of eachother
-
-struct Clause
+/** Represents a conjunction of boolean terms
+ *  Keeps the conjuncts in a vector as well
+ *  and sorts them
+ */
+struct Conjunction
 {
-  Clause() {}
-  Clause(const smt::SmtSolver & solver, const smt::TermVec & lits);
-  smt::TermVec lits_;  // list of literals sorted by hash
-  smt::Term term_;     // term representation of literals as disjunction
-};
-
-struct Cube
-{
-  Cube() {}
-  Cube(const smt::SmtSolver & solver, const smt::TermVec & lits);
+  Conjunction() {}
+  Conjunction(const smt::SmtSolver & solver, const smt::TermVec & lits);
   smt::TermVec lits_;  // list of literals sorted by hash
   smt::Term term_;     // term representation of literals as conjunction
 };
 
-using ProofGoal = std::pair<Cube, size_t>;
+using ProofGoal = std::pair<Conjunction, size_t>;
 
 class ModelBasedIC3 : public Prover
 {
@@ -87,7 +80,7 @@ class ModelBasedIC3 : public Prover
    *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
    *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool get_predecessor(size_t i, const Cube & c, Cube & out_pred);
+  bool get_predecessor(size_t i, const Conjunction & c, Conjunction & out_pred);
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -103,7 +96,7 @@ class ModelBasedIC3 : public Prover
    *  @param c the cube of the proof goal
    *  @param i the frame number for the proof goal
    */
-  void add_proof_goal(const Cube & c, size_t i);
+  void add_proof_goal(const Conjunction & c, size_t i);
   /** Attempt to block all proof goals
    *  to ensure termination, always choose proof goal with
    *  smallest time
@@ -133,13 +126,7 @@ class ModelBasedIC3 : public Prover
    *  @return a new term P
    *  @ensures P -> !c /\ F[i-1] /\ P /\ T /\ !P' is unsat
    */
-  smt::Term inductive_generalization(size_t i, const Cube & c);
-  /** Helper for generalize when using inductive generalization
-   *  @param i the frame number
-   *  @param c the clause
-   *  @return a new clause
-   */
-  Clause down(size_t i, const Clause & c) const;
+  smt::Term inductive_generalization(size_t i, const Conjunction & c);
   /** Generalize a counterexample
    *  @requires get_predecessor(i, c)
    *  @param i the frame number
@@ -147,7 +134,7 @@ class ModelBasedIC3 : public Prover
    *  @return a new cube d
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
-  Cube generalize_predecessor(size_t i, const Cube & c);
+  Conjunction generalize_predecessor(size_t i, const Conjunction & c);
   /** Check if the term intersects with the initial states
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
