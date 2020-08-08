@@ -29,12 +29,19 @@ class AbstractionWalker : public smt::IdentityWalker
 {
  public:
   AbstractionWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
+
+ protected:
+  smt::WalkerStepResult visit_term(smt::Term & term);
+  ArrayAbstractor & aa_;
 };
 
 class ConcretizationWalker : public smt::IdentityWalker
 {
  public:
   ConcretizationWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
+
+ protected:
+  ArrayAbstractor & aa_;
 };
 
 class ArrayAbstractor : public Abstractor
@@ -108,6 +115,7 @@ class ArrayAbstractor : public Abstractor
 
   AbstractionWalker abs_walker_;
   ConcretizationWalker conc_walker_;
+  smt::Sort intsort_;
 
   ///< maps concrete sorts to abstract sorts
   std::unordered_map<smt::Sort, smt::Sort> abstract_sorts_;

@@ -27,14 +27,91 @@ namespace pono {
 AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa,
                                      UnorderedTermMap * ext_cache)
     : IdentityWalker(
-        aa.solver_, false, ext_cache)  // false means don't clear cache
+        aa.solver_, false, ext_cache),  // false means don't clear cache
+      aa_(aa)
 {
+}
+
+WalkerStepResult AbstractionWalker::visit_term(Term & term)
+{
+  if (preorder_) {
+    return Walker_Continue;
+  }
+
+  Sort sort = term->get_sort();
+  SortKind sk = sort->get_sort_kind();
+  Op op = term->get_op();
+
+  TermVec cached_children;
+  Term cc;
+  for (auto c : term) {
+    bool ok = query_cache(c, cc);
+    assert(ok);  // in post-order so should always have a cache hit
+    cached_children.push_back(cc);
+  }
+
+  if (sk != ARRAY && (aa_.abstract_array_equality_ || op != Equal)) {
+    // for non-arrays, just rebuild with cached children to propagate updates
+    assert(!op.is_null());
+    Term rebuilt_term = solver_->make_term(op, cached_children);
+    // use the ArrayAbstractor cache update instead of the walker's
+    // it also updates the concretization cache
+    aa_.update_term_cache(term, rebuilt_term);
+    return Walker_Continue;
+  }
+
+  // handle the array abstraction cases
+  // constant arrays, select, store, equality
+  Sort abs_sort = aa_.abstract_array_sort(sort);
+  Term res;
+  if (op.is_null()) {
+    // constant array
+    Term val = *(term->begin());
+    string name = "constarr" + val->to_string();
+    res = aa_.abs_ts_.make_statevar(name, abs_sort);
+  } else if (op == Select) {
+    assert(cached_children.size() == 2);
+    Term read_uf = aa_.get_read_uf(abs_sort);
+    Term idx = cached_children[1];
+    if (idx->get_sort()->get_sort_kind() == BV) {
+      // use integer indices to simplify lambda guard
+      idx = solver_->make_term(To_Int, idx);
+    }
+    res = solver_->make_term(Apply, read_uf, cached_children[0], idx);
+  } else if (op == Store) {
+    assert(cached_children.size() == 3);
+    Term write_uf = aa_.get_write_uf(abs_sort);
+    Term idx = cached_children[1];
+    if (idx->get_sort()->get_sort_kind() == BV) {
+      // use integer indices to simplify lambda guard
+      idx = solver_->make_term(To_Int, idx);
+    }
+    res = solver_->make_term(
+        Apply, { write_uf, cached_children[0], idx, cached_children[2] });
+  } else if (op == Equal) {
+    assert(aa_.abstract_array_equality_);
+    assert(cached_children.size() == 2);
+    Term arrayeq_uf = aa_.get_arrayeq_uf(abs_sort);
+    res = solver_->make_term(
+        Apply, arrayeq_uf, cached_children[0], cached_children[1]);
+  } else {
+    // This should be unreachable. All cases are enumerated.
+    assert(false);
+  }
+
+  assert(res);
+  // use the ArrayAbstractor cache update instead of the walker's
+  // it also updates the concretization cache
+  aa_.update_term_cache(term, res);
+
+  return Walker_Continue;
 }
 
 ConcretizationWalker::ConcretizationWalker(ArrayAbstractor & aa,
                                            UnorderedTermMap * ext_cache)
     : IdentityWalker(
-        aa.solver_, false, ext_cache)  // false means don't clear cache
+        aa.solver_, false, ext_cache),  // false means don't clear cache
+      aa_(aa)
 {
 }
 
@@ -44,7 +121,8 @@ ArrayAbstractor::ArrayAbstractor(const TransitionSystem & ts,
       abstract_array_equality_(abstract_array_equality),
       solver_(abs_ts_.solver()),
       abs_walker_(*this, &abstraction_cache_),
-      conc_walker_(*this, &concretization_cache_)
+      conc_walker_(*this, &concretization_cache_),
+      intsort_(solver_->make_sort(INT))
 {
   do_abstraction();
 }
@@ -174,13 +252,18 @@ Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
 
     // need to create new read and write UFs for it
     // also equality ufs if enabled
+    // NOTE: always using integer for index
+    //       will use To_Int for bit-vector indices
+    //       this is an approach which helps handle
+    //       the finite domain issue with lambda from the
+    //       array solving technique from What's Decidable About Arrays
     Sort readsort =
-        solver_->make_sort(FUNCTION, { abs_sort, idxsort, elemsort });
+        solver_->make_sort(FUNCTION, { abs_sort, intsort_, elemsort });
     read_ufs_[abs_sort] = solver_->make_symbol(
         "absarr_read" + std::to_string(read_ufs_.size()), readsort);
 
-    Sort writesort =
-        solver_->make_sort(FUNCTION, { abs_sort, idxsort, elemsort, abs_sort });
+    Sort writesort = solver_->make_sort(
+        FUNCTION, { abs_sort, intsort_, elemsort, abs_sort });
     write_ufs_[abs_sort] = solver_->make_symbol(
         "absarr_write" + std::to_string(write_ufs_.size()), writesort);
 
