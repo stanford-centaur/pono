@@ -62,18 +62,18 @@ bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
 }
 
 Conjunction::Conjunction(const smt::SmtSolver & solver,
-                         const smt::TermVec & lits)
-    : lits_(lits)
+                         const smt::TermVec & conjuncts)
+    : conjuncts_(conjuncts)
 {
   // sort literals
-  std::sort(lits_.begin(), lits_.end(), term_hash_lt);
+  std::sort(conjuncts_.begin(), conjuncts_.end(), term_hash_lt);
   // shouldn't have an empty cube
-  assert(lits_.size());
+  assert(conjuncts_.size());
 
   // create term
-  term_ = lits_[0];
-  for (size_t i = 1; i < lits_.size(); ++i) {
-    term_ = solver->make_term(smt::And, term_, lits_[i]);
+  term_ = conjuncts_[0];
+  for (size_t i = 1; i < conjuncts_.size(); ++i) {
+    term_ = solver->make_term(smt::And, term_, conjuncts_[i]);
   }
 }
 
@@ -236,7 +236,7 @@ bool ModelBasedIC3::get_predecessor(size_t i,
   // c'
   Term b;
   TermVec bool_assump;
-  for (auto a : c.lits_) {
+  for (auto a : c.conjuncts_) {
     unsigned i = 0;
     b = label(a);
     bool_assump.push_back(b);
@@ -255,9 +255,9 @@ bool ModelBasedIC3::get_predecessor(size_t i,
     solver_->get_unsat_core(core_set);
     for (size_t j = 0; j < bool_assump.size(); ++j) {
       if (core_set.find(bool_assump[j]) != core_set.end()) {
-        red_lits.push_back(c.lits_[j]);
+        red_lits.push_back(c.conjuncts_[j]);
       } else {
-        rem.push_back(c.lits_[j]);
+        rem.push_back(c.conjuncts_[j]);
       }
     }
 
@@ -400,7 +400,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
     bool progress = true;
     UnorderedTermSet keep, core_set;
     TermVec bool_assump, tmp, new_tmp, removed, lits;
-    split_eq(solver_, c.lits_, lits);
+    split_eq(solver_, c.conjuncts_, lits);
 
     int iter = 0;
     // max 2 iterations
@@ -625,7 +625,7 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
 
   Result r;
   size_t j;
-  for (j = i; j < frames_.size(); ++j) {
+  for (j = i; j + 1 < frames_.size(); ++j) {
     solver_->push();
     assert_frame(j);
     r = solver_->check_sat();
@@ -636,12 +636,6 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
   }
 
   solver_->pop();
-
-  if (j >= frames_.size())
-  {
-    // pushed to the top frame
-    return j-1;
-  }
 
   return j;
 }
