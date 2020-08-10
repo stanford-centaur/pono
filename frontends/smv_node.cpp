@@ -290,8 +290,8 @@ void pono::init_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    s << "INIT" << endl;
     for (int i = ex_li.size() - 1; i > -1; i--) {
+      s << "INIT" << endl;
       ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
@@ -305,8 +305,8 @@ void pono::trans_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    s << "TRANS" << endl;
     for (int i = ex_li.size() - 1; i > -1; i--) {
+      s << "TRANS" << endl;
       ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }

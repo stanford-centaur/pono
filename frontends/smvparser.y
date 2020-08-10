@@ -385,8 +385,7 @@ frozenvar_list:
     }
   };
 
-init_constraint: INIT init_list
-                | init_constraint init_list;
+init_constraint: INIT init_list;
 
 init_list: simple_expr ";"{
   if(enc.module_flat){
@@ -398,8 +397,7 @@ init_list: simple_expr ";"{
   }
       };
 
-trans_constraint: TRANS trans_list
-                | trans_constraint trans_list;
+trans_constraint: TRANS trans_list;
 
 trans_list: basic_expr ";"{
   if(enc.module_flat){
