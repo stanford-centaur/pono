@@ -50,15 +50,36 @@ WalkerStepResult AbstractionWalker::visit_term(Term & term)
     cached_children.push_back(cc);
   }
 
-  if (sk != ARRAY && (aa_.abstract_array_equality_ || op != Equal)) {
-    // for non-arrays, just rebuild with cached children to propagate updates
-    assert(!op.is_null());
-    Term rebuilt_term = solver_->make_term(op, cached_children);
+  // handle array equalities specially
+  if (aa_.abstract_array_equality_ && op == Equal
+      && (*(term->begin()))->get_sort()->get_sort_kind() == ARRAY) {
+    assert(aa_.abstract_array_equality_);
+    assert(cached_children.size() == 2);
+    Term arrayeq_uf = aa_.get_arrayeq_uf(aa_.abstract_array_sort(sort));
+    Term arreq = solver_->make_term(
+        Apply, arrayeq_uf, cached_children[0], cached_children[1]);
     // use the ArrayAbstractor cache update instead of the walker's
     // it also updates the concretization cache
-    aa_.update_term_cache(term, rebuilt_term);
+    aa_.update_term_cache(term, arreq);
+  }
+
+  if (sk != ARRAY) {
+    // for non-arrays, just rebuild node if necessary
+    if (op.is_null()) {
+      assert(!cached_children.size());
+      // for values / symbols just map to itself
+      aa_.update_term_cache(term, term);
+    } else {
+      assert(cached_children.size());
+      Term rebuilt_term = solver_->make_term(op, cached_children);
+      // use the ArrayAbstractor cache update instead of the walker's
+      // it also updates the concretization cache
+      aa_.update_term_cache(term, rebuilt_term);
+    }
     return Walker_Continue;
   }
+
+  assert(sk == ARRAY);
 
   // handle the array abstraction cases
   // constant arrays, select, store, equality
@@ -88,12 +109,6 @@ WalkerStepResult AbstractionWalker::visit_term(Term & term)
     }
     res = solver_->make_term(
         Apply, { write_uf, cached_children[0], idx, cached_children[2] });
-  } else if (op == Equal) {
-    assert(aa_.abstract_array_equality_);
-    assert(cached_children.size() == 2);
-    Term arrayeq_uf = aa_.get_arrayeq_uf(abs_sort);
-    res = solver_->make_term(
-        Apply, arrayeq_uf, cached_children[0], cached_children[1]);
   } else {
     // This should be unreachable. All cases are enumerated.
     assert(false);
@@ -162,6 +177,8 @@ Term ArrayAbstractor::get_arrayeq_uf(const smt::Sort & sort) const
 
 void ArrayAbstractor::do_abstraction() {
   abstract_vars();
+  Term init = conc_ts_.init();
+  Term trans = conc_ts_.trans();
   // TODO: remove these debug prints
   // cout << "S" << endl;
   // for (auto v : abs_ts_.statevars())
@@ -225,6 +242,9 @@ void ArrayAbstractor::abstract_vars()
 
 Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
 {
+  if (conc_sort->get_sort_kind() != ARRAY) {
+    std::cout << "got sort " << conc_sort << std::endl;
+  }
   assert(conc_sort->get_sort_kind() == ARRAY);
   if (abstract_sorts_.find(conc_sort) != abstract_sorts_.end()) {
     return abstract_sorts_.at(conc_sort);
