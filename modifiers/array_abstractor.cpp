@@ -34,7 +34,7 @@ AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa,
 
 WalkerStepResult AbstractionWalker::visit_term(Term & term)
 {
-  if (preorder_) {
+  if (preorder_ || in_cache(term)) {
     return Walker_Continue;
   }
 
@@ -50,68 +50,51 @@ WalkerStepResult AbstractionWalker::visit_term(Term & term)
     cached_children.push_back(cc);
   }
 
-  // handle array equalities specially
-  if (aa_.abstract_array_equality_ && op == Equal
-      && (*(term->begin()))->get_sort()->get_sort_kind() == ARRAY) {
-    assert(aa_.abstract_array_equality_);
-    assert(cached_children.size() == 2);
-    Term arrayeq_uf = aa_.get_arrayeq_uf(aa_.abstract_array_sort(sort));
-    Term arreq = solver_->make_term(
-        Apply, arrayeq_uf, cached_children[0], cached_children[1]);
-    // use the ArrayAbstractor cache update instead of the walker's
-    // it also updates the concretization cache
-    aa_.update_term_cache(term, arreq);
-  }
-
-  if (sk != ARRAY) {
-    // for non-arrays, just rebuild node if necessary
-    if (op.is_null()) {
-      assert(!cached_children.size());
-      // for values / symbols just map to itself
-      aa_.update_term_cache(term, term);
-    } else {
-      assert(cached_children.size());
-      Term rebuilt_term = solver_->make_term(op, cached_children);
-      // use the ArrayAbstractor cache update instead of the walker's
-      // it also updates the concretization cache
-      aa_.update_term_cache(term, rebuilt_term);
-    }
-    return Walker_Continue;
-  }
-
-  assert(sk == ARRAY);
-
   // handle the array abstraction cases
   // constant arrays, select, store, equality
-  Sort abs_sort = aa_.abstract_array_sort(sort);
   Term res;
-  if (op.is_null()) {
+  if (sk == ARRAY && op.is_null()) {
     // constant array
     Term val = *(term->begin());
     string name = "constarr" + val->to_string();
-    res = aa_.abs_ts_.make_statevar(name, abs_sort);
+    res = aa_.abs_ts_.make_statevar(name, aa_.abstract_array_sort(sort));
   } else if (op == Select) {
     assert(cached_children.size() == 2);
-    Term read_uf = aa_.get_read_uf(abs_sort);
+    Term read_uf = aa_.get_read_uf(cached_children[0]->get_sort());
     Term idx = cached_children[1];
     if (idx->get_sort()->get_sort_kind() == BV) {
       // use integer indices to simplify lambda guard
-      idx = solver_->make_term(To_Int, idx);
+      idx = solver_->make_term(BV_To_Nat, idx);
     }
     res = solver_->make_term(Apply, read_uf, cached_children[0], idx);
   } else if (op == Store) {
     assert(cached_children.size() == 3);
-    Term write_uf = aa_.get_write_uf(abs_sort);
+    Term write_uf = aa_.get_write_uf(aa_.abstract_array_sort(sort));
     Term idx = cached_children[1];
     if (idx->get_sort()->get_sort_kind() == BV) {
       // use integer indices to simplify lambda guard
-      idx = solver_->make_term(To_Int, idx);
+      idx = solver_->make_term(BV_To_Nat, idx);
     }
     res = solver_->make_term(
         Apply, { write_uf, cached_children[0], idx, cached_children[2] });
+  } else if (aa_.abstract_array_equality_ && op == Equal) {
+    assert(cached_children.size() == 2);
+    Term arrayeq_uf = aa_.get_arrayeq_uf(cached_children[0]->get_sort());
+    res = solver_->make_term(
+        Apply, arrayeq_uf, cached_children[0], cached_children[1]);
   } else {
-    // This should be unreachable. All cases are enumerated.
-    assert(false);
+    // all arrays should be processed already except for ITE results
+    // note: array variables are abstracted in a first pass earlier
+    assert(sk != ARRAY || op == Ite);
+    // for non-arrays, just rebuild node if necessary
+    if (op.is_null()) {
+      assert(!cached_children.size());
+      // for values / symbols just map to itself
+      res = term;
+    } else {
+      assert(cached_children.size());
+      res = solver_->make_term(op, cached_children);
+    }
   }
 
   assert(res);
@@ -179,7 +162,11 @@ void ArrayAbstractor::do_abstraction() {
   abstract_vars();
   Term init = conc_ts_.init();
   Term trans = conc_ts_.trans();
+  Term abs_init = abstract(init);
+  Term abs_trans = abstract(trans);
   // TODO: remove these debug prints
+  // std::cout << "abstracted init to " << abs_init << std::endl;
+  // std::cout << "abstracted trans to " << abs_trans << std::endl;
   // cout << "S" << endl;
   // for (auto v : abs_ts_.statevars())
   // {
@@ -242,9 +229,6 @@ void ArrayAbstractor::abstract_vars()
 
 Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
 {
-  if (conc_sort->get_sort_kind() != ARRAY) {
-    std::cout << "got sort " << conc_sort << std::endl;
-  }
   assert(conc_sort->get_sort_kind() == ARRAY);
   if (abstract_sorts_.find(conc_sort) != abstract_sorts_.end()) {
     return abstract_sorts_.at(conc_sort);
@@ -273,7 +257,7 @@ Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
     // need to create new read and write UFs for it
     // also equality ufs if enabled
     // NOTE: always using integer for index
-    //       will use To_Int for bit-vector indices
+    //       will use BV_To_Nat for bit-vector indices
     //       this is an approach which helps handle
     //       the finite domain issue with lambda from the
     //       array solving technique from What's Decidable About Arrays
