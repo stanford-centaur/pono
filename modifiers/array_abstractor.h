@@ -128,6 +128,11 @@ class ArrayAbstractor : public Abstractor
   std::unordered_map<smt::Sort, smt::Term> write_ufs_;
   ///< map from abstract array sort to equality UF
   std::unordered_map<smt::Sort, smt::Term> arrayeq_ufs_;
+
+  // sets for the map values
+  smt::UnorderedTermSet read_ufs_set_;
+  smt::UnorderedTermSet write_ufs_set_;
+  smt::UnorderedTermSet arrayeq_ufs_set_;
 };
 
 }  // namespace pono

@@ -263,19 +263,26 @@ Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
     //       array solving technique from What's Decidable About Arrays
     Sort readsort =
         solver_->make_sort(FUNCTION, { abs_sort, intsort_, elemsort });
-    read_ufs_[abs_sort] = solver_->make_symbol(
+    Term read_uf = solver_->make_symbol(
         "absarr_read" + std::to_string(read_ufs_.size()), readsort);
+    read_ufs_[abs_sort] = read_uf;
+    read_ufs_set_.insert(read_uf);
 
     Sort writesort = solver_->make_sort(
         FUNCTION, { abs_sort, intsort_, elemsort, abs_sort });
-    write_ufs_[abs_sort] = solver_->make_symbol(
+    Term write_uf = solver_->make_symbol(
         "absarr_write" + std::to_string(write_ufs_.size()), writesort);
+
+    write_ufs_[abs_sort] = write_uf;
+    write_ufs_set_.insert(write_uf);
 
     if (abstract_array_equality_) {
       Sort eqsort = solver_->make_sort(
           FUNCTION, { abs_sort, abs_sort, solver_->make_sort(BOOL) });
-      arrayeq_ufs_[abs_sort] = solver_->make_symbol(
+      Term arrayeq = solver_->make_symbol(
           "absarr_eq" + std::to_string(arrayeq_ufs_.size()), eqsort);
+      arrayeq_ufs_[abs_sort] = arrayeq;
+      arrayeq_ufs_set_.insert(arrayeq);
     }
 
     return abs_sort;
