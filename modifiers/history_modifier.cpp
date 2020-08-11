@@ -1,5 +1,5 @@
 /*********************                                                  */
-/*! \file history_refiner.h
+/*! \file history_modifier.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
@@ -14,19 +14,19 @@
 **/
 #include "assert.h"
 
-#include "modifiers/history_refiner.h"
+#include "modifiers/history_modifier.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
 
-HistoryRefiner::HistoryRefiner(TransitionSystem & ts)
+HistoryModifier::HistoryModifier(TransitionSystem & ts)
     : ts_(ts), solver_(ts_.solver())
 {
 }
 
-Term HistoryRefiner::get_hist(const Term & target, size_t delay)
+Term HistoryModifier::get_hist(const Term & target, size_t delay)
 {
   if (!delay) {
     // zero delay is itself

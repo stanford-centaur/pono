@@ -1,5 +1,5 @@
 /*********************                                                  */
-/*! \file prophecy_refiner.h
+/*! \file prophecy_modifier.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
@@ -17,14 +17,14 @@
 #include <utility>
 
 #include "core/ts.h"
-#include "modifiers/history_refiner.h"
+#include "modifiers/history_modifier.h"
 
 namespace pono {
 
-class ProphecyRefiner
+class ProphecyModifier
 {
  public:
-  ProphecyRefiner(TransitionSystem & ts);
+  ProphecyModifier(TransitionSystem & ts);
 
   /** Returns a prophecy variable predicting the target delay steps
    *  before a property violation (if the property can be violated)
@@ -41,7 +41,7 @@ class ProphecyRefiner
  protected:
   TransitionSystem & ts_;
   const smt::SmtSolver solver_;
-  HistoryRefiner hr_;
+  HistoryModifier hm_;
 
   // maps current state variables to a list of prophecy variables
   // where the index corresponds to the delay of the target (-1)

@@ -1,5 +1,5 @@
 /*********************                                                  */
-/*! \file history_refiner.h
+/*! \file history_modifier.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
@@ -19,10 +19,10 @@
 
 namespace pono {
 
-class HistoryRefiner
+class HistoryModifier
 {
  public:
-  HistoryRefiner(TransitionSystem & ts);
+  HistoryModifier(TransitionSystem & ts);
 
   /** Returns a history variable with the given delay
    *  will create new variables and update the transition system as needed

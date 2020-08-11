@@ -7,8 +7,8 @@
 
 #include "core/fts.h"
 #include "core/rts.h"
-#include "modifiers/history_refiner.h"
-#include "modifiers/prophecy_refiner.h"
+#include "modifiers/history_modifier.h"
+#include "modifiers/prophecy_modifier.h"
 #include "utils/exceptions.h"
 
 #include "available_solvers.h"
@@ -34,19 +34,19 @@ class ModifierUnitTests : public ::testing::Test,
   Sort boolsort, bvsort, arrsort;
 };
 
-TEST_P(ModifierUnitTests, HistoryRefiner)
+TEST_P(ModifierUnitTests, HistoryModifier)
 {
   FunctionalTransitionSystem fts(s);
   Term x = fts.make_statevar("x", bvsort);
   fts.constrain_init(fts.make_term(Equal, x, fts.make_term(0, bvsort)));
   fts.assign_next(x, fts.make_term(BVAdd, x, fts.make_term(1, bvsort)));
 
-  HistoryRefiner hr(fts);
+  HistoryModifier hm(fts);
 
   size_t num_state_vars_orig = fts.statevars().size();
 
   Term trans_1 = fts.trans();
-  Term hist_x_10 = hr.get_hist(x, 10);
+  Term hist_x_10 = hm.get_hist(x, 10);
   Term trans_2 = fts.trans();
 
   // should have added history variables to the transition relation
@@ -55,14 +55,14 @@ TEST_P(ModifierUnitTests, HistoryRefiner)
 
   // shouldn't need to modify system
   // this one already needed to be created
-  Term hist_x_2 = hr.get_hist(x, 2);
+  Term hist_x_2 = hm.get_hist(x, 2);
   Term trans_3 = fts.trans();
 
   EXPECT_EQ(trans_2, trans_3);
   EXPECT_EQ(num_state_vars_orig + 10, fts.statevars().size());
 }
 
-TEST_P(ModifierUnitTests, ProphecyRefinerSimple)
+TEST_P(ModifierUnitTests, ProphecyModifierSimple)
 {
   FunctionalTransitionSystem fts(s);
   Term x = fts.make_statevar("x", bvsort);
@@ -77,8 +77,8 @@ TEST_P(ModifierUnitTests, ProphecyRefinerSimple)
   size_t num_statevars_orig = fts.statevars().size();
   EXPECT_EQ(num_statevars_orig, 1);
 
-  ProphecyRefiner pr(fts);
-  std::pair<Term, Term> p = pr.get_proph(x, 2, prop);
+  ProphecyModifier pm(fts);
+  std::pair<Term, Term> p = pm.get_proph(x, 2, prop);
   Term proph_var = p.first;
   Term new_prop = p.second;
 
