@@ -13,8 +13,9 @@
 **        transition system (exploiting this structure for
 **        predecessor computation) and uses models.
 **/
-#include "engines/mbic3.h"
+#include "smt-switch/utils.h"
 
+#include "engines/mbic3.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -207,9 +208,18 @@ ProverResult ModelBasedIC3::step_0()
 
 bool ModelBasedIC3::intersects_bad()
 {
-  Conjunction bad(solver_, { bad_ });
+  TermVec conjuncts;
+  conjunctive_partition(bad_, conjuncts);
+
+  // include the last frame
+  // this is an optimization, it is not necessary for correctness
+  assert(frames_.size() == reached_k_ + 2);
+  for (auto c : frames_[reached_k_ + 1]) {
+    conjuncts.push_back(c);
+  }
+  Conjunction bad_at_last_frame(solver_, conjuncts);
   Conjunction pred;
-  if (!get_predecessor(reached_k_ + 1, bad, pred)) {
+  if (!get_predecessor(reached_k_ + 1, bad_at_last_frame, pred)) {
     Term gen_block_bad = inductive_generalization(reached_k_ + 1, pred);
     frames_[reached_k_ + 1].push_back(gen_block_bad);
     return false;
