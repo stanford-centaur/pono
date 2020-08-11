@@ -41,6 +41,7 @@ class ConcretizationWalker : public smt::IdentityWalker
   ConcretizationWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
 
  protected:
+  smt::WalkerStepResult visit_term(smt::Term & term);
   ArrayAbstractor & aa_;
 };
 

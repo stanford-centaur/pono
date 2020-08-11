@@ -113,6 +113,96 @@ ConcretizationWalker::ConcretizationWalker(ArrayAbstractor & aa,
 {
 }
 
+WalkerStepResult ConcretizationWalker::visit_term(Term & term)
+{
+  if (preorder_ || in_cache(term)) {
+    return Walker_Continue;
+  }
+
+  Op op = term->get_op();
+
+  // Note: all the array variables should already been in the
+  // concretization cache from the initial abstraction
+  // This only needs to handle the abstracted functions
+
+  // if not an apply, then we don't need to do anything except
+  // rebuild to keep changes
+  if (op != Apply) {
+    if (op.is_null()) {
+      aa_.update_term_cache(term, term);
+    } else {
+      TermVec cached_children;
+      Term cc;
+      for (auto c : term) {
+        bool ok = query_cache(c, cc);
+        assert(ok);
+        cached_children.push_back(cc);
+      }
+
+      Term rebuilt = solver_->make_term(op, cached_children);
+      // Note: reversed order because update_term_cache takes the
+      // concrete term first
+      aa_.update_term_cache(rebuilt, term);
+    }
+    return Walker_Continue;
+  }
+
+  assert(op == Apply);
+  auto it = term->begin();
+  Term uf = *it;
+  TermVec cached_args;
+  ++it;
+  while (it != term->end()) {
+    Term ca;
+    bool ok = query_cache(*it, ca);
+    assert(ok);
+    assert(ca);
+    cached_args.push_back(ca);
+    ++it;
+  }
+
+  Term res;
+  if (aa_.read_ufs_set_.find(uf) != aa_.read_ufs_set_.end()) {
+    assert(cached_args.size() == 2);
+    assert(cached_args[0]->get_sort()->get_sort_kind() == ARRAY);
+    Term idx = cached_args[1];
+    // handle BV_To_Nat casting
+    if (idx->get_sort()->get_sort_kind() == INT
+        && cached_args[0]->get_sort()->get_indexsort()->get_sort_kind() == BV) {
+      assert(cached_args[1]->get_op() == BV_To_Nat);
+      idx = *(cached_args[1]->begin());
+    }
+    res = solver_->make_term(Select, cached_args[0], idx);
+  } else if (aa_.write_ufs_set_.find(uf) != aa_.write_ufs_set_.end()) {
+    assert(cached_args.size() == 3);
+    assert(cached_args[0]->get_sort()->get_sort_kind() == ARRAY);
+    Term idx = cached_args[1];
+    // handle BV_To_Nat casting
+    if (idx->get_sort()->get_sort_kind() == INT
+        && cached_args[0]->get_sort()->get_indexsort()->get_sort_kind() == BV) {
+      assert(cached_args[1]->get_op() == BV_To_Nat);
+      idx = *(cached_args[1]->begin());
+    }
+    res = solver_->make_term(Store, cached_args[0], idx, cached_args[1]);
+  } else if (aa_.arrayeq_ufs_set_.find(uf) != aa_.arrayeq_ufs_set_.end()) {
+    assert(cached_args.size() == 2);
+    assert(cached_args[0]->get_sort()->get_sort_kind() == ARRAY);
+    assert(cached_args[1]->get_sort()->get_sort_kind() == ARRAY);
+    res = solver_->make_term(Equal, cached_args);
+  } else {
+    // just rebuild. this is not an abstract uf
+    cached_args.insert(cached_args.begin(), uf);
+    res = solver_->make_term(op, cached_args);
+  }
+
+  assert(res);
+  // Note: reversed order because update_term_cache takes the
+  // concrete term first
+  aa_.update_term_cache(res, term);
+
+  return Walker_Continue;
+}
+
 ArrayAbstractor::ArrayAbstractor(const TransitionSystem & ts,
                                  bool abstract_array_equality)
     : super(ts),
@@ -167,6 +257,10 @@ void ArrayAbstractor::do_abstraction() {
   // TODO: remove these debug prints
   // std::cout << "abstracted init to " << abs_init << std::endl;
   // std::cout << "abstracted trans to " << abs_trans << std::endl;
+  // Term conc_init = concrete(abs_init);
+  // Term conc_trans = concrete(abs_trans);
+  // std::cout << "conc init: " << conc_init << std::endl;
+  // std::cout << "conc trans: " << conc_trans << std::endl;
   // cout << "S" << endl;
   // for (auto v : abs_ts_.statevars())
   // {
