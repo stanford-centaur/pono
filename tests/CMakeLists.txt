@@ -39,6 +39,11 @@ target_link_libraries(test_unroller gtest_main)
 target_link_libraries(test_unroller pono-lib)
 add_test(NAME test_unroller COMMAND test_unroller)
 
+add_executable(test_modifiers "${PROJECT_SOURCE_DIR}/tests/test_modifiers.cpp")
+target_link_libraries(test_modifiers gtest_main)
+target_link_libraries(test_modifiers pono-lib)
+add_test(NAME test_modifiers COMMAND test_modifiers)
+
 add_executable(test_engines "${PROJECT_SOURCE_DIR}/tests/test_engines.cpp")
 target_link_libraries(test_engines gtest_main)
 target_link_libraries(test_engines pono-lib)
