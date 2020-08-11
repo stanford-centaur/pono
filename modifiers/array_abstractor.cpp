@@ -203,9 +203,10 @@ WalkerStepResult ConcretizationWalker::visit_term(Term & term)
   return Walker_Continue;
 }
 
-ArrayAbstractor::ArrayAbstractor(const TransitionSystem & ts,
+ArrayAbstractor::ArrayAbstractor(const TransitionSystem & conc_ts,
+                                 TransitionSystem & abs_ts,
                                  bool abstract_array_equality)
-    : super(ts),
+    : super(conc_ts, abs_ts),
       abstract_array_equality_(abstract_array_equality),
       solver_(abs_ts_.solver()),
       abs_walker_(*this, &abstraction_cache_),

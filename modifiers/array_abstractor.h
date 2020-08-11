@@ -51,7 +51,8 @@ class ArrayAbstractor : public Abstractor
   friend class ConcretizationWalker;
 
  public:
-  ArrayAbstractor(const TransitionSystem & ts,
+  ArrayAbstractor(const TransitionSystem & conc_ts,
+                  TransitionSystem & abs_ts,
                   bool abstract_array_equality = false);
 
   typedef Abstractor super;

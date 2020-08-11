@@ -23,14 +23,16 @@ namespace pono {
 class Abstractor
 {
  public:
-  Abstractor(const TransitionSystem & ts)
-      : conc_ts_(ts), abs_ts_(conc_ts_.solver())
+  Abstractor(const TransitionSystem & conc_ts, TransitionSystem & abs_ts)
+      : conc_ts_(conc_ts), abs_ts_(abs_ts)
   {
-    // TODO: handle functional / relational correctly
-    //       issue is constructor and copy assignment not working well
-    //       the abs_ts_ will be initialized with a default solver
-    //       resulted in a segfault in CVC4
-    //       currently just always using a relational system
+    if (abs_ts_.is_functional() && !conc_ts_.is_functional()) {
+      // this might not be true in every case
+      // but playing it safe now
+      // this is at least true for all our abstraction ideas so far
+      throw PonoException(
+          "Cannot abstract a relational system with a functional system");
+    }
   }
 
   virtual ~Abstractor() {}
@@ -55,14 +57,6 @@ class Abstractor
     throw PonoException("Abstractor base class does not implement methods.");
   }
 
-  /** Getter for the abstracted transition system
-   *  This is intentionally a non-const reference because often
-   *  the abstraction will be refined. This way, it does not
-   *  need to be copied before being refined.
-   *  @return a reference to the abstracted system
-   */
-  TransitionSystem & abs_ts() { return abs_ts_; }
-
  protected:
   /** Perform the abstraction
    *  This should populate the abstraction and concretization caches
@@ -72,7 +66,7 @@ class Abstractor
   virtual void do_abstraction(){};
 
   const TransitionSystem & conc_ts_;
-  RelationalTransitionSystem abs_ts_;
+  TransitionSystem & abs_ts_;
 
   smt::UnorderedTermMap abstraction_cache_;
   smt::UnorderedTermMap concretization_cache_;

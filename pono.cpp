@@ -139,9 +139,10 @@ int main(int argc, char ** argv)
       }
       Term prop = propvec[pono_options.prop_idx_];
       vector<UnorderedTermMap> cex;
+      FunctionalTransitionSystem abs_ts(fts.solver());
       if (pono_options.ceg_prophecy_arrays_) {
-        ArrayAbstractor aa(fts, false);
-        Property p(aa.abs_ts(), prop);
+        ArrayAbstractor aa(fts, abs_ts, false);
+        Property p(abs_ts, prop);
         res = check_prop(pono_options, p, s, second_solver, cex);
       } else {
         Property p(fts, prop);
