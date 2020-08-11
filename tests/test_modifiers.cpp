@@ -3,9 +3,12 @@
 
 #include "gtest/gtest.h"
 
+#include "smt-switch/utils.h"
+
 #include "core/fts.h"
 #include "core/rts.h"
 #include "modifiers/history_refiner.h"
+#include "modifiers/prophecy_refiner.h"
 #include "utils/exceptions.h"
 
 #include "available_solvers.h"
@@ -57,6 +60,40 @@ TEST_P(ModifierUnitTests, HistoryRefiner)
 
   EXPECT_EQ(trans_2, trans_3);
   EXPECT_EQ(num_state_vars_orig + 10, fts.statevars().size());
+}
+
+TEST_P(ModifierUnitTests, ProphecyRefinerSimple)
+{
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("x", bvsort);
+  fts.constrain_init(fts.make_term(Equal, x, fts.make_term(0, bvsort)));
+  Term ite_update =
+      fts.make_term(Ite,
+                    fts.make_term(BVUlt, x, fts.make_term(9, bvsort)),
+                    fts.make_term(BVAdd, x, fts.make_term(1, bvsort)),
+                    x);
+  fts.assign_next(x, ite_update);
+  Term prop = fts.make_term(BVUlt, x, fts.make_term(10, bvsort));
+  size_t num_statevars_orig = fts.statevars().size();
+  EXPECT_EQ(num_statevars_orig, 1);
+
+  ProphecyRefiner pr(fts);
+  std::pair<Term, Term> p = pr.get_proph(x, 2, prop);
+  Term proph_var = p.first;
+  Term new_prop = p.second;
+
+  TermVec free_vars;
+  get_free_symbolic_consts(new_prop, free_vars);
+  UnorderedTermSet free_vars_set(free_vars.begin(), free_vars.end());
+
+  // Expecting two new history variable and one new prophecy variable
+  EXPECT_EQ(fts.statevars().size() - 3, num_statevars_orig);
+
+  // x should still be in the property
+  EXPECT_TRUE(free_vars_set.find(x) != free_vars_set.end());
+
+  // but now the prophecy variable should be also
+  EXPECT_TRUE(free_vars_set.find(proph_var) != free_vars_set.end());
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedModifierUnitTests,
