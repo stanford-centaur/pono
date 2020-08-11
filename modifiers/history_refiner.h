@@ -9,7 +9,8 @@
 ** All rights reserved.  See the file LICENSE in the top-level source
 ** directory for licensing information.\endverbatim
 **
-** \brief Class for adding history variables to a system.
+** \brief Class for adding history variables that remember a value
+**        for a certain number of steps to a system.
 **
 **/
 #pragma once

@@ -12,6 +12,7 @@
 ** \brief Class for adding history variables to a system.
 **
 **/
+#include "assert.h"
 
 #include "modifiers/history_refiner.h"
 
@@ -28,7 +29,7 @@ HistoryRefiner::HistoryRefiner(TransitionSystem & ts)
 Term HistoryRefiner::get_hist(const Term & target, size_t delay)
 {
   if (!delay) {
-    // zero dealy is itself
+    // zero delay is itself
     return target;
   }
 
@@ -40,7 +41,8 @@ Term HistoryRefiner::get_hist(const Term & target, size_t delay)
   size_t num_existing_hist_vars = hist_vars_[target].size();
   while (num_existing_hist_vars < delay) {
     num_existing_hist_vars++;
-    name = "hist_" + target->to_string() + to_string(num_existing_hist_vars);
+    name =
+        "hist_" + target->to_string() + "_" + to_string(num_existing_hist_vars);
     var = ts_.make_statevar(name, sort);
 
     if (num_existing_hist_vars == 1) {
@@ -48,8 +50,12 @@ Term HistoryRefiner::get_hist(const Term & target, size_t delay)
       ts_.assign_next(var, target);
     } else {
       // hist_x_n' = hist_x_{n-1}
-      ts_.assign_next(var, hist_vars_[target].back());
+      assert(hist_vars_.find(target) != hist_vars_.end());
+      Term prev_hist = hist_vars_.at(target).back();
+      ts_.assign_next(var, hist_vars_.at(target).back());
     }
+
+    hist_vars_[target].push_back(var);
   }
 
   // get the desired variable
