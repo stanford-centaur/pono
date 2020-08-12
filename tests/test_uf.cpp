@@ -31,7 +31,6 @@ class UFUnitTests : public ::testing::Test,
   }
   SmtSolver s;
   Sort boolsort, bvsort, funsort;
-  RelationalTransitionSystem rts;
 };
 
 TEST_P(UFUnitTests, InductiveProp)
