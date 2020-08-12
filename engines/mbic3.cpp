@@ -19,6 +19,7 @@
 #include <random>
 
 #include "utils/logger.h"
+#include "utils/term_walkers.h"
 
 using namespace smt;
 using namespace std;
@@ -137,6 +138,18 @@ void ModelBasedIC3::initialize()
       }
     }
   }
+
+  // find UF applications and keep them so they can be
+  // included in models
+  TermOpCollector toc(solver_);
+  UnorderedTermSet uf_apps;
+  toc.find_matching_terms(ts_.init(), { Apply }, uf_apps);
+  toc.find_matching_terms(ts_.trans(), { Apply }, uf_apps);
+  toc.find_matching_terms(bad_, { Apply }, uf_apps);
+  extra_model_terms_.clear();
+  extra_model_terms_.reserve(uf_apps.size());
+  extra_model_terms_.insert(
+      extra_model_terms_.begin(), uf_apps.begin(), uf_apps.end());
 }
 
 ProverResult ModelBasedIC3::check_until(int k)

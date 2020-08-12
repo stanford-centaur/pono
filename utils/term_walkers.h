@@ -41,7 +41,7 @@ class TermOpCollector : protected smt::IdentityWalker
    *  @param prim_ops the set of primitive ops to look for
    *  @param out the set to add matching subterms to
    */
-  void find_matching_terms(smt::Term & t,
+  void find_matching_terms(smt::Term t,
                            const std::unordered_set<smt::PrimOp> & prim_ops,
                            smt::UnorderedTermSet & out);
 

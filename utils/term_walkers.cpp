@@ -24,7 +24,7 @@ using namespace std;
 namespace pono {
 
 void TermOpCollector::find_matching_terms(
-    Term & t, const unordered_set<PrimOp> & prim_ops, UnorderedTermSet & out)
+    Term t, const unordered_set<PrimOp> & prim_ops, UnorderedTermSet & out)
 {
   // set the pointers for use in visit/visit_term
   prim_ops_ = &prim_ops;
