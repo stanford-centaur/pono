@@ -49,11 +49,6 @@ target_link_libraries(test_engines gtest_main)
 target_link_libraries(test_engines pono-lib)
 add_test(NAME test_engines COMMAND test_engines)
 
-add_executable(test_uf "${PROJECT_SOURCE_DIR}/tests/test_uf.cpp")
-target_link_libraries(test_uf gtest_main)
-target_link_libraries(test_uf pono-lib)
-add_test(NAME test_uf COMMAND test_uf)
-
 add_executable(test_witness "${PROJECT_SOURCE_DIR}/tests/test_witness.cpp")
 target_link_libraries(test_witness gtest_main)
 target_link_libraries(test_witness pono-lib)
