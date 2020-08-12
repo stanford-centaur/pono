@@ -54,6 +54,28 @@ TEST_P(UnrollerUnitTests, RTS_Unroll)
   ASSERT_EQ(x1, u.at_time(x, 1));
 }
 
+TEST_P(UnrollerUnitTests, GetTime)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  rts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+
+  Unroller u(rts, s);
+  Term x0 = u.at_time(x, 0);
+  EXPECT_EQ(0, u.get_var_time(x0));
+
+  Term x4 = u.at_time(x, 4);
+  EXPECT_EQ(4, u.get_var_time(x4));
+
+  Term x2 = u.at_time(x, 2);
+  EXPECT_EQ(2, u.get_var_time(x2));
+
+  // make sure that x4 still works a second time
+  Term x4_2 = u.at_time(x, 4);
+  EXPECT_EQ(4, u.get_var_time(x4_2));
+  EXPECT_EQ(x4, x4_2);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
                          UnrollerUnitTests,
                          testing::ValuesIn(available_solver_enums()));
