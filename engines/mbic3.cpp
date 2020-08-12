@@ -13,6 +13,10 @@
 **        transition system (exploiting this structure for
 **        predecessor computation) and uses models.
 **/
+
+#include <algorithm>
+#include <random>
+
 #include "smt-switch/utils.h"
 
 #include "engines/mbic3.h"
@@ -210,7 +214,6 @@ bool ModelBasedIC3::intersects_bad()
 {
   TermVec conjuncts;
   conjunctive_partition(bad_, conjuncts);
-
   // include the last frame
   // this is an optimization, it is not necessary for correctness
   for (auto c : frames_.back()) {
@@ -330,7 +333,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
   if (!get_predecessor(i, c, pred)) {
     // can block this cube
     Term gen_blocking_term = inductive_generalization(i, pred);
-    //pred is a subset of c
+    // pred is a subset of c
     logger.log(3, "Blocking term at frame {}: {}", i, c.term_->to_string());
     logger.log(3, " with {}", gen_blocking_term->to_string());
     size_t idx = push_blocking_clause(i, gen_blocking_term);
@@ -475,7 +478,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
             }
 
             lits = new_tmp;
-            break; // next iteration
+            break;  // next iteration
           }
         }
       }
@@ -495,14 +498,25 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 {
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec cube_lits;
+  DisjointSet ds;
   cube_lits.reserve(statevars.size());
   for (auto v : statevars) {
-    cube_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
+    Term val = solver_->get_value(v);
+    cube_lits.push_back(solver_->make_term(Equal, v, val));
+    ds.add(v, val);
   }
 
   Conjunction res(solver_, cube_lits);
 
   if (ts_.is_functional() && options_.ic3_cexgen_) {
+    // add congruent equalities to cube_lits
+    for (auto v : statevars) {
+      Term t = ds.find(v);
+      if (t != v) {
+        cube_lits.push_back(solver_->make_term(Equal, t, v));
+      }
+    }
+
     // collect input assignments
     const UnorderedTermSet & inputvars = ts_.inputvars();
     TermVec input_lits;
@@ -526,6 +540,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     Term b;
     TermVec bool_assump, splits;
     split_eq(solver_, cube_lits, splits);
+    // shuffle(splits.begin(), splits.end(), default_random_engine(7));
     for (auto a : splits) {
       b = label(a);
       bool_assump.push_back(b);
@@ -699,6 +714,72 @@ Term ModelBasedIC3::make_or(smt::TermVec vec) const
     res = solver_->make_term(Or, res, vec[i]);
   }
   return res;
+}
+
+DisjointSet::DisjointSet() {}
+
+DisjointSet::~DisjointSet() {}
+
+void DisjointSet::add(const Term & a, const Term & b)
+{
+  if (leader_.find(a) != leader_.end()) {
+    Term leadera = leader_.at(a);
+    UnorderedTermSet & groupa = group_.at(leadera);
+
+    if (leader_.find(b) != leader_.end()) {
+      Term leaderb = leader_.at(b);
+
+      if (leadera != leaderb) {
+        UnorderedTermSet & groupb = group_.at(leaderb);
+
+        if (leadera <= leaderb) {
+          groupa.insert(groupb.begin(), groupb.end());
+
+          for (const Term & t : groupb) {
+            leader_[t] = leadera;
+          }
+          groupb.clear();
+          group_.erase(leaderb);
+
+        } else {
+          groupb.insert(groupa.begin(), groupa.end());
+
+          for (const Term & t : groupa) {
+            leader_[t] = leaderb;
+          }
+          groupa.clear();
+          group_.erase(leadera);
+        }
+      }
+
+    } else {
+      groupa.insert(b);
+      leader_[b] = leadera;
+    }
+
+  } else if (leader_.find(b) != leader_.end()) {
+    Term leaderb = leader_.at(b);
+    group_[leaderb].insert(a);
+    leader_[a] = leaderb;
+
+  } else {
+    if (!a->is_value()) {
+      leader_[a] = a;
+      leader_[b] = a;
+      group_[a] = UnorderedTermSet({ a, b });
+    } else {
+      assert(!b->is_value());
+      leader_[a] = b;
+      leader_[b] = b;
+      group_[b] = UnorderedTermSet({ a, b });
+    }
+  }
+}
+
+Term DisjointSet::find(const Term & t)
+{
+  assert(leader_.find(t) != leader_.end());
+  return leader_.at(t);
 }
 
 }  // namespace pono

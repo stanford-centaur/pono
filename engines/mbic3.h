@@ -33,7 +33,7 @@ struct Conjunction
   Conjunction() {}
   Conjunction(const smt::SmtSolver & solver, const smt::TermVec & conjuncts);
   smt::TermVec conjuncts_;  // list of literals sorted by hash
-  smt::Term term_;     // term representation of literals as conjunction
+  smt::Term term_;          // term representation of literals as conjunction
 };
 
 using ProofGoal = std::pair<Conjunction, size_t>;
@@ -189,6 +189,22 @@ class ModelBasedIC3 : public Prover
   // useful terms
   smt::Term true_;
   smt::Term false_;
+};
+
+class DisjointSet
+{
+ public:
+  DisjointSet();
+  ~DisjointSet();
+
+  void add(const smt::Term & a, const smt::Term & b);
+  smt::Term find(const smt::Term & t);
+
+ private:
+  // member to group's leader
+  smt::UnorderedTermMap leader_;
+  // group leader to group
+  std::unordered_map<smt::Term, smt::UnorderedTermSet> group_;
 };
 
 }  // namespace pono
