@@ -47,6 +47,16 @@ Term Unroller::untime(const Term & t) const
   return solver_->substitute(t, untime_cache_);
 }
 
+size_t Unroller::get_var_time(const Term & v) const
+{
+  auto it = var_times_.find(v);
+  if (it == var_times_.end()) {
+    throw PonoException("Cannot get time of " + v->to_string());
+  } else {
+    return (*it).second;
+  }
+}
+
 Term Unroller::var_at_time(const Term & v, unsigned int k)
 {
   assert(v->is_symbolic_const());
@@ -66,6 +76,7 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
   Term timed_v = solver_->make_symbol(name, v->get_sort());
   cache[v] = timed_v;
   untime_cache_[timed_v] = v;
+  var_times_[timed_v] = k;
 
   return timed_v;
 }

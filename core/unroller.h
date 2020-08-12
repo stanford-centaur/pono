@@ -38,6 +38,14 @@ class Unroller
 
   smt::Term untime(const smt::Term & t) const;
 
+  /** Returns the time of an unrolled variable
+   *  example: get_var_time(x@4) = 4
+   *  this only works for unrolled variables
+   *  @param v the unrolled variable to get the time of
+   *  @return a non-negative integer time
+   */
+  size_t get_var_time(const smt::Term & v) const;
+
  private:
   smt::Term var_at_time(const smt::Term & v, unsigned int k);
   smt::UnorderedTermMap & var_cache_at_time(unsigned int k);
@@ -49,6 +57,7 @@ class Unroller
   TimeCache time_cache_;
   TimeCache time_var_map_;
   smt::UnorderedTermMap untime_cache_;
+  std::unordered_map<smt::Term, size_t> var_times_;
 
 };  // class Unroller
 
