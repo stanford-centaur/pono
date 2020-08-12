@@ -190,4 +190,21 @@ class ModelBasedIC3 : public Prover
   smt::Term false_;
 };
 
+class DisjointSet
+{
+public:
+  DisjointSet();
+  ~DisjointSet();
+
+  void add(const smt::Term &a, const smt::Term &b);
+  smt::Term find(const smt::Term &t);
+
+private:
+  // member to group's leader
+  smt::UnorderedTermMap leader_;
+  // group leader to group
+  std::unordered_map<smt::Term, smt::UnorderedTermSet> group_;
+
+};
+
 }  // namespace pono
