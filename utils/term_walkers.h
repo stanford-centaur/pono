@@ -25,12 +25,13 @@ namespace pono {
  *  called outside of this class (relies on the pointers
  *  being set)
  */
-class TermOpCollector : protected IdentityWalker
+class TermOpCollector : protected smt::IdentityWalker
 {
+ public:
   TermOpCollector(const smt::SmtSolver & solver)
       // enable cache clearing because we want to traverse the whole
       // formula each time when looking for terms
-      : IdentityWalker(solver, true)
+      : smt::IdentityWalker(solver, true)
   {
   }
 
@@ -41,14 +42,14 @@ class TermOpCollector : protected IdentityWalker
    *  @param out the set to add matching subterms to
    */
   void find_matching_terms(smt::Term & t,
-                           std::unordered_set<PrimOp> & prim_ops,
+                           const std::unordered_set<smt::PrimOp> & prim_ops,
                            smt::UnorderedTermSet & out);
 
  protected:
-  WalkerStepResult visit_term(smt::Term & term) override;
+  smt::WalkerStepResult visit_term(smt::Term & term) override;
 
-  std::unordered_set<PrimOp> * prim_ops_ = nullptr;
-  std::UnorderedTermSet * out_ = nullptr;
+  const std::unordered_set<smt::PrimOp> * prim_ops_ = nullptr;
+  smt::UnorderedTermSet * out_ = nullptr;
 };
 
 }  // namespace pono

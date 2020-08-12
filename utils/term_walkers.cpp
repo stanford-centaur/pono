@@ -14,6 +14,8 @@
 **
 **/
 
+#include "assert.h"
+
 #include "utils/term_walkers.h"
 
 using namespace smt;
@@ -21,9 +23,8 @@ using namespace std;
 
 namespace pono {
 
-void find_matching_terms(Term & t,
-                         unordered_set<PrimOp> & prim_ops,
-                         UnorderedTermSet & out)
+void TermOpCollector::find_matching_terms(
+    Term & t, const unordered_set<PrimOp> & prim_ops, UnorderedTermSet & out)
 {
   // set the pointers for use in visit/visit_term
   prim_ops_ = &prim_ops;
@@ -39,7 +40,7 @@ void find_matching_terms(Term & t,
   out_ = nullptr;
 }
 
-WalkerStepResult::visit_term(smt::Term & term)
+WalkerStepResult TermOpCollector::visit_term(smt::Term & term)
 {
   // pointers should be non-null
   assert(prim_ops_);
