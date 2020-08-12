@@ -20,17 +20,6 @@
 
 namespace pono {
 
-// struct for representing a term at a certain time
-// unlike an unrolled term, it keeps track of the time
-// all symbols in term should appear in the associated transition system
-struct TimedTerm
-{
-  TimedTerm(const smt::Term & t, size_t i) : term(t), time(i) {}
-
-  smt::Term term;  ///< a term from a transition system
-  size_t time;     ///< an associated time for this variable
-};
-
 // Non-consecutive axiom instantiations
 // a struct used to represent axioms that were instantiated with
 // terms from different time steps
@@ -41,16 +30,13 @@ struct NCAxiomInstantiation
 {
   NCAxiomInstantiation(const smt::Term & a,
                        const std::unordered_set<TimedTerm> & insts);
-    : ax(a), instantiations(insts)
-    {}
+  : ax(a), instantiations(insts)
+  {}
 
-    smt::Term ax;  ///< the instantiated axiom
-    std::unordered_set<TimedTerm>
-        instantiations;  ///< the TimedTerms used to instantiate a quantified
-                         ///< axiom
-    // note: the axioms is over the unrolled version of the TimedTerms
-    // e.g. for TimedTerm with term=x, time=4
-    // the axiom would contain x@4
+  smt::Term ax;  ///< the instantiated axiom
+  smt::UnorderedTermSet
+      instantiations;  ///< the instantiations used in the axioms
+  // Note: the instantiations are over unrolled variables, e.g. x@4 instead of x
 };
 
 class AxiomEnumerator
@@ -103,4 +89,5 @@ class AxiomEnumerator
  protected:
   const TransitionSystem & ts_;
 };
+
 }  // namespace pono
