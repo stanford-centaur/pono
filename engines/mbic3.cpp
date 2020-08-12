@@ -213,8 +213,7 @@ bool ModelBasedIC3::intersects_bad()
 
   // include the last frame
   // this is an optimization, it is not necessary for correctness
-  assert(frames_.size() == reached_k_ + 2);
-  for (auto c : frames_[reached_k_ + 1]) {
+  for (auto c : frames_.back()) {
     conjuncts.push_back(c);
   }
   Conjunction bad_at_last_frame(solver_, conjuncts);
