@@ -243,6 +243,12 @@ bool ModelBasedIC3::intersects_bad()
       cube_vec.push_back(eq);
     }
 
+    // get other important model values
+    for (auto t : extra_model_terms_) {
+      eq = solver_->make_term(Equal, t, solver_->get_value(t));
+      cube_vec.push_back(eq);
+    }
+
     // reduce the bad cube
     solver_->pop();
     solver_->push();
@@ -552,10 +558,17 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec cube_lits;
   DisjointSet ds;
-  cube_lits.reserve(statevars.size());
+  cube_lits.reserve(statevars.size() + extra_model_terms_.size());
   for (auto v : statevars) {
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
+    ds.add(v, val);
+  }
+
+  // get other important model values
+  for (auto t : extra_model_terms_) {
+    Term val = solver_->get_value(t);
+    cube_lits.push_back(solver_->make_term(Equal, t, val));
     ds.add(v, val);
   }
 
@@ -569,6 +582,8 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
         cube_lits.push_back(solver_->make_term(Equal, t, v));
       }
     }
+
+    // TODO: figure out if anything else should be done for UF
 
     // collect input assignments
     const UnorderedTermSet & inputvars = ts_.inputvars();
