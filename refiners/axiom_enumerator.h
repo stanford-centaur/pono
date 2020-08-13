@@ -55,18 +55,20 @@ class AxiomEnumerator
    */
   virtual bool enumerate_axioms(smt::Term abs_trace_formula, size_t bound) = 0;
 
-  /** Returns the violated consecutive axioms found in the last call
-   *  to enumerate_axioms
+  /** Returns a sufficient set of violated consecutive axioms to
+   *  rule out the abstract trace from the last call to
+   *  enumerate_axioms
    *  @return a vector of axiom instantiations that are consecutive
    *  meaning they only involve symbols from neighboring times
    *  and can be added directly to a transition system
    *  the free variables in the axiom instantiations are all
    *  state variables or inputs
    */
-  virtual std::vector<smt::Term> & get_consecutive_axioms() = 0;
+  virtual smt::TermVec & get_consecutive_axioms() = 0;
 
-  /** Returns the violated non-consecutive axioms found in the last call
-   *  to enumerate_axioms
+  /** Returns a sufficient set of violated consecutive axioms to
+   *  rule out the abstract trace from the last call to
+   *  enumerate_axioms
    *  @return a vector of non-consecutive axiom instantiations
    *  These are structs that record extra information about the instantiation
    *  these axioms refer to timed symbols and cannot be added directly
