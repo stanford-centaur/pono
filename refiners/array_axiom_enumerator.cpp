@@ -30,12 +30,30 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(const TransitionSystem & ts,
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
                                             size_t bound)
 {
+  // clear the previous axioms
+  axioms_to_check_.clear();
+  violated_axioms_.clear();
+  ts_axioms_.clear() consecutive_axioms_.clear();
+  nonconsecutive_axioms_.clear();
+
+  solver_->push();
   throw PonoException("NYI");
+  solver_->pop();
 }
 
 // protected methods
 
 void ArrayAxiomEnumerator::collect_arrays_and_indices()
+{
+  throw PonoException("NYI");
+}
+
+void ArrayAxiomEnumerator::check_axioms(AxiomClass ac, int lemma_limit)
+{
+  throw PonoException("NYI");
+}
+
+bool ArrayAxiomEnumerator::is_violated(const Term & ax) const
 {
   throw PonoException("NYI");
 }

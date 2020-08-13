@@ -20,6 +20,20 @@
 #include "refiners/axiom_enumerator.h"
 
 namespace pono {
+
+// enums representing each of the possible array axioms
+enum AxiomClass
+{
+  CONSTARR = 0,
+  CONSTARR_LAMBDA,
+  STORE_WRITE,
+  STORE_READ,
+  STORE_READ_LAMBDA,
+  ARRAYEQ_WITNESS,
+  ARRAYEQ_READ,
+  ARRAYEQ_READ_LAMBDA
+}
+
 class ArrayAxiomEnumerator : public AxiomEnumerator
 {
  public:
@@ -47,6 +61,20 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  in a single traversal of the transition system
    */
   void collect_arrays_and_indices();
+
+  /** Check axioms from a certain class
+   *  @param ac the type of axiom to check
+   *  @param a limit on how many axioms to generate
+   *         -1 means check all of them
+   */
+  void check_axioms(AxiomClass ac, int lemma_limit = -1);
+
+  /** Check if a given axiom (over unrolled variables)
+   *  is violated in the current model
+   *  @param ax the axiom to check
+   *  @return true if the axiom is false in the current model
+   */
+  bool is_violated(const smt::Term & ax) const;
 
   /** Instantiates the axiom:
    *
