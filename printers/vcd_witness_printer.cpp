@@ -519,8 +519,7 @@ void VCDWitnessPrinter::DumpValues(std::ostream & fout) const {
   // see if there is any difference, if not
   // we just skip it
   // finally add an empty time-tick
-  if (cex_.empty())
-    throw PonoException("No trace to dump");
+  if (cex_.empty()) throw PonoException("No trace to dump");
 
   std::unordered_map<std::string, std::string> hash_to_value_map;
   // used to store the previous value for comparison
@@ -543,4 +542,4 @@ void VCDWitnessPrinter::DumpTraceToFile(const std::string & vcd_file_name) const
   logger.log(0, "Trace written to " + vcd_file_name);
 }
 
-} // namespace pono
+}  // namespace pono

@@ -10,12 +10,15 @@ namespace pono {
 class CoreIREncoder
 {
  public:
-  CoreIREncoder(std::string filename, RelationalTransitionSystem & ts)
+  CoreIREncoder(std::string filename,
+                RelationalTransitionSystem & ts,
+                bool force_abstract_clock = false)
       : ts_(ts),
         solver_(ts.solver()),
         c_(CoreIR::newContext()),
         num_clocks_(0),
-        can_abstract_clock_(true)
+        can_abstract_clock_(true),
+        force_abstract_clock_(force_abstract_clock)
   {
     c_->getLibraryManager()->loadLib("commonlib");
     bvsort1_ = solver_->make_sort(smt::BV, 1);
@@ -25,18 +28,23 @@ class CoreIREncoder
     encode();
   }
 
-  CoreIREncoder(CoreIR::Module * m, RelationalTransitionSystem & ts)
+  CoreIREncoder(CoreIR::Module * m,
+                RelationalTransitionSystem & ts,
+                bool force_abstract_clock = false)
       : top_(m),
         ts_(ts),
         solver_(ts.solver()),
-        c_(CoreIR::newContext()),
+        c_(m->getContext()),
         num_clocks_(0),
-        can_abstract_clock_(true)
+        can_abstract_clock_(true),
+        force_abstract_clock_(force_abstract_clock)
   {
     c_->getLibraryManager()->loadLib("commonlib");
     bvsort1_ = solver_->make_sort(smt::BV, 1);
     boolsort_ = solver_->make_sort(smt::BOOL);
     bv1_ = solver_->make_term(1, bvsort1_);
+
+    encode();
   }
 
  protected:
@@ -90,7 +98,9 @@ class CoreIREncoder
   CoreIR::Context * c_;
   CoreIR::Module * top_;
   size_t num_clocks_;
-  bool can_abstract_clock_;
+  bool can_abstract_clock_;  ///< stays true if it's safe to abstract the clock
+  bool force_abstract_clock_;  ///< force the clock to be abstracted
+                               ///< (synchronizes async behavior)
 
   // conversion data structures
   std::unordered_map<CoreIR::Wireable *, smt::Term> w2term_;

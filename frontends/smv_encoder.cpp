@@ -32,23 +32,23 @@ int pono::SMVEncoder::parseString(std::string newline)
 void pono::SMVEncoder::processCase()
 {
   std::future_status status;
-  for (std::pair<int, smt::Term> element : casecheck_) {
-    solver_->push();
-    Term bad_ = solver_->make_term(smt::PrimOp::Not, element.second);
+  solver_->push();
+  for (int i = 0; i < casecheck_.size(); i++) {
+    Term bad_ = solver_->make_term(smt::PrimOp::Not, casecheck_[i]);
     solver_->assert_formula(bad_);
     auto fut = std::async(
         launch::async,
         [](smt::SmtSolver solver_) {
           Result r = solver_->check_sat();
-          return r.is_sat();
+          return r.is_unsat();
         },
         solver_);
     std::future_status status;
     status = fut.wait_for(std::chrono::seconds(5));
     while (status != std::future_status::timeout) {
       if (status == std::future_status::ready) {
-        if (fut.get() == false) {
-          rts_.constrain_trans(casestore_[element.first]);
+        if (fut.get()) {
+          rts_.constrain_trans(casestore_[i]);
           break;
         } else {
           throw PonoException("case error");

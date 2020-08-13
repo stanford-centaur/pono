@@ -1,15 +1,18 @@
+from libc.stdint cimport uint64_t
 from libcpp.string cimport string
 from libcpp.unordered_map cimport unordered_map
 from libcpp.unordered_set cimport unordered_set
 from libcpp.vector cimport vector
 
-from smt_switch cimport c_Sort, c_Term, c_SmtSolver, c_TermVec, c_UnorderedTermMap
+from smt_switch cimport c_SortKind, c_Sort, c_PrimOp, c_Op, \
+    c_Term, c_SmtSolver, c_SortVec, c_TermVec, c_UnorderedTermMap
 
 ctypedef unordered_set[c_Term] c_UnorderedTermSet
 
 
 cdef extern from "core/ts.h" namespace "pono":
     cdef cppclass TransitionSystem:
+        TransitionSystem() except +
         TransitionSystem(c_SmtSolver & s) except +
         void set_init(const c_Term & init) except +
         void constrain_init(const c_Term & constraint) except +
@@ -31,7 +34,20 @@ cdef extern from "core/ts.h" namespace "pono":
         c_Term trans() except +
         const c_UnorderedTermMap & state_updates() except +
         unordered_map[string, c_Term] & named_terms() except +
+        const c_TermVec & constraints() except +
         bint is_functional() except +
+        c_Sort make_sort(const string name, uint64_t arity) except +
+        c_Sort make_sort(const c_SortKind sk) except +
+        c_Sort make_sort(const c_SortKind sk, uint64_t size) except +
+        c_Sort make_sort(const c_SortKind sk, const c_Sort & sort1) except +
+        c_Sort make_sort(const c_SortKind sk, const c_Sort & sort1, const c_Sort & sort2) except +
+        c_Sort make_sort(const c_SortKind sk, const c_Sort & sort1, const c_Sort & sort2, const c_Sort & sort3) except +
+        c_Sort make_sort(const c_SortKind sk, const c_SortVec & sorts) except +
+        c_Term make_term(bint b) except +
+        c_Term make_term(const string val, const c_Sort & sort) except +
+        c_Term make_term(const string val, const c_Sort & sort, uint64_t base) except +
+        c_Term make_term(const c_Term & val, const c_Sort & sort) except +
+        c_Term make_term(const c_Op op, const c_TermVec & terms) except +
 
 
 cdef extern from "core/rts.h" namespace "pono":
@@ -106,9 +122,14 @@ cdef extern from "frontends/btor2_encoder.h" namespace "pono":
 
 # WITH_COREIR is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
 IF WITH_COREIR == "ON":
+    cdef extern from "coreir.h" namespace "CoreIR":
+        cdef cppclass Module:
+            pass
+
     cdef extern from "frontends/coreir_encoder.h" namespace "pono":
         cdef cppclass CoreIREncoder:
             CoreIREncoder(string filename, RelationalTransitionSystem & ts) except +
+            CoreIREncoder(Module * top_mod, RelationalTransitionSystem & ts) except +
 
 
 cdef extern from "utils/logger.h" namespace "pono":

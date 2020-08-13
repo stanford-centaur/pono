@@ -6,9 +6,8 @@
 #include <map>
 #include <string>
 #include <unordered_map>
-
 #include "assert.h"
-#include "exceptions.h"
+#include "utils/exceptions.h"
 #include "smt-switch/smt.h"
 
 using namespace std;

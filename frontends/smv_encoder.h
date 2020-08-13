@@ -14,13 +14,16 @@
 #include <vector>
 
 #include "assert.h"
-#include "exceptions.h"
-#include "rts.h"
+#include "core/rts.h"
 #include "smt-switch/smt.h"
+#include "utils/exceptions.h"
+
+#include "frontends/smvscanner.h"
 #include "smvparser.h"
 #include "smvscanner.h"
 
-namespace pono{
+namespace pono {
+
 class SMVEncoder
 {
  public:
@@ -48,7 +51,7 @@ class SMVEncoder
   std::stringstream preprocess();
   smt::TermVec propvec() { return propvec_; }
 
-  smt::SmtSolver & solver_;
+  const smt::SmtSolver & solver_;
   pono::RelationalTransitionSystem & rts_;
   std::unordered_map<std::string, smt::Term> terms_;
   std::vector<smt::Sort> sortvec_;

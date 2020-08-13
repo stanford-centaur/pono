@@ -16,12 +16,8 @@
 
 #pragma once
 
-#include "prop.h"
-#include "prover.h"
-#include "ts.h"
-#include "unroller.h"
+#include "engines/prover.h"
 
-#include "proverresult.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -30,7 +26,15 @@ class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
-  InterpolantMC(const Property & p, smt::SmtSolver & slv, smt::SmtSolver & itp);
+  InterpolantMC(const Property & p, smt::SolverEnum se);
+  InterpolantMC(const Property & p,
+                const smt::SmtSolver & slv,
+                const smt::SmtSolver & itp);
+  InterpolantMC(const PonoOptions & opt, const Property & p, smt::SolverEnum se);
+  InterpolantMC(const PonoOptions & opt,
+                const Property & p,
+                const smt::SmtSolver & slv,
+                const smt::SmtSolver & itp);
   ~InterpolantMC();
 
   typedef Prover super;
@@ -41,11 +45,13 @@ class InterpolantMC : public Prover
 
  private:
   bool step(int i);
+  bool step_0();
 
-  /* checks if the current Ri overapproximates R */
-  bool check_overapprox();
+  void reset_assertions(smt::SmtSolver & s);
 
-  smt::SmtSolver & interpolator_;
+  bool check_entail(const smt::Term & p, const smt::Term & q);
+
+  smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
   smt::TermTranslator to_interpolator_;
   // for translating terms to solver_
@@ -57,8 +63,6 @@ class InterpolantMC : public Prover
   smt::Term init0_;
   smt::Term transA_;
   smt::Term transB_;
-  smt::Term R_;
-  smt::Term Ri_;
 
 };  // class InterpolantMC
 

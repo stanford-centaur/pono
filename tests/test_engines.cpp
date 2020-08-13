@@ -34,35 +34,32 @@ class EngineUnitTests
   void SetUp() override
   {
     std::tuple<SolverEnum, TSEnum> t = GetParam();
-    s = available_solvers().at(std::get<0>(t))(false);
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
-
+    se = get<0>(t);
     TSEnum ts_type = std::get<1>(t);
     if (ts_type == Functional) {
-      ts = new FunctionalTransitionSystem(s);
+      ts = new FunctionalTransitionSystem();
     } else {
-      ts = new RelationalTransitionSystem(s);
+      ts = new RelationalTransitionSystem();
     }
 
-    bvsort8 = s->make_sort(BV, 8);
+    bvsort8 = ts->make_sort(BV, 8);
 
     // "Hello, World"-style counter test
     Term cnt = ts->make_statevar("cnt", bvsort8);
-    ts->set_init(s->make_term(Equal, cnt, s->make_term(0, bvsort8)));
+    ts->set_init(ts->make_term(Equal, cnt, ts->make_term(0, bvsort8)));
     ts->assign_next(
         cnt,
-        s->make_term(Ite,
-                     s->make_term(BVUle, cnt, s->make_term(6, bvsort8)),
-                     s->make_term(BVAdd, cnt, s->make_term(1, bvsort8)),
-                     s->make_term(0, bvsort8)));
-    Term true_prop = s->make_term(BVUle, cnt, s->make_term(7, bvsort8));
+        ts->make_term(Ite,
+                     ts->make_term(BVUle, cnt, ts->make_term(6, bvsort8)),
+                     ts->make_term(BVAdd, cnt, ts->make_term(1, bvsort8)),
+                     ts->make_term(0, bvsort8)));
+    Term true_prop = ts->make_term(BVUle, cnt, ts->make_term(7, bvsort8));
     true_p = new Property(*ts, true_prop);
 
-    Term false_prop = s->make_term(BVUle, cnt, s->make_term(6, bvsort8));
+    Term false_prop = ts->make_term(BVUle, cnt, ts->make_term(6, bvsort8));
     false_p = new Property(*ts, false_prop);
   }
-  SmtSolver s;
+  SolverEnum se;
   Sort bvsort8;
   TransitionSystem * ts;
   Property * true_p;
@@ -71,42 +68,42 @@ class EngineUnitTests
 
 TEST_P(EngineUnitTests, BmcTrue)
 {
-  Bmc b(*true_p, s);
+  Bmc b(*true_p, se);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(EngineUnitTests, BmcFalse)
 {
-  Bmc b(*false_p, s);
+  Bmc b(*false_p, se);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
 TEST_P(EngineUnitTests, BmcSimplePathTrue)
 {
-  BmcSimplePath bsp(*true_p, s);
+  BmcSimplePath bsp(*true_p, se);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
 TEST_P(EngineUnitTests, BmcSimplePathFalse)
 {
-  BmcSimplePath bsp(*false_p, s);
+  BmcSimplePath bsp(*false_p, se);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
 TEST_P(EngineUnitTests, KInductionTrue)
 {
-  KInduction kind(*true_p, s);
+  KInduction kind(*true_p, se);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
 TEST_P(EngineUnitTests, KInductionFalse)
 {
-  KInduction kind(*false_p, s);
+  KInduction kind(*false_p, se);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
@@ -126,8 +123,10 @@ class InterpUnitTest : public EngineUnitTests
   void SetUp() override
   {
     EngineUnitTests::SetUp();
+    s = ::smt::MsatSolverFactory::create(false);
     itp = ::smt::MsatSolverFactory::create_interpolating_solver();
   }
+  SmtSolver s;
   SmtSolver itp;
 };
 

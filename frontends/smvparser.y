@@ -11,7 +11,7 @@
 %}
 
 %code requires{
-  #include "smv_node.h"
+  #include "frontends/smv_node.h"
   #include <string>
   namespace pono{
     class SMVEncoder;
@@ -414,8 +414,7 @@ trans_list: basic_expr ";"{
   }
 };
 
-invar_constraint: INVAR invar_list
-                | invar_constraint invar_list;
+invar_constraint: INVAR invar_list;
 
 invar_list: simple_expr ";"{
   if(enc.module_flat){
@@ -571,7 +570,6 @@ exponential_number: integer_val exponential_prefix "-" integer_val{  $$ =  $1 + 
 range_constant: integer_val TO integer_val{
   throw PonoException("Range constants are not yet supported");
 };
-
 basic_expr: simple_expr{ $$ = $1;}
           | next_expr{ $$ = $1;}
 
