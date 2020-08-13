@@ -18,6 +18,7 @@ const vector<string> coreir_inputs({ "counters.json",
 const vector<string> btor2_inputs({ "counter.btor",
                                     "counter-true.btor",
                                     "mem.btor",
+                                    "array_neq.btor2",
                                     "ridecore.btor",
                                     "state2input.btor" });
 
