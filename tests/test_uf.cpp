@@ -6,6 +6,7 @@
 #include "core/rts.h"
 #include "core/unroller.h"
 #include "engines/kinduction.h"
+#include "engines/mbic3.h"
 #include "utils/exceptions.h"
 
 #include "available_solvers.h"
@@ -25,6 +26,7 @@ class UFUnitTests : public ::testing::Test,
     s = create_solver(GetParam());
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
+    s->set_opt("produce-unsat-cores", "true");
     boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
     funsort = s->make_sort(FUNCTION, { bvsort, boolsort });
@@ -37,10 +39,12 @@ TEST_P(UFUnitTests, InductiveProp)
 {
   // TODO: update this when boolector supports substitution for terms
   // with UF without logging
-  if (s->get_solver_enum() == BTOR) {
-    std::cout << "Warning: not running btor because it doesn't support "
-              << "substitution (used in unrolling) for terms containing "
-              << "UFs without using logging." << std::endl;
+  if (s->get_solver_enum() == BTOR)
+
+  {
+    std::cout << "Warning: not running test with btor because it "
+              << "doesn't support substitution (used in unrolling) for "
+              << " terms containing UFs without using logging." << std::endl;
     return;
   }
 
@@ -53,7 +57,7 @@ TEST_P(UFUnitTests, InductiveProp)
   // f(x-1) -> f(x)
   // f(0) holds which is like the base case
   // because x starts at 1
-  rts.add_constraint(rts.make_term(
+  rts.constrain_trans(rts.make_term(
       Implies,
       rts.make_term(
           Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort))),
@@ -66,6 +70,12 @@ TEST_P(UFUnitTests, InductiveProp)
   s->push();
   KInduction kind(prop, s);
   ProverResult r = kind.check_until(5);
+  EXPECT_EQ(r, ProverResult::TRUE);
+  s->pop();
+
+  s->push();
+  ModelBasedIC3 ic3(prop, s);
+  r = ic3.check_until(10);
   EXPECT_EQ(r, ProverResult::TRUE);
   s->pop();
 }
@@ -91,7 +101,7 @@ TEST_P(UFUnitTests, FalseProp)
 
   // f(x-1) -> f(x)
   // but this time f(0) isn't forced to hold
-  rts.add_constraint(rts.make_term(
+  rts.constrain_trans(rts.make_term(
       Implies,
       rts.make_term(
           Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort))),
@@ -109,6 +119,12 @@ TEST_P(UFUnitTests, FalseProp)
   s->push();
   KInduction kind(prop, s);
   ProverResult r = kind.check_until(10);
+  EXPECT_EQ(r, ProverResult::FALSE);
+  s->pop();
+
+  s->push();
+  ModelBasedIC3 ic3(prop, s);
+  r = ic3.check_until(10);
   EXPECT_EQ(r, ProverResult::FALSE);
   s->pop();
 }
