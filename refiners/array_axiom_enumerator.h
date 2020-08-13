@@ -25,7 +25,10 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
  public:
   ArrayAxiomEnumerator(const TransitionSystem & ts, ArrayAbstractor & aa);
 
-  bool enumerate_axioms(smt::Term abs_trace_formula, size_t bound) override;
+  typedef AxiomEnumerator super;
+
+  bool enumerate_axioms(const smt::Term & abs_trace_formula,
+                        size_t bound) override;
 
   smt::TermVec & get_consecutive_axioms() override
   {
@@ -56,9 +59,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    * not)
    *  @return the instantiated axiom
    */
-  smt::Term constarr_axiom(smt::Term constarr,
-                           smt::Term val,
-                           smt::Term index) const;
+  smt::Term constarr_axiom(const smt::Term & constarr,
+                           const smt::Term & val,
+                           const smt::Term & index) const;
 
   /** Instantiates the axiom:
    *
@@ -73,7 +76,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param val the element value of the concrete constant array
    *  @return the instantiated axiom
    */
-  smt::Term constarr_lambda_axiom(smt::Term constarr, smt::Term val) const;
+  smt::Term constarr_lambda_axiom(const smt::Term & constarr,
+                                  const smt::Term & val) const;
 
   /** Creates the axiom:
    *
@@ -82,7 +86,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param the abstract store
    *  @return the axiom
    */
-  smt::Term store_write_axiom(smt::Term store) const;
+  smt::Term store_write_axiom(const smt::Term & store) const;
 
   /** Instantiates the axiom:
    *
@@ -93,7 +97,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param the index to instantiate it at (can be unrolled or not)
    *  @return the instantiated axiom
    */
-  smt::Term store_read_axiom(smt::Term store, smt::Term index) const;
+  smt::Term store_read_axiom(const smt::Term & store,
+                             const smt::Term & index) const;
 
   /** Instantiates the axiom:
    *
@@ -107,7 +112,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param store the abstract store term
    *  @return the instantiated axiom
    */
-  smt::Term store_read_lambda_axiom(smt::Term store) const;
+  smt::Term store_read_lambda_axiom(const smt::Term & store) const;
 
   /** Creates the axiom:
    *
@@ -125,7 +130,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    * options)
    *  @return the axiom
    */
-  smt::Term arrayeq_witness_axiom(smt::Term arrayeq) const;
+  smt::Term arrayeq_witness_axiom(const smt::Term & arrayeq) const;
 
   /** Instantiates the axiom:
    *
@@ -136,7 +141,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param the index to instantiate it at (can be unrolled or not)
    *  @return the instantiated axiom
    */
-  smt::Term arrayeq_read_axiom(smt::Term arrayeq, smt::Term index) const;
+  smt::Term arrayeq_read_axiom(const smt::Term & arrayeq,
+                               const smt::Term & index) const;
 
   /** Instantiates the axiom:
    *
@@ -150,7 +156,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param arrayeq the abstract array equality
    *  @return the instantiated axiom
    */
-  smt::Term arrayeq_read_lambda_axiom(smt::Term arrayeq, smt::Term index) const;
+  smt::Term arrayeq_read_lambda_axiom(const smt::Term & arrayeq) const;
 
   /** Creates the bounding guard for a lambda axiom
    *  if the lambda's associated sort is finite domain
@@ -167,10 +173,11 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param lambda the lambda variable from the transition system
    *  @return a bounding guard for finite domains and true otherwise
    */
-  smt::Term lambda_guard(const smt::Sort & sort,
-                         const smt::Term & lambda) const;
+  smt::Term lambda_guard(const smt::Sort & sort, const smt::Term & lam) const;
 
   // members
+  // for abstracting/concretizing terms
+  ArrayAbstractor & aa_;
   // for generating axioms
   smt::UnorderedTermMap
       constarrs_;        ///< maps (abstract) constarrs to their constant value

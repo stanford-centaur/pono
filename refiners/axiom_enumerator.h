@@ -28,9 +28,8 @@ namespace pono {
 // because it must refer to symbols from different time steps
 struct NCAxiomInstantiation
 {
-  NCAxiomInstantiation(const smt::Term & a,
-                       const std::unordered_set<TimedTerm> & insts);
-  : ax(a), instantiations(insts)
+  NCAxiomInstantiation(const smt::Term & a, const smt::UnorderedTermSet & insts)
+      : ax(a), instantiations(insts)
   {}
 
   smt::Term ax;  ///< the instantiated axiom
@@ -44,16 +43,18 @@ class AxiomEnumerator
  public:
   // TODO: brainstorm the right interface
   //       would it be better for it to add axioms or not?
-  AxiomEnumerator::AxiomEnumerator(const TransitionSystem & ts) : ts_(ts) {}
+  AxiomEnumerator(const TransitionSystem & ts) : ts_(ts) {}
 
   virtual ~AxiomEnumerator(){};
 
   /** Check the axiom set over an abstract trace formula
    *  @param abs_trace_formula a formula representing the abstract trace
+   *         it is assumed to be an (abstract) trace of ts_
    *  @param bound the bound the abstract trace was unrolled to
    *  @return true iff the trace could be ruled out
    */
-  virtual bool enumerate_axioms(smt::Term abs_trace_formula, size_t bound) = 0;
+  virtual bool enumerate_axioms(const smt::Term & abs_trace_formula,
+                                size_t bound) = 0;
 
   /** Returns a sufficient set of violated consecutive axioms to
    *  rule out the abstract trace from the last call to
