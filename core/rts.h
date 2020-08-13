@@ -49,7 +49,6 @@ class RelationalTransitionSystem : public TransitionSystem
    */
   void constrain_trans(const smt::Term & constraint);
 
-  bool is_functional() const override { return false; };
 };
 
 }  // namespace pono

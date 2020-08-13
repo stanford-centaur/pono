@@ -42,7 +42,10 @@ class TransitionSystem
   }
 
   TransitionSystem(smt::SmtSolver & s)
-      : solver_(s), init_(s->make_term(true)), trans_(s->make_term(true))
+      : solver_(s),
+        init_(s->make_term(true)),
+        trans_(s->make_term(true)),
+        functional_(false)
   {
   }
 
