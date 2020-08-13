@@ -43,7 +43,9 @@ class AxiomEnumerator
  public:
   // TODO: brainstorm the right interface
   //       would it be better for it to add axioms or not?
-  AxiomEnumerator(const TransitionSystem & ts) : ts_(ts) {}
+  AxiomEnumerator(const TransitionSystem & ts) : ts_(ts), solver_(ts.solver())
+  {
+  }
 
   virtual ~AxiomEnumerator(){};
 
@@ -91,6 +93,7 @@ class AxiomEnumerator
 
  protected:
   const TransitionSystem & ts_;
+  const smt::SmtSolver & solver_;
 };
 
 }  // namespace pono

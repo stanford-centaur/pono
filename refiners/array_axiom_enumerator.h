@@ -32,7 +32,7 @@ enum AxiomClass
   ARRAYEQ_WITNESS,
   ARRAYEQ_READ,
   ARRAYEQ_READ_LAMBDA
-}
+};
 
 class ArrayAxiomEnumerator : public AxiomEnumerator
 {
@@ -237,4 +237,5 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
       nonconsecutive_axioms_;  ///< populated with nonconsecutive axiom
                                ///< instantiations
 };
+
 }  // namespace pono

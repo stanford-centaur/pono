@@ -33,7 +33,8 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   // clear the previous axioms
   axioms_to_check_.clear();
   violated_axioms_.clear();
-  ts_axioms_.clear() consecutive_axioms_.clear();
+  ts_axioms_.clear();
+  consecutive_axioms_.clear();
   nonconsecutive_axioms_.clear();
 
   solver_->push();
