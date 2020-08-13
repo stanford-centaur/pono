@@ -214,11 +214,11 @@ bool ModelBasedIC3::intersects_bad()
 {
   TermVec conjuncts;
   conjunctive_partition(bad_, conjuncts);
-  // include the last frame
-  // this is an optimization, it is not necessary for correctness
-  for (auto c : frames_.back()) {
-    conjuncts.push_back(c);
-  }
+  // // include the last frame
+  // // this is an optimization, it is not necessary for correctness
+  // for (auto c : frames_.back()) {
+  //   conjuncts.push_back(c);
+  // }
   Conjunction bad_at_last_frame(solver_, conjuncts);
   Conjunction pred;
   if (!get_predecessor(reached_k_ + 1, bad_at_last_frame, pred)) {
