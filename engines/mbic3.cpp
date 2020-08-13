@@ -70,6 +70,7 @@ Conjunction::Conjunction(const smt::SmtSolver & solver,
 {
   // sort literals
   std::sort(conjuncts_.begin(), conjuncts_.end(), term_hash_lt);
+
   // shouldn't have an empty cube
   assert(conjuncts_.size());
 
@@ -87,6 +88,8 @@ ModelBasedIC3::ModelBasedIC3(const Property & p, SolverEnum se)
       true_(solver_->make_term(true)),
       false_(solver_->make_term(false))
 {
+  // super sets other options
+  solver_->set_opt("produce-unsat-cores", "true");
   initialize();
 }
 
@@ -105,6 +108,8 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
       true_(solver_->make_term(true)),
       false_(solver_->make_term(false))
 {
+  // super sets other options
+  solver_->set_opt("produce-unsat-cores", "true");
   initialize();
 }
 
