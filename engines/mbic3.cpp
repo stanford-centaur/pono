@@ -569,7 +569,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
   for (auto t : extra_model_terms_) {
     Term val = solver_->get_value(t);
     cube_lits.push_back(solver_->make_term(Equal, t, val));
-    ds.add(v, val);
+    ds.add(t, val);
   }
 
   Conjunction res(solver_, cube_lits);
