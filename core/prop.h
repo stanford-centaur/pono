@@ -24,7 +24,7 @@ namespace pono {
 class Property
 {
  public:
-  Property(const TransitionSystem & ts, const smt::Term & p);
+  Property(const TransitionSystem & ts, const smt::Term & p, std::string name="");
 
   /** Copies property to a new solver
    *  @param prop the property to copy
@@ -39,10 +39,14 @@ class Property
 
   const TransitionSystem & transition_system() const { return ts_; }
 
+  std::string name() { return name_; };
+
  private:
   const TransitionSystem ts_;
 
   const smt::Term prop_;
+
+  std::string name_; ///< a name for the property. If no name is given, just uses the to_string
 
 };  // class Property
 

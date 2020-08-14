@@ -22,8 +22,8 @@ using namespace smt;
 
 namespace pono {
 
-Property::Property(const TransitionSystem & ts, const Term & p)
-    : ts_(ts), prop_(p)
+Property::Property(const TransitionSystem & ts, const Term & p, std::string name)
+  : ts_(ts), prop_(p), name_(name)
 {
   const UnorderedTermSet & states = ts.statevars();
   UnorderedTermSet free_symbols = get_free_symbols(p);
@@ -33,6 +33,14 @@ Property::Property(const TransitionSystem & ts, const Term & p)
       throw PonoException("Property should only use state variables");
     }
   }
+
+  // find a name if it wasn't provided
+  // if no name is associated with it in the ts, then it will just
+  // be the to_string of the term
+  if (name_.empty())
+  {
+    name_ = ts_.get_name(prop_);
+  }
 }
 
 Property::Property(const Property & prop, TermTranslator & tt)
@@ -41,7 +49,9 @@ Property::Property(const Property & prop, TermTranslator & tt)
       // ts_ constructor does the same thing internally
       prop_((prop.transition_system().solver() == tt.get_solver())
                 ? prop.prop_
-                : tt.transfer_term(prop.prop_))
+            : tt.transfer_term(prop.prop_)),
+
+      name_(prop.name_);
 {
 }
 
