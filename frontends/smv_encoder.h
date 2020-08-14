@@ -39,19 +39,19 @@ class SMVEncoder
     ofile << preprocess().str();
     ofile.close();
     processCase();
-    std::cout << "case" <<std::endl;
   };
 
  public:
   // Important members
   int parse(std::string filename);
   int parse_flat(std::istream& s);
-  int parseString(std::string newline);
+  smt::Term parseString(std::string newline);
   location loc;
   void processCase();
   std::stringstream preprocess();
   smt::TermVec propvec() { return propvec_; }
 
+  smt::Term parse_term;
   const smt::SmtSolver & solver_;
   pono::RelationalTransitionSystem & rts_;
   std::unordered_map<std::string, smt::Term> terms_;

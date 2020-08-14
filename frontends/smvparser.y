@@ -104,7 +104,11 @@ DOT ".";
 header:
     module_decl
     | header module_decl
-    | basic_expr
+    | basic_expr {
+      SMVnode *a = $1; 
+      enc.parse_term = a->getTerm();
+      std::cout << "parse string to term" << enc.parse_term <<std::endl;
+    }
 
 module_decl:
     MODULE complex_identifier {
@@ -410,7 +414,6 @@ trans_list: basic_expr ";"{
             }else{
               enc.casestore_.push_back(a->getTerm());
             }
-            std::cout << "trans term" << a ->getTerm() << std::endl;
             case_true = false;
   }else{
     SMVnode *a = new trans_node_c($1);
@@ -438,7 +441,6 @@ invarspec_list: basic_expr ";" {
   if(enc.module_flat){
                 SMVnode *a = $1;
                 smt::Term prop = a->getTerm();
-                std::cout << "prop" <<prop <<std::endl;
                 enc.propvec_.push_back(prop);
   }else{
     SMVnode *a = new invarspec_node_c($1);
@@ -1177,7 +1179,6 @@ simple_expr: constant {
           }
           | case_expr {
             SMVnode *a = $1;
-            std::cout << "finish case" <<std::endl;
             $$ = $1;
           };
 

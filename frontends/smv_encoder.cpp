@@ -19,14 +19,15 @@ int pono::SMVEncoder::parse(std::string filename)
   return parse();
 }
 // parse string
-int pono::SMVEncoder::parseString(std::string newline)
+smt::Term pono::SMVEncoder::parseString(std::string newline)
 {
   std::istringstream iss(newline);
   std::istream & s(iss);
   pono::SMVscanner smvscanner(*this);
   smvscanner.switch_streams(&s);
   pono::smvparser parse(smvscanner, *this);
-  return parse();
+  parse();
+  return parse_term;
 }
 // case condition check preprocess
 void pono::SMVEncoder::processCase()
