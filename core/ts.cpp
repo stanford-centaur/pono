@@ -183,17 +183,23 @@ Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
   inputvars_.insert(input);
+  // automatically include in named_terms
+  named_terms_[name] = input;
   return input;
 }
 
 Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
   Term state = solver_->make_symbol(name, sort);
-  Term next_state = solver_->make_symbol(name + ".next", sort);
+  string next_name = name + ".next";
+  Term next_state = solver_->make_symbol(next_name, sort);
   statevars_.insert(state);
   next_statevars_.insert(next_state);
   next_map_[state] = next_state;
   curr_map_[next_state] = state;
+  // automatically include in named_terms
+  named_terms_[name] = state;
+  named_terms_[next_name] = next_state;
   return state;
 }
 
@@ -218,6 +224,15 @@ bool TransitionSystem::is_curr_var(const Term & sv) const
 bool TransitionSystem::is_next_var(const Term & sv) const
 {
   return (next_statevars_.find(sv) != next_statevars_.end());
+}
+
+smt::Term lookup(std::string name) const
+{
+  auto it = named_terms_.find(name);
+  if (it == named_terms_.end()) {
+    throw PonoException("Could not find term named: " + name);
+  }
+  return it->second;
 }
 
 // term building methods -- forwards to SmtSolver solver_

@@ -154,6 +154,16 @@ class TransitionSystem
    */
   bool is_next_var(const smt::Term & sv) const;
 
+  /** Find a term by name in the transition system.
+   *  searches current and next state variables, inputs,
+   *  and named terms.
+   *  Throws a PonoException if there is no matching term.
+   *
+   *  @param name the name to look for
+   *  @return the matching term if found
+   */
+  smt::Term lookup(std::string name) const;
+
   // getters
   const smt::SmtSolver & solver() const { return solver_; };
 
