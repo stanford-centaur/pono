@@ -207,6 +207,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   // for abstracting/concretizing terms
   ArrayAbstractor & aa_;
   // for generating axioms
+  size_t bound_;  ///< the bound of the current abstract trace
   smt::UnorderedTermMap
       constarrs_;        ///< maps (abstract) constarrs to their constant value
   smt::TermVec stores_;  ///< vector of (abstract) stores

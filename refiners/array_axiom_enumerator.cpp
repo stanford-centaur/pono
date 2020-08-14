@@ -37,6 +37,10 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   consecutive_axioms_.clear();
   nonconsecutive_axioms_.clear();
 
+  // Important : set bound member variable
+  // used by other functions
+  bound_ = bound;
+
   solver_->push();
   throw PonoException("NYI");
   solver_->pop();
