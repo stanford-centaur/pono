@@ -29,6 +29,7 @@
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
 #include "kinduction.h"
+#include "modifiers/control_signals.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
@@ -126,6 +127,18 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
       Term prop = propvec[pono_options.prop_idx_];
+      if (!pono_options.clock_name_.empty()) {
+        Term clock_symbol = fts.lookup(pono_options.clock_name_);
+        toggle_clock(fts, clock_symbol);
+      }
+      if (!pono_options.reset_name_.empty()) {
+        Term reset_symbol = fts.lookup(pono_options.reset_name_);
+        Term reset_done =
+            add_reset_seq(fts, reset_symbol, pono_options.reset_bnd_);
+        // guard the property with reset_done
+        prop = fts.solver()->make_term(Implies, reset_done, prop);
+      }
+
       Property p(fts, prop);
       vector<UnorderedTermMap> cex;
       res = check_prop(pono_options, p, s, second_solver, cex);
@@ -166,6 +179,18 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
       Term prop = propvec[pono_options.prop_idx_];
+      if (!pono_options.clock_name_.empty()) {
+        Term clock_symbol = rts.lookup(pono_options.clock_name_);
+        toggle_clock(rts, clock_symbol);
+      }
+      if (!pono_options.reset_name_.empty()) {
+        Term reset_symbol = rts.lookup(pono_options.reset_name_);
+        Term reset_done =
+            add_reset_seq(rts, reset_symbol, pono_options.reset_bnd_);
+        // guard the property with reset_done
+        prop = rts.solver()->make_term(Implies, reset_done, prop);
+      }
+
       Property p(rts, prop);
       std::vector<UnorderedTermMap> cex;
       res = check_prop(pono_options, p, s, second_solver, cex);
