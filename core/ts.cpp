@@ -226,7 +226,7 @@ bool TransitionSystem::is_next_var(const Term & sv) const
   return (next_statevars_.find(sv) != next_statevars_.end());
 }
 
-smt::Term lookup(std::string name) const
+smt::Term TransitionSystem::lookup(std::string name) const
 {
   auto it = named_terms_.find(name);
   if (it == named_terms_.end()) {
