@@ -177,6 +177,8 @@ void TransitionSystem::name_term(const string name, const Term & t)
     throw PonoException("Name " + name + " has already been used.");
   }
   named_terms_[name] = t;
+  // save this name as a representative (might overwrite)
+  term_to_name_[t] = name;
 }
 
 Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
@@ -218,6 +220,15 @@ bool TransitionSystem::is_curr_var(const Term & sv) const
 bool TransitionSystem::is_next_var(const Term & sv) const
 {
   return (next_statevars_.find(sv) != next_statevars_.end());
+}
+
+std::string TransitionSystem::get_name(const Term & t) const
+{
+  auto it = term_to_name_.find(t);
+  if (it != term_to_name_.end()) {
+    return it->second;
+  }
+  return t->to_string();
 }
 
 // term building methods -- forwards to SmtSolver solver_

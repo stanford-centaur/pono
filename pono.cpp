@@ -45,7 +45,8 @@ ProverResult check_prop(PonoOptions pono_options,
                         SmtSolver & second_solver,
                         std::vector<UnorderedTermMap> & cex)
 {
-  logger.log(1, "Solving property: {}", p.prop());
+  logger.log(
+      1, "Solving property: {}", p.transition_system().get_name(p.prop()));
 
   logger.log(3, "INIT:\n{}", p.transition_system().init());
   logger.log(3, "TRANS:\n{}", p.transition_system().trans());
