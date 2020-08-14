@@ -51,7 +51,8 @@ class PonoOptions
         prop_idx_(default_prop_idx_),
         bound_(default_bound_),
         verbosity_(default_verbosity_),
-        no_witness_(default_no_witness_)
+        no_witness_(default_no_witness_),
+        reset_bnd_(default_reset_bnd_)
   {
   }
 
@@ -66,8 +67,11 @@ class PonoOptions
   unsigned int prop_idx_;
   unsigned int bound_;
   unsigned int verbosity_;
-  bool no_witness_;
   std::string vcd_name_;
+  bool no_witness_;
+  std::string reset_name_;
+  size_t reset_bnd_;
+  std::string clock_name_;
   std::string filename_;
 
  private:
@@ -77,6 +81,7 @@ class PonoOptions
   static const unsigned int default_bound_ = 10;
   static const unsigned int default_verbosity_ = 0;
   static const bool default_no_witness_ = false;
+  static const size_t default_reset_bnd_ = 1;
 };
 
 }  // namespace pono
