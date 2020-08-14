@@ -104,6 +104,7 @@ DOT ".";
 header:
     module_decl
     | header module_decl
+    | basic_expr
 
 module_decl:
     MODULE complex_identifier {
@@ -237,7 +238,9 @@ define_body: complex_identifier ASSIGNSYM basic_expr ";" {
                 enc.unsignedbv_[$1] = define_var; 
               }else if (a->getType() == SMVnode::Signed){
                 enc.signedbv_[$1] = define_var; 
-              }    
+              }   else if(a->getType() == SMVnode::WordArray){
+               enc.arrayty_[$1] = a->getElementType();
+              }
   }else{
       enc.define_list_.push_back(new define_node_c($1,$3));
   }         
@@ -405,8 +408,9 @@ trans_list: basic_expr ";"{
             if(!case_true){
               enc.rts_.constrain_trans(a->getTerm());
             }else{
-              enc.casestore_[case_start] = a->getTerm();
+              enc.casestore_.push_back(a->getTerm());
             }
+            std::cout << "trans term" << a ->getTerm() << std::endl;
             case_true = false;
   }else{
     SMVnode *a = new trans_node_c($1);
@@ -434,6 +438,7 @@ invarspec_list: basic_expr ";" {
   if(enc.module_flat){
                 SMVnode *a = $1;
                 smt::Term prop = a->getTerm();
+                std::cout << "prop" <<prop <<std::endl;
                 enc.propvec_.push_back(prop);
   }else{
     SMVnode *a = new invarspec_node_c($1);
@@ -1171,6 +1176,8 @@ simple_expr: constant {
             throw PonoException("No constarray");
           }
           | case_expr {
+            SMVnode *a = $1;
+            std::cout << "finish case" <<std::endl;
             $$ = $1;
           };
 
@@ -1186,22 +1193,24 @@ next_expr: TOK_NEXT "(" basic_expr ")"{
 
 case_expr: TOK_CASE case_body TOK_ESAC {
   if(enc.module_flat){
-          std::pair<smt::Term,smt::Term> term_last = enc.caseterm_.back();
-          smt::Term cond = term_last.first;
-          smt::Term final_term = term_last.second;
+          std::pair<SMVnode*,SMVnode*> term_last = enc.caseterm_.back();
+          smt::Term cond = term_last.first->getTerm();
+          smt::Term final_term = term_last.second->getTerm();
           enc.caseterm_.pop_back();
           int total_num = enc.caseterm_.size();
+          SMVnode::Type t = SMVnode::Default;
           for (int i = 0; i < total_num; i++){
-            std::pair<smt::Term,smt::Term> term_pair = enc.caseterm_.back();
+            std::pair<SMVnode*,SMVnode*> term_pair = enc.caseterm_.back();
             enc.caseterm_.pop_back();
             case_true = true;
-            smt::Term e = enc.solver_->make_term(smt::Ite, term_pair.first, term_pair.second, final_term);
-            cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first);
+            t = term_pair.second->getType();
+            smt::Term e = enc.solver_->make_term(smt::Ite, term_pair.first->getTerm(), term_pair.second->getTerm(), final_term);
+            cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first->getTerm());
             final_term = e;
           }
-          enc.casestore_[case_start] = final_term;
-          enc.casecheck_[case_start] = cond;
-          $$ = new SMVnode(final_term);
+          //enc.casestore_.push_back(final_term);
+          enc.casecheck_.push_back(cond);
+          $$ = new SMVnode(final_term,t);
   }else{
     $$ = new case_expr($2);
   }
@@ -1213,7 +1222,7 @@ case_body: basic_expr ":" basic_expr ";"{
       SMVnode *a = $1;
       SMVnode *b = $3;
       enc.caseterm_.clear();
-      enc.caseterm_.push_back(make_pair(a->getTerm(),b->getTerm()));
+      enc.caseterm_.push_back(make_pair(a,b));
   }else{
     vector<SMVnode*> body;
     body.push_back(new case_body_ex($1,$3));
@@ -1223,7 +1232,7 @@ case_body: basic_expr ":" basic_expr ";"{
   if(enc.module_flat){
       SMVnode *a = $2;
       SMVnode *b = $4;
-      enc.caseterm_.push_back(make_pair(a->getTerm(),b->getTerm()));
+      enc.caseterm_.push_back(make_pair(a,b));
   }else{
     vector<SMVnode*> body = $1;
     body.push_back(new case_body_ex($2,$4));

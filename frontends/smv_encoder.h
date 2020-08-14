@@ -39,6 +39,7 @@ class SMVEncoder
     ofile << preprocess().str();
     ofile.close();
     processCase();
+    std::cout << "case" <<std::endl;
   };
 
  public:
@@ -60,9 +61,9 @@ class SMVEncoder
   std::unordered_map<std::string, smt::Term>  unsignedbv_;
   std::deque<std::pair<int, smt::Term>> transterm_;
   std::vector<int> caselist_;
-  std::unordered_map<int, smt::Term> casecheck_;
-  std::unordered_map<int, smt::Term> casestore_;
-  std::vector<std::pair<smt::Term, smt::Term>> caseterm_;
+  std::vector<smt::Term> casecheck_;
+  std::vector<smt::Term> casestore_;
+  std::vector<std::pair<SMVnode*,SMVnode*>> caseterm_;
   std::unordered_map<std::string,module_node*> module_list;
   std::unordered_map<std::string, SMVnode::Type>  arrayty_;
   bool module_flat;
