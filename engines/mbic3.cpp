@@ -13,11 +13,13 @@
 **        transition system (exploiting this structure for
 **        predecessor computation) and uses models.
 **/
-#include "engines/mbic3.h"
 
 #include <algorithm>
 #include <random>
 
+#include "smt-switch/utils.h"
+
+#include "engines/mbic3.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -215,65 +217,23 @@ ProverResult ModelBasedIC3::step_0()
 
 bool ModelBasedIC3::intersects_bad()
 {
-  solver_->push();
-
-  // assert the last frame (conjunction over clauses)
-  assert_frame(reached_k_ + 1);
-
-  // see if it intersects with bad
-  solver_->assert_formula(bad_);
-
-  Result r = solver_->check_sat();
-  if (r.is_sat()) {
-    // create a proof goal for the bad state
-    const UnorderedTermSet & statevars = ts_.statevars();
-    TermVec cube_vec;
-    cube_vec.reserve(statevars.size());
-    Term eq;
-    for (auto sv : statevars) {
-      eq = solver_->make_term(Equal, sv, solver_->get_value(sv));
-      cube_vec.push_back(eq);
-    }
-
-    // reduce the bad cube
-    solver_->pop();
-    solver_->push();
-
-    Term neg_assert = solver_->make_term(
-        Not, solver_->make_term(And, bad_, get_frame(reached_k_ + 1)));
-    solver_->assert_formula(neg_assert);
-
-    Term b;
-    TermVec bool_assump, splits;
-    split_eq(solver_, cube_vec, splits);
-    // shuffle(splits.begin(), splits.end(), default_random_engine(7));
-    for (auto a : splits) {
-      unsigned i = 0;
-      b = label(a);
-      bool_assump.push_back(b);
-      solver_->assert_formula(solver_->make_term(Implies, b, a));
-    }
-
-    Result rr = solver_->check_sat_assuming(bool_assump);
-    assert(rr.is_unsat());
-
-    TermVec red_lits;
-    UnorderedTermSet core_set;
-    solver_->get_unsat_core(core_set);
-    for (size_t j = 0; j < bool_assump.size(); ++j) {
-      if (core_set.find(bool_assump[j]) != core_set.end()) {
-        red_lits.push_back(splits[j]);
-      }
-    }
-
-    Conjunction c(solver_, red_lits);
-    add_proof_goal(c, reached_k_ + 1);
+  TermVec conjuncts;
+  conjunctive_partition(bad_, conjuncts);
+  // // include the last frame
+  // // this is an optimization, it is not necessary for correctness
+  // for (auto c : frames_.back()) {
+  //   conjuncts.push_back(c);
+  // }
+  Conjunction bad_at_last_frame(solver_, conjuncts);
+  Conjunction pred;
+  if (!get_predecessor(reached_k_ + 1, bad_at_last_frame, pred)) {
+    Term gen_block_bad = inductive_generalization(reached_k_ + 1, pred);
+    frames_[reached_k_ + 1].push_back(gen_block_bad);
+    return false;
+  } else {
+    add_proof_goal(pred, reached_k_);
+    return true;
   }
-
-  solver_->pop();
-
-  assert(!r.is_unknown());
-  return r.is_sat();
 }
 
 bool ModelBasedIC3::get_predecessor(size_t i,
