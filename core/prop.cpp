@@ -28,7 +28,8 @@ Property::Property(const TransitionSystem & ts, const Term & p)
   const UnorderedTermSet & states = ts.statevars();
   UnorderedTermSet free_symbols = get_free_symbols(p);
   for (auto s : free_symbols) {
-    if (states.find(s) == states.end()) {
+    if (!ts.is_curr_var(s))
+    {
       throw PonoException("Property should only use state variables");
     }
   }
