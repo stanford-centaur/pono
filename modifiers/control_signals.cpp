@@ -43,8 +43,14 @@ void toggle_clock(TransitionSystem & ts, const Term & clock_symbol)
                                       clock_symbol->get_sort());
     ts.constrain_inputs(s->make_term(Equal, clock_symbol, clk_state));
   }
-  ts.constrain_init(s->make_term(Equal, clk_state, zero));
-  ts.assign_next(clk_state, s->make_term(BVNot, clk_state));
+  assert(sk == BV || sk == BOOL);
+  if (sk == BV) {
+    ts.constrain_init(s->make_term(Equal, clk_state, zero));
+    ts.assign_next(clk_state, s->make_term(BVNot, clk_state));
+  } else if (sk == BOOL) {
+    ts.constrain_init(s->make_term(Not, clk_state));
+    ts.assign_next(clk_state, s->make_term(Not, clk_state));
+  }
 }
 
 Term add_reset_seq(TransitionSystem & ts,
