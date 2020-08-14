@@ -60,6 +60,21 @@ class ArrayAbstractor : public Abstractor
   smt::Term abstract(smt::Term & t) override;
   smt::Term concrete(smt::Term & t) override;
 
+  /** Returns the abstraction of a given sort
+   *  if the sort has not been abstracted, the original
+   *  sort is returned
+   *  @param s the sort to look up the abstraction for
+   *  @return the abstract sort
+   */
+  smt::Sort abstract(smt::Sort & s);
+  /** Returns the concretization of a given abstract sort
+   *  if the sort is not an abstraction, the original
+   *  sort is returned
+   *  @param s the sort to look up the concretization for
+   *  @return the concrete sort
+   */
+  smt::Sort concrete(smt::Sort & s);
+
   /** Looks up a read UF for an abstract array sort
    *  @param sort the abstract array sort
    *  @return the corresponding read UF term
@@ -76,6 +91,10 @@ class ArrayAbstractor : public Abstractor
    *  NOTE: only valid if abstract_array_equality_ is true
    */
   smt::Term get_arrayeq_uf(const smt::Sort & sort) const;
+
+  // getter
+  // if true, then array equality is abstracted with a UF
+  bool abstract_array_equality() const { return abstract_array_equality_; };
 
  protected:
   void do_abstraction() override;

@@ -187,8 +187,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   smt::Term arrayeq_read_lambda_axiom(const smt::Term & arrayeq) const;
 
   /** Creates the bounding guard for a lambda axiom
-   *  if the lambda's associated sort is finite domain
-   *  otherwise returns true
+   *  for lambda's with an associated sort that has a
+   *  finite domain. Currently should only be called with
+   *  lambdas for bit-vector sorts
    *
    *  Example: if the index sort for this lambda is (_ BitVec 1)
    *  then there are only two possible values
@@ -199,7 +200,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *
    *  @param sort the concrete array sort this lambda was created for
    *  @param lambda the lambda variable from the transition system
-   *  @return a bounding guard for finite domains and true otherwise
+   *  @return a bounding guard for finite domains
    */
   smt::Term lambda_guard(const smt::Sort & sort, const smt::Term & lam) const;
 

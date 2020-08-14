@@ -220,6 +220,26 @@ Term ArrayAbstractor::abstract(Term & t) { return abs_walker_.visit(t); }
 
 Term ArrayAbstractor::concrete(Term & t) { return conc_walker_.visit(t); }
 
+Sort ArrayAbstractor::abstract(Sort & s)
+{
+  auto it = abstract_sorts_.find(s);
+  if (it != abstract_sorts_.end()) {
+    return it->second;
+  } else {
+    return s;
+  }
+}
+
+Sort ArrayAbstractor::concrete(Sort & s)
+{
+  auto it = concrete_sorts_.find(s);
+  if (it != concrete_sorts_.end()) {
+    return it->second;
+  } else {
+    return s;
+  }
+}
+
 Term ArrayAbstractor::get_read_uf(const smt::Sort & sort) const
 {
   auto it = read_ufs_.find(sort);
