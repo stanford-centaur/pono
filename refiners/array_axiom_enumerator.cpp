@@ -82,11 +82,12 @@ Term ArrayAxiomEnumerator::constarr_lambda_axiom(const Term & constarr,
   Term read_uf = aa_.get_read_uf(sort);
   Sort conc_sort = aa_.concrete(sort);
   Term lam = lambdas_.at(conc_sort);
-  Term ax = solver_->make_term(
-      Equal, solver_->make_term(Apply, read_uf, constarr, lam), val);
+  Term ax = constarr_axiom(constarr, val, lam);
   assert(conc_sort->get_sort_kind() == ARRAY);
   Sort idxsort = conc_sort->get_indexsort();
   if (idxsort->get_sort_kind() == BV) {
+    // IMPORTANT: if concrete index sort is finite-domain
+    // need to guard with boundary conditions for soundness
     ax = solver_->make_term(Implies, lambda_guard(idxsort, lam), ax);
   }
   return ax;
@@ -127,18 +128,13 @@ Term ArrayAxiomEnumerator::store_read_lambda_axiom(const Term & store) const
   Term lam = lambdas_.at(conc_sort);
   TermVec children(store->begin(), store->end());
   assert(children.size() == 4);  // the UF + the 3 expected arguments
-  Term a = children[1];
-  Term wr_idx = children[2];
-  Term val = children[3];
-  Term antecedent = solver_->make_term(Distinct, lam, wr_idx);
-  Term read_store = solver_->make_term(Apply, read_uf, store, lam);
-  Term read_a = solver_->make_term(Apply, read_uf, a, lam);
-  Term ax = solver_->make_term(
-      Implies, antecedent, solver_->make_term(Equal, read_store, read_a));
+  Term ax = store_read_axiom(store, lam);
 
   assert(conc_sort->get_sort_kind() == ARRAY);
   Sort idxsort = conc_sort->get_indexsort();
   if (idxsort->get_sort_kind() == BV) {
+    // IMPORTANT: if concrete index sort is finite-domain
+    // need to guard with boundary conditions for soundness
     ax = solver_->make_term(Implies, lambda_guard(idxsort, lam), ax);
   }
   return ax;
@@ -200,36 +196,15 @@ Term ArrayAxiomEnumerator::arrayeq_read_axiom(const Term & arrayeq,
 
 Term ArrayAxiomEnumerator::arrayeq_read_lambda_axiom(const Term & arrayeq) const
 {
-  TermVec children(arrayeq->begin(), arrayeq->end());
-  Term a, b;
-  if (aa_.abstract_array_equality()) {
-    assert(children.size() == 3);  // the UF + 2 arrays
-    assert(arrayeq->get_op() == Apply);
-    a = children[1];
-    b = children[2];
-  } else {
-    assert(children.size() == 2);
-    assert(arrayeq->get_op() == Equal);
-    a = children[0];
-    b = children[1];
-  }
-  assert(a);
-  assert(b);
-
   Sort sort = a->get_sort();
-  Term read_uf = aa_.get_read_uf(sort);
   Sort conc_sort = aa_.concrete(sort);
   Term lam = lambdas_.at(conc_sort);
-
-  Term eq_at_lam =
-      solver_->make_term(Equal,
-                         solver_->make_term(Apply, read_uf, a, lam),
-                         solver_->make_term(Apply, read_uf, b, lam));
-  Term ax = solver_->make_term(Implies, arrayeq, eq_at_lam);
-
+  Term ax = arrayeq_read_axiom(arrayeq, lam);
   assert(conc_sort->get_sort_kind() == ARRAY);
   Sort idxsort = conc_sort->get_indexsort();
   if (idxsort->get_sort_kind() == BV) {
+    // IMPORTANT: if concrete index sort is finite-domain
+    // need to guard with boundary conditions for soundness
     ax = solver_->make_term(Implies, lambda_guard(idxsort, lam), ax);
   }
   return ax;
