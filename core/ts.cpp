@@ -122,6 +122,11 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
         "Got next state variable in RHS of functional assignment");
   }
 
+  if (state_updates_.find(state) != state_updates_.end()) {
+    throw PonoException("State variable " + state->to_string()
+                        + " already has next-state logic assigned.");
+  }
+
   state_updates_[state] = val;
   trans_ = solver_->make_term(
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));

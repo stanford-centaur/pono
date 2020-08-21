@@ -78,6 +78,11 @@ class TransitionSystem
    * Represents a functional update
    * @param state the state variable you are updating
    * @param val the value it should get
+   * Throws a PonoException if:
+   *  1) state is not a state variable
+   *  2) val contains any next state variables (assign next is for functional
+   * assignment)
+   *  3) state has already been assigned a next state update
    */
   void assign_next(const smt::Term & state, const smt::Term & val);
 
