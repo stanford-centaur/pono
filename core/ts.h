@@ -42,7 +42,10 @@ class TransitionSystem
   }
 
   TransitionSystem(smt::SmtSolver & s)
-      : solver_(s), init_(s->make_term(true)), trans_(s->make_term(true))
+      : solver_(s),
+        init_(s->make_term(true)),
+        trans_(s->make_term(true)),
+        functional_(false)
   {
   }
 
@@ -75,6 +78,11 @@ class TransitionSystem
    * Represents a functional update
    * @param state the state variable you are updating
    * @param val the value it should get
+   * Throws a PonoException if:
+   *  1) state is not a state variable
+   *  2) val contains any next state variables (assign next is for functional
+   * assignment)
+   *  3) state has already been assigned a next state update
    */
   void assign_next(const smt::Term & state, const smt::Term & val);
 
@@ -150,6 +158,16 @@ class TransitionSystem
    * Returns false for any other term
    */
   bool is_next_var(const smt::Term & sv) const;
+
+  /** Find a term by name in the transition system.
+   *  searches current and next state variables, inputs,
+   *  and named terms.
+   *  Throws a PonoException if there is no matching term.
+   *
+   *  @param name the name to look for
+   *  @return the matching term if found
+   */
+  smt::Term lookup(std::string name) const;
 
   // getters
   const smt::SmtSolver & solver() const { return solver_; };

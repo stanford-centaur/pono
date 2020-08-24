@@ -35,7 +35,10 @@ enum optionIndex
   PROP,
   VERBOSITY,
   VCDNAME,
-  NOWITNESS
+  NOWITNESS,
+  RESET,
+  RESET_BND,
+  CLK
 };
 
 struct Arg : public option::Arg
@@ -116,6 +119,29 @@ const option::Descriptor usage[] = {
     "no-witness",
     Arg::None,
     "  --no-witness \tDisable printing of witness." },
+  { RESET,
+    0,
+    "r",
+    "reset",
+    Arg::NonEmpty,
+    "  --reset, -r <reset input> \tSymbol to use for reset signal (prefix with "
+    "~ "
+    "for negative reset)" },
+  { RESET_BND,
+    0,
+    "s",
+    "resetsteps",
+    Arg::Numeric,
+    "  --resetsteps, -s <integer> \tNumber of steps to apply reset for "
+    "(default: 1)" },
+  { CLK,
+    0,
+    "c",
+    "clock",
+    Arg::NonEmpty,
+    "  --clock, -c <clock name> \tSymbol to use for clock signal (only "
+    "supports "
+    "starting at 0 and toggling each step)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -191,6 +217,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
+        case RESET: reset_name_ = opt.arg; break;
+        case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
+        case CLK: clock_name_ = opt.arg; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
