@@ -69,6 +69,7 @@ class PonoOptions
   unsigned int verbosity_;
   std::string vcd_name_;
   bool no_witness_;
+  bool static_coi_;
   std::string reset_name_;
   size_t reset_bnd_;
   std::string clock_name_;
@@ -81,6 +82,7 @@ class PonoOptions
   static const unsigned int default_bound_ = 10;
   static const unsigned int default_verbosity_ = 0;
   static const bool default_no_witness_ = false;
+  static const bool default_static_coi_ = false;
   static const size_t default_reset_bnd_ = 1;
 };
 
