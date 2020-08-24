@@ -28,6 +28,7 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(const TransitionSystem & ts,
                                            ArrayAbstractor & aa)
     : super(ts), aa_(aa)
 {
+  false_ = solver_->make_term(false);
 }
 
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
@@ -63,7 +64,8 @@ void ArrayAxiomEnumerator::check_axioms(AxiomClass ac, int lemma_limit)
 
 bool ArrayAxiomEnumerator::is_violated(const Term & ax) const
 {
-  throw PonoException("NYI");
+  assert(ax->get_sort()->get_sort_kind() == BOOL);
+  return solver_->get_value(ax) == false_;
 }
 
 Term ArrayAxiomEnumerator::constarr_axiom(const Term & constarr,

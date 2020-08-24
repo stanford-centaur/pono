@@ -71,6 +71,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
 
   /** Check if a given axiom (over unrolled variables)
    *  is violated in the current model
+   *  assumes the last call to the solver was satisfiable
+   *  and there have been no pushes/pops since then
    *  @param ax the axiom to check
    *  @return true if the axiom is false in the current model
    */
@@ -238,6 +240,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   std::vector<NCAxiomInstantiation>
       nonconsecutive_axioms_;  ///< populated with nonconsecutive axiom
                                ///< instantiations
+
+  // useful terms
+  smt::Term false_;
 };
 
 }  // namespace pono
