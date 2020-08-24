@@ -57,6 +57,11 @@ class Abstractor
     throw PonoException("Abstractor base class does not implement methods.");
   }
 
+  // getters
+  const TransitionSystem & conc_ts() const { return conc_ts_; };
+
+  TransitionSystem & abs_ts() const { return abs_ts_; };
+
  protected:
   /** Perform the abstraction
    *  This should populate the abstraction and concretization caches

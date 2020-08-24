@@ -15,6 +15,8 @@
 **/
 #pragma once
 
+#include "smt-switch/identity_walker.h"
+
 #include "core/ts.h"
 #include "modifiers/array_abstractor.h"
 #include "refiners/axiom_enumerator.h"
@@ -34,8 +36,25 @@ enum AxiomClass
   ARRAYEQ_READ_LAMBDA
 };
 
+// Walker for finding all the array terms and associated indices
+// takes the *concrete* transition system and collects all array
+// terms and indices and stores them in the appropriate
+// data structures in the ArrayAxiomEnumerator
+class ArrayFinder : public smt::IdentityWalker
+{
+ public:
+  ArrayFinder(ArrayAxiomEnumerator & aae);
+
+ protected:
+  smt::WalkerStepResult visit_term(smt::Term & term);
+
+  ArrayAxiomEnumerator & aae_;
+}
+
 class ArrayAxiomEnumerator : public AxiomEnumerator
 {
+  friend ArrayFinder;
+
  public:
   ArrayAxiomEnumerator(const TransitionSystem & ts, ArrayAbstractor & aa);
 

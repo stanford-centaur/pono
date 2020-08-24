@@ -24,6 +24,82 @@ using namespace std;
 
 namespace pono {
 
+// ArrayFinder implementation
+
+WalkerStepResult ArrayFinder::visit_term(Term & term)
+{
+  if (!preorder_) {
+    return Walker_Continue;
+  }
+
+  // just an identity mapping
+  // needed for correct term traversal
+  save_in_cache(term, term);
+
+  Sort sort = term->get_sort();
+  SortKind sk = sort->get_sort_kind();
+  Op op = term->get_op();
+
+  if (sk != Array && op != Equal) {
+    return Walker_Continue;
+  }
+
+  if (sk != Array) {
+    assert(op == Equal);
+    TermVec children(term->begin(), term->end());
+    assert(children.size() == 2);
+    if (children[0]->get_sort()->get_sort() == ARRAY) {
+      Term abs_arr_eq = aae_.aa_.abstract(term);
+      // create a witness index for this array equality
+      Term witness_idx = aae_.ts_.make_statevar(
+          "wit_" + std::to_string(aae_.arrayeq_witnesses_.size()),
+          // always uses integer index
+          aae_.solver_->make_sort(INT));
+      arrayeq_witnesses_[abs_arr_eq] = witness_idx;
+      // add witness to index set
+      aae_.index_set_.insert(witness_idx);
+    }
+    return Walker_Continue;
+  }
+
+  assert(sk == ARRAY);
+
+  if (term->is_symbolic_const()) {
+    // nothing to save for an array variable
+    return Walker_Continue;
+  }
+
+  Term abs_term = aae_.aa_.abstract(term);
+  Term children(term->begin(), term->end());
+  Term abs_children(abs_term->begin(), abs_term->end());
+
+  if (op.is_null()) {
+    // constant array
+    assert(children.size() == 1);
+    Term val = children[0];
+    aae_.constarrs_[abs_term] = val;
+  } else if (op == Store) {
+    assert(abs_children.size() == 4);
+    assert(children.size() == 4);
+    aae_.stores.push_back(abs_term);
+
+    // third child is index because
+    // read_uf, array, index, element
+    aae_.index_set_(abs_children[2]);
+  } else {
+    assert(op == Select);
+    assert(abs_children.size() == 3);
+    assert(children.size() == 3);
+    // third child is index, because it's
+    // read_uf, array, index
+    aae_.index_set_(abs_children[2]);
+  }
+
+  return Walker_Continue;
+}
+
+// ArrayAxiomEnumerator implementation
+
 ArrayAxiomEnumerator::ArrayAxiomEnumerator(const TransitionSystem & ts,
                                            ArrayAbstractor & aa)
     : super(ts), aa_(aa)
@@ -55,6 +131,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 void ArrayAxiomEnumerator::collect_arrays_and_indices()
 {
   throw PonoException("NYI");
+  // TODO : populate cur_index_set_
 }
 
 void ArrayAxiomEnumerator::check_axioms(AxiomClass ac, int lemma_limit)
