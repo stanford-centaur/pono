@@ -40,22 +40,22 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   SortKind sk = sort->get_sort_kind();
   Op op = term->get_op();
 
-  if (sk != Array && op != Equal) {
+  if (sk != ARRAY && op != Equal) {
     return Walker_Continue;
   }
 
-  if (sk != Array) {
+  if (sk != ARRAY) {
     assert(op == Equal);
     TermVec children(term->begin(), term->end());
     assert(children.size() == 2);
-    if (children[0]->get_sort()->get_sort() == ARRAY) {
+    if (children[0]->get_sort()->get_sort_kind() == ARRAY) {
       Term abs_arr_eq = aae_.aa_.abstract(term);
       // create a witness index for this array equality
-      Term witness_idx = aae_.ts_.make_statevar(
+      Term witness_idx = aae_.aa_.abs_ts().make_statevar(
           "wit_" + std::to_string(aae_.arrayeq_witnesses_.size()),
           // always uses integer index
           aae_.solver_->make_sort(INT));
-      arrayeq_witnesses_[abs_arr_eq] = witness_idx;
+      aae_.arrayeq_witnesses_[abs_arr_eq] = witness_idx;
       // add witness to index set
       aae_.index_set_.insert(witness_idx);
     }
@@ -70,8 +70,8 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   }
 
   Term abs_term = aae_.aa_.abstract(term);
-  Term children(term->begin(), term->end());
-  Term abs_children(abs_term->begin(), abs_term->end());
+  TermVec children(term->begin(), term->end());
+  TermVec abs_children(abs_term->begin(), abs_term->end());
 
   if (op.is_null()) {
     // constant array
@@ -81,18 +81,18 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   } else if (op == Store) {
     assert(abs_children.size() == 4);
     assert(children.size() == 4);
-    aae_.stores.push_back(abs_term);
+    aae_.stores_.push_back(abs_term);
 
     // third child is index because
     // read_uf, array, index, element
-    aae_.index_set_(abs_children[2]);
+    aae_.index_set_.insert(abs_children[2]);
   } else {
     assert(op == Select);
     assert(abs_children.size() == 3);
     assert(children.size() == 3);
     // third child is index, because it's
     // read_uf, array, index
-    aae_.index_set_(abs_children[2]);
+    aae_.index_set_.insert(abs_children[2]);
   }
 
   return Walker_Continue;
@@ -275,6 +275,7 @@ Term ArrayAxiomEnumerator::arrayeq_read_axiom(const Term & arrayeq,
 
 Term ArrayAxiomEnumerator::arrayeq_read_lambda_axiom(const Term & arrayeq) const
 {
+  Term a = *(arrayeq->begin());
   Sort sort = a->get_sort();
   Sort conc_sort = aa_.concrete(sort);
   Term lam = lambdas_.at(conc_sort);

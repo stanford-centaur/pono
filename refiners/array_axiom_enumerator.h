@@ -36,6 +36,9 @@ enum AxiomClass
   ARRAYEQ_READ_LAMBDA
 };
 
+// forward declaration for reference
+class ArrayAxiomEnumerator;
+
 // Walker for finding all the array terms and associated indices
 // takes the *concrete* transition system and collects all array
 // terms and indices and stores them in the appropriate
@@ -49,7 +52,7 @@ class ArrayFinder : public smt::IdentityWalker
   smt::WalkerStepResult visit_term(smt::Term & term);
 
   ArrayAxiomEnumerator & aae_;
-}
+};
 
 class ArrayAxiomEnumerator : public AxiomEnumerator
 {
