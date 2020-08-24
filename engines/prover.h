@@ -41,7 +41,6 @@ class Prover
 
   bool witness(std::vector<smt::UnorderedTermMap> & out);
 
-  // TODO: function seems to be redundant?
   ProverResult prove();
 
  protected:
