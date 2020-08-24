@@ -138,7 +138,7 @@ int main(int argc, char ** argv)
           reset_name = reset_name.substr(1, reset_name.length() - 1);
           negative_reset = true;
         }
-        Term reset_symbol = fts.lookup(pono_options.reset_name_);
+        Term reset_symbol = fts.lookup(reset_name);
         if (negative_reset) {
           SortKind sk = reset_symbol->get_sort()->get_sort_kind();
           reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
