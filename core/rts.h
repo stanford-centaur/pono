@@ -23,7 +23,15 @@ namespace pono {
 class RelationalTransitionSystem : public TransitionSystem
 {
  public:
+  RelationalTransitionSystem() : TransitionSystem() {}
+
   RelationalTransitionSystem(smt::SmtSolver & s) : TransitionSystem(s) {}
+
+  RelationalTransitionSystem(const TransitionSystem & other_ts,
+                             smt::TermTranslator & tt)
+      : TransitionSystem(other_ts, tt)
+  {
+  }
 
   /* Sets init and trans to the provided values
    * @param init the new initial state constraints (boolean sort)
@@ -41,7 +49,6 @@ class RelationalTransitionSystem : public TransitionSystem
    */
   void constrain_trans(const smt::Term & constraint);
 
-  bool is_functional() const override { return false; };
 };
 
 }  // namespace pono

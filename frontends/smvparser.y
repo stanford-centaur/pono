@@ -12,7 +12,7 @@
 %}
 
 %code requires{
-  #include "smv_node.h"
+  #include "frontends/smv_node.h"
   #include <string>
   namespace pono{
     class SMVEncoder;

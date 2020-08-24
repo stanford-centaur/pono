@@ -24,7 +24,8 @@ typedef enum
 {
   UNKNOWN = -1,
   FALSE = 0,
-  TRUE = 1
+  TRUE = 1,
+  ERROR = 2
 } ProverResult;
 
 std::string to_string(ProverResult r);

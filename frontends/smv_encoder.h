@@ -14,13 +14,15 @@
 #include <vector>
 
 #include "assert.h"
-#include "exceptions.h"
-#include "rts.h"
+#include "core/rts.h"
 #include "smt-switch/smt.h"
-#include "smvparser.h"
-#include "smvscanner.h"
+#include "utils/exceptions.h"
 
-namespace pono{
+#include "frontends/smvscanner.h"
+#include "smvparser.h"
+
+namespace pono {
+
 class SMVEncoder
 {
  public:
@@ -40,19 +42,19 @@ class SMVEncoder
   void preprocess();
   smt::TermVec propvec() { return propvec_; }
 
-  smt::SmtSolver & solver_;
+  const smt::SmtSolver & solver_;
   pono::RelationalTransitionSystem & rts_;
   std::unordered_map<std::string, smt::Term> terms_;
   std::vector<smt::Sort> sortvec_;
   std::vector<smt::Term> propvec_;
-  std::unordered_map<std::string, smt::Term>  signedbv_;
-  std::unordered_map<std::string, smt::Term>  unsignedbv_;
+  std::unordered_map<std::string, smt::Term> signedbv_;
+  std::unordered_map<std::string, smt::Term> unsignedbv_;
   std::deque<std::pair<int, smt::Term>> transterm_;
   std::vector<int> caselist_;
   std::vector<smt::Term> casecheck_;
   std::vector<smt::Term> casestore_;
-  //std::unordered_map<int, smt::Term> casecheck_;
-  //std::unordered_map<int, smt::Term> casestore_;
+  // std::unordered_map<int, smt::Term> casecheck_;
+  // std::unordered_map<int, smt::Term> casestore_;
   std::vector<std::pair<smt::Term, smt::Term>> caseterm_;
 };  // class SMVEncoder
 }  // namespace pono

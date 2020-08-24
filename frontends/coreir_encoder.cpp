@@ -187,6 +187,10 @@ void CoreIREncoder::encode()
              can_abstract_clock_ ? "can" : "cannot",
              top_->getName());
 
+  if (!can_abstract_clock_ && force_abstract_clock_) {
+    logger.log(1, "INFO forcing clock abstraction based on user-provided flag");
+  }
+
   // process the rest in topological order
   size_t processed_instances = 0;
   unordered_set<Instance *> visited_instances;
@@ -194,13 +198,10 @@ void CoreIREncoder::encode()
     inst_ = instances.back();
     instances.pop_back();
 
-    if (visited_instances.find(inst_) != visited_instances.end())
-    {
+    if (visited_instances.find(inst_) != visited_instances.end()) {
       // this module has already been processed
       continue;
-    }
-    else
-    {
+    } else {
       // mark this instance as visited
       visited_instances.insert(inst_);
     }
@@ -235,8 +236,7 @@ void CoreIREncoder::encode()
 
         Wireable * dst_parent = dst;
         if (isa<CoreIR::Select>(dst)
-            && isNumber(cast<CoreIR::Select>(dst)->getSelStr()))
-        {
+            && isNumber(cast<CoreIR::Select>(dst)->getSelStr())) {
           // shouldn't count bit-selects as individual inputs
           // need to get parent
           dst_parent = cast<CoreIR::Select>(dst)->getParent();
@@ -374,7 +374,7 @@ void CoreIREncoder::process_state_element(Instance * st)
          || instance_of(st, "coreir", "reg_arst")
          || instance_of(st, "coreir", "mem"));
 
-  if (can_abstract_clock_) {
+  if (can_abstract_clock_ || force_abstract_clock_) {
     if (w2term_.find(st->sel("in")) != w2term_.end()) {
       ts_.assign_next(w2term_.at(st), w2term_.at(st->sel("in")));
     } else {

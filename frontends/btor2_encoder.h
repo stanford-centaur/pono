@@ -28,9 +28,10 @@ extern "C" {
 #include <unordered_map>
 #include "assert.h"
 
-#include "exceptions.h"
+#include "core/ts.h"
+#include "utils/exceptions.h"
+
 #include "smt-switch/smt.h"
-#include "ts.h"
 
 namespace pono {
 class BTOR2Encoder
@@ -69,7 +70,7 @@ class BTOR2Encoder
   void parse(const std::string filename);
 
   // Important members
-  smt::SmtSolver & solver_;
+  const smt::SmtSolver & solver_;
   pono::TransitionSystem & ts_;
 
   // vectors of inputs and states
@@ -99,4 +100,3 @@ class BTOR2Encoder
   size_t witness_id_{ 0 };  ///< id of any introduced witnesses for properties
 };
 }  // namespace pono
-
