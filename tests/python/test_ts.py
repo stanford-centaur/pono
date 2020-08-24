@@ -30,7 +30,7 @@ def test_query_fts(create_solver):
 
     assert len(ts.statevars) == 2
     assert len(ts.state_updates) == 1
-    assert len(ts.named_terms) == 1
+    assert len(ts.named_terms) == 5, "expecting a named term for each curr/next state var and explicitly named term"
     assert len(ts.constraints) == 2, "expecting the added constraint over current and next state vars"
     assert ts.is_functional()
 
@@ -65,7 +65,7 @@ def test_query_rts(create_solver):
 
     assert len(ts.statevars) == 2
     assert len(ts.state_updates) == 1
-    assert len(ts.named_terms) == 1
+    assert len(ts.named_terms) == 5, "expecting a named term for each curr/next state var and explicitly named term"
     assert len(ts.constraints) == 2, "expecting the added constraint over current and next state vars"
     assert not ts.is_functional()
 
