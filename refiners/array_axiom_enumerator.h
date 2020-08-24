@@ -17,6 +17,7 @@
 
 #include "smt-switch/identity_walker.h"
 
+#include "core/prop.h"
 #include "core/ts.h"
 #include "modifiers/array_abstractor.h"
 #include "refiners/axiom_enumerator.h"
@@ -45,6 +46,8 @@ class ArrayAxiomEnumerator;
 // data structures in the ArrayAxiomEnumerator
 class ArrayFinder : public smt::IdentityWalker
 {
+  typedef smt::IdentityWalker super;
+
  public:
   ArrayFinder(ArrayAxiomEnumerator & aae);
 
@@ -59,7 +62,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   friend ArrayFinder;
 
  public:
-  ArrayAxiomEnumerator(const TransitionSystem & ts, ArrayAbstractor & aa);
+  ArrayAxiomEnumerator(Property & prop, ArrayAbstractor & aa);
 
   typedef AxiomEnumerator super;
 
@@ -230,14 +233,13 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
 
   // members
   // for abstracting/concretizing terms
+  Property & prop_;
   ArrayAbstractor & aa_;
   // for generating axioms
   size_t bound_;  ///< the bound of the current abstract trace
   smt::UnorderedTermMap
       constarrs_;        ///< maps (abstract) constarrs to their constant value
-  smt::TermVec stores_;  ///< vector of (abstract) stores
-  smt::TermVec
-      arrayeq_;  ///< vector of array equalities (could be UFs if abstracted)
+  smt::UnorderedTermSet stores_;  ///< vector of (abstract) stores
   // for index set, witness and lambda information
   // see What's Decidable About Arrays paper
   // the index set here does not contain lambdas

@@ -26,6 +26,12 @@ namespace pono {
 
 // ArrayFinder implementation
 
+ArrayFinder::ArrayFinder(ArrayAxiomEnumerator & aae)
+    // do clear the cache -- if called again, want to add
+    : aae_(aae), super(aae_.solver_, true)
+{
+}
+
 WalkerStepResult ArrayFinder::visit_term(Term & term)
 {
   if (!preorder_) {
@@ -50,6 +56,12 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
     assert(children.size() == 2);
     if (children[0]->get_sort()->get_sort_kind() == ARRAY) {
       Term abs_arr_eq = aae_.aa_.abstract(term);
+      if (aae_.arrayeq_witnesses_.find(abs_arr_eq)
+          != aae_.arrayeq_witnesses_.end()) {
+        // already recorded this array equality
+        return Walker_Continue;
+      }
+
       // create a witness index for this array equality
       Term witness_idx = aae_.aa_.abs_ts().make_statevar(
           "wit_" + std::to_string(aae_.arrayeq_witnesses_.size()),
@@ -81,7 +93,7 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   } else if (op == Store) {
     assert(abs_children.size() == 4);
     assert(children.size() == 4);
-    aae_.stores_.push_back(abs_term);
+    aae_.stores_.insert(abs_term);
 
     // third child is index because
     // read_uf, array, index, element
@@ -100,9 +112,9 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
 
 // ArrayAxiomEnumerator implementation
 
-ArrayAxiomEnumerator::ArrayAxiomEnumerator(const TransitionSystem & ts,
+ArrayAxiomEnumerator::ArrayAxiomEnumerator(Property & prop,
                                            ArrayAbstractor & aa)
-    : super(ts), aa_(aa)
+    : super(prop.transition_system()), prop_(prop), aa_(aa)
 {
   false_ = solver_->make_term(false);
 }
@@ -130,8 +142,21 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 
 void ArrayAxiomEnumerator::collect_arrays_and_indices()
 {
-  throw PonoException("NYI");
-  // TODO : populate cur_index_set_
+  ArrayFinder af(*this);
+  // just visit each (concrete) term of the transition system
+  Term init = aa_.conc_ts().init();
+  Term trans = aa_.conc_ts().trans();
+  Term prop_term = prop_.prop();
+  prop_term = aa_.concrete(prop_term);
+  af.visit(init);
+  af.visit(trans);
+  af.visit(prop_term);
+
+  for (auto idx : index_set_) {
+    if (ts_.only_curr(idx)) {
+      cur_index_set_.insert(idx);
+    }
+  }
 }
 
 void ArrayAxiomEnumerator::check_axioms(AxiomClass ac, int lemma_limit)
