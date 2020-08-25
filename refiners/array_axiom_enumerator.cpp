@@ -186,12 +186,13 @@ void ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
   //       not explicitly calling next here -- is that a problem?
   //       should be okay as long as we add next version of axioms
   //       that are only over state variables
-  // TODO: fix boundary condition! if there's next in the axiom and unroll at
-  // bound_
   size_t num_found_lemmas = 0;
   Term unrolled_ax;
   for (Term ax : axioms_to_check) {
-    for (size_t k = 0; k <= bound_; ++k) {
+    // bound to check until depends on whether there are inputs/next state vars
+    // in the axiom
+    size_t max_k = ts_.only_curr(ax) ? bound_ : bound_ - 1;
+    for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = un_.at_time(ax, k);
       if (is_violated(unrolled_ax)) {
         violated_axioms_.insert(unrolled_ax);
@@ -230,8 +231,6 @@ void ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
   //       not explicitly calling next here -- is that a problem?
   //       should be okay as long as we add next version of axioms
   //       that are only over state variables
-  // TODO: fix boundary condition! if there's next in the axiom and unroll at
-  // bound_
 
   // check these axioms
   // Note: using staged unrolling -- i.e. indices already unrolled
@@ -239,7 +238,10 @@ void ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
   size_t num_found_lemmas;
   Term unrolled_ax;
   for (AxiomInstantiation ax_inst : index_axioms(ac, unrolled_indices)) {
-    for (size_t k = 0; k <= bound_; ++k) {
+    // bound to check until depends on whether there are inputs/next state vars
+    // in the axiom
+    size_t max_k = ts_.only_curr(ax_inst.ax) ? bound_ : bound_ - 1;
+    for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = un_.at_time(ax_inst.ax, k);
       if (is_violated(unrolled_ax)) {
         violated_axioms_.insert(unrolled_ax);
