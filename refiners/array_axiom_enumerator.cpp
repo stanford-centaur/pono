@@ -159,7 +159,39 @@ void ArrayAxiomEnumerator::collect_arrays_and_indices()
   }
 }
 
-void ArrayAxiomEnumerator::check_axioms(AxiomClass ac, int lemma_limit)
+void ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
+                                                    bool only_curr,
+                                                    int lemma_limit)
+{
+  UnorderedTermSet & indices = only_curr ? cur_index_set_ : index_set_;
+
+  // axioms over transition system terms -- need to be unrolled
+  UnorderedTermSet ts_axioms;
+  for (auto idx : indices) {
+    Term ax;
+    switch (ac) {
+      case CONSTARR:
+      case CONSTARR_LAMBDA:
+      case STORE_WRITE:
+      case STORE_READ:
+      case STORE_READ_LAMBDA:
+      case ARRAYEQ_WITNESS:
+      case ARRAYEQ_READ:
+      case ARRAYEQ_READ_LAMBDA:
+      default:
+        // this should be unreachable
+        assert(false);
+    }
+    assert(ax);
+    ts_axioms.insert(ax);
+  }
+
+  throw PonoException("NYI");
+}
+
+void ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
+                                                       bool only_curr,
+                                                       int lemma_limit)
 {
   throw PonoException("NYI");
 }
@@ -168,6 +200,23 @@ bool ArrayAxiomEnumerator::is_violated(const Term & ax) const
 {
   assert(ax->get_sort()->get_sort_kind() == BOOL);
   return solver_->get_value(ax) == false_;
+}
+
+UnorderedTermSet non_index_axioms(AxiomClass ac)
+{
+  assert(index_axiom_classes.find(ac) == index_axiom_classes.end());
+
+  UnorderedTermSet ts_axioms;
+  // TODO: fill this in
+  if (ac == CONSTARR_LAMBDA) {
+  } else if (ac == STORE_WRITE) {
+  } else if (ac == STORE_READ_LAMBDA) {
+  } else if (ac == ARRAYEQ_READ_LAMBDA) {
+  } else {
+    throw PonoException("Unhandled AxiomClass");
+  }
+
+  throw PonoException("NYI");
 }
 
 Term ArrayAxiomEnumerator::constarr_axiom(const Term & constarr,

@@ -37,6 +37,14 @@ enum AxiomClass
   ARRAYEQ_READ_LAMBDA
 };
 
+// these are all the axioms that require instantiating an index
+// crucial that this set is accurately maintained
+// lambda axioms are not included because they're not parameterized
+// by the index -- the index is known, lambda
+// similarly, STORE_WRITE only uses the index in the store
+const std::unordered_set<AxiomClass> index_axiom_classes(
+    { CONSTARR, STORE_READ, ARRAYEQ_WITNESS, ARRAYEQ_READ });
+
 // forward declaration for reference
 class ArrayAxiomEnumerator;
 
@@ -87,12 +95,29 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   void collect_arrays_and_indices();
 
-  /** Check axioms from a certain class
+  /** Check consecutive axioms from a certain class
+   *  will populate consecutive_axioms_ with violated axioms
    *  @param ac the type of axiom to check
+   *  @param only_curr if set to true then only checks axioms over current state
+   * vars
    *  @param a limit on how many axioms to generate
    *         -1 means check all of them
    */
-  void check_axioms(AxiomClass ac, int lemma_limit = -1);
+  void check_consecutive_axioms(AxiomClass ac,
+                                bool only_curr,
+                                int lemma_limit = -1);
+
+  /** Check non-consecutive axioms from a certain class
+   *  will populate nonconsecutive_axioms_ with violated axioms
+   *  @param ac the type of axiom to check
+   *  @param only_curr if set to true then only checks axioms over current state
+   * vars
+   *  @param a limit on how many axioms to generate
+   *         -1 means check all of them
+   */
+  void check_nonconsecutive_axioms(AxiomClass ac,
+                                   bool only_curr,
+                                   int lemma_limit = -1);
 
   /** Check if a given axiom (over unrolled variables)
    *  is violated in the current model
@@ -102,6 +127,29 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @return true if the axiom is false in the current model
    */
   bool is_violated(const smt::Term & ax) const;
+
+  // methods for instantiating groups of axioms
+  // uses helper methods below for single axioms
+
+  /** Instantiates axioms not in index_classes_
+   *  i.e. they don't need a for loop over the index set
+   *  @param ac the AxiomClass (assumed to not be in index_classes_)
+   *  @return a set of axioms over transition system terms (not unrolled yet)
+   */
+  smt::UnorderedTermSet non_index_axioms(AxiomClass ac);
+
+  /** Instantiates axioms in index_classes_
+   *  i.e. will loop over indices
+   *  @param ac the AxiomClass (assumed to not be in index_classes_)
+   *  @param indices the set of indices to check (can be unrolled or not)
+   *  @return a set of axioms over transition system terms (not - fully -
+   * unrolled yet) Note: if checking non-consecutive axioms, the indices might
+   * already be unrolled e.g. checking index i at a particular time
+   */
+  smt::UnorderedTermSet index_axioms(AxiomClass ac,
+                                     smt::UnorderedTermSet & indices);
+
+  // helper methods for instantiating single axioms
 
   /** Instantiates the axiom:
    *
