@@ -513,7 +513,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
   Conjunction res(solver_, cube_lits);
 
-  if (ts_.is_functional() && options_.ic3_cexgen_) {
+  if (options_.ic3_cexgen_) {
     // add congruent equalities to cube_lits
     for (auto v : statevars) {
       Term t = ds.find(v);
@@ -530,16 +530,44 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       input_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
     }
 
+    // collect next statevars assignments
+    TermVec next_lits;
+    if (!ts_.is_functional()) {
+      next_lits.reserve(statevars.size());
+      for (auto v : statevars) {
+        Term nv = ts_.next(v);
+        next_lits.push_back(solver_->make_term(Equal, nv, solver_->get_value(nv)));
+      }
+    }
+
     solver_->pop();
     solver_->push();
     // assert input assignments
-    for (auto & a : input_lits) {
+    for (auto a : input_lits) {
       solver_->assert_formula(a);
     }
-    // assert T
-    solver_->assert_formula(ts_.trans());
-    // assert -c'
-    solver_->assert_formula(solver_->make_term(Not, ts_.next(c.term_)));
+
+    if (ts_.is_functional()) {
+      // assert T
+      solver_->assert_formula(ts_.trans());
+      // assert -c'
+      solver_->assert_formula(solver_->make_term(Not, ts_.next(c.term_)));
+    } else {
+      // assert next statevars assigments if not a functional TS
+      for (auto a : next_lits) {
+        solver_->assert_formula(a);
+      }
+
+      // preimage formula
+      Term pre_formula = get_frame(i - 1);
+      pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
+      pre_formula = solver_->make_term(And, pre_formula,
+                                       solver_->make_term(Not, c.term_));
+      pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term_));
+
+      // assert negated preimage formula
+      solver_->assert_formula(solver_->make_term(Not, pre_formula));
+    } 
 
     // make and assert assumptions
     Term b;
@@ -567,8 +595,6 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
     assert(red_cube_lits.size() > 0);
     res = Conjunction(solver_, red_cube_lits);
-  } else {
-    // TODO: write generalize_pred for relational transition systemms
   }
 
   solver_->pop();
