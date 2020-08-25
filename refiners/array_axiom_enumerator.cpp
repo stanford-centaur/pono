@@ -139,29 +139,98 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 
   solver_->push();
   solver_->assert_formula(abs_trace_formula);
-  Result res;
+  Result res = solver_->check_sat();
+  UnorderedTermSet all_violated_axioms;
 
   // use only current axioms if the bound is zero
   // e.g. only the initial state
   // this is because we can only add axioms over current state variables
   // to initial states
   bool only_curr = (bound == 0);
-  do {
+  while (res.is_sat()) {
+    bool found_lemmas = false;
+
+    // check axioms
+    // heuristic order -- all need to be checked for completeness
+    // but might not need to add all of them to prove a property
+    // preferring axioms that don't enumerate indices first
+    // except not lambda axioms -- those are fairly rare
+
+    found_lemmas |= check_consecutive_axioms(STORE_WRITE, only_curr);
+    found_lemmas |= check_consecutive_axioms(ARRAYEQ_WITNESS, only_curr);
+
+    // heuristic: continue outer loop and see if the axioms so far are
+    // sufficient
+    if (!found_lemmas) {
+      found_lemmas |= check_consecutive_axioms(CONSTARR, only_curr);
+      found_lemmas |= check_consecutive_axioms(STORE_READ, only_curr);
+      found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ, only_curr);
+    }
+
+    if (!found_lemmas) {
+      found_lemmas |= check_consecutive_axioms(CONSTARR_LAMBDA, only_curr);
+      found_lemmas |= check_consecutive_axioms(STORE_READ_LAMBDA, only_curr);
+      found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ_LAMBDA, only_curr);
+    }
+
+    // check non-consecutive axioms now if no other lemmas have been found
+    // need to check at unrolled indices
+    // for performance, we prefer indices that are a short distance
+    // from the property violation (at bound_)
+    // this will result in less auxiliary variables to make the axiom
+    // consecutive
+    size_t k = bound_;
+    while (!found_lemmas && k >= 0) {
+      found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
+      found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
+      found_lemmas |= check_nonconsecutive_axioms(ARRAYEQ_READ, only_curr, k);
+      ++k;
+    }
+
+    if (!found_lemmas) {
+      // lambda all different axioms should only rarely be needed -- last
+      // priority NOTE: don't need non-consecutive version of these axioms
+      //       all different over current and next is sufficient to be all
+      //       different for all time
+      found_lemmas |= check_consecutive_axioms(LAMBDA_ALLDIFF, only_curr);
+    }
+
+    if (!found_lemmas) {
+      // there appears to be a concrete counterexample
+      return false;
+    }
+
     // TODO: use an unsat core with check_sat_assuming
+    for (auto ax : violated_axioms_) {
+      solver_->assert_formula(ax);
+      // save the axiom
+      all_violated_axioms.insert(ax);
+    }
+    // reset violated_axioms_ so we don't add the same axioms again
+    violated_axioms_.clear();
     res = solver_->check_sat();
-    bool found_lemmas = false;
-
-    // check axioms
-    check_consecutive_axioms()
-
-  } while (res.is_sat());
-
-  while (!res.is_unsat()) {
-    bool found_lemmas = false;
-    // check axioms
+    assert(!res.is_unknown());  // this algorithm assumes decidable theories
   }
-  throw PonoException("NYI");
+
+  assert(res.is_unsat());  // ruled out the trace
+
+  // populate axioms
+  // TODO: use an unsat core to prune
+  // OR, maybe let the outside procedure do that
+  for (auto ax : all_violated_axioms) {
+    if (ts_axioms_.find(ax) != ts_axioms_.end()) {
+      // this is a consecutive axiom
+      consecutive_axioms_.push_back(ts_axioms_.at(ax));
+    } else {
+      // this is a non-consecutive axiom
+      // expect it in the map to AxiomInstantiation
+      assert(to_axiom_inst_.find(ax) != to_axiom_inst_.end());
+      nonconsecutive_axioms_.push_back(to_axiom_inst_.at(ax));
+    }
+  }
+
   solver_->pop();
+  return true;
 }
 
 // protected methods
