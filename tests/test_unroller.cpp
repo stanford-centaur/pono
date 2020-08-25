@@ -1,6 +1,8 @@
 #include <utility>
 #include <vector>
 
+#include "smt-switch/utils.h"
+
 #include "gtest/gtest.h"
 
 #include "core/fts.h"
@@ -74,6 +76,42 @@ TEST_P(UnrollerUnitTests, GetTime)
   Term x4_2 = u.at_time(x, 4);
   EXPECT_EQ(4, u.get_var_time(x4_2));
   EXPECT_EQ(x4, x4_2);
+}
+
+TEST_P(UnrollerUnitTests, StagedUnrolling)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  Term y = rts.make_statevar("y", bvsort);
+
+  Unroller u(rts, s);
+  Term xpy = rts.make_term(BVAdd, x, y);
+  Term x4py4 = u.at_time(xpy, 4);
+
+  TermVec free_vars_vec;
+  UnorderedTermSet free_vars;
+  get_free_symbolic_consts(xpy, free_vars_vec);
+  free_vars.insert(free_vars_vec.begin(), free_vars_vec.end());
+  EXPECT_TRUE(free_vars.find(x) != free_vars.end());
+  EXPECT_TRUE(free_vars.find(y) != free_vars.end());
+
+  free_vars_vec.clear();
+  free_vars.clear();
+  Term x4 = u.at_time(x, 4);
+  Term y4 = u.at_time(y, 4);
+  get_free_symbolic_consts(x4py4, free_vars_vec);
+  free_vars.insert(free_vars_vec.begin(), free_vars_vec.end());
+  EXPECT_TRUE(free_vars.find(x4) != free_vars.end());
+  EXPECT_TRUE(free_vars.find(y4) != free_vars.end());
+
+  // Try staged unrolling
+  // meaning unroll some but not all of the variables
+  // then unroll the rest all at once
+
+  // x is not unrolled but y is
+  Term xpy4 = rts.make_term(BVAdd, x, y4);
+  Term x4py4_2 = u.at_time(xpy4, 4);
+  EXPECT_EQ(x4py4_2, x4py4);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
