@@ -217,23 +217,25 @@ ProverResult ModelBasedIC3::step_0()
 
 bool ModelBasedIC3::intersects_bad()
 {
-  TermVec conjuncts;
-  conjunctive_partition(bad_, conjuncts);
-  // // include the last frame
-  // // this is an optimization, it is not necessary for correctness
-  // for (auto c : frames_.back()) {
-  //   conjuncts.push_back(c);
-  // }
-  Conjunction bad_at_last_frame(solver_, conjuncts);
-  Conjunction pred;
-  if (!get_predecessor(reached_k_ + 1, bad_at_last_frame, pred)) {
-    Term gen_block_bad = inductive_generalization(reached_k_ + 1, pred);
-    frames_[reached_k_ + 1].push_back(gen_block_bad);
-    return false;
-  } else {
-    add_proof_goal(pred, reached_k_);
-    return true;
+  solver_->push();
+  // assert the last frame (conjunction over clauses)
+  assert_frame(reached_k_ + 1);
+  // see if it intersects with bad
+  solver_->assert_formula(bad_);
+  Result r = solver_->check_sat();
+
+  if (r.is_sat()) {
+    // push bad as a proof goal
+    TermVec conjuncts;
+    conjunctive_partition(bad_, conjuncts);
+    Conjunction bad_at_last_frame(solver_, conjuncts);
+    add_proof_goal(bad_at_last_frame, reached_k_ + 1);
   }
+
+  solver_->pop();
+
+  assert(!r.is_unknown());
+  return r.is_sat();
 }
 
 bool ModelBasedIC3::get_predecessor(size_t i,
