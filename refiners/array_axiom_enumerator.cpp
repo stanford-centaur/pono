@@ -209,9 +209,50 @@ void ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
 
 void ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
                                                        bool only_curr,
+                                                       size_t i,
                                                        int lemma_limit)
 {
-  throw PonoException("NYI");
+  // there are no non-consecutive axioms that don't instantiate axioms
+  // thus the AxiomClass must be one parameterized by an index
+  assert(index_axiom_classes.find(ac) != index_axiom_classes.end());
+
+  // must be within bound
+  assert(i <= bound_);
+
+  UnorderedTermSet & indices = only_curr ? cur_index_set_ : index_set_;
+  UnorderedTermSet unrolled_indices;
+  for (auto idx : indices) {
+    unrolled_indices.insert(un_.at_time(idx, i));
+  }
+
+  // TODO: make sure we're covering the current/next
+  //       version of axioms correctly
+  //       not explicitly calling next here -- is that a problem?
+  //       should be okay as long as we add next version of axioms
+  //       that are only over state variables
+  // TODO: fix boundary condition! if there's next in the axiom and unroll at
+  // bound_
+
+  // check these axioms
+  // Note: using staged unrolling -- i.e. indices already unrolled
+  // but the rest of the axiom is not, until later
+  size_t num_found_lemmas;
+  Term unrolled_ax;
+  for (AxiomInstantiation ax_inst : index_axioms(ac, unrolled_indices)) {
+    for (size_t k = 0; k <= bound_; ++k) {
+      unrolled_ax = un_.at_time(ax_inst.ax, k);
+      if (is_violated(unrolled_ax)) {
+        violated_axioms_.insert(unrolled_ax);
+        to_axiom_inst_.insert({ unrolled_ax, ax_inst });
+        num_found_lemmas++;
+
+        if (lemma_limit > 0 && num_found_lemmas >= lemma_limit) {
+          // if given a lemma limit, then finish when that limit is reached
+          return;
+        }
+      }
+    }
+  }
 }
 
 bool ArrayAxiomEnumerator::is_violated(const Term & ax) const

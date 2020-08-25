@@ -114,11 +114,13 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param ac the type of axiom to check
    *  @param only_curr if set to true then only checks axioms over current state
    * vars
+   *  @param i the time to instantiate indices at
    *  @param a limit on how many axioms to generate
    *         -1 means check all of them
    */
   void check_nonconsecutive_axioms(AxiomClass ac,
                                    bool only_curr,
+                                   size_t i,
                                    int lemma_limit = -1);
 
   /** Check if a given axiom (over unrolled variables)
