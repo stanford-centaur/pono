@@ -20,23 +20,30 @@
 
 namespace pono {
 
-// Non-consecutive axiom instantiations
+// Axiom instantiations
 // a struct used to represent axioms that were instantiated with
-// terms from different time steps
-// these axiom instantiations cannot be added directly to a transition
-// system by "untiming" and using only inputs and state variables
-// because it must refer to symbols from different time steps
-struct NCAxiomInstantiation
+// various terms
+// what's considered an instantiation is up to the particular backend
+// For Example,
+//  the array theory has an axiom
+//  forall a, b, i . a=b -> a[i] = b[i]
+//  but the ArrayAxiomEnumerator only keeps track of the index (i)
+//  instantiations and not the arrays a, b (because they don't need to be
+//  tracked for later)
+struct AxiomInstantiation
 {
-  NCAxiomInstantiation(const smt::Term & a, const smt::UnorderedTermSet & insts)
+  AxiomInstantiation(const smt::Term & a, const smt::UnorderedTermSet & insts)
       : ax(a), instantiations(insts)
   {}
 
   smt::Term ax;  ///< the instantiated axiom
   smt::UnorderedTermSet
       instantiations;  ///< the instantiations used in the axioms
-  // Note: the instantiations are over unrolled variables, e.g. x@4 instead of x
+  // Note: the instantiations could be over unrolled variables, e.g. x@4 instead
+  // of x
 };
+
+using AxiomVec = std::vector<AxiomInstantiation>;
 
 class AxiomEnumerator
 {
@@ -89,7 +96,7 @@ class AxiomEnumerator
    *      because the mentioned times cannot be captured with just current
    *      and next.
    */
-  virtual std::vector<NCAxiomInstantiation> & get_nonconsecutive_axioms() = 0;
+  virtual AxiomVec & get_nonconsecutive_axioms() = 0;
 
  protected:
   const TransitionSystem & ts_;

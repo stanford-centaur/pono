@@ -88,7 +88,7 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   if (op.is_null()) {
     // constant array
     assert(children.size() == 1);
-    Term val = children[0];
+    Term val = aae_.aa_.abstract(children[0]);
     aae_.constarrs_[abs_term] = val;
   } else if (op == Store) {
     assert(abs_children.size() == 4);
@@ -113,8 +113,9 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
 // ArrayAxiomEnumerator implementation
 
 ArrayAxiomEnumerator::ArrayAxiomEnumerator(Property & prop,
-                                           ArrayAbstractor & aa)
-    : super(prop.transition_system()), prop_(prop), aa_(aa)
+                                           ArrayAbstractor & aa,
+                                           Unroller & un)
+    : super(prop.transition_system()), prop_(prop), aa_(aa), un_(un)
 {
   false_ = solver_->make_term(false);
 }
@@ -122,6 +123,8 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(Property & prop,
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
                                             size_t bound)
 {
+  // TODO: think about how to check / instantiate next-state version of axioms!!
+
   // clear the previous axioms
   axioms_to_check_.clear();
   violated_axioms_.clear();
@@ -152,6 +155,8 @@ void ArrayAxiomEnumerator::collect_arrays_and_indices()
   af.visit(trans);
   af.visit(prop_term);
 
+  // TODO: create lambda variables!!
+
   for (auto idx : index_set_) {
     if (ts_.only_curr(idx)) {
       cur_index_set_.insert(idx);
@@ -165,28 +170,41 @@ void ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
 {
   UnorderedTermSet & indices = only_curr ? cur_index_set_ : index_set_;
 
-  // axioms over transition system terms -- need to be unrolled
-  UnorderedTermSet ts_axioms;
-  for (auto idx : indices) {
-    Term ax;
-    switch (ac) {
-      case CONSTARR:
-      case CONSTARR_LAMBDA:
-      case STORE_WRITE:
-      case STORE_READ:
-      case STORE_READ_LAMBDA:
-      case ARRAYEQ_WITNESS:
-      case ARRAYEQ_READ:
-      case ARRAYEQ_READ_LAMBDA:
-      default:
-        // this should be unreachable
-        assert(false);
+  UnorderedTermSet axioms_to_check;
+  if (index_axiom_classes.find(ac) == index_axiom_classes.end()) {
+    axioms_to_check = non_index_axioms(ac);
+  } else {
+    for (AxiomInstantiation ax_inst : index_axioms(ac, indices)) {
+      // consecutive axioms don't need to keep track of specific index
+      // instantiations just keep the axiom term
+      axioms_to_check.insert(ax_inst.ax);
     }
-    assert(ax);
-    ts_axioms.insert(ax);
   }
 
-  throw PonoException("NYI");
+  // TODO: make sure we're covering the current/next
+  //       version of axioms correctly
+  //       not explicitly calling next here -- is that a problem?
+  //       should be okay as long as we add next version of axioms
+  //       that are only over state variables
+  // TODO: fix boundary condition! if there's next in the axiom and unroll at
+  // bound_
+  size_t num_found_lemmas = 0;
+  Term unrolled_ax;
+  for (Term ax : axioms_to_check) {
+    for (size_t k = 0; k <= bound_; ++k) {
+      unrolled_ax = un_.at_time(ax, k);
+      if (is_violated(unrolled_ax)) {
+        violated_axioms_.insert(unrolled_ax);
+        ts_axioms_[unrolled_ax] = ax;
+        num_found_lemmas++;
+
+        if (lemma_limit > 0 && num_found_lemmas >= lemma_limit) {
+          // if given a lemma limit, then finish when that limit is reached
+          return;
+        }
+      }
+    }
+  }
 }
 
 void ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
@@ -202,21 +220,80 @@ bool ArrayAxiomEnumerator::is_violated(const Term & ax) const
   return solver_->get_value(ax) == false_;
 }
 
-UnorderedTermSet non_index_axioms(AxiomClass ac)
+UnorderedTermSet ArrayAxiomEnumerator::non_index_axioms(AxiomClass ac)
 {
   assert(index_axiom_classes.find(ac) == index_axiom_classes.end());
 
-  UnorderedTermSet ts_axioms;
-  // TODO: fill this in
+  UnorderedTermSet axioms_to_check;
   if (ac == CONSTARR_LAMBDA) {
+    for (auto elem : constarrs_) {
+      axioms_to_check.insert(constarr_lambda_axiom(elem.first, elem.second));
+    }
   } else if (ac == STORE_WRITE) {
+    for (auto st : stores_) {
+      axioms_to_check.insert(store_write_axiom(st));
+    }
   } else if (ac == STORE_READ_LAMBDA) {
+    for (auto st : stores_) {
+      axioms_to_check.insert(store_read_lambda_axiom(st));
+    }
+  } else if (ac == ARRAYEQ_WITNESS) {
+    for (auto elem : arrayeq_witnesses_) {
+      axioms_to_check.insert(arrayeq_witness_axiom(elem.first));
+    }
   } else if (ac == ARRAYEQ_READ_LAMBDA) {
+    for (auto elem : arrayeq_witnesses_) {
+      axioms_to_check.insert(arrayeq_read_lambda_axiom(elem.first));
+    }
   } else {
     throw PonoException("Unhandled AxiomClass");
   }
 
-  throw PonoException("NYI");
+  return axioms_to_check;
+}
+
+AxiomVec ArrayAxiomEnumerator::index_axioms(AxiomClass ac,
+                                            UnorderedTermSet & indices)
+{
+  assert(index_axiom_classes.find(ac) != index_axiom_classes.end());
+
+  AxiomVec axioms_to_check;
+  for (auto idx : indices) {
+    if (ac == CONSTARR) {
+      for (auto elem : constarrs_) {
+        axioms_to_check.push_back(AxiomInstantiation(
+            constarr_axiom(elem.first, elem.second, idx), { idx }));
+      }
+    } else if (ac == STORE_READ) {
+      for (auto st : stores_) {
+        axioms_to_check.push_back(
+            AxiomInstantiation(store_read_axiom(st, idx), { idx }));
+      }
+    } else if (ac == ARRAYEQ_READ) {
+      for (auto elem : arrayeq_witnesses_) {
+        axioms_to_check.push_back(
+            AxiomInstantiation(arrayeq_read_axiom(elem.first, idx), { idx }));
+      }
+    } else if (ac == LAMBDA_ALLDIFF) {
+      // CRUCIAL: only instantiate all different axioms over matching sorts
+      // e.g. the lambda instantiated for a particular index sort
+      // can look up the lambda by the (concrete) index sort
+      Sort conc_sort = aa_.concrete(idx)->get_sort();
+      Term lambda = lambdas_.at(conc_sort);
+      assert(lambda != idx);
+      axioms_to_check.push_back(
+          AxiomInstantiation(lambda_alldiff_axiom(lambda, idx), { idx }));
+      if (ts_.only_curr(idx)) {
+        Term next_idx = ts_.next(idx);
+        assert(next_idx != lambda);
+        axioms_to_check.push_back(AxiomInstantiation(
+            lambda_alldiff_axiom(lambda, next_idx), { next_idx }));
+      }
+    } else {
+      throw PonoException("Unhandled AxiomClass");
+    }
+  }
+  return axioms_to_check;
 }
 
 Term ArrayAxiomEnumerator::constarr_axiom(const Term & constarr,
@@ -362,6 +439,12 @@ Term ArrayAxiomEnumerator::arrayeq_read_lambda_axiom(const Term & arrayeq) const
     ax = solver_->make_term(Implies, lambda_guard(idxsort, lam), ax);
   }
   return ax;
+}
+
+Term ArrayAxiomEnumerator::lambda_alldiff_axiom(const Term & lambda,
+                                                const Term & index) const
+{
+  return solver_->make_term(Distinct, lambda, index);
 }
 
 Term ArrayAxiomEnumerator::lambda_guard(const Sort & sort,

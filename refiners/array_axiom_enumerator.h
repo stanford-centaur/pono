@@ -19,6 +19,7 @@
 
 #include "core/prop.h"
 #include "core/ts.h"
+#include "core/unroller.h"
 #include "modifiers/array_abstractor.h"
 #include "refiners/axiom_enumerator.h"
 
@@ -34,7 +35,8 @@ enum AxiomClass
   STORE_READ_LAMBDA,
   ARRAYEQ_WITNESS,
   ARRAYEQ_READ,
-  ARRAYEQ_READ_LAMBDA
+  ARRAYEQ_READ_LAMBDA,
+  LAMBDA_ALLDIFF
 };
 
 // these are all the axioms that require instantiating an index
@@ -43,7 +45,7 @@ enum AxiomClass
 // by the index -- the index is known, lambda
 // similarly, STORE_WRITE only uses the index in the store
 const std::unordered_set<AxiomClass> index_axiom_classes(
-    { CONSTARR, STORE_READ, ARRAYEQ_WITNESS, ARRAYEQ_READ });
+    { CONSTARR, STORE_READ, ARRAYEQ_READ, LAMBDA_ALLDIFF });
 
 // forward declaration for reference
 class ArrayAxiomEnumerator;
@@ -70,7 +72,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   friend ArrayFinder;
 
  public:
-  ArrayAxiomEnumerator(Property & prop, ArrayAbstractor & aa);
+  ArrayAxiomEnumerator(Property & prop, ArrayAbstractor & aa, Unroller & un);
 
   typedef AxiomEnumerator super;
 
@@ -82,7 +84,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
     return consecutive_axioms_;
   };
 
-  std::vector<NCAxiomInstantiation> & get_nonconsecutive_axioms() override
+  AxiomVec & get_nonconsecutive_axioms() override
   {
     return nonconsecutive_axioms_;
   }
@@ -146,8 +148,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    * unrolled yet) Note: if checking non-consecutive axioms, the indices might
    * already be unrolled e.g. checking index i at a particular time
    */
-  smt::UnorderedTermSet index_axioms(AxiomClass ac,
-                                     smt::UnorderedTermSet & indices);
+  AxiomVec index_axioms(AxiomClass ac, smt::UnorderedTermSet & indices);
 
   // helper methods for instantiating single axioms
 
@@ -261,6 +262,26 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   smt::Term arrayeq_read_lambda_axiom(const smt::Term & arrayeq) const;
 
+  /** Instantiates an all different axiom for lambdas
+   *  from What's Decidable About Arrays
+   *  the lambda index must be different from all indices of the same sort
+   *  to handle the finite domain for bit-vectors, we actually use
+   *  an integer sort for lambda, so that the all different constraint
+   *  won't over-constrain (there's always a different integer)
+   *  and convert bit-vectors to integers for comparison
+   *  see lambda_guard
+   *
+   *  @param lambda the lambda index
+   *  @param index another index from the index set (assumed to be of the same
+   * concrete sort)
+   *
+   *  e.g. if lambda was created for the array sort (Array (_ BitVec 4) (_
+   * BitVec 8)) then index should be the abstraction of an index of sort (_
+   * BitVec 4)
+   */
+  smt::Term lambda_alldiff_axiom(const smt::Term & lambda,
+                                 const smt::Term & index) const;
+
   /** Creates the bounding guard for a lambda axiom
    *  for lambda's with an associated sort that has a
    *  finite domain. Currently should only be called with
@@ -283,7 +304,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   // for abstracting/concretizing terms
   Property & prop_;
   ArrayAbstractor & aa_;
+
   // for generating axioms
+  Unroller & un_;
   size_t bound_;  ///< the bound of the current abstract trace
   smt::UnorderedTermMap
       constarrs_;        ///< maps (abstract) constarrs to their constant value
@@ -298,7 +321,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
                        ///< current state variables
   smt::UnorderedTermMap arrayeq_witnesses_;  ///< witnesses for array equalities
   std::unordered_map<smt::Sort, smt::Term>
-      lambdas_;  ///< map from (concrete) array sort to corresponding lambda
+      lambdas_;  ///< map from (concrete) array index sort to corresponding
+                 ///< lambda
 
   // for axiom checking and storing
   smt::UnorderedTermSet
@@ -307,11 +331,13 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
       violated_axioms_;  ///< keeps track of violated axioms in given trace
   smt::UnorderedTermMap
       ts_axioms_;  ///< maps unrolled axioms to the transition system axioms
+  std::unordered_map<smt::Term, AxiomInstantiation>
+      to_axiom_inst_;                ///< maps a (violated) axiom term to its
+                                     ///< AxiomInstantiation object
   smt::TermVec consecutive_axioms_;  ///< populated with consecutive axioms over
                                      ///< transition system variables
-  std::vector<NCAxiomInstantiation>
-      nonconsecutive_axioms_;  ///< populated with nonconsecutive axiom
-                               ///< instantiations
+  AxiomVec nonconsecutive_axioms_;   ///< populated with nonconsecutive axiom
+                                     ///< instantiations
 
   // useful terms
   smt::Term false_;
