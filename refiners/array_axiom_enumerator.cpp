@@ -129,6 +129,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   axioms_to_check_.clear();
   violated_axioms_.clear();
   ts_axioms_.clear();
+  to_axiom_inst_.clear();
   consecutive_axioms_.clear();
   nonconsecutive_axioms_.clear();
 
@@ -137,6 +138,28 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   bound_ = bound;
 
   solver_->push();
+  solver_->assert_formula(abs_trace_formula);
+  Result res;
+
+  // use only current axioms if the bound is zero
+  // e.g. only the initial state
+  // this is because we can only add axioms over current state variables
+  // to initial states
+  bool only_curr = (bound == 0);
+  do {
+    // TODO: use an unsat core with check_sat_assuming
+    res = solver_->check_sat();
+    bool found_lemmas = false;
+
+    // check axioms
+    check_consecutive_axioms()
+
+  } while (res.is_sat());
+
+  while (!res.is_unsat()) {
+    bool found_lemmas = false;
+    // check axioms
+  }
   throw PonoException("NYI");
   solver_->pop();
 }
@@ -164,7 +187,7 @@ void ArrayAxiomEnumerator::collect_arrays_and_indices()
   }
 }
 
-void ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
+bool ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
                                                     bool only_curr,
                                                     int lemma_limit)
 {
@@ -189,6 +212,11 @@ void ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
   size_t num_found_lemmas = 0;
   Term unrolled_ax;
   for (Term ax : axioms_to_check) {
+    if (only_curr && !ts_.only_curr(ax)) {
+      // if requesting axioms over only current state variables
+      // and this axiom isn't, then continue
+      continue;
+    }
     // bound to check until depends on whether there are inputs/next state vars
     // in the axiom
     size_t max_k = ts_.only_curr(ax) ? bound_ : bound_ - 1;
@@ -201,14 +229,16 @@ void ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
 
         if (lemma_limit > 0 && num_found_lemmas >= lemma_limit) {
           // if given a lemma limit, then finish when that limit is reached
-          return;
+          return num_found_lemmas;
         }
       }
     }
   }
+
+  return num_found_lemmas;
 }
 
-void ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
+bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
                                                        bool only_curr,
                                                        size_t i,
                                                        int lemma_limit)
@@ -238,6 +268,11 @@ void ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
   size_t num_found_lemmas;
   Term unrolled_ax;
   for (AxiomInstantiation ax_inst : index_axioms(ac, unrolled_indices)) {
+    if (only_curr && !ts_.only_curr(ax_inst.ax)) {
+      // if requesting axioms over only current state variables
+      // and this axiom isn't, then continue
+      continue;
+    }
     // bound to check until depends on whether there are inputs/next state vars
     // in the axiom
     size_t max_k = ts_.only_curr(ax_inst.ax) ? bound_ : bound_ - 1;
@@ -250,11 +285,12 @@ void ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
 
         if (lemma_limit > 0 && num_found_lemmas >= lemma_limit) {
           // if given a lemma limit, then finish when that limit is reached
-          return;
+          return num_found_lemmas;
         }
       }
     }
   }
+  return num_found_lemmas;
 }
 
 bool ArrayAxiomEnumerator::is_violated(const Term & ax) const

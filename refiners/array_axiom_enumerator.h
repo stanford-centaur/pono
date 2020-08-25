@@ -104,8 +104,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    * vars
    *  @param a limit on how many axioms to generate
    *         -1 means check all of them
+   *  @return true iff any violated axioms were found
    */
-  void check_consecutive_axioms(AxiomClass ac,
+  bool check_consecutive_axioms(AxiomClass ac,
                                 bool only_curr,
                                 int lemma_limit = -1);
 
@@ -117,8 +118,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    *  @param i the time to instantiate indices at
    *  @param a limit on how many axioms to generate
    *         -1 means check all of them
+   *  @return true iff any violated axioms were found
    */
-  void check_nonconsecutive_axioms(AxiomClass ac,
+  bool check_nonconsecutive_axioms(AxiomClass ac,
                                    bool only_curr,
                                    size_t i,
                                    int lemma_limit = -1);
