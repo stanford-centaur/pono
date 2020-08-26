@@ -112,7 +112,7 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
 
 // ArrayAxiomEnumerator implementation
 
-ArrayAxiomEnumerator::ArrayAxiomEnumerator(Property & prop,
+ArrayAxiomEnumerator::ArrayAxiomEnumerator(const Property & prop,
                                            ArrayAbstractor & aa,
                                            Unroller & un)
     : super(prop.transition_system()), prop_(prop), aa_(aa), un_(un)

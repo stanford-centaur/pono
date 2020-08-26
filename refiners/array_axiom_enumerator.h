@@ -72,7 +72,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   friend ArrayFinder;
 
  public:
-  ArrayAxiomEnumerator(Property & prop, ArrayAbstractor & aa, Unroller & un);
+  ArrayAxiomEnumerator(const Property & prop,
+                       ArrayAbstractor & aa,
+                       Unroller & un);
 
   typedef AxiomEnumerator super;
 
@@ -320,7 +322,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
 
   // members
   // for abstracting/concretizing terms
-  Property & prop_;
+  const Property & prop_;
   ArrayAbstractor & aa_;
 
   // for generating axioms
