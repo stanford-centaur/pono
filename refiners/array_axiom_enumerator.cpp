@@ -139,7 +139,10 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   // used by other functions
   bound_ = bound;
 
+  // don't want to pollute state of solver
+  // do all solving in a new context
   solver_->push();
+
   solver_->assert_formula(abs_trace_formula);
   Result res = solver_->check_sat();
   UnorderedTermSet all_violated_axioms;
@@ -186,7 +189,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
       found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(ARRAYEQ_READ, only_curr, k);
-      ++k;
+      k--;
     }
 
     if (!found_lemmas) {
