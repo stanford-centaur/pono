@@ -696,11 +696,8 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
   }
 
   solver_->pop();
-
   // copy the result
-  for (auto a : cand_res) {
-    out_red.push_back(a);
-  }
+  out_red.insert(out_red.end(), cand_res.begin(), cand_res.end());
 }
 
 Term ModelBasedIC3::label(const Term & t)
