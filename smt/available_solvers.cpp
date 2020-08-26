@@ -90,6 +90,9 @@ SmtSolver create_interpolating_solver(SolverEnum se)
 {
   switch (se) {
 #if WITH_MSAT
+    // for convenience -- accept any MSAT SolverEnum
+    case MSAT:
+    case MSAT_LOGGING:
     case MSAT_INTERPOLATOR: {
       return MsatSolverFactory::create_interpolating_solver();
       break;

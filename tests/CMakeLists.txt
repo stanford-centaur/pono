@@ -68,3 +68,8 @@ add_executable(test_btor2 "${PROJECT_SOURCE_DIR}/tests/encoders/test_btor2.cpp")
 target_link_libraries(test_btor2 gtest_main)
 target_link_libraries(test_btor2 pono-lib)
 add_test(NAME test_btor2 COMMAND test_btor2)
+
+add_executable(test_utils "${PROJECT_SOURCE_DIR}/tests/test_utils.cpp")
+target_link_libraries(test_utils gtest_main)
+target_link_libraries(test_utils pono-lib)
+add_test(NAME test_utils COMMAND test_utils)
