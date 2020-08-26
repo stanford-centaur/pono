@@ -1,0 +1,56 @@
+; 9-bit counter
+1 sort bitvec 9
+2 zero 1
+3 state 1
+4 init 1 3 2
+5 one 1
+6 add 1 3 5
+7 next 1 3 6
+8 ones 1
+9 sort bitvec 1
+10 eq 9 3 8
+; 10-bit counter
+11 sort bitvec 10
+12 zero 11
+13 state 11
+14 init 11 13 12
+15 one 11
+16 add 11 13 15
+17 next 11 13 16
+18 ones 11
+20 eq 9 13 18
+; bad-property: both counters reach their maximum value
+21 and 9 10 20
+22 bad 21
+
+
+
+
+; redundant state variable disconnected from property
+; NOTE: a very large bit-width here will slow down the model checker when proving the simple property above
+23 sort bitvec 10000
+24 one 23
+25 state 23
+26 init 23 25 24
+27 mul 23 25 25
+;28 next 23 25 27
+29 zero 23
+30 eq 9 25 29
+31 add 23 24 27
+32 next 23 25 31
+;33 bad 30
+
+;
+;
+;
+;31 state 23
+;32 next 23 31 27
+
+;33 state 23
+;34 next 23 33 27
+
+;33 state 23
+;34 state 23
+;35 state 23
+;36 state 23
+;37 state 23
