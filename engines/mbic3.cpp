@@ -274,7 +274,7 @@ bool ModelBasedIC3::get_predecessor(size_t i,
                                     ts_.trans()});
 
     // filter using unsatcore
-    reduce_assump_unsatcore(formula, assump, red_assump, &red_assump);
+    reduce_assump_unsatcore(formula, assump, red_assump, &rem_assump);
     // get current version of red_assump
     TermVec cur_red_assump, cur_rem_assump;
     for (auto a : red_assump) {
@@ -285,6 +285,7 @@ bool ModelBasedIC3::get_predecessor(size_t i,
     }
 
     fix_if_intersects_initial(cur_red_assump, cur_rem_assump);
+    assert(cur_red_assump.size() > 0);
     out_pred = Conjunction(solver_, cur_red_assump);
   }
 
@@ -659,6 +660,7 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
   // exit if the formula is unsat without assumptions.
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
+    solver_->pop();
     return; 
   }
 
