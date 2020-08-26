@@ -156,6 +156,19 @@ class ModelBasedIC3 : public Prover
 
   size_t push_blocking_clause(size_t i, smt::Term c);
 
+  /** Helper function to reduce assumptions using unsat cores.
+   *  @param input formula
+   *  @param vector of assumptions
+   *  @param vector to store reduced assumptions
+   *  @param vector to store removed assumptions (if not NULL)
+   *  @param number of max interations
+   */
+  void reduce_assump_unsatcore(const smt::Term &formula,
+                               const smt::TermVec &assump,
+                               smt::TermVec &out_red,
+                               smt::TermVec *out_rem = NULL,
+                               int iter = 1);
+
   smt::Term label(const smt::Term & t);
 
   /** Creates a reduce and of the vector of boolean terms

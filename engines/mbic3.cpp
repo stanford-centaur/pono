@@ -242,48 +242,50 @@ bool ModelBasedIC3::get_predecessor(size_t i,
                                     const Conjunction & c,
                                     Conjunction & out_pred)
 {
-  solver_->push();
   assert(i > 0);
   assert(i < frames_.size());
+
+  solver_->push();
+
   // F[i-1]
   assert_frame(i - 1);
   // -c
   solver_->assert_formula(solver_->make_term(Not, c.term_));
   // Trans
   solver_->assert_formula(ts_.trans());
-
   // c'
-  Term b;
-  TermVec bool_assump;
-  for (auto a : c.conjuncts_) {
-    unsigned i = 0;
-    b = label(a);
-    bool_assump.push_back(b);
-    solver_->assert_formula(solver_->make_term(Implies, b, ts_.next(a)));
-  }
+  solver_->assert_formula(ts_.next(c.term_));
 
-  Result r = solver_->check_sat_assuming(bool_assump);
+  Result r = solver_->check_sat();
   if (r.is_sat()) {
     // don't pop now. generalize predecessor needs model values
     // generalize_predecessor will call solver_->pop();
     out_pred = generalize_predecessor(i, c);
   } else {
-    // filter using unsatcore
-    TermVec red_lits, rem;
-    UnorderedTermSet core_set;
-    solver_->get_unsat_core(core_set);
-    for (size_t j = 0; j < bool_assump.size(); ++j) {
-      if (core_set.find(bool_assump[j]) != core_set.end()) {
-        red_lits.push_back(c.conjuncts_[j]);
-      } else {
-        rem.push_back(c.conjuncts_[j]);
-      }
-    }
-
     solver_->pop();
 
-    fix_if_intersects_initial(red_lits, rem);
-    out_pred = Conjunction(solver_, red_lits);
+    TermVec assump, red_assump, rem_assump;
+    for (auto a : c.conjuncts_) {
+      assump.push_back(ts_.next(a));
+    }
+
+    Term formula = make_and(TermVec{get_frame(i - 1),
+                                    solver_->make_term(Not, c.term_),
+                                    ts_.trans()});
+
+    // filter using unsatcore
+    reduce_assump_unsatcore(formula, assump, red_assump, &red_assump);
+    // get current version of red_assump
+    TermVec cur_red_assump, cur_rem_assump;
+    for (auto a : red_assump) {
+      cur_red_assump.push_back(ts_.curr(a));
+    }
+    for (auto a : rem_assump) {
+      cur_rem_assump.push_back(ts_.curr(a));
+    }
+
+    fix_if_intersects_initial(cur_red_assump, cur_rem_assump);
+    out_pred = Conjunction(solver_, cur_red_assump);
   }
 
   assert(!r.is_unknown());
@@ -416,12 +418,12 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
   Term res_cube = c.term_;
 
   if (options_.ic3_indgen_) {
-    bool progress = true;
     UnorderedTermSet keep, core_set;
     TermVec bool_assump, tmp, new_tmp, removed, lits;
     split_eq(solver_, c.conjuncts_, lits);
 
     int iter = 0;
+    bool progress = true;
     // max 2 iterations
     while (++iter <= 2 && lits.size() > 1 && progress) {
       size_t prev_size = lits.size();
@@ -538,27 +540,21 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       next_lits.reserve(statevars.size());
       for (auto v : statevars) {
         Term nv = ts_.next(v);
-        next_lits.push_back(solver_->make_term(Equal, nv, solver_->get_value(nv)));
+        next_lits.push_back(solver_->make_term(Equal, nv,
+                                               solver_->get_value(nv)));
       }
     }
 
     solver_->pop();
-    solver_->push();
-    // assert input assignments
-    for (auto a : input_lits) {
-      solver_->assert_formula(a);
-    }
+
+    Term formula = make_and(input_lits);
 
     if (ts_.is_functional()) {
-      // assert T
-      solver_->assert_formula(ts_.trans());
-      // assert -c'
-      solver_->assert_formula(solver_->make_term(Not, ts_.next(c.term_)));
+      formula = solver_->make_term(And, formula, ts_.trans());
+      formula = solver_->make_term(And, formula,
+                                   solver_->make_term(Not, ts_.next(c.term_)));
     } else {
-      // assert next statevars assigments if not a functional TS
-      for (auto a : next_lits) {
-        solver_->assert_formula(a);
-      }
+      formula = solver_->make_term(And, formula, make_and(next_lits));
 
       // preimage formula
       Term pre_formula = get_frame(i - 1);
@@ -567,39 +563,19 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
                                        solver_->make_term(Not, c.term_));
       pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term_));
 
-      // assert negated preimage formula
-      solver_->assert_formula(solver_->make_term(Not, pre_formula));
-    } 
+      formula = solver_->make_term(And, formula,
+                                   solver_->make_term(Not, pre_formula));
+    }
 
-    // make and assert assumptions
-    Term b;
-    TermVec bool_assump, splits;
+    TermVec splits, red_cube_lits;
     split_eq(solver_, cube_lits, splits);
     // shuffle(splits.begin(), splits.end(), default_random_engine(7));
-    for (auto a : splits) {
-      b = label(a);
-      bool_assump.push_back(b);
-      solver_->assert_formula(solver_->make_term(Implies, b, a));
-    }
-
-    Result r = solver_->check_sat_assuming(bool_assump);
-    assert(r.is_unsat());
-
-    // filter using unsatcore
-    TermVec red_cube_lits;
-    UnorderedTermSet core_set;
-    solver_->get_unsat_core(core_set);
-    for (size_t j = 0; j < bool_assump.size(); ++j) {
-      if (core_set.find(bool_assump[j]) != core_set.end()) {
-        red_cube_lits.push_back(splits[j]);
-      }
-    }
-
+    reduce_assump_unsatcore(formula, splits, red_cube_lits);
     assert(red_cube_lits.size() > 0);
     res = Conjunction(solver_, red_cube_lits);
+  } else {
+    solver_->pop();
   }
-
-  solver_->pop();
 
   return res;
 }
@@ -638,39 +614,10 @@ Term ModelBasedIC3::get_frame(size_t i) const
 void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
                                               const TermVec & rem)
 {
-  if (rem.size() == 0) {
-    return;
+  if (rem.size() != 0) {
+    Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
+    reduce_assump_unsatcore(formula, rem, to_keep);
   }
-
-  solver_->push();
-  solver_->assert_formula(ts_.init());
-  for (auto a : to_keep) {
-    solver_->assert_formula(a);
-  }
-
-  Result r = solver_->check_sat();
-  if (r.is_sat()) {
-    Term l;
-    TermVec bool_assump;
-    for (auto a : rem) {
-      l = label(a);
-      solver_->assert_formula(solver_->make_term(Implies, l, a));
-      bool_assump.push_back(l);
-    }
-
-    r = solver_->check_sat_assuming(bool_assump);
-    assert(r.is_unsat());
-
-    UnorderedTermSet core_set;
-    solver_->get_unsat_core(core_set);
-    for (size_t j = 0; j < bool_assump.size(); ++j) {
-      if (core_set.find(bool_assump[j]) != core_set.end()) {
-        to_keep.push_back(rem[j]);
-      }
-    }
-  }
-
-  solver_->pop();
 }
 
 size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
@@ -695,6 +642,65 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
   solver_->pop();
 
   return j;
+}
+
+void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
+                                            const TermVec & assump,
+                                            TermVec & out_red,
+                                            TermVec * out_rem,
+                                            int iter)
+{
+  TermVec cand_res = assump;
+  TermVec bool_assump, tmp_assump;
+
+  solver_->push();
+  solver_->assert_formula(formula);
+
+  // exit if the formula is unsat without assumptions.
+  Result r = solver_->check_sat();
+  if (r.is_unsat()) {
+    return; 
+  }
+
+  for (auto a : cand_res) {
+    Term l = label(a);
+    solver_->assert_formula(solver_->make_term(Implies, l, a));
+    bool_assump.push_back(l);
+  }
+
+  unsigned i = 0;
+  while (++i <= iter) {
+    r = solver_->check_sat_assuming(bool_assump);
+    assert(r.is_unsat());
+
+    bool_assump.clear();
+    tmp_assump.clear();
+
+    UnorderedTermSet core_set;
+    solver_->get_unsat_core(core_set);
+    for (auto a : cand_res) {
+      Term l = label(a);
+      if (core_set.find(l) != core_set.end()) {
+        tmp_assump.push_back(a);
+        bool_assump.push_back(l);
+      } else if (out_rem) {
+        out_rem->push_back(a);
+      }
+    }
+
+    if (tmp_assump.size() == cand_res.size()) {
+      break;
+    } else {
+      cand_res = tmp_assump;
+    }
+  }
+
+  solver_->pop();
+
+  // copy the result
+  for (auto a : cand_res) {
+    out_red.push_back(a);
+  }
 }
 
 Term ModelBasedIC3::label(const Term & t)
