@@ -102,6 +102,15 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   void create_lambda_indices();
 
+  /** Clears all the data structures that are populated
+   *  after a call to enumerate_axioms
+   *  The expected use is that get_[non]consecutive_axioms
+   *  only returns axioms from the latest abstract trace
+   *  so it must be cleared before checking new axioms
+   *  called in the beginning of enumerate_axioms
+   */
+  void clear_state();
+
   /** Check consecutive axioms from a certain class
    *  will populate consecutive_axioms_ with violated axioms
    *  @param ac the type of axiom to check

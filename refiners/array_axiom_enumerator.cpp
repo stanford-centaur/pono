@@ -125,16 +125,10 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(Property & prop,
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
                                             size_t bound)
 {
+  // IMPORTANT: clear state from last run
+
+  clear_state();
   // TODO: think about how to check / instantiate next-state version of axioms!!
-
-  // clear the previous axioms
-  axioms_to_check_.clear();
-  violated_axioms_.clear();
-  ts_axioms_.clear();
-  to_axiom_inst_.clear();
-  consecutive_axioms_.clear();
-  nonconsecutive_axioms_.clear();
-
   // Important : set bound member variable
   // used by other functions
   bound_ = bound;
@@ -194,7 +188,8 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 
     if (!found_lemmas) {
       // lambda all different axioms should only rarely be needed -- last
-      // priority NOTE: don't need non-consecutive version of these axioms
+      // priority
+      // NOTE: don't need non-consecutive version of these axioms
       //       all different over current and next is sufficient to be all
       //       different for all time
       found_lemmas |= check_consecutive_axioms(LAMBDA_ALLDIFF, only_curr);
@@ -228,7 +223,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
       consecutive_axioms_.push_back(ts_axioms_.at(ax));
     } else {
       // this is a non-consecutive axiom
-      // expect it in the map to AxiomInstantiation
+      // expect it in the map to AxiomInstantiations
       assert(to_axiom_inst_.find(ax) != to_axiom_inst_.end());
       nonconsecutive_axioms_.push_back(to_axiom_inst_.at(ax));
     }
@@ -236,6 +231,17 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 
   solver_->pop();
   return true;
+}
+
+void ArrayAxiomEnumerator::clear_state()
+{
+  // clear the previous axioms
+  axioms_to_check_.clear();
+  violated_axioms_.clear();
+  ts_axioms_.clear();
+  to_axiom_inst_.clear();
+  consecutive_axioms_.clear();
+  nonconsecutive_axioms_.clear();
 }
 
 // protected methods
