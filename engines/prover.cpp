@@ -68,10 +68,44 @@ void Prover::initialize()
 {
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
+  if (options_.static_coi_) {
+    print_bad_property_coi();
+  }
 }
 
 ProverResult Prover::prove() { return check_until(INT_MAX); }
 
+void Prover::print_bad_property_coi()
+{
+  cout << "TEST PRINT COI\n";
+
+  cout << "bad_property: " << bad_ << "\n";
+  
+  UnorderedTermSet visited_terms;
+  TermVec open_terms;
+  open_terms.push_back (bad_);
+  Term cur;
+
+  while (!open_terms.empty()) {
+    cur = open_terms.back();
+    open_terms.pop_back ();
+
+    if (visited_terms.find(cur) == visited_terms.end()) {
+      // cache 'cur' and push its children
+      visited_terms.insert(cur);
+
+      cout << "  visiting term: " << cur.get()->to_string() << "\n";
+      
+      for (auto child : cur) {
+        cout << "    pusing child: " << child << "\n";
+        open_terms.push_back(child);
+      }
+    }
+    
+    }
+
+}
+  
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
 {
   // TODO: make sure the solver state is SAT

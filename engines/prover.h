@@ -43,6 +43,8 @@ class Prover
 
   ProverResult prove();
 
+  void print_bad_property_coi();
+  
  protected:
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
