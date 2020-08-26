@@ -747,7 +747,10 @@ Term ModelBasedIC3::make_and(smt::TermVec vec) const
 
 Term ModelBasedIC3::make_or(smt::TermVec vec) const
 {
-  assert(vec.size() > 0);
+  if (vec.size() == 0) {
+    return false_;
+  }
+
   // sort the conjuncts
   std::sort(vec.begin(), vec.end(), term_hash_lt);
   Term res = vec[0];
