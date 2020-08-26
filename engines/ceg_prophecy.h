@@ -21,6 +21,7 @@
 
 #include "engines/cegar.h"
 #include "modifiers/array_abstractor.h"
+#include "options/options.h"
 #include "refiners/array_axiom_enumerator.h"
 
 namespace pono {
@@ -29,11 +30,15 @@ class CegProphecy : public CEGAR
 {
   typedef CEGAR super;
 
-  CegProphecy(const Property & p, smt::SolverEnum se);
-  CegProphecy(const Property & p, const smt::SmtSolver & solver);
-  CegProphecy(const PonoOptions & opt, const Property & p, smt::SolverEnum se);
+  CegProphecy(const Property & p, Engine e, smt::SolverEnum se);
+  CegProphecy(const Property & p, Engine e, const smt::SmtSolver & solver);
   CegProphecy(const PonoOptions & opt,
               const Property & p,
+              Engine e,
+              smt::SolverEnum se);
+  CegProphecy(const PonoOptions & opt,
+              const Property & p,
+              Engine e,
               const smt::SmtSolver & solver);
 
  public:
@@ -43,6 +48,7 @@ class CegProphecy : public CEGAR
   const TransitionSystem & conc_ts_;
   const smt::SmtSolver & solver_;
   TransitionSystem abs_ts_;
+  Engine e_;
 
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;

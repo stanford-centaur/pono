@@ -17,6 +17,8 @@
 **
 **/
 
+#include "assert.h"
+
 #include "engines/ceg_prophecy.h"
 
 using namespace smt;
@@ -24,22 +26,24 @@ using namespace std;
 
 namespace pono {
 
-CegProphecy::CegProphecy(const Property & p, smt::SolverEnum se)
+CegProphecy::CegProphecy(const Property & p, Engine e, smt::SolverEnum se)
     : super(p, se),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
+      e_(e),
       aa_(conc_ts_, abs_ts_, true),
       aae_(p, aa_, unroller_)
 {
   super::initialize();
 }
 
-CegProphecy::CegProphecy(const Property & p, const SmtSolver & solver)
+CegProphecy::CegProphecy(const Property & p, Engine e, const SmtSolver & solver)
     : super(p, solver),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
+      e_(e),
       aa_(conc_ts_, abs_ts_, true),
       aae_(p, aa_, unroller_)
 {
@@ -48,11 +52,13 @@ CegProphecy::CegProphecy(const Property & p, const SmtSolver & solver)
 
 CegProphecy::CegProphecy(const PonoOptions & opt,
                          const Property & p,
+                         Engine e,
                          smt::SolverEnum se)
     : super(opt, p, se),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
+      e_(e),
       aa_(conc_ts_, abs_ts_, true),
       aae_(p, aa_, unroller_)
 {
@@ -61,11 +67,13 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
 
 CegProphecy::CegProphecy(const PonoOptions & opt,
                          const Property & p,
+                         Engine e,
                          const smt::SmtSolver & solver)
     : super(opt, p, solver),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
+      e_(e),
       aa_(conc_ts_, abs_ts_, true),
       aae_(p, aa_, unroller_)
 {
@@ -74,7 +82,18 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
 
 ProverResult CegProphecy::check_until(int k) { throw PonoException("NYI"); }
 
-void CegProphecy::abstract() { throw PonoException("NYI"); }
+void CegProphecy::abstract()
+{
+  // this is a No-Op
+  // the ArrayAbstractor already abstracted the transition system on
+  // construction
+
+  // the abstract system should have all the same state and input variables
+  // but abstracted
+  // plus it will have some new variables for the witnesses and lambdas
+  assert(abs_ts_.statevars().size() >= conc_ts_.statevars().size());
+  assert(abs_ts_.inputvars().size() >= conc_ts_.inputvars().size());
+}
 
 void CegProphecy::refine() { throw PonoException("NYI"); }
 
