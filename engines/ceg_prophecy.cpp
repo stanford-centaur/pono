@@ -20,6 +20,7 @@
 #include "assert.h"
 
 #include "engines/ceg_prophecy.h"
+#include "utils/make_provers.h"
 
 using namespace smt;
 using namespace std;
@@ -80,7 +81,48 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
   super::initialize();
 }
 
-ProverResult CegProphecy::check_until(int k) { throw PonoException("NYI"); }
+ProverResult CegProphecy::prove()
+{
+  ProverResult res = ProverResult::FALSE;
+  while (res == ProverResult::FALSE) {
+    // Refine the system
+    // heuristic -- stop refining when no new axioms are needed.
+    do {
+      if (!refine()) {
+        return ProverResult::FALSE;
+      }
+      reached_k_++;
+    } while (num_added_axioms_);
+
+    Property latest_prop(abs_ts_, solver_->make_term(Not, bad_));
+    shared_ptr<Prover> prover =
+        make_prover(e_, latest_prop, solver_->get_solver_enum(), options_);
+    res = prover->prove();
+  }
+
+  return res;
+}
+
+ProverResult CegProphecy::check_until(int k)
+{
+  ProverResult res = ProverResult::FALSE;
+  while (res == ProverResult::FALSE && reached_k_ <= k) {
+    // Refine the system
+    // heuristic -- stop refining when no new axioms are needed.
+    do {
+      if (!refine()) {
+        return ProverResult::FALSE;
+      }
+      reached_k_++;
+    } while (num_added_axioms_ && reached_k_ <= k);
+
+    Property latest_prop(abs_ts_, solver_->make_term(Not, bad_));
+    shared_ptr<Prover> prover =
+        make_prover(e_, latest_prop, solver_->get_solver_enum(), options_);
+    res = prover->check_until(k);
+  }
+  return res;
+}
 
 void CegProphecy::abstract()
 {
@@ -95,6 +137,12 @@ void CegProphecy::abstract()
   assert(abs_ts_.inputvars().size() >= conc_ts_.inputvars().size());
 }
 
-void CegProphecy::refine() { throw PonoException("NYI"); }
+bool CegProphecy::refine()
+{
+  num_added_axioms_ = 0;
+  // TODO use ArrayAxiomEnumerator and modifiers to refine the system
+
+  throw PonoException("NYI");
+}
 
 }  // namespace pono

@@ -58,9 +58,10 @@ class CEGAR : public Prover
    */
   virtual void abstract() = 0;
   /** Refine the abstracted transition system
-   *  Typically performed a refinement loop
+   *  Typically performed in a refinement loop
+   *  @return true iff it was successfully refined
    */
-  virtual void refine() = 0;
+  virtual bool refine() = 0;
 };
 
 }  // namespace pono

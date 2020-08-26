@@ -30,6 +30,7 @@ class CegProphecy : public CEGAR
 {
   typedef CEGAR super;
 
+ public:
   CegProphecy(const Property & p, Engine e, smt::SolverEnum se);
   CegProphecy(const Property & p, Engine e, const smt::SmtSolver & solver);
   CegProphecy(const PonoOptions & opt,
@@ -41,7 +42,7 @@ class CegProphecy : public CEGAR
               Engine e,
               const smt::SmtSolver & solver);
 
- public:
+  ProverResult prove() override;
   ProverResult check_until(int k) override;
 
  protected:
@@ -53,8 +54,11 @@ class CegProphecy : public CEGAR
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
 
+  size_t num_added_axioms_ =
+      0;  ///< set by refine to the number of added axioms
+
   void abstract() override;
-  void refine() override;
+  bool refine() override;
 };
 
 }  // namespace pono
