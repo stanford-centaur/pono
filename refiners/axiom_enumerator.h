@@ -60,10 +60,18 @@ class AxiomEnumerator
    *  @param abs_trace_formula a formula representing the abstract trace
    *         it is assumed to be an (abstract) trace of ts_
    *  @param bound the bound the abstract trace was unrolled to
+   *  @param include_nonconsecutive will look for non-consecutive axioms
+   *         if set to true
+   *         nonconsecutive means they cannot be "untimed" and added
+   *         to the transition system directly
+   *         e.g. a@10=b@10 -> select(a@10, i@4) = select(b@10, i@4)
+   *         is non-consecutive because there's no way to add the axiom
+   *         over current and next state variables because 10 - 4 > 1
    *  @return true iff the trace could be ruled out
    */
   virtual bool enumerate_axioms(const smt::Term & abs_trace_formula,
-                                size_t bound) = 0;
+                                size_t bound,
+                                bool include_nonconsecutive = true) = 0;
 
   /** Returns a sufficient set of violated consecutive axioms to
    *  rule out the abstract trace from the last call to

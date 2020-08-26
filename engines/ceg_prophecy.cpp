@@ -141,8 +141,46 @@ bool CegProphecy::refine()
 {
   num_added_axioms_ = 0;
   // TODO use ArrayAxiomEnumerator and modifiers to refine the system
+  // create BMC formula
+  Term abs_bmc_formula = unroller_.at_time(abs_ts_.init(), 0);
+  for (size_t k = 0; k <= reached_k_; ++k) {
+    abs_bmc_formula = solver_->make_term(
+        And, abs_bmc_formula, unroller_.at_time(abs_ts_.trans(), k));
+  }
+  abs_bmc_formula = solver_->make_term(
+      And, abs_bmc_formula, unroller_.at_time(bad_, reached_k_ + 1));
 
-  throw PonoException("NYI");
+  // check array axioms over the abstract system
+  if (!aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1)) {
+    // concrete CEX
+    return false;
+  }
+
+  TermVec consecutive_axioms = aae_.get_consecutive_axioms();
+  const AxiomVec & nonconsecutive_axioms = aae_.get_nonconsecutive_axioms();
+
+  bool found_nonconsecutive_axioms = nonconsecutive_axioms.size();
+
+  if (found_nonconsecutive_axioms) {
+    // TODO
+    // prophecize and update ts
+    // then look for axioms again
+
+    // search for axioms again but don't include nonconsecutive ones
+    bool ok = aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
+    // should be guaranteed to rule out counterexamples at this bound
+    assert(ok);
+    consecutive_axioms = aae_.get_consecutive_axioms();
+    assert(!aae_.get_nonconsecutive_axioms().size());
+  }
+
+  // TODO add consecutive axioms here! Need to copy over new ones
+
+  // TODO: update abs_ts_
+  // TODO: set num_added_axioms_
+  // TODO: update bad_
+
+  throw PonoException("got to current spot");
 }
 
 }  // namespace pono

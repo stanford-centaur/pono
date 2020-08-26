@@ -123,7 +123,8 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(const Property & prop,
 }
 
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
-                                            size_t bound)
+                                            size_t bound,
+                                            bool include_nonconsecutive)
 {
   // IMPORTANT: clear state from last run
 
@@ -179,7 +180,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     // this will result in less auxiliary variables to make the axiom
     // consecutive
     size_t k = bound_;
-    while (!found_lemmas && k >= 0) {
+    while (include_nonconsecutive && !found_lemmas && k >= 0) {
       found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(ARRAYEQ_READ, only_curr, k);

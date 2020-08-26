@@ -79,7 +79,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   typedef AxiomEnumerator super;
 
   bool enumerate_axioms(const smt::Term & abs_trace_formula,
-                        size_t bound) override;
+                        size_t bound,
+                        bool include_nonconsecutive = true) override;
 
   smt::TermVec & get_consecutive_axioms() override
   {
