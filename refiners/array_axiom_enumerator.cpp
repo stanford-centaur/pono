@@ -118,6 +118,8 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(Property & prop,
     : super(prop.transition_system()), prop_(prop), aa_(aa), un_(un)
 {
   false_ = solver_->make_term(false);
+  collect_arrays_and_indices();
+  create_lambda_indices();
 }
 
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
@@ -253,6 +255,40 @@ void ArrayAxiomEnumerator::collect_arrays_and_indices()
     if (ts_.only_curr(idx)) {
       cur_index_set_.insert(idx);
     }
+  }
+}
+
+void ArrayAxiomEnumerator::create_lambda_indices()
+{
+  unordered_set<Sort> conc_array_idx_sorts;
+  const TransitionSystem & conc_ts = aa_.conc_ts();
+  for (auto sv : conc_ts.statevars()) {
+    Sort sort = sv->get_sort();
+    if (sort->get_sort_kind() == ARRAY) {
+      conc_array_idx_sorts.insert(sort->get_indexsort());
+    }
+  }
+  for (auto i : conc_ts.inputvars()) {
+    Sort sort = i->get_sort();
+    if (sort->get_sort_kind() == ARRAY) {
+      conc_array_idx_sorts.insert(sort->get_indexsort());
+    }
+  }
+
+  // create a lambda var for each sort
+  Sort intsort = solver_->make_sort(INT);
+  size_t lam_num = 0;
+  // TODO: make this less confusing
+  // ts_ is const
+  // but the same TransitionSystem is accessible through the ArrayAbstractor
+  // and is mutable
+  TransitionSystem & mutable_ts = aa_.abs_ts();
+  for (auto idxsort : conc_array_idx_sorts) {
+    Term lam = mutable_ts.make_statevar("lambda_" + std::to_string(lam_num++),
+                                        // always using an integer sort for
+                                        // lambdas to avoid finite domain issues
+                                        intsort);
+    lambdas_[idxsort] = lam;
   }
 }
 

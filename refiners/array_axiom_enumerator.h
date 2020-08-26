@@ -97,6 +97,11 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   void collect_arrays_and_indices();
 
+  /** creates lambda indices for each array index sort
+   *  populates lambdas_
+   */
+  void create_lambda_indices();
+
   /** Check consecutive axioms from a certain class
    *  will populate consecutive_axioms_ with violated axioms
    *  @param ac the type of axiom to check
