@@ -153,7 +153,7 @@ bool CegProphecy::refine()
   // TODO use ArrayAxiomEnumerator and modifiers to refine the system
   // create BMC formula
   Term abs_bmc_formula = unroller_.at_time(abs_ts_.init(), 0);
-  for (size_t k = 0; k <= reached_k_; ++k) {
+  for (int k = 0; k <= reached_k_; ++k) {
     abs_bmc_formula = solver_->make_term(
         And, abs_bmc_formula, unroller_.at_time(abs_ts_.trans(), k));
   }
