@@ -42,8 +42,6 @@ class Prover
   bool witness(std::vector<smt::UnorderedTermMap> & out);
 
   ProverResult prove();
-
-  void print_bad_property_coi();
   
  protected:
   smt::SmtSolver solver_;
@@ -61,5 +59,26 @@ class Prover
   smt::Term bad_;
 
   PonoOptions options_;
+
+
+  //TODO: can make some of COI functions/members private
+  void print_bad_property_coi();
+
+  void print_term_dfs(const smt::Term & term);
+
+  void compute_term_coi(const smt::Term & term);
+
+  void compute_coi();
+  
+  /* For static cone-of-influence analysis: 
+     TermSets containing those state and input variables that appear
+     in the term 'bad_' that represents the bad-state property. This
+     information is used to rebuild the relevant parts of the
+     transition system 'ts_' of the property. The (potentially)
+     reduced and rebuilt transition system is stored in 'coi_ts_'. */
+  smt::UnorderedTermSet statevars_in_coi_;
+  smt::UnorderedTermSet inputvars_in_coi_;
+  //  smt::UnorderedTermSet next_statevars_;
+  TransitionSystem coi_ts_;
 };
 }  // namespace pono

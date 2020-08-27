@@ -18,6 +18,7 @@
 #include "available_solvers.h"
 
 #include <climits>
+#include <cassert>
 #include <functional>
 
 using namespace smt;
@@ -69,21 +70,20 @@ void Prover::initialize()
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
   if (options_.static_coi_) {
-    print_bad_property_coi();
+    compute_coi();
+    //TODO rebuild trans-sys, if this is the right time/place
   }
 }
 
 ProverResult Prover::prove() { return check_until(INT_MAX); }
 
-void Prover::print_bad_property_coi()
+//TODO: mainly for debugging but could make it an optional output at
+//certain verbosity level, check logger usage
+void Prover::print_term_dfs(const Term & term)
 {
-  cout << "TEST PRINT COI\n";
-
-  cout << "bad_property: " << bad_ << "\n";
-  
   UnorderedTermSet visited_terms;
   TermVec open_terms;
-  open_terms.push_back (bad_);
+  open_terms.push_back (term);
   Term cur;
 
   while (!open_terms.empty()) {
@@ -94,16 +94,100 @@ void Prover::print_bad_property_coi()
       // cache 'cur' and push its children
       visited_terms.insert(cur);
 
-      cout << "  visiting term: " << cur.get()->to_string() << "\n";
+      cout << "  visiting term: " << cur << "\n";
+      if (cur->is_symbol())
+        cout << "    ..is symbol\n";
       
       for (auto child : cur) {
-        cout << "    pusing child: " << child << "\n";
+        cout << "    pushing child: " << child << "\n";
         open_terms.push_back(child);
       }
     }
-    
-    }
+  }
+}
 
+//TODO: mainly for debugging but could make it an optional output at
+//certain verbosity level, check logger usage
+void Prover::print_bad_property_coi()
+{
+  cout << "TEST PRINT COI\n";
+  cout << "bad_ term: " << bad_ << "\n";
+  print_term_dfs(bad_);
+
+  cout << "init_ term: " << ts_.init() << "\n";
+  print_term_dfs(ts_.init());
+
+  cout << "trans_ term: " << ts_.trans() << "\n";
+  print_term_dfs(ts_.trans());
+
+  cout << "input vars: \n";
+  for (auto inputvar : ts_.inputvars())
+    cout << "  " << inputvar << "\n";
+
+  cout << "state vars: \n";
+  for (auto statevar : ts_.statevars())
+    cout << "  " << statevar << "\n";
+
+}
+
+void Prover::compute_term_coi(const Term & term)
+{
+  //  if (!statevars_in_coi_.empty() || !inputvars_in_coi_.empty())
+  //  throw PonoException("Error: Sets of COI state/input variables not empty.");
+
+  UnorderedTermSet visited_terms;
+  TermVec open_terms;
+  open_terms.push_back (term);
+  Term cur;
+
+  /* Depth-first search of term structure 'term'. Collect all
+     encountered state and input variables and store them in
+     'statevars_in_coi_' and 'inputvars_in_coi_'. */
+  while (!open_terms.empty()) {
+    cur = open_terms.back();
+    open_terms.pop_back ();
+
+    if (visited_terms.find(cur) == visited_terms.end()) {
+      /* Cache 'cur' and push its children. */
+      visited_terms.insert(cur);
+      cout << "  visiting COI term: " << cur << "\n";
+      if (cur->is_symbol())
+        {
+          cout << "    ..is symbol\n";
+          if (ts_.statevars().find(cur) != ts_.statevars().end()) {
+            assert(ts_.inputvars().find(cur) == ts_.inputvars().end());
+            assert(!ts_.is_next_var(cur));
+            cout << "collect COI statevar " << cur << "\n";
+            statevars_in_coi_.insert(cur);
+          }
+          else if (ts_.inputvars().find(cur) != ts_.inputvars().end()) {
+            assert(!ts_.is_curr_var(cur));
+            assert(!ts_.is_next_var(cur));
+            cout << "collect COI inputvar " << cur << "\n";
+            inputvars_in_coi_.insert(cur);
+          }
+        }
+      
+      for (auto child : cur) {
+        //        cout << "    pushing child: " << child << "\n";
+        open_terms.push_back(child);
+      }
+    }
+  }
+}
+
+void Prover::compute_coi()
+{
+  //TODO: remove printing or toggle wrt verbosity level
+  print_bad_property_coi();
+  cout << "Starting COI analysis" << "\n";
+  compute_term_coi(bad_);
+  //TODO: analyze init and trans constraints
+  cout << "COI analysis completed" << "\n";
+  for (auto var : statevars_in_coi_)
+    cout << "found COI statevar " << var << "\n";
+  for (auto var : inputvars_in_coi_)
+    cout << "found COI inputvar " << var << "\n";
 }
   
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
