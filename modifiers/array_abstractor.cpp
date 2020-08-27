@@ -278,6 +278,19 @@ void ArrayAbstractor::do_abstraction() {
   Term trans = conc_ts_.trans();
   Term abs_init = abstract(init);
   Term abs_trans = abstract(trans);
+
+  // need a relational system
+  // but generic abstractor does not require a relational system
+  // do a cast
+  assert(!abs_ts_.is_functional());
+  RelationalTransitionSystem & abs_rts =
+      static_cast<RelationalTransitionSystem &>(abs_ts_);
+  // the calls to abstract have already added the
+  // (possibly abstracted) variables
+  // now we just need to set the initial states and trans
+  abs_rts.set_init(abs_init);
+  abs_rts.set_trans(abs_trans);
+
   // TODO: remove these debug prints
   // std::cout << "abstracted init to " << abs_init << std::endl;
   // std::cout << "abstracted trans to " << abs_trans << std::endl;
@@ -313,7 +326,6 @@ void ArrayAbstractor::do_abstraction() {
   //   }
   // }
   // TODO: end of debug prints
-  throw PonoException("got to end of implementation");
 }
 
 void ArrayAbstractor::abstract_vars()
