@@ -34,6 +34,7 @@
 #include "printers/vcd_witness_printer.h"
 #include "prop.h"
 #include "utils/logger.h"
+#include "utils/make_provers.h"
 
 // TEMP do array abstraction directly here
 #include "modifiers/array_abstractor.h"
@@ -53,19 +54,16 @@ ProverResult check_prop(PonoOptions pono_options,
   logger.log(3, "INIT:\n{}", p.transition_system().init());
   logger.log(3, "TRANS:\n{}", p.transition_system().trans());
 
+  Engine eng = pono_options.engine_;
   std::shared_ptr<Prover> prover;
-  if (pono_options.engine_ == BMC) {
-    prover = std::make_shared<Bmc>(pono_options, p, s);
-  } else if (pono_options.engine_ == BMC_SP) {
-    prover = std::make_shared<BmcSimplePath>(pono_options, p, s);
-  } else if (pono_options.engine_ == KIND) {
-    prover = std::make_shared<KInduction>(pono_options, p, s);
-  } else if (pono_options.engine_ == INTERP) {
-    assert(second_solver != NULL);
-    prover = std::make_shared<InterpolantMC>(pono_options, p, s, second_solver);
+  if (eng != INTERP) {
+    assert(!second_solver);
+    prover = make_prover(eng, p, s, pono_options);
   } else {
-    throw PonoException("Unimplemented engine.");
+    assert(second_solver);
+    prover = make_prover(eng, p, s, second_solver, pono_options);
   }
+  assert(prover);
 
   ProverResult r = prover->check_until(pono_options.bound_);
   if (r == FALSE && !pono_options.no_witness_) {

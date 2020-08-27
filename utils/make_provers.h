@@ -42,4 +42,39 @@ std::shared_ptr<Prover> make_prover(Engine e,
     throw PonoException("Unhandled engine");
   }
 }
+
+std::shared_ptr<Prover> make_prover(Engine e,
+                                    const Property & p,
+                                    smt::SmtSolver & slv,
+                                    PonoOptions opts = PonoOptions())
+{
+  if (e == BMC) {
+    return std::make_shared<Bmc>(opts, p, slv);
+  } else if (e == BMC_SP) {
+    return std::make_shared<BmcSimplePath>(opts, p, slv);
+  } else if (e == KIND) {
+    return std::make_shared<KInduction>(opts, p, slv);
+  } else if (e == INTERP) {
+    throw PonoException(
+        "Interpolant-based modelchecking requires an interpolator");
+  } else {
+    throw PonoException("Unhandled engine");
+  }
+}
+
+std::shared_ptr<Prover> make_prover(Engine e,
+                                    const Property & p,
+                                    smt::SmtSolver & slv,
+                                    smt::SmtSolver & itp,
+                                    PonoOptions opts = PonoOptions())
+{
+  if (e == INTERP) {
+    return std::make_shared<InterpolantMC>(opts, p, slv, itp);
+  } else {
+    throw PonoException(
+        "Got unexpected engine when passing a solver and interpolator to "
+        "make_prover.");
+  }
+}
+
 }  // namespace pono
