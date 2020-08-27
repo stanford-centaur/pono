@@ -25,6 +25,7 @@
 #include "bmc.h"
 #include "bmc_simplepath.h"
 #include "core/fts.h"
+#include "engines/ceg_prophecy.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
@@ -55,8 +56,13 @@ ProverResult check_prop(PonoOptions pono_options,
   logger.log(3, "TRANS:\n{}", p.transition_system().trans());
 
   Engine eng = pono_options.engine_;
+
   std::shared_ptr<Prover> prover;
-  if (eng != INTERP) {
+  if (pono_options.ceg_prophecy_arrays_) {
+    // don't instantiate the sub-prover directly
+    // just pass the engine to CegProphecy
+    prover = std::make_shared<CegProphecy>(p, eng, s);
+  } else if (eng != INTERP) {
     assert(!second_solver);
     prover = make_prover(eng, p, s, pono_options);
   } else {
@@ -137,15 +143,8 @@ int main(int argc, char ** argv)
       }
       Term prop = propvec[pono_options.prop_idx_];
       vector<UnorderedTermMap> cex;
-      FunctionalTransitionSystem abs_ts(fts.solver());
-      if (pono_options.ceg_prophecy_arrays_) {
-        ArrayAbstractor aa(fts, abs_ts, false);
-        Property p(abs_ts, prop);
-        res = check_prop(pono_options, p, s, second_solver, cex);
-      } else {
-        Property p(fts, prop);
-        res = check_prop(pono_options, p, s, second_solver, cex);
-      }
+      Property p(fts, prop);
+      res = check_prop(pono_options, p, s, second_solver, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
