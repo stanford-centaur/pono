@@ -419,84 +419,96 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
   Term res_cube = c.term_;
 
   if (options_.ic3_indgen_) {
-    UnorderedTermSet keep, core_set;
-    TermVec bool_assump, tmp, new_tmp, removed, lits;
-    split_eq(solver_, c.conjuncts_, lits);
-
-    int iter = 0;
-    bool progress = true;
-    while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 && progress) {
-      iter = options_.ic3_gen_max_iter_ > 0 ? iter+1 : iter;
-      size_t prev_size = lits.size();
-      for (auto a : lits) {
-        // check if we can drop a
-        if (keep.find(a) != keep.end()) {
-          continue;
-        }
-        tmp.clear();
-        for (auto aa : lits) {
-          if (a != aa) {
-            tmp.push_back(aa);
-          }
-        }
-
-        Term tmp_and_term = make_and(tmp);
-        if (!intersects_initial(tmp_and_term)) {
-          solver_->push();
-          assert_frame(i - 1);
-          solver_->assert_formula(ts_.trans());
-          solver_->assert_formula(solver_->make_term(Not, tmp_and_term));
-
-          Term l;
-          bool_assump.clear();
-          for (auto t : tmp) {
-            l = label(t);
-            solver_->assert_formula(
-                solver_->make_term(Implies, l, ts_.next(t)));
-            bool_assump.push_back(l);
-          }
-
-          Result r = solver_->check_sat_assuming(bool_assump);
-          assert(!r.is_unknown());
-
-          if (r.is_sat()) {
-            // we cannot drop a
-            solver_->pop();
-          } else {
-            new_tmp.clear();
-            removed.clear();
-            core_set.clear();
-            // filter using unsatcore
-            solver_->get_unsat_core(core_set);
-            for (size_t j = 0; j < bool_assump.size(); ++j) {
-              if (core_set.find(bool_assump[j]) != core_set.end()) {
-                new_tmp.push_back(tmp[j]);
-              } else {
-                removed.push_back(tmp[j]);
-              }
-            }
-
-            solver_->pop();
-
-            // keep in mind that you cannot drop a literal if it causes c to
-            // intersect with the initial states
-            size_t size = new_tmp.size();
-            fix_if_intersects_initial(new_tmp, removed);
-            // remember the literals which cannot be dropped
-            for (size_t i = size; i < new_tmp.size(); ++i) {
-              keep.insert(new_tmp[i]);
-            }
-
-            lits = new_tmp;
-            break;  // next iteration
-          }
-        }
-      }
-
-      progress = lits.size() < prev_size;
+    TermVec tmp, lits, red_lits;
+    for (auto a : c.conjuncts_) {
+      tmp.push_back(ts_.next(a));
     }
+    split_eq(solver_, tmp, lits);
 
-    res_cube = make_and(lits);
+    Term formula = make_and({get_frame(i - 1), ts_.trans(),
+                             solver_->make_term(Not, c.term_)});
+    formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
+    reduce_assump_unsatcore(formula, lits, red_lits);
+    res_cube = ts_.curr(make_and(red_lits));
+
+    // UnorderedTermSet keep, core_set;
+    // TermVec bool_assump, tmp, new_tmp, removed, lits;
+    // split_eq(solver_, c.conjuncts_, lits);
+
+    // int iter = 0;
+    // bool progress = true;
+    // while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 && progress) {
+    //   iter = options_.ic3_gen_max_iter_ > 0 ? iter+1 : iter;
+    //   size_t prev_size = lits.size();
+    //   for (auto a : lits) {
+    //     // check if we can drop a
+    //     if (keep.find(a) != keep.end()) {
+    //       continue;
+    //     }
+    //     tmp.clear();
+    //     for (auto aa : lits) {
+    //       if (a != aa) {
+    //         tmp.push_back(aa);
+    //       }
+    //     }
+
+    //     Term tmp_and_term = make_and(tmp);
+    //     if (!intersects_initial(tmp_and_term)) {
+    //       solver_->push();
+    //       assert_frame(i - 1);
+    //       solver_->assert_formula(ts_.trans());
+    //       solver_->assert_formula(solver_->make_term(Not, tmp_and_term));
+
+    //       Term l;
+    //       bool_assump.clear();
+    //       for (auto t : tmp) {
+    //         l = label(t);
+    //         solver_->assert_formula(
+    //             solver_->make_term(Implies, l, ts_.next(t)));
+    //         bool_assump.push_back(l);
+    //       }
+
+    //       Result r = solver_->check_sat_assuming(bool_assump);
+    //       assert(!r.is_unknown());
+
+    //       if (r.is_sat()) {
+    //         // we cannot drop a
+    //         solver_->pop();
+    //       } else {
+    //         new_tmp.clear();
+    //         removed.clear();
+    //         core_set.clear();
+    //         // filter using unsatcore
+    //         solver_->get_unsat_core(core_set);
+    //         for (size_t j = 0; j < bool_assump.size(); ++j) {
+    //           if (core_set.find(bool_assump[j]) != core_set.end()) {
+    //             new_tmp.push_back(tmp[j]);
+    //           } else {
+    //             removed.push_back(tmp[j]);
+    //           }
+    //         }
+
+    //         solver_->pop();
+
+    //         // keep in mind that you cannot drop a literal if it causes c to
+    //         // intersect with the initial states
+    //         size_t size = new_tmp.size();
+    //         fix_if_intersects_initial(new_tmp, removed);
+    //         // remember the literals which cannot be dropped
+    //         for (size_t i = size; i < new_tmp.size(); ++i) {
+    //           keep.insert(new_tmp[i]);
+    //         }
+
+    //         lits = new_tmp;
+    //         break;  // next iteration
+    //       }
+    //     }
+    //   }
+
+    //   progress = lits.size() < prev_size;
+    // }
+
+    // res_cube = make_and(lits);
   }
 
   assert(!intersects_initial(res_cube));
