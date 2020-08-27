@@ -182,7 +182,11 @@ void Prover::compute_coi()
   print_bad_property_coi();
   cout << "Starting COI analysis" << "\n";
   compute_term_coi(bad_);
-  //TODO: analyze init and trans constraints
+  //TODO: analyze trans constraints
+  //TODO: WAIT--MAYBE STILL NEED TO GATHER STATE-VARS THAT ARE IN COI BY TRAVERSING 'init_', and then determine the next-func terms of that statevars?
+  // e.g. maybe relevant init-constraint of statevar 'state0' in COI has some other statevar 'state1'-->or does it not matter?
+  // e.g. MUST traverse next-func terms of already found COI statevars to collect further COI vars?
+  //----maybe leave initial-state constraints as is; could be any term structure (via 'set_init(...)') and hence difficult to analyze
   cout << "COI analysis completed" << "\n";
   for (auto var : statevars_in_coi_)
     cout << "found COI statevar " << var << "\n";
