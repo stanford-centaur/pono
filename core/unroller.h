@@ -46,6 +46,20 @@ class Unroller
    */
   size_t get_var_time(const smt::Term & v) const;
 
+  /** Returns the time for current state variables / inputs in a term
+   *  This is obtained simply by getting the times of all free
+   *  variables and returning the minimum
+   *  however, it will throw an exception if the difference
+   *  in times is greater than one
+   *  Examples:
+   *    get_time(x@4 + y@4) -> 4
+   *    get_time(x@4 + y@5) -> 4
+   *    get_time(x@4 + y@6) -> throws exception
+   *     because this could not have been an unrolled transition system term
+   *     since those are only over current, next and inputs.
+   */
+  size_t get_curr_time(const smt::Term & t) const;
+
  private:
   smt::Term var_at_time(const smt::Term & v, unsigned int k);
   smt::UnorderedTermMap & var_cache_at_time(unsigned int k);

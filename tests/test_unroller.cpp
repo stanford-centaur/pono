@@ -76,6 +76,21 @@ TEST_P(UnrollerUnitTests, GetTime)
   Term x4_2 = u.at_time(x, 4);
   EXPECT_EQ(4, u.get_var_time(x4_2));
   EXPECT_EQ(x4, x4_2);
+
+  Term x1 = u.at_time(x, 1);
+
+  Term x0px0 = rts.make_term(BVAdd, x0, x0);
+  EXPECT_EQ(0, u.get_curr_time(x0px0));
+
+  Term x1px2 = rts.make_term(BVAdd, x1, x2);
+  EXPECT_EQ(1, u.get_curr_time(x1px2));
+
+  Term x1px4 = rts.make_term(BVAdd, x1, x4);
+  // cannot get current time for term that could not have been unrolled
+  // because difference between times is greater than 1
+  // should be <= since only over current state vars, input vars, and next state
+  // vars
+  EXPECT_THROW(u.get_curr_time(x1px4), PonoException);
 }
 
 TEST_P(UnrollerUnitTests, StagedUnrolling)
