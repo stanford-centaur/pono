@@ -70,6 +70,9 @@ void Prover::initialize()
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
   if (options_.static_coi_) {
+    if (!ts_.is_functional())
+      throw PonoException("Temporary restriction: cone-of-influence analysis"\
+                          "not yet supported for relational transition systems.");
     compute_coi();
     //TODO rebuild trans-sys, if this is the right time/place
   }
@@ -130,12 +133,19 @@ void Prover::print_bad_property_coi()
 
 }
 
+void Prover::collect_coi_term(smt::UnorderedTermSet & set, const Term & term)
+{
+  assert(set == statevars_in_coi_ || set == inputvars_in_coi_);
+  if (set.find(term) == set.end())
+    set.insert(term);
+}
+  
 void Prover::compute_term_coi(const Term & term)
 {
   //  if (!statevars_in_coi_.empty() || !inputvars_in_coi_.empty())
   //  throw PonoException("Error: Sets of COI state/input variables not empty.");
 
-  UnorderedTermSet visited_terms;
+
   TermVec open_terms;
   open_terms.push_back (term);
   Term cur;
@@ -147,9 +157,11 @@ void Prover::compute_term_coi(const Term & term)
     cur = open_terms.back();
     open_terms.pop_back ();
 
-    if (visited_terms.find(cur) == visited_terms.end()) {
+    /* Use global set 'coi_visited_terms' here to avoid visiting terms
+       multiple times when we call this function on different terms. */
+    if (coi_visited_terms_.find(cur) == coi_visited_terms_.end()) {
       /* Cache 'cur' and push its children. */
-      visited_terms.insert(cur);
+      coi_visited_terms_.insert(cur);
       cout << "  visiting COI term: " << cur << "\n";
       if (cur->is_symbol())
         {
@@ -158,13 +170,13 @@ void Prover::compute_term_coi(const Term & term)
             assert(ts_.inputvars().find(cur) == ts_.inputvars().end());
             assert(!ts_.is_next_var(cur));
             cout << "collect COI statevar " << cur << "\n";
-            statevars_in_coi_.insert(cur);
+            collect_coi_term(statevars_in_coi_, cur);
           }
           else if (ts_.inputvars().find(cur) != ts_.inputvars().end()) {
             assert(!ts_.is_curr_var(cur));
             assert(!ts_.is_next_var(cur));
             cout << "collect COI inputvar " << cur << "\n";
-            inputvars_in_coi_.insert(cur);
+            collect_coi_term(inputvars_in_coi_, cur);
           }
         }
       
@@ -178,6 +190,9 @@ void Prover::compute_term_coi(const Term & term)
 
 void Prover::compute_coi()
 {
+  assert (coi_visited_terms_.empty());
+  assert (statevars_in_coi_.empty());
+  assert (inputvars_in_coi_.empty());
   //TODO: remove printing or toggle wrt verbosity level
   print_bad_property_coi();
   cout << "Starting COI analysis" << "\n";

@@ -62,6 +62,9 @@ class Prover
 
 
   //TODO: can make some of COI functions/members private
+
+  //TODO: not sure if term translation feature as implemented now works properly with COI, i.e., when we replace 'ts_' with 'coi_ts_'; maybe we can keep the old 'ts_' and swap back as needed? 
+  
   void print_bad_property_coi();
 
   void print_term_dfs(const smt::Term & term);
@@ -78,7 +81,15 @@ class Prover
      reduced and rebuilt transition system is stored in 'coi_ts_'. */
   smt::UnorderedTermSet statevars_in_coi_;
   smt::UnorderedTermSet inputvars_in_coi_;
-  //  smt::UnorderedTermSet next_statevars_;
+  /* Set of terms already visited in COI analysis. */
+  smt::UnorderedTermSet coi_visited_terms_;
+  /* Rebuilt transition system based on COI; replaces the original
+  transition system 'ts_' constructed by the user and will be used by
+  prover engines for model checking. */
   TransitionSystem coi_ts_;
+
+ private:
+  void collect_coi_term(smt::UnorderedTermSet & set, const smt::Term & term);
+
 };
 }  // namespace pono
