@@ -425,6 +425,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
     }
     split_eq(solver_, tmp, lits);
 
+    // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
     Term formula = make_and({get_frame(i - 1), ts_.trans(),
                              solver_->make_term(Not, c.term_)});
     formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
