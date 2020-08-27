@@ -219,8 +219,6 @@ bool CegProphecy::refine()
     assert(!aae_.get_nonconsecutive_axioms().size());
   }
 
-  throw PonoException("got to current spot");
-
   // add consecutive axioms to the system
   // TODO: make sure we're adding current / next correctly
   for (auto ax : consecutive_axioms) {
