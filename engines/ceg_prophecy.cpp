@@ -172,6 +172,39 @@ bool CegProphecy::refine()
     // prophecize and update ts
     // then look for axioms again
 
+    // TODO: consider adding these axioms directly over the prophecy
+    //       variables at the correct time
+    //       for now, easier to just search for consecutive axioms
+
+    // vector of pairs
+    // first: prophecy variable
+    // second: target (a history variable for non-zero delay)
+    vector<pair<Term, Term>> proph_vars;
+    for (AxiomInstantiation ax_inst : nonconsecutive_axioms) {
+      assert(ax_inst.instantiations.size()
+             == 1);  // expecting only one index instantiated
+      for (auto idx : ax_inst.instantiations) {
+        // number of steps before the property violation
+        size_t delay = reached_k_ + 1 - unroller_.get_curr_time(idx);
+        // Prophecy Modifier will add prophecy and history variables
+        // automatically here but it does NOT update the property
+        proph_vars.push_back(pm_.get_proph(idx, delay));
+      }
+    }
+
+    // now update bad_
+    // the property would be updated as
+    // (proph1=target1 /\ ... /\ prophn=targetn) -> prop
+    // but because we're working with bad, this is equivalent to
+    // (proph1=target1 /\ ... /\ prophn=targetn) /\ bad
+    // where bad = !prop
+    for (auto p : proph_vars) {
+      Term proph_var = p.first;
+      Term target = p.second;
+      bad_ = solver_->make_term(
+          And, solver_->make_term(Equal, proph_var, target), bad_);
+    }
+
     // search for axioms again but don't include nonconsecutive ones
     bool ok = aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
     // should be guaranteed to rule out counterexamples at this bound
@@ -180,13 +213,30 @@ bool CegProphecy::refine()
     assert(!aae_.get_nonconsecutive_axioms().size());
   }
 
-  // TODO add consecutive axioms here! Need to copy over new ones
+  throw PonoException("got to current spot");
+
+  // add consecutive axioms to the system
+  // TODO: make sure we're adding current / next correctly
+  for (auto ax : consecutive_axioms) {
+    if (reached_k_ == -1) {
+      // if only checking initial state
+      // need to add to init
+      abs_ts_.constrain_init(ax);
+    }
+
+    abs_ts_.constrain_trans(ax);
+    if (abs_ts_.only_curr(ax)) {
+      // add the next state version if it's an invariant over current state vars
+      abs_ts_.constrain_trans(abs_ts_.next(ax));
+    }
+  }
 
   // TODO: update abs_ts_
   // TODO: set num_added_axioms_
   // TODO: update bad_
 
-  throw PonoException("got to current spot");
+  // able to successfully refine
+  return true;
 }
 
 }  // namespace pono

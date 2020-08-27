@@ -49,7 +49,7 @@ class CegProphecy : public CEGAR
  protected:
   const TransitionSystem & conc_ts_;
   const smt::SmtSolver & solver_;
-  TransitionSystem abs_ts_;
+  RelationalTransitionSystem abs_ts_;
   Engine e_;
 
   ArrayAbstractor aa_;
