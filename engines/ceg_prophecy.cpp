@@ -136,9 +136,9 @@ void CegProphecy::initialize()
 
 void CegProphecy::abstract()
 {
-  // this is a No-Op
   // the ArrayAbstractor already abstracted the transition system on
-  // construction
+  // construction -- only need to abstract bad
+  bad_ = aa_.abstract(bad_);
 
   // the abstract system should have all the same state and input variables
   // but abstracted

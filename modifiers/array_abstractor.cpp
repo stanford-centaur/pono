@@ -77,7 +77,9 @@ WalkerStepResult AbstractionWalker::visit_term(Term & term)
     }
     res = solver_->make_term(
         Apply, { write_uf, cached_children[0], idx, cached_children[2] });
-  } else if (aa_.abstract_array_equality_ && op == Equal) {
+  } else if (aa_.abstract_array_equality_ && op == Equal &&
+             // an equality between arrays
+             (*(term->begin()))->get_sort()->get_sort_kind() == ARRAY) {
     assert(cached_children.size() == 2);
     Term arrayeq_uf = aa_.get_arrayeq_uf(cached_children[0]->get_sort());
     res = solver_->make_term(
@@ -264,7 +266,8 @@ Term ArrayAbstractor::get_arrayeq_uf(const smt::Sort & sort) const
   assert(abstract_array_equality_);
   auto it = arrayeq_ufs_.find(sort);
   if (it == arrayeq_ufs_.end()) {
-    throw PonoException("No write UF found for" + sort->to_string());
+    throw PonoException("No array equality abstraction found for: "
+                        + sort->to_string());
   }
   return it->second;
 }
