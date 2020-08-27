@@ -61,7 +61,7 @@ ProverResult check_prop(PonoOptions pono_options,
   if (pono_options.ceg_prophecy_arrays_) {
     // don't instantiate the sub-prover directly
     // just pass the engine to CegProphecy
-    prover = std::make_shared<CegProphecy>(p, eng, s);
+    prover = std::make_shared<CegProphecy>(pono_options, p, eng, s);
   } else if (eng != INTERP) {
     assert(!second_solver);
     prover = make_prover(eng, p, s, pono_options);
