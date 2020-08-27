@@ -78,9 +78,12 @@ TEST_P(ModifierUnitTests, ProphecyModifierSimple)
   EXPECT_EQ(num_statevars_orig, 1);
 
   ProphecyModifier pm(fts);
-  std::pair<Term, Term> p = pm.get_proph(x, 2, prop);
+  std::pair<Term, Term> p = pm.get_proph(x, 2);
   Term proph_var = p.first;
-  Term new_prop = p.second;
+  Term new_target = p.second;
+  // update the property with the prophecy antecedent
+  Term new_prop =
+      fts.make_term(Implies, fts.make_term(Equal, proph_var, new_target), prop);
 
   TermVec free_vars;
   get_free_symbolic_consts(new_prop, free_vars);

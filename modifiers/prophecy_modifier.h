@@ -32,11 +32,14 @@ class ProphecyModifier
    *  @param target a current state variable to target for a prophecy variable
    *  @param delay the amount of delay to introduce for the prophecy
    *  @param prop the current property
-   *  @return the prophecy variable and the updated property
+   *  @return the prophecy variable and the updated target
+   *          (a history variable if delay is non-zero)
+   *          this should be used to update the property. i.e.
+   *          if P was the original property, it should now be
+   *          proph=target -> P
    */
   std::pair<smt::Term, smt::Term> get_proph(const smt::Term & target,
-                                            size_t delay,
-                                            const smt::Term & prop);
+                                            size_t delay);
 
  protected:
   TransitionSystem & ts_;

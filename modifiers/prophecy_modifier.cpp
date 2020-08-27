@@ -25,9 +25,7 @@ ProphecyModifier::ProphecyModifier(TransitionSystem & ts)
 {
 }
 
-pair<Term, Term> ProphecyModifier::get_proph(const Term & target,
-                                             size_t delay,
-                                             const Term & prop)
+pair<Term, Term> ProphecyModifier::get_proph(const Term & target, size_t delay)
 {
   // first use history variables to delay target
   Term hist_var = hm_.get_hist(target, delay);
@@ -38,11 +36,7 @@ pair<Term, Term> ProphecyModifier::get_proph(const Term & target,
   // make it frozen
   ts_.assign_next(proph_var, proph_var);
 
-  // prophecy variable updates property using an implication
-  // (proph = hist) -> prop
-  Term antecedent = solver_->make_term(Equal, proph_var, hist_var);
-  Term updated_prop = solver_->make_term(Implies, antecedent, prop);
-  return { proph_var, updated_prop };
+  return { proph_var, hist_var };
 }
 
 }  // namespace pono
