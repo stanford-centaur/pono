@@ -161,13 +161,11 @@ class ModelBasedIC3 : public Prover
    *  @param vector of assumptions
    *  @param vector to store reduced assumptions
    *  @param vector to store removed assumptions (if not NULL)
-   *  @param number of max interations
    */
   void reduce_assump_unsatcore(const smt::Term &formula,
                                const smt::TermVec &assump,
                                smt::TermVec &out_red,
-                               smt::TermVec *out_rem = NULL,
-                               int iter = 1);
+                               smt::TermVec *out_rem = NULL);
 
   smt::Term label(const smt::Term & t);
 

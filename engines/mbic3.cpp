@@ -425,8 +425,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 
     int iter = 0;
     bool progress = true;
-    // max 2 iterations
-    while (++iter <= 2 && lits.size() > 1 && progress) {
+    while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 && progress) {
+      iter = options_.ic3_gen_max_iter_ > 0 ? iter+1 : iter;
       size_t prev_size = lits.size();
       for (auto a : lits) {
         // check if we can drop a
@@ -648,8 +648,7 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
 void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
                                             const TermVec & assump,
                                             TermVec & out_red,
-                                            TermVec * out_rem,
-                                            int iter)
+                                            TermVec * out_rem)
 {
   TermVec cand_res = assump;
   TermVec bool_assump, tmp_assump;
@@ -670,8 +669,9 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
     bool_assump.push_back(l);
   }
 
-  unsigned i = 0;
-  while (++i <= iter) {
+  unsigned iter = 0;
+  while (iter <= options_.ic3_gen_max_iter_) {
+    iter = options_.ic3_gen_max_iter_ > 0 ? iter+1 : iter;
     r = solver_->check_sat_assuming(bool_assump);
     assert(r.is_unsat());
 

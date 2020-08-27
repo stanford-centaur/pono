@@ -37,7 +37,8 @@ enum optionIndex
   VCDNAME,
   NOWITNESS,
   NO_IC3_CEXGEN,
-  NO_IC3_INDGEN
+  NO_IC3_INDGEN,
+  IC3_GEN_MAX_ITER
 };
 
 struct Arg : public option::Arg
@@ -130,6 +131,14 @@ const option::Descriptor usage[] = {
     "ic3-no-indgen",
     Arg::None,
     "  --ic3-no-indgen \tDisable inductive generalization in ic3." },
+  { IC3_GEN_MAX_ITER,
+    0,
+    "",
+    "ic3-gen-max-iter",
+    Arg::Numeric,
+    "  --ic3-gen-max-iter \tMax number of iterations "
+    "(greater than zero) for unsatcore-based ic3 generalization. "
+    "Setting it to 0 means an unbounded number of iterations." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -207,6 +216,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           break;
         case NO_IC3_CEXGEN: ic3_cexgen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
+        case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

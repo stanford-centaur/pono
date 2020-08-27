@@ -55,7 +55,8 @@ class PonoOptions
         verbosity_(default_verbosity_),
         no_witness_(default_no_witness_),
         ic3_cexgen_(default_ic3_cexgen_),
-        ic3_indgen_(default_ic3_indgen_)
+        ic3_indgen_(default_ic3_indgen_),
+        ic3_gen_max_iter_(default_ic3_gen_max_iter_)
   {
   }
 
@@ -77,8 +78,10 @@ class PonoOptions
   // ic3 options
   bool ic3_cexgen_;  ///< generalize counterexamples in IC3
   bool ic3_indgen_;  ///< inductive generalization in IC3
+  unsigned int ic3_gen_max_iter_; ///< max iterations in ic3 generalization. 0
+                                  ///means unbounded
 
- private:
+private:
   // Default options
   static const Engine default_engine_ = BMC;
   static const unsigned int default_prop_idx_ = 0;
@@ -87,6 +90,7 @@ class PonoOptions
   static const bool default_no_witness_ = false;
   static const bool default_ic3_cexgen_ = true;
   static const bool default_ic3_indgen_ = true;
+  static const unsigned default_ic3_gen_max_iter_ = 2;
 };
 
 }  // namespace pono
