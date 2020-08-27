@@ -46,6 +46,8 @@ class CegProphecy : public CEGAR
   ProverResult prove() override;
   ProverResult check_until(int k) override;
 
+  void initialize() override;
+
  protected:
   const TransitionSystem & conc_ts_;
   const smt::SmtSolver & solver_;

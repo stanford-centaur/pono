@@ -37,7 +37,7 @@ CegProphecy::CegProphecy(const Property & p, Engine e, smt::SolverEnum se)
       aae_(p, aa_, unroller_),
       pm_(abs_ts_)
 {
-  super::initialize();
+  initialize();
 }
 
 CegProphecy::CegProphecy(const Property & p, Engine e, const SmtSolver & solver)
@@ -50,7 +50,7 @@ CegProphecy::CegProphecy(const Property & p, Engine e, const SmtSolver & solver)
       aae_(p, aa_, unroller_),
       pm_(abs_ts_)
 {
-  super::initialize();
+  initialize();
 }
 
 CegProphecy::CegProphecy(const PonoOptions & opt,
@@ -66,7 +66,7 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
       aae_(p, aa_, unroller_),
       pm_(abs_ts_)
 {
-  super::initialize();
+  initialize();
 }
 
 CegProphecy::CegProphecy(const PonoOptions & opt,
@@ -82,7 +82,7 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
       aae_(p, aa_, unroller_),
       pm_(abs_ts_)
 {
-  super::initialize();
+  initialize();
 }
 
 ProverResult CegProphecy::prove()
@@ -126,6 +126,12 @@ ProverResult CegProphecy::check_until(int k)
     res = prover->check_until(k);
   }
   return res;
+}
+
+void CegProphecy::initialize()
+{
+  super::initialize();
+  abstract();
 }
 
 void CegProphecy::abstract()

@@ -244,7 +244,7 @@ Term ArrayAbstractor::get_read_uf(const smt::Sort & sort) const
 {
   auto it = read_ufs_.find(sort);
   if (it == read_ufs_.end()) {
-    throw PonoException("No read UF found for" + sort->to_string());
+    throw PonoException("No read UF found for " + sort->to_string());
   }
   return it->second;
 }
@@ -253,7 +253,7 @@ Term ArrayAbstractor::get_write_uf(const smt::Sort & sort) const
 {
   auto it = write_ufs_.find(sort);
   if (it == write_ufs_.end()) {
-    throw PonoException("No write UF found for" + sort->to_string());
+    throw PonoException("No write UF found for " + sort->to_string());
   }
   return it->second;
 }

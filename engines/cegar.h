@@ -48,8 +48,6 @@ class CEGAR : public Prover
   void initialize() override
   {
     super::initialize();
-    // abstract the transition system
-    abstract();
   }
 
  protected:
