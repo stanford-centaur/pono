@@ -46,7 +46,10 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   SortKind sk = sort->get_sort_kind();
   Op op = term->get_op();
 
-  if (sk != ARRAY && op != Equal) {
+  if (sk != ARRAY && op != Equal || op == Ite) {
+    // if not an array or array equality, then nothing to save
+    // similarly, don't need to save anything for an Ite,
+    // even if it is an array sort
     return Walker_Continue;
   }
 
@@ -92,7 +95,7 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
     aae_.constarrs_[abs_term] = val;
   } else if (op == Store) {
     assert(abs_children.size() == 4);
-    assert(children.size() == 4);
+    assert(children.size() == 3);
     aae_.stores_.insert(abs_term);
 
     // third child is index because
@@ -101,7 +104,7 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   } else {
     assert(op == Select);
     assert(abs_children.size() == 3);
-    assert(children.size() == 3);
+    assert(children.size() == 2);
     // third child is index, because it's
     // read_uf, array, index
     aae_.index_set_.insert(abs_children[2]);
@@ -127,8 +130,8 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
                                             bool include_nonconsecutive)
 {
   // IMPORTANT: clear state from last run
-
   clear_state();
+
   // TODO: think about how to check / instantiate next-state version of axioms!!
   // Important : set bound member variable
   // used by other functions
