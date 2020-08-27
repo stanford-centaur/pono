@@ -21,6 +21,7 @@
 
 #include "engines/cegar.h"
 #include "modifiers/array_abstractor.h"
+#include "modifiers/prophecy_modifier.h"
 #include "options/options.h"
 #include "refiners/array_axiom_enumerator.h"
 
@@ -53,6 +54,7 @@ class CegProphecy : public CEGAR
 
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
+  ProphecyModifier pm_;
 
   size_t num_added_axioms_ =
       0;  ///< set by refine to the number of added axioms

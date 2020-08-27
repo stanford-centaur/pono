@@ -34,7 +34,8 @@ CegProphecy::CegProphecy(const Property & p, Engine e, smt::SolverEnum se)
       abs_ts_(solver_),
       e_(e),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(p, aa_, unroller_)
+      aae_(p, aa_, unroller_),
+      pm_(abs_ts_)
 {
   super::initialize();
 }
@@ -46,7 +47,8 @@ CegProphecy::CegProphecy(const Property & p, Engine e, const SmtSolver & solver)
       abs_ts_(solver_),
       e_(e),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(p, aa_, unroller_)
+      aae_(p, aa_, unroller_),
+      pm_(abs_ts_)
 {
   super::initialize();
 }
@@ -61,7 +63,8 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
       abs_ts_(solver_),
       e_(e),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(p, aa_, unroller_)
+      aae_(p, aa_, unroller_),
+      pm_(abs_ts_)
 {
   super::initialize();
 }
@@ -76,7 +79,8 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
       abs_ts_(solver_),
       e_(e),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(p, aa_, unroller_)
+      aae_(p, aa_, unroller_),
+      pm_(abs_ts_)
 {
   super::initialize();
 }
@@ -160,6 +164,8 @@ bool CegProphecy::refine()
   const AxiomVec & nonconsecutive_axioms = aae_.get_nonconsecutive_axioms();
 
   bool found_nonconsecutive_axioms = nonconsecutive_axioms.size();
+
+  // TODO reduce axioms with an unsat core or specialized dropping
 
   if (found_nonconsecutive_axioms) {
     // TODO
