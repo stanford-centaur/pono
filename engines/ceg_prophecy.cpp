@@ -194,11 +194,12 @@ bool CegProphecy::refine()
     for (AxiomInstantiation ax_inst : nonconsecutive_axioms) {
       assert(ax_inst.instantiations.size()
              == 1);  // expecting only one index instantiated
-      for (auto idx : ax_inst.instantiations) {
+      for (auto timed_idx : ax_inst.instantiations) {
         // number of steps before the property violation
-        size_t delay = reached_k_ + 1 - abs_unroller_.get_curr_time(idx);
+        size_t delay = reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
         // Prophecy Modifier will add prophecy and history variables
         // automatically here but it does NOT update the property
+        Term idx = abs_unroller_.untime(timed_idx);
         proph_vars.push_back(pm_.get_proph(idx, delay));
       }
     }
