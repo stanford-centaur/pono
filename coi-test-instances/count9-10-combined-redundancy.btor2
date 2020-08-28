@@ -28,7 +28,7 @@
 
 ; redundant state variable disconnected from property
 ; NOTE: a very large bit-width here will slow down the model checker when proving the simple property above
-23 sort bitvec 20
+23 sort bitvec 10000
 24 one 23
 25 state 23 statevar-not-coi
 26 init 23 25 24

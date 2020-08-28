@@ -74,8 +74,7 @@ void Prover::initialize()
       throw PonoException("Temporary restriction: cone-of-influence analysis currently "\
                           "supported for functional transition systems only.");
     compute_coi();
-    //TODO rebuild trans-sys, if this is the right time/place
-    ts_.recompute_based_on_coi (statevars_in_coi_);
+    ts_.rebuild_trans_based_on_coi(statevars_in_coi_);
   }
 }
 
@@ -232,13 +231,14 @@ void Prover::compute_coi()
 {
   assert (coi_visited_terms_.empty());
   //TODO: remove printing or toggle wrt verbosity level
-  print_bad_property_coi();
+  //print_bad_property_coi();
 
   cout << "Starting COI analysis" << endl;
 
   UnorderedTermSet new_coi_state_vars;
   UnorderedTermSet new_coi_input_vars;
 
+  cout << "Starting COI analysis: bad-term" << endl;
   compute_term_coi(bad_, new_coi_state_vars, new_coi_input_vars);
 
   assert (statevars_in_coi_.empty());
@@ -264,9 +264,15 @@ void Prover::compute_coi()
   
   cout << "COI analysis completed" << "\n";
   for (auto var : statevars_in_coi_)
-    cout << "found COI statevar " << var << "\n";
+    cout << "  found COI statevar " << var << "\n";
   for (auto var : inputvars_in_coi_)
-    cout << "found COI inputvar " << var << "\n";
+    cout << "  found COI inputvar " << var << "\n";
+
+  cout << "Original system had:" << "\n";
+  for (auto var : ts_.statevars())
+    cout << "  statevar " << var << "\n";
+  for (auto var : ts_.inputvars())
+    cout << "  inputvar " << var << "\n";
 }
   
 bool Prover::witness(std::vector<UnorderedTermMap> & out)

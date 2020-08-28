@@ -324,9 +324,31 @@ Term TransitionSystem::make_term(const Op op, const TermVec & terms)
   return solver_->make_term(op, terms);
 }
 
-void TransitionSystem::recompute_based_on_coi(UnorderedTermSet & state_vars_in_coi)
+void TransitionSystem::rebuild_trans_based_on_coi(const UnorderedTermSet & state_vars_in_coi)
 {
+  /* Clear current transition relation 'trans_'. */
+  trans_ = solver_->make_term(true);
+  
+  /* Add next-state functions for state variables in COI. */
+  for (auto state_var : state_vars_in_coi) {
+    Term next_func = NULL;
+    auto elem = state_updates_.find(state_var);
+    if (elem != state_updates_.end())
+      next_func = elem->second;
+    /* May find state variables without next-function. */
+    if (next_func != NULL)
+      {
+        Term eq = solver_->make_term(Equal, next_map_.at(state_var), next_func);
+        trans_ = solver_->make_term(And, trans_, eq);
+      }
+  }
 
+  //TODO: we could further check if we can discard constraints from
+  //the set 'constraints_', e.g., only add those constraints to new
+  //'trans_' in which COI state/input variables appear.
+  /* Add further constraints added to previous 'trans_'. */
+  for (auto constr : constraints_)
+    trans_ = solver_->make_term(And, trans_, constr);
 }
 
 // protected methods
