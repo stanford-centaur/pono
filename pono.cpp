@@ -107,14 +107,6 @@ int main(int argc, char ** argv)
           "Note: MathSAT has a custom license and you must assume all "
           "responsibility for meeting the license requirements.");
 #endif
-    } else if (pono_options.engine_ == MBIC3) {
-#ifdef WITH_MSAT
-      s = MsatSolverFactory::create(false);
-      s->set_opt("incremental", "true");
-      s->set_opt("produce-models", "true");
-#else
-      throw PonoException("Model-based IC3 depends on MathSAT currently.");
-#endif
     } else {
       // boolector is faster but doesn't support interpolants
       s = BoolectorSolverFactory::create(false);
