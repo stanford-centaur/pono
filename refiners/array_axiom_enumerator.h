@@ -336,6 +336,15 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   smt::Term get_lambda(smt::Term idx);
 
+  /** Casts lambda to a bit-vector if necessary
+   *  Currently bitvectors are the only finite-domain index supported
+   *
+   *  @param sort the concrete sort
+   *  @param lam the lambda index
+   *  @return the casted lambda so the sort matches the concrete sort
+   */
+  smt::Term cast_lambda(const smt::Sort & sort, const smt::Term & lam) const;
+
   // members
   // for abstracting/concretizing terms
   const Property & prop_;

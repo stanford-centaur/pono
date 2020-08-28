@@ -136,7 +136,6 @@ class ArrayAbstractor : public Abstractor
 
   AbstractionWalker abs_walker_;
   ConcretizationWalker conc_walker_;
-  smt::Sort intsort_;
 
   ///< maps concrete sorts to abstract sorts
   std::unordered_map<smt::Sort, smt::Sort> abstract_sorts_;

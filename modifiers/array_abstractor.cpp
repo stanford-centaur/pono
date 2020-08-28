@@ -62,19 +62,11 @@ WalkerStepResult AbstractionWalker::visit_term(Term & term)
     assert(cached_children.size() == 2);
     Term read_uf = aa_.get_read_uf(cached_children[0]->get_sort());
     Term idx = cached_children[1];
-    if (idx->get_sort()->get_sort_kind() == BV) {
-      // use integer indices to simplify lambda guard
-      idx = solver_->make_term(BV_To_Nat, idx);
-    }
     res = solver_->make_term(Apply, read_uf, cached_children[0], idx);
   } else if (op == Store) {
     assert(cached_children.size() == 3);
     Term write_uf = aa_.get_write_uf(aa_.abstract_array_sort(sort));
     Term idx = cached_children[1];
-    if (idx->get_sort()->get_sort_kind() == BV) {
-      // use integer indices to simplify lambda guard
-      idx = solver_->make_term(BV_To_Nat, idx);
-    }
     res = solver_->make_term(
         Apply, { write_uf, cached_children[0], idx, cached_children[2] });
   } else if (aa_.abstract_array_equality_ && op == Equal &&
@@ -168,23 +160,11 @@ WalkerStepResult ConcretizationWalker::visit_term(Term & term)
     assert(cached_args.size() == 2);
     assert(cached_args[0]->get_sort()->get_sort_kind() == ARRAY);
     Term idx = cached_args[1];
-    // handle BV_To_Nat casting
-    if (idx->get_sort()->get_sort_kind() == INT
-        && cached_args[0]->get_sort()->get_indexsort()->get_sort_kind() == BV) {
-      assert(cached_args[1]->get_op() == BV_To_Nat);
-      idx = *(cached_args[1]->begin());
-    }
     res = solver_->make_term(Select, cached_args[0], idx);
   } else if (aa_.write_ufs_set_.find(uf) != aa_.write_ufs_set_.end()) {
     assert(cached_args.size() == 3);
     assert(cached_args[0]->get_sort()->get_sort_kind() == ARRAY);
     Term idx = cached_args[1];
-    // handle BV_To_Nat casting
-    if (idx->get_sort()->get_sort_kind() == INT
-        && cached_args[0]->get_sort()->get_indexsort()->get_sort_kind() == BV) {
-      assert(cached_args[1]->get_op() == BV_To_Nat);
-      idx = *(cached_args[1]->begin());
-    }
     res = solver_->make_term(Store, cached_args[0], idx, cached_args[1]);
   } else if (aa_.arrayeq_ufs_set_.find(uf) != aa_.arrayeq_ufs_set_.end()) {
     assert(cached_args.size() == 2);
@@ -212,8 +192,7 @@ ArrayAbstractor::ArrayAbstractor(const TransitionSystem & conc_ts,
       abstract_array_equality_(abstract_array_equality),
       solver_(abs_ts_.solver()),
       abs_walker_(*this, &abstraction_cache_),
-      conc_walker_(*this, &concretization_cache_),
-      intsort_(solver_->make_sort(INT))
+      conc_walker_(*this, &concretization_cache_)
 {
   do_abstraction();
 }
@@ -386,20 +365,15 @@ Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
 
     // need to create new read and write UFs for it
     // also equality ufs if enabled
-    // NOTE: always using integer for index
-    //       will use BV_To_Nat for bit-vector indices
-    //       this is an approach which helps handle
-    //       the finite domain issue with lambda from the
-    //       array solving technique from What's Decidable About Arrays
     Sort readsort =
-        solver_->make_sort(FUNCTION, { abs_sort, intsort_, elemsort });
+        solver_->make_sort(FUNCTION, { abs_sort, idxsort, elemsort });
     Term read_uf = solver_->make_symbol(
         "absarr_read" + std::to_string(read_ufs_.size()), readsort);
     read_ufs_[abs_sort] = read_uf;
     read_ufs_set_.insert(read_uf);
 
-    Sort writesort = solver_->make_sort(
-        FUNCTION, { abs_sort, intsort_, elemsort, abs_sort });
+    Sort writesort =
+        solver_->make_sort(FUNCTION, { abs_sort, idxsort, elemsort, abs_sort });
     Term write_uf = solver_->make_symbol(
         "absarr_write" + std::to_string(write_ufs_.size()), writesort);
 

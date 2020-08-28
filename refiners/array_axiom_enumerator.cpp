@@ -82,11 +82,11 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
         return Walker_Continue;
       }
 
+      Sort idxsort = children[0]->get_sort()->get_indexsort();
+
       // create a witness index for this array equality
       Term witness_idx = aae_.aa_.abs_ts().make_statevar(
-          "wit_" + std::to_string(aae_.arrayeq_witnesses_.size()),
-          // always uses integer index
-          aae_.solver_->make_sort(INT));
+          "wit_" + std::to_string(aae_.arrayeq_witnesses_.size()), idxsort);
       aae_.arrayeq_witnesses_[abs_arr_eq] = witness_idx;
       assert(children[0]->get_sort()->get_sort_kind() == ARRAY);
       aae_.witnesses_to_idxsort_[witness_idx] =
@@ -561,7 +561,8 @@ Term ArrayAxiomEnumerator::constarr_lambda_axiom(const Term & constarr,
   assert(conc_sort->get_sort_kind() == ARRAY);
   Sort conc_idx_sort = conc_sort->get_indexsort();
   Term lam = lambdas_.at(conc_idx_sort);
-  Term ax = constarr_axiom(constarr, val, lam);
+  Term casted_lam = cast_lambda(conc_idx_sort, lam);
+  Term ax = constarr_axiom(constarr, val, casted_lam);
   if (conc_idx_sort->get_sort_kind() == BV) {
     // IMPORTANT: if concrete index sort is finite-domain
     // need to guard with boundary conditions for soundness
@@ -605,9 +606,10 @@ Term ArrayAxiomEnumerator::store_read_lambda_axiom(const Term & store) const
   assert(conc_sort->get_sort_kind() == ARRAY);
   Sort conc_idx_sort = conc_sort->get_indexsort();
   Term lam = lambdas_.at(conc_idx_sort);
+  Term casted_lam = cast_lambda(conc_idx_sort, lam);
   TermVec children(store->begin(), store->end());
   assert(children.size() == 4);  // the UF + the 3 expected arguments
-  Term ax = store_read_axiom(store, lam);
+  Term ax = store_read_axiom(store, casted_lam);
 
   if (conc_idx_sort->get_sort_kind() == BV) {
     // IMPORTANT: if concrete index sort is finite-domain
@@ -681,7 +683,8 @@ Term ArrayAxiomEnumerator::arrayeq_read_lambda_axiom(const Term & arrayeq) const
   assert(conc_sort->get_sort_kind() == ARRAY);
   Sort conc_idx_sort = conc_sort->get_indexsort();
   Term lam = lambdas_.at(conc_idx_sort);
-  Term ax = arrayeq_read_axiom(arrayeq, lam);
+  Term casted_lam = cast_lambda(conc_idx_sort, lam);
+  Term ax = arrayeq_read_axiom(arrayeq, casted_lam);
   if (conc_idx_sort->get_sort_kind() == BV) {
     // IMPORTANT: if concrete index sort is finite-domain
     // need to guard with boundary conditions for soundness
@@ -693,6 +696,14 @@ Term ArrayAxiomEnumerator::arrayeq_read_lambda_axiom(const Term & arrayeq) const
 Term ArrayAxiomEnumerator::lambda_alldiff_axiom(const Term & lambda,
                                                 const Term & index) const
 {
+  if (lambda->get_sort() != index->get_sort()) {
+    if (index->get_sort()->get_sort_kind() == BV) {
+      Term int_index = solver_->make_term(BV_To_Nat, index);
+      return solver_->make_term(Distinct, lambda, int_index);
+    } else {
+      throw PonoException("Unsupported index support for lambda comparison");
+    }
+  }
   return solver_->make_term(Distinct, lambda, index);
 }
 
@@ -727,6 +738,19 @@ Term ArrayAxiomEnumerator::get_lambda(Term idx)
     Sort conc_sort = aa_.concrete(idx)->get_sort();
     return lambdas_.at(conc_sort);
   }
+}
+
+Term ArrayAxiomEnumerator::cast_lambda(const Sort & sort,
+                                       const Term & lam) const
+{
+  if (lam->get_sort() != sort) {
+    if (sort->get_sort_kind() == BV) {
+      return solver_->make_term(Op(Int_To_BV, sort->get_width()), lam);
+    } else {
+      throw PonoException("Unhandled sort in cast_lambda");
+    }
+  }
+  return lam;
 }
 
 }  // namespace pono
