@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "core/adaptive_unroller.h"
 #include "engines/cegar.h"
 #include "modifiers/array_abstractor.h"
 #include "modifiers/prophecy_modifier.h"
@@ -57,7 +58,9 @@ class CegProphecy : public CEGAR
   // TODO: see if there's a better organization where we can re-use the same
   // unroller currently this is very important, or it won't unroll the
   // abstracted variables correctly and this will fail SILENTLY
-  Unroller abs_unroller_;  ///< unroller for abs_ts_
+  // It is CRUCIAL that we use an AdaptiveUnroller here
+  // otherwise, it will not unroll added auxiliary variables correctly
+  AdaptiveUnroller abs_unroller_;  ///< unroller for abs_ts_
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;
