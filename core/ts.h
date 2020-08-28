@@ -350,6 +350,10 @@ class TransitionSystem
    */
   smt::Term make_term(const smt::Op op, const smt::TermVec & terms);
 
+  /* Recompute transition relation based on set 'state_vars_in_coi'
+     of state-variables in cone-of-influence. */
+  void recompute_based_on_coi(smt::UnorderedTermSet & state_vars_in_coi);
+    
  protected:
   // solver
   smt::SmtSolver solver_;

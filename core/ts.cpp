@@ -324,6 +324,11 @@ Term TransitionSystem::make_term(const Op op, const TermVec & terms)
   return solver_->make_term(op, terms);
 }
 
+void TransitionSystem::recompute_based_on_coi(UnorderedTermSet & state_vars_in_coi)
+{
+
+}
+
 // protected methods
 
 bool TransitionSystem::contains(const Term & term,
