@@ -131,6 +131,13 @@ ProverResult CegProphecy::check_until(int k)
 
     res = prover->check_until(k);
   }
+
+  if (res == ProverResult::FALSE) {
+    // can't count on false result over abstraction when only checking up until
+    // a bound
+    return ProverResult::UNKNOWN;
+  }
+
   return res;
 }
 
