@@ -20,6 +20,7 @@
 #include "assert.h"
 
 #include "engines/ceg_prophecy.h"
+#include "utils/logger.h"
 #include "utils/make_provers.h"
 
 using namespace smt;
@@ -187,24 +188,34 @@ bool CegProphecy::refine()
     //       variables at the correct time
     //       for now, easier to just search for consecutive axioms
 
+    // First collect all the indices used in nonconsecutive axioms
+    // these will need to be prophecized
+    UnorderedTermSet instantiations;
+    for (AxiomInstantiation ax_inst : nonconsecutive_axioms) {
+      assert(ax_inst.instantiations.size()
+             == 1);  // expecting only one index instantiated
+      for (auto inst : ax_inst.instantiations) {
+        instantiations.insert(inst);
+      }
+    }
+
     // vector of pairs
     // first: prophecy variable
     // second: target (a history variable for non-zero delay)
     vector<pair<Term, Term>> proph_vars;
-    for (AxiomInstantiation ax_inst : nonconsecutive_axioms) {
-      assert(ax_inst.instantiations.size()
-             == 1);  // expecting only one index instantiated
-      for (auto timed_idx : ax_inst.instantiations) {
-        // number of steps before the property violation
-        size_t delay = reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
-        // Prophecy Modifier will add prophecy and history variables
-        // automatically here but it does NOT update the property
-        Term idx = abs_unroller_.untime(timed_idx);
-        proph_vars.push_back(pm_.get_proph(idx, delay));
-      }
+    for (auto timed_idx : instantiations) {
+      // number of steps before the property violation
+      size_t delay = reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
+      // Prophecy Modifier will add prophecy and history variables
+      // automatically here but it does NOT update the property
+      Term idx = abs_unroller_.untime(timed_idx);
+      proph_vars.push_back(pm_.get_proph(idx, delay));
     }
 
-    // now update bad_
+    assert(instantiations.size() == proph_vars.size());
+    logger.log(1, "Added {} prophecy variables", proph_vars.size());
+
+    // now update bad_ and add the prophecy variables to the index set
     // the property would be updated as
     // (proph1=target1 /\ ... /\ prophn=targetn) -> prop
     // but because we're working with bad, this is equivalent to
@@ -213,6 +224,7 @@ bool CegProphecy::refine()
     for (auto p : proph_vars) {
       Term proph_var = p.first;
       Term target = p.second;
+      aae_.add_index(proph_var);
       bad_ = solver_->make_term(
           And, solver_->make_term(Equal, proph_var, target), bad_);
     }

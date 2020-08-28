@@ -84,6 +84,16 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
                         size_t bound,
                         bool include_nonconsecutive = true) override;
 
+  /** Add a new index to the index set
+   *  This can happen as we add auxiliary variables
+   *  In particular, prophecy variables that are added here
+   *  can help prove properties, even ones that require
+   *  universally quantified invariants in some cases
+   *
+   *  @param the index to add to the index set
+   */
+  void add_index(const smt::Term & idx);
+
   smt::TermVec & get_consecutive_axioms() override
   {
     return consecutive_axioms_;

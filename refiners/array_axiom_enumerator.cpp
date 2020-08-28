@@ -285,6 +285,14 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   return true;
 }
 
+void ArrayAxiomEnumerator::add_index(const Term & idx)
+{
+  index_set_.insert(idx);
+  if (aa_.abs_ts().only_curr(idx)) {
+    cur_index_set_.insert(idx);
+  }
+}
+
 void ArrayAxiomEnumerator::clear_state()
 {
   // clear the previous axioms
