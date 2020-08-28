@@ -88,6 +88,9 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
           // always uses integer index
           aae_.solver_->make_sort(INT));
       aae_.arrayeq_witnesses_[abs_arr_eq] = witness_idx;
+      assert(children[0]->get_sort()->get_sort_kind() == ARRAY);
+      aae_.witnesses_to_idxsort_[witness_idx] =
+          children[0]->get_sort()->get_indexsort();
       // add witness to index set
       aae_.index_set_.insert(witness_idx);
     }
@@ -523,16 +526,15 @@ AxiomVec ArrayAxiomEnumerator::index_axioms(AxiomClass ac,
       // CRUCIAL: only instantiate all different axioms over matching sorts
       // e.g. the lambda instantiated for a particular index sort
       // can look up the lambda by the (concrete) index sort
-      Sort conc_sort = aa_.concrete(idx)->get_sort();
-      Term lambda = lambdas_.at(conc_sort);
-      assert(lambda != idx);
+      Term lam = get_lambda(idx);
+      assert(lam != idx);
       axioms_to_check.push_back(
-          AxiomInstantiation(lambda_alldiff_axiom(lambda, idx), { idx }));
+          AxiomInstantiation(lambda_alldiff_axiom(lam, idx), { idx }));
       if (ts_.only_curr(idx)) {
         Term next_idx = ts_.next(idx);
-        assert(next_idx != lambda);
+        assert(next_idx != lam);
         axioms_to_check.push_back(AxiomInstantiation(
-            lambda_alldiff_axiom(lambda, next_idx), { next_idx }));
+            lambda_alldiff_axiom(lam, next_idx), { next_idx }));
       }
     } else {
       throw PonoException("Unhandled AxiomClass");
@@ -712,6 +714,19 @@ Term ArrayAxiomEnumerator::lambda_guard(const Sort & sort,
   return solver_->make_term(And,
                             solver_->make_term(Ge, lam, zero),
                             solver_->make_term(Le, lam, maxval));
+}
+
+Term ArrayAxiomEnumerator::get_lambda(Term idx)
+{
+  if (witnesses_to_idxsort_.find(idx) != witnesses_to_idxsort_.end()) {
+    // witness index does not have a concrete version
+    // (only appears in the abstract system)
+    return lambdas_.at(witnesses_to_idxsort_.at(idx));
+  } else {
+    Term conc_idx = aa_.concrete(idx);
+    Sort conc_sort = aa_.concrete(idx)->get_sort();
+    return lambdas_.at(conc_sort);
+  }
 }
 
 }  // namespace pono

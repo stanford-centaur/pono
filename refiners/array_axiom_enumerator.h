@@ -323,6 +323,19 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   smt::Term lambda_guard(const smt::Sort & sort, const smt::Term & lam) const;
 
+  /** Looks up the lambda for a particular index
+   *  This is non-trivial because not all indices have a concrete
+   *  version. For example, witnesses are only in the abstraction.
+   *  Thus, they have no concrete sort to look up the lambda by
+   *  but they're still associated with a particular array index sort
+   *  this is tracked in witnesses_to_idxsort_
+   *
+   *  @param idx a non-lambda (abstract) index to find a corresponding lambda
+   * for
+   *  @return the lambda index corresponding to the same index sort
+   */
+  smt::Term get_lambda(smt::Term idx);
+
   // members
   // for abstracting/concretizing terms
   const Property & prop_;
@@ -343,6 +356,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
       cur_index_set_;  ///< subset of index sets with terms containing only
                        ///< current state variables
   smt::UnorderedTermMap arrayeq_witnesses_;  ///< witnesses for array equalities
+  std::unordered_map<smt::Term, smt::Sort>
+      witnesses_to_idxsort_;  ///< maps witness index to corresponding concrete
+                              ///< index sort
   std::unordered_map<smt::Sort, smt::Term>
       lambdas_;  ///< map from (concrete) array index sort to corresponding
                  ///< lambda
