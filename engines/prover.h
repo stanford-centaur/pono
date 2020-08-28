@@ -69,8 +69,13 @@ class Prover
 
   void print_term_dfs(const smt::Term & term);
 
-  void compute_term_coi(const smt::Term & term);
+  void compute_term_coi(const smt::Term & term,
+                        smt::UnorderedTermSet & new_coi_state_vars,
+                        smt::UnorderedTermSet & new_coi_input_vars);
 
+  void compute_coi_next_state_funcs(smt::UnorderedTermSet & new_coi_state_vars,
+                                    smt::UnorderedTermSet & new_coi_input_vars);
+  
   void compute_coi();
   
   /* For static cone-of-influence analysis: 

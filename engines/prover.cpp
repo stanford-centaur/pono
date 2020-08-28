@@ -133,26 +133,24 @@ void Prover::print_bad_property_coi()
 
 }
 
-void Prover::collect_coi_term(smt::UnorderedTermSet & set, const Term & term)
+void Prover::collect_coi_term(UnorderedTermSet & set, const Term & term)
 {
-  assert(set == statevars_in_coi_ || set == inputvars_in_coi_);
   if (set.find(term) == set.end())
     set.insert(term);
 }
   
-void Prover::compute_term_coi(const Term & term)
+void Prover::compute_term_coi(const Term & term,
+                              UnorderedTermSet & new_coi_state_vars,
+                              UnorderedTermSet & new_coi_input_vars)
 {
-  //  if (!statevars_in_coi_.empty() || !inputvars_in_coi_.empty())
-  //  throw PonoException("Error: Sets of COI state/input variables not empty.");
-
-
+  assert(term != NULL);
   TermVec open_terms;
   open_terms.push_back (term);
   Term cur;
 
   /* Depth-first search of term structure 'term'. Collect all
      encountered state and input variables and store them in
-     'statevars_in_coi_' and 'inputvars_in_coi_'. */
+     'new_coi_state_vars' and 'new_coi_input_vars'. */
   while (!open_terms.empty()) {
     cur = open_terms.back();
     open_terms.pop_back ();
@@ -163,20 +161,20 @@ void Prover::compute_term_coi(const Term & term)
       /* Cache 'cur' and push its children. */
       coi_visited_terms_.insert(cur);
       cout << "  visiting COI term: " << cur << "\n";
-      if (cur->is_symbol())
-        {
+      //TODO: check in smt-switch if '->is_symbol' captures statevars properly
+      if (cur->is_symbol()) {
           cout << "    ..is symbol\n";
           if (ts_.statevars().find(cur) != ts_.statevars().end()) {
             assert(ts_.inputvars().find(cur) == ts_.inputvars().end());
             assert(!ts_.is_next_var(cur));
             cout << "collect COI statevar " << cur << "\n";
-            collect_coi_term(statevars_in_coi_, cur);
+            collect_coi_term(new_coi_state_vars, cur);
           }
           else if (ts_.inputvars().find(cur) != ts_.inputvars().end()) {
             assert(!ts_.is_curr_var(cur));
             assert(!ts_.is_next_var(cur));
             cout << "collect COI inputvar " << cur << "\n";
-            collect_coi_term(inputvars_in_coi_, cur);
+            collect_coi_term(new_coi_input_vars, cur);
           }
         }
       
@@ -188,20 +186,81 @@ void Prover::compute_term_coi(const Term & term)
   }
 }
 
+void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
+                                          UnorderedTermSet & new_coi_input_vars)
+{  
+  cout << "COI analysis: next-state functions" << endl;
+
+  TermVec unprocessed_state_vars;
+  for (auto state_var : statevars_in_coi_)
+    unprocessed_state_vars.push_back(state_var);
+
+  while (!unprocessed_state_vars.empty()) {
+    Term state_var = unprocessed_state_vars.back();
+    unprocessed_state_vars.pop_back();
+    assert(ts_.is_curr_var(state_var));
+    const smt::UnorderedTermMap state_updates = ts_.state_updates();
+    Term next_func = NULL;
+    /* May find state variables without next-function. */
+    auto elem = ts_.state_updates().find(state_var);
+    if (elem != ts_.state_updates().end())
+      next_func = elem->second;
+
+    assert(new_coi_state_vars.empty());
+    assert(new_coi_input_vars.empty());
+
+    if (next_func != NULL)
+      compute_term_coi(next_func, new_coi_state_vars, new_coi_input_vars);
+
+    for (auto sv : new_coi_state_vars) {
+      if (statevars_in_coi_.find(sv) == statevars_in_coi_.end()) {
+        statevars_in_coi_.insert(sv);
+        unprocessed_state_vars.push_back(sv);
+      }
+    }
+    for (auto sv : new_coi_input_vars) {
+      collect_coi_term(inputvars_in_coi_, sv);
+    }
+         
+    new_coi_state_vars.clear();
+    new_coi_input_vars.clear();  
+  }
+}
+  
 void Prover::compute_coi()
 {
   assert (coi_visited_terms_.empty());
-  assert (statevars_in_coi_.empty());
-  assert (inputvars_in_coi_.empty());
   //TODO: remove printing or toggle wrt verbosity level
   print_bad_property_coi();
-  cout << "Starting COI analysis" << "\n";
-  compute_term_coi(bad_);
-  //TODO: analyze trans constraints
-  //TODO: WAIT--MAYBE STILL NEED TO GATHER STATE-VARS THAT ARE IN COI BY TRAVERSING 'init_', and then determine the next-func terms of that statevars?
-  // e.g. maybe relevant init-constraint of statevar 'state0' in COI has some other statevar 'state1'-->or does it not matter?
-  // e.g. MUST traverse next-func terms of already found COI statevars to collect further COI vars?
-  //----maybe leave initial-state constraints as is; could be any term structure (via 'set_init(...)') and hence difficult to analyze
+
+  cout << "Starting COI analysis" << endl;
+
+  UnorderedTermSet new_coi_state_vars;
+  UnorderedTermSet new_coi_input_vars;
+
+  compute_term_coi(bad_, new_coi_state_vars, new_coi_input_vars);
+
+  assert (statevars_in_coi_.empty());
+  assert (inputvars_in_coi_.empty());
+
+  for (auto sv : new_coi_state_vars)
+    statevars_in_coi_.insert(sv);
+  for (auto sv : new_coi_input_vars)
+    inputvars_in_coi_.insert(sv);
+
+  new_coi_state_vars.clear();
+  new_coi_input_vars.clear();  
+
+  compute_coi_next_state_funcs(new_coi_state_vars, new_coi_input_vars);
+
+  //TODO/NOTE: we do NOT traverse 'init_' constraint to search for new
+  //state vars; we leave 'init_' as is with COI analysis and only
+  //rebuild 'trans_'; 'init_' can be any constraint and could be
+  //difficult to figure out which parts are in COI; also, any state
+  //vars in 'init_' that have not been identified as part of the COI
+  //by checking 'bad_' and the next-state functions cannot have an
+  //influence on the property 'bad_'.
+  
   cout << "COI analysis completed" << "\n";
   for (auto var : statevars_in_coi_)
     cout << "found COI statevar " << var << "\n";
