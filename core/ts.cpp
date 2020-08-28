@@ -119,7 +119,8 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
 
   if (!no_next(val)) {
     throw PonoException(
-        "Got next state variable in RHS of functional assignment");
+        "Got a symbolic that is not a current state or input variable in RHS "
+        "of functional assignment");
   }
 
   state_updates_[state] = val;
