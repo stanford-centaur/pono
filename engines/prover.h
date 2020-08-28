@@ -83,10 +83,11 @@ class Prover
   smt::UnorderedTermSet inputvars_in_coi_;
   /* Set of terms already visited in COI analysis. */
   smt::UnorderedTermSet coi_visited_terms_;
+  //TODO: MAYBE NOT NEEDED
   /* Rebuilt transition system based on COI; replaces the original
   transition system 'ts_' constructed by the user and will be used by
   prover engines for model checking. */
-  TransitionSystem coi_ts_;
+  //  TransitionSystem coi_ts_;
 
  private:
   void collect_coi_term(smt::UnorderedTermSet & set, const smt::Term & term);

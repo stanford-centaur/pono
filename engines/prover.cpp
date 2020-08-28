@@ -71,8 +71,8 @@ void Prover::initialize()
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
   if (options_.static_coi_) {
     if (!ts_.is_functional())
-      throw PonoException("Temporary restriction: cone-of-influence analysis"\
-                          "not yet supported for relational transition systems.");
+      throw PonoException("Temporary restriction: cone-of-influence analysis currently "\
+                          "supported for functional transition systems only.");
     compute_coi();
     //TODO rebuild trans-sys, if this is the right time/place
   }
@@ -221,6 +221,11 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     transfer_to_prover_as = [](const Term & t, SortKind sk) { return t; };
     transfer_to_orig_ts_as = [](const Term & t, SortKind sk) { return t; };
   } else {
+    /* TODO: double-check that transferring terms still works as
+       intended when COI is used. */
+    if (options_.static_coi_)
+      throw PonoException("Temporary restriction: cone-of-influence analysis "\
+                          "currently incompatible with transferring terms.");
     // need to add symbols to cache
     UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
     for (auto v : orig_ts_.statevars()) {
