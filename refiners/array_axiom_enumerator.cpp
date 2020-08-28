@@ -552,14 +552,14 @@ Term ArrayAxiomEnumerator::constarr_lambda_axiom(const Term & constarr,
   Sort sort = constarr->get_sort();
   Term read_uf = aa_.get_read_uf(sort);
   Sort conc_sort = aa_.concrete(sort);
-  Term lam = lambdas_.at(conc_sort);
-  Term ax = constarr_axiom(constarr, val, lam);
   assert(conc_sort->get_sort_kind() == ARRAY);
-  Sort idxsort = conc_sort->get_indexsort();
-  if (idxsort->get_sort_kind() == BV) {
+  Sort conc_idx_sort = conc_sort->get_indexsort();
+  Term lam = lambdas_.at(conc_idx_sort);
+  Term ax = constarr_axiom(constarr, val, lam);
+  if (conc_idx_sort->get_sort_kind() == BV) {
     // IMPORTANT: if concrete index sort is finite-domain
     // need to guard with boundary conditions for soundness
-    ax = solver_->make_term(Implies, lambda_guard(idxsort, lam), ax);
+    ax = solver_->make_term(Implies, lambda_guard(conc_idx_sort, lam), ax);
   }
   return ax;
 }
@@ -596,17 +596,17 @@ Term ArrayAxiomEnumerator::store_read_lambda_axiom(const Term & store) const
   Sort sort = store->get_sort();
   Term read_uf = aa_.get_read_uf(sort);
   Sort conc_sort = aa_.concrete(sort);
-  Term lam = lambdas_.at(conc_sort);
+  assert(conc_sort->get_sort_kind() == ARRAY);
+  Sort conc_idx_sort = conc_sort->get_indexsort();
+  Term lam = lambdas_.at(conc_idx_sort);
   TermVec children(store->begin(), store->end());
   assert(children.size() == 4);  // the UF + the 3 expected arguments
   Term ax = store_read_axiom(store, lam);
 
-  assert(conc_sort->get_sort_kind() == ARRAY);
-  Sort idxsort = conc_sort->get_indexsort();
-  if (idxsort->get_sort_kind() == BV) {
+  if (conc_idx_sort->get_sort_kind() == BV) {
     // IMPORTANT: if concrete index sort is finite-domain
     // need to guard with boundary conditions for soundness
-    ax = solver_->make_term(Implies, lambda_guard(idxsort, lam), ax);
+    ax = solver_->make_term(Implies, lambda_guard(conc_idx_sort, lam), ax);
   }
   return ax;
 }
@@ -667,17 +667,19 @@ Term ArrayAxiomEnumerator::arrayeq_read_axiom(const Term & arrayeq,
 
 Term ArrayAxiomEnumerator::arrayeq_read_lambda_axiom(const Term & arrayeq) const
 {
-  Term a = *(arrayeq->begin());
-  Sort sort = a->get_sort();
-  Sort conc_sort = aa_.concrete(sort);
-  Term lam = lambdas_.at(conc_sort);
-  Term ax = arrayeq_read_axiom(arrayeq, lam);
+  // TODO: fix the const issues for passing to abstractor
+  Term ae = arrayeq;
+  Term conc_eq = aa_.concrete(ae);
+  Term conc_a = *(conc_eq->begin());
+  Sort conc_sort = conc_a->get_sort();
   assert(conc_sort->get_sort_kind() == ARRAY);
-  Sort idxsort = conc_sort->get_indexsort();
-  if (idxsort->get_sort_kind() == BV) {
+  Sort conc_idx_sort = conc_sort->get_indexsort();
+  Term lam = lambdas_.at(conc_idx_sort);
+  Term ax = arrayeq_read_axiom(arrayeq, lam);
+  if (conc_idx_sort->get_sort_kind() == BV) {
     // IMPORTANT: if concrete index sort is finite-domain
     // need to guard with boundary conditions for soundness
-    ax = solver_->make_term(Implies, lambda_guard(idxsort, lam), ax);
+    ax = solver_->make_term(Implies, lambda_guard(conc_idx_sort, lam), ax);
   }
   return ax;
 }
