@@ -158,13 +158,7 @@ bool CegProphecy::refine()
   num_added_axioms_ = 0;
   // TODO use ArrayAxiomEnumerator and modifiers to refine the system
   // create BMC formula
-  Term abs_bmc_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
-  for (int k = 0; k <= reached_k_; ++k) {
-    abs_bmc_formula = solver_->make_term(
-        And, abs_bmc_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
-  }
-  abs_bmc_formula = solver_->make_term(
-      And, abs_bmc_formula, abs_unroller_.at_time(bad_, reached_k_ + 1));
+  Term abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
   // check array axioms over the abstract system
   if (!aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1)) {
@@ -229,6 +223,10 @@ bool CegProphecy::refine()
           And, solver_->make_term(Equal, proph_var, target), bad_);
     }
 
+    // need to update the bmc formula with the transformations
+    // to abs_ts_
+    abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
+
     // search for axioms again but don't include nonconsecutive ones
     bool ok = aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
     // should be guaranteed to rule out counterexamples at this bound
@@ -260,6 +258,18 @@ bool CegProphecy::refine()
 
   // able to successfully refine
   return true;
+}
+
+// helpers
+Term CegProphecy::get_bmc_formula(size_t b)
+{
+  Term abs_bmc_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
+  for (int k = 0; k < b; ++k) {
+    abs_bmc_formula = solver_->make_term(
+        And, abs_bmc_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
+  }
+  return solver_->make_term(
+      And, abs_bmc_formula, abs_unroller_.at_time(bad_, b));
 }
 
 }  // namespace pono

@@ -67,6 +67,9 @@ class CegProphecy : public CEGAR
 
   void abstract() override;
   bool refine() override;
+
+  // helpers
+  smt::Term get_bmc_formula(size_t b);
 };
 
 }  // namespace pono
