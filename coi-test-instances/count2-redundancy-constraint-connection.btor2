@@ -1,3 +1,4 @@
+; NOTE: Pono with BMC-simple-paths easily proves this system safe.
 1 sort bitvec 2
 2 zero 1
 ; counter related to bad-state property
