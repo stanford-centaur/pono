@@ -404,6 +404,7 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
                                                        size_t i,
                                                        int lemma_limit)
 {
+  logger.log(3, "Checking nonconsecutive axioms for class: {}", to_string(ac));
   // there are no non-consecutive axioms that don't instantiate axioms
   // thus the AxiomClass must be one parameterized by an index
   assert(index_axiom_classes.find(ac) != index_axiom_classes.end());
