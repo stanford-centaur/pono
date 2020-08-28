@@ -123,6 +123,7 @@ ProverResult CegProphecy::check_until(int k)
     Property latest_prop(abs_ts_, solver_->make_term(Not, bad_));
     shared_ptr<Prover> prover =
         make_prover(e_, latest_prop, solver_->get_solver_enum(), options_);
+
     res = prover->check_until(k);
   }
   return res;

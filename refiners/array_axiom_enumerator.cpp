@@ -18,11 +18,28 @@
 #include "gmpxx.h"
 
 #include "refiners/array_axiom_enumerator.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
+
+string to_string(AxiomClass ac)
+{
+  switch (ac) {
+    case CONSTARR: return "CONSTARR";
+    case CONSTARR_LAMBDA: return "CONSTARR_LAMBDA";
+    case STORE_WRITE: return "STORE_WRITE";
+    case STORE_READ: return "STORE_READ";
+    case STORE_READ_LAMBDA: return "STORE_READ_LAMBDA";
+    case ARRAYEQ_WITNESS: return "ARRAYEQ_WITNESS";
+    case ARRAYEQ_READ: return "ARRAYEQ_READ";
+    case ARRAYEQ_READ_LAMBDA: return "ARRAYEQ_READ_LAMBDA";
+    case LAMBDA_ALLDIFF: return "LAMBDA_ALLDIFF";
+    default: throw PonoException("Unhandled AxiomClass in to_string");
+  }
+}
 
 // ArrayFinder implementation
 
@@ -123,6 +140,30 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(const Property & prop,
   false_ = solver_->make_term(false);
   collect_arrays_and_indices();
   create_lambda_indices();
+
+  // TODO: remove these debug prints
+  // std::cout << "\nCONSTARRS" << std::endl;
+  // for (auto elem : constarrs_)
+  // {
+  //   std::cout << "\t" << elem.first << ": " << elem.second << std::endl;
+  // }
+  // std::cout << "\nSTORES" << std::endl;
+  // for (auto elem : stores_)
+  // {
+  //   std::cout << "\t" << elem << std::endl;
+  // }
+  // std::cout << "\nARRAYEQ" << std::endl;
+  // for (auto elem : arrayeq_witnesses_)
+  // {
+  //   std::cout << "\t" << elem.first << ": " << elem.second << std::endl;
+  // }
+  // std::cout << "\nLAMBDAS" << std::endl;
+  // for (auto elem : lambdas_)
+  // {
+  //   std::cout << "\t" << elem.first << ": " << elem.second << std::endl;
+  // }
+  // std::cout << std::endl;
+  // TODO: end debug prints
 }
 
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
@@ -309,6 +350,7 @@ bool ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
                                                     bool only_curr,
                                                     int lemma_limit)
 {
+  logger.log(3, "Checking consecutive axioms for class: {}", to_string(ac));
   UnorderedTermSet & indices = only_curr ? cur_index_set_ : index_set_;
 
   UnorderedTermSet axioms_to_check;
@@ -341,6 +383,7 @@ bool ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = un_.at_time(ax, k);
       if (is_violated(unrolled_ax)) {
+        logger.log(4, "Violated Axiom: {}", unrolled_ax);
         violated_axioms_.insert(unrolled_ax);
         ts_axioms_[unrolled_ax] = ax;
         num_found_lemmas++;
@@ -397,6 +440,7 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = un_.at_time(ax_inst.ax, k);
       if (is_violated(unrolled_ax)) {
+        logger.log(4, "Violated NonConsecutive Axiom: {}", unrolled_ax);
         violated_axioms_.insert(unrolled_ax);
         to_axiom_inst_.insert({ unrolled_ax, ax_inst });
         num_found_lemmas++;

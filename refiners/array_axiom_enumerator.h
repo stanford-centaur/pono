@@ -39,6 +39,8 @@ enum AxiomClass
   LAMBDA_ALLDIFF
 };
 
+std::string to_string(AxiomClass ac);
+
 // these are all the axioms that require instantiating an index
 // crucial that this set is accurately maintained
 // lambda axioms are not included because they're not parameterized
