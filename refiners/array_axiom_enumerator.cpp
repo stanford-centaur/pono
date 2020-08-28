@@ -223,7 +223,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     // from the property violation (at bound_)
     // this will result in less auxiliary variables to make the axiom
     // consecutive
-    size_t k = bound_;
+    int k = bound_;
     while (include_nonconsecutive && !found_lemmas && k >= 0) {
       found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
@@ -404,7 +404,10 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
                                                        size_t i,
                                                        int lemma_limit)
 {
-  logger.log(3, "Checking nonconsecutive axioms for class: {}", to_string(ac));
+  logger.log(3,
+             "Checking nonconsecutive axioms at {} for class: {}",
+             i,
+             to_string(ac));
   // there are no non-consecutive axioms that don't instantiate axioms
   // thus the AxiomClass must be one parameterized by an index
   assert(index_axiom_classes.find(ac) != index_axiom_classes.end());
