@@ -63,16 +63,18 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   SortKind sk = sort->get_sort_kind();
   Op op = term->get_op();
 
-  if (sk != ARRAY && op != Equal || op == Ite) {
+  if (sk != ARRAY && op != Select && op != Equal || op == Ite) {
     // if not an array or array equality, then nothing to save
     // similarly, don't need to save anything for an Ite,
     // even if it is an array sort
     return Walker_Continue;
   }
 
-  if (sk != ARRAY) {
-    assert(op == Equal);
-    TermVec children(term->begin(), term->end());
+  Term abs_term = aae_.aa_.abstract(term);
+  TermVec children(term->begin(), term->end());
+  TermVec abs_children(abs_term->begin(), abs_term->end());
+
+  if (sk != ARRAY && op == Equal) {
     assert(children.size() == 2);
     if (children[0]->get_sort()->get_sort_kind() == ARRAY) {
       Term abs_arr_eq = aae_.aa_.abstract(term);
@@ -88,12 +90,19 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
       Term witness_idx = aae_.aa_.abs_ts().make_statevar(
           "wit_" + std::to_string(aae_.arrayeq_witnesses_.size()), idxsort);
       aae_.arrayeq_witnesses_[abs_arr_eq] = witness_idx;
-      assert(children[0]->get_sort()->get_sort_kind() == ARRAY);
       aae_.witnesses_to_idxsort_[witness_idx] =
           children[0]->get_sort()->get_indexsort();
       // add witness to index set
       aae_.index_set_.insert(witness_idx);
     }
+    return Walker_Continue;
+  } else if (sk != ARRAY && op == Select) {
+    assert(op == Select);
+    assert(abs_children.size() == 3);
+    assert(children.size() == 2);
+    // third child is index, because it's
+    // read_uf, array, index
+    aae_.index_set_.insert(abs_children[2]);
     return Walker_Continue;
   }
 
@@ -102,13 +111,7 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   if (term->is_symbolic_const()) {
     // nothing to save for an array variable
     return Walker_Continue;
-  }
-
-  Term abs_term = aae_.aa_.abstract(term);
-  TermVec children(term->begin(), term->end());
-  TermVec abs_children(abs_term->begin(), abs_term->end());
-
-  if (op.is_null()) {
+  } else if (op.is_null()) {
     // constant array
     assert(children.size() == 1);
     Term val = aae_.aa_.abstract(children[0]);
@@ -122,12 +125,8 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
     // read_uf, array, index, element
     aae_.index_set_.insert(abs_children[2]);
   } else {
-    assert(op == Select);
-    assert(abs_children.size() == 3);
-    assert(children.size() == 2);
-    // third child is index, because it's
-    // read_uf, array, index
-    aae_.index_set_.insert(abs_children[2]);
+    // this should be all the cases
+    assert(false);
   }
 
   return Walker_Continue;
@@ -145,6 +144,11 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(const Property & prop,
   create_lambda_indices();
 
   // TODO: remove these debug prints
+  // std::cout << "\nINDEX SET" << std::endl;
+  // for (auto elem : index_set_)
+  // {
+  //   std::cout << "\t" << elem << std::endl;
+  // }
   // std::cout << "\nCONSTARRS" << std::endl;
   // for (auto elem : constarrs_)
   // {
