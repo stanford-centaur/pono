@@ -134,10 +134,10 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
 
 // ArrayAxiomEnumerator implementation
 
-ArrayAxiomEnumerator::ArrayAxiomEnumerator(const Property & prop,
-                                           ArrayAbstractor & aa,
-                                           Unroller & un)
-    : super(prop.transition_system()), prop_(prop), aa_(aa), un_(un)
+ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
+                                           Unroller & un,
+                                           const Term & bad)
+    : super(aa.abs_ts()), aa_(aa), un_(un), conc_bad_(bad)
 {
   false_ = solver_->make_term(false);
   collect_arrays_and_indices();
@@ -312,11 +312,9 @@ void ArrayAxiomEnumerator::collect_arrays_and_indices()
   // just visit each (concrete) term of the transition system
   Term init = aa_.conc_ts().init();
   Term trans = aa_.conc_ts().trans();
-  Term prop_term = prop_.prop();
-  prop_term = aa_.concrete(prop_term);
   af.visit(init);
   af.visit(trans);
-  af.visit(prop_term);
+  af.visit(conc_bad_);
 
   // TODO: create lambda variables!!
 
