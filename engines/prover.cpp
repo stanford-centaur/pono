@@ -26,14 +26,14 @@ using namespace std;
 
 namespace pono {
 
-Prover::Prover(const Property & p, smt::SolverEnum se)
+Prover::Prover(Property & p, smt::SolverEnum se)
     : Prover(p, create_solver(se))
 {
   solver_->set_opt("incremental", "true");
   solver_->set_opt("produce-models", "true");
 }
 
-Prover::Prover(const Property & p, const smt::SmtSolver & s)
+Prover::Prover(Property & p, const smt::SmtSolver & s)
     : solver_(s),
       to_prover_solver_(s),
       property_(p, to_prover_solver_),
@@ -43,7 +43,7 @@ Prover::Prover(const Property & p, const smt::SmtSolver & s)
 {
 }
 
-Prover::Prover(const PonoOptions & opt, const Property & p, smt::SolverEnum se)
+Prover::Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se)
     : Prover(opt, p, create_solver(se))
 {
   solver_->set_opt("incremental", "true");
@@ -51,7 +51,7 @@ Prover::Prover(const PonoOptions & opt, const Property & p, smt::SolverEnum se)
 }
 
 Prover::Prover(const PonoOptions & opt,
-               const Property & p,
+               Property & p,
                const smt::SmtSolver & s)
     : solver_(s),
       to_prover_solver_(solver_),
@@ -75,6 +75,7 @@ void Prover::initialize()
                           "supported for functional transition systems only.");
     compute_coi();
     //TODO rebuild trans-sys, if this is the right time/place
+    ts_.recompute_based_on_coi (statevars_in_coi_);
   }
 }
 

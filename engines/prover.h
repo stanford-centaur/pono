@@ -28,10 +28,10 @@ namespace pono {
 class Prover
 {
  public:
-  Prover(const Property & p, smt::SolverEnum se);
-  Prover(const Property & p, const smt::SmtSolver & s);
-  Prover(const PonoOptions & opt, const Property & p, smt::SolverEnum se);
-  Prover(const PonoOptions & opt, const Property & p, const smt::SmtSolver & s);
+  Prover(Property & p, smt::SolverEnum se);
+  Prover(Property & p, const smt::SmtSolver & s);
+  Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se);
+  Prover(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
 
   virtual ~Prover();
 
@@ -46,10 +46,10 @@ class Prover
  protected:
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
-  const Property property_;
-  const TransitionSystem &
+  Property property_;
+  TransitionSystem &
       ts_;  ///< convenient reference to transition system in property
-  const TransitionSystem &
+  TransitionSystem &
       orig_ts_;  ///< reference to original TS before copied to new solver
 
   Unroller unroller_;

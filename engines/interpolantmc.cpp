@@ -25,7 +25,7 @@ using namespace smt;
 
 namespace pono {
 
-InterpolantMC::InterpolantMC(const Property & p, SolverEnum se)
+InterpolantMC::InterpolantMC(Property & p, SolverEnum se)
     : super(p, se),
       interpolator_(create_interpolating_solver(se)),
       to_interpolator_(interpolator_),
@@ -34,7 +34,7 @@ InterpolantMC::InterpolantMC(const Property & p, SolverEnum se)
   initialize();
 }
 
-InterpolantMC::InterpolantMC(const Property & p,
+InterpolantMC::InterpolantMC(Property & p,
                              const SmtSolver & slv,
                              const SmtSolver & itp)
     : super(p, slv),
@@ -46,7 +46,7 @@ InterpolantMC::InterpolantMC(const Property & p,
 }
 
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
-                             const Property & p,
+                             Property & p,
                              SolverEnum se)
   : super(opt, p, se),
     interpolator_(create_interpolating_solver(se)),
@@ -57,7 +57,7 @@ InterpolantMC::InterpolantMC(const PonoOptions & opt,
 }
 
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
-                             const Property & p,
+                             Property & p,
                              const SmtSolver & slv,
                              const SmtSolver & itp)
     : super(opt, p, slv),
