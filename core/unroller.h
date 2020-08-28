@@ -34,6 +34,18 @@ class Unroller
   Unroller(const TransitionSystem & ts, const smt::SmtSolver & solver);
   ~Unroller();
 
+  /** Return an unrolled version of transition system term t
+   *  at time k
+   *
+   *  Note: this method will NOT work correctly if variables
+   *        have been added to the transition system since
+   *        the unroller was instantiated. For that, use an
+   *        AdaptiveUnroller
+   *
+   *  @param t the term to unroll
+   *  @param k the time to unroll the term at
+   *  @return the unrolled term
+   */
   smt::Term at_time(const smt::Term & t, unsigned int k);
 
   smt::Term untime(const smt::Term & t) const;
@@ -60,9 +72,9 @@ class Unroller
    */
   size_t get_curr_time(const smt::Term & t) const;
 
- private:
+ protected:
   smt::Term var_at_time(const smt::Term & v, unsigned int k);
-  smt::UnorderedTermMap & var_cache_at_time(unsigned int k);
+  virtual smt::UnorderedTermMap & var_cache_at_time(unsigned int k);
 
   const TransitionSystem & ts_;
   const smt::SmtSolver solver_;

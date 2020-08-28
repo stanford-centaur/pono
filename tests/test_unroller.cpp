@@ -5,6 +5,7 @@
 
 #include "gtest/gtest.h"
 
+#include "core/adaptive_unroller.h"
 #include "core/fts.h"
 #include "core/rts.h"
 #include "core/unroller.h"
@@ -127,6 +128,28 @@ TEST_P(UnrollerUnitTests, StagedUnrolling)
   Term xpy4 = rts.make_term(BVAdd, x, y4);
   Term x4py4_2 = u.at_time(xpy4, 4);
   EXPECT_EQ(x4py4_2, x4py4);
+}
+
+TEST_P(UnrollerUnitTests, AdaptiveUnroller)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+
+  AdaptiveUnroller au(rts, s);
+  Term x4 = au.at_time(x, 4);
+
+  // add a new variable after declaring the AdaptiveUnroller
+  // this kind of unroller allows this
+  Term y = rts.make_statevar("y", bvsort);
+  Term xpy = rts.make_term(BVAdd, x, y);
+
+  Term y4 = au.at_time(y, 4);
+  // expect it to have actually unrolled
+  EXPECT_NE(y4, y);
+
+  Term x4py4 = rts.make_term(BVAdd, x4, y4);
+  Term x4py4_2 = au.at_time(xpy, 4);
+  EXPECT_EQ(x4py4, x4py4_2);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
