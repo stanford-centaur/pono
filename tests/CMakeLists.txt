@@ -73,3 +73,8 @@ add_executable(test_utils "${PROJECT_SOURCE_DIR}/tests/test_utils.cpp")
 target_link_libraries(test_utils gtest_main)
 target_link_libraries(test_utils pono-lib)
 add_test(NAME test_utils COMMAND test_utils)
+
+add_executable(test_ceg_prophecy_arrays "${PROJECT_SOURCE_DIR}/tests/test_ceg_prophecy_arrays.cpp")
+target_link_libraries(test_ceg_prophecy_arrays gtest_main)
+target_link_libraries(test_ceg_prophecy_arrays pono-lib)
+add_test(NAME test_ceg_prophecy_arrays COMMAND test_ceg_prophecy_arrays)
