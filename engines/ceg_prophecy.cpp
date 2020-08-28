@@ -33,8 +33,9 @@ CegProphecy::CegProphecy(const Property & p, Engine e, smt::SolverEnum se)
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
       e_(e),
+      abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(p, aa_, unroller_),
+      aae_(p, aa_, abs_unroller_),
       pm_(abs_ts_)
 {
   initialize();
@@ -46,8 +47,9 @@ CegProphecy::CegProphecy(const Property & p, Engine e, const SmtSolver & solver)
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
       e_(e),
+      abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(p, aa_, unroller_),
+      aae_(p, aa_, abs_unroller_),
       pm_(abs_ts_)
 {
   initialize();
@@ -62,8 +64,9 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
       e_(e),
+      abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(p, aa_, unroller_),
+      aae_(p, aa_, abs_unroller_),
       pm_(abs_ts_)
 {
   initialize();
@@ -77,9 +80,10 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
+      abs_unroller_(abs_ts_, solver_),
       e_(e),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(p, aa_, unroller_),
+      aae_(p, aa_, abs_unroller_),
       pm_(abs_ts_)
 {
   initialize();
@@ -153,13 +157,13 @@ bool CegProphecy::refine()
   num_added_axioms_ = 0;
   // TODO use ArrayAxiomEnumerator and modifiers to refine the system
   // create BMC formula
-  Term abs_bmc_formula = unroller_.at_time(abs_ts_.init(), 0);
+  Term abs_bmc_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
   for (int k = 0; k <= reached_k_; ++k) {
     abs_bmc_formula = solver_->make_term(
-        And, abs_bmc_formula, unroller_.at_time(abs_ts_.trans(), k));
+        And, abs_bmc_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
   }
   abs_bmc_formula = solver_->make_term(
-      And, abs_bmc_formula, unroller_.at_time(bad_, reached_k_ + 1));
+      And, abs_bmc_formula, abs_unroller_.at_time(bad_, reached_k_ + 1));
 
   // check array axioms over the abstract system
   if (!aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1)) {
@@ -192,7 +196,7 @@ bool CegProphecy::refine()
              == 1);  // expecting only one index instantiated
       for (auto idx : ax_inst.instantiations) {
         // number of steps before the property violation
-        size_t delay = reached_k_ + 1 - unroller_.get_curr_time(idx);
+        size_t delay = reached_k_ + 1 - abs_unroller_.get_curr_time(idx);
         // Prophecy Modifier will add prophecy and history variables
         // automatically here but it does NOT update the property
         proph_vars.push_back(pm_.get_proph(idx, delay));

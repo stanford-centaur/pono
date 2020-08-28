@@ -54,6 +54,10 @@ class CegProphecy : public CEGAR
   RelationalTransitionSystem abs_ts_;
   Engine e_;
 
+  // TODO: see if there's a better organization where we can re-use the same
+  // unroller currently this is very important, or it won't unroll the
+  // abstracted variables correctly and this will fail SILENTLY
+  Unroller abs_unroller_;  ///< unroller for abs_ts_
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;
