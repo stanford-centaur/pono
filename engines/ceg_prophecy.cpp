@@ -223,6 +223,7 @@ bool CegProphecy::refine()
   // add consecutive axioms to the system
   // TODO: make sure we're adding current / next correctly
   for (auto ax : consecutive_axioms) {
+    num_added_axioms_++;
     if (reached_k_ == -1) {
       // if only checking initial state
       // need to add to init
