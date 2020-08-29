@@ -162,6 +162,8 @@ void CegProphecy::abstract()
 
 bool CegProphecy::refine()
 {
+  TransitionSystem & abs_ts = aa_.abs_ts();
+
   num_added_axioms_ = 0;
   // TODO use ArrayAxiomEnumerator and modifiers to refine the system
   // create BMC formula
@@ -212,7 +214,7 @@ bool CegProphecy::refine()
       Term idx = abs_unroller_.untime(timed_idx);
       // can't target a non-current state variable
       // because the target will appear in the updated property
-      if (delay == 0 && !ts_.only_curr(idx)) {
+      if (delay == 0 && !abs_ts.only_curr(idx)) {
         std::cout << "Assertion will fail for index: " << idx << std::endl;
       }
       assert(delay > 0 || ts_.only_curr(idx));
