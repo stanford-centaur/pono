@@ -14,8 +14,9 @@
  **
  **/
 
+#include "smt-switch/utils.h"
+
 #include "btor2_encoder.h"
-#include "term_analysis.h"
 #include "utils/logger.h"
 
 #include <iostream>
@@ -394,11 +395,12 @@ void BTOR2Encoder::parse(const std::string filename)
       no_next_states_.erase(id2statenum.at(l_->args[0]));
     } else if (l_->tag == BTOR2_TAG_bad) {
       Term bad = bv_to_bool(termargs_[0]);
-      UnorderedTermSet free_symbols = get_free_symbols(bad);
+      TermVec free_vars;
+      get_free_symbolic_consts(bad, free_vars);
       const UnorderedTermSet & states = ts_.statevars();
 
       bool need_witness = false;
-      for (auto s : free_symbols) {
+      for (auto s : free_vars) {
         if (states.find(s) == states.end()) {
           need_witness = true;
           break;
