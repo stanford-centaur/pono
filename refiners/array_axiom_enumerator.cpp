@@ -441,6 +441,7 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
       // and the bound is essentially the last next unrolling
       continue;
     }
+    std::cout << "adding unrolled idx: " << un_.at_time(idx, i) << std::endl;
     unrolled_indices.insert(un_.at_time(idx, i));
   }
 

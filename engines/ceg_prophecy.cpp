@@ -212,6 +212,9 @@ bool CegProphecy::refine()
       Term idx = abs_unroller_.untime(timed_idx);
       // can't target a non-current state variable
       // because the target will appear in the updated property
+      if (delay == 0 && !ts_.only_curr(idx)) {
+        std::cout << "Assertion will fail for index: " << idx << std::endl;
+      }
       assert(delay > 0 || ts_.only_curr(idx));
       proph_vars.push_back(pm_.get_proph(idx, delay));
     }
