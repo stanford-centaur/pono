@@ -45,7 +45,7 @@ string to_string(AxiomClass ac)
 
 ArrayFinder::ArrayFinder(ArrayAxiomEnumerator & aae)
     // do clear the cache -- if called again, want to add
-    : aae_(aae), super(aae_.solver_, true)
+    : aae_(aae), super(aae.solver_, true)
 {
 }
 
@@ -63,7 +63,7 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
   SortKind sk = sort->get_sort_kind();
   Op op = term->get_op();
 
-  if (sk != ARRAY && op != Select && op != Equal || op == Ite) {
+  if ((sk != ARRAY && op != Select && op != Equal) || op == Ite) {
     // if not an array or array equality, then nothing to save
     // similarly, don't need to save anything for an Ite,
     // even if it is an array sort
