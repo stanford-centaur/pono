@@ -50,6 +50,6 @@ script:
   - ./contrib/setup-btor2tools.sh
   - ./contrib/setup-bison.sh
   - ./configure.sh --with-msat --python --debug
-  - cd build && make -j2 && make test && cd ../
+  - cd build && make -j2 && ./tests/test_ceg_prophecy_arrays && cd ../
   - sudo python3 -m pip install -e ./build/python
   - pytest ./tests
