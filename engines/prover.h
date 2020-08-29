@@ -97,5 +97,11 @@ class Prover
  private:
   void collect_coi_term(smt::UnorderedTermSet & set, const smt::Term & term);
 
+  void compute_coi_trans_constraints(smt::UnorderedTermSet & new_coi_state_vars,
+                                     smt::UnorderedTermSet & new_coi_input_vars);
+
+  /* Returns true iff 'term' appears in the term 'root'. */  
+  bool term_contains(const smt::Term root, const smt::Term term);
+
 };
 }  // namespace pono

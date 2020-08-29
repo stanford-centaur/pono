@@ -41,6 +41,9 @@ Prover::Prover(Property & p, const smt::SmtSolver & s)
       orig_ts_(p.transition_system()),
       unroller_(ts_, solver_)
 {
+
+    cout << "prover constructor 2: ts_.constraints.size() = " << ts_.constraints().size() << endl;
+
 }
 
 Prover::Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se)
@@ -61,6 +64,11 @@ Prover::Prover(const PonoOptions & opt,
       unroller_(ts_, solver_),
       options_(opt)
 {
+
+    cout << "prover constructor 4: ts_.constraints.size() = " << ts_.constraints().size() << endl;
+    cout << "prover constructor 4: p.transition_system.constraints.size() = " << p.transition_system().constraints().size() << endl;
+    cout << "prover constructor 4: property_.transition_system.constraints.size() = " << property_.transition_system().constraints().size() << endl;
+  
 }
 
 Prover::~Prover() {}
@@ -69,6 +77,10 @@ void Prover::initialize()
 {
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
+
+
+
+
   if (options_.static_coi_) {
     if (!ts_.is_functional())
       throw PonoException("Temporary restriction: cone-of-influence analysis currently "\
@@ -226,6 +238,87 @@ void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
     new_coi_input_vars.clear();  
   }
 }
+
+/* Returns true iff 'term' appears in the term 'root'. */  
+bool Prover::term_contains(const smt::Term root, const smt::Term term)
+{
+  assert(root != NULL);
+  assert(term != NULL);
+  UnorderedTermSet visited_terms;
+  TermVec open_terms;
+  open_terms.push_back (root);
+
+  while (!open_terms.empty()) {
+    Term cur = open_terms.back();
+    open_terms.pop_back ();
+
+    if (cur == term)
+      return true;
+    
+    if (visited_terms.find(cur) == visited_terms.end()) {
+      visited_terms.insert(cur);
+      for (auto child : cur) 
+        open_terms.push_back(child);
+    }
+  }
+  
+  return false;
+}
+
+void Prover::compute_coi_trans_constraints(UnorderedTermSet & new_coi_state_vars,
+                                           UnorderedTermSet & new_coi_input_vars)
+{  
+  cout << "COI analysis: trans constraints" << endl;
+
+  /* Seed the search from both collected COI state- and input-vars. */  
+  TermVec unprocessed_vars;
+  for (auto var : statevars_in_coi_)
+    unprocessed_vars.push_back(var);
+  for (auto var : inputvars_in_coi_)
+    unprocessed_vars.push_back(var);
+  
+  while (!unprocessed_vars.empty()) {
+    Term var = unprocessed_vars.back();
+    unprocessed_vars.pop_back();
+    assert(var->is_symbol());
+
+    cout << "  trans constraints--var:" << var << endl;
+    
+    assert(new_coi_state_vars.empty());
+    assert(new_coi_input_vars.empty());
+
+    /* For each state/input variable 'var', consider all constraints
+       in the set 'ts_.constraints()'. If 'var' appears in a constraint
+       'constr', then apply COI analysis to 'constr' and collect all
+       state/input variables that appear in 'constr'. */
+    for (auto constr : ts_.constraints()) {
+      cout << "  trans constraints--constr:" << constr << endl;
+      if (term_contains(constr, var)) {
+        cout << "  trans constraints--constr " << constr << "contains var" << var << endl;
+        compute_term_coi(constr, new_coi_state_vars, new_coi_input_vars);
+      }
+    }
+
+    /* Finally, add newly collected variables to global collections
+       and to vector of unprocessed variables. */
+    for (auto sv : new_coi_state_vars) {
+      if (statevars_in_coi_.find(sv) == statevars_in_coi_.end()) {
+        statevars_in_coi_.insert(sv);
+        unprocessed_vars.push_back(sv);
+      }
+    }
+    for (auto sv : new_coi_input_vars) {
+      if (inputvars_in_coi_.find(sv) == inputvars_in_coi_.end()) {
+        inputvars_in_coi_.insert(sv);
+        unprocessed_vars.push_back(sv);
+      }
+    }
+         
+    new_coi_state_vars.clear();
+    new_coi_input_vars.clear();  
+  }
+  
+}
   
 void Prover::compute_coi()
 {
@@ -235,10 +328,17 @@ void Prover::compute_coi()
 
   cout << "Starting COI analysis" << endl;
 
+  cout << "  COI analysis: constraints num" << ts_.constraints().size() << endl;
+  for (auto constr : ts_.constraints()) 
+    cout << "    trans constraints--constr:" << constr << endl;
+
+
+  
   UnorderedTermSet new_coi_state_vars;
   UnorderedTermSet new_coi_input_vars;
 
   cout << "Starting COI analysis: bad-term" << endl;
+  /* Traverse bad-state property term. */
   compute_term_coi(bad_, new_coi_state_vars, new_coi_input_vars);
 
   assert (statevars_in_coi_.empty());
@@ -252,8 +352,28 @@ void Prover::compute_coi()
   new_coi_state_vars.clear();
   new_coi_input_vars.clear();  
 
-  compute_coi_next_state_funcs(new_coi_state_vars, new_coi_input_vars);
+  /* The following approach of iterating over the collected
+     state/input variables is not optimal. The loop breaks when no new
+     state/input variables were found. At least, we make sure that
+     every term is visited at most once during the whole COI
+     analysis. */
+  unsigned int num_statevars;
+  unsigned int num_inputvars;
+  do { 
+    num_statevars = statevars_in_coi_.size();
+    num_inputvars = inputvars_in_coi_.size();
+    
+    compute_coi_next_state_funcs(new_coi_state_vars, new_coi_input_vars);
+    compute_coi_trans_constraints(new_coi_state_vars, new_coi_input_vars);
 
+  } while (statevars_in_coi_.size() != num_statevars ||
+           inputvars_in_coi_.size() != num_inputvars);
+
+
+
+
+  
+  
   //TODO/NOTE: we do NOT traverse 'init_' constraint to search for new
   //state vars; we leave 'init_' as is with COI analysis and only
   //rebuild 'trans_'; 'init_' can be any constraint and could be
