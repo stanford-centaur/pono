@@ -210,6 +210,9 @@ bool CegProphecy::refine()
       // Prophecy Modifier will add prophecy and history variables
       // automatically here but it does NOT update the property
       Term idx = abs_unroller_.untime(timed_idx);
+      // can't target a non-current state variable
+      // because the target will appear in the updated property
+      assert(delay > 0 || ts_.only_curr(idx));
       proph_vars.push_back(pm_.get_proph(idx, delay));
     }
 

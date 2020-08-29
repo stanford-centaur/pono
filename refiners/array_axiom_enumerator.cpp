@@ -431,6 +431,16 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
   UnorderedTermSet & indices = only_curr ? cur_index_set_ : index_set_;
   UnorderedTermSet unrolled_indices;
   for (auto idx : indices) {
+    if (i == bound_ && !ts_.only_curr(idx)) {
+      // IMPORTANT: cannot instantiate anything containing
+      // an input variable at the bound -- because then
+      // the target would not be a state variable
+      // since there is no delay
+      // this is consistent with transition system formulation
+      // it doesn't make sense to talk about the next of an input
+      // and the bound is essentially the last next unrolling
+      continue;
+    }
     unrolled_indices.insert(un_.at_time(idx, i));
   }
 
