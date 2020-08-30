@@ -86,6 +86,13 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     curr_map_[transfer(elem.first)] = transfer(elem.second);
   }
 
+  /* Constraints collected in vector 'constraints_' were part of init_
+     and/or trans_ and were transferred already above. Hence these
+     terms should be in the term translator cache. */
+  for (auto constr : other_ts.constraints_) {
+    constraints_.push_back(transfer_as(constr, BOOL));
+  }
+  
   functional_ = other_ts.functional_;
 }
 
