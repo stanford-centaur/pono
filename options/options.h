@@ -53,6 +53,7 @@ class PonoOptions
         verbosity_(default_verbosity_),
         no_witness_(default_no_witness_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_)
+        reset_bnd_(default_reset_bnd_)
   {
   }
 
@@ -67,8 +68,11 @@ class PonoOptions
   unsigned int prop_idx_;
   unsigned int bound_;
   unsigned int verbosity_;
-  bool no_witness_;
   std::string vcd_name_;
+  bool no_witness_;
+  std::string reset_name_;
+  size_t reset_bnd_;
+  std::string clock_name_;
   std::string filename_;
   bool ceg_prophecy_arrays_;
 
@@ -80,6 +84,7 @@ class PonoOptions
   static const unsigned int default_verbosity_ = 0;
   static const bool default_no_witness_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
+  static const size_t default_reset_bnd_ = 1;
 };
 
 }  // namespace pono

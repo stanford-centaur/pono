@@ -86,6 +86,13 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     curr_map_[transfer(elem.first)] = transfer(elem.second);
   }
 
+  /* Constraints collected in vector 'constraints_' were part of init_
+     and/or trans_ and were transferred already above. Hence these
+     terms should be in the term translator cache. */
+  for (auto constr : other_ts.constraints_) {
+    constraints_.push_back(transfer_as(constr, BOOL));
+  }
+  
   functional_ = other_ts.functional_;
 }
 
@@ -121,6 +128,11 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
     throw PonoException(
         "Got a symbolic that is not a current state or input variable in RHS "
         "of functional assignment");
+  }
+
+  if (state_updates_.find(state) != state_updates_.end()) {
+    throw PonoException("State variable " + state->to_string()
+                        + " already has next-state logic assigned.");
   }
 
   state_updates_[state] = val;
@@ -218,6 +230,15 @@ bool TransitionSystem::is_next_var(const Term & sv) const
   return (next_statevars_.find(sv) != next_statevars_.end());
 }
 
+smt::Term TransitionSystem::lookup(std::string name) const
+{
+  auto it = named_terms_.find(name);
+  if (it == named_terms_.end()) {
+    throw PonoException("Could not find term named: " + name);
+  }
+  return it->second;
+}
+
 // term building methods -- forwards to SmtSolver solver_
 
 Sort TransitionSystem::make_sort(const std::string name, uint64_t arity)
@@ -310,9 +331,16 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
   next_statevars_.insert(nv);
   next_map_[cv] = nv;
   curr_map_[nv] = cv;
+  // automatically include in named_terms
+  named_terms_[cv->to_string()] = state;
+  named_terms_[nv->to_string()] = next_state;
 }
 
-void TransitionSystem::add_inputvar(const Term & v) { inputvars_.insert(v); }
+void TransitionSystem::add_inputvar(const Term & v) {
+  inputvars_.insert(v);
+  // automatically include in named_terms
+  named_terms_[name] = input;
+}
 
 bool TransitionSystem::contains(const Term & term,
                                 UnorderedTermSetPtrVec term_sets) const
