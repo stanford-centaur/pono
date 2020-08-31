@@ -318,7 +318,12 @@ void BTOR2Encoder::parse(const std::string filename)
       } else {
         symbol_ = "output" + to_string(l_->id);
       }
-      ts_.name_term(symbol_, termargs_[0]);
+      try {
+        ts_.name_term(symbol_, termargs_[0]);
+      }
+      catch (PonoException & e) {
+        ts_.name_term("_out_" + symbol_, termargs_[0]);
+      }
       terms_[l_->id] = termargs_[0];
     } else if (l_->tag == BTOR2_TAG_sort) {
       switch (l_->sort.tag) {

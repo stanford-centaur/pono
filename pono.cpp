@@ -132,7 +132,18 @@ int main(int argc, char ** argv)
         toggle_clock(fts, clock_symbol);
       }
       if (!pono_options.reset_name_.empty()) {
-        Term reset_symbol = fts.lookup(pono_options.reset_name_);
+        std::string reset_name = pono_options.reset_name_;
+        bool negative_reset = false;
+        if (reset_name.at(0) == '~') {
+          reset_name = reset_name.substr(1, reset_name.length() - 1);
+          negative_reset = true;
+        }
+        Term reset_symbol = fts.lookup(reset_name);
+        if (negative_reset) {
+          SortKind sk = reset_symbol->get_sort()->get_sort_kind();
+          reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
+                                    : s->make_term(Not, reset_symbol);
+        }
         Term reset_done =
             add_reset_seq(fts, reset_symbol, pono_options.reset_bnd_);
         // guard the property with reset_done
