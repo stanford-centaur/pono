@@ -192,6 +192,9 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   solver_->assert_formula(abs_trace_formula);
   Result res = solver_->check_sat();
   UnorderedTermSet all_violated_axioms;
+  TermVec all_label_assumps;
+  // TODO make this an option!
+  bool reduce_axioms_unsatcore = true;
 
   // use only current axioms if the bound is zero
   // e.g. only the initial state
@@ -252,24 +255,54 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
       return false;
     }
 
-    // TODO: use an unsat core with check_sat_assuming
+    Term lbl;
     for (auto ax : violated_axioms_) {
-      solver_->assert_formula(ax);
+      if (reduce_axioms_unsatcore) {
+        lbl = label(ax);
+        all_label_assumps.push_back(lbl);
+        solver_->assert_formula(solver_->make_term(Implies, lbl, ax));
+      } else {
+        solver_->assert_formula(ax);
+      }
       // save the axiom
       all_violated_axioms.insert(ax);
     }
     // reset violated_axioms_ so we don't add the same axioms again
     violated_axioms_.clear();
-    res = solver_->check_sat();
+
+    if (reduce_axioms_unsatcore) {
+      res = solver_->check_sat_assuming(all_label_assumps);
+    } else {
+      res = solver_->check_sat();
+    }
     assert(!res.is_unknown());  // this algorithm assumes decidable theories
   }
 
   assert(res.is_unsat());  // ruled out the trace
 
+  UnorderedTermSet core_set;
+  if (reduce_axioms_unsatcore) {
+    try {
+      solver_->get_unsat_core(core_set);
+    }
+    catch (SmtException & e) {
+      // if core is empty, that's fine -- continue
+    }
+  }
+
   // populate axioms
   // TODO: use an unsat core to prune
   // OR, maybe let the outside procedure do that
+  Term lbl;
   for (auto ax : all_violated_axioms) {
+    if (reduce_axioms_unsatcore) {
+      lbl = label(ax);
+      if (core_set.find(lbl) == core_set.end()) {
+        // if not in unsat core
+        // then don't keep this axiom
+        continue;
+      }
+    }
     if (ts_axioms_.find(ax) != ts_axioms_.end()) {
       // this is a consecutive axiom
       consecutive_axioms_.push_back(ts_axioms_.at(ax));
