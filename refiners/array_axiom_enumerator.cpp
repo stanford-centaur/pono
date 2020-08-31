@@ -773,4 +773,91 @@ Term ArrayAxiomEnumerator::cast_lambda(const Sort & sort,
   return lam;
 }
 
+void ArrayAxiomEnumerator::reduce_assump_unsatcore(const Term & formula,
+                                                   const TermVec & assump,
+                                                   TermVec & out_red,
+                                                   TermVec * out_rem)
+{
+  TermVec cand_res = assump;
+  TermVec bool_assump, tmp_assump;
+
+  solver_->push();
+  solver_->assert_formula(formula);
+
+  // exit if the formula is unsat without assumptions.
+  Result r = solver_->check_sat();
+  if (r.is_unsat()) {
+    solver_->pop();
+    return;
+  }
+
+  for (auto a : cand_res) {
+    Term l = label(a);
+    solver_->assert_formula(solver_->make_term(Implies, l, a));
+    bool_assump.push_back(l);
+  }
+
+  unsigned iter = 0;
+  // TODO create an option for the number of iterations
+  unsigned max_iter = 2;
+  while (iter <= max_iter) {
+    iter++;
+    r = solver_->check_sat_assuming(bool_assump);
+    assert(r.is_unsat());
+
+    bool_assump.clear();
+    tmp_assump.clear();
+
+    UnorderedTermSet core_set;
+    solver_->get_unsat_core(core_set);
+    for (auto a : cand_res) {
+      Term l = label(a);
+      if (core_set.find(l) != core_set.end()) {
+        tmp_assump.push_back(a);
+        bool_assump.push_back(l);
+      } else if (out_rem) {
+        out_rem->push_back(a);
+      }
+    }
+
+    if (tmp_assump.size() == cand_res.size()) {
+      break;
+    } else {
+      cand_res = tmp_assump;
+    }
+  }
+
+  solver_->pop();
+  // copy the result
+  out_red.insert(out_red.end(), cand_res.begin(), cand_res.end());
+}
+
+Term ArrayAxiomEnumerator::label(const Term & t)
+{
+  auto it = labels_.find(t);
+  if (it != labels_.end()) {
+    return labels_.at(t);
+  }
+
+  unsigned i = 0;
+  Term l;
+  while (true) {
+    try {
+      l = solver_->make_symbol(
+          "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
+          solver_->make_sort(BOOL));
+      break;
+    }
+    catch (IncorrectUsageException & e) {
+      ++i;
+    }
+    catch (SmtException & e) {
+      throw e;
+    }
+  }
+
+  labels_[t] = l;
+  return l;
+}
+
 }  // namespace pono
