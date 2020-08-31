@@ -52,6 +52,7 @@ class PonoOptions
         bound_(default_bound_),
         verbosity_(default_verbosity_),
         no_witness_(default_no_witness_),
+        static_coi_(default_static_coi_),
         reset_bnd_(default_reset_bnd_)
   {
   }

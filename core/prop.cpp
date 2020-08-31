@@ -22,7 +22,7 @@ using namespace smt;
 
 namespace pono {
 
-Property::Property(const TransitionSystem & ts, const Term & p)
+Property::Property(TransitionSystem & ts, const Term & p)
     : ts_(ts), prop_(p)
 {
   const UnorderedTermSet & states = ts.statevars();
@@ -34,7 +34,7 @@ Property::Property(const TransitionSystem & ts, const Term & p)
   }
 }
 
-Property::Property(const Property & prop, TermTranslator & tt)
+Property::Property(Property & prop, TermTranslator & tt)
     : ts_(prop.ts_, tt),
       // only need to transfer if solvers are different
       // ts_ constructor does the same thing internally

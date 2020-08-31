@@ -86,6 +86,13 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     curr_map_[transfer(elem.first)] = transfer(elem.second);
   }
 
+  /* Constraints collected in vector 'constraints_' were part of init_
+     and/or trans_ and were transferred already above. Hence these
+     terms should be in the term translator cache. */
+  for (auto constr : other_ts.constraints_) {
+    constraints_.push_back(transfer_as(constr, BOOL));
+  }
+  
   functional_ = other_ts.functional_;
 }
 
@@ -322,6 +329,33 @@ Term TransitionSystem::make_term(const Op op,
 Term TransitionSystem::make_term(const Op op, const TermVec & terms)
 {
   return solver_->make_term(op, terms);
+}
+
+void TransitionSystem::rebuild_trans_based_on_coi(const UnorderedTermSet & state_vars_in_coi)
+{
+  /* Clear current transition relation 'trans_'. */
+  trans_ = solver_->make_term(true);
+  
+  /* Add next-state functions for state variables in COI. */
+  for (auto state_var : state_vars_in_coi) {
+    Term next_func = NULL;
+    auto elem = state_updates_.find(state_var);
+    if (elem != state_updates_.end())
+      next_func = elem->second;
+    /* May find state variables without next-function. */
+    if (next_func != NULL)
+      {
+        Term eq = solver_->make_term(Equal, next_map_.at(state_var), next_func);
+        trans_ = solver_->make_term(And, trans_, eq);
+      }
+  }
+
+  //TODO: we could further check if we can discard constraints from
+  //the set 'constraints_', e.g., only add those constraints to new
+  //'trans_' in which COI state/input variables appear.
+  /* Add further constraints added to previous 'trans_'. */
+  for (auto constr : constraints_)
+    trans_ = solver_->make_term(And, trans_, constr);
 }
 
 // protected methods
