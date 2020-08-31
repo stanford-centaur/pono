@@ -287,6 +287,8 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     }
     catch (SmtException & e) {
       // if core is empty, that's fine -- continue
+      // but it should only happen if no axioms were added
+      assert(!all_violated_axioms.size());
     }
   }
 
