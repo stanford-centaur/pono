@@ -16,6 +16,7 @@
 
 #include "prover.h"
 #include "available_solvers.h"
+#include "utils/logger.h"
 
 #include <climits>
 #include <cassert>
@@ -41,9 +42,6 @@ Prover::Prover(Property & p, const smt::SmtSolver & s)
       orig_ts_(p.transition_system()),
       unroller_(ts_, solver_)
 {
-
-    cout << "prover constructor 2: ts_.constraints.size() = " << ts_.constraints().size() << endl;
-
 }
 
 Prover::Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se)
@@ -63,12 +61,7 @@ Prover::Prover(const PonoOptions & opt,
       orig_ts_(p.transition_system()),
       unroller_(ts_, solver_),
       options_(opt)
-{
-
-    cout << "prover constructor 4: ts_.constraints.size() = " << ts_.constraints().size() << endl;
-    cout << "prover constructor 4: p.transition_system.constraints.size() = " << p.transition_system().constraints().size() << endl;
-    cout << "prover constructor 4: property_.transition_system.constraints.size() = " << property_.transition_system().constraints().size() << endl;
-  
+{  
 }
 
 Prover::~Prover() {}
@@ -77,16 +70,19 @@ void Prover::initialize()
 {
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
-
-
-
-
   if (options_.static_coi_) {
     if (!ts_.is_functional())
       throw PonoException("Temporary restriction: cone-of-influence analysis currently "\
                           "supported for functional transition systems only.");
     compute_coi();
+    orig_num_statevars_ = ts_.statevars().size();
+    orig_num_inputvars_ = ts_.inputvars().size();
+    orig_num_constraints_ = ts_.constraints().size();
     ts_.rebuild_trans_based_on_coi(statevars_in_coi_);
+    logger.log(1, "COI analysis completed---statistics:");
+    logger.log(1, "  - input variables: {} original: {}", inputvars_in_coi_.size(), orig_num_inputvars_);
+    logger.log(1, "  - state variables: {} original: {}", statevars_in_coi_.size(), orig_num_statevars_);
+    //    logger.log(1, "  - constraints: {} original: {}", ts_.constraints().size(), orig_num_constraints_);
   }
 }
 
@@ -123,7 +119,7 @@ void Prover::print_term_dfs(const Term & term)
 
 //TODO: mainly for debugging but could make it an optional output at
 //certain verbosity level, check logger usage
-void Prover::print_bad_property_coi()
+void Prover::print_coi_info()
 {
   cout << "TEST PRINT COI\n";
   cout << "bad_ term: " << bad_ << "\n";
@@ -143,6 +139,9 @@ void Prover::print_bad_property_coi()
   for (auto statevar : ts_.statevars())
     cout << "  " << statevar << "\n";
 
+  cout << "constraints: \n";
+  for (auto constr : ts_.constraints())
+    cout << "  " << constr << "\n";  
 }
 
 void Prover::collect_coi_term(UnorderedTermSet & set, const Term & term)
@@ -323,21 +322,18 @@ void Prover::compute_coi_trans_constraints(UnorderedTermSet & new_coi_state_vars
 void Prover::compute_coi()
 {
   assert (coi_visited_terms_.empty());
-  //TODO: remove printing or toggle wrt verbosity level
-  //print_bad_property_coi();
+  if (options_.verbosity_ >= 3)
+    print_coi_info();
 
-  cout << "Starting COI analysis" << endl;
+  logger.log(1, "Starting static cone-of-influence (COI) analysis:");
+  logger.log(1, "  - input variables: {}", ts_.inputvars().size());
+  logger.log(1, "  - state variables: {}", ts_.statevars().size());
+  logger.log(1, "  - constraints: {}", ts_.constraints().size());
 
-  cout << "  COI analysis: constraints num" << ts_.constraints().size() << endl;
-  for (auto constr : ts_.constraints()) 
-    cout << "    trans constraints--constr:" << constr << endl;
-
-
-  
   UnorderedTermSet new_coi_state_vars;
   UnorderedTermSet new_coi_input_vars;
 
-  cout << "Starting COI analysis: bad-term" << endl;
+  logger.log(1, "COI analysis: bad-term");
   /* Traverse bad-state property term. */
   compute_term_coi(bad_, new_coi_state_vars, new_coi_input_vars);
 
@@ -362,18 +358,15 @@ void Prover::compute_coi()
   do { 
     num_statevars = statevars_in_coi_.size();
     num_inputvars = inputvars_in_coi_.size();
-    
+
+    logger.log(1, "COI analysis: next-state functions");
     compute_coi_next_state_funcs(new_coi_state_vars, new_coi_input_vars);
+    logger.log(1, "COI analysis: constraints");
     compute_coi_trans_constraints(new_coi_state_vars, new_coi_input_vars);
 
   } while (statevars_in_coi_.size() != num_statevars ||
            inputvars_in_coi_.size() != num_inputvars);
 
-
-
-
-  
-  
   //TODO/NOTE: we do NOT traverse 'init_' constraint to search for new
   //state vars; we leave 'init_' as is with COI analysis and only
   //rebuild 'trans_'; 'init_' can be any constraint and could be
@@ -381,18 +374,20 @@ void Prover::compute_coi()
   //vars in 'init_' that have not been identified as part of the COI
   //by checking 'bad_' and the next-state functions cannot have an
   //influence on the property 'bad_'.
-  
-  cout << "COI analysis completed" << "\n";
-  for (auto var : statevars_in_coi_)
-    cout << "  found COI statevar " << var << "\n";
-  for (auto var : inputvars_in_coi_)
-    cout << "  found COI inputvar " << var << "\n";
 
-  cout << "Original system had:" << "\n";
-  for (auto var : ts_.statevars())
-    cout << "  statevar " << var << "\n";
-  for (auto var : ts_.inputvars())
-    cout << "  inputvar " << var << "\n";
+  if (options_.verbosity_ >= 3) {
+    logger.log(3, "COI analysis completed");
+    for (auto var : statevars_in_coi_)
+      logger.log(3, "  - found COI statevar {}", var);
+    for (auto var : inputvars_in_coi_)
+      logger.log(3, "  - found COI inputvar {}", var);
+
+    logger.log(3, "Original system had:");
+    for (auto var : ts_.statevars())
+      logger.log(3, "  - statevar {}", var);
+    for (auto var : ts_.inputvars())
+      logger.log(3, "  - inputvar {}", var);
+  }
 }
   
 bool Prover::witness(std::vector<UnorderedTermMap> & out)

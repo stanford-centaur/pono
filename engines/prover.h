@@ -60,12 +60,15 @@ class Prover
 
   PonoOptions options_;
 
-
-  //TODO: can make some of COI functions/members private
+ private:
 
   //TODO: not sure if term translation feature as implemented now works properly with COI, i.e., when we replace 'ts_' with 'coi_ts_'; maybe we can keep the old 'ts_' and swap back as needed? 
+
+  //TODO: check role of input variables
+
+  //TODO/CHECK: add only those constraints when rebuilding TS that are related to COI state/inputvars
   
-  void print_bad_property_coi();
+  void print_coi_info();
 
   void print_term_dfs(const smt::Term & term);
 
@@ -88,13 +91,10 @@ class Prover
   smt::UnorderedTermSet inputvars_in_coi_;
   /* Set of terms already visited in COI analysis. */
   smt::UnorderedTermSet coi_visited_terms_;
-  //TODO: MAYBE NOT NEEDED
-  /* Rebuilt transition system based on COI; replaces the original
-  transition system 'ts_' constructed by the user and will be used by
-  prover engines for model checking. */
-  //  TransitionSystem coi_ts_;
-
- private:
+  unsigned int orig_num_statevars_;
+  unsigned int orig_num_inputvars_;
+  unsigned int orig_num_constraints_;
+  
   void collect_coi_term(smt::UnorderedTermSet & set, const smt::Term & term);
 
   void compute_coi_trans_constraints(smt::UnorderedTermSet & new_coi_state_vars,
