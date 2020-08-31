@@ -56,7 +56,8 @@ class PonoOptions
         no_witness_(default_no_witness_),
         ic3_cexgen_(default_ic3_cexgen_),
         ic3_indgen_(default_ic3_indgen_),
-        ic3_gen_max_iter_(default_ic3_gen_max_iter_)
+        ic3_gen_max_iter_(default_ic3_gen_max_iter_),
+        ic3_indgen_mode_(default_ic3_indgen_mode_)
   {
   }
 
@@ -80,6 +81,7 @@ class PonoOptions
   bool ic3_indgen_;  ///< inductive generalization in IC3
   unsigned int ic3_gen_max_iter_; ///< max iterations in ic3 generalization. 0
                                   ///means unbounded
+  unsigned int ic3_indgen_mode_; ///< inductive generalization mode [0,1]
 
 private:
   // Default options
@@ -90,7 +92,8 @@ private:
   static const bool default_no_witness_ = false;
   static const bool default_ic3_cexgen_ = true;
   static const bool default_ic3_indgen_ = true;
-  static const unsigned default_ic3_gen_max_iter_ = 2;
+  static const unsigned int default_ic3_gen_max_iter_ = 2;
+  static const unsigned int default_ic3_indgen_mode_ = 0;
 };
 
 }  // namespace pono
