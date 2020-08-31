@@ -332,14 +332,14 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
   next_map_[cv] = nv;
   curr_map_[nv] = cv;
   // automatically include in named_terms
-  named_terms_[cv->to_string()] = state;
-  named_terms_[nv->to_string()] = next_state;
+  named_terms_[cv->to_string()] = cv;
+  named_terms_[nv->to_string()] = nv;
 }
 
 void TransitionSystem::add_inputvar(const Term & v) {
   inputvars_.insert(v);
   // automatically include in named_terms
-  named_terms_[name] = input;
+  named_terms_[v->to_string()] = v;
 }
 
 bool TransitionSystem::contains(const Term & term,

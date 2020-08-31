@@ -166,7 +166,6 @@ int main(int argc, char ** argv)
         prop = fts.solver()->make_term(Implies, reset_done, prop);
       }
 
-      Property p(fts, prop);
       vector<UnorderedTermMap> cex;
       Property p(fts, prop);
       res = check_prop(pono_options, p, s, second_solver, cex);
