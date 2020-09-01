@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "engines/ceg_prophecy.h"
+#include "engines/ceg_prophecy_arrays.h"
 #include "engines/kinduction.h"
 #include "utils/logger.h"
 
@@ -14,7 +14,7 @@ using namespace std;
 
 namespace pono_tests {
 
-TEST(CegProphecyTest, Simple)
+TEST(CegProphecyArraysTest, Simple)
 {
   set_global_logger_verbosity(1);
 
@@ -40,7 +40,7 @@ TEST(CegProphecyTest, Simple)
   Term prop_term = rts.make_term(
       BVUlt, rts.make_term(Select, a, j), rts.make_term(200, bvsort32));
   Property prop(rts, prop_term);
-  CegProphecy cegp(prop, INTERP, s);
+  CegProphecyArrays cegp(prop, INTERP, s);
   ProverResult r = cegp.check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
 }

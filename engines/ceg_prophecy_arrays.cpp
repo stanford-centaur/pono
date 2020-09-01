@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file ceg_prophecy.cpp
+/*! \file ceg_prophecy_arrays.cpp
 ** \verbatim
 ** Top contributors (to current version):
 **   Ahmed Irfan, Makai Mann
@@ -20,7 +20,7 @@
 #include <map>
 #include "assert.h"
 
-#include "engines/ceg_prophecy.h"
+#include "engines/ceg_prophecy_arrays.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 
@@ -29,7 +29,9 @@ using namespace std;
 
 namespace pono {
 
-CegProphecy::CegProphecy(const Property & p, Engine e, smt::SolverEnum se)
+CegProphecyArrays::CegProphecyArrays(const Property & p,
+                                     Engine e,
+                                     smt::SolverEnum se)
     : super(p, se),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
@@ -43,7 +45,9 @@ CegProphecy::CegProphecy(const Property & p, Engine e, smt::SolverEnum se)
   initialize();
 }
 
-CegProphecy::CegProphecy(const Property & p, Engine e, const SmtSolver & solver)
+CegProphecyArrays::CegProphecyArrays(const Property & p,
+                                     Engine e,
+                                     const SmtSolver & solver)
     : super(p, solver),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
@@ -57,10 +61,10 @@ CegProphecy::CegProphecy(const Property & p, Engine e, const SmtSolver & solver)
   initialize();
 }
 
-CegProphecy::CegProphecy(const PonoOptions & opt,
-                         const Property & p,
-                         Engine e,
-                         smt::SolverEnum se)
+CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
+                                     const Property & p,
+                                     Engine e,
+                                     smt::SolverEnum se)
     : super(opt, p, se),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
@@ -74,10 +78,10 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
   initialize();
 }
 
-CegProphecy::CegProphecy(const PonoOptions & opt,
-                         const Property & p,
-                         Engine e,
-                         const smt::SmtSolver & solver)
+CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
+                                     const Property & p,
+                                     Engine e,
+                                     const smt::SmtSolver & solver)
     : super(opt, p, solver),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
@@ -91,7 +95,7 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
   initialize();
 }
 
-ProverResult CegProphecy::prove()
+ProverResult CegProphecyArrays::prove()
 {
   ProverResult res = ProverResult::FALSE;
   while (res == ProverResult::FALSE) {
@@ -113,7 +117,7 @@ ProverResult CegProphecy::prove()
   return res;
 }
 
-ProverResult CegProphecy::check_until(int k)
+ProverResult CegProphecyArrays::check_until(int k)
 {
   ProverResult res = ProverResult::FALSE;
   while (res == ProverResult::FALSE && reached_k_ <= k) {
@@ -142,13 +146,13 @@ ProverResult CegProphecy::check_until(int k)
   return res;
 }
 
-void CegProphecy::initialize()
+void CegProphecyArrays::initialize()
 {
   super::initialize();
   abstract();
 }
 
-void CegProphecy::abstract()
+void CegProphecyArrays::abstract()
 {
   // the ArrayAbstractor already abstracted the transition system on
   // construction -- only need to abstract bad
@@ -161,7 +165,7 @@ void CegProphecy::abstract()
   assert(abs_ts_.inputvars().size() >= conc_ts_.inputvars().size());
 }
 
-bool CegProphecy::refine()
+bool CegProphecyArrays::refine()
 {
   num_added_axioms_ = 0;
   // TODO use ArrayAxiomEnumerator and modifiers to refine the system
@@ -284,7 +288,7 @@ bool CegProphecy::refine()
 }
 
 // helpers
-Term CegProphecy::get_bmc_formula(size_t b)
+Term CegProphecyArrays::get_bmc_formula(size_t b)
 {
   Term abs_bmc_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
   for (int k = 0; k < b; ++k) {
@@ -295,8 +299,8 @@ Term CegProphecy::get_bmc_formula(size_t b)
       And, abs_bmc_formula, abs_unroller_.at_time(bad_, b));
 }
 
-void CegProphecy::reduce_consecutive_axioms(const Term & abs_bmc_formula,
-                                            UnorderedTermSet & consec_ax)
+void CegProphecyArrays::reduce_consecutive_axioms(const Term & abs_bmc_formula,
+                                                  UnorderedTermSet & consec_ax)
 {
   UnorderedTermSet reduced_ax;
   solver_->push();
@@ -338,7 +342,7 @@ void CegProphecy::reduce_consecutive_axioms(const Term & abs_bmc_formula,
   solver_->pop();
 }
 
-AxiomVec CegProphecy::reduce_nonconsecutive_axioms(
+AxiomVec CegProphecyArrays::reduce_nonconsecutive_axioms(
     const Term & abs_bmc_formula, const AxiomVec & nonconsec_ax)
 {
   // map from delay to the target (over ts vars) and a vector of axioms using
@@ -405,7 +409,7 @@ AxiomVec CegProphecy::reduce_nonconsecutive_axioms(
   return red_nonconsec_ax;
 }
 
-Term CegProphecy::label(const Term & t)
+Term CegProphecyArrays::label(const Term & t)
 {
   auto it = labels_.find(t);
   if (it != labels_.end()) {

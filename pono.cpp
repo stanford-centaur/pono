@@ -25,7 +25,7 @@
 #include "bmc.h"
 #include "bmc_simplepath.h"
 #include "core/fts.h"
-#include "engines/ceg_prophecy.h"
+#include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
@@ -61,8 +61,8 @@ ProverResult check_prop(PonoOptions pono_options,
   std::shared_ptr<Prover> prover;
   if (pono_options.ceg_prophecy_arrays_) {
     // don't instantiate the sub-prover directly
-    // just pass the engine to CegProphecy
-    prover = std::make_shared<CegProphecy>(pono_options, p, eng, s);
+    // just pass the engine to CegProphecyArrays
+    prover = std::make_shared<CegProphecyArrays>(pono_options, p, eng, s);
   } else if (eng != INTERP) {
     assert(!second_solver);
     prover = make_prover(eng, p, s, pono_options);

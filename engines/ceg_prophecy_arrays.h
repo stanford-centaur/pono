@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file ceg_prophecy.h
+/*! \file ceg_prophecy_arrays.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Ahmed Irfan, Makai Mann
@@ -28,21 +28,23 @@
 
 namespace pono {
 
-class CegProphecy : public CEGAR
+class CegProphecyArrays : public CEGAR
 {
   typedef CEGAR super;
 
  public:
-  CegProphecy(const Property & p, Engine e, smt::SolverEnum se);
-  CegProphecy(const Property & p, Engine e, const smt::SmtSolver & solver);
-  CegProphecy(const PonoOptions & opt,
-              const Property & p,
-              Engine e,
-              smt::SolverEnum se);
-  CegProphecy(const PonoOptions & opt,
-              const Property & p,
-              Engine e,
-              const smt::SmtSolver & solver);
+  CegProphecyArrays(const Property & p, Engine e, smt::SolverEnum se);
+  CegProphecyArrays(const Property & p,
+                    Engine e,
+                    const smt::SmtSolver & solver);
+  CegProphecyArrays(const PonoOptions & opt,
+                    const Property & p,
+                    Engine e,
+                    smt::SolverEnum se);
+  CegProphecyArrays(const PonoOptions & opt,
+                    const Property & p,
+                    Engine e,
+                    const smt::SmtSolver & solver);
 
   ProverResult prove() override;
   ProverResult check_until(int k) override;
