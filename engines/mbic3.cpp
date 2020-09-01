@@ -376,10 +376,25 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     // pred is a subset of c
     logger.log(3, "Blocking term at frame {}: {}", i, c.term_->to_string());
     logger.log(3, " with {}", gen_blocking_term->to_string());
-    size_t idx = push_blocking_clause(i, gen_blocking_term);
-    frames_[idx].push_back(gen_blocking_term);
-    if (idx + 1 < frames_.size()) {
-      add_proof_goal(c, idx + 1);
+
+    // if using interpolants, can't count on blocking term being a clause
+    // simple heuristic is to get conjunctive partition
+    TermVec conjuncts;
+    conjunctive_partition(gen_blocking_term, conjuncts);
+    size_t min_idx = frames_.size();
+    for (auto bt : conjuncts) {
+      // TODO: fix name -- might not be a clause anymore
+      // try to push
+      size_t idx = push_blocking_clause(i, bt);
+      frames_[idx].push_back(bt);
+      if (idx < min_idx) {
+        min_idx = idx;
+      }
+    }
+
+    // we're limited by the minimum index that a conjunct could be pushed to
+    if (min_idx + 1 < frames_.size()) {
+      add_proof_goal(c, min_idx + 1);
     }
     return true;
   } else {
