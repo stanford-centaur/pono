@@ -353,8 +353,11 @@ class TransitionSystem
   /* Rebuild transition relation 'trans_' based on set
      'state_vars_in_coi' of state-variables in cone-of-influence. The
      set 'state_vars_in_coi' is computed in the 'Prover' class that
-     checks a property related to this transition system. */
-  void rebuild_trans_based_on_coi(const smt::UnorderedTermSet & state_vars_in_coi);
+     checks a property related to this transition system. Also, update
+     the set of state/input variables to the passed sets
+     'state_vars_in_coi' and 'input_vars_in_coi'. */
+  void rebuild_trans_based_on_coi(const smt::UnorderedTermSet & state_vars_in_coi,
+                                  const smt::UnorderedTermSet & input_vars_in_coi);
     
  protected:
   // solver

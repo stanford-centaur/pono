@@ -74,21 +74,25 @@ void Prover::initialize()
     if (!ts_.is_functional())
       throw PonoException("Temporary restriction: cone-of-influence analysis currently "\
                           "supported for functional transition systems only.");
+    /* Compute the set of state/input variables related to the
+       bad-state property. Based on that information, rebuild the
+       transition relation of the transition system. */
     compute_coi();
     orig_num_statevars_ = ts_.statevars().size();
     orig_num_inputvars_ = ts_.inputvars().size();
-    orig_num_constraints_ = ts_.constraints().size();
-    ts_.rebuild_trans_based_on_coi(statevars_in_coi_);
-    logger.log(1, "COI analysis completed: {} remaining input variables, {} original", inputvars_in_coi_.size(), orig_num_inputvars_);
-    logger.log(1, "COI analysis completed: {} remaining state variables, {} original", statevars_in_coi_.size(), orig_num_statevars_);
-    //    logger.log(1, "  - constraints: {} original: {}", ts_.constraints().size(), orig_num_constraints_);
+    ts_.rebuild_trans_based_on_coi(statevars_in_coi_, inputvars_in_coi_);
+    assert(statevars_in_coi_.size() == ts_.statevars().size());
+    assert(inputvars_in_coi_.size() == ts_.inputvars().size());
+    logger.log(1, "COI analysis completed: {} remaining input variables, {} original",
+               inputvars_in_coi_.size(), orig_num_inputvars_);
+    logger.log(1, "COI analysis completed: {} remaining state variables, {} original",
+               statevars_in_coi_.size(), orig_num_statevars_);
   }
 }
 
 ProverResult Prover::prove() { return check_until(INT_MAX); }
 
-//TODO: mainly for debugging but could make it an optional output at
-//certain verbosity level, check logger usage
+/* For debugging only. */
 void Prover::print_term_dfs(const Term & term)
 {
   UnorderedTermSet visited_terms;
@@ -116,8 +120,7 @@ void Prover::print_term_dfs(const Term & term)
   }
 }
 
-//TODO: mainly for debugging but could make it an optional output at
-//certain verbosity level, check logger usage
+/* For debugging only. */
 void Prover::print_coi_info()
 {
   cout << "TEST PRINT COI\n";
@@ -143,12 +146,15 @@ void Prover::print_coi_info()
     cout << "  " << constr << "\n";  
 }
 
+/* Add 'term' to 'set' if it does not already appear there. */
 void Prover::collect_coi_term(UnorderedTermSet & set, const Term & term)
 {
   if (set.find(term) == set.end())
     set.insert(term);
 }
-  
+
+/* Traverse 'term', collect state/input variables, and add them to
+   global sets 'new_coi_state_vars' and 'new_coi_input_vars'. */
 void Prover::compute_term_coi(const Term & term,
                               UnorderedTermSet & new_coi_state_vars,
                               UnorderedTermSet & new_coi_input_vars)
@@ -158,9 +164,7 @@ void Prover::compute_term_coi(const Term & term,
   open_terms.push_back (term);
   Term cur;
 
-  /* Depth-first search of term structure 'term'. Collect all
-     encountered state and input variables and store them in
-     'new_coi_state_vars' and 'new_coi_input_vars'. */
+  /* Depth-first search of term structure 'term'. */
   while (!open_terms.empty()) {
     cur = open_terms.back();
     open_terms.pop_back ();
@@ -171,7 +175,6 @@ void Prover::compute_term_coi(const Term & term,
       /* Cache 'cur' and push its children. */
       coi_visited_terms_.insert(cur);
       logger.log(3, "  visiting COI term: {}", cur);
-      //TODO: check in smt-switch if '->is_symbol' captures statevars properly
       if (cur->is_symbol()) {
         logger.log(3, "    ..is symbol");
         if (ts_.statevars().find(cur) != ts_.statevars().end()) {
@@ -196,9 +199,12 @@ void Prover::compute_term_coi(const Term & term,
   }
 }
 
+/* Collect state/input variables that appear in next-state functions
+   of state-variables that were already collected. */
 void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
                                           UnorderedTermSet & new_coi_input_vars)
 {
+  /* Seed the search using state-variables that were collected already. */
   TermVec unprocessed_state_vars;
   for (auto state_var : statevars_in_coi_)
     unprocessed_state_vars.push_back(state_var);
@@ -220,6 +226,8 @@ void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
     if (next_func != NULL)
       compute_term_coi(next_func, new_coi_state_vars, new_coi_input_vars);
 
+    /* Add newly found state/input variables to global sets
+       'statevars_in_coi_' and 'inputvars_in_coi_'. */
     for (auto sv : new_coi_state_vars) {
       if (statevars_in_coi_.find(sv) == statevars_in_coi_.end()) {
         statevars_in_coi_.insert(sv);
@@ -235,50 +243,20 @@ void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
   }
 }
 
-#if 0
-/* Returns true iff 'term' appears in the term 'root'. */  
-bool Prover::term_contains(const smt::Term root, const smt::Term term)
-{
-  assert(root != NULL);
-  assert(term != NULL);
-  UnorderedTermSet visited_terms;
-  TermVec open_terms;
-  open_terms.push_back (root);
-
-  while (!open_terms.empty()) {
-    Term cur = open_terms.back();
-    open_terms.pop_back ();
-
-    if (cur == term)
-      return true;
-    
-    if (visited_terms.find(cur) == visited_terms.end()) {
-      visited_terms.insert(cur);
-      for (auto child : cur) 
-        open_terms.push_back(child);
-    }
-  }
-  
-  return false;
-}
-#endif
-
+/* Collect state/input variables that appear in constraints that were
+   added to the transition system. */
 void Prover::compute_coi_trans_constraints(UnorderedTermSet & new_coi_state_vars,
                                            UnorderedTermSet & new_coi_input_vars)
 {  
   assert(new_coi_state_vars.empty());
   assert(new_coi_input_vars.empty());
 
-  /* For each state/input variable 'var', consider all constraints
-     in the set 'ts_.constraints()' and collect state/input
-     variables that appear in 'constr' and that are not yet
-     collected. */
   for (auto constr : ts_.constraints()) {
     logger.log(3, "  trans constraints--constr: {}", constr);
     compute_term_coi(constr, new_coi_state_vars, new_coi_input_vars);
   }
 
-  /* Finally, add newly collected variables to global collections. */
+  /* Add newly collected variables to global collections. */
   for (auto sv : new_coi_state_vars) 
     if (statevars_in_coi_.find(sv) == statevars_in_coi_.end())
       statevars_in_coi_.insert(sv);
@@ -290,7 +268,8 @@ void Prover::compute_coi_trans_constraints(UnorderedTermSet & new_coi_state_vars
   new_coi_state_vars.clear();
   new_coi_input_vars.clear();    
 }
-  
+
+/* Main COI function. */
 void Prover::compute_coi()
 {
   assert (coi_visited_terms_.empty());
@@ -305,14 +284,14 @@ void Prover::compute_coi()
   UnorderedTermSet new_coi_state_vars;
   UnorderedTermSet new_coi_input_vars;
 
+  /* Traverse bad-state property term and collect all state/input variables. */
   logger.log(1, "COI analysis: bad-term");
-  /* Traverse bad-state property term. */
   compute_term_coi(bad_, new_coi_state_vars, new_coi_input_vars);
 
   assert (statevars_in_coi_.empty());
   assert (inputvars_in_coi_.empty());
 
-  /* Add state/input variables in bad-state term to global collections. */
+  /* Add state/input variables found in bad-state term to global collections. */
   for (auto sv : new_coi_state_vars)
     statevars_in_coi_.insert(sv);
   for (auto sv : new_coi_input_vars)
@@ -321,14 +300,14 @@ void Prover::compute_coi()
   new_coi_state_vars.clear();
   new_coi_input_vars.clear();  
 
+  /* Traverse constraints and collect all state/input variables. */
   logger.log(1, "COI analysis: constraints");
   compute_coi_trans_constraints(new_coi_state_vars, new_coi_input_vars);
 
-  /* The following approach of iterating over the collected
-     state/input variables likely is not optimal. The loop breaks when
-     no new state/input variables were found. At least, we make sure
-     that every term is visited at most once during the whole COI
-     analysis. */
+  /* Traverse next-state functions of state-variables that were
+     already collected. The loop breaks when no new state/input
+     variables were found. Every term is visited at most once during
+     the whole COI analysis. */
   unsigned int num_statevars;
   unsigned int num_inputvars;
   unsigned int iterations = 0;
@@ -343,14 +322,11 @@ void Prover::compute_coi()
   } while (statevars_in_coi_.size() != num_statevars ||
            inputvars_in_coi_.size() != num_inputvars);
 
-  //TODO/NOTE: we do NOT traverse 'init_' constraint to search for new
-  //state vars; we leave 'init_' as is with COI analysis and only
-  //rebuild 'trans_'; 'init_' can be any constraint and could be
-  //difficult to figure out which parts are in COI; also, any state
-  //vars in 'init_' that have not been identified as part of the COI
-  //by checking 'bad_' and the next-state functions cannot have an
-  //influence on the property 'bad_'.
-
+  /* TODO/NOTE: we do NOT traverse 'init_' constraint to search for
+     new state variables. The initial constraint term can have any
+     arbitrary structure and hence may be difficult to analyze
+     precisely. */
+  
   if (options_.verbosity_ >= 3) {
     logger.log(3, "COI analysis completed");
     for (auto var : statevars_in_coi_)
@@ -379,10 +355,10 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     transfer_to_orig_ts_as = [](const Term & t, SortKind sk) { return t; };
   } else {
     /* TODO: double-check that transferring terms still works as
-       intended when COI is used. */
+       intended in this branch when COI is used. */
     if (options_.static_coi_)
       throw PonoException("Temporary restriction: cone-of-influence analysis "\
-                          "currently incompatible with transferring terms.");
+                          "currently incompatible with witness generation.");
     // need to add symbols to cache
     UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
     for (auto v : orig_ts_.statevars()) {
