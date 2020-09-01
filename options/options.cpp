@@ -160,7 +160,7 @@ const option::Descriptor usage[] = {
     "",
     "ic3-indgen-mode",
     Arg::Numeric,
-    "  --ic3-indgen-mode \tIC3 inductive generalization mode [0,1]."},
+    "  --ic3-indgen-mode \tIC3 inductive generalization mode [0,2]."},
   { IC3_FUNCTIONAL_PREIMAGE,
     0,
     "",
@@ -257,9 +257,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;
         case IC3_INDGEN_MODE:
           ic3_indgen_mode_ = atoi(opt.arg);
-          if (!(ic3_indgen_mode_ >= 0 && ic3_indgen_mode_ <= 1))
+          if (!(ic3_indgen_mode_ >= 0 && ic3_indgen_mode_ <= 2))
             throw PonoException(
-                "--ic3-indgen-mode value must be between 0 and 1.");
+                "--ic3-indgen-mode value must be between 0 and 2.");
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
         case UNKNOWN_OPTION:

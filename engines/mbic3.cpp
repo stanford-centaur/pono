@@ -519,6 +519,20 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       reduce_assump_unsatcore(formula, lits, red_lits);
       res_cube = ts_.curr(make_and(red_lits));
 
+    } else if (options_.ic3_indgen_mode_ == 2) {
+      // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
+      Term formula = make_and({get_frame(i - 1), ts_.trans(),
+                               solver_->make_term(Not, c.term_)});
+      formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
+
+      Term interp;
+      //TODO: add interpolating solver
+      // Result r = solver_->get_interpolant(
+      //                            formula,
+      //                            solver_->make_term(Not, c.term_), interp);
+      assert(r.is_unsat());
+      res_cube = ts_.curr(interp);
+
     } else {
       assert(false);
     }

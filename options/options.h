@@ -86,7 +86,7 @@ class PonoOptions
   bool ic3_indgen_;  ///< inductive generalization in IC3
   unsigned int ic3_gen_max_iter_; ///< max iterations in ic3 generalization. 0
                                   ///means unbounded
-  unsigned int ic3_indgen_mode_; ///< inductive generalization mode [0,1]
+  unsigned int ic3_indgen_mode_; ///< inductive generalization mode [0,2]
   bool ic3_functional_preimage_; ///< functional preimage in IC3
 
 private:
