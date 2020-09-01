@@ -17,6 +17,7 @@
 **
 **/
 
+#include <map>
 #include "assert.h"
 
 #include "engines/ceg_prophecy.h"
@@ -174,20 +175,30 @@ bool CegProphecy::refine()
   }
 
   UnorderedTermSet consecutive_axioms = aae_.get_consecutive_axioms();
-  const AxiomVec & nonconsecutive_axioms = aae_.get_nonconsecutive_axioms();
+  AxiomVec nonconsecutive_axioms = aae_.get_nonconsecutive_axioms();
 
   bool found_nonconsecutive_axioms = nonconsecutive_axioms.size();
 
-  // TODO reduce axioms with an unsat core or specialized dropping
-
   if (found_nonconsecutive_axioms) {
-    // TODO
-    // prophecize and update ts
-    // then look for axioms again
-
     // TODO: consider adding these axioms directly over the prophecy
     //       variables at the correct time
     //       for now, easier to just search for consecutive axioms
+
+    if (options_.cegp_axiom_red_) {
+      // update the trace formula with the consecutive axioms
+      // needed for it to be unsat with all the nonconsecutive axioms
+      // it will be updated again later anyway
+      for (auto ax : consecutive_axioms) {
+        size_t max_k = abs_ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
+        for (size_t k = 0; k <= max_k; ++k) {
+          abs_bmc_formula = solver_->make_term(
+              And, abs_bmc_formula, abs_unroller_.at_time(ax, k));
+        }
+      }
+
+      nonconsecutive_axioms =
+          reduce_nonconsecutive_axioms(abs_bmc_formula, nonconsecutive_axioms);
+    }
 
     // First collect all the indices used in nonconsecutive axioms
     // these will need to be prophecized
@@ -325,6 +336,73 @@ void CegProphecy::reduce_consecutive_axioms(const Term & abs_bmc_formula,
   }
 
   solver_->pop();
+}
+
+AxiomVec CegProphecy::reduce_nonconsecutive_axioms(
+    const Term & abs_bmc_formula, const AxiomVec & nonconsec_ax)
+{
+  // map from delay to the target (over ts vars) and a vector of axioms using
+  // that target using to sort: rely on sortedness of map to put in ascending
+  // order of delay
+  map<int, unordered_map<Term, AxiomVec>> map_nonconsec_ax;
+  Term unrolled_idx;
+  Term idx;
+  for (auto ax_inst : nonconsec_ax) {
+    // expecting only a single index to be instantiated
+    assert(ax_inst.instantiations.size() == 1);
+    unrolled_idx = *(ax_inst.instantiations.begin());
+    size_t delay = reached_k_ + 1 - abs_unroller_.get_curr_time(unrolled_idx);
+    idx = abs_unroller_.untime(unrolled_idx);
+    map_nonconsec_ax[delay][idx].push_back(ax_inst);
+  }
+
+  vector<AxiomVec> sorted_nonconsec_ax;
+  for (auto elem1 : map_nonconsec_ax) {
+    for (auto elem2 : elem1.second) {
+      sorted_nonconsec_ax.push_back(elem2.second);
+    }
+  }
+
+  // now try to drop the targets with larger delay one-by-one
+  AxiomVec red_nonconsec_ax;
+  // a vector of bools indicating if each AxiomVec should be included
+  // starts with including all
+  vector<bool> include_axioms(sorted_nonconsec_ax.size(), true);
+  solver_->push();
+
+  Result res;
+  for (int i = sorted_nonconsec_ax.size() - 1; i >= 0; --i) {
+    solver_->push();
+    // assert all the included axioms except the i-th
+    for (size_t j = 0; j < include_axioms.size(); j++) {
+      if (j == i || !include_axioms[j]) {
+        continue;
+      }
+      for (auto ax_inst : sorted_nonconsec_ax[j]) {
+        solver_->assert_formula(ax_inst.ax);
+      }
+    }
+
+    res = solver_->check_sat();
+    if (res.is_unsat()) {
+      // the i-th vector of axioms is unneeded
+      include_axioms[i] = false;
+    }
+    solver_->pop();
+  }
+
+  solver_->pop();
+
+  assert(include_axioms.size() == sorted_nonconsec_ax.size());
+  for (size_t i = 0; i < include_axioms.size(); ++i) {
+    if (include_axioms[i]) {
+      red_nonconsec_ax.insert(red_nonconsec_ax.end(),
+                              sorted_nonconsec_ax[i].begin(),
+                              sorted_nonconsec_ax[i].end());
+    }
+  }
+
+  return red_nonconsec_ax;
 }
 
 Term CegProphecy::label(const Term & t)
