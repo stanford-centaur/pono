@@ -262,9 +262,7 @@ bool CegProphecy::refine()
     }
   }
 
-  // TODO: update abs_ts_
-  // TODO: set num_added_axioms_
-  // TODO: update bad_
+  logger.log(1, "CEGP: refine added {} axiom(s)", num_added_axioms_);
 
   // able to successfully refine
   return true;
