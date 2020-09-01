@@ -83,10 +83,16 @@ void Prover::initialize()
     ts_.rebuild_trans_based_on_coi(statevars_in_coi_, inputvars_in_coi_);
     assert(statevars_in_coi_.size() == ts_.statevars().size());
     assert(inputvars_in_coi_.size() == ts_.inputvars().size());
-    logger.log(1, "COI analysis completed: {} remaining input variables, {} original",
-               inputvars_in_coi_.size(), orig_num_inputvars_);
-    logger.log(1, "COI analysis completed: {} remaining state variables, {} original",
-               statevars_in_coi_.size(), orig_num_statevars_);
+    logger.log(
+        1,
+        "COI analysis completed: {} remaining input variables, {} original",
+        inputvars_in_coi_.size(),
+        orig_num_inputvars_);
+    logger.log(
+        1,
+        "COI analysis completed: {} remaining state variables, {} original",
+        statevars_in_coi_.size(),
+        orig_num_statevars_);
   }
 }
 
@@ -298,7 +304,7 @@ void Prover::compute_coi()
     inputvars_in_coi_.insert(sv);
 
   new_coi_state_vars.clear();
-  new_coi_input_vars.clear();  
+  new_coi_input_vars.clear();
 
   /* Traverse constraints and collect all state/input variables. */
   logger.log(1, "COI analysis: constraints");
@@ -326,7 +332,7 @@ void Prover::compute_coi()
      new state variables. The initial constraint term can have any
      arbitrary structure and hence may be difficult to analyze
      precisely. */
-  
+
   if (options_.verbosity_ >= 3) {
     logger.log(3, "COI analysis completed");
     for (auto var : statevars_in_coi_)
@@ -357,8 +363,9 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     /* TODO: double-check that transferring terms still works as
        intended in this branch when COI is used. */
     if (options_.static_coi_)
-      throw PonoException("Temporary restriction: cone-of-influence analysis "\
-                          "currently incompatible with witness generation.");
+      throw PonoException(
+          "Temporary restriction: cone-of-influence analysis "
+          "currently incompatible with witness generation.");
     // need to add symbols to cache
     UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
     for (auto v : orig_ts_.statevars()) {

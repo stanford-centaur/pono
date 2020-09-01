@@ -356,9 +356,10 @@ class TransitionSystem
      checks a property related to this transition system. Also, update
      the set of state/input variables to the passed sets
      'state_vars_in_coi' and 'input_vars_in_coi'. */
-  void rebuild_trans_based_on_coi(const smt::UnorderedTermSet & state_vars_in_coi,
-                                  const smt::UnorderedTermSet & input_vars_in_coi);
-    
+  void rebuild_trans_based_on_coi(
+      const smt::UnorderedTermSet & state_vars_in_coi,
+      const smt::UnorderedTermSet & input_vars_in_coi);
+
  protected:
   // solver
   smt::SmtSolver solver_;
