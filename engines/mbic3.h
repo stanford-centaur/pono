@@ -18,8 +18,10 @@
 #include <algorithm>
 #include <map>
 #include <utility>
-
 #include "assert.h"
+
+#include "smt-switch/term_translator.h"
+
 #include "prover.h"
 
 namespace pono {
@@ -156,6 +158,17 @@ class ModelBasedIC3 : public Prover
 
   size_t push_blocking_clause(size_t i, smt::Term c);
 
+  /** Helper function to reduce assumptions using unsat cores.
+   *  @param input formula
+   *  @param vector of assumptions
+   *  @param vector to store reduced assumptions
+   *  @param vector to store removed assumptions (if not NULL)
+   */
+  void reduce_assump_unsatcore(const smt::Term &formula,
+                               const smt::TermVec &assump,
+                               smt::TermVec &out_red,
+                               smt::TermVec *out_rem = NULL);
+
   smt::Term label(const smt::Term & t);
 
   /** Creates a reduce and of the vector of boolean terms
@@ -194,6 +207,12 @@ class ModelBasedIC3 : public Prover
   // useful terms
   smt::Term true_;
   smt::Term false_;
+
+  // for interpolation
+  // used if options_.ic3_indgen_mode_ == 2
+  smt::SmtSolver interpolator_;
+  std::shared_ptr<smt::TermTranslator> to_interpolator_;
+  std::shared_ptr<smt::TermTranslator> to_solver_;
 };
 
 class DisjointSet
