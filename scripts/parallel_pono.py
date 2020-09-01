@@ -39,9 +39,11 @@ if __name__ == "__main__":
 
     commands = {
         "BMC": [pono, '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
-        "BMC+SimplePath": [pono, '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
+        # "BMC+SimplePath": [pono, '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
         "K-Induction": [pono, '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
         "Interpolant-based": [pono, '-e', 'interp', '-v', verbosity_option, '-k', bound, btor_file]
+        # "IC3": [pono, '-e', 'mbic3', '-v', verbosity_option, '-k', bound, btor_file]
+        # "ProphIC3-Arrays": [pono, '-e', 'mbic3', '-v' verbosity_option, '--ceg-prophecy-arrays', btor_file]
     }
 
     interp_processes = set()
