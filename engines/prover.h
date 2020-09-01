@@ -69,14 +69,11 @@ class Prover
   /* Key functions. */
   void compute_coi();
   void collect_coi_term(smt::UnorderedTermSet & set, const smt::Term & term);
-  void compute_coi_trans_constraints(
-      smt::UnorderedTermSet & new_coi_state_vars,
-      smt::UnorderedTermSet & new_coi_input_vars);
+  void compute_coi_trans_constraints();
   void compute_term_coi(const smt::Term & term,
                         smt::UnorderedTermSet & new_coi_state_vars,
                         smt::UnorderedTermSet & new_coi_input_vars);
-  void compute_coi_next_state_funcs(smt::UnorderedTermSet & new_coi_state_vars,
-                                    smt::UnorderedTermSet & new_coi_input_vars);
+  void compute_coi_next_state_funcs();
 
   /* TermSets containing those state and input variables that appear
      in the term 'bad_' that represents the bad-state property. This
