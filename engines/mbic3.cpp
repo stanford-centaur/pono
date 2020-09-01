@@ -424,6 +424,11 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       TermVec bool_assump, tmp, new_tmp, removed, lits;
       split_eq(solver_, c.conjuncts_, lits);
 
+      if (options_.random_seed_ > 0) {
+        shuffle(lits.begin(), lits.end(),
+                default_random_engine(options_.random_seed_));
+      }
+
       int iter = 0;
       bool progress = true;
       while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 &&
@@ -589,7 +594,6 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
     TermVec splits, red_cube_lits;
     split_eq(solver_, cube_lits, splits);
-    // shuffle(splits.begin(), splits.end(), default_random_engine(7));
     reduce_assump_unsatcore(formula, splits, red_cube_lits);
     assert(red_cube_lits.size() > 0);
     res = Conjunction(solver_, red_cube_lits);
@@ -701,6 +705,11 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
   if (r.is_unsat()) {
     solver_->pop();
     return; 
+  }
+
+  if (options_.random_seed_ > 0) {
+    shuffle(cand_res.begin(), cand_res.end(),
+            default_random_engine(options_.random_seed_));
   }
 
   for (auto a : cand_res) {

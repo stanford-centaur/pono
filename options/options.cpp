@@ -34,6 +34,7 @@ enum optionIndex
   BOUND,
   PROP,
   VERBOSITY,
+  RANDOM_SEED,
   VCDNAME,
   NOWITNESS,
   NO_IC3_CEXGEN,
@@ -109,6 +110,12 @@ const option::Descriptor usage[] = {
     "verbosity",
     Arg::Numeric,
     "  --verbosity, -v \tVerbosity for printing to standard out." },
+  { RANDOM_SEED,
+    0,
+    "",
+    "random-seed",
+    Arg::Numeric,
+    "  --random-seed, -v \tRandom seed." },
   { VCDNAME,
     0,
     "",
@@ -216,6 +223,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case BOUND: bound_ = atoi(opt.arg); break;
         case PROP: prop_idx_ = atoi(opt.arg); break;
         case VERBOSITY: verbosity_ = atoi(opt.arg); break;
+        case RANDOM_SEED: random_seed_ = atoi(opt.arg); break;
         case VCDNAME:
           vcd_name_ = opt.arg;
           if (no_witness_)
