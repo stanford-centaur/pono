@@ -108,8 +108,23 @@ int main(int argc, char ** argv)
           "responsibility for meeting the license requirements.");
 #endif
     } else {
-      // boolector is faster but doesn't support interpolants
-      s = BoolectorSolverFactory::create(false);
+      if (pono_options.smt_solver_ == "msat") {
+#ifdef WITH_MSAT
+        s = MsatSolverFactory::create(false);
+#else
+        throw PonoException(
+            "This version of pono is built without MathSAT.\nPlease "
+            "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+            "Note: MathSAT has a custom license and you must assume all "
+            "responsibility for meeting the license requirements.");
+#endif
+      } else if (pono_options.smt_solver_ == "btor") {
+        // boolector is faster but doesn't support interpolants
+        s = BoolectorSolverFactory::create(false);
+      } else {
+        assert(false);
+      }
+
       s->set_opt("produce-models", "true");
       s->set_opt("incremental", "true");
     }

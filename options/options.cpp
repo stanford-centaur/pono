@@ -36,6 +36,7 @@ enum optionIndex
   VERBOSITY,
   RANDOM_SEED,
   VCDNAME,
+  SMT_SOLVER,
   NOWITNESS,
   NO_IC3_CEXGEN,
   NO_IC3_INDGEN,
@@ -122,6 +123,12 @@ const option::Descriptor usage[] = {
     "vcd",
     Arg::NonEmpty,
     "  --vcd \tName of Value Change Dump (VCD) if witness exists." },
+  { SMT_SOLVER,
+    0,
+    "",
+    "smt-solver",
+    Arg::NonEmpty,
+    "  --smt-solver \tSMT Solver to use: btor or msat." },
   { NOWITNESS,
     0,
     "",
@@ -166,6 +173,8 @@ const option::Descriptor usage[] = {
  * ***************************************/
 
 namespace pono {
+
+const std::string PonoOptions::default_smt_solver_ = "btor";
 
 Engine PonoOptions::to_engine(std::string s)
 {
@@ -230,6 +239,13 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
+      case SMT_SOLVER:
+          smt_solver_ = opt.arg;
+          if (smt_solver_ != "btor" && smt_solver_ != "msat") {
+            throw PonoException(
+                "Option '--smt-solver' can be either 'btor' or 'msat'.");
+          }
+          break;
         case NOWITNESS:
           no_witness_ = true;
           if (!vcd_name_.empty())
@@ -251,6 +267,11 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           // which aborts the parse with an error
           break;
       }
+    }
+
+    if (smt_solver_ != "msat" && engine_ == Engine::INTERP) {
+      throw PonoException(
+          "Interpolation engine can be only used with '--smt-solver msat'.");
     }
   }
   catch (PonoException & ce) {

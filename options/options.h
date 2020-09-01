@@ -55,6 +55,7 @@ class PonoOptions
         verbosity_(default_verbosity_),
         random_seed_(default_random_seed),
         no_witness_(default_no_witness_),
+        smt_solver_(default_smt_solver_),
         ic3_cexgen_(default_ic3_cexgen_),
         ic3_indgen_(default_ic3_indgen_),
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
@@ -78,6 +79,7 @@ class PonoOptions
   bool no_witness_;
   std::string vcd_name_;
   std::string filename_;
+  std::string smt_solver_; ///< underlying smt solver
 
   // ic3 options
   bool ic3_cexgen_;  ///< generalize counterexamples in IC3
@@ -95,6 +97,7 @@ private:
   static const unsigned int default_verbosity_ = 0;
   static const unsigned int default_random_seed = 0;
   static const bool default_no_witness_ = false;
+  static const std::string default_smt_solver_;
   static const bool default_ic3_cexgen_ = true;
   static const bool default_ic3_indgen_ = true;
   static const unsigned int default_ic3_gen_max_iter_ = 2;
