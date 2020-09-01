@@ -18,8 +18,10 @@
 #include <algorithm>
 #include <map>
 #include <utility>
-
 #include "assert.h"
+
+#include "smt-switch/term_translator.h"
+
 #include "prover.h"
 
 namespace pono {
@@ -200,6 +202,12 @@ class ModelBasedIC3 : public Prover
   // useful terms
   smt::Term true_;
   smt::Term false_;
+
+  // for interpolation
+  // used if options_.ic3_indgen_mode_ == 2
+  smt::SmtSolver interpolator_;
+  std::shared_ptr<smt::TermTranslator> to_interpolator_;
+  std::shared_ptr<smt::TermTranslator> to_solver_;
 };
 
 class DisjointSet

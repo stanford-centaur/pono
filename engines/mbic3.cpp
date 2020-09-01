@@ -20,6 +20,7 @@
 #include "smt-switch/utils.h"
 
 #include "engines/mbic3.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -142,6 +143,35 @@ void ModelBasedIC3::initialize()
       if (st->get_sort()->get_sort_kind() == ARRAY) {
         throw PonoException("ModelBasedIC3 does not support arrays yet");
       }
+    }
+  }
+
+  // all the interpolant stuff should be null so far
+  // hasn't been initialized yet
+  assert(!interpolator_);
+  assert(!to_interpolator_);
+  assert(!to_solver_);
+
+  if (options_.ic3_indgen_mode_ == 2) {
+    // TODO make an option to set the interpolator
+    interpolator_ = create_interpolating_solver(MSAT_INTERPOLATOR);
+    to_interpolator_ = make_shared<TermTranslator>(interpolator_);
+    to_solver_ = make_shared<TermTranslator>(solver_);
+
+    assert(interpolator_);
+    assert(to_interpolator_);
+    assert(to_solver_);
+
+    UnorderedTermMap & cache = to_solver_->get_cache();
+    Term ns;
+    for (auto s : ts_.statevars()) {
+      // common variables will be next state
+      // so that's all we need
+      // better not to cache the others, now if there's a bug
+      // where the shared variables are not respected, the term
+      // translator will throw an exception
+      ns = ts_.next(s);
+      cache[to_interpolator_->transfer_term(ns)] = ns;
     }
   }
 }
@@ -520,18 +550,26 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       res_cube = ts_.curr(make_and(red_lits));
 
     } else if (options_.ic3_indgen_mode_ == 2) {
+      assert(interpolator_);
+      assert(to_interpolator_);
+      assert(to_solver_);
+
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({get_frame(i - 1), ts_.trans(),
                                solver_->make_term(Not, c.term_)});
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
+      Term int_A = to_interpolator_->transfer_term(formula);
+      Term int_B =
+          to_interpolator_->transfer_term(solver_->make_term(Not, c.term_));
+
       Term interp;
-      //TODO: add interpolating solver
-      // Result r = solver_->get_interpolant(
-      //                            formula,
-      //                            solver_->make_term(Not, c.term_), interp);
+      Result r = interpolator_->get_interpolant(int_A, int_B, interp);
       assert(r.is_unsat());
-      res_cube = ts_.curr(interp);
+
+      Term solver_interp = to_solver_->transfer_term(solver_interp);
+      res_cube = ts_.curr(solver_interp);
+      assert(ts_.only_curr(res_cube));
 
     } else {
       assert(false);
