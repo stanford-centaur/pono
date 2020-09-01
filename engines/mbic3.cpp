@@ -446,7 +446,7 @@ void ModelBasedIC3::push_frame()
 
 Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 {
-  Term res_cube = c.term_;
+  Term gen_res = solver_->make_term(Not, c.term_);
 
   if (options_.ic3_indgen_) {
     if (options_.ic3_indgen_mode_ == 0) {
@@ -533,7 +533,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
         progress = lits.size() < prev_size;
       }
 
-      res_cube = make_and(lits);
+      gen_res = solver_->make_term(Not, make_and(lits));
 
     } else if (options_.ic3_indgen_mode_ == 1) {
       TermVec tmp, lits, red_lits;
@@ -547,7 +547,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
                                solver_->make_term(Not, c.term_)});
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
       reduce_assump_unsatcore(formula, lits, red_lits);
-      res_cube = ts_.curr(make_and(red_lits));
+      gen_res = solver_->make_term(Not, ts_.curr(make_and(red_lits)));
 
     } else if (options_.ic3_indgen_mode_ == 2) {
       assert(interpolator_);
@@ -569,16 +569,18 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       assert(r.is_unsat());
 
       Term solver_interp = to_solver_->transfer_term(interp);
-      res_cube = ts_.curr(solver_interp);
-      assert(ts_.only_curr(res_cube));
+      gen_res = ts_.curr(solver_interp);
+      assert(ts_.only_curr(gen_res));
+
+      logger.log(3, "Got interpolant: {}", gen_res);
 
     } else {
       assert(false);
     }
   }
 
-  assert(!intersects_initial(res_cube));
-  return solver_->make_term(Not, res_cube);
+  assert(!intersects_initial(solver_->make_term(Not, gen_res)));
+  return gen_res;
 }
 
 Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
