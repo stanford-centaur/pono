@@ -25,6 +25,8 @@ namespace pono {
 
 class FunctionalTransitionSystem : public TransitionSystem
 {
+  typedef TransitionSystem super;
+
  public:
   FunctionalTransitionSystem() : TransitionSystem() { functional_ = true; }
 
@@ -38,6 +40,8 @@ class FunctionalTransitionSystem : public TransitionSystem
       : TransitionSystem(other_ts, tt)
   {
   }
+
+  void assign_next(const smt::Term & state, const smt::Term & val) override;
 
  protected:
 
