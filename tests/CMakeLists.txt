@@ -64,6 +64,11 @@ target_link_libraries(test_coreir gtest_main)
 target_link_libraries(test_coreir pono-lib)
 add_test(NAME test_coreir COMMAND test_coreir)
 
+add_executable(test_ic3 "${PROJECT_SOURCE_DIR}/tests/test_ic3.cpp")
+target_link_libraries(test_ic3 gtest_main)
+target_link_libraries(test_ic3 pono-lib)
+add_test(NAME test_ic3 COMMAND test_ic3)
+
 add_executable(test_btor2 "${PROJECT_SOURCE_DIR}/tests/encoders/test_btor2.cpp")
 target_link_libraries(test_btor2 gtest_main)
 target_link_libraries(test_btor2 pono-lib)

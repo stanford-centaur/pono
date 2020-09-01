@@ -34,11 +34,18 @@ enum optionIndex
   BOUND,
   PROP,
   VERBOSITY,
+  RANDOM_SEED,
   VCDNAME,
   NOWITNESS,
   RESET,
   RESET_BND,
-  CLK
+  CLK,
+  SMT_SOLVER,
+  NO_IC3_CEXGEN,
+  NO_IC3_INDGEN,
+  IC3_GEN_MAX_ITER,
+  IC3_INDGEN_MODE,
+  IC3_FUNCTIONAL_PREIMAGE
 };
 
 struct Arg : public option::Arg
@@ -88,7 +95,7 @@ const option::Descriptor usage[] = {
     "engine",
     Arg::NonEmpty,
     "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, "
-    "interp]." },
+    "interp, mbic3]." },
   { BOUND,
     0,
     "k",
@@ -107,12 +114,24 @@ const option::Descriptor usage[] = {
     "verbosity",
     Arg::Numeric,
     "  --verbosity, -v \tVerbosity for printing to standard out." },
+  { RANDOM_SEED,
+    0,
+    "",
+    "random-seed",
+    Arg::Numeric,
+    "  --random-seed, -v \tRandom seed." },
   { VCDNAME,
     0,
     "",
     "vcd",
     Arg::NonEmpty,
     "  --vcd \tName of Value Change Dump (VCD) if witness exists." },
+  { SMT_SOLVER,
+    0,
+    "",
+    "smt-solver",
+    Arg::NonEmpty,
+    "  --smt-solver \tSMT Solver to use: btor or msat." },
   { NOWITNESS,
     0,
     "",
@@ -142,12 +161,46 @@ const option::Descriptor usage[] = {
     "  --clock, -c <clock name> \tSymbol to use for clock signal (only "
     "supports "
     "starting at 0 and toggling each step)" },
+  { NO_IC3_CEXGEN,
+    0,
+    "",
+    "ic3-no-cexgen",
+    Arg::None,
+    "  --ic3-no-cexgen \tDisable counterexample generalization in ic3." },
+  { NO_IC3_INDGEN,
+    0,
+    "",
+    "ic3-no-indgen",
+    Arg::None,
+    "  --ic3-no-indgen \tDisable inductive generalization in ic3." },
+  { IC3_GEN_MAX_ITER,
+    0,
+    "",
+    "ic3-gen-max-iter",
+    Arg::Numeric,
+    "  --ic3-gen-max-iter \tMax number of iterations "
+    "(greater than zero) for unsatcore-based ic3 generalization. "
+    "Setting it to 0 means an unbounded number of iterations." },
+  { IC3_INDGEN_MODE,
+    0,
+    "",
+    "ic3-indgen-mode",
+    Arg::Numeric,
+    "  --ic3-indgen-mode \tIC3 inductive generalization mode [0,2]."},
+  { IC3_FUNCTIONAL_PREIMAGE,
+    0,
+    "",
+    "ic3-functional-preimage",
+    Arg::None,
+    "  --ic3-functional-preimage \tUse functional preimage in ic3." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
  * ***************************************/
 
 namespace pono {
+
+const std::string PonoOptions::default_smt_solver_ = "btor";
 
 Engine PonoOptions::to_engine(std::string s)
 {
@@ -205,11 +258,19 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case BOUND: bound_ = atoi(opt.arg); break;
         case PROP: prop_idx_ = atoi(opt.arg); break;
         case VERBOSITY: verbosity_ = atoi(opt.arg); break;
+        case RANDOM_SEED: random_seed_ = atoi(opt.arg); break;
         case VCDNAME:
           vcd_name_ = opt.arg;
           if (no_witness_)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
+          break;
+      case SMT_SOLVER:
+          smt_solver_ = opt.arg;
+          if (smt_solver_ != "btor" && smt_solver_ != "msat") {
+            throw PonoException(
+                "Option '--smt-solver' can be either 'btor' or 'msat'.");
+          }
           break;
         case NOWITNESS:
           no_witness_ = true;
@@ -220,11 +281,26 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
+        case NO_IC3_CEXGEN: ic3_cexgen_ = false; break;
+        case NO_IC3_INDGEN: ic3_indgen_ = false; break;
+        case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;
+        case IC3_INDGEN_MODE:
+          ic3_indgen_mode_ = atoi(opt.arg);
+          if (!(ic3_indgen_mode_ >= 0 && ic3_indgen_mode_ <= 2))
+            throw PonoException(
+                "--ic3-indgen-mode value must be between 0 and 2.");
+          break;
+        case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
           break;
       }
+    }
+
+    if (smt_solver_ != "msat" && engine_ == Engine::INTERP) {
+      throw PonoException(
+          "Interpolation engine can be only used with '--smt-solver msat'.");
     }
   }
   catch (PonoException & ce) {

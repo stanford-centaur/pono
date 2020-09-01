@@ -30,7 +30,9 @@ class InterpolantMC : public Prover
   InterpolantMC(const Property & p,
                 const smt::SmtSolver & slv,
                 const smt::SmtSolver & itp);
-  InterpolantMC(const PonoOptions & opt, const Property & p, smt::SolverEnum se);
+  InterpolantMC(const PonoOptions & opt,
+                const Property & p,
+                smt::SolverEnum se);
   InterpolantMC(const PonoOptions & opt,
                 const Property & p,
                 const smt::SmtSolver & slv,

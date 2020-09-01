@@ -34,7 +34,7 @@ BmcSimplePath::BmcSimplePath(const Property & p, const SmtSolver & solver)
 BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
                              const Property & p,
                              SolverEnum se)
-  : super(opt, p, se)
+    : super(opt, p, se)
 {
 }
 
