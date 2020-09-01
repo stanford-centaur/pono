@@ -554,20 +554,21 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       assert(to_interpolator_);
       assert(to_solver_);
 
+      interpolator_->reset_assertions();
+
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({get_frame(i - 1), ts_.trans(),
                                solver_->make_term(Not, c.term_)});
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
       Term int_A = to_interpolator_->transfer_term(formula);
-      Term int_B =
-          to_interpolator_->transfer_term(solver_->make_term(Not, c.term_));
+      Term int_B = to_interpolator_->transfer_term(ts_.next(c.term_));
 
       Term interp;
       Result r = interpolator_->get_interpolant(int_A, int_B, interp);
       assert(r.is_unsat());
 
-      Term solver_interp = to_solver_->transfer_term(solver_interp);
+      Term solver_interp = to_solver_->transfer_term(interp);
       res_cube = ts_.curr(solver_interp);
       assert(ts_.only_curr(res_cube));
 
