@@ -660,6 +660,14 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
         next_lits.push_back(solver_->make_term(Equal, nv,
                                                solver_->get_value(nv)));
       }
+
+      for (auto t : extra_model_terms_) {
+        if (ts_.only_curr(t)) {
+          Term nt = ts_.next(t);
+          next_lits.push_back(
+              solver_->make_term(Equal, nt, solver_->get_value(nt)));
+        }
+      }
     }
 
     solver_->pop();

@@ -116,6 +116,7 @@ TEST_P(UFUnitTests, FalseProp)
 
   Property prop(rts, p);
 
+  ASSERT_FALSE(rts.is_functional());
   s->push();
   KInduction kind(prop, s);
   ProverResult r = kind.check_until(10);
