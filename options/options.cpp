@@ -40,6 +40,7 @@ enum optionIndex
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
   IC3_INDGEN_MODE,
+  IC3_FUNCTIONAL_PREIMAGE
 };
 
 struct Arg : public option::Arg
@@ -146,6 +147,12 @@ const option::Descriptor usage[] = {
     "ic3-indgen-mode",
     Arg::Numeric,
     "  --ic3-indgen-mode \tIC3 inductive generalization mode [0,1]."},
+  { IC3_FUNCTIONAL_PREIMAGE,
+    0,
+    "",
+    "ic3-functional-preimage",
+    Arg::None,
+    "  --ic3-functional-preimage \tUse functional preimage in ic3." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -230,6 +237,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
             throw PonoException(
                 "--ic3-indgen-mode value must be between 0 and 1.");
           break;
+        case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

@@ -538,7 +538,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
   Conjunction res(solver_, cube_lits);
 
-  if (options_.ic3_cexgen_) {
+  if (options_.ic3_cexgen_ && !options_.ic3_functional_preimage_) {
     // add congruent equalities to cube_lits
     for (auto v : statevars) {
       Term t = ds.find(v);
@@ -554,7 +554,6 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     for (auto v : inputvars) {
       input_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
     }
-
     // collect next statevars assignments
     TermVec next_lits;
     if (!ts_.is_functional()) {
@@ -594,6 +593,27 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     reduce_assump_unsatcore(formula, splits, red_cube_lits);
     assert(red_cube_lits.size() > 0);
     res = Conjunction(solver_, red_cube_lits);
+
+  } else if (options_.ic3_cexgen_ && options_.ic3_functional_preimage_) {
+    assert(ts_.is_functional());
+
+    UnorderedTermMap m;
+    const UnorderedTermSet & inputvars = ts_.inputvars();
+    for (auto v : inputvars) {
+      m[v] = solver_->get_value(v);
+    }
+    for (auto v : statevars) {
+      Term nv = ts_.next(v);
+      m[nv] = solver_->get_value(nv);
+    }
+
+    solver_->pop();
+
+    Term fun_preimage = solver_->substitute(ts_.trans(), m);
+    TermVec conjuncts;
+    conjunctive_partition(fun_preimage, conjuncts);
+    res = Conjunction(solver_, conjuncts);
+
   } else {
     solver_->pop();
   }
