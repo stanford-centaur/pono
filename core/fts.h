@@ -37,7 +37,6 @@ class FunctionalTransitionSystem : public TransitionSystem
                              smt::TermTranslator & tt)
       : TransitionSystem(other_ts, tt)
   {
-    functional_ = true;
   }
 
  protected:

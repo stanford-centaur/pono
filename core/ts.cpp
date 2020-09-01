@@ -86,6 +86,13 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     curr_map_[transfer(elem.first)] = transfer(elem.second);
   }
 
+  /* Constraints collected in vector 'constraints_' were part of init_
+     and/or trans_ and were transferred already above. Hence these
+     terms should be in the term translator cache. */
+  for (auto constr : other_ts.constraints_) {
+    constraints_.push_back(transfer_as(constr, BOOL));
+  }
+
   functional_ = other_ts.functional_;
 }
 
@@ -125,6 +132,8 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
   state_updates_[state] = val;
   trans_ = solver_->make_term(
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
+
+  functional_ = (state_updates_.size() == statevars_.size());
 }
 
 void TransitionSystem::add_invar(const Term & constraint)
@@ -188,6 +197,9 @@ Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 
 Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
+  // set to false until there is a next state update for this statevar
+  functional_ = false;
+
   Term state = solver_->make_symbol(name, sort);
   Term next_state = solver_->make_symbol(name + ".next", sort);
   statevars_.insert(state);
