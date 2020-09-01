@@ -199,8 +199,6 @@ void Prover::compute_term_coi(const Term & term,
 void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
                                           UnorderedTermSet & new_coi_input_vars)
 {
-  logger.log(1, "  COI analysis: next-state functions");
-
   TermVec unprocessed_state_vars;
   for (auto state_var : statevars_in_coi_)
     unprocessed_state_vars.push_back(state_var);
@@ -268,8 +266,6 @@ bool Prover::term_contains(const smt::Term root, const smt::Term term)
 void Prover::compute_coi_trans_constraints(UnorderedTermSet & new_coi_state_vars,
                                            UnorderedTermSet & new_coi_input_vars)
 {  
-  logger.log(1, "COI analysis: trans constraints");
-
   assert(new_coi_state_vars.empty());
   assert(new_coi_input_vars.empty());
 
