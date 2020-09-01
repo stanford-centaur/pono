@@ -21,6 +21,13 @@ using namespace std;
 
 namespace pono {
 
+void FunctionalTransitionSystem::assign_next(const Term & state,
+                                             const Term & val)
+{
+  super::assign_next(state, val);
+  functional_ = (state_updates_.size() == statevars_.size());
+}
+
 // protected methods
 
 bool FunctionalTransitionSystem::known_symbols(const Term & term) const

@@ -194,10 +194,15 @@ class ModelBasedIC3 : public Prover
   ///< for this implementation of IC3
   std::vector<smt::TermVec> frames_;
 
-  ///< statck of outstanding proof goals
+  ///< stack of outstanding proof goals
   std::vector<ProofGoal> proof_goals_;
 
   smt::UnorderedTermMap labels_;
+
+  ///< extra terms that need to be included in model
+  ///< when representing a state
+  ///< for example, UF applications
+  smt::TermVec extra_model_terms_;
 
   // useful terms
   smt::Term true_;

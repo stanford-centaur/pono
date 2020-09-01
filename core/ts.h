@@ -79,7 +79,7 @@ class TransitionSystem
    * @param state the state variable you are updating
    * @param val the value it should get
    */
-  void assign_next(const smt::Term & state, const smt::Term & val);
+  virtual void assign_next(const smt::Term & state, const smt::Term & val);
 
   /* Add an invariant constraint to the system
    * This is enforced over all time

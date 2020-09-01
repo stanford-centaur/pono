@@ -22,6 +22,7 @@
 #include "engines/mbic3.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/term_walkers.h"
 
 using namespace smt;
 using namespace std;
@@ -146,6 +147,18 @@ void ModelBasedIC3::initialize()
     }
   }
 
+  // find UF applications and keep them so they can be
+  // included in models
+  TermOpCollector toc(solver_);
+  UnorderedTermSet uf_apps;
+  toc.find_matching_terms(ts_.init(), { Apply }, uf_apps);
+  toc.find_matching_terms(ts_.trans(), { Apply }, uf_apps);
+  toc.find_matching_terms(bad_, { Apply }, uf_apps);
+  extra_model_terms_.clear();
+  extra_model_terms_.reserve(uf_apps.size());
+  extra_model_terms_.insert(
+      extra_model_terms_.begin(), uf_apps.begin(), uf_apps.end());
+  
   // all the interpolant stuff should be null so far
   // hasn't been initialized yet
   assert(!interpolator_);
@@ -604,11 +617,18 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec cube_lits;
   DisjointSet ds;
-  cube_lits.reserve(statevars.size());
+  cube_lits.reserve(statevars.size() + extra_model_terms_.size());
   for (auto v : statevars) {
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
     ds.add(v, val);
+  }
+
+  // get other important model values
+  for (auto t : extra_model_terms_) {
+    Term val = solver_->get_value(t);
+    cube_lits.push_back(solver_->make_term(Equal, t, val));
+    ds.add(t, val);
   }
 
   Conjunction res(solver_, cube_lits);
@@ -621,6 +641,8 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
         cube_lits.push_back(solver_->make_term(Equal, t, v));
       }
     }
+
+    // TODO: figure out if anything else should be done for UF
 
     // collect input assignments
     const UnorderedTermSet & inputvars = ts_.inputvars();
@@ -637,6 +659,14 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
         Term nv = ts_.next(v);
         next_lits.push_back(solver_->make_term(Equal, nv,
                                                solver_->get_value(nv)));
+      }
+
+      for (auto t : extra_model_terms_) {
+        if (ts_.only_curr(t)) {
+          Term nt = ts_.next(t);
+          next_lits.push_back(
+              solver_->make_term(Equal, nt, solver_->get_value(nt)));
+        }
       }
     }
 
