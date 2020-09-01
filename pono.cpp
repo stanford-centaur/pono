@@ -72,7 +72,20 @@ ProverResult check_prop(PonoOptions pono_options,
   }
   assert(prover);
 
-  ProverResult r = prover->check_until(pono_options.bound_);
+  // TODO: handle this in a more elegant way in the future
+  ProverResult r;
+  if (pono_options.ceg_prophecy_arrays_) {
+    // this algorithm makes more sense with prove than check_until
+    // because otherwise, it will only run the underlying model checker
+    // up to the bound and might stop before proving it
+    // and unnecessarily search for axioms again.
+
+    // all the other algorithms it doesn't matter much
+    r = prover->prove();
+  } else {
+    r = prover->check_until(pono_options.bound_);
+  }
+
   if (r == FALSE && !pono_options.no_witness_) {
     prover->witness(cex);
   }
