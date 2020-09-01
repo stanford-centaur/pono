@@ -76,13 +76,13 @@ class AxiomEnumerator
   /** Returns a sufficient set of violated consecutive axioms to
    *  rule out the abstract trace from the last call to
    *  enumerate_axioms
-   *  @return a vector of axiom instantiations that are consecutive
+   *  @return a set of axiom instantiations that are consecutive
    *  meaning they only involve symbols from neighboring times
    *  and can be added directly to a transition system
    *  the free variables in the axiom instantiations are all
    *  state variables or inputs
    */
-  virtual smt::TermVec & get_consecutive_axioms() = 0;
+  virtual smt::UnorderedTermSet & get_consecutive_axioms() = 0;
 
   /** Returns a sufficient set of violated consecutive axioms to
    *  rule out the abstract trace from the last call to

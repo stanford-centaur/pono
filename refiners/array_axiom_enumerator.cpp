@@ -310,7 +310,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     }
     if (ts_axioms_.find(ax) != ts_axioms_.end()) {
       // this is a consecutive axiom
-      consecutive_axioms_.push_back(ts_axioms_.at(ax));
+      consecutive_axioms_.insert(ts_axioms_.at(ax));
     } else {
       // this is a non-consecutive axiom
       // expect it in the map to AxiomInstantiations

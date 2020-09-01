@@ -95,7 +95,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   void add_index(const smt::Term & idx);
 
-  smt::TermVec & get_consecutive_axioms() override
+  smt::UnorderedTermSet & get_consecutive_axioms() override
   {
     return consecutive_axioms_;
   };
@@ -403,7 +403,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   std::unordered_map<smt::Term, AxiomInstantiation>
       to_axiom_inst_;                ///< maps a (violated) axiom term to its
                                      ///< AxiomInstantiation object
-  smt::TermVec consecutive_axioms_;  ///< populated with consecutive axioms over
+  smt::UnorderedTermSet
+      consecutive_axioms_;           ///< populated with consecutive axioms over
                                      ///< transition system variables
   AxiomVec nonconsecutive_axioms_;   ///< populated with nonconsecutive axiom
                                      ///< instantiations

@@ -173,7 +173,7 @@ bool CegProphecy::refine()
     return false;
   }
 
-  TermVec consecutive_axioms = aae_.get_consecutive_axioms();
+  UnorderedTermSet consecutive_axioms = aae_.get_consecutive_axioms();
   const AxiomVec & nonconsecutive_axioms = aae_.get_nonconsecutive_axioms();
 
   bool found_nonconsecutive_axioms = nonconsecutive_axioms.size();
