@@ -76,7 +76,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
  public:
   ArrayAxiomEnumerator(ArrayAbstractor & aa,
                        Unroller & un,
-                       const smt::Term & bad);
+                       const smt::Term & bad,
+                       bool red_axioms);
 
   typedef AxiomEnumerator super;
 
@@ -366,9 +367,12 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   // for abstracting/concretizing terms
   smt::Term conc_bad_;
   ArrayAbstractor & aa_;
-
   // for generating axioms
   Unroller & un_;
+
+  bool reduce_axioms_unsatcore_;  ///< reduce generated axioms with an unsat
+                                  ///< core if set to true
+
   size_t bound_;  ///< the bound of the current abstract trace
   smt::UnorderedTermMap
       constarrs_;        ///< maps (abstract) constarrs to their constant value

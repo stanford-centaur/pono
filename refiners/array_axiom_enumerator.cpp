@@ -136,8 +136,13 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
 
 ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
                                            Unroller & un,
-                                           const Term & bad)
-    : super(aa.abs_ts()), aa_(aa), un_(un), conc_bad_(bad)
+                                           const Term & bad,
+                                           bool red_axioms)
+    : super(aa.abs_ts()),
+      aa_(aa),
+      un_(un),
+      reduce_axioms_unsatcore_(red_axioms),
+      conc_bad_(bad)
 {
   false_ = solver_->make_term(false);
   collect_arrays_and_indices();
@@ -193,8 +198,6 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   Result res = solver_->check_sat();
   UnorderedTermSet all_violated_axioms;
   TermVec all_label_assumps;
-  // TODO make this an option!
-  bool reduce_axioms_unsatcore = true;
 
   // use only current axioms if the bound is zero
   // e.g. only the initial state
@@ -257,7 +260,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 
     Term lbl;
     for (auto ax : violated_axioms_) {
-      if (reduce_axioms_unsatcore) {
+      if (reduce_axioms_unsatcore_) {
         lbl = label(ax);
         all_label_assumps.push_back(lbl);
         solver_->assert_formula(solver_->make_term(Implies, lbl, ax));
@@ -270,7 +273,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     // reset violated_axioms_ so we don't add the same axioms again
     violated_axioms_.clear();
 
-    if (reduce_axioms_unsatcore) {
+    if (reduce_axioms_unsatcore_) {
       res = solver_->check_sat_assuming(all_label_assumps);
     } else {
       res = solver_->check_sat();
@@ -281,7 +284,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   assert(res.is_unsat());  // ruled out the trace
 
   UnorderedTermSet core_set;
-  if (reduce_axioms_unsatcore) {
+  if (reduce_axioms_unsatcore_) {
     try {
       solver_->get_unsat_core(core_set);
     }
@@ -297,7 +300,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   // OR, maybe let the outside procedure do that
   Term lbl;
   for (auto ax : all_violated_axioms) {
-    if (reduce_axioms_unsatcore) {
+    if (reduce_axioms_unsatcore_) {
       lbl = label(ax);
       if (core_set.find(lbl) == core_set.end()) {
         // if not in unsat core

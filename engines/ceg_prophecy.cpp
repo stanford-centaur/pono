@@ -36,7 +36,7 @@ CegProphecy::CegProphecy(const Property & p, Engine e, smt::SolverEnum se)
       e_(e),
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_),
+      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
       pm_(abs_ts_)
 {
   initialize();
@@ -50,7 +50,7 @@ CegProphecy::CegProphecy(const Property & p, Engine e, const SmtSolver & solver)
       e_(e),
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_),
+      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
       pm_(abs_ts_)
 {
   initialize();
@@ -67,7 +67,7 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
       e_(e),
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_),
+      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
       pm_(abs_ts_)
 {
   initialize();
@@ -84,7 +84,7 @@ CegProphecy::CegProphecy(const PonoOptions & opt,
       abs_unroller_(abs_ts_, solver_),
       e_(e),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_),
+      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
       pm_(abs_ts_)
 {
   initialize();

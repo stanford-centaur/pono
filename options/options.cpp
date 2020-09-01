@@ -37,6 +37,7 @@ enum optionIndex
   VCDNAME,
   NOWITNESS,
   CEGPROPHARR,
+  NO_CEGP_AXIOM_RED,
   RESET,
   RESET_BND,
   CLK
@@ -127,6 +128,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --ceg-prophecy-arrays \tUse counter-example guided prophecy for "
     "arrays." },
+  { NO_CEGP_AXIOM_RED,
+    0,
+    "",
+    "no-cegp-axiom-red",
+    Arg::None,
+    "  --no-cegp-axiom-red \tDon't reduce axioms in CEG-Prophecy with unsat "
+    "cores." },
   { RESET,
     0,
     "r",
@@ -226,6 +234,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
+        case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;

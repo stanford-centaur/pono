@@ -53,7 +53,8 @@ class PonoOptions
         verbosity_(default_verbosity_),
         no_witness_(default_no_witness_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
-        reset_bnd_(default_reset_bnd_)
+        reset_bnd_(default_reset_bnd_),
+        cegp_axiom_red_(default_cegp_axiom_red_)
   {
   }
 
@@ -75,6 +76,7 @@ class PonoOptions
   std::string clock_name_;
   std::string filename_;
   bool ceg_prophecy_arrays_;
+  bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
 
  private:
   // Default options
@@ -85,6 +87,7 @@ class PonoOptions
   static const bool default_no_witness_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
   static const size_t default_reset_bnd_ = 1;
+  static const bool default_cegp_axiom_red_ = true;
 };
 
 }  // namespace pono
