@@ -92,7 +92,7 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   for (auto constr : other_ts.constraints_) {
     constraints_.push_back(transfer_as(constr, BOOL));
   }
-  
+
   functional_ = other_ts.functional_;
 }
 
@@ -132,6 +132,8 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
   state_updates_[state] = val;
   trans_ = solver_->make_term(
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
+
+  functional_ = (state_updates_.size() == statevars_.size());
 }
 
 void TransitionSystem::add_invar(const Term & constraint)
