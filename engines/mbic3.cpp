@@ -576,8 +576,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
                                solver_->make_term(Not, c.term_)});
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
-      Term int_A = to_interpolator_->transfer_term(formula);
-      Term int_B = to_interpolator_->transfer_term(ts_.next(c.term_));
+      Term int_A = to_interpolator_->transfer_term(formula, BOOL);
+      Term int_B = to_interpolator_->transfer_term(ts_.next(c.term_), BOOL);
 
       Term interp;
       Result r = interpolator_->get_interpolant(int_A, int_B, interp);
