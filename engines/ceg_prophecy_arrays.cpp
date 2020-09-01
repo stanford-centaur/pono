@@ -150,6 +150,25 @@ void CegProphecyArrays::initialize()
 {
   super::initialize();
   abstract();
+
+  bool contains_arrays = false;
+  for (auto sv : conc_ts_.statevars()) {
+    if (sv->get_sort()->get_sort_kind() == ARRAY) {
+      contains_arrays = true;
+      break;
+    }
+  }
+
+  for (auto iv : conc_ts_.inputvars()) {
+    if (iv->get_sort()->get_sort_kind() == ARRAY) {
+      contains_arrays = true;
+      break;
+    }
+  }
+
+  if (!contains_arrays) {
+    throw PonoException("Ran CegProphecyArrays on system without arrays.");
+  }
 }
 
 void CegProphecyArrays::abstract()
