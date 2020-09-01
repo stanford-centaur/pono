@@ -79,9 +79,8 @@ void Prover::initialize()
     orig_num_inputvars_ = ts_.inputvars().size();
     orig_num_constraints_ = ts_.constraints().size();
     ts_.rebuild_trans_based_on_coi(statevars_in_coi_);
-    logger.log(1, "COI analysis completed---statistics:");
-    logger.log(1, "  - input variables: {} original: {}", inputvars_in_coi_.size(), orig_num_inputvars_);
-    logger.log(1, "  - state variables: {} original: {}", statevars_in_coi_.size(), orig_num_statevars_);
+    logger.log(1, "COI analysis completed: {} remaining input variables, {} original", inputvars_in_coi_.size(), orig_num_inputvars_);
+    logger.log(1, "COI analysis completed: {} remaining state variables, {} original", statevars_in_coi_.size(), orig_num_statevars_);
     //    logger.log(1, "  - constraints: {} original: {}", ts_.constraints().size(), orig_num_constraints_);
   }
 }
@@ -171,26 +170,26 @@ void Prover::compute_term_coi(const Term & term,
     if (coi_visited_terms_.find(cur) == coi_visited_terms_.end()) {
       /* Cache 'cur' and push its children. */
       coi_visited_terms_.insert(cur);
-      cout << "  visiting COI term: " << cur << "\n";
+      logger.log(3, "  visiting COI term: {}", cur);
       //TODO: check in smt-switch if '->is_symbol' captures statevars properly
       if (cur->is_symbol()) {
-          cout << "    ..is symbol\n";
-          if (ts_.statevars().find(cur) != ts_.statevars().end()) {
-            assert(ts_.inputvars().find(cur) == ts_.inputvars().end());
-            assert(!ts_.is_next_var(cur));
-            cout << "collect COI statevar " << cur << "\n";
-            collect_coi_term(new_coi_state_vars, cur);
-          }
-          else if (ts_.inputvars().find(cur) != ts_.inputvars().end()) {
-            assert(!ts_.is_curr_var(cur));
-            assert(!ts_.is_next_var(cur));
-            cout << "collect COI inputvar " << cur << "\n";
-            collect_coi_term(new_coi_input_vars, cur);
-          }
+        logger.log(3, "    ..is symbol");
+        if (ts_.statevars().find(cur) != ts_.statevars().end()) {
+          assert(ts_.inputvars().find(cur) == ts_.inputvars().end());
+          assert(!ts_.is_next_var(cur));
+          logger.log(3, "collect COI statevar {}", cur);
+          collect_coi_term(new_coi_state_vars, cur);
         }
+        else if (ts_.inputvars().find(cur) != ts_.inputvars().end()) {
+          assert(!ts_.is_curr_var(cur));
+          assert(!ts_.is_next_var(cur));
+          logger.log(3, "collect COI inputvar {}", cur);
+          collect_coi_term(new_coi_input_vars, cur);
+        }
+      }
       
       for (auto child : cur) {
-        //        cout << "    pushing child: " << child << "\n";
+        logger.log(3, "    pushing child: {}", child);
         open_terms.push_back(child);
       }
     }
@@ -199,8 +198,8 @@ void Prover::compute_term_coi(const Term & term,
 
 void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
                                           UnorderedTermSet & new_coi_input_vars)
-{  
-  cout << "COI analysis: next-state functions" << endl;
+{
+  logger.log(1, "  COI analysis: next-state functions");
 
   TermVec unprocessed_state_vars;
   for (auto state_var : statevars_in_coi_)
@@ -238,6 +237,7 @@ void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
   }
 }
 
+#if 0
 /* Returns true iff 'term' appears in the term 'root'. */  
 bool Prover::term_contains(const smt::Term root, const smt::Term term)
 {
@@ -263,60 +263,36 @@ bool Prover::term_contains(const smt::Term root, const smt::Term term)
   
   return false;
 }
+#endif
 
 void Prover::compute_coi_trans_constraints(UnorderedTermSet & new_coi_state_vars,
                                            UnorderedTermSet & new_coi_input_vars)
 {  
-  cout << "COI analysis: trans constraints" << endl;
+  logger.log(1, "COI analysis: trans constraints");
 
-  /* Seed the search from both collected COI state- and input-vars. */  
-  TermVec unprocessed_vars;
-  for (auto var : statevars_in_coi_)
-    unprocessed_vars.push_back(var);
-  for (auto var : inputvars_in_coi_)
-    unprocessed_vars.push_back(var);
-  
-  while (!unprocessed_vars.empty()) {
-    Term var = unprocessed_vars.back();
-    unprocessed_vars.pop_back();
-    assert(var->is_symbol());
+  assert(new_coi_state_vars.empty());
+  assert(new_coi_input_vars.empty());
 
-    cout << "  trans constraints--var:" << var << endl;
-    
-    assert(new_coi_state_vars.empty());
-    assert(new_coi_input_vars.empty());
-
-    /* For each state/input variable 'var', consider all constraints
-       in the set 'ts_.constraints()'. If 'var' appears in a constraint
-       'constr', then apply COI analysis to 'constr' and collect all
-       state/input variables that appear in 'constr'. */
-    for (auto constr : ts_.constraints()) {
-      cout << "  trans constraints--constr:" << constr << endl;
-      if (term_contains(constr, var)) {
-        cout << "  trans constraints--constr " << constr << "contains var" << var << endl;
-        compute_term_coi(constr, new_coi_state_vars, new_coi_input_vars);
-      }
-    }
-
-    /* Finally, add newly collected variables to global collections
-       and to vector of unprocessed variables. */
-    for (auto sv : new_coi_state_vars) {
-      if (statevars_in_coi_.find(sv) == statevars_in_coi_.end()) {
-        statevars_in_coi_.insert(sv);
-        unprocessed_vars.push_back(sv);
-      }
-    }
-    for (auto sv : new_coi_input_vars) {
-      if (inputvars_in_coi_.find(sv) == inputvars_in_coi_.end()) {
-        inputvars_in_coi_.insert(sv);
-        unprocessed_vars.push_back(sv);
-      }
-    }
-         
-    new_coi_state_vars.clear();
-    new_coi_input_vars.clear();  
+  /* For each state/input variable 'var', consider all constraints
+     in the set 'ts_.constraints()' and collect state/input
+     variables that appear in 'constr' and that are not yet
+     collected. */
+  for (auto constr : ts_.constraints()) {
+    logger.log(3, "  trans constraints--constr: {}", constr);
+    compute_term_coi(constr, new_coi_state_vars, new_coi_input_vars);
   }
+
+  /* Finally, add newly collected variables to global collections. */
+  for (auto sv : new_coi_state_vars) 
+    if (statevars_in_coi_.find(sv) == statevars_in_coi_.end())
+      statevars_in_coi_.insert(sv);
   
+  for (auto sv : new_coi_input_vars)
+    if (inputvars_in_coi_.find(sv) == inputvars_in_coi_.end())
+      inputvars_in_coi_.insert(sv);
+  
+  new_coi_state_vars.clear();
+  new_coi_input_vars.clear();    
 }
   
 void Prover::compute_coi()
@@ -340,6 +316,7 @@ void Prover::compute_coi()
   assert (statevars_in_coi_.empty());
   assert (inputvars_in_coi_.empty());
 
+  /* Add state/input variables in bad-state term to global collections. */
   for (auto sv : new_coi_state_vars)
     statevars_in_coi_.insert(sv);
   for (auto sv : new_coi_input_vars)
@@ -348,21 +325,24 @@ void Prover::compute_coi()
   new_coi_state_vars.clear();
   new_coi_input_vars.clear();  
 
+  logger.log(1, "COI analysis: constraints");
+  compute_coi_trans_constraints(new_coi_state_vars, new_coi_input_vars);
+
   /* The following approach of iterating over the collected
-     state/input variables is not optimal. The loop breaks when no new
-     state/input variables were found. At least, we make sure that
-     every term is visited at most once during the whole COI
+     state/input variables likely is not optimal. The loop breaks when
+     no new state/input variables were found. At least, we make sure
+     that every term is visited at most once during the whole COI
      analysis. */
   unsigned int num_statevars;
   unsigned int num_inputvars;
-  do { 
+  unsigned int iterations = 0;
+  do {
+    iterations++;
     num_statevars = statevars_in_coi_.size();
     num_inputvars = inputvars_in_coi_.size();
 
-    logger.log(1, "COI analysis: next-state functions");
+    logger.log(1, "COI analysis: next-state functions, iteration {}", iterations);
     compute_coi_next_state_funcs(new_coi_state_vars, new_coi_input_vars);
-    logger.log(1, "COI analysis: constraints");
-    compute_coi_trans_constraints(new_coi_state_vars, new_coi_input_vars);
 
   } while (statevars_in_coi_.size() != num_statevars ||
            inputvars_in_coi_.size() != num_inputvars);
