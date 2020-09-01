@@ -631,33 +631,26 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     }
     // collect next statevars assignments
     TermVec next_lits;
-    const UnorderedTermMap & state_updates = ts_.state_updates();
-    for (auto v : statevars) {
-      // if not functional always need to include next state
-      // however, even when functional need to assign next state for states
-      // with no update function
-      // TODO: consider turning these states to inputs within the transition
-      // system
-      if (!ts_.is_functional()
-          || state_updates.find(v) == state_updates.end()) {
+    if (!ts_.is_functional()) {
+      next_lits.reserve(statevars.size());
+      for (auto v : statevars) {
         Term nv = ts_.next(v);
-        next_lits.push_back(
-            solver_->make_term(Equal, nv, solver_->get_value(nv)));
+        next_lits.push_back(solver_->make_term(Equal, nv,
+                                               solver_->get_value(nv)));
       }
     }
 
     solver_->pop();
 
     Term formula = make_and(input_lits);
-    if (next_lits.size()) {
-      formula = solver_->make_term(And, formula, make_and(next_lits));
-    }
 
     if (ts_.is_functional()) {
       formula = solver_->make_term(And, formula, ts_.trans());
       formula = solver_->make_term(And, formula,
                                    solver_->make_term(Not, ts_.next(c.term_)));
     } else {
+      formula = solver_->make_term(And, formula, make_and(next_lits));
+
       // preimage formula
       Term pre_formula = get_frame(i - 1);
       pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
