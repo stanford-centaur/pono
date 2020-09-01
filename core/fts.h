@@ -26,11 +26,11 @@ namespace pono {
 class FunctionalTransitionSystem : public TransitionSystem
 {
  public:
-  FunctionalTransitionSystem() : TransitionSystem() { functional_ = false; }
+  FunctionalTransitionSystem() : TransitionSystem() { functional_ = true; }
 
   FunctionalTransitionSystem(smt::SmtSolver & s) : TransitionSystem(s)
   {
-    functional_ = false;
+    functional_ = true;
   }
 
   FunctionalTransitionSystem(const TransitionSystem & other_ts,

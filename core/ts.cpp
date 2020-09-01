@@ -197,6 +197,9 @@ Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 
 Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
+  // set to false until there is a next state update for this statevar
+  functional_ = false;
+
   Term state = solver_->make_symbol(name, sort);
   Term next_state = solver_->make_symbol(name + ".next", sort);
   statevars_.insert(state);
