@@ -245,6 +245,10 @@ bool CegProphecy::refine()
     assert(!aae_.get_nonconsecutive_axioms().size());
   }
 
+  if (options_.cegp_axiom_red_ && consecutive_axioms.size()) {
+    reduce_consecutive_axioms(abs_bmc_formula, consecutive_axioms);
+  }
+
   // add consecutive axioms to the system
   // TODO: make sure we're adding current / next correctly
   for (auto ax : consecutive_axioms) {
@@ -278,6 +282,77 @@ Term CegProphecy::get_bmc_formula(size_t b)
   }
   return solver_->make_term(
       And, abs_bmc_formula, abs_unroller_.at_time(bad_, b));
+}
+
+void CegProphecy::reduce_consecutive_axioms(const Term & abs_bmc_formula,
+                                            UnorderedTermSet & consec_ax)
+{
+  UnorderedTermSet reduced_ax;
+  solver_->push();
+
+  solver_->assert_formula(abs_bmc_formula);
+
+  TermVec assumps;
+  UnorderedTermMap label2ax;
+  Term unrolled_ax;
+  Term lbl;
+  for (auto ax : consec_ax) {
+    unrolled_ax = solver_->make_term(true);
+    size_t max_k = abs_ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
+    for (size_t k = 0; k <= max_k; ++k) {
+      unrolled_ax =
+          solver_->make_term(And, unrolled_ax, abs_unroller_.at_time(ax, k));
+    }
+
+    lbl = label(unrolled_ax);
+    label2ax[lbl] = ax;
+    solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled_ax));
+    assumps.push_back(lbl);
+  }
+
+  Result res = solver_->check_sat_assuming(assumps);
+  assert(res.is_unsat());
+
+  UnorderedTermSet core;
+  solver_->get_unsat_core(core);
+
+  for (auto l : assumps) {
+    if (core.find(l) == core.end()) {
+      // if not in core, then remove from axioms
+      size_t num_erased = consec_ax.erase(label2ax.at(l));
+      assert(num_erased);  // expecting axiom to be in set
+    }
+  }
+
+  solver_->pop();
+}
+
+Term CegProphecy::label(const Term & t)
+{
+  auto it = labels_.find(t);
+  if (it != labels_.end()) {
+    return labels_.at(t);
+  }
+
+  unsigned i = 0;
+  Term l;
+  while (true) {
+    try {
+      l = solver_->make_symbol(
+          "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
+          solver_->make_sort(BOOL));
+      break;
+    }
+    catch (IncorrectUsageException & e) {
+      ++i;
+    }
+    catch (SmtException & e) {
+      throw e;
+    }
+  }
+
+  labels_[t] = l;
+  return l;
 }
 
 }  // namespace pono

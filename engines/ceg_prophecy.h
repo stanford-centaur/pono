@@ -68,11 +68,39 @@ class CegProphecy : public CEGAR
   size_t num_added_axioms_ =
       0;  ///< set by refine to the number of added axioms
 
+  smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
+
   void abstract() override;
   bool refine() override;
 
   // helpers
   smt::Term get_bmc_formula(size_t b);
+
+  /** Unsat core based axiom reduction
+   *  @param abs_bmc_formula the trace formula
+   *  @param consec_ax consecutive axioms over transition system variables
+   *         axioms are dropped from this set if they are not needed
+   */
+  void reduce_consecutive_axioms(const smt::Term & abs_bmc_formula,
+                                 smt::UnorderedTermSet & consec_ax);
+
+  /** Unsat core based axiom reduction
+   *  @param abs_bmc_formula the trace formula
+   *         Note: consecutive axioms need to be added to the trace
+   *               formula outside of this function
+   *  @param nonconsec_ax nonconsecutive axioms over unrolled variables
+   *  @return a subset of the nonconsecutive axioms that are sufficient
+   *    to rule out the trace formula
+   */
+  AxiomVec reduce_nonconsecutive_axioms(const smt::Term & abs_bmc_formula,
+                                        const AxiomVec & nonconsec_ax);
+
+  /** Lookup or create a label for t
+   *  Uses and modifies labels_
+   *  @param t a boolean term to create a label for
+   *  @return the label
+   */
+  smt::Term label(const smt::Term & t);
 };
 
 }  // namespace pono
