@@ -703,12 +703,18 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
         assert(!ts_.is_deterministic());
         // substitute the values of next state variables
         u_subs = solver_->substitute(u_subs, next_assignments);
-        assert(ts_.only_curr(u_subs));
+        // TODO: add these asserts back in
+        // currently no way to distinguish model values of uninterpreted sorts
+        // from symbols in mathsat so this assert can fail spuriously
+        // assert(ts_.only_curr(u_subs));
         eq = solver_->make_term(Equal, u_subs, val);
       }
 
       assert(eq);
-      assert(ts_.only_curr(eq));
+      // TODO: add these asserts back in
+      // currently no way to distinguish model values of uninterpreted sorts
+      // from symbols in mathsat so this assert can fail spuriously
+      // assert(ts_.only_curr(eq));
       cube_lits.push_back(eq);
     }
 
