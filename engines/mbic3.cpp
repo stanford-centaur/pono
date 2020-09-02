@@ -204,6 +204,15 @@ ProverResult ModelBasedIC3::step(int i)
   push_frame();
   for (size_t j = 1; j < frames_.size() - 1; ++j) {
     if (propagate(j)) {
+      assert(j + 1 < frames_.size());
+      std::cout << "INVAR" << std::endl;
+      TermVec conjuncts;
+      conjunctive_partition(get_frame(j+1), conjuncts);
+      for (auto c : conjuncts)
+      {
+        std::cout << "\t" << c << std::endl;
+      }
+
       return ProverResult::TRUE;
     }
   }
@@ -718,12 +727,12 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
         assert(!ts_.is_deterministic());
         // substitute the values of next state variables
         u_subs = solver_->substitute(u_subs, next_assignments);
-        assert(ts_.only_curr(u_subs));
+        // assert(ts_.only_curr(u_subs));
         eq = solver_->make_term(Equal, u_subs, val);
       }
 
       assert(eq);
-      assert(ts_.only_curr(eq));
+      // assert(ts_.only_curr(eq));
       cube_lits.push_back(eq);
     }
 
