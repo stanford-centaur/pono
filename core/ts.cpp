@@ -125,7 +125,8 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
 
   if (!no_next(val)) {
     throw PonoException(
-        "Got next state variable in RHS of functional assignment");
+        "Got a symbolic that is not a current state or input variable in RHS "
+        "of functional assignment");
   }
 
   if (state_updates_.find(state) != state_updates_.end()) {
@@ -193,9 +194,7 @@ void TransitionSystem::name_term(const string name, const Term & t)
 Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
-  inputvars_.insert(input);
-  // automatically include in named_terms
-  named_terms_[name] = input;
+  add_inputvar(input);
   return input;
 }
 
@@ -205,15 +204,8 @@ Term TransitionSystem::make_statevar(const string name, const Sort & sort)
   functional_ = false;
 
   Term state = solver_->make_symbol(name, sort);
-  string next_name = name + ".next";
-  Term next_state = solver_->make_symbol(next_name, sort);
-  statevars_.insert(state);
-  next_statevars_.insert(next_state);
-  next_map_[state] = next_state;
-  curr_map_[next_state] = state;
-  // automatically include in named_terms
-  named_terms_[name] = state;
-  named_terms_[next_name] = next_state;
+  Term next_state = solver_->make_symbol(name + ".next", sort);
+  add_statevar(state, next_state);
   return state;
 }
 
@@ -334,6 +326,24 @@ Term TransitionSystem::make_term(const Op op, const TermVec & terms)
 }
 
 // protected methods
+
+void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
+{
+  statevars_.insert(cv);
+  next_statevars_.insert(nv);
+  next_map_[cv] = nv;
+  curr_map_[nv] = cv;
+  // automatically include in named_terms
+  named_terms_[cv->to_string()] = cv;
+  named_terms_[nv->to_string()] = nv;
+}
+
+void TransitionSystem::add_inputvar(const Term & v)
+{
+  inputvars_.insert(v);
+  // automatically include in named_terms
+  named_terms_[v->to_string()] = v;
+}
 
 bool TransitionSystem::contains(const Term & term,
                                 UnorderedTermSetPtrVec term_sets) const

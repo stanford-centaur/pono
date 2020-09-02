@@ -341,6 +341,9 @@ cdef class Unroller:
         term.ct = dref(self.cu).untime(t.ct)
         return term
 
+    def get_var_time(self, Term v):
+        return dref(self.cu).get_var_time(v.ct)
+
 
 cdef class __AbstractProver:
     cdef c_Prover* cp

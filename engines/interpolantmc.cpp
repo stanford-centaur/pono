@@ -20,6 +20,7 @@
 #include "interpolantmc.h"
 
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 
@@ -89,6 +90,17 @@ void InterpolantMC::initialize()
   for (auto i : ts_.inputvars()) {
     tmp1 = unroller_.at_time(i, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
+  }
+
+  // need to copy over UF as well
+  UnorderedTermSet free_symbols;
+  get_free_symbols(bad_, free_symbols);
+  get_free_symbols(ts_.init(), free_symbols);
+  get_free_symbols(ts_.trans(), free_symbols);
+  for (auto s : free_symbols) {
+    if (s->get_sort()->get_sort_kind() == FUNCTION) {
+      cache[to_interpolator_.transfer_term(s)] = s;
+    }
   }
 
   concrete_cex_ = false;

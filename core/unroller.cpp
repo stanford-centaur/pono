@@ -14,11 +14,15 @@
  **
  **/
 
+#include <assert.h>
+#include <algorithm>
+
+#include "smt-switch/utils.h"
+
 #include "unroller.h"
 
-#include <assert.h>
-
 using namespace smt;
+using namespace std;
 
 namespace pono {
 
@@ -47,6 +51,34 @@ Term Unroller::untime(const Term & t) const
   return solver_->substitute(t, untime_cache_);
 }
 
+size_t Unroller::get_var_time(const Term & v) const
+{
+  auto it = var_times_.find(v);
+  if (it == var_times_.end()) {
+    throw PonoException("Cannot get time of " + v->to_string());
+  } else {
+    return (*it).second;
+  }
+}
+
+size_t Unroller::get_curr_time(const smt::Term & t) const
+{
+  TermVec free_vars;
+  get_free_symbolic_consts(t, free_vars);
+  unordered_set<size_t> times;
+  for (auto fv : free_vars) {
+    assert(fv->is_symbolic_const());
+    times.insert(get_var_time(fv));
+  }
+  size_t max = *std::max_element(times.begin(), times.end());
+  size_t min = *std::min_element(times.begin(), times.end());
+  if (max - min > 1) {
+    throw PonoException("Cannot get current time of non-unrolled term.");
+  }
+
+  return min;
+}
+
 Term Unroller::var_at_time(const Term & v, unsigned int k)
 {
   assert(v->is_symbolic_const());
@@ -66,6 +98,7 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
   Term timed_v = solver_->make_symbol(name, v->get_sort());
   cache[v] = timed_v;
   untime_cache_[timed_v] = v;
+  var_times_[timed_v] = k;
 
   return timed_v;
 }

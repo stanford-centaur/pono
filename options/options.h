@@ -61,7 +61,9 @@ class PonoOptions
         ic3_indgen_(default_ic3_indgen_),
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
         ic3_indgen_mode_(default_ic3_indgen_mode_),
-        ic3_functional_preimage_(default_ic3_functional_preimage_)
+        ic3_functional_preimage_(default_ic3_functional_preimage_),
+        ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
+        cegp_axiom_red_(default_cegp_axiom_red_)
   {
   }
 
@@ -84,7 +86,6 @@ class PonoOptions
   std::string clock_name_;
   std::string filename_;
   std::string smt_solver_; ///< underlying smt solver
-
   // ic3 options
   bool ic3_cexgen_;  ///< generalize counterexamples in IC3
   bool ic3_indgen_;  ///< inductive generalization in IC3
@@ -92,8 +93,11 @@ class PonoOptions
                                   ///means unbounded
   unsigned int ic3_indgen_mode_; ///< inductive generalization mode [0,2]
   bool ic3_functional_preimage_; ///< functional preimage in IC3
+  // ceg-prophecy-arrays options
+  bool ceg_prophecy_arrays_;
+  bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
 
-private:
+ private:
   // Default options
   static const Engine default_engine_ = BMC;
   static const unsigned int default_prop_idx_ = 0;
@@ -101,6 +105,7 @@ private:
   static const unsigned int default_verbosity_ = 0;
   static const unsigned int default_random_seed = 0;
   static const bool default_no_witness_ = false;
+  static const bool default_ceg_prophecy_arrays_ = false;
   static const size_t default_reset_bnd_ = 1;
   static const std::string default_smt_solver_;
   static const bool default_ic3_cexgen_ = true;
@@ -108,6 +113,7 @@ private:
   static const unsigned int default_ic3_gen_max_iter_ = 2;
   static const unsigned int default_ic3_indgen_mode_ = 0;
   static const bool default_ic3_functional_preimage_ = false;
+  static const bool default_cegp_axiom_red_ = true;
 };
 
 }  // namespace pono

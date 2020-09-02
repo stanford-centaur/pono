@@ -37,6 +37,8 @@ enum optionIndex
   RANDOM_SEED,
   VCDNAME,
   NOWITNESS,
+  CEGPROPHARR,
+  NO_CEGP_AXIOM_RED,
   RESET,
   RESET_BND,
   CLK,
@@ -138,6 +140,20 @@ const option::Descriptor usage[] = {
     "no-witness",
     Arg::None,
     "  --no-witness \tDisable printing of witness." },
+  { CEGPROPHARR,
+    0,
+    "",
+    "ceg-prophecy-arrays",
+    Arg::None,
+    "  --ceg-prophecy-arrays \tUse counter-example guided prophecy for "
+    "arrays." },
+  { NO_CEGP_AXIOM_RED,
+    0,
+    "",
+    "no-cegp-axiom-red",
+    Arg::None,
+    "  --no-cegp-axiom-red \tDon't reduce axioms in CEG-Prophecy with unsat "
+    "cores." },
   { RESET,
     0,
     "r",
@@ -186,7 +202,7 @@ const option::Descriptor usage[] = {
     "",
     "ic3-indgen-mode",
     Arg::Numeric,
-    "  --ic3-indgen-mode \tIC3 inductive generalization mode [0,2]."},
+    "  --ic3-indgen-mode \tIC3 inductive generalization mode [0,2]." },
   { IC3_FUNCTIONAL_PREIMAGE,
     0,
     "",
@@ -278,6 +294,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
+        case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
+        case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
