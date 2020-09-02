@@ -220,7 +220,7 @@ void Prover::compute_coi_next_state_funcs()
     Term state_var = unprocessed_state_vars.back();
     unprocessed_state_vars.pop_back();
     assert(ts_.is_curr_var(state_var));
-    const smt::UnorderedTermMap state_updates = ts_.state_updates();
+    const smt::UnorderedTermMap & state_updates = ts_.state_updates();
     Term next_func = NULL;
     /* May find state variables without next-function. */
     auto elem = ts_.state_updates().find(state_var);
