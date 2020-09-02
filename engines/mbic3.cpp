@@ -696,11 +696,17 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     UnorderedTermSet uf_apps;
     toc.find_matching_terms(formula, { Apply }, uf_apps);
 
+    // map from next state var to the update function
+    UnorderedTermMap next_state_updates;
+    for (auto elem : ts_.state_updates()) {
+      next_state_updates[ts_.next(elem.first)] = elem.second;
+    }
+
     for (auto u : uf_apps) {
       Term val = solver_->get_value(u);
       // get rid of next state variables with functional substitution
       // if possible
-      Term u_subs = solver_->substitute(u, ts_.state_updates());
+      Term u_subs = solver_->substitute(u, next_state_updates);
       // get rid of input variables
       u_subs = solver_->substitute(u_subs, input_assignments);
       Term eq;
