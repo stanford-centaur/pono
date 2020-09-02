@@ -151,18 +151,6 @@ void ModelBasedIC3::initialize()
     }
   }
 
-  // find UF applications and keep them so they can be
-  // included in models
-  TermOpCollector toc(solver_);
-  UnorderedTermSet uf_apps;
-  toc.find_matching_terms(ts_.init(), { Apply }, uf_apps);
-  toc.find_matching_terms(ts_.trans(), { Apply }, uf_apps);
-  toc.find_matching_terms(bad_, { Apply }, uf_apps);
-  extra_model_terms_.clear();
-  extra_model_terms_.reserve(uf_apps.size());
-  extra_model_terms_.insert(
-      extra_model_terms_.begin(), uf_apps.begin(), uf_apps.end());
-
   // save the uninterpreted functions themselves
   UnorderedTermSet free_symbols;
   get_free_symbols(bad_, free_symbols);
@@ -620,7 +608,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec cube_lits;
   DisjointSet ds;
-  cube_lits.reserve(statevars.size() + extra_model_terms_.size());
+  cube_lits.reserve(statevars.size());
   for (auto v : statevars) {
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
@@ -638,15 +626,15 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     input_lits.push_back(solver_->make_term(Equal, v, val));
   }
 
-  // get other important model values
-  for (auto t : extra_model_terms_) {
-    Term val = solver_->get_value(t);
-    Term t_subs = solver_->substitute(t, input_assignments);
-    if (ts_.only_curr(t_subs)) {
-      cube_lits.push_back(solver_->make_term(Equal, t_subs, val));
-      ds.add(t, val);
-    }
-  }
+  // // get other important model values
+  // for (auto t : extra_model_terms_) {
+  //   Term val = solver_->get_value(t);
+  //   Term t_subs = solver_->substitute(t, input_assignments);
+  //   if (ts_.only_curr(t_subs)) {
+  //     cube_lits.push_back(solver_->make_term(Equal, t_subs, val));
+  //     ds.add(t, val);
+  //   }
+  // }
 
   Conjunction res(solver_, cube_lits);
 
@@ -663,27 +651,18 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
     // collect next statevars assignments
     TermVec next_lits;
+    UnorderedTermMap next_assignments;
     if (!ts_.is_deterministic()) {
       next_lits.reserve(statevars.size());
       for (auto v : statevars) {
         Term nv = ts_.next(v);
+        Term val = solver_->get_value(nv);
+        next_assignments[nv] = val;
         next_lits.push_back(solver_->make_term(Equal, nv,
                                                solver_->get_value(nv)));
       }
-
-      for (auto t : extra_model_terms_) {
-        if (ts_.only_curr(t)) {
-          Term nt = ts_.next(t);
-          next_lits.push_back(
-              solver_->make_term(Equal, nt, solver_->get_value(nt)));
-        } else {
-          next_lits.push_back(solver_->make_term(Equal, t,
-                                                 solver_->get_value(t)));
-        }
-      }
     }
 
-    solver_->pop();
 
     Term formula = make_and(input_lits);
 
@@ -704,6 +683,45 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       formula = solver_->make_term(And, formula,
                                    solver_->make_term(Not, pre_formula));
     }
+
+    // TODO get all uf applications from relevant formulas
+    //      make sure there are no next variables or input vars
+    // TODO add to cube_lits
+    // TODO add cube_lits for uf apps over substituted next vars
+    //          for non-deterministic systems
+
+    // find UF applications and keep them so they can be
+    // included in models
+    TermOpCollector toc(solver_);
+    UnorderedTermSet uf_apps;
+    toc.find_matching_terms(formula, { Apply }, uf_apps);
+
+    for (auto u : uf_apps) {
+      Term val = solver_->get_value(u);
+      // get rid of next state variables with functional substitution
+      // if possible
+      Term u_subs = solver_->substitute(u, ts_.state_updates());
+      // get rid of input variables
+      u_subs = solver_->substitute(u_subs, input_assignments);
+      Term eq;
+      if (ts_.only_curr(u_subs)) {
+        eq = solver_->make_term(Equal, u_subs, val);
+      } else {
+        // not all next state variables were replaced
+        // must be a non-deterministic system
+        assert(!ts_.is_deterministic());
+        // substitute the values of next state variables
+        u_subs = solver_->substitute(u_subs, next_assignments);
+        assert(ts_.only_curr(u_subs));
+        eq = solver_->make_term(Equal, u_subs, val);
+      }
+
+      assert(eq);
+      assert(ts_.only_curr(eq));
+      cube_lits.push_back(eq);
+    }
+
+    solver_->pop();
 
     TermVec splits, red_cube_lits;
     split_eq(solver_, cube_lits, splits);
