@@ -43,13 +43,13 @@ using ProofGoal = std::pair<Conjunction, size_t>;
 class ModelBasedIC3 : public Prover
 {
  public:
-  ModelBasedIC3(const Property & p, smt::SolverEnum se);
-  ModelBasedIC3(const Property & p, const smt::SmtSolver & slv);
+  ModelBasedIC3(Property & p, smt::SolverEnum se);
+  ModelBasedIC3(Property & p, const smt::SmtSolver & slv);
   ModelBasedIC3(const PonoOptions & opt,
-                const Property & p,
+                Property & p,
                 smt::SolverEnum se);
   ModelBasedIC3(const PonoOptions & opt,
-                const Property & p,
+                Property & p,
                 const smt::SmtSolver & slv);
   virtual ~ModelBasedIC3();
 

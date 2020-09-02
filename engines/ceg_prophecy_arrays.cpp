@@ -29,7 +29,7 @@ using namespace std;
 
 namespace pono {
 
-CegProphecyArrays::CegProphecyArrays(const Property & p,
+CegProphecyArrays::CegProphecyArrays(Property & p,
                                      Engine e,
                                      smt::SolverEnum se)
     : super(p, se),
@@ -45,7 +45,7 @@ CegProphecyArrays::CegProphecyArrays(const Property & p,
   initialize();
 }
 
-CegProphecyArrays::CegProphecyArrays(const Property & p,
+CegProphecyArrays::CegProphecyArrays(Property & p,
                                      Engine e,
                                      const SmtSolver & solver)
     : super(p, solver),
@@ -62,7 +62,7 @@ CegProphecyArrays::CegProphecyArrays(const Property & p,
 }
 
 CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
-                                     const Property & p,
+                                     Property & p,
                                      Engine e,
                                      smt::SolverEnum se)
     : super(opt, p, se),
@@ -79,7 +79,7 @@ CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
 }
 
 CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
-                                     const Property & p,
+                                     Property & p,
                                      Engine e,
                                      const smt::SmtSolver & solver)
     : super(opt, p, solver),

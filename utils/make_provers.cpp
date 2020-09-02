@@ -30,7 +30,7 @@ namespace pono {
 vector<Engine> all_engines() { return { BMC, BMC_SP, KIND, INTERP, MBIC3 }; }
 
 shared_ptr<Prover> make_prover(Engine e,
-                               const Property & p,
+                               Property & p,
                                SolverEnum se,
                                PonoOptions opts)
 {
@@ -50,7 +50,7 @@ shared_ptr<Prover> make_prover(Engine e,
 }
 
 shared_ptr<Prover> make_prover(Engine e,
-                               const Property & p,
+                               Property & p,
                                SmtSolver & slv,
                                PonoOptions opts)
 {
@@ -71,7 +71,7 @@ shared_ptr<Prover> make_prover(Engine e,
 }
 
 shared_ptr<Prover> make_prover(Engine e,
-                               const Property & p,
+                               Property & p,
                                SmtSolver & slv,
                                SmtSolver & itp,
                                PonoOptions opts)

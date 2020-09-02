@@ -1,0 +1,29 @@
+; NOTE: BMC-simple-path can prove the system safe;
+; NOTE: cone-of-influence analysis must take the global constraint into
+;       account, otherwise the system is underconstrained!
+1 sort bitvec 2
+2 zero 1
+; counter related to bad-state property
+3 state 1 count0
+4 init 1 3 2
+5 one 1
+6 add 1 3 5
+7 next 1 3 6
+8 ones 1
+9 sort bitvec 1
+10 eq 9 3 8
+; bad-state: count0 reaches maximum value
+11 bad 10
+; another counter unrelated to bad-state property
+12 state 1 count1
+13 init 1 12 2
+14 add 1 12 5
+15 next 1 12 14
+; add a global constraint: count1 never reaches its maximum value;
+; -> this constraint makes sure that the bad-state property related to
+;    count0 is unreachable. IMPORTANT: note that this global
+;    constraint is syntactically independent from the bad-state
+;    property. Hence it is IMPORTANT that cone-of-influence analysis
+;    takes that constraint and all its state-variables into account!
+16 neq 9 12 8
+17 constraint 16

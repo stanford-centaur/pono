@@ -39,6 +39,7 @@ enum optionIndex
   NOWITNESS,
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
+  STATICCOI,
   RESET,
   RESET_BND,
   CLK,
@@ -154,6 +155,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --no-cegp-axiom-red \tDon't reduce axioms in CEG-Prophecy with unsat "
     "cores." },
+  { STATICCOI,
+    0,
+    "",
+    "static-coi",
+    Arg::None,
+    "  --static-coi \tApply static (i.e., one-time before solving) cone-of-influence analysis." },
   { RESET,
     0,
     "r",
@@ -296,6 +303,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
+        case STATICCOI: static_coi_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;

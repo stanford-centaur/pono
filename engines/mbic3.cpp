@@ -91,7 +91,7 @@ Conjunction::Conjunction(const smt::SmtSolver & solver,
 
 // main implementations
 
-ModelBasedIC3::ModelBasedIC3(const Property & p, SolverEnum se)
+ModelBasedIC3::ModelBasedIC3(Property & p, SolverEnum se)
     : super(p, se),
       true_(solver_->make_term(true)),
       false_(solver_->make_term(false))
@@ -101,7 +101,7 @@ ModelBasedIC3::ModelBasedIC3(const Property & p, SolverEnum se)
   initialize();
 }
 
-ModelBasedIC3::ModelBasedIC3(const Property & p, const SmtSolver & slv)
+ModelBasedIC3::ModelBasedIC3(Property & p, const SmtSolver & slv)
     : super(p, slv),
       true_(solver_->make_term(true)),
       false_(solver_->make_term(false))
@@ -110,7 +110,7 @@ ModelBasedIC3::ModelBasedIC3(const Property & p, const SmtSolver & slv)
 }
 
 ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
-                             const Property & p,
+                             Property & p,
                              const SolverEnum se)
     : super(opt, p, se),
       true_(solver_->make_term(true)),
@@ -122,7 +122,7 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
 }
 
 ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
-                             const Property & p,
+                             Property & p,
                              const SmtSolver & slv)
     : super(opt, p, slv),
       true_(solver_->make_term(true)),
