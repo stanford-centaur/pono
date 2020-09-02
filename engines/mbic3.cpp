@@ -206,12 +206,47 @@ ProverResult ModelBasedIC3::step(int i)
     if (propagate(j)) {
       assert(j + 1 < frames_.size());
       std::cout << "INVAR" << std::endl;
+      Term invar = get_frame(j + 1);
       TermVec conjuncts;
-      conjunctive_partition(get_frame(j+1), conjuncts);
+      conjunctive_partition(invar, conjuncts);
       for (auto c : conjuncts)
       {
         std::cout << "\t" << c << std::endl;
       }
+
+      std::cout << "Checking invariant" << std::endl;
+      // not every solver supports reset_assertions
+      // solver_->reset_assertions();
+      Result r = solver_->check_sat();
+      assert(r.is_sat());
+
+      solver_->push();
+      solver_->assert_formula(ts_.init());
+      solver_->assert_formula(solver_->make_term(Not, invar));
+      r = solver_->check_sat();
+      std::cout << "init |= invar..." << (r.is_unsat() ? "OK" : "FAIL")
+                << std::endl;
+      solver_->pop();
+
+      solver_->push();
+      solver_->assert_formula(invar);
+      solver_->assert_formula(ts_.trans());
+      solver_->assert_formula(solver_->make_term(Not, ts_.next(invar)));
+      r = solver_->check_sat();
+      std::cout << "trans & invar |= invar'..."
+                << (r.is_unsat() ? "OK" : "FAIL") << std::endl;
+      solver_->pop();
+
+      solver_->push();
+      solver_->assert_formula(bad_);
+      solver_->assert_formula(invar);
+      r = solver_->check_sat();
+      std::cout << "invar |= prop..." << (r.is_unsat() ? "OK" : "FAIL")
+                << std::endl;
+      solver_->pop();
+
+      std::cout << "only current vars..."
+                << (ts_.only_curr(invar) ? "OK" : "FAIL") << std::endl;
 
       return ProverResult::TRUE;
     }
