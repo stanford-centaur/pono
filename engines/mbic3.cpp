@@ -40,14 +40,17 @@ static void split_eq(SmtSolver & solver, const TermVec & in, TermVec & out)
       }
 
       Sort s = args[0]->get_sort();
-      if (s->get_sort_kind() == SortKind::BOOL) {
+      SortKind sk = s->get_sort_kind();
+      if (sk == SortKind::BOOL) {
         out.push_back(a);  // assert(false);
-      } else if (s->get_sort_kind() == SortKind::BV) {
+      } else if (sk == SortKind::BV) {
         out.push_back(solver->make_term(BVUle, args[0], args[1]));
         out.push_back(solver->make_term(BVUle, args[1], args[0]));
-      } else {
+      } else if (sk == SortKind::INT || sk == SortKind::REAL) {
         out.push_back(solver->make_term(Le, args[0], args[1]));
         out.push_back(solver->make_term(Le, args[1], args[0]));
+      } else {
+        out.push_back(a);
       }
     } else {
       out.push_back(a);
