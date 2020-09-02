@@ -84,7 +84,7 @@ class TransitionSystem
    * assignment)
    *  3) state has already been assigned a next state update
    */
-  void assign_next(const smt::Term & state, const smt::Term & val);
+  virtual void assign_next(const smt::Term & state, const smt::Term & val);
 
   /* Add an invariant constraint to the system
    * This is enforced over all time
