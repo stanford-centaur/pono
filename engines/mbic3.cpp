@@ -675,7 +675,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
     // collect next statevars assignments
     TermVec next_lits;
-    if (!ts_.is_functional()) {
+    if (!ts_.is_deterministic()) {
       next_lits.reserve(statevars.size());
       for (auto v : statevars) {
         Term nv = ts_.next(v);
@@ -698,7 +698,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
     Term formula = make_and(input_lits);
 
-    if (ts_.is_functional()) {
+    if (ts_.is_deterministic()) {
       formula = solver_->make_term(And, formula, ts_.trans());
       formula = solver_->make_term(And, formula,
                                    solver_->make_term(Not, ts_.next(c.term_)));

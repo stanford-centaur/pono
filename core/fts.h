@@ -39,9 +39,8 @@ class FunctionalTransitionSystem : public TransitionSystem
                              smt::TermTranslator & tt)
       : TransitionSystem(other_ts, tt)
   {
+    functional_ = true;
   }
-
-  void assign_next(const smt::Term & state, const smt::Term & val) override;
 
  protected:
 

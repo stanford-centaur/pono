@@ -93,6 +93,7 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     constraints_.push_back(transfer_as(constr, BOOL));
   }
   functional_ = other_ts.functional_;
+  deterministic_ = other_ts.deterministic_;
 }
 
 void TransitionSystem::set_init(const Term & init)
@@ -137,6 +138,13 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
   state_updates_[state] = val;
   trans_ = solver_->make_term(
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
+
+  // if not functional, then we cannot guarantee deterministm
+  // if it is functional, depends on if all state variables
+  // have updates
+  if (functional_) {
+    deterministic_ = (state_updates_.size() == statevars_.size());
+  }
 }
 
 void TransitionSystem::add_invar(const Term & constraint)
@@ -201,7 +209,7 @@ Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
   // set to false until there is a next state update for this statevar
-  functional_ = false;
+  deterministic_ = false;
 
   Term state = solver_->make_symbol(name, sort);
   Term next_state = solver_->make_symbol(name + ".next", sort);

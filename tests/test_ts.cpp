@@ -36,12 +36,14 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   ASSERT_TRUE(fts.is_functional());
 
   // state variables without state updates
-  // will make the system non-functional
+  // will make the system non-deterministic
   Term x = fts.make_statevar("x", bvsort);
-  ASSERT_FALSE(fts.is_functional());
+  ASSERT_FALSE(fts.is_deterministic());
+  ASSERT_TRUE(fts.is_functional());
 
   fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
   ASSERT_TRUE(fts.is_functional());
+  ASSERT_TRUE(fts.is_deterministic());
 
   TransitionSystem ts_copy = fts;
   ASSERT_TRUE(ts_copy.is_functional());
@@ -60,6 +62,8 @@ TEST_P(TSUnitTests, RTS_IsFunc)
   rts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
   // Relational transition system is still not functional
   ASSERT_FALSE(rts.is_functional());
+  // cannot guarantee determinism if relational
+  ASSERT_FALSE(rts.is_deterministic());
 
   TransitionSystem ts_copy = rts;
   ASSERT_FALSE(ts_copy.is_functional());
