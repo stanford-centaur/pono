@@ -22,6 +22,7 @@
 #include "engines/mbic3.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
 
 using namespace smt;
@@ -188,6 +189,17 @@ void ModelBasedIC3::initialize()
       // translator will throw an exception
       ns = ts_.next(s);
       cache[to_interpolator_->transfer_term(ns)] = ns;
+    }
+
+    // need to copy over UF as well
+    UnorderedTermSet free_symbols;
+    get_free_symbols(bad_, free_symbols);
+    get_free_symbols(ts_.init(), free_symbols);
+    get_free_symbols(ts_.trans(), free_symbols);
+    for (auto s : free_symbols) {
+      if (s->get_sort()->get_sort_kind() == FUNCTION) {
+        cache[to_interpolator_->transfer_term(s)] = s;
+      }
     }
   }
 }
