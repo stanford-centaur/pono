@@ -627,11 +627,25 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     ds.add(v, val);
   }
 
+  // collect input assignments
+  UnorderedTermMap input_assignments;
+  const UnorderedTermSet & inputvars = ts_.inputvars();
+  TermVec input_lits;
+  input_lits.reserve(inputvars.size());
+  for (auto v : inputvars) {
+    Term val = solver_->get_value(v);
+    input_assignments[v] = val;
+    input_lits.push_back(solver_->make_term(Equal, v, val));
+  }
+
   // get other important model values
   for (auto t : extra_model_terms_) {
     Term val = solver_->get_value(t);
-    cube_lits.push_back(solver_->make_term(Equal, t, val));
-    ds.add(t, val);
+    Term t_subs = solver_->substitute(t, input_assignments);
+    if (ts_.only_curr(t_subs)) {
+      cube_lits.push_back(solver_->make_term(Equal, t_subs, val));
+      ds.add(t, val);
+    }
   }
 
   Conjunction res(solver_, cube_lits);
@@ -647,13 +661,6 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
     // TODO: figure out if anything else should be done for UF
 
-    // collect input assignments
-    const UnorderedTermSet & inputvars = ts_.inputvars();
-    TermVec input_lits;
-    input_lits.reserve(inputvars.size());
-    for (auto v : inputvars) {
-      input_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
-    }
     // collect next statevars assignments
     TermVec next_lits;
     if (!ts_.is_functional()) {
@@ -669,6 +676,8 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
           Term nt = ts_.next(t);
           next_lits.push_back(
               solver_->make_term(Equal, nt, solver_->get_value(nt)));
+        } else {
+          solver_->make_term(Equal, t, solver_->get_value(t));
         }
       }
     }
