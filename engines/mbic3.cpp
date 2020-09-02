@@ -597,8 +597,6 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       assert(to_interpolator_);
       assert(to_solver_);
 
-      interpolator_->reset_assertions();
-
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({get_frame(i - 1), ts_.trans(),
                                solver_->make_term(Not, c.term_)});
