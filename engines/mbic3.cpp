@@ -677,7 +677,8 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
           next_lits.push_back(
               solver_->make_term(Equal, nt, solver_->get_value(nt)));
         } else {
-          solver_->make_term(Equal, t, solver_->get_value(t));
+          next_lits.push_back(solver_->make_term(Equal, t,
+                                                 solver_->get_value(t)));
         }
       }
     }
