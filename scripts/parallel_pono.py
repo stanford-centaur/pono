@@ -41,9 +41,11 @@ if __name__ == "__main__":
         "BMC": [pono, '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
         # "BMC+SimplePath": [pono, '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
         "K-Induction": [pono, '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
-        "Interpolant-based": [pono, '-e', 'interp', '-v', verbosity_option, '-k', bound, btor_file]
-        # "IC3": [pono, '-e', 'mbic3', '-v', verbosity_option, '-k', bound, btor_file]
-        # "ProphIC3-Arrays": [pono, '-e', 'mbic3', '-v' verbosity_option, '--ceg-prophecy-arrays', btor_file]
+        "IC3": [pono, '-e', 'mbic3', '-v', verbosity_option, '-k', bound, btor_file],
+        "ItpIC3": [pono, '-e', 'mbic3', '-v', verbosity_option, '-k', bound, '--ic3-indgen-mode', '2', btor_file],
+        # give interpolant based methods a shorter bound -- impractical to go too large
+        "Interpolant-based": [pono, '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', btor_file],
+        "ProphInterp-Arrays": [pono, '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', '--ceg-prophecy-arrays', btor_file]
     }
 
     interp_processes = set()
