@@ -41,14 +41,13 @@ if __name__ == "__main__":
         "BMC": [pono, '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
         # "BMC+SimplePath": [pono, '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
         "K-Induction": [pono, '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
-        "IC3": [pono, '-e', 'mbic3', '-v', verbosity_option, '-k', bound, btor_file],
-        "ItpIC3": [pono, '-e', 'mbic3', '-v', verbosity_option, '-k', bound, '--ic3-indgen-mode', '2', btor_file],
+        "IC3": [pono, '-e', 'mbic3', '-v', verbosity_option, '-k', bound, '--no-witness', btor_file],
+        "ItpIC3": [pono, '-e', 'mbic3', '-v', verbosity_option, '-k', bound, '--ic3-indgen-mode', '2', '--no-witness', btor_file],
         # give interpolant based methods a shorter bound -- impractical to go too large
-        "Interpolant-based": [pono, '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', btor_file],
-        "ProphInterp-Arrays": [pono, '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', '--ceg-prophecy-arrays', btor_file]
+        "Interpolant-based": [pono, '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', '--no-witness', btor_file],
+        "ProphInterp-Arrays": [pono, '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', '--ceg-prophecy-arrays', '--no-witness', btor_file]
     }
 
-    interp_processes = set()
     all_processes = []
     queues = {}
     name_map = {}
@@ -58,8 +57,6 @@ if __name__ == "__main__":
 
     for name, cmd in commands.items():
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        if 'interp' in cmd:
-            interp_processes.add(proc)
         processes.append(proc)
         all_processes.append(proc)
         name_map[proc] = name
@@ -107,10 +104,10 @@ if __name__ == "__main__":
                         print_process_output(p)
                         shutdown = True
                 else:
-                    # HACK don't return counter-examples from interpolation-based procedure
-                    #      mathsat might return constant arrays in witness which can't be
-                    #      printed in btor2 format
-                    if p in interp_processes and p.returncode == FALSE:
+                    # HACK don't return counter-examples from anything but bmc
+                    #      some others don't produce witnesses
+                    #      wouldn't expect K-Induction to ever win anyway
+                    if p.returncode == FALSE and name_map[p] != "BMC":
                         processes.remove(p)
                         # this shouldn't happen but let's handle it just in case
                         if not processes:
