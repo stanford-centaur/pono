@@ -199,11 +199,6 @@ class ModelBasedIC3 : public Prover
 
   smt::UnorderedTermMap labels_;
 
-  ///< extra terms that need to be included in model
-  ///< when representing a state
-  ///< for example, UF applications
-  smt::TermVec extra_model_terms_;
-
   smt::UnorderedTermSet ufs_;
 
   // useful terms
