@@ -204,15 +204,12 @@ class ModelBasedIC3 : public Prover
   ///< for example, UF applications
   smt::TermVec extra_model_terms_;
 
+  smt::UnorderedTermSet ufs_;
+
   // useful terms
   smt::Term true_;
   smt::Term false_;
 
-  // for interpolation
-  // used if options_.ic3_indgen_mode_ == 2
-  smt::SmtSolver interpolator_;
-  std::shared_ptr<smt::TermTranslator> to_interpolator_;
-  std::shared_ptr<smt::TermTranslator> to_solver_;
 };
 
 class DisjointSet

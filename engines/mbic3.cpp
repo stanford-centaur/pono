@@ -162,44 +162,15 @@ void ModelBasedIC3::initialize()
   extra_model_terms_.reserve(uf_apps.size());
   extra_model_terms_.insert(
       extra_model_terms_.begin(), uf_apps.begin(), uf_apps.end());
-  
-  // all the interpolant stuff should be null so far
-  // hasn't been initialized yet
-  assert(!interpolator_);
-  assert(!to_interpolator_);
-  assert(!to_solver_);
 
-  if (options_.ic3_indgen_mode_ == 2) {
-    // TODO make an option to set the interpolator
-    interpolator_ = create_interpolating_solver(MSAT_INTERPOLATOR);
-    to_interpolator_ = make_shared<TermTranslator>(interpolator_);
-    to_solver_ = make_shared<TermTranslator>(solver_);
-
-    assert(interpolator_);
-    assert(to_interpolator_);
-    assert(to_solver_);
-
-    UnorderedTermMap & cache = to_solver_->get_cache();
-    Term ns;
-    for (auto s : ts_.statevars()) {
-      // common variables will be next state
-      // so that's all we need
-      // better not to cache the others, now if there's a bug
-      // where the shared variables are not respected, the term
-      // translator will throw an exception
-      ns = ts_.next(s);
-      cache[to_interpolator_->transfer_term(ns)] = ns;
-    }
-
-    // need to copy over UF as well
-    UnorderedTermSet free_symbols;
-    get_free_symbols(bad_, free_symbols);
-    get_free_symbols(ts_.init(), free_symbols);
-    get_free_symbols(ts_.trans(), free_symbols);
-    for (auto s : free_symbols) {
-      if (s->get_sort()->get_sort_kind() == FUNCTION) {
-        cache[to_interpolator_->transfer_term(s)] = s;
-      }
+  // save the uninterpreted functions themselves
+  UnorderedTermSet free_symbols;
+  get_free_symbols(bad_, free_symbols);
+  get_free_symbols(ts_.init(), free_symbols);
+  get_free_symbols(ts_.trans(), free_symbols);
+  for (auto s : free_symbols) {
+    if (s->get_sort()->get_sort_kind() == FUNCTION) {
+      ufs_.insert(s);
     }
   }
 }
@@ -593,23 +564,42 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       gen_res = solver_->make_term(Not, ts_.curr(make_and(red_lits)));
 
     } else if (options_.ic3_indgen_mode_ == 2) {
-      assert(interpolator_);
-      assert(to_interpolator_);
-      assert(to_solver_);
-
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({get_frame(i - 1), ts_.trans(),
                                solver_->make_term(Not, c.term_)});
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
-      Term int_A = to_interpolator_->transfer_term(formula, BOOL);
-      Term int_B = to_interpolator_->transfer_term(ts_.next(c.term_), BOOL);
+      // TODO make an option to set the interpolator
+      SmtSolver interpolator = create_interpolating_solver(MSAT_INTERPOLATOR);
+      TermTranslator to_interpolator(interpolator);
+      TermTranslator to_solver(solver_);
+
+      UnorderedTermMap & cache = to_solver.get_cache();
+      Term ns;
+      for (auto s : ts_.statevars()) {
+        // common variables will be next state
+        // so that's all we need
+        // better not to cache the others, now if there's a bug
+        // where the shared variables are not respected, the term
+        // translator will throw an exception
+        ns = ts_.next(s);
+        cache[to_interpolator.transfer_term(ns)] = ns;
+      }
+
+      // need to copy over UF as well
+      for (auto uf : ufs_) {
+        assert(uf->get_sort()->get_sort_kind() == FUNCTION);
+        cache[to_interpolator.transfer_term(uf)] = uf;
+      }
+
+      Term int_A = to_interpolator.transfer_term(formula, BOOL);
+      Term int_B = to_interpolator.transfer_term(ts_.next(c.term_), BOOL);
 
       Term interp;
-      Result r = interpolator_->get_interpolant(int_A, int_B, interp);
+      Result r = interpolator->get_interpolant(int_A, int_B, interp);
       assert(r.is_unsat());
 
-      Term solver_interp = to_solver_->transfer_term(interp);
+      Term solver_interp = to_solver.transfer_term(interp);
       gen_res = ts_.curr(solver_interp);
       assert(ts_.only_curr(gen_res));
 
