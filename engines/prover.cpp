@@ -207,9 +207,10 @@ void Prover::compute_term_coi(const Term & term,
 
 /* Collect state/input variables that appear in next-state functions
    of state-variables that were already collected. */
-void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
-                                          UnorderedTermSet & new_coi_input_vars)
+void Prover::compute_coi_next_state_funcs()
 {
+  UnorderedTermSet new_coi_state_vars;
+  UnorderedTermSet new_coi_input_vars;
   /* Seed the search using state-variables that were collected already. */
   TermVec unprocessed_state_vars;
   for (auto state_var : statevars_in_coi_)
@@ -219,7 +220,7 @@ void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
     Term state_var = unprocessed_state_vars.back();
     unprocessed_state_vars.pop_back();
     assert(ts_.is_curr_var(state_var));
-    const smt::UnorderedTermMap state_updates = ts_.state_updates();
+    const smt::UnorderedTermMap & state_updates = ts_.state_updates();
     Term next_func = NULL;
     /* May find state variables without next-function. */
     auto elem = ts_.state_updates().find(state_var);
@@ -251,11 +252,10 @@ void Prover::compute_coi_next_state_funcs(UnorderedTermSet & new_coi_state_vars,
 
 /* Collect state/input variables that appear in constraints that were
    added to the transition system. */
-void Prover::compute_coi_trans_constraints(UnorderedTermSet & new_coi_state_vars,
-                                           UnorderedTermSet & new_coi_input_vars)
-{  
-  assert(new_coi_state_vars.empty());
-  assert(new_coi_input_vars.empty());
+void Prover::compute_coi_trans_constraints()
+{
+  UnorderedTermSet new_coi_state_vars;
+  UnorderedTermSet new_coi_input_vars;
 
   for (auto constr : ts_.constraints()) {
     logger.log(3, "  trans constraints--constr: {}", constr);
@@ -270,9 +270,6 @@ void Prover::compute_coi_trans_constraints(UnorderedTermSet & new_coi_state_vars
   for (auto sv : new_coi_input_vars)
     if (inputvars_in_coi_.find(sv) == inputvars_in_coi_.end())
       inputvars_in_coi_.insert(sv);
-  
-  new_coi_state_vars.clear();
-  new_coi_input_vars.clear();    
 }
 
 /* Main COI function. */
@@ -303,12 +300,9 @@ void Prover::compute_coi()
   for (auto sv : new_coi_input_vars)
     inputvars_in_coi_.insert(sv);
 
-  new_coi_state_vars.clear();
-  new_coi_input_vars.clear();
-
   /* Traverse constraints and collect all state/input variables. */
   logger.log(1, "COI analysis: constraints");
-  compute_coi_trans_constraints(new_coi_state_vars, new_coi_input_vars);
+  compute_coi_trans_constraints();
 
   /* Traverse next-state functions of state-variables that were
      already collected. The loop breaks when no new state/input
@@ -323,7 +317,7 @@ void Prover::compute_coi()
     num_inputvars = inputvars_in_coi_.size();
 
     logger.log(1, "COI analysis: next-state functions, iteration {}", iterations);
-    compute_coi_next_state_funcs(new_coi_state_vars, new_coi_input_vars);
+    compute_coi_next_state_funcs();
 
   } while (statevars_in_coi_.size() != num_statevars ||
            inputvars_in_coi_.size() != num_inputvars);
