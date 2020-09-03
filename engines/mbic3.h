@@ -213,6 +213,7 @@ class DisjointSet
 
   void add(const smt::Term & a, const smt::Term & b);
   smt::Term find(const smt::Term & t);
+  void clear();
 
  private:
   // member to group's leader

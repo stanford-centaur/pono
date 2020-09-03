@@ -611,26 +611,76 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     input_lits.push_back(solver_->make_term(Equal, v, val));
   }
 
+  // collect next statevars assignments
+  TermVec next_lits;
+  if (!ts_.is_deterministic()) {
+    next_lits.reserve(statevars.size());
+    for (auto v : statevars) {
+      Term nv = ts_.next(v);
+      Term val = solver_->get_value(nv);
+      next_lits.push_back(
+          solver_->make_term(Equal, nv, solver_->get_value(nv)));
+    }
+  }
+
+  // don't need to generalize if i == 1
+  // the predecessor is an initial state
+  if (i == 1) {
+    solver_->pop();
+    return Conjunction(solver_, cube_lits);
+  }
+
   Conjunction res(solver_, cube_lits);
 
   if (options_.ic3_cexgen_ && !options_.ic3_functional_preimage_) {
+    // make sure the predecessor is not an initial state
+    if (intersects_initial(make_and(cube_lits))) {
+      // clear the disjoint set of the old assignments
+      cube_lits.clear();
+      ds.clear();
+
+      assert(i > 1);
+      // get a new model that does not intersect with init
+      solver_->assert_formula(solver_->make_term(Not, ts_.init()));
+      Result r = solver_->check_sat();
+      // should never have *only* an initial state predecessor
+      // unless i == 1, in which we case, we would have already
+      // returned above
+      assert(r.is_sat());
+
+      for (auto v : statevars) {
+        Term val = solver_->get_value(v);
+        cube_lits.push_back(solver_->make_term(Equal, v, val));
+        ds.add(v, val);
+      }
+
+      // collect input assignments
+      const UnorderedTermSet & inputvars = ts_.inputvars();
+      TermVec input_lits;
+      input_lits.reserve(inputvars.size());
+      for (auto v : inputvars) {
+        Term val = solver_->get_value(v);
+        input_lits.push_back(solver_->make_term(Equal, v, val));
+      }
+
+      // collect next statevars assignments
+      TermVec next_lits;
+      if (!ts_.is_deterministic()) {
+        next_lits.reserve(statevars.size());
+        for (auto v : statevars) {
+          Term nv = ts_.next(v);
+          Term val = solver_->get_value(nv);
+          next_lits.push_back(
+              solver_->make_term(Equal, nv, solver_->get_value(nv)));
+        }
+      }
+    }
+
     // add congruent equalities to cube_lits
     for (auto v : statevars) {
       Term t = ds.find(v);
       if (t != v) {
         cube_lits.push_back(solver_->make_term(Equal, t, v));
-      }
-    }
-
-    // collect next statevars assignments
-    TermVec next_lits;
-    if (!ts_.is_deterministic()) {
-      next_lits.reserve(statevars.size());
-      for (auto v : statevars) {
-        Term nv = ts_.next(v);
-        Term val = solver_->get_value(nv);
-        next_lits.push_back(solver_->make_term(Equal, nv,
-                                               solver_->get_value(nv)));
       }
     }
 
@@ -656,9 +706,14 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
                                    solver_->make_term(Not, pre_formula));
     }
 
-    TermVec splits, red_cube_lits;
+    TermVec splits, red_cube_lits, rem_cube_lits;
     split_eq(solver_, cube_lits, splits);
-    reduce_assump_unsatcore(formula, splits, red_cube_lits);
+    reduce_assump_unsatcore(formula, splits, red_cube_lits, &rem_cube_lits);
+
+    // don't allow generalizing so much that it intersects
+    // with the initial states
+    fix_if_intersects_initial(red_cube_lits, rem_cube_lits);
+
     assert(red_cube_lits.size() > 0);
     res = Conjunction(solver_, red_cube_lits);
 
@@ -937,6 +992,12 @@ Term DisjointSet::find(const Term & t)
 {
   assert(leader_.find(t) != leader_.end());
   return leader_.at(t);
+}
+
+void DisjointSet::clear()
+{
+  leader_.clear();
+  group_.clear();
 }
 
 }  // namespace pono
