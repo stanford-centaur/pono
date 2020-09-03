@@ -670,7 +670,6 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
       // collect next statevars assignments
       if (!ts_.is_deterministic()) {
-        next_lits.reserve(statevars.size());
         for (auto v : statevars) {
           Term nv = ts_.next(v);
           Term val = solver_->get_value(nv);
