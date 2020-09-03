@@ -603,13 +603,11 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
   }
 
   // collect input assignments
-  UnorderedTermMap input_assignments;
   const UnorderedTermSet & inputvars = ts_.inputvars();
   TermVec input_lits;
   input_lits.reserve(inputvars.size());
   for (auto v : inputvars) {
     Term val = solver_->get_value(v);
-    input_assignments[v] = val;
     input_lits.push_back(solver_->make_term(Equal, v, val));
   }
 
@@ -624,17 +622,13 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       }
     }
 
-    // TODO: figure out if anything else should be done for UF
-
     // collect next statevars assignments
     TermVec next_lits;
-    UnorderedTermMap next_assignments;
     if (!ts_.is_deterministic()) {
       next_lits.reserve(statevars.size());
       for (auto v : statevars) {
         Term nv = ts_.next(v);
         Term val = solver_->get_value(nv);
-        next_assignments[nv] = val;
         next_lits.push_back(solver_->make_term(Equal, nv,
                                                solver_->get_value(nv)));
       }
