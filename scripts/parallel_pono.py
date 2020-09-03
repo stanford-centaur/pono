@@ -46,7 +46,7 @@ if __name__ == "__main__":
         # give interpolant based methods a shorter bound -- impractical to go too large
         "Interpolant-based": [pono, '--static-coi', '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', '--no-witness', btor_file],
         # ProphInterp-Arrays uses a relational system -- can't use static-coi
-        "ProphInterp-Arrays": [pono, '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', '--ceg-prophecy-arrays', '--no-witness', btor_file]
+        "ProphInterp-Arrays": [pono, '--static-coi', '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', '--ceg-prophecy-arrays', '--no-witness', btor_file]
     }
 
     all_processes = []

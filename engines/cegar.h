@@ -29,23 +29,21 @@ class CEGAR : public Prover
   CEGAR(Property & p, smt::SolverEnum se) : super(p, se) { initialize(); }
   CEGAR(Property & p, const smt::SmtSolver & solver) : super(p, solver)
   {
-    initialize();
+    super::initialize();
   }
   CEGAR(const PonoOptions & opt, Property & p, smt::SolverEnum se)
       : super(opt, p, se)
   {
-    initialize();
+    super::initialize();
   }
   CEGAR(const PonoOptions & opt,
         Property & p,
         const smt::SmtSolver & solver)
       : super(opt, p, solver)
   {
-    initialize();
+    super::initialize();
   }
   virtual ~CEGAR(){};
-
-  void initialize() override { super::initialize(); }
 
  protected:
   /** Abstract the transition system -- usually only performed once

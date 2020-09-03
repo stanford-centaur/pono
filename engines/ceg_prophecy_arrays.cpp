@@ -131,8 +131,14 @@ ProverResult CegProphecyArrays::check_until(int k)
     } while (num_added_axioms_ && reached_k_ <= k);
 
     Property latest_prop(abs_ts_, solver_->make_term(Not, bad_));
+    PonoOptions opts = options_;
+    // disable static coi because it can't be called more than once on the same
+    // system
+    // TODO: handle this in a better way
+    opts.static_coi_ = false;
+    std::cout << opts.static_coi_ << std::endl;
     shared_ptr<Prover> prover =
-        make_prover(e_, latest_prop, solver_->get_solver_enum(), options_);
+        make_prover(e_, latest_prop, solver_->get_solver_enum(), opts);
 
     res = prover->check_until(k);
   }
@@ -148,7 +154,6 @@ ProverResult CegProphecyArrays::check_until(int k)
 
 void CegProphecyArrays::initialize()
 {
-  super::initialize();
   abstract();
 
   bool contains_arrays = false;
