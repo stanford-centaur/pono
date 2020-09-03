@@ -73,11 +73,12 @@ TEST_P(UFUnitTests, InductiveProp)
   EXPECT_EQ(r, ProverResult::TRUE);
   s->pop();
 
-  s->push();
-  ModelBasedIC3 ic3(prop, s);
-  r = ic3.check_until(10);
-  EXPECT_EQ(r, ProverResult::TRUE);
-  s->pop();
+  // TODO: re-enable support for UF in ModelBasedIC3
+  // s->push();
+  // ModelBasedIC3 ic3(prop, s);
+  // r = ic3.check_until(10);
+  // EXPECT_EQ(r, ProverResult::TRUE);
+  // s->pop();
 }
 
 TEST_P(UFUnitTests, FalseProp)
@@ -131,11 +132,12 @@ TEST_P(UFUnitTests, FalseProp)
   EXPECT_EQ(r, ProverResult::FALSE);
   s->pop();
 
-  s->push();
-  ModelBasedIC3 ic3(prop, s);
-  r = ic3.check_until(10);
-  EXPECT_EQ(r, ProverResult::FALSE);
-  s->pop();
+  // TODO: re-enable support for UF in ModelBasedIC3
+  // s->push();
+  // ModelBasedIC3 ic3(prop, s);
+  // r = ic3.check_until(10);
+  // EXPECT_EQ(r, ProverResult::FALSE);
+  // s->pop();
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedUFUnitTests,

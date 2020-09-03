@@ -199,8 +199,6 @@ class ModelBasedIC3 : public Prover
 
   smt::UnorderedTermMap labels_;
 
-  smt::UnorderedTermSet ufs_;
-
   // useful terms
   smt::Term true_;
   smt::Term false_;

@@ -142,23 +142,16 @@ void ModelBasedIC3::initialize()
   frames_.push_back({ ts_.init() });
   push_frame();
 
-  // check if there are arrays and fail if so
+  // check if there are arrays or uninterpreted sorts and fail if so
   for (auto vec : { ts_.statevars(), ts_.inputvars() }) {
     for (auto st : vec) {
-      if (st->get_sort()->get_sort_kind() == ARRAY) {
+      SortKind sk = st->get_sort()->get_sort_kind();
+      if (sk == ARRAY) {
         throw PonoException("ModelBasedIC3 does not support arrays yet");
+      } else if (sk == UNINTERPRETED) {
+        throw PonoException(
+            "ModelBasedIC3 does not support uninterpreted sorts yet.");
       }
-    }
-  }
-
-  // save the uninterpreted functions themselves
-  UnorderedTermSet free_symbols;
-  get_free_symbols(bad_, free_symbols);
-  get_free_symbols(ts_.init(), free_symbols);
-  get_free_symbols(ts_.trans(), free_symbols);
-  for (auto s : free_symbols) {
-    if (s->get_sort()->get_sort_kind() == FUNCTION) {
-      ufs_.insert(s);
     }
   }
 }
@@ -574,12 +567,6 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
         cache[to_interpolator.transfer_term(ns)] = ns;
       }
 
-      // need to copy over UF as well
-      for (auto uf : ufs_) {
-        assert(uf->get_sort()->get_sort_kind() == FUNCTION);
-        cache[to_interpolator.transfer_term(uf)] = uf;
-      }
-
       Term int_A = to_interpolator.transfer_term(formula, BOOL);
       Term int_B = to_interpolator.transfer_term(ts_.next(c.term_), BOOL);
 
@@ -653,6 +640,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       }
     }
 
+    solver_->pop();
 
     Term formula = make_and(input_lits);
 
@@ -673,52 +661,6 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       formula = solver_->make_term(And, formula,
                                    solver_->make_term(Not, pre_formula));
     }
-
-    // map next state variable to its update function
-    // note: state_updates has current state vars as the key
-    UnorderedTermMap next_state_updates;
-    for (auto elem : ts_.state_updates()) {
-      next_state_updates[ts_.next(elem.first)] = elem.second;
-    }
-
-    // find UF applications and add them to cube_lits
-    // to constrain the interpretation of the function
-    TermOpCollector toc(solver_);
-    UnorderedTermSet uf_apps;
-    toc.find_matching_terms(formula, { Apply }, uf_apps);
-
-    for (auto u : uf_apps) {
-      Term val = solver_->get_value(u);
-      // get rid of next state variables with functional substitution
-      // if possible
-      Term u_subs = solver_->substitute(u, next_state_updates);
-      // get rid of input variables
-      u_subs = solver_->substitute(u_subs, input_assignments);
-      Term eq;
-      if (ts_.only_curr(u_subs)) {
-        eq = solver_->make_term(Equal, u_subs, val);
-      } else {
-        // not all next state variables were replaced
-        // must be a non-deterministic system
-        assert(!ts_.is_deterministic());
-        // substitute the values of next state variables
-        u_subs = solver_->substitute(u_subs, next_assignments);
-        // TODO: add these asserts back in
-        // currently no way to distinguish model values of uninterpreted sorts
-        // from symbols in mathsat so this assert can fail spuriously
-        // assert(ts_.only_curr(u_subs));
-        eq = solver_->make_term(Equal, u_subs, val);
-      }
-
-      assert(eq);
-      // TODO: add these asserts back in
-      // currently no way to distinguish model values of uninterpreted sorts
-      // from symbols in mathsat so this assert can fail spuriously
-      // assert(ts_.only_curr(eq));
-      cube_lits.push_back(eq);
-    }
-
-    solver_->pop();
 
     TermVec splits, red_cube_lits;
     split_eq(solver_, cube_lits, splits);
