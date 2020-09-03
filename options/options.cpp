@@ -122,7 +122,7 @@ const option::Descriptor usage[] = {
     "",
     "random-seed",
     Arg::Numeric,
-    "  --random-seed, -v \tRandom seed." },
+    "  --random-seed, \tRandom seed." },
   { VCDNAME,
     0,
     "",
