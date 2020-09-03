@@ -642,6 +642,8 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     if (intersects_initial(make_and(cube_lits))) {
       // clear the disjoint set of the old assignments
       cube_lits.clear();
+      input_lits.clear();
+      next_lits.clear();
       ds.clear();
 
       assert(i > 1);
@@ -661,15 +663,12 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
       // collect input assignments
       const UnorderedTermSet & inputvars = ts_.inputvars();
-      TermVec input_lits;
-      input_lits.reserve(inputvars.size());
       for (auto v : inputvars) {
         Term val = solver_->get_value(v);
         input_lits.push_back(solver_->make_term(Equal, v, val));
       }
 
       // collect next statevars assignments
-      TermVec next_lits;
       if (!ts_.is_deterministic()) {
         next_lits.reserve(statevars.size());
         for (auto v : statevars) {
