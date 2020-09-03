@@ -168,6 +168,11 @@ ProverResult ModelBasedIC3::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
+bool ModelBasedIC3::witness(vector<UnorderedTermMap> & out)
+{
+  throw PonoException("ModelBasedIC3 doesn't support witnesses yet.");
+}
+
 ProverResult ModelBasedIC3::step(int i)
 {
   if (i <= reached_k_) {

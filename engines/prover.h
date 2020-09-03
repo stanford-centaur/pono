@@ -39,7 +39,7 @@ class Prover
 
   virtual ProverResult check_until(int k) = 0;
 
-  bool witness(std::vector<smt::UnorderedTermMap> & out);
+  virtual bool witness(std::vector<smt::UnorderedTermMap> & out);
 
   virtual ProverResult prove();
 

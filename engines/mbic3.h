@@ -57,6 +57,7 @@ class ModelBasedIC3 : public Prover
 
   void initialize() override;
   ProverResult check_until(int k) override;
+  bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
  private:
   /** Perform a IC3 step
