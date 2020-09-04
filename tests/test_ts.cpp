@@ -45,6 +45,17 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   ASSERT_TRUE(fts.is_functional());
   ASSERT_TRUE(fts.is_deterministic());
 
+  fts.add_constraint(fts.make_term(BVUge, x, s->make_term(2, bvsort)));
+  // any kind of constrains makes the system non-deterministic
+  // TODO need to improve names here
+  ASSERT_FALSE(fts.is_deterministic());
+
+  Term y = fts.make_statevar("y", bvsort);
+  fts.assign_next(y, y);
+  ASSERT_TRUE(fts.is_functional());
+  // still can't be deterministic because of the constraint
+  ASSERT_FALSE(fts.is_deterministic());
+
   TransitionSystem ts_copy = fts;
   ASSERT_TRUE(ts_copy.is_functional());
 }

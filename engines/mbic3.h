@@ -139,7 +139,16 @@ class ModelBasedIC3 : public Prover
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
   Conjunction generalize_predecessor(size_t i, const Conjunction & c);
+  /** Check if there are common assignments
+   *  between A and B
+   *  i.e. if A /\ B is SAT
+   *  @param A the first term
+   *  @param B the second term
+   *  @return true iff there is an intersection
+   */
+  bool intersects(const smt::Term & A, const smt::Term & B) const;
   /** Check if the term intersects with the initial states
+   *  syntactic sugar for intersects(ts_.init(), t);
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
    */
@@ -156,12 +165,6 @@ class ModelBasedIC3 : public Prover
 
   void fix_if_intersects_initial(smt::TermVec & to_keep,
                                  const smt::TermVec & rem);
-
-  // Fix a candidate predecessor
-  // if it includes states outside of the given frame
-  void fix_if_outside_frame(size_t i,
-                            smt::TermVec & to_keep,
-                            const smt::TermVec & rem);
 
   size_t push_blocking_clause(size_t i, smt::Term c);
 
