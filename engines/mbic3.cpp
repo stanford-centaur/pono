@@ -717,6 +717,9 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     // with the initial states
     fix_if_intersects_initial(red_cube_lits, rem_cube_lits);
 
+    // don't allow a predecessor that is outside of F[i-1]
+    fix_if_outside_frame(i - 1, red_cube_lits, rem_cube_lits);
+
     assert(red_cube_lits.size() > 0);
     res = Conjunction(solver_, red_cube_lits);
 
@@ -783,6 +786,17 @@ void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
 {
   if (rem.size() != 0) {
     Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
+    reduce_assump_unsatcore(formula, rem, to_keep);
+  }
+}
+
+void ModelBasedIC3::fix_if_outside_frame(size_t i,
+                                         TermVec & to_keep,
+                                         const TermVec & rem)
+{
+  if (rem.size() != 0) {
+    Term neg_frame_i = solver_->make_term(Not, get_frame(i));
+    Term formula = solver_->make_term(And, neg_frame_i, make_and(to_keep));
     reduce_assump_unsatcore(formula, rem, to_keep);
   }
 }

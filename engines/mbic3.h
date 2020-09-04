@@ -157,6 +157,12 @@ class ModelBasedIC3 : public Prover
   void fix_if_intersects_initial(smt::TermVec & to_keep,
                                  const smt::TermVec & rem);
 
+  // Fix a candidate predecessor
+  // if it includes states outside of the given frame
+  void fix_if_outside_frame(size_t i,
+                            smt::TermVec & to_keep,
+                            const smt::TermVec & rem);
+
   size_t push_blocking_clause(size_t i, smt::Term c);
 
   /** Helper function to reduce assumptions using unsat cores.
