@@ -10,6 +10,7 @@
 #include "utils/exceptions.h"
 #include "utils/make_provers.h"
 #include "utils/term_walkers.h"
+#include "utils/ts_analysis.h"
 
 #include "available_solvers.h"
 
@@ -70,6 +71,64 @@ TEST_P(UtilsUnitTests, FindApply)
   EXPECT_TRUE(matching_terms.find(fy) != matching_terms.end());
   EXPECT_TRUE(matching_terms.find(gxm1) != matching_terms.end());
   EXPECT_TRUE(matching_terms.find(gxpy) != matching_terms.end());
+}
+
+TEST_P(UtilsUnitTests, CheckInvarTrue)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
+  // x' = x < 10 ? x + 1 : 0
+  rts.assign_next(
+      x,
+      rts.make_term(Ite,
+                    rts.make_term(BVUlt, x, rts.make_term(10, bvsort)),
+                    rts.make_term(BVAdd, x, rts.make_term(1, bvsort)),
+                    rts.make_term(0, bvsort)));
+
+  Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
+  // property is inductive
+  EXPECT_TRUE(check_invar(rts, prop, prop));
+}
+
+TEST_P(UtilsUnitTests, CheckInvarFalse)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
+  // x' = x <= 10 ? x + 1 : 0
+  rts.assign_next(
+      x,
+      rts.make_term(Ite,
+                    rts.make_term(BVUle, x, rts.make_term(10, bvsort)),
+                    rts.make_term(BVAdd, x, rts.make_term(1, bvsort)),
+                    rts.make_term(0, bvsort)));
+
+  Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
+  EXPECT_FALSE(check_invar(rts, prop, prop));
+}
+
+TEST_P(UtilsUnitTests, CheckInvarFalseNonState)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
+  Term inp = rts.make_inputvar("inp", bvsort);
+  // x' = x + inp < 10 ? x + inp : 0
+  Term xpinp = rts.make_term(BVAdd, x, inp);
+  rts.assign_next(
+      x,
+      rts.make_term(Ite,
+                    rts.make_term(BVUlt, xpinp, rts.make_term(10, bvsort)),
+                    xpinp,
+                    rts.make_term(0, bvsort)));
+
+  Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
+
+  // invariant includes inputs -- which is not allowed in an invariant
+  Term invar = rts.make_term(BVUle, xpinp, rts.make_term(10, bvsort));
+
+  EXPECT_FALSE(check_invar(rts, prop, invar));
 }
 
 TEST_P(UtilsEngineUnitTests, MakeProver)

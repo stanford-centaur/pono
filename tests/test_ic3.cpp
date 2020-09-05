@@ -5,6 +5,7 @@
 
 #include "core/fts.h"
 #include "engines/mbic3.h"
+#include "utils/ts_analysis.h"
 
 #include "available_solvers.h"
 
@@ -51,6 +52,10 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
   ModelBasedIC3 mbic3(p, s);
   ProverResult r = mbic3.prove();
   ASSERT_EQ(r, TRUE);
+
+  // get the invariant
+  Term invar = mbic3.invar();
+  ASSERT_TRUE(check_invar(fts, p.prop(), invar));
 }
 
 TEST_P(IC3UnitTests, SimpleSystemUnsafe)

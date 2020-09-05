@@ -58,6 +58,7 @@ class ModelBasedIC3 : public Prover
   void initialize() override;
   ProverResult check_until(int k) override;
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
+  smt::Term invar() override;
 
  private:
   /** Perform a IC3 step
@@ -208,6 +209,8 @@ class ModelBasedIC3 : public Prover
   std::vector<ProofGoal> proof_goals_;
 
   smt::UnorderedTermMap labels_;
+
+  smt::Term invar_;  ///< stores the invariant once proven
 
   // useful terms
   smt::Term true_;

@@ -43,6 +43,8 @@ class InterpolantMC : public Prover
 
   ProverResult check_until(int k) override;
 
+  smt::Term invar() override;
+
  private:
   bool step(int i);
   bool step_0();
@@ -63,6 +65,8 @@ class InterpolantMC : public Prover
   smt::Term init0_;
   smt::Term transA_;
   smt::Term transB_;
+
+  smt::Term invar_;  ///< stores the invariant if found
 
 };  // class InterpolantMC
 

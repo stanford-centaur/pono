@@ -57,14 +57,15 @@ class PonoOptions
         reset_bnd_(default_reset_bnd_),
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
+        static_coi_(default_static_coi_),
+        check_invar_(default_check_invar_),
         ic3_cexgen_(default_ic3_cexgen_),
         ic3_indgen_(default_ic3_indgen_),
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
         ic3_indgen_mode_(default_ic3_indgen_mode_),
         ic3_functional_preimage_(default_ic3_functional_preimage_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
-        cegp_axiom_red_(default_cegp_axiom_red_),
-        static_coi_(default_static_coi_)
+        cegp_axiom_red_(default_cegp_axiom_red_)
   {
   }
 
@@ -82,12 +83,13 @@ class PonoOptions
   unsigned int random_seed_;
   bool no_witness_;
   std::string vcd_name_;
-  bool static_coi_;
   std::string reset_name_;
   size_t reset_bnd_;
   std::string clock_name_;
   std::string filename_;
   std::string smt_solver_; ///< underlying smt solver
+  bool static_coi_;
+  bool check_invar_;  ///< check invariants (if available) when run through CLI
   // ic3 options
   bool ic3_cexgen_;  ///< generalize counterexamples in IC3
   bool ic3_indgen_;  ///< inductive generalization in IC3
@@ -109,6 +111,7 @@ class PonoOptions
   static const bool default_no_witness_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
   static const bool default_static_coi_ = false;
+  static const bool default_check_invar_ = false;
   static const size_t default_reset_bnd_ = 1;
   static const std::string default_smt_solver_;
   static const bool default_ic3_cexgen_ = true;

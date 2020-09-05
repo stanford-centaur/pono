@@ -40,6 +40,7 @@ enum optionIndex
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
   STATICCOI,
+  CHECK_INVAR,
   RESET,
   RESET_BND,
   CLK,
@@ -160,7 +161,15 @@ const option::Descriptor usage[] = {
     "",
     "static-coi",
     Arg::None,
-    "  --static-coi \tApply static (i.e., one-time before solving) cone-of-influence analysis." },
+    "  --static-coi \tApply static (i.e., one-time before solving) "
+    "cone-of-influence analysis." },
+  { CHECK_INVAR,
+    0,
+    "",
+    "check-invar",
+    Arg::None,
+    "  --check-invar \tFor engines that produce invariants, check that they "
+    "hold." },
   { RESET,
     0,
     "r",
@@ -304,6 +313,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case STATICCOI: static_coi_ = true; break;
+        case CHECK_INVAR: check_invar_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;

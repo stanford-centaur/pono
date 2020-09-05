@@ -38,6 +38,7 @@
 #include "prop.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
+#include "utils/ts_analysis.h"
 
 // TEMP do array abstraction directly here
 #include "modifiers/array_abstractor.h"
@@ -79,6 +80,21 @@ ProverResult check_prop(PonoOptions pono_options,
 
   if (r == FALSE && !pono_options.no_witness_) {
     prover->witness(cex);
+  } else if (r == TRUE && pono_options.check_invar_) {
+    try {
+      Term invar = prover->invar();
+      bool invar_passes = check_invar(p.transition_system(), p.prop(), invar);
+      std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
+                << std::endl;
+      if (!invar_passes) {
+        // shouldn't return true if invariant is incorrect
+        r = ProverResult::UNKNOWN;
+      }
+    }
+    catch (PonoException & e) {
+      std::cout << "Engine " << pono_options.engine_
+                << " does not support getting the invariant." << std::endl;
+    }
   }
   return r;
 }
