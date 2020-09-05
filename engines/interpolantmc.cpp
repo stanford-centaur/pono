@@ -129,9 +129,6 @@ ProverResult InterpolantMC::check_until(int k)
 
 Term InterpolantMC::invar()
 {
-  // TODO: get the right invariant
-  throw PonoException(
-      "InterpolantMC does not support getting the invariant yet.");
   if (!invar_) {
     throw PonoException("Cannot call invar() unless property was proven.");
   }
@@ -179,7 +176,7 @@ bool InterpolantMC::step(int i)
       if (check_entail(Ri, R)) {
         // check if the over-approximation has reached a fix-point
         logger.log(1, "Found a proof at bound: {}", i);
-        // TODO: figure out the right invariant
+        invar_ = unroller_.untime(R);
         return true;
       } else {
         logger.log(1, "Extending initial states.");
