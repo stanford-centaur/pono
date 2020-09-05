@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file
+/*! \file interpolantmc.h
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
@@ -9,8 +9,9 @@
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief
- **
+ ** \brief A straightforward implementation of interpolation based model
+ *checking.
+ **        See Interpolation and SAT-based Model Checking
  **
  **/
 
@@ -65,6 +66,7 @@ class InterpolantMC : public Prover
   smt::Term init0_;
   smt::Term transA_;
   smt::Term transB_;
+  smt::Term bad_disjuncts_;  ///< a disjunction of bads in the suffix
 
   smt::Term invar_;  ///< stores the invariant if found
 
