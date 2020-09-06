@@ -61,7 +61,7 @@ Prover::Prover(const PonoOptions & opt,
       orig_ts_(p.transition_system()),
       unroller_(ts_, solver_),
       options_(opt)
-{  
+{
 }
 
 Prover::~Prover() {}

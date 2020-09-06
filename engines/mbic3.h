@@ -198,6 +198,11 @@ class ModelBasedIC3 : public Prover
    */
   smt::Term make_or(smt::TermVec vec) const;
 
+  /** Resets the solvers and transfers all terms
+   *   to the new solver
+   */
+  void reset_solvers();
+
   // Data structures
 
   ///< the frames data structure.
@@ -216,6 +221,9 @@ class ModelBasedIC3 : public Prover
   smt::Term true_;
   smt::Term false_;
 
+  // counts number of iterations of block_all
+  // since the last solver reset
+  size_t num_block_all_iters_ = 0;
 };
 
 class DisjointSet

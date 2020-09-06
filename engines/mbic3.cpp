@@ -337,6 +337,11 @@ void ModelBasedIC3::add_proof_goal(const Conjunction & c, size_t i)
 bool ModelBasedIC3::block_all()
 {
   while (has_proof_goals()) {
+    if (options_.ic3_solver_reset_interval_
+        && num_block_all_iters_ > options_.ic3_solver_reset_interval_) {
+      num_block_all_iters_ = 0;
+      reset_solvers();
+    }
     ProofGoal pg = get_next_proof_goal();
     // block can fail, which just means a
     // new proof goal will be added
@@ -345,6 +350,7 @@ bool ModelBasedIC3::block_all()
       // then there's a counterexample
       return false;
     }
+    num_block_all_iters_++;
   }
   assert(!has_proof_goals());
   return true;
@@ -918,6 +924,51 @@ Term ModelBasedIC3::make_or(smt::TermVec vec) const
     res = solver_->make_term(Or, res, vec[i]);
   }
   return res;
+}
+
+void ModelBasedIC3::reset_solvers()
+{
+  logger.log(1, "Resetting solvers");
+  // create a new solver
+  SmtSolver new_solver = create_solver(solver_->get_solver_enum());
+  new_solver->set_opt("incremental", "true");
+  new_solver->set_opt("produce-models", "true");
+  TermTranslator tt(new_solver);
+
+  // update everything inherited from Prover
+  // don't use this term translator here though
+  // this is for use with the original TS solver
+  // use tt for terms of the solver we just destroyed
+  to_prover_solver_ = TermTranslator(new_solver);
+  bad_ = tt.transfer_term(bad_);
+
+  // transfer terms specific to mbic3
+  for (size_t j = 0; j < frames_.size(); ++j) {
+    TermVec new_frame_j;
+    for (auto term : frames_[j]) {
+      new_frame_j.push_back(tt.transfer_term(term));
+    }
+    frames_[j] = new_frame_j;
+  }
+  vector<ProofGoal> new_proof_goals;
+  for (auto pg : proof_goals_) {
+    TermVec conjuncts;
+    for (auto cc : pg.first.conjuncts_) {
+      conjuncts.push_back(tt.transfer_term(cc));
+    }
+    new_proof_goals.push_back(
+        ProofGoal(Conjunction(new_solver, conjuncts), pg.second));
+  }
+  proof_goals_ = new_proof_goals;
+  // reset the labels, will start over
+  labels_.clear();
+  assert(!invar_);  // should not be set yet
+  true_ = new_solver->make_term(true);
+  false_ = new_solver->make_term(false);
+
+  // destroys and replaces old solver
+  solver_ = new_solver;
+  logger.log(1, "Completed resetting solvers");
 }
 
 DisjointSet::DisjointSet() {}

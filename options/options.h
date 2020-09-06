@@ -64,6 +64,7 @@ class PonoOptions
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
         ic3_indgen_mode_(default_ic3_indgen_mode_),
         ic3_functional_preimage_(default_ic3_functional_preimage_),
+        ic3_solver_reset_interval_(default_ic3_solver_reset_interval_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
         cegp_axiom_red_(default_cegp_axiom_red_)
   {
@@ -97,6 +98,8 @@ class PonoOptions
                                   ///means unbounded
   unsigned int ic3_indgen_mode_; ///< inductive generalization mode [0,2]
   bool ic3_functional_preimage_; ///< functional preimage in IC3
+  size_t ic3_solver_reset_interval_;  ///< how many iterations (if nonzero) of
+                                      ///< block before resetting solver
   // ceg-prophecy-arrays options
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
@@ -119,6 +122,7 @@ class PonoOptions
   static const unsigned int default_ic3_gen_max_iter_ = 2;
   static const unsigned int default_ic3_indgen_mode_ = 0;
   static const bool default_ic3_functional_preimage_ = false;
+  static const size_t default_ic3_solver_reset_interval_ = 0;
   static const bool default_cegp_axiom_red_ = true;
 };
 
