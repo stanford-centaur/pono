@@ -154,6 +154,30 @@ void ModelBasedIC3::initialize()
       }
     }
   }
+
+  assert(!interpolator_);
+  assert(solver_);
+  assert(!to_interpolator_);
+  assert(!to_solver_);
+
+  if (options_.ic3_indgen_mode_ == 2) {
+    // TODO make an option to set the interpolator
+    interpolator_ = create_interpolating_solver(MSAT_INTERPOLATOR);
+    to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
+    to_solver_ = std::make_unique<TermTranslator>(solver_);
+
+    UnorderedTermMap & cache = to_solver_->get_cache();
+    Term ns;
+    for (auto s : ts_.statevars()) {
+      // common variables will be next state
+      // so that's all we need
+      // better not to cache the others, now if there's a bug
+      // where the shared variables are not respected, the term
+      // translator will throw an exception
+      ns = ts_.next(s);
+      cache[to_interpolator_->transfer_term(ns)] = ns;
+    }
+  }
 }
 
 ProverResult ModelBasedIC3::check_until(int k)
@@ -461,6 +485,12 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 {
   Term gen_res = solver_->make_term(Not, c.term_);
 
+  // expect non-null interpolator and term translators
+  // iff in mode for interpolant based generalization
+  assert((options_.ic3_indgen_mode_ == 2) == (interpolator_ != 0));
+  assert((options_.ic3_indgen_mode_ == 2) == (to_interpolator_ != 0));
+  assert((options_.ic3_indgen_mode_ == 2) == (to_solver_ != 0));
+
   if (options_.ic3_indgen_) {
     if (options_.ic3_indgen_mode_ == 0) {
       UnorderedTermSet keep, core_set;
@@ -563,38 +593,22 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       gen_res = solver_->make_term(Not, ts_.curr(make_and(red_lits)));
 
     } else if (options_.ic3_indgen_mode_ == 2) {
+      interpolator_->reset_assertions();
+
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({get_frame(i - 1), ts_.trans(),
                                solver_->make_term(Not, c.term_)});
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
-      // TODO make an option to set the interpolator
-      SmtSolver interpolator = create_interpolating_solver(MSAT_INTERPOLATOR);
-      TermTranslator to_interpolator(interpolator);
-      TermTranslator to_solver(solver_);
-
-      UnorderedTermMap & cache = to_solver.get_cache();
-      Term ns;
-      for (auto s : ts_.statevars()) {
-        // common variables will be next state
-        // so that's all we need
-        // better not to cache the others, now if there's a bug
-        // where the shared variables are not respected, the term
-        // translator will throw an exception
-        ns = ts_.next(s);
-        cache[to_interpolator.transfer_term(ns)] = ns;
-      }
-
-      Term int_A = to_interpolator.transfer_term(formula, BOOL);
-      Term int_B = to_interpolator.transfer_term(ts_.next(c.term_), BOOL);
+      Term int_A = to_interpolator_->transfer_term(formula, BOOL);
+      Term int_B = to_interpolator_->transfer_term(ts_.next(c.term_), BOOL);
 
       Term interp;
-      Result r = interpolator->get_interpolant(int_A, int_B, interp);
+      Result r = interpolator_->get_interpolant(int_A, int_B, interp);
       assert(r.is_unsat());
 
-      Term solver_interp = to_solver.transfer_term(interp);
+      Term solver_interp = to_solver_->transfer_term(interp);
       gen_res = ts_.curr(solver_interp);
-      assert(ts_.only_curr(gen_res));
 
       logger.log(3, "Got interpolant: {}", gen_res);
 
@@ -603,6 +617,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
     }
   }
 
+  assert(ts_.only_curr(gen_res));
   assert(!intersects_initial(solver_->make_term(Not, gen_res)));
   return gen_res;
 }

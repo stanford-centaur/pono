@@ -216,6 +216,11 @@ class ModelBasedIC3 : public Prover
   smt::Term true_;
   smt::Term false_;
 
+  // for ic3_indgen_mode_ == 2
+  // interpolant based generalization
+  smt::SmtSolver interpolator_;
+  std::unique_ptr<smt::TermTranslator> to_interpolator_;
+  std::unique_ptr<smt::TermTranslator> to_solver_;
 };
 
 class DisjointSet
