@@ -595,12 +595,19 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
     } else if (options_.ic3_indgen_mode_ == 2) {
       interpolator_->reset_assertions();
 
+      TermVec conjuncts;
+      split_eq(solver_, c.conjuncts_, conjuncts);
+
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
-      Term formula = make_and({get_frame(i - 1), ts_.trans(),
-                               solver_->make_term(Not, c.term_)});
+      Term formula = make_and({ get_frame(i - 1),
+                                ts_.trans(),
+                                solver_->make_term(Not, make_and(conjuncts)) });
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
       Term int_A = to_interpolator_->transfer_term(formula, BOOL);
+      // still use c in B
+      // only split equalities in A to encourage more general unsat proofs /
+      // interpolants
       Term int_B = to_interpolator_->transfer_term(ts_.next(c.term_), BOOL);
 
       Term interp;
