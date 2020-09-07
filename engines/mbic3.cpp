@@ -279,7 +279,7 @@ bool ModelBasedIC3::intersects_bad()
   if (r.is_sat()) {
     // push bad as a proof goal
     TermVec conjuncts;
-    conjunctive_partition(bad_, conjuncts);
+    conjunctive_partition(bad_, conjuncts, true);
     Conjunction bad_at_last_frame(solver_, conjuncts);
     add_proof_goal(bad_at_last_frame, reached_k_ + 1);
   }
@@ -402,7 +402,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     // if using interpolants, can't count on blocking term being a clause
     // simple heuristic is to get conjunctive partition
     TermVec conjuncts;
-    conjunctive_partition(gen_blocking_term, conjuncts);
+    conjunctive_partition(gen_blocking_term, conjuncts, true);
     size_t min_idx = frames_.size();
     for (auto bt : conjuncts) {
       // TODO: fix name -- might not be a clause anymore
@@ -742,7 +742,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
     Term fun_preimage = solver_->substitute(ts_.trans(), m);
     TermVec conjuncts;
-    conjunctive_partition(fun_preimage, conjuncts);
+    conjunctive_partition(fun_preimage, conjuncts, true);
     res = Conjunction(solver_, conjuncts);
   }
 
