@@ -258,6 +258,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
       return false;
     }
 
+    assert(violated_axioms_.size());
     Term lbl;
     for (auto ax : violated_axioms_) {
       if (reduce_axioms_unsatcore_) {
@@ -491,7 +492,7 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
   // check these axioms
   // Note: using staged unrolling -- i.e. indices already unrolled
   // but the rest of the axiom is not, until later
-  size_t num_found_lemmas;
+  size_t num_found_lemmas = 0;
   Term unrolled_ax;
   for (AxiomInstantiation ax_inst : index_axioms(ac, unrolled_indices)) {
     if (only_curr && !ts_.only_curr(ax_inst.ax)) {
