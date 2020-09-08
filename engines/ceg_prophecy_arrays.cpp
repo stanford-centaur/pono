@@ -136,7 +136,6 @@ ProverResult CegProphecyArrays::check_until(int k)
     // system
     // TODO: handle this in a better way
     opts.static_coi_ = false;
-    std::cout << opts.static_coi_ << std::endl;
     shared_ptr<Prover> prover =
         make_prover(e_, latest_prop, solver_->get_solver_enum(), opts);
 
