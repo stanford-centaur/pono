@@ -132,7 +132,7 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
-
+target_compile_options(pono-lib PRIVATE -W)
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 
 if (WITH_COREIR)
