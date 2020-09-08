@@ -38,7 +38,7 @@ if __name__ == "__main__":
     pono="./pono"
 
     commands = {
-        "BMC": [pono, '--static-coi', '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
+        "BMC": [pono, '-e', 'bmc', '-v', verbosity_option, '-k', bound, btor_file],
         # "BMC+SimplePath": [pono, '--static-coi', '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
         "K-Induction": [pono, '--static-coi', '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
         "IC3": [pono, '--check-invar', '--static-coi', '-e', 'mbic3', '-v', verbosity_option, '-k', bound, '--no-witness', btor_file],
