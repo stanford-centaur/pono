@@ -730,13 +730,18 @@ simple_expr: constant {
               if(bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
                   throw PonoException("Type system violation");
               }
-              if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed mismatch");
+              smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
+              if(bvs_a != bvs_b  || (ask != smt::BOOL && ask != smt::BV)){
+                 throw PonoException("Expecting two booleans or two bit-vectors of the same width");
               } else{
-              e = enc.solver_->make_term(smt::BVXnor, a->getTerm(), b->getTerm());
-              assert(e);
-              $$ = new SMVnode(e,bvs_a);
+                assert(ask ==  bsk);
+                assert(ask == smt::BOOL || ask == smt::BV);
+                if(ask == smt::BOOL)  e = enc.solver_->make_term(smt::Not, enc.solver_->make_term(smt::Xor, a->getTerm(), b->getTerm()));
+                else e = enc.solver_->make_term(smt::BVXnor, a->getTerm(), b->getTerm());
               }
+                assert(e);    //check e in non-null
+                $$ = new SMVnode(e,bvs_a);
               }else{
               $$ = new xor_expr($1,$3);
               }
