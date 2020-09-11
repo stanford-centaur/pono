@@ -45,7 +45,7 @@ void pono::SMVEncoder::processCase()
         },
         solver_);
     std::future_status status;
-    status = fut.wait_for(std::chrono::seconds(5));
+    status = fut.wait_for(std::chrono::seconds(5)); //check timeout
     while (status != std::future_status::timeout) {
       if (status == std::future_status::ready) {
         if (fut.get()) {

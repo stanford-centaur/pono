@@ -107,7 +107,6 @@ header:
     | basic_expr {
       SMVnode *a = $1; 
       enc.parse_term = a->getTerm();
-      std::cout << "parse string to term" << enc.parse_term <<std::endl;
     }
 
 module_decl:
@@ -594,6 +593,7 @@ simple_expr: constant {
                 $$ = new SMVnode(tok, SMVnode::WordArray);
               }else{
                 smt::SortKind kind_ = tok->get_sort()->get_sort_kind();
+                assert(tok);
                 if (kind_ == smt::BV || kind_ == smt::BOOL) $$ = new SMVnode(tok,SMVnode::Boolean);
                 else if (kind_ == smt::INT) $$ = new SMVnode(tok,SMVnode::Integer);
                 else if (kind_ == smt::REAL) $$ = new SMVnode(tok,SMVnode::Real);
@@ -614,10 +614,17 @@ simple_expr: constant {
             if(enc.module_flat){
               SMVnode *a = $2;
               SMVnode::Type bvs_a = a->getType();
+              smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
+              smt::Term e;
               if(bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
                 throw PonoException("Type system violation");
+              }else if(ask != smt::BOOL && ask != smt::BV){
+                throw PonoException("Expecting two booleans or two bit-vectors of the same width");
+              }else{
+               if(ask == smt::BOOL) e = enc.solver_->make_term(smt::Not, a->getTerm());
+               else  e = enc.solver_->make_term(smt::BVNot, a->getTerm());
               }
-              smt::Term e = enc.solver_->make_term(smt::BVNot, a->getTerm());
+              assert(e);    //check e non-null
               $$ = new SMVnode(e,bvs_a);
             }else{
               $$ = new not_expr($2);
@@ -629,18 +636,25 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term e;
               if(bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
                 throw PonoException("Type system violation");
               }
               if(bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
                   throw PonoException("Type system violation");
               }
-              if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed unmatch");
+              smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
+              if(bvs_a != bvs_b  || (ask != smt::BOOL && ask != smt::BV)){
+                 throw PonoException("Expecting two booleans or two bit-vectors of the same width");
               } else{
-                smt::Term e = enc.solver_->make_term(smt::BVAnd, a->getTerm(), b->getTerm());
-                $$ = new SMVnode(e,bvs_a);
+                assert(ask ==  bsk);
+                assert(ask == smt::BOOL || ask == smt::BV);
+                if(ask == smt::BOOL)  e = enc.solver_->make_term(smt::And, a->getTerm(), b->getTerm());
+                else e = enc.solver_->make_term(smt::BVAnd, a->getTerm(), b->getTerm());
               }
+                assert(e);    //check e in non-null
+                $$ = new SMVnode(e,bvs_a);
             }else{
               $$ = new and_expr($1,$3);
               }
@@ -651,18 +665,25 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term e;
               if(bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
                 throw PonoException("Type system violation");
               }
               if(bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
                   throw PonoException("Type system violation");
               }
-              if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed unmatch");
+              smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
+              if(bvs_a != bvs_b  || (ask != smt::BOOL && ask != smt::BV)){
+                 throw PonoException("Expecting two booleans or two bit-vectors of the same width");
               } else{
-                smt::Term e = enc.solver_->make_term(smt::BVOr, a->getTerm(), b->getTerm());
-                $$ = new SMVnode(e,bvs_a);
+                assert(ask ==  bsk);
+                assert(ask == smt::BOOL || ask == smt::BV);
+                if(ask == smt::BOOL)  e = enc.solver_->make_term(smt::Or, a->getTerm(), b->getTerm());
+                else e = enc.solver_->make_term(smt::BVOr, a->getTerm(), b->getTerm());
               }
+                assert(e);    //check e in non-null
+                $$ = new SMVnode(e,bvs_a);
               }else{
               $$ = new or_expr($1,$3);
               }
@@ -673,18 +694,25 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term e;
               if(bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
                 throw PonoException("Type system violation");
               }
               if(bvs_b != SMVnode::Unsigned && bvs_b != SMVnode::Signed && bvs_b != SMVnode::Boolean){
                   throw PonoException("Type system violation");
               }
-              if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed unmatch");
+              smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
+              smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
+              if(bvs_a != bvs_b  || (ask != smt::BOOL && ask != smt::BV)){
+                 throw PonoException("Expecting two booleans or two bit-vectors of the same width");
               } else{
-                smt::Term e = enc.solver_->make_term(smt::BVXor, a->getTerm(), b->getTerm());
-                $$ = new SMVnode(e,bvs_a);
+                assert(ask ==  bsk);
+                assert(ask == smt::BOOL || ask == smt::BV);
+                if(ask == smt::BOOL)  e = enc.solver_->make_term(smt::Xor, a->getTerm(), b->getTerm());
+                else e = enc.solver_->make_term(smt::BVXor, a->getTerm(), b->getTerm());
               }
+                assert(e);    //check e in non-null
+                $$ = new SMVnode(e,bvs_a);
               }else{
               $$ = new xor_expr($1,$3);
               }
@@ -695,6 +723,7 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term e;
               if(bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
                 throw PonoException("Type system violation");
               }
@@ -702,9 +731,10 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed mismatch");
               } else{
-              smt::Term e = enc.solver_->make_term(smt::BVXnor, a->getTerm(), b->getTerm());
+              e = enc.solver_->make_term(smt::BVXnor, a->getTerm(), b->getTerm());
+              assert(e);
               $$ = new SMVnode(e,bvs_a);
               }
               }else{
@@ -717,6 +747,7 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term e;
               if( bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
                 throw PonoException("Type system violation");
               }
@@ -724,9 +755,10 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed mismatch");
               } else{
-              smt::Term e = enc.solver_->make_term(smt::Implies, a->getTerm(), b->getTerm());
+              e = enc.solver_->make_term(smt::Implies, a->getTerm(), b->getTerm());
+              assert(e);
               $$ = new SMVnode(e,bvs_a);
               }}else{
               $$ = new imp_expr($1,$3);
@@ -738,6 +770,7 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term e;
               if(bvs_a != SMVnode::Unsigned && bvs_a != SMVnode::Signed && bvs_a != SMVnode::Boolean){
                 throw PonoException("Type system violation");
               }
@@ -745,9 +778,10 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed mismatch");
               } else{
-              smt::Term e = enc.solver_->make_term(smt::Iff, a->getTerm(), b->getTerm());
+              e = enc.solver_->make_term(smt::Iff, a->getTerm(), b->getTerm());
+              assert(e);
               $$ = new SMVnode(e,bvs_a);
               }}else{
               $$ = new iff_expr($1,$3);
@@ -759,12 +793,14 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term e;
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed mismatch");
               } else{
-              smt::Term e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
+               e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
+              }
+              assert(e);
               $$ = new SMVnode(e,SMVnode::Boolean);
-                }
               }else{
               $$ = new eq_expr($1,$3);
               }
@@ -775,12 +811,14 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term e;
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed unmatch");
+                 throw PonoException("Unsigned/Signed mismatch");
               } else{
-                smt::Term e = enc.solver_->make_term(smt::Distinct, a->getTerm(), b->getTerm());
-                $$ = new SMVnode(e,SMVnode::Boolean);
+                e = enc.solver_->make_term(smt::Distinct, a->getTerm(), b->getTerm());
               }
+                assert(e);
+                $$ = new SMVnode(e,SMVnode::Boolean);
               }else{
               $$ = new neq_expr($1,$3);
               }
@@ -791,20 +829,20 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term res;
               if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  smt::Term res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Boolean);
+                  res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
-                    smt::Term res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
-                    $$ = new SMVnode(res,SMVnode::Boolean);
+                    res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
-                    smt::Term res = enc.solver_->make_term(smt::BVSlt, a->getTerm(), b->getTerm());
-                    $$ = new SMVnode(res,SMVnode::Boolean);
+                    res = enc.solver_->make_term(smt::BVSlt, a->getTerm(), b->getTerm());
                   } else{
-                    throw PonoException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed mismatch");
                   } 
               }
+                  assert(res);
+                  $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
               $$ = new lt_expr($1,$3);
               }
@@ -815,22 +853,22 @@ simple_expr: constant {
               SMVnode *b = $3;
               smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
               smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
+              smt::Term res;
               if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
-                  smt::Term res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Boolean);
+                  res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
-                    smt::Term res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
-                    $$ = new SMVnode(res,SMVnode::Boolean);
+                    res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
-                    smt::Term res = enc.solver_->make_term(smt::BVSgt, a->getTerm(), b->getTerm());
-                    $$ = new SMVnode(res,SMVnode::Boolean);
+                    res = enc.solver_->make_term(smt::BVSgt, a->getTerm(), b->getTerm());
                   } else{
-                    throw PonoException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed mismatch");
                   } 
               }
+                  assert(res);
+                  $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
               $$ = new gt_expr($1,$3);
               }
@@ -841,20 +879,20 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term res;
               if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  smt::Term res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Boolean);
+                  res = enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
-                    smt::Term res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
-                    $$ = new SMVnode(res,SMVnode::Boolean);
+                    res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
-                    smt::Term res = enc.solver_->make_term(smt::BVSle, a->getTerm(), b->getTerm());
-                    $$ = new SMVnode(res,SMVnode::Boolean);
+                    res = enc.solver_->make_term(smt::BVSle, a->getTerm(), b->getTerm());
                   } else{
-                    throw PonoException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed bitvector mismatch");
                   } 
               }
+                  assert(res);
+                  $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
               $$ = new lte_expr($1,$3);
               }
@@ -865,20 +903,20 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term res;
               if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  smt::Term res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
-                  $$ = new SMVnode(res,SMVnode::Boolean);
+                  smt::Term res = enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm()); 
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
-                    smt::Term res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
-                    $$ = new SMVnode(res,SMVnode::Boolean);
+                    res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
-                    smt::Term res = enc.solver_->make_term(smt::BVSge, a->getTerm(), b->getTerm());
-                    $$ = new SMVnode(res,SMVnode::Boolean);
+                    res = enc.solver_->make_term(smt::BVSge, a->getTerm(), b->getTerm());
                   } else{
-                    throw PonoException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed mismatch");
                   } 
               }
+                  assert(res);
+                  $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
               $$ = new gte_expr($1,$3);
               }
@@ -886,8 +924,18 @@ simple_expr: constant {
             | OP_MINUS basic_expr %prec UMINUS{
             if(enc.module_flat){
                 SMVnode *a = $2;
-                smt::Term res = enc.solver_->make_term(smt::BVNeg, a->getTerm());
-                $$ = new SMVnode(res,a->getType());
+                SMVnode::Type bvs_a = a->getType();
+                smt::Term res;
+                if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real)){
+                  res = enc.solver_->make_term(smt::Negate, a->getTerm());
+                  assert(res); //check res non-null
+                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  else $$ = new SMVnode(res,SMVnode::Integer);
+                }else {
+                  res = enc.solver_->make_term(smt::BVNeg, a->getTerm());
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,bvs_a);
+                }
               }else{
               $$ = new uminus_expr($2);
               }
@@ -898,15 +946,18 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term res;
               if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  smt::Term res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
+                  res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
+                  assert(res); //check res non-null
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
-                   throw PonoException("Unsigned/Signed unmatch");
+                   throw PonoException("Unsigned/Signed bitvector mismatch");
                   } else{
-                  smt::Term res = enc.solver_->make_term(smt::BVAdd, a->getTerm(), b->getTerm());
+                  res = enc.solver_->make_term(smt::BVAdd, a->getTerm(), b->getTerm());
+                  assert(res); //check res non-null
                   $$ = new SMVnode(res,bvs_a);
                 }
               }
@@ -920,15 +971,18 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term res;
               if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  smt::Term res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
+                  res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
+                  assert(res); //check res non-null
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
-                   throw PonoException("Unsigned/Signed unmatch");
+                   throw PonoException("Unsigned/Signed bitvector mismatch");
                   } else{
-                  smt::Term res = enc.solver_->make_term(smt::BVSub, a->getTerm(), b->getTerm());
+                  assert(res); //check res non-null
+                  res = enc.solver_->make_term(smt::BVSub, a->getTerm(), b->getTerm());
                   $$ = new SMVnode(res,bvs_a);
                   }
               }
@@ -942,15 +996,18 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term res;
               if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  smt::Term res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
+                  res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
+                  assert(res); //check res non-null
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
-                   throw PonoException("Unsigned/Signed unmatch");
+                   throw PonoException("Unsigned/Signed bitvector mismatch");
                   } else{
-                  smt::Term res = enc.solver_->make_term(smt::BVMul, a->getTerm(), b->getTerm());
+                  assert(res); //check res non-null
+                  res = enc.solver_->make_term(smt::BVMul, a->getTerm(), b->getTerm());
                   $$ = new SMVnode(res,bvs_a);
                   } 
               }
@@ -964,19 +1021,22 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term res;
               if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  smt::Term res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
+                  res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
+                  assert(res); //check res non-null
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
-                    smt::Term res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
+                    res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Unsigned);
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
-                    smt::Term res = enc.solver_->make_term(smt::BVSdiv, a->getTerm(), b->getTerm());
+                    assert(res); //check res non-null
+                    res = enc.solver_->make_term(smt::BVSdiv, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Signed);
                   } else{
-                    throw PonoException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed bitvector mismatch");
                   } 
               }
               }else{
@@ -989,19 +1049,23 @@ simple_expr: constant {
               SMVnode *b = $3;
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
+              smt::Term res;
               if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  smt::Term res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
+                  res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
+                  assert(res); //check res non-null
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
-                    smt::Term res = enc.solver_->make_term(smt::BVUrem, a->getTerm(), b->getTerm());
+                    res = enc.solver_->make_term(smt::BVUrem, a->getTerm(), b->getTerm());
+                    assert(res); //check res non-null
                     $$ = new SMVnode(res,SMVnode::Unsigned);
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
-                    smt::Term res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
+                    res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
+                    assert(res); //check res non-null
                     $$ = new SMVnode(res,SMVnode::Signed);
                   } else{
-                    throw PonoException ("Unsigned/Signed unmatch");
+                    throw PonoException ("Unsigned/Signed bitvector mismatch");
                   } 
               }
               }else{
@@ -1015,6 +1079,7 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term res = enc.solver_->make_term(smt::BVLshr, a->getTerm(), b->getTerm());
                 if(bvs_b == SMVnode::Unsigned){
+                  assert(res); //check res non-null
                   $$ = new SMVnode(res,a->getType());
                 }else{
                   throw PonoException("Shift type mismatch");
@@ -1031,6 +1096,7 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term res = enc.solver_->make_term(smt::BVShl, a->getTerm(), b->getTerm());
               if(bvs_b == SMVnode::Unsigned){
+                  assert(res); //check res non-null
                   $$ = new SMVnode(res,a->getType());
                 }else{
                   throw PonoException("Shift type mismatch");
@@ -1046,9 +1112,10 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               if(bvs_a != bvs_b){
-                throw PonoException("Unsigned/Signed unmatch");
+                throw PonoException("Unsigned/Signed bitvector mismatch");
               } else{
                 smt::Term res = enc.solver_->make_term(smt::Concat, a->getTerm(), b->getTerm());
+                assert(res); //check res non-null
                 $$ = new SMVnode(res,SMVnode::Unsigned);
               }               
               }else{
@@ -1064,6 +1131,7 @@ simple_expr: constant {
                 SMVnode::Type bvs_a = a->getType();
                 if(bvs_a == SMVnode::Unsigned || bvs_a == SMVnode::Signed){
                   smt::Term res = enc.solver_->make_term(smt::Op(smt::Extract, stoi($3),stoi($5)), a->getTerm());
+                  assert(res); //check res non-null
                   $$ = new SMVnode(res,SMVnode::Unsigned);
                 }else{
                   throw PonoException("Bit selection type is uncompatible");
@@ -1206,10 +1274,10 @@ case_expr: TOK_CASE case_body TOK_ESAC {
             case_true = true;
             t = term_pair.second->getType();
             smt::Term e = enc.solver_->make_term(smt::Ite, term_pair.first->getTerm(), term_pair.second->getTerm(), final_term);
-            cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first->getTerm());
+            if(cond->get_sort()->get_sort_kind() == smt::BOOL) cond = enc.solver_->make_term(smt::Or,cond, term_pair.first->getTerm());
+            else cond = enc.solver_->make_term(smt::BVOr,cond, term_pair.first->getTerm());
             final_term = e;
           }
-          //enc.casestore_.push_back(final_term);
           enc.casecheck_.push_back(cond);
           $$ = new SMVnode(final_term,t);
   }else{
