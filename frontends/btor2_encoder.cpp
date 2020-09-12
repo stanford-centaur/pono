@@ -636,7 +636,7 @@ void BTOR2Encoder::parse(const std::string filename)
       int orig_width = t0->get_sort()->get_width();
 
       t0 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
-      t1 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
+      t1 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[1]);
 
       Term prod = solver_->make_term(BVMul, t0, t1);
       // overflow occurs if the upper bits are non-zero
@@ -653,7 +653,7 @@ void BTOR2Encoder::parse(const std::string filename)
       int orig_width = t0->get_sort()->get_width();
 
       t0 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
-      t1 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
+      t1 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[1]);
 
       Term prod = solver_->make_term(BVMul, t0, t1);
       Term hi =
