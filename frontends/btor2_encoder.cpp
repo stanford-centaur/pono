@@ -586,8 +586,8 @@ void BTOR2Encoder::parse(const std::string filename)
 
       int orig_width = t0->get_sort()->get_width();
 
-      t0 = solver_->make_term(Op(Zero_Extend, 1), termargs_[0]);
-      t1 = solver_->make_term(Op(Zero_Extend, 1), termargs_[0]);
+      t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
+      t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
 
       Term sum = solver_->make_term(BVAdd, t0, t1);
       // overflow occurs if there's a carry out bit
