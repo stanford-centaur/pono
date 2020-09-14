@@ -104,7 +104,7 @@ int main(int argc, char ** argv)
 #endif
     } else {
       // boolector is faster but doesn't support interpolants
-      s = CVC4SolverFactory::create(false);
+      s = BoolectorSolverFactory::create(false);
       s->set_opt("produce-models", "true");
       s->set_opt("incremental", "true");
     }
