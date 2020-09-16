@@ -24,7 +24,7 @@ jobs:
     - name: Dependencies
       shell: bash
       run: |
-        sudo apt-install xz-utils
+        sudo apt install xz-utils
     - name: Build wheels
       shell: bash
       run: |
