@@ -66,6 +66,9 @@ class CMakeBuild(build_ext):
         # build btor2
         contrib_btor2 = os.path.join(contrib_path, "setup-btor2tools.sh")
         subprocess.check_call(contrib_btor2)
+        # build bison
+        contrib_bison = os.path.join(contrib_path, "setup-bison.sh")
+        subprocess.check_call(contrib_bison)
 
         # configure
         root_dir = os.path.dirname(contrib_path)
