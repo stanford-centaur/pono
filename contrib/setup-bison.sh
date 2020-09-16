@@ -21,6 +21,8 @@ fi
 cd $DEPS
 echo "showing current directory contents"
 ls ./
+echo "printing which tar"
+which tar
 tar -xf bison-3.5.tar.xz
 rm bison-3.5.tar.xz
 echo "showing current directory contents again"
