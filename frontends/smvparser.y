@@ -258,12 +258,7 @@ assign_test: complex_identifier ASSIGNSYM simple_expr {
   if(enc.module_flat){
           SMVnode *a = $3; 
           smt::Term e = enc.terms_[$1];
-          smt::Term init = enc.solver_->make_term(smt::Equal, e, a->getTerm());
-          enc.rts_.constrain_init(init);
-          smt::Term n = enc.solver_->make_term(smt::Equal, e, a->getTerm());
-          smt::Term next = enc.rts_.next(e);         
-          e = enc.solver_->make_term(smt::Equal, next, n);
-          enc.rts_.constrain_trans(e);
+          enc.rts_.assign_next(e, a->getTerm());
   }else{
       enc.assign_list_.push_back(new assign_node_c("",$1,$3));
   }   
@@ -425,8 +420,10 @@ invar_constraint: INVAR invar_list;
 invar_list: simple_expr ";"{
   if(enc.module_flat){
             SMVnode *a = $1;
-            enc.rts_.constrain_trans(a->getTerm());
+            enc.rts_.add_invar(a->getTerm());
+            // an invariant is added over current and next states
             enc.transterm_.push_back(make_pair(enc.loc.end.line,a->getTerm()));
+            enc.transterm_.push_back(make_pair(enc.loc.end.line,enc.rts_.next(a->getTerm())));
   }else{
      SMVnode *a = new invar_node_c($1);
     enc.invar_list_.push_back(a);
