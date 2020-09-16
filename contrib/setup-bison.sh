@@ -19,9 +19,13 @@ if [ ! -f "$DEPS/bison-3.5.tar.xz" ]; then
 fi
 
 cd $DEPS
+echo "showing current directory contents"
+ls ./
 tar -xf bison-3.5.tar.xz
 rm bison-3.5.tar.xz
+echo "showing current directory contents again"
 mv ./bison-3.5 ./bison
+echo "showing current directory contents a third time"
 cd bison
 mkdir bison-install
 ./configure --prefix $DEPS/bison/bison-install --exec-prefix $DEPS/bison/bison-install
