@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file
+/*! \file interpolantmc.h
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
@@ -9,8 +9,9 @@
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief
- **
+ ** \brief A straightforward implementation of interpolation based model
+ *checking.
+ **        See Interpolation and SAT-based Model Checking
  **
  **/
 
@@ -26,15 +27,13 @@ class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
-  InterpolantMC(const Property & p, smt::SolverEnum se);
-  InterpolantMC(const Property & p,
+  InterpolantMC(Property & p, smt::SolverEnum se);
+  InterpolantMC(Property & p,
                 const smt::SmtSolver & slv,
                 const smt::SmtSolver & itp);
+  InterpolantMC(const PonoOptions & opt, Property & p, smt::SolverEnum se);
   InterpolantMC(const PonoOptions & opt,
-                const Property & p,
-                smt::SolverEnum se);
-  InterpolantMC(const PonoOptions & opt,
-                const Property & p,
+                Property & p,
                 const smt::SmtSolver & slv,
                 const smt::SmtSolver & itp);
   ~InterpolantMC();
@@ -65,6 +64,7 @@ class InterpolantMC : public Prover
   smt::Term init0_;
   smt::Term transA_;
   smt::Term transB_;
+  smt::Term bad_disjuncts_;  ///< a disjunction of bads in the suffix
 
 };  // class InterpolantMC
 

@@ -36,8 +36,12 @@ enum optionIndex
   VERBOSITY,
   RANDOM_SEED,
   VCDNAME,
-  SMT_SOLVER,
   NOWITNESS,
+  STATICCOI,
+  SMT_SOLVER,
+  RESET,
+  RESET_BND,
+  CLK,
   NO_IC3_CEXGEN,
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
@@ -135,6 +139,35 @@ const option::Descriptor usage[] = {
     "no-witness",
     Arg::None,
     "  --no-witness \tDisable printing of witness." },
+  { STATICCOI,
+    0,
+    "",
+    "static-coi",
+    Arg::None,
+    "  --static-coi \tApply static (i.e., one-time before solving) cone-of-influence analysis." },
+  { RESET,
+    0,
+    "r",
+    "reset",
+    Arg::NonEmpty,
+    "  --reset, -r <reset input> \tSymbol to use for reset signal (prefix with "
+    "~ "
+    "for negative reset)" },
+  { RESET_BND,
+    0,
+    "s",
+    "resetsteps",
+    Arg::Numeric,
+    "  --resetsteps, -s <integer> \tNumber of steps to apply reset for "
+    "(default: 1)" },
+  { CLK,
+    0,
+    "c",
+    "clock",
+    Arg::NonEmpty,
+    "  --clock, -c <clock name> \tSymbol to use for clock signal (only "
+    "supports "
+    "starting at 0 and toggling each step)" },
   { NO_IC3_CEXGEN,
     0,
     "",
@@ -252,6 +285,10 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
+        case STATICCOI: static_coi_ = true; break;
+        case RESET: reset_name_ = opt.arg; break;
+        case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
+        case CLK: clock_name_ = opt.arg; break;
         case NO_IC3_CEXGEN: ic3_cexgen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;

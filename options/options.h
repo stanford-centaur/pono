@@ -53,8 +53,10 @@ class PonoOptions
         prop_idx_(default_prop_idx_),
         bound_(default_bound_),
         verbosity_(default_verbosity_),
-        random_seed_(default_random_seed),
         no_witness_(default_no_witness_),
+        static_coi_(default_static_coi_),
+        reset_bnd_(default_reset_bnd_),
+        random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
         ic3_cexgen_(default_ic3_cexgen_),
         ic3_indgen_(default_ic3_indgen_),
@@ -75,11 +77,15 @@ class PonoOptions
   unsigned int prop_idx_;
   unsigned int bound_;
   unsigned int verbosity_;
-  unsigned int random_seed_;
   bool no_witness_;
-  std::string vcd_name_;
-  std::string filename_;
+  bool static_coi_;
+  size_t reset_bnd_;
+  unsigned int random_seed_;
   std::string smt_solver_; ///< underlying smt solver
+  std::string vcd_name_;
+  std::string reset_name_;
+  std::string clock_name_;
+  std::string filename_;
 
   // ic3 options
   bool ic3_cexgen_;  ///< generalize counterexamples in IC3
@@ -97,6 +103,8 @@ private:
   static const unsigned int default_verbosity_ = 0;
   static const unsigned int default_random_seed = 0;
   static const bool default_no_witness_ = false;
+  static const bool default_static_coi_ = false;
+  static const size_t default_reset_bnd_ = 1;
   static const std::string default_smt_solver_;
   static const bool default_ic3_cexgen_ = true;
   static const bool default_ic3_indgen_ = true;
