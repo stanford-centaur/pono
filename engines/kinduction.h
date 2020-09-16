@@ -23,11 +23,11 @@ namespace pono {
 class KInduction : public Prover
 {
  public:
-  KInduction(const Property & p, smt::SolverEnum se);
-  KInduction(const Property & p, const smt::SmtSolver & solver);
-  KInduction(const PonoOptions & opt, const Property & p, smt::SolverEnum se);
+  KInduction(Property & p, smt::SolverEnum se);
+  KInduction(Property & p, const smt::SmtSolver & solver);
+  KInduction(const PonoOptions & opt, Property & p, smt::SolverEnum se);
   KInduction(const PonoOptions & opt,
-             const Property & p,
+             Property & p,
              const smt::SmtSolver & solver);
   ~KInduction();
 

@@ -331,6 +331,48 @@ Term TransitionSystem::make_term(const Op op, const TermVec & terms)
   return solver_->make_term(op, terms);
 }
 
+void TransitionSystem::rebuild_trans_based_on_coi(
+    const UnorderedTermSet & state_vars_in_coi,
+    const UnorderedTermSet & input_vars_in_coi)
+{
+  /* Clear current transition relation 'trans_'. */
+  trans_ = solver_->make_term(true);
+  
+  /* Add next-state functions for state variables in COI. */
+  for (auto state_var : state_vars_in_coi) {
+    Term next_func = NULL;
+    auto elem = state_updates_.find(state_var);
+    if (elem != state_updates_.end())
+      next_func = elem->second;
+    /* May find state variables without next-function. */
+    if (next_func != NULL) {
+        Term eq = solver_->make_term(Equal, next_map_.at(state_var), next_func);
+        trans_ = solver_->make_term(And, trans_, eq);
+      }
+  }
+
+  /* Add global constraints added to previous 'trans_'. */
+  // TODO: check potential optimizations in removing global constraints
+  for (auto constr : constraints_)
+    trans_ = solver_->make_term(And, trans_, constr);
+
+  statevars_.clear();
+  for (auto var : state_vars_in_coi) statevars_.insert(var);
+
+  inputvars_.clear();
+  for (auto var : input_vars_in_coi) inputvars_.insert(var);
+
+  smt::UnorderedTermMap reduced_state_updates;
+  for (auto var : state_vars_in_coi) {
+    auto elem = state_updates_.find(var);
+    if (elem != state_updates_.end()) {
+      Term next_func = elem->second;
+      reduced_state_updates[var] = next_func;
+    }
+  }
+  state_updates_ = reduced_state_updates;
+}
+
 // protected methods
 
 bool TransitionSystem::contains(const Term & term,
