@@ -252,7 +252,7 @@ void VCDWitnessPrinter::check_insert_scope(std::string full_name,
   std::map<std::string, VCDSignal> & signal_set = is_reg ? root->regs : root->wires;
 
   if (signal_set.find(short_name) != signal_set.end()) {
-    logger.log(1, full_name + " has been registered already");
+    logger.log(3, full_name + " has been registered already");
     return;
   }
   auto hashid = new_hash_id();
