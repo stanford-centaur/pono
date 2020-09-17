@@ -20,15 +20,12 @@ fi
 
 # Set CFLAGS to work around compiler issue with building flex
 export CFLAGS="$CFLAGS -D_GNU_SOURCE"
-echo "Printing CFLAGS"
-printenv CFLAGS
 cd $DEPS
 tar -xf flex-2.6.4.tar.gz
 rm flex-2.6.4.tar.gz
 mv flex-2.6.4 flex
 cd flex
 mkdir flex-install
-./autogen.sh
 ./configure --prefix $DEPS/flex/flex-install --exec-prefix $DEPS/flex/flex-install
 make -j$(nproc)
 make install
