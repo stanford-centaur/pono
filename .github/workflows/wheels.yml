@@ -24,7 +24,7 @@ jobs:
     - name: Build wheels
       shell: bash
       run: |
-          docker run --mount type=bind,source="$(pwd)"/../cosa2,target=/cosa2 keyiz/manylinux-java:py${{ matrix.python-version }} /cosa2/contrib/wheels/ci.sh
+          docker run --mount type=bind,source="$(pwd)"/../pono,target=/pono keyiz/manylinux-java:py${{ matrix.python-version }} /pono/contrib/wheels/ci.sh
       env:
         PY_VERSION: ${{ matrix.python-version }}
     - uses: actions/upload-artifact@v1
