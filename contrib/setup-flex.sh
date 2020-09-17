@@ -18,6 +18,10 @@ if [ ! -f "$DEPS/flex-2.6.4.tar.gz" ]; then
     exit 1
 fi
 
+# Set CFLAGS to work around compiler issue with building flex
+export CFLAGS="$CFLAGS -D_GNU_SOURCE"
+echo "Printing CFLAGS"
+printenv CFLAGS
 cd $DEPS
 tar -xf flex-2.6.4.tar.gz
 rm flex-2.6.4.tar.gz
