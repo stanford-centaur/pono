@@ -21,6 +21,10 @@ addons:
       - python3-pip
       - python3-setuptools
       - ruby
+      - libfl-dev
+      # for pycoreir which is currently not tested on Travis
+      # - libmpfr-dev
+      # - libmpc-dev
 
 jobs:
   include:
@@ -31,7 +35,7 @@ jobs:
       dist: bionic
       compiler: clang
     - os: osx
-      osx_image: xcode9.2
+      osx_image: xcode12
 
 script:
   - source ./scripts/travis-mac-install.sh
@@ -44,7 +48,8 @@ script:
   - ./contrib/setup-bison.sh
   - ./contrib/setup-flex.sh
   - ./contrib/setup-btor2tools.sh
-  - ./contrib/setup-smt-switch.sh --with-msat --python
+  - ./travis-scripts/download-cvc4.sh
+  - ./contrib/setup-smt-switch.sh --with-msat --cvc4-home=./deps/CVC4 --python
   - sudo python3 -m pip install -e ./deps/smt-switch/build/python
   - ./configure.sh --with-msat --python --debug
   - cd build && make -j2 && make test && cd ../

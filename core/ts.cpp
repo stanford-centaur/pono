@@ -3,7 +3,7 @@
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
@@ -14,18 +14,93 @@
  **
  **/
 
+#include <functional>
+#include "assert.h"
+
 #include "ts.h"
 
 using namespace smt;
 using namespace std;
 
-namespace cosa {
+namespace pono {
+
+TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
+                                   TermTranslator & tt)
+{
+  function<Term(const Term &)> transfer;
+  function<Term(const Term &, SortKind)> transfer_as;
+  if (other_ts.solver() == tt.get_solver()) {
+    // if the solvers are the same, don't need to transfer
+    transfer = [](const Term & t) { return t; };
+    // assume you don't need to do sort-casting for terms from the same solver
+    transfer_as = [](const Term & t, SortKind sk) { return t; };
+  } else {
+    transfer = [&tt](const Term & t) { return tt.transfer_term(t); };
+    transfer_as = [&tt](const Term & t, SortKind sk) {
+      return tt.transfer_term(t, sk);
+    };
+  }
+
+  solver_ = tt.get_solver();
+  // transfer init and trans -- expect them to be boolean
+  // will cast if underlying solver aliases Bool/BV1
+  init_ = transfer_as(other_ts.init_, BOOL);
+  trans_ = transfer_as(other_ts.trans_, BOOL);
+
+  // populate data structures with translated terms
+
+  for (auto v : other_ts.statevars_) {
+    statevars_.insert(transfer(v));
+  }
+
+  for (auto v : other_ts.inputvars_) {
+    inputvars_.insert(transfer(v));
+  }
+
+  for (auto v : other_ts.next_statevars_) {
+    next_statevars_.insert(transfer(v));
+  }
+
+  for (auto elem : other_ts.named_terms_) {
+    named_terms_[elem.first] = transfer(elem.second);
+  }
+
+  // variables might have already be in the TermTranslator cache
+  // with a different sort (due to sort aliasing)
+  // use the SortKind as a hint when transferring
+  // sorts of the two terms should match for state updates and next_map
+  Term key, val;
+  for (auto elem : other_ts.state_updates_) {
+    key = transfer(elem.first);
+    val = transfer_as(elem.second, key->get_sort()->get_sort_kind());
+    assert(key->get_sort() == val->get_sort());
+    state_updates_[key] = val;
+  }
+  for (auto elem : other_ts.next_map_) {
+    key = transfer(elem.first);
+    val = transfer_as(elem.second, key->get_sort()->get_sort_kind());
+    next_map_[key] = val;
+  }
+
+  for (auto elem : other_ts.curr_map_) {
+    curr_map_[transfer(elem.first)] = transfer(elem.second);
+  }
+
+  /* Constraints collected in vector 'constraints_' were part of init_
+     and/or trans_ and were transferred already above. Hence these
+     terms should be in the term translator cache. */
+  for (auto constr : other_ts.constraints_) {
+    constraints_.push_back(transfer_as(constr, BOOL));
+  }
+  
+  functional_ = other_ts.functional_;
+}
 
 void TransitionSystem::set_init(const Term & init)
 {
   // TODO: only do this check in debug mode
   if (!only_curr(init)) {
-    throw CosaException(
+    throw PonoException(
         "Initial state constraints should only use current state variables");
   }
 
@@ -36,7 +111,7 @@ void TransitionSystem::constrain_init(const Term & constraint)
 {
   // TODO: Only do this check in debug mode
   if (!only_curr(constraint)) {
-    throw CosaException(
+    throw PonoException(
         "Initial state constraints should only use current state variables");
   }
   init_ = solver_->make_term(And, init_, constraint);
@@ -45,13 +120,18 @@ void TransitionSystem::constrain_init(const Term & constraint)
 void TransitionSystem::assign_next(const Term & state, const Term & val)
 {
   // TODO: only do this check in debug mode
-  if (states_.find(state) == states_.end()) {
-    throw CosaException("Unknown state variable");
+  if (statevars_.find(state) == statevars_.end()) {
+    throw PonoException("Unknown state variable");
   }
 
   if (!no_next(val)) {
-    throw CosaException(
+    throw PonoException(
         "Got next state variable in RHS of functional assignment");
+  }
+
+  if (state_updates_.find(state) != state_updates_.end()) {
+    throw PonoException("State variable " + state->to_string()
+                        + " already has next-state logic assigned.");
   }
 
   state_updates_[state] = val;
@@ -65,11 +145,13 @@ void TransitionSystem::add_invar(const Term & constraint)
   if (only_curr(constraint)) {
     init_ = solver_->make_term(And, init_, constraint);
     trans_ = solver_->make_term(And, trans_, constraint);
+    Term next_constraint = solver_->substitute(constraint, next_map_);
     // add the next-state version
-    trans_ = solver_->make_term(
-        And, trans_, solver_->substitute(constraint, next_map_));
+    trans_ = solver_->make_term(And, trans_, next_constraint);
+    constraints_.push_back(constraint);
+    constraints_.push_back(next_constraint);
   } else {
-    throw CosaException("Invariants should be over current states only.");
+    throw PonoException("Invariants should be over current states only.");
   }
 }
 
@@ -77,8 +159,9 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
 {
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
+    constraints_.push_back(constraint);
   } else {
-    throw CosaException("Cannot have next-states in an input constraint.");
+    throw PonoException("Cannot have next-states in an input constraint.");
   }
 }
 
@@ -88,38 +171,47 @@ void TransitionSystem::add_constraint(const Term & constraint)
     init_ = solver_->make_term(And, init_, constraint);
     trans_ = solver_->make_term(And, trans_, constraint);
     // add over next states
-    trans_ = solver_->make_term(
-        And, trans_, solver_->substitute(constraint, next_map_));
+    Term next_constraint = solver_->substitute(constraint, next_map_);
+    trans_ = solver_->make_term(And, trans_, next_constraint);
+    constraints_.push_back(constraint);
+    constraints_.push_back(next_constraint);
   } else if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
+    constraints_.push_back(constraint);
   } else {
-    throw CosaException("Constraint cannot have next states");
+    throw PonoException("Constraint cannot have next states");
   }
 }
 
 void TransitionSystem::name_term(const string name, const Term & t)
 {
   if (named_terms_.find(name) != named_terms_.end()) {
-    throw CosaException("Name " + name + " has already been used.");
+    throw PonoException("Name " + name + " has already been used.");
   }
   named_terms_[name] = t;
 }
 
-Term TransitionSystem::make_input(const string name, const Sort & sort)
+Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
-  inputs_.insert(input);
+  inputvars_.insert(input);
+  // automatically include in named_terms
+  named_terms_[name] = input;
   return input;
 }
 
-Term TransitionSystem::make_state(const string name, const Sort & sort)
+Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
   Term state = solver_->make_symbol(name, sort);
-  Term next_state = solver_->make_symbol(name + ".next", sort);
-  states_.insert(state);
-  next_states_.insert(next_state);
+  string next_name = name + ".next";
+  Term next_state = solver_->make_symbol(next_name, sort);
+  statevars_.insert(state);
+  next_statevars_.insert(next_state);
   next_map_[state] = next_state;
   curr_map_[next_state] = state;
+  // automatically include in named_terms
+  named_terms_[name] = state;
+  named_terms_[next_name] = next_state;
   return state;
 }
 
@@ -138,12 +230,147 @@ Term TransitionSystem::next(const Term & term) const
 
 bool TransitionSystem::is_curr_var(const Term & sv) const
 {
-  return (states_.find(sv) != states_.end());
+  return (statevars_.find(sv) != statevars_.end());
 }
 
 bool TransitionSystem::is_next_var(const Term & sv) const
 {
-  return (next_states_.find(sv) != next_states_.end());
+  return (next_statevars_.find(sv) != next_statevars_.end());
+}
+
+smt::Term TransitionSystem::lookup(std::string name) const
+{
+  auto it = named_terms_.find(name);
+  if (it == named_terms_.end()) {
+    throw PonoException("Could not find term named: " + name);
+  }
+  return it->second;
+}
+
+// term building methods -- forwards to SmtSolver solver_
+
+Sort TransitionSystem::make_sort(const std::string name, uint64_t arity)
+{
+  return solver_->make_sort(name, arity);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk)
+{
+  return solver_->make_sort(sk);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk, uint64_t size)
+{
+  return solver_->make_sort(sk, size);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk, const Sort & sort1)
+{
+  return solver_->make_sort(sk, sort1);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk,
+                                 const Sort & sort1,
+                                 const Sort & sort2)
+{
+  return solver_->make_sort(sk, sort1, sort2);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk,
+                                 const Sort & sort1,
+                                 const Sort & sort2,
+                                 const Sort & sort3)
+{
+  return solver_->make_sort(sk, sort1, sort2, sort3);
+}
+
+Sort TransitionSystem::make_sort(const SortKind sk, const SortVec & sorts)
+{
+  return solver_->make_sort(sk, sorts);
+}
+
+Term TransitionSystem::make_term(bool b) { return solver_->make_term(b); }
+
+Term TransitionSystem::make_term(int64_t i, const Sort & sort)
+{
+  return solver_->make_term(i, sort);
+}
+
+Term TransitionSystem::make_term(const std::string val,
+                                 const Sort & sort,
+                                 uint64_t base)
+{
+  return solver_->make_term(val, sort, base);
+}
+
+Term TransitionSystem::make_term(const Term & val, const Sort & sort)
+{
+  return solver_->make_term(val, sort);
+}
+
+Term TransitionSystem::make_term(const Op op, const Term & t)
+{
+  return solver_->make_term(op, t);
+}
+
+Term TransitionSystem::make_term(const Op op, const Term & t0, const Term & t1)
+{
+  return solver_->make_term(op, t0, t1);
+}
+
+Term TransitionSystem::make_term(const Op op,
+                                 const Term & t0,
+                                 const Term & t1,
+                                 const Term & t2)
+{
+  return solver_->make_term(op, t0, t1, t2);
+}
+
+Term TransitionSystem::make_term(const Op op, const TermVec & terms)
+{
+  return solver_->make_term(op, terms);
+}
+
+void TransitionSystem::rebuild_trans_based_on_coi(
+    const UnorderedTermSet & state_vars_in_coi,
+    const UnorderedTermSet & input_vars_in_coi)
+{
+  /* Clear current transition relation 'trans_'. */
+  trans_ = solver_->make_term(true);
+  
+  /* Add next-state functions for state variables in COI. */
+  for (auto state_var : state_vars_in_coi) {
+    Term next_func = NULL;
+    auto elem = state_updates_.find(state_var);
+    if (elem != state_updates_.end())
+      next_func = elem->second;
+    /* May find state variables without next-function. */
+    if (next_func != NULL) {
+        Term eq = solver_->make_term(Equal, next_map_.at(state_var), next_func);
+        trans_ = solver_->make_term(And, trans_, eq);
+      }
+  }
+
+  /* Add global constraints added to previous 'trans_'. */
+  // TODO: check potential optimizations in removing global constraints
+  for (auto constr : constraints_)
+    trans_ = solver_->make_term(And, trans_, constr);
+
+  statevars_.clear();
+  for (auto var : state_vars_in_coi) statevars_.insert(var);
+
+  inputvars_.clear();
+  for (auto var : input_vars_in_coi) inputvars_.insert(var);
+
+  smt::UnorderedTermMap reduced_state_updates;
+  for (auto var : state_vars_in_coi) {
+    auto elem = state_updates_.find(var);
+    if (elem != state_updates_.end()) {
+      Term next_func = elem->second;
+      reduced_state_updates[var] = next_func;
+    }
+  }
+  state_updates_ = reduced_state_updates;
 }
 
 // protected methods
@@ -188,18 +415,19 @@ bool TransitionSystem::contains(const Term & term,
 
 bool TransitionSystem::only_curr(const Term & term) const
 {
-  return contains(term, UnorderedTermSetPtrVec{ &states_ });
+  return contains(term, UnorderedTermSetPtrVec{ &statevars_ });
 }
 
 bool TransitionSystem::no_next(const Term & term) const
 {
-  return contains(term, UnorderedTermSetPtrVec{ &states_, &inputs_ });
+  return contains(term, UnorderedTermSetPtrVec{ &statevars_, &inputvars_ });
 }
 
 bool TransitionSystem::known_symbols(const Term & term) const
 {
-  return contains(term,
-                  UnorderedTermSetPtrVec{ &states_, &inputs_, &next_states_ });
+  return contains(
+      term,
+      UnorderedTermSetPtrVec{ &statevars_, &inputvars_, &next_statevars_ });
 }
 
-}  // namespace cosa
+}  // namespace pono

@@ -10,11 +10,11 @@
 
 #include "available_solvers.h"
 
-using namespace cosa;
+using namespace pono;
 using namespace smt;
 using namespace std;
 
-namespace cosa_tests {
+namespace pono_tests {
 
 class UnrollerUnitTests : public ::testing::Test,
                           public ::testing::WithParamInterface<SolverEnum>
@@ -22,7 +22,7 @@ class UnrollerUnitTests : public ::testing::Test,
 protected:
   void SetUp() override
   {
-    s = available_solvers().at(GetParam())(false);
+    s = create_solver(GetParam());
     bvsort = s->make_sort(BV, 8);
   }
   SmtSolver s;
@@ -32,7 +32,7 @@ protected:
 TEST_P(UnrollerUnitTests, FTS_Unroll)
 {
   FunctionalTransitionSystem fts(s);
-  Term x = fts.make_state("x", bvsort);
+  Term x = fts.make_statevar("x", bvsort);
   fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
 
   Unroller u(fts, s);
@@ -43,7 +43,7 @@ TEST_P(UnrollerUnitTests, FTS_Unroll)
 TEST_P(UnrollerUnitTests, RTS_Unroll)
 {
   RelationalTransitionSystem rts(s);
-  Term x = rts.make_state("x", bvsort);
+  Term x = rts.make_statevar("x", bvsort);
   rts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
 
   Unroller u(rts, s);
@@ -54,4 +54,8 @@ TEST_P(UnrollerUnitTests, RTS_Unroll)
   ASSERT_EQ(x1, u.at_time(x, 1));
 }
 
-}
+INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
+                         UnrollerUnitTests,
+                         testing::ValuesIn(available_solver_enums()));
+
+}  // namespace pono_tests

@@ -1,37 +1,41 @@
 /*********************                                                        */
-/*! \file 
+/*! \file interpolantmc.h
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief A straightforward implementation of interpolation based model
+ *checking.
+ **        See Interpolation and SAT-based Model Checking
  **
- ** 
  **/
-
 
 #pragma once
 
-#include "prop.h"
-#include "prover.h"
-#include "ts.h"
-#include "unroller.h"
+#include "engines/prover.h"
 
-#include "proverresult.h"
 #include "smt-switch/smt.h"
 
-namespace cosa {
+namespace pono {
 
 class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
-  InterpolantMC(const Property & p, smt::SmtSolver & slv, smt::SmtSolver & itp);
+  InterpolantMC(Property & p, smt::SolverEnum se);
+  InterpolantMC(Property & p,
+                const smt::SmtSolver & slv,
+                const smt::SmtSolver & itp);
+  InterpolantMC(const PonoOptions & opt, Property & p, smt::SolverEnum se);
+  InterpolantMC(const PonoOptions & opt,
+                Property & p,
+                const smt::SmtSolver & slv,
+                const smt::SmtSolver & itp);
   ~InterpolantMC();
 
   typedef Prover super;
@@ -42,11 +46,13 @@ class InterpolantMC : public Prover
 
  private:
   bool step(int i);
+  bool step_0();
 
-  /* checks if the current Ri overapproximates R */
-  bool check_overapprox();
+  void reset_assertions(smt::SmtSolver & s);
 
-  smt::SmtSolver & interpolator_;
+  bool check_entail(const smt::Term & p, const smt::Term & q);
+
+  smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
   smt::TermTranslator to_interpolator_;
   // for translating terms to solver_
@@ -58,9 +64,8 @@ class InterpolantMC : public Prover
   smt::Term init0_;
   smt::Term transA_;
   smt::Term transB_;
-  smt::Term R_;
-  smt::Term Ri_;
+  smt::Term bad_disjuncts_;  ///< a disjunction of bads in the suffix
 
 };  // class InterpolantMC
 
-}  // namespace cosa
+}  // namespace pono

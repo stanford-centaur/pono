@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann, Ahmed Irfan
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #pragma once
 
@@ -29,11 +28,12 @@ extern "C" {
 #include <unordered_map>
 #include "assert.h"
 
-#include "exceptions.h"
-#include "smt-switch/smt.h"
-#include "ts.h"
+#include "core/ts.h"
+#include "utils/exceptions.h"
 
-namespace cosa {
+#include "smt-switch/smt.h"
+
+namespace pono {
 class BTOR2Encoder
 {
  public:
@@ -49,7 +49,7 @@ class BTOR2Encoder
   const smt::TermVec & fairvec() const { return fairvec_; };
   const smt::TermVec & inputsvec() const { return inputsvec_; }
   const smt::TermVec & statesvec() const { return statesvec_; }
-  const std::map<uint64_t, smt::Term> & no_next_states() const
+  const std::map<uint64_t, smt::Term> & no_next_statevars() const
   {
     return no_next_states_;
   }
@@ -70,8 +70,8 @@ class BTOR2Encoder
   void parse(const std::string filename);
 
   // Important members
-  smt::SmtSolver & solver_;
-  cosa::TransitionSystem & ts_;
+  const smt::SmtSolver & solver_;
+  pono::TransitionSystem & ts_;
 
   // vectors of inputs and states
   // maintains the order from the btor file
@@ -99,5 +99,4 @@ class BTOR2Encoder
   bool negated_;
   size_t witness_id_{ 0 };  ///< id of any introduced witnesses for properties
 };
-}  // namespace cosa
-
+}  // namespace pono

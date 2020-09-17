@@ -3,6 +3,8 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
+SMT_SWITCH_VERSION=4224b3082465c8bd73050526e74a6fb4e17fa4a4
+
 usage () {
     cat <<EOF
 Usage: $0 [<option> ...]
@@ -10,8 +12,8 @@ Usage: $0 [<option> ...]
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
 -h, --help              display this message and exit
---with-cvc4             include CVC4 (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
+--cvc4-home             use an already downloaded version of CVC4
 --python                build python bindings (default: off)
 EOF
     exit 0
@@ -23,8 +25,8 @@ die () {
 }
 
 WITH_MSAT=default
-WITH_CVC4=default
 CONF_OPTS=""
+cvc4_home=default
 
 while [ $# -gt 0 ]
 do
@@ -33,11 +35,19 @@ do
         --with-msat)
             WITH_MSAT=ON
             CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
-        --with-cvc4)
-            WITH_CVC4=ON
-            CONF_OPTS="$CONF_OPTS --cvc4";;
         --python)
             CONF_OPTS="$CONF_OPTS --python";;
+        --cvc4-home) die "missing argument to $1 (see -h)" ;;
+        --cvc4-home=*)
+            cvc4_home=${1##*=}
+            # Check if cvc4_home is an absolute path and if not, make it
+            # absolute.
+            case $cvc4_home in
+                /*) ;;                            # absolute path
+                *) cvc4_home=$(pwd)/$cvc4_home ;; # make absolute path
+            esac
+            CONF_OPTS="$CONF_OPTS --cvc4-home=$cvc4_home"
+            ;;
         *) die "unexpected argument: $1";;
     esac
     shift
@@ -49,13 +59,12 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
     git clone https://github.com/makaimann/smt-switch
     cd smt-switch
+    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
-
-    if [[ "$WITH_CVC4" != default ]]; then
+    if [ $cvc4_home = default ]; then
         ./contrib/setup-cvc4.sh
     fi
-
-    ./configure.sh --btor $CONF_OPTS --prefix=local --static
+    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static
     cd build
     make -j$(nproc)
     make test
@@ -66,8 +75,8 @@ else
 fi
 
 if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]; then
-    echo "It appears smt-switch with boolector was successfully installed to $DEPS/smt-switch/local."
-    echo "You may now build cosa2 with: ./configure.sh && cd build && make"
+    echo "It appears smt-switch with boolector and CVC4 was successfully installed to $DEPS/smt-switch/local."
+    echo "You may now build pono with: ./configure.sh && cd build && make"
 else
     echo "Building smt-switch failed."
     echo "You might be missing some dependencies."

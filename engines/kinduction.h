@@ -1,30 +1,34 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Ahmed Irfan, Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #pragma once
 
-#include "prover.h"
+#include "engines/prover.h"
 
-namespace cosa {
+namespace pono {
 
 class KInduction : public Prover
 {
  public:
-  KInduction(const Property & p, smt::SmtSolver & solver);
+  KInduction(Property & p, smt::SolverEnum se);
+  KInduction(Property & p, const smt::SmtSolver & solver);
+  KInduction(const PonoOptions & opt, Property & p, smt::SolverEnum se);
+  KInduction(const PonoOptions & opt,
+             Property & p,
+             const smt::SmtSolver & solver);
   ~KInduction();
 
   typedef Prover super;
@@ -46,4 +50,4 @@ class KInduction : public Prover
 
 };  // class KInduction
 
-}  // namespace cosa
+}  // namespace pono

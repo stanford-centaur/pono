@@ -1,0 +1,58 @@
+{"top":"global.counters",
+  "namespaces": {
+    "global": {
+      "modules": {
+        "counters": {
+            "metadata" : {"properties": [["exec_to_30","invar","\"out\" != 0ud16_10"],
+                                         ["out_plus_1","invar","(!B(\"clk\") & next(B(\"clk\")) & !B(\"clr\")) -> (next(\"out\") = (\"out\" + 0ud16_1))"],
+                                         ["reset","ltl","G(F((!B(\"clk\") & next(B(\"clk\")) & !B(\"clr\")) -> (next(\"out\") = 0ud16_0)))"]]
+                                 },
+          "type": ["Record",[
+            ["clk", ["Named","coreir.clkIn"]]
+          ]],
+            "instances": {
+            "count0": {"modref": "global.counter"},
+            "count1": {"modref": "global.counter"}
+          },
+          "connections": [
+            ["count0.clk","self.clk"],
+            ["count1.clk","self.clk"],
+            ["count0.out.4","count1.clr"],
+            ["count1.out.8","count0.clr"]
+          ]
+        },
+        "counter": {
+          "type": ["Record",[
+            ["clk", ["Named","coreir.clkIn"]],
+            ["clr", "BitIn"],
+            ["out", ["Array",16,"Bit"]]
+          ]],
+          "instances": {
+            "c1": {
+              "genref": "coreir.const",
+              "genargs": {"width":["Int", 16]},
+              "modargs": {"value":[["BitVector", 16], "16'h1"]}
+            },
+            "r": {
+              "genref": "mantle.reg",
+              "genargs": {"width":["Int", 16],"has_clr":["Bool",true]},
+              "modargs": {"init":[["BitVector",16],"16'h0"]}
+            },
+            "a": {
+              "genref": "coreir.add",
+              "genargs": {"width":["Int", 16]}
+            }
+          },
+          "connections": [
+            ["c1.out","a.in0"],
+            ["r.out","a.in1"],
+            ["r.clk","self.clk"],
+            ["a.out","r.in"],
+            ["r.out","self.out"],
+            ["self.clr","r.clr"]
+          ]
+        }
+      }
+    }
+  }
+}

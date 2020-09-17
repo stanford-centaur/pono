@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  Third-Party Software
 -------------------------------------------------------------------------------
 
-The cosa2 source code includes third-party software which has its own
+The Pono source code includes third-party software which has its own
 copyright and licensing terms, as described below.
 
 The 'contrib/fmt' directory contains third-party software. The

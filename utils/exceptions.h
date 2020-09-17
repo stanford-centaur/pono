@@ -1,19 +1,18 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Makai Mann
- ** This file is part of the cosa2 project.
+ ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief 
+ ** \brief
  **
- ** 
+ **
  **/
-
 
 #pragma once
 
@@ -28,7 +27,7 @@
      classes of this.
  */
 
-class CosaException : public std::exception
+class PonoException : public std::exception
 {
  public:
   /** Constructor (C strings).
@@ -37,17 +36,17 @@ class CosaException : public std::exception
    *                 Hence, responsibility for deleting the char* lies
    *                 with the caller.
    */
-  explicit CosaException(const char * message) : msg(message) {}
+  explicit PonoException(const char * message) : msg(message) {}
 
   /** Constructor (C++ STL strings).
    *  @param message The error message.
    */
-  explicit CosaException(const std::string & message) : msg(message) {}
+  explicit PonoException(const std::string & message) : msg(message) {}
 
   /** Destructor.
    * Virtual to allow for subclassing.
    */
-  virtual ~CosaException() throw() {}
+  virtual ~PonoException() throw() {}
 
   /** Returns a pointer to the (constant) error description.
    *  @return A pointer to a const char*. The underlying memory
