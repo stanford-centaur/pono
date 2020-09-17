@@ -95,7 +95,7 @@ class CMakeBuild(build_ext):
         if not os.path.isdir(extdir):
             os.mkdir(extdir)
 
-        for lib_filename in glob.glob(os.path.join(python_build_dir, "pypono.*")):
+        for lib_filename in glob.glob(os.path.join(python_build_dir, "pono.*")):
             if os.path.splitext(lib_filename)[1] == ".cxx":
                 continue
             dst_filename = os.path.join(extdir, os.path.basename(lib_filename))
@@ -108,7 +108,7 @@ setup(
     author='Makai Mann',
     ext_modules=[CMakeExtension('pono')],
     cmdclass=dict(build_ext=CMakeBuild),
-    long_description='python bindings for the next generation pono',
+    long_description='python bindings for Pono (next generation of CoSA)',
     url='https://github.com/upscale-project/pono',
     license='BSD',
     tests_require=['pytest'],
