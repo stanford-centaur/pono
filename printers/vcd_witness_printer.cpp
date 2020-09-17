@@ -523,7 +523,12 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
         if (prev_pos == valprev.end()) {
           valprev.emplace(addr_pos->second, data );
           fout << data << " " << addr_pos->second << std::endl;
-          logger.log(1, "{} was not cached before time : {}.",
+          // this happens if some elements are not assigned by
+          // the solver in the beginning, I think this is also
+          // common and GtkWave is able to handle it (by having X, don't care)
+          // before it is first assigned
+          // so you can consider even remove the logger below
+          logger.log(3, "{} was not cached before time : {}.",
             sig_array_ptr->full_name+"["+addr+"]", std::to_string(t));
         } else {
           if (prev_pos->second != data) {
@@ -532,6 +537,9 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
           }
         } // exists in prev pos or not
       } else {
+        // we should have already recorded all the indices by
+        // going through all the frames earlier on
+        // so if the case happens, it should be a bug actually
         logger.log(1, "missing addr index for array: {}: , addr : {}" ,
           sig_array_ptr->full_name, addr);
       }
@@ -547,7 +555,12 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
         if (prev_pos == valprev.end()) {
           valprev.emplace(addr_pos->second, data_default );
           fout << data_default << " " << addr_pos->second << std::endl;
-          logger.log(1, "{} was not cached before time : {}.",
+          // this happens if some elements are not assigned by
+          // the solver in the beginning, I think this is also
+          // common and GtkWave is able to handle it (by having X, don't care)
+          // before it is first assigned
+          // so you can consider even remove the logger below
+          logger.log(3, "{} was not cached before time : {}.",
             sig_array_ptr->full_name+"[default]", std::to_string(t));
         } else {
           if (prev_pos->second != data_default) {
@@ -556,6 +569,9 @@ void VCDWitnessPrinter::dump_diff(const smt::UnorderedTermMap & valmap,
           }
         } // exists in prev pos or not
       } else {
+        // we should have already recorded all the indices by
+        // going through all the frames earlier on
+        // so if the case happens, it should be a bug actually
         logger.log(1, "missing addr index for array: {}: , addr : {}" ,
           sig_array_ptr->full_name, "-default-");
       }
