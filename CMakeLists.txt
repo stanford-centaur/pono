@@ -51,10 +51,7 @@ endif()
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
 
-if (APPLE)
-  message("setting include dir")
-  include_directories("/usr/local/opt/flex/include")
-endif()
+include_directories("${FLEX_INCLUDE_DIRS}")
 
 # TODO: Use find_package
 # find package
