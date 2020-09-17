@@ -48,6 +48,8 @@ if (BISON_FOUND)
   link_directories("${PROJECT_SOURCE_DIR}/deps/bison/bison-install/lib/")
 endif()
 
+find_library(LIBRT rt)
+
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
 
@@ -183,6 +185,10 @@ target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/bui
 target_link_libraries(pono-lib PUBLIC gmp)
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
+
+if (LIBRT)
+  target_link_libraries(pono-lib PUBLIC ${LIBRT})
+endif()
 
 enable_testing()
 # Add tests subdirectory
