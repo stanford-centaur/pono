@@ -39,7 +39,7 @@ class FaultInjector
 
   virtual ~FaultInjector(){};
 
-  FunctionalTransitionSystem faulty_transition_system() const
+  FunctionalTransitionSystem & faulty_transition_system()
   {
     return faulty_fts_;
   };

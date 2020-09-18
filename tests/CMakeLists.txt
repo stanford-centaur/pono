@@ -54,6 +54,11 @@ target_link_libraries(test_control_signal_modifiers gtest_main)
 target_link_libraries(test_control_signal_modifiers pono-lib)
 add_test(NAME test_control_signal_modifiers COMMAND test_control_signal_modifiers)
 
+add_executable(test_fault_injection "${PROJECT_SOURCE_DIR}/tests/test_fault_injection.cpp")
+target_link_libraries(test_fault_injection gtest_main)
+target_link_libraries(test_fault_injection pono-lib)
+add_test(NAME test_fault_injection COMMAND test_fault_injection)
+
 add_executable(test_btor2_ts_copy_equal "${PROJECT_SOURCE_DIR}/tests/test_btor2_ts_copy_equal.cpp")
 target_link_libraries(test_btor2_ts_copy_equal gtest_main)
 target_link_libraries(test_btor2_ts_copy_equal pono-lib)

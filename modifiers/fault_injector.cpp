@@ -32,6 +32,10 @@ void FaultInjector::do_fault_injection()
   const UnorderedTermMap & state_updates = fts_.state_updates();
   const SmtSolver & solver = faulty_fts_.solver();
 
+  // TODO: copy over constraints and init to faulty_fts
+  //       make it a friend of transition system and add state variables
+  //       to the faulty fts
+
   Sort boolsort = solver->make_sort(BOOL);
   Term s;
   Term faultsig;
