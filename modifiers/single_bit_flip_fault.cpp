@@ -44,7 +44,7 @@ void SingleBitFlipFault::create_fault_vals()
     if (bitflip_cache.find(st_sort) != bitflip_cache.end()) {
       bitflipper = bitflip_cache.at(st_sort);
     }
-    {
+    else {
       // create a new bitflip val
       bitflipper =
           faulty_fts_.make_statevar(st_sort->to_string() + "_bitflip", st_sort);
