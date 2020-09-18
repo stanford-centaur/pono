@@ -45,20 +45,25 @@ void FaultInjector::do_fault_injection()
       continue;
     }
 
+    // selects whether a fault is injected at a transition
     faultsel =
         faulty_fts_.make_inputvar("faultsel_" + s->to_string(), boolsort);
     state2faultsel_[s] = faultsel;
     faultsel2state_[faultsel] = s;
 
+    // keeps track of whether there has been a fault for this var
     faultsig = faulty_fts_.make_statevar("FAULT_" + s->to_string(), boolsort);
     state2faultsig_[s] = faultsig;
     faultsig2state_[faultsig] = s;
 
+    // fault sig is delayed (says if there was a fault in the past)
+    // so it starts false
     faulty_fts_.constrain_init(
         solver->make_term(Equal, faultsig, solver->make_term(false)));
     faulty_fts_.assign_next(faultsig,
                             solver->make_term(Or, faultsig, faultsel));
 
+    // encodes the fault model (what kind of faults are allowed)
     faultval = state2faultval_.at(s);
     faulty_fts_.assign_next(
         s, solver->make_term(Ite, faultsig, faultval, elem.second));
