@@ -40,6 +40,11 @@ void FaultInjector::do_fault_injection()
   for (auto elem : state_updates) {
     s = elem.first;
 
+    if (statevars_to_ignore_.find(s) != statevars_to_ignore_.end())
+    {
+      continue;
+    }
+
     faultsel =
         faulty_fts_.make_inputvar("faultsel_" + s->to_string(), boolsort);
     state2faultsel_[s] = faultsel;

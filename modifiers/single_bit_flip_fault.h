@@ -22,7 +22,8 @@ namespace pono {
 class SingleBitFlipFault : public FaultInjector
 {
  public:
-  SingleBitFlipFault(TransitionSystem & fts) : FaultInjector(fts)
+ SingleBitFlipFault(TransitionSystem & fts, smt::UnorderedTermSet to_ignore={})
+   : FaultInjector(fts, to_ignore)
   {
     if (!fts.is_functional()) {
       throw PonoException("Expecting a functional transition system.");

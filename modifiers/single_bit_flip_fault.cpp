@@ -35,6 +35,11 @@ void SingleBitFlipFault::create_fault_vals()
     st = elem.first;
     st_sort = st->get_sort();
 
+    if (statevars_to_ignore_.find(st) != statevars_to_ignore_.end())
+    {
+      continue;
+    }
+
     // TODO: should we allow flipping boolean state vars?
     //       if there's a witness for the property it could just flip that
     if (st_sort->get_sort_kind() != BV) {
