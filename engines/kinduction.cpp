@@ -111,6 +111,7 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(unroller_.at_time(bad_, i + 1));
 
   if (ts_.statevars().size() && check_simple_path_lazy(i + 1)) {
+    solver_->pop();
     return true;
   }
 
@@ -153,7 +154,7 @@ bool KInduction::check_simple_path_lazy(int i)
       for (int l = j + 1; l <= i; ++l) {
         Term constraint = simple_path_constraint(j, l);
         if (solver_->get_value(constraint) == false_) {
-	  logger.log(2, "Adding Simple Path Clause");
+          logger.log(2, "Adding Simple Path Clause");
           simple_path_ =
               solver_->make_term(PrimOp::And, simple_path_, constraint);
           solver_->assert_formula(constraint);
