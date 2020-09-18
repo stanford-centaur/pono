@@ -30,7 +30,7 @@ void FaultInjector::do_fault_injection()
   create_fault_vals();
 
   const UnorderedTermMap & state_updates = fts_.state_updates();
-  SmtSolver & solver = faulty_fts_.solver();
+  const SmtSolver & solver = faulty_fts_.solver();
 
   Sort boolsort = solver->make_sort(BOOL);
   Term s;

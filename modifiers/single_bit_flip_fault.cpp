@@ -23,7 +23,7 @@ namespace pono {
 
 void SingleBitFlipFault::create_fault_vals()
 {
-  SmtSolver & solver = faulty_fts_.solver();
+  const SmtSolver & solver = faulty_fts_.solver();
   unordered_map<Sort, Term> bitflip_cache;
 
   Term bitflipper;
