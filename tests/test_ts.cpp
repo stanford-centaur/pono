@@ -65,6 +65,12 @@ TEST_P(TSUnitTests, RTS_Exceptions)
   ASSERT_NO_THROW(rts.constrain_trans(s->make_term(Equal, rts.next(x), xp1_n)));
 }
 
+TEST_P(TSUnitTests, FTS_DefaultCopy)
+{
+  FunctionalTransitionSystem fts;
+  fts = FunctionalTransitionSystem(s);
+}
+
 TEST_P(TSUnitTests, RTS_Copy)
 {
   RelationalTransitionSystem rts(s);
