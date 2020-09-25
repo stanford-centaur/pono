@@ -24,6 +24,29 @@ using namespace std;
 
 namespace pono {
 
+void swap(TransitionSystem & ts1, TransitionSystem & ts2)
+{
+  std::swap(ts1.solver_, ts2.solver_);
+  std::swap(ts1.init_, ts2.init_);
+  std::swap(ts1.trans_, ts2.trans_);
+  std::swap(ts1.statevars_, ts2.statevars_);
+  std::swap(ts1.next_statevars_, ts2.next_statevars_);
+  std::swap(ts1.inputvars_, ts2.inputvars_);
+  std::swap(ts1.named_terms_, ts2.named_terms_);
+  std::swap(ts1.state_updates_, ts2.state_updates_);
+  std::swap(ts1.next_map_, ts2.next_map_);
+  std::swap(ts1.curr_map_, ts2.curr_map_);
+  std::swap(ts1.functional_, ts2.functional_);
+  std::swap(ts1.constraints_, ts2.constraints_);
+  // TODO: add all member variables here after merging other PRs!
+}
+
+TransitionSystem & TransitionSystem::operator=(TransitionSystem other)
+{
+  swap(*this, other);
+  return *this;
+}
+
 TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
                                    TermTranslator & tt)
 {

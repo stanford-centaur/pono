@@ -49,6 +49,13 @@ class TransitionSystem
   {
   }
 
+  friend void swap(TransitionSystem & ts1, TransitionSystem & ts2);
+
+  /** Copy assignment using
+   *  copy-and-swap idiom
+   */
+  TransitionSystem & operator=(TransitionSystem other);
+
   /** Specialized copy-constructor that moves terms to new solver
    *  the solver is in the term translator
    *  the TransitinSystem doesn't keep the TermTranslator because
