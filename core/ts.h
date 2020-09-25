@@ -35,18 +35,18 @@ class TransitionSystem
    *  this makes it a great candidate for representing the TransitionSystem */
   TransitionSystem()
       : solver_(smt::CVC4SolverFactory::create(false)),
+        init_(solver_->make_term(true)),
+        trans_(solver_->make_term(true)),
         functional_(false)
   {
-    init_ = solver_->make_term(true);
-    trans_ = solver_->make_term(true);
   }
 
   TransitionSystem(smt::SmtSolver & s)
       : solver_(s),
+        init_(s->make_term(true)),
+        trans_(s->make_term(true)),
         functional_(false)
   {
-    init_ = solver_->make_term(true);
-    trans_ = solver_->make_term(true);
   }
 
   /** Specialized copy-constructor that moves terms to new solver
@@ -361,20 +361,14 @@ class TransitionSystem
       const smt::UnorderedTermSet & input_vars_in_coi);
 
  protected:
-
-  // Important that init_/trans_ are declared before the solver
-  // otherwise, the default copy assignment will copy the solver first
-  // this can result in the solver object being destroyed before
-  // the term objects which is problematic
-
-  // initial state constraint
-  smt::Term init_;
-  // transition relation (functional in this class)
-  smt::Term trans_;
-
   // solver
   smt::SmtSolver solver_;
 
+  // initial state constraint
+  smt::Term init_;
+
+  // transition relation (functional in this class)
+  smt::Term trans_;
 
   // system state variables
   smt::UnorderedTermSet statevars_;
