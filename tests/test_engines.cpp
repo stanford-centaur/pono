@@ -50,9 +50,9 @@ class EngineUnitTests
     ts->assign_next(
         cnt,
         ts->make_term(Ite,
-                     ts->make_term(BVUle, cnt, ts->make_term(6, bvsort8)),
-                     ts->make_term(BVAdd, cnt, ts->make_term(1, bvsort8)),
-                     ts->make_term(0, bvsort8)));
+                      ts->make_term(BVUle, cnt, ts->make_term(6, bvsort8)),
+                      ts->make_term(BVAdd, cnt, ts->make_term(1, bvsort8)),
+                      ts->make_term(0, bvsort8)));
     Term true_prop = ts->make_term(BVUle, cnt, ts->make_term(7, bvsort8));
     true_p = new Property(*ts, true_prop);
 

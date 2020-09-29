@@ -44,6 +44,16 @@ target_link_libraries(test_engines gtest_main)
 target_link_libraries(test_engines pono-lib)
 add_test(NAME test_engines COMMAND test_engines)
 
+add_executable(test_utils "${PROJECT_SOURCE_DIR}/tests/test_utils.cpp")
+target_link_libraries(test_utils gtest_main)
+target_link_libraries(test_utils pono-lib)
+add_test(NAME test_utils COMMAND test_utils)
+
+add_executable(test_uf "${PROJECT_SOURCE_DIR}/tests/test_uf.cpp")
+target_link_libraries(test_uf gtest_main)
+target_link_libraries(test_uf pono-lib)
+add_test(NAME test_uf COMMAND test_uf)
+
 add_executable(test_witness "${PROJECT_SOURCE_DIR}/tests/test_witness.cpp")
 target_link_libraries(test_witness gtest_main)
 target_link_libraries(test_witness pono-lib)
@@ -63,6 +73,11 @@ add_executable(test_coreir "${PROJECT_SOURCE_DIR}/tests/encoders/test_coreir.cpp
 target_link_libraries(test_coreir gtest_main)
 target_link_libraries(test_coreir pono-lib)
 add_test(NAME test_coreir COMMAND test_coreir)
+
+add_executable(test_ic3 "${PROJECT_SOURCE_DIR}/tests/test_ic3.cpp")
+target_link_libraries(test_ic3 gtest_main)
+target_link_libraries(test_ic3 pono-lib)
+add_test(NAME test_ic3 COMMAND test_ic3)
 
 add_executable(test_btor2 "${PROJECT_SOURCE_DIR}/tests/encoders/test_btor2.cpp")
 target_link_libraries(test_btor2 gtest_main)

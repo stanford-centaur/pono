@@ -92,7 +92,7 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   for (auto constr : other_ts.constraints_) {
     constraints_.push_back(transfer_as(constr, BOOL));
   }
-  
+
   functional_ = other_ts.functional_;
 }
 
@@ -202,6 +202,9 @@ Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
 
 Term TransitionSystem::make_statevar(const string name, const Sort & sort)
 {
+  // set to false until there is a next state update for this statevar
+  functional_ = false;
+
   Term state = solver_->make_symbol(name, sort);
   string next_name = name + ".next";
   Term next_state = solver_->make_symbol(next_name, sort);
