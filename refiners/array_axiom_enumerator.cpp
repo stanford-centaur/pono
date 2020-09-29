@@ -460,6 +460,12 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
     }
     // bound to check until depends on whether there are inputs/next state vars
     // in the axiom
+    // Note: the ax_inst already has an unrolled index, but the other variables
+    // have not been unrolled. Example,
+    //    ax_inst: i@1 != j -> read(write(a, j, e), i@1) = read(a, i@1)
+    //    this would get unrolled for different k values, for k = 3 it would be:
+    //             i@1 != j@3 -> read(write(a@3, j@3, e@3), i@1) = read(a@3,
+    //             i@1)
     size_t max_k = ts_.only_curr(ax_inst.ax) ? bound_ : bound_ - 1;
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = un_.at_time(ax_inst.ax, k);
