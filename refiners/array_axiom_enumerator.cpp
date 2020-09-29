@@ -147,35 +147,6 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
   false_ = solver_->make_term(false);
   collect_arrays_and_indices();
   create_lambda_indices();
-
-  // TODO: remove these debug prints
-  // std::cout << "\nINDEX SET" << std::endl;
-  // for (auto elem : index_set_)
-  // {
-  //   std::cout << "\t" << elem << std::endl;
-  // }
-  // std::cout << "\nCONSTARRS" << std::endl;
-  // for (auto elem : constarrs_)
-  // {
-  //   std::cout << "\t" << elem.first << ": " << elem.second << std::endl;
-  // }
-  // std::cout << "\nSTORES" << std::endl;
-  // for (auto elem : stores_)
-  // {
-  //   std::cout << "\t" << elem << std::endl;
-  // }
-  // std::cout << "\nARRAYEQ" << std::endl;
-  // for (auto elem : arrayeq_witnesses_)
-  // {
-  //   std::cout << "\t" << elem.first << ": " << elem.second << std::endl;
-  // }
-  // std::cout << "\nLAMBDAS" << std::endl;
-  // for (auto elem : lambdas_)
-  // {
-  //   std::cout << "\t" << elem.first << ": " << elem.second << std::endl;
-  // }
-  // std::cout << std::endl;
-  // TODO: end debug prints
 }
 
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
@@ -296,17 +267,13 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   }
 
   // populate axioms
-  // TODO: use an unsat core to prune
-  // OR, maybe let the outside procedure do that
   Term lbl;
   for (auto ax : all_violated_axioms) {
-    if (reduce_axioms_unsatcore_) {
-      lbl = label(ax);
-      if (core_set.find(lbl) == core_set.end()) {
-        // if not in unsat core
-        // then don't keep this axiom
-        continue;
-      }
+    if (reduce_axioms_unsatcore_
+        && core_set.find(label(ax)) == core_set.end()) {
+      // if not in unsat core
+      // then don't keep this axiom
+      continue;
     }
     if (ts_axioms_.find(ax) != ts_axioms_.end()) {
       // this is a consecutive axiom
@@ -353,8 +320,6 @@ void ArrayAxiomEnumerator::collect_arrays_and_indices()
   af.visit(init);
   af.visit(trans);
   af.visit(conc_bad_);
-
-  // TODO: create lambda variables!!
 
   for (auto idx : index_set_) {
     if (ts_.only_curr(idx)) {
@@ -481,12 +446,6 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
     }
     unrolled_indices.insert(un_.at_time(idx, i));
   }
-
-  // TODO: make sure we're covering the current/next
-  //       version of axioms correctly
-  //       not explicitly calling next here -- is that a problem?
-  //       should be okay as long as we add next version of axioms
-  //       that are only over state variables
 
   // check these axioms
   // Note: using staged unrolling -- i.e. indices already unrolled
