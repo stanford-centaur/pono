@@ -66,7 +66,7 @@ TEST_P(CopyUnitTests, CopyFromDefault)
   }
 
   FunctionalTransitionSystem fts_2(fts_copy, back_tt);
-  ASSERT_EQ(fts.is_functional(), fts_2.is_functional());
+  ASSERT_TRUE(fts_2.is_functional());
   const SmtSolver & fts_solver = fts.solver();
   ASSERT_EQ(fts_solver, fts_2.solver());
 
@@ -145,7 +145,7 @@ TEST_P(CopyUnitTests, CopyToDefault)
   }
 
   FunctionalTransitionSystem fts_2(fts_copy, back_tt);
-  ASSERT_EQ(fts.is_functional(), fts_2.is_functional());
+  ASSERT_TRUE(fts_2.is_functional());
   ASSERT_EQ(s, fts_2.solver());
 
   // VARS -- these should be exactly the same

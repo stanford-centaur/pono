@@ -49,8 +49,6 @@ class RelationalTransitionSystem : public TransitionSystem
    */
   void constrain_trans(const smt::Term & constraint);
 
-  // relational system is never considered functional
-  bool is_functional() const { return false; };
 };
 
 }  // namespace pono

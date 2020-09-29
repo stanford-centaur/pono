@@ -29,7 +29,6 @@
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
 #include "kinduction.h"
-#include "mbic3.h"
 #include "modifiers/control_signals.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
@@ -40,7 +39,6 @@
 using namespace pono;
 using namespace smt;
 using namespace std;
-
 
 ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
@@ -63,8 +61,6 @@ ProverResult check_prop(PonoOptions pono_options,
   } else if (pono_options.engine_ == INTERP) {
     assert(second_solver != NULL);
     prover = std::make_shared<InterpolantMC>(pono_options, p, s, second_solver);
-  } else if (pono_options.engine_ == MBIC3) {
-    prover = std::make_shared<ModelBasedIC3>(pono_options, p, s);
   } else {
     throw PonoException("Unimplemented engine.");
   }
@@ -90,9 +86,7 @@ int main(int argc, char ** argv)
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
 
-  // TODO: replace the try-catch block
-  //       easier for development to not catch the exception
-  // try {
+  try {
     SmtSolver s;
     SmtSolver second_solver;
     if (pono_options.engine_ == INTERP) {
@@ -109,23 +103,8 @@ int main(int argc, char ** argv)
           "responsibility for meeting the license requirements.");
 #endif
     } else {
-      if (pono_options.smt_solver_ == "msat") {
-#ifdef WITH_MSAT
-        s = MsatSolverFactory::create(false);
-#else
-        throw PonoException(
-            "This version of pono is built without MathSAT.\nPlease "
-            "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-            "Note: MathSAT has a custom license and you must assume all "
-            "responsibility for meeting the license requirements.");
-#endif
-      } else if (pono_options.smt_solver_ == "btor") {
-        // boolector is faster but doesn't support interpolants
-        s = BoolectorSolverFactory::create(false);
-      } else {
-        assert(false);
-      }
-
+      // boolector is faster but doesn't support interpolants
+      s = BoolectorSolverFactory::create(false);
       s->set_opt("produce-models", "true");
       s->set_opt("incremental", "true");
     }
@@ -255,23 +234,23 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
-  // }
-  // catch (PonoException & ce) {
-  //   cout << ce.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
-  // catch (SmtException & se) {
-  //   cout << se.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
-  // catch (std::exception & e) {
-  //   cout << "Caught generic exception..." << endl;
-  //   cout << e.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
+  }
+  catch (PonoException & ce) {
+    cout << ce.what() << endl;
+    cout << "unknown" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+  }
+  catch (SmtException & se) {
+    cout << se.what() << endl;
+    cout << "unknown" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+  }
+  catch (std::exception & e) {
+    cout << "Caught generic exception..." << endl;
+    cout << e.what() << endl;
+    cout << "unknown" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+  }
 
   return res;
 }

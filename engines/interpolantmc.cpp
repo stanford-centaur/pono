@@ -48,10 +48,10 @@ InterpolantMC::InterpolantMC(Property & p,
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
                              Property & p,
                              SolverEnum se)
-    : super(opt, p, se),
-      interpolator_(create_interpolating_solver(se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_)
+  : super(opt, p, se),
+    interpolator_(create_interpolating_solver(se)),
+    to_interpolator_(interpolator_),
+    to_solver_(solver_)
 {
   initialize();
 }
