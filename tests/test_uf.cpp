@@ -1,15 +1,13 @@
 #include <utility>
 #include <vector>
 
-#include "gtest/gtest.h"
-
 #include "core/rts.h"
 #include "core/unroller.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
+#include "gtest/gtest.h"
+#include "smt/available_solvers.h"
 #include "utils/exceptions.h"
-
-#include "available_solvers.h"
 
 using namespace pono;
 using namespace smt;
@@ -132,7 +130,7 @@ TEST_P(UFUnitTests, FalseProp)
   EXPECT_EQ(r, ProverResult::FALSE);
   s->pop();
 
-  // TODO: re-enable support for UF in ModelBasedIC3
+  // TODO: re-enable support for UF in ModelBasedIC3 once we handle it correctly
   // s->push();
   // ModelBasedIC3 ic3(prop, s);
   // r = ic3.check_until(10);

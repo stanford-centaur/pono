@@ -46,7 +46,6 @@ class CegProphecyArrays : public CEGAR
                     Engine e,
                     const smt::SmtSolver & solver);
 
-  ProverResult prove() override;
   ProverResult check_until(int k) override;
 
   void initialize() override;
@@ -67,8 +66,7 @@ class CegProphecyArrays : public CEGAR
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;
 
-  size_t num_added_axioms_ =
-      0;  ///< set by refine to the number of added axioms
+  size_t num_added_axioms_;  ///< set by refine to the number of added axioms
 
   smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
 

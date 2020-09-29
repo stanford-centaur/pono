@@ -1,18 +1,18 @@
 /*********************                                                        */
 /*! \file
- ** \verbatim
- ** Top contributors (to current version):
- **   Makai Mann, Ahmed Irfan
- ** This file is part of the pono project.
- ** Copyright (c) 2019 by the authors listed in the file AUTHORS
- ** in the top-level source directory) and their institutional affiliations.
- ** All rights reserved.  See the file LICENSE in the top-level source
- ** directory for licensing information.\endverbatim
- **
- ** \brief
- **
- **
- **/
+** \verbatim
+** Top contributors (to current version):
+**   Makai Mann, Ahmed Irfan
+** This file is part of the pono project.
+** Copyright (c) 2019 by the authors listed in the file AUTHORS
+** in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief
+**
+**
+**/
 
 #include <iostream>
 #include "assert.h"
@@ -76,6 +76,9 @@ ProverResult check_prop(PonoOptions pono_options,
   assert(prover);
 
   // TODO: handle this in a more elegant way in the future
+  //       consider calling prover for CegProphecyArrays (so that underlying
+  //       model checker runs prove unbounded) or possibly, have a command line
+  //       flag to pick between the two
   ProverResult r = prover->check_until(pono_options.bound_);
 
   if (r == FALSE && !pono_options.no_witness_) {

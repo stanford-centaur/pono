@@ -837,7 +837,7 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
     solver_->pop();
-    return; 
+    return;
   }
 
   if (options_.random_seed_ > 0) {

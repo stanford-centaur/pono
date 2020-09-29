@@ -29,9 +29,7 @@ using namespace std;
 
 namespace pono {
 
-CegProphecyArrays::CegProphecyArrays(Property & p,
-                                     Engine e,
-                                     smt::SolverEnum se)
+CegProphecyArrays::CegProphecyArrays(Property & p, Engine e, smt::SolverEnum se)
     : super(p, se),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
@@ -40,7 +38,8 @@ CegProphecyArrays::CegProphecyArrays(Property & p,
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
       aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_)
+      pm_(abs_ts_),
+      num_added_axioms_(0)
 {
   initialize();
 }
@@ -56,7 +55,8 @@ CegProphecyArrays::CegProphecyArrays(Property & p,
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
       aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_)
+      pm_(abs_ts_),
+      num_added_axioms_(0)
 {
   initialize();
 }
@@ -73,7 +73,8 @@ CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
       aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_)
+      pm_(abs_ts_),
+      num_added_axioms_(0)
 {
   initialize();
 }
@@ -90,31 +91,10 @@ CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
       e_(e),
       aa_(conc_ts_, abs_ts_, true),
       aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_)
+      pm_(abs_ts_),
+      num_added_axioms_(0)
 {
   initialize();
-}
-
-ProverResult CegProphecyArrays::prove()
-{
-  ProverResult res = ProverResult::FALSE;
-  while (res == ProverResult::FALSE) {
-    // Refine the system
-    // heuristic -- stop refining when no new axioms are needed.
-    do {
-      if (!refine()) {
-        return ProverResult::FALSE;
-      }
-      reached_k_++;
-    } while (num_added_axioms_);
-
-    Property latest_prop(abs_ts_, solver_->make_term(Not, bad_));
-    shared_ptr<Prover> prover =
-        make_prover(e_, latest_prop, solver_->get_solver_enum(), options_);
-    res = prover->prove();
-  }
-
-  return res;
 }
 
 ProverResult CegProphecyArrays::check_until(int k)
