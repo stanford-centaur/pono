@@ -60,6 +60,10 @@ class Abstractor
   // getters
   const TransitionSystem & conc_ts() const { return conc_ts_; };
 
+  // TODO: consider making this const and just copying the system
+  /** The abstract transition system is non-const
+   *  so that it can be refined in-place.
+   */
   TransitionSystem & abs_ts() const { return abs_ts_; };
 
  protected:

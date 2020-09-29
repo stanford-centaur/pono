@@ -106,9 +106,7 @@ int main(int argc, char ** argv)
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
 
-  // TEMP comment this out for development
-  // TODO replace it
-  // try {
+  try {
     SmtSolver s;
     SmtSolver second_solver;
     if (pono_options.engine_ == INTERP) {
@@ -263,23 +261,23 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
-  // }
-  // catch (PonoException & ce) {
-  //   cout << ce.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
-  // catch (SmtException & se) {
-  //   cout << se.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
-  // catch (std::exception & e) {
-  //   cout << "Caught generic exception..." << endl;
-  //   cout << e.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
+  }
+  catch (PonoException & ce) {
+    cout << ce.what() << endl;
+    cout << "unknown" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+  }
+  catch (SmtException & se) {
+    cout << se.what() << endl;
+    cout << "unknown" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+  }
+  catch (std::exception & e) {
+    cout << "Caught generic exception..." << endl;
+    cout << e.what() << endl;
+    cout << "unknown" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+  }
 
   return res;
 }

@@ -269,42 +269,6 @@ void ArrayAbstractor::do_abstraction() {
   // now we just need to set the initial states and trans
   abs_rts.set_init(abs_init);
   abs_rts.set_trans(abs_trans);
-
-  // TODO: remove these debug prints
-  // std::cout << "abstracted init to " << abs_init << std::endl;
-  // std::cout << "abstracted trans to " << abs_trans << std::endl;
-  // Term conc_init = concrete(abs_init);
-  // Term conc_trans = concrete(abs_trans);
-  // std::cout << "conc init: " << conc_init << std::endl;
-  // std::cout << "conc trans: " << conc_trans << std::endl;
-  // cout << "S" << endl;
-  // for (auto v : abs_ts_.statevars())
-  // {
-  //   cout << v;
-  //   if (v->get_sort()->get_sort_kind() == UNINTERPRETED)
-  //   {
-  //     cout << ": " << get_read_uf(v->get_sort()) << endl;
-  //   }
-  //   else
-  //   {
-  //     cout << endl;
-  //   }
-  // }
-
-  // cout << "I" << endl;
-  // for (auto v : abs_ts_.inputvars())
-  // {
-  //   cout << v;
-  //   if (v->get_sort()->get_sort_kind() == UNINTERPRETED)
-  //   {
-  //     cout << ": " << get_read_uf(v->get_sort()) << endl;
-  //   }
-  //   else
-  //   {
-  //     cout << endl;
-  //   }
-  // }
-  // TODO: end of debug prints
 }
 
 void ArrayAbstractor::abstract_vars()
