@@ -23,17 +23,17 @@ namespace pono {
 std::vector<Engine> all_engines();
 
 std::shared_ptr<Prover> make_prover(Engine e,
-                                    const Property & p,
+                                    Property & p,
                                     smt::SolverEnum se,
                                     PonoOptions opts = PonoOptions());
 
 std::shared_ptr<Prover> make_prover(Engine e,
-                                    const Property & p,
+                                    Property & p,
                                     smt::SmtSolver & slv,
                                     PonoOptions opts = PonoOptions());
 
 std::shared_ptr<Prover> make_prover(Engine e,
-                                    const Property & p,
+                                    Property & p,
                                     smt::SmtSolver & slv,
                                     smt::SmtSolver & itp,
                                     PonoOptions opts = PonoOptions());

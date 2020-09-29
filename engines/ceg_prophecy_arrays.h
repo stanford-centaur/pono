@@ -33,16 +33,16 @@ class CegProphecyArrays : public CEGAR
   typedef CEGAR super;
 
  public:
-  CegProphecyArrays(const Property & p, Engine e, smt::SolverEnum se);
-  CegProphecyArrays(const Property & p,
+  CegProphecyArrays(Property & p, Engine e, smt::SolverEnum se);
+  CegProphecyArrays(Property & p,
                     Engine e,
                     const smt::SmtSolver & solver);
   CegProphecyArrays(const PonoOptions & opt,
-                    const Property & p,
+                    Property & p,
                     Engine e,
                     smt::SolverEnum se);
   CegProphecyArrays(const PonoOptions & opt,
-                    const Property & p,
+                    Property & p,
                     Engine e,
                     const smt::SmtSolver & solver);
 

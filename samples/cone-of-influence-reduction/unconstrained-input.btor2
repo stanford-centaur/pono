@@ -1,0 +1,6 @@
+1 sort bitvec 3
+2 input 1
+3 state 1
+4 sort bitvec 1
+5 neq 4 2 3
+6 bad 5

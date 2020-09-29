@@ -26,7 +26,7 @@ using namespace smt;
 
 namespace pono {
 
-InterpolantMC::InterpolantMC(const Property & p, SolverEnum se)
+InterpolantMC::InterpolantMC(Property & p, SolverEnum se)
     : super(p, se),
       interpolator_(create_interpolating_solver(se)),
       to_interpolator_(interpolator_),
@@ -35,7 +35,7 @@ InterpolantMC::InterpolantMC(const Property & p, SolverEnum se)
   initialize();
 }
 
-InterpolantMC::InterpolantMC(const Property & p,
+InterpolantMC::InterpolantMC(Property & p,
                              const SmtSolver & slv,
                              const SmtSolver & itp)
     : super(p, slv),
@@ -47,7 +47,7 @@ InterpolantMC::InterpolantMC(const Property & p,
 }
 
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
-                             const Property & p,
+                             Property & p,
                              SolverEnum se)
   : super(opt, p, se),
     interpolator_(create_interpolating_solver(se)),
@@ -58,7 +58,7 @@ InterpolantMC::InterpolantMC(const PonoOptions & opt,
 }
 
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
-                             const Property & p,
+                             Property & p,
                              const SmtSolver & slv,
                              const SmtSolver & itp)
     : super(opt, p, slv),
@@ -107,6 +107,7 @@ void InterpolantMC::initialize()
   init0_ = unroller_.at_time(ts_.init(), 0);
   transA_ = unroller_.at_time(ts_.trans(), 0);
   transB_ = solver_->make_term(true);
+  bad_disjuncts_ = solver_->make_term(false);
 }
 
 ProverResult InterpolantMC::check_until(int k)
@@ -141,7 +142,8 @@ bool InterpolantMC::step(int i)
   }
 
   Term bad_i = unroller_.at_time(bad_, i);
-  Term int_bad = to_interpolator_.transfer_term(bad_i);
+  bad_disjuncts_ = solver_->make_term(Or, bad_disjuncts_, bad_i);
+  Term int_bad_disjuncts = to_interpolator_.transfer_term(bad_disjuncts_);
   Term int_transA = to_interpolator_.transfer_term(transA_);
   Term int_transB = to_interpolator_.transfer_term(transB_);
   Term R = init0_;
@@ -153,7 +155,7 @@ bool InterpolantMC::step(int i)
     Term int_Ri;
     Result r = interpolator_->get_interpolant(
         interpolator_->make_term(And, int_R, int_transA),
-        interpolator_->make_term(And, int_transB, int_bad),
+        interpolator_->make_term(And, int_transB, int_bad_disjuncts),
         int_Ri);
 
     got_interpolant = r.is_unsat();
