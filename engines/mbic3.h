@@ -18,11 +18,10 @@
 #include <algorithm>
 #include <map>
 #include <utility>
+
 #include "assert.h"
-
-#include "smt-switch/term_translator.h"
-
 #include "prover.h"
+#include "smt-switch/term_translator.h"
 
 namespace pono {
 
@@ -162,10 +161,10 @@ class ModelBasedIC3 : public Prover
    *  @param vector to store reduced assumptions
    *  @param vector to store removed assumptions (if not NULL)
    */
-  void reduce_assump_unsatcore(const smt::Term &formula,
-                               const smt::TermVec &assump,
-                               smt::TermVec &out_red,
-                               smt::TermVec *out_rem = NULL);
+  void reduce_assump_unsatcore(const smt::Term & formula,
+                               const smt::TermVec & assump,
+                               smt::TermVec & out_red,
+                               smt::TermVec * out_rem = NULL);
 
   smt::Term label(const smt::Term & t);
 

@@ -42,7 +42,7 @@ class Prover
   bool witness(std::vector<smt::UnorderedTermMap> & out);
 
   ProverResult prove();
-  
+
  protected:
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;

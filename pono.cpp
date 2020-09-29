@@ -25,6 +25,7 @@
 #include "bmc.h"
 #include "bmc_simplepath.h"
 #include "core/fts.h"
+#include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
@@ -36,11 +37,14 @@
 #include "printers/vcd_witness_printer.h"
 #include "prop.h"
 #include "utils/logger.h"
+#include "utils/make_provers.h"
+
+// TEMP do array abstraction directly here
+#include "modifiers/array_abstractor.h"
 
 using namespace pono;
 using namespace smt;
 using namespace std;
-
 
 ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
@@ -53,23 +57,36 @@ ProverResult check_prop(PonoOptions pono_options,
   logger.log(3, "INIT:\n{}", p.transition_system().init());
   logger.log(3, "TRANS:\n{}", p.transition_system().trans());
 
+  Engine eng = pono_options.engine_;
+
   std::shared_ptr<Prover> prover;
-  if (pono_options.engine_ == BMC) {
-    prover = std::make_shared<Bmc>(pono_options, p, s);
-  } else if (pono_options.engine_ == BMC_SP) {
-    prover = std::make_shared<BmcSimplePath>(pono_options, p, s);
-  } else if (pono_options.engine_ == KIND) {
-    prover = std::make_shared<KInduction>(pono_options, p, s);
-  } else if (pono_options.engine_ == INTERP) {
-    assert(second_solver != NULL);
-    prover = std::make_shared<InterpolantMC>(pono_options, p, s, second_solver);
-  } else if (pono_options.engine_ == MBIC3) {
-    prover = std::make_shared<ModelBasedIC3>(pono_options, p, s);
+  if (pono_options.ceg_prophecy_arrays_) {
+    // don't instantiate the sub-prover directly
+    // just pass the engine to CegProphecyArrays
+    prover = std::make_shared<CegProphecyArrays>(pono_options, p, eng, s);
+  } else if (eng != INTERP) {
+    assert(!second_solver);
+    prover = make_prover(eng, p, s, pono_options);
   } else {
-    throw PonoException("Unimplemented engine.");
+    assert(second_solver);
+    prover = make_prover(eng, p, s, second_solver, pono_options);
+  }
+  assert(prover);
+
+  // TODO: handle this in a more elegant way in the future
+  ProverResult r;
+  if (pono_options.ceg_prophecy_arrays_) {
+    // this algorithm makes more sense with prove than check_until
+    // because otherwise, it will only run the underlying model checker
+    // up to the bound and might stop before proving it
+    // and unnecessarily search for axioms again.
+
+    // all the other algorithms it doesn't matter much
+    r = prover->prove();
+  } else {
+    r = prover->check_until(pono_options.bound_);
   }
 
-  ProverResult r = prover->check_until(pono_options.bound_);
   if (r == FALSE && !pono_options.no_witness_) {
     prover->witness(cex);
   }
@@ -93,9 +110,9 @@ int main(int argc, char ** argv)
   // TODO: replace the try-catch block
   //       easier for development to not catch the exception
   // try {
-    SmtSolver s;
-    SmtSolver second_solver;
-    if (pono_options.engine_ == INTERP) {
+  SmtSolver s;
+  SmtSolver second_solver;
+  if (pono_options.engine_ == INTERP) {
 #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create(false);
@@ -107,6 +124,13 @@ int main(int argc, char ** argv)
           "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
           "Note: MathSAT has a custom license and you must assume all "
           "responsibility for meeting the license requirements.");
+#endif
+    } else if (pono_options.ceg_prophecy_arrays_) {
+#ifdef WITH_MSAT
+      // need mathsat for integer solving
+      s = MsatSolverFactory::create(false);
+#else
+      throw PonoException("ProphIC3 only supported with MathSAT so far");
 #endif
     } else {
       if (pono_options.smt_solver_ == "msat") {
@@ -171,8 +195,8 @@ int main(int argc, char ** argv)
         prop = fts.solver()->make_term(Implies, reset_done, prop);
       }
 
-      Property p(fts, prop);
       vector<UnorderedTermMap> cex;
+      Property p(fts, prop);
       res = check_prop(pono_options, p, s, second_solver, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
@@ -255,23 +279,23 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
-  // }
-  // catch (PonoException & ce) {
-  //   cout << ce.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
-  // catch (SmtException & se) {
-  //   cout << se.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
-  // catch (std::exception & e) {
-  //   cout << "Caught generic exception..." << endl;
-  //   cout << e.what() << endl;
-  //   cout << "unknown" << endl;
-  //   cout << "b" << pono_options.prop_idx_ << endl;
-  // }
+    // }
+    // catch (PonoException & ce) {
+    //   cout << ce.what() << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    // }
+    // catch (SmtException & se) {
+    //   cout << se.what() << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    // }
+    // catch (std::exception & e) {
+    //   cout << "Caught generic exception..." << endl;
+    //   cout << e.what() << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    // }
 
-  return res;
+    return res;
 }

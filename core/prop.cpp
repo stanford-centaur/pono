@@ -14,9 +14,10 @@
  **
  **/
 
-#include "prop.h"
-#include "exceptions.h"
-#include "term_analysis.h"
+#include "smt-switch/utils.h"
+
+#include "core/prop.h"
+#include "utils/exceptions.h"
 
 using namespace smt;
 
@@ -26,8 +27,9 @@ Property::Property(TransitionSystem & ts, const Term & p)
     : ts_(ts), prop_(p)
 {
   const UnorderedTermSet & states = ts.statevars();
-  UnorderedTermSet free_symbols = get_free_symbols(p);
-  for (auto s : free_symbols) {
+  TermVec free_vars;
+  get_free_symbolic_consts(p, free_vars);
+  for (auto s : free_vars) {
     if (states.find(s) == states.end()) {
       throw PonoException("Property should only use state variables");
     }

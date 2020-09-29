@@ -22,12 +22,14 @@ namespace pono {
 
 /** adds all the free (not bound to a quantifier) symbols
  *  in a Term to an existing set
+ *  Note: includes uninterpreted functions
  */
 void get_free_symbols(const smt::Term & term,
                       smt::UnorderedTermSet & out_symbols);
 
 /** returns all the free (not bound to a quantifier) symbols
  *  in a Term
+ *  Note: includes uninterpreted functions
  */
 smt::UnorderedTermSet get_free_symbols(const smt::Term & term);
 }  // namespace pono

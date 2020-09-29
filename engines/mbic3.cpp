@@ -14,12 +14,12 @@
 **        predecessor computation) and uses models.
 **/
 
+#include "engines/mbic3.h"
+
 #include <algorithm>
 #include <random>
 
 #include "smt-switch/utils.h"
-
-#include "engines/mbic3.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_walkers.h"
@@ -158,7 +158,7 @@ void ModelBasedIC3::initialize()
   extra_model_terms_.reserve(uf_apps.size());
   extra_model_terms_.insert(
       extra_model_terms_.begin(), uf_apps.begin(), uf_apps.end());
-  
+
   // all the interpolant stuff should be null so far
   // hasn't been initialized yet
   assert(!interpolator_);
@@ -312,9 +312,8 @@ bool ModelBasedIC3::get_predecessor(size_t i,
       assump.push_back(ts_.next(a));
     }
 
-    Term formula = make_and(TermVec{get_frame(i - 1),
-                                    solver_->make_term(Not, c.term_),
-                                    ts_.trans()});
+    Term formula = make_and(TermVec{
+        get_frame(i - 1), solver_->make_term(Not, c.term_), ts_.trans() });
 
     // filter using unsatcore
     reduce_assump_unsatcore(formula, assump, red_assump, &rem_assump);
@@ -483,15 +482,16 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       split_eq(solver_, c.conjuncts_, lits);
 
       if (options_.random_seed_ > 0) {
-        shuffle(lits.begin(), lits.end(),
+        shuffle(lits.begin(),
+                lits.end(),
                 default_random_engine(options_.random_seed_));
       }
 
       int iter = 0;
       bool progress = true;
-      while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 &&
-             progress) {
-        iter = options_.ic3_gen_max_iter_ > 0 ? iter+1 : iter;
+      while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1
+             && progress) {
+        iter = options_.ic3_gen_max_iter_ > 0 ? iter + 1 : iter;
         size_t prev_size = lits.size();
         for (auto a : lits) {
           // check if we can drop a
@@ -516,8 +516,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
             bool_assump.clear();
             for (auto t : tmp) {
               l = label(t);
-              solver_->assert_formula(solver_->make_term(Implies,
-                                                         l, ts_.next(t)));
+              solver_->assert_formula(
+                  solver_->make_term(Implies, l, ts_.next(t)));
               bool_assump.push_back(l);
             }
 
@@ -571,8 +571,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       split_eq(solver_, tmp, lits);
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
-      Term formula = make_and({get_frame(i - 1), ts_.trans(),
-                               solver_->make_term(Not, c.term_)});
+      Term formula = make_and(
+          { get_frame(i - 1), ts_.trans(), solver_->make_term(Not, c.term_) });
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
       reduce_assump_unsatcore(formula, lits, red_lits);
       gen_res = solver_->make_term(Not, ts_.curr(make_and(red_lits)));
@@ -585,8 +585,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       interpolator_->reset_assertions();
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
-      Term formula = make_and({get_frame(i - 1), ts_.trans(),
-                               solver_->make_term(Not, c.term_)});
+      Term formula = make_and(
+          { get_frame(i - 1), ts_.trans(), solver_->make_term(Not, c.term_) });
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
       Term int_A = to_interpolator_->transfer_term(formula, BOOL);
@@ -657,8 +657,8 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       next_lits.reserve(statevars.size());
       for (auto v : statevars) {
         Term nv = ts_.next(v);
-        next_lits.push_back(solver_->make_term(Equal, nv,
-                                               solver_->get_value(nv)));
+        next_lits.push_back(
+            solver_->make_term(Equal, nv, solver_->get_value(nv)));
       }
 
       for (auto t : extra_model_terms_) {
@@ -676,20 +676,20 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
     if (ts_.is_functional()) {
       formula = solver_->make_term(And, formula, ts_.trans());
-      formula = solver_->make_term(And, formula,
-                                   solver_->make_term(Not, ts_.next(c.term_)));
+      formula = solver_->make_term(
+          And, formula, solver_->make_term(Not, ts_.next(c.term_)));
     } else {
       formula = solver_->make_term(And, formula, make_and(next_lits));
 
       // preimage formula
       Term pre_formula = get_frame(i - 1);
       pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
-      pre_formula = solver_->make_term(And, pre_formula,
-                                       solver_->make_term(Not, c.term_));
+      pre_formula = solver_->make_term(
+          And, pre_formula, solver_->make_term(Not, c.term_));
       pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term_));
 
-      formula = solver_->make_term(And, formula,
-                                   solver_->make_term(Not, pre_formula));
+      formula = solver_->make_term(
+          And, formula, solver_->make_term(Not, pre_formula));
     }
 
     TermVec splits, red_cube_lits;
@@ -804,11 +804,12 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
     solver_->pop();
-    return; 
+    return;
   }
 
   if (options_.random_seed_ > 0) {
-    shuffle(cand_res.begin(), cand_res.end(),
+    shuffle(cand_res.begin(),
+            cand_res.end(),
             default_random_engine(options_.random_seed_));
   }
 
@@ -820,7 +821,7 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
 
   unsigned iter = 0;
   while (iter <= options_.ic3_gen_max_iter_) {
-    iter = options_.ic3_gen_max_iter_ > 0 ? iter+1 : iter;
+    iter = options_.ic3_gen_max_iter_ > 0 ? iter + 1 : iter;
     r = solver_->check_sat_assuming(bool_assump);
     assert(r.is_unsat());
 
