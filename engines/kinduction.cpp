@@ -32,10 +32,8 @@ KInduction::KInduction(Property & p, const SmtSolver & solver)
   initialize();
 }
 
-KInduction::KInduction(const PonoOptions & opt,
-                       Property & p,
-                       SolverEnum se)
-  : super(opt, p, se)
+KInduction::KInduction(const PonoOptions & opt, Property & p, SolverEnum se)
+    : super(opt, p, se)
 {
   initialize();
 }

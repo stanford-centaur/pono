@@ -30,6 +30,7 @@
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
 #include "kinduction.h"
+#include "mbic3.h"
 #include "modifiers/control_signals.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
@@ -106,10 +107,12 @@ int main(int argc, char ** argv)
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
 
-  try {
-    SmtSolver s;
-    SmtSolver second_solver;
-    if (pono_options.engine_ == INTERP) {
+  // TODO: replace the try-catch block
+  //       easier for development to not catch the exception
+  // try {
+  SmtSolver s;
+  SmtSolver second_solver;
+  if (pono_options.engine_ == INTERP) {
 #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create(false);
@@ -130,8 +133,23 @@ int main(int argc, char ** argv)
       throw PonoException("ProphIC3 only supported with MathSAT so far");
 #endif
     } else {
-      // boolector is faster but doesn't support interpolants
-      s = BoolectorSolverFactory::create(false);
+      if (pono_options.smt_solver_ == "msat") {
+#ifdef WITH_MSAT
+        s = MsatSolverFactory::create(false);
+#else
+        throw PonoException(
+            "This version of pono is built without MathSAT.\nPlease "
+            "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+            "Note: MathSAT has a custom license and you must assume all "
+            "responsibility for meeting the license requirements.");
+#endif
+      } else if (pono_options.smt_solver_ == "btor") {
+        // boolector is faster but doesn't support interpolants
+        s = BoolectorSolverFactory::create(false);
+      } else {
+        assert(false);
+      }
+
       s->set_opt("produce-models", "true");
       s->set_opt("incremental", "true");
     }
@@ -261,23 +279,23 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
-  }
-  catch (PonoException & ce) {
-    cout << ce.what() << endl;
-    cout << "unknown" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
-  }
-  catch (SmtException & se) {
-    cout << se.what() << endl;
-    cout << "unknown" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
-  }
-  catch (std::exception & e) {
-    cout << "Caught generic exception..." << endl;
-    cout << e.what() << endl;
-    cout << "unknown" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
-  }
+    // }
+    // catch (PonoException & ce) {
+    //   cout << ce.what() << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    // }
+    // catch (SmtException & se) {
+    //   cout << se.what() << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    // }
+    // catch (std::exception & e) {
+    //   cout << "Caught generic exception..." << endl;
+    //   cout << e.what() << endl;
+    //   cout << "unknown" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    // }
 
-  return res;
+    return res;
 }

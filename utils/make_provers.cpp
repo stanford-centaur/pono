@@ -20,6 +20,7 @@
 #include "engines/bmc_simplepath.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
+#include "engines/mbic3.h"
 
 using namespace smt;
 using namespace std;
@@ -41,6 +42,8 @@ shared_ptr<Prover> make_prover(Engine e,
     return make_shared<KInduction>(opts, p, se);
   } else if (e == INTERP) {
     return make_shared<InterpolantMC>(opts, p, se);
+  } else if (e == MBIC3) {
+    return make_shared<ModelBasedIC3>(opts, p, se);
   } else {
     throw PonoException("Unhandled engine");
   }
@@ -60,6 +63,8 @@ shared_ptr<Prover> make_prover(Engine e,
   } else if (e == INTERP) {
     throw PonoException(
         "Interpolant-based modelchecking requires an interpolator");
+  } else if (e == MBIC3) {
+    return make_shared<ModelBasedIC3>(opts, p, slv);
   } else {
     throw PonoException("Unhandled engine");
   }
