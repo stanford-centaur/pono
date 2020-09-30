@@ -24,25 +24,29 @@ namespace pono {
 class Property
 {
  public:
-  Property(const TransitionSystem & ts, const smt::Term & p);
+  Property(TransitionSystem & ts, const smt::Term & p, std::string name="");
 
   /** Copies property to a new solver
    *  @param prop the property to copy
    *  @param tt the term translator to use
    *  @return a property using the solver in tt
    */
-  Property(const Property & prop, smt::TermTranslator & tt);
+  Property(Property & prop, smt::TermTranslator & tt);
 
   ~Property();
 
   const smt::Term prop() const { return prop_; }
 
-  const TransitionSystem & transition_system() const { return ts_; }
+  TransitionSystem & transition_system() { return ts_; }
+
+  std::string name() { return name_; };
 
  private:
-  const TransitionSystem ts_;
+  TransitionSystem ts_;
 
   const smt::Term prop_;
+
+  std::string name_; ///< a name for the property. If no name is given, just uses the to_string
 
 };  // class Property
 

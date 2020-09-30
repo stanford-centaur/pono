@@ -26,8 +26,14 @@
 
 namespace pono {
 
+// forward declarations for friends
+class ArrayAbstractor;
+
 class TransitionSystem
 {
+  friend ArrayAbstractor;  // Abstractors need access to TransitionSystem
+                           // internals
+
  public:
   /** use CVC4 by default (doesn't require logging so pass false)
    *  it supports the most theories and doesn't rewrite-on-the-fly or alias
@@ -37,15 +43,17 @@ class TransitionSystem
       : solver_(smt::CVC4SolverFactory::create(false)),
         init_(solver_->make_term(true)),
         trans_(solver_->make_term(true)),
-        functional_(false)
+        functional_(false),
+        deterministic_(false)
   {
   }
 
-  TransitionSystem(smt::SmtSolver & s)
+  TransitionSystem(const smt::SmtSolver & s)
       : solver_(s),
         init_(s->make_term(true)),
         trans_(s->make_term(true)),
-        functional_(false)
+        functional_(false),
+        deterministic_(false)
   {
   }
 
@@ -159,6 +167,15 @@ class TransitionSystem
    */
   bool is_next_var(const smt::Term & sv) const;
 
+  /** Looks for a representative name for a term
+   *  It searches for a name that was assigned to the term
+   *  if it cannot be found, then it just returns the
+   *  smt-lib to_string
+   *  @param t the term to look for a name for
+   *  @return a string for the term
+   */
+  std::string get_name(const smt::Term & t) const;
+
   /** Find a term by name in the transition system.
    *  searches current and next state variables, inputs,
    *  and named terms.
@@ -208,8 +225,27 @@ class TransitionSystem
 
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
+   *  TODO possibly rename to be less confusing
+   *  currently means state updates are always
+   *    next_var := f(current_vars, inputs)
+   *  however, it allows (certain) constraints still
+   *  and does not require that every state has an update
    */
-  virtual bool is_functional() const { return functional_; };
+  bool is_functional() const { return functional_; };
+
+  /** Whether the system is deterministic
+   * this is a stronger condition than functional
+   * TODO possibly rename to be less confusing
+   *
+   * deterministic (currently) means
+   *   1) is_functional() is true
+   *   2) every state has a next state for any input
+   *      (i.e. no extra constraints)
+   *   3) every state variable has an update function
+   *       --> there exists exactly one next state
+   *           if current vars and inputs are fixed
+   */
+  bool is_deterministic() const { return deterministic_; };
 
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;
@@ -350,6 +386,16 @@ class TransitionSystem
    */
   smt::Term make_term(const smt::Op op, const smt::TermVec & terms);
 
+  /* Rebuild transition relation 'trans_' based on set
+     'state_vars_in_coi' of state-variables in cone-of-influence. The
+     set 'state_vars_in_coi' is computed in the 'Prover' class that
+     checks a property related to this transition system. Also, update
+     the set of state/input variables to the passed sets
+     'state_vars_in_coi' and 'input_vars_in_coi'. */
+  void rebuild_trans_based_on_coi(
+      const smt::UnorderedTermSet & state_vars_in_coi,
+      const smt::UnorderedTermSet & input_vars_in_coi);
+
  protected:
   // solver
   smt::SmtSolver solver_;
@@ -372,6 +418,10 @@ class TransitionSystem
   // mapping from names to terms
   std::unordered_map<std::string, smt::Term> named_terms_;
 
+  // mapping from terms to a representative name
+  // because a term can have multiple names
+  std::unordered_map<smt::Term, std::string> term_to_name_;
+
   // next state update function
   smt::UnorderedTermMap state_updates_;
 
@@ -386,6 +436,12 @@ class TransitionSystem
 
   // whether the TransitionSystem is functional
   bool functional_;
+  // whether the TransitionSystem is fully deterministic
+  // i.e. if you fix the current states and inputs
+  // is there only one next state
+  // the only way functional_ could be true and deterministic_ be false
+  // is if not all state variables have update functions
+  bool deterministic_;
 
   // extra vector of terms to TransitionSystems that records constraints
   // added to the transition relation
@@ -398,6 +454,17 @@ class TransitionSystem
   typedef std::vector<const smt::UnorderedTermSet *> UnorderedTermSetPtrVec;
 
   // helpers and checkers
+
+  /** Adds a state variable
+   *  @param cv the current state variable
+   *  @param nv the next state variable
+   */
+  void add_statevar(const smt::Term & cv, const smt::Term & nv);
+
+  /** Adds an input variable
+   *  @param v the input variable
+   */
+  void add_inputvar(const smt::Term & v);
 
   /** Returns true iff all symbols in term are present in at least one of the
    * term sets

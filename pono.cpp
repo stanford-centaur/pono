@@ -1,18 +1,18 @@
 /*********************                                                        */
 /*! \file
- ** \verbatim
- ** Top contributors (to current version):
- **   Makai Mann, Ahmed Irfan
- ** This file is part of the pono project.
- ** Copyright (c) 2019 by the authors listed in the file AUTHORS
- ** in the top-level source directory) and their institutional affiliations.
- ** All rights reserved.  See the file LICENSE in the top-level source
- ** directory for licensing information.\endverbatim
- **
- ** \brief
- **
- **
- **/
+** \verbatim
+** Top contributors (to current version):
+**   Makai Mann, Ahmed Irfan
+** This file is part of the pono project.
+** Copyright (c) 2019 by the authors listed in the file AUTHORS
+** in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief
+**
+**
+**/
 
 #include <iostream>
 #include "assert.h"
@@ -25,20 +25,28 @@
 #include "bmc.h"
 #include "bmc_simplepath.h"
 #include "core/fts.h"
+#include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "interpolantmc.h"
 #include "kinduction.h"
+#include "mbic3.h"
 #include "modifiers/control_signals.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
 #include "prop.h"
 #include "utils/logger.h"
+#include "utils/make_provers.h"
+#include "utils/ts_analysis.h"
+
+// TEMP do array abstraction directly here
+#include "modifiers/array_abstractor.h"
 
 using namespace pono;
 using namespace smt;
 using namespace std;
+
 
 ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
@@ -46,28 +54,50 @@ ProverResult check_prop(PonoOptions pono_options,
                         SmtSolver & second_solver,
                         std::vector<UnorderedTermMap> & cex)
 {
-  logger.log(1, "Solving property: {}", p.prop());
+  logger.log(1, "Solving property: {}", p.name());
 
   logger.log(3, "INIT:\n{}", p.transition_system().init());
   logger.log(3, "TRANS:\n{}", p.transition_system().trans());
 
-  std::shared_ptr<Prover> prover;
-  if (pono_options.engine_ == BMC) {
-    prover = std::make_shared<Bmc>(pono_options, p, s);
-  } else if (pono_options.engine_ == BMC_SP) {
-    prover = std::make_shared<BmcSimplePath>(pono_options, p, s);
-  } else if (pono_options.engine_ == KIND) {
-    prover = std::make_shared<KInduction>(pono_options, p, s);
-  } else if (pono_options.engine_ == INTERP) {
-    assert(second_solver != NULL);
-    prover = std::make_shared<InterpolantMC>(pono_options, p, s, second_solver);
-  } else {
-    throw PonoException("Unimplemented engine.");
-  }
+  Engine eng = pono_options.engine_;
 
+  std::shared_ptr<Prover> prover;
+  if (pono_options.ceg_prophecy_arrays_) {
+    // don't instantiate the sub-prover directly
+    // just pass the engine to CegProphecyArrays
+    prover = std::make_shared<CegProphecyArrays>(pono_options, p, eng, s);
+  } else if (eng != INTERP) {
+    assert(!second_solver);
+    prover = make_prover(eng, p, s, pono_options);
+  } else {
+    assert(second_solver);
+    prover = make_prover(eng, p, s, second_solver, pono_options);
+  }
+  assert(prover);
+
+  // TODO: handle this in a more elegant way in the future
+  //       consider calling prover for CegProphecyArrays (so that underlying
+  //       model checker runs prove unbounded) or possibly, have a command line
+  //       flag to pick between the two
   ProverResult r = prover->check_until(pono_options.bound_);
+
   if (r == FALSE && !pono_options.no_witness_) {
     prover->witness(cex);
+  } else if (r == TRUE && pono_options.check_invar_) {
+    try {
+      Term invar = prover->invar();
+      bool invar_passes = check_invar(p.transition_system(), p.prop(), invar);
+      std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
+                << std::endl;
+      if (!invar_passes) {
+        // shouldn't return true if invariant is incorrect
+        r = ProverResult::UNKNOWN;
+      }
+    }
+    catch (PonoException & e) {
+      std::cout << "Engine " << pono_options.engine_
+                << " does not support getting the invariant." << std::endl;
+    }
   }
   return r;
 }
@@ -102,9 +132,31 @@ int main(int argc, char ** argv)
           "Note: MathSAT has a custom license and you must assume all "
           "responsibility for meeting the license requirements.");
 #endif
+    } else if (pono_options.ceg_prophecy_arrays_) {
+#ifdef WITH_MSAT
+      // need mathsat for integer solving
+      s = MsatSolverFactory::create(false);
+#else
+      throw PonoException("ProphIC3 only supported with MathSAT so far");
+#endif
     } else {
-      // boolector is faster but doesn't support interpolants
-      s = BoolectorSolverFactory::create(false);
+      if (pono_options.smt_solver_ == "msat") {
+#ifdef WITH_MSAT
+        s = MsatSolverFactory::create(false);
+#else
+        throw PonoException(
+            "This version of pono is built without MathSAT.\nPlease "
+            "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
+            "Note: MathSAT has a custom license and you must assume all "
+            "responsibility for meeting the license requirements.");
+#endif
+      } else if (pono_options.smt_solver_ == "btor") {
+        // boolector is faster but doesn't support interpolants
+        s = BoolectorSolverFactory::create(false);
+      } else {
+        assert(false);
+      }
+
       s->set_opt("produce-models", "true");
       s->set_opt("incremental", "true");
     }
@@ -132,15 +184,26 @@ int main(int argc, char ** argv)
         toggle_clock(fts, clock_symbol);
       }
       if (!pono_options.reset_name_.empty()) {
-        Term reset_symbol = fts.lookup(pono_options.reset_name_);
+        std::string reset_name = pono_options.reset_name_;
+        bool negative_reset = false;
+        if (reset_name.at(0) == '~') {
+          reset_name = reset_name.substr(1, reset_name.length() - 1);
+          negative_reset = true;
+        }
+        Term reset_symbol = fts.lookup(reset_name);
+        if (negative_reset) {
+          SortKind sk = reset_symbol->get_sort()->get_sort_kind();
+          reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
+                                    : s->make_term(Not, reset_symbol);
+        }
         Term reset_done =
             add_reset_seq(fts, reset_symbol, pono_options.reset_bnd_);
         // guard the property with reset_done
         prop = fts.solver()->make_term(Implies, reset_done, prop);
       }
 
-      Property p(fts, prop);
       vector<UnorderedTermMap> cex;
+      Property p(fts, prop);
       res = check_prop(pono_options, p, s, second_solver, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
@@ -226,19 +289,22 @@ int main(int argc, char ** argv)
   }
   catch (PonoException & ce) {
     cout << ce.what() << endl;
-    cout << "unknown" << endl;
+    cout << "error" << endl;
     cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
   }
   catch (SmtException & se) {
     cout << se.what() << endl;
-    cout << "unknown" << endl;
+    cout << "error" << endl;
     cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
   }
   catch (std::exception & e) {
     cout << "Caught generic exception..." << endl;
     cout << e.what() << endl;
-    cout << "unknown" << endl;
+    cout << "error" << endl;
     cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
   }
 
   return res;

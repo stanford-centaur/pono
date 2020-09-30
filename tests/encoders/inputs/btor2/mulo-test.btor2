@@ -1,0 +1,16 @@
+1 sort bitvec 4
+2 sort bitvec 1
+3 const 1 0010
+4 const 1 1100
+5 state 1 x1
+6 state 1 y1
+7 eq 2 5 3
+8 eq 2 6 4
+9 and 2 7 8
+10 constraint 9
+11 umulo 2 5 6
+12 smulo 2 5 6
+13 not 2 11
+14 not 2 12
+15 or 2 13 14
+16 bad 15

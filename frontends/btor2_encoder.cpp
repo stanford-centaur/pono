@@ -14,8 +14,9 @@
  **
  **/
 
+#include "smt-switch/utils.h"
+
 #include "btor2_encoder.h"
-#include "term_analysis.h"
 #include "utils/logger.h"
 
 #include <iostream>
@@ -318,7 +319,12 @@ void BTOR2Encoder::parse(const std::string filename)
       } else {
         symbol_ = "output" + to_string(l_->id);
       }
-      ts_.name_term(symbol_, termargs_[0]);
+      try {
+        ts_.name_term(symbol_, termargs_[0]);
+      }
+      catch (PonoException & e) {
+        ts_.name_term("_out_" + symbol_, termargs_[0]);
+      }
       terms_[l_->id] = termargs_[0];
     } else if (l_->tag == BTOR2_TAG_sort) {
       switch (l_->sort.tag) {
@@ -396,11 +402,12 @@ void BTOR2Encoder::parse(const std::string filename)
       no_next_states_.erase(id2statenum.at(l_->args[0]));
     } else if (l_->tag == BTOR2_TAG_bad) {
       Term bad = bv_to_bool(termargs_[0]);
-      UnorderedTermSet free_symbols = get_free_symbols(bad);
+      TermVec free_vars;
+      get_free_symbolic_consts(bad, free_vars);
       const UnorderedTermSet & states = ts_.statevars();
 
       bool need_witness = false;
-      for (auto s : free_symbols) {
+      for (auto s : free_vars) {
         if (states.find(s) == states.end()) {
           need_witness = true;
           break;
@@ -581,8 +588,8 @@ void BTOR2Encoder::parse(const std::string filename)
 
       int orig_width = t0->get_sort()->get_width();
 
-      t0 = solver_->make_term(Op(Zero_Extend, 1), termargs_[0]);
-      t1 = solver_->make_term(Op(Zero_Extend, 1), termargs_[0]);
+      t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
+      t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
 
       Term sum = solver_->make_term(BVAdd, t0, t1);
       // overflow occurs if there's a carry out bit
@@ -630,8 +637,8 @@ void BTOR2Encoder::parse(const std::string filename)
 
       int orig_width = t0->get_sort()->get_width();
 
-      t0 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
-      t1 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
+      t0 = solver_->make_term(Op(Zero_Extend, orig_width), t0);
+      t1 = solver_->make_term(Op(Zero_Extend, orig_width), t1);
 
       Term prod = solver_->make_term(BVMul, t0, t1);
       // overflow occurs if the upper bits are non-zero
@@ -647,8 +654,8 @@ void BTOR2Encoder::parse(const std::string filename)
 
       int orig_width = t0->get_sort()->get_width();
 
-      t0 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
-      t1 = solver_->make_term(Op(Zero_Extend, orig_width), termargs_[0]);
+      t0 = solver_->make_term(Op(Zero_Extend, orig_width), t0);
+      t1 = solver_->make_term(Op(Zero_Extend, orig_width), t1);
 
       Term prod = solver_->make_term(BVMul, t0, t1);
       Term hi =

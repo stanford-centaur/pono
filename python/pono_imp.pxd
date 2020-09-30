@@ -36,6 +36,7 @@ cdef extern from "core/ts.h" namespace "pono":
         unordered_map[string, c_Term] & named_terms() except +
         const c_TermVec & constraints() except +
         bint is_functional() except +
+        bint is_deterministic() except +
         c_Sort make_sort(const string name, uint64_t arity) except +
         c_Sort make_sort(const c_SortKind sk) except +
         c_Sort make_sort(const c_SortKind sk, uint64_t size) except +
@@ -75,6 +76,7 @@ cdef extern from "core/unroller.h" namespace "pono":
         Unroller(const TransitionSystem & ts, c_SmtSolver & solver) except +
         c_Term at_time(const c_Term & t, unsigned int k) except +
         c_Term untime(const c_Term & t) except +
+        size_t get_var_time(const c_Term & v) except +
 
 
 cdef extern from "core/proverresult.h" namespace "pono":
