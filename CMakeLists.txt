@@ -40,6 +40,7 @@ link_directories("/usr/local/lib")
 link_directories("/usr/local/Cellar/gmp/6.2.0/lib")
 
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/flex/flex-install")
 find_package(BISON 3.4.2 REQUIRED)
 find_package(FLEX 2.6.4 REQUIRED)
 
@@ -47,13 +48,12 @@ if (BISON_FOUND)
   link_directories("${PROJECT_SOURCE_DIR}/deps/bison/bison-install/lib/")
 endif()
 
+find_library(LIBRT rt)
+
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
 
-if (APPLE)
-  message("setting include dir")
-  include_directories("/usr/local/opt/flex/include")
-endif()
+include_directories("${FLEX_INCLUDE_DIRS}")
 
 # TODO: Use find_package
 # find package
@@ -195,6 +195,10 @@ target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/bui
 target_link_libraries(pono-lib PUBLIC gmp)
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
+
+if (LIBRT)
+  target_link_libraries(pono-lib PUBLIC ${LIBRT})
+endif()
 
 enable_testing()
 # Add tests subdirectory
