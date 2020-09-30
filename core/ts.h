@@ -167,6 +167,15 @@ class TransitionSystem
    */
   bool is_next_var(const smt::Term & sv) const;
 
+  /** Looks for a representative name for a term
+   *  It searches for a name that was assigned to the term
+   *  if it cannot be found, then it just returns the
+   *  smt-lib to_string
+   *  @param t the term to look for a name for
+   *  @return a string for the term
+   */
+  std::string get_name(const smt::Term & t) const;
+
   /** Find a term by name in the transition system.
    *  searches current and next state variables, inputs,
    *  and named terms.
@@ -408,6 +417,10 @@ class TransitionSystem
 
   // mapping from names to terms
   std::unordered_map<std::string, smt::Term> named_terms_;
+
+  // mapping from terms to a representative name
+  // because a term can have multiple names
+  std::unordered_map<smt::Term, std::string> term_to_name_;
 
   // next state update function
   smt::UnorderedTermMap state_updates_;
