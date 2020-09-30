@@ -14,9 +14,9 @@
 **
 **/
 
-#include "utils/term_walkers.h"
-
 #include "assert.h"
+
+#include "utils/term_walkers.h"
 
 using namespace smt;
 using namespace std;

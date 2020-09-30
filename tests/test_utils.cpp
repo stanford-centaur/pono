@@ -1,27 +1,22 @@
 #include <utility>
 #include <vector>
 
-#include "available_solvers.h"
 #include "core/fts.h"
 #include "core/rts.h"
 #include "core/unroller.h"
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
+#include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/make_provers.h"
 #include "utils/term_walkers.h"
+#include "utils/ts_analysis.h"
 
 using namespace pono;
 using namespace smt;
 using namespace std;
 
 namespace pono_tests {
-
-class UtilsMakeProverTests
-    : public ::testing::Test,
-      public ::testing::WithParamInterface<std::tuple<SolverEnum, Engine>>
-{
-};
 
 class UtilsUnitTests : public ::testing::Test,
                        public ::testing::WithParamInterface<SolverEnum>
@@ -40,34 +35,11 @@ class UtilsUnitTests : public ::testing::Test,
   Sort boolsort, bvsort, funsort;
 };
 
-TEST_P(UtilsMakeProverTests, MakeProver)
+class UtilsEngineUnitTests
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<std::tuple<SolverEnum, Engine>>
 {
-  // use default solver
-  FunctionalTransitionSystem fts;
-  Sort bvsort8 = fts.make_sort(BV, 8);
-  Sort boolsort = fts.make_sort(BOOL);
-  Term one = fts.make_term(1, bvsort8);
-  Term eight = fts.make_term(8, bvsort8);
-  Term x = fts.make_statevar("x", bvsort8);
-
-  fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
-  fts.assign_next(x, fts.make_term(BVAdd, x, one));
-
-  Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts, prop_term);
-
-  SolverEnum se = get<0>(GetParam());
-  Engine eng = get<1>(GetParam());
-
-  if (eng == INTERP && se != MSAT && se != MSAT_LOGGING) {
-    // skip interpolation unless the solver is MathSAT
-    return;
-  }
-
-  std::shared_ptr<Prover> prover = make_prover(eng, prop, se);
-  ProverResult r = prover->check_until(9);
-  ASSERT_EQ(r, FALSE);
-}
+};
 
 TEST_P(UtilsUnitTests, FindApply)
 {
@@ -99,14 +71,101 @@ TEST_P(UtilsUnitTests, FindApply)
   EXPECT_TRUE(matching_terms.find(gxpy) != matching_terms.end());
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ParameterizedUtilsMakeProverTests,
-    UtilsMakeProverTests,
-    testing::Combine(testing::ValuesIn(available_solver_enums()),
-                     testing::ValuesIn(all_engines())));
+TEST_P(UtilsUnitTests, CheckInvarTrue)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
+  // x' = x < 10 ? x + 1 : 0
+  rts.assign_next(
+      x,
+      rts.make_term(Ite,
+                    rts.make_term(BVUlt, x, rts.make_term(10, bvsort)),
+                    rts.make_term(BVAdd, x, rts.make_term(1, bvsort)),
+                    rts.make_term(0, bvsort)));
+
+  Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
+  // property is inductive
+  EXPECT_TRUE(check_invar(rts, prop, prop));
+}
+
+TEST_P(UtilsUnitTests, CheckInvarFalse)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
+  // x' = x <= 10 ? x + 1 : 0
+  rts.assign_next(
+      x,
+      rts.make_term(Ite,
+                    rts.make_term(BVUle, x, rts.make_term(10, bvsort)),
+                    rts.make_term(BVAdd, x, rts.make_term(1, bvsort)),
+                    rts.make_term(0, bvsort)));
+
+  Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
+  EXPECT_FALSE(check_invar(rts, prop, prop));
+}
+
+TEST_P(UtilsUnitTests, CheckInvarFalseNonState)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
+  Term inp = rts.make_inputvar("inp", bvsort);
+  // x' = x + inp < 10 ? x + inp : 0
+  Term xpinp = rts.make_term(BVAdd, x, inp);
+  rts.assign_next(
+      x,
+      rts.make_term(Ite,
+                    rts.make_term(BVUlt, xpinp, rts.make_term(10, bvsort)),
+                    xpinp,
+                    rts.make_term(0, bvsort)));
+
+  Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
+
+  // invariant includes inputs -- which is not allowed in an invariant
+  Term invar = rts.make_term(BVUle, xpinp, rts.make_term(10, bvsort));
+
+  EXPECT_FALSE(check_invar(rts, prop, invar));
+}
+
+TEST_P(UtilsEngineUnitTests, MakeProver)
+{
+  // use default solver
+  FunctionalTransitionSystem fts;
+  Sort bvsort8 = fts.make_sort(BV, 8);
+  Sort boolsort = fts.make_sort(BOOL);
+  Term one = fts.make_term(1, bvsort8);
+  Term eight = fts.make_term(8, bvsort8);
+  Term x = fts.make_statevar("x", bvsort8);
+
+  fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
+  fts.assign_next(x, fts.make_term(BVAdd, x, one));
+
+  Term prop_term = fts.make_term(BVUlt, x, eight);
+  Property prop(fts, prop_term);
+
+  SolverEnum se = get<0>(GetParam());
+  Engine eng = get<1>(GetParam());
+
+  if (eng == INTERP && se != MSAT && se != MSAT_LOGGING) {
+    // skip interpolation unless the solver is MathSAT
+    return;
+  }
+
+  std::shared_ptr<Prover> prover = make_prover(eng, prop, se);
+  ProverResult r = prover->check_until(9);
+  ASSERT_EQ(r, FALSE);
+}
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedUtilsUnitTests,
                          UtilsUnitTests,
                          testing::ValuesIn(available_solver_enums()));
+
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedUtilsEngineUnitTests,
+    UtilsEngineUnitTests,
+    testing::Combine(testing::ValuesIn(available_solver_enums()),
+                     testing::ValuesIn(all_engines())));
 
 }  // namespace pono_tests

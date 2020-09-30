@@ -204,6 +204,9 @@ cdef class __AbstractTransitionSystem:
     def is_functional(self):
         return dref(self.cts).is_functional()
 
+    def is_deterministic(self):
+        return dref(self.cts).is_deterministic()
+
     def make_sort(self, arg0, arg1=None, arg2=None, arg3=None):
         cdef Sort s = Sort(self)
         cdef c_SortKind sk

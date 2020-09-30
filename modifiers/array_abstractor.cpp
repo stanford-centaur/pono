@@ -251,7 +251,8 @@ Term ArrayAbstractor::get_arrayeq_uf(const smt::Sort & sort) const
   return it->second;
 }
 
-void ArrayAbstractor::do_abstraction() {
+void ArrayAbstractor::do_abstraction()
+{
   abstract_vars();
   Term init = conc_ts_.init();
   Term trans = conc_ts_.trans();

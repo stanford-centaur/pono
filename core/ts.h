@@ -43,7 +43,8 @@ class TransitionSystem
       : solver_(smt::CVC4SolverFactory::create(false)),
         init_(solver_->make_term(true)),
         trans_(solver_->make_term(true)),
-        functional_(false)
+        functional_(false),
+        deterministic_(false)
   {
   }
 
@@ -51,7 +52,8 @@ class TransitionSystem
       : solver_(s),
         init_(s->make_term(true)),
         trans_(s->make_term(true)),
-        functional_(false)
+        functional_(false),
+        deterministic_(false)
   {
   }
 
@@ -90,7 +92,7 @@ class TransitionSystem
    * assignment)
    *  3) state has already been assigned a next state update
    */
-  virtual void assign_next(const smt::Term & state, const smt::Term & val);
+  void assign_next(const smt::Term & state, const smt::Term & val);
 
   /* Add an invariant constraint to the system
    * This is enforced over all time
@@ -214,8 +216,27 @@ class TransitionSystem
 
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
+   *  TODO possibly rename to be less confusing
+   *  currently means state updates are always
+   *    next_var := f(current_vars, inputs)
+   *  however, it allows (certain) constraints still
+   *  and does not require that every state has an update
    */
-  virtual bool is_functional() const { return functional_; };
+  bool is_functional() const { return functional_; };
+
+  /** Whether the system is deterministic
+   * this is a stronger condition than functional
+   * TODO possibly rename to be less confusing
+   *
+   * deterministic (currently) means
+   *   1) is_functional() is true
+   *   2) every state has a next state for any input
+   *      (i.e. no extra constraints)
+   *   3) every state variable has an update function
+   *       --> there exists exactly one next state
+   *           if current vars and inputs are fixed
+   */
+  bool is_deterministic() const { return deterministic_; };
 
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;
@@ -402,6 +423,12 @@ class TransitionSystem
 
   // whether the TransitionSystem is functional
   bool functional_;
+  // whether the TransitionSystem is fully deterministic
+  // i.e. if you fix the current states and inputs
+  // is there only one next state
+  // the only way functional_ could be true and deterministic_ be false
+  // is if not all state variables have update functions
+  bool deterministic_;
 
   // extra vector of terms to TransitionSystems that records constraints
   // added to the transition relation

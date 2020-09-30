@@ -1,18 +1,18 @@
 /*********************                                                        */
 /*! \file
- ** \verbatim
- ** Top contributors (to current version):
- **   Makai Mann, Ahmed Irfan
- ** This file is part of the pono project.
- ** Copyright (c) 2019 by the authors listed in the file AUTHORS
- ** in the top-level source directory) and their institutional affiliations.
- ** All rights reserved.  See the file LICENSE in the top-level source
- ** directory for licensing information.\endverbatim
- **
- ** \brief
- **
- **
- **/
+** \verbatim
+** Top contributors (to current version):
+**   Makai Mann, Ahmed Irfan
+** This file is part of the pono project.
+** Copyright (c) 2019 by the authors listed in the file AUTHORS
+** in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief
+**
+**
+**/
 
 #include <iostream>
 #include "assert.h"
@@ -38,6 +38,7 @@
 #include "prop.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
+#include "utils/ts_analysis.h"
 
 // TEMP do array abstraction directly here
 #include "modifiers/array_abstractor.h"
@@ -45,6 +46,7 @@
 using namespace pono;
 using namespace smt;
 using namespace std;
+
 
 ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
@@ -74,21 +76,28 @@ ProverResult check_prop(PonoOptions pono_options,
   assert(prover);
 
   // TODO: handle this in a more elegant way in the future
-  ProverResult r;
-  if (pono_options.ceg_prophecy_arrays_) {
-    // this algorithm makes more sense with prove than check_until
-    // because otherwise, it will only run the underlying model checker
-    // up to the bound and might stop before proving it
-    // and unnecessarily search for axioms again.
-
-    // all the other algorithms it doesn't matter much
-    r = prover->prove();
-  } else {
-    r = prover->check_until(pono_options.bound_);
-  }
+  //       consider calling prover for CegProphecyArrays (so that underlying
+  //       model checker runs prove unbounded) or possibly, have a command line
+  //       flag to pick between the two
+  ProverResult r = prover->check_until(pono_options.bound_);
 
   if (r == FALSE && !pono_options.no_witness_) {
     prover->witness(cex);
+  } else if (r == TRUE && pono_options.check_invar_) {
+    try {
+      Term invar = prover->invar();
+      bool invar_passes = check_invar(p.transition_system(), p.prop(), invar);
+      std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
+                << std::endl;
+      if (!invar_passes) {
+        // shouldn't return true if invariant is incorrect
+        r = ProverResult::UNKNOWN;
+      }
+    }
+    catch (PonoException & e) {
+      std::cout << "Engine " << pono_options.engine_
+                << " does not support getting the invariant." << std::endl;
+    }
   }
   return r;
 }
@@ -107,12 +116,10 @@ int main(int argc, char ** argv)
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
 
-  // TODO: replace the try-catch block
-  //       easier for development to not catch the exception
-  // try {
-  SmtSolver s;
-  SmtSolver second_solver;
-  if (pono_options.engine_ == INTERP) {
+  try {
+    SmtSolver s;
+    SmtSolver second_solver;
+    if (pono_options.engine_ == INTERP) {
 #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create(false);
@@ -279,23 +286,26 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
-    // }
-    // catch (PonoException & ce) {
-    //   cout << ce.what() << endl;
-    //   cout << "unknown" << endl;
-    //   cout << "b" << pono_options.prop_idx_ << endl;
-    // }
-    // catch (SmtException & se) {
-    //   cout << se.what() << endl;
-    //   cout << "unknown" << endl;
-    //   cout << "b" << pono_options.prop_idx_ << endl;
-    // }
-    // catch (std::exception & e) {
-    //   cout << "Caught generic exception..." << endl;
-    //   cout << e.what() << endl;
-    //   cout << "unknown" << endl;
-    //   cout << "b" << pono_options.prop_idx_ << endl;
-    // }
+  }
+  catch (PonoException & ce) {
+    cout << ce.what() << endl;
+    cout << "error" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
+  }
+  catch (SmtException & se) {
+    cout << se.what() << endl;
+    cout << "error" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
+  }
+  catch (std::exception & e) {
+    cout << "Caught generic exception..." << endl;
+    cout << e.what() << endl;
+    cout << "error" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
+  }
 
-    return res;
+  return res;
 }

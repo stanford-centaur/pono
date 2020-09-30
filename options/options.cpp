@@ -40,10 +40,11 @@ enum optionIndex
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
   STATICCOI,
-  SMT_SOLVER,
+  CHECK_INVAR,
   RESET,
   RESET_BND,
   CLK,
+  SMT_SOLVER,
   NO_IC3_CEXGEN,
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
@@ -122,7 +123,7 @@ const option::Descriptor usage[] = {
     "",
     "random-seed",
     Arg::Numeric,
-    "  --random-seed, -v \tRandom seed." },
+    "  --random-seed, \tRandom seed." },
   { VCDNAME,
     0,
     "",
@@ -162,6 +163,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --static-coi \tApply static (i.e., one-time before solving) "
     "cone-of-influence analysis." },
+  { CHECK_INVAR,
+    0,
+    "",
+    "check-invar",
+    Arg::None,
+    "  --check-invar \tFor engines that produce invariants, check that they "
+    "hold." },
   { RESET,
     0,
     "r",
@@ -289,7 +297,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
-        case SMT_SOLVER:
+      case SMT_SOLVER:
           smt_solver_ = opt.arg;
           if (smt_solver_ != "btor" && smt_solver_ != "msat") {
             throw PonoException(
@@ -305,6 +313,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case STATICCOI: static_coi_ = true; break;
+        case CHECK_INVAR: check_invar_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;

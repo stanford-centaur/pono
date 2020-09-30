@@ -27,7 +27,7 @@ using namespace std;
 
 namespace pono {
 
-vector<Engine> all_engines() { return { BMC, BMC_SP, KIND, INTERP }; }
+vector<Engine> all_engines() { return { BMC, BMC_SP, KIND, INTERP, MBIC3 }; }
 
 shared_ptr<Prover> make_prover(Engine e,
                                Property & p,

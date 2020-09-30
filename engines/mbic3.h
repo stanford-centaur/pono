@@ -18,10 +18,11 @@
 #include <algorithm>
 #include <map>
 #include <utility>
-
 #include "assert.h"
-#include "prover.h"
+
 #include "smt-switch/term_translator.h"
+
+#include "prover.h"
 
 namespace pono {
 
@@ -44,7 +45,9 @@ class ModelBasedIC3 : public Prover
  public:
   ModelBasedIC3(Property & p, smt::SolverEnum se);
   ModelBasedIC3(Property & p, const smt::SmtSolver & slv);
-  ModelBasedIC3(const PonoOptions & opt, Property & p, smt::SolverEnum se);
+  ModelBasedIC3(const PonoOptions & opt,
+                Property & p,
+                smt::SolverEnum se);
   ModelBasedIC3(const PonoOptions & opt,
                 Property & p,
                 const smt::SmtSolver & slv);
@@ -54,6 +57,8 @@ class ModelBasedIC3 : public Prover
 
   void initialize() override;
   ProverResult check_until(int k) override;
+  bool witness(std::vector<smt::UnorderedTermMap> & out) override;
+  smt::Term invar() override;
 
  private:
   /** Perform a IC3 step
@@ -135,7 +140,16 @@ class ModelBasedIC3 : public Prover
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
   Conjunction generalize_predecessor(size_t i, const Conjunction & c);
+  /** Check if there are common assignments
+   *  between A and B
+   *  i.e. if A /\ B is SAT
+   *  @param A the first term
+   *  @param B the second term
+   *  @return true iff there is an intersection
+   */
+  bool intersects(const smt::Term & A, const smt::Term & B) const;
   /** Check if the term intersects with the initial states
+   *  syntactic sugar for intersects(ts_.init(), t);
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
    */
@@ -161,10 +175,10 @@ class ModelBasedIC3 : public Prover
    *  @param vector to store reduced assumptions
    *  @param vector to store removed assumptions (if not NULL)
    */
-  void reduce_assump_unsatcore(const smt::Term & formula,
-                               const smt::TermVec & assump,
-                               smt::TermVec & out_red,
-                               smt::TermVec * out_rem = NULL);
+  void reduce_assump_unsatcore(const smt::Term &formula,
+                               const smt::TermVec &assump,
+                               smt::TermVec &out_red,
+                               smt::TermVec *out_rem = NULL);
 
   smt::Term label(const smt::Term & t);
 
@@ -196,20 +210,17 @@ class ModelBasedIC3 : public Prover
 
   smt::UnorderedTermMap labels_;
 
-  ///< extra terms that need to be included in model
-  ///< when representing a state
-  ///< for example, UF applications
-  smt::TermVec extra_model_terms_;
+  smt::Term invar_;  ///< stores the invariant once proven
 
   // useful terms
   smt::Term true_;
   smt::Term false_;
 
-  // for interpolation
-  // used if options_.ic3_indgen_mode_ == 2
+  // for ic3_indgen_mode_ == 2
+  // interpolant based generalization
   smt::SmtSolver interpolator_;
-  std::shared_ptr<smt::TermTranslator> to_interpolator_;
-  std::shared_ptr<smt::TermTranslator> to_solver_;
+  std::unique_ptr<smt::TermTranslator> to_interpolator_;
+  std::unique_ptr<smt::TermTranslator> to_solver_;
 };
 
 class DisjointSet
@@ -220,6 +231,7 @@ class DisjointSet
 
   void add(const smt::Term & a, const smt::Term & b);
   smt::Term find(const smt::Term & t);
+  void clear();
 
  private:
   // member to group's leader

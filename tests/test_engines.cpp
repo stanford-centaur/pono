@@ -11,6 +11,7 @@
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "utils/exceptions.h"
+#include "utils/ts_analysis.h"
 
 #include "available_solvers.h"
 
@@ -135,6 +136,9 @@ TEST_P(InterpUnitTest, InterpTrue)
   InterpolantMC itpmc(*true_p, s, itp);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
+
+  Term invar = itpmc.invar();
+  ASSERT_TRUE(check_invar(true_p->transition_system(), true_p->prop(), invar));
 }
 
 TEST_P(InterpUnitTest, InterpFalse)

@@ -127,6 +127,14 @@ ProverResult InterpolantMC::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
+Term InterpolantMC::invar()
+{
+  if (!invar_) {
+    throw PonoException("Cannot call invar() unless property was proven.");
+  }
+  return to_orig_ts(invar_, BOOL);
+}
+
 bool InterpolantMC::step(int i)
 {
   if (i <= reached_k_) {
@@ -168,6 +176,7 @@ bool InterpolantMC::step(int i)
       if (check_entail(Ri, R)) {
         // check if the over-approximation has reached a fix-point
         logger.log(1, "Found a proof at bound: {}", i);
+        invar_ = unroller_.untime(R);
         return true;
       } else {
         logger.log(1, "Extending initial states.");

@@ -375,7 +375,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
 
   size_t bound_;  ///< the bound of the current abstract trace
   smt::UnorderedTermMap
-      constarrs_;        ///< maps (abstract) constarrs to their constant value
+      constarrs_;  ///< maps (abstract) constarrs to their constant value
   smt::UnorderedTermSet stores_;  ///< vector of (abstract) stores
   // for index set, witness and lambda information
   // see What's Decidable About Arrays paper
@@ -401,13 +401,13 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   smt::UnorderedTermMap
       ts_axioms_;  ///< maps unrolled axioms to the transition system axioms
   std::unordered_map<smt::Term, AxiomInstantiation>
-      to_axiom_inst_;                ///< maps a (violated) axiom term to its
-                                     ///< AxiomInstantiation object
+      to_axiom_inst_;  ///< maps a (violated) axiom term to its
+                       ///< AxiomInstantiation object
   smt::UnorderedTermSet
-      consecutive_axioms_;           ///< populated with consecutive axioms over
-                                     ///< transition system variables
-  AxiomVec nonconsecutive_axioms_;   ///< populated with nonconsecutive axiom
-                                     ///< instantiations
+      consecutive_axioms_;          ///< populated with consecutive axioms over
+                                    ///< transition system variables
+  AxiomVec nonconsecutive_axioms_;  ///< populated with nonconsecutive axiom
+                                    ///< instantiations
 
   smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
 

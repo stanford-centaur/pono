@@ -34,7 +34,8 @@ struct AxiomInstantiation
 {
   AxiomInstantiation(const smt::Term & a, const smt::UnorderedTermSet & insts)
       : ax(a), instantiations(insts)
-  {}
+  {
+  }
 
   smt::Term ax;  ///< the instantiated axiom
   smt::UnorderedTermSet

@@ -229,6 +229,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
       return false;
     }
 
+    assert(violated_axioms_.size());
     Term lbl;
     for (auto ax : violated_axioms_) {
       if (reduce_axioms_unsatcore_) {
