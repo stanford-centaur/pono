@@ -405,4 +405,42 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
   return true;
 }
 
+Term Prover::invar()
+{
+  throw PonoException(
+      "Engines do not support getting an invariant by default.");
+}
+
+Term Prover::to_orig_ts(Term t, SortKind sk)
+{
+  if (solver_ == orig_ts_.solver()) {
+    // don't need to transfer terms if the solvers are the same
+    return t;
+  } else {
+    /* TODO: double-check that transferring terms still works as
+       intended in this branch when COI is used. */
+    if (options_.static_coi_)
+      throw PonoException(
+          "Temporary restriction: cone-of-influence analysis "
+          "currently incompatible with witness generation.");
+    // need to add symbols to cache
+    TermTranslator to_orig_ts_solver(orig_ts_.solver());
+    UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
+    for (auto v : orig_ts_.statevars()) {
+      cache[to_prover_solver_.transfer_term(v)] = v;
+      Term nv = orig_ts_.next(v);
+      cache[to_prover_solver_.transfer_term(nv)] = v;
+    }
+    for (auto v : orig_ts_.inputvars()) {
+      cache[to_prover_solver_.transfer_term(v)] = v;
+    }
+    return to_orig_ts_solver.transfer_term(t, sk);
+  }
+}
+
+Term Prover::to_orig_ts(Term t)
+{
+  return to_orig_ts(t, t->get_sort()->get_sort_kind());
+}
+
 }  // namespace pono

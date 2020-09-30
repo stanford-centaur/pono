@@ -37,7 +37,7 @@ void get_free_symbols(const Term & term, UnorderedTermSet & out_symbols)
         to_visit.push_back(tt);
       }
 
-      if (t->is_symbolic_const()) {
+      if (t->is_symbol()) {
         out_symbols.insert(t);
       }
     }

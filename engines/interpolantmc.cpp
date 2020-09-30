@@ -20,6 +20,7 @@
 #include "interpolantmc.h"
 
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 
@@ -48,10 +49,10 @@ InterpolantMC::InterpolantMC(Property & p,
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
                              Property & p,
                              SolverEnum se)
-  : super(opt, p, se),
-    interpolator_(create_interpolating_solver(se)),
-    to_interpolator_(interpolator_),
-    to_solver_(solver_)
+    : super(opt, p, se),
+      interpolator_(create_interpolating_solver(se)),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_)
 {
   initialize();
 }
@@ -91,6 +92,17 @@ void InterpolantMC::initialize()
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
 
+  // need to copy over UF as well
+  UnorderedTermSet free_symbols;
+  get_free_symbols(bad_, free_symbols);
+  get_free_symbols(ts_.init(), free_symbols);
+  get_free_symbols(ts_.trans(), free_symbols);
+  for (auto s : free_symbols) {
+    if (s->get_sort()->get_sort_kind() == FUNCTION) {
+      cache[to_interpolator_.transfer_term(s)] = s;
+    }
+  }
+
   concrete_cex_ = false;
   init0_ = unroller_.at_time(ts_.init(), 0);
   transA_ = unroller_.at_time(ts_.trans(), 0);
@@ -113,6 +125,14 @@ ProverResult InterpolantMC::check_until(int k)
     logger.log(1, "Failed when computing interpolant.");
   }
   return ProverResult::UNKNOWN;
+}
+
+Term InterpolantMC::invar()
+{
+  if (!invar_) {
+    throw PonoException("Cannot call invar() unless property was proven.");
+  }
+  return to_orig_ts(invar_, BOOL);
 }
 
 bool InterpolantMC::step(int i)
@@ -156,6 +176,7 @@ bool InterpolantMC::step(int i)
       if (check_entail(Ri, R)) {
         // check if the over-approximation has reached a fix-point
         logger.log(1, "Found a proof at bound: {}", i);
+        invar_ = unroller_.untime(R);
         return true;
       } else {
         logger.log(1, "Extending initial states.");
