@@ -40,20 +40,25 @@ link_directories("/usr/local/lib")
 link_directories("/usr/local/Cellar/gmp/6.2.0/lib")
 
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/flex/flex-install")
+if (APPLE)
+  list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/bison")
+  list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/flex")
+endif()
 find_package(BISON 3.4.2 REQUIRED)
 find_package(FLEX 2.6.4 REQUIRED)
 
 if (BISON_FOUND)
-  link_directories("${PROJECT_SOURCE_DIR}/deps/bison/bison-install/lib/")
+  message("-- Adding bison lib: ${BISON_EXECUTABLE}/../lib")
+  link_directories("${BISON_EXECUTABLE}/../lib/")
 endif()
+
+find_library(LIBRT rt)
 
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
 
-if (APPLE)
-  message("setting include dir")
-  include_directories("/usr/local/opt/flex/include")
-endif()
+include_directories("${FLEX_INCLUDE_DIRS}")
 
 # TODO: Use find_package
 # find package
@@ -115,18 +120,29 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
+  "${PROJECT_SOURCE_DIR}/core/adaptive_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
   "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/mbic3.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/history_modifier.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/prophecy_modifier.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
   "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
+  "${PROJECT_SOURCE_DIR}/refiners/array_axiom_enumerator.cpp"
   "${PROJECT_SOURCE_DIR}/smt/available_solvers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/make_provers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/term_walkers.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/ts_analysis.cpp"
   "${PROJECT_SOURCE_DIR}/options/options.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
@@ -184,6 +200,10 @@ target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/bui
 target_link_libraries(pono-lib PUBLIC gmp)
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
+
+if (LIBRT)
+  target_link_libraries(pono-lib PUBLIC ${LIBRT})
+endif()
 
 enable_testing()
 # Add tests subdirectory

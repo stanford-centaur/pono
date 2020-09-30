@@ -22,24 +22,24 @@ using namespace smt;
 
 namespace pono {
 
-BmcSimplePath::BmcSimplePath(const Property & p, SolverEnum se) : super(p, se)
+BmcSimplePath::BmcSimplePath(Property & p, SolverEnum se) : super(p, se)
 {
 }
 
-BmcSimplePath::BmcSimplePath(const Property & p, const SmtSolver & solver)
+BmcSimplePath::BmcSimplePath(Property & p, const SmtSolver & solver)
     : super(p, solver)
 {
 }
 
 BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
-                             const Property & p,
+                             Property & p,
                              SolverEnum se)
-  : super(opt, p, se)
+    : super(opt, p, se)
 {
 }
 
 BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
-                             const Property & p,
+                             Property & p,
                              const smt::SmtSolver & solver)
     : super(opt, p, solver)
 {

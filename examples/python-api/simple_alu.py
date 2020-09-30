@@ -54,7 +54,8 @@ def build_simple_alu_fts(s:ss.SmtSolver)->pono.Property:
 
 def k_induction_attempt():
     # Create an smt_switch.SmtSolver with Boolector as the backend
-    s = ss.create_btor_solver()
+    # and no logging
+    s = ss.create_btor_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
     prop = build_simple_alu_fts(s)
@@ -77,7 +78,8 @@ def k_induction_attempt():
 
 def interpolant_attempt():
     # Create solver and interpolator using MathSAT
-    s = ss.create_msat_solver()
+    # and no logging for the solver
+    s = ss.create_msat_solver(False)
     itp = ss.create_msat_interpolator()
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
@@ -100,14 +102,15 @@ def interpolant_attempt():
 
 def k_induction_attempt_inductive():
     # Create an smt_switch.SmtSolver with Boolector as the backend
-    s = ss.create_btor_solver()
+    # and no logging
+    s = ss.create_btor_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
     prop = build_simple_alu_fts(s)
     fts = prop.transition_system
 
     # store sets of states in a dictionary for accessing below
-    states = {str(sv):sv for sv in fts.states}
+    states = {str(sv):sv for sv in fts.statevars}
 
     # make the property inductive manually
     prop = pono.Property(fts,

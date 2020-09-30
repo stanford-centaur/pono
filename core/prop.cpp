@@ -14,20 +14,22 @@
  **
  **/
 
-#include "prop.h"
-#include "exceptions.h"
-#include "term_analysis.h"
+#include "smt-switch/utils.h"
+
+#include "core/prop.h"
+#include "utils/exceptions.h"
 
 using namespace smt;
 
 namespace pono {
 
-Property::Property(const TransitionSystem & ts, const Term & p, std::string name)
+Property::Property(TransitionSystem & ts, const Term & p, std::string name)
   : ts_(ts), prop_(p), name_(name)
 {
   const UnorderedTermSet & states = ts.statevars();
-  UnorderedTermSet free_symbols = get_free_symbols(p);
-  for (auto s : free_symbols) {
+  TermVec free_vars;
+  get_free_symbolic_consts(p, free_vars);
+  for (auto s : free_vars) {
     if (!ts.is_curr_var(s))
     {
       throw PonoException("Property should only use state variables");
@@ -43,7 +45,7 @@ Property::Property(const TransitionSystem & ts, const Term & p, std::string name
   }
 }
 
-Property::Property(const Property & prop, TermTranslator & tt)
+Property::Property(Property & prop, TermTranslator & tt)
     : ts_(prop.ts_, tt),
       // only need to transfer if solvers are different
       // ts_ constructor does the same thing internally

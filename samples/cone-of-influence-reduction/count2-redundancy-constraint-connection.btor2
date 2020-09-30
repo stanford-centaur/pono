@@ -1,0 +1,28 @@
+; NOTE: Pono with BMC-simple-paths easily proves this system safe.
+1 sort bitvec 2
+2 zero 1
+; counter related to bad-state property
+3 state 1 count0
+4 init 1 3 2
+5 one 1
+6 add 1 3 5
+7 next 1 3 6
+8 ones 1
+9 sort bitvec 1
+10 eq 9 3 8
+; bad-state: count0 reaches maximum value
+11 bad 10
+; another counter
+12 state 1 count1
+13 init 1 12 2
+; count1 always stays at its initial value zero
+15 next 1 12 12
+16 eq 9 3 12
+; add global constraint to transition relation: count0 and count1 are
+; always equal. While this is true in the initial state, it is not
+; true in subsequent states unless count0 wraps around. In particular,
+; the bad-state is UNREACHABLE under that constraint. For
+; cone-of-influence analysis, we must make sure to add the next-state
+; function of count1 to the transition relation. Otherwise, the
+; constraint is not properly expressed.
+17 constraint 16
