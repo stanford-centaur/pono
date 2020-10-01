@@ -75,4 +75,46 @@ void SingleBitFlipFault::create_fault_vals()
   }
 }
 
+void SingleBitFlipFault::constrain_to_single_fault()
+{
+  // at most one for fault sel
+  for (auto e1 : faultsel2state_) {
+    for (auto e2 : faultsel2state_) {
+      Term sel1 = e1.first;
+      Term sel2 = e2.first;
+      if (sel1 == sel2) {
+        // skip when it's the same selector
+        continue;
+      }
+
+      // Clause: -sel1 \/ -sel2
+      faulty_fts_.add_invar(
+          faulty_fts_.make_term(Or,
+                                faulty_fts_.make_term(Not, sel1),
+                                faulty_fts_.make_term(Not, sel2)));
+    }
+  }
+
+  // once a fault has occured, don't allow it again
+  // NOTE: this could be optimized to only use one faultsig
+  //       however, we're sticking with the more general version which could
+  //       allow multiple faults when/if there are performance issues we can
+  //       have a specialized version we could just override create_fault_vals
+
+  // create an Or of all fault sigs to determine if any fault has occurred in
+  // the past
+  Term fault_in_past = faulty_fts_.make_term(false);
+  for (auto e : faultsig2state_) {
+    Term sig = e.first;
+    fault_in_past = faulty_fts_.make_term(Or, fault_in_past, sig);
+  }
+
+  // if a fault has happened in the past, disable fault selectors now
+  for (auto e : faultsel2state_) {
+    Term sel = e.first;
+    faulty_fts_.add_invar(faulty_fts_.make_term(
+        Implies, fault_in_past, faulty_fts_.make_term(Not, sel)));
+  }
+}
+
 }  // namespace pono

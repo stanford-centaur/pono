@@ -28,10 +28,19 @@ class SingleBitFlipFault : public FaultInjector
     if (!fts.is_functional()) {
       throw PonoException("Expecting a functional transition system.");
     }
+    // TODO fix virtual calls in constructor!
+    // can't call a virtual function in base class constructor
+    // it will use the one from the base class, not the derived class
+    // this is an issue since we use that here
+    // maybe we should have an abstract base class and implement everything here
     do_fault_injection();
+    constrain_to_single_fault();
   }
 
  protected:
   void create_fault_vals() override;
+
+  // add constraints so that a fault can only occur at one time-step
+  void constrain_to_single_fault();
 };
 }  // namespace pono
