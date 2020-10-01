@@ -49,8 +49,9 @@ find_package(BISON 3.4.2 REQUIRED)
 find_package(FLEX 2.6.4 REQUIRED)
 
 if (BISON_FOUND)
-  message("-- Adding bison lib: ${BISON_EXECUTABLE}/../lib")
-  link_directories("${BISON_EXECUTABLE}/../lib/")
+  get_filename_component(BISON_PARENT_DIR "${BISON_EXECUTABLE}" DIRECTORY)
+  message("-- Adding bison lib: ${BISON_PARENT_DIR}/../lib")
+  link_directories("${BISON_PARENT_DIR}/../lib/")
 endif()
 
 find_library(LIBRT rt)
