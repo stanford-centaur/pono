@@ -1,0 +1,25 @@
+MODULE main
+VAR
+x:integer;
+y:integer;
+b1:boolean;
+b2:boolean;
+c:unsigned word [8];
+FROZENVAR
+v : integer ; 
+INIT
+ b1  &  ! b2  ;
+INIT
+ c  = 0ud8_0 ;
+TRANS
+next (  b1  )  =  (  x  +  y  <=  4  )  ;
+TRANS
+next (  b2  )  =  (  x  +  y  +  v  >=  5  )  ;
+TRANS
+ v  <=  1  ;
+TRANS
+next (  c  )  =  (  c  < 0ud8_5 ?  c  + 0ud8_1 :  c  + 0ud8_1 + 0ud8_1 )  ;
+INVAR
+ x  +  y  <=  5  ;
+INVARSPEC
+ ! (  b1  &  b2  )  ;
