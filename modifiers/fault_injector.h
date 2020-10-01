@@ -28,7 +28,7 @@ namespace pono {
 class FaultInjector
 {
  public:
- FaultInjector(TransitionSystem & fts, smt::UnorderedTermSet to_ignore={})
+ FaultInjector(FunctionalTransitionSystem & fts, smt::UnorderedTermSet to_ignore={})
    : fts_(fts), faulty_fts_(fts.solver()), statevars_to_ignore_(to_ignore)
   {
     if (!fts.is_functional()) {
@@ -54,7 +54,7 @@ class FaultInjector
    */
   virtual void create_fault_vals();
 
-  TransitionSystem & fts_;
+  FunctionalTransitionSystem & fts_;
   FunctionalTransitionSystem faulty_fts_;
 
   smt::UnorderedTermMap state2faultsel_;
