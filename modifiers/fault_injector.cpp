@@ -32,9 +32,19 @@ void FaultInjector::do_fault_injection()
   const UnorderedTermMap & state_updates = fts_.state_updates();
   const SmtSolver & solver = faulty_fts_.solver();
 
-  // TODO: copy over constraints and init to faulty_fts
-  //       make it a friend of transition system and add state variables
-  //       to the faulty fts
+  // clear the transition relation and the state updates so we can
+  // rebuild it
+  // faulty_fts_ starts as an exact copy of fts_, but we want to inject faults
+  // in the transition relation
+  // TODO make a better interface for this
+  //      currently requires FaultInjector to be a friend of TransitionSystem
+  faulty_fts_.state_updates_.clear();
+  faulty_fts_.trans_ = faulty_fts_.make_term(true);
+
+  // add constraints back to the system
+  for (auto c : fts_.constraints()) {
+    faulty_fts_.add_constraint(c);
+  }
 
   Sort boolsort = solver->make_sort(BOOL);
   Term s;

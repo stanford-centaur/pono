@@ -55,8 +55,18 @@ TEST_P(FaultUnitTests, DefaultFaultInjection)
 
   // TODO: test with fault injector
   //       need to fix state variables first
-  // FaultInjector fi(fts);
-  // FunctionalTransitionSystem & faulty_fts = fi.faulty_transition_system();
+  FaultInjector fi(fts);
+  FunctionalTransitionSystem & faulty_fts = fi.faulty_transition_system();
+
+  // use a fresh solver so the unroller doesn't clash with symbol names
+  Property prop_faulty(faulty_fts, prop.prop());
+  KInduction kind_faulty(prop_faulty, s->get_solver_enum());
+  res = kind_faulty.check_until(1);
+  // not expected to be false in 1 step
+  EXPECT_EQ(res, ProverResult::UNKNOWN);
+  // but with injected faults, it should be at 2
+  res = kind_faulty.check_until(2);
+  EXPECT_EQ(res, ProverResult::FALSE);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedFaultUnitTests,

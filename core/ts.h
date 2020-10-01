@@ -26,13 +26,18 @@
 
 namespace pono {
 
+// TODO: find a cleaner way to do this!
+//        maybe a distinction between mutable and immutable transition systems?
 // forward declarations for friends
 class ArrayAbstractor;
+class FaultInjector;
 
 class TransitionSystem
 {
   friend ArrayAbstractor;  // Abstractors need access to TransitionSystem
                            // internals
+  friend FaultInjector;  // needs to move state variables over to another system
+                         // with the same solver
 
  public:
   /** use CVC4 by default (doesn't require logging so pass false)

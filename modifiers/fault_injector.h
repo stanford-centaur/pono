@@ -28,8 +28,9 @@ namespace pono {
 class FaultInjector
 {
  public:
- FaultInjector(FunctionalTransitionSystem & fts, smt::UnorderedTermSet to_ignore={})
-   : fts_(fts), faulty_fts_(fts.solver()), statevars_to_ignore_(to_ignore)
+  FaultInjector(FunctionalTransitionSystem & fts,
+                smt::UnorderedTermSet to_ignore = {})
+      : fts_(fts), faulty_fts_(fts), statevars_to_ignore_(to_ignore)
   {
     if (!fts.is_functional()) {
       throw PonoException("Can only do fault injection on functional systems.");
