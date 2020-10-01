@@ -23,7 +23,6 @@
 
 [ \t]     ;
 MODULE {return pono::smvparser::make_MODULE(_encoder.loc);}
-main  {return pono::smvparser::make_MAIN(_encoder.loc);}
 IVAR   {return pono::smvparser::make_IVAR(_encoder.loc);}
 VAR  {return pono::smvparser::make_VAR(_encoder.loc);}
 INVAR   {return pono::smvparser::make_INVAR(_encoder.loc);}
