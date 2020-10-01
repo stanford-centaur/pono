@@ -7,6 +7,7 @@ addons:
       - ubuntu-toolchain-r-test
     packages: &common_deps
       - antlr3
+      - autopoint
       - cmake
       - cxxtest
       - junit4
@@ -44,11 +45,12 @@ script:
   - sudo python3 -m pip install Cython==0.29 --install-option="--no-cython-compile"
   - sudo python3 -m pip install pytest
   - ./travis-scripts/setup-msat.sh --auto-yes
+  - ./contrib/setup-bison.sh
+  - ./contrib/setup-flex.sh
+  - ./contrib/setup-btor2tools.sh
   - ./travis-scripts/download-cvc4.sh
   - ./contrib/setup-smt-switch.sh --with-msat --cvc4-home=./deps/CVC4 --python
   - sudo python3 -m pip install -e ./deps/smt-switch/build/python
-  - ./contrib/setup-btor2tools.sh
-  - ./contrib/setup-bison.sh
   - ./configure.sh --with-msat --python --debug
   - cd build && make -j2 && make test && cd ../
   - sudo python3 -m pip install -e ./build/python

@@ -37,13 +37,37 @@ class Prover
 
   virtual void initialize();
 
+  virtual ProverResult prove();
+
   virtual ProverResult check_until(int k) = 0;
 
-  bool witness(std::vector<smt::UnorderedTermMap> & out);
+  virtual bool witness(std::vector<smt::UnorderedTermMap> & out);
 
-  ProverResult prove();
-  
+  /** Gives a term representing an inductive invariant over current state
+   * variables. Only valid if the property has been proven true. Only supported
+   * by some engines
+   */
+  virtual smt::Term invar();
+
  protected:
+  /** Take a term from the Prover's solver
+   *  to the original transition system's solver
+   *  as a particular SortKind
+   *  Note: they could be the same solver but aren't necessarily
+   *  @param t a term from the Prover's solver
+   *  @param sk the SortKind to cast with
+   *  @return a term in the original TS's solver
+   */
+  smt::Term to_orig_ts(smt::Term t, smt::SortKind sk);
+
+  /** Take a term from the Prover's solver
+   *  to the original transition system's solver
+   *  Note: they could be the same solver but aren't necessarily
+   *  @param t a term from the Prover's solver
+   *  @return a term in the original TS's solver
+   */
+  smt::Term to_orig_ts(smt::Term t);
+
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
   Property property_;

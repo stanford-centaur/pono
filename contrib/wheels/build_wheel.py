@@ -66,6 +66,12 @@ class CMakeBuild(build_ext):
         # build btor2
         contrib_btor2 = os.path.join(contrib_path, "setup-btor2tools.sh")
         subprocess.check_call(contrib_btor2)
+        # build bison
+        contrib_bison = os.path.join(contrib_path, "setup-bison.sh")
+        subprocess.check_call(contrib_bison)
+        # build flex
+        contrib_flex = os.path.join(contrib_path, "setup-flex.sh")
+        subprocess.check_call(contrib_flex)
 
         # configure
         root_dir = os.path.dirname(contrib_path)
@@ -89,7 +95,7 @@ class CMakeBuild(build_ext):
         if not os.path.isdir(extdir):
             os.mkdir(extdir)
 
-        for lib_filename in glob.glob(os.path.join(python_build_dir, "pypono.*")):
+        for lib_filename in glob.glob(os.path.join(python_build_dir, "pono.*")):
             if os.path.splitext(lib_filename)[1] == ".cxx":
                 continue
             dst_filename = os.path.join(extdir, os.path.basename(lib_filename))
@@ -102,7 +108,7 @@ setup(
     author='Makai Mann',
     ext_modules=[CMakeExtension('pono')],
     cmdclass=dict(build_ext=CMakeBuild),
-    long_description='python bindings for the next generation pono',
+    long_description='python bindings for Pono (next generation of CoSA)',
     url='https://github.com/upscale-project/pono',
     license='BSD',
     tests_require=['pytest'],

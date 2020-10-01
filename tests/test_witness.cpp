@@ -20,10 +20,10 @@ using namespace std;
 
 namespace pono_tests {
 
-class WitnessUnitTests
-    : public ::testing::Test,
-      public ::testing::WithParamInterface<SolverEnum>
-{};
+class WitnessUnitTests : public ::testing::Test,
+                         public ::testing::WithParamInterface<SolverEnum>
+{
+};
 
 TEST_P(WitnessUnitTests, SimpleDefaultSolver)
 {
@@ -96,4 +96,4 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedWitnessUnitTests,
                          WitnessUnitTests,
                          testing::ValuesIn(available_solver_enums()));
 
-}
+}  // namespace pono_tests

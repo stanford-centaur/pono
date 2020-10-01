@@ -19,6 +19,7 @@
 #include <sstream>
 #include <vector>
 #include <set>
+#include <functional>
 
 #include "gmpxx.h"
 #include "smt-switch/smt.h"
@@ -70,8 +71,8 @@ public:
   // types
   typedef std::map<std::string, std::vector<std::string>> per_mem_indices;
 protected:
- const smt::UnorderedTermSet inputs_;
- const smt::UnorderedTermSet states_;
+ const smt::UnorderedTermSet & inputs_;
+ const smt::UnorderedTermSet & states_;
  const std::unordered_map<std::string, smt::Term> & named_terms_;
  const std::vector<smt::UnorderedTermMap> & cex_;
 
@@ -93,6 +94,9 @@ protected:
 
  uint64_t hash_id_cnt_;
  std::string new_hash_id();
+
+ uint64_t property_id_cnt_;
+ std::string new_property_id();
 
  void dump_current_scope(std::ostream & fout, const VCDScope *) const;
 
