@@ -8,7 +8,6 @@ int pono::SMVEncoder::parse(std::string filename)
 {
   std::ifstream ifs;
   ifs.open(filename);
-  // make sure file is valid:
   if (!ifs.good()) {
     std::cout << "NO input file!" << std::endl;
     exit(-1);
@@ -20,14 +19,15 @@ int pono::SMVEncoder::parse(std::string filename)
   return parse();
 }
 // parse string
-int pono::SMVEncoder::parseString(std::string newline)
+smt::Term pono::SMVEncoder::parseString(std::string newline)
 {
   std::istringstream iss(newline);
   std::istream & s(iss);
   pono::SMVscanner smvscanner(*this);
   smvscanner.switch_streams(&s);
   pono::smvparser parse(smvscanner, *this);
-  return parse();
+  parse();
+  return parse_term;
 }
 // case condition check preprocess
 void pono::SMVEncoder::processCase()
@@ -45,7 +45,7 @@ void pono::SMVEncoder::processCase()
         },
         solver_);
     std::future_status status;
-    status = fut.wait_for(std::chrono::seconds(5));
+    status = fut.wait_for(std::chrono::seconds(5)); //check timeout
     while (status != std::future_status::timeout) {
       if (status == std::future_status::ready) {
         if (fut.get()) {
@@ -56,9 +56,32 @@ void pono::SMVEncoder::processCase()
         }
       }
     }
-    if (status == std::future_status::timeout) {
+    if (status == std::future_status::timeout)
       throw PonoException("case timeout check error");
-    }
+    solver_->pop();
   }
-  solver_->pop();
+}
+//change the input stream to output stringstream 
+int pono::SMVEncoder::parse_flat(std::istream & s)
+{
+  pono::SMVscanner smvscanner(*this);
+  smvscanner.switch_streams(&s);
+  pono::smvparser parse(smvscanner, *this);
+  return parse();
+}
+
+//modular SMV preprocess
+std::stringstream pono::SMVEncoder::preprocess()
+{
+  module_node * main_n;
+  if (module_list.find("main") != module_list.end()) {
+    main_n = module_list.find("main")->second;
+  } else {
+    throw PonoException("no main module found");
+  }
+  std::stringstream str;
+  str << "MODULE main" << std::endl;
+  main_n->process_main(module_list, str);
+  parse_flat(str);
+  return str;
 }

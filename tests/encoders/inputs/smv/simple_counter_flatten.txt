@@ -1,0 +1,22 @@
+MODULE main
+VAR
+counter:unsigned word [8];
+a:boolean;
+b:boolean;
+e:unsigned word [8];
+FROZENVAR
+c : boolean ; 
+INIT
+ counter  = 0ud8_0 ;
+INIT
+ a  =  TRUE  ;
+INIT
+ b  =  FALSE  ;
+INIT
+ c  =  (  a  &  ! b  )  ;
+TRANS
+ (  counter  <= 0ud8_4 )  ->  ( next (  counter  )  =  counter  + 0ud8_1 )  ;
+TRANS
+ (  counter  > 0ud8_4 )  ->  ( next (  counter  )  = 0ud8_0 )  ;
+INVARSPEC
+ (  counter  <= 0ud8_5 &  c  )  ;
