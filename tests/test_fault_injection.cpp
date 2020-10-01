@@ -1,17 +1,15 @@
 #include <utility>
 #include <vector>
 
-#include "gtest/gtest.h"
-
+#include "available_solvers.h"
 #include "core/fts.h"
 #include "core/rts.h"
 #include "engines/bmc.h"
 #include "engines/kinduction.h"
-#include "modifiers/fault_injector.h"
+#include "gtest/gtest.h"
+#include "modifiers/nondet_fault_injector.h"
 #include "modifiers/single_bit_flip_fault.h"
 #include "utils/exceptions.h"
-
-#include "available_solvers.h"
 
 using namespace pono;
 using namespace smt;
@@ -55,7 +53,7 @@ TEST_P(FaultUnitTests, DefaultFaultInjection)
 
   // TODO: test with fault injector
   //       need to fix state variables first
-  FaultInjector fi(fts);
+  NonDetFaultInjector fi(fts);
   FunctionalTransitionSystem & faulty_fts = fi.faulty_transition_system();
 
   // use a fresh solver so the unroller doesn't clash with symbol names

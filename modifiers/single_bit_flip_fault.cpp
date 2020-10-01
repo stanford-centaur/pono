@@ -99,7 +99,9 @@ void SingleBitFlipFault::constrain_to_single_fault()
   // NOTE: this could be optimized to only use one faultsig
   //       however, we're sticking with the more general version which could
   //       allow multiple faults when/if there are performance issues we can
-  //       have a specialized version we could just override create_fault_vals
+  //       have a specialized version we could just change the way faultsigs are
+  //       created would require refactoring so this is separate from
+  //       do_fault_injection which is implemented in FaultInjection
 
   // create an Or of all fault sigs to determine if any fault has occurred in
   // the past

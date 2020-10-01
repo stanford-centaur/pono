@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file fault_injector.cpp
+/*! \file nondet_fault_injector.cpp
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
@@ -16,8 +16,9 @@
 **
 **/
 
-#include "fault_injector.h"
-#include "logger.h"
+#include "modifiers/fault_injector.h"
+
+#include "utils/logger.h"
 
 using namespace std;
 using namespace smt;
@@ -82,19 +83,6 @@ void FaultInjector::do_fault_injection()
     faulty_fts_.assign_next(
         s, solver->make_term(Ite, faultsig, faultval, elem.second));
     fault_sigs_.push_back(faultsig);
-  }
-}
-
-void FaultInjector::create_fault_vals()
-{
-  Term faultval;
-  Term st;
-  for (auto elem : fts_.state_updates()) {
-    st = elem.first;
-    faultval = faulty_fts_.make_inputvar("faultval_" + st->to_string(),
-                                         st->get_sort());
-    state2faultval_[st] = faultval;
-    faultval2state_[faultval] = st;
   }
 }
 

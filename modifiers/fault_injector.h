@@ -35,7 +35,6 @@ class FaultInjector
     if (!fts.is_functional()) {
       throw PonoException("Can only do fault injection on functional systems.");
     }
-    do_fault_injection();
   };
 
   virtual ~FaultInjector(){};
@@ -53,7 +52,7 @@ class FaultInjector
   /** Creates the values that will be used in case of a fault
    *  Side effect: populates state2faultval_ and faultval2state_
    */
-  virtual void create_fault_vals();
+  virtual void create_fault_vals() = 0;
 
   FunctionalTransitionSystem & fts_;
   FunctionalTransitionSystem faulty_fts_;
