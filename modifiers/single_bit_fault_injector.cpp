@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file single_bit_flip_fault.cpp
+/*! \file single_bit_fault_injector.cpp
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
@@ -14,14 +14,14 @@
 **
 **/
 
-#include "single_bit_flip_fault.h"
+#include "single_bit_fault_injector.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
 
-void SingleBitFlipFault::create_fault_vals()
+void SingleBitFaultInjector::create_fault_vals()
 {
   const SmtSolver & solver = faulty_fts_.solver();
   unordered_map<Sort, Term> bitflip_cache;
@@ -35,8 +35,7 @@ void SingleBitFlipFault::create_fault_vals()
     st = elem.first;
     st_sort = st->get_sort();
 
-    if (statevars_to_ignore_.find(st) != statevars_to_ignore_.end())
-    {
+    if (statevars_to_ignore_.find(st) != statevars_to_ignore_.end()) {
       continue;
     }
 
@@ -48,8 +47,7 @@ void SingleBitFlipFault::create_fault_vals()
 
     if (bitflip_cache.find(st_sort) != bitflip_cache.end()) {
       bitflipper = bitflip_cache.at(st_sort);
-    }
-    else {
+    } else {
       // create a new bitflip val
       bitflipper =
           faulty_fts_.make_statevar(st_sort->to_string() + "_bitflip", st_sort);
@@ -75,7 +73,7 @@ void SingleBitFlipFault::create_fault_vals()
   }
 }
 
-void SingleBitFlipFault::constrain_to_single_fault()
+void SingleBitFaultInjector::constrain_to_single_fault()
 {
   // at most one for fault sel
   for (auto e1 : faultsel2state_) {
@@ -114,7 +112,7 @@ void SingleBitFlipFault::constrain_to_single_fault()
   // if a fault has happened in the past, disable fault selectors now
   for (auto e : faultsel2state_) {
     Term sel = e.first;
-    faulty_fts_.add_invar(faulty_fts_.make_term(
+    faulty_fts_.constrain_inputs(faulty_fts_.make_term(
         Implies, fault_in_past, faulty_fts_.make_term(Not, sel)));
   }
 }

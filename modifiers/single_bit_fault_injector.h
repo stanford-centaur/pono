@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file single_bit_flip_fault.h
+/*! \file single_bit_fault_injector.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
@@ -19,11 +19,12 @@
 #include "modifiers/fault_injector.h"
 
 namespace pono {
-class SingleBitFlipFault : public FaultInjector
+class SingleBitFaultInjector : public FaultInjector
 {
  public:
- SingleBitFlipFault(FunctionalTransitionSystem & fts, smt::UnorderedTermSet to_ignore={})
-   : FaultInjector(fts, to_ignore)
+  SingleBitFaultInjector(FunctionalTransitionSystem & fts,
+                         smt::UnorderedTermSet to_ignore = {})
+      : FaultInjector(fts, to_ignore)
   {
     if (!fts.is_functional()) {
       throw PonoException("Expecting a functional transition system.");
