@@ -31,7 +31,6 @@ class NonDetFaultInjector : public FaultInjector
     if (!fts.is_functional()) {
       throw PonoException("Expecting a functional transition system.");
     }
-    do_fault_injection();
   }
 
  protected:

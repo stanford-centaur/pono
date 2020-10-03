@@ -52,7 +52,12 @@ TEST_P(FaultUnitTests, NonDetFaultInjection)
   EXPECT_EQ(res, ProverResult::TRUE);
 
   NonDetFaultInjector fi(fts);
+  EXPECT_FALSE(fi.is_initialized());
   FunctionalTransitionSystem & faulty_fts = fi.faulty_transition_system();
+  EXPECT_TRUE(fi.is_initialized());
+  FunctionalTransitionSystem & faulty_fts_2 = fi.faulty_transition_system();
+  EXPECT_EQ(faulty_fts.init(), faulty_fts_2.init());
+  EXPECT_EQ(faulty_fts.trans(), faulty_fts_2.trans());
 
   // use a fresh solver so the unroller doesn't clash with symbol names
   Property prop_faulty(faulty_fts, prop.prop());
@@ -83,7 +88,12 @@ TEST_P(FaultUnitTests, SingleBitFlip)
   EXPECT_EQ(res, ProverResult::TRUE);
 
   SingleBitFaultInjector fi(fts);
+  EXPECT_FALSE(fi.is_initialized());
   FunctionalTransitionSystem & faulty_fts = fi.faulty_transition_system();
+  EXPECT_TRUE(fi.is_initialized());
+  FunctionalTransitionSystem & faulty_fts_2 = fi.faulty_transition_system();
+  EXPECT_EQ(faulty_fts.init(), faulty_fts_2.init());
+  EXPECT_EQ(faulty_fts.trans(), faulty_fts_2.trans());
 
   // use a fresh solver so the unroller doesn't clash with symbol names
   Property prop_faulty(faulty_fts, prop.prop());

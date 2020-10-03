@@ -30,7 +30,10 @@ class FaultInjector
  public:
   FaultInjector(FunctionalTransitionSystem & fts,
                 smt::UnorderedTermSet to_ignore = {})
-      : fts_(fts), faulty_fts_(fts), statevars_to_ignore_(to_ignore)
+      : fts_(fts),
+        faulty_fts_(fts),
+        statevars_to_ignore_(to_ignore),
+        initialized_(false)
   {
     if (!fts.is_functional()) {
       throw PonoException("Can only do fault injection on functional systems.");
@@ -39,12 +42,29 @@ class FaultInjector
 
   virtual ~FaultInjector(){};
 
+  /** Inject faults in the transition system if that hasn't already been done,
+      and return the resulting system
+      @return a TransitionSystem with injected faults.
+   */
   FunctionalTransitionSystem & faulty_transition_system()
   {
+    if (!initialized_) {
+      do_fault_injection();
+    }
     return faulty_fts_;
   };
 
-  smt::TermVec fault_sigs() const { return fault_sigs_; };
+  bool is_initialized() const { return initialized_; };
+
+  smt::TermVec fault_sigs() const
+  {
+    if (!initialized_) {
+      throw PonoException(
+          "Cannot get fault signals without calling faulty_transition_system "
+          "first");
+    }
+    return fault_sigs_;
+  };
 
  protected:
   virtual void do_fault_injection();
@@ -57,6 +77,11 @@ class FaultInjector
   FunctionalTransitionSystem & fts_;
   FunctionalTransitionSystem faulty_fts_;
 
+  smt::UnorderedTermSet
+      statevars_to_ignore_;  ///< will not inject faults for these statevars
+
+  bool initialized_;  ///< set to true once faults have been injected
+
   smt::UnorderedTermMap state2faultsel_;
   smt::UnorderedTermMap faultsel2state_;
 
@@ -68,7 +93,6 @@ class FaultInjector
 
   smt::TermVec fault_sigs_;
 
-  smt::UnorderedTermSet statevars_to_ignore_; ///< will not inject faults for these statevars
 };
 
 }  // namespace pono

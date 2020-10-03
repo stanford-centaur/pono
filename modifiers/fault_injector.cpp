@@ -84,6 +84,8 @@ void FaultInjector::do_fault_injection()
         s, solver->make_term(Ite, faultsig, faultval, elem.second));
     fault_sigs_.push_back(faultsig);
   }
+
+  initialized_ = true;
 }
 
 }  // namespace pono

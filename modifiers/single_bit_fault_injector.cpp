@@ -21,6 +21,14 @@ using namespace std;
 
 namespace pono {
 
+void SingleBitFaultInjector::do_fault_injection()
+{
+  // this will call the virtual function create_fault_vals
+  super::do_fault_injection();
+  // constrain such that only one fault is allowed in a trace
+  constrain_to_single_fault();
+}
+
 void SingleBitFaultInjector::create_fault_vals()
 {
   const SmtSolver & solver = faulty_fts_.solver();
