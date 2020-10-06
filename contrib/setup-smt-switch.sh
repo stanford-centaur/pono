@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=9bafbda74562f86c146a13a4050ab148fe4bb094
+SMT_SWITCH_VERSION=9196e137522a01297fca38ee22d7b1fbae975773
 
 usage () {
     cat <<EOF
@@ -26,6 +26,7 @@ die () {
 
 WITH_MSAT=default
 CONF_OPTS=""
+WITH_PYTHON=default
 cvc4_home=default
 
 while [ $# -gt 0 ]
@@ -36,6 +37,7 @@ do
             WITH_MSAT=ON
             CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
         --python)
+            WITH_PYTHON=YES
             CONF_OPTS="$CONF_OPTS --python";;
         --cvc4-home) die "missing argument to $1 (see -h)" ;;
         --cvc4-home=*)
@@ -63,6 +65,9 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     ./contrib/setup-btor.sh
     if [ $cvc4_home = default ]; then
         ./contrib/setup-cvc4.sh
+    fi
+    if [ $WITH_PYTHON = YES ]; then
+        ./contrib/setup-skbuild.sh
     fi
     ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static
     cd build
