@@ -33,11 +33,6 @@ include_directories("${PROJECT_SOURCE_DIR}/engines")
 include_directories("${PROJECT_SOURCE_DIR}/frontends")
 include_directories("${PROJECT_SOURCE_DIR}/smt")
 include_directories("${PROJECT_SOURCE_DIR}/options")
-include_directories("/usr/local/include")
-include_directories("/usr/local/Cellar/gmp/6.2.0/include")
-
-link_directories("/usr/local/lib")
-link_directories("/usr/local/Cellar/gmp/6.2.0/lib")
 
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/flex/flex-install")
@@ -66,6 +61,11 @@ include_directories("${FLEX_INCLUDE_DIRS}")
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
 set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
+
+# rely on cmake modules from smt-switch (required anyway)
+set(CMAKE_MODULE_PATH ${SMT_SWITCH_DIR}/cmake)
+
+find_package(GMP REQUIRED)
 
 # Check that dependencies are there
 if (NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
@@ -103,9 +103,6 @@ endif()
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
 endif()
-
-# rely on cmake modules from smt-switch (required anyway)
-set(CMAKE_MODULE_PATH ${SMT_SWITCH_DIR}/cmake)
 
 # Generate the SMV parser using Flex/Bison
 BISON_TARGET(SMVParser ${PROJECT_SOURCE_DIR}/frontends/smvparser.y
@@ -168,6 +165,7 @@ target_include_directories(pono-lib PUBLIC
   "${SMT_SWITCH_DIR}/local/include"
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
+  "${GMP_INCLUDE_DIR}"
   )
 
 # Should we build python bindings
@@ -202,7 +200,7 @@ endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
-target_link_libraries(pono-lib PUBLIC gmp)
+target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
 
