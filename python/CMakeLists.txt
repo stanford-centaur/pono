@@ -16,6 +16,14 @@ endif()
 # https://cmake.org/cmake/help/v3.12/module/FindPython.html (specifically the versioned ones
 #  FindPython2 and FindPython3
 
+if (USE_PYTHON2)
+  message("-- We understand: it's hard to let go. We'll try to use Python2, but it's not really supported, so no promises.")
+  find_package (Python2 COMPONENTS Interpreter Development)
+else()
+  find_package (Python3 COMPONENTS Interpreter Development)
+endif()
+
+
 # However, the Python Extensions from scikit-build still use an old version
 # We need to set variables so that FindPythonInterp is not run in FindPythonExtensions
 # below, but it looks in the right place for the PythonLibs
@@ -46,11 +54,11 @@ else()
                    CACHE STRING "Extra flags to the cython compiler." FORCE)
 endif()
 
-find_package(Cython 0.29 REQUIRED)
-
 include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python")
 
 include(FindPythonExtensions)
+
+find_package(Cython 0.29 REQUIRED)
 
 add_cython_target(pono CXX)
 
