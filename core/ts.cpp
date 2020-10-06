@@ -37,8 +37,8 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.next_map_, ts2.next_map_);
   std::swap(ts1.curr_map_, ts2.curr_map_);
   std::swap(ts1.functional_, ts2.functional_);
+  std::swap(ts1.deterministic_, ts2.deterministic_);
   std::swap(ts1.constraints_, ts2.constraints_);
-  // TODO: add all member variables here after merging other PRs!
 }
 
 TransitionSystem & TransitionSystem::operator=(TransitionSystem other)
