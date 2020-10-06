@@ -11,20 +11,6 @@ if(POLICY CMP0057)
   cmake_policy(SET CMP0057 NEW)
 endif()
 
-# WITH_COREIR is a macro in the Cython files
-# Needs to be set either way
-if (WITH_COREIR)
-  set(CYTHON_FLAGS "--compile-time-env WITH_COREIR=ON ${CYTHON_FLAGS}"
-      CACHE STRING "Extra flags to the cython compiler." FORCE)
-else()
-  set(CYTHON_FLAGS "--compile-time-env WITH_COREIR=OFF ${CYTHON_FLAGS}"
-                   CACHE STRING "Extra flags to the cython compiler." FORCE)
-endif()
-
-find_package(Cython 0.29 REQUIRED)
-
-include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python")
-
 # Need to make sure libraries match the interpreter
 # Our CMake files use the latest Python finding cmake modules (as of 2020)
 # https://cmake.org/cmake/help/v3.12/module/FindPython.html (specifically the versioned ones
@@ -48,6 +34,21 @@ else()
   set(PYTHON_VERSION_MINOR ${Python3_VERSION_MINOR})
   set(PYTHON_VERSION_PATCH ${Python3_VERSION_PATCH})
 endif()
+
+
+# WITH_COREIR is a macro in the Cython files
+# Needs to be set either way
+if (WITH_COREIR)
+  set(CYTHON_FLAGS "--compile-time-env WITH_COREIR=ON ${CYTHON_FLAGS}"
+      CACHE STRING "Extra flags to the cython compiler." FORCE)
+else()
+  set(CYTHON_FLAGS "--compile-time-env WITH_COREIR=OFF ${CYTHON_FLAGS}"
+                   CACHE STRING "Extra flags to the cython compiler." FORCE)
+endif()
+
+find_package(Cython 0.29 REQUIRED)
+
+include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python")
 
 include(FindPythonExtensions)
 
