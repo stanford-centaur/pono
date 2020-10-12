@@ -201,6 +201,10 @@ if (LIBRT)
   target_link_libraries(pono-lib PUBLIC ${LIBRT})
 endif()
 
+if (WITH_PROFILING)
+  target_link_libraries(pono-lib PUBLIC profiler)
+endif()
+
 enable_testing()
 # Add tests subdirectory
 # The CMakeLists.txt file there sets up googletest

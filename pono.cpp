@@ -16,6 +16,11 @@
 
 #include <iostream>
 #include "assert.h"
+#include <csignal>
+
+#ifdef WITH_PROFILING
+#include <gperftools/profiler.h>
+#endif
 
 #include "smt-switch/boolector_factory.h"
 #ifdef WITH_MSAT
@@ -102,8 +107,34 @@ ProverResult check_prop(PonoOptions pono_options,
   return r;
 }
 
+void
+sig_handler (int sig)
+{
+  fprintf (stderr, "\n\n SIG %d RECEIVED\n\n", sig);
+  //signal (sig, SIG_DFL);
+  //raise (sig);
+#ifdef WITH_PROFILING
+  ProfilerFlush();
+  ProfilerStop();
+#endif
+  //CHECK, maybe better: rather do 'signal' and 'raise' like above instead?
+  exit(pono::UNKNOWN);
+}
+
 int main(int argc, char ** argv)
 {
+
+  //TODO: TRY WITHOUT DEBUG SYMBOLS IN SMT-SWITCH ETC
+  //TODO: add cmd-line and time-out function via alarm, catch SIGALARM separately
+  //TODO: map signal value to name
+  signal (SIGINT, sig_handler);
+  signal (SIGTERM, sig_handler);
+  signal (SIGALRM, sig_handler);
+  //TODO: add cmd-line opt to enable profiling and set log filename
+#ifdef WITH_PROFILING
+  ProfilerStart("./TEST.prof");
+#endif
+  
   PonoOptions pono_options;
   ProverResult res = pono_options.parse_and_set_options(argc, argv);
   if (res == ERROR) return res;
@@ -307,5 +338,11 @@ int main(int argc, char ** argv)
     res = ProverResult::ERROR;
   }
 
+#ifdef WITH_PROFILING
+  //TODO: add cmd-line opt
+  ProfilerFlush();
+  ProfilerStop();
+#endif
+  
   return res;
 }
