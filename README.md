@@ -7,6 +7,7 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 ## Setup
 
 TODO: ADD NOTES/REFERENCE ON PROFILING
+TODO:   e.g. finally run  "google-pprof --text <pono-executable> <profile-data-file>"
 
 * Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with boolector
 * [optional] to build with MathSAT (required for interpolant-based model checking) you need to obtain the libraries yourself
