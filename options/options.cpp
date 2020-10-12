@@ -336,7 +336,14 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
                 "--ic3-indgen-mode value must be between 0 and 2.");
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
-        case PROFILING_LOG_FILENAME: profiling_log_filename_ = opt.arg; break;
+        case PROFILING_LOG_FILENAME:
+#ifndef WITH_PROFILING
+          throw PonoException("Profiling requires linking to gperftools library. "\
+                              "Please reconfigure Pono with './configure --with-profiling'.");
+#else
+          profiling_log_filename_ = opt.arg;
+#endif
+          break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
