@@ -107,8 +107,9 @@ ProverResult check_prop(PonoOptions pono_options,
   return r;
 }
 
+//NOTE: this signal is registered only when profiling is enabled
 void
-sig_handler (int sig)
+profiling_sig_handler (int sig)
 {
   fprintf (stderr, "\n\n SIG %d RECEIVED\n\n", sig);
   //signal (sig, SIG_DFL);
@@ -122,19 +123,7 @@ sig_handler (int sig)
 }
 
 int main(int argc, char ** argv)
-{
-
-  //TODO: TRY WITHOUT DEBUG SYMBOLS IN SMT-SWITCH ETC
-  //TODO: add cmd-line and time-out function via alarm, catch SIGALARM separately
-  //TODO: map signal value to name
-  signal (SIGINT, sig_handler);
-  signal (SIGTERM, sig_handler);
-  signal (SIGALRM, sig_handler);
-  //TODO: add cmd-line opt to enable profiling and set log filename
-#ifdef WITH_PROFILING
-  ProfilerStart("./TEST.prof");
-#endif
-  
+{  
   PonoOptions pono_options;
   ProverResult res = pono_options.parse_and_set_options(argc, argv);
   if (res == ERROR) return res;
@@ -147,6 +136,22 @@ int main(int argc, char ** argv)
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
 
+  
+  //TODO START: PROFILING
+  if (!pono_options.profiling_log_filename_.empty()) {
+    //TODO: TRY WITHOUT DEBUG SYMBOLS IN SMT-SWITCH ETC
+    //TODO: add cmd-line and time-out function via alarm, catch SIGALARM separately
+    //TODO: map signal value to name
+    signal (SIGINT, profiling_sig_handler);
+    signal (SIGTERM, profiling_sig_handler);
+    signal (SIGALRM, profiling_sig_handler);
+#ifdef WITH_PROFILING
+    ProfilerStart(pono_options.profiling_log_filename_.c_str());
+#endif
+  }
+  //TODO END: PROFILING
+
+  
   try {
     SmtSolver s;
     SmtSolver second_solver;
@@ -338,11 +343,13 @@ int main(int argc, char ** argv)
     res = ProverResult::ERROR;
   }
 
+  if (!pono_options.profiling_log_filename_.empty()) {
+    //TODO: check all code exit paths
 #ifdef WITH_PROFILING
-  //TODO: add cmd-line opt
-  ProfilerFlush();
-  ProfilerStop();
+    ProfilerFlush();
+    ProfilerStop();
 #endif
+  }
   
   return res;
 }

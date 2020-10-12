@@ -49,7 +49,8 @@ enum optionIndex
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
   IC3_INDGEN_MODE,
-  IC3_FUNCTIONAL_PREIMAGE
+  IC3_FUNCTIONAL_PREIMAGE,
+  PROFILING_LOG_FILENAME
 };
 
 struct Arg : public option::Arg
@@ -225,6 +226,13 @@ const option::Descriptor usage[] = {
     "ic3-functional-preimage",
     Arg::None,
     "  --ic3-functional-preimage \tUse functional preimage in ic3." },
+  { PROFILING_LOG_FILENAME,
+    0,
+    "",
+    "profiling-log",
+    Arg::NonEmpty,
+    "  --profiling-log \tName of logfile for profiling output"
+    "(requires build with linked profiling library 'gperftools')." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -233,7 +241,8 @@ const option::Descriptor usage[] = {
 namespace pono {
 
 const std::string PonoOptions::default_smt_solver_ = "btor";
-
+const std::string PonoOptions::default_profiling_log_filename_ = "";
+  
 Engine PonoOptions::to_engine(std::string s)
 {
   if (str2engine.find(s) != str2engine.end()) {
@@ -327,6 +336,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
                 "--ic3-indgen-mode value must be between 0 and 2.");
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
+        case PROFILING_LOG_FILENAME: profiling_log_filename_ = opt.arg; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
