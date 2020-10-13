@@ -102,7 +102,7 @@ class PonoOptions
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
   std::string profiling_log_filename_;
-    
+
  private:
   // Default options
   static const Engine default_engine_ = BMC;

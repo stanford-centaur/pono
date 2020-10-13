@@ -14,9 +14,9 @@
 **
 **/
 
+#include <csignal>
 #include <iostream>
 #include "assert.h"
-#include <csignal>
 
 #ifdef WITH_PROFILING
 #include <gperftools/profiler.h>
@@ -107,30 +107,31 @@ ProverResult check_prop(PonoOptions pono_options,
   return r;
 }
 
-//Note: signal handlers are registered only when profiling is enabled.
-void
-profiling_sig_handler (int sig)
+// Note: signal handlers are registered only when profiling is enabled.
+void profiling_sig_handler(int sig)
 {
   std::string signame;
   switch (sig) {
     case SIGINT: signame = "SIGINT"; break;
     case SIGTERM: signame = "SIGTERM"; break;
     case SIGALRM: signame = "SIGALRM"; break;
-    default: throw PonoException("Caught unexpected signal"\
-                                 "in profiling signal handler.");
+    default:
+      throw PonoException(
+          "Caught unexpected signal"
+          "in profiling signal handler.");
   }
-  logger.log (0, "\n Signal {} received\n", signame);
+  logger.log(0, "\n Signal {} received\n", signame);
 #ifdef WITH_PROFILING
   ProfilerFlush();
   ProfilerStop();
 #endif
   // Switch back to default handling for signal 'sig' and raise it.
-  signal (sig, SIG_DFL);
-  raise (sig);
+  signal(sig, SIG_DFL);
+  raise(sig);
 }
 
 int main(int argc, char ** argv)
-{  
+{
   PonoOptions pono_options;
   ProverResult res = pono_options.parse_and_set_options(argc, argv);
   if (res == ERROR) return res;
@@ -147,15 +148,16 @@ int main(int argc, char ** argv)
   // program.  This is necessary to gracefully stop profiling when,
   // e.g., an external time limit is enforced to stop the program.
   if (!pono_options.profiling_log_filename_.empty()) {
-    signal (SIGINT, profiling_sig_handler);
-    signal (SIGTERM, profiling_sig_handler);
-    signal (SIGALRM, profiling_sig_handler);
+    signal(SIGINT, profiling_sig_handler);
+    signal(SIGTERM, profiling_sig_handler);
+    signal(SIGALRM, profiling_sig_handler);
 #ifdef WITH_PROFILING
-    logger.log(0, "Profiling log filename: {}", pono_options.profiling_log_filename_);
+    logger.log(
+        0, "Profiling log filename: {}", pono_options.profiling_log_filename_);
     ProfilerStart(pono_options.profiling_log_filename_.c_str());
 #endif
   }
-  
+
   try {
     SmtSolver s;
     SmtSolver second_solver;
@@ -353,6 +355,6 @@ int main(int argc, char ** argv)
     ProfilerStop();
 #endif
   }
-  
+
   return res;
 }

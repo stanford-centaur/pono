@@ -242,7 +242,7 @@ namespace pono {
 
 const std::string PonoOptions::default_smt_solver_ = "btor";
 const std::string PonoOptions::default_profiling_log_filename_ = "";
-  
+
 Engine PonoOptions::to_engine(std::string s)
 {
   if (str2engine.find(s) != str2engine.end()) {
@@ -338,8 +338,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
         case PROFILING_LOG_FILENAME:
 #ifndef WITH_PROFILING
-          throw PonoException("Profiling requires linking to gperftools library. "\
-                              "Please reconfigure Pono with './configure --with-profiling'.");
+          throw PonoException(
+              "Profiling requires linking to gperftools library. "
+              "Please reconfigure Pono with './configure --with-profiling'.");
 #else
           profiling_log_filename_ = opt.arg;
 #endif
