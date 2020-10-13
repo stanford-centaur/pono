@@ -107,19 +107,26 @@ ProverResult check_prop(PonoOptions pono_options,
   return r;
 }
 
-//NOTE: this signal is registered only when profiling is enabled
+//Note: signal handlers are registered only when profiling is enabled.
 void
 profiling_sig_handler (int sig)
 {
-  fprintf (stderr, "\n\n SIG %d RECEIVED\n\n", sig);
-  //signal (sig, SIG_DFL);
-  //raise (sig);
+  std::string signame;
+  switch (sig) {
+    case SIGINT: signame = "SIGINT"; break;
+    case SIGTERM: signame = "SIGTERM"; break;
+    case SIGALRM: signame = "SIGALRM"; break;
+    default: throw PonoException("Caught unexpected signal"\
+                                 "in profiling signal handler.");
+  }
+  logger.log (0, "\n Signal {} received\n", signame);
 #ifdef WITH_PROFILING
   ProfilerFlush();
   ProfilerStop();
 #endif
-  //CHECK, maybe better: rather do 'signal' and 'raise' like above instead?
-  exit(pono::UNKNOWN);
+  // Switch back to default handling for signal 'sig' and raise it.
+  signal (sig, SIG_DFL);
+  raise (sig);
 }
 
 int main(int argc, char ** argv)
@@ -136,21 +143,18 @@ int main(int argc, char ** argv)
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
 
-  
-  //TODO START: PROFILING
+  // For profiling: set signal handlers for common signals to abort
+  // program.  This is necessary to gracefully stop profiling when,
+  // e.g., an external time limit is enforced to stop the program.
   if (!pono_options.profiling_log_filename_.empty()) {
-    //TODO: TRY WITHOUT DEBUG SYMBOLS IN SMT-SWITCH ETC
-    //TODO: add cmd-line and time-out function via alarm, catch SIGALARM separately
-    //TODO: map signal value to name
     signal (SIGINT, profiling_sig_handler);
     signal (SIGTERM, profiling_sig_handler);
     signal (SIGALRM, profiling_sig_handler);
 #ifdef WITH_PROFILING
+    logger.log(0, "Profiling log filename: {}", pono_options.profiling_log_filename_);
     ProfilerStart(pono_options.profiling_log_filename_.c_str());
 #endif
   }
-  //TODO END: PROFILING
-
   
   try {
     SmtSolver s;
@@ -344,7 +348,6 @@ int main(int argc, char ** argv)
   }
 
   if (!pono_options.profiling_log_filename_.empty()) {
-    //TODO: check all code exit paths
 #ifdef WITH_PROFILING
     ProfilerFlush();
     ProfilerStop();
