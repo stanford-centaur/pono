@@ -232,7 +232,7 @@ const option::Descriptor usage[] = {
     "profiling-log",
     Arg::NonEmpty,
     "  --profiling-log \tName of logfile for profiling output"
-    "(requires build with linked profiling library 'gperftools')." },
+    " (requires build with linked profiling library 'gperftools')." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
