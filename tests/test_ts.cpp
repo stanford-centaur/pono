@@ -59,6 +59,9 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   TransitionSystem ts_copy = fts;
   EXPECT_EQ(fts.is_functional(), ts_copy.is_functional());
   EXPECT_EQ(fts.is_deterministic(), ts_copy.is_deterministic());
+  EXPECT_EQ(ts_copy, fts);
+  ts_copy.set_init(ts_copy.make_term(Equal, x, ts_copy.make_term(1, bvsort)));
+  EXPECT_NE(ts_copy, fts);
 }
 
 TEST_P(TSUnitTests, RTS_IsFunc)
@@ -80,6 +83,9 @@ TEST_P(TSUnitTests, RTS_IsFunc)
   TransitionSystem ts_copy = rts;
   EXPECT_EQ(rts.is_functional(), ts_copy.is_functional());
   EXPECT_EQ(rts.is_deterministic(), ts_copy.is_deterministic());
+  EXPECT_EQ(ts_copy, rts);
+  ts_copy.set_init(ts_copy.make_term(Equal, x, ts_copy.make_term(1, bvsort)));
+  EXPECT_NE(ts_copy, rts);
 }
 
 TEST_P(TSUnitTests, FTS_Exceptions)

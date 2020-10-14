@@ -120,6 +120,29 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   deterministic_ = other_ts.deterministic_;
 }
 
+bool TransitionSystem::operator==(const TransitionSystem & other) const
+{
+  return (solver_ == other.solver_ &&
+          init_ == other.init_ &&
+          trans_ == other.trans_ &&
+          statevars_ == other.statevars_ &&
+          next_statevars_ == other.next_statevars_ &&
+          inputvars_ == other.inputvars_ &&
+          named_terms_ == other.named_terms_ &&
+          term_to_name_ == other.term_to_name_ &&
+          state_updates_ == other.state_updates_ &&
+          next_map_ == other.next_map_ &&
+          curr_map_ == other.curr_map_ &&
+          functional_ == other.functional_ &&
+          deterministic_ == other.deterministic_ &&
+          constraints_ == other.constraints_);
+}
+
+bool TransitionSystem::operator!=(const TransitionSystem & other) const
+{
+  return !(*this == other);
+}
+
 void TransitionSystem::set_init(const Term & init)
 {
   // TODO: only do this check in debug mode

@@ -78,6 +78,20 @@ class TransitionSystem
 
   virtual ~TransitionSystem(){};
 
+  /** Equality comparison between TransitionSystems
+   *  compares each member variable
+   *  @param other the transition system to compare to
+   *  @return true iff all member variables are equivalent
+   */
+  bool operator==(const TransitionSystem & other) const;
+
+  /** Disquality comparison between TransitionSystems
+   *  compares each member variable
+   *  @param other the transition system to compare to
+   *  @return true iff any member variables are different
+   */
+  bool operator!=(const TransitionSystem & other) const;
+
   /* Sets initial states to the provided formula
    * @param init the new initial state constraints
    */
