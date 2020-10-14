@@ -33,6 +33,7 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.next_statevars_, ts2.next_statevars_);
   std::swap(ts1.inputvars_, ts2.inputvars_);
   std::swap(ts1.named_terms_, ts2.named_terms_);
+  std::swap(ts1.term_to_name_, ts2.term_to_name_);
   std::swap(ts1.state_updates_, ts2.state_updates_);
   std::swap(ts1.next_map_, ts2.next_map_);
   std::swap(ts1.curr_map_, ts2.curr_map_);
