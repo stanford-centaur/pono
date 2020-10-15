@@ -22,60 +22,40 @@ namespace pono {
 
 // list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
-  BTOR, BTOR_LOGGING, CVC4, CVC4_LOGGING,
+  BTOR, CVC4,
 
 #if WITH_MSAT
-      MSAT, MSAT_LOGGING,
+      MSAT,
 #endif
 
 #if WITH_YICES2
-      YICES2, YICES2_LOGGING,
+      YICES2,
 #endif
 });
 
-SmtSolver create_solver(SolverEnum se)
+SmtSolver create_solver(SolverEnum se, bool logging)
 {
   switch (se) {
     case BTOR: {
-      return BoolectorSolverFactory::create(false);
-      break;
-      ;
-    }
-    case BTOR_LOGGING: {
-      return BoolectorSolverFactory::create(true);
+      return BoolectorSolverFactory::create(logging);
       break;
       ;
     }
     case CVC4: {
-      return CVC4SolverFactory::create(false);
-      break;
-      ;
-    }
-    case CVC4_LOGGING: {
-      return CVC4SolverFactory::create(true);
+      return CVC4SolverFactory::create(logging);
       break;
       ;
     }
 #if WITH_MSAT
     case MSAT: {
-      return MsatSolverFactory::create(false);
-      break;
-      ;
-    }
-    case MSAT_LOGGING: {
-      return MsatSolverFactory::create(true);
+      return MsatSolverFactory::create(logging);
       break;
       ;
     }
 #endif
 #if WITH_YICES2
     case YICES2: {
-      return Yices2SolverFactory::create(false);
-      break;
-      ;
-    }
-    case YICES2_LOGGING: {
-      return Yices2SolverFactory::create(true);
+      return Yices2SolverFactory::create(logging);
       break;
       ;
     }
@@ -92,7 +72,6 @@ SmtSolver create_interpolating_solver(SolverEnum se)
 #if WITH_MSAT
     // for convenience -- accept any MSAT SolverEnum
     case MSAT:
-    case MSAT_LOGGING:
     case MSAT_INTERPOLATOR: {
       return MsatSolverFactory::create_interpolating_solver();
       break;
@@ -112,17 +91,6 @@ const std::vector<SolverEnum> itp_enums({
 });
 
 std::vector<SolverEnum> available_solver_enums() { return solver_enums; }
-
-std::vector<SolverEnum> available_no_logging_solver_enums()
-{
-  std::vector<SolverEnum> enums;
-  for (auto se : solver_enums) {
-    if (!is_logging_solver_enum(se)) {
-      enums.push_back(se);
-    }
-  }
-  return enums;
-}
 
 std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; };
 
