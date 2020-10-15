@@ -1,3 +1,4 @@
+import os
 import pytest
 import smt_switch as ss
 import pono as c
@@ -14,7 +15,8 @@ from pathlib import Path
 @pytest.mark.skipif(not COREIR_AVAILABLE, reason="Requires coreir python bindings")
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_coreir(create_solver):
-    coreir_inputs_directory = Path("../encoders/inputs/coreir")
+    file_dir = Path(os.path.dirname(__file__))
+    coreir_inputs_directory = file_dir / Path("../encoders/inputs/coreir")
     for f in coreir_inputs_directory.glob("*.json"):
         print("Encoding:", f)
         context = coreir.Context()
