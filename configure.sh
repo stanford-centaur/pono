@@ -16,6 +16,7 @@ Configures the CMAKE build environment.
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
                         Required for interpolant based model checking
 --with-coreir           build the CoreIR frontend (default: off)
+--with-coreir-extern    build the CoreIR frontend using an installation of coreir in /usr/local/lib (default: off)
 --debug                 build debug with debug symbols (default: off)
 --python                compile with python bindings (default: off)
 --py2                   use python2 interpreter (default: python3)
@@ -35,6 +36,7 @@ install_prefix=default
 build_type=default
 with_msat=default
 with_coreir=default
+with_coreir_extern=default
 debug=default
 python=default
 py2=default
@@ -69,6 +71,7 @@ do
             ;;
         --with-msat) with_msat=ON;;
         --with-coreir) with_coreir=ON;;
+        --with-coreir-extern) with_coreir_extern=ON;;
         --debug)
             debug=yes;
             buildtype=Debug
@@ -101,6 +104,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $with_coreir != default ] \
     && cmake_opts="$cmake_opts -DWITH_COREIR=$with_coreir"
+
+[ $with_coreir_extern != default ] \
+    && cmake_opts="$cmake_opts -DWITH_COREIR_EXTERN=$with_coreir_extern"
 
 [ $python != default ] \
     && cmake_opts="$cmake_opts -DBUILD_PYTHON_BINDINGS=ON"
