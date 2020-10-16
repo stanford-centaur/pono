@@ -27,6 +27,7 @@ if (WITH_MSAT)
 endif()
 
 if (WITH_PROFILING)
+  find_library(GOOGLE_PERF profiler REQUIRED)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
@@ -205,8 +206,8 @@ if (LIBRT)
   target_link_libraries(pono-lib PUBLIC ${LIBRT})
 endif()
 
-if (WITH_PROFILING)
-  target_link_libraries(pono-lib PUBLIC profiler)
+if (GOOGLE_PERF)
+  target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
 endif()
 
 enable_testing()
