@@ -24,6 +24,30 @@ using namespace std;
 
 namespace pono {
 
+void swap(TransitionSystem & ts1, TransitionSystem & ts2)
+{
+  std::swap(ts1.solver_, ts2.solver_);
+  std::swap(ts1.init_, ts2.init_);
+  std::swap(ts1.trans_, ts2.trans_);
+  std::swap(ts1.statevars_, ts2.statevars_);
+  std::swap(ts1.next_statevars_, ts2.next_statevars_);
+  std::swap(ts1.inputvars_, ts2.inputvars_);
+  std::swap(ts1.named_terms_, ts2.named_terms_);
+  std::swap(ts1.term_to_name_, ts2.term_to_name_);
+  std::swap(ts1.state_updates_, ts2.state_updates_);
+  std::swap(ts1.next_map_, ts2.next_map_);
+  std::swap(ts1.curr_map_, ts2.curr_map_);
+  std::swap(ts1.functional_, ts2.functional_);
+  std::swap(ts1.deterministic_, ts2.deterministic_);
+  std::swap(ts1.constraints_, ts2.constraints_);
+}
+
+TransitionSystem & TransitionSystem::operator=(TransitionSystem other)
+{
+  swap(*this, other);
+  return *this;
+}
+
 TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
                                    TermTranslator & tt)
 {
@@ -94,6 +118,29 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   }
   functional_ = other_ts.functional_;
   deterministic_ = other_ts.deterministic_;
+}
+
+bool TransitionSystem::operator==(const TransitionSystem & other) const
+{
+  return (solver_ == other.solver_ &&
+          init_ == other.init_ &&
+          trans_ == other.trans_ &&
+          statevars_ == other.statevars_ &&
+          next_statevars_ == other.next_statevars_ &&
+          inputvars_ == other.inputvars_ &&
+          named_terms_ == other.named_terms_ &&
+          term_to_name_ == other.term_to_name_ &&
+          state_updates_ == other.state_updates_ &&
+          next_map_ == other.next_map_ &&
+          curr_map_ == other.curr_map_ &&
+          functional_ == other.functional_ &&
+          deterministic_ == other.deterministic_ &&
+          constraints_ == other.constraints_);
+}
+
+bool TransitionSystem::operator!=(const TransitionSystem & other) const
+{
+  return !(*this == other);
 }
 
 void TransitionSystem::set_init(const Term & init)
