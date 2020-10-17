@@ -15,6 +15,7 @@ Configures the CMAKE build environment.
 --build-dir=STR         custom build directory  (default: build)
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
                         Required for interpolant based model checking
+--with-msat-ic3ia       build with the open-source IC3IA implementation as a backend. (default: off)
 --with-coreir           build the CoreIR frontend (default: off)
 --with-coreir-extern    build the CoreIR frontend using an installation of coreir in /usr/local/lib (default: off)
 --debug                 build debug with debug symbols (default: off)
@@ -35,6 +36,7 @@ build_dir=build
 install_prefix=default
 build_type=default
 with_msat=default
+with_msat_ic3ia=default
 with_coreir=default
 with_coreir_extern=default
 debug=default
@@ -70,6 +72,7 @@ do
             esac
             ;;
         --with-msat) with_msat=ON;;
+        --with-msat-ic3ia) with_msat_ic3ia=ON;;
         --with-coreir) with_coreir=ON;;
         --with-coreir-extern) with_coreir_extern=ON;;
         --debug)
@@ -101,6 +104,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $with_msat != default ] \
     && cmake_opts="$cmake_opts -DWITH_MSAT=$with_msat"
+
+[ $with_msat_ic3ia != default ] \
+    && cmake_opts="$cmake_opts -DWITH_MSAT_IC3IA=$with_msat_ic3ia"
 
 [ $with_coreir != default ] \
     && cmake_opts="$cmake_opts -DWITH_COREIR=$with_coreir"

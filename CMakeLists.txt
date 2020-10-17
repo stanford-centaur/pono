@@ -90,6 +90,12 @@ if (WITH_MSAT)
   endif()
 endif()
 
+if (WITH_MSAT_IC3IA)
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
+    message(FATAL_ERROR "Missing ic3ia library -- try running ./contrib/setup-ic3ia.sh")
+  endif()
+endif()
+
 if (WITH_COREIR)
   if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
     message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
@@ -151,6 +157,14 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
 
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 
+if (WITH_MSAT_IC3IA)
+  target_include_directories(pono-lib PUBLIC
+    "${PROJECT_SOURCE_DIR}/deps/ic3ia/")
+  target_include_directories(pono-lib PUBLIC
+    "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
+  target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
+endif()
+
 if (WITH_COREIR OR WITH_COREIR_EXTERN)
   add_definitions(-DWITH_COREIR)
   target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
@@ -183,6 +197,10 @@ target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch
 
 if (WITH_MSAT)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+endif()
+
+if (WITH_MSAT)
+  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
 endif()
 
 if (WITH_COREIR_EXTERN)
