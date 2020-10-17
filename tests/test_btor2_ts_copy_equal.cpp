@@ -185,7 +185,7 @@ TEST_P(CopyUnitTests, CopyToDefault)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCopyUnitTests,
     CopyUnitTests,
-    testing::Combine(testing::ValuesIn(available_no_logging_solver_enums()),
+    testing::Combine(testing::ValuesIn(available_solver_enums()),
                      // from test_encoder_inputs.h
                      testing::ValuesIn(btor2_inputs)));
 

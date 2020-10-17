@@ -148,7 +148,7 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   SolverEnum se = get<0>(GetParam());
   Engine eng = get<1>(GetParam());
 
-  if (eng == INTERP && se != MSAT && se != MSAT_LOGGING) {
+  if (eng == INTERP && se != MSAT) {
     // skip interpolation unless the solver is MathSAT
     return;
   }
