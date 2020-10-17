@@ -199,7 +199,7 @@ if (WITH_MSAT)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
 endif()
 
-if (WITH_MSAT)
+if (WITH_MSAT_IC3IA)
   target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
 endif()
 
