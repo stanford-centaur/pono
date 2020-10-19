@@ -129,15 +129,27 @@ bool MsatIC3IA::compute_witness(ic3ia::IC3 & ic3)
       // create an smt-switch term
       Term eq = make_shared<MsatTerm>(env, msat_eq);
       TermVec children(eq->begin(), eq->end());
-      assert(children.size() == 2);
-      Term sym = children[0];
-      Term val = children[1];
+      if (children.size() <= 1) {
+        Term sym = eq;
+        assert(sym->get_sort()->get_sort_kind() == BOOL);
+        if (sym->get_op() == Not) {
+          assert(children.size() == 1);
+          sym = children[0];
+          map[sym] = solver_->make_term(false);
+        } else {
+          map[sym] = solver_->make_term(true);
+        }
+      } else {
+        assert(children.size() == 2);
+        Term sym = children[0];
+        Term val = children[1];
 
-      if (!sym->is_symbolic_const()) {
-        // got the order wrong, reverse it
-        std::swap(sym, val);
+        if (!sym->is_symbolic_const()) {
+          // got the order wrong, reverse it
+          std::swap(sym, val);
+        }
+        map[sym] = val;
       }
-      map[sym] = val;
     }
   }
 
