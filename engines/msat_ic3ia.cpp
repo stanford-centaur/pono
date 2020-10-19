@@ -25,17 +25,11 @@ using namespace std;
 
 namespace pono {
 
-MsatIC3IA::MsatIC3IA(Property & p, smt::SolverEnum se) : super(p, se)
-{
-  initialize();
-}
+MsatIC3IA::MsatIC3IA(Property & p, smt::SolverEnum se) : super(p, se) {}
 
 MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver) : super(p, solver)
 {
-  initialize();
 }
-
-void MsatIC3IA::initialize() { throw PonoException("NYI"); }
 
 ProverResult MsatIC3IA::prove()
 {

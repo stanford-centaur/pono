@@ -158,6 +158,7 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 
 if (WITH_MSAT_IC3IA)
+  add_definitions(-DWITH_MSAT_IC3IA)
   target_include_directories(pono-lib PUBLIC
     "${PROJECT_SOURCE_DIR}/deps/ic3ia/")
   target_include_directories(pono-lib PUBLIC

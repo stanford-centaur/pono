@@ -31,12 +31,6 @@ class MsatIC3IA : public Prover
 
   typedef Prover super;
 
-  /** create an ic3ia::TransitionSystem and
-   *  initialize the ic3ia::IC3 object
-   *  in preparation for model checking
-   */
-  void initialize() override;
-
   ProverResult prove();
 
   // TODO: might have to ignore this and only support prove
