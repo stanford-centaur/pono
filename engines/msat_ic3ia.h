@@ -37,13 +37,13 @@ class MsatIC3IA : public Prover
    */
   void initialize() override;
 
+  ProverResult prove();
+
   // TODO: might have to ignore this and only support prove
   // ic3ia doesn't have a way to only check up to some number of frames
   // might need to make prove virtual as well
   ProverResult check_until(int k) override;
 
- private:
-  std::unique_ptr<ic3ia::IC3> ic3;
 };
 
 }  // namespace pono

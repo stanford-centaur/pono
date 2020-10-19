@@ -70,6 +70,6 @@ mv $ic3ia_version ic3ia
 cd ic3ia
 mkdir build
 cd build
-cmake .. -DMATHSAT_DIR=$msat_home -DCMAKE_BUILD_TYPE=Release
+cmake .. -DMATHSAT_DIR=$msat_home -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=Yes
 make -j
 cd $DEPS/..
