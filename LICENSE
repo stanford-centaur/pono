@@ -43,3 +43,7 @@ file.
 The 'contrib/optionparser-1.7' directory contains third-party
 software. The copyright and licensing information is in the
 'contrib/optionparser-1.7/src/optionparser.h' file.
+
+Pono optionally links against the third-party gperftools library, which comes
+under a BSD 3-clause license. The copyright and licensing information
+can be found here: https://github.com/gperftools/gperftools/blob/master/COPYING

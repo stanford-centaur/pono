@@ -65,7 +65,8 @@ class PonoOptions
         ic3_indgen_mode_(default_ic3_indgen_mode_),
         ic3_functional_preimage_(default_ic3_functional_preimage_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
-        cegp_axiom_red_(default_cegp_axiom_red_)
+        cegp_axiom_red_(default_cegp_axiom_red_),
+        profiling_log_filename_(default_profiling_log_filename_)
   {
   }
 
@@ -100,6 +101,7 @@ class PonoOptions
   // ceg-prophecy-arrays options
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
+  std::string profiling_log_filename_;
 
  private:
   // Default options
@@ -120,6 +122,7 @@ class PonoOptions
   static const unsigned int default_ic3_indgen_mode_ = 0;
   static const bool default_ic3_functional_preimage_ = false;
   static const bool default_cegp_axiom_red_ = true;
+  static const std::string default_profiling_log_filename_;
 };
 
 }  // namespace pono

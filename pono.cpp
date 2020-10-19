@@ -14,8 +14,13 @@
 **
 **/
 
+#include <csignal>
 #include <iostream>
 #include "assert.h"
+
+#ifdef WITH_PROFILING
+#include <gperftools/profiler.h>
+#endif
 
 #include "smt-switch/boolector_factory.h"
 #ifdef WITH_MSAT
@@ -102,6 +107,29 @@ ProverResult check_prop(PonoOptions pono_options,
   return r;
 }
 
+// Note: signal handlers are registered only when profiling is enabled.
+void profiling_sig_handler(int sig)
+{
+  std::string signame;
+  switch (sig) {
+    case SIGINT: signame = "SIGINT"; break;
+    case SIGTERM: signame = "SIGTERM"; break;
+    case SIGALRM: signame = "SIGALRM"; break;
+    default:
+      throw PonoException(
+          "Caught unexpected signal"
+          "in profiling signal handler.");
+  }
+  logger.log(0, "\n Signal {} received\n", signame);
+#ifdef WITH_PROFILING
+  ProfilerFlush();
+  ProfilerStop();
+#endif
+  // Switch back to default handling for signal 'sig' and raise it.
+  signal(sig, SIG_DFL);
+  raise(sig);
+}
+
 int main(int argc, char ** argv)
 {
   PonoOptions pono_options;
@@ -115,6 +143,20 @@ int main(int argc, char ** argv)
 
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
+
+  // For profiling: set signal handlers for common signals to abort
+  // program.  This is necessary to gracefully stop profiling when,
+  // e.g., an external time limit is enforced to stop the program.
+  if (!pono_options.profiling_log_filename_.empty()) {
+    signal(SIGINT, profiling_sig_handler);
+    signal(SIGTERM, profiling_sig_handler);
+    signal(SIGALRM, profiling_sig_handler);
+#ifdef WITH_PROFILING
+    logger.log(
+        0, "Profiling log filename: {}", pono_options.profiling_log_filename_);
+    ProfilerStart(pono_options.profiling_log_filename_.c_str());
+#endif
+  }
 
   try {
     SmtSolver s;
@@ -305,6 +347,13 @@ int main(int argc, char ** argv)
     cout << "error" << endl;
     cout << "b" << pono_options.prop_idx_ << endl;
     res = ProverResult::ERROR;
+  }
+
+  if (!pono_options.profiling_log_filename_.empty()) {
+#ifdef WITH_PROFILING
+    ProfilerFlush();
+    ProfilerStop();
+#endif
   }
 
   return res;
