@@ -33,7 +33,7 @@ class MsatIC3IA : public Prover
 
   typedef Prover super;
 
-  ProverResult prove();
+  ProverResult prove() override;
 
   // TODO: might have to ignore this and only support prove
   // ic3ia doesn't have a way to only check up to some number of frames
