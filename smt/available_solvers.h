@@ -37,17 +37,19 @@
 
 namespace pono {
 
-/** Creates an SmtSolver of the provided type */
-smt::SmtSolver create_solver(smt::SolverEnum se);
+/** Creates an SmtSolver of the provided type
+ *  @param se the SolverEnum to identify which type of solver
+ *  @param logging whether or not to keep track of term DAG at smt-switch level
+ *         defaults to false because generally slower
+ *  @return an SmtSolver
+ */
+smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false);
 
 /** Creates an interpolating SmtSolver of the provided type */
 smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);
 
 // collect all the available solvers
 std::vector<smt::SolverEnum> available_solver_enums();
-
-// collect all the available solvers without logging
-std::vector<smt::SolverEnum> available_no_logging_solver_enums();
 
 // collect all the available interpolating solvers
 std::vector<smt::SolverEnum> available_interpolator_enums();

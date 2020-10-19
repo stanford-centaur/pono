@@ -46,7 +46,7 @@ endif()
 
 # WITH_COREIR is a macro in the Cython files
 # Needs to be set either way
-if (WITH_COREIR)
+if (WITH_COREIR OR WITH_COREIR_EXTERN)
   set(CYTHON_FLAGS "--compile-time-env WITH_COREIR=ON ${CYTHON_FLAGS}"
       CACHE STRING "Extra flags to the cython compiler." FORCE)
 else()

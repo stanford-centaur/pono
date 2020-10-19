@@ -156,7 +156,7 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
 
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 
-if (WITH_COREIR)
+if (WITH_COREIR OR WITH_COREIR_EXTERN)
   add_definitions(-DWITH_COREIR)
   target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
@@ -188,6 +188,21 @@ target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch
 
 if (WITH_MSAT)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+endif()
+
+if (WITH_COREIR_EXTERN)
+  # coreir installs into /usr/local
+  add_library(coreir SHARED IMPORTED)
+  set_target_properties(coreir PROPERTIES
+    IMPORTED_LOCATION "/usr/local/lib/libcoreir${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include"
+  )
+  add_library(verilogAST SHARED IMPORTED)
+  set_target_properties(verilogAST PROPERTIES
+    IMPORTED_LOCATION "/usr/local/lib/libverilogAST${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include"
+  )
+  target_link_libraries(pono-lib PUBLIC coreir verilogAST)
 endif()
 
 if (WITH_COREIR)
