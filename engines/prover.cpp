@@ -381,6 +381,11 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     };
   }
 
+  bool success = true;
+
+  // Some backends don't support full witnesses
+  // it will still populate state variables, but will return false instead of
+  // true
   for (auto wit_map : witness_) {
     out.push_back(UnorderedTermMap());
     UnorderedTermMap & map = out.back();
@@ -388,23 +393,35 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     for (auto v : orig_ts_.statevars()) {
       SortKind sk = v->get_sort()->get_sort_kind();
       Term pv = transfer_to_prover_as(v, sk);
-      map[v] = transfer_to_orig_ts_as(wit_map[pv], sk);
+      map[v] = transfer_to_orig_ts_as(wit_map.at(pv), sk);
     }
 
     for (auto v : orig_ts_.inputvars()) {
       SortKind sk = v->get_sort()->get_sort_kind();
       Term pv = transfer_to_prover_as(v, sk);
-      map[v] = transfer_to_orig_ts_as(wit_map[pv], sk);
+      try {
+        map[v] = transfer_to_orig_ts_as(wit_map.at(pv), sk);
+      }
+      catch (std::exception & e) {
+        success = false;
+        break;
+      }
     }
 
     for (auto elem : orig_ts_.named_terms()) {
       SortKind sk = elem.second->get_sort()->get_sort_kind();
       Term pt = transfer_to_prover_as(elem.second, sk);
-      map[elem.second] = transfer_to_orig_ts_as(wit_map[pt], sk);
+      try {
+        map[elem.second] = transfer_to_orig_ts_as(wit_map.at(pt), sk);
+      }
+      catch (std::exception & e) {
+        success = false;
+        break;
+      }
     }
   }
 
-  return true;
+  return success;
 }
 
 Term Prover::invar()

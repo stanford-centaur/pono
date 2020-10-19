@@ -91,7 +91,12 @@ ProverResult check_prop(PonoOptions pono_options,
   }
 
   if (r == FALSE && !pono_options.no_witness_) {
-    prover->witness(cex);
+    bool success = prover->witness(cex);
+    if (!success) {
+      logger.log(
+          0,
+          "Only got a partial witness from engine. Not suitable for printing.");
+    }
   } else if (r == TRUE && pono_options.check_invar_) {
     try {
       Term invar = prover->invar();

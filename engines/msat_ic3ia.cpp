@@ -16,9 +16,10 @@
 **/
 
 #include "engines/msat_ic3ia.h"
-#include "utils/logger.h"
 
+#include "assert.h"
 #include "smt-switch/msat_solver.h"
+#include "utils/logger.h"
 
 using namespace ic3ia;
 using namespace smt;
@@ -77,17 +78,56 @@ ProverResult MsatIC3IA::prove()
   IC3 ic3(ic3ia_ts, ic3ia_opts, liveenc);
   logger.log(1, "Running open-source ic3ia as backend.");
   msat_truth_value res = ic3.prove();
-  switch (res) {
-    case MSAT_TRUE: return ProverResult::TRUE;
-    case MSAT_FALSE: return ProverResult::FALSE;
-    case MSAT_UNDEF: return ProverResult::UNKNOWN;
-    default: throw PonoException("Unreachable");
+
+  if (res == MSAT_UNDEF) {
+    return ProverResult::UNKNOWN;
+  } else if (res == MSAT_TRUE) {
+    // TODO populate invar_
+    return ProverResult::TRUE;
+  } else {
+    assert(res == MSAT_FALSE);
+    compute_witness(ic3);
+    return ProverResult::FALSE;
   }
 }
 
 ProverResult MsatIC3IA::check_until(int k)
 {
   throw PonoException("MsatIC3IA only supports prove, not check_until");
+}
+
+bool MsatIC3IA::compute_witness(ic3ia::IC3 & ic3)
+{
+  vector<ic3ia::TermList> ic3ia_wit;
+  ic3.witness(ic3ia_wit);
+
+  const SmtSolver & solver = ts_.solver();
+  shared_ptr<const MsatSolver> msat_solver =
+      static_pointer_cast<MsatSolver>(solver);
+  msat_env env = msat_solver->get_msat_env();
+
+  for (auto terms : ic3ia_wit) {
+    witness_.push_back(UnorderedTermMap());
+    UnorderedTermMap & map = witness_.back();
+
+    for (auto msat_eq : terms) {
+      // create an smt-switch term
+      Term eq = make_shared<MsatTerm>(env, msat_eq);
+      TermVec children(eq->begin(), eq->end());
+      assert(children.size() == 2);
+      Term sym = children[0];
+      Term val = children[1];
+
+      if (!sym->is_symbolic_const()) {
+        // got the order wrong, reverse it
+        std::swap(sym, val);
+      }
+      map[sym] = val;
+    }
+  }
+
+  assert(ic3ia_wit.size() == witness_.size());
+  return true;
 }
 
 }  // namespace pono

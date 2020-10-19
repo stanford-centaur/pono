@@ -40,6 +40,13 @@ class MsatIC3IA : public Prover
   // might need to make prove virtual as well
   ProverResult check_until(int k) override;
 
+ protected:
+  /** Recover a witness from an IC3IA object
+   *  populates the witness_ member variable with terms from this engine's
+   * solver
+   *  @return true on sucess
+   */
+  bool compute_witness(ic3ia::IC3 & ic3);
 };
 
 }  // namespace pono
