@@ -23,6 +23,7 @@ Configures the CMAKE build environment.
 --py2                   use python2 interpreter (default: python3)
 --static-lib            build a static library (default: shared)
 --static                build a static executable (default: dynamic); implies --static-lib
+--with-profiling        build with gperftools for profiling (default: off)
 EOF
   exit 0
 }
@@ -44,6 +45,7 @@ python=default
 py2=default
 lib_type=SHARED
 static_exec=NO
+with_profiling=default
 
 buildtype=Release
 
@@ -92,6 +94,7 @@ do
             static_exec=YES;
             lib_type=STATIC;
             ;;
+        --with-profiling) with_profiling=ON;;
         *) die "unexpected argument: $1";;
     esac
     shift
@@ -119,6 +122,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $py2 != default ] \
     && cmake_opts="$cmake_opts -DUSE_PYTHON2=ON"
+
+[ $with_profiling != default ] \
+    && cmake_opts="$cmake_opts -DWITH_PROFILING=$with_profiling"
 
 root_dir=$(pwd)
 

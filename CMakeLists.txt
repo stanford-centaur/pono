@@ -26,6 +26,11 @@ if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
 endif()
 
+if (WITH_PROFILING)
+  find_library(GOOGLE_PERF profiler REQUIRED)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
+endif()
+
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/utils")
 include_directories("${PROJECT_SOURCE_DIR}/core")
@@ -233,6 +238,10 @@ target_link_libraries(pono-lib PUBLIC y)
 
 if (LIBRT)
   target_link_libraries(pono-lib PUBLIC ${LIBRT})
+endif()
+
+if (GOOGLE_PERF)
+  target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
 endif()
 
 enable_testing()
