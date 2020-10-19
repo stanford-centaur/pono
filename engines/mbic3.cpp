@@ -197,14 +197,6 @@ bool ModelBasedIC3::witness(vector<UnorderedTermMap> & out)
   throw PonoException("ModelBasedIC3 doesn't support witnesses yet.");
 }
 
-Term ModelBasedIC3::invar()
-{
-  if (!invar_) {
-    throw PonoException("Cannot call invar unless property was already proven");
-  }
-  return to_orig_ts(invar_, BOOL);
-}
-
 ProverResult ModelBasedIC3::step(int i)
 {
   if (i <= reached_k_) {

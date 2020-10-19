@@ -47,7 +47,7 @@ class Prover
    * variables. Only valid if the property has been proven true. Only supported
    * by some engines
    */
-  virtual smt::Term invar();
+  smt::Term invar();
 
  protected:
   /** Take a term from the Prover's solver
@@ -83,6 +83,12 @@ class Prover
   smt::Term bad_;
 
   PonoOptions options_;
+
+  // NOTE: both witness_ and invar_ are use terms from the engine's solver
+
+  std::vector<smt::UnorderedTermMap> witness_; ///< populated by a witness if a CEX is found
+
+  smt::Term invar_; ///< populated with an invariant if the engine supports it
 
  private:
   /* Cone-of-influence analysis. */

@@ -127,14 +127,6 @@ ProverResult InterpolantMC::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-Term InterpolantMC::invar()
-{
-  if (!invar_) {
-    throw PonoException("Cannot call invar() unless property was proven.");
-  }
-  return to_orig_ts(invar_, BOOL);
-}
-
 bool InterpolantMC::step(int i)
 {
   if (i <= reached_k_) {
