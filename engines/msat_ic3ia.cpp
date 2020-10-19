@@ -87,16 +87,16 @@ ProverResult MsatIC3IA::prove()
     vector<ic3ia::TermList> ic3ia_invar;
     ic3.witness(ic3ia_invar);
 
-    Term clause = solver_->make_term(false);
     for (auto msat_clause : ic3ia_invar)
     {
+      Term clause = solver_->make_term(false);
       assert(msat_clause.size());
       for (msat_term l : msat_clause)
       {
         clause = solver_->make_term(Or, clause, make_shared<MsatTerm>(env, l));
       }
+      invar_ = solver_->make_term(And, invar_, clause);
     }
-    invar_ = solver_->make_term(And, invar_, clause);
 
     return ProverResult::TRUE;
   } else {
