@@ -46,10 +46,10 @@ ProverResult MsatIC3IA::prove()
   if (ts_.solver()->get_solver_enum() != MSAT) {
     throw PonoException("MsatIC3IA only supports mathsat solver.");
   }
-  const SmtSolver & solver = ts_.solver();
   shared_ptr<const MsatSolver> msat_solver =
-      static_pointer_cast<MsatSolver>(solver);
-  ::ic3ia::TransitionSystem ic3ia_ts(msat_solver->get_msat_env());
+      static_pointer_cast<MsatSolver>(solver_);
+  msat_env env = msat_solver->get_msat_env();
+  ::ic3ia::TransitionSystem ic3ia_ts(env);
 
   // get mathsat terms for transition system
   msat_term msat_init =
@@ -82,7 +82,22 @@ ProverResult MsatIC3IA::prove()
   if (res == MSAT_UNDEF) {
     return ProverResult::UNKNOWN;
   } else if (res == MSAT_TRUE) {
-    // TODO populate invar_
+    invar_ = solver_->make_term(true);
+
+    vector<ic3ia::TermList> ic3ia_invar;
+    ic3.witness(ic3ia_invar);
+
+    Term clause = solver_->make_term(false);
+    for (auto msat_clause : ic3ia_invar)
+    {
+      assert(msat_clause.size());
+      for (msat_term l : msat_clause)
+      {
+        clause = solver_->make_term(Or, clause, make_shared<MsatTerm>(env, l));
+      }
+    }
+    invar_ = solver_->make_term(And, invar_, clause);
+
     return ProverResult::TRUE;
   } else {
     assert(res == MSAT_FALSE);
