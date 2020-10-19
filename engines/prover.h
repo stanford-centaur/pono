@@ -68,6 +68,14 @@ class Prover
    */
   smt::Term to_orig_ts(smt::Term t);
 
+  /** Default implementation for computing a witness
+   *  Assumes that this engine is unrolling-based and that the solver
+   *   state is currently satisfiable with a counterexample trace
+   *  populates witness_
+   *  @return true on success
+   */
+  bool compute_witness();
+
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
   Property property_;

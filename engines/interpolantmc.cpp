@@ -117,6 +117,7 @@ ProverResult InterpolantMC::check_until(int k)
       if (step(i)) {
         return ProverResult::TRUE;
       } else if (concrete_cex_) {
+        compute_witness();
         return ProverResult::FALSE;
       }
     }
