@@ -50,8 +50,7 @@ shared_ptr<Prover> make_prover(Engine e,
     return make_shared<ModelBasedIC3>(opts, p, se);
 #ifdef WITH_MSAT_IC3IA
   } else if (e == MSAT_IC3IA) {
-    // TODO: add opts
-    return make_shared<MsatIC3IA>(p, se);
+    return make_shared<MsatIC3IA>(opts, p, se);
 #endif
   } else {
     throw PonoException("Unhandled engine");
@@ -76,8 +75,7 @@ shared_ptr<Prover> make_prover(Engine e,
     return make_shared<ModelBasedIC3>(opts, p, slv);
 #ifdef WITH_MSAT_IC3IA
   } else if (e == MSAT_IC3IA) {
-    // TODO: add opts
-    return make_shared<MsatIC3IA>(p, slv);
+    return make_shared<MsatIC3IA>(opts, p, slv);
 #endif
   } else {
     throw PonoException("Unhandled engine");

@@ -16,6 +16,7 @@
 **/
 
 #include "engines/msat_ic3ia.h"
+#include "utils/logger.h"
 
 #include "smt-switch/msat_solver.h"
 
@@ -28,6 +29,14 @@ namespace pono {
 MsatIC3IA::MsatIC3IA(Property & p, smt::SolverEnum se) : super(p, se) {}
 
 MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver) : super(p, solver)
+{
+}
+
+MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
+  : super(opt, p, se) {}
+
+MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, const SmtSolver & solver)
+  : super(opt, p, solver)
 {
 }
 
@@ -59,9 +68,14 @@ ProverResult MsatIC3IA::prove()
 
   // just using default options for now
   ic3ia::Options ic3ia_opts;
+  // the only option we pass through is verbosity
+  ic3ia_opts.verbosity = options_.verbosity_;
+  ic3ia::Logger & l = ic3ia::Logger::get();
+  l.set_verbosity(ic3ia_opts.verbosity);
   // NOTE: assuming no LTL / liveness -- just adding because required
   LiveEncoder liveenc(ic3ia_ts, ic3ia_opts);
   IC3 ic3(ic3ia_ts, ic3ia_opts, liveenc);
+  logger.log(1, "Running open-source ic3ia as backend.");
   msat_truth_value res = ic3.prove();
   switch (res) {
     case MSAT_TRUE: return ProverResult::TRUE;
