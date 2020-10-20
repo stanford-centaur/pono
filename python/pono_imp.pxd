@@ -133,6 +133,11 @@ IF WITH_COREIR == "ON":
             CoreIREncoder(string filename, RelationalTransitionSystem & ts) except +
             CoreIREncoder(Module * top_mod, RelationalTransitionSystem & ts) except +
 
+cdef extern from "modifiers/history_modifier.h" namespace "pono":
+    cdef cppclass HistoryModifier:
+        HistoryModifier(TransitionSystem & ts) except +
+        c_Term get_hist(const c_Term & target, size_t delay) except +
+
 
 cdef extern from "utils/logger.h" namespace "pono":
     void set_global_logger_verbosity(unsigned int v) except +
