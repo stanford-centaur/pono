@@ -23,6 +23,7 @@ from pono_imp cimport BTOR2Encoder as c_BTOR2Encoder
 IF WITH_COREIR == "ON":
     from pono_imp cimport Module as c_Module
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
+from pono_imp cimport HistoryModifier as c_HistoryModifier
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from pono_imp cimport get_free_symbols as c_get_free_symbols
 
@@ -243,7 +244,7 @@ cdef class __AbstractTransitionSystem:
         return s
 
     def make_term(self, op_or_val, *args):
-        cdef Term term = Term(self)
+        cdef Term term = Term(self._solver)
         cdef c_TermVec ctv
 
         if isinstance(op_or_val, PrimOp):
@@ -450,7 +451,20 @@ IF WITH_COREIR == "ON":
             else:
                 raise ValueError("CoreIR encoder takes a pycoreir Context or a filename but got {}".format(mod))
 
+cdef class HistoryModifier:
+    cdef c_HistoryModifier * chm
+    cdef __AbstractTransitionSystem _ts
+    def __cinit__(self, __AbstractTransitionSystem ts):
+        self.chm = new c_HistoryModifier(dref(ts.cts));
+        self._ts = ts
 
+    def get_hist(self, Term target, int delay):
+        if delay < 0:
+            raise ValueError("Got negative delay in get_hist: {}".format(delay))
+
+        cdef Term term = Term(self._ts.solver)
+        term.ct = dref(self.chm).get_hist(target.ct, delay)
+        return term
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)
