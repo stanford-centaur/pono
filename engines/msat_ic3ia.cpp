@@ -32,6 +32,7 @@ MsatIC3IA::MsatIC3IA(Property & p, smt::SolverEnum se) : super(p, se) {}
 
 MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver) : super(p, solver)
 {
+  super::initialize();
 }
 
 MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
@@ -40,6 +41,7 @@ MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
 MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, const SmtSolver & solver)
   : super(opt, p, solver)
 {
+  super::initialize();
 }
 
 ProverResult MsatIC3IA::prove()
@@ -127,7 +129,7 @@ ProverResult MsatIC3IA::prove()
     return ProverResult::TRUE;
   } else {
     assert(res == MSAT_FALSE);
-    compute_witness(ic3);
+    compute_witness(env, ic3, to_ts_solver);
     return ProverResult::FALSE;
   }
 }
@@ -137,47 +139,50 @@ ProverResult MsatIC3IA::check_until(int k)
   throw PonoException("MsatIC3IA only supports prove, not check_until");
 }
 
-bool MsatIC3IA::compute_witness(ic3ia::IC3 & ic3)
+bool MsatIC3IA::compute_witness(msat_env env,
+                                ic3ia::IC3 & ic3,
+                                TermTranslator & to_ts_solver)
 {
+  // compute the witness, guided by the one from ic3ia
+  // ic3ia does not give assignments to inputs, which we require
+  assert(solver_->get_solver_enum() == MSAT);
+  solver_->reset_assertions();
+
   vector<ic3ia::TermList> ic3ia_wit;
   ic3.witness(ic3ia_wit);
+  assert(ic3ia_wit.size());
 
-  const SmtSolver & solver = ts_.solver();
-  shared_ptr<const MsatSolver> msat_solver =
-      static_pointer_cast<MsatSolver>(solver);
-  msat_env env = msat_solver->get_msat_env();
+  // set reached_k_ so that it matches the counterexample length
+  reached_k_ = ic3ia_wit.size() - 1;
 
-  for (auto terms : ic3ia_wit) {
-    witness_.push_back(UnorderedTermMap());
-    UnorderedTermMap & map = witness_.back();
+  // set up a BMC query
+  // with state variables constrained at each step
+  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+  // assert that bad_ is not null
+  // i.e. this prover was correctly initialized
+  assert(bad_);
+  solver_->assert_formula(unroller_.at_time(bad_, ic3ia_wit.size() - 1));
+  for (size_t i = 0; i < ic3ia_wit.size(); ++i) {
+    if (i + 1 < ic3ia_wit.size()) {
+      solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
+    }
 
-    for (auto msat_eq : terms) {
-      // create an smt-switch term
+    for (auto msat_eq : ic3ia_wit[i]) {
+      // create an smt-switch term for the equality
       Term eq = make_shared<MsatTerm>(env, msat_eq);
-      TermVec children(eq->begin(), eq->end());
-      if (children.size() <= 1) {
-        Term sym = eq;
-        assert(sym->get_sort()->get_sort_kind() == BOOL);
-        if (sym->get_op() == Not) {
-          assert(children.size() == 1);
-          sym = children[0];
-          map[sym] = solver_->make_term(false);
-        } else {
-          map[sym] = solver_->make_term(true);
-        }
-      } else {
-        assert(children.size() == 2);
-        Term sym = children[0];
-        Term val = children[1];
-
-        if (!sym->is_symbolic_const()) {
-          // got the order wrong, reverse it
-          std::swap(sym, val);
-        }
-        map[sym] = val;
-      }
+      // either a boolean symbol or an equality
+      assert(eq->is_symbolic_const() && eq->get_sort()->get_sort_kind() == BOOL
+             || eq->get_op() == Equal);
+      solver_->assert_formula(
+          unroller_.at_time(to_ts_solver.transfer_term(eq), i));
     }
   }
+
+  Result r = solver_->check_sat();
+  assert(r.is_sat());  // expecting a counterexample trace
+
+  // rely on default compute_witness method to get model from solver_
+  super::compute_witness();
 
   assert(ic3ia_wit.size() == witness_.size());
   return true;

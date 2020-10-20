@@ -44,9 +44,16 @@ class MsatIC3IA : public Prover
   /** Recover a witness from an IC3IA object
    *  populates the witness_ member variable with terms from this engine's
    * solver
+   *  @param env the msat_env used by the IC3IA backend
+   *  @param ic3 the backend ic3ia engine that was used -- should have returned
+   * false
+   *  @param to_ts_solver a TermTranslator that moves terms from the fresh
+   * solver for ic3ia to terms of solver_
    *  @return true on sucess
    */
-  bool compute_witness(ic3ia::IC3 & ic3);
+  bool compute_witness(msat_env env,
+                       ic3ia::IC3 & ic3,
+                       smt::TermTranslator & to_ts_solver);
 };
 
 }  // namespace pono
