@@ -210,16 +210,20 @@ if (WITH_MSAT_IC3IA)
 endif()
 
 if (WITH_COREIR_EXTERN)
-  # coreir installs into /usr/local
+  if(APPLE)
+    set(COREIR_EXTERN_PREFIX "/usr/local")
+  else()
+    set(COREIR_EXTERN_PREFIX "/usr")
+  endif()
   add_library(coreir SHARED IMPORTED)
   set_target_properties(coreir PROPERTIES
-    IMPORTED_LOCATION "/usr/local/lib/libcoreir${CMAKE_SHARED_LIBRARY_SUFFIX}"
-    INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include"
+    IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libcoreir${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
   )
   add_library(verilogAST SHARED IMPORTED)
   set_target_properties(verilogAST PROPERTIES
-    IMPORTED_LOCATION "/usr/local/lib/libverilogAST${CMAKE_SHARED_LIBRARY_SUFFIX}"
-    INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include"
+    IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libverilogAST${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
   )
   target_link_libraries(pono-lib PUBLIC coreir verilogAST)
 endif()
