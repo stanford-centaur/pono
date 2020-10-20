@@ -18,6 +18,7 @@
 #include "engines/msat_ic3ia.h"
 
 #include "assert.h"
+#include "smt-switch/msat_factory.h"
 #include "smt-switch/msat_solver.h"
 #include "utils/logger.h"
 
@@ -46,22 +47,44 @@ ProverResult MsatIC3IA::prove()
   if (ts_.solver()->get_solver_enum() != MSAT) {
     throw PonoException("MsatIC3IA only supports mathsat solver.");
   }
-  shared_ptr<const MsatSolver> msat_solver =
-      static_pointer_cast<MsatSolver>(solver_);
+
+  // move everything over to a fresh solver
+  shared_ptr<MsatSolver> msat_solver =
+      static_pointer_cast<MsatSolver>(MsatSolverFactory::create(false));
   msat_env env = msat_solver->get_msat_env();
   ::ic3ia::TransitionSystem ic3ia_ts(env);
 
+  TermTranslator to_msat_solver(msat_solver);
+  TermTranslator to_ts_solver(solver_);
+
+  // give mapping between symbols
+  UnorderedTermMap & ts_solver_cache = to_ts_solver.get_cache();
+  for (auto v : ts_.statevars()) {
+    ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
+    ts_solver_cache[to_msat_solver.transfer_term(ts_.next(v))] = ts_.next(v);
+  }
+  for (auto v : ts_.inputvars()) {
+    ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
+  }
+
   // get mathsat terms for transition system
   msat_term msat_init =
-      static_pointer_cast<MsatTerm>(ts_.init())->get_msat_term();
+      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_.init()))
+          ->get_msat_term();
   msat_term msat_trans =
-      static_pointer_cast<MsatTerm>(ts_.trans())->get_msat_term();
-  msat_term msat_prop =
-      static_pointer_cast<MsatTerm>(property_.prop())->get_msat_term();
+      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_.trans()))
+          ->get_msat_term();
+  msat_term msat_prop = static_pointer_cast<MsatTerm>(
+                            to_msat_solver.transfer_term(property_.prop()))
+                            ->get_msat_term();
   unordered_map<msat_term, msat_term> msat_statevars;
   for (auto sv : ts_.statevars()) {
-    msat_statevars[static_pointer_cast<MsatTerm>(sv)->get_msat_term()] =
-        static_pointer_cast<MsatTerm>(ts_.next(sv))->get_msat_term();
+    msat_statevars[static_pointer_cast<MsatTerm>(
+                       to_msat_solver.transfer_term(sv))
+                       ->get_msat_term()] =
+        static_pointer_cast<MsatTerm>(
+            to_msat_solver.transfer_term(ts_.next(sv)))
+            ->get_msat_term();
   }
   // initialize the transition system
   // NOTE: assuming not a liveprop
@@ -93,7 +116,10 @@ ProverResult MsatIC3IA::prove()
       assert(msat_clause.size());
       for (msat_term l : msat_clause)
       {
-        clause = solver_->make_term(Or, clause, make_shared<MsatTerm>(env, l));
+        clause = solver_->make_term(
+            Or,
+            clause,
+            to_ts_solver.transfer_term(make_shared<MsatTerm>(env, l)));
       }
       invar_ = solver_->make_term(And, invar_, clause);
     }
