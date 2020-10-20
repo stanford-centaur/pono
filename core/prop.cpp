@@ -64,7 +64,6 @@ void Property::initialize()
              "Got next state or input variables in property. Generating a "
              "monitor state.");
 
-  // TODO: process the property
   Term monitor;
   size_t id = 0;
   while (true) {
@@ -77,6 +76,7 @@ void Property::initialize()
       ++id;
     }
   }
+  assert(monitor);
 
   // monitor starts true
   ts_.constrain_init(monitor);
