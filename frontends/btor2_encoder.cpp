@@ -402,31 +402,9 @@ void BTOR2Encoder::parse(const std::string filename)
       no_next_states_.erase(id2statenum.at(l_->args[0]));
     } else if (l_->tag == BTOR2_TAG_bad) {
       Term bad = bv_to_bool(termargs_[0]);
-      TermVec free_vars;
-      get_free_symbolic_consts(bad, free_vars);
-      const UnorderedTermSet & states = ts_.statevars();
-
-      bool need_witness = false;
-      for (auto s : free_vars) {
-        if (states.find(s) == states.end()) {
-          need_witness = true;
-          break;
-        }
-      }
-
-      if (need_witness) {
-        Term witness =
-            ts_.make_statevar("witness_" + std::to_string(witness_id_++),
-                              solver_->make_sort(BOOL));
-        ts_.constrain_init(witness);
-        ts_.assign_next(witness, solver_->make_term(Not, bad));
-        propvec_.push_back(witness);
-        terms_[l_->id] = witness;
-      } else {
-        Term prop = solver_->make_term(Not, bad);
-        propvec_.push_back(prop);
-        terms_[l_->id] = prop;
-      }
+      Term prop = solver_->make_term(Not, bad);
+      propvec_.push_back(prop);
+      terms_[l_->id] = prop;
     } else if (l_->tag == BTOR2_TAG_justice) {
       std::cout << "Warning: ignoring justice term" << std::endl;
       justicevec_.push_back(termargs_[0]);

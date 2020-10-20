@@ -42,6 +42,8 @@ class Property
   std::string name() { return name_; };
 
  private:
+  void initialize();
+
   TransitionSystem ts_;
 
   const smt::Term prop_;
