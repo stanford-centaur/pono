@@ -137,9 +137,11 @@ void ModelBasedIC3::initialize()
 {
   super::initialize();
   frames_.clear();
+  frame_labels_.clear();
   proof_goals_.clear();
   // first frame is always the initial states
-  frames_.push_back({ ts_.init() });
+  push_frame();
+  constrain_frame(0, ts_.init());
   push_frame();
 
   // check if there are arrays or uninterpreted sorts and fail if so
@@ -160,10 +162,7 @@ void ModelBasedIC3::initialize()
   init_label_ = solver_->make_symbol("__init_label", boolsort);
   solver_->assert_formula(solver_->make_term(Implies, init_label_, ts_.init()));
   // frame 0 label is identical to init label
-  // TODO: use frame labels for activating frames and replace frames_.push_back
-  // with dedicated method!
-  frame_labels_.push_back(init_label_);
-
+  init_label_ = frame_labels_[0];
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
@@ -420,7 +419,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
       // TODO: fix name -- might not be a clause anymore
       // try to push
       size_t idx = push_blocking_clause(i, bt);
-      frames_[idx].push_back(bt);
+      constrain_frame(idx, bt);
       if (idx < min_idx) {
         min_idx = idx;
       }
@@ -449,7 +448,7 @@ bool ModelBasedIC3::propagate(size_t i)
   solver_->assert_formula(trans_label_);
 
   for (size_t j = 0; j < Fi.size(); ++j) {
-    const Term & t = Fi[j];
+    const Term & t = Fi.at(j);
 
     // Relative inductiveness check
     // Check F[i] /\ t /\ T /\ -t'
@@ -463,7 +462,7 @@ bool ModelBasedIC3::propagate(size_t i)
       // mark for removal
       indices_to_remove.insert(j);
       // add to next frame
-      frames_[i + 1].push_back(Fi[j]);
+      constrain_frame(i + 1, Fi.at(j));
     }
 
     solver_->pop();
@@ -478,7 +477,7 @@ bool ModelBasedIC3::propagate(size_t i)
   new_frame_i.reserve(Fi.size() - indices_to_remove.size());
   for (size_t j = 0; j < Fi.size(); ++j) {
     if (indices_to_remove.find(j) == indices_to_remove.end()) {
-      new_frame_i.push_back(Fi[j]);
+      new_frame_i.push_back(Fi.at(j));
     }
   }
 
@@ -489,8 +488,21 @@ bool ModelBasedIC3::propagate(size_t i)
 
 void ModelBasedIC3::push_frame()
 {
+  assert(frame_labels_.size() == frames_.size());
   // pushes an empty frame
+  frame_labels_.push_back(
+      solver_->make_symbol("__frame_label_" + std::to_string(frames_.size()),
+                           solver_->make_sort(BOOL)));
   frames_.push_back({});
+}
+
+void ModelBasedIC3::constrain_frame(size_t i, const Term & constraint)
+{
+  assert(i < frame_labels_.size());
+  assert(frame_labels_.size() == frames_.size());
+  solver_->assert_formula(
+      solver_->make_term(Implies, frame_labels_.at(i), constraint));
+  frames_.at(i).push_back(constraint);
 }
 
 Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
@@ -782,7 +794,16 @@ bool ModelBasedIC3::intersects_initial(const Term & t) const
 
 void ModelBasedIC3::assert_frame(size_t i) const
 {
-  solver_->assert_formula(get_frame(i));
+  assert(frame_labels_.size() == frames_.size());
+  Term assump;
+  for (size_t j = 0; j < frame_labels_.size(); ++j) {
+    assump = frame_labels_[j];
+    if (j < i) {
+      assump = solver_->make_term(Not, assump);
+    }
+    assert(assump);  // assert that it's non-null
+    solver_->assert_formula(assump);
+  }
 }
 
 Term ModelBasedIC3::get_frame(size_t i) const

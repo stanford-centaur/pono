@@ -121,8 +121,13 @@ class ModelBasedIC3 : public Prover
    * proven)
    */
   bool propagate(size_t i);
-  /** Add a new frame*/
+  /** Add a new frame */
   void push_frame();
+  /** Adds a constraint to frame i and (implicitly) all frames below it
+   *  @param i highest frame to add constraint to
+   *  @param constraint the constraint to add
+   */
+  void constrain_frame(size_t i, const smt::Term & constraint);
   /** Attempt to generalize a clause
    *  The standard approach is inductive generalization
    *  @requires !get_predecessor(i, c, _)
