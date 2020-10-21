@@ -155,6 +155,19 @@ void ModelBasedIC3::initialize()
     }
   }
 
+  // set labels
+  Sort boolsort = solver_->make_sort(BOOL);
+  init_label_ = solver_->make_symbol("__init_label", boolsort);
+  solver_->assert_formula(solver_->make_term(Implies, init_label_, ts_.init()));
+  // frame 0 label is identical to init label
+  // TODO: use frame labels for activating frames and replace frames_.push_back
+  // with dedicated method!
+  frame_labels_.push_back(init_label_);
+
+  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+  solver_->assert_formula(
+      solver_->make_term(Implies, trans_label_, ts_.trans()));
+
   assert(!interpolator_);
   assert(solver_);
   assert(!to_interpolator_);
@@ -254,7 +267,7 @@ ProverResult ModelBasedIC3::step_0()
   assert(reached_k_ < 0);
 
   solver_->push();
-  solver_->assert_formula(ts_.init());
+  solver_->assert_formula(init_label_);
   solver_->assert_formula(bad_);
   Result r = solver_->check_sat();
   if (r.is_sat()) {
@@ -304,7 +317,7 @@ bool ModelBasedIC3::get_predecessor(size_t i,
   // -c
   solver_->assert_formula(solver_->make_term(Not, c.term_));
   // Trans
-  solver_->assert_formula(ts_.trans());
+  solver_->assert_formula(trans_label_);
   // c'
   solver_->assert_formula(ts_.next(c.term_));
 
@@ -321,9 +334,8 @@ bool ModelBasedIC3::get_predecessor(size_t i,
       assump.push_back(ts_.next(a));
     }
 
-    Term formula = make_and(TermVec{get_frame(i - 1),
-                                    solver_->make_term(Not, c.term_),
-                                    ts_.trans()});
+    Term formula = make_and(TermVec{
+        get_frame(i - 1), solver_->make_term(Not, c.term_), trans_label_ });
 
     // filter using unsatcore
     reduce_assump_unsatcore(formula, assump, red_assump, &rem_assump);
@@ -434,7 +446,7 @@ bool ModelBasedIC3::propagate(size_t i)
 
   solver_->push();
   assert_frame(i);
-  solver_->assert_formula(ts_.trans());
+  solver_->assert_formula(trans_label_);
 
   for (size_t j = 0; j < Fi.size(); ++j) {
     const Term & t = Fi[j];
@@ -524,7 +536,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
           if (!intersects_initial(tmp_and_term)) {
             solver_->push();
             assert_frame(i - 1);
-            solver_->assert_formula(ts_.trans());
+            solver_->assert_formula(trans_label_);
             solver_->assert_formula(solver_->make_term(Not, tmp_and_term));
 
             Term l;
@@ -586,8 +598,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       split_eq(solver_, tmp, lits);
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
-      Term formula = make_and({get_frame(i - 1), ts_.trans(),
-                               solver_->make_term(Not, c.term_)});
+      Term formula = make_and(
+          { get_frame(i - 1), trans_label_, solver_->make_term(Not, c.term_) });
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
       reduce_assump_unsatcore(formula, lits, red_lits);
       gen_res = solver_->make_term(Not, ts_.curr(make_and(red_lits)));
@@ -600,7 +612,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({ get_frame(i - 1),
-                                ts_.trans(),
+                                trans_label_,
                                 solver_->make_term(Not, make_and(conjuncts)) });
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
@@ -701,7 +713,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     Term formula = make_and(input_lits);
 
     if (ts_.is_deterministic()) {
-      formula = solver_->make_term(And, formula, ts_.trans());
+      formula = solver_->make_term(And, formula, trans_label_);
       formula = solver_->make_term(
           And, formula, solver_->make_term(Not, ts_.next(c.term_)));
     } else {
@@ -709,7 +721,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
       // preimage formula
       Term pre_formula = get_frame(i - 1);
-      pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
+      pre_formula = solver_->make_term(And, pre_formula, trans_label_);
       pre_formula = solver_->make_term(And, pre_formula,
                                        solver_->make_term(Not, c.term_));
       pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term_));
@@ -740,7 +752,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       m[nv] = model.at(nv);
     }
 
-    Term fun_preimage = solver_->substitute(ts_.trans(), m);
+    Term fun_preimage = solver_->substitute(trans_label_, m);
     TermVec conjuncts;
     conjunctive_partition(fun_preimage, conjuncts, true);
     res = Conjunction(solver_, conjuncts);
@@ -765,7 +777,7 @@ bool ModelBasedIC3::intersects(const Term & A, const Term & B) const
 
 bool ModelBasedIC3::intersects_initial(const Term & t) const
 {
-  return intersects(ts_.init(), t);
+  return intersects(init_label_, t);
 }
 
 void ModelBasedIC3::assert_frame(size_t i) const
@@ -793,7 +805,7 @@ void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
                                               const TermVec & rem)
 {
   if (rem.size() != 0) {
-    Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
+    Term formula = solver_->make_term(And, init_label_, make_and(to_keep));
     reduce_assump_unsatcore(formula, rem, to_keep);
   }
 }
@@ -803,7 +815,7 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
   solver_->push();
   solver_->assert_formula(c);
   solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
-  solver_->assert_formula(ts_.trans());
+  solver_->assert_formula(trans_label_);
 
   Result r;
   size_t j;

@@ -201,14 +201,19 @@ class ModelBasedIC3 : public Prover
   // Data structures
 
   ///< the frames data structure.
-  ///< a vector of clauses (except at index 0 which is init)
+  ///< a vector of terms (typically clauses but depends on mode)
   ///< for this implementation of IC3
   std::vector<smt::TermVec> frames_;
 
+  // labels for activating assertions
+
+  smt::Term init_label_;          ///< label to activate init
+  smt::Term trans_label_;         ///< label to activate trans
+  smt::TermVec frame_labels_;     ///< labels to activate frames
+  smt::UnorderedTermMap labels_;  //< labels for unsat cores
+
   ///< stack of outstanding proof goals
   std::vector<ProofGoal> proof_goals_;
-
-  smt::UnorderedTermMap labels_;
 
   smt::Term invar_;  ///< stores the invariant once proven
 
