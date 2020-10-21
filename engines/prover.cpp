@@ -61,7 +61,7 @@ Prover::Prover(const PonoOptions & opt,
       orig_ts_(p.transition_system()),
       unroller_(ts_, solver_),
       options_(opt)
-{  
+{
 }
 
 Prover::~Prover() {}
@@ -70,6 +70,7 @@ void Prover::initialize()
 {
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
+  assert(ts_.only_curr(bad_));
   if (options_.static_coi_) {
     if (!ts_.is_functional())
       throw PonoException("Temporary restriction: cone-of-influence analysis currently "\
@@ -117,7 +118,7 @@ void Prover::print_term_dfs(const Term & term)
       cout << "  visiting term: " << cur << "\n";
       if (cur->is_symbol())
         cout << "    ..is symbol\n";
-      
+
       for (auto child : cur) {
         cout << "    pushing child: " << child << "\n";
         open_terms.push_back(child);
@@ -148,8 +149,7 @@ void Prover::print_coi_info()
     cout << "  " << statevar << "\n";
 
   cout << "constraints: \n";
-  for (auto constr : ts_.constraints())
-    cout << "  " << constr << "\n";  
+  for (auto constr : ts_.constraints()) cout << "  " << constr << "\n";
 }
 
 /* Add 'term' to 'set' if it does not already appear there. */
@@ -196,7 +196,7 @@ void Prover::compute_term_coi(const Term & term,
           collect_coi_term(new_coi_input_vars, cur);
         }
       }
-      
+
       for (auto child : cur) {
         logger.log(3, "    pushing child: {}", child);
         open_terms.push_back(child);
@@ -244,9 +244,9 @@ void Prover::compute_coi_next_state_funcs()
     for (auto sv : new_coi_input_vars) {
       collect_coi_term(inputvars_in_coi_, sv);
     }
-         
+
     new_coi_state_vars.clear();
-    new_coi_input_vars.clear();  
+    new_coi_input_vars.clear();
   }
 }
 
@@ -263,10 +263,10 @@ void Prover::compute_coi_trans_constraints()
   }
 
   /* Add newly collected variables to global collections. */
-  for (auto sv : new_coi_state_vars) 
+  for (auto sv : new_coi_state_vars)
     if (statevars_in_coi_.find(sv) == statevars_in_coi_.end())
       statevars_in_coi_.insert(sv);
-  
+
   for (auto sv : new_coi_input_vars)
     if (inputvars_in_coi_.find(sv) == inputvars_in_coi_.end())
       inputvars_in_coi_.insert(sv);
@@ -341,7 +341,7 @@ void Prover::compute_coi()
       logger.log(3, "  - inputvar {}", var);
   }
 }
-  
+
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
 {
   // TODO: make sure the solver state is SAT

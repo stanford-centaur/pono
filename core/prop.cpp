@@ -93,6 +93,9 @@ void Property::initialize()
     throw PonoException(
         "Cannot use next in property of a functional transition system.");
   }
+
+  // update prop_
+  prop_ = monitor;
 }
 
 }  // namespace pono
