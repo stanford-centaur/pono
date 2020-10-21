@@ -51,7 +51,7 @@ Property::Property(Property & prop, TermTranslator & tt)
       // ts_ constructor does the same thing internally
       prop_((prop.transition_system().solver() == tt.get_solver())
                 ? prop.prop_
-                : tt.transfer_term(prop.prop_)),
+                : tt.transfer_term(prop.prop_, BOOL)),
       name_(prop.name_)
 {
 }
