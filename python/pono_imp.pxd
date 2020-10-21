@@ -117,6 +117,11 @@ cdef extern from "engines/interpolantmc.h" namespace "pono":
         InterpolantMC(const Property & p, c_SmtSolver & s, c_SmtSolver & interpolator) except +
 
 
+cdef extern from "engines/msat_ic3ia.h" namespace "pono":
+    cdef cppclass MsatIC3IA(Prover):
+        MsatIC3IA(const Property & p, c_SmtSolver & s) except +
+
+
 cdef extern from "frontends/btor2_encoder.h" namespace "pono":
     cdef cppclass BTOR2Encoder:
         BTOR2Encoder(string filename, TransitionSystem & ts) except +
