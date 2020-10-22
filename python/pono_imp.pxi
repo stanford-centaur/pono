@@ -19,6 +19,7 @@ from pono_imp cimport Bmc as c_Bmc
 from pono_imp cimport KInduction as c_KInduction
 from pono_imp cimport BmcSimplePath as c_BmcSimplePath
 from pono_imp cimport InterpolantMC as c_InterpolantMC
+from pono_imp cimport ModelBasedIC3 as c_ModelBasedIC3
 from pono_imp cimport BTOR2Encoder as c_BTOR2Encoder
 IF WITH_COREIR == "ON":
     from pono_imp cimport Module as c_Module
@@ -430,6 +431,12 @@ cdef class BmcSimplePath(__AbstractProver):
 cdef class InterpolantMC(__AbstractProver):
     def __cinit__(self, Property p, SmtSolver s, SmtSolver interp):
         self.cp = new c_InterpolantMC(p.cp[0], s.css, interp.css)
+        self._solver = s
+
+
+cdef class ModelBasedIC3(__AbstractProver):
+    def __cinit__(self, Property p, SmtSolver s):
+        self.cp = new c_ModelBasedIC3(p.cp[0], s.css)
         self._solver = s
 
 
