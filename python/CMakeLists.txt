@@ -51,7 +51,15 @@ if (WITH_COREIR OR WITH_COREIR_EXTERN)
       CACHE STRING "Extra flags to the cython compiler." FORCE)
 else()
   set(CYTHON_FLAGS "--compile-time-env WITH_COREIR=OFF ${CYTHON_FLAGS}"
-                   CACHE STRING "Extra flags to the cython compiler." FORCE)
+      CACHE STRING "Extra flags to the cython compiler." FORCE)
+endif()
+
+if (WITH_MSAT_IC3IA)
+  set(CYTHON_FLAGS "--compile-time-env WITH_MSAT_IC3IA=ON ${CYTHON_FLAGS}"
+      CACHE STRING "Extra flags to the cython compiler." FORCE)
+else()
+  set(CYTHON_FLAGS "--compile-time-env WITH_MSAT_IC3IA=OFF ${CYTHON_FLAGS}"
+      CACHE STRING "Extra flags to the cython compiler." FORCE)
 endif()
 
 include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python")
