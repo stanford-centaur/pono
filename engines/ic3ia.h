@@ -9,12 +9,15 @@
 ** All rights reserved.  See the file LICENSE in the top-level source
 ** directory for licensing information.\endverbatim
 **
-** \brief IC3 via Implicit Predicate Abstraction (IC3IA) implementation. Based
-*on
+** \brief IC3 via Implicit Predicate Abstraction (IC3IA) implementation
+**        based on
+**
 **        IC3 Modulo Theories via Implicit Predicate Abstraction
-**            -- Alessandro Cimatti, Alberto Griggio, Sergio Mover, Stefano
-*Tonetta
+**            -- Alessandro Cimatti, Alberto Griggio,
+**               Sergio Mover, Stefano Tonetta
+**
 **        and the open source implementation:
+**
 **        https://es-static.fbk.eu/people/griggio/ic3ia/index.html
 **/
 
@@ -38,6 +41,15 @@ class IC3IA : public ModelBasedIC3
 
  protected:
   // TODO figure out which methods need to be overloaded here
+  void initialize() override;
+
+  /** Adds predicate to abstraction
+   *  (calls ia_.add_predicate)
+   *  and also incrementally updates the local transition relation
+   *  and declares a new predicate state var (in pred_statevars_)
+   *  @param pred the predicate over current state variables
+   */
+  void add_predicate(const smt::Term & pred);
 
   // TODO figure out relevant state
 
