@@ -152,13 +152,13 @@ class ModelBasedIC3 : public Prover
    *  @param B the second term
    *  @return true iff there is an intersection
    */
-  bool intersects(const smt::Term & A, const smt::Term & B) const;
+  bool intersects(const smt::Term & A, const smt::Term & B);
   /** Check if the term intersects with the initial states
    *  syntactic sugar for intersects(ts_.init(), t);
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
    */
-  bool intersects_initial(const smt::Term & t) const;
+  bool intersects_initial(const smt::Term & t);
   /** Add all the terms at Frame i
    *  Note: the frames_ data structure keeps terms only in the
    *  highest frame where they are known to hold
@@ -167,6 +167,7 @@ class ModelBasedIC3 : public Prover
    *  @param i the frame number
    */
   void assert_frame(size_t i) const;
+
   smt::Term get_frame(size_t i) const;
 
   void fix_if_intersects_initial(smt::TermVec & to_keep,
@@ -203,6 +204,16 @@ class ModelBasedIC3 : public Prover
    */
   smt::Term make_or(smt::TermVec vec) const;
 
+  /** Pushes a solver context and keeps track of the context level
+   *  updates solver_context_
+   */
+  void push_solver_context();
+
+  /** Pops a solver context and keeps track of the context level
+   *  updates solver_context_
+   */
+  void pop_solver_context();
+
   // Data structures
 
   ///< the frames data structure.
@@ -225,6 +236,13 @@ class ModelBasedIC3 : public Prover
   // useful terms
   smt::Term true_;
   smt::Term false_;
+
+  // NOTE: need to be sure to always use [push|pop]_solver_context
+  // instead of doing it directly on the solver or this will be
+  // out of sync
+  // TODO could consider adding this to smt-switch
+  //      but would have to be implemented in each solver
+  size_t solver_context_;  ///< the current context of the solver
 
   // for ic3_indgen_mode_ == 2
   // interpolant based generalization
