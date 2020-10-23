@@ -57,10 +57,6 @@ class IC3IA : public ModelBasedIC3
 
   ImplicitPredicateAbstractor ia_;
 
-  smt::Term predabs_label_;
-  ///< label that activates predicate equalities over next and abstract
-  ///< statevars the same as ia_.predabs_label()
-
   smt::TermVec pred_statevars_;
   ///< state variables that IC3IA sees
   ///< these represent predicates and should stay aligned with the

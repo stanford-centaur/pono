@@ -65,9 +65,10 @@ class ImplicitPredicateAbstractor : public Abstractor
   /** Add a predicate to the abstraction
    *  @param pred the predicate to add (over concrete current state variables)
    *  @return the condition: pred(X') <-> pred(X^)
+   *          that was added to the abstract transition relation
    *          this is for use in a procedure that wants to incrementally add
-   *          predicates instead of adding them all up front
-   *  updates predicates_ and gets added as antecedent for predabs_label_
+   *          predicates instead of re-adding the whole updated transition
+   * relation
    */
   smt::Term add_predicate(const smt::Term & pred);
 
@@ -76,16 +77,6 @@ class ImplicitPredicateAbstractor : public Abstractor
    *  @return vector of predicates
    */
   const smt::TermVec & predicates() const { return predicates_; };
-
-  /** Returns the input (more like definition) variable
-   *  which activates the predicate equalities over next statevars
-   *  and abstract next state vars
-   *  e.g.
-   *   predabs_label -> (p1(X) <-> p1(X^))
-   *   predabs_label -> (p2(X) <-> p2(X^))
-   *   etc...
-   */
-  const smt::Term & predabs_label() const { return predabs_label_; };
 
  protected:
   void do_abstraction() override;
@@ -98,9 +89,6 @@ class ImplicitPredicateAbstractor : public Abstractor
 
   smt::TermVec predicates_;  ///< list of predicates in abstraction over current
                              ///< state vars
-
-  smt::Term predabs_label_;  ///< input variable in abs_ts_ that activates
-                             ///< predicates over next state vars
 };
 
 }  // namespace pono

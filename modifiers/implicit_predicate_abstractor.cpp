@@ -40,18 +40,23 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
   assert(abs_ts_.only_curr(pred));
   predicates_.push_back(pred);
   Term next_pred = abs_ts_.next(pred);
+  // constrain next state vars and abstract vars to agree on this predicate
   Term rel = solver_->make_term(Iff, next_pred, abstract(next_pred));
-
-  assert(!abs_ts_.is_functional());
-  abs_rts_.constrain_trans(solver_->make_term(Implies, predabs_label_, rel));
+  abs_rts_.constrain_trans(rel);
   return rel;
 }
 
 void ImplicitPredicateAbstractor::do_abstraction()
 {
-  // assume abs_ts_ is a perfect copy currently
-  assert(abs_ts_.init() == conc_ts_.init());
-  assert(abs_ts_.trans() == conc_ts_.trans());
+  // assume abs_ts_ is relational -- required for this abstraction
+  // Note: abs_rts_ is abs_ts_ with a static cast to RelationalTransitionSystem&
+  assert(!abs_ts_.is_functional());
+
+  // assume abs_rts_ is a perfect copy currently
+  assert(abs_rts_.init() == conc_ts_.init());
+  assert(abs_rts_.trans() == conc_ts_.trans());
+  assert(abs_rts_.statevars().size() == conc_ts_.statevars().size());
+  assert(abs_rts_.inputvars().size() == conc_ts_.inputvars().size());
 
   // create abstract variables for each next state variable
   for (auto sv : conc_ts_.statevars()) {
@@ -60,21 +65,10 @@ void ImplicitPredicateAbstractor::do_abstraction()
     update_term_cache(nv, abs_nv);
   }
 
-  // create the label
-  assert(!predabs_label_);  // should be uninitialized
-  predabs_label_ =
-      abs_ts_.make_inputvar("__predabs_label", solver_->make_sort(BOOL));
-
-  // for now assume that the abstraction is relational
-  // TODO fix this -- should be able to update functional systems also
-  assert(!abs_ts_.is_functional());
   // TODO: fix the population.
   // Right now state_updates, constraints, and named_terms are not updated
   Term trans = conc_ts_.trans();
   abs_rts_.set_trans(abstract(trans));
-  // predabs label will force the concrete and abstract states to satisfy the
-  // same predicates
-  abs_rts_.constrain_inputs(predabs_label_);
 }
 
 }  // namespace pono
