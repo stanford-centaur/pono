@@ -41,7 +41,12 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
   Term next_pred = abs_ts_.next(pred);
   predicates_.push_back(next_pred);
   Term rel = solver_->make_term(Iff, next_pred, abstract(next_pred));
-  abs_ts_.add_constraint(solver_->make_term(Implies, predabs_label_, rel));
+
+  assert(!abs_ts_.is_functional());
+  RelationalTransitionSystem & abs_rts =
+      static_cast<RelationalTransitionSystem &>(abs_ts_);
+
+  abs_rts.constrain_trans(solver_->make_term(Implies, predabs_label_, rel));
   return rel;
 }
 
