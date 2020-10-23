@@ -9,9 +9,8 @@
 ** All rights reserved.  See the file LICENSE in the top-level source
 ** directory for licensing information.\endverbatim
 **
-** \brief Simple implementation of IC3 operating on a functional
-**        transition system (exploiting this structure for
-**        predecessor computation) and uses models.
+** \brief Simple implementation of IC3 using model values
+**
 **/
 #pragma once
 
@@ -60,7 +59,7 @@ class ModelBasedIC3 : public Prover
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
   smt::Term invar() override;
 
- private:
+ protected:
   /** Perform a IC3 step
    *  @param i
    */
