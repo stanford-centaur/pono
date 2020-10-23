@@ -38,8 +38,8 @@ Term ImplicitPredicateAbstractor::concrete(Term & t)
 Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
 {
   assert(abs_ts_.only_curr(pred));
+  predicates_.push_back(pred);
   Term next_pred = abs_ts_.next(pred);
-  predicates_.push_back(next_pred);
   Term rel = solver_->make_term(Iff, next_pred, abstract(next_pred));
 
   assert(!abs_ts_.is_functional());

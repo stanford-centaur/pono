@@ -50,16 +50,22 @@ class ImplicitPredicateAbstractor : public Abstractor
    */
   smt::Term add_predicate(const smt::Term & pred);
 
+  /** Returns reference to vector of all current predicates over
+   *  current state variables
+   *  @return vector of predicates
+   */
+  const smt::TermVec & predicates() const { return predicates_; };
+
  protected:
   void do_abstraction() override;
 
   const smt::SmtSolver & solver_;
 
-  smt::TermVec
-      predicates_;  ///< list of predicates in abstraction over next state vars
+  smt::TermVec predicates_;  ///< list of predicates in abstraction over current
+                             ///< state vars
 
-  smt::Term
-      predabs_label_;  ///< input variable in abs_ts_ that activates predicates
+  smt::Term predabs_label_;  ///< input variable in abs_ts_ that activates
+                             ///< predicates over next state vars
 };
 
 }  // namespace pono
