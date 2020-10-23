@@ -111,7 +111,7 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
                     rts.make_term(BVAdd, c, rts.make_term(1, bvsort)),
                     rts.make_term(0, bvsort)));
 
-  RelationalTransitionSystem abs_rts = rts;
+  RelationalTransitionSystem abs_rts(rts.solver());
   ImplicitPredicateAbstractor ia(rts, abs_rts);
 
   // check if c <= 10 is inductive on the concrete system

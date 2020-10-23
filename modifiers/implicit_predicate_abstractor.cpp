@@ -43,10 +43,7 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
   Term rel = solver_->make_term(Iff, next_pred, abstract(next_pred));
 
   assert(!abs_ts_.is_functional());
-  RelationalTransitionSystem & abs_rts =
-      static_cast<RelationalTransitionSystem &>(abs_ts_);
-
-  abs_rts.constrain_trans(solver_->make_term(Implies, predabs_label_, rel));
+  abs_rts_.constrain_trans(solver_->make_term(Implies, predabs_label_, rel));
   return rel;
 }
 
@@ -71,16 +68,13 @@ void ImplicitPredicateAbstractor::do_abstraction()
   // for now assume that the abstraction is relational
   // TODO fix this -- should be able to update functional systems also
   assert(!abs_ts_.is_functional());
-  RelationalTransitionSystem & abs_rts =
-      static_cast<RelationalTransitionSystem &>(abs_ts_);
-
   // TODO: fix the population.
   // Right now state_updates, constraints, and named_terms are not updated
   Term trans = conc_ts_.trans();
-  abs_rts.set_trans(abstract(trans));
+  abs_rts_.set_trans(abstract(trans));
   // predabs label will force the concrete and abstract states to satisfy the
   // same predicates
-  abs_rts.constrain_inputs(predabs_label_);
+  abs_rts_.constrain_inputs(predabs_label_);
 }
 
 }  // namespace pono
