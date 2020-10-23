@@ -56,6 +56,16 @@ class ImplicitPredicateAbstractor : public Abstractor
    */
   const smt::TermVec & predicates() const { return predicates_; };
 
+  /** Returns the input (more like definition) variable
+   *  which activates the predicate equalities over next statevars
+   *  and abstract next state vars
+   *  e.g.
+   *   predabs_label -> (p1(X) <-> p1(X^))
+   *   predabs_label -> (p2(X) <-> p2(X^))
+   *   etc...
+   */
+  const smt::Term & predabs_label() const { return predabs_label_; };
+
  protected:
   void do_abstraction() override;
 
