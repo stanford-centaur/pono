@@ -70,6 +70,26 @@ void IC3IA::initialize()
   throw PonoException("NYI");
 }
 
+bool IC3IA::block_all()
+{
+  while (has_proof_goals()) {
+    ProofGoal pg = get_next_proof_goal();
+    // block can fail, which just means a
+    // new proof goal will be added
+    if (!block(pg) && !pg.idx) {
+      // if a proof goal cannot be blocked at zero
+      // then there's a (possibly abstract) counterexample
+      bool refined = refine(pg);
+      if (!refined) {
+        // got a real proof goal
+        return false;
+      }
+    }
+  }
+  assert(!has_proof_goals());
+  return true;
+}
+
 bool IC3IA::intersects_bad()
 {
   // TODO: if we refactor ModelBasedIC3 to use get_conjunction_from_model
@@ -166,5 +186,7 @@ void IC3IA::add_predicate(const Term & pred)
   solver_->assert_formula(
       solver_->make_term(Implies, pred_state, ts_.next(pred)));
 }
+
+bool IC3IA::refine(ProofGoal pg) { throw PonoException("NYI"); }
 
 }  // namespace pono

@@ -42,6 +42,8 @@ class IC3IA : public ModelBasedIC3
  protected:
   void initialize() override;
 
+  bool block_all() override;
+
   // modified to get a bad cube over the predicates
   bool intersects_bad() override;
 
@@ -64,6 +66,13 @@ class IC3IA : public ModelBasedIC3
    *  @param pred the predicate over current state variables
    */
   void add_predicate(const smt::Term & pred);
+
+  /** Refines an abstract counterexample trace
+   *  by looking for new predicates
+   *  @param pg the proof goal that reached the initial state
+   *  @return true iff the counterexample was ruled out
+   */
+  bool refine(ProofGoal pg);
 
   // TODO figure out relevant state
 
