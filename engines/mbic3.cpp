@@ -290,7 +290,7 @@ bool ModelBasedIC3::intersects_bad()
     TermVec conjuncts;
     conjunctive_partition(bad_, conjuncts, true);
     Conjunction bad_at_last_frame(solver_, conjuncts);
-    add_proof_goal(bad_at_last_frame, reached_k_ + 1);
+    add_proof_goal(bad_at_last_frame, reached_k_ + 1, NULL);
   }
 
   pop_solver_context();
@@ -361,9 +361,9 @@ ProofGoal ModelBasedIC3::get_next_proof_goal()
   return pg;
 }
 
-void ModelBasedIC3::add_proof_goal(const Conjunction & c, size_t i)
+void ModelBasedIC3::add_proof_goal(const Conjunction & c, size_t i, Term n)
 {
-  proof_goals_.push_back(ProofGoal(c, i));
+  proof_goals_.push_back(ProofGoal(c, i, n));
 }
 
 bool ModelBasedIC3::block_all()
@@ -372,7 +372,7 @@ bool ModelBasedIC3::block_all()
     ProofGoal pg = get_next_proof_goal();
     // block can fail, which just means a
     // new proof goal will be added
-    if (!block(pg) && !pg.second) {
+    if (!block(pg) && !pg.idx) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
       return false;
@@ -384,8 +384,8 @@ bool ModelBasedIC3::block_all()
 
 bool ModelBasedIC3::block(const ProofGoal & pg)
 {
-  const Conjunction & c = pg.first;
-  size_t i = pg.second;
+  const Conjunction & c = pg.conj;
+  size_t i = pg.idx;
 
   logger.log(
       3, "Attempting to block proof goal <{}, {}>", c.term_->to_string(), i);
@@ -424,11 +424,11 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
 
     // we're limited by the minimum index that a conjunct could be pushed to
     if (min_idx + 1 < frames_.size()) {
-      add_proof_goal(c, min_idx + 1);
+      add_proof_goal(c, min_idx + 1, pg.next);
     }
     return true;
   } else {
-    add_proof_goal(pred, i - 1);
+    add_proof_goal(pred, i - 1, c.term_);
     return false;
   }
 }

@@ -37,7 +37,19 @@ struct Conjunction
   smt::Term term_;          // term representation of literals as conjunction
 };
 
-using ProofGoal = std::pair<Conjunction, size_t>;
+struct ProofGoal
+{
+  // based on open-source ic3ia ProofObligation
+  Conjunction conj;
+  size_t idx;
+  // term representation of the proof goal that led to this one
+  // TODO: refactor this. Probably better if it's a pointer to a proofgoal or
+  // something
+  //       but then need to manage the memory correctly
+  smt::Term next;
+
+  ProofGoal(Conjunction c, size_t i, smt::Term n) : conj(c), idx(i), next(n) {}
+};
 
 class ModelBasedIC3 : public Prover
 {
@@ -99,8 +111,10 @@ class ModelBasedIC3 : public Prover
   /** Create and add a proof goal for cube c for frame i
    *  @param c the cube of the proof goal
    *  @param i the frame number for the proof goal
+   *  @param n the term representation of the proof goal that led to
+   *         creating this new one (null for bad)
    */
-  void add_proof_goal(const Conjunction & c, size_t i);
+  void add_proof_goal(const Conjunction & c, size_t i, smt::Term n);
   /** Attempt to block all proof goals
    *  to ensure termination, always choose proof goal with
    *  smallest time
