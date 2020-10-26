@@ -366,7 +366,9 @@ ProofGoal ModelBasedIC3::get_next_proof_goal()
   return pg;
 }
 
-void ModelBasedIC3::add_proof_goal(const Conjunction & c, size_t i, Term n)
+void ModelBasedIC3::add_proof_goal(const Conjunction & c,
+                                   size_t i,
+                                   shared_ptr<ProofGoal> n)
 {
   proof_goals_.push_back(ProofGoal(c, i, n));
 }
@@ -433,7 +435,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
     }
     return true;
   } else {
-    add_proof_goal(pred, i - 1, c.term_);
+    add_proof_goal(pred, i - 1, make_shared<ProofGoal>(pg));
     return false;
   }
 }

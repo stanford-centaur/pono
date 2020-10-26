@@ -42,13 +42,13 @@ struct ProofGoal
   // based on open-source ic3ia ProofObligation
   Conjunction conj;
   size_t idx;
-  // term representation of the proof goal that led to this one
-  // TODO: refactor this. Probably better if it's a pointer to a proofgoal or
-  // something
-  //       but then need to manage the memory correctly
-  smt::Term next;
+  // TODO: refactor this. shared_ptr probably overkill
+  std::shared_ptr<ProofGoal> next;
 
-  ProofGoal(Conjunction c, size_t i, smt::Term n) : conj(c), idx(i), next(n) {}
+  ProofGoal(Conjunction c, size_t i, std::shared_ptr<ProofGoal> n)
+      : conj(c), idx(i), next(n)
+  {
+  }
 };
 
 class ModelBasedIC3 : public Prover
@@ -116,10 +116,12 @@ class ModelBasedIC3 : public Prover
   /** Create and add a proof goal for cube c for frame i
    *  @param c the cube of the proof goal
    *  @param i the frame number for the proof goal
-   *  @param n the term representation of the proof goal that led to
-   *         creating this new one (null for bad)
+   *  @param n pointer to the proof goal that led to this one -- null for bad
+   *  (i.e. end of trace)
    */
-  void add_proof_goal(const Conjunction & c, size_t i, smt::Term n);
+  void add_proof_goal(const Conjunction & c,
+                      size_t i,
+                      std::shared_ptr<ProofGoal> n);
   /** Attempt to block all proof goals
    *  to ensure termination, always choose proof goal with
    *  smallest time
