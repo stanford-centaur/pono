@@ -213,6 +213,19 @@ class ModelBasedIC3 : public Prover
    */
   void pop_solver_context();
 
+  /** Sets the semantics for labels (if not already set)
+   *  e.g. init_label_, and trans_label_
+   *  -- checks if they are null and if so, gives semantics
+   *  Note: this might be overloaded in derived classes
+   *  Thus, for now should not be called in the constructor
+   *  TODO see if there is a cleaner way to do this
+   *       want to share the labels between this class and derived
+   *       but change the associated transition relation
+   *       need to be careful with calls to virtual functions
+   *       in the constructor
+   */
+  void set_labels();
+
   // Data structures
 
   ///< the frames data structure.

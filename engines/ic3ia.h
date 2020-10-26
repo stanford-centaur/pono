@@ -40,8 +40,12 @@ class IC3IA : public ModelBasedIC3
   typedef ModelBasedIC3 super;
 
  protected:
-  // TODO figure out which methods need to be overloaded here
   void initialize() override;
+
+  /** Overrides the set labels method
+   *  to instead use the abstract transition relation
+   */
+  void set_labels() override;
 
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)

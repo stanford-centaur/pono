@@ -70,6 +70,25 @@ void IC3IA::initialize()
   throw PonoException("NYI");
 }
 
+void IC3IA::set_labels()
+{
+  assert(solver_context_ == 0);  // expecting to be at base context level
+  // set semantics of labels
+  Sort boolsort = solver_->make_sort(BOOL);
+  if (!init_label_) {
+    init_label_ = solver_->make_symbol("__init_label", boolsort);
+    solver_->assert_formula(
+        solver_->make_term(Implies, init_label_, ts_.init()));
+    // frame 0 label is identical to init label
+    init_label_ = frame_labels_[0];
+  }
+  if (!trans_label_) {
+    trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+    solver_->assert_formula(
+        solver_->make_term(Implies, trans_label_, abs_ts_.trans()));
+  }
+}
+
 void IC3IA::add_predicate(const Term & pred)
 {
   assert(abs_ts_.only_curr(pred));

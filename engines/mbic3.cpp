@@ -160,16 +160,6 @@ void ModelBasedIC3::initialize()
     }
   }
 
-  // set labels
-  Sort boolsort = solver_->make_sort(BOOL);
-  init_label_ = solver_->make_symbol("__init_label", boolsort);
-  solver_->assert_formula(solver_->make_term(Implies, init_label_, ts_.init()));
-  // frame 0 label is identical to init label
-  init_label_ = frame_labels_[0];
-  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
-  solver_->assert_formula(
-      solver_->make_term(Implies, trans_label_, ts_.trans()));
-
   assert(!interpolator_);
   assert(solver_);
   assert(!to_interpolator_);
@@ -197,6 +187,10 @@ void ModelBasedIC3::initialize()
 
 ProverResult ModelBasedIC3::check_until(int k)
 {
+  // make sure the labels have semantics
+  // will check if this has already been done automatically
+  set_labels();
+
   for (int i = 0; i <= k; ++i) {
     ProverResult r = step(i);
     if (r != ProverResult::UNKNOWN) {
@@ -989,6 +983,25 @@ void ModelBasedIC3::pop_solver_context()
   assert(solver_context_ > 0);
   solver_->pop();
   solver_context_--;
+}
+
+void ModelBasedIC3::set_labels()
+{
+  assert(solver_context_ == 0);  // expecting to be at base context level
+  // set semantics of labels
+  Sort boolsort = solver_->make_sort(BOOL);
+  if (!init_label_) {
+    init_label_ = solver_->make_symbol("__init_label", boolsort);
+    solver_->assert_formula(
+        solver_->make_term(Implies, init_label_, ts_.init()));
+    // frame 0 label is identical to init label
+    init_label_ = frame_labels_[0];
+  }
+  if (!trans_label_) {
+    trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+    solver_->assert_formula(
+        solver_->make_term(Implies, trans_label_, ts_.trans()));
+  }
 }
 
 DisjointSet::DisjointSet() {}
