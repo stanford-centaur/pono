@@ -66,6 +66,20 @@ void IC3IA::initialize()
     add_predicate(p);
   }
 
+  if (options_.ic3_indgen_mode_ == 2) {
+    // TODO: clean this up
+    throw PonoException(
+        "Interpolant-based generalization not supported with IC3IA -- doesn't "
+        "really make sense");
+  }
+
+  // set up the interpolator for refinement
+  assert(options_.ic3_indgen_mode_ != 2);
+  assert(!interpolator_);
+  assert(!to_interpolator_);
+  assert(!to_solver_);
+  initialize_interpolator();
+
   // TODO: set semantics for trans, etc...
   throw PonoException("NYI");
 }

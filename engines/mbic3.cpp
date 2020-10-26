@@ -166,22 +166,27 @@ void ModelBasedIC3::initialize()
   assert(!to_solver_);
 
   if (options_.ic3_indgen_mode_ == 2) {
-    // TODO make an option to set the interpolator
-    interpolator_ = create_interpolating_solver(MSAT_INTERPOLATOR);
-    to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
-    to_solver_ = std::make_unique<TermTranslator>(solver_);
+    // TODO make an option to set the interpolator from outside
+    initialize_interpolator();
+  }
+}
 
-    UnorderedTermMap & cache = to_solver_->get_cache();
-    Term ns;
-    for (auto s : ts_.statevars()) {
-      // common variables will be next state
-      // so that's all we need
-      // better not to cache the others, now if there's a bug
-      // where the shared variables are not respected, the term
-      // translator will throw an exception
-      ns = ts_.next(s);
-      cache[to_interpolator_->transfer_term(ns)] = ns;
-    }
+void ModelBasedIC3::initialize_interpolator()
+{
+  interpolator_ = create_interpolating_solver(MSAT_INTERPOLATOR);
+  to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
+  to_solver_ = std::make_unique<TermTranslator>(solver_);
+
+  UnorderedTermMap & cache = to_solver_->get_cache();
+  Term ns;
+  for (auto s : ts_.statevars()) {
+    // common variables will be next state
+    // so that's all we need
+    // better not to cache the others, now if there's a bug
+    // where the shared variables are not respected, the term
+    // translator will throw an exception
+    ns = ts_.next(s);
+    cache[to_interpolator_->transfer_term(ns)] = ns;
   }
 }
 

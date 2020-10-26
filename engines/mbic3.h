@@ -67,6 +67,11 @@ class ModelBasedIC3 : public Prover
   typedef Prover super;
 
   void initialize() override;
+
+  /** Set up the interpolator_
+   */
+  void initialize_interpolator();
+
   ProverResult check_until(int k) override;
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
   smt::Term invar() override;
