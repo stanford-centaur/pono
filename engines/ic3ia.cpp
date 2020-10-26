@@ -70,6 +70,53 @@ void IC3IA::initialize()
   throw PonoException("NYI");
 }
 
+bool IC3IA::intersects_bad()
+{
+  // TODO: if we refactor ModelBasedIC3 to use get_conjunction_from_model
+  //       then we shouldn't have to override this at all
+
+  assert(reached_k_ + 2 == frames_.size());
+  assert(frame_labels_.size() == frames_.size());
+
+  push_solver_context();
+
+  // check if last frame intersects with bad
+  assert_frame(reached_k_ + 1);
+  solver_->assert_formula(bad_);
+  Result r = solver_->check_sat();
+
+  if (r.is_sat()) {
+    add_proof_goal(get_conjunction_from_model(), reached_k_ + 1);
+  }
+
+  pop_solver_context();
+
+  return r.is_sat();
+}
+
+Conjunction IC3IA::generalize_predecessor()
+{
+  // TODO: add an option to generalize here!
+  //       also possibly refactor so this is only called if option enabled
+  return get_conjunction_from_model();
+}
+
+Conjunction IC3IA::get_conjunction_from_model()
+{
+  TermVec conjuncts;
+  conjuncts.reserve(pred_statevars_.size());
+  Term val;
+  for (auto p : pred_statevars_) {
+    if ((val = solver_->get_value(p)) == true_) {
+      conjuncts.push_back(p);
+    } else {
+      assert(val == false_);
+      conjuncts.push_back(solver_->make_term(Not, p));
+    }
+  }
+  return Conjunction(solver_, conjuncts);
+}
+
 void IC3IA::set_labels()
 {
   assert(solver_context_ == 0);  // expecting to be at base context level

@@ -42,6 +42,16 @@ class IC3IA : public ModelBasedIC3
  protected:
   void initialize() override;
 
+  // modified to get a bad cube over the predicates
+  bool intersects_bad() override;
+
+  // modified to get a bad cube over the predicates
+  // TODO: refactor so that generalization and getting cube are different
+  Conjunction generalize_predecessor(size_t i, const Conjunction & c) override;
+
+  // use to get a predicate assignment from the current solver context
+  Conjunction get_conjunction_from_model();
+
   /** Overrides the set labels method
    *  to instead use the abstract transition relation
    */
