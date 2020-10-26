@@ -62,6 +62,12 @@ class IC3IA : public ModelBasedIC3
   ///< these represent predicates and should stay aligned with the
   ///< predicate vector in the abstraction (ia_.predicates())
   ///< e.g. pred_statevars_[i] corresponds to ia_.predicates()[i]
+
+  smt::UnorderedTermMap predstate2next_;
+  ///< maps predicate state variable to the next state version
+
+  // useful sorts
+  smt::Sort boolsort_;
 };
 
 }  // namespace pono
