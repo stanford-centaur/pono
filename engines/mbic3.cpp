@@ -803,6 +803,8 @@ void ModelBasedIC3::assert_frame(size_t i) const
   for (size_t j = 0; j < frame_labels_.size(); ++j) {
     assump = frame_labels_[j];
     if (j < i) {
+      // optimization: disable the unused constraints
+      // by asserting the negated label
       assump = solver_->make_term(Not, assump);
     }
     assert(assump);  // assert that it's non-null
