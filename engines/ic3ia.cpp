@@ -217,6 +217,7 @@ ProverResult IC3IA::refine(ProofGoal pg)
     tmp = *(tmp.next);
     cex.push_back(tmp.conj.term_);
   }
+  assert(cex.size() > 1);
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
@@ -226,7 +227,8 @@ ProverResult IC3IA::refine(ProofGoal pg)
 
   TermVec B;
   B.reserve(cex.size() - 1);
-  for (size_t i = 1; i < cex.size(); i++) {
+  // add to B in reverse order so we can pop_back later
+  for (int i = cex.size() - 1; i >= 0; --i) {
     t = unroller_.at_time(cex[i], i);
     if (i + 1 < cex.size()) {
       t = solver_->make_term(And, t, unroller_.at_time(ts_.trans(), i));
@@ -245,6 +247,10 @@ ProverResult IC3IA::refine(ProofGoal pg)
       if (r.is_unsat()) {
         interpolants.push_back(to_solver_->transfer_term(I, BOOL));
       }
+      // move next cex time step to A
+      // they were added to B in reverse order
+      A = solver_->make_term(And, A, B.back());
+      B.pop_back();
     }
     catch (SmtException & e) {
       logger.log(3, "Interpolation failure...");
