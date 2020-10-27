@@ -83,7 +83,7 @@ void Property::initialize()
 
   if (ts_.no_next(prop_)) {
     ts_.assign_next(monitor, prop_);
-    ;
+    
   } else if (!ts_.is_functional()) {
     RelationalTransitionSystem & rts =
         static_cast<RelationalTransitionSystem &>(ts_);
