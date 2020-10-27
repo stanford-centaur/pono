@@ -70,9 +70,11 @@ class IC3IA : public ModelBasedIC3
   /** Refines an abstract counterexample trace
    *  by looking for new predicates
    *  @param pg the proof goal that reached the initial state
-   *  @return true iff the counterexample was ruled out
+   *  @return FALSE if there's really a counterexample, TRUE if
+   *          the counterexample was refined and UNKNOWN if no
+   *          new predicates were found
    */
-  bool refine(ProofGoal pg);
+  ProverResult refine(ProofGoal pg);
 
   // TODO figure out relevant state
 

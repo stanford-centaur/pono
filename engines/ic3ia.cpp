@@ -23,6 +23,7 @@
 
 #include "engines/ic3ia.h"
 
+#include "utils/logger.h"
 #include "utils/term_analysis.h"
 
 using namespace smt;
@@ -93,10 +94,13 @@ bool IC3IA::block_all()
     if (!block(pg) && !pg.idx) {
       // if a proof goal cannot be blocked at zero
       // then there's a (possibly abstract) counterexample
-      bool refined = refine(pg);
-      if (!refined) {
-        // got a real proof goal
+      ProverResult refined = refine(pg);
+      if (refined == ProverResult::FALSE) {
+        // got a real counterexample trace
         return false;
+      } else if (refined == ProverResult::UNKNOWN) {
+        // TODO: feed this through so it returns unknown
+        throw PonoException("Could not refine");
       }
     }
   }
@@ -201,6 +205,78 @@ void IC3IA::add_predicate(const Term & pred)
       solver_->make_term(Implies, pred_state, ts_.next(pred)));
 }
 
-bool IC3IA::refine(ProofGoal pg) { throw PonoException("NYI"); }
+ProverResult IC3IA::refine(ProofGoal pg)
+{
+  // recover the counterexample trace
+  assert(intersects_initial(pg.conj.term_));
+  TermVec cex({ pg.conj.term_ });
+  ProofGoal tmp = pg;
+  while (tmp.next) {
+    tmp = *(tmp.next);
+    cex.push_back(tmp.conj.term_);
+  }
+
+  // use interpolator to get predicates
+  // remember -- need to transfer between solvers
+  assert(interpolator_);
+  Term t = make_and({ ts_.init(), ts_.trans(), cex[0] });
+  Term A = to_interpolator_.transfer_term(unroller_.at_time(origA, 0), BOOL);
+
+  TermVec B;
+  B.reserve(cex.size() - 1);
+  for (size_t i = 1; i < cex.size(); i++) {
+    t = unroller_.at_time(cex[i], i);
+    if (i + 1 < cex.size()) {
+      t = solver_->make_term(And, t, unroller_.at_time(ts_.trans(), i));
+    }
+    B.push_back(to_interpolator_.transfer_term(t, BOOL));
+  }
+
+  // now get interpolants for each transition starting with the first
+  bool all_sat = true;
+  TermVec interpolants;
+  while (B.size()) {
+    Term I;
+    try {
+      Result r = interpolator_->get_interpolant(A, make_and(B), I);
+      refined &= r.is_sat();
+      if (r.is_unsat()) {
+        interpolants.push_back(to_solver_.transfer_term(I, BOOL));
+      }
+    }
+    catch (SmtException & e) {
+      logger.log(3, "Interpolation failure...");
+    }
+  }
+
+  if (all_sat) {
+    // this is a real counterexample, so the property is false
+    return ProverResult::FALSE;
+  } else if (!interpolants.size()) {
+    logger.log(1, "Interpolation failures...couldn't find any new predicates");
+    return ProverResult::UNKNOWN;
+  } else {
+    UnorderedTermSet preds;
+    Term untimedI;
+    for (auto I : interpolants) {
+      untimedI = unroller_.untime(I);
+      assert(ts_.only_curr(untimedI));
+      get_predicates(I, boolsort_, preds);
+    }
+
+    if (!preds.size()) {
+      logger.log(1, "No new predicates found...");
+      return ProverResult::UNKNOWN;
+    }
+
+    // add all the new predicates
+    for (auto p : preds) {
+      add_predicate(p);
+    }
+
+    // able to refine the system to rule out this abstract counterexample
+    return ProverResult::TRUE;
+  }
+}
 
 }  // namespace pono
