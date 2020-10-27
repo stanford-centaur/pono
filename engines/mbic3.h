@@ -90,7 +90,7 @@ class ModelBasedIC3 : public Prover
    *  @return true iff the last frame intersects with bad
    *  post-condition: if true is returned, bad cube added to proof goals
    */
-  bool intersects_bad();
+  virtual bool intersects_bad();
   /** Get the predecessor of a cube c in frame i
    *  aka see if c is reachable from frame i-1
    *  @requires c -> F[i]
@@ -127,7 +127,7 @@ class ModelBasedIC3 : public Prover
    *  smallest time
    *  @return true iff all proof goals were blocked
    */
-  bool block_all();
+  virtual bool block_all();
   /** Attempt to block cube c at frame i
    *  @param i the frame number
    *  @param c the cube to try blocking
@@ -164,7 +164,7 @@ class ModelBasedIC3 : public Prover
    *  @return a new cube d
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
-  Conjunction generalize_predecessor(size_t i, const Conjunction & c);
+  virtual Conjunction generalize_predecessor(size_t i, const Conjunction & c);
   /** Check if there are common assignments
    *  between A and B
    *  i.e. if A /\ B is SAT
@@ -245,7 +245,7 @@ class ModelBasedIC3 : public Prover
    *       need to be careful with calls to virtual functions
    *       in the constructor
    */
-  void set_labels();
+  virtual void set_labels();
 
   // Data structures
 

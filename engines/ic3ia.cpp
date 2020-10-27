@@ -55,6 +55,8 @@ IC3IA::IC3IA(const PonoOptions & opt, Property & p, const SmtSolver & slv)
   initialize();
 }
 
+IC3IA::~IC3IA() {}
+
 // protected methods
 void IC3IA::initialize()
 {
@@ -124,7 +126,7 @@ bool IC3IA::intersects_bad()
   Result r = solver_->check_sat();
 
   if (r.is_sat()) {
-    add_proof_goal(get_conjunction_from_model(), reached_k_ + 1);
+    add_proof_goal(get_conjunction_from_model(), reached_k_ + 1, NULL);
   }
 
   pop_solver_context();
@@ -132,7 +134,7 @@ bool IC3IA::intersects_bad()
   return r.is_sat();
 }
 
-Conjunction IC3IA::generalize_predecessor()
+Conjunction IC3IA::generalize_predecessor(size_t i, const Conjunction & c)
 {
   // TODO: add an option to generalize here!
   //       also possibly refactor so this is only called if option enabled
@@ -191,7 +193,7 @@ void IC3IA::add_predicate(const Term & pred)
   //       kept separate for predicate abstraction
   // TODO: add infrastructure for getting a fresh symbol -- might fail if name
   // already exists
-  string name = "__pred" + std::to_string(pred_statevar.size());
+  string name = "__pred" + std::to_string(pred_statevars_.size());
   Term pred_state = solver_->make_symbol(name, boolsort_);
   Term pred_next = solver_->make_symbol(name + ".next", boolsort_);
   pred_statevars_.push_back(pred_state);
@@ -220,7 +222,7 @@ ProverResult IC3IA::refine(ProofGoal pg)
   // remember -- need to transfer between solvers
   assert(interpolator_);
   Term t = make_and({ ts_.init(), ts_.trans(), cex[0] });
-  Term A = to_interpolator_.transfer_term(unroller_.at_time(origA, 0), BOOL);
+  Term A = to_interpolator_->transfer_term(unroller_.at_time(t, 0), BOOL);
 
   TermVec B;
   B.reserve(cex.size() - 1);
@@ -229,7 +231,7 @@ ProverResult IC3IA::refine(ProofGoal pg)
     if (i + 1 < cex.size()) {
       t = solver_->make_term(And, t, unroller_.at_time(ts_.trans(), i));
     }
-    B.push_back(to_interpolator_.transfer_term(t, BOOL));
+    B.push_back(to_interpolator_->transfer_term(t, BOOL));
   }
 
   // now get interpolants for each transition starting with the first
@@ -239,9 +241,9 @@ ProverResult IC3IA::refine(ProofGoal pg)
     Term I;
     try {
       Result r = interpolator_->get_interpolant(A, make_and(B), I);
-      refined &= r.is_sat();
+      all_sat &= r.is_sat();
       if (r.is_unsat()) {
-        interpolants.push_back(to_solver_.transfer_term(I, BOOL));
+        interpolants.push_back(to_solver_->transfer_term(I, BOOL));
       }
     }
     catch (SmtException & e) {
