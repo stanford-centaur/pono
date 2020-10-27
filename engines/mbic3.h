@@ -121,8 +121,13 @@ class ModelBasedIC3 : public Prover
    * proven)
    */
   bool propagate(size_t i);
-  /** Add a new frame*/
+  /** Add a new frame */
   void push_frame();
+  /** Adds a constraint to frame i and (implicitly) all frames below it
+   *  @param i highest frame to add constraint to
+   *  @param constraint the constraint to add
+   */
+  void constrain_frame(size_t i, const smt::Term & constraint);
   /** Attempt to generalize a clause
    *  The standard approach is inductive generalization
    *  @requires !get_predecessor(i, c, _)
@@ -147,13 +152,13 @@ class ModelBasedIC3 : public Prover
    *  @param B the second term
    *  @return true iff there is an intersection
    */
-  bool intersects(const smt::Term & A, const smt::Term & B) const;
+  bool intersects(const smt::Term & A, const smt::Term & B);
   /** Check if the term intersects with the initial states
    *  syntactic sugar for intersects(ts_.init(), t);
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
    */
-  bool intersects_initial(const smt::Term & t) const;
+  bool intersects_initial(const smt::Term & t);
   /** Add all the terms at Frame i
    *  Note: the frames_ data structure keeps terms only in the
    *  highest frame where they are known to hold
@@ -162,6 +167,7 @@ class ModelBasedIC3 : public Prover
    *  @param i the frame number
    */
   void assert_frame(size_t i) const;
+
   smt::Term get_frame(size_t i) const;
 
   void fix_if_intersects_initial(smt::TermVec & to_keep,
@@ -198,23 +204,45 @@ class ModelBasedIC3 : public Prover
    */
   smt::Term make_or(smt::TermVec vec) const;
 
+  /** Pushes a solver context and keeps track of the context level
+   *  updates solver_context_
+   */
+  void push_solver_context();
+
+  /** Pops a solver context and keeps track of the context level
+   *  updates solver_context_
+   */
+  void pop_solver_context();
+
   // Data structures
 
   ///< the frames data structure.
-  ///< a vector of clauses (except at index 0 which is init)
+  ///< a vector of terms (typically clauses but depends on mode)
   ///< for this implementation of IC3
   std::vector<smt::TermVec> frames_;
 
+  // labels for activating assertions
+
+  smt::Term init_label_;          ///< label to activate init
+  smt::Term trans_label_;         ///< label to activate trans
+  smt::TermVec frame_labels_;     ///< labels to activate frames
+  smt::UnorderedTermMap labels_;  //< labels for unsat cores
+
   ///< stack of outstanding proof goals
   std::vector<ProofGoal> proof_goals_;
-
-  smt::UnorderedTermMap labels_;
 
   smt::Term invar_;  ///< stores the invariant once proven
 
   // useful terms
   smt::Term true_;
   smt::Term false_;
+
+  // NOTE: need to be sure to always use [push|pop]_solver_context
+  // instead of doing it directly on the solver or this will be
+  // out of sync
+  // TODO could consider adding this to smt-switch
+  //      but would have to be implemented in each solver
+  size_t solver_context_;  ///< the current context of the solver
 
   // for ic3_indgen_mode_ == 2
   // interpolant based generalization
