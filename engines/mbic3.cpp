@@ -142,9 +142,6 @@ void ModelBasedIC3::initialize()
   frames_.push_back({ ts_.init() });
   push_frame();
 
-  assert(ts_.only_curr(bad_));
-  assert(ts_.only_curr(ts_.init()));
-
   // check if there are arrays or uninterpreted sorts and fail if so
   for (auto vec : { ts_.statevars(), ts_.inputvars() }) {
     for (auto st : vec) {
