@@ -420,7 +420,8 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
         break;
       }
     }
-  }
+    }
+ }
 
   return success;
 }
