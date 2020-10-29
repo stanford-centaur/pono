@@ -42,9 +42,11 @@ class Property
   std::string name() { return name_; };
 
  private:
+  void initialize();
+
   TransitionSystem ts_;
 
-  const smt::Term prop_;
+  smt::Term prop_;
 
   std::string name_; ///< a name for the property. If no name is given, just uses the to_string
 
