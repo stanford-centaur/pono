@@ -94,7 +94,8 @@ Conjunction::Conjunction(const smt::SmtSolver & solver,
 ModelBasedIC3::ModelBasedIC3(Property & p, SolverEnum se)
     : super(p, se),
       true_(solver_->make_term(true)),
-      false_(solver_->make_term(false))
+      false_(solver_->make_term(false)),
+      solver_context_(0)
 {
   // super sets other options
   solver_->set_opt("produce-unsat-cores", "true");
@@ -104,7 +105,8 @@ ModelBasedIC3::ModelBasedIC3(Property & p, SolverEnum se)
 ModelBasedIC3::ModelBasedIC3(Property & p, const SmtSolver & slv)
     : super(p, slv),
       true_(solver_->make_term(true)),
-      false_(solver_->make_term(false))
+      false_(solver_->make_term(false)),
+      solver_context_(0)
 {
   initialize();
 }
@@ -114,7 +116,8 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
                              const SolverEnum se)
     : super(opt, p, se),
       true_(solver_->make_term(true)),
-      false_(solver_->make_term(false))
+      false_(solver_->make_term(false)),
+      solver_context_(0)
 {
   // super sets other options
   solver_->set_opt("produce-unsat-cores", "true");
@@ -126,7 +129,8 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
                              const SmtSolver & slv)
     : super(opt, p, slv),
       true_(solver_->make_term(true)),
-      false_(solver_->make_term(false))
+      false_(solver_->make_term(false)),
+      solver_context_(0)
 {
   initialize();
 }
@@ -137,9 +141,11 @@ void ModelBasedIC3::initialize()
 {
   super::initialize();
   frames_.clear();
+  frame_labels_.clear();
   proof_goals_.clear();
   // first frame is always the initial states
-  frames_.push_back({ ts_.init() });
+  push_frame();
+  constrain_frame(0, ts_.init());
   push_frame();
 
   // check if there are arrays or uninterpreted sorts and fail if so
@@ -154,6 +160,16 @@ void ModelBasedIC3::initialize()
       }
     }
   }
+
+  // set labels
+  Sort boolsort = solver_->make_sort(BOOL);
+  init_label_ = solver_->make_symbol("__init_label", boolsort);
+  solver_->assert_formula(solver_->make_term(Implies, init_label_, ts_.init()));
+  // frame 0 label is identical to init label
+  init_label_ = frame_labels_[0];
+  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+  solver_->assert_formula(
+      solver_->make_term(Implies, trans_label_, ts_.trans()));
 
   assert(!interpolator_);
   assert(solver_);
@@ -245,8 +261,8 @@ ProverResult ModelBasedIC3::step_0()
   logger.log(1, "Checking if initial states satisfy property");
   assert(reached_k_ < 0);
 
-  solver_->push();
-  solver_->assert_formula(ts_.init());
+  push_solver_context();
+  solver_->assert_formula(init_label_);
   solver_->assert_formula(bad_);
   Result r = solver_->check_sat();
   if (r.is_sat()) {
@@ -255,13 +271,13 @@ ProverResult ModelBasedIC3::step_0()
     assert(r.is_unsat());
     reached_k_ = 0;  // keep reached_k_ aligned with number of frames
   }
-  solver_->pop();
+  pop_solver_context();
   return ProverResult::UNKNOWN;
 }
 
 bool ModelBasedIC3::intersects_bad()
 {
-  solver_->push();
+  push_solver_context();
   // assert the last frame (conjunction over clauses)
   assert_frame(reached_k_ + 1);
   // see if it intersects with bad
@@ -276,7 +292,7 @@ bool ModelBasedIC3::intersects_bad()
     add_proof_goal(bad_at_last_frame, reached_k_ + 1);
   }
 
-  solver_->pop();
+  pop_solver_context();
 
   assert(!r.is_unknown());
   return r.is_sat();
@@ -289,33 +305,32 @@ bool ModelBasedIC3::get_predecessor(size_t i,
   assert(i > 0);
   assert(i < frames_.size());
 
-  solver_->push();
+  push_solver_context();
 
   // F[i-1]
   assert_frame(i - 1);
   // -c
   solver_->assert_formula(solver_->make_term(Not, c.term_));
   // Trans
-  solver_->assert_formula(ts_.trans());
+  solver_->assert_formula(trans_label_);
   // c'
   solver_->assert_formula(ts_.next(c.term_));
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     // don't pop now. generalize predecessor needs model values
-    // generalize_predecessor will call solver_->pop();
+    // generalize_predecessor will call pop_solver_context();
     out_pred = generalize_predecessor(i, c);
   } else {
-    solver_->pop();
+    pop_solver_context();
 
     TermVec assump, red_assump, rem_assump;
     for (auto a : c.conjuncts_) {
       assump.push_back(ts_.next(a));
     }
 
-    Term formula = make_and(TermVec{get_frame(i - 1),
-                                    solver_->make_term(Not, c.term_),
-                                    ts_.trans()});
+    Term formula = make_and(TermVec{
+        get_frame(i - 1), solver_->make_term(Not, c.term_), trans_label_ });
 
     // filter using unsatcore
     reduce_assump_unsatcore(formula, assump, red_assump, &rem_assump);
@@ -400,7 +415,7 @@ bool ModelBasedIC3::block(const ProofGoal & pg)
       // TODO: fix name -- might not be a clause anymore
       // try to push
       size_t idx = push_blocking_clause(i, bt);
-      frames_[idx].push_back(bt);
+      constrain_frame(idx, bt);
       if (idx < min_idx) {
         min_idx = idx;
       }
@@ -424,17 +439,17 @@ bool ModelBasedIC3::propagate(size_t i)
   unordered_set<size_t> indices_to_remove;
   const TermVec & Fi = frames_.at(i);
 
-  solver_->push();
+  push_solver_context();
   assert_frame(i);
-  solver_->assert_formula(ts_.trans());
+  solver_->assert_formula(trans_label_);
 
   for (size_t j = 0; j < Fi.size(); ++j) {
-    const Term & t = Fi[j];
+    const Term & t = Fi.at(j);
 
     // Relative inductiveness check
     // Check F[i] /\ t /\ T /\ -t'
     // NOTE: asserting t is redundant because t \in F[i]
-    solver_->push();
+    push_solver_context();
     solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
 
     Result r = solver_->check_sat();
@@ -443,13 +458,13 @@ bool ModelBasedIC3::propagate(size_t i)
       // mark for removal
       indices_to_remove.insert(j);
       // add to next frame
-      frames_[i + 1].push_back(Fi[j]);
+      constrain_frame(i + 1, Fi.at(j));
     }
 
-    solver_->pop();
+    pop_solver_context();
   }
 
-  solver_->pop();
+  pop_solver_context();
 
   // keep invariant that terms are kept at highest frame
   // where they are known to hold
@@ -458,7 +473,7 @@ bool ModelBasedIC3::propagate(size_t i)
   new_frame_i.reserve(Fi.size() - indices_to_remove.size());
   for (size_t j = 0; j < Fi.size(); ++j) {
     if (indices_to_remove.find(j) == indices_to_remove.end()) {
-      new_frame_i.push_back(Fi[j]);
+      new_frame_i.push_back(Fi.at(j));
     }
   }
 
@@ -469,8 +484,21 @@ bool ModelBasedIC3::propagate(size_t i)
 
 void ModelBasedIC3::push_frame()
 {
+  assert(frame_labels_.size() == frames_.size());
   // pushes an empty frame
+  frame_labels_.push_back(
+      solver_->make_symbol("__frame_label_" + std::to_string(frames_.size()),
+                           solver_->make_sort(BOOL)));
   frames_.push_back({});
+}
+
+void ModelBasedIC3::constrain_frame(size_t i, const Term & constraint)
+{
+  assert(i < frame_labels_.size());
+  assert(frame_labels_.size() == frames_.size());
+  solver_->assert_formula(
+      solver_->make_term(Implies, frame_labels_.at(i), constraint));
+  frames_.at(i).push_back(constraint);
 }
 
 Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
@@ -514,9 +542,9 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 
           Term tmp_and_term = make_and(tmp);
           if (!intersects_initial(tmp_and_term)) {
-            solver_->push();
+            push_solver_context();
             assert_frame(i - 1);
-            solver_->assert_formula(ts_.trans());
+            solver_->assert_formula(trans_label_);
             solver_->assert_formula(solver_->make_term(Not, tmp_and_term));
 
             Term l;
@@ -533,7 +561,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 
             if (r.is_sat()) {
               // we cannot drop a
-              solver_->pop();
+              pop_solver_context();
             } else {
               new_tmp.clear();
               removed.clear();
@@ -548,7 +576,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
                 }
               }
 
-              solver_->pop();
+              pop_solver_context();
 
               // keep in mind that you cannot drop a literal if it causes c to
               // intersect with the initial states
@@ -578,8 +606,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
       split_eq(solver_, tmp, lits);
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
-      Term formula = make_and({get_frame(i - 1), ts_.trans(),
-                               solver_->make_term(Not, c.term_)});
+      Term formula = make_and(
+          { get_frame(i - 1), trans_label_, solver_->make_term(Not, c.term_) });
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
       reduce_assump_unsatcore(formula, lits, red_lits);
       gen_res = solver_->make_term(Not, ts_.curr(make_and(red_lits)));
@@ -592,7 +620,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({ get_frame(i - 1),
-                                ts_.trans(),
+                                trans_label_,
                                 solver_->make_term(Not, make_and(conjuncts)) });
       formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
@@ -661,7 +689,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
   // pop the context that was pushed in get_predecessor
   // now that we have the model
   // now safe to make new calls to the solver
-  solver_->pop();
+  pop_solver_context();
 
   // if not generalized, the current state assignments in cube_lits
   // are the predecessor
@@ -693,7 +721,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     Term formula = make_and(input_lits);
 
     if (ts_.is_deterministic()) {
-      formula = solver_->make_term(And, formula, ts_.trans());
+      formula = solver_->make_term(And, formula, trans_label_);
       formula = solver_->make_term(
           And, formula, solver_->make_term(Not, ts_.next(c.term_)));
     } else {
@@ -701,7 +729,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
       // preimage formula
       Term pre_formula = get_frame(i - 1);
-      pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
+      pre_formula = solver_->make_term(And, pre_formula, trans_label_);
       pre_formula = solver_->make_term(And, pre_formula,
                                        solver_->make_term(Not, c.term_));
       pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term_));
@@ -732,7 +760,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       m[nv] = model.at(nv);
     }
 
-    Term fun_preimage = solver_->substitute(ts_.trans(), m);
+    Term fun_preimage = solver_->substitute(trans_label_, m);
     TermVec conjuncts;
     conjunctive_partition(fun_preimage, conjuncts, true);
     res = Conjunction(solver_, conjuncts);
@@ -745,24 +773,35 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
   return res;
 }
 
-bool ModelBasedIC3::intersects(const Term & A, const Term & B) const
+bool ModelBasedIC3::intersects(const Term & A, const Term & B)
 {
-  solver_->push();
+  push_solver_context();
   solver_->assert_formula(A);
   solver_->assert_formula(B);
   Result r = solver_->check_sat();
-  solver_->pop();
+  pop_solver_context();
   return r.is_sat();
 }
 
-bool ModelBasedIC3::intersects_initial(const Term & t) const
+bool ModelBasedIC3::intersects_initial(const Term & t)
 {
-  return intersects(ts_.init(), t);
+  return intersects(init_label_, t);
 }
 
 void ModelBasedIC3::assert_frame(size_t i) const
 {
-  solver_->assert_formula(get_frame(i));
+  assert(frame_labels_.size() == frames_.size());
+  Term assump;
+  for (size_t j = 0; j < frame_labels_.size(); ++j) {
+    assump = frame_labels_[j];
+    if (j < i) {
+      // optimization: disable the unused constraints
+      // by asserting the negated label
+      assump = solver_->make_term(Not, assump);
+    }
+    assert(assump);  // assert that it's non-null
+    solver_->assert_formula(assump);
+  }
 }
 
 Term ModelBasedIC3::get_frame(size_t i) const
@@ -785,31 +824,31 @@ void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
                                               const TermVec & rem)
 {
   if (rem.size() != 0) {
-    Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
+    Term formula = solver_->make_term(And, init_label_, make_and(to_keep));
     reduce_assump_unsatcore(formula, rem, to_keep);
   }
 }
 
 size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
 {
-  solver_->push();
+  push_solver_context();
   solver_->assert_formula(c);
   solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
-  solver_->assert_formula(ts_.trans());
+  solver_->assert_formula(trans_label_);
 
   Result r;
   size_t j;
   for (j = i; j + 1 < frames_.size(); ++j) {
-    solver_->push();
+    push_solver_context();
     assert_frame(j);
     r = solver_->check_sat();
-    solver_->pop();
+    pop_solver_context();
     if (r.is_sat()) {
       break;
     }
   }
 
-  solver_->pop();
+  pop_solver_context();
 
   return j;
 }
@@ -822,13 +861,13 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
   TermVec cand_res = assump;
   TermVec bool_assump, tmp_assump;
 
-  solver_->push();
+  push_solver_context();
   solver_->assert_formula(formula);
 
   // exit if the formula is unsat without assumptions.
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
-    solver_->pop();
+    pop_solver_context();
     return;
   }
 
@@ -871,7 +910,7 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
     }
   }
 
-  solver_->pop();
+  pop_solver_context();
   // copy the result
   out_red.insert(out_red.end(), cand_res.begin(), cand_res.end());
 }
@@ -932,6 +971,19 @@ Term ModelBasedIC3::make_or(smt::TermVec vec) const
     res = solver_->make_term(Or, res, vec[i]);
   }
   return res;
+}
+
+void ModelBasedIC3::push_solver_context()
+{
+  solver_->push();
+  solver_context_++;
+}
+
+void ModelBasedIC3::pop_solver_context()
+{
+  assert(solver_context_ > 0);
+  solver_->pop();
+  solver_context_--;
 }
 
 DisjointSet::DisjointSet() {}

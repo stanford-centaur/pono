@@ -70,6 +70,7 @@ void Prover::initialize()
 {
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
+  assert(ts_.only_curr(bad_));
   if (options_.static_coi_) {
     if (!ts_.is_functional())
       throw PonoException("Temporary restriction: cone-of-influence analysis currently "\
