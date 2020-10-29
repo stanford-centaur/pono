@@ -408,7 +408,8 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
       }
     }
 
-    for (auto elem : orig_ts_.named_terms()) {
+    if (success) {
+      for (auto elem : orig_ts_.named_terms()) {
       SortKind sk = elem.second->get_sort()->get_sort_kind();
       Term pt = transfer_to_prover_as(elem.second, sk);
       try {
