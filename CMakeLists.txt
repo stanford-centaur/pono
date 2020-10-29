@@ -125,7 +125,7 @@ FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
 
 ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
 
-add_library(pono-lib "${PONO_LIB_TYPE}"
+set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -160,12 +160,13 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
 
-set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
-
 if (WITH_COREIR OR WITH_COREIR_EXTERN)
   add_definitions(-DWITH_COREIR)
-  target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
+
+add_library(pono-lib "${PONO_LIB_TYPE}" ${SOURCES})
+set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 
 target_include_directories(pono-lib PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
