@@ -131,7 +131,7 @@ FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
 
 ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
 
-add_library(pono-lib "${PONO_LIB_TYPE}"
+set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -166,7 +166,10 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
 
-set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
+if (WITH_COREIR OR WITH_COREIR_EXTERN)
+  add_definitions(-DWITH_COREIR)
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
+endif()
 
 if (WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
@@ -174,13 +177,12 @@ if (WITH_MSAT_IC3IA)
     "${PROJECT_SOURCE_DIR}/deps/ic3ia/")
   target_include_directories(pono-lib PUBLIC
     "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
-  target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
 
-if (WITH_COREIR OR WITH_COREIR_EXTERN)
-  add_definitions(-DWITH_COREIR)
-  target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
-endif()
+
+add_library(pono-lib "${PONO_LIB_TYPE}" ${SOURCES})
+set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 
 target_include_directories(pono-lib PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
