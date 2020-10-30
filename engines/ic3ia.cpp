@@ -82,9 +82,6 @@ void IC3IA::initialize()
   assert(!to_interpolator_);
   assert(!to_solver_);
   initialize_interpolator();
-
-  // TODO: set semantics for trans, etc...
-  throw PonoException("NYI");
 }
 
 bool IC3IA::block_all()
