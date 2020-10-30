@@ -1,10 +1,10 @@
 %{
-    #include<cstdio>
-    #include<iostream>
-    #include<string>
-    #include"stdlib.h"
-    #include"smv_encoder.h"
-    #include"smv_node.h"
+    #include <cstdio>
+    #include <iostream>
+    #include <string>
+    #include "stdlib.h"
+    #include "frontends/smv_encoder.h"
+    #include "frontends/smv_node.h"
     using namespace std;
     int case_start = 0;
     bool case_true = false;
@@ -28,7 +28,7 @@
 %parse-param {SMVEncoder &enc}
 
 %code{
-  #include "smvscanner.h"
+  #include "frontends/smvscanner.h"
   #undef yylex
   #define yylex smvscanner.yylex
 }

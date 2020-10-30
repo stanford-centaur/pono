@@ -14,13 +14,14 @@
  **
  **/
 
-#include "prover.h"
-#include "available_solvers.h"
-#include "utils/logger.h"
+#include "engines/prover.h"
 
-#include <climits>
 #include <cassert>
+#include <climits>
 #include <functional>
+
+#include "smt/available_solvers.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;

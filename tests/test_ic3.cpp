@@ -1,13 +1,11 @@
 #include <utility>
 #include <vector>
 
-#include "gtest/gtest.h"
-
 #include "core/fts.h"
 #include "engines/mbic3.h"
+#include "gtest/gtest.h"
+#include "smt/available_solvers.h"
 #include "utils/ts_analysis.h"
-
-#include "available_solvers.h"
 
 using namespace pono;
 using namespace smt;

@@ -4,13 +4,10 @@
 #include <tuple>
 #include <vector>
 
-#include "gtest/gtest.h"
-
-#include "available_solvers.h"
-
 #include "core/rts.h"
 #include "frontends/coreir_encoder.h"
-
+#include "gtest/gtest.h"
+#include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
 
 using namespace pono;

@@ -27,15 +27,10 @@
 #include "smt-switch/msat_factory.h"
 #endif
 
-#include "bmc.h"
-#include "bmc_simplepath.h"
 #include "core/fts.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
-#include "interpolantmc.h"
-#include "kinduction.h"
-#include "mbic3.h"
 #include "modifiers/control_signals.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"

@@ -14,11 +14,10 @@
  **
  **/
 
+#include "engines/interpolantmc.h"
+
 #include "smt-switch/exceptions.h"
-
-#include "available_solvers.h"
-#include "interpolantmc.h"
-
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 
