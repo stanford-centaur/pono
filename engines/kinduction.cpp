@@ -68,6 +68,7 @@ ProverResult KInduction::check_until(int k)
   for (int i = 0; i <= k; ++i) {
     logger.log(1, "Checking k-induction base case at bound: {}", i);
     if (!base_step(i)) {
+      compute_witness();
       return ProverResult::FALSE;
     }
     logger.log(1, "Checking k-induction inductive step at bound: {}", i);

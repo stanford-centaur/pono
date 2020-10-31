@@ -27,15 +27,10 @@
 #include "smt-switch/msat_factory.h"
 #endif
 
-#include "bmc.h"
-#include "bmc_simplepath.h"
 #include "core/fts.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
-#include "interpolantmc.h"
-#include "kinduction.h"
-#include "mbic3.h"
 #include "modifiers/control_signals.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
@@ -84,10 +79,24 @@ ProverResult check_prop(PonoOptions pono_options,
   //       consider calling prover for CegProphecyArrays (so that underlying
   //       model checker runs prove unbounded) or possibly, have a command line
   //       flag to pick between the two
-  ProverResult r = prover->check_until(pono_options.bound_);
+  ProverResult r;
+  if (pono_options.engine_ == MSAT_IC3IA)
+  {
+    // HACK MSAT_IC3IA does not support check_until
+    r = prover->prove();
+  }
+  else
+  {
+    r = prover->check_until(pono_options.bound_);
+  }
 
   if (r == FALSE && !pono_options.no_witness_) {
-    prover->witness(cex);
+    bool success = prover->witness(cex);
+    if (!success) {
+      logger.log(
+          0,
+          "Only got a partial witness from engine. Not suitable for printing.");
+    }
   } else if (r == TRUE && pono_options.check_invar_) {
     try {
       Term invar = prover->invar();

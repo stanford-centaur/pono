@@ -21,6 +21,10 @@
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
+#ifdef WITH_MSAT_IC3IA
+#include "engines/msat_ic3ia.h"
+#endif
+
 
 using namespace smt;
 using namespace std;
@@ -44,6 +48,10 @@ shared_ptr<Prover> make_prover(Engine e,
     return make_shared<InterpolantMC>(opts, p, se);
   } else if (e == MBIC3) {
     return make_shared<ModelBasedIC3>(opts, p, se);
+#ifdef WITH_MSAT_IC3IA
+  } else if (e == MSAT_IC3IA) {
+    return make_shared<MsatIC3IA>(opts, p, se);
+#endif
   } else {
     throw PonoException("Unhandled engine");
   }
@@ -65,6 +73,10 @@ shared_ptr<Prover> make_prover(Engine e,
         "Interpolant-based modelchecking requires an interpolator");
   } else if (e == MBIC3) {
     return make_shared<ModelBasedIC3>(opts, p, slv);
+#ifdef WITH_MSAT_IC3IA
+  } else if (e == MSAT_IC3IA) {
+    return make_shared<MsatIC3IA>(opts, p, slv);
+#endif
   } else {
     throw PonoException("Unhandled engine");
   }

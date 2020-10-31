@@ -1,17 +1,14 @@
 #include <utility>
 #include <vector>
 
-#include "smt-switch/utils.h"
-
-#include "gtest/gtest.h"
-
 #include "core/adaptive_unroller.h"
 #include "core/fts.h"
 #include "core/rts.h"
 #include "core/unroller.h"
+#include "gtest/gtest.h"
+#include "smt-switch/utils.h"
+#include "smt/available_solvers.h"
 #include "utils/exceptions.h"
-
-#include "available_solvers.h"
 
 using namespace pono;
 using namespace smt;

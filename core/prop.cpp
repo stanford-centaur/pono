@@ -45,7 +45,7 @@ Property::Property(Property & prop, TermTranslator & tt)
       // ts_ constructor does the same thing internally
       prop_((prop.transition_system().solver() == tt.get_solver())
                 ? prop.prop_
-                : tt.transfer_term(prop.prop_)),
+                : tt.transfer_term(prop.prop_, BOOL)),
       name_(prop.name_)
 {
 }
@@ -83,7 +83,7 @@ void Property::initialize()
 
   if (ts_.no_next(prop_)) {
     ts_.assign_next(monitor, prop_);
-    
+
   } else if (!ts_.is_functional()) {
     RelationalTransitionSystem & rts =
         static_cast<RelationalTransitionSystem &>(ts_);

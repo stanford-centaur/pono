@@ -14,13 +14,14 @@
  **
  **/
 
-#include "prover.h"
-#include "available_solvers.h"
-#include "utils/logger.h"
+#include "engines/prover.h"
 
-#include <climits>
 #include <cassert>
+#include <climits>
 #include <functional>
+
+#include "smt/available_solvers.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -149,7 +150,8 @@ void Prover::print_coi_info()
     cout << "  " << statevar << "\n";
 
   cout << "constraints: \n";
-  for (auto constr : ts_.constraints()) cout << "  " << constr << "\n";
+  for (auto constr : ts_.constraints())
+    cout << "  " << constr << "\n";
 }
 
 /* Add 'term' to 'set' if it does not already appear there. */
@@ -344,7 +346,11 @@ void Prover::compute_coi()
 
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
 {
-  // TODO: make sure the solver state is SAT
+  if (!witness_.size()) {
+    throw PonoException(
+        "Recovering witness failed. Make sure that there was "
+        "a counterexample and that the engine supports witness generation.");
+  }
 
   function<Term(const Term &, SortKind)> transfer_to_prover_as;
   function<Term(const Term &, SortKind)> transfer_to_orig_ts_as;
@@ -377,38 +383,59 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     };
   }
 
-  for (int i = 0; i <= reached_k_; ++i) {
+  bool success = true;
+
+  // Some backends don't support full witnesses
+  // it will still populate state variables, but will return false instead of
+  // true
+  for (auto wit_map : witness_) {
     out.push_back(UnorderedTermMap());
     UnorderedTermMap & map = out.back();
 
     for (auto v : orig_ts_.statevars()) {
       SortKind sk = v->get_sort()->get_sort_kind();
-      Term vi = unroller_.at_time(transfer_to_prover_as(v, sk), i);
-      Term r = solver_->get_value(vi);
-      map[v] = transfer_to_orig_ts_as(r, sk);
+      Term pv = transfer_to_prover_as(v, sk);
+      map[v] = transfer_to_orig_ts_as(wit_map.at(pv), sk);
     }
 
     for (auto v : orig_ts_.inputvars()) {
       SortKind sk = v->get_sort()->get_sort_kind();
-      Term vi = unroller_.at_time(transfer_to_prover_as(v, sk), i);
-      Term r = solver_->get_value(vi);
-      map[v] = transfer_to_orig_ts_as(r, sk);
+      Term pv = transfer_to_prover_as(v, sk);
+      try {
+        map[v] = transfer_to_orig_ts_as(wit_map.at(pv), sk);
+      }
+      catch (std::exception & e) {
+        success = false;
+        break;
+      }
     }
 
-    for (auto elem : orig_ts_.named_terms()) {
-      SortKind sk = elem.second->get_sort()->get_sort_kind();
-      Term ti = unroller_.at_time(transfer_to_prover_as(elem.second, sk), i);
-      map[elem.second] = transfer_to_orig_ts_as(solver_->get_value(ti), sk);
+    if (success) {
+      for (auto elem : orig_ts_.named_terms()) {
+        SortKind sk = elem.second->get_sort()->get_sort_kind();
+        Term pt = transfer_to_prover_as(elem.second, sk);
+        try {
+          map[elem.second] = transfer_to_orig_ts_as(wit_map.at(pt), sk);
+        }
+        catch (std::exception & e) {
+          success = false;
+          break;
+        }
+      }
     }
   }
 
-  return true;
+  return success;
 }
 
 Term Prover::invar()
 {
-  throw PonoException(
-      "Engines do not support getting an invariant by default.");
+  if (!invar_)
+  {
+    throw PonoException("Failed to return invar. Be sure that the property was proven "
+                        "by an engine the supports returning invariants.");
+  }
+  return to_orig_ts(invar_, BOOL);
 }
 
 Term Prover::to_orig_ts(Term t, SortKind sk)
@@ -441,6 +468,35 @@ Term Prover::to_orig_ts(Term t, SortKind sk)
 Term Prover::to_orig_ts(Term t)
 {
   return to_orig_ts(t, t->get_sort()->get_sort_kind());
+}
+
+bool Prover::compute_witness()
+{
+  // TODO: make sure the solver state is SAT
+
+  for (int i = 0; i <= reached_k_; ++i) {
+    witness_.push_back(UnorderedTermMap());
+    UnorderedTermMap & map = witness_.back();
+
+    for (auto v : ts_.statevars()) {
+      Term vi = unroller_.at_time(v, i);
+      Term r = solver_->get_value(vi);
+      map[v] = r;
+    }
+
+    for (auto v : ts_.inputvars()) {
+      Term vi = unroller_.at_time(v, i);
+      Term r = solver_->get_value(vi);
+      map[v] = r;
+    }
+
+    for (auto elem : ts_.named_terms()) {
+      Term ti = unroller_.at_time(elem.second, i);
+      map[elem.second] = solver_->get_value(ti);
+    }
+  }
+
+  return true;
 }
 
 }  // namespace pono

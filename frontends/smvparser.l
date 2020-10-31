@@ -1,8 +1,8 @@
 %{
-  #include "smv_node.h"
-  #include "smv_encoder.h"
-  #include "smvparser.h" 
-  #include "smvscanner.h"
+  #include "frontends/smv_node.h"
+  #include "frontends/smv_encoder.h"
+  #include "smvparser.h"
+  #include "frontends/smvscanner.h"
   #include "location.hh"
   #include <string>
   #undef YY_DECL

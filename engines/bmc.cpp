@@ -62,6 +62,7 @@ ProverResult Bmc::check_until(int k)
 {
   for (int i = 0; i <= k; ++i) {
     if (!step(i)) {
+      compute_witness();
       return ProverResult::FALSE;
     }
   }
