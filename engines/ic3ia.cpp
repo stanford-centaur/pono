@@ -61,13 +61,6 @@ IC3IA::~IC3IA() {}
 void IC3IA::initialize()
 {
   boolsort_ = solver_->make_sort(BOOL);
-  // add all the predicates from init and property
-  UnorderedTermSet preds;
-  get_predicates(ts_.init(), boolsort_, preds, true);
-  get_predicates(bad_, boolsort_, preds, true);
-  for (auto p : preds) {
-    add_predicate(p);
-  }
 
   if (options_.ic3_indgen_mode_ == 2) {
     // TODO: clean this up
@@ -170,6 +163,15 @@ void IC3IA::set_labels()
     trans_label_ = solver_->make_symbol("__trans_label", boolsort);
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, abs_ts_.trans()));
+
+    // add all the predicates from init and property
+    UnorderedTermSet preds;
+    get_predicates(ts_.init(), boolsort_, preds, true);
+    get_predicates(bad_, boolsort_, preds, true);
+    for (auto p : preds) {
+      add_predicate(p);
+    }
+
   }
 }
 
