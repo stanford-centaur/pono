@@ -61,7 +61,10 @@ void ImplicitPredicateAbstractor::do_abstraction()
   // create abstract variables for each next state variable
   for (auto sv : conc_ts_.statevars()) {
     Term nv = conc_ts_.next(sv);
-    Term abs_nv = abs_ts_.make_statevar(nv->to_string() + "^", nv->get_sort());
+    // note: this is not a state variable -- using input variable so there's no
+    // next
+    Term abs_nv = abs_rts_.make_inputvar(nv->to_string() + "^", nv->get_sort());
+    // map next var to this abstracted next var
     update_term_cache(nv, abs_nv);
   }
 

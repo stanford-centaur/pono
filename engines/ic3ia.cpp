@@ -124,11 +124,57 @@ bool IC3IA::intersects_bad()
   return r.is_sat();
 }
 
-Conjunction IC3IA::generalize_predecessor(size_t i, const Conjunction & c)
+bool IC3IA::get_predecessor(size_t i,
+                            const Conjunction & c,
+                            Conjunction & out_pred)
 {
-  // TODO: add an option to generalize here!
-  //       also possibly refactor so this is only called if option enabled
-  return get_conjunction_from_model();
+  assert(i > 0);
+  assert(i < frames_.size());
+
+  push_solver_context();
+
+  // F[i-1]
+  assert_frame(i - 1);
+  // -c
+  solver_->assert_formula(solver_->make_term(Not, c.term_));
+  // Trans
+  solver_->assert_formula(trans_label_);
+  // c'
+  solver_->assert_formula(ts_.next(c.term_));
+
+  Result r = solver_->check_sat();
+  if (r.is_sat()) {
+    // TODO: add generalize option
+    out_pred = get_conjunction_from_model();
+  } else {
+    TermVec assump, red_assump, rem_assump;
+    for (auto a : c.conjuncts_) {
+      assump.push_back(abs_ts_.next(a));
+    }
+
+    Term formula = make_and(TermVec{
+        get_frame(i - 1), solver_->make_term(Not, c.term_), trans_label_ });
+
+    // filter using unsatcore
+    reduce_assump_unsatcore(formula, assump, red_assump, &rem_assump);
+    // get current version of red_assump
+    TermVec cur_red_assump, cur_rem_assump;
+    for (auto a : red_assump) {
+      cur_red_assump.push_back(abs_ts_.curr(a));
+    }
+    for (auto a : rem_assump) {
+      cur_rem_assump.push_back(abs_ts_.curr(a));
+    }
+
+    fix_if_intersects_initial(cur_red_assump, cur_rem_assump);
+    assert(cur_red_assump.size() > 0);
+    out_pred = Conjunction(solver_, cur_red_assump);
+  }
+
+  pop_solver_context();
+
+  assert(!r.is_unknown());
+  return r.is_sat();
 }
 
 Conjunction IC3IA::get_conjunction_from_model()
@@ -166,12 +212,18 @@ void IC3IA::set_labels()
 
     // add all the predicates from init and property
     UnorderedTermSet preds;
-    get_predicates(ts_.init(), boolsort_, preds, true);
-    get_predicates(bad_, boolsort_, preds, true);
+    get_predicates(ts_.init(), boolsort_, preds, false);
+    get_predicates(bad_, boolsort_, preds, false);
     for (auto p : preds) {
       add_predicate(p);
     }
 
+    // add boolean state variables as well
+    for (auto sv : abs_ts_.statevars()) {
+      if (boolsort_ == sv->get_sort()) {
+        pred_statevars_.push_back(sv);
+      }
+    }
   }
 }
 
@@ -193,10 +245,8 @@ void IC3IA::add_predicate(const Term & pred)
   // TODO: add infrastructure for getting a fresh symbol -- might fail if name
   // already exists
   string name = "__pred" + std::to_string(pred_statevars_.size());
-  Term pred_state = solver_->make_symbol(name, boolsort_);
-  Term pred_next = solver_->make_symbol(name + ".next", boolsort_);
+  Term pred_state = abs_ts_.make_statevar(name, boolsort_);
   pred_statevars_.push_back(pred_state);
-  predstate2next_[pred_state] = pred_next;
 
   // associate the fresh state vars with predicate applied to current / next
   // states

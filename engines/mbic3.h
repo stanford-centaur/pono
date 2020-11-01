@@ -101,7 +101,9 @@ class ModelBasedIC3 : public Prover
    *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
    *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool get_predecessor(size_t i, const Conjunction & c, Conjunction & out_pred);
+  virtual bool get_predecessor(size_t i,
+                               const Conjunction & c,
+                               Conjunction & out_pred);
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -164,7 +166,7 @@ class ModelBasedIC3 : public Prover
    *  @return a new cube d
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
-  virtual Conjunction generalize_predecessor(size_t i, const Conjunction & c);
+  Conjunction generalize_predecessor(size_t i, const Conjunction & c);
   /** Check if there are common assignments
    *  between A and B
    *  i.e. if A /\ B is SAT

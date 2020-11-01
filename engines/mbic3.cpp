@@ -864,6 +864,7 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
                                             TermVec & out_red,
                                             TermVec * out_rem)
 {
+  cout << "reduce_assump_unsatcore" << endl;
   TermVec cand_res = assump;
   TermVec bool_assump, tmp_assump;
 

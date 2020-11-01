@@ -49,7 +49,9 @@ class IC3IA : public ModelBasedIC3
 
   // modified to get a bad cube over the predicates
   // TODO: refactor so that generalization and getting cube are different
-  Conjunction generalize_predecessor(size_t i, const Conjunction & c) override;
+  bool get_predecessor(size_t i,
+                       const Conjunction & c,
+                       Conjunction & out_pred) override;
 
   // use to get a predicate assignment from the current solver context
   Conjunction get_conjunction_from_model();
@@ -88,8 +90,12 @@ class IC3IA : public ModelBasedIC3
   ///< predicate vector in the abstraction (ia_.predicates())
   ///< e.g. pred_statevars_[i] corresponds to ia_.predicates()[i]
 
-  smt::UnorderedTermMap predstate2next_;
-  ///< maps predicate state variable to the next state version
+  // TODO: remove if not using them
+  // smt::UnorderedTermMap predstate2next_;
+  // ///< maps predicate state variable to the next state version
+
+  // smt::UnorderedTermMap nextpredstate2curr_;
+  // ///< maps predicate next state variable to the current version
 
   // useful sorts
   smt::Sort boolsort_;
