@@ -58,8 +58,15 @@ void ImplicitPredicateAbstractor::do_abstraction()
   assert(abs_rts_.statevars().size() == conc_ts_.statevars().size());
   assert(abs_rts_.inputvars().size() == conc_ts_.inputvars().size());
 
+  Sort boolsort_ = solver_->make_sort(BOOL);
+
   // create abstract variables for each next state variable
   for (auto sv : conc_ts_.statevars()) {
+    if (sv->get_sort() == boolsort_)
+    {
+      // don't abstract boolean variables
+      continue;
+    }
     Term nv = conc_ts_.next(sv);
     // note: this is not a state variable -- using input variable so there's no
     // next
