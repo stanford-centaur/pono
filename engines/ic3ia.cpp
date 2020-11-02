@@ -146,7 +146,9 @@ bool IC3IA::get_predecessor(size_t i,
   if (r.is_sat()) {
     // TODO: add generalize option
     out_pred = get_conjunction_from_model();
+    pop_solver_context();
   } else {
+    pop_solver_context();
     TermVec assump, red_assump, rem_assump;
     for (auto a : c.conjuncts_) {
       assump.push_back(abs_ts_.next(a));
@@ -170,8 +172,6 @@ bool IC3IA::get_predecessor(size_t i,
     assert(cur_red_assump.size() > 0);
     out_pred = Conjunction(solver_, cur_red_assump);
   }
-
-  pop_solver_context();
 
   assert(!r.is_unknown());
   return r.is_sat();

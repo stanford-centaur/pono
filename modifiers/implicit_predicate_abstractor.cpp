@@ -15,9 +15,10 @@
 **
 **/
 
-#include "implicit_predicate_abstractor.h"
+#include "modifiers/implicit_predicate_abstractor.h"
 
 #include "assert.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -48,6 +49,8 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
 
 void ImplicitPredicateAbstractor::do_abstraction()
 {
+  logger.log(1, "Generating implicit predicate abstraction.");
+
   // assume abs_ts_ is relational -- required for this abstraction
   // Note: abs_rts_ is abs_ts_ with a static cast to RelationalTransitionSystem&
   assert(!abs_ts_.is_functional());
@@ -79,6 +82,7 @@ void ImplicitPredicateAbstractor::do_abstraction()
   // Right now state_updates, constraints, and named_terms are not updated
   Term trans = conc_ts_.trans();
   abs_rts_.set_trans(abstract(trans));
+  logger.log(3, "Set abstract transition relation to {}", abs_rts_.trans());
 }
 
 }  // namespace pono

@@ -867,6 +867,9 @@ void ModelBasedIC3::reduce_assump_unsatcore(const Term & formula,
   TermVec cand_res = assump;
   TermVec bool_assump, tmp_assump;
 
+  // should be at context 0 or else assertions could be polluted
+  assert(solver_context_ == 0);
+
   push_solver_context();
   solver_->assert_formula(formula);
 
