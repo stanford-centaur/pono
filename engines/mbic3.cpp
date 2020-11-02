@@ -513,12 +513,6 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 {
   Term gen_res = solver_->make_term(Not, c.term_);
 
-  // expect non-null interpolator and term translators
-  // iff in mode for interpolant based generalization
-  assert((options_.ic3_indgen_mode_ == 2) == (interpolator_ != 0));
-  assert((options_.ic3_indgen_mode_ == 2) == (to_interpolator_ != 0));
-  assert((options_.ic3_indgen_mode_ == 2) == (to_solver_ != 0));
-
   if (options_.ic3_indgen_) {
     if (options_.ic3_indgen_mode_ == 0) {
       UnorderedTermSet keep, core_set;
