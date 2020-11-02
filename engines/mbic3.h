@@ -214,17 +214,19 @@ class ModelBasedIC3 : public Prover
    *  It also sorts the vector by the hash
    *  Note: this will fail for empty vectors
    *  @param vec the vector of boolean terms
+   *  @param slv (optional) the solver to use, defaults to solver_
    *  @return the conjunction of all the terms
    */
-  smt::Term make_and(smt::TermVec vec) const;
+  smt::Term make_and(smt::TermVec vec, smt::SmtSolver slv = NULL) const;
 
   /** Creates a reduce or of the vector of boolean terms
    *  It also sorts the vector by the hash
    *  Note: this will fail for empty vectors
    *  @param vec the vector of boolean terms
+   *  @param slv (optional) the solver to use, defaults to solver_
    *  @return the disjunction of all the terms
    */
-  smt::Term make_or(smt::TermVec vec) const;
+  smt::Term make_or(smt::TermVec vec, smt::SmtSolver slv = NULL) const;
 
   /** Pushes a solver context and keeps track of the context level
    *  updates solver_context_

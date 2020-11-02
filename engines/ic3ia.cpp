@@ -289,21 +289,23 @@ ProverResult IC3IA::refine(ProofGoal pg)
   bool all_sat = true;
   TermVec interpolants;
   while (B.size()) {
+    // Note: have to pass the solver (defaults to solver_)
+    Term fullB = make_and(B, interpolator_);
     Term I;
     try {
-      Result r = interpolator_->get_interpolant(A, make_and(B), I);
+      Result r = interpolator_->get_interpolant(A, fullB, I);
       all_sat &= r.is_sat();
       if (r.is_unsat()) {
         interpolants.push_back(to_solver_->transfer_term(I, BOOL));
       }
-      // move next cex time step to A
-      // they were added to B in reverse order
-      A = solver_->make_term(And, A, B.back());
-      B.pop_back();
     }
     catch (SmtException & e) {
       logger.log(3, "Interpolation failure...");
     }
+    // move next cex time step to A
+    // they were added to B in reverse order
+    A = interpolator_->make_term(And, A, B.back());
+    B.pop_back();
   }
 
   if (all_sat) {
