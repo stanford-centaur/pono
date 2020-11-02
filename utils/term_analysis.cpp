@@ -88,6 +88,8 @@ void get_predicates(const Term & term,
           out.insert(t);
         }
         continue;
+      } else if (t->is_value()) {
+        continue;
       }
 
       Op op = t->get_op();
