@@ -140,7 +140,7 @@ bool IC3IA::get_predecessor(size_t i,
   // Trans
   solver_->assert_formula(trans_label_);
   // c'
-  solver_->assert_formula(ts_.next(c.term_));
+  solver_->assert_formula(abs_ts_.next(c.term_));
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
@@ -210,19 +210,22 @@ void IC3IA::set_labels()
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, abs_ts_.trans()));
 
+    // add boolean state variables as predicates
+    // NOTE: this must be done before adding predicates
+    // because adding predicates also creates a new state var
+    // for each predicate and we don't want to dobule count those
+    for (auto sv : abs_ts_.statevars()) {
+      if (boolsort_ == sv->get_sort()) {
+        pred_statevars_.push_back(sv);
+      }
+    }
+
     // add all the predicates from init and property
     UnorderedTermSet preds;
     get_predicates(ts_.init(), boolsort_, preds, false);
     get_predicates(bad_, boolsort_, preds, false);
     for (auto p : preds) {
       add_predicate(p);
-    }
-
-    // add boolean state variables as well
-    for (auto sv : abs_ts_.statevars()) {
-      if (boolsort_ == sv->get_sort()) {
-        pred_statevars_.push_back(sv);
-      }
     }
   }
 }
