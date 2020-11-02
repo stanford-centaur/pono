@@ -61,6 +61,10 @@ class IC3IA : public ModelBasedIC3
    */
   void set_labels() override;
 
+  /** Override to use the abstract transition system
+   */
+  bool only_curr(smt::Term & t) override;
+
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)
    *  and also incrementally updates the local transition relation

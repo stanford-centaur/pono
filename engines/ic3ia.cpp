@@ -230,6 +230,8 @@ void IC3IA::set_labels()
   }
 }
 
+bool IC3IA::only_curr(Term & t) { return abs_ts_.only_curr(t); }
+
 void IC3IA::add_predicate(const Term & pred)
 {
   assert(abs_ts_.only_curr(pred));
@@ -253,10 +255,12 @@ void IC3IA::add_predicate(const Term & pred)
 
   // associate the fresh state vars with predicate applied to current / next
   // states
-  solver_->assert_formula(solver_->make_term(Implies, pred_state, pred));
+  // NOTE: needs to be Iff, not just Implies, because needs to enforce false
+  // case also
+  solver_->assert_formula(solver_->make_term(Iff, pred_state, pred));
   // NOTE: this predicate is over the original next state vars (not abstracted)
   solver_->assert_formula(
-      solver_->make_term(Implies, pred_state, ts_.next(pred)));
+      solver_->make_term(Iff, abs_ts_.next(pred_state), ts_.next(pred)));
 }
 
 ProverResult IC3IA::refine(ProofGoal pg)

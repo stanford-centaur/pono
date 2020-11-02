@@ -646,7 +646,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
     }
   }
 
-  assert(ts_.only_curr(gen_res));
+  assert(only_curr(gen_res));
   assert(!intersects_initial(solver_->make_term(Not, gen_res)));
   return gen_res;
 }
@@ -1015,6 +1015,8 @@ void ModelBasedIC3::set_labels()
         solver_->make_term(Implies, trans_label_, ts_.trans()));
   }
 }
+
+bool ModelBasedIC3::only_curr(Term & t) { return ts_.only_curr(t); }
 
 DisjointSet::DisjointSet() {}
 

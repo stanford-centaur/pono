@@ -251,6 +251,15 @@ class ModelBasedIC3 : public Prover
    */
   virtual void set_labels();
 
+  /** Check that term is only over current state variables
+   *  This method is virtual so that derived classes can
+   *  use a different transition system (e.g. an abstract one)
+   *  for the check
+   *  @param t the term to check
+   *  @return true iff the term only containts current state variables
+   */
+  virtual bool only_curr(smt::Term & t);
+
   // Data structures
 
   ///< the frames data structure.
