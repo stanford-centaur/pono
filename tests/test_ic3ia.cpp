@@ -13,8 +13,8 @@ using namespace std;
 
 namespace pono_tests {
 
-class IC3UnitTests : public ::testing::Test,
-                     public ::testing::WithParamInterface<SolverEnum>
+class IC3IAUnitTests : public ::testing::Test,
+                       public ::testing::WithParamInterface<SolverEnum>
 {
  protected:
   void SetUp() override
@@ -25,12 +25,13 @@ class IC3UnitTests : public ::testing::Test,
     s->set_opt("produce-unsat-cores", "true");
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
+    intsort = s->make_sort(INT);
   }
   SmtSolver s;
-  Sort boolsort, bvsort8;
+  Sort boolsort, bvsort8, intsort;
 };
 
-TEST_P(IC3UnitTests, SimpleSystemSafe)
+TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 {
   FunctionalTransitionSystem fts(s);
   Term s1 = fts.make_statevar("s1", boolsort);
@@ -56,7 +57,7 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
   ASSERT_TRUE(check_invar(fts, p.prop(), invar));
 }
 
-TEST_P(IC3UnitTests, SimpleSystemUnsafe)
+TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 {
   FunctionalTransitionSystem fts(s);
   Term s1 = fts.make_statevar("s1", boolsort);
@@ -78,9 +79,32 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
   ASSERT_EQ(r, FALSE);
 }
 
+TEST_P(IC3IAUnitTests, SimpleIntSafe)
+{
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("x", intsort);
+
+  fts.constrain_init(fts.make_term(Equal, x, fts.make_term(0, intsort)));
+  fts.assign_next(
+      x,
+      fts.make_term(Ite,
+                    fts.make_term(Lt, x, fts.make_term(10, intsort)),
+                    fts.make_term(Plus, x, fts.make_term(1, intsort)),
+                    fts.make_term(0, intsort)));
+
+  Property p(fts, fts.make_term(Le, x, fts.make_term(10, intsort)));
+
+  IC3IA ic3ia(p, s);
+  ProverResult r = ic3ia.prove();
+  ASSERT_EQ(r, TRUE);
+
+  Term invar = ic3ia.invar();
+  ASSERT_TRUE(check_invar(fts, p.prop(), invar));
+}
+
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedSolverIC3UnitTests,
-    IC3UnitTests,
+    ParameterizedSolverIC3IAUnitTests,
+    IC3IAUnitTests,
     // only using MathSAT for now, but could be more general in the future
     testing::ValuesIn({ MSAT }));
 }  // namespace pono_tests
