@@ -252,7 +252,7 @@ ProverResult ModelBasedIC3::step(int i)
       // save the invariant
       // which is the frame that just had all terms
       // from the previous frames propagated
-      invar_ = get_frame(j + 1);
+      set_invar(j + 1);
       return ProverResult::TRUE;
     }
   }
@@ -1017,6 +1017,8 @@ void ModelBasedIC3::set_labels()
 }
 
 bool ModelBasedIC3::only_curr(Term & t) { return ts_.only_curr(t); }
+
+void ModelBasedIC3::set_invar(size_t i) { invar_ = get_frame(i); }
 
 DisjointSet::DisjointSet() {}
 

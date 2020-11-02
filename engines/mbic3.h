@@ -260,6 +260,13 @@ class ModelBasedIC3 : public Prover
    */
   virtual bool only_curr(smt::Term & t);
 
+  /** Sets the invariant with the contents of frame i
+   *  @param i the frame holding the invariant
+   *  Note: some IC3 implementations might need to do some translation
+   *  from an abstraction
+   */
+  virtual void set_invar(size_t i);
+
   // Data structures
 
   ///< the frames data structure.

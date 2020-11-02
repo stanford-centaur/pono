@@ -65,6 +65,11 @@ class IC3IA : public ModelBasedIC3
    */
   bool only_curr(smt::Term & t) override;
 
+  /** Overriden to translate from predicate state variables
+   *  to the actual predicates
+   */
+  void set_invar(size_t i) override;
+
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)
    *  and also incrementally updates the local transition relation
@@ -94,12 +99,7 @@ class IC3IA : public ModelBasedIC3
   ///< predicate vector in the abstraction (ia_.predicates())
   ///< e.g. pred_statevars_[i] corresponds to ia_.predicates()[i]
 
-  // TODO: remove if not using them
-  // smt::UnorderedTermMap predstate2next_;
-  // ///< maps predicate state variable to the next state version
-
-  // smt::UnorderedTermMap nextpredstate2curr_;
-  // ///< maps predicate next state variable to the current version
+  smt::UnorderedTermMap predvar2pred_;
 
   // useful sorts
   smt::Sort boolsort_;
