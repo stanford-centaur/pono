@@ -318,11 +318,12 @@ ProverResult IC3IA::refine(ProofGoal pg)
       Result r = interpolator_->get_interpolant(A, fullB, I);
       all_sat &= r.is_sat();
       if (r.is_unsat()) {
+        logger.log(3, "got interpolant: {}", I);
         interpolants.push_back(to_solver_->transfer_term(I, BOOL));
       }
     }
     catch (SmtException & e) {
-      logger.log(3, "Interpolation failure...");
+      logger.log(3, e.what());
     }
     // move next cex time step to A
     // they were added to B in reverse order
