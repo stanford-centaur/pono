@@ -350,6 +350,8 @@ ProverResult IC3IA::refine(ProofGoal pg)
       get_predicates(I, boolsort_, preds);
     }
 
+    // TODO: add option to minimize predicates
+
     if (!preds.size()) {
       logger.log(1, "No new predicates found...");
       return ProverResult::UNKNOWN;
