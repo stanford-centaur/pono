@@ -163,13 +163,14 @@ void ModelBasedIC3::initialize()
 
   // set labels
   Sort boolsort = solver_->make_sort(BOOL);
+  // Note: we're using Iff instead of Implies for the labels so that if we want
+  // to negate the formula we can -- e.g. for generalization purposes
   init_label_ = solver_->make_symbol("__init_label", boolsort);
-  solver_->assert_formula(solver_->make_term(Implies, init_label_, ts_.init()));
+  solver_->assert_formula(solver_->make_term(Iff, init_label_, ts_.init()));
   // frame 0 label is identical to init label
   init_label_ = frame_labels_[0];
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
-  solver_->assert_formula(
-      solver_->make_term(Implies, trans_label_, ts_.trans()));
+  solver_->assert_formula(solver_->make_term(Iff, trans_label_, ts_.trans()));
 
   assert(!interpolator_);
   assert(solver_);
@@ -729,7 +730,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
       // preimage formula
       Term pre_formula = get_frame(i - 1);
-      pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
+      pre_formula = solver_->make_term(And, pre_formula, trans_label_);
       pre_formula = solver_->make_term(And, pre_formula,
                                        solver_->make_term(Not, c.term_));
       pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term_));
