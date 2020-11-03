@@ -60,7 +60,7 @@ class PonoOptions
         smt_solver_(default_smt_solver_),
         static_coi_(default_static_coi_),
         check_invar_(default_check_invar_),
-        ic3_cexgen_(default_ic3_cexgen_),
+        ic3_pregen_(default_ic3_pregen_),
         ic3_indgen_(default_ic3_indgen_),
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
         ic3_indgen_mode_(default_ic3_indgen_mode_),
@@ -93,7 +93,7 @@ class PonoOptions
   bool static_coi_;
   bool check_invar_;  ///< check invariants (if available) when run through CLI
   // ic3 options
-  bool ic3_cexgen_;  ///< generalize counterexamples in IC3
+  bool ic3_pregen_;  ///< generalize counterexamples in IC3
   bool ic3_indgen_;  ///< inductive generalization in IC3
   unsigned int ic3_gen_max_iter_; ///< max iterations in ic3 generalization. 0
                                   ///means unbounded
@@ -117,7 +117,7 @@ class PonoOptions
   static const bool default_check_invar_ = false;
   static const size_t default_reset_bnd_ = 1;
   static const std::string default_smt_solver_;
-  static const bool default_ic3_cexgen_ = true;
+  static const bool default_ic3_pregen_ = true;
   static const bool default_ic3_indgen_ = true;
   static const unsigned int default_ic3_gen_max_iter_ = 2;
   static const unsigned int default_ic3_indgen_mode_ = 0;

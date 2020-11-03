@@ -45,7 +45,7 @@ enum optionIndex
   RESET_BND,
   CLK,
   SMT_SOLVER,
-  NO_IC3_CEXGEN,
+  NO_IC3_PREGEN,
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
   IC3_INDGEN_MODE,
@@ -194,12 +194,12 @@ const option::Descriptor usage[] = {
     "  --clock, -c <clock name> \tSymbol to use for clock signal (only "
     "supports "
     "starting at 0 and toggling each step)" },
-  { NO_IC3_CEXGEN,
+  { NO_IC3_PREGEN,
     0,
     "",
-    "ic3-no-cexgen",
+    "ic3-no-pregen",
     Arg::None,
-    "  --ic3-no-cexgen \tDisable counterexample generalization in ic3." },
+    "  --ic3-no-pregen \tDisable preimage generalization in ic3." },
   { NO_IC3_INDGEN,
     0,
     "",
@@ -326,7 +326,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
-        case NO_IC3_CEXGEN: ic3_cexgen_ = false; break;
+        case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;
         case IC3_INDGEN_MODE:

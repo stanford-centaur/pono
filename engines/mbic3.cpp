@@ -709,7 +709,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
   assert(i > 1);  // so F[i-2] makes sense
   assert(!intersects(res.term_, get_frame(i - 2)));
 
-  if (options_.ic3_cexgen_ && !options_.ic3_functional_preimage_) {
+  if (options_.ic3_pregen_ && !options_.ic3_functional_preimage_) {
     // add congruent equalities to cube_lits
     for (auto v : statevars) {
       Term t = ds.find(v);
@@ -748,7 +748,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
     // update res to the generalization
     res = Conjunction(solver_, red_cube_lits);
 
-  } else if (options_.ic3_cexgen_ && options_.ic3_functional_preimage_) {
+  } else if (options_.ic3_pregen_ && options_.ic3_functional_preimage_) {
     assert(ts_.is_deterministic());
 
     UnorderedTermMap m;
