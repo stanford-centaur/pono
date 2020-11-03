@@ -1,3 +1,6 @@
+#ifdef WITH_MSAT
+// Only run this test with MathSAT
+
 #include <utility>
 #include <vector>
 
@@ -108,3 +111,5 @@ INSTANTIATE_TEST_SUITE_P(
     // only using MathSAT for now, but could be more general in the future
     testing::ValuesIn({ MSAT }));
 }  // namespace pono_tests
+
+#endif
