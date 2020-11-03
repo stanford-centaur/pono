@@ -84,6 +84,11 @@ target_link_libraries(test_ic3ia gtest_main)
 target_link_libraries(test_ic3ia pono-lib)
 add_test(NAME test_ic3ia COMMAND test_ic3ia)
 
+add_executable(test_msat_ic3ia "${PROJECT_SOURCE_DIR}/tests/test_msat_ic3ia.cpp")
+target_link_libraries(test_msat_ic3ia gtest_main)
+target_link_libraries(test_msat_ic3ia pono-lib)
+add_test(NAME test_msat_ic3ia COMMAND test_msat_ic3ia)
+
 add_executable(test_btor2 "${PROJECT_SOURCE_DIR}/tests/encoders/test_btor2.cpp")
 target_link_libraries(test_btor2 gtest_main)
 target_link_libraries(test_btor2 pono-lib)

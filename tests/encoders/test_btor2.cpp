@@ -2,11 +2,11 @@
 #include <tuple>
 #include <vector>
 
-#include "available_solvers.h"
 #include "core/fts.h"
 #include "engines/kinduction.h"
 #include "frontends/btor2_encoder.h"
 #include "gtest/gtest.h"
+#include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
 
 using namespace pono;

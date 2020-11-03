@@ -20,6 +20,8 @@ from pono_imp cimport KInduction as c_KInduction
 from pono_imp cimport BmcSimplePath as c_BmcSimplePath
 from pono_imp cimport InterpolantMC as c_InterpolantMC
 from pono_imp cimport ModelBasedIC3 as c_ModelBasedIC3
+IF WITH_MSAT_IC3IA == "ON":
+    from pono_imp cimport MsatIC3IA as c_MsatIC3IA
 from pono_imp cimport BTOR2Encoder as c_BTOR2Encoder
 IF WITH_COREIR == "ON":
     from pono_imp cimport Module as c_Module
@@ -438,6 +440,13 @@ cdef class ModelBasedIC3(__AbstractProver):
     def __cinit__(self, Property p, SmtSolver s):
         self.cp = new c_ModelBasedIC3(p.cp[0], s.css)
         self._solver = s
+
+
+IF WITH_MSAT_IC3IA == "ON":
+    cdef class MsatIC3IA(__AbstractProver):
+        def __cinit__(self, Property p, SmtSolver s):
+            self.cp = new c_MsatIC3IA(p.cp[0], s.css)
+            self._solver = s
 
 
 cdef class BTOR2Encoder:

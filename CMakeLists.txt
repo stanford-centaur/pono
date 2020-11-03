@@ -37,14 +37,6 @@ if (WITH_PROFILING)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}")
-include_directories("${PROJECT_SOURCE_DIR}/utils")
-include_directories("${PROJECT_SOURCE_DIR}/core")
-include_directories("${PROJECT_SOURCE_DIR}/engines")
-include_directories("${PROJECT_SOURCE_DIR}/frontends")
-include_directories("${PROJECT_SOURCE_DIR}/smt")
-include_directories("${PROJECT_SOURCE_DIR}/options")
-
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/flex/flex-install")
 if (APPLE)
@@ -64,8 +56,6 @@ find_library(LIBRT rt)
 
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
-
-include_directories("${FLEX_INCLUDE_DIRS}")
 
 # TODO: Use find_package
 # find package
@@ -101,6 +91,12 @@ if (WITH_MSAT)
   endif()
 endif()
 
+if (WITH_MSAT_IC3IA)
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
+    message(FATAL_ERROR "Missing ic3ia library -- try running ./contrib/setup-ic3ia.sh")
+  endif()
+endif()
+
 if (WITH_COREIR)
   if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
     message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
@@ -125,7 +121,19 @@ FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
 
 ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
 
-add_library(pono-lib "${PONO_LIB_TYPE}"
+set(INCLUDE_DIRS
+  "${PROJECT_SOURCE_DIR}"
+  "${PROJECT_SOURCE_DIR}/contrib/"
+  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
+  "${SMT_SWITCH_DIR}/local/include"
+  # generated Bison headers go in build directory
+  "${CMAKE_CURRENT_BINARY_DIR}"
+  "${GMP_INCLUDE_DIR}"
+  "${FLEX_INCLUDE_DIRS}"
+  )
+
+set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -162,24 +170,23 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
 
-set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
-
 if (WITH_COREIR OR WITH_COREIR_EXTERN)
   add_definitions(-DWITH_COREIR)
-  target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
-target_include_directories(pono-lib PUBLIC
-  "${PROJECT_SOURCE_DIR}/utils"
-  "${PROJECT_SOURCE_DIR}/core"
-  "${PROJECT_SOURCE_DIR}/contrib/"
-  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
-  "${SMT_SWITCH_DIR}/local/include"
-  # generated Bison headers go in build directory
-  "${CMAKE_CURRENT_BINARY_DIR}"
-  "${GMP_INCLUDE_DIR}"
-  )
+if (WITH_MSAT_IC3IA)
+  add_definitions(-DWITH_MSAT_IC3IA)
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/ic3ia/")
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
+endif()
+
+
+add_library(pono-lib "${PONO_LIB_TYPE}" ${SOURCES})
+set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
+
+target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
 # Should we build python bindings
 option (BUILD_PYTHON_BINDINGS
@@ -196,6 +203,10 @@ target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch
 
 if (WITH_MSAT)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+endif()
+
+if (WITH_MSAT_IC3IA)
+  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
 endif()
 
 if (WITH_COREIR_EXTERN)

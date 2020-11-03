@@ -14,11 +14,10 @@
  **
  **/
 
+#include "engines/interpolantmc.h"
+
 #include "smt-switch/exceptions.h"
-
-#include "available_solvers.h"
-#include "interpolantmc.h"
-
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 
@@ -117,6 +116,7 @@ ProverResult InterpolantMC::check_until(int k)
       if (step(i)) {
         return ProverResult::TRUE;
       } else if (concrete_cex_) {
+        compute_witness();
         return ProverResult::FALSE;
       }
     }
@@ -125,14 +125,6 @@ ProverResult InterpolantMC::check_until(int k)
     logger.log(1, "Failed when computing interpolant.");
   }
   return ProverResult::UNKNOWN;
-}
-
-Term InterpolantMC::invar()
-{
-  if (!invar_) {
-    throw PonoException("Cannot call invar() unless property was proven.");
-  }
-  return to_orig_ts(invar_, BOOL);
 }
 
 bool InterpolantMC::step(int i)

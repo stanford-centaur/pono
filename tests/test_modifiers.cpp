@@ -1,7 +1,6 @@
 #include <utility>
 #include <vector>
 
-#include "available_solvers.h"
 #include "core/fts.h"
 #include "core/rts.h"
 #include "gtest/gtest.h"
@@ -9,6 +8,7 @@
 #include "modifiers/implicit_predicate_abstractor.h"
 #include "modifiers/prophecy_modifier.h"
 #include "smt-switch/utils.h"
+#include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 
 using namespace pono;
