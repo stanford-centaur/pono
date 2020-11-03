@@ -65,6 +65,10 @@ class IC3IA : public ModelBasedIC3
    */
   bool only_curr(smt::Term & t) override;
 
+  /** Override to use the abstract transition system
+   */
+  smt::Term next(const smt::Term & t) const override;
+
   /** Overriden to translate from predicate state variables
    *  to the actual predicates
    */

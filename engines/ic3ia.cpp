@@ -146,6 +146,8 @@ bool IC3IA::get_predecessor(size_t i,
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     // TODO: add generalize option
+    // TODO: refactor mbic3 to use get_conjunction_from_model and we won't need
+    // to override it
     out_pred = get_conjunction_from_model();
     pop_solver_context();
   } else {
@@ -232,6 +234,8 @@ void IC3IA::set_labels()
 }
 
 bool IC3IA::only_curr(Term & t) { return abs_ts_.only_curr(t); }
+
+Term IC3IA::next(const Term & t) const { return abs_ts_.next(t); }
 
 void IC3IA::set_invar(size_t i)
 {

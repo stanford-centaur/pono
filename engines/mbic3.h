@@ -259,6 +259,13 @@ class ModelBasedIC3 : public Prover
    */
   virtual bool only_curr(smt::Term & t);
 
+  /** Map current state to next state variables
+   *  This automatically uses the correct transition system
+   *  i.e. in derived classes operating over an abstract system, it
+   *  will use the abstraction
+   */
+  virtual smt::Term next(const smt::Term & t) const;
+
   /** Sets the invariant with the contents of frame i
    *  @param i the frame holding the invariant
    *  Note: some IC3 implementations might need to do some translation
