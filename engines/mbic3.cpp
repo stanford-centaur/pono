@@ -536,6 +536,7 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
 
           Term tmp_and_term = make_and(tmp);
           if (!intersects_initial(tmp_and_term)) {
+            assert(solver_context_ == 0);
             push_solver_context();
             assert_frame(i - 1);
             solver_->assert_formula(trans_label_);
@@ -784,6 +785,8 @@ bool ModelBasedIC3::intersects_initial(const Term & t)
 
 void ModelBasedIC3::assert_frame(size_t i) const
 {
+  // never expecting to assert a frame at base context
+  assert(solver_context_ > 0);
   assert(frame_labels_.size() == frames_.size());
   Term assump;
   for (size_t j = 0; j < frame_labels_.size(); ++j) {
