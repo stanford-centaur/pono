@@ -91,8 +91,6 @@ class IC3IA : public ModelBasedIC3
    */
   ProverResult refine(ProofGoal pg);
 
-  // TODO figure out relevant state
-
   RelationalTransitionSystem abs_ts_;
 
   ImplicitPredicateAbstractor ia_;
@@ -104,6 +102,10 @@ class IC3IA : public ModelBasedIC3
   ///< e.g. pred_statevars_[i] corresponds to ia_.predicates()[i]
 
   smt::UnorderedTermMap predvar2pred_;
+
+  TransitionSystem interp_ts_;  ///< ts_ over interpolator_ terms
+  std::unique_ptr<Unroller> interp_unroller_;
+  ///< unroller for the interpolator
 
   // useful sorts
   smt::Sort boolsort_;

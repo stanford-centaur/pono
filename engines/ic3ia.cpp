@@ -75,6 +75,9 @@ void IC3IA::initialize()
   assert(!to_interpolator_);
   assert(!to_solver_);
   initialize_interpolator();
+
+  interp_ts_ = RelationalTransitionSystem(ts_, *to_interpolator_);
+  interp_unroller_ = make_unique<Unroller>(interp_ts_, interpolator_);
 }
 
 bool IC3IA::block_all()
@@ -292,19 +295,21 @@ ProverResult IC3IA::refine(ProofGoal pg)
   // remember -- need to transfer between solvers
   assert(interpolator_);
   Term t = make_and({ ts_.init(), ts_.trans(), cex[0] });
-  Term A = to_interpolator_->transfer_term(unroller_.at_time(t, 0), BOOL);
+  Term A =
+      interp_unroller_->at_time(to_interpolator_->transfer_term(t, BOOL), 0);
 
   TermVec B;
+  Term interp_trans = to_interpolator_->transfer_term(ts_.trans(), BOOL);
   B.reserve(cex.size() - 1);
   // add to B in reverse order so we can pop_back later
   for (int i = cex.size() - 1; i >= 0; --i) {
     // replace indicator variables with actual predicates
     Term cex_preds = solver_->substitute(cex[i], predvar2pred_);
-    t = unroller_.at_time(cex_preds, i);
+    t = to_interpolator_->transfer_term(cex_preds, BOOL);
     if (i + 1 < cex.size()) {
-      t = solver_->make_term(And, t, unroller_.at_time(ts_.trans(), i));
+      t = interpolator_->make_term(And, t, interp_trans);
     }
-    B.push_back(to_interpolator_->transfer_term(t, BOOL));
+    B.push_back(interp_unroller_->at_time(t, i));
   }
 
   // now get interpolants for each transition starting with the first
@@ -318,8 +323,9 @@ ProverResult IC3IA::refine(ProofGoal pg)
       Result r = interpolator_->get_interpolant(A, fullB, I);
       all_sat &= r.is_sat();
       if (r.is_unsat()) {
-        logger.log(3, "got interpolant: {}", I);
-        interpolants.push_back(to_solver_->transfer_term(I, BOOL));
+        Term untimedI = interp_unroller_->untime(I);
+        logger.log(3, "got interpolant: {}", untimedI);
+        interpolants.push_back(to_solver_->transfer_term(untimedI, BOOL));
       }
     }
     catch (SmtException & e) {
@@ -339,10 +345,8 @@ ProverResult IC3IA::refine(ProofGoal pg)
     return ProverResult::UNKNOWN;
   } else {
     UnorderedTermSet preds;
-    Term untimedI;
     for (auto I : interpolants) {
-      untimedI = unroller_.untime(I);
-      assert(ts_.only_curr(untimedI));
+      assert(ts_.only_curr(I));
       get_predicates(I, boolsort_, preds);
     }
 

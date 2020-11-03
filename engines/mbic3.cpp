@@ -180,11 +180,10 @@ void ModelBasedIC3::initialize_interpolator()
   UnorderedTermMap & cache = to_solver_->get_cache();
   Term ns;
   for (auto s : ts_.statevars()) {
-    // common variables will be next state
-    // so that's all we need
-    // better not to cache the others, now if there's a bug
-    // where the shared variables are not respected, the term
-    // translator will throw an exception
+    // common variables are next states, unless used for refinement in IC3IA
+    // then will refer to current state variables after untiming
+    // need to cache both
+    cache[to_interpolator_->transfer_term(s)] = s;
     ns = next(s);
     cache[to_interpolator_->transfer_term(ns)] = ns;
   }

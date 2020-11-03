@@ -132,7 +132,6 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
   ASSERT_EQ(r, TRUE);
 
   Term invar = ic3ia.invar();
-  std::cout << "got invar " << invar << std::endl;
   ASSERT_TRUE(check_invar(rts, p.prop(), invar));
 }
 
