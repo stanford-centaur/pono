@@ -293,7 +293,9 @@ ProverResult IC3IA::refine(ProofGoal pg)
   B.reserve(cex.size() - 1);
   // add to B in reverse order so we can pop_back later
   for (int i = cex.size() - 1; i >= 0; --i) {
-    t = unroller_.at_time(cex[i], i);
+    // replace indicator variables with actual predicates
+    Term cex_preds = solver_->substitute(cex[i], predvar2pred_);
+    t = unroller_.at_time(cex_preds, i);
     if (i + 1 < cex.size()) {
       t = solver_->make_term(And, t, unroller_.at_time(ts_.trans(), i));
     }
