@@ -131,6 +131,7 @@ bool IC3IA::get_predecessor(size_t i,
   assert(i > 0);
   assert(i < frames_.size());
 
+  assert(solver_context_ == 0);
   push_solver_context();
 
   // F[i-1]
@@ -149,6 +150,7 @@ bool IC3IA::get_predecessor(size_t i,
     pop_solver_context();
   } else {
     pop_solver_context();
+    assert(solver_context_ == 0);
     TermVec assump, red_assump, rem_assump;
     for (auto a : c.conjuncts_) {
       assump.push_back(abs_ts_.next(a));
