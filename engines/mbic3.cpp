@@ -729,7 +729,7 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
 
       // preimage formula
       Term pre_formula = get_frame(i - 1);
-      pre_formula = solver_->make_term(And, pre_formula, trans_label_);
+      pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
       pre_formula = solver_->make_term(And, pre_formula,
                                        solver_->make_term(Not, c.term_));
       pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term_));
