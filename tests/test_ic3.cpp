@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "core/fts.h"
+#include "core/rts.h"
 #include "engines/mbic3.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
@@ -32,20 +33,20 @@ class IC3UnitTests : public ::testing::Test,
 
 TEST_P(IC3UnitTests, SimpleSystemSafe)
 {
-  FunctionalTransitionSystem fts(s);
-  Term s1 = fts.make_statevar("s1", boolsort);
-  Term s2 = fts.make_statevar("s2", boolsort);
+  RelationalTransitionSystem rts(s);
+  Term s1 = rts.make_statevar("s1", boolsort);
+  Term s2 = rts.make_statevar("s2", boolsort);
 
   // INIT !s1 & !s2
-  fts.constrain_init(s->make_term(Not, s1));
-  fts.constrain_init(s->make_term(Not, s2));
+  rts.constrain_init(s->make_term(Not, s1));
+  rts.constrain_init(s->make_term(Not, s2));
 
   // TRANS next(s1) = (s1 | s2)
   // TRANS next(s2) = s2
-  fts.assign_next(s1, s->make_term(Or, s1, s2));
-  fts.assign_next(s2, s2);
+  rts.assign_next(s1, s->make_term(Or, s1, s2));
+  rts.assign_next(s2, s2);
 
-  Property p(fts, s->make_term(Not, s1));
+  Property p(rts, s->make_term(Not, s1));
 
   ModelBasedIC3 mbic3(p, s);
   ProverResult r = mbic3.prove();
@@ -53,7 +54,7 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
 
   // get the invariant
   Term invar = mbic3.invar();
-  ASSERT_TRUE(check_invar(fts, p.prop(), invar));
+  ASSERT_TRUE(check_invar(rts, p.prop(), invar));
 }
 
 TEST_P(IC3UnitTests, SimpleSystemUnsafe)
