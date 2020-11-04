@@ -105,9 +105,8 @@ bool IC3IA::block_all()
 
 bool IC3IA::intersects_bad()
 {
-  // TODO: if we refactor ModelBasedIC3 to use get_conjunction_from_model
-  //       then we shouldn't have to override this at all
-
+  // we had to override this because ModelBasedIC3 adds the whole bad as a proof goal
+  // and here we just want the predicates
   assert(reached_k_ + 2 == frames_.size());
   assert(frame_labels_.size() == frames_.size());
 
