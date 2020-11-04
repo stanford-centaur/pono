@@ -1019,9 +1019,7 @@ void ModelBasedIC3::set_labels()
   }
   if (!trans_label_) {
     trans_label_ = solver_->make_symbol("__trans_label", boolsort);
-    // Note: Using iff instead of implies so that we can negate it
-    // for example in relational preimage generalization
-    solver_->assert_formula(solver_->make_term(Iff, trans_label_, ts_.trans()));
+    solver_->assert_formula(solver_->make_term(Implies, trans_label_, ts_.trans()));
   }
 }
 
