@@ -114,7 +114,7 @@ bool IC3IA::intersects_bad()
   push_solver_context();
 
   // check if last frame intersects with bad
-  assert_frame(reached_k_ + 1);
+  assert_frame_labels(reached_k_ + 1);
   solver_->assert_formula(bad_);
   Result r = solver_->check_sat();
 
@@ -138,13 +138,13 @@ bool IC3IA::get_predecessor(size_t i,
   push_solver_context();
 
   // F[i-1]
-  assert_frame(i - 1);
+  assert_frame_labels(i - 1);
   // -c
   solver_->assert_formula(solver_->make_term(Not, c.term_));
   // Trans
-  solver_->assert_formula(trans_label_);
+  assert_trans_label();
   // c'
-  solver_->assert_formula(abs_ts_.next(c.term_));
+  solver_->assert_formula(next(c.term_));
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
