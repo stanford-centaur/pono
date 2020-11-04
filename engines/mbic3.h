@@ -165,9 +165,13 @@ class ModelBasedIC3 : public Prover
    *  from Fi and all frames after it
    *  @param i the frame number
    */
-  void assert_frame(size_t i) const;
+  void assert_frame_labels(size_t i) const;
 
   smt::Term get_frame(size_t i) const;
+
+  void assert_trans_label() const;
+
+  virtual smt::Term get_trans() const;
 
   void fix_if_intersects_initial(smt::TermVec & to_keep,
                                  const smt::TermVec & rem);

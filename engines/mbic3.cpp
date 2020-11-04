@@ -163,14 +163,13 @@ void ModelBasedIC3::initialize()
 
   // set labels
   Sort boolsort = solver_->make_sort(BOOL);
-  // Note: we're using Iff instead of Implies for the labels so that if we want
-  // to negate the formula we can -- e.g. for generalization purposes
   init_label_ = solver_->make_symbol("__init_label", boolsort);
-  solver_->assert_formula(solver_->make_term(Iff, init_label_, ts_.init()));
+  solver_->assert_formula(solver_->make_term(Implies, init_label_, ts_.init()));
   // frame 0 label is identical to init label
   init_label_ = frame_labels_[0];
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
-  solver_->assert_formula(solver_->make_term(Iff, trans_label_, ts_.trans()));
+  solver_->assert_formula(
+      solver_->make_term(Implies, trans_label_, ts_.trans()));
 
   assert(!interpolator_);
   assert(solver_);
@@ -280,7 +279,7 @@ bool ModelBasedIC3::intersects_bad()
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
-  assert_frame(reached_k_ + 1);
+  assert_frame_labels(reached_k_ + 1);
   // see if it intersects with bad
   solver_->assert_formula(bad_);
   Result r = solver_->check_sat();
@@ -309,11 +308,11 @@ bool ModelBasedIC3::get_predecessor(size_t i,
   push_solver_context();
 
   // F[i-1]
-  assert_frame(i - 1);
+  assert_frame_labels(i - 1);
   // -c
   solver_->assert_formula(solver_->make_term(Not, c.term_));
   // Trans
-  solver_->assert_formula(trans_label_);
+  assert_trans_label();
   // c'
   solver_->assert_formula(ts_.next(c.term_));
 
@@ -441,8 +440,8 @@ bool ModelBasedIC3::propagate(size_t i)
   const TermVec & Fi = frames_.at(i);
 
   push_solver_context();
-  assert_frame(i);
-  solver_->assert_formula(trans_label_);
+  assert_frame_labels(i);
+  assert_trans_label();
 
   for (size_t j = 0; j < Fi.size(); ++j) {
     const Term & t = Fi.at(j);
@@ -544,8 +543,8 @@ Term ModelBasedIC3::inductive_generalization(size_t i, const Conjunction & c)
           Term tmp_and_term = make_and(tmp);
           if (!intersects_initial(tmp_and_term)) {
             push_solver_context();
-            assert_frame(i - 1);
-            solver_->assert_formula(trans_label_);
+            assert_frame_labels(i - 1);
+            assert_trans_label();
             solver_->assert_formula(solver_->make_term(Not, tmp_and_term));
 
             Term l;
@@ -729,8 +728,14 @@ Conjunction ModelBasedIC3::generalize_predecessor(size_t i,
       formula = solver_->make_term(And, formula, make_and(next_lits));
 
       // preimage formula
+      // NOTE: because this will be negated, it is important to use the
+      // whole frame and trans, not just the labels
+      // because label is: trans_label_ -> trans
+      // so if it is negated, that doesn't force trans to be false
+      // the implication could be more efficient than iff so we want to leave it
+      // that way
       Term pre_formula = get_frame(i - 1);
-      pre_formula = solver_->make_term(And, pre_formula, trans_label_);
+      pre_formula = solver_->make_term(And, pre_formula, get_trans());
       pre_formula = solver_->make_term(And, pre_formula,
                                        solver_->make_term(Not, c.term_));
       pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term_));
@@ -789,7 +794,7 @@ bool ModelBasedIC3::intersects_initial(const Term & t)
   return intersects(init_label_, t);
 }
 
-void ModelBasedIC3::assert_frame(size_t i) const
+void ModelBasedIC3::assert_frame_labels(size_t i) const
 {
   assert(frame_labels_.size() == frames_.size());
   Term assump;
@@ -821,6 +826,15 @@ Term ModelBasedIC3::get_frame(size_t i) const
   return res;
 }
 
+void ModelBasedIC3::assert_trans_label() const
+{
+  // shouldn't be a scenario where trans is asserted at base context
+  assert(solver_context_ > 0);
+  solver_->assert_formula(trans_label_);
+}
+
+Term ModelBasedIC3::get_trans() const { return ts_.trans(); };
+
 void ModelBasedIC3::fix_if_intersects_initial(TermVec & to_keep,
                                               const TermVec & rem)
 {
@@ -835,13 +849,13 @@ size_t ModelBasedIC3::push_blocking_clause(size_t i, Term c)
   push_solver_context();
   solver_->assert_formula(c);
   solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
-  solver_->assert_formula(trans_label_);
+  assert_trans_label();
 
   Result r;
   size_t j;
   for (j = i; j + 1 < frames_.size(); ++j) {
     push_solver_context();
-    assert_frame(j);
+    assert_frame_labels(j);
     r = solver_->check_sat();
     pop_solver_context();
     if (r.is_sat()) {
