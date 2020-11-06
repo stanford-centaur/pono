@@ -55,12 +55,8 @@ ctypedef unordered_map[c_Term, c_Term].const_iterator c_UnorderedTermMap_const_i
 cdef class __AbstractTransitionSystem:
     cdef c_TransitionSystem* cts
     cdef SmtSolver _solver
-    # Note: don't want to allow null TransitionSystems
-    # means there's no way to instantiate a transition system without the solver
     def __cinit__(self, SmtSolver s):
-        # if not specified, this creates a relational transition system under the hood
-        self.cts = new c_RelationalTransitionSystem(s.css)
-        self._solver = s
+        pass
 
     def set_init(self, Term init):
         dref(self.cts).set_init(init.ct)
@@ -298,6 +294,9 @@ cdef class RelationalTransitionSystem(__AbstractTransitionSystem):
         self.cts = new c_RelationalTransitionSystem(s.css)
         self._solver = s
 
+    def __dealloc__(self):
+        del self.cts
+
     def set_behavior(self, Term init, Term trans):
         dref(<c_RelationalTransitionSystem * ?> self.cts).set_behavior(init.ct, trans.ct)
 
@@ -313,6 +312,9 @@ cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
         self.cts = new c_FunctionalTransitionSystem(s.css)
         self._solver = s
 
+    def __dealloc__(self):
+        del self.cts
+
 
 cdef class Property:
     cdef c_Property* cp
@@ -320,6 +322,9 @@ cdef class Property:
     def __cinit__(self, __AbstractTransitionSystem ts, Term p):
         self.cp = new c_Property(ts.cts[0], p.ct)
         self.ts = ts
+
+    def __dealloc__(self):
+        del self.cp
 
     @property
     def prop(self):
@@ -338,6 +343,9 @@ cdef class Unroller:
     def __cinit__(self, __AbstractTransitionSystem ts, SmtSolver s):
         self.cu = new c_Unroller(ts.cts[0], s.css)
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cu
 
     def at_time(self, Term t, unsigned int k):
         cdef Term term = Term(self._solver)
@@ -418,11 +426,17 @@ cdef class Bmc(__AbstractProver):
         self.cp = new c_Bmc(p.cp[0], s.css)
         self._solver = s
 
+    def __dealloc__(self):
+        del self.cp
+
 
 cdef class KInduction(__AbstractProver):
     def __cinit__(self, Property p, SmtSolver s):
         self.cp = new c_KInduction(p.cp[0], s.css)
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
 
 
 cdef class BmcSimplePath(__AbstractProver):
@@ -430,17 +444,26 @@ cdef class BmcSimplePath(__AbstractProver):
         self.cp = new c_BmcSimplePath(p.cp[0], s.css)
         self._solver = s
 
+    def __dealloc__(self):
+        del self.cp
+
 
 cdef class InterpolantMC(__AbstractProver):
     def __cinit__(self, Property p, SmtSolver s, SmtSolver interp):
         self.cp = new c_InterpolantMC(p.cp[0], s.css, interp.css)
         self._solver = s
 
+    def __dealloc__(self):
+        del self.cp
+
 
 cdef class ModelBasedIC3(__AbstractProver):
     def __cinit__(self, Property p, SmtSolver s):
         self.cp = new c_ModelBasedIC3(p.cp[0], s.css)
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
 
 
 IF WITH_MSAT_IC3IA == "ON":
@@ -455,6 +478,9 @@ cdef class BTOR2Encoder:
     def __cinit__(self, str filename, __AbstractTransitionSystem ts):
         self.cbe = new c_BTOR2Encoder(filename.encode(), dref(ts.cts))
 
+    def __dealloc__(self):
+        del self.cbe
+
 IF WITH_COREIR == "ON":
     cdef class CoreIREncoder:
         cdef c_CoreIREncoder * cbe
@@ -468,12 +494,18 @@ IF WITH_COREIR == "ON":
             else:
                 raise ValueError("CoreIR encoder takes a pycoreir Context or a filename but got {}".format(mod))
 
+        def __dealloc__(self):
+            del self.cbe
+
 cdef class HistoryModifier:
     cdef c_HistoryModifier * chm
     cdef __AbstractTransitionSystem _ts
     def __cinit__(self, __AbstractTransitionSystem ts):
         self.chm = new c_HistoryModifier(dref(ts.cts));
         self._ts = ts
+
+    def __dealloc__(self):
+        del self.chm
 
     def get_hist(self, Term target, int delay):
         if delay < 0:
@@ -495,6 +527,10 @@ cdef class VCDWitnessPrinter:
                 dref(c_cex)[i][(<Term?> k).ct] = (<Term?> v).ct
         assert len(cex) == dref(c_cex).size(), 'expecting C++ view of witness to be the same length'
         self.cvwp = new c_VCDWitnessPrinter(dref(ts.cts), dref(c_cex))
+
+    def __dealloc__(self):
+        del self.cvwp
+        del self.c_cex
 
     def dump_trace_to_file(self, str vcd_file_name):
         dref(self.cvwp).dump_trace_to_file(vcd_file_name.encode())
