@@ -489,13 +489,13 @@ cdef class VCDWitnessPrinter:
         cdef vector[c_UnorderedTermMap] c_cex
         for i in range(len(cex)):
             c_cex.push_back(c_UnorderedTermMap())
-            assert c_cex.size() == i
-            for k, v in cex.items():
+            for k, v in cex[i].items():
                 c_cex[i][(<Term?> k).ct] = (<Term?> v).ct
+        assert len(cex) == c_cex.size(), 'expecting C++ view of witness to be the same length'
         self.cvwp = new c_VCDWitnessPrinter(dref(ts.cts), c_cex)
 
     def dump_trace_to_file(self, str vcd_file_name):
-        dref(self.cvwp).dump_trace_to_file(vcd_file_name)
+        dref(self.cvwp).dump_trace_to_file(vcd_file_name.encode())
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)

@@ -217,6 +217,7 @@ VCDWitnessPrinter::VCDWitnessPrinter(
       continue;
     check_insert_scope(input->to_string(), false, input);
   }
+
 } // VCDWitnessPrinter -- constructor
 
 void VCDWitnessPrinter::debug_dump() const
@@ -604,6 +605,7 @@ void VCDWitnessPrinter::dump_trace_to_file(
   std::ofstream fout(vcd_file_name);
   if (!fout.is_open())
     throw PonoException("Unable to write to : " + vcd_file_name);
+
   GenHeader(fout);
   DumpValues(fout);
   logger.log(0, "Trace written to " + vcd_file_name);
