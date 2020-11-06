@@ -27,6 +27,7 @@ IF WITH_COREIR == "ON":
     from pono_imp cimport Module as c_Module
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
 from pono_imp cimport HistoryModifier as c_HistoryModifier
+from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from pono_imp cimport get_free_symbols as c_get_free_symbols
 
@@ -481,6 +482,20 @@ cdef class HistoryModifier:
         cdef Term term = Term(self._ts.solver)
         term.ct = dref(self.chm).get_hist(target.ct, delay)
         return term
+
+cdef class VCDWitnessPrinter:
+    cdef c_VCDWitnessPrinter * cvwp
+    def __cinit__(self, __AbstractTransitionSystem ts, cex):
+        cdef vector[c_UnorderedTermMap] c_cex
+        for i in range(len(cex)):
+            c_cex.push_back(c_UnorderedTermMap())
+            assert c_cex.size() == i
+            for k, v in cex.items():
+                c_cex[i][(<Term?> k).ct] = (<Term?> v).ct
+        self.cvwp = new c_VCDWitnessPrinter(dref(ts.cts), c_cex)
+
+    def dump_trace_to_file(self, str vcd_file_name):
+        dref(self.cvwp).dump_trace_to_file(vcd_file_name)
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)
