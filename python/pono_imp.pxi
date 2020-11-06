@@ -485,14 +485,16 @@ cdef class HistoryModifier:
 
 cdef class VCDWitnessPrinter:
     cdef c_VCDWitnessPrinter * cvwp
+    # need to keep the c_cex around on the heap because VCDWitnessPrinter only keeps a reference to it
+    cdef vector[c_UnorderedTermMap] * c_cex
     def __cinit__(self, __AbstractTransitionSystem ts, cex):
-        cdef vector[c_UnorderedTermMap] c_cex
+        c_cex = new vector[c_UnorderedTermMap]()
         for i in range(len(cex)):
-            c_cex.push_back(c_UnorderedTermMap())
+            dref(c_cex).push_back(c_UnorderedTermMap())
             for k, v in cex[i].items():
-                c_cex[i][(<Term?> k).ct] = (<Term?> v).ct
-        assert len(cex) == c_cex.size(), 'expecting C++ view of witness to be the same length'
-        self.cvwp = new c_VCDWitnessPrinter(dref(ts.cts), c_cex)
+                dref(c_cex)[i][(<Term?> k).ct] = (<Term?> v).ct
+        assert len(cex) == dref(c_cex).size(), 'expecting C++ view of witness to be the same length'
+        self.cvwp = new c_VCDWitnessPrinter(dref(ts.cts), dref(c_cex))
 
     def dump_trace_to_file(self, str vcd_file_name):
         dref(self.cvwp).dump_trace_to_file(vcd_file_name.encode())
