@@ -152,6 +152,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_node.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/coi.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/history_modifier.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/prophecy_modifier.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
