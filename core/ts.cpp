@@ -14,10 +14,12 @@
  **
  **/
 
-#include <functional>
-#include "assert.h"
+#include "core/ts.h"
 
-#include "ts.h"
+#include <functional>
+
+#include "assert.h"
+#include "smt-switch/utils.h"
 
 using namespace smt;
 using namespace std;
@@ -445,6 +447,30 @@ void TransitionSystem::rebuild_trans_based_on_coi(
     }
   }
   state_updates_ = reduced_state_updates;
+
+  /* update named_terms and remove terms that are not in coi */
+  unordered_map<string, Term> reduced_named_terms;
+  TermVec free_vars;
+  for (auto elem : named_terms_) {
+    free_vars.clear();
+    get_free_symbolic_consts(elem.second, free_vars);
+    bool any_in_coi = false;
+    Term currvar;
+    for (auto v : free_vars) {
+      // look at current version of variables (if it contains next states)
+      // NOTE: it could also be an input variable
+      currvar = curr(v);
+      if (state_vars_in_coi.find(currvar) != state_vars_in_coi.end()
+          || input_vars_in_coi.find(currvar) != input_vars_in_coi.end()) {
+        any_in_coi = true;
+        break;
+      }
+    }
+    if (any_in_coi) {
+      reduced_named_terms[elem.first] = elem.second;
+    }
+  }
+  named_terms_ = reduced_named_terms;
 }
 
 // protected methods
