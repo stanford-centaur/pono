@@ -143,6 +143,12 @@ IF WITH_COREIR == "ON":
             CoreIREncoder(string filename, RelationalTransitionSystem & ts) except +
             CoreIREncoder(Module * top_mod, RelationalTransitionSystem & ts) except +
 
+
+cdef extern from "modifiers/coi.h" namespace "pono":
+    cdef cppclass ConeOfInfluence:
+        ConeOfInfluence(TransitionSystem & ts, const c_TermVec & to_keep) except +
+
+
 cdef extern from "modifiers/history_modifier.h" namespace "pono":
     cdef cppclass HistoryModifier:
         HistoryModifier(TransitionSystem & ts) except +

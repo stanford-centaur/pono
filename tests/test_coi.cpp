@@ -19,11 +19,10 @@ class CoiUnitTests : public ::testing::Test,
     s->set_opt("produce-models", "true");
     s->set_opt("incremental", "true");
     boolsort = s->make_sort(BOOL);
-    bvsort1 = s->make_sort(BV, 1);
     bvsort8 = s->make_sort(BV, 8);
   }
   SmtSolver s;
-  Sort boolsort, bvsort1, bvsort8;
+  Sort boolsort, bvsort8;
 };
 
 TEST_P(CoiUnitTests, SimpleCoiTest)
