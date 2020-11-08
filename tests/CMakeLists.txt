@@ -69,6 +69,11 @@ target_link_libraries(test_control_signal_modifiers gtest_main)
 target_link_libraries(test_control_signal_modifiers pono-lib)
 add_test(NAME test_control_signal_modifiers COMMAND test_control_signal_modifiers)
 
+add_executable(test_coi "${PROJECT_SOURCE_DIR}/tests/test_coi.cpp")
+target_link_libraries(test_coi gtest_main)
+target_link_libraries(test_coi pono-lib)
+add_test(NAME test_coi COMMAND test_coi)
+
 add_executable(test_btor2_ts_copy_equal "${PROJECT_SOURCE_DIR}/tests/test_btor2_ts_copy_equal.cpp")
 target_link_libraries(test_btor2_ts_copy_equal gtest_main)
 target_link_libraries(test_btor2_ts_copy_equal pono-lib)
