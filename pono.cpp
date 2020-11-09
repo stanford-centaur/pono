@@ -268,7 +268,7 @@ int main(int argc, char ** argv)
           print_witness_btor(btor_enc, cex);
           if (!pono_options.vcd_name_.empty()) {
             VCDWitnessPrinter vcdprinter(fts, cex);
-            vcdprinter.DumpTraceToFile(pono_options.vcd_name_);
+            vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
           }
         }
       } else if (res == TRUE) {
@@ -325,7 +325,7 @@ int main(int argc, char ** argv)
         assert(!pono_options.no_witness_ || pono_options.vcd_name_.empty());
         if (!pono_options.vcd_name_.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
-          vcdprinter.DumpTraceToFile(pono_options.vcd_name_);
+          vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
         }
       } else if (res == TRUE) {
         cout << "unsat" << endl;

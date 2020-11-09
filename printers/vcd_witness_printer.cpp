@@ -217,17 +217,18 @@ VCDWitnessPrinter::VCDWitnessPrinter(
       continue;
     check_insert_scope(input->to_string(), false, input);
   }
+
 } // VCDWitnessPrinter -- constructor
 
-
-void VCDWitnessPrinter::DebugDump() const {
+void VCDWitnessPrinter::debug_dump() const
+{
   for (uint64_t fidx = 0; fidx < cex_.size(); ++ fidx) {
     logger.log(3, "------------- CEX : F{} -----------------", fidx);
     for (auto && t : cex_.at(fidx)) {
       logger.log(3, "{} -> {}", t.first->to_string(), t.second->to_string() );
     }
   }
-} // DebugDump
+}  // debug_dump
 
 std::string VCDWitnessPrinter::new_hash_id() {
   return "v" + std::to_string(hash_id_cnt_++);
@@ -598,14 +599,16 @@ void VCDWitnessPrinter::DumpValues(std::ostream & fout) const {
   fout << "#" << cex_.size() << std::endl;
 }
 
-
-void VCDWitnessPrinter::DumpTraceToFile(const std::string & vcd_file_name) const {
+void VCDWitnessPrinter::dump_trace_to_file(
+    const std::string & vcd_file_name) const
+{
   std::ofstream fout(vcd_file_name);
   if (!fout.is_open())
     throw PonoException("Unable to write to : " + vcd_file_name);
+
   GenHeader(fout);
   DumpValues(fout);
   logger.log(0, "Trace written to " + vcd_file_name);
-}
+}  // dump_trace_to_file
 
 }  // namespace pono

@@ -148,6 +148,11 @@ cdef extern from "modifiers/history_modifier.h" namespace "pono":
         HistoryModifier(TransitionSystem & ts) except +
         c_Term get_hist(const c_Term & target, size_t delay) except +
 
+cdef extern from "printers/vcd_witness_printer.h" namespace "pono":
+    cdef cppclass VCDWitnessPrinter:
+        VCDWitnessPrinter(const TransitionSystem & ts,
+                          vector[c_UnorderedTermMap] & cex)
+        void dump_trace_to_file(const string & vcd_file_name) except +
 
 cdef extern from "utils/logger.h" namespace "pono":
     void set_global_logger_verbosity(unsigned int v) except +
