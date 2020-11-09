@@ -28,6 +28,7 @@ IF WITH_COREIR == "ON":
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
 from pono_imp cimport HistoryModifier as c_HistoryModifier
 from pono_imp cimport ConeOfInfluence as c_ConeOfInfluence
+from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from pono_imp cimport get_free_symbols as c_get_free_symbols
 
@@ -499,6 +500,22 @@ def coi_reduction(__AbstractTransitionSystem ts, to_keep):
         c_to_keep.push_back((<Term?> t).ct)
     assert len(to_keep) == c_to_keep.size()
     c_ConeOfInfluence(dref(ts.cts), c_to_keep)
+
+cdef class VCDWitnessPrinter:
+    cdef c_VCDWitnessPrinter * cvwp
+    # need to keep the c_cex around on the heap because VCDWitnessPrinter only keeps a reference to it
+    cdef vector[c_UnorderedTermMap] * c_cex
+    def __cinit__(self, __AbstractTransitionSystem ts, cex):
+        c_cex = new vector[c_UnorderedTermMap]()
+        for i in range(len(cex)):
+            dref(c_cex).push_back(c_UnorderedTermMap())
+            for k, v in cex[i].items():
+                dref(c_cex)[i][(<Term?> k).ct] = (<Term?> v).ct
+        assert len(cex) == dref(c_cex).size(), 'expecting C++ view of witness to be the same length'
+        self.cvwp = new c_VCDWitnessPrinter(dref(ts.cts), dref(c_cex))
+
+    def dump_trace_to_file(self, str vcd_file_name):
+        dref(self.cvwp).dump_trace_to_file(vcd_file_name.encode())
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)
