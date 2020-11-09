@@ -9,7 +9,7 @@ from setuptools import setup
 
 setup(name='pono',
       long_description="Python bindings for the model checker Pono",
-      version='${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}',
+      version='draft${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}',
       url='https://github.com/upscale-project/pono',
       license='BSD',
       test_requires=['pytest'],
