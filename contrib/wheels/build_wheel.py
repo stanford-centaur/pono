@@ -81,7 +81,7 @@ class CMakeBuild(build_ext):
         python_make_dir = os.path.join(build_dir, "python")
         if not os.path.isfile(os.path.join(python_make_dir, "Makefile")):
             configure_path = os.path.join(root_dir, "configure.sh")
-            configure_args = [configure_path, "--python"]
+            configure_args = [configure_path, "--python", '--static']
             subprocess.check_call(configure_args, cwd=root_dir)
 
         # build the main library
