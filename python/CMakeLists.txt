@@ -43,6 +43,39 @@ else()
   set(PYTHON_VERSION_PATCH ${Python3_VERSION_PATCH})
 endif()
 
+# TODO: either get rid of python2 or actually support both
+if (Python3_Development_FOUND)
+  set(PYTHON_LIBRARY "${Python3_LIBRARIES}" CACHE STRING "Python libraries")
+  set(PYTHON_INCLUDE_DIR "${Python3_INCLUDE_DIRS}" CACHE STRING "Python include directories")
+else()
+  message(STATUS "Didn't find python library and include directory -- falling back")
+  execute_process(COMMAND "${PYTHON_EXECUTABLE}" "-c"
+    "from distutils import sysconfig as s;
+print(s.get_python_inc(plat_specific=True));
+print(s.get_config_var('LDVERSION') or s.get_config_var('VERSION'));
+"
+     RESULT_VARIABLE PY_SUCCESS
+     OUTPUT_VARIABLE PY_VALS
+     ERROR_VARIABLE  PY_ERR)
+
+  if (NOT PY_SUCCESS MATCHES 0)
+    message(FATAL "Cannot locate python library...")
+  endif()
+
+  # create a list
+  string(REGEX REPLACE ";" "\\\\;" PY_VALS ${PY_VALS})
+  string(REGEX REPLACE "\n" ";" PY_VALS ${PY_VALS})
+
+  list(GET PY_VALS 0 PY_INCLUDE_DIR)
+  list(GET PY_VALS 1 PY_LIB_SUFFIX)
+
+  set(PYTHON_INCLUDE_DIR "${PY_INCLUDE_DIR}" CACHE STRING "Python include directory")
+
+  # since cmake could not find the library, just set the name/version
+  # and let the linker figure it out
+  set(PYTHON_LIBRARY python${PY_LIB_SUFFIX} CACHE STRING "Python library")
+
+endif()
 
 # WITH_COREIR is a macro in the Cython files
 # Needs to be set either way
