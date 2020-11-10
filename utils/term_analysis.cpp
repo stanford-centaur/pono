@@ -63,7 +63,24 @@ void get_predicates(const Term & term,
 
   // set of boolean operators
   // boolean terms with these operators are not predicates
-  unordered_set<PrimOp> boolops({ And, Or, Xor, Not, Implies, Iff, Ite });
+  unordered_set<PrimOp> boolops(
+      { And,
+        Or,
+        Xor,
+        Not,
+        Implies,
+        Iff,
+        Ite,
+        // Note: also including bit-vector operators for solvers that
+        //       alias bool and bv of size 1
+        //       should not make a difference for solvers that don't
+        //       alias, so this is just to make this method work for
+        //       all solvers
+        BVAnd,
+        BVOr,
+        BVXor,
+        BVNand,
+        BVNot });
 
   Term t;
   while (to_visit.size()) {

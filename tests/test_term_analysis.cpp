@@ -24,7 +24,7 @@ class TermAnalysisUnitTests : public ::testing::Test,
   Sort boolsort, bvsort, funsort, relsort;
 };
 
-TEST_P(TermAnalysisUnitTests, GetPredicates)
+TEST_P(TermAnalysisUnitTests, GetPredicatesBasic)
 {
   if (s->get_solver_enum() == BTOR) {
     std::cout << "SKIPPING get predicates test for BTOR" << std::endl;
@@ -64,6 +64,29 @@ TEST_P(TermAnalysisUnitTests, GetPredicates)
   // added one predicate -- b
   EXPECT_TRUE(preds.size() == expected_preds.size() + 1);
   EXPECT_TRUE(preds.find(b) != preds.end());
+}
+
+TEST_P(TermAnalysisUnitTests, GetPredicatesIte)
+{
+  Term x = s->make_symbol("x", bvsort);
+  Term y = s->make_symbol("y", bvsort);
+  Term z = s->make_symbol("z", bvsort);
+  Term nextval = s->make_symbol("nextval", bvsort);
+
+  Term xley = s->make_term(BVUle, x, y);
+  Term ylt8 = s->make_term(BVUlt, y, s->make_term(8, bvsort));
+  Term yltz = s->make_term(BVUlt, y, z);
+  Term update = s->make_term(
+      Ite, s->make_term(And, xley, ylt8), x, s->make_term(Ite, yltz, y, z));
+  Term formula = s->make_term(Equal, nextval, update);
+
+  UnorderedTermSet expected_preds({ xley, ylt8, yltz, formula });
+  UnorderedTermSet preds;
+  get_predicates(formula, boolsort, preds);
+
+  EXPECT_EQ(preds.size(), expected_preds.size());
+  // due to rewriting, they may not be exactly the same predicates
+  // e.g. x <= y gets rewritten to not(y < x) and then the predicate is y < x
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedTermAnalysisUnitTests,
