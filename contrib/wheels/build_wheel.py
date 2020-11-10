@@ -61,7 +61,7 @@ class CMakeBuild(build_ext):
         # contrib folder
         contrib_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         # build smt-switch
-        contrib_smt_switch = os.path.join(contrib_path, "setup-smt-switch.sh")
+        contrib_smt_switch = [os.path.join(contrib_path, "setup-smt-switch.sh"), "--python"]
         subprocess.check_call(contrib_smt_switch)
         # build btor2
         contrib_btor2 = os.path.join(contrib_path, "setup-btor2tools.sh")
