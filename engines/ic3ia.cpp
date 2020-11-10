@@ -189,10 +189,10 @@ Conjunction IC3IA::get_conjunction_from_model()
   conjuncts.reserve(pred_statevars_.size());
   Term val;
   for (auto p : pred_statevars_) {
-    if ((val = solver_->get_value(p)) == true_) {
+    if ((val = solver_->get_value(p)) == solver_true_) {
       conjuncts.push_back(p);
     } else {
-      assert(val == false_);
+      assert(val == solver_false_);
       conjuncts.push_back(solver_->make_term(Not, p));
     }
   }

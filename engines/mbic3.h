@@ -293,9 +293,9 @@ class ModelBasedIC3 : public Prover
   ///< stack of outstanding proof goals
   std::vector<ProofGoal> proof_goals_;
 
-  // useful terms
-  smt::Term true_;
-  smt::Term false_;
+  // useful terms from the default solver
+  smt::Term solver_true_;
+  smt::Term solver_false_;
 
   // NOTE: need to be sure to always use [push|pop]_solver_context
   // instead of doing it directly on the solver or this will be

@@ -92,8 +92,8 @@ Conjunction::Conjunction(const smt::SmtSolver & solver,
 
 ModelBasedIC3::ModelBasedIC3(Property & p, SolverEnum se)
     : super(p, se),
-      true_(solver_->make_term(true)),
-      false_(solver_->make_term(false)),
+      solver_true_(solver_->make_term(true)),
+      solver_false_(solver_->make_term(false)),
       solver_context_(0)
 {
   // super sets other options
@@ -103,8 +103,8 @@ ModelBasedIC3::ModelBasedIC3(Property & p, SolverEnum se)
 
 ModelBasedIC3::ModelBasedIC3(Property & p, const SmtSolver & slv)
     : super(p, slv),
-      true_(solver_->make_term(true)),
-      false_(solver_->make_term(false)),
+      solver_true_(solver_->make_term(true)),
+      solver_false_(solver_->make_term(false)),
       solver_context_(0)
 {
   initialize();
@@ -114,8 +114,8 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
                              Property & p,
                              const SolverEnum se)
     : super(opt, p, se),
-      true_(solver_->make_term(true)),
-      false_(solver_->make_term(false)),
+      solver_true_(solver_->make_term(true)),
+      solver_false_(solver_->make_term(false)),
       solver_context_(0)
 {
   // super sets other options
@@ -127,8 +127,8 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
                              Property & p,
                              const SmtSolver & slv)
     : super(opt, p, slv),
-      true_(solver_->make_term(true)),
-      false_(solver_->make_term(false)),
+      solver_true_(solver_->make_term(true)),
+      solver_false_(solver_->make_term(false)),
       solver_context_(0)
 {
   initialize();
@@ -813,7 +813,7 @@ Term ModelBasedIC3::get_frame(size_t i) const
     return frames_[0][0];
   }
 
-  Term res = true_;
+  Term res = solver_true_;
   for (size_t j = i; j < frames_.size(); ++j) {
     for (auto c : frames_[j]) {
       res = solver_->make_term(And, res, c);
