@@ -69,11 +69,6 @@ class IC3IA : public ModelBasedIC3
    */
   smt::Term next(const smt::Term & t) const override;
 
-  /** Overriden to translate from predicate state variables
-   *  to the actual predicates
-   */
-  void set_invar(size_t i) override;
-
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)
    *  and also incrementally updates the local transition relation
@@ -94,14 +89,6 @@ class IC3IA : public ModelBasedIC3
   RelationalTransitionSystem abs_ts_;
 
   ImplicitPredicateAbstractor ia_;
-
-  smt::TermVec pred_statevars_;
-  ///< state variables that IC3IA sees
-  ///< these represent predicates and should stay aligned with the
-  ///< predicate vector in the abstraction (ia_.predicates())
-  ///< e.g. pred_statevars_[i] corresponds to ia_.predicates()[i]
-
-  smt::UnorderedTermMap predvar2pred_;
 
   TransitionSystem interp_ts_;  ///< ts_ over interpolator_ terms
   std::unique_ptr<Unroller> interp_unroller_;

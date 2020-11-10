@@ -102,6 +102,12 @@ void ImplicitPredicateAbstractor::do_abstraction()
     if (sv->get_sort() == boolsort_)
     {
       // don't abstract boolean variables
+      // but they're implicitly considered predicates
+      // which are precise instead of being abstracted
+      // so there doesn't need to be a relation added, e.g.
+      // P(X') <-> P(X^) is not needed for boolean variables
+      assert(abs_ts_.is_curr_var(sv));
+      predicates_.push_back(sv);
       continue;
     }
     Term nv = conc_ts_.next(sv);

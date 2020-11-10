@@ -275,7 +275,7 @@ class ModelBasedIC3 : public Prover
    *  Note: some IC3 implementations might need to do some translation
    *  from an abstraction
    */
-  virtual void set_invar(size_t i);
+  void set_invar(size_t i);
 
   // Data structures
 

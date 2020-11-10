@@ -185,10 +185,11 @@ bool IC3IA::get_predecessor(size_t i,
 
 Conjunction IC3IA::get_conjunction_from_model()
 {
+  const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
-  conjuncts.reserve(pred_statevars_.size());
+  conjuncts.reserve(preds.size());
   Term val;
-  for (auto p : pred_statevars_) {
+  for (auto p : preds) {
     if ((val = solver_->get_value(p)) == solver_true_) {
       conjuncts.push_back(p);
     } else {
@@ -215,16 +216,6 @@ void IC3IA::set_labels()
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, abs_ts_.trans()));
 
-    // add boolean state variables as predicates
-    // NOTE: this must be done before adding predicates
-    // because adding predicates also creates a new state var
-    // for each predicate and we don't want to dobule count those
-    for (auto sv : abs_ts_.statevars()) {
-      if (boolsort_ == sv->get_sort()) {
-        pred_statevars_.push_back(sv);
-      }
-    }
-
     // add all the predicates from init and property
     UnorderedTermSet preds;
     get_predicates(ts_.init(), boolsort_, preds, false);
@@ -239,13 +230,6 @@ bool IC3IA::only_curr(Term & t) { return abs_ts_.only_curr(t); }
 
 Term IC3IA::next(const Term & t) const { return abs_ts_.next(t); }
 
-void IC3IA::set_invar(size_t i)
-{
-  Term Fi = get_frame(i);
-  // need to translate to actual predicates
-  invar_ = solver_->substitute(Fi, predvar2pred_);
-}
-
 void IC3IA::add_predicate(const Term & pred)
 {
   assert(abs_ts_.only_curr(pred));
@@ -256,26 +240,6 @@ void IC3IA::add_predicate(const Term & pred)
   assert(!solver_context_);  // should be at context 0
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
-
-  // create a new state variable for the IC3 procedure
-  // used to represent the predicate
-  // NOTE: don't need to actually add to the TS
-  //       kept separate for predicate abstraction
-  // TODO: add infrastructure for getting a fresh symbol -- might fail if name
-  // already exists
-  string name = "__pred" + std::to_string(pred_statevars_.size());
-  Term pred_state = abs_ts_.make_statevar(name, boolsort_);
-  pred_statevars_.push_back(pred_state);
-  predvar2pred_[pred_state] = pred;
-
-  // associate the fresh state vars with predicate applied to current / next
-  // states
-  // NOTE: needs to be Iff, not just Implies, because needs to enforce false
-  // case also
-  solver_->assert_formula(solver_->make_term(Iff, pred_state, pred));
-  // NOTE: this predicate is over the original next state vars (not abstracted)
-  solver_->assert_formula(
-      solver_->make_term(Iff, abs_ts_.next(pred_state), ts_.next(pred)));
 }
 
 ProverResult IC3IA::refine(ProofGoal pg)
@@ -303,8 +267,7 @@ ProverResult IC3IA::refine(ProofGoal pg)
   // add to B in reverse order so we can pop_back later
   for (int i = cex.size() - 1; i >= 0; --i) {
     // replace indicator variables with actual predicates
-    Term cex_preds = solver_->substitute(cex[i], predvar2pred_);
-    t = to_interpolator_->transfer_term(cex_preds, BOOL);
+    t = to_interpolator_->transfer_term(cex[i], BOOL);
     if (i + 1 < cex.size()) {
       t = interpolator_->make_term(And, t, interp_trans);
     }
