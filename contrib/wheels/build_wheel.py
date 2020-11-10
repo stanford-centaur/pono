@@ -72,6 +72,9 @@ class CMakeBuild(build_ext):
         # build flex
         contrib_flex = os.path.join(contrib_path, "setup-flex.sh")
         subprocess.check_call(contrib_flex)
+        # build coreir
+        contrib_coreir = os.path.join(contrib_path, "setup-coreir.sh")
+        subprocess.check_call(contrib_coreir)
 
         # configure
         root_dir = os.path.dirname(contrib_path)
@@ -81,7 +84,7 @@ class CMakeBuild(build_ext):
         python_make_dir = os.path.join(build_dir, "python")
         if not os.path.isfile(os.path.join(python_make_dir, "Makefile")):
             configure_path = os.path.join(root_dir, "configure.sh")
-            configure_args = [configure_path, "--python"]
+            configure_args = [configure_path, "--python", "--with-coreir"]
             subprocess.check_call(configure_args, cwd=root_dir)
 
         # build the main library
