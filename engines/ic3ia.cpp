@@ -213,7 +213,7 @@ void IC3IA::set_labels()
     // Note: Using iff instead of implies so that we can negate it
     // for example in relational preimage generalization
     solver_->assert_formula(
-        solver_->make_term(Iff, trans_label_, abs_ts_.trans()));
+        solver_->make_term(Implies, trans_label_, abs_ts_.trans()));
 
     // add boolean state variables as predicates
     // NOTE: this must be done before adding predicates

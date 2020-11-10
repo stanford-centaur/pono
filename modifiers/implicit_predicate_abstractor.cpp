@@ -25,6 +25,40 @@ using namespace std;
 
 namespace pono {
 
+ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
+    const TransitionSystem & conc_ts, TransitionSystem & abs_ts)
+    : Abstractor(conc_ts, abs_ts),
+      solver_(abs_ts.solver()),
+      abs_rts_(static_cast<RelationalTransitionSystem &>(abs_ts_))
+{
+  if (conc_ts_.solver() != abs_ts_.solver()) {
+    throw PonoException(
+        "For simplicity, expecting concrete and abstract system to use same "
+        "solver.");
+  }
+
+  // TODO: fix abstraction interface
+  //       kind of strange to have to pass an empty abstract system
+
+  if (abs_ts_.is_functional()) {
+    throw PonoException(
+        "Implicit predicate abstraction needs a relational abstract system");
+  }
+
+  // assume abstract transition starts empty
+  // need to add all state variables and set behavior
+  for (auto v : conc_ts_.statevars()) {
+    abs_rts_.add_statevar(v, conc_ts_.next(v));
+  }
+  for (auto v : conc_ts_.inputvars()) {
+    abs_rts_.add_inputvar(v);
+  }
+  // should start with the exact same behavior
+  abs_rts_.set_behavior(conc_ts_.init(), conc_ts_.trans());
+
+  do_abstraction();
+}
+
 Term ImplicitPredicateAbstractor::abstract(Term & t)
 {
   return solver_->substitute(t, abstraction_cache_);
