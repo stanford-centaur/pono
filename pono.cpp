@@ -22,7 +22,7 @@
 #include <gperftools/profiler.h>
 #endif
 
-#include "smt-switch/boolector_factory.h"
+#include "smt-switch/bitwuzla_factory.h"
 #ifdef WITH_MSAT
 #include "smt-switch/msat_factory.h"
 #endif
@@ -202,8 +202,8 @@ int main(int argc, char ** argv)
             "responsibility for meeting the license requirements.");
 #endif
       } else if (pono_options.smt_solver_ == "btor") {
-        // boolector is faster but doesn't support interpolants
-        s = BoolectorSolverFactory::create(false);
+        // bitwuzla is faster but doesn't support interpolants
+        s = BitwuzlaSolverFactory::create(false);
       } else {
         assert(false);
       }

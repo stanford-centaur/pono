@@ -24,7 +24,7 @@
 #include "smt-switch/smt.h"
 
 // these two always included
-#include "smt-switch/boolector_factory.h"
+#include "smt-switch/bitwuzla_factory.h"
 #include "smt-switch/cvc4_factory.h"
 
 #if WITH_MSAT

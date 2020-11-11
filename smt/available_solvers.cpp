@@ -22,7 +22,7 @@ namespace pono {
 
 // list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
-  BTOR, CVC4,
+  BZLA, CVC4,
 
 #if WITH_MSAT
       MSAT,
@@ -36,8 +36,8 @@ const std::vector<SolverEnum> solver_enums({
 SmtSolver create_solver(SolverEnum se, bool logging)
 {
   switch (se) {
-    case BTOR: {
-      return BoolectorSolverFactory::create(logging);
+    case BZLA: {
+      return BitwuzlaSolverFactory::create(logging);
       break;
       ;
     }

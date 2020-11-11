@@ -77,8 +77,8 @@ if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
   message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
-  message(FATAL_ERROR "Missing smt-switch boolector library -- try running ./contrib/setup-smt-switch.sh")
+if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
+  message(FATAL_ERROR "Missing smt-switch bitwuzla library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
 if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc4.a")
@@ -197,7 +197,7 @@ if (BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
 
-target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
+target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc4.a")
 
 if (WITH_MSAT)
