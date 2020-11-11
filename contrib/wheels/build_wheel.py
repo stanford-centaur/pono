@@ -107,7 +107,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name='pono',
-    version='0.1.0',
+    version='0.1.1',
     author='Makai Mann',
     ext_modules=[CMakeExtension('pono')],
     cmdclass=dict(build_ext=CMakeBuild),

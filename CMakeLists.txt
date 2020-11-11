@@ -4,7 +4,7 @@ project(pono)
 
 set(PONO_MAJOR 0)   # Major component of Pono version
 set(PONO_MINOR 1)   # Minor component of Pono version
-set(PONO_RELEASE 0) # Release component of Pono version
+set(PONO_RELEASE 1) # Release component of Pono version
 
 # handle different versions of CMake
 if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
