@@ -116,9 +116,11 @@ cdef extern from "engines/interpolantmc.h" namespace "pono":
     cdef cppclass InterpolantMC(Prover):
         InterpolantMC(const Property & p, c_SmtSolver & s, c_SmtSolver & interpolator) except +
 
+
 cdef extern from "engines/mbic3.h" namespace "pono":
     cdef cppclass ModelBasedIC3(Prover):
         ModelBasedIC3(const Property & p, c_SmtSolver & solver) except +
+
 
 # WITH_MSAT_IC3IA is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
 IF WITH_MSAT_IC3IA == "ON":

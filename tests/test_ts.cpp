@@ -31,7 +31,7 @@ class TSUnitTests : public ::testing::Test,
 TEST_P(TSUnitTests, FTS_IsFunc)
 {
   FunctionalTransitionSystem fts(s);
-  ASSERT_TRUE(fts.is_functional());
+  EXPECT_TRUE(fts.is_functional());
 
   // state variables without state updates
   // will make the system non-deterministic

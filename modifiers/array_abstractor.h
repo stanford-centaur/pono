@@ -113,15 +113,6 @@ class ArrayAbstractor : public Abstractor
    */
   smt::Sort abstract_array_sort(const smt::Sort & conc_sort);
 
-  /** Populates term caches from base class
-   *  abs_walker_ and conc_walker_ caches
-   *  @param conc_term the concrete term
-   *  @param abs_term the abstract term
-   *  asserts that values aren't overwritten
-   */
-  void update_term_cache(const smt::Term & conc_term,
-                         const smt::Term & abs_term);
-
   /** Populates sort caches
    *  abstract_sorts_ and concrete_sorts_
    *  @param conc_sort the concrete sort
