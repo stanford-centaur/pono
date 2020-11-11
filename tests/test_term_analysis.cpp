@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/term_analysis.h"
+#include "utils/term_walkers.h"
 
 using namespace pono;
 using namespace smt;
@@ -49,7 +50,7 @@ TEST_P(TermAnalysisUnitTests, GetPredicatesBasic)
   UnorderedTermSet expected_preds({ Rxy, xpy_eq_fxy });
   UnorderedTermSet preds;
   // by default won't include boolean symbols
-  get_predicates(formula, boolsort, preds);
+  get_predicates(s, formula, preds);
   EXPECT_EQ(preds.size(), expected_preds.size());
   // check they're the same
   for (auto p : preds) {
@@ -60,7 +61,7 @@ TEST_P(TermAnalysisUnitTests, GetPredicatesBasic)
   EXPECT_TRUE(preds.find(b) == preds.end());
 
   // now try adding the boolean symbol
-  get_predicates(formula, boolsort, preds, true);
+  get_predicates(s, formula, preds, true);
   // added one predicate -- b
   EXPECT_TRUE(preds.size() == expected_preds.size() + 1);
   EXPECT_TRUE(preds.find(b) != preds.end());
@@ -80,13 +81,38 @@ TEST_P(TermAnalysisUnitTests, GetPredicatesIte)
       Ite, s->make_term(And, xley, ylt8), x, s->make_term(Ite, yltz, y, z));
   Term formula = s->make_term(Equal, nextval, update);
 
-  UnorderedTermSet expected_preds({ xley, ylt8, yltz, formula });
+  // expecting the normal predicates + removing the ITEs
+  // thus for each ITE where a = ite(p, b, c) we get
+  // p as a predicate plus a = b and a = c
+  // and we don't get any ITEs in our predicates
+  UnorderedTermSet eq_preds({ s->make_term(Equal, nextval, x),
+                              s->make_term(Equal, nextval, y),
+                              s->make_term(Equal, nextval, z) });
+  UnorderedTermSet expected_preds({ xley, ylt8, yltz });
+  for (auto ep : eq_preds) {
+    expected_preds.insert(ep);
+  }
   UnorderedTermSet preds;
-  get_predicates(formula, boolsort, preds);
+  get_predicates(s, formula, preds);
 
   EXPECT_EQ(preds.size(), expected_preds.size());
+
   // due to rewriting, they may not be exactly the same predicates
   // e.g. x <= y gets rewritten to not(y < x) and then the predicate is y < x
+  // However, the equality predicates should not be rewritten so we can check
+  // those
+  for (auto ep : eq_preds) {
+    // expected equal predicate should be in the found predicates
+    EXPECT_TRUE(preds.find(ep) != preds.end());
+  }
+
+  // Now, also check that there are no ITEs in the found predicates
+  TermOpCollector opfinder(s);
+  for (auto p : preds) {
+    UnorderedTermSet out;
+    opfinder.find_matching_terms(p, { Ite }, out);
+    EXPECT_TRUE(out.empty());  // expecting no ITEs in the found predicates
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedTermAnalysisUnitTests,

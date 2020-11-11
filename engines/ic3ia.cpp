@@ -218,8 +218,8 @@ void IC3IA::set_labels()
 
     // add all the predicates from init and property
     UnorderedTermSet preds;
-    get_predicates(ts_.init(), boolsort_, preds, false);
-    get_predicates(bad_, boolsort_, preds, false);
+    get_predicates(solver_, ts_.init(), preds, false);
+    get_predicates(solver_, bad_, preds, false);
     for (auto p : preds) {
       add_predicate(p);
     }
@@ -309,7 +309,7 @@ ProverResult IC3IA::refine(ProofGoal pg)
     UnorderedTermSet preds;
     for (auto I : interpolants) {
       assert(ts_.only_curr(I));
-      get_predicates(I, boolsort_, preds);
+      get_predicates(solver_, I, preds);
     }
 
     // TODO: add option to minimize predicates
