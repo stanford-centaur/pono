@@ -226,6 +226,12 @@ void IC3IA::set_labels()
   }
 }
 
+void IC3IA::check_ts() const
+{
+  // this is a complete No-Op for IC3IA
+  // no current limitations (among major theories)
+}
+
 bool IC3IA::only_curr(Term & t) { return abs_ts_.only_curr(t); }
 
 Term IC3IA::next(const Term & t) const { return abs_ts_.next(t); }

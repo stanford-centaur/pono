@@ -61,6 +61,8 @@ class IC3IA : public ModelBasedIC3
    */
   void set_labels() override;
 
+  void check_ts() const override;
+
   /** Override to use the abstract transition system
    */
   bool only_curr(smt::Term & t) override;

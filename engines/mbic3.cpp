@@ -147,19 +147,6 @@ void ModelBasedIC3::initialize()
   constrain_frame(0, ts_.init());
   push_frame();
 
-  // check if there are arrays or uninterpreted sorts and fail if so
-  for (auto vec : { ts_.statevars(), ts_.inputvars() }) {
-    for (auto st : vec) {
-      SortKind sk = st->get_sort()->get_sort_kind();
-      if (sk == ARRAY) {
-        throw PonoException("ModelBasedIC3 does not support arrays yet");
-      } else if (sk == UNINTERPRETED) {
-        throw PonoException(
-            "ModelBasedIC3 does not support uninterpreted sorts yet.");
-      }
-    }
-  }
-
   assert(!interpolator_);
   assert(solver_);
   assert(!to_interpolator_);
@@ -191,6 +178,8 @@ void ModelBasedIC3::initialize_interpolator()
 
 ProverResult ModelBasedIC3::check_until(int k)
 {
+  check_ts();
+
   // make sure the labels have semantics
   // will check if this has already been done automatically
   set_labels();
@@ -1020,6 +1009,22 @@ void ModelBasedIC3::set_labels()
   if (!trans_label_) {
     trans_label_ = solver_->make_symbol("__trans_label", boolsort);
     solver_->assert_formula(solver_->make_term(Implies, trans_label_, ts_.trans()));
+  }
+}
+
+void ModelBasedIC3::check_ts() const
+{
+  // check if there are arrays or uninterpreted sorts and fail if so
+  for (auto vec : { ts_.statevars(), ts_.inputvars() }) {
+    for (auto st : vec) {
+      SortKind sk = st->get_sort()->get_sort_kind();
+      if (sk == ARRAY) {
+        throw PonoException("ModelBasedIC3 does not support arrays yet");
+      } else if (sk == UNINTERPRETED) {
+        throw PonoException(
+            "ModelBasedIC3 does not support uninterpreted sorts yet.");
+      }
+    }
   }
 }
 
