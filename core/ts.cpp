@@ -327,6 +327,62 @@ smt::Term TransitionSystem::lookup(std::string name) const
   return it->second;
 }
 
+void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
+{
+  // TODO: this runs even if called from make_statevar
+  //       could refactor entirely, or just pass a flag
+  //       saying whether to check these things or not
+
+  if (statevars_.find(cv) != statevars_.end()) {
+    throw PonoException("Cannot redeclare a state variable");
+  }
+
+  if (next_statevars_.find(nv) != next_statevars_.end()) {
+    throw PonoException("Cannot redeclare a state variable");
+  }
+
+  if (next_statevars_.find(cv) != next_statevars_.end()) {
+    throw PonoException(
+        "Cannot use an existing next state variable as a current state var");
+  }
+
+  if (statevars_.find(nv) != statevars_.end()) {
+    throw PonoException(
+        "Cannot use an existing state variable as a next state var");
+  }
+
+  if (inputvars_.find(cv) != inputvars_.end()
+      || inputvars_.find(nv) != inputvars_.end()) {
+    throw PonoException(
+        "Cannot re-use an input variable as a current or next state var");
+  }
+
+  statevars_.insert(cv);
+  next_statevars_.insert(nv);
+  next_map_[cv] = nv;
+  curr_map_[nv] = cv;
+  // automatically include in named_terms
+  name_term(cv->to_string(), cv);
+  name_term(nv->to_string(), nv);
+}
+
+void TransitionSystem::add_inputvar(const Term & v)
+{
+  // TODO: this check is running even when used by make_inputvar
+  //       could refactor entirely or just pass a boolean saying whether or not
+  //       to check these things
+  if (statevars_.find(v) != statevars_.end()
+      || next_statevars_.find(v) != next_statevars_.end()
+      || inputvars_.find(v) != inputvars_.end()) {
+    throw PonoException(
+        "Cannot reuse an existing variable as an input variable");
+  }
+
+  inputvars_.insert(v);
+  // automatically include in named_terms
+  name_term(v->to_string(), v);
+}
+
 // term building methods -- forwards to SmtSolver solver_
 
 Sort TransitionSystem::make_sort(const std::string name, uint64_t arity)
@@ -492,24 +548,6 @@ void TransitionSystem::rebuild_trans_based_on_coi(
 }
 
 // protected methods
-
-void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
-{
-  statevars_.insert(cv);
-  next_statevars_.insert(nv);
-  next_map_[cv] = nv;
-  curr_map_[nv] = cv;
-  // automatically include in named_terms
-  name_term(cv->to_string(), cv);
-  name_term(nv->to_string(), nv);
-}
-
-void TransitionSystem::add_inputvar(const Term & v)
-{
-  inputvars_.insert(v);
-  // automatically include in named_terms
-  name_term(v->to_string(), v);
-}
 
 bool TransitionSystem::contains(const Term & term,
                                 UnorderedTermSetPtrVec term_sets) const

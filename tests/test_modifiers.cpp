@@ -5,6 +5,7 @@
 #include "core/rts.h"
 #include "gtest/gtest.h"
 #include "modifiers/history_modifier.h"
+#include "modifiers/implicit_predicate_abstractor.h"
 #include "modifiers/prophecy_modifier.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
@@ -23,6 +24,7 @@ class ModifierUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
+    s->set_opt("incremental", "true");
     boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
     arrsort = s->make_sort(ARRAY, bvsort, bvsort);
@@ -94,6 +96,54 @@ TEST_P(ModifierUnitTests, ProphecyModifierSimple)
 
   // but now the prophecy variable should be also
   EXPECT_TRUE(free_vars_set.find(proph_var) != free_vars_set.end());
+}
+
+TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
+{
+  RelationalTransitionSystem rts(s);
+  Term c = rts.make_statevar("c", bvsort);
+  rts.set_init(rts.make_term(Equal, c, rts.make_term(0, bvsort)));
+  Term c_lt_10 = rts.make_term(BVUlt, c, rts.make_term(10, bvsort));
+  rts.assign_next(
+      c,
+      rts.make_term(Ite,
+                    c_lt_10,
+                    rts.make_term(BVAdd, c, rts.make_term(1, bvsort)),
+                    rts.make_term(0, bvsort)));
+
+  RelationalTransitionSystem abs_rts(rts.solver());
+  ImplicitPredicateAbstractor ia(rts, abs_rts);
+
+  // check if c <= 10 is inductive on the concrete system
+  Term c_le_10 = rts.make_term(BVUle, c, rts.make_term(10, bvsort));
+  s->push();
+  s->assert_formula(c_le_10);
+  s->assert_formula(rts.trans());
+  s->assert_formula(s->make_term(Not, rts.next(c_le_10)));
+  Result r = s->check_sat();
+  s->pop();
+  EXPECT_TRUE(r.is_unsat());  // expecting it to be inductive
+
+  // check if c <= 10 is inductive on the abstract system
+  s->push();
+  s->assert_formula(c_le_10);
+  s->assert_formula(abs_rts.trans());
+  s->assert_formula(s->make_term(Not, abs_rts.next(c_le_10)));
+  r = s->check_sat();
+  s->pop();
+  EXPECT_TRUE(r.is_sat());  // expecting check to fail
+
+  // add it as a predicate
+  ia.add_predicate(c_le_10);
+
+  // check if c <= 10 is inductive on the refined abstract system
+  s->push();
+  s->assert_formula(c_le_10);
+  s->assert_formula(abs_rts.trans());
+  s->assert_formula(s->make_term(Not, abs_rts.next(c_le_10)));
+  r = s->check_sat();
+  s->pop();
+  EXPECT_TRUE(r.is_unsat());  // expecting it to be inductive now
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedModifierUnitTests,

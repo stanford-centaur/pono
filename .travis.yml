@@ -35,14 +35,14 @@ jobs:
       dist: bionic
       compiler: clang
     - os: osx
-      osx_image: xcode12
+      osx_image: xcode12.2
 
 script:
   - source ./scripts/travis-mac-install.sh
   # brew sometimes fails on something even after a successful python installation
   # we don't want the build to fail
   - ./scripts/travis-setup-osx-python.sh || true
-  - sudo python3 -m pip install Cython==0.29 --install-option="--no-cython-compile"
+  - sudo python3 -m pip install Cython==0.29.21 --install-option="--no-cython-compile"
   - sudo python3 -m pip install pytest
   - ./travis-scripts/setup-msat.sh --auto-yes
   - ./contrib/setup-bison.sh

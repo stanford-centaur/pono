@@ -84,6 +84,11 @@ target_link_libraries(test_ic3 gtest_main)
 target_link_libraries(test_ic3 pono-lib)
 add_test(NAME test_ic3 COMMAND test_ic3)
 
+add_executable(test_ic3ia "${PROJECT_SOURCE_DIR}/tests/test_ic3ia.cpp")
+target_link_libraries(test_ic3ia gtest_main)
+target_link_libraries(test_ic3ia pono-lib)
+add_test(NAME test_ic3ia COMMAND test_ic3ia)
+
 add_executable(test_msat_ic3ia "${PROJECT_SOURCE_DIR}/tests/test_msat_ic3ia.cpp")
 target_link_libraries(test_msat_ic3ia gtest_main)
 target_link_libraries(test_msat_ic3ia pono-lib)
@@ -108,3 +113,8 @@ add_executable(test_ceg_prophecy_arrays "${PROJECT_SOURCE_DIR}/tests/test_ceg_pr
 target_link_libraries(test_ceg_prophecy_arrays gtest_main)
 target_link_libraries(test_ceg_prophecy_arrays pono-lib)
 add_test(NAME test_ceg_prophecy_arrays COMMAND test_ceg_prophecy_arrays)
+
+add_executable(test_term_analysis "${PROJECT_SOURCE_DIR}/tests/test_term_analysis.cpp")
+target_link_libraries(test_term_analysis gtest_main)
+target_link_libraries(test_term_analysis pono-lib)
+add_test(NAME test_term_analysis COMMAND test_term_analysis)

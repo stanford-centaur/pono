@@ -32,4 +32,24 @@ void get_free_symbols(const smt::Term & term,
  *  Note: includes uninterpreted functions
  */
 smt::UnorderedTermSet get_free_symbols(const smt::Term & term);
+
+/** Extract all predicates from a term
+ *  Traverses all the subterms of term and adds any predicates to out
+ *  @param the solver to use (needed for building new terms when processing
+ * ITEs)
+ *  @param term the term to traverse
+ *  @param out the set to add to
+ *  @param include_symbols if set to true, will include boolean symbols
+ *         (0-arity predicates), otherwise will ignore them
+ *
+ *  TEMPORARY RESTRICTION
+ *    doesn't work with boolector as backend solver if there are uninterpreted
+ * functions the smt-switch btor backend doesn't support getting the sort from a
+ * UF
+ */
+void get_predicates(const smt::SmtSolver & solver,
+                    const smt::Term & term,
+                    smt::UnorderedTermSet & out,
+                    bool include_symbols = false);
+
 }  // namespace pono

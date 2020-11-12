@@ -29,15 +29,18 @@ enum Engine
   KIND,
   INTERP,
   MBIC3,
+  IC3IA_ENGINE,
   MSAT_IC3IA
 };
 
-const std::unordered_map<std::string, Engine> str2engine({ { "bmc", BMC },
-                                                           { "bmc-sp", BMC_SP },
-                                                           { "ind", KIND },
-                                                           { "interp", INTERP },
-                                                           { "mbic3", MBIC3 },
-                                                           { "msat-ic3ia", MSAT_IC3IA }});
+const std::unordered_map<std::string, Engine> str2engine(
+    { { "bmc", BMC },
+      { "bmc-sp", BMC_SP },
+      { "ind", KIND },
+      { "interp", INTERP },
+      { "mbic3", MBIC3 },
+      { "ic3ia", IC3IA_ENGINE },
+      { "msat-ic3ia", MSAT_IC3IA } });
 
 /*************************************** Options class
  * ************************************************/

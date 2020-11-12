@@ -3,7 +3,8 @@ set -e
 
 cd pono/
 mkdir -p build
-pip install Cython==0.29
+yum install -y gmp-static libedit-devel
+pip install toml setuptools pexpect Cython==0.29
 python contrib/wheels/build_wheel.py bdist_wheel
 auditwheel show dist/*
 auditwheel repair dist/*

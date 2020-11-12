@@ -4,7 +4,7 @@ project(pono)
 
 set(PONO_MAJOR 0)   # Major component of Pono version
 set(PONO_MINOR 1)   # Minor component of Pono version
-set(PONO_RELEASE 0) # Release component of Pono version
+set(PONO_RELEASE 1) # Release component of Pono version
 
 # handle different versions of CMake
 if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
@@ -144,6 +144,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3ia.cpp"
   "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
@@ -153,9 +154,10 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/frontends/smv_node.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/coi.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/implicit_predicate_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/history_modifier.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/prophecy_modifier.cpp"
-  "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
   "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${PROJECT_SOURCE_DIR}/refiners/array_axiom_enumerator.cpp"
   "${PROJECT_SOURCE_DIR}/smt/available_solvers.cpp"
@@ -190,8 +192,6 @@ target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 # Should we build python bindings
 option (BUILD_PYTHON_BINDINGS
    "Build Python bindings")
-option (USE_PYTHON2
-   "Use Python2 for bindings")
 
 if (BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)

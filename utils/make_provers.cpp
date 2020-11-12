@@ -18,6 +18,7 @@
 
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
+#include "engines/ic3ia.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
@@ -48,6 +49,8 @@ shared_ptr<Prover> make_prover(Engine e,
     return make_shared<InterpolantMC>(opts, p, se);
   } else if (e == MBIC3) {
     return make_shared<ModelBasedIC3>(opts, p, se);
+  } else if (e == IC3IA_ENGINE) {
+    return make_shared<IC3IA>(opts, p, se);
 #ifdef WITH_MSAT_IC3IA
   } else if (e == MSAT_IC3IA) {
     return make_shared<MsatIC3IA>(opts, p, se);
@@ -73,6 +76,8 @@ shared_ptr<Prover> make_prover(Engine e,
         "Interpolant-based modelchecking requires an interpolator");
   } else if (e == MBIC3) {
     return make_shared<ModelBasedIC3>(opts, p, slv);
+  } else if (e == IC3IA_ENGINE) {
+    return make_shared<IC3IA>(opts, p, slv);
 #ifdef WITH_MSAT_IC3IA
   } else if (e == MSAT_IC3IA) {
     return make_shared<MsatIC3IA>(opts, p, slv);
