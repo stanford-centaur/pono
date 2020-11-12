@@ -238,6 +238,7 @@ Term IC3IA::next(const Term & t) const { return abs_ts_.next(t); }
 
 void IC3IA::add_predicate(const Term & pred)
 {
+  logger.log(2, "adding predicate {}", pred);
   assert(abs_ts_.only_curr(pred));
   // add predicate to abstraction and get the new constraint
   Term predabs_rel = ia_.add_predicate(pred);
