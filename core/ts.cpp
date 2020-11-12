@@ -91,6 +91,10 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     named_terms_[elem.first] = transfer(elem.second);
   }
 
+  for (auto elem : other_ts.term_to_name_) {
+    term_to_name_[transfer(elem.first)] = elem.second;
+  }
+
   // variables might have already be in the TermTranslator cache
   // with a different sort (due to sort aliasing)
   // use the SortKind as a hint when transferring
