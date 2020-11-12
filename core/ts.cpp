@@ -459,9 +459,16 @@ void TransitionSystem::rebuild_trans_based_on_coi(
     bool any_in_coi = false;
     Term currvar;
     for (auto v : free_vars) {
-      // look at current version of variables (if it contains next states)
-      // NOTE: it could also be an input variable
-      currvar = curr(v);
+      // v is an input variable, current variable, or next variable
+      // we want the current version of a state variable
+      auto it = curr_map_.find(v);
+      if (it != curr_map_.end()) {
+        // get the current state version of a next variable
+        currvar = it->second;
+      } else {
+        currvar = v;
+      }
+
       if (state_vars_in_coi.find(currvar) != state_vars_in_coi.end()
           || input_vars_in_coi.find(currvar) != input_vars_in_coi.end()) {
         any_in_coi = true;
