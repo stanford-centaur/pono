@@ -448,8 +448,10 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   }
   state_updates_ = reduced_state_updates;
 
-  /* update named_terms and remove terms that are not in coi */
+  /* update named_terms and term_to_name_ by removing terms that are not in coi
+   */
   unordered_map<string, Term> reduced_named_terms;
+  unordered_map<Term, string> reduced_term_to_name;
   TermVec free_vars;
   for (auto elem : named_terms_) {
     free_vars.clear();
@@ -468,9 +470,14 @@ void TransitionSystem::rebuild_trans_based_on_coi(
     }
     if (any_in_coi) {
       reduced_named_terms[elem.first] = elem.second;
+      // NOTE: name might not be the same as elem.first
+      //       need to use the representative name
+      //       stored in term_to_name_
+      reduced_term_to_name[elem.second] = term_to_name_.at(elem.second);
     }
   }
   named_terms_ = reduced_named_terms;
+  term_to_name_ = reduced_term_to_name;
 }
 
 // protected methods
@@ -482,15 +489,15 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
   next_map_[cv] = nv;
   curr_map_[nv] = cv;
   // automatically include in named_terms
-  named_terms_[cv->to_string()] = cv;
-  named_terms_[nv->to_string()] = nv;
+  name_term(cv->to_string(), cv);
+  name_term(nv->to_string(), nv);
 }
 
 void TransitionSystem::add_inputvar(const Term & v)
 {
   inputvars_.insert(v);
   // automatically include in named_terms
-  named_terms_[v->to_string()] = v;
+  name_term(v->to_string(), v);
 }
 
 bool TransitionSystem::contains(const Term & term,
