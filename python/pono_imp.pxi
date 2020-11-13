@@ -29,7 +29,6 @@ IF WITH_COREIR == "ON":
 from pono_imp cimport HistoryModifier as c_HistoryModifier
 from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
-from pono_imp cimport get_free_symbols as c_get_free_symbols
 
 from smt_switch cimport SmtSolver, PrimOp, Op, c_SortKind, SortKind, \
     c_Sort, c_SortVec, Sort, Term, c_Term, c_TermVec, c_UnorderedTermMap
@@ -501,16 +500,3 @@ cdef class VCDWitnessPrinter:
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)
-
-
-def get_free_symbols(Term term):
-    cdef c_UnorderedTermSet out_symbols
-    c_get_free_symbols(term.ct, out_symbols)
-
-    python_out_set = set()
-    for s in out_symbols:
-        t = Term(term._solver)
-        t.ct = s
-        python_out_set.add(t)
-
-    return python_out_set
