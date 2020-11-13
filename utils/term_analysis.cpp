@@ -16,6 +16,7 @@
 
 #include "assert.h"
 #include "smt-switch/smt.h"
+#include "smt-switch/utils.h"
 #include "utils/exceptions.h"
 
 using namespace smt;
@@ -120,30 +121,6 @@ vector<TermVec> get_combinations(const vector<TermVec> & options)
 }
 
 // end helper functions
-
-void get_free_symbols(const Term & term, UnorderedTermSet & out_symbols)
-{
-  TermVec to_visit({ term });
-  UnorderedTermSet visited;
-
-  Term t;
-  while (to_visit.size()) {
-    t = to_visit.back();
-    to_visit.pop_back();
-
-    if (visited.find(t) == visited.end()) {
-      visited.insert(t);
-      // add children to stack
-      for (auto tt : t) {
-        to_visit.push_back(tt);
-      }
-
-      if (t->is_symbol()) {
-        out_symbols.insert(t);
-      }
-    }
-  }
-}
 
 UnorderedTermSet get_free_symbols(const Term & term)
 {

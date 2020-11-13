@@ -175,13 +175,23 @@ void ModelBasedIC3::initialize_interpolator()
     cache[to_interpolator_->transfer_term(ns)] = ns;
   }
 
-  // TODO: implement this
   // need to add uninterpreted functions as well
   // first need to find them all
-  // Term combined_system = solver_->make_term(And, ts_.init(), ts_.trans());
-  // combined_system = solver_->make_term(And, combined_system, bad_);
-  // TermVec free_terms;
-  // ...
+  // NOTE need to use get_free_symbols NOT get_free_symbolic_consts
+  // because the latter ignores uninterpreted functions
+  UnorderedTermSet free_symbols;
+  get_free_symbols(ts_.init(), free_symbols);
+  get_free_symbols(ts_.trans(), free_symbols);
+  get_free_symbols(bad_, free_symbols);
+
+  for (auto s : free_symbols) {
+    assert(s->is_symbol());
+    if (s->is_symbolic_const()) {
+      // ignore constants
+      continue;
+    }
+    cache[to_interpolator_->transfer_term(s)] = s;
+  }
 }
 
 ProverResult ModelBasedIC3::check_until(int k)
