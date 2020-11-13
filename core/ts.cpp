@@ -14,10 +14,12 @@
  **
  **/
 
-#include <functional>
-#include "assert.h"
+#include "core/ts.h"
 
-#include "ts.h"
+#include <functional>
+
+#include "assert.h"
+#include "smt-switch/utils.h"
 
 using namespace smt;
 using namespace std;
@@ -87,6 +89,10 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
 
   for (auto elem : other_ts.named_terms_) {
     named_terms_[elem.first] = transfer(elem.second);
+  }
+
+  for (auto elem : other_ts.term_to_name_) {
+    term_to_name_[transfer(elem.first)] = elem.second;
   }
 
   // variables might have already be in the TermTranslator cache
@@ -356,8 +362,8 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
   next_map_[cv] = nv;
   curr_map_[nv] = cv;
   // automatically include in named_terms
-  named_terms_[cv->to_string()] = cv;
-  named_terms_[nv->to_string()] = nv;
+  name_term(cv->to_string(), cv);
+  name_term(nv->to_string(), nv);
 }
 
 void TransitionSystem::add_inputvar(const Term & v)
@@ -374,7 +380,7 @@ void TransitionSystem::add_inputvar(const Term & v)
 
   inputvars_.insert(v);
   // automatically include in named_terms
-  named_terms_[v->to_string()] = v;
+  name_term(v->to_string(), v);
 }
 
 // term building methods -- forwards to SmtSolver solver_
@@ -501,6 +507,44 @@ void TransitionSystem::rebuild_trans_based_on_coi(
     }
   }
   state_updates_ = reduced_state_updates;
+
+  /* update named_terms and term_to_name_ by removing terms that are not in coi
+   */
+  unordered_map<string, Term> reduced_named_terms;
+  unordered_map<Term, string> reduced_term_to_name;
+  TermVec free_vars;
+  for (auto elem : named_terms_) {
+    free_vars.clear();
+    get_free_symbolic_consts(elem.second, free_vars);
+    bool any_in_coi = false;
+    Term currvar;
+    for (auto v : free_vars) {
+      // v is an input variable, current variable, or next variable
+      // we want the current version of a state variable
+      auto it = curr_map_.find(v);
+      if (it != curr_map_.end()) {
+        // get the current state version of a next variable
+        currvar = it->second;
+      } else {
+        currvar = v;
+      }
+
+      if (state_vars_in_coi.find(currvar) != state_vars_in_coi.end()
+          || input_vars_in_coi.find(currvar) != input_vars_in_coi.end()) {
+        any_in_coi = true;
+        break;
+      }
+    }
+    if (any_in_coi) {
+      reduced_named_terms[elem.first] = elem.second;
+      // NOTE: name might not be the same as elem.first
+      //       need to use the representative name
+      //       stored in term_to_name_
+      reduced_term_to_name[elem.second] = term_to_name_.at(elem.second);
+    }
+  }
+  named_terms_ = reduced_named_terms;
+  term_to_name_ = reduced_term_to_name;
 }
 
 // protected methods
