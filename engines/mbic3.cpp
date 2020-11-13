@@ -235,9 +235,14 @@ ProverResult ModelBasedIC3::step(int i)
   // blocking phase
   while (intersects_bad()) {
     assert(has_proof_goals());
-    if (!block_all()) {
-      // counter-example
-      return ProverResult::FALSE;
+    // TODO: refactor this to make it cleaner
+    // TRUE means all were blocked
+    // FALSE means there's a counterexample trace
+    // UNKNOWN means there was an error that can't be recovered from
+    ProverResult r = block_all();
+    if (r != ProverResult::TRUE) {
+      // counterexample or failure
+      return r;
     }
   }
 
@@ -372,7 +377,7 @@ void ModelBasedIC3::add_proof_goal(const Conjunction & c,
   proof_goals_.push_back(ProofGoal(c, i, n));
 }
 
-bool ModelBasedIC3::block_all()
+ProverResult ModelBasedIC3::block_all()
 {
   while (has_proof_goals()) {
     ProofGoal pg = get_next_proof_goal();
@@ -381,11 +386,13 @@ bool ModelBasedIC3::block_all()
     if (!block(pg) && !pg.idx) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
-      return false;
+      return ProverResult::FALSE;
     }
   }
+  // Note: this version of IC3 should never fail and return UNKNOWN
+  // but derived classes might
   assert(!has_proof_goals());
-  return true;
+  return ProverResult::TRUE;
 }
 
 bool ModelBasedIC3::block(const ProofGoal & pg)

@@ -42,7 +42,7 @@ class IC3IA : public ModelBasedIC3
  protected:
   void initialize() override;
 
-  bool block_all() override;
+  ProverResult block_all() override;
 
   // modified to get a bad cube over the predicates
   bool intersects_bad() override;
