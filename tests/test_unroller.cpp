@@ -101,19 +101,15 @@ TEST_P(UnrollerUnitTests, StagedUnrolling)
   Term xpy = rts.make_term(BVAdd, x, y);
   Term x4py4 = u.at_time(xpy, 4);
 
-  TermVec free_vars_vec;
   UnorderedTermSet free_vars;
-  get_free_symbolic_consts(xpy, free_vars_vec);
-  free_vars.insert(free_vars_vec.begin(), free_vars_vec.end());
+  get_free_symbolic_consts(xpy, free_vars);
   EXPECT_TRUE(free_vars.find(x) != free_vars.end());
   EXPECT_TRUE(free_vars.find(y) != free_vars.end());
 
-  free_vars_vec.clear();
   free_vars.clear();
   Term x4 = u.at_time(x, 4);
   Term y4 = u.at_time(y, 4);
-  get_free_symbolic_consts(x4py4, free_vars_vec);
-  free_vars.insert(free_vars_vec.begin(), free_vars_vec.end());
+  get_free_symbolic_consts(x4py4, free_vars);
   EXPECT_TRUE(free_vars.find(x4) != free_vars.end());
   EXPECT_TRUE(free_vars.find(y4) != free_vars.end());
 
