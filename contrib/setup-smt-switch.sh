@@ -61,7 +61,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
     # TEMPORARILY pull a branch
     # TODO: put this back
-    git clone refactor-get-symbols https://github.com/makaimann/smt-switch
+    git clone -b refactor-get-symbols https://github.com/makaimann/smt-switch
     cd smt-switch
     # git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
