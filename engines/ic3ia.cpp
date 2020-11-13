@@ -80,7 +80,7 @@ void IC3IA::initialize()
   interp_unroller_ = make_unique<Unroller>(interp_ts_, interpolator_);
 }
 
-ProverResult IC3IA::block_all()
+bool IC3IA::block_all()
 {
   while (has_proof_goals()) {
     ProofGoal pg = get_next_proof_goal();
@@ -90,13 +90,17 @@ ProverResult IC3IA::block_all()
       // if a proof goal cannot be blocked at zero
       // then there's a (possibly abstract) counterexample
       ProverResult refined = refine(pg);
-      if (refined != ProverResult::TRUE) {
-        return refined;
+      if (refined == ProverResult::FALSE) {
+        // got a real counterexample trace
+        return false;
+      } else if (refined == ProverResult::UNKNOWN) {
+        // TODO: feed this through so it returns unknown
+        throw PonoException("Could not refine");
       }
     }
   }
   assert(!has_proof_goals());
-  return ProverResult::TRUE;
+  return true;
 }
 
 bool IC3IA::intersects_bad()

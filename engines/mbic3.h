@@ -126,11 +126,9 @@ class ModelBasedIC3 : public Prover
   /** Attempt to block all proof goals
    *  to ensure termination, always choose proof goal with
    *  smallest time
-   *  @return TRUE iff all proof goals were blocked,
-   *          FALSE iff there's a counterexample, and
-   *          UNKNOWN iff there was an internal issue and we can't continue
+   *  @return true iff all proof goals were blocked
    */
-  virtual ProverResult block_all();
+  virtual bool block_all();
   /** Attempt to block cube c at frame i
    *  @param i the frame number
    *  @param c the cube to try blocking
