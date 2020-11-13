@@ -114,6 +114,7 @@ setup(
     long_description='python bindings for Pono (next generation of CoSA)',
     url='https://github.com/upscale-project/pono',
     license='BSD',
+    install_requires=['smt-switch'],
     tests_require=['pytest'],
     zip_safe=False,
 )
