@@ -512,7 +512,7 @@ void TransitionSystem::rebuild_trans_based_on_coi(
    */
   unordered_map<string, Term> reduced_named_terms;
   unordered_map<Term, string> reduced_term_to_name;
-  TermVec free_vars;
+  UnorderedTermSet free_vars;
   for (auto elem : named_terms_) {
     free_vars.clear();
     get_free_symbolic_consts(elem.second, free_vars);
