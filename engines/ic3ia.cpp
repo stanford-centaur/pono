@@ -265,13 +265,14 @@ ProverResult IC3IA::refine(ProofGoal pg)
   while (tmp.next) {
     tmp = *(tmp.next);
     cex.push_back(tmp.conj.term_);
+    assert(ts_.only_curr(tmp.conj.term_));
   }
   assert(cex.size() > 1);
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
   assert(interpolator_);
-  Term t = make_and({ ts_.init(), ts_.trans(), cex[0] });
+  Term t = make_and({ ts_.init(), cex[0] });
   Term A =
       interp_unroller_->at_time(to_interpolator_->transfer_term(t, BOOL), 0);
 
@@ -295,17 +296,21 @@ ProverResult IC3IA::refine(ProofGoal pg)
     // Note: have to pass the solver (defaults to solver_)
     Term fullB = make_and(B, interpolator_);
     Term I;
+    Result r;
     try {
-      Result r = interpolator_->get_interpolant(A, fullB, I);
-      all_sat &= r.is_sat();
-      if (r.is_unsat()) {
-        Term untimedI = interp_unroller_->untime(I);
-        logger.log(3, "got interpolant: {}", untimedI);
-        interpolants.push_back(to_solver_->transfer_term(untimedI, BOOL));
-      }
+      r = interpolator_->get_interpolant(A, fullB, I);
     }
     catch (SmtException & e) {
       logger.log(3, e.what());
+      // keep going because might find other interpolants
+      continue;
+    }
+
+    all_sat &= r.is_sat();
+    if (r.is_unsat()) {
+      Term untimedI = interp_unroller_->untime(I);
+      logger.log(3, "got interpolant: {}", untimedI);
+      interpolants.push_back(to_solver_->transfer_term(untimedI, BOOL));
     }
     // move next cex time step to A
     // they were added to B in reverse order

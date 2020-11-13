@@ -174,6 +174,14 @@ void ModelBasedIC3::initialize_interpolator()
     ns = next(s);
     cache[to_interpolator_->transfer_term(ns)] = ns;
   }
+
+  // TODO: implement this
+  // need to add uninterpreted functions as well
+  // first need to find them all
+  // Term combined_system = solver_->make_term(And, ts_.init(), ts_.trans());
+  // combined_system = solver_->make_term(And, combined_system, bad_);
+  // TermVec free_terms;
+  // ...
 }
 
 ProverResult ModelBasedIC3::check_until(int k)
