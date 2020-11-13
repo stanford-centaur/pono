@@ -292,14 +292,12 @@ ProverResult IC3IA::refine(ProofGoal pg)
     // Note: have to pass the solver (defaults to solver_)
     Term fullB = make_and(B, interpolator_);
     Term I;
-    Result r;
+    Result r(smt::UNKNOWN, "not set");
     try {
       r = interpolator_->get_interpolant(A, fullB, I);
     }
     catch (SmtException & e) {
       logger.log(3, e.what());
-      // keep going because might find other interpolants
-      continue;
     }
 
     all_sat &= r.is_sat();
