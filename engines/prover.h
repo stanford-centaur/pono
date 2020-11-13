@@ -98,32 +98,5 @@ class Prover
 
   smt::Term invar_; ///< populated with an invariant if the engine supports it
 
- private:
-  /* Cone-of-influence analysis. */
-
-  /* Debugging helper functions. */
-  void print_coi_info();
-  void print_term_dfs(const smt::Term & term);
-  /* Key functions. */
-  void compute_coi();
-  void collect_coi_term(smt::UnorderedTermSet & set, const smt::Term & term);
-  void compute_coi_trans_constraints();
-  void compute_term_coi(const smt::Term & term,
-                        smt::UnorderedTermSet & new_coi_state_vars,
-                        smt::UnorderedTermSet & new_coi_input_vars);
-  void compute_coi_next_state_funcs();
-
-  /* TermSets containing those state and input variables that appear
-     in the term 'bad_' that represents the bad-state property. This
-     information is used to rebuild the transition relation of the
-     transition system 'ts_' of the property. */
-  smt::UnorderedTermSet statevars_in_coi_;
-  smt::UnorderedTermSet inputvars_in_coi_;
-  /* Set of terms already visited in COI analysis. */
-  smt::UnorderedTermSet coi_visited_terms_;
-  unsigned int orig_num_statevars_;
-  unsigned int orig_num_inputvars_;
-
-  /* End: cone-of-influence analysis. */
 };
 }  // namespace pono
