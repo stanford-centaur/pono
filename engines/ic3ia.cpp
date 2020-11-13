@@ -94,7 +94,6 @@ bool IC3IA::block_all()
         // got a real counterexample trace
         return false;
       } else if (refined == ProverResult::UNKNOWN) {
-        // TODO: feed this through so it returns unknown
         throw PonoException("Could not refine");
       }
     }
