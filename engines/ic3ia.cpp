@@ -94,7 +94,6 @@ bool IC3IA::block_all()
         // got a real counterexample trace
         return false;
       } else if (refined == ProverResult::UNKNOWN) {
-        // TODO: feed this through so it returns unknown
         throw PonoException("Could not refine");
       }
     }
@@ -226,13 +225,26 @@ void IC3IA::set_labels()
   }
 }
 
+void IC3IA::check_ts() const
+{
+  // this is a complete No-Op for IC3IA
+  // no current limitations (among major theories)
+}
+
 bool IC3IA::only_curr(Term & t) { return abs_ts_.only_curr(t); }
 
 Term IC3IA::next(const Term & t) const { return abs_ts_.next(t); }
 
-void IC3IA::add_predicate(const Term & pred)
+bool IC3IA::add_predicate(const Term & pred)
 {
+  if (predset_.find(pred) != predset_.end()) {
+    // don't allow re-adding the same predicate
+    return false;
+  }
+
   assert(abs_ts_.only_curr(pred));
+  logger.log(2, "adding predicate {}", pred);
+  predset_.insert(pred);
   // add predicate to abstraction and get the new constraint
   Term predabs_rel = ia_.add_predicate(pred);
   // refine the transition relation incrementally
@@ -240,6 +252,7 @@ void IC3IA::add_predicate(const Term & pred)
   assert(!solver_context_);  // should be at context 0
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
+  return true;
 }
 
 ProverResult IC3IA::refine(ProofGoal pg)
@@ -251,13 +264,14 @@ ProverResult IC3IA::refine(ProofGoal pg)
   while (tmp.next) {
     tmp = *(tmp.next);
     cex.push_back(tmp.conj.term_);
+    assert(ts_.only_curr(tmp.conj.term_));
   }
   assert(cex.size() > 1);
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
   assert(interpolator_);
-  Term t = make_and({ ts_.init(), ts_.trans(), cex[0] });
+  Term t = make_and({ ts_.init(), cex[0] });
   Term A =
       interp_unroller_->at_time(to_interpolator_->transfer_term(t, BOOL), 0);
 
@@ -281,17 +295,19 @@ ProverResult IC3IA::refine(ProofGoal pg)
     // Note: have to pass the solver (defaults to solver_)
     Term fullB = make_and(B, interpolator_);
     Term I;
+    Result r(smt::UNKNOWN, "not set");
     try {
-      Result r = interpolator_->get_interpolant(A, fullB, I);
-      all_sat &= r.is_sat();
-      if (r.is_unsat()) {
-        Term untimedI = interp_unroller_->untime(I);
-        logger.log(3, "got interpolant: {}", untimedI);
-        interpolants.push_back(to_solver_->transfer_term(untimedI, BOOL));
-      }
+      r = interpolator_->get_interpolant(A, fullB, I);
     }
     catch (SmtException & e) {
       logger.log(3, e.what());
+    }
+
+    all_sat &= r.is_sat();
+    if (r.is_unsat()) {
+      Term untimedI = interp_unroller_->untime(I);
+      logger.log(3, "got interpolant: {}", untimedI);
+      interpolants.push_back(to_solver_->transfer_term(untimedI, BOOL));
     }
     // move next cex time step to A
     // they were added to B in reverse order
@@ -314,14 +330,15 @@ ProverResult IC3IA::refine(ProofGoal pg)
 
     // TODO: add option to minimize predicates
 
-    if (!preds.size()) {
-      logger.log(1, "No new predicates found...");
-      return ProverResult::UNKNOWN;
+    // add all the new predicates
+    bool found_new_preds = false;
+    for (auto p : preds) {
+      found_new_preds |= add_predicate(p);
     }
 
-    // add all the new predicates
-    for (auto p : preds) {
-      add_predicate(p);
+    if (!found_new_preds) {
+      logger.log(1, "No new predicates found...");
+      return ProverResult::UNKNOWN;
     }
 
     // able to refine the system to rule out this abstract counterexample

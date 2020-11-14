@@ -165,6 +165,3 @@ cdef extern from "printers/vcd_witness_printer.h" namespace "pono":
 cdef extern from "utils/logger.h" namespace "pono":
     void set_global_logger_verbosity(unsigned int v) except +
 
-
-cdef extern from "utils/term_analysis.h" namespace "pono":
-    void get_free_symbols(const c_Term & term, c_UnorderedTermSet & out_symbols) except +

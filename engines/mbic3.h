@@ -254,6 +254,10 @@ class ModelBasedIC3 : public Prover
    */
   virtual void set_labels();
 
+  /** Analyze TS to see if there are any unsupported logics
+   */
+  virtual void check_ts() const;
+
   /** Check that term is only over current state variables
    *  This method is virtual so that derived classes can
    *  use a different transition system (e.g. an abstract one)

@@ -84,18 +84,17 @@ TEST_P(ModifierUnitTests, ProphecyModifierSimple)
   Term new_prop =
       fts.make_term(Implies, fts.make_term(Equal, proph_var, new_target), prop);
 
-  TermVec free_vars;
+  UnorderedTermSet free_vars;
   get_free_symbolic_consts(new_prop, free_vars);
-  UnorderedTermSet free_vars_set(free_vars.begin(), free_vars.end());
 
   // Expecting two new history variable and one new prophecy variable
   EXPECT_EQ(fts.statevars().size() - 3, num_statevars_orig);
 
   // x should still be in the property
-  EXPECT_TRUE(free_vars_set.find(x) != free_vars_set.end());
+  EXPECT_TRUE(free_vars.find(x) != free_vars.end());
 
   // but now the prophecy variable should be also
-  EXPECT_TRUE(free_vars_set.find(proph_var) != free_vars_set.end());
+  EXPECT_TRUE(free_vars.find(proph_var) != free_vars.end());
 }
 
 TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)

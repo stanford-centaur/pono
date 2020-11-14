@@ -61,6 +61,8 @@ class IC3IA : public ModelBasedIC3
    */
   void set_labels() override;
 
+  void check_ts() const override;
+
   /** Override to use the abstract transition system
    */
   bool only_curr(smt::Term & t) override;
@@ -74,8 +76,9 @@ class IC3IA : public ModelBasedIC3
    *  and also incrementally updates the local transition relation
    *  and declares a new predicate state var (in pred_statevars_)
    *  @param pred the predicate over current state variables
+   *  @return true iff the predicate was new (not seen before)
    */
-  void add_predicate(const smt::Term & pred);
+  bool add_predicate(const smt::Term & pred);
 
   /** Refines an abstract counterexample trace
    *  by looking for new predicates
@@ -89,6 +92,10 @@ class IC3IA : public ModelBasedIC3
   RelationalTransitionSystem abs_ts_;
 
   ImplicitPredicateAbstractor ia_;
+
+  smt::UnorderedTermSet predset_;  ///< set of current predicates
+  // useful for checking if predicate has been added already
+  // also available as a vector in ia_.predicates()
 
   TransitionSystem interp_ts_;  ///< ts_ over interpolator_ terms
   std::unique_ptr<Unroller> interp_unroller_;

@@ -17,6 +17,7 @@
 #include "engines/interpolantmc.h"
 
 #include "smt-switch/exceptions.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
