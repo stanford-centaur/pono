@@ -9,9 +9,8 @@
 ** All rights reserved.  See the file LICENSE in the top-level source
 ** directory for licensing information.\endverbatim
 **
-** \brief Simple implementation of IC3 operating on a functional
-**        transition system (exploiting this structure for
-**        predecessor computation) and uses models.
+** \brief Simple implementation of IC3 using model values
+**
 **/
 #pragma once
 
@@ -38,7 +37,19 @@ struct Conjunction
   smt::Term term_;          // term representation of literals as conjunction
 };
 
-using ProofGoal = std::pair<Conjunction, size_t>;
+struct ProofGoal
+{
+  // based on open-source ic3ia ProofObligation
+  Conjunction conj;
+  size_t idx;
+  // TODO: refactor this. shared_ptr probably overkill
+  std::shared_ptr<ProofGoal> next;
+
+  ProofGoal(Conjunction c, size_t i, std::shared_ptr<ProofGoal> n)
+      : conj(c), idx(i), next(n)
+  {
+  }
+};
 
 class ModelBasedIC3 : public Prover
 {
@@ -56,10 +67,15 @@ class ModelBasedIC3 : public Prover
   typedef Prover super;
 
   void initialize() override;
+
+  /** Set up the interpolator_
+   */
+  void initialize_interpolator();
+
   ProverResult check_until(int k) override;
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
- private:
+ protected:
   /** Perform a IC3 step
    *  @param i
    */
@@ -73,7 +89,7 @@ class ModelBasedIC3 : public Prover
    *  @return true iff the last frame intersects with bad
    *  post-condition: if true is returned, bad cube added to proof goals
    */
-  bool intersects_bad();
+  virtual bool intersects_bad();
   /** Get the predecessor of a cube c in frame i
    *  aka see if c is reachable from frame i-1
    *  @requires c -> F[i]
@@ -84,7 +100,9 @@ class ModelBasedIC3 : public Prover
    *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
    *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool get_predecessor(size_t i, const Conjunction & c, Conjunction & out_pred);
+  virtual bool get_predecessor(size_t i,
+                               const Conjunction & c,
+                               Conjunction & out_pred);
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
@@ -99,14 +117,18 @@ class ModelBasedIC3 : public Prover
   /** Create and add a proof goal for cube c for frame i
    *  @param c the cube of the proof goal
    *  @param i the frame number for the proof goal
+   *  @param n pointer to the proof goal that led to this one -- null for bad
+   *  (i.e. end of trace)
    */
-  void add_proof_goal(const Conjunction & c, size_t i);
+  void add_proof_goal(const Conjunction & c,
+                      size_t i,
+                      std::shared_ptr<ProofGoal> n);
   /** Attempt to block all proof goals
    *  to ensure termination, always choose proof goal with
    *  smallest time
    *  @return true iff all proof goals were blocked
    */
-  bool block_all();
+  virtual bool block_all();
   /** Attempt to block cube c at frame i
    *  @param i the frame number
    *  @param c the cube to try blocking
@@ -195,17 +217,19 @@ class ModelBasedIC3 : public Prover
    *  It also sorts the vector by the hash
    *  Note: this will fail for empty vectors
    *  @param vec the vector of boolean terms
+   *  @param slv (optional) the solver to use, defaults to solver_
    *  @return the conjunction of all the terms
    */
-  smt::Term make_and(smt::TermVec vec) const;
+  smt::Term make_and(smt::TermVec vec, smt::SmtSolver slv = NULL) const;
 
   /** Creates a reduce or of the vector of boolean terms
    *  It also sorts the vector by the hash
    *  Note: this will fail for empty vectors
    *  @param vec the vector of boolean terms
+   *  @param slv (optional) the solver to use, defaults to solver_
    *  @return the disjunction of all the terms
    */
-  smt::Term make_or(smt::TermVec vec) const;
+  smt::Term make_or(smt::TermVec vec, smt::SmtSolver slv = NULL) const;
 
   /** Pushes a solver context and keeps track of the context level
    *  updates solver_context_
@@ -217,6 +241,46 @@ class ModelBasedIC3 : public Prover
    */
   void pop_solver_context();
 
+  /** Sets the semantics for labels (if not already set)
+   *  e.g. init_label_, and trans_label_
+   *  -- checks if they are null and if so, gives semantics
+   *  Note: this might be overloaded in derived classes
+   *  Thus, for now should not be called in the constructor
+   *  TODO see if there is a cleaner way to do this
+   *       want to share the labels between this class and derived
+   *       but change the associated transition relation
+   *       need to be careful with calls to virtual functions
+   *       in the constructor
+   */
+  virtual void set_labels();
+
+  /** Analyze TS to see if there are any unsupported logics
+   */
+  virtual void check_ts() const;
+
+  /** Check that term is only over current state variables
+   *  This method is virtual so that derived classes can
+   *  use a different transition system (e.g. an abstract one)
+   *  for the check
+   *  @param t the term to check
+   *  @return true iff the term only containts current state variables
+   */
+  virtual bool only_curr(smt::Term & t);
+
+  /** Map current state to next state variables
+   *  This automatically uses the correct transition system
+   *  i.e. in derived classes operating over an abstract system, it
+   *  will use the abstraction
+   */
+  virtual smt::Term next(const smt::Term & t) const;
+
+  /** Sets the invariant with the contents of frame i
+   *  @param i the frame holding the invariant
+   *  Note: some IC3 implementations might need to do some translation
+   *  from an abstraction
+   */
+  void set_invar(size_t i);
+
   // Data structures
 
   ///< the frames data structure.
@@ -225,7 +289,6 @@ class ModelBasedIC3 : public Prover
   std::vector<smt::TermVec> frames_;
 
   // labels for activating assertions
-
   smt::Term init_label_;          ///< label to activate init
   smt::Term trans_label_;         ///< label to activate trans
   smt::TermVec frame_labels_;     ///< labels to activate frames
@@ -234,9 +297,9 @@ class ModelBasedIC3 : public Prover
   ///< stack of outstanding proof goals
   std::vector<ProofGoal> proof_goals_;
 
-  // useful terms
-  smt::Term true_;
-  smt::Term false_;
+  // useful terms from the default solver
+  smt::Term solver_true_;
+  smt::Term solver_false_;
 
   // NOTE: need to be sure to always use [push|pop]_solver_context
   // instead of doing it directly on the solver or this will be

@@ -91,6 +91,10 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     named_terms_[elem.first] = transfer(elem.second);
   }
 
+  for (auto elem : other_ts.term_to_name_) {
+    term_to_name_[transfer(elem.first)] = elem.second;
+  }
+
   // variables might have already be in the TermTranslator cache
   // with a different sort (due to sort aliasing)
   // use the SortKind as a hint when transferring
@@ -323,6 +327,62 @@ smt::Term TransitionSystem::lookup(std::string name) const
   return it->second;
 }
 
+void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
+{
+  // TODO: this runs even if called from make_statevar
+  //       could refactor entirely, or just pass a flag
+  //       saying whether to check these things or not
+
+  if (statevars_.find(cv) != statevars_.end()) {
+    throw PonoException("Cannot redeclare a state variable");
+  }
+
+  if (next_statevars_.find(nv) != next_statevars_.end()) {
+    throw PonoException("Cannot redeclare a state variable");
+  }
+
+  if (next_statevars_.find(cv) != next_statevars_.end()) {
+    throw PonoException(
+        "Cannot use an existing next state variable as a current state var");
+  }
+
+  if (statevars_.find(nv) != statevars_.end()) {
+    throw PonoException(
+        "Cannot use an existing state variable as a next state var");
+  }
+
+  if (inputvars_.find(cv) != inputvars_.end()
+      || inputvars_.find(nv) != inputvars_.end()) {
+    throw PonoException(
+        "Cannot re-use an input variable as a current or next state var");
+  }
+
+  statevars_.insert(cv);
+  next_statevars_.insert(nv);
+  next_map_[cv] = nv;
+  curr_map_[nv] = cv;
+  // automatically include in named_terms
+  name_term(cv->to_string(), cv);
+  name_term(nv->to_string(), nv);
+}
+
+void TransitionSystem::add_inputvar(const Term & v)
+{
+  // TODO: this check is running even when used by make_inputvar
+  //       could refactor entirely or just pass a boolean saying whether or not
+  //       to check these things
+  if (statevars_.find(v) != statevars_.end()
+      || next_statevars_.find(v) != next_statevars_.end()
+      || inputvars_.find(v) != inputvars_.end()) {
+    throw PonoException(
+        "Cannot reuse an existing variable as an input variable");
+  }
+
+  inputvars_.insert(v);
+  // automatically include in named_terms
+  name_term(v->to_string(), v);
+}
+
 // term building methods -- forwards to SmtSolver solver_
 
 Sort TransitionSystem::make_sort(const std::string name, uint64_t arity)
@@ -448,18 +508,27 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   }
   state_updates_ = reduced_state_updates;
 
-  /* update named_terms and remove terms that are not in coi */
+  /* update named_terms and term_to_name_ by removing terms that are not in coi
+   */
   unordered_map<string, Term> reduced_named_terms;
-  TermVec free_vars;
+  unordered_map<Term, string> reduced_term_to_name;
+  UnorderedTermSet free_vars;
   for (auto elem : named_terms_) {
     free_vars.clear();
     get_free_symbolic_consts(elem.second, free_vars);
     bool any_in_coi = false;
     Term currvar;
     for (auto v : free_vars) {
-      // look at current version of variables (if it contains next states)
-      // NOTE: it could also be an input variable
-      currvar = curr(v);
+      // v is an input variable, current variable, or next variable
+      // we want the current version of a state variable
+      auto it = curr_map_.find(v);
+      if (it != curr_map_.end()) {
+        // get the current state version of a next variable
+        currvar = it->second;
+      } else {
+        currvar = v;
+      }
+
       if (state_vars_in_coi.find(currvar) != state_vars_in_coi.end()
           || input_vars_in_coi.find(currvar) != input_vars_in_coi.end()) {
         any_in_coi = true;
@@ -468,30 +537,17 @@ void TransitionSystem::rebuild_trans_based_on_coi(
     }
     if (any_in_coi) {
       reduced_named_terms[elem.first] = elem.second;
+      // NOTE: name might not be the same as elem.first
+      //       need to use the representative name
+      //       stored in term_to_name_
+      reduced_term_to_name[elem.second] = term_to_name_.at(elem.second);
     }
   }
   named_terms_ = reduced_named_terms;
+  term_to_name_ = reduced_term_to_name;
 }
 
 // protected methods
-
-void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
-{
-  statevars_.insert(cv);
-  next_statevars_.insert(nv);
-  next_map_[cv] = nv;
-  curr_map_[nv] = cv;
-  // automatically include in named_terms
-  named_terms_[cv->to_string()] = cv;
-  named_terms_[nv->to_string()] = nv;
-}
-
-void TransitionSystem::add_inputvar(const Term & v)
-{
-  inputvars_.insert(v);
-  // automatically include in named_terms
-  named_terms_[v->to_string()] = v;
-}
 
 bool TransitionSystem::contains(const Term & term,
                                 UnorderedTermSetPtrVec term_sets) const

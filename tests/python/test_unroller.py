@@ -3,27 +3,6 @@ import smt_switch as ss
 import pono as c
 from typing import Set
 
-def get_free_vars(t:ss.Term)->Set[ss.Term]:
-    to_visit = [t]
-    visited = set()
-
-    free_vars = set()
-
-    while to_visit:
-        t = to_visit[-1]
-        to_visit = to_visit[:-1]
-
-        if t in visited:
-            continue
-        else:
-            for tt in t:
-                to_visit.append(tt)
-
-            if t.is_symbolic_const():
-                free_vars.add(t)
-
-    return free_vars
-
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_fts_unroller(create_solver):
@@ -58,7 +37,7 @@ def test_fts_unroller(create_solver):
     assert u.at_time(ts.init, 0) == u.at_time(ts.init, 0)
 
     trans1 = u.at_time(ts.trans, 1)
-    free_vars = get_free_vars(trans1)
+    free_vars = ss.get_free_symbolic_consts(trans1)
 
     assert u.at_time(x, 1) in free_vars
 
@@ -108,7 +87,7 @@ def test_fts_unroller(create_solver):
     assert u.at_time(ts.init, 0) == u.at_time(ts.init, 0)
 
     trans1 = u.at_time(ts.trans, 1)
-    free_vars = get_free_vars(trans1)
+    free_vars = ss.get_free_symbolic_consts(trans1)
 
     assert u.at_time(x, 1) not in free_vars
     assert u.at_time(x, 2) in free_vars
