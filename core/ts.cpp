@@ -633,10 +633,17 @@ void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
 
   // NOTE: don't need to update vars, let COI reduction handle that
   UnorderedTermMap new_state_updates;
-  Term sv;
+  Term sv, update;
   for (auto elem : state_updates_) {
     sv = elem.first;
-    new_state_updates[sw.visit(sv)] = sw.visit(elem.second);
+    sv = sw.visit(sv);
+    update = sw.visit(elem.second);
+    if (functional_ && !no_next(update)) {
+      throw PonoException(
+          "Got a next state variable in a state update for a functional "
+          "TransitionSystem in replace_terms");
+    }
+    new_state_updates[sv] = update;
   }
   state_updates_ = new_state_updates;
 
