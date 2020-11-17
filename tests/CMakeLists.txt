@@ -74,6 +74,11 @@ target_link_libraries(test_coi gtest_main)
 target_link_libraries(test_coi pono-lib)
 add_test(NAME test_coi COMMAND test_coi)
 
+add_executable(test_ts_replace_terms "${PROJECT_SOURCE_DIR}/tests/test_ts_replace_terms.cpp")
+target_link_libraries(test_ts_replace_terms gtest_main)
+target_link_libraries(test_ts_replace_terms pono-lib)
+add_test(NAME test_ts_replace_terms COMMAND test_ts_replace_terms)
+
 add_executable(test_btor2_ts_copy_equal "${PROJECT_SOURCE_DIR}/tests/test_btor2_ts_copy_equal.cpp")
 target_link_libraries(test_btor2_ts_copy_equal gtest_main)
 target_link_libraries(test_btor2_ts_copy_equal pono-lib)

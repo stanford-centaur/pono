@@ -212,6 +212,24 @@ cdef class __AbstractTransitionSystem:
     def is_deterministic(self):
         return dref(self.cts).is_deterministic()
 
+    def replace_terms(self, dict to_replace):
+        '''
+        EXPERTS ONLY
+        Use the provided dictionary to substitute all the terms with the mapping in the transition system
+        Can be used to cut out pieces of the transition system that are unneeded. Note, there are no guarantees,
+        the user is responsible for maintaining any semantics of the system that they want.
+
+        Modifies the transition system in place.
+        '''
+
+        cdef Term term = Term(self)
+        cdef c_UnorderedTermMap utm
+
+        for k, v in to_replace.items():
+            utm[(<Term?> k).ct] = (<Term?> v).ct
+
+        dref(self.cts).replace_terms(utm)
+
     def make_sort(self, arg0, arg1=None, arg2=None, arg3=None):
         cdef Sort s = Sort(self)
         cdef c_SortKind sk
