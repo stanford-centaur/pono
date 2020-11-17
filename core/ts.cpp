@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "assert.h"
+#include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
 
 using namespace smt;
@@ -595,6 +596,63 @@ bool TransitionSystem::only_curr(const Term & term) const
 bool TransitionSystem::no_next(const Term & term) const
 {
   return contains(term, UnorderedTermSetPtrVec{ &statevars_, &inputvars_ });
+}
+
+void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
+{
+  // first check that all the replacements contain known symbols
+  for (auto elem : to_replace) {
+    if (!known_symbols(elem.first) || !known_symbols(elem.second)) {
+      throw PonoException("Got an unknown symbol in replace_terms map");
+    }
+  }
+
+  // use a substitution walker because
+  //   1. it keeps a persistent cache
+  //   2. it supports substituting arbitrary terms (e.g. not just mapping from
+  //   symbols)
+  SubstitutionWalker sw(solver_, to_replace);
+
+  // now rebuild terms in every data structure with replacements
+  init_ = sw.visit(init_);
+  if (!only_curr(init_)) {
+    throw PonoException(
+        "Replaced a state variable appearing in init with an input in "
+        "replace_terms");
+  }
+  trans_ = sw.visit(trans_);
+
+  unordered_map<string, Term> new_named_terms;
+  unordered_map<Term, string> new_term_to_name;
+  for (auto elem : named_terms_) {
+    new_named_terms[elem.first] = sw.visit(elem.second);
+    new_term_to_name[sw.visit(elem.second)] = term_to_name_.at(elem.second);
+  }
+  named_terms_ = new_named_terms;
+  term_to_name_ = new_term_to_name;
+
+  // NOTE: don't need to update vars, let COI reduction handle that
+  UnorderedTermMap new_state_updates;
+  Term sv, update;
+  for (auto elem : state_updates_) {
+    sv = elem.first;
+    sv = sw.visit(sv);
+    update = sw.visit(elem.second);
+    if (functional_ && !no_next(update)) {
+      throw PonoException(
+          "Got a next state variable in a state update for a functional "
+          "TransitionSystem in replace_terms");
+    }
+    new_state_updates[sv] = update;
+  }
+  state_updates_ = new_state_updates;
+
+  TermVec new_constraints;
+  new_constraints.reserve(constraints_.size());
+  for (auto c : constraints_) {
+    new_constraints.push_back(sw.visit(c));
+  }
+  constraints_ = new_constraints;
 }
 
 bool TransitionSystem::known_symbols(const Term & term) const

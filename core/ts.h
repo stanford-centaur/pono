@@ -280,6 +280,18 @@ class TransitionSystem
    * states */
   bool no_next(const smt::Term & term) const;
 
+  /** Replace terms in the transition system with other terms
+   *  Traverses all the data structures and updates them with
+   *  the replacements
+   *  Recommended usage is for experts only. Use this feature
+   *    to cut out parts of the design by replacing terms with
+   *    fresh inputs. Then cone of influence reduction can remove
+   *    the unconnected parts of the transition system
+   *  @param to_replace a mapping from terms in the transition
+   *         system to their replacement.
+   */
+  void replace_terms(const smt::UnorderedTermMap & to_replace);
+
   // term building functionality -- forwards to the underlying SmtSolver
   // assumes all Terms/Sorts belong to solver_
   // e.g. should only use it on terms created by this TransitionSystem
