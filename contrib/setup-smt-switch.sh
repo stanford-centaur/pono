@@ -3,8 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-# pulling a branch for now
-# SMT_SWITCH_VERSION=cea17f272712b93e7df96a8b194b2c21cd599b15
+SMT_SWITCH_VERSION=492b7d499fa1a5b0de281bbbe6db60ead1a89358
 
 usage () {
     cat <<EOF
@@ -60,11 +59,9 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    # TEMPORARILY pulling a branch
-    # TODO put this back
-    git clone -b substitution-walker https://github.com/makaimann/smt-switch
+    git clone https://github.com/makaimann/smt-switch
     cd smt-switch
-    # git checkout -f $SMT_SWITCH_VERSION
+    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
     if [ $cvc4_home = default ]; then
         ./contrib/setup-cvc4.sh
