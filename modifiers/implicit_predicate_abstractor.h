@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "smt-switch/utils.h"
+
 #include "abstractor.h"
 
 namespace pono {
@@ -25,7 +27,8 @@ class ImplicitPredicateAbstractor : public Abstractor
 {
  public:
   ImplicitPredicateAbstractor(const TransitionSystem & conc_ts,
-                              TransitionSystem & abs_ts);
+                              TransitionSystem & abs_ts,
+                              smt::SmtSolver reducer_slv);
 
   smt::Term abstract(smt::Term & t) override;
 
@@ -50,7 +53,11 @@ class ImplicitPredicateAbstractor : public Abstractor
  protected:
   void do_abstraction() override;
 
+  smt::Term predicate_refinement(const smt::Term & pred);
+
   const smt::SmtSolver & solver_;
+
+  smt::UnsatCoreReducer reducer_;
 
   RelationalTransitionSystem & abs_rts_;
   ///< relational version of abs_ts_

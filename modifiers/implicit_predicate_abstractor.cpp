@@ -26,9 +26,11 @@ using namespace std;
 namespace pono {
 
 ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
-    const TransitionSystem & conc_ts, TransitionSystem & abs_ts)
+    const TransitionSystem & conc_ts, TransitionSystem & abs_ts,
+    SmtSolver reducer_slv)
     : Abstractor(conc_ts, abs_ts),
       solver_(abs_ts.solver()),
+      reducer_(reducer_slv),
       abs_rts_(static_cast<RelationalTransitionSystem &>(abs_ts_))
 {
   if (conc_ts_.solver() != abs_ts_.solver()) {
@@ -57,6 +59,7 @@ ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
   abs_rts_.set_behavior(conc_ts_.init(), conc_ts_.trans());
 
   do_abstraction();
+
 }
 
 Term ImplicitPredicateAbstractor::abstract(Term & t)
@@ -74,9 +77,8 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
 {
   assert(abs_ts_.only_curr(pred));
   predicates_.push_back(pred);
-  Term next_pred = abs_ts_.next(pred);
-  // constrain next state vars and abstract vars to agree on this predicate
-  Term rel = solver_->make_term(Iff, next_pred, abstract(next_pred));
+
+  Term rel = predicate_refinement(pred);
   abs_rts_.constrain_trans(rel);
   return rel;
 }
@@ -123,6 +125,13 @@ void ImplicitPredicateAbstractor::do_abstraction()
   Term trans = conc_ts_.trans();
   abs_rts_.set_trans(abstract(trans));
   logger.log(3, "Set abstract transition relation to {}", abs_rts_.trans());
+}
+
+Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
+{
+  Term next_pred = abs_ts_.next(pred);
+  // constrain next state vars and abstract vars to agree on this predicate
+  return solver_->make_term(Iff, next_pred, abstract(next_pred));
 }
 
 }  // namespace pono
