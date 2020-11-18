@@ -46,6 +46,12 @@ Term Unroller::at_time(const Term & t, unsigned int k)
   return solver_->substitute(t, cache);
 }
 
+TermVec Unroller::at_time(const TermVec & terms, unsigned int k)
+{
+  UnorderedTermMap & cache = var_cache_at_time(k);
+  return solver_->substitute_terms(terms, cache);
+}
+
 Term Unroller::untime(const Term & t) const
 {
   return solver_->substitute(t, untime_cache_);

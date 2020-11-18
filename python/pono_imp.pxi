@@ -362,6 +362,20 @@ cdef class Unroller:
         term.ct = dref(self.cu).at_time(t.ct, k)
         return term
 
+    def terms_at_time(self, list terms, unsigned int k):
+        cdef vector[c_Term] cterms
+        for t in terms:
+            cterms.push_back((<Term?> t).ct)
+
+        res = []
+        cdef Term term
+        for ct in dref(self.cu).at_time(cterms, k):
+            term = Term(self._solver)
+            term.ct = ct
+            res.append(term)
+
+        return res
+
     def untime(self, Term t):
         cdef Term term = Term(self._solver)
         term.ct = dref(self.cu).untime(t.ct)

@@ -48,6 +48,8 @@ class Unroller
    */
   smt::Term at_time(const smt::Term & t, unsigned int k);
 
+  smt::TermVec at_time(const smt::TermVec & terms, unsigned int k);
+
   smt::Term untime(const smt::Term & t) const;
 
   /** Returns the time of an unrolled variable
