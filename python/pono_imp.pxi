@@ -222,7 +222,6 @@ cdef class __AbstractTransitionSystem:
         Modifies the transition system in place.
         '''
 
-        cdef Term term = Term(self)
         cdef c_UnorderedTermMap utm
 
         for k, v in to_replace.items():
