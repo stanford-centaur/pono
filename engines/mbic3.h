@@ -21,7 +21,7 @@
 
 #include "smt-switch/term_translator.h"
 
-#include "prover.h"
+#include "engines/prover.h"
 
 namespace pono {
 
