@@ -651,6 +651,21 @@ void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
   }
   state_updates_ = new_state_updates;
 
+  UnorderedTermMap new_next_map_;
+  UnorderedTermMap new_curr_map_;
+  Term c, n;
+  for (auto elem : next_map_) {
+    c = elem.first;
+    n = elem.second;
+    c = sw.visit(c);
+    n = sw.visit(n);
+    new_next_map_[c] = n;
+    assert(curr_map_.at(elem.second) == elem.first);
+    new_curr_map_[n] = c;
+  }
+  next_map_ = new_next_map_;
+  curr_map_ = new_curr_map_;
+
   TermVec new_constraints;
   new_constraints.reserve(constraints_.size());
   for (auto c : constraints_) {
