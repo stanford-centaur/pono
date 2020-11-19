@@ -500,7 +500,7 @@ cdef class HistoryModifier:
         term.ct = dref(self.chm).get_hist(target.ct, delay)
         return term
 
-def coi_reduction(__AbstractTransitionSystem ts, to_keep):
+def coi_reduction(__AbstractTransitionSystem ts, to_keep, to_remove=[], verbosity=1):
     '''
 
     ts - a transition system
@@ -512,10 +512,14 @@ def coi_reduction(__AbstractTransitionSystem ts, to_keep):
 
     '''
     cdef vector[c_Term] c_to_keep
+    cdef vector[c_Term] c_to_remove
     for t in to_keep:
         c_to_keep.push_back((<Term?> t).ct)
+    for t in to_remove:
+        c_to_remove.push_back((<Term?> t).ct)
+
     assert len(to_keep) == c_to_keep.size()
-    c_ConeOfInfluence(dref(ts.cts), c_to_keep)
+    c_ConeOfInfluence(dref(ts.cts), c_to_keep, c_to_remove, verbosity)
 
 cdef class VCDWitnessPrinter:
     cdef c_VCDWitnessPrinter * cvwp

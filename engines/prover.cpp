@@ -77,7 +77,7 @@ void Prover::initialize()
     /* Compute the set of state/input variables related to the
        bad-state property. Based on that information, rebuild the
        transition relation of the transition system. */
-    ConeOfInfluence coi(ts_, { bad_ }, options_.verbosity_);
+    ConeOfInfluence coi(ts_, { bad_ }, {}, options_.verbosity_);
   }
 }
 

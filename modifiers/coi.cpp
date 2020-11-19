@@ -27,8 +27,11 @@ namespace pono {
 
 ConeOfInfluence::ConeOfInfluence(TransitionSystem & ts,
                                  const TermVec & to_keep,
+                                 const TermVec & to_remove,
                                  int verbosity)
-    : ts_(ts), verbosity_(verbosity)
+    : ts_(ts),
+      to_remove_(to_remove.begin(), to_remove.end()),
+      verbosity_(verbosity)
 {
   if (!ts_.is_functional())
     throw PonoException(
@@ -42,6 +45,11 @@ ConeOfInfluence::ConeOfInfluence(TransitionSystem & ts,
   ts_.rebuild_trans_based_on_coi(statevars_in_coi_, inputvars_in_coi_);
   assert(statevars_in_coi_.size() == ts_.statevars().size());
   assert(inputvars_in_coi_.size() == ts_.inputvars().size());
+  for (auto v : to_remove) {
+    if (ts_.is_curr_var(v)) {
+      assert(statevars_in_coi_.find(v) == statevars_in_coi_.end());
+    }
+  }
   logger.log(
       1,
       "COI analysis completed: {} remaining input variables, {} original",
@@ -133,6 +141,10 @@ void ConeOfInfluence::compute_term_coi(const Term & term,
     /* Use global set 'coi_visited_terms' here to avoid visiting terms
        multiple times when we call this function on different terms. */
     if (coi_visited_terms_.find(cur) == coi_visited_terms_.end()) {
+      if (to_remove_.find(cur) != to_remove_.end()) {
+        continue;
+      }
+
       /* Cache 'cur' and push its children. */
       coi_visited_terms_.insert(cur);
       logger.log(3, "  visiting COI term: {}", cur);

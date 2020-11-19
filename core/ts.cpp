@@ -601,8 +601,12 @@ bool TransitionSystem::no_next(const Term & term) const
 void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
 {
   // first check that all the replacements contain known symbols
+  UnorderedTermSetPtrVec all_symbols(
+      { &statevars_, &inputvars_, &next_statevars_ });
   for (auto elem : to_replace) {
-    if (!known_symbols(elem.first) || !known_symbols(elem.second)) {
+    bool known = contains(elem.first, all_symbols);
+    known &= contains(elem.second, all_symbols);
+    if (!known) {
       throw PonoException("Got an unknown symbol in replace_terms map");
     }
   }
