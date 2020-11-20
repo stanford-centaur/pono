@@ -46,7 +46,20 @@ class IC3Unit
   virtual bool check_valid() const = 0;
 };
 
-typedef IC3Unit (*IC3UnitCreator)(const smt::TermVec & terms);
+typedef std::unique_ptr<IC3Unit> (*IC3UnitCreator)(const smt::TermVec & terms);
+
+struct ProofGoal
+{
+  // based on open-source ic3ia ProofObligation
+  std::unique_ptr<IC3Unit> target;
+  size_t idx;
+  std::unique_ptr<ProofGoal> next;
+
+  ProofGoal(std::unique_ptr<IC3Unit> u, size_t i, std::unique_ptr<ProofGoal> n)
+      : target(std::move(u)), idx(i), next(std::move(n))
+  {
+  }
+};
 
 class IC3Base : public Prover
 {
@@ -79,6 +92,14 @@ class IC3Base : public Prover
   ///< a vector of the given Unit template
   ///< which changes depending on the implementation
   std::vector<std::vector<IC3Unit>> frames_;
+
+  ///< stack of outstanding proof goals
+  std::vector<ProofGoal> proof_goals_;
+
+  // labels for activating assertions
+  smt::Term init_label_;       ///< label to activate init
+  smt::Term trans_label_;      ///< label to activate trans
+  smt::TermVec frame_labels_;  ///< labels to activate frames
 };
 
 }  // namespace pono
