@@ -27,9 +27,11 @@ namespace pono {
 
 ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
     const TransitionSystem & conc_ts, TransitionSystem & abs_ts,
+    Unroller & un,
     SmtSolver reducer_slv)
     : Abstractor(conc_ts, abs_ts),
       solver_(abs_ts.solver()),
+      unroller_(un),
       reducer_(reducer_slv),
       abs_rts_(static_cast<RelationalTransitionSystem &>(abs_ts_))
 {
@@ -82,6 +84,40 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
   abs_rts_.constrain_trans(rel);
   return rel;
 }
+
+bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
+                                                    const TermVec & new_preds,
+                                                    TermVec & out)
+{
+  Term formula = solver_->make_term(true);
+
+  for (size_t i = 0; i < cex.size(); ++i) {
+    formula = solver_->make_term(And, formula, unroller_.at_time(cex[i], i));
+    if (i != cex.size() - 1) {
+      formula = solver_->make_term(And, formula,
+                                   unroller_.at_time(abs_ts_.trans(), i));
+    }
+  }
+
+  TermVec assumps;
+  for (const auto &p : new_preds) {
+    Term pred_ref = predicate_refinement(p);
+
+    Term a;
+    for (size_t i = 0; i < cex.size(); ++i) {
+      Term p_i = unroller_.at_time(pred_ref, 0);
+      a = i==0 ? p_i : solver_->make_term(And, a, p_i);
+    }
+
+    assumps.push_back(a);
+  }
+
+  size_t n = out.size();
+  reducer_.reduce_assump_unsatcore(formula, assumps, out);
+
+  return out.size() > n;
+}
+
 
 void ImplicitPredicateAbstractor::do_abstraction()
 {

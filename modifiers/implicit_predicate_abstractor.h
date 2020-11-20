@@ -20,6 +20,7 @@
 #include "smt-switch/utils.h"
 
 #include "abstractor.h"
+#include "core/unroller.h"
 
 namespace pono {
 
@@ -28,6 +29,7 @@ class ImplicitPredicateAbstractor : public Abstractor
  public:
   ImplicitPredicateAbstractor(const TransitionSystem & conc_ts,
                               TransitionSystem & abs_ts,
+                              Unroller & un,
                               smt::SmtSolver reducer_slv);
 
   smt::Term abstract(smt::Term & t) override;
@@ -50,12 +52,18 @@ class ImplicitPredicateAbstractor : public Abstractor
    */
   const smt::TermVec & predicates() const { return predicates_; };
 
+  bool reduce_predicates(const smt::TermVec & cex,
+                         const smt::TermVec & new_preds,
+                         smt::TermVec & out);
+
  protected:
   void do_abstraction() override;
 
   smt::Term predicate_refinement(const smt::Term & pred);
 
   const smt::SmtSolver & solver_;
+
+  Unroller & unroller_;
 
   smt::UnsatCoreReducer reducer_;
 
