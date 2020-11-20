@@ -24,35 +24,42 @@ using namespace std;
 
 namespace pono {
 
-IC3Base::IC3Base(Property & p, smt::SolverEnum se) : super(p, se)
+IC3Base::IC3Base(Property & p, smt::SolverEnum se, IC3UnitCreator ic)
+    : super(p, se), mk_unit(ic)
 {
   initialize();
 }
 
-IC3Base::IC3Base(Property & p, const smt::SmtSolver & s) : super(p, s)
+IC3Base::IC3Base(Property & p, const smt::SmtSolver & s, IC3UnitCreator ic)
+    : super(p, s), mk_unit(ic)
 {
   initialize();
 }
 
-IC3Base::IC3Base(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-    : super(opt, p, se)
+IC3Base::IC3Base(const PonoOptions & opt,
+                 Property & p,
+                 smt::SolverEnum se,
+                 IC3UnitCreator ic)
+    : super(opt, p, se), mk_unit(ic)
 {
   initialize();
 }
 IC3Base::IC3Base(const PonoOptions & opt,
                  Property & p,
-                 const smt::SmtSolver & s)
-    : super(opt, p, s)
+                 const smt::SmtSolver & s,
+                 IC3UnitCreator ic)
+    : super(opt, p, s), mk_unit(ic)
 {
   initialize();
 }
 
-IC3Base::initialize()
+void IC3Base::initialize()
 {
-  static_assert(std::is_base_of<IC3Unit, Unit>::value,
-                "Expecting Unit to be a derived class of IC3Unit");
+  // TODO: fix initialize. Not sure it makes sense to call it here instead of in
+  // prover constructor
+  //       need to think about multiple levels of inheritance and where the
+  //       responsibility for calling initialize belongs
+  super::initialize();
 }
-
-template class IC3Base<IC3Unit>;
 
 }  // namespace pono
