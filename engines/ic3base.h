@@ -48,14 +48,16 @@ class IC3Unit
 
 typedef std::unique_ptr<IC3Unit> (*IC3UnitCreator)(const smt::TermVec & terms);
 
-struct ProofGoal
+// TODO change back to ProofGoal once refactor is done
+// don't want to clash with name in MBIC3 for now
+struct IC3Goal
 {
   // based on open-source ic3ia ProofObligation
   std::unique_ptr<IC3Unit> target;
   size_t idx;
-  std::unique_ptr<ProofGoal> next;
+  std::unique_ptr<IC3Goal> next;
 
-  ProofGoal(std::unique_ptr<IC3Unit> u, size_t i, std::unique_ptr<ProofGoal> n)
+  IC3Goal(std::unique_ptr<IC3Unit> u, size_t i, std::unique_ptr<IC3Goal> n)
       : target(std::move(u)), idx(i), next(std::move(n))
   {
   }
@@ -94,7 +96,7 @@ class IC3Base : public Prover
   std::vector<std::vector<IC3Unit>> frames_;
 
   ///< stack of outstanding proof goals
-  std::vector<ProofGoal> proof_goals_;
+  std::vector<IC3Goal> proof_goals_;
 
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
