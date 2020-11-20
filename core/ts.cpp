@@ -598,6 +598,32 @@ bool TransitionSystem::no_next(const Term & term) const
   return contains(term, UnorderedTermSetPtrVec{ &statevars_, &inputvars_ });
 }
 
+void TransitionSystem::drop_state_updates(const TermVec & svs)
+{
+  for (auto sv : svs) {
+    if (!is_curr_var(sv)) {
+      throw PonoException("Got non-state var in drop_state_updates");
+    }
+    state_updates_.erase(sv);
+  }
+
+  // now rebuild trans
+  /* Clear current transition relation 'trans_'. */
+  trans_ = solver_->make_term(true);
+
+  /* Add next-state functions for state variables in COI. */
+  for (auto elem : state_updates_) {
+    assert(elem.second);  // should be non-null if in map
+    Term eq = solver_->make_term(Equal, next_map_.at(elem.first), elem.second);
+    trans_ = solver_->make_term(And, trans_, eq);
+  }
+
+  /* Add global constraints added to previous 'trans_'. */
+  for (auto constr : constraints_) {
+    trans_ = solver_->make_term(And, trans_, constr);
+  }
+}
+
 void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
 {
   // first check that all the replacements contain known symbols

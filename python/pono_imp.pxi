@@ -212,6 +212,18 @@ cdef class __AbstractTransitionSystem:
     def is_deterministic(self):
         return dref(self.cts).is_deterministic()
 
+    def drop_state_updates(self, list svs):
+        '''
+        EXPERTS ONLY
+        Drop the state updates for these state variables
+        '''
+        cdef c_TermVec c_svs
+        c_svs.reserve(len(svs))
+        for sv in svs:
+            c_svs.push_back((<Term?> sv).ct)
+
+        dref(self.cts).drop_state_updates(c_svs)
+
     def replace_terms(self, dict to_replace):
         '''
         EXPERTS ONLY
