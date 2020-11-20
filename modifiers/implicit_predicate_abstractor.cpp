@@ -99,7 +99,8 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
     }
   }
 
-  TermVec assumps;
+  TermVec assumps, red_assumps;
+  UnorderedTermMap assumps_to_pred;
   for (const auto &p : new_preds) {
     Term pred_ref = predicate_refinement(p);
 
@@ -110,10 +111,14 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
     }
 
     assumps.push_back(a);
+    assumps_to_pred[a] = p;
   }
 
   size_t n = out.size();
-  reducer_.reduce_assump_unsatcore(formula, assumps, out);
+  reducer_.reduce_assump_unsatcore(formula, assumps, red_assumps);
+  for (const auto &a : red_assumps) {
+    out.push_back(assumps_to_pred.at(a));
+  }
 
   return out.size() > n;
 }
