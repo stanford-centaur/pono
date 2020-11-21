@@ -20,17 +20,17 @@
 
 namespace pono {
 
-class AbstractIC3Unit
+class IC3Unit
 {
  public:
-  AbstractIC3Unit(const smt::TermVec & c) : children_(c), negated_(false) {}
-  virtual ~AbstractIC3Unit() {}
+  IC3Unit(const smt::TermVec & c) : children_(c), negated_(false) {}
+  virtual ~IC3Unit() {}
 
   /** Get a single term representation
    *  Depends on the unit, e.g. a Disjunction unit would be
    *  be an OR of all the children.
    */
-  virtual smt::Term get_term() const = 0;
+  virtual smt::Term get_term() const { return term_; }
 
   /** Returns the children terms of this unit */
   const smt::TermVec & get_children() const { return children_; };
@@ -39,23 +39,28 @@ class AbstractIC3Unit
   bool is_negated() const { return negated_; };
 
   /** Negate the unit */
-  virtual void negate() = 0;
+  virtual void negate()
+  {
+    throw PonoException("negate needs to be implemented by derived class.");
+  }
 
  protected:
+  smt::Term term_;
   smt::TermVec children_;
   bool negated_;
 
-  /** Check if this is a valid instance of this type of AbstractIC3Unit
+  /** Check if this is a valid instance of this type of IC3Unit
    *  e.g. a Clause would make sure all the children are literals
    */
-  virtual bool check_valid() const = 0;
+  virtual bool check_valid() const
+  {
+    throw PonoException("check_valid needs to be implemented by derived class");
+  }
 };
-
-using IC3Unit = std::shared_ptr<AbstractIC3Unit>;
 
 typedef std::unique_ptr<IC3Unit> (*IC3UnitCreator)(const smt::TermVec & terms);
 
-// TODO change back to IC3Goal once refactor is done
+// TODO change back to ProofGoal once refactor is done
 // don't want to clash with name in MBIC3 for now
 struct IC3Goal
 {

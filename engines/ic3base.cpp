@@ -99,7 +99,7 @@ bool IC3Base::propagate(size_t i)
   assert_trans_label();
 
   for (size_t j = 0; j < Fi.size(); ++j) {
-    const Term & t = Fi.at(j)->get_term();
+    const Term & t = Fi.at(j).get_term();
 
     // Relative inductiveness check
     // Check F[i] /\ t /\ T /\ -t'
@@ -152,7 +152,7 @@ void IC3Base::constrain_frame(size_t i, const IC3Unit & constraint)
   assert(i < frame_labels_.size());
   assert(frame_labels_.size() == frames_.size());
   solver_->assert_formula(
-      solver_->make_term(Implies, frame_labels_.at(i), constraint->get_term()));
+      solver_->make_term(Implies, frame_labels_.at(i), constraint.get_term()));
   frames_.at(i).push_back(constraint);
 }
 
@@ -186,7 +186,7 @@ Term IC3Base::get_frame(size_t i) const
   Term res = solver_true_;
   for (size_t j = i; j < frames_.size(); ++j) {
     for (auto u : frames_[j]) {
-      res = solver_->make_term(And, res, u->get_term());
+      res = solver_->make_term(And, res, u.get_term());
     }
   }
   return res;
@@ -215,7 +215,7 @@ void IC3Base::add_proof_goal(const IC3Unit & c, size_t i, unique_ptr<IC3Goal> n)
   // IC3Unit aligned with frame so proof goal should be negated
   // e.g. for bit-level IC3, IC3Unit is a Clause and the proof
   // goal should be a Cube
-  assert(c->is_negated());
+  assert(c.is_negated());
   proof_goals_.push_back(IC3Goal(c, i, std::move(n)));
 }
 
@@ -242,8 +242,8 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 
 size_t IC3Base::find_highest_frame(size_t i, const IC3Unit & u)
 {
-  assert(!u->is_negated());
-  Term c = u->get_term();
+  assert(!u.is_negated());
+  Term c = u.get_term();
   push_solver_context();
   solver_->assert_formula(c);
   solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
