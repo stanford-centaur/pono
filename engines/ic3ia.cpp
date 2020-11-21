@@ -318,10 +318,14 @@ ProverResult IC3IA::refine(ProofGoal pg)
       get_predicates(solver_, I, preds);
     }
 
+    // reduce new predicates
     TermVec preds_vec(preds.begin(), preds.end());
     TermVec red_preds;
-    // TODO: add option to minimize predicates
-    ia_.reduce_predicates(cex, preds_vec, red_preds);
+    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+      // reduction successful
+      preds.clear();
+      preds.insert(red_preds.begin(), red_preds.end());
+    }
 
     if (!preds.size()) {
       logger.log(1, "No new predicates found...");
