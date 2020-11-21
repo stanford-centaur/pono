@@ -32,9 +32,14 @@ class IC3Unit
    */
   virtual smt::Term get_term() const = 0;
 
+  /** Returns the children terms of this unit */
   const smt::TermVec & get_children() const { return children_; };
 
+  /** Returns true iff this unit is negated, e.g. for a proof goal */
   bool is_negated() const { return negated_; };
+
+  /** Negate the unit */
+  virtual void negate() = 0;
 
  protected:
   smt::TermVec children_;
