@@ -21,6 +21,8 @@
 **        https://es-static.fbk.eu/people/griggio/ic3ia/index.html
 **/
 
+#include <random>
+
 #include "engines/ic3ia.h"
 
 #include "utils/logger.h"
@@ -320,6 +322,11 @@ ProverResult IC3IA::refine(ProofGoal pg)
 
     // reduce new predicates
     TermVec preds_vec(preds.begin(), preds.end());
+    if (options_.random_seed_ > 0) {
+      shuffle(preds_vec.begin(), preds_vec.end(),
+              default_random_engine(options_.random_seed_));
+    }
+
     TermVec red_preds;
     if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
       // reduction successful
