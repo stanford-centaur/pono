@@ -106,7 +106,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
 
     Term a;
     for (size_t i = 0; i < cex.size(); ++i) {
-      Term p_i = unroller_.at_time(pred_ref, 0);
+      Term p_i = unroller_.at_time(pred_ref, i);
       a = i==0 ? p_i : solver_->make_term(And, a, p_i);
     }
 
