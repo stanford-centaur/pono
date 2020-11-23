@@ -29,8 +29,7 @@ class ImplicitPredicateAbstractor : public Abstractor
  public:
   ImplicitPredicateAbstractor(const TransitionSystem & conc_ts,
                               TransitionSystem & abs_ts,
-                              Unroller & un,
-                              smt::SmtSolver reducer_slv);
+                              Unroller & un);
 
   smt::Term abstract(smt::Term & t) override;
 

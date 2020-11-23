@@ -36,29 +36,28 @@ namespace pono {
 
 IC3IA::IC3IA(Property & p, SolverEnum se)
   : super(p, se), abs_ts_(ts_.solver()),
-    ia_(ts_, abs_ts_, unroller_, create_solver(se))
+    ia_(ts_, abs_ts_, unroller_)
 {
   initialize();
 }
 
 IC3IA::IC3IA(Property & p, const SmtSolver & slv)
   : super(p, slv), abs_ts_(ts_.solver()),
-    ia_(ts_, abs_ts_, unroller_, create_solver(ts_.solver()->get_solver_enum()))
+    ia_(ts_, abs_ts_, unroller_)
 {
   initialize();
 }
 
 IC3IA::IC3IA(const PonoOptions & opt, Property & p, const SolverEnum se)
   : super(opt, p, se), abs_ts_(ts_.solver()),
-    ia_(ts_, abs_ts_, unroller_, create_solver(ts_.solver()->get_solver_enum()))
+    ia_(ts_, abs_ts_, unroller_)
 {
   initialize();
 }
 
 IC3IA::IC3IA(const PonoOptions & opt, Property & p, const SmtSolver & slv)
     : super(opt, p, slv), abs_ts_(ts_.solver()),
-      ia_(ts_, abs_ts_, unroller_,
-          create_solver(ts_.solver()->get_solver_enum()))
+      ia_(ts_, abs_ts_, unroller_)
 {
   initialize();
 }

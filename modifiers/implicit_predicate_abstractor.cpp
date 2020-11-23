@@ -19,6 +19,7 @@
 
 #include "assert.h"
 #include "utils/logger.h"
+#include "smt/available_solvers.h"
 
 using namespace smt;
 using namespace std;
@@ -27,12 +28,11 @@ namespace pono {
 
 ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
     const TransitionSystem & conc_ts, TransitionSystem & abs_ts,
-    Unroller & un,
-    SmtSolver reducer_slv)
+    Unroller & un)
     : Abstractor(conc_ts, abs_ts),
       solver_(abs_ts.solver()),
       unroller_(un),
-      reducer_(reducer_slv),
+      reducer_(create_solver(solver_->get_solver_enum())),
       abs_rts_(static_cast<RelationalTransitionSystem &>(abs_ts_))
 {
   if (conc_ts_.solver() != abs_ts_.solver()) {
