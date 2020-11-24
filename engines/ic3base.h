@@ -17,6 +17,7 @@
 #pragma once
 
 #include "engines/prover.h"
+#include "smt-switch/utils.h"
 
 namespace pono {
 
@@ -105,6 +106,8 @@ class IC3Base : public Prover
  protected:
   ///< a function to create an IC3Unit
   IC3UnitCreator mk_unit;
+
+  smt::UnsatCoreReducer reducer_;
 
   ///< keeps track of the current context-level of the solver
   // NOTE: if solver is passed in, it could be off

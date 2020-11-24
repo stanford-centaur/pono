@@ -20,6 +20,7 @@
 #include <type_traits>
 
 #include "assert.h"
+#include "smt/available_solvers.h"
 
 using namespace smt;
 using namespace std;
@@ -27,13 +28,16 @@ using namespace std;
 namespace pono {
 
 IC3Base::IC3Base(Property & p, smt::SolverEnum se, IC3UnitCreator ic)
-    : super(p, se), mk_unit(ic), solver_context_(0)
+    : super(p, se), mk_unit(ic), reducer_(create_solver(se)), solver_context_(0)
 {
   initialize();
 }
 
 IC3Base::IC3Base(Property & p, const smt::SmtSolver & s, IC3UnitCreator ic)
-    : super(p, s), mk_unit(ic), solver_context_(0)
+    : super(p, s),
+      mk_unit(ic),
+      reducer_(create_solver(s->get_solver_enum())),
+      solver_context_(0)
 {
   initialize();
 }
@@ -42,7 +46,10 @@ IC3Base::IC3Base(const PonoOptions & opt,
                  Property & p,
                  smt::SolverEnum se,
                  IC3UnitCreator ic)
-    : super(opt, p, se), mk_unit(ic), solver_context_(0)
+    : super(opt, p, se),
+      mk_unit(ic),
+      reducer_(create_solver(se)),
+      solver_context_(0)
 {
   initialize();
 }
@@ -50,7 +57,10 @@ IC3Base::IC3Base(const PonoOptions & opt,
                  Property & p,
                  const smt::SmtSolver & s,
                  IC3UnitCreator ic)
-    : super(opt, p, s), mk_unit(ic), solver_context_(0)
+    : super(opt, p, s),
+      mk_unit(ic),
+      reducer_(create_solver(s->get_solver_enum())),
+      solver_context_(0)
 {
   initialize();
 }
