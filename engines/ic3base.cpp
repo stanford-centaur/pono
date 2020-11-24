@@ -27,6 +27,21 @@ using namespace std;
 
 namespace pono {
 
+// helper functions
+
+/** Less than comparison of the hash of two terms
+ *  for use in sorting
+ *  @param t0 the first term
+ *  @param t1 the second term
+ *  @return true iff t0's hash is less than t1's hash
+ */
+bool term_lt(const smt::Term & t0, const smt::Term & t1)
+{
+  return (t0->hash() < t1->hash());
+}
+
+/** IC3Base */
+
 IC3Base::IC3Base(Property & p, smt::SolverEnum se, IC3UnitCreator ic)
     : super(p, se), mk_unit(ic), reducer_(create_solver(se)), solver_context_(0)
 {
@@ -246,8 +261,15 @@ bool IC3Base::intersects_initial(const Term & t)
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
-  // TODO use the UnsatCoreReducer from from smt-switch
-  throw PonoException("NYI");
+  if (rem.size() != 0) {
+    Term formula = solver_->make_term(And, init_label_, make_and(to_keep));
+    reducer_.reduce_assump_unsatcore(formula,
+                                     rem,
+                                     to_keep,
+                                     NULL,
+                                     options_.ic3_gen_max_iter_,
+                                     options_.random_seed_);
+  }
 }
 
 size_t IC3Base::find_highest_frame(size_t i, const IC3Unit & u)
@@ -274,6 +296,25 @@ size_t IC3Base::find_highest_frame(size_t i, const IC3Unit & u)
   pop_solver_context();
 
   return j;
+}
+
+Term IC3Base::make_and(TermVec vec, SmtSolver slv) const
+{
+  if (!slv) {
+    slv = solver_;
+  }
+
+  if (vec.size() == 0) {
+    return slv->make_term(true);
+  }
+
+  // sort the conjuncts
+  std::sort(vec.begin(), vec.end(), term_lt);
+  Term res = vec[0];
+  for (size_t i = 1; i < vec.size(); ++i) {
+    res = slv->make_term(And, res, vec[i]);
+  }
+  return res;
 }
 
 void IC3Base::push_solver_context()

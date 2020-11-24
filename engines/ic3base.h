@@ -286,6 +286,15 @@ class IC3Base : public Prover
    */
   size_t find_highest_frame(size_t i, const IC3Unit & u);
 
+  /** Creates a reduce and of the vector of boolean terms
+   *  It also sorts the vector by the hash
+   *  Note: this will fail for empty vectors
+   *  @param vec the vector of boolean terms
+   *  @param slv (optional) the solver to use, defaults to solver_
+   *  @return the conjunction of all the terms
+   */
+  smt::Term make_and(smt::TermVec vec, smt::SmtSolver slv = NULL) const;
+
   /** Pushes a solver context and keeps track of the context level
    *  updates solver_context_
    */
