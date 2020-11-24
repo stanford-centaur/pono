@@ -17,7 +17,7 @@
 
 #include "engines/ic3base.h"
 
-#include <type_traits>
+#include <algorithm>
 
 #include "assert.h"
 #include "smt/available_solvers.h"
