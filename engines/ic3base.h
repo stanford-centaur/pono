@@ -24,7 +24,17 @@ namespace pono {
 class IC3Unit
 {
  public:
-  IC3Unit(const smt::TermVec & c) : children_(c), negated_(false) {}
+  // nullary constructor
+  IC3Unit() {}
+  IC3Unit(const smt::TermVec & c) : children_(c), negated_(false)
+  {
+    create_term();
+    assert(term_);
+  }
+  IC3Unit(const IC3Unit & other)
+      : term_(other.term_), children_(other.children_), negated_(other.negated_)
+  {
+  }
   virtual ~IC3Unit() {}
 
   /** Get a single term representation
@@ -35,6 +45,9 @@ class IC3Unit
 
   /** Returns the children terms of this unit */
   const smt::TermVec & get_children() const { return children_; };
+
+  /** Returns true iff this IC3Unit has not been initialized */
+  bool is_null() const { return (term_ == nullptr); };
 
   /** Returns true iff this unit is negated, e.g. for a proof goal */
   bool is_negated() const { return negated_; };
@@ -50,6 +63,11 @@ class IC3Unit
   smt::TermVec children_;
   bool negated_;
 
+  virtual void create_term()
+  {
+    throw PonoException("create_term needs to be implemented by derived class");
+  }
+
   /** Check if this is a valid instance of this type of IC3Unit
    *  e.g. a Clause would make sure all the children are literals
    */
@@ -59,7 +77,7 @@ class IC3Unit
   }
 };
 
-typedef std::unique_ptr<IC3Unit> (*IC3UnitCreator)(const smt::TermVec & terms);
+typedef IC3Unit (*IC3UnitCreator)(const smt::TermVec & terms);
 
 // TODO change back to ProofGoal once refactor is done
 // don't want to clash with name in MBIC3 for now
@@ -68,10 +86,17 @@ struct IC3Goal
   // based on open-source ic3ia ProofObligation
   IC3Unit target;
   size_t idx;
-  std::unique_ptr<IC3Goal> next;
+  // TODO: see if we can make this a unique_ptr
+  //       made it complicated to move from this struct to another place
+  std::shared_ptr<IC3Goal> next;
 
-  IC3Goal(IC3Unit u, size_t i, std::unique_ptr<IC3Goal> n)
-      : target(u), idx(i), next(std::move(n))
+  IC3Goal(IC3Unit u, size_t i, std::shared_ptr<IC3Goal> n)
+      : target(u), idx(i), next(n)
+  {
+  }
+
+  IC3Goal(const IC3Goal & other)
+      : target(other.target), idx(other.idx), next(other.next)
   {
   }
 };
@@ -145,10 +170,12 @@ class IC3Base : public Prover
    *  @requires !get_predecessor(i, c, _)
    *  @param i the frame number to generalize it against
    *  @param c the cube to find a general predecessor for
-   *  @return a new term P
+   *  @return a vector of IC3Units. Standard IC3 implementations will have a
+   *          a size one vector (e.g. a single clause)
    *  @ensures P -> !c /\ F[i-1] /\ P /\ T /\ !P' is unsat
    */
-  virtual smt::Term inductive_generalization(size_t i, const IC3Unit & c) = 0;
+  virtual std::vector<IC3Unit> inductive_generalization(size_t i,
+                                                        const IC3Unit & c) = 0;
 
   /** Get the predecessor of a cube c in frame i
    *  aka see if c is reachable from frame i-1
@@ -257,7 +284,7 @@ class IC3Base : public Prover
    *  @param n pointer to the proof goal that led to this one -- null for bad
    *  (i.e. end of trace)
    */
-  void add_proof_goal(const IC3Unit & c, size_t i, std::unique_ptr<IC3Goal> n);
+  void add_proof_goal(const IC3Unit & c, size_t i, std::shared_ptr<IC3Goal> n);
 
   /** Check if there are common assignments
    *  between A and B

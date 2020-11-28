@@ -21,6 +21,7 @@
 
 #include "assert.h"
 #include "smt/available_solvers.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -110,7 +111,65 @@ ProverResult IC3Base::step_0() { throw PonoException("NYI"); }
 
 bool IC3Base::block_all() { throw PonoException("NYI"); }
 
-bool IC3Base::block(const IC3Goal & pg) { throw PonoException("NYI"); }
+bool IC3Base::block(const IC3Goal & pg)
+{
+  const IC3Unit & c = pg.target;
+  size_t i = pg.idx;
+
+  logger.log(3,
+             "Attempting to block proof goal <{}, {}>",
+             c.get_term()->to_string(),
+             i);
+
+  assert(i < frames_.size());
+  assert(i >= 0);
+  // TODO: assert c -> frames_[i]
+
+  if (i == 0) {
+    // can't block anymore -- this is a counterexample
+    return false;
+  }
+
+  IC3Unit pred;  // populated by get_predecessor
+  if (!get_predecessor(i, c, pred)) {
+    assert(!pred.is_null());
+    // can block this cube
+    vector<IC3Unit> blocking_units = inductive_generalization(i, pred);
+    // pred is a subset of c
+    logger.log(
+        3, "Blocking term at frame {}: {}", i, c.get_term()->to_string());
+    if (options_.verbosity_ >= 3) {
+      for (auto u : blocking_units) {
+        logger.log(3, " with {}", u.get_term()->to_string());
+      }
+    }
+
+    // Most IC3 implementations will have only a single element in the vector
+    // e.g. a single clause. But this is not guaranteed for all
+    // for example, interpolant-based generalization for bit-vectors is not
+    // always a single clause
+    size_t min_idx = frames_.size();
+    for (auto bu : blocking_units) {
+      // TODO: fix name -- might not be a clause anymore
+      // try to push
+      size_t idx = find_highest_frame(i, bu);
+      constrain_frame(idx, bu);
+      if (idx < min_idx) {
+        min_idx = idx;
+      }
+    }
+
+    // we're limited by the minimum index that a conjunct could be pushed to
+    if (min_idx + 1 < frames_.size()) {
+      add_proof_goal(c, min_idx + 1, pg.next);
+    }
+    return true;
+  } else {
+    assert(!pred.is_null());
+    add_proof_goal(pred, i - 1, make_shared<IC3Goal>(pg));
+    return false;
+  }
+}
 
 bool IC3Base::propagate(size_t i)
 {
@@ -230,18 +289,18 @@ bool IC3Base::has_proof_goals() const { return !proof_goals_.empty(); }
 IC3Goal IC3Base::get_next_proof_goal()
 {
   assert(has_proof_goals());
-  IC3Goal pg = std::move(proof_goals_.back());
+  IC3Goal pg = proof_goals_.back();
   proof_goals_.pop_back();
   return pg;
 }
 
-void IC3Base::add_proof_goal(const IC3Unit & c, size_t i, unique_ptr<IC3Goal> n)
+void IC3Base::add_proof_goal(const IC3Unit & c, size_t i, shared_ptr<IC3Goal> n)
 {
   // IC3Unit aligned with frame so proof goal should be negated
   // e.g. for bit-level IC3, IC3Unit is a Clause and the proof
   // goal should be a Cube
   assert(c.is_negated());
-  proof_goals_.push_back(IC3Goal(c, i, std::move(n)));
+  proof_goals_.push_back(IC3Goal(c, i, n));
 }
 
 bool IC3Base::intersects(const Term & A, const Term & B)
