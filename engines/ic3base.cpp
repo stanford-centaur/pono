@@ -89,7 +89,29 @@ void IC3Base::initialize()
   //       responsibility for calling initialize belongs
   super::initialize();
 
+  assert(solver_context_ == 0);  // expecting to be at base context level
   solver_true_ = solver_->make_term(true);
+
+  frames_.clear();
+  frame_labels_.clear();
+  proof_goals_.clear();
+  // first frame is always the initial states
+  push_frame();
+  // can't use constrain_frame for initial states because not guaranteed to be
+  // an IC3Unit it's handled specially
+  solver_->assert_formula(
+      solver_->make_term(Implies, frame_labels_.at(0), ts_.init()));
+  push_frame();
+
+  // set semantics of TS labels
+  Sort boolsort = solver_->make_sort(BOOL);
+  assert(!init_label_);
+  assert(!trans_label_);
+  // frame 0 label is identical to init label
+  init_label_ = frame_labels_[0];
+  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+  solver_->assert_formula(
+      solver_->make_term(Implies, trans_label_, ts_.trans()));
 }
 
 ProverResult IC3Base::check_until(int k) { throw PonoException("NYI"); }
@@ -325,6 +347,7 @@ void IC3Base::push_frame()
 
 void IC3Base::constrain_frame(size_t i, const IC3Unit & constraint)
 {
+  assert(i > 0);  // there's a special case for frame 0
   assert(i < frame_labels_.size());
   assert(frame_labels_.size() == frames_.size());
   solver_->assert_formula(
