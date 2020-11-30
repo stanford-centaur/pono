@@ -96,12 +96,32 @@ ProverResult IC3Base::check_until(int k) { throw PonoException("NYI"); }
 
 bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
 {
-  throw PonoException("NYI");
+  throw PonoException("IC3 witness NYI");
 }
 
 // Protected Methods
 
-bool IC3Base::intersects_bad() { throw PonoException("NYI"); }
+bool IC3Base::intersects_bad()
+{
+  push_solver_context();
+  // assert the last frame (conjunction over clauses)
+  assert_frame_labels(reached_k_ + 1);
+  // see if it intersects with bad
+  solver_->assert_formula(bad_);
+  Result r = solver_->check_sat();
+
+  if (r.is_sat()) {
+    // TODO: decide how important it is to push the whole bad for model based
+    // IC3
+    //       currently not doing that, would need to make intersects_bad virtual
+    add_proof_goal(get_unit(), reached_k_ + 1, NULL);
+  }
+
+  pop_solver_context();
+
+  assert(!r.is_unknown());
+  return r.is_sat();
+}
 
 ProverResult IC3Base::step(int i)
 {

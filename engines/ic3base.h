@@ -200,6 +200,13 @@ class IC3Base : public Prover
    */
   virtual IC3Unit generalize_predecessor(size_t i, const IC3Unit & c) = 0;
 
+  /** Get an IC3Unit from the current model
+   *  @requires last call to check_sat of solver_ was satisfiable and context
+   * hasn't changed
+   *  @return an IC3Unit over current state variables
+   */
+  virtual IC3Unit get_unit() const = 0;
+
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented
 
