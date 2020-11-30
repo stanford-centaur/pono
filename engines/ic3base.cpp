@@ -103,9 +103,67 @@ bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
 
 bool IC3Base::intersects_bad() { throw PonoException("NYI"); }
 
-ProverResult IC3Base::step(int i) { throw PonoException("NYI"); }
+ProverResult IC3Base::step(int i)
+{
+  if (i <= reached_k_) {
+    return ProverResult::UNKNOWN;
+  }
 
-ProverResult IC3Base::step_0() { throw PonoException("NYI"); }
+  if (reached_k_ < 0) {
+    return step_0();
+  }
+
+  // reached_k_ is the number of transitions that have been checked
+  // at this point there are reached_k_ + 1 frames that don't
+  // intersect bad, and reached_k_ + 2 frames overall
+  assert(reached_k_ + 2 == frames_.size());
+  logger.log(1, "Blocking phase at frame {}", i);
+  // blocking phase
+  while (intersects_bad()) {
+    assert(has_proof_goals());
+    if (!block_all()) {
+      // counter-example
+      return ProverResult::FALSE;
+    }
+  }
+
+  logger.log(1, "Propagation phase at frame {}", i);
+  // propagation phase
+  push_frame();
+  for (size_t j = 1; j < frames_.size() - 1; ++j) {
+    if (propagate(j)) {
+      assert(j + 1 < frames_.size());
+      // save the invariant
+      // which is the frame that just had all terms
+      // from the previous frames propagated
+      invar_ = get_frame(j + 1);
+      return ProverResult::TRUE;
+    }
+  }
+
+  ++reached_k_;
+
+  return ProverResult::UNKNOWN;
+}
+
+ProverResult IC3Base::step_0()
+{
+  logger.log(1, "Checking if initial states satisfy property");
+  assert(reached_k_ < 0);
+
+  push_solver_context();
+  solver_->assert_formula(init_label_);
+  solver_->assert_formula(bad_);
+  Result r = solver_->check_sat();
+  if (r.is_sat()) {
+    return ProverResult::FALSE;
+  } else {
+    assert(r.is_unsat());
+    reached_k_ = 0;  // keep reached_k_ aligned with number of frames
+  }
+  pop_solver_context();
+  return ProverResult::UNKNOWN;
+}
 
 // Helper methods
 
