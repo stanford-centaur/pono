@@ -13,6 +13,14 @@
 **        the unit used in frames, pre-image computation, and inductive
 **        and predecessor generalization techniques.
 **
+**        To create a particular IC3 instantiation, you must implement the
+*following:
+**           - an IC3Unit implementation, e.g. a Clause
+**           - implement get_unit and give it semantics to produce the
+*corresponding IC3Unit
+**           - implement inductive_generalization
+**           - implement generalize_predecessor
+**
 **/
 #pragma once
 
@@ -167,20 +175,6 @@ class IC3Base : public Prover
   virtual std::vector<IC3Unit> inductive_generalization(size_t i,
                                                         const IC3Unit & c) = 0;
 
-  /** Get the predecessor of a cube c in frame i
-   *  aka see if c is reachable from frame i-1
-   *  @requires c -> F[i]
-   *  @param i the frame number
-   *  @param t the term to check
-   *  @param cti the cube to populate with a cti
-   *  @return true iff c is reachable from the frame i
-   *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
-   *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
-   */
-  virtual bool get_predecessor(size_t i,
-                               const IC3Unit & c,
-                               IC3Unit & out_pred) = 0;
-
   /** Generalize a counterexample
    *  @requires get_predecessor(i, c)
    *  @param i the frame number
@@ -215,6 +209,18 @@ class IC3Base : public Prover
   /** Perform the base IC3 step (zero case)
    */
   ProverResult step_0();
+
+  /** Get the predecessor of a cube c in frame i
+   *  aka see if c is reachable from frame i-1
+   *  @requires c -> F[i]
+   *  @param i the frame number
+   *  @param t the term to check
+   *  @param cti the cube to populate with a cti
+   *  @return true iff c is reachable from the frame i
+   *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
+   *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
+   */
+  bool get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred);
 
   // Helper methods
 

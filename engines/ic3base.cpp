@@ -199,6 +199,48 @@ ProverResult IC3Base::step_0()
   return ProverResult::UNKNOWN;
 }
 
+bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
+{
+  assert(i > 0);
+  assert(i < frames_.size());
+  // expecting to be the polarity for proof goals, not frames
+  // e.g. negated
+  assert(c.is_negated());
+
+  assert(solver_context_ == 0);
+  push_solver_context();
+
+  // F[i-1]
+  assert_frame_labels(i - 1);
+  // -c
+  solver_->assert_formula(solver_->make_term(Not, c.get_term()));
+  // Trans
+  assert_trans_label();
+  // c'
+  solver_->assert_formula(ts_.next(c.get_term()));
+
+  Result r = solver_->check_sat();
+  if (r.is_sat()) {
+    if (options_.ic3_pregen_) {
+      out_pred = generalize_predecessor(i, c);
+    } else {
+      out_pred = get_unit();
+    }
+  } else {
+    // TODO: consider automatically taking advantage
+    //       of an unsat core. Took it out for now (was in MBIC3)
+    //       because it needs to work for any IC3Unit
+    //       Maybe IC3Unit needs to know how to generalize itself
+    //         or at least how to make a conjunctive partition
+    //         or it's possible they all can function approximately the same
+    out_pred = c;
+  }
+  pop_solver_context();
+
+  assert(!r.is_unknown());
+  return r.is_sat();
+}
+
 // Helper methods
 
 bool IC3Base::block_all()
@@ -240,7 +282,14 @@ bool IC3Base::block(const IC3Goal & pg)
   if (!get_predecessor(i, c, pred)) {
     assert(!pred.is_null());
     // can block this cube
-    vector<IC3Unit> blocking_units = inductive_generalization(i, pred);
+    vector<IC3Unit> blocking_units;
+    if (options_.ic3_indgen_) {
+      blocking_units = inductive_generalization(i, pred);
+    } else {
+      IC3Unit bu = pred;
+      bu.negate();
+      blocking_units = { bu };
+    }
     // pred is a subset of c
     logger.log(
         3, "Blocking term at frame {}: {}", i, c.get_term()->to_string());
