@@ -109,7 +109,21 @@ ProverResult IC3Base::step_0() { throw PonoException("NYI"); }
 
 // Helper methods
 
-bool IC3Base::block_all() { throw PonoException("NYI"); }
+bool IC3Base::block_all()
+{
+  while (has_proof_goals()) {
+    IC3Goal pg = get_next_proof_goal();
+    // block can fail, which just means a
+    // new proof goal will be added
+    if (!block(pg) && !pg.idx) {
+      // if a proof goal cannot be blocked at zero
+      // then there's a counterexample
+      return false;
+    }
+  }
+  assert(!has_proof_goals());
+  return true;
+}
 
 bool IC3Base::block(const IC3Goal & pg)
 {
