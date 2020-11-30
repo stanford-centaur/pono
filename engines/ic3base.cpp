@@ -43,38 +43,30 @@ bool term_lt(const smt::Term & t0, const smt::Term & t1)
 
 /** IC3Base */
 
-IC3Base::IC3Base(Property & p, smt::SolverEnum se, IC3UnitCreator ic)
-    : super(p, se), mk_unit(ic), reducer_(create_solver(se)), solver_context_(0)
+IC3Base::IC3Base(Property & p, smt::SolverEnum se)
+    : super(p, se), reducer_(create_solver(se)), solver_context_(0)
 {
   initialize();
 }
 
-IC3Base::IC3Base(Property & p, const smt::SmtSolver & s, IC3UnitCreator ic)
+IC3Base::IC3Base(Property & p, const smt::SmtSolver & s)
     : super(p, s),
-      mk_unit(ic),
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0)
 {
   initialize();
 }
 
-IC3Base::IC3Base(const PonoOptions & opt,
-                 Property & p,
-                 smt::SolverEnum se,
-                 IC3UnitCreator ic)
-    : super(opt, p, se),
-      mk_unit(ic),
-      reducer_(create_solver(se)),
-      solver_context_(0)
+IC3Base::IC3Base(const PonoOptions & opt, Property & p, smt::SolverEnum se)
+    : super(opt, p, se), reducer_(create_solver(se)), solver_context_(0)
 {
   initialize();
 }
+
 IC3Base::IC3Base(const PonoOptions & opt,
                  Property & p,
-                 const smt::SmtSolver & s,
-                 IC3UnitCreator ic)
+                 const smt::SmtSolver & s)
     : super(opt, p, s),
-      mk_unit(ic),
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0)
 {

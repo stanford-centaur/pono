@@ -77,8 +77,6 @@ class IC3Unit
   }
 };
 
-typedef IC3Unit (*IC3UnitCreator)(const smt::TermVec & terms);
-
 // TODO change back to ProofGoal once refactor is done
 // don't want to clash with name in MBIC3 for now
 struct IC3Goal
@@ -109,16 +107,10 @@ class IC3Base : public Prover
    *  Depending on the derived class IC3 implementation, the exact
    *  type of IC3Unit will differ: e.g. Clause, Disjunction
    */
-  IC3Base(Property & p, smt::SolverEnum se, IC3UnitCreator ic);
-  IC3Base(Property & p, const smt::SmtSolver & s, IC3UnitCreator ic);
-  IC3Base(const PonoOptions & opt,
-          Property & p,
-          smt::SolverEnum se,
-          IC3UnitCreator ic);
-  IC3Base(const PonoOptions & opt,
-          Property & p,
-          const smt::SmtSolver & s,
-          IC3UnitCreator ic);
+  IC3Base(Property & p, smt::SolverEnum se);
+  IC3Base(Property & p, const smt::SmtSolver & s);
+  IC3Base(const PonoOptions & opt, Property & p, smt::SolverEnum se);
+  IC3Base(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
 
   typedef Prover super;
 
@@ -129,8 +121,6 @@ class IC3Base : public Prover
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
  protected:
-  ///< a function to create an IC3Unit
-  IC3UnitCreator mk_unit;
 
   smt::UnsatCoreReducer reducer_;
 
