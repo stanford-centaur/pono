@@ -106,7 +106,19 @@ void IC3Base::initialize()
       solver_->make_term(Implies, trans_label_, ts_.trans()));
 }
 
-ProverResult IC3Base::check_until(int k) { throw PonoException("NYI"); }
+ProverResult IC3Base::check_until(int k)
+{
+  check_ts();
+
+  for (int i = 0; i <= k; ++i) {
+    ProverResult r = step(i);
+    if (r != ProverResult::UNKNOWN) {
+      return r;
+    }
+  }
+
+  return ProverResult::UNKNOWN;
+}
 
 bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
 {

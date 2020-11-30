@@ -17,9 +17,12 @@
 *following:
 **           - an IC3Unit implementation, e.g. a Clause
 **           - implement get_unit and give it semantics to produce the
-*corresponding IC3Unit
+**             corresponding IC3Unit
 **           - implement inductive_generalization
 **           - implement generalize_predecessor
+**           - implement check_ts which just checks if there are any
+**             theories / syntax used in the transition system which
+**             is not supported by this instantiation
 **
 **/
 #pragma once
@@ -183,6 +186,12 @@ class IC3Base : public Prover
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    */
   virtual IC3Unit generalize_predecessor(size_t i, const IC3Unit & c) = 0;
+
+  /** Checks if every thing in the current transition system is supported
+   *  by the current instantiation
+   *  throws a PonoException with a relevant message if not.
+   */
+  virtual void check_ts() const = 0;
 
   /** Get an IC3Unit from the current model
    *  @requires last call to check_sat of solver_ was satisfiable and context
