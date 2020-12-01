@@ -114,4 +114,26 @@ bool ClauseHandler::check_valid(const IC3Unit & u) const
   return true;
 }
 
+/** IC3 Implementation */
+
+IC3::IC3(Property & p, smt::SolverEnum se)
+    : super(p, se, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
+{
+}
+
+IC3::IC3(Property & p, const smt::SmtSolver & s)
+    : super(p, s, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
+{
+}
+
+IC3::IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se)
+    : super(opt, p, se, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
+{
+}
+
+IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
+    : super(opt, p, s, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
+{
+}
+
 }  // namespace pono

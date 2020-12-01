@@ -33,4 +33,16 @@ class ClauseHandler : public IC3UnitHandler
   bool check_valid(const IC3Unit & u) const override;
 };
 
+class IC3 : public IC3Base
+{
+ public:
+  IC3(Property & p, smt::SolverEnum se);
+  IC3(Property & p, const smt::SmtSolver & s);
+  IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se);
+  IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  virtual ~IC3() {}
+
+  typedef IC3Base super;
+};
+
 }  // namespace pono

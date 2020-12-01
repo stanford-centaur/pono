@@ -15,9 +15,9 @@
 **
 **        To create a particular IC3 instantiation, you must implement the
 *following:
-**           - an IC3Unit implementation, e.g. a Clause
+**           - an IC3UnitHandler implementation, e.g. a ClauseHandler
 **           - implement get_unit and give it semantics to produce the
-**             corresponding IC3Unit
+**             corresponding IC3Unit with an IC3UnitHandler
 **           - implement inductive_generalization
 **           - implement generalize_predecessor
 **           - implement check_ts which just checks if there are any
