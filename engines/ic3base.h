@@ -2,7 +2,7 @@
 /*! \file ic3base.h
 ** \verbatim
 ** Top contributors (to current version):
-**   Makai Mann, Ahmed Irfan, Florian Lonsing
+**   Makai Mann, Ahmed Irfan
 ** This file is part of the pono project.
 ** Copyright (c) 2019 by the authors listed in the file AUTHORS
 ** in the top-level source directory) and their institutional affiliations.
@@ -32,60 +32,69 @@
 
 namespace pono {
 
-class IC3Unit
+struct IC3Unit
 {
- public:
   // nullary constructor
   IC3Unit() {}
-  IC3Unit(const smt::TermVec & c) : children_(c), negated_(false)
+  IC3Unit(const smt::Term & t, const smt::TermVec & c, bool n)
+      : term(t), children(c), negated(n)
   {
-    create_term();
-    assert(term_);
   }
+
   IC3Unit(const IC3Unit & other)
-      : term_(other.term_), children_(other.children_), negated_(other.negated_)
+      : term(other.term), children(other.children), negated(other.negated)
   {
   }
+
   virtual ~IC3Unit() {}
 
-  /** Get a single term representation
-   *  Depends on the unit, e.g. a Disjunction unit would be
-   *  be an OR of all the children.
-   */
-  virtual smt::Term get_term() const { return term_; }
-
-  /** Returns the children terms of this unit */
-  const smt::TermVec & get_children() const { return children_; };
-
   /** Returns true iff this IC3Unit has not been initialized */
-  bool is_null() const { return (term_ == nullptr); };
+  bool is_null() const { return (term == nullptr); };
 
-  /** Returns true iff this unit is negated, e.g. for a proof goal */
-  bool is_negated() const { return negated_; };
+  smt::Term term;
+  smt::TermVec children;
+  bool negated;
+};
 
-  /** Negate the unit */
-  virtual void negate()
-  {
-    throw PonoException("negate needs to be implemented by derived class.");
-  }
+// abstract base class for handling different IC3Units
+// e.g. Clause/Cube, Predicate Clause/Cube, etc...
+
+class IC3UnitHandler
+{
+ public:
+  IC3UnitHandler(const smt::SmtSolver & s) : solver_(s) {}
+
+  virtual ~IC3UnitHandler() {}
+
+  /** Creates an IC3Unit from a vector of terms
+   *  @param c the children terms
+   *  @ensures resulting IC3Unit children == c
+   *  @ensures resulting IC3Unit not negated
+   */
+  virtual IC3Unit create(const smt::TermVec & c) const = 0;
+
+  /** Negates an IC3Unit
+   *  @param u the IC3Unit to negate
+   */
+  virtual IC3Unit negate(const IC3Unit & u) const = 0;
+
+  /** Check whether a given IC3Unit is valid
+   *  e.g. if this is a ClauseHandler it would
+   *    check that it's a disjunction of literals
+   *  (for debugging)
+   *  @param u the IC3Unit to check
+   *  @return true iff this is a valid IC3Unit for this
+   *          kind of handler
+   */
+  virtual bool check_valid(const IC3Unit & u) const = 0;
 
  protected:
-  smt::Term term_;
-  smt::TermVec children_;
-  bool negated_;
+  const smt::SmtSolver & solver_;
 
-  virtual void create_term()
-  {
-    throw PonoException("create_term needs to be implemented by derived class");
-  }
-
-  /** Check if this is a valid instance of this type of IC3Unit
-   *  e.g. a Clause would make sure all the children are literals
+  /** Negates a term by stripping the leading Not if it's there,
+   ** or applying Not if the term is not already negated.
    */
-  virtual bool check_valid() const
-  {
-    throw PonoException("check_valid needs to be implemented by derived class");
-  }
+  smt::Term smart_not(const smt::Term & t) const;
 };
 
 // TODO change back to ProofGoal once refactor is done
@@ -118,10 +127,20 @@ class IC3Base : public Prover
    *  Depending on the derived class IC3 implementation, the exact
    *  type of IC3Unit will differ: e.g. Clause, Disjunction
    */
-  IC3Base(Property & p, smt::SolverEnum se);
-  IC3Base(Property & p, const smt::SmtSolver & s);
-  IC3Base(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  IC3Base(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  IC3Base(Property & p,
+          smt::SolverEnum se,
+          std::unique_ptr<IC3UnitHandler> && h);
+  IC3Base(Property & p,
+          const smt::SmtSolver & s,
+          std::unique_ptr<IC3UnitHandler> && h);
+  IC3Base(const PonoOptions & opt,
+          Property & p,
+          smt::SolverEnum se,
+          std::unique_ptr<IC3UnitHandler> && h);
+  IC3Base(const PonoOptions & opt,
+          Property & p,
+          const smt::SmtSolver & s,
+          std::unique_ptr<IC3UnitHandler> && h);
 
   typedef Prover super;
 
@@ -132,6 +151,7 @@ class IC3Base : public Prover
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
  protected:
+  std::unique_ptr<IC3UnitHandler> handler_;
 
   smt::UnsatCoreReducer reducer_;
 
