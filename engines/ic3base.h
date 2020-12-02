@@ -197,24 +197,30 @@ class IC3Base : public Prover
   // These methods should be implemented by a derived class for a particular
   // "flavor" of IC3 in accordance with the associated IC3Unit
 
-  /** Attempt to generalize before adding to a frame
+  /** Attempt to generalize before blocking in frame i
    *  The standard approach is inductive generalization
    *  @requires !get_predecessor(i, c, _)
    *  @param i the frame number to generalize it against
-   *  @param c the cube to find a general predecessor for
-   *  @return a vector of IC3Units. Standard IC3 implementations will have a
+   *  @param c the IC3Unit that should be blocked
+   *  @return a vector of IC3Units interpreted as a conjunction of IC3Units.
+   *          Standard IC3 implementations will have
    *          a size one vector (e.g. a single clause)
-   *  @ensures P -> !c /\ F[i-1] /\ P /\ T /\ !P' is unsat
+   *          Let the returned conjunction term be d
+   *  @ensures d -> !c and F[i-1] /\ d /\ T /\ !d' is unsat
+   *           e.g. it blocks c and is inductive relative to F[i-1]
    */
   virtual std::vector<IC3Unit> inductive_generalization(size_t i,
                                                         const IC3Unit & c) = 0;
 
   /** Generalize a counterexample
    *  @requires get_predecessor(i, c)
+   *  @requires the solver_ context is currently satisfiable
    *  @param i the frame number
-   *  @param c the cube to generalize
-   *  @return a new cube d
+   *  @param c the IC3Unit to find a general predecessor for
+   *  @return a new IC3Unit d
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
+   *  @ensures no calls to the solver_ because the context is polluted with
+   *           other assertions
    */
   virtual IC3Unit generalize_predecessor(size_t i, const IC3Unit & c) = 0;
 
