@@ -286,9 +286,10 @@ IC3Unit IC3::generalize_predecessor(size_t i, const IC3Unit & c)
   }
 
   const UnorderedTermSet & statevars = ts_.statevars();
-  TermVec next_lits;
+  TermVec cube_lits, next_lits;
   next_lits.reserve(statevars.size());
   for (auto v : statevars) {
+    cube_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
     Term nv = ts_.next(v);
     assert(ts_.is_next_var(nv));
     Term next_val = solver_->get_value(nv);
@@ -332,7 +333,7 @@ IC3Unit IC3::generalize_predecessor(size_t i, const IC3Unit & c)
 
   TermVec red_cube_lits, rem_cube_lits;
   reducer_.reduce_assump_unsatcore(
-      formula, c.children, red_cube_lits, &rem_cube_lits);
+      formula, cube_lits, red_cube_lits, &rem_cube_lits);
 
   // should need some assumptions
   // formula should not be unsat on its own

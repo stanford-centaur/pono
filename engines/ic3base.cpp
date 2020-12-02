@@ -260,9 +260,10 @@ bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
-    out_pred = get_unit();
     if (options_.ic3_pregen_) {
-      out_pred = generalize_predecessor(i, out_pred);
+      out_pred = generalize_predecessor(i, c);
+    } else {
+      out_pred = get_unit();
     }
   } else {
     // TODO: consider automatically taking advantage
