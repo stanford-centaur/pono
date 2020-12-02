@@ -328,6 +328,7 @@ bool IC3Base::block(const IC3Goal & pg)
       assert(bu.negated);
       blocking_units = { bu };
     }
+    assert(blocking_units.size());
     // pred is a subset of c
     logger.log(3, "Blocking term at frame {}: {}", i, c.term->to_string());
     if (options_.verbosity_ >= 3) {
@@ -514,7 +515,10 @@ bool IC3Base::intersects_initial(const Term & t)
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
   if (rem.size() != 0) {
-    Term formula = solver_->make_term(And, init_label_, make_and(to_keep));
+    // TODO: there's a tricky issue here. The reducer doesn't have the label
+    // assumptions so we can't use init_label_ here. need to come up with a
+    // better interface. Should we add label assumptions to reducer?
+    Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
     reducer_.reduce_assump_unsatcore(formula,
                                      rem,
                                      to_keep,

@@ -47,6 +47,8 @@ class IC3 : public IC3Base
   typedef IC3Base super;
 
  protected:
+  void initialize() override;
+
   // pure virtual method implementations
 
   std::vector<IC3Unit> inductive_generalization(size_t i,

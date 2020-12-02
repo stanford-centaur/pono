@@ -28,6 +28,28 @@ namespace pono {
 static const std::unordered_map<bool, std::unordered_set<smt::PrimOp>>
     expected_ops({ { false, { Or, BVOr } }, { true, { And, BVAnd } } });
 
+// helpers
+bool is_lit(const Term & l, const Sort & boolsort)
+{
+  // take a boolsort as an argument for sort aliasing solvers
+  if (l->get_sort() != boolsort) {
+    return false;
+  }
+
+  if (l->is_symbolic_const()) {
+    return true;
+  }
+
+  Op op = l->get_op();
+  // check both for sort aliasing solvers
+  if (op == Not || op == BVNot) {
+    Term first_child = *(l->begin());
+    return first_child->is_symbolic_const();
+  }
+
+  return false;
+}
+
 // ClauseHandler implementation
 
 IC3Unit ClauseHandler::create(const smt::TermVec & c) const
@@ -84,21 +106,18 @@ IC3Unit ClauseHandler::negate(const IC3Unit & u) const
 
 bool ClauseHandler::check_valid(const IC3Unit & u) const
 {
-  bool is_valid = true;
-
+  Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Op op;
   for (auto c : u.children) {
-    op = c->get_op();
-    if (op == Not) {
-      is_valid &= (*(c->begin()))->is_symbolic_const();
-    } else {
-      is_valid &= c->is_symbolic_const();
-    }
-
-    if (!is_valid) {
+    if (!is_lit(c, boolsort)) {
       return false;
     }
+  }
+
+  // special case
+  if (is_lit(u.term, boolsort)) {
+    return true;
   }
 
   const unordered_set<PrimOp> & ops = expected_ops.at(u.negated);
@@ -114,8 +133,7 @@ bool ClauseHandler::check_valid(const IC3Unit & u) const
     }
 
     for (auto tt : t) {
-      if (t->is_symbolic_const()
-          || (t->get_op() == Not && (*(t->begin()))->is_symbolic_const())) {
+      if (is_lit(tt, boolsort)) {
         // hit a literal
         continue;
       }
@@ -124,7 +142,6 @@ bool ClauseHandler::check_valid(const IC3Unit & u) const
   }
 
   // got through all checks without failing
-  assert(is_valid);
   return true;
 }
 
@@ -133,21 +150,30 @@ bool ClauseHandler::check_valid(const IC3Unit & u) const
 IC3::IC3(Property & p, smt::SolverEnum se)
     : super(p, se, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
 {
+  initialize();
 }
 
 IC3::IC3(Property & p, const smt::SmtSolver & s)
     : super(p, s, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
 {
+  initialize();
 }
 
 IC3::IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se)
     : super(opt, p, se, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
 {
+  initialize();
 }
 
 IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
     : super(opt, p, s, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
 {
+  initialize();
+}
+
+void IC3::initialize()
+{
+  // No-Op for now
 }
 
 std::vector<IC3Unit> IC3::inductive_generalization(size_t i, const IC3Unit & c)
@@ -241,7 +267,9 @@ std::vector<IC3Unit> IC3::inductive_generalization(size_t i, const IC3Unit & c)
     progress = lits.size() < prev_size;
   }
 
-  IC3Unit blocking_clause = handler_->create(lits);
+  // TODO: would it be more intuitive to start with a clause
+  //       and generalize the clause directly?
+  IC3Unit blocking_clause = handler_->negate(handler_->create_negated(lits));
   assert(!blocking_clause.negated);  // expecting a clause
   return { blocking_clause };
 }
