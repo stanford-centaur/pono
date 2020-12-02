@@ -276,19 +276,14 @@ std::vector<IC3Unit> IC3::inductive_generalization(size_t i, const IC3Unit & c)
 
 IC3Unit IC3::generalize_predecessor(size_t i, const IC3Unit & c)
 {
+  // TODO: change this so we don't have to depend on the solver context to be
+  // sat
   assert(i > 0);
   if (i == 1) {
     // don't need to generalize if i == 1
     // the predecessor is an initial state
-    assert(intersects_initial(c.term));
     return c;
   }
-
-  // should never intersect with a frame before F[i-1]
-  // otherwise, this predecessor should have been found
-  // in a previous step (before a new frame was pushed)
-  assert(i > 1);  // so F[i-2] makes sense
-  assert(!intersects(c.term, get_frame(i - 2)));
 
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec next_lits;

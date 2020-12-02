@@ -260,10 +260,9 @@ bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
+    out_pred = get_unit();
     if (options_.ic3_pregen_) {
-      out_pred = generalize_predecessor(i, c);
-    } else {
-      out_pred = get_unit();
+      out_pred = generalize_predecessor(i, out_pred);
     }
   } else {
     // TODO: consider automatically taking advantage
@@ -276,6 +275,16 @@ bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
   }
   pop_solver_context();
   assert(solver_context_ == 0);
+
+  if (r.is_sat() && i == 1) {
+    // if i == 1 and there's a predecessor, then it should be an initial state
+    assert(i != 1 || intersects_initial(out_pred.term));
+
+    // should never intersect with a frame before F[i-1]
+    // otherwise, this predecessor should have been found
+    // in a previous step (before a new frame was pushed)
+    assert(i < 2 || !intersects(c.term, get_frame(i - 2)));
+  }
 
   assert(!r.is_unknown());
   return r.is_sat();
@@ -499,6 +508,9 @@ void IC3Base::add_proof_goal(const IC3Unit & c, size_t i, shared_ptr<IC3Goal> n)
 
 bool IC3Base::intersects(const Term & A, const Term & B)
 {
+  // should only do this check starting from context 0
+  // don't want polluting assumptions
+  assert(solver_context_ == 0);
   push_solver_context();
   solver_->assert_formula(A);
   solver_->assert_formula(B);

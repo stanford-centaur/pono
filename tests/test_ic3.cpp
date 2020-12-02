@@ -3,6 +3,7 @@
 
 #include "core/fts.h"
 #include "core/rts.h"
+#include "engines/ic3.h"
 #include "engines/mbic3.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
@@ -48,12 +49,12 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
 
   Property p(rts, s->make_term(Not, s1));
 
-  ModelBasedIC3 mbic3(p, s);
-  ProverResult r = mbic3.prove();
+  IC3 ic3(p, s);
+  ProverResult r = ic3.prove();
   ASSERT_EQ(r, TRUE);
 
   // get the invariant
-  Term invar = mbic3.invar();
+  Term invar = ic3.invar();
   ASSERT_TRUE(check_invar(rts, p.prop(), invar));
 }
 
