@@ -28,6 +28,8 @@ class ClauseHandler : public IC3UnitHandler
 
   IC3Unit create(const smt::TermVec & c) const override;
 
+  IC3Unit create_negated(const smt::TermVec & c) const override;
+
   IC3Unit negate(const IC3Unit & u) const override;
 
   bool check_valid(const IC3Unit & u) const override;
@@ -43,6 +45,18 @@ class IC3 : public IC3Base
   virtual ~IC3() {}
 
   typedef IC3Base super;
+
+ protected:
+  // pure virtual method implementations
+
+  std::vector<IC3Unit> inductive_generalization(size_t i,
+                                                const IC3Unit & c) override;
+
+  IC3Unit generalize_predecessor(size_t i, const IC3Unit & c) override;
+
+  void check_ts() const override;
+
+  IC3Unit get_unit() const override;
 };
 
 }  // namespace pono

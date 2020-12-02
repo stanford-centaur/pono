@@ -275,6 +275,7 @@ bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
     out_pred = c;
   }
   pop_solver_context();
+  assert(solver_context_ == 0);
 
   assert(!r.is_unknown());
   return r.is_sat();
@@ -578,6 +579,34 @@ void IC3Base::pop_solver_context()
 {
   solver_->pop();
   solver_context_--;
+}
+
+Term IC3Base::label(const Term & t)
+{
+  auto it = labels_.find(t);
+  if (it != labels_.end()) {
+    return labels_.at(t);
+  }
+
+  unsigned i = 0;
+  Term l;
+  while (true) {
+    try {
+      l = solver_->make_symbol(
+          "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
+          solver_->make_sort(BOOL));
+      break;
+    }
+    catch (IncorrectUsageException & e) {
+      ++i;
+    }
+    catch (SmtException & e) {
+      throw e;
+    }
+  }
+
+  labels_[t] = l;
+  return l;
 }
 
 }  // namespace pono

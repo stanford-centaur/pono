@@ -73,6 +73,16 @@ class IC3UnitHandler
    */
   virtual IC3Unit create(const smt::TermVec & c) const = 0;
 
+  /** Creates a negated IC3Unit from a vector of terms
+   *  @param c the children terms
+   *  @ensures resulting IC3Unit children == c
+   *  @ensures resulting IC3Unit negated
+   *  e.g. for a ClauseHandler, this method will create a cube
+   *  note: assumes the children are already in the right polarity
+   *  (doesn't negate them)
+   */
+  virtual IC3Unit create_negated(const smt::TermVec & c) const = 0;
+
   /** Negates an IC3Unit
    *  @param u the IC3Unit to negate
    */
@@ -173,6 +183,7 @@ class IC3Base : public Prover
   smt::Term init_label_;       ///< label to activate init
   smt::Term trans_label_;      ///< label to activate trans
   smt::TermVec frame_labels_;  ///< labels to activate frames
+  smt::UnorderedTermMap labels_;  //< labels for unsat cores
 
   // useful terms
   smt::Term solver_true_;
@@ -363,6 +374,15 @@ class IC3Base : public Prover
    *  updates solver_context_
    */
   void pop_solver_context();
+
+  /** Create a boolean label for a given term
+   *  These are cached in labels_
+   *  good for using unsat cores
+   *
+   *  @param t a boolean formula to create a label for
+   *  @return the indicator variable label for this term
+   */
+  smt::Term label(const smt::Term & t);
 };
 
 }  // namespace pono
