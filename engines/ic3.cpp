@@ -126,6 +126,8 @@ bool ClauseHandler::check_valid(const IC3Unit & u) const
     Term t = to_visit.back();
     to_visit.pop_back();
 
+    // FIXME this op check might not work for boolector
+    //       because of the rewriting, it will put it in AIG form
     op = t->get_op();
     assert(!op.is_null());
     if (ops.find(op.prim_op) == ops.end()) {
@@ -289,11 +291,18 @@ IC3Unit IC3::generalize_predecessor(size_t i, const IC3Unit & c)
   TermVec cube_lits, next_lits;
   next_lits.reserve(statevars.size());
   for (auto v : statevars) {
-    cube_lits.push_back(solver_->make_term(Equal, v, solver_->get_value(v)));
+    if (solver_->get_value(v) == solver_true_) {
+      cube_lits.push_back(v);
+    } else {
+      cube_lits.push_back(solver_->make_term(Not, v));
+    }
     Term nv = ts_.next(v);
     assert(ts_.is_next_var(nv));
-    Term next_val = solver_->get_value(nv);
-    next_lits.push_back(solver_->make_term(Equal, nv, next_val));
+    if (solver_->get_value(nv) == solver_true_) {
+      next_lits.push_back(nv);
+    } else {
+      next_lits.push_back(solver_->make_term(Not, nv));
+    }
   }
 
   // collect input assignments
