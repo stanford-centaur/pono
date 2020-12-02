@@ -272,6 +272,7 @@ bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
     //       Maybe IC3Unit needs to know how to generalize itself
     //         or at least how to make a conjunctive partition
     //         or it's possible they all can function approximately the same
+    //       would also have to move the pop_solver_context later
     out_pred = c;
   }
   pop_solver_context();

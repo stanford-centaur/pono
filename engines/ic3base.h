@@ -255,7 +255,8 @@ class IC3Base : public Prover
    *  @requires c -> F[i]
    *  @param i the frame number
    *  @param t the term to check
-   *  @param cti the cube to populate with a cti
+   *  @param out_pred the cube to populate with a predecessor, or if there's no predecessor
+   *         then it can be an unsat core reduced version of c
    *  @return true iff c is reachable from the frame i
    *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
    *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
