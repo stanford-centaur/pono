@@ -4,7 +4,6 @@
 #include "core/fts.h"
 #include "core/rts.h"
 #include "engines/ic3.h"
-#include "engines/mbic3.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/ts_analysis.h"
@@ -75,8 +74,8 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  ModelBasedIC3 mbic3(p, s);
-  ProverResult r = mbic3.prove();
+  IC3 ic3(p, s);
+  ProverResult r = ic3.prove();
   ASSERT_EQ(r, FALSE);
 }
 

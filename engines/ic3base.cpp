@@ -277,7 +277,7 @@ bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
   pop_solver_context();
   assert(solver_context_ == 0);
 
-  if (r.is_sat() && i == 1) {
+  if (r.is_sat()) {
     // if i == 1 and there's a predecessor, then it should be an initial state
     assert(i != 1 || intersects_initial(out_pred.term));
 

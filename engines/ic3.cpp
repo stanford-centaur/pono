@@ -281,11 +281,6 @@ IC3Unit IC3::generalize_predecessor(size_t i, const IC3Unit & c)
   // TODO: change this so we don't have to depend on the solver context to be
   // sat
   assert(i > 0);
-  if (i == 1) {
-    // don't need to generalize if i == 1
-    // the predecessor is an initial state
-    return c;
-  }
 
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec cube_lits, next_lits;
@@ -303,6 +298,12 @@ IC3Unit IC3::generalize_predecessor(size_t i, const IC3Unit & c)
     } else {
       next_lits.push_back(solver_->make_term(Not, nv));
     }
+  }
+
+  if (i == 1) {
+    // don't need to generalize if i == 1
+    // the predecessor is an initial state
+    return get_unit();
   }
 
   // collect input assignments
