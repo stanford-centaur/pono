@@ -12,11 +12,11 @@
 ** \brief Bit-level IC3 implementation using the IC3Base abstract base class
 **/
 
-#include "engines/ic3.h"
-
+#include <algorithm>
+#include "assert.h"
 #include <random>
 
-#include "assert.h"
+#include "engines/ic3.h"
 
 using namespace smt;
 using namespace std;
