@@ -169,7 +169,7 @@ bool IC3Base::intersects_bad()
     // TODO: decide how important it is to push the whole bad for model based
     // IC3
     //       currently not doing that, would need to make intersects_bad virtual
-    add_proof_goal(get_unit(), reached_k_ + 1, NULL);
+    add_proof_goal(get_ic3_formula(), reached_k_ + 1, NULL);
   }
 
   pop_solver_context();
@@ -247,8 +247,8 @@ bool IC3Base::rel_ind_check(size_t i,
   assert(i > 0);
   assert(i < frames_.size());
   // expecting to be the polarity for proof goals, not frames
-  // e.g. negated
-  assert(c.negated);
+  // e.g. a conjunction
+  assert(!c.is_disjunction());
   assert(!out.size());  // expecting to get an empty vector to populate
 
   assert(solver_context_ == 0);
@@ -269,7 +269,7 @@ bool IC3Base::rel_ind_check(size_t i,
     if (options_.ic3_pregen_) {
       predecessor = generalize_predecessor(i, c);
     } else {
-      predecessor = get_unit();
+      predecessor = get_ic3_formula();
     }
     out.push_back(predecessor);
     pop_solver_context();
@@ -516,7 +516,7 @@ void IC3Base::add_proof_goal(const IC3Formula & c,
   // IC3Formula aligned with frame so proof goal should be negated
   // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
   // goal should be a Cube
-  assert(c.negated);
+  assert(!c.is_disjunction());
   proof_goals_.push_back(IC3Goal(c, i, n));
 }
 
@@ -556,7 +556,7 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 
 size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
 {
-  assert(!u.negated);
+  assert(u.is_disjunction());
   Term c = u.term;
   push_solver_context();
   solver_->assert_formula(c);

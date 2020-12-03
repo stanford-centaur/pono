@@ -23,10 +23,11 @@ using namespace std;
 
 namespace pono {
 
-// maps to expected operators for the two options for negated
-// NOTE: uses both bv and boolean operators so that this works for Boolector
+// maps to expected operators for the two options for is_disjunction (either
+// disjunction or conjunction) NOTE: uses both bv and boolean operators so that
+// this works for Boolector
 static const std::unordered_map<bool, std::unordered_set<smt::PrimOp>>
-    expected_ops({ { false, { Or, BVOr } }, { true, { And, BVAnd } } });
+    expected_ops({ { true, { Or, BVOr } }, { false, { And, BVAnd } } });
 
 // helpers
 bool is_lit(const Term & l, const Sort & boolsort)
@@ -52,26 +53,26 @@ bool is_lit(const Term & l, const Sort & boolsort)
 
 // ClauseHandler implementation
 
-IC3Formula ClauseHandler::create(const smt::TermVec & c) const
+IC3Formula ClauseHandler::create_disjunction(const smt::TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
   for (size_t i = 1; i < c.size(); ++i) {
     term = solver_->make_term(Or, term, c[i]);
   }
-  IC3Formula res(term, c, false);
+  IC3Formula res(term, c, true);
   assert(check_valid(res));
   return res;
 }
 
-IC3Formula ClauseHandler::create_negated(const smt::TermVec & c) const
+IC3Formula ClauseHandler::create_conjunction(const smt::TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
   for (size_t i = 1; i < c.size(); ++i) {
     term = solver_->make_term(And, term, c[i]);
   }
-  IC3Formula res(term, c, true);
+  IC3Formula res(term, c, false);
   assert(check_valid(res));
   return res;
 }
@@ -86,21 +87,21 @@ IC3Formula ClauseHandler::negate(const IC3Formula & u) const
   neg_children.reserve(children.size());
   Term nc = smart_not(children.at(0));
 
-  bool is_cube = u.negated;
+  bool is_clause = u.is_disjunction();
   Term term = nc;
   neg_children.push_back(nc);
   for (size_t i = 1; i < children.size(); ++i) {
     nc = smart_not(children[i]);
     neg_children.push_back(nc);
-    if (is_cube) {
-      // negation is a clause
-      term = solver_->make_term(Or, term, nc);
-    } else {
+    if (is_clause) {
       // negation is a cube
       term = solver_->make_term(And, term, nc);
+    } else {
+      // negation is a clause
+      term = solver_->make_term(Or, term, nc);
     }
   }
-  IC3Formula res(term, neg_children, !is_cube);
+  IC3Formula res(term, neg_children, !is_clause);
   return res;
 }
 
@@ -120,7 +121,7 @@ bool ClauseHandler::check_valid(const IC3Formula & u) const
     return true;
   }
 
-  const unordered_set<PrimOp> & ops = expected_ops.at(u.negated);
+  const unordered_set<PrimOp> & ops = expected_ops.at(u.is_disjunction());
   TermVec to_visit({ u.term });
   while (to_visit.size()) {
     Term t = to_visit.back();
@@ -181,7 +182,7 @@ void IC3::initialize()
 std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
                                                       const IC3Formula & c)
 {
-  assert(c.negated);  // expecting a cube
+  assert(!c.is_disjunction());  // expecting a cube
 
   if (options_.ic3_indgen_mode_ != 0) {
     throw PonoException("Boolean IC3 only supports indgen mode 0 but got "
@@ -272,8 +273,9 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 
   // TODO: would it be more intuitive to start with a clause
   //       and generalize the clause directly?
-  IC3Formula blocking_clause = handler_->negate(handler_->create_negated(lits));
-  assert(!blocking_clause.negated);  // expecting a clause
+  IC3Formula blocking_clause =
+      handler_->negate(handler_->create_conjunction(lits));
+  assert(blocking_clause.is_disjunction());  // expecting a clause
   return { blocking_clause };
 }
 
@@ -304,7 +306,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   if (i == 1) {
     // don't need to generalize if i == 1
     // the predecessor is an initial state
-    return get_unit();
+    return get_ic3_formula();
   }
 
   // collect input assignments
@@ -350,9 +352,9 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // formula should not be unsat on its own
   assert(red_cube_lits.size() > 0);
 
-  IC3Formula res = handler_->create_negated(red_cube_lits);
+  IC3Formula res = handler_->create_conjunction(red_cube_lits);
   // expecting a Cube here
-  assert(res.negated);
+  assert(!res.is_disjunction());
 
   return res;
 }
@@ -375,7 +377,7 @@ void IC3::check_ts() const
   }
 }
 
-IC3Formula IC3::get_unit() const
+IC3Formula IC3::get_ic3_formula() const
 {
   // expecting all solving in IC3 to be done at context level > 0
   // so if we're getting a model we should not be at context 0
@@ -392,8 +394,8 @@ IC3Formula IC3::get_unit() const
     }
   }
 
-  IC3Formula res = handler_->create_negated(children);
-  assert(res.negated);  // expecting a Cube here
+  IC3Formula res = handler_->create_conjunction(children);
+  assert(!res.is_disjunction());  // expecting a Cube here
   return res;
 }
 

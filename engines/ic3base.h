@@ -16,7 +16,7 @@
 **        To create a particular IC3 instantiation, you must implement the
 *following:
 **           - an IC3FormulaHandler implementation, e.g. a ClauseHandler
-**           - implement get_unit and give it semantics to produce the
+**           - implement get_ic3_formula and give it semantics to produce the
 **             corresponding IC3Formula with an IC3FormulaHandler
 **           - implement inductive_generalization
 **           - implement generalize_predecessor
@@ -37,12 +37,12 @@ struct IC3Formula
   // nullary constructor
   IC3Formula() {}
   IC3Formula(const smt::Term & t, const smt::TermVec & c, bool n)
-      : term(t), children(c), negated(n)
+      : term(t), children(c), disjunct(n)
   {
   }
 
   IC3Formula(const IC3Formula & other)
-      : term(other.term), children(other.children), negated(other.negated)
+      : term(other.term), children(other.children), disjunct(other.disjunct)
   {
   }
 
@@ -51,9 +51,11 @@ struct IC3Formula
   /** Returns true iff this IC3Formula has not been initialized */
   bool is_null() const { return (term == nullptr); };
 
+  bool is_disjunction() const { return disjunct; };
+
   smt::Term term;
   smt::TermVec children;
-  bool negated;
+  bool disjunct;  // true if currently representing a disjunction
 };
 
 // abstract base class for handling different IC3Formulas
@@ -66,14 +68,14 @@ class IC3FormulaHandler
 
   virtual ~IC3FormulaHandler() {}
 
-  /** Creates an IC3Formula from a vector of terms
+  /** Creates a disjunction IC3Formula from a vector of terms
    *  @param c the children terms
    *  @ensures resulting IC3Formula children == c
    *  @ensures resulting IC3Formula not negated
    */
-  virtual IC3Formula create(const smt::TermVec & c) const = 0;
+  virtual IC3Formula create_disjunction(const smt::TermVec & c) const = 0;
 
-  /** Creates a negated IC3Formula from a vector of terms
+  /** Creates a conjunction IC3Formula from a vector of terms
    *  @param c the children terms
    *  @ensures resulting IC3Formula children == c
    *  @ensures resulting IC3Formula negated
@@ -81,7 +83,7 @@ class IC3FormulaHandler
    *  note: assumes the children are already in the right polarity
    *  (doesn't negate them)
    */
-  virtual IC3Formula create_negated(const smt::TermVec & c) const = 0;
+  virtual IC3Formula create_conjunction(const smt::TermVec & c) const = 0;
 
   /** Negates an IC3Formula
    *  @param u the IC3Formula to negate
@@ -234,7 +236,7 @@ class IC3Base : public Prover
    * hasn't changed
    *  @return an IC3Formula over current state variables
    */
-  virtual IC3Formula get_unit() const = 0;
+  virtual IC3Formula get_ic3_formula() const = 0;
 
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented

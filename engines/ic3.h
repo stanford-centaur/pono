@@ -26,9 +26,9 @@ class ClauseHandler : public IC3FormulaHandler
  public:
   ClauseHandler(const smt::SmtSolver & s) : IC3FormulaHandler(s) {}
 
-  IC3Formula create(const smt::TermVec & c) const override;
+  IC3Formula create_disjunction(const smt::TermVec & c) const override;
 
-  IC3Formula create_negated(const smt::TermVec & c) const override;
+  IC3Formula create_conjunction(const smt::TermVec & c) const override;
 
   IC3Formula negate(const IC3Formula & u) const override;
 
@@ -58,7 +58,7 @@ class IC3 : public IC3Base
 
   void check_ts() const override;
 
-  IC3Formula get_unit() const override;
+  IC3Formula get_ic3_formula() const override;
 };
 
 }  // namespace pono
