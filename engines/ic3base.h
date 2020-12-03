@@ -199,7 +199,7 @@ class IC3Base : public Prover
 
   /** Attempt to generalize before blocking in frame i
    *  The standard approach is inductive generalization
-   *  @requires !get_predecessor(i, c, _)
+   *  @requires !rel_ind_check(i, c, _)
    *  @param i the frame number to generalize it against
    *  @param c the IC3Unit that should be blocked
    *  @return a vector of IC3Units interpreted as a conjunction of IC3Units.
@@ -213,7 +213,7 @@ class IC3Base : public Prover
                                                         const IC3Unit & c) = 0;
 
   /** Generalize a counterexample
-   *  @requires get_predecessor(i, c)
+   *  @requires rel_ind_check(i, c)
    *  @requires the solver_ context is currently satisfiable
    *  @param i the frame number
    *  @param c the IC3Unit to find a general predecessor for
@@ -256,18 +256,23 @@ class IC3Base : public Prover
    */
   ProverResult step_0();
 
-  /** Get the predecessor of a cube c in frame i
-   *  aka see if c is reachable from frame i-1
+  /** Do a relative inductiveness check at frame i-1
+   *  aka see if c at frame i is reachable from frame i-1
    *  @requires c -> F[i]
    *  @param i the frame number
-   *  @param t the term to check
-   *  @param out_pred the cube to populate with a predecessor, or if there's no predecessor
-   *         then it can be an unsat core reduced version of c
-   *  @return true iff c is reachable from the frame i
-   *  @ensures returns true  : pred -> F[i-1] /\ (pred, c) \in [T]
-   *           returns false : pred unchanged, F[i-1] /\ T /\ c' is unsat
+   *  @param c the IC3Unit to check
+   *  @param out the output collateral: a vector interpreted as a conjunction of
+   * IC3Units if the check succeeds (e.g. is UNSAT), then returns a vector of
+   * blocking units to be added to Frame i if the check fails (e.g. is SAT),
+   * then returns a vector of predecessors Note 1: this method calls
+   * inductive_generalization and generalize_predecessor if options_.ic3_pregen_
+   * and options_.ic3_indgen_ are set, respectively Note 2: in most cases, the
+   * vector returned will be size one
+   *  @return true iff c is inductive relative to frame i-1
+   *  @ensures returns false  : out -> F[i-1] /\ \forall s in out . (s, c) \in
+   * [T] returns true   : out unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred);
+  bool rel_ind_check(size_t i, const IC3Unit & c, std::vector<IC3Unit> & out);
 
   // Helper methods
 

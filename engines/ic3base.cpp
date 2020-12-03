@@ -238,13 +238,14 @@ ProverResult IC3Base::step_0()
   return ProverResult::UNKNOWN;
 }
 
-bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
+bool IC3Base::rel_ind_check(size_t i, const IC3Unit & c, vector<IC3Unit> & out)
 {
   assert(i > 0);
   assert(i < frames_.size());
   // expecting to be the polarity for proof goals, not frames
   // e.g. negated
   assert(c.negated);
+  assert(!out.size());  // expecting to get an empty vector to populate
 
   assert(solver_context_ == 0);
   push_solver_context();
@@ -260,11 +261,14 @@ bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
+    IC3Unit predecessor;
     if (options_.ic3_pregen_) {
-      out_pred = generalize_predecessor(i, c);
+      predecessor = generalize_predecessor(i, c);
     } else {
-      out_pred = get_unit();
+      predecessor = get_unit();
     }
+    out.push_back(predecessor);
+    pop_solver_context();
   } else {
     // TODO: consider automatically taking advantage
     //       of an unsat core. Took it out for now (was in MBIC3)
@@ -273,23 +277,32 @@ bool IC3Base::get_predecessor(size_t i, const IC3Unit & c, IC3Unit & out_pred)
     //         or at least how to make a conjunctive partition
     //         or it's possible they all can function approximately the same
     //       would also have to move the pop_solver_context later
-    out_pred = c;
+    pop_solver_context();
+    if (options_.ic3_indgen_) {
+      out = inductive_generalization(i, c);
+    } else {
+      IC3Unit blocking_unit = handler_->negate(c);
+      out.push_back(blocking_unit);
+    }
   }
-  pop_solver_context();
   assert(solver_context_ == 0);
 
   if (r.is_sat()) {
+    assert(
+        out.size()
+        == 1);  // for now, assuming that there's only one predecessor produced
+    // this check needs to be here after the solver context has been popped
     // if i == 1 and there's a predecessor, then it should be an initial state
-    assert(i != 1 || intersects_initial(out_pred.term));
+    assert(i != 1 || intersects_initial(out.at(0).term));
 
     // should never intersect with a frame before F[i-1]
     // otherwise, this predecessor should have been found
     // in a previous step (before a new frame was pushed)
-    assert(i < 2 || !intersects(c.term, get_frame(i - 2)));
+    assert(i < 2 || !intersects(out.at(0).term, get_frame(i - 2)));
   }
 
   assert(!r.is_unknown());
-  return r.is_sat();
+  return r.is_unsat();
 }
 
 // Helper methods
@@ -327,23 +340,13 @@ bool IC3Base::block(const IC3Goal & pg)
     return false;
   }
 
-  IC3Unit pred;  // populated by get_predecessor
-  if (!get_predecessor(i, c, pred)) {
-    assert(!pred.is_null());
-    // can block this cube
-    vector<IC3Unit> blocking_units;
-    if (options_.ic3_indgen_) {
-      blocking_units = inductive_generalization(i, pred);
-    } else {
-      IC3Unit bu = handler_->negate(pred);
-      assert(bu.negated);
-      blocking_units = { bu };
-    }
-    assert(blocking_units.size());
-    // pred is a subset of c
+  vector<IC3Unit> collateral;  // populated by rel_ind_check
+  if (rel_ind_check(i, c, collateral)) {
+    // collateral is a vector of blocking units
+    assert(collateral.size());
     logger.log(3, "Blocking term at frame {}: {}", i, c.term->to_string());
     if (options_.verbosity_ >= 3) {
-      for (auto u : blocking_units) {
+      for (auto u : collateral) {
         logger.log(3, " with {}", u.term->to_string());
       }
     }
@@ -353,7 +356,7 @@ bool IC3Base::block(const IC3Goal & pg)
     // for example, interpolant-based generalization for bit-vectors is not
     // always a single clause
     size_t min_idx = frames_.size();
-    for (auto bu : blocking_units) {
+    for (auto bu : collateral) {
       // TODO: fix name -- might not be a clause anymore
       // try to push
       size_t idx = find_highest_frame(i, bu);
@@ -369,8 +372,11 @@ bool IC3Base::block(const IC3Goal & pg)
     }
     return true;
   } else {
-    assert(!pred.is_null());
-    add_proof_goal(pred, i - 1, make_shared<IC3Goal>(pg));
+    // collateral is a vector of predecessors
+    // for now, assume there is only one
+    // TODO: extend this to support multiple predecessors
+    assert(collateral.size() == 1);
+    add_proof_goal(collateral.at(0), i - 1, make_shared<IC3Goal>(pg));
     return false;
   }
 }
