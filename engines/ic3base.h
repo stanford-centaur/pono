@@ -15,9 +15,9 @@
 **
 **        To create a particular IC3 instantiation, you must implement the
 *following:
-**           - an IC3UnitHandler implementation, e.g. a ClauseHandler
+**           - an IC3FormulaHandler implementation, e.g. a ClauseHandler
 **           - implement get_unit and give it semantics to produce the
-**             corresponding IC3Unit with an IC3UnitHandler
+**             corresponding IC3Formula with an IC3FormulaHandler
 **           - implement inductive_generalization
 **           - implement generalize_predecessor
 **           - implement check_ts which just checks if there are any
@@ -32,23 +32,23 @@
 
 namespace pono {
 
-struct IC3Unit
+struct IC3Formula
 {
   // nullary constructor
-  IC3Unit() {}
-  IC3Unit(const smt::Term & t, const smt::TermVec & c, bool n)
+  IC3Formula() {}
+  IC3Formula(const smt::Term & t, const smt::TermVec & c, bool n)
       : term(t), children(c), negated(n)
   {
   }
 
-  IC3Unit(const IC3Unit & other)
+  IC3Formula(const IC3Formula & other)
       : term(other.term), children(other.children), negated(other.negated)
   {
   }
 
-  virtual ~IC3Unit() {}
+  virtual ~IC3Formula() {}
 
-  /** Returns true iff this IC3Unit has not been initialized */
+  /** Returns true iff this IC3Formula has not been initialized */
   bool is_null() const { return (term == nullptr); };
 
   smt::Term term;
@@ -56,47 +56,47 @@ struct IC3Unit
   bool negated;
 };
 
-// abstract base class for handling different IC3Units
+// abstract base class for handling different IC3Formulas
 // e.g. Clause/Cube, Predicate Clause/Cube, etc...
 
-class IC3UnitHandler
+class IC3FormulaHandler
 {
  public:
-  IC3UnitHandler(const smt::SmtSolver & s) : solver_(s) {}
+  IC3FormulaHandler(const smt::SmtSolver & s) : solver_(s) {}
 
-  virtual ~IC3UnitHandler() {}
+  virtual ~IC3FormulaHandler() {}
 
-  /** Creates an IC3Unit from a vector of terms
+  /** Creates an IC3Formula from a vector of terms
    *  @param c the children terms
-   *  @ensures resulting IC3Unit children == c
-   *  @ensures resulting IC3Unit not negated
+   *  @ensures resulting IC3Formula children == c
+   *  @ensures resulting IC3Formula not negated
    */
-  virtual IC3Unit create(const smt::TermVec & c) const = 0;
+  virtual IC3Formula create(const smt::TermVec & c) const = 0;
 
-  /** Creates a negated IC3Unit from a vector of terms
+  /** Creates a negated IC3Formula from a vector of terms
    *  @param c the children terms
-   *  @ensures resulting IC3Unit children == c
-   *  @ensures resulting IC3Unit negated
+   *  @ensures resulting IC3Formula children == c
+   *  @ensures resulting IC3Formula negated
    *  e.g. for a ClauseHandler, this method will create a cube
    *  note: assumes the children are already in the right polarity
    *  (doesn't negate them)
    */
-  virtual IC3Unit create_negated(const smt::TermVec & c) const = 0;
+  virtual IC3Formula create_negated(const smt::TermVec & c) const = 0;
 
-  /** Negates an IC3Unit
-   *  @param u the IC3Unit to negate
+  /** Negates an IC3Formula
+   *  @param u the IC3Formula to negate
    */
-  virtual IC3Unit negate(const IC3Unit & u) const = 0;
+  virtual IC3Formula negate(const IC3Formula & u) const = 0;
 
-  /** Check whether a given IC3Unit is valid
+  /** Check whether a given IC3Formula is valid
    *  e.g. if this is a ClauseHandler it would
    *    check that it's a disjunction of literals
    *  (for debugging)
-   *  @param u the IC3Unit to check
-   *  @return true iff this is a valid IC3Unit for this
+   *  @param u the IC3Formula to check
+   *  @return true iff this is a valid IC3Formula for this
    *          kind of handler
    */
-  virtual bool check_valid(const IC3Unit & u) const = 0;
+  virtual bool check_valid(const IC3Formula & u) const = 0;
 
  protected:
   const smt::SmtSolver & solver_;
@@ -112,13 +112,13 @@ class IC3UnitHandler
 struct IC3Goal
 {
   // based on open-source ic3ia ProofObligation
-  IC3Unit target;
+  IC3Formula target;
   size_t idx;
   // TODO: see if we can make this a unique_ptr
   //       made it complicated to move from this struct to another place
   std::shared_ptr<IC3Goal> next;
 
-  IC3Goal(IC3Unit u, size_t i, std::shared_ptr<IC3Goal> n)
+  IC3Goal(IC3Formula u, size_t i, std::shared_ptr<IC3Goal> n)
       : target(u), idx(i), next(n)
   {
   }
@@ -133,24 +133,24 @@ class IC3Base : public Prover
 {
  public:
   /** IC3Base constructors take the normal arguments for a prover
-   *  + a function that can create an IC3Unit
+   *  + a function that can create an IC3Formula
    *  Depending on the derived class IC3 implementation, the exact
-   *  type of IC3Unit will differ: e.g. Clause, Disjunction
+   *  type of IC3Formula will differ: e.g. Clause, Disjunction
    */
   IC3Base(Property & p,
           smt::SolverEnum se,
-          std::unique_ptr<IC3UnitHandler> && h);
+          std::unique_ptr<IC3FormulaHandler> && h);
   IC3Base(Property & p,
           const smt::SmtSolver & s,
-          std::unique_ptr<IC3UnitHandler> && h);
+          std::unique_ptr<IC3FormulaHandler> && h);
   IC3Base(const PonoOptions & opt,
           Property & p,
           smt::SolverEnum se,
-          std::unique_ptr<IC3UnitHandler> && h);
+          std::unique_ptr<IC3FormulaHandler> && h);
   IC3Base(const PonoOptions & opt,
           Property & p,
           const smt::SmtSolver & s,
-          std::unique_ptr<IC3UnitHandler> && h);
+          std::unique_ptr<IC3FormulaHandler> && h);
 
   typedef Prover super;
 
@@ -161,7 +161,7 @@ class IC3Base : public Prover
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
  protected:
-  std::unique_ptr<IC3UnitHandler> handler_;
+  std::unique_ptr<IC3FormulaHandler> handler_;
 
   smt::UnsatCoreReducer reducer_;
 
@@ -174,7 +174,7 @@ class IC3Base : public Prover
   ///< the frames data structure.
   ///< a vector of the given Unit template
   ///< which changes depending on the implementation
-  std::vector<std::vector<IC3Unit>> frames_;
+  std::vector<std::vector<IC3Formula>> frames_;
 
   ///< stack of outstanding proof goals
   std::vector<IC3Goal> proof_goals_;
@@ -195,34 +195,33 @@ class IC3Base : public Prover
 
   // ********************************** Virtual Methods
   // These methods should be implemented by a derived class for a particular
-  // "flavor" of IC3 in accordance with the associated IC3Unit
+  // "flavor" of IC3 in accordance with the associated IC3Formula
 
   /** Attempt to generalize before blocking in frame i
    *  The standard approach is inductive generalization
    *  @requires !rel_ind_check(i, c, _)
    *  @param i the frame number to generalize it against
-   *  @param c the IC3Unit that should be blocked
-   *  @return a vector of IC3Units interpreted as a conjunction of IC3Units.
-   *          Standard IC3 implementations will have
-   *          a size one vector (e.g. a single clause)
-   *          Let the returned conjunction term be d
+   *  @param c the IC3Formula that should be blocked
+   *  @return a vector of IC3Formulas interpreted as a conjunction of
+   * IC3Formulas. Standard IC3 implementations will have a size one vector (e.g.
+   * a single clause) Let the returned conjunction term be d
    *  @ensures d -> !c and F[i-1] /\ d /\ T /\ !d' is unsat
    *           e.g. it blocks c and is inductive relative to F[i-1]
    */
-  virtual std::vector<IC3Unit> inductive_generalization(size_t i,
-                                                        const IC3Unit & c) = 0;
+  virtual std::vector<IC3Formula> inductive_generalization(
+      size_t i, const IC3Formula & c) = 0;
 
   /** Generalize a counterexample
    *  @requires rel_ind_check(i, c)
    *  @requires the solver_ context is currently satisfiable
    *  @param i the frame number
-   *  @param c the IC3Unit to find a general predecessor for
-   *  @return a new IC3Unit d
+   *  @param c the IC3Formula to find a general predecessor for
+   *  @return a new IC3Formula d
    *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
    *  @ensures no calls to the solver_ because the context is polluted with
    *           other assertions
    */
-  virtual IC3Unit generalize_predecessor(size_t i, const IC3Unit & c) = 0;
+  virtual IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) = 0;
 
   /** Checks if every thing in the current transition system is supported
    *  by the current instantiation
@@ -230,12 +229,12 @@ class IC3Base : public Prover
    */
   virtual void check_ts() const = 0;
 
-  /** Get an IC3Unit from the current model
+  /** Get an IC3Formula from the current model
    *  @requires last call to check_sat of solver_ was satisfiable and context
    * hasn't changed
-   *  @return an IC3Unit over current state variables
+   *  @return an IC3Formula over current state variables
    */
-  virtual IC3Unit get_unit() const = 0;
+  virtual IC3Formula get_unit() const = 0;
 
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented
@@ -260,9 +259,9 @@ class IC3Base : public Prover
    *  aka see if c at frame i is reachable from frame i-1
    *  @requires c -> F[i]
    *  @param i the frame number
-   *  @param c the IC3Unit to check
+   *  @param c the IC3Formula to check
    *  @param out the output collateral: a vector interpreted as a conjunction of
-   * IC3Units if the check succeeds (e.g. is UNSAT), then returns a vector of
+   * IC3Formulas if the check succeeds (e.g. is UNSAT), then returns a vector of
    * blocking units to be added to Frame i if the check fails (e.g. is SAT),
    * then returns a vector of predecessors Note 1: this method calls
    * inductive_generalization and generalize_predecessor if options_.ic3_pregen_
@@ -272,7 +271,9 @@ class IC3Base : public Prover
    *  @ensures returns false  : out -> F[i-1] /\ \forall s in out . (s, c) \in
    * [T] returns true   : out unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool rel_ind_check(size_t i, const IC3Unit & c, std::vector<IC3Unit> & out);
+  bool rel_ind_check(size_t i,
+                     const IC3Formula & c,
+                     std::vector<IC3Formula> & out);
 
   // Helper methods
 
@@ -305,7 +306,7 @@ class IC3Base : public Prover
    *  @param i highest frame to add constraint to
    *  @param constraint the constraint to add
    */
-  void constrain_frame(size_t i, const IC3Unit & constraint);
+  void constrain_frame(size_t i, const IC3Formula & constraint);
 
   /** Add all the terms at Frame i
    *  Note: the frames_ data structure keeps terms only in the
@@ -339,7 +340,9 @@ class IC3Base : public Prover
    *  @param n pointer to the proof goal that led to this one -- null for bad
    *  (i.e. end of trace)
    */
-  void add_proof_goal(const IC3Unit & c, size_t i, std::shared_ptr<IC3Goal> n);
+  void add_proof_goal(const IC3Formula & c,
+                      size_t i,
+                      std::shared_ptr<IC3Goal> n);
 
   /** Check if there are common assignments
    *  between A and B
@@ -366,7 +369,7 @@ class IC3Base : public Prover
    *  @return index >= i such that this unit can be added
    *          to that frame
    */
-  size_t find_highest_frame(size_t i, const IC3Unit & u);
+  size_t find_highest_frame(size_t i, const IC3Formula & u);
 
   /** Creates a reduce and of the vector of boolean terms
    *  It also sorts the vector by the hash

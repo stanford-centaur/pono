@@ -21,18 +21,18 @@
 
 namespace pono {
 
-class ClauseHandler : public IC3UnitHandler
+class ClauseHandler : public IC3FormulaHandler
 {
  public:
-  ClauseHandler(const smt::SmtSolver & s) : IC3UnitHandler(s) {}
+  ClauseHandler(const smt::SmtSolver & s) : IC3FormulaHandler(s) {}
 
-  IC3Unit create(const smt::TermVec & c) const override;
+  IC3Formula create(const smt::TermVec & c) const override;
 
-  IC3Unit create_negated(const smt::TermVec & c) const override;
+  IC3Formula create_negated(const smt::TermVec & c) const override;
 
-  IC3Unit negate(const IC3Unit & u) const override;
+  IC3Formula negate(const IC3Formula & u) const override;
 
-  bool check_valid(const IC3Unit & u) const override;
+  bool check_valid(const IC3Formula & u) const override;
 };
 
 class IC3 : public IC3Base
@@ -51,14 +51,14 @@ class IC3 : public IC3Base
 
   // pure virtual method implementations
 
-  std::vector<IC3Unit> inductive_generalization(size_t i,
-                                                const IC3Unit & c) override;
+  std::vector<IC3Formula> inductive_generalization(
+      size_t i, const IC3Formula & c) override;
 
-  IC3Unit generalize_predecessor(size_t i, const IC3Unit & c) override;
+  IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) override;
 
   void check_ts() const override;
 
-  IC3Unit get_unit() const override;
+  IC3Formula get_unit() const override;
 };
 
 }  // namespace pono

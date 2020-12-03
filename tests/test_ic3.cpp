@@ -14,8 +14,8 @@ using namespace std;
 
 namespace pono_tests {
 
-class IC3UnitTests : public ::testing::Test,
-                     public ::testing::WithParamInterface<SolverEnum>
+class IC3FormulaTests : public ::testing::Test,
+                        public ::testing::WithParamInterface<SolverEnum>
 {
  protected:
   void SetUp() override
@@ -31,7 +31,7 @@ class IC3UnitTests : public ::testing::Test,
   Sort boolsort, bvsort8;
 };
 
-TEST_P(IC3UnitTests, SimpleSystemSafe)
+TEST_P(IC3FormulaTests, SimpleSystemSafe)
 {
   RelationalTransitionSystem rts(s);
   Term s1 = rts.make_statevar("s1", boolsort);
@@ -57,7 +57,7 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
   ASSERT_TRUE(check_invar(rts, p.prop(), invar));
 }
 
-TEST_P(IC3UnitTests, SimpleSystemUnsafe)
+TEST_P(IC3FormulaTests, SimpleSystemUnsafe)
 {
   FunctionalTransitionSystem fts(s);
   Term s1 = fts.make_statevar("s1", boolsort);
@@ -79,7 +79,7 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
   ASSERT_EQ(r, FALSE);
 }
 
-INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3UnitTests,
-                         IC3UnitTests,
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3FormulaTests,
+                         IC3FormulaTests,
                          testing::ValuesIn(available_solver_enums()));
 }  // namespace pono_tests

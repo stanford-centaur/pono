@@ -41,8 +41,8 @@ bool term_lt(const smt::Term & t0, const smt::Term & t1)
   return (t0->hash() < t1->hash());
 }
 
-/** IC3UnitHandler */
-smt::Term IC3UnitHandler::smart_not(const Term & t) const
+/** IC3FormulaHandler */
+smt::Term IC3FormulaHandler::smart_not(const Term & t) const
 {
   Op op = t->get_op();
   if (op == Not) {
@@ -56,7 +56,9 @@ smt::Term IC3UnitHandler::smart_not(const Term & t) const
 
 /** IC3Base */
 
-IC3Base::IC3Base(Property & p, SolverEnum se, unique_ptr<IC3UnitHandler> && h)
+IC3Base::IC3Base(Property & p,
+                 SolverEnum se,
+                 unique_ptr<IC3FormulaHandler> && h)
     : super(p, se),
       handler_(std::move(h)),
       reducer_(create_solver(se)),
@@ -67,7 +69,7 @@ IC3Base::IC3Base(Property & p, SolverEnum se, unique_ptr<IC3UnitHandler> && h)
 
 IC3Base::IC3Base(Property & p,
                  const SmtSolver & s,
-                 unique_ptr<IC3UnitHandler> && h)
+                 unique_ptr<IC3FormulaHandler> && h)
     : super(p, s),
       handler_(std::move(h)),
       reducer_(create_solver(s->get_solver_enum())),
@@ -79,7 +81,7 @@ IC3Base::IC3Base(Property & p,
 IC3Base::IC3Base(const PonoOptions & opt,
                  Property & p,
                  SolverEnum se,
-                 unique_ptr<IC3UnitHandler> && h)
+                 unique_ptr<IC3FormulaHandler> && h)
     : super(opt, p, se),
       handler_(std::move(h)),
       reducer_(create_solver(se)),
@@ -91,7 +93,7 @@ IC3Base::IC3Base(const PonoOptions & opt,
 IC3Base::IC3Base(const PonoOptions & opt,
                  Property & p,
                  const SmtSolver & s,
-                 unique_ptr<IC3UnitHandler> && h)
+                 unique_ptr<IC3FormulaHandler> && h)
     : super(opt, p, s),
       handler_(std::move(h)),
       reducer_(create_solver(s->get_solver_enum())),
@@ -117,7 +119,7 @@ void IC3Base::initialize()
   // first frame is always the initial states
   push_frame();
   // can't use constrain_frame for initial states because not guaranteed to be
-  // an IC3Unit it's handled specially
+  // an IC3Formula it's handled specially
   solver_->assert_formula(
       solver_->make_term(Implies, frame_labels_.at(0), ts_.init()));
   push_frame();
@@ -238,7 +240,9 @@ ProverResult IC3Base::step_0()
   return ProverResult::UNKNOWN;
 }
 
-bool IC3Base::rel_ind_check(size_t i, const IC3Unit & c, vector<IC3Unit> & out)
+bool IC3Base::rel_ind_check(size_t i,
+                            const IC3Formula & c,
+                            vector<IC3Formula> & out)
 {
   assert(i > 0);
   assert(i < frames_.size());
@@ -261,7 +265,7 @@ bool IC3Base::rel_ind_check(size_t i, const IC3Unit & c, vector<IC3Unit> & out)
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
-    IC3Unit predecessor;
+    IC3Formula predecessor;
     if (options_.ic3_pregen_) {
       predecessor = generalize_predecessor(i, c);
     } else {
@@ -272,8 +276,8 @@ bool IC3Base::rel_ind_check(size_t i, const IC3Unit & c, vector<IC3Unit> & out)
   } else {
     // TODO: consider automatically taking advantage
     //       of an unsat core. Took it out for now (was in MBIC3)
-    //       because it needs to work for any IC3Unit
-    //       Maybe IC3Unit needs to know how to generalize itself
+    //       because it needs to work for any IC3Formula
+    //       Maybe IC3Formula needs to know how to generalize itself
     //         or at least how to make a conjunctive partition
     //         or it's possible they all can function approximately the same
     //       would also have to move the pop_solver_context later
@@ -281,7 +285,7 @@ bool IC3Base::rel_ind_check(size_t i, const IC3Unit & c, vector<IC3Unit> & out)
     if (options_.ic3_indgen_) {
       out = inductive_generalization(i, c);
     } else {
-      IC3Unit blocking_unit = handler_->negate(c);
+      IC3Formula blocking_unit = handler_->negate(c);
       out.push_back(blocking_unit);
     }
   }
@@ -325,7 +329,7 @@ bool IC3Base::block_all()
 
 bool IC3Base::block(const IC3Goal & pg)
 {
-  const IC3Unit & c = pg.target;
+  const IC3Formula & c = pg.target;
   size_t i = pg.idx;
 
   logger.log(
@@ -340,7 +344,7 @@ bool IC3Base::block(const IC3Goal & pg)
     return false;
   }
 
-  vector<IC3Unit> collateral;  // populated by rel_ind_check
+  vector<IC3Formula> collateral;  // populated by rel_ind_check
   if (rel_ind_check(i, c, collateral)) {
     // collateral is a vector of blocking units
     assert(collateral.size());
@@ -386,7 +390,7 @@ bool IC3Base::propagate(size_t i)
   assert(i + 1 < frames_.size());
 
   unordered_set<size_t> indices_to_remove;
-  const vector<IC3Unit> & Fi = frames_.at(i);
+  const vector<IC3Formula> & Fi = frames_.at(i);
 
   push_solver_context();
   assert_frame_labels(i);
@@ -418,7 +422,7 @@ bool IC3Base::propagate(size_t i)
   // keep invariant that terms are kept at highest frame
   // where they are known to hold
   // need to remove some terms from the current frame
-  vector<IC3Unit> new_frame_i;
+  vector<IC3Formula> new_frame_i;
   new_frame_i.reserve(Fi.size() - indices_to_remove.size());
   for (size_t j = 0; j < Fi.size(); ++j) {
     if (indices_to_remove.find(j) == indices_to_remove.end()) {
@@ -441,7 +445,7 @@ void IC3Base::push_frame()
   frames_.push_back({});
 }
 
-void IC3Base::constrain_frame(size_t i, const IC3Unit & constraint)
+void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint)
 {
   assert(i > 0);  // there's a special case for frame 0
   assert(i < frame_labels_.size());
@@ -471,8 +475,8 @@ void IC3Base::assert_frame_labels(size_t i) const
 
 Term IC3Base::get_frame(size_t i) const
 {
-  // TODO: decide if frames should hold IC3Units or terms
-  //       need to special case initial state if using IC3Units
+  // TODO: decide if frames should hold IC3Formulas or terms
+  //       need to special case initial state if using IC3Formulas
   if (i == 0) {
     // F[0] is always the initial states constraint
     return ts_.init();
@@ -505,10 +509,12 @@ IC3Goal IC3Base::get_next_proof_goal()
   return pg;
 }
 
-void IC3Base::add_proof_goal(const IC3Unit & c, size_t i, shared_ptr<IC3Goal> n)
+void IC3Base::add_proof_goal(const IC3Formula & c,
+                             size_t i,
+                             shared_ptr<IC3Goal> n)
 {
-  // IC3Unit aligned with frame so proof goal should be negated
-  // e.g. for bit-level IC3, IC3Unit is a Clause and the proof
+  // IC3Formula aligned with frame so proof goal should be negated
+  // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
   // goal should be a Cube
   assert(c.negated);
   proof_goals_.push_back(IC3Goal(c, i, n));
@@ -548,7 +554,7 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
   }
 }
 
-size_t IC3Base::find_highest_frame(size_t i, const IC3Unit & u)
+size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
 {
   assert(!u.negated);
   Term c = u.term;

@@ -52,31 +52,31 @@ bool is_lit(const Term & l, const Sort & boolsort)
 
 // ClauseHandler implementation
 
-IC3Unit ClauseHandler::create(const smt::TermVec & c) const
+IC3Formula ClauseHandler::create(const smt::TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
   for (size_t i = 1; i < c.size(); ++i) {
     term = solver_->make_term(Or, term, c[i]);
   }
-  IC3Unit res(term, c, false);
+  IC3Formula res(term, c, false);
   assert(check_valid(res));
   return res;
 }
 
-IC3Unit ClauseHandler::create_negated(const smt::TermVec & c) const
+IC3Formula ClauseHandler::create_negated(const smt::TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
   for (size_t i = 1; i < c.size(); ++i) {
     term = solver_->make_term(And, term, c[i]);
   }
-  IC3Unit res(term, c, true);
+  IC3Formula res(term, c, true);
   assert(check_valid(res));
   return res;
 }
 
-IC3Unit ClauseHandler::negate(const IC3Unit & u) const
+IC3Formula ClauseHandler::negate(const IC3Formula & u) const
 {
   const TermVec & children = u.children;
   assert(!u.is_null());
@@ -100,11 +100,11 @@ IC3Unit ClauseHandler::negate(const IC3Unit & u) const
       term = solver_->make_term(And, term, nc);
     }
   }
-  IC3Unit res(term, neg_children, !is_cube);
+  IC3Formula res(term, neg_children, !is_cube);
   return res;
 }
 
-bool ClauseHandler::check_valid(const IC3Unit & u) const
+bool ClauseHandler::check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
@@ -178,7 +178,8 @@ void IC3::initialize()
   // No-Op for now
 }
 
-std::vector<IC3Unit> IC3::inductive_generalization(size_t i, const IC3Unit & c)
+std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
+                                                      const IC3Formula & c)
 {
   assert(c.negated);  // expecting a cube
 
@@ -271,12 +272,12 @@ std::vector<IC3Unit> IC3::inductive_generalization(size_t i, const IC3Unit & c)
 
   // TODO: would it be more intuitive to start with a clause
   //       and generalize the clause directly?
-  IC3Unit blocking_clause = handler_->negate(handler_->create_negated(lits));
+  IC3Formula blocking_clause = handler_->negate(handler_->create_negated(lits));
   assert(!blocking_clause.negated);  // expecting a clause
   return { blocking_clause };
 }
 
-IC3Unit IC3::generalize_predecessor(size_t i, const IC3Unit & c)
+IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 {
   // TODO: change this so we don't have to depend on the solver context to be
   // sat
@@ -349,7 +350,7 @@ IC3Unit IC3::generalize_predecessor(size_t i, const IC3Unit & c)
   // formula should not be unsat on its own
   assert(red_cube_lits.size() > 0);
 
-  IC3Unit res = handler_->create_negated(red_cube_lits);
+  IC3Formula res = handler_->create_negated(red_cube_lits);
   // expecting a Cube here
   assert(res.negated);
 
@@ -374,7 +375,7 @@ void IC3::check_ts() const
   }
 }
 
-IC3Unit IC3::get_unit() const
+IC3Formula IC3::get_unit() const
 {
   // expecting all solving in IC3 to be done at context level > 0
   // so if we're getting a model we should not be at context 0
@@ -391,7 +392,7 @@ IC3Unit IC3::get_unit() const
     }
   }
 
-  IC3Unit res = handler_->create_negated(children);
+  IC3Formula res = handler_->create_negated(children);
   assert(res.negated);  // expecting a Cube here
   return res;
 }
