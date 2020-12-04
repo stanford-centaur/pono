@@ -58,7 +58,7 @@ void KInduction::initialize()
   // the solver or it could just be polluted with redundant assertions in the
   // future we can use solver_->reset_assertions(), but it is not currently
   // supported in boolector
-  init0_ = unroller_.at_time(ts_.init(), 0);
+  init0_ = unroller_.at_time(ts_->init(), 0);
   false_ = solver_->make_term(false);
   simple_path_ = solver_->make_term(true);
 }
@@ -95,7 +95,7 @@ bool KInduction::base_step(int i)
   }
   solver_->pop();
 
-  solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
+  solver_->assert_formula(unroller_.at_time(ts_->trans(), i));
   solver_->assert_formula(unroller_.at_time(property_.prop(), i));
 
   return true;
@@ -111,7 +111,7 @@ bool KInduction::inductive_step(int i)
   solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad_, i + 1));
 
-  if (ts_.statevars().size() && check_simple_path_lazy(i + 1)) {
+  if (ts_->statevars().size() && check_simple_path_lazy(i + 1)) {
     return true;
   }
 
@@ -124,10 +124,10 @@ bool KInduction::inductive_step(int i)
 
 Term KInduction::simple_path_constraint(int i, int j)
 {
-  assert(ts_.statevars().size());
+  assert(ts_->statevars().size());
 
   Term disj = false_;
-  for (auto v : ts_.statevars()) {
+  for (auto v : ts_->statevars()) {
     Term vi = unroller_.at_time(v, i);
     Term vj = unroller_.at_time(v, j);
     Term eq = solver_->make_term(PrimOp::Equal, vi, vj);

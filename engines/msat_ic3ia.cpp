@@ -45,7 +45,7 @@ MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, const SmtSolver & so
 
 ProverResult MsatIC3IA::prove()
 {
-  if (ts_.solver()->get_solver_enum() != MSAT) {
+  if (ts_->solver()->get_solver_enum() != MSAT) {
     throw PonoException("MsatIC3IA only supports mathsat solver.");
   }
 
@@ -60,31 +60,31 @@ ProverResult MsatIC3IA::prove()
 
   // give mapping between symbols
   UnorderedTermMap & ts_solver_cache = to_ts_solver.get_cache();
-  for (auto v : ts_.statevars()) {
+  for (auto v : ts_->statevars()) {
     ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
-    ts_solver_cache[to_msat_solver.transfer_term(ts_.next(v))] = ts_.next(v);
+    ts_solver_cache[to_msat_solver.transfer_term(ts_->next(v))] = ts_->next(v);
   }
-  for (auto v : ts_.inputvars()) {
+  for (auto v : ts_->inputvars()) {
     ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
   }
 
   // get mathsat terms for transition system
   msat_term msat_init =
-      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_.init()))
+      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_->init()))
           ->get_msat_term();
   msat_term msat_trans =
-      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_.trans()))
+      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_->trans()))
           ->get_msat_term();
   msat_term msat_prop = static_pointer_cast<MsatTerm>(
                             to_msat_solver.transfer_term(property_.prop()))
                             ->get_msat_term();
   unordered_map<msat_term, msat_term> msat_statevars;
-  for (auto sv : ts_.statevars()) {
+  for (auto sv : ts_->statevars()) {
     msat_statevars[static_pointer_cast<MsatTerm>(
                        to_msat_solver.transfer_term(sv))
                        ->get_msat_term()] =
         static_pointer_cast<MsatTerm>(
-            to_msat_solver.transfer_term(ts_.next(sv)))
+            to_msat_solver.transfer_term(ts_->next(sv)))
             ->get_msat_term();
   }
   // initialize the transition system
@@ -156,14 +156,14 @@ bool MsatIC3IA::compute_witness(msat_env env,
 
   // set up a BMC query
   // with state variables constrained at each step
-  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+  solver_->assert_formula(unroller_.at_time(ts_->init(), 0));
   // assert that bad_ is not null
   // i.e. this prover was correctly initialized
   assert(bad_);
   solver_->assert_formula(unroller_.at_time(bad_, ic3ia_wit.size() - 1));
   for (size_t i = 0; i < ic3ia_wit.size(); ++i) {
     if (i + 1 < ic3ia_wit.size()) {
-      solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
+      solver_->assert_formula(unroller_.at_time(ts_->trans(), i));
     }
 
     for (auto msat_eq : ic3ia_wit[i]) {
