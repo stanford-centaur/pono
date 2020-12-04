@@ -23,13 +23,11 @@ namespace pono {
 
 KInduction::KInduction(Property & p, SolverEnum se) : super(p, se)
 {
-  initialize();
 }
 
 KInduction::KInduction(Property & p, const SmtSolver & solver)
     : super(p, solver)
 {
-  initialize();
 }
 
 KInduction::KInduction(const PonoOptions & opt,
@@ -37,7 +35,6 @@ KInduction::KInduction(const PonoOptions & opt,
                        SolverEnum se)
     : super(opt, p, se)
 {
-  initialize();
 }
 
 KInduction::KInduction(const PonoOptions & opt,
@@ -45,13 +42,16 @@ KInduction::KInduction(const PonoOptions & opt,
                        const smt::SmtSolver & solver)
     : super(opt, p, solver)
 {
-  initialize();
 }
 
 KInduction::~KInduction() {}
 
 void KInduction::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
   // NOTE: There's an implicit assumption that this solver is only used for
   // model checking once Otherwise there could be conflicting assertions to
@@ -65,6 +65,8 @@ void KInduction::initialize()
 
 ProverResult KInduction::check_until(int k)
 {
+  initialize();
+
   for (int i = 0; i <= k; ++i) {
     logger.log(1, "Checking k-induction base case at bound: {}", i);
     if (!base_step(i)) {

@@ -37,7 +37,8 @@ Prover::Prover(Property & p, smt::SolverEnum se)
 }
 
 Prover::Prover(Property & p, const smt::SmtSolver & s)
-    : solver_(s),
+    : initialized_(false),
+      solver_(s),
       to_prover_solver_(s),
       property_(p, to_prover_solver_),
       ts_(property_.transition_system()),
@@ -56,7 +57,8 @@ Prover::Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se)
 Prover::Prover(const PonoOptions & opt,
                Property & p,
                const smt::SmtSolver & s)
-    : solver_(s),
+    : initialized_(false),
+      solver_(s),
       to_prover_solver_(solver_),
       property_(p, to_prover_solver_),
       ts_(property_.transition_system()),
@@ -70,6 +72,10 @@ Prover::~Prover() {}
 
 void Prover::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
   assert(ts_.only_curr(bad_));
@@ -79,9 +85,14 @@ void Prover::initialize()
        transition relation of the transition system. */
     ConeOfInfluence coi(ts_, { bad_ }, {}, options_.verbosity_);
   }
+
+  initialized_ = true;
 }
 
-ProverResult Prover::prove() { return check_until(INT_MAX); }
+ProverResult Prover::prove()
+{
+  return check_until(INT_MAX);
+}
 
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
 {

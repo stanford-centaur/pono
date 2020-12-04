@@ -32,7 +32,6 @@ InterpolantMC::InterpolantMC(Property & p, SolverEnum se)
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {
-  initialize();
 }
 
 InterpolantMC::InterpolantMC(Property & p,
@@ -43,7 +42,6 @@ InterpolantMC::InterpolantMC(Property & p,
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {
-  initialize();
 }
 
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
@@ -54,7 +52,6 @@ InterpolantMC::InterpolantMC(const PonoOptions & opt,
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {
-  initialize();
 }
 
 InterpolantMC::InterpolantMC(const PonoOptions & opt,
@@ -66,13 +63,16 @@ InterpolantMC::InterpolantMC(const PonoOptions & opt,
       to_interpolator_(itp),
       to_solver_(slv)
 {
-  initialize();
 }
 
 InterpolantMC::~InterpolantMC() {}
 
 void InterpolantMC::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
 
   reset_assertions(interpolator_);
@@ -112,6 +112,8 @@ void InterpolantMC::initialize()
 
 ProverResult InterpolantMC::check_until(int k)
 {
+  initialize();
+
   try {
     for (int i = 0; i <= k; ++i) {
       if (step(i)) {
