@@ -41,61 +41,30 @@ bool term_lt(const smt::Term & t0, const smt::Term & t1)
   return (t0->hash() < t1->hash());
 }
 
-/** IC3FormulaHandler */
-smt::Term IC3FormulaHandler::smart_not(const Term & t) const
-{
-  Op op = t->get_op();
-  if (op == Not) {
-    TermVec children(t->begin(), t->end());
-    assert(children.size() == 1);
-    return children[0];
-  } else {
-    return solver_->make_term(Not, t);
-  }
-}
-
 /** IC3Base */
 
-IC3Base::IC3Base(Property & p,
-                 SolverEnum se,
-                 unique_ptr<IC3FormulaHandler> && h)
-    : super(p, se),
-      handler_(std::move(h)),
-      reducer_(create_solver(se)),
-      solver_context_(0)
+IC3Base::IC3Base(Property & p, SolverEnum se)
+    : super(p, se), reducer_(create_solver(se)), solver_context_(0)
 {
   initialize();
 }
 
-IC3Base::IC3Base(Property & p,
-                 const SmtSolver & s,
-                 unique_ptr<IC3FormulaHandler> && h)
+IC3Base::IC3Base(Property & p, const SmtSolver & s)
     : super(p, s),
-      handler_(std::move(h)),
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0)
 {
   initialize();
 }
 
-IC3Base::IC3Base(const PonoOptions & opt,
-                 Property & p,
-                 SolverEnum se,
-                 unique_ptr<IC3FormulaHandler> && h)
-    : super(opt, p, se),
-      handler_(std::move(h)),
-      reducer_(create_solver(se)),
-      solver_context_(0)
+IC3Base::IC3Base(const PonoOptions & opt, Property & p, SolverEnum se)
+    : super(opt, p, se), reducer_(create_solver(se)), solver_context_(0)
 {
   initialize();
 }
 
-IC3Base::IC3Base(const PonoOptions & opt,
-                 Property & p,
-                 const SmtSolver & s,
-                 unique_ptr<IC3FormulaHandler> && h)
+IC3Base::IC3Base(const PonoOptions & opt, Property & p, const SmtSolver & s)
     : super(opt, p, s),
-      handler_(std::move(h)),
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0)
 {
@@ -271,6 +240,7 @@ bool IC3Base::rel_ind_check(size_t i,
     } else {
       predecessor = get_ic3_formula();
     }
+    assert(ic3_formula_check_valid(predecessor));
     out.push_back(predecessor);
     pop_solver_context();
   } else {
@@ -285,8 +255,11 @@ bool IC3Base::rel_ind_check(size_t i,
     if (options_.ic3_indgen_) {
       out = inductive_generalization(i, c);
     } else {
-      IC3Formula blocking_unit = handler_->negate(c);
+      IC3Formula blocking_unit = ic3_formula_negate(c);
       out.push_back(blocking_unit);
+    }
+    for (auto u : out) {
+      assert(ic3_formula_check_valid(u));
     }
   }
   assert(solver_context_ == 0);
@@ -517,6 +490,7 @@ void IC3Base::add_proof_goal(const IC3Formula & c,
   // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
   // goal should be a Cube
   assert(!c.is_disjunction());
+  assert(ic3_formula_check_valid(c));
   proof_goals_.push_back(IC3Goal(c, i, n));
 }
 
@@ -637,6 +611,18 @@ Term IC3Base::label(const Term & t)
 
   labels_[t] = l;
   return l;
+}
+
+smt::Term IC3Base::smart_not(const Term & t) const
+{
+  Op op = t->get_op();
+  if (op == Not) {
+    TermVec children(t->begin(), t->end());
+    assert(children.size() == 1);
+    return children[0];
+  } else {
+    return solver_->make_term(Not, t);
+  }
 }
 
 }  // namespace pono

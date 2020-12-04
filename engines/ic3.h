@@ -21,20 +21,6 @@
 
 namespace pono {
 
-class ClauseHandler : public IC3FormulaHandler
-{
- public:
-  ClauseHandler(const smt::SmtSolver & s) : IC3FormulaHandler(s) {}
-
-  IC3Formula create_disjunction(const smt::TermVec & c) const override;
-
-  IC3Formula create_conjunction(const smt::TermVec & c) const override;
-
-  IC3Formula negate(const IC3Formula & u) const override;
-
-  bool check_valid(const IC3Formula & u) const override;
-};
-
 class IC3 : public IC3Base
 {
  public:
@@ -51,6 +37,16 @@ class IC3 : public IC3Base
 
   // pure virtual method implementations
 
+  IC3Formula get_ic3_formula() const override;
+
+  IC3Formula ic3_formula_disjunction(const smt::TermVec & c) const override;
+
+  IC3Formula ic3_formula_conjunction(const smt::TermVec & c) const override;
+
+  IC3Formula ic3_formula_negate(const IC3Formula & u) const override;
+
+  bool ic3_formula_check_valid(const IC3Formula & u) const override;
+
   std::vector<IC3Formula> inductive_generalization(
       size_t i, const IC3Formula & c) override;
 
@@ -58,7 +54,6 @@ class IC3 : public IC3Base
 
   void check_ts() const override;
 
-  IC3Formula get_ic3_formula() const override;
 };
 
 }  // namespace pono

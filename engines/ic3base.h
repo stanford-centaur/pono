@@ -15,9 +15,10 @@
 **
 **        To create a particular IC3 instantiation, you must implement the
 *following:
-**           - an IC3FormulaHandler implementation, e.g. a ClauseHandler
 **           - implement get_ic3_formula and give it semantics to produce the
-**             corresponding IC3Formula with an IC3FormulaHandler
+**             corresponding IC3Formula for your flavor of IC3
+**           - implement all the ic3_formula_* functions for creating and
+**             manipulating an IC3Formula
 **           - implement inductive_generalization
 **           - implement generalize_predecessor
 **           - implement check_ts which just checks if there are any
@@ -37,12 +38,14 @@ struct IC3Formula
   // nullary constructor
   IC3Formula() {}
   IC3Formula(const smt::Term & t, const smt::TermVec & c, bool n)
-      : term(t), children(c), disjunct(n)
+      : term(t), children(c), disjunction(n)
   {
   }
 
   IC3Formula(const IC3Formula & other)
-      : term(other.term), children(other.children), disjunct(other.disjunct)
+      : term(other.term),
+        children(other.children),
+        disjunction(other.disjunction)
   {
   }
 
@@ -51,62 +54,15 @@ struct IC3Formula
   /** Returns true iff this IC3Formula has not been initialized */
   bool is_null() const { return (term == nullptr); };
 
-  bool is_disjunction() const { return disjunct; };
+  bool is_disjunction() const { return disjunction; };
 
-  smt::Term term;
-  smt::TermVec children;
-  bool disjunct;  // true if currently representing a disjunction
-};
-
-// abstract base class for handling different IC3Formulas
-// e.g. Clause/Cube, Predicate Clause/Cube, etc...
-
-class IC3FormulaHandler
-{
- public:
-  IC3FormulaHandler(const smt::SmtSolver & s) : solver_(s) {}
-
-  virtual ~IC3FormulaHandler() {}
-
-  /** Creates a disjunction IC3Formula from a vector of terms
-   *  @param c the children terms
-   *  @ensures resulting IC3Formula children == c
-   *  @ensures resulting IC3Formula not negated
-   */
-  virtual IC3Formula create_disjunction(const smt::TermVec & c) const = 0;
-
-  /** Creates a conjunction IC3Formula from a vector of terms
-   *  @param c the children terms
-   *  @ensures resulting IC3Formula children == c
-   *  @ensures resulting IC3Formula negated
-   *  e.g. for a ClauseHandler, this method will create a cube
-   *  note: assumes the children are already in the right polarity
-   *  (doesn't negate them)
-   */
-  virtual IC3Formula create_conjunction(const smt::TermVec & c) const = 0;
-
-  /** Negates an IC3Formula
-   *  @param u the IC3Formula to negate
-   */
-  virtual IC3Formula negate(const IC3Formula & u) const = 0;
-
-  /** Check whether a given IC3Formula is valid
-   *  e.g. if this is a ClauseHandler it would
-   *    check that it's a disjunction of literals
-   *  (for debugging)
-   *  @param u the IC3Formula to check
-   *  @return true iff this is a valid IC3Formula for this
-   *          kind of handler
-   */
-  virtual bool check_valid(const IC3Formula & u) const = 0;
-
- protected:
-  const smt::SmtSolver & solver_;
-
-  /** Negates a term by stripping the leading Not if it's there,
-   ** or applying Not if the term is not already negated.
-   */
-  smt::Term smart_not(const smt::Term & t) const;
+  smt::Term term;  ///< term representation of this formula
+  smt::TermVec
+      children;  ///< flattened children of either a disjunction or conjunction
+  bool disjunction;  ///< true if currently representing a disjunction
+  // NOTE: treating the disjunction as the primary orientation
+  //       e.g. aligned with what's kept in frames (disjunctions), not proof
+  //       goals (conjunctions), but IC3Formula can represent both
 };
 
 // TODO change back to ProofGoal once refactor is done
@@ -139,20 +95,10 @@ class IC3Base : public Prover
    *  Depending on the derived class IC3 implementation, the exact
    *  type of IC3Formula will differ: e.g. Clause, Disjunction
    */
-  IC3Base(Property & p,
-          smt::SolverEnum se,
-          std::unique_ptr<IC3FormulaHandler> && h);
-  IC3Base(Property & p,
-          const smt::SmtSolver & s,
-          std::unique_ptr<IC3FormulaHandler> && h);
-  IC3Base(const PonoOptions & opt,
-          Property & p,
-          smt::SolverEnum se,
-          std::unique_ptr<IC3FormulaHandler> && h);
-  IC3Base(const PonoOptions & opt,
-          Property & p,
-          const smt::SmtSolver & s,
-          std::unique_ptr<IC3FormulaHandler> && h);
+  IC3Base(Property & p, smt::SolverEnum se);
+  IC3Base(Property & p, const smt::SmtSolver & s);
+  IC3Base(const PonoOptions & opt, Property & p, smt::SolverEnum se);
+  IC3Base(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
 
   typedef Prover super;
 
@@ -163,7 +109,6 @@ class IC3Base : public Prover
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
  protected:
-  std::unique_ptr<IC3FormulaHandler> handler_;
 
   smt::UnsatCoreReducer reducer_;
 
@@ -196,8 +141,50 @@ class IC3Base : public Prover
   // ******************************
 
   // ********************************** Virtual Methods
+  // IMPORTANT for derived classes
   // These methods should be implemented by a derived class for a particular
-  // "flavor" of IC3 in accordance with the associated IC3Formula
+  // "flavor" of IC
+
+  /** Get an IC3Formula from the current model
+   *  @requires last call to check_sat of solver_ was satisfiable and context
+   * hasn't changed
+   *  @return an IC3Formula over current state variables with is_disjunction
+   * false depending on the flavor of IC3, this might be a boolean cube, a
+   * theory cube, a cube of predicates, etc...
+   */
+  virtual IC3Formula get_ic3_formula() const = 0;
+
+  /** Creates a disjunction IC3Formula from a vector of terms
+   *  @param c the children terms
+   *  @ensures resulting IC3Formula children == c
+   *  @ensures resulting IC3Formula with is_disjunction true
+   */
+  virtual IC3Formula ic3_formula_disjunction(const smt::TermVec & c) const = 0;
+
+  /** Creates a conjunction IC3Formula from a vector of terms
+   *  @param c the children terms
+   *  @ensures resulting IC3Formula children == c
+   *  @ensures resulting IC3Formula with is_disjunction false
+   *  e.g. for a ClauseHandler, this method will create a cube
+   *  note: assumes the children are already in the right polarity
+   *  (doesn't negate them)
+   */
+  virtual IC3Formula ic3_formula_conjunction(const smt::TermVec & c) const = 0;
+
+  /** Negates an IC3Formula
+   *  @param u the IC3Formula to negate
+   */
+  virtual IC3Formula ic3_formula_negate(const IC3Formula & u) const = 0;
+
+  /** Check whether a given IC3Formula is valid
+   *  e.g. if this is a ClauseHandler it would
+   *    check that it's a disjunction of literals
+   *  (for debugging)
+   *  @param u the IC3Formula to check
+   *  @return true iff this is a valid IC3Formula for this
+   *          flavor of IC3
+   */
+  virtual bool ic3_formula_check_valid(const IC3Formula & u) const = 0;
 
   /** Attempt to generalize before blocking in frame i
    *  The standard approach is inductive generalization
@@ -230,13 +217,6 @@ class IC3Base : public Prover
    *  throws a PonoException with a relevant message if not.
    */
   virtual void check_ts() const = 0;
-
-  /** Get an IC3Formula from the current model
-   *  @requires last call to check_sat of solver_ was satisfiable and context
-   * hasn't changed
-   *  @return an IC3Formula over current state variables
-   */
-  virtual IC3Formula get_ic3_formula() const = 0;
 
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented
@@ -400,6 +380,11 @@ class IC3Base : public Prover
    *  @return the indicator variable label for this term
    */
   smt::Term label(const smt::Term & t);
+
+  /** Negates a term by stripping the leading Not if it's there,
+   ** or applying Not if the term is not already negated.
+   */
+  smt::Term smart_not(const smt::Term & t) const;
 };
 
 }  // namespace pono

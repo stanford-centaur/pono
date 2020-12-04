@@ -51,9 +51,52 @@ bool is_lit(const Term & l, const Sort & boolsort)
   return false;
 }
 
-// ClauseHandler implementation
+/** IC3 Implementation */
 
-IC3Formula ClauseHandler::create_disjunction(const smt::TermVec & c) const
+IC3::IC3(Property & p, smt::SolverEnum se) : super(p, se) { initialize(); }
+
+IC3::IC3(Property & p, const smt::SmtSolver & s) : super(p, s) { initialize(); }
+
+IC3::IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se)
+    : super(opt, p, se)
+{
+  initialize();
+}
+
+IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
+    : super(opt, p, s)
+{
+  initialize();
+}
+
+void IC3::initialize()
+{
+  // No-Op for now
+}
+
+IC3Formula IC3::get_ic3_formula() const
+{
+  // expecting all solving in IC3 to be done at context level > 0
+  // so if we're getting a model we should not be at context 0
+  assert(solver_context_);
+
+  const UnorderedTermSet & statevars = ts_.statevars();
+  TermVec children;
+  children.reserve(statevars.size());
+  for (auto sv : ts_.statevars()) {
+    if (solver_->get_value(sv) == solver_true_) {
+      children.push_back(sv);
+    } else {
+      children.push_back(solver_->make_term(Not, sv));
+    }
+  }
+
+  IC3Formula res = ic3_formula_conjunction(children);
+  assert(!res.is_disjunction());  // expecting a Cube here
+  return res;
+}
+
+IC3Formula IC3::ic3_formula_disjunction(const TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
@@ -61,11 +104,10 @@ IC3Formula ClauseHandler::create_disjunction(const smt::TermVec & c) const
     term = solver_->make_term(Or, term, c[i]);
   }
   IC3Formula res(term, c, true);
-  assert(check_valid(res));
   return res;
 }
 
-IC3Formula ClauseHandler::create_conjunction(const smt::TermVec & c) const
+IC3Formula IC3::ic3_formula_conjunction(const TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
@@ -73,11 +115,10 @@ IC3Formula ClauseHandler::create_conjunction(const smt::TermVec & c) const
     term = solver_->make_term(And, term, c[i]);
   }
   IC3Formula res(term, c, false);
-  assert(check_valid(res));
   return res;
 }
 
-IC3Formula ClauseHandler::negate(const IC3Formula & u) const
+IC3Formula IC3::ic3_formula_negate(const IC3Formula & u) const
 {
   const TermVec & children = u.children;
   assert(!u.is_null());
@@ -105,7 +146,7 @@ IC3Formula ClauseHandler::negate(const IC3Formula & u) const
   return res;
 }
 
-bool ClauseHandler::check_valid(const IC3Formula & u) const
+bool IC3::ic3_formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
@@ -116,67 +157,11 @@ bool ClauseHandler::check_valid(const IC3Formula & u) const
     }
   }
 
-  // special case
-  if (is_lit(u.term, boolsort)) {
-    return true;
-  }
-
-  const unordered_set<PrimOp> & ops = expected_ops.at(u.is_disjunction());
-  TermVec to_visit({ u.term });
-  while (to_visit.size()) {
-    Term t = to_visit.back();
-    to_visit.pop_back();
-
-    // FIXME this op check might not work for boolector
-    //       because of the rewriting, it will put it in AIG form
-    op = t->get_op();
-    assert(!op.is_null());
-    if (ops.find(op.prim_op) == ops.end()) {
-      return false;
-    }
-
-    for (auto tt : t) {
-      if (is_lit(tt, boolsort)) {
-        // hit a literal
-        continue;
-      }
-      to_visit.push_back(tt);
-    }
-  }
+  // for now not checking the actual term (e.g. u.term)
+  // it's somewhat hard if the underlying solver does rewriting
 
   // got through all checks without failing
   return true;
-}
-
-/** IC3 Implementation */
-
-IC3::IC3(Property & p, smt::SolverEnum se)
-    : super(p, se, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
-{
-  initialize();
-}
-
-IC3::IC3(Property & p, const smt::SmtSolver & s)
-    : super(p, s, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
-{
-  initialize();
-}
-
-IC3::IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-    : super(opt, p, se, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
-{
-  initialize();
-}
-
-IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
-    : super(opt, p, s, unique_ptr<ClauseHandler>(new ClauseHandler(solver_)))
-{
-  initialize();
-}
-
-void IC3::initialize()
-{
-  // No-Op for now
 }
 
 std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
@@ -274,7 +259,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
   // TODO: would it be more intuitive to start with a clause
   //       and generalize the clause directly?
   IC3Formula blocking_clause =
-      handler_->negate(handler_->create_conjunction(lits));
+      ic3_formula_negate(ic3_formula_conjunction(lits));
   assert(blocking_clause.is_disjunction());  // expecting a clause
   return { blocking_clause };
 }
@@ -352,7 +337,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // formula should not be unsat on its own
   assert(red_cube_lits.size() > 0);
 
-  IC3Formula res = handler_->create_conjunction(red_cube_lits);
+  IC3Formula res = ic3_formula_conjunction(red_cube_lits);
   // expecting a Cube here
   assert(!res.is_disjunction());
 
@@ -375,28 +360,6 @@ void IC3::check_ts() const
                           + iv->to_string());
     }
   }
-}
-
-IC3Formula IC3::get_ic3_formula() const
-{
-  // expecting all solving in IC3 to be done at context level > 0
-  // so if we're getting a model we should not be at context 0
-  assert(solver_context_);
-
-  const UnorderedTermSet & statevars = ts_.statevars();
-  TermVec children;
-  children.reserve(statevars.size());
-  for (auto sv : ts_.statevars()) {
-    if (solver_->get_value(sv) == solver_true_) {
-      children.push_back(sv);
-    } else {
-      children.push_back(solver_->make_term(Not, sv));
-    }
-  }
-
-  IC3Formula res = handler_->create_conjunction(children);
-  assert(!res.is_disjunction());  // expecting a Cube here
-  return res;
 }
 
 }  // namespace pono
