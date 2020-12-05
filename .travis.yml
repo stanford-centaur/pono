@@ -53,7 +53,8 @@ script:
   # - ./contrib/setup-smt-switch.sh --with-msat --cvc4-home=./deps/CVC4 --python
   - ./contrib/setup-smt-switch.sh --cvc4-home=./deps/CVC4 --python
   - sudo python3 -m pip install -e ./deps/smt-switch/build/python
-  - ./configure.sh --with-msat --python --debug
+  # - ./configure.sh --with-msat --python --debug
+  - ./configure.sh --python --debug
   - cd build && make -j2 && make test && cd ../
   - sudo python3 -m pip install -e ./build/python
   - pytest ./tests
