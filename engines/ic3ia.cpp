@@ -35,26 +35,22 @@ using namespace std;
 namespace pono {
 
 IC3IA::IC3IA(Property & p, SolverEnum se)
-  : super(p, se), abs_ts_(ts_.solver()),
-    ia_(ts_, abs_ts_, unroller_)
+    : super(p, se), abs_ts_(ts_->solver()), ia_(*ts_, abs_ts_, unroller_)
 {
 }
 
 IC3IA::IC3IA(Property & p, const SmtSolver & slv)
-  : super(p, slv), abs_ts_(ts_.solver()),
-    ia_(ts_, abs_ts_, unroller_)
+    : super(p, slv), abs_ts_(ts_->solver()), ia_(*ts_, abs_ts_, unroller_)
 {
 }
 
 IC3IA::IC3IA(const PonoOptions & opt, Property & p, const SolverEnum se)
-  : super(opt, p, se), abs_ts_(ts_.solver()),
-    ia_(ts_, abs_ts_, unroller_)
+    : super(opt, p, se), abs_ts_(ts_->solver()), ia_(*ts_, abs_ts_, unroller_)
 {
 }
 
 IC3IA::IC3IA(const PonoOptions & opt, Property & p, const SmtSolver & slv)
-    : super(opt, p, slv), abs_ts_(ts_.solver()),
-      ia_(ts_, abs_ts_, unroller_)
+    : super(opt, p, slv), abs_ts_(ts_->solver()), ia_(*ts_, abs_ts_, unroller_)
 {
 }
 
@@ -85,7 +81,7 @@ void IC3IA::initialize()
   assert(!to_solver_);
   initialize_interpolator();
 
-  interp_ts_ = RelationalTransitionSystem(ts_, *to_interpolator_);
+  interp_ts_ = RelationalTransitionSystem(*ts_, *to_interpolator_);
   interp_unroller_ = make_unique<Unroller>(interp_ts_, interpolator_);
 }
 
@@ -226,7 +222,7 @@ void IC3IA::set_labels()
 
     // add all the predicates from init and property
     UnorderedTermSet preds;
-    get_predicates(solver_, ts_.init(), preds, false);
+    get_predicates(solver_, ts_->init(), preds, false);
     get_predicates(solver_, bad_, preds, false);
     for (auto p : preds) {
       add_predicate(p);
@@ -273,19 +269,19 @@ ProverResult IC3IA::refine(ProofGoal pg)
   while (tmp.next) {
     tmp = *(tmp.next);
     cex.push_back(tmp.conj.term_);
-    assert(ts_.only_curr(tmp.conj.term_));
+    assert(ts_->only_curr(tmp.conj.term_));
   }
   assert(cex.size() > 1);
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
   assert(interpolator_);
-  Term t = make_and({ ts_.init(), cex[0] });
+  Term t = make_and({ ts_->init(), cex[0] });
   Term A =
       interp_unroller_->at_time(to_interpolator_->transfer_term(t, BOOL), 0);
 
   TermVec B;
-  Term interp_trans = to_interpolator_->transfer_term(ts_.trans(), BOOL);
+  Term interp_trans = to_interpolator_->transfer_term(ts_->trans(), BOOL);
   B.reserve(cex.size() - 1);
   // add to B in reverse order so we can pop_back later
   for (int i = cex.size() - 1; i >= 0; --i) {
@@ -333,7 +329,7 @@ ProverResult IC3IA::refine(ProofGoal pg)
   } else {
     UnorderedTermSet preds;
     for (auto I : interpolants) {
-      assert(ts_.only_curr(I));
+      assert(ts_->only_curr(I));
       get_predicates(solver_, I, preds);
     }
 
