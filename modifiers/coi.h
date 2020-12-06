@@ -30,6 +30,7 @@ class ConeOfInfluence
    */
   ConeOfInfluence(TransitionSystem & ts,
                   const smt::TermVec & to_keep,
+                  const smt::TermVec & to_remove = {},
                   int verbosity = 1);
 
  protected:
@@ -47,6 +48,7 @@ class ConeOfInfluence
 
   TransitionSystem & ts_;
   int verbosity_;
+  smt::UnorderedTermSet to_remove_;
   /* TermSets containing those state and input variables that appear
      in the term 'bad_' that represents the bad-state property. This
      information is used to rebuild the transition relation of the

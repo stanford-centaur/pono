@@ -280,7 +280,14 @@ class TransitionSystem
    * states */
   bool no_next(const smt::Term & term) const;
 
-  /** Replace terms in the transition system with other terms
+  /** EXPERTS ONLY
+   *  Drop the state update for these variables and rebuild the system
+   *  @param svs the state variables to drop updates for
+   */
+  void drop_state_updates(const smt::TermVec & svs);
+
+  /** EXPERTS ONLY
+   * Replace terms in the transition system with other terms
    *  Traverses all the data structures and updates them with
    *  the replacements
    *  Recommended usage is for experts only. Use this feature

@@ -598,11 +598,41 @@ bool TransitionSystem::no_next(const Term & term) const
   return contains(term, UnorderedTermSetPtrVec{ &statevars_, &inputvars_ });
 }
 
+void TransitionSystem::drop_state_updates(const TermVec & svs)
+{
+  for (auto sv : svs) {
+    if (!is_curr_var(sv)) {
+      throw PonoException("Got non-state var in drop_state_updates");
+    }
+    state_updates_.erase(sv);
+  }
+
+  // now rebuild trans
+  /* Clear current transition relation 'trans_'. */
+  trans_ = solver_->make_term(true);
+
+  /* Add next-state functions for state variables in COI. */
+  for (auto elem : state_updates_) {
+    assert(elem.second);  // should be non-null if in map
+    Term eq = solver_->make_term(Equal, next_map_.at(elem.first), elem.second);
+    trans_ = solver_->make_term(And, trans_, eq);
+  }
+
+  /* Add global constraints added to previous 'trans_'. */
+  for (auto constr : constraints_) {
+    trans_ = solver_->make_term(And, trans_, constr);
+  }
+}
+
 void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
 {
   // first check that all the replacements contain known symbols
+  UnorderedTermSetPtrVec all_symbols(
+      { &statevars_, &inputvars_, &next_statevars_ });
   for (auto elem : to_replace) {
-    if (!known_symbols(elem.first) || !known_symbols(elem.second)) {
+    bool known = contains(elem.first, all_symbols);
+    known &= contains(elem.second, all_symbols);
+    if (!known) {
       throw PonoException("Got an unknown symbol in replace_terms map");
     }
   }
@@ -646,6 +676,21 @@ void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
     new_state_updates[sv] = update;
   }
   state_updates_ = new_state_updates;
+
+  UnorderedTermMap new_next_map_;
+  UnorderedTermMap new_curr_map_;
+  Term c, n;
+  for (auto elem : next_map_) {
+    c = elem.first;
+    n = elem.second;
+    c = sw.visit(c);
+    n = sw.visit(n);
+    new_next_map_[c] = n;
+    assert(curr_map_.at(elem.second) == elem.first);
+    new_curr_map_[n] = c;
+  }
+  next_map_ = new_next_map_;
+  curr_map_ = new_curr_map_;
 
   TermVec new_constraints;
   new_constraints.reserve(constraints_.size());

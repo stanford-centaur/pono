@@ -71,11 +71,11 @@ bool BmcSimplePath::cover_step(int i)
 
   solver_->push();
   solver_->assert_formula(init0_);
-  Term not_init = solver_->make_term(PrimOp::Not, ts_.init());
+  Term not_init = solver_->make_term(PrimOp::Not, ts_->init());
   for (int j = 1; j <= i; ++j) {
     solver_->assert_formula(unroller_.at_time(not_init, j));
   }
-  if (ts_.statevars().size() && check_simple_path_lazy(i)) {
+  if (ts_->statevars().size() && check_simple_path_lazy(i)) {
     return true;
   }
   solver_->pop();

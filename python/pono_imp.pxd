@@ -37,6 +37,7 @@ cdef extern from "core/ts.h" namespace "pono":
         const c_TermVec & constraints() except +
         bint is_functional() except +
         bint is_deterministic() except +
+        void drop_state_updates(const c_TermVec & svs) except +
         void replace_terms(const c_UnorderedTermMap & to_replace) except +
         c_Sort make_sort(const string name, uint64_t arity) except +
         c_Sort make_sort(const c_SortKind sk) except +
@@ -149,7 +150,10 @@ IF WITH_COREIR == "ON":
 
 cdef extern from "modifiers/coi.h" namespace "pono":
     cdef cppclass ConeOfInfluence:
-        ConeOfInfluence(TransitionSystem & ts, const c_TermVec & to_keep) except +
+        ConeOfInfluence(TransitionSystem & ts,
+                        const c_TermVec & to_keep,
+                        const c_TermVec & to_remove,
+                        int verbosity) except +
 
 
 cdef extern from "modifiers/history_modifier.h" namespace "pono":

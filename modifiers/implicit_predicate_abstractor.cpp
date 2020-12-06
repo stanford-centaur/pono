@@ -19,6 +19,7 @@
 
 #include "assert.h"
 #include "utils/logger.h"
+#include "smt/available_solvers.h"
 
 using namespace smt;
 using namespace std;
@@ -26,9 +27,12 @@ using namespace std;
 namespace pono {
 
 ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
-    const TransitionSystem & conc_ts, TransitionSystem & abs_ts)
+    const TransitionSystem & conc_ts, TransitionSystem & abs_ts,
+    Unroller & un)
     : Abstractor(conc_ts, abs_ts),
       solver_(abs_ts.solver()),
+      unroller_(un),
+      reducer_(create_solver(solver_->get_solver_enum())),
       abs_rts_(static_cast<RelationalTransitionSystem &>(abs_ts_))
 {
   if (conc_ts_.solver() != abs_ts_.solver()) {
@@ -57,6 +61,7 @@ ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
   abs_rts_.set_behavior(conc_ts_.init(), conc_ts_.trans());
 
   do_abstraction();
+
 }
 
 Term ImplicitPredicateAbstractor::abstract(Term & t)
@@ -74,12 +79,50 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
 {
   assert(abs_ts_.only_curr(pred));
   predicates_.push_back(pred);
-  Term next_pred = abs_ts_.next(pred);
-  // constrain next state vars and abstract vars to agree on this predicate
-  Term rel = solver_->make_term(Iff, next_pred, abstract(next_pred));
+
+  Term rel = predicate_refinement(pred);
   abs_rts_.constrain_trans(rel);
   return rel;
 }
+
+bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
+                                                    const TermVec & new_preds,
+                                                    TermVec & out)
+{
+  Term formula = solver_->make_term(true);
+
+  for (size_t i = 0; i < cex.size(); ++i) {
+    formula = solver_->make_term(And, formula, unroller_.at_time(cex[i], i));
+    if (i != cex.size() - 1) {
+      formula = solver_->make_term(And, formula,
+                                   unroller_.at_time(abs_ts_.trans(), i));
+    }
+  }
+
+  TermVec assumps, red_assumps;
+  UnorderedTermMap assumps_to_pred;
+  for (const auto &p : new_preds) {
+    Term pred_ref = predicate_refinement(p);
+
+    Term a;
+    for (size_t i = 0; i+1 < cex.size(); ++i) {
+      Term p_i = unroller_.at_time(pred_ref, i);
+      a = i==0 ? p_i : solver_->make_term(And, a, p_i);
+    }
+
+    assumps.push_back(a);
+    assumps_to_pred[a] = p;
+  }
+
+  size_t n = out.size();
+  reducer_.reduce_assump_unsatcore(formula, assumps, red_assumps);
+  for (const auto &a : red_assumps) {
+    out.push_back(assumps_to_pred.at(a));
+  }
+
+  return out.size() > n;
+}
+
 
 void ImplicitPredicateAbstractor::do_abstraction()
 {
@@ -123,6 +166,13 @@ void ImplicitPredicateAbstractor::do_abstraction()
   Term trans = conc_ts_.trans();
   abs_rts_.set_trans(abstract(trans));
   logger.log(3, "Set abstract transition relation to {}", abs_rts_.trans());
+}
+
+Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
+{
+  Term next_pred = abs_ts_.next(pred);
+  // constrain next state vars and abstract vars to agree on this predicate
+  return solver_->make_term(Iff, next_pred, abstract(next_pred));
 }
 
 }  // namespace pono

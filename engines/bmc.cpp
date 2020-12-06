@@ -55,7 +55,7 @@ void Bmc::initialize()
   // the solver or it could just be polluted with redundant assertions in the
   // future we can use solver_->reset_assertions(), but it is not currently
   // supported in boolector
-  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+  solver_->assert_formula(unroller_.at_time(ts_->init(), 0));
 }
 
 ProverResult Bmc::check_until(int k)
@@ -77,7 +77,7 @@ bool Bmc::step(int i)
 
   bool res = true;
   if (i > 0) {
-    solver_->assert_formula(unroller_.at_time(ts_.trans(), i - 1));
+    solver_->assert_formula(unroller_.at_time(ts_->trans(), i - 1));
   }
 
   solver_->push();
