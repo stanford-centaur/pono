@@ -40,9 +40,9 @@ Prover::Prover(Property & p, const smt::SmtSolver & s)
     : solver_(s),
       to_prover_solver_(s),
       property_(p, to_prover_solver_),
-      ts_(property_.transition_system()),
+      ts_(&property_.transition_system()),
       orig_ts_(p.transition_system()),
-      unroller_(ts_, solver_)
+      unroller_(*ts_, solver_)
 {
 }
 
@@ -53,15 +53,13 @@ Prover::Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se)
   solver_->set_opt("produce-models", "true");
 }
 
-Prover::Prover(const PonoOptions & opt,
-               Property & p,
-               const smt::SmtSolver & s)
+Prover::Prover(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
     : solver_(s),
       to_prover_solver_(solver_),
       property_(p, to_prover_solver_),
-      ts_(property_.transition_system()),
+      ts_(&property_.transition_system()),
       orig_ts_(p.transition_system()),
-      unroller_(ts_, solver_),
+      unroller_(*ts_, solver_),
       options_(opt)
 {
 }
@@ -72,12 +70,12 @@ void Prover::initialize()
 {
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
-  assert(ts_.only_curr(bad_));
+  assert(ts_->only_curr(bad_));
   if (options_.static_coi_) {
     /* Compute the set of state/input variables related to the
        bad-state property. Based on that information, rebuild the
        transition relation of the transition system. */
-    ConeOfInfluence coi(ts_, { bad_ }, {}, options_.verbosity_);
+    ConeOfInfluence coi(*ts_, { bad_ }, {}, options_.verbosity_);
   }
 }
 
@@ -217,19 +215,19 @@ bool Prover::compute_witness()
     witness_.push_back(UnorderedTermMap());
     UnorderedTermMap & map = witness_.back();
 
-    for (auto v : ts_.statevars()) {
+    for (auto v : ts_->statevars()) {
       Term vi = unroller_.at_time(v, i);
       Term r = solver_->get_value(vi);
       map[v] = r;
     }
 
-    for (auto v : ts_.inputvars()) {
+    for (auto v : ts_->inputvars()) {
       Term vi = unroller_.at_time(v, i);
       Term r = solver_->get_value(vi);
       map[v] = r;
     }
 
-    for (auto elem : ts_.named_terms()) {
+    for (auto elem : ts_->named_terms()) {
       Term ti = unroller_.at_time(elem.second, i);
       map[elem.second] = solver_->get_value(ti);
     }

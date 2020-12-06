@@ -175,7 +175,7 @@ class ModelBasedIC3 : public Prover
    */
   bool intersects(const smt::Term & A, const smt::Term & B);
   /** Check if the term intersects with the initial states
-   *  syntactic sugar for intersects(ts_.init(), t);
+   *  syntactic sugar for intersects(ts_->init(), t);
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
    */
