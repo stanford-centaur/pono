@@ -90,7 +90,7 @@ void IC3Base::initialize()
   // can't use constrain_frame for initial states because not guaranteed to be
   // an IC3Formula it's handled specially
   solver_->assert_formula(
-      solver_->make_term(Implies, frame_labels_.at(0), ts_.init()));
+      solver_->make_term(Implies, frame_labels_.at(0), ts_->init()));
   push_frame();
 
   // set semantics of TS labels
@@ -101,7 +101,7 @@ void IC3Base::initialize()
   init_label_ = frame_labels_[0];
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
   solver_->assert_formula(
-      solver_->make_term(Implies, trans_label_, ts_.trans()));
+      solver_->make_term(Implies, trans_label_, ts_->trans()));
 }
 
 ProverResult IC3Base::check_until(int k)
@@ -230,7 +230,7 @@ bool IC3Base::rel_ind_check(size_t i,
   // Trans
   assert_trans_label();
   // c'
-  solver_->assert_formula(ts_.next(c.term));
+  solver_->assert_formula(ts_->next(c.term));
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
@@ -376,7 +376,7 @@ bool IC3Base::propagate(size_t i)
     // Check F[i] /\ t /\ T /\ -t'
     // NOTE: asserting t is redundant because t \in F[i]
     push_solver_context();
-    solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
+    solver_->assert_formula(solver_->make_term(Not, ts_->next(t)));
 
     Result r = solver_->check_sat();
     assert(!r.is_unknown());
@@ -452,7 +452,7 @@ Term IC3Base::get_frame(size_t i) const
   //       need to special case initial state if using IC3Formulas
   if (i == 0) {
     // F[0] is always the initial states constraint
-    return ts_.init();
+    return ts_->init();
   }
 
   Term res = solver_true_;
@@ -518,7 +518,7 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
     // TODO: there's a tricky issue here. The reducer doesn't have the label
     // assumptions so we can't use init_label_ here. need to come up with a
     // better interface. Should we add label assumptions to reducer?
-    Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
+    Term formula = solver_->make_term(And, ts_->init(), make_and(to_keep));
     reducer_.reduce_assump_unsatcore(formula,
                                      rem,
                                      to_keep,
@@ -534,7 +534,7 @@ size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
   Term c = u.term;
   push_solver_context();
   solver_->assert_formula(c);
-  solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
+  solver_->assert_formula(solver_->make_term(Not, ts_->next(c)));
   assert_trans_label();
 
   Result r;

@@ -80,10 +80,10 @@ IC3Formula IC3::get_ic3_formula() const
   // so if we're getting a model we should not be at context 0
   assert(solver_context_);
 
-  const UnorderedTermSet & statevars = ts_.statevars();
+  const UnorderedTermSet & statevars = ts_->statevars();
   TermVec children;
   children.reserve(statevars.size());
-  for (auto sv : ts_.statevars()) {
+  for (auto sv : ts_->statevars()) {
     if (solver_->get_value(sv) == solver_true_) {
       children.push_back(sv);
     } else {
@@ -212,7 +212,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
         bool_assump.clear();
         for (auto t : tmp) {
           l = label(t);
-          solver_->assert_formula(solver_->make_term(Implies, l, ts_.next(t)));
+          solver_->assert_formula(solver_->make_term(Implies, l, ts_->next(t)));
           bool_assump.push_back(l);
         }
 
@@ -270,7 +270,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // sat
   assert(i > 0);
 
-  const UnorderedTermSet & statevars = ts_.statevars();
+  const UnorderedTermSet & statevars = ts_->statevars();
   TermVec cube_lits, next_lits;
   next_lits.reserve(statevars.size());
   for (auto v : statevars) {
@@ -279,8 +279,8 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
     } else {
       cube_lits.push_back(solver_->make_term(Not, v));
     }
-    Term nv = ts_.next(v);
-    assert(ts_.is_next_var(nv));
+    Term nv = ts_->next(v);
+    assert(ts_->is_next_var(nv));
     if (solver_->get_value(nv) == solver_true_) {
       next_lits.push_back(nv);
     } else {
@@ -295,7 +295,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   }
 
   // collect input assignments
-  const UnorderedTermSet & inputvars = ts_.inputvars();
+  const UnorderedTermSet & inputvars = ts_->inputvars();
   TermVec input_lits;
   input_lits.reserve(inputvars.size());
   for (auto v : inputvars) {
@@ -304,10 +304,10 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   }
 
   Term formula = make_and(input_lits);
-  if (ts_.is_deterministic()) {
+  if (ts_->is_deterministic()) {
     formula = solver_->make_term(And, formula, trans_label_);
     formula = solver_->make_term(
-        And, formula, solver_->make_term(Not, ts_.next(c.term)));
+        And, formula, solver_->make_term(Not, ts_->next(c.term)));
   } else {
     formula = solver_->make_term(And, formula, make_and(next_lits));
 
@@ -319,10 +319,10 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
     // the implication could be more efficient than iff so we want to leave it
     // that way
     Term pre_formula = get_frame(i - 1);
-    pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
+    pre_formula = solver_->make_term(And, pre_formula, ts_->trans());
     pre_formula =
         solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));
-    pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term));
+    pre_formula = solver_->make_term(And, pre_formula, ts_->next(c.term));
     formula =
         solver_->make_term(And, formula, solver_->make_term(Not, pre_formula));
   }
@@ -347,14 +347,14 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 void IC3::check_ts() const
 {
   Sort boolsort = solver_->make_sort(BOOL);
-  for (auto sv : ts_.statevars()) {
+  for (auto sv : ts_->statevars()) {
     if (sv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean state variable in bit-level IC3: "
                           + sv->to_string());
     }
   }
 
-  for (auto iv : ts_.inputvars()) {
+  for (auto iv : ts_->inputvars()) {
     if (iv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean input variable in bit-level IC3: "
                           + iv->to_string());
