@@ -137,13 +137,14 @@ class IC3Base : public Prover
 
   // TODO Make sure all comments are updated!
 
-  // ********************************** Main Methods
-  // ******************************
+  // *************************** Main Methods *********************************
 
-  // ********************************** Virtual Methods
+  // ************************** Virtual Methods *******************************
   // IMPORTANT for derived classes
   // These methods should be implemented by a derived class for a particular
   // "flavor" of IC
+
+  // Pure virtual methods that must be overridden
 
   /** Get an IC3Formula from the current model
    *  @requires last call to check_sat of solver_ was satisfiable and context
@@ -217,6 +218,37 @@ class IC3Base : public Prover
    *  throws a PonoException with a relevant message if not.
    */
   virtual void check_ts() const = 0;
+
+  // virtual methods that can optionally be overridden
+
+  /** Generates an abstract transition system
+   *  Typically this would set the ts_ pointer to the abstraction
+   *  so that the algorithm can run on the abstraction
+   *
+   *  by default this does nothing, e.g. meant for an algorithm that does not
+   *  do abstraction refinement
+   */
+  virtual void abstract()
+  {
+    // by default this is a No-Op
+    ;
+  }
+
+  /** Refines an abstract transition system
+   *  By default, this does nothing (e.g. assumes ts_ is not abstract)
+   *  Any CEGAR implementations of IC3 will override this method
+   *  @return a RefineResult enum such that:
+   *          - REFINE_NONE if refinement was not needed, e.g. found a concrete
+   * CEX
+   *          - REFINE_SUCCESS if successfully refined / ruled out abstract CEX
+   *          - REFINE_FAIL if failed during refinement
+   */
+  virtual RefineResult refine()
+  {
+    // by default no refinement done -- e.g. assuming counterexamples are always
+    // concrete
+    return REFINE_NONE;
+  }
 
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented

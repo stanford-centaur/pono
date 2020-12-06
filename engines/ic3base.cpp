@@ -82,6 +82,10 @@ void IC3Base::initialize()
   assert(solver_context_ == 0);  // expecting to be at base context level
   solver_true_ = solver_->make_term(true);
 
+  // abstract the transition relation if this is a CEGAR implementation
+  // otherwise it is a No-Op
+  abstract();
+
   frames_.clear();
   frame_labels_.clear();
   proof_goals_.clear();
@@ -108,10 +112,37 @@ ProverResult IC3Base::check_until(int k)
 {
   check_ts();
 
-  for (int i = 0; i <= k; ++i) {
-    ProverResult r = step(i);
-    if (r != ProverResult::UNKNOWN) {
-      return r;
+  ProverResult res;
+  RefineResult ref_res;
+  int i = reached_k_ + 1;
+  assert(i >= 0);
+  while (i <= k) {
+    res = step(i);
+    ref_res = REFINE_NONE;  // just a default value
+
+    if (res == ProverResult::TRUE) {
+      return res;
+    } else if (res == ProverResult::FALSE) {
+      ref_res = refine();
+      if (ref_res == RefineResult::REFINE_NONE) {
+        // found a concrete counterexample
+        return res;
+      } else if (ref_res == RefineResult::REFINE_FAIL) {
+        logger.log(1, "Failed in refinement.");
+        return ProverResult::UNKNOWN;
+      }
+    }
+
+    // two cases
+    // got unknown, so keep going
+    // got false, but was able to refine successfully
+    assert(res == ProverResult::UNKNOWN
+           || res == ProverResult::FALSE
+                  && ref_res == RefineResult::REFINE_SUCCESS);
+
+    // increment i, unless there was a refinement step just done
+    if (ref_res != RefineResult::REFINE_SUCCESS) {
+      i++;
     }
   }
 
