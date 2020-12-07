@@ -250,15 +250,17 @@ class IC3Base : public Prover
     return REFINE_NONE;
   }
 
-  // ********************************** Common Methods
-  // These methods are common to all flavors of IC3 currently implemented
-
   /** Check if a transition from the second to last frame can result in a bad
    * state
    *  @return true iff the last frame intersects with bad
-   *  post-condition: if true is returned, bad cube added to proof goals
+   *  post-condition: if true is returned, a bad IC3Formula is added to proof
+   * goals This method can be overriden if you want to add more than a single
+   *  IC3Formula that intersects bad to the proof goals
    */
-  bool intersects_bad();
+  virtual bool intersects_bad();
+
+  // ********************************** Common Methods
+  // These methods are common to all flavors of IC3 currently implemented
 
   /** Perform a IC3 step
    *  @param i
