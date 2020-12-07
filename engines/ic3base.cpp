@@ -46,7 +46,6 @@ bool term_lt(const smt::Term & t0, const smt::Term & t1)
 IC3Base::IC3Base(Property & p, SolverEnum se)
     : super(p, se), reducer_(create_solver(se)), solver_context_(0)
 {
-  initialize();
 }
 
 IC3Base::IC3Base(Property & p, const SmtSolver & s)
@@ -54,13 +53,11 @@ IC3Base::IC3Base(Property & p, const SmtSolver & s)
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0)
 {
-  initialize();
 }
 
 IC3Base::IC3Base(const PonoOptions & opt, Property & p, SolverEnum se)
     : super(opt, p, se), reducer_(create_solver(se)), solver_context_(0)
 {
-  initialize();
 }
 
 IC3Base::IC3Base(const PonoOptions & opt, Property & p, const SmtSolver & s)
@@ -68,15 +65,15 @@ IC3Base::IC3Base(const PonoOptions & opt, Property & p, const SmtSolver & s)
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0)
 {
-  initialize();
 }
 
 void IC3Base::initialize()
 {
-  // TODO: fix initialize. Not sure it makes sense to call it here instead of in
-  // prover constructor
-  //       need to think about multiple levels of inheritance and where the
-  //       responsibility for calling initialize belongs
+  if (initialized_)
+  {
+    return;
+  }
+
   super::initialize();
 
   assert(solver_context_ == 0);  // expecting to be at base context level
@@ -106,11 +103,14 @@ void IC3Base::initialize()
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_->trans()));
+
+  // check whether this flavor of IC3 can be applied to this transition system
+  check_ts();
 }
 
 ProverResult IC3Base::check_until(int k)
 {
-  check_ts();
+  initialize();
 
   ProverResult res;
   RefineResult ref_res;
