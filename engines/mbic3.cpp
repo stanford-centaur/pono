@@ -96,8 +96,6 @@ ModelBasedIC3::ModelBasedIC3(Property & p, SolverEnum se)
       solver_false_(solver_->make_term(false)),
       solver_context_(0)
 {
-  // super sets other options
-  solver_->set_opt("produce-unsat-cores", "true");
   initialize();
 }
 
@@ -107,7 +105,6 @@ ModelBasedIC3::ModelBasedIC3(Property & p, const SmtSolver & slv)
       solver_false_(solver_->make_term(false)),
       solver_context_(0)
 {
-  initialize();
 }
 
 ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
@@ -118,9 +115,6 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
       solver_false_(solver_->make_term(false)),
       solver_context_(0)
 {
-  // super sets other options
-  solver_->set_opt("produce-unsat-cores", "true");
-  initialize();
 }
 
 ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
@@ -131,14 +125,21 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
       solver_false_(solver_->make_term(false)),
       solver_context_(0)
 {
-  initialize();
 }
 
 ModelBasedIC3::~ModelBasedIC3() {}
 
 void ModelBasedIC3::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
+
+  // super sets other options
+  solver_->set_opt("produce-unsat-cores", "true");
+
   frames_.clear();
   frame_labels_.clear();
   proof_goals_.clear();
@@ -196,6 +197,7 @@ void ModelBasedIC3::initialize_interpolator()
 
 ProverResult ModelBasedIC3::check_until(int k)
 {
+  initialize();
   check_ts();
 
   // make sure the labels have semantics

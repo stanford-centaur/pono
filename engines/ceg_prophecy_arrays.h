@@ -46,8 +46,6 @@ class CegProphecyArrays : public CEGAR
                     Engine e,
                     const smt::SmtSolver & solver);
 
-  ProverResult prove() override;
-
   ProverResult check_until(int k) override;
 
   void initialize() override;

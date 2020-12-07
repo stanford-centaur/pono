@@ -76,6 +76,8 @@ class Prover
    */
   bool compute_witness();
 
+  bool initialized_;
+
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
   Property property_;

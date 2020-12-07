@@ -31,7 +31,6 @@ MsatIC3IA::MsatIC3IA(Property & p, smt::SolverEnum se) : super(p, se) {}
 
 MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver) : super(p, solver)
 {
-  super::initialize();
 }
 
 MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
@@ -40,11 +39,12 @@ MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
 MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, const SmtSolver & solver)
   : super(opt, p, solver)
 {
-  super::initialize();
 }
 
 ProverResult MsatIC3IA::prove()
 {
+  super::initialize();
+
   if (ts_->solver()->get_solver_enum() != MSAT) {
     throw PonoException("MsatIC3IA only supports mathsat solver.");
   }

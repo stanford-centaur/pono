@@ -41,7 +41,6 @@ CegProphecyArrays::CegProphecyArrays(Property & p, Engine e, smt::SolverEnum se)
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
-  initialize();
 }
 
 CegProphecyArrays::CegProphecyArrays(Property & p,
@@ -58,7 +57,6 @@ CegProphecyArrays::CegProphecyArrays(Property & p,
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
-  initialize();
 }
 
 CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
@@ -76,7 +74,6 @@ CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
-  initialize();
 }
 
 CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
@@ -94,40 +91,12 @@ CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
-  initialize();
-}
-
-ProverResult CegProphecyArrays::prove()
-{
-  ProverResult res = ProverResult::FALSE;
-  while (res == ProverResult::FALSE) {
-    // Refine the system
-    // heuristic -- stop refining when no new axioms are needed.
-    do {
-      if (!refine()) {
-        // real counterexample
-        return ProverResult::FALSE;
-      }
-      reached_k_++;
-    } while (num_added_axioms_);
-
-    Property latest_prop(abs_ts_, solver_->make_term(Not, bad_));
-    PonoOptions opts = options_;
-    // disable static coi because it can't be called more than once on the same
-    // system
-    // TODO: handle this in a better way
-    opts.static_coi_ = false;
-    shared_ptr<Prover> prover =
-        make_prover(e_, latest_prop, solver_->get_solver_enum(), opts);
-
-    res = prover->prove();
-  }
-
-  return res;
 }
 
 ProverResult CegProphecyArrays::check_until(int k)
 {
+  initialize();
+
   ProverResult res = ProverResult::FALSE;
   while (res == ProverResult::FALSE && reached_k_ <= k) {
     // Refine the system
@@ -162,6 +131,8 @@ ProverResult CegProphecyArrays::check_until(int k)
 
 void CegProphecyArrays::initialize()
 {
+  super::initialize();
+
   abstract();
 
   bool contains_arrays = false;
