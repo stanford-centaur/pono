@@ -37,7 +37,7 @@ CegProphecyArrays::CegProphecyArrays(Property & p, Engine e, smt::SolverEnum se)
       e_(e),
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
+      aae_(aa_, abs_unroller_, p.prop(), options_.cegp_axiom_red_),
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
@@ -53,7 +53,7 @@ CegProphecyArrays::CegProphecyArrays(Property & p,
       e_(e),
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
+      aae_(aa_, abs_unroller_, p.prop(), options_.cegp_axiom_red_),
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
@@ -70,7 +70,7 @@ CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
       e_(e),
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
+      aae_(aa_, abs_unroller_, p.prop(), options_.cegp_axiom_red_),
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
@@ -87,7 +87,7 @@ CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
       abs_unroller_(abs_ts_, solver_),
       e_(e),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
+      aae_(aa_, abs_unroller_, p.prop(), options_.cegp_axiom_red_),
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
