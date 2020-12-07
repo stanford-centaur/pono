@@ -111,6 +111,11 @@ void IC3Base::initialize()
 ProverResult IC3Base::check_until(int k)
 {
   initialize();
+  // make sure derived class implemented initialize and called
+  // this version of initialize with super::initialize or
+  // (for experts only) set the initialized_ flag without
+  // ever initializing base classes
+  assert(initialized_);
 
   ProverResult res;
   RefineResult ref_res;

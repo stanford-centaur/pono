@@ -53,25 +53,24 @@ bool is_lit(const Term & l, const Sort & boolsort)
 
 /** IC3 Implementation */
 
-IC3::IC3(Property & p, smt::SolverEnum se) : super(p, se) { initialize(); }
+IC3::IC3(Property & p, smt::SolverEnum se) : super(p, se) {}
 
-IC3::IC3(Property & p, const smt::SmtSolver & s) : super(p, s) { initialize(); }
+IC3::IC3(Property & p, const smt::SmtSolver & s) : super(p, s) {}
 
 IC3::IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se)
     : super(opt, p, se)
 {
-  initialize();
 }
 
 IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
     : super(opt, p, s)
 {
-  initialize();
 }
 
 void IC3::initialize()
 {
-  // No-Op for now
+  // doesn't have to do anything that IC3Base doesn't handle in its initialize
+  super::initialize();
 }
 
 IC3Formula IC3::get_ic3_formula() const
