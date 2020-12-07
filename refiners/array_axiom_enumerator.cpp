@@ -136,14 +136,11 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
 
 ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
                                            Unroller & un,
-                                           const Term & bad,
+                                           const Term & prop,
                                            bool red_axioms)
-    : super(aa.abs_ts()),
-      aa_(aa),
-      un_(un),
-      reduce_axioms_unsatcore_(red_axioms),
-      conc_bad_(bad)
+    : super(aa.abs_ts()), aa_(aa), un_(un), reduce_axioms_unsatcore_(red_axioms)
 {
+  conc_bad_ = solver_->make_term(Not, prop);
   false_ = solver_->make_term(false);
   collect_arrays_and_indices();
   create_lambda_indices();
@@ -320,6 +317,7 @@ void ArrayAxiomEnumerator::collect_arrays_and_indices()
   Term trans = aa_.conc_ts().trans();
   af.visit(init);
   af.visit(trans);
+  assert(conc_bad_);
   af.visit(conc_bad_);
 
   for (auto idx : index_set_) {
