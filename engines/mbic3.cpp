@@ -412,6 +412,13 @@ void ModelBasedIC3::check_ts() const
   }
 }
 
+void ModelBasedIC3::initialize()
+{
+  super::initialize();
+  // other options set by base classes
+  solver_->set_opt("produce-unsat-cores", "true");
+}
+
 bool ModelBasedIC3::intersects_bad()
 {
   push_solver_context();
