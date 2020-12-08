@@ -23,12 +23,6 @@ using namespace std;
 
 namespace pono {
 
-// maps to expected operators for the two options for is_disjunction (either
-// disjunction or conjunction) NOTE: uses both bv and boolean operators so that
-// this works for Boolector
-static const std::unordered_map<bool, std::unordered_set<smt::PrimOp>>
-    expected_ops({ { true, { Or, BVOr } }, { false, { And, BVAnd } } });
-
 // helpers
 bool is_lit(const Term & l, const Sort & boolsort)
 {
