@@ -45,7 +45,7 @@ namespace pono {
 struct IC3Formula
 {
   // nullary constructor
-  IC3Formula() {}
+  IC3Formula() : term(nullptr) {}
   IC3Formula(const smt::Term & t, const smt::TermVec & c, bool n)
       : term(t), children(c), disjunction(n)
   {

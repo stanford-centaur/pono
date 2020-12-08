@@ -339,14 +339,19 @@ bool IC3Base::rel_ind_check(size_t i,
     //       would also have to move the pop_solver_context later
     pop_solver_context();
     if (options_.ic3_indgen_) {
+      assert(solver_context_ == 0); // important that there are no lingering assertions
       out = inductive_generalization(i, c);
     } else {
       IC3Formula blocking_unit = ic3_formula_negate(c);
       out.push_back(blocking_unit);
     }
+    Term conj = solver_->make_term(true);
     for (auto u : out) {
+      solver_->make_term(And, conj, u.term);
       assert(ic3_formula_check_valid(u));
+      assert(ts_->only_curr(u.term));
     }
+    assert(!intersects_initial(solver_->make_term(Not, conj)));
   }
   assert(solver_context_ == 0);
 
