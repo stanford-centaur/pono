@@ -30,6 +30,7 @@
 #include "engines/ic3ia.h"
 
 #include "smt/available_solvers.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -88,11 +89,39 @@ IC3IA::IC3IA(const PonoOptions & opt,
 
 // pure virtual method implementations
 
-IC3Formula IC3IA::get_ic3_formula() const { throw PonoException("NYI"); }
+IC3Formula IC3IA::get_ic3_formula() const
+{
+  const TermVec & preds = ia_.predicates();
+  TermVec conjuncts;
+  conjuncts.reserve(preds.size());
+  Term val;
+  for (auto p : preds) {
+    if ((val = solver_->get_value(p)) == solver_true_) {
+      conjuncts.push_back(p);
+    } else {
+      conjuncts.push_back(solver_->make_term(Not, p));
+    }
+  }
+  return ic3_formula_conjunction(conjuncts);
+}
 
 bool IC3IA::ic3_formula_check_valid(const IC3Formula & u) const
 {
-  throw PonoException("NYI");
+  Sort boolsort = solver_->make_sort(BOOL);
+  // check that children are literals
+  Op op;
+  for (auto c : u.children) {
+    if (c->get_sort() != boolsort) {
+      logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
+      return false;
+    } else if (predset_.find(c) == predset_.end()) {
+      logger.log(3, "ERROR IC3IA IC3Formula contains unknown atom: {}", c);
+      return false;
+    }
+  }
+
+  // got through all checks without failing
+  return true;
 }
 
 void IC3IA::check_ts() const
@@ -103,7 +132,13 @@ void IC3IA::check_ts() const
   // exception better than maintaining in two places
 }
 
-void IC3IA::initialize() { throw PonoException("NYI"); }
+void IC3IA::initialize()
+{
+  // set ts_ to the abstraction BEFORE initializing base classes
+  ts_ = &abs_ts_;
+
+  super::initialize();
+}
 
 void IC3IA::abstract() { throw PonoException("NYI"); }
 
