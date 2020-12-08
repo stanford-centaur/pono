@@ -18,13 +18,16 @@
 **           - implement get_ic3_formula and give it semantics to produce the
 **             corresponding IC3Formula for your flavor of IC3
 **             (assumes solver_'s state is SAT from a failed rel_ind_check)
-**           - implement all the ic3_formula_* functions for creating and
-**             manipulating an IC3Formula
 **           - implement inductive_generalization
 **           - implement generalize_predecessor
 **           - implement check_ts which just checks if there are any
 **             theories / syntax used in the transition system which
 **             is not supported by this instantiation
+**          [OPTIONAL]
+**           - implement all the ic3_formula_* functions for creating and
+**             manipulating an IC3Formula if the defaults are not right
+**           - implement abstract() and refine() if this is a CEGAR
+**             flavor of IC3
 **
 **/
 #pragma once
@@ -156,30 +159,8 @@ class IC3Base : public Prover
    */
   virtual IC3Formula get_ic3_formula() const = 0;
 
-  /** Creates a disjunction IC3Formula from a vector of terms
-   *  @param c the children terms
-   *  @ensures resulting IC3Formula children == c
-   *  @ensures resulting IC3Formula with is_disjunction true
-   */
-  virtual IC3Formula ic3_formula_disjunction(const smt::TermVec & c) const = 0;
-
-  /** Creates a conjunction IC3Formula from a vector of terms
-   *  @param c the children terms
-   *  @ensures resulting IC3Formula children == c
-   *  @ensures resulting IC3Formula with is_disjunction false
-   *  e.g. for a ClauseHandler, this method will create a cube
-   *  note: assumes the children are already in the right polarity
-   *  (doesn't negate them)
-   */
-  virtual IC3Formula ic3_formula_conjunction(const smt::TermVec & c) const = 0;
-
-  /** Negates an IC3Formula
-   *  @param u the IC3Formula to negate
-   */
-  virtual IC3Formula ic3_formula_negate(const IC3Formula & u) const = 0;
-
   /** Check whether a given IC3Formula is valid
-   *  e.g. if this is a ClauseHandler it would
+   *  e.g. if this is a boolean clause it would
    *    check that it's a disjunction of literals
    *  (for debugging)
    *  @param u the IC3Formula to check
@@ -221,6 +202,28 @@ class IC3Base : public Prover
   virtual void check_ts() const = 0;
 
   // virtual methods that can optionally be overridden
+
+  /** Creates a disjunction IC3Formula from a vector of terms
+   *  @param c the children terms
+   *  @ensures resulting IC3Formula children == c
+   *  @ensures resulting IC3Formula with is_disjunction true
+   */
+  virtual IC3Formula ic3_formula_disjunction(const smt::TermVec & c) const;
+
+  /** Creates a conjunction IC3Formula from a vector of terms
+   *  @param c the children terms
+   *  @ensures resulting IC3Formula children == c
+   *  @ensures resulting IC3Formula with is_disjunction false
+   *  e.g. for a ClauseHandler, this method will create a cube
+   *  note: assumes the children are already in the right polarity
+   *  (doesn't negate them)
+   */
+  virtual IC3Formula ic3_formula_conjunction(const smt::TermVec & c) const;
+
+  /** Negates an IC3Formula
+   *  @param u the IC3Formula to negate
+   */
+  virtual IC3Formula ic3_formula_negate(const IC3Formula & u) const;
 
   /** Generates an abstract transition system
    *  Typically this would set the ts_ pointer to the abstraction

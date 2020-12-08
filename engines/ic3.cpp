@@ -87,56 +87,6 @@ IC3Formula IC3::get_ic3_formula() const
   return ic3_formula_conjunction(children);
 }
 
-IC3Formula IC3::ic3_formula_disjunction(const TermVec & c) const
-{
-  assert(c.size());
-  Term term = c.at(0);
-  for (size_t i = 1; i < c.size(); ++i) {
-    term = solver_->make_term(Or, term, c[i]);
-  }
-  IC3Formula res(term, c, true);
-  return res;
-}
-
-IC3Formula IC3::ic3_formula_conjunction(const TermVec & c) const
-{
-  assert(c.size());
-  Term term = c.at(0);
-  for (size_t i = 1; i < c.size(); ++i) {
-    term = solver_->make_term(And, term, c[i]);
-  }
-  IC3Formula res(term, c, false);
-  return res;
-}
-
-IC3Formula IC3::ic3_formula_negate(const IC3Formula & u) const
-{
-  const TermVec & children = u.children;
-  assert(!u.is_null());
-  assert(children.size());
-
-  TermVec neg_children;
-  neg_children.reserve(children.size());
-  Term nc = smart_not(children.at(0));
-
-  bool is_clause = u.is_disjunction();
-  Term term = nc;
-  neg_children.push_back(nc);
-  for (size_t i = 1; i < children.size(); ++i) {
-    nc = smart_not(children[i]);
-    neg_children.push_back(nc);
-    if (is_clause) {
-      // negation is a cube
-      term = solver_->make_term(And, term, nc);
-    } else {
-      // negation is a clause
-      term = solver_->make_term(Or, term, nc);
-    }
-  }
-  IC3Formula res(term, neg_children, !is_clause);
-  return res;
-}
-
 bool IC3::ic3_formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
