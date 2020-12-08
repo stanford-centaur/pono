@@ -31,6 +31,7 @@
 
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -44,7 +45,9 @@ IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
       ia_(conc_ts_, abs_ts_, unroller_),
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
-      to_solver_(solver_)
+      to_solver_(solver_),
+      interp_ts_(conc_ts_, to_interpolator_),
+      interp_unroller_(interp_ts_, interpolator_)
 {
 }
 
@@ -55,7 +58,9 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       ia_(conc_ts_, abs_ts_, unroller_),
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
-      to_solver_(solver_)
+      to_solver_(solver_),
+      interp_ts_(conc_ts_, to_interpolator_),
+      interp_unroller_(interp_ts_, interpolator_)
 {
 }
 
@@ -69,7 +74,9 @@ IC3IA::IC3IA(const PonoOptions & opt,
       ia_(conc_ts_, abs_ts_, unroller_),
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
-      to_solver_(solver_)
+      to_solver_(solver_),
+      interp_ts_(conc_ts_, to_interpolator_),
+      interp_unroller_(interp_ts_, interpolator_)
 {
 }
 
@@ -83,7 +90,9 @@ IC3IA::IC3IA(const PonoOptions & opt,
       ia_(conc_ts_, abs_ts_, unroller_),
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
-      to_solver_(solver_)
+      to_solver_(solver_),
+      interp_ts_(conc_ts_, to_interpolator_),
+      interp_unroller_(interp_ts_, interpolator_)
 {
 }
 
@@ -140,8 +149,41 @@ void IC3IA::initialize()
   super::initialize();
 }
 
-void IC3IA::abstract() { throw PonoException("NYI"); }
+void IC3IA::abstract()
+{
+  // main abstraction already done in constructor of ia_
+
+  // add all the predicates from init and property
+  UnorderedTermSet preds;
+  get_predicates(solver_, ts_->init(), preds, false);
+  get_predicates(solver_, bad_, preds, false);
+  for (auto p : preds) {
+    add_predicate(p);
+  }
+  // more predicates will be added during refinement
+  // these ones are just initial predicates
+}
 
 RefineResult IC3IA::refine() { throw PonoException("NYI"); }
+
+bool IC3IA::add_predicate(const Term & pred)
+{
+  if (predset_.find(pred) != predset_.end()) {
+    // don't allow re-adding the same predicate
+    return false;
+  }
+
+  assert(ts_->only_curr(pred));
+  logger.log(2, "adding predicate {}", pred);
+  predset_.insert(pred);
+  // add predicate to abstraction and get the new constraint
+  Term predabs_rel = ia_.add_predicate(pred);
+  // refine the transition relation incrementally
+  // by adding a new constraint
+  assert(!solver_context_);  // should be at context 0
+  solver_->assert_formula(
+      solver_->make_term(Implies, trans_label_, predabs_rel));
+  return true;
+}
 
 }  // namespace pono

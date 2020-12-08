@@ -87,8 +87,7 @@ class IC3IA : public IC3
   //       maybe better to just get rid of this and do all unrolling with
   //       solver_ terms should look into that
   TransitionSystem interp_ts_;  ///< ts_ over interpolator_ terms
-  std::unique_ptr<Unroller>
-      interp_unroller_;  ///< unroller for the interpolator for refinement
+  Unroller interp_unroller_;  ///< unroller for the interpolator for refinement
 
   // pure virtual method implementations
 
@@ -105,6 +104,17 @@ class IC3IA : public IC3
   void abstract() override;
 
   RefineResult refine() override;
+
+  // specific to IC3IA
+
+  /** Adds predicate to abstraction
+   *  (calls ia_.add_predicate)
+   *  and also incrementally updates the local transition relation
+   *  and declares a new predicate state var (in pred_statevars_)
+   *  @param pred the predicate over current state variables
+   *  @return true iff the predicate was new (not seen before)
+   */
+  bool add_predicate(const smt::Term & pred);
 };
 
 }  // namespace pono
