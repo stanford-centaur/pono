@@ -143,7 +143,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
   vector<IC3Formula> gen_res;
 
   if (options_.ic3_indgen_) {
-    if (options_.ic3_indgen_mode_ == 0) {
+    if (options_.mbic3_indgen_mode == 0) {
       UnorderedTermSet keep, core_set;
       TermVec bool_assump, tmp, new_tmp, removed, lits;
       split_eq(solver_, c.children, lits);
@@ -230,7 +230,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
 
       gen_res.push_back(ic3_formula_negate(ic3_formula_conjunction(lits)));
 
-    } else if (options_.ic3_indgen_mode_ == 1) {
+    } else if (options_.mbic3_indgen_mode == 1) {
       TermVec tmp, lits, red_lits;
       for (auto a : c.children) {
         tmp.push_back(ts_->next(a));
@@ -248,7 +248,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
         curr_lits.push_back(ts_->curr(l));
       }
       gen_res.push_back(ic3_formula_negate(ic3_formula_conjunction(curr_lits)));
-    } else if (options_.ic3_indgen_mode_ == 2) {
+    } else if (options_.mbic3_indgen_mode == 2) {
       // TODO: add interpolator option and / or make it a different derived
       // class
       assert(false);

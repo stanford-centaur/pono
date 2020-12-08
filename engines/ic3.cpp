@@ -104,9 +104,9 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 {
   assert(!c.is_disjunction());  // expecting a cube
 
-  if (options_.ic3_indgen_mode_ != 0) {
+  if (options_.mbic3_indgen_mode != 0) {
     throw PonoException("Boolean IC3 only supports indgen mode 0 but got "
-                        + std::to_string(options_.ic3_indgen_mode_));
+                        + std::to_string(options_.mbic3_indgen_mode));
   }
 
   UnorderedTermSet keep, core_set;

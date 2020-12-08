@@ -67,7 +67,7 @@ void IC3IA::initialize()
 
   boolsort_ = solver_->make_sort(BOOL);
 
-  if (options_.ic3_indgen_mode_ == 2) {
+  if (options_.mbic3_indgen_mode == 2) {
     // TODO: clean this up
     throw PonoException(
         "Interpolant-based generalization not supported with IC3IA -- doesn't "
@@ -75,7 +75,7 @@ void IC3IA::initialize()
   }
 
   // set up the interpolator for refinement
-  assert(options_.ic3_indgen_mode_ != 2);
+  assert(options_.mbic3_indgen_mode != 2);
   assert(!interpolator_);
   assert(!to_interpolator_);
   assert(!to_solver_);
