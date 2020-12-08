@@ -20,6 +20,12 @@
 **             (assumes solver_'s state is SAT from a failed rel_ind_check)
 **           - implement inductive_generalization
 **           - implement generalize_predecessor
+**             this one is special because it is called with solver_context == 1
+**             and assuming the state is SAT so you can query with
+**             solver_->get_value(Term)
+**             However, this also means you can't use the solver_ because
+**             it's polluted with other assertions. All calls are expected
+**             to be through a separate solver (e.g. through the reducer_)
 **           - implement check_ts which just checks if there are any
 **             theories / syntax used in the transition system which
 **             is not supported by this instantiation

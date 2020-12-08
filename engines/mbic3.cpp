@@ -279,7 +279,117 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
 
 IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
 {
-  throw PonoException("NYI");
+  assert(solver_context_
+         == 1);  // shouldn't use solver, solving all in reducer_
+  DisjointSet ds(disjoint_set_rank);
+  UnorderedTermMap model;
+  const UnorderedTermSet & statevars = ts_->statevars();
+  TermVec cube_lits;
+  cube_lits.reserve(statevars.size());
+  TermVec next_lits;
+  next_lits.reserve(statevars.size());
+  for (auto v : statevars) {
+    Term val = solver_->get_value(v);
+    cube_lits.push_back(solver_->make_term(Equal, v, val));
+    ds.add(v, val);
+    assert(ts_->is_curr_var(v));
+    assert(model.find(v) == model.end());
+    model[v] = val;
+
+    Term nv = ts_->next(v);
+    assert(ts_->is_next_var(nv));
+    Term next_val = solver_->get_value(nv);
+    next_lits.push_back(solver_->make_term(Equal, nv, next_val));
+    assert(model.find(nv) == model.end());
+    model[nv] = next_val;
+  }
+
+  // collect input assignments
+  const UnorderedTermSet & inputvars = ts_->inputvars();
+  TermVec input_lits;
+  input_lits.reserve(inputvars.size());
+  for (auto v : inputvars) {
+    Term val = solver_->get_value(v);
+    input_lits.push_back(solver_->make_term(Equal, v, val));
+    assert(model.find(v) == model.end());
+    model[v] = val;
+  }
+
+  // if not generalized, the current state assignments in cube_lits
+  // are the predecessor
+  IC3Formula res = ic3_formula_conjunction(cube_lits);
+
+  assert(i > 0);
+  if (i == 1) {
+    // don't need to generalize if i == 1
+    // the predecessor is an initial state
+    return res;
+  }
+
+  if (options_.ic3_pregen_ && !options_.ic3_functional_preimage_) {
+    // add congruent equalities to cube_lits
+    for (auto v : statevars) {
+      Term t = ds.find(v);
+      if (t != v) {
+        cube_lits.push_back(solver_->make_term(Equal, t, v));
+      }
+    }
+
+    Term formula = make_and(input_lits);
+
+    if (ts_->is_deterministic()) {
+      formula = solver_->make_term(And, formula, trans_label_);
+      formula = solver_->make_term(
+          And, formula, solver_->make_term(Not, ts_->next(c.term)));
+    } else {
+      formula = solver_->make_term(And, formula, make_and(next_lits));
+
+      // preimage formula
+      // NOTE: because this will be negated, it is important to use the
+      // whole frame and trans, not just the labels
+      // because label is: trans_label_ -> trans
+      // so if it is negated, that doesn't force trans to be false
+      // the implication could be more efficient than iff so we want to leave it
+      // that way
+      Term pre_formula = get_frame(i - 1);
+      pre_formula = solver_->make_term(And, pre_formula, ts_->trans());
+      pre_formula =
+          solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));
+      pre_formula = solver_->make_term(And, pre_formula, ts_->next(c.term));
+
+      formula = solver_->make_term(
+          And, formula, solver_->make_term(Not, pre_formula));
+    }
+
+    TermVec splits, red_cube_lits, rem_cube_lits;
+    split_eq(solver_, cube_lits, splits);
+    reducer_.reduce_assump_unsatcore(
+        formula, splits, red_cube_lits, &rem_cube_lits);
+    // should need some assumptions
+    // formula should not be unsat on its own
+    assert(red_cube_lits.size() > 0);
+
+    // update res to the generalization
+    res = ic3_formula_conjunction(red_cube_lits);
+
+  } else if (options_.ic3_pregen_ && options_.ic3_functional_preimage_) {
+    assert(ts_->is_deterministic());
+
+    UnorderedTermMap m;
+    for (auto v : inputvars) {
+      m[v] = model.at(v);
+    }
+    for (auto v : statevars) {
+      Term nv = ts_->next(v);
+      m[nv] = model.at(nv);
+    }
+
+    Term fun_preimage = solver_->substitute(trans_label_, m);
+    TermVec conjuncts;
+    conjunctive_partition(fun_preimage, conjuncts, true);
+    res = ic3_formula_conjunction(conjuncts);
+  }
+  return res;
 }
 
 void ModelBasedIC3::check_ts() const
