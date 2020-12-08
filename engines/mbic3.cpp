@@ -239,11 +239,15 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and(
-          { get_frame(i - 1), trans_label_, solver_->make_term(Not, c.term) });
+          { get_frame(i - 1), ts_->trans(), solver_->make_term(Not, c.term) });
       formula = solver_->make_term(Or, formula, ts_->next(ts_->init()));
       reducer_.reduce_assump_unsatcore(formula, lits, red_lits);
-      gen_res.push_back(ic3_formula_negate(ic3_formula_conjunction(red_lits)));
-
+      TermVec curr_lits;
+      curr_lits.reserve(red_lits.size());
+      for (auto l : red_lits) {
+        curr_lits.push_back(ts_->curr(l));
+      }
+      gen_res.push_back(ic3_formula_negate(ic3_formula_conjunction(curr_lits)));
     } else if (options_.ic3_indgen_mode_ == 2) {
       // TODO: add interpolator option and / or make it a different derived
       // class
