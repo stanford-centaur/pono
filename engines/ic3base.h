@@ -91,7 +91,7 @@ struct IC3Goal
   //       made it complicated to move from this struct to another place
   std::shared_ptr<IC3Goal> next;
 
-  IC3Goal(IC3Formula u, size_t i, std::shared_ptr<IC3Goal> n)
+  IC3Goal(IC3Formula u, size_t i, const std::shared_ptr<IC3Goal> & n)
       : target(u), idx(i), next(n)
   {
   }
