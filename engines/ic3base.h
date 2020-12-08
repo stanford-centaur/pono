@@ -29,6 +29,11 @@
 **           - implement abstract() and refine() if this is a CEGAR
 **             flavor of IC3
 **
+**        Important Notes:
+**           - be sure to use [push/pop]_solver_context instead of using
+**             the solver interface directly so that the assertions on
+**             the solver context (tracked externally) are correct
+**
 **/
 #pragma once
 
