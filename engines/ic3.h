@@ -14,9 +14,6 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <unordered_set>
-
 #include "engines/ic3base.h"
 
 namespace pono {
@@ -33,8 +30,6 @@ class IC3 : public IC3Base
   typedef IC3Base super;
 
  protected:
-  void initialize() override;
-
   // pure virtual method implementations
 
   IC3Formula get_ic3_formula() const override;

@@ -67,12 +67,6 @@ IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
 {
 }
 
-void IC3::initialize()
-{
-  // doesn't have to do anything that IC3Base doesn't handle in its initialize
-  super::initialize();
-}
-
 IC3Formula IC3::get_ic3_formula() const
 {
   // expecting all solving in IC3 to be done at context level > 0

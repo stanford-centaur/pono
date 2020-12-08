@@ -17,6 +17,7 @@
 *following:
 **           - implement get_ic3_formula and give it semantics to produce the
 **             corresponding IC3Formula for your flavor of IC3
+**             (assumes solver_'s state is SAT from a failed rel_ind_check)
 **           - implement all the ic3_formula_* functions for creating and
 **             manipulating an IC3Formula
 **           - implement inductive_generalization
