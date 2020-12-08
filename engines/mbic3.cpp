@@ -116,19 +116,14 @@ bool ModelBasedIC3::ic3_formula_check_valid(const IC3Formula & u) const
     if (c->get_sort() != boolsort) {
       return false;
     }
-
-    TermVec children(c->begin(), c->end());
-
-    if (children.size() > 2) {
-      return false;
-    } else if (children.size() == 2) {
-      Op op = c->get_op();
-      // expecting equality or inequalities
-      if (expected_ops.find(op.prim_op) != expected_ops.end()) {
-        return false;
-      }
-    }
   }
+
+  // not checking that they are equalities etc...
+  // hard with rewriting
+  // but more specifically, it's not always true
+  // in this IC3 version, we add the whole bad as a proof goal
+  // (or at least the conjuncts in a conjunctive partition of bad)
+  // regardless of the shape
 
   // got through all checks without failing
   return true;
