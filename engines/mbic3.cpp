@@ -13,6 +13,7 @@
 **
 **/
 
+#include <algorithm>
 #include <random>
 
 #include "smt-switch/utils.h"
