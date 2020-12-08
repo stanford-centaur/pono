@@ -84,9 +84,7 @@ IC3Formula IC3::get_ic3_formula() const
     }
   }
 
-  IC3Formula res = ic3_formula_conjunction(children);
-  assert(!res.is_disjunction());  // expecting a Cube here
-  return res;
+  return ic3_formula_conjunction(children);
 }
 
 IC3Formula IC3::ic3_formula_disjunction(const TermVec & c) const
