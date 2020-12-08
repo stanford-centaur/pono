@@ -338,7 +338,11 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     Term formula = make_and(input_lits);
 
     if (ts_->is_deterministic()) {
-      formula = solver_->make_term(And, formula, trans_label_);
+      // NOTE: reducer doesn't have semantics for trans_label_
+      // better to just use whole trans for now
+      // Optionally in the future we could add those semantics
+      // to the reducer_'s solver
+      formula = solver_->make_term(And, formula, ts_->trans());
       formula = solver_->make_term(
           And, formula, solver_->make_term(Not, ts_->next(c.term)));
     } else {
