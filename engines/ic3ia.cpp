@@ -29,19 +29,60 @@
 
 #include "engines/ic3ia.h"
 
+#include "smt/available_solvers.h"
+
+using namespace smt;
+using namespace std;
+
 namespace pono {
 
-IC3IA::IC3IA(Property & p, smt::SolverEnum se) : super(p, se) {}
-
-IC3IA::IC3IA(Property & p, const smt::SmtSolver & s) : super(p, s) {}
-
-IC3IA::IC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-    : super(opt, p, se)
+IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
+    : super(p, se),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(create_interpolating_solver(itp_se)),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_)
 {
 }
 
-IC3IA::IC3IA(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
-    : super(opt, p, s)
+IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
+    : super(p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(create_interpolating_solver(itp_se)),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_)
+{
+}
+
+IC3IA::IC3IA(const PonoOptions & opt,
+             Property & p,
+             SolverEnum se,
+             SolverEnum itp_se)
+    : super(opt, p, se),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(create_interpolating_solver(itp_se)),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_)
+{
+}
+
+IC3IA::IC3IA(const PonoOptions & opt,
+             Property & p,
+             const SmtSolver & s,
+             SolverEnum itp_se)
+    : super(opt, p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(create_interpolating_solver(itp_se)),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_)
 {
 }
 

@@ -30,21 +30,66 @@
 #pragma once
 
 #include "engines/ic3.h"
+#include "modifiers/implicit_predicate_abstractor.h"
+#include "smt-switch/term_translator.h"
 
 namespace pono {
 
 class IC3IA : public IC3
 {
  public:
-  IC3IA(Property & p, smt::SolverEnum se);
-  IC3IA(Property & p, const smt::SmtSolver & s);
-  IC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  IC3IA(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  // itp_se is the SolverEnum for the interpolator
+
+  IC3IA(Property & p,
+        smt::SolverEnum se,
+        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+  IC3IA(Property & p,
+        const smt::SmtSolver & s,
+        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+  IC3IA(const PonoOptions & opt,
+        Property & p,
+        smt::SolverEnum se,
+        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+  IC3IA(const PonoOptions & opt,
+        Property & p,
+        const smt::SmtSolver & s,
+        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
   virtual ~IC3IA() {}
 
   typedef IC3 super;
 
  protected:
+  // Note: important that conc_ts_ and abs_ts_ are before ia_
+  //       because we will pass them to ia_ and they must be
+  //       be initialized first
+
+  TransitionSystem & conc_ts_;  ///< convenient reference to the concrete ts
+
+  RelationalTransitionSystem abs_ts_;  ///< the abstract ts
+                                       ///< after initialize, ts_ will point to
+                                       ///< this because the methods from IC3
+                                       ///< should operate on the abstraction
+
+  ImplicitPredicateAbstractor ia_;
+
+  smt::UnorderedTermSet predset_;  ///< set of current predicates
+  // useful for checking if predicate has been added already
+  // also available as a vector in ia_.predicates()
+
+  smt::SmtSolver interpolator_;  ///< interpolator for refinement
+  smt::TermTranslator
+      to_interpolator_;  ///< transfer terms from solver_ to interpolator_
+  smt::TermTranslator
+      to_solver_;  ///< transfer terms from interpolator_ to solver_
+
+  // TODO: since we're already using unroller_ over solver_ terms to reduce
+  // predicates
+  //       maybe better to just get rid of this and do all unrolling with
+  //       solver_ terms should look into that
+  TransitionSystem interp_ts_;  ///< ts_ over interpolator_ terms
+  std::unique_ptr<Unroller>
+      interp_unroller_;  ///< unroller for the interpolator for refinement
+
   // pure virtual method implementations
 
   IC3Formula get_ic3_formula() const override;
