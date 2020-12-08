@@ -13,12 +13,14 @@
 **
 **/
 
+#include "engines/mbic3.h"
+
 #include <algorithm>
 #include <random>
 
 #include "smt-switch/utils.h"
-
-#include "engines/mbic3.h"
+#include "smt/available_solvers.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -139,6 +141,9 @@ bool ModelBasedIC3::ic3_formula_check_valid(const IC3Formula & u) const
 vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
                                                            const IC3Formula & c)
 {
+  // only need interpolator if in mode 2
+  assert(options_.mbic3_indgen_mode == 2 || interpolator_ == nullptr);
+
   assert(!c.is_disjunction());
   vector<IC3Formula> gen_res;
 
@@ -249,35 +254,40 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
       }
       gen_res.push_back(ic3_formula_negate(ic3_formula_conjunction(curr_lits)));
     } else if (options_.mbic3_indgen_mode == 2) {
-      // TODO: add interpolator option and / or make it a different derived
-      // class
-      assert(false);
-      // interpolator_->reset_assertions();
+      // TODO: consider creating a separate derived class for this mode
+      interpolator_->reset_assertions();
 
-      // TermVec conjuncts;
-      // split_eq(solver_, c.children, conjuncts);
+      TermVec conjuncts;
+      split_eq(solver_, c.children, conjuncts);
 
-      // // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
-      // Term formula = make_and({ get_frame(i - 1),
-      //                           trans_label_,
-      //                           solver_->make_term(Not, make_and(conjuncts))
-      //                           });
-      // formula = solver_->make_term(Or, formula, ts_->next(ts_->init()));
+      // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
+      Term formula = make_and({ get_frame(i - 1),
+                                ts_->trans(),
+                                solver_->make_term(Not, make_and(conjuncts)) });
+      formula = solver_->make_term(Or, formula, ts_->next(ts_->init()));
 
-      // Term int_A = to_interpolator_->transfer_term(formula, BOOL);
-      // // still use c in B
-      // // only split equalities in A to encourage more general unsat proofs /
-      // // interpolants
-      // Term int_B = to_interpolator_->transfer_term(ts_->next(c.term), BOOL);
+      Term int_A = to_interpolator_->transfer_term(formula, BOOL);
+      // still use c in B
+      // only split equalities in A to encourage more general unsat proofs /
+      // interpolants
+      Term int_B = to_interpolator_->transfer_term(ts_->next(c.term), BOOL);
 
-      // Term interp;
-      // Result r = interpolator_->get_interpolant(int_A, int_B, interp);
-      // assert(r.is_unsat());
+      Term interp;
+      Result r = interpolator_->get_interpolant(int_A, int_B, interp);
+      assert(r.is_unsat());
 
-      // Term solver_interp = to_solver_->transfer_term(interp);
-      // gen_res = ts_->curr(solver_interp);
+      Term solver_interp = to_solver_->transfer_term(interp);
+      logger.log(3, "Got interpolant: {}", solver_interp);
+      TermVec interp_conjuncts;
+      conjunctive_partition(solver_interp, interp_conjuncts, true);
 
-      // logger.log(3, "Got interpolant: {}", gen_res);
+      for (auto c : interp_conjuncts) {
+        // these will not necessarily be a disjunction actually, they'll just be
+        // a single formula, {c} from the conjunctive partition of the
+        // interpolant
+        // --> interpolant not guaranteed to be a clause
+        gen_res.push_back(ic3_formula_disjunction({ ts_->curr(c) }));
+      }
 
     } else {
       assert(false);
@@ -445,4 +455,46 @@ bool ModelBasedIC3::intersects_bad()
   assert(!r.is_unknown());
   return r.is_sat();
 }
+
+void ModelBasedIC3::initialize()
+{
+  super::initialize();
+
+  // only need interpolator infrastructure for mode 2 (interpolation)
+  if (options_.mbic3_indgen_mode == 2) {
+    interpolator_ = create_interpolating_solver(MSAT_INTERPOLATOR);
+    to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
+    to_solver_ = std::make_unique<TermTranslator>(solver_);
+
+    UnorderedTermMap & cache = to_solver_->get_cache();
+    Term ns;
+    for (auto s : ts_->statevars()) {
+      // common variables are next states, unless used for refinement in IC3IA
+      // then will refer to current state variables after untiming
+      // need to cache both
+      cache[to_interpolator_->transfer_term(s)] = s;
+      ns = ts_->next(s);
+      cache[to_interpolator_->transfer_term(ns)] = ns;
+    }
+
+    // need to add uninterpreted functions as well
+    // first need to find them all
+    // NOTE need to use get_free_symbols NOT get_free_symbolic_consts
+    // because the latter ignores uninterpreted functions
+    UnorderedTermSet free_symbols;
+    get_free_symbols(ts_->init(), free_symbols);
+    get_free_symbols(ts_->trans(), free_symbols);
+    get_free_symbols(bad_, free_symbols);
+
+    for (auto s : free_symbols) {
+      assert(s->is_symbol());
+      if (s->is_symbolic_const()) {
+        // ignore constants
+        continue;
+      }
+      cache[to_interpolator_->transfer_term(s)] = s;
+    }
+  }
+}
+
 }  // namespace pono

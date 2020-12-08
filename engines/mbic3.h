@@ -33,6 +33,12 @@ class ModelBasedIC3 : public IC3Base
   typedef IC3Base super;
 
  protected:
+  // for mbic3_indgen_mode == 2
+  // interpolant based generalization
+  smt::SmtSolver interpolator_;
+  std::unique_ptr<smt::TermTranslator> to_interpolator_;
+  std::unique_ptr<smt::TermTranslator> to_solver_;
+
   // pure virtual method implementations
 
   IC3Formula get_ic3_formula() const override;
@@ -47,5 +53,7 @@ class ModelBasedIC3 : public IC3Base
   void check_ts() const override;
 
   bool intersects_bad() override;
+
+  void initialize() override;
 };
 }  // namespace pono
