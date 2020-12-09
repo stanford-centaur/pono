@@ -225,36 +225,14 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   assert(i > 0);
 
   const UnorderedTermSet & statevars = ts_->statevars();
-  TermVec cube_lits, next_lits;
-  next_lits.reserve(statevars.size());
-  for (auto v : statevars) {
-    if (solver_->get_value(v) == solver_true_) {
-      cube_lits.push_back(v);
-    } else {
-      cube_lits.push_back(solver_->make_term(Not, v));
-    }
-    Term nv = ts_->next(v);
-    assert(ts_->is_next_var(nv));
-    if (solver_->get_value(nv) == solver_true_) {
-      next_lits.push_back(nv);
-    } else {
-      next_lits.push_back(solver_->make_term(Not, nv));
-    }
-  }
+  TermVec input_lits, next_lits;
+  IC3Formula icf = get_ic3_formula(&input_lits, &next_lits);
+  const TermVec & cube_lits = icf.children;
 
   if (i == 1) {
     // don't need to generalize if i == 1
     // the predecessor is an initial state
     return get_ic3_formula();
-  }
-
-  // collect input assignments
-  const UnorderedTermSet & inputvars = ts_->inputvars();
-  TermVec input_lits;
-  input_lits.reserve(inputvars.size());
-  for (auto v : inputvars) {
-    Term val = solver_->get_value(v);
-    input_lits.push_back(solver_->make_term(Equal, v, val));
   }
 
   Term formula = make_and(input_lits);
