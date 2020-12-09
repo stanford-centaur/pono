@@ -82,12 +82,8 @@ class IC3IA : public IC3
   smt::TermTranslator
       to_solver_;  ///< transfer terms from interpolator_ to solver_
 
-  // TODO: since we're already using unroller_ over solver_ terms to reduce
-  // predicates
-  //       maybe better to just get rid of this and do all unrolling with
-  //       solver_ terms should look into that
-  TransitionSystem interp_ts_;  ///< ts_ over interpolator_ terms
-  Unroller interp_unroller_;  ///< unroller for the interpolator for refinement
+  size_t longest_cex_length_;  ///< keeps track of longest (abstract)
+                               ///< counterexample
 
   // pure virtual method implementations
 
@@ -116,6 +112,16 @@ class IC3IA : public IC3
    *  @return true iff the predicate was new (not seen before)
    */
   bool add_predicate(const smt::Term & pred);
+
+  /** Register a state variable mapping in to_solver_
+   *  This is a bit ugly but it's needed because symbols aren't created in
+   * to_solver_ so it needs the mapping from interpolator_ symbols to solver_
+   * symbols
+   *  TODO look into a cleaner solution
+   *  @param i the unrolling for state variables
+   *         makes sure not to repeat work
+   */
+  void register_symbol_mappings(size_t i);
 };
 
 }  // namespace pono

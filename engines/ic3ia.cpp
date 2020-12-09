@@ -48,8 +48,7 @@ IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      interp_ts_(conc_ts_, to_interpolator_),
-      interp_unroller_(interp_ts_, interpolator_)
+      longest_cex_length_(0)
 {
 }
 
@@ -61,8 +60,7 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      interp_ts_(conc_ts_, to_interpolator_),
-      interp_unroller_(interp_ts_, interpolator_)
+      longest_cex_length_(0)
 {
 }
 
@@ -77,8 +75,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      interp_ts_(conc_ts_, to_interpolator_),
-      interp_unroller_(interp_ts_, interpolator_)
+      longest_cex_length_(0)
 {
 }
 
@@ -93,8 +90,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      interp_ts_(conc_ts_, to_interpolator_),
-      interp_unroller_(interp_ts_, interpolator_)
+      longest_cex_length_(0)
 {
 }
 
@@ -250,19 +246,19 @@ RefineResult IC3IA::refine()
   // remember -- need to transfer between solvers
   assert(interpolator_);
   Term t = make_and({ conc_ts_.init(), cex[0] });
-  Term A = interp_unroller_.at_time(to_interpolator_.transfer_term(t, BOOL), 0);
+  Term A = to_interpolator_.transfer_term(unroller_.at_time(t, 0), BOOL);
 
   TermVec B;
-  Term interp_trans = to_interpolator_.transfer_term(conc_ts_.trans(), BOOL);
   B.reserve(cex.size() - 1);
   // add to B in reverse order so we can pop_back later
   for (int i = cex.size() - 1; i >= 0; --i) {
-    // replace indicator variables with actual predicates
-    t = to_interpolator_.transfer_term(cex[i], BOOL);
+    register_symbol_mappings(
+        i);  // make sure to_solver_ cache is populated with unrolled symbols
+    t = cex[i];
     if (i + 1 < cex.size()) {
-      t = interpolator_->make_term(And, t, interp_trans);
+      t = solver_->make_term(And, t, conc_ts_.trans());
     }
-    B.push_back(interp_unroller_.at_time(t, i));
+    B.push_back(to_interpolator_.transfer_term(unroller_.at_time(t, i), BOOL));
   }
 
   // now get interpolants for each transition starting with the first
@@ -272,7 +268,7 @@ RefineResult IC3IA::refine()
     // Note: have to pass the solver (defaults to solver_)
     Term fullB = make_and(B, interpolator_);
     Term I;
-    Result r(smt::UNKNOWN, "not set");
+    Result r(smt::UNKNOWN, "unset result");
     try {
       r = interpolator_->get_interpolant(A, fullB, I);
     }
@@ -282,15 +278,21 @@ RefineResult IC3IA::refine()
 
     all_sat &= r.is_sat();
     if (r.is_unsat()) {
-      Term untimedI = interp_unroller_.untime(I);
+      Term untimedI = unroller_.untime(to_solver_.transfer_term(I, BOOL));
       logger.log(3, "got interpolant: {}", untimedI);
-      interpolants.push_back(to_solver_.transfer_term(untimedI, BOOL));
+      interpolants.push_back(untimedI);
     }
     // move next cex time step to A
     // they were added to B in reverse order
     A = interpolator_->make_term(And, A, B.back());
     B.pop_back();
   }
+
+  // record the length of this counterexample
+  // important to set it here because it's used in register_symbol_mapping
+  // to determine if state variables unrolled to a certain length
+  // have already been cached in to_solver_
+  longest_cex_length_ = cex.size();
 
   if (all_sat) {
     // this is a real counterexample, so the property is false
@@ -354,6 +356,20 @@ bool IC3IA::add_predicate(const Term & pred)
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
   return true;
+}
+
+void IC3IA::register_symbol_mappings(size_t i)
+{
+  if (i < longest_cex_length_) {
+    // these symbols should have already been handled
+  }
+
+  UnorderedTermMap & cache = to_solver_.get_cache();
+  Term unrolled_sv;
+  for (auto sv : ts_->statevars()) {
+    unrolled_sv = unroller_.at_time(sv, i);
+    cache[to_interpolator_.transfer_term(unrolled_sv)] = unrolled_sv;
+  }
 }
 
 }  // namespace pono
