@@ -76,31 +76,40 @@ void IC3Base::initialize()
 
   super::initialize();
 
+  Sort boolsort = solver_->make_sort(BOOL);
+
   assert(solver_context_ == 0);  // expecting to be at base context level
   solver_true_ = solver_->make_term(true);
+
+  // clear data structures
+  frames_.clear();
+  frame_labels_.clear();
+  proof_goals_.clear();
+
+  // can't use constrain_frame for initial states because not guaranteed to be
+  push_frame();
+
+  // create labels beforehand so they can be used in abstract if necessary
+  // but wait to assign meaning
+  assert(!init_label_);
+  assert(!trans_label_);
+  // frame 0 label is identical to init label
+  assert(frame_labels_.size());  // created by push_frame
+  init_label_ = frame_labels_[0];
+  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
 
   // abstract the transition relation if this is a CEGAR implementation
   // otherwise it is a No-Op
   abstract();
 
-  frames_.clear();
-  frame_labels_.clear();
-  proof_goals_.clear();
-  // first frame is always the initial states
-  push_frame();
-  // can't use constrain_frame for initial states because not guaranteed to be
-  // an IC3Formula it's handled specially
-  solver_->assert_formula(
-      solver_->make_term(Implies, frame_labels_.at(0), ts_->init()));
+  // add a new frame -- the frontier
   push_frame();
 
   // set semantics of TS labels
-  Sort boolsort = solver_->make_sort(BOOL);
-  assert(!init_label_);
-  assert(!trans_label_);
-  // frame 0 label is identical to init label
-  init_label_ = frame_labels_[0];
-  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+  // first frame is always the initial states
+  solver_->assert_formula(
+      solver_->make_term(Implies, frame_labels_.at(0), ts_->init()));
+  // trans_label_ just implies the transition relation
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_->trans()));
 
