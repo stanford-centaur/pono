@@ -167,10 +167,18 @@ void IC3IA::check_ts() const
 
 void IC3IA::initialize()
 {
-  // set ts_ to the abstraction BEFORE initializing base classes
-  ts_ = &abs_ts_;
-
   super::initialize();
+
+  // add all the predicates from init and property to the abstraction
+  // NOTE: abstract is called automatically in IC3Base initialize
+  UnorderedTermSet preds;
+  get_predicates(solver_, ts_->init(), preds, false);
+  get_predicates(solver_, bad_, preds, false);
+  for (auto p : preds) {
+    add_predicate(p);
+  }
+  // more predicates will be added during refinement
+  // these ones are just initial predicates
 
   // populate cache for existing terms in solver_
   UnorderedTermMap & cache = to_solver_.get_cache();
@@ -217,16 +225,10 @@ void IC3IA::initialize()
 void IC3IA::abstract()
 {
   // main abstraction already done in constructor of ia_
-
-  // add all the predicates from init and property
-  UnorderedTermSet preds;
-  get_predicates(solver_, ts_->init(), preds, false);
-  get_predicates(solver_, bad_, preds, false);
-  for (auto p : preds) {
-    add_predicate(p);
-  }
-  // more predicates will be added during refinement
-  // these ones are just initial predicates
+  // just need to set ts_ to the abstraction
+  assert(abs_ts_.init());  // should be non-null
+  assert(abs_ts_.trans());
+  ts_ = &abs_ts_;
 }
 
 RefineResult IC3IA::refine()
