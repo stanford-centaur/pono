@@ -120,13 +120,24 @@ bool IC3IA::ic3_formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
+  Term pred;
   Op op;
   for (auto c : u.children) {
     if (c->get_sort() != boolsort) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
-    } else if (predset_.find(c) == predset_.end()) {
-      logger.log(3, "ERROR IC3IA IC3Formula contains unknown atom: {}", c);
+    }
+
+    pred = c;
+    op = pred->get_op();
+    if (op == Not || op == BVNot) {
+      pred = *(c->begin());
+      assert(pred);
+    }
+
+    // expecting either a boolean variable or a predicate
+    if (!pred->is_symbolic_const() && predset_.find(pred) == predset_.end()) {
+      logger.log(3, "ERROR IC3IA IC3Formula contains unknown atom: {}", pred);
       return false;
     }
   }
