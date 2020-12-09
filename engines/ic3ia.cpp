@@ -29,6 +29,8 @@
 
 #include "engines/ic3ia.h"
 
+#include <random>
+
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
@@ -164,7 +166,108 @@ void IC3IA::abstract()
   // these ones are just initial predicates
 }
 
-RefineResult IC3IA::refine() { throw PonoException("NYI"); }
+RefineResult IC3IA::refine()
+{
+  // recover the counterexample trace
+  assert(intersects_initial(cex_pg_.target.term));
+  TermVec cex({ cex_pg_.target.term });
+  IC3Goal tmp = cex_pg_;
+  while (tmp.next) {
+    tmp = *(tmp.next);
+    cex.push_back(tmp.target.term);
+    assert(ts_->only_curr(tmp.target.term));
+  }
+  assert(cex.size() > 1);
+
+  // use interpolator to get predicates
+  // remember -- need to transfer between solvers
+  assert(interpolator_);
+  Term t = make_and({ ts_->init(), cex[0] });
+  Term A = interp_unroller_.at_time(to_interpolator_.transfer_term(t, BOOL), 0);
+
+  TermVec B;
+  Term interp_trans = to_interpolator_.transfer_term(ts_->trans(), BOOL);
+  B.reserve(cex.size() - 1);
+  // add to B in reverse order so we can pop_back later
+  for (int i = cex.size() - 1; i >= 0; --i) {
+    // replace indicator variables with actual predicates
+    t = to_interpolator_.transfer_term(cex[i], BOOL);
+    if (i + 1 < cex.size()) {
+      t = interpolator_->make_term(And, t, interp_trans);
+    }
+    B.push_back(interp_unroller_.at_time(t, i));
+  }
+
+  // now get interpolants for each transition starting with the first
+  bool all_sat = true;
+  TermVec interpolants;
+  while (B.size()) {
+    // Note: have to pass the solver (defaults to solver_)
+    Term fullB = make_and(B, interpolator_);
+    Term I;
+    Result r(smt::UNKNOWN, "not set");
+    try {
+      r = interpolator_->get_interpolant(A, fullB, I);
+    }
+    catch (SmtException & e) {
+      logger.log(3, e.what());
+    }
+
+    all_sat &= r.is_sat();
+    if (r.is_unsat()) {
+      Term untimedI = interp_unroller_.untime(I);
+      logger.log(3, "got interpolant: {}", untimedI);
+      interpolants.push_back(to_solver_.transfer_term(untimedI, BOOL));
+    }
+    // move next cex time step to A
+    // they were added to B in reverse order
+    A = interpolator_->make_term(And, A, B.back());
+    B.pop_back();
+  }
+
+  if (all_sat) {
+    // this is a real counterexample, so the property is false
+    return RefineResult::REFINE_NONE;
+  } else if (!interpolants.size()) {
+    logger.log(1, "Interpolation failures...couldn't find any new predicates");
+    return RefineResult::REFINE_FAIL;
+  } else {
+    UnorderedTermSet preds;
+    for (auto I : interpolants) {
+      assert(ts_->only_curr(I));
+      get_predicates(solver_, I, preds);
+    }
+
+    // reduce new predicates
+    TermVec preds_vec(preds.begin(), preds.end());
+    if (options_.random_seed_ > 0) {
+      shuffle(preds_vec.begin(),
+              preds_vec.end(),
+              default_random_engine(options_.random_seed_));
+    }
+
+    TermVec red_preds;
+    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+      // reduction successful
+      preds.clear();
+      preds.insert(red_preds.begin(), red_preds.end());
+    }
+
+    // add all the new predicates
+    bool found_new_preds = false;
+    for (auto p : preds) {
+      found_new_preds |= add_predicate(p);
+    }
+
+    if (!found_new_preds) {
+      logger.log(1, "No new predicates found...");
+      return RefineResult::REFINE_FAIL;
+    }
+
+    // able to refine the system to rule out this abstract counterexample
+    return RefineResult::REFINE_SUCCESS;
+  }
+}
 
 bool IC3IA::add_predicate(const Term & pred)
 {
