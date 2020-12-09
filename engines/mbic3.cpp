@@ -94,25 +94,46 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
   solver_->set_opt("produce-unsat-cores", "true");
 }
 
-IC3Formula ModelBasedIC3::get_ic3_formula() const
+IC3Formula ModelBasedIC3::get_ic3_formula(TermVec * inputs,
+                                          TermVec * nexts) const
 {
   DisjointSet ds(disjoint_set_rank);
   TermVec cube_lits;
   const UnorderedTermSet & statevars = ts_->statevars();
+
+  if (inputs) {
+    inputs->reserve(ts_->inputvars().size());
+  }
+  if (nexts) {
+    nexts->reserve(statevars.size());
+  }
 
   for (auto v : statevars) {
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
     ds.add(v, val);
     assert(ts_->is_curr_var(v));
+
+    if (nexts) {
+      Term nv = ts_->next(v);
+      nexts->push_back(solver_->make_term(Equal, nv, solver_->get_value(nv)));
+    }
   }
 
+  // add equalities from disjoint set
   for (auto v : statevars) {
     Term t = ds.find(v);
     if (t != v) {
       cube_lits.push_back(solver_->make_term(Equal, t, v));
     }
   }
+
+  if (inputs) {
+    for (auto iv : ts_->inputvars()) {
+      inputs->push_back(solver_->make_term(Equal, iv, solver_->get_value(iv)));
+    }
+  }
+
   return ic3_formula_conjunction(cube_lits);
 }
 

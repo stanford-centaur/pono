@@ -100,19 +100,34 @@ IC3IA::IC3IA(const PonoOptions & opt,
 
 // pure virtual method implementations
 
-IC3Formula IC3IA::get_ic3_formula() const
+IC3Formula IC3IA::get_ic3_formula(TermVec * inputs, TermVec * nexts) const
 {
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
   conjuncts.reserve(preds.size());
-  Term val;
   for (auto p : preds) {
-    if ((val = solver_->get_value(p)) == solver_true_) {
+    if (solver_->get_value(p) == solver_true_) {
       conjuncts.push_back(p);
     } else {
       conjuncts.push_back(solver_->make_term(Not, p));
     }
+
+    if (nexts) {
+      Term next_p = ts_->next(p);
+      if (solver_->get_value(next_p) == solver_true_) {
+        nexts->push_back(next_p);
+      } else {
+        nexts->push_back(solver_->make_term(Not, next_p));
+      }
+    }
   }
+
+  if (inputs) {
+    for (auto iv : ts_->inputvars()) {
+      inputs->push_back(solver_->make_term(Equal, iv, solver_->get_value(iv)));
+    }
+  }
+
   return ic3_formula_conjunction(conjuncts);
 }
 

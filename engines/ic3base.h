@@ -18,6 +18,9 @@
 **           - implement get_ic3_formula and give it semantics to produce the
 **             corresponding IC3Formula for your flavor of IC3
 **             (assumes solver_'s state is SAT from a failed rel_ind_check)
+**             also need to be able to give model (as formulas) for input values
+**             and next-state variable values if inputs/nexts are non-null,
+*respectively
 **           - implement inductive_generalization
 **           - implement generalize_predecessor
 **             this one is special because it is called with solver_context == 1
@@ -173,11 +176,18 @@ class IC3Base : public Prover
   /** Get an IC3Formula from the current model
    *  @requires last call to check_sat of solver_ was satisfiable and context
    * hasn't changed
+   *  @param inputs - pointer to a vector. If non-null populate with input
+   *                  variable model
+   *  @param nexts - pointer to a vector. If non-null populate with next
+   *                 state variable model
    *  @return an IC3Formula over current state variables with is_disjunction
-   * false depending on the flavor of IC3, this might be a boolean cube, a
-   * theory cube, a cube of predicates, etc...
+   *          false depending on the flavor of IC3, this might be a boolean
+   * cube, a theory cube, a cube of predicates, etc... AND if inputs non-null,
+   * then include model for inputs, e.g. as equalities if nexts non-null, then
+   * include model for next state vars, e.g. add equalities to vector
    */
-  virtual IC3Formula get_ic3_formula() const = 0;
+  virtual IC3Formula get_ic3_formula(smt::TermVec * inputs = nullptr,
+                                     smt::TermVec * nexts = nullptr) const = 0;
 
   /** Check whether a given IC3Formula is valid
    *  e.g. if this is a boolean clause it would

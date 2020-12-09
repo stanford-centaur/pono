@@ -61,7 +61,7 @@ IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
 {
 }
 
-IC3Formula IC3::get_ic3_formula() const
+IC3Formula IC3::get_ic3_formula(TermVec * inputs, TermVec * nexts) const
 {
   // expecting all solving in IC3 to be done at context level > 0
   // so if we're getting a model we should not be at context 0
@@ -75,6 +75,25 @@ IC3Formula IC3::get_ic3_formula() const
       children.push_back(sv);
     } else {
       children.push_back(solver_->make_term(Not, sv));
+    }
+
+    if (nexts) {
+      Term nv = ts_->next(sv);
+      if (solver_->get_value(nv) == solver_true_) {
+        nexts->push_back(nv);
+      } else {
+        nexts->push_back(solver_->make_term(Not, nv));
+      }
+    }
+  }
+
+  if (inputs) {
+    for (auto iv : ts_->inputvars()) {
+      if (solver_->get_value(iv) == solver_true_) {
+        inputs->push_back(iv);
+      } else {
+        inputs->push_back(solver_->make_term(Not, iv));
+      }
     }
   }
 
