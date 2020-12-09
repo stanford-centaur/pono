@@ -175,6 +175,17 @@ void IC3IA::initialize()
   ts_ = &abs_ts_;
 
   super::initialize();
+
+  // TODO fix generalize_predecessor for ic3ia
+  //      might need to override it
+  //      behaves a bit differently with both concrete and abstract next state
+  //      vars
+  if (options_.ic3_pregen_) {
+    logger.log(1,
+               "WARNING automatically disabling predecessor generalization -- "
+               "not supported in IC3IA yet.");
+    options_.ic3_pregen_ = false;
+  }
 }
 
 void IC3IA::abstract()
