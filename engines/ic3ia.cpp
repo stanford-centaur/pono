@@ -176,6 +176,36 @@ void IC3IA::initialize()
 
   super::initialize();
 
+  // populate cache for existing terms in solver_
+  UnorderedTermMap & cache = to_solver_.get_cache();
+  Term ns;
+  for (auto s : ts_->statevars()) {
+    // common variables are next states, unless used for refinement in IC3IA
+    // then will refer to current state variables after untiming
+    // need to cache both
+    cache[to_interpolator_.transfer_term(s)] = s;
+    ns = ts_->next(s);
+    cache[to_interpolator_.transfer_term(ns)] = ns;
+  }
+
+  // need to add uninterpreted functions as well
+  // first need to find them all
+  // NOTE need to use get_free_symbols NOT get_free_symbolic_consts
+  // because the latter ignores uninterpreted functions
+  UnorderedTermSet free_symbols;
+  get_free_symbols(ts_->init(), free_symbols);
+  get_free_symbols(ts_->trans(), free_symbols);
+  get_free_symbols(bad_, free_symbols);
+
+  for (auto s : free_symbols) {
+    assert(s->is_symbol());
+    if (s->is_symbolic_const()) {
+      // ignore constants
+      continue;
+    }
+    cache[to_interpolator_.transfer_term(s)] = s;
+  }
+
   // TODO fix generalize_predecessor for ic3ia
   //      might need to override it
   //      behaves a bit differently with both concrete and abstract next state
@@ -212,18 +242,18 @@ RefineResult IC3IA::refine()
   while (tmp.next) {
     tmp = *(tmp.next);
     cex.push_back(tmp.target.term);
-    assert(ts_->only_curr(tmp.target.term));
+    assert(conc_ts_.only_curr(tmp.target.term));
   }
   assert(cex.size() > 1);
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
   assert(interpolator_);
-  Term t = make_and({ ts_->init(), cex[0] });
+  Term t = make_and({ conc_ts_.init(), cex[0] });
   Term A = interp_unroller_.at_time(to_interpolator_.transfer_term(t, BOOL), 0);
 
   TermVec B;
-  Term interp_trans = to_interpolator_.transfer_term(ts_->trans(), BOOL);
+  Term interp_trans = to_interpolator_.transfer_term(conc_ts_.trans(), BOOL);
   B.reserve(cex.size() - 1);
   // add to B in reverse order so we can pop_back later
   for (int i = cex.size() - 1; i >= 0; --i) {
@@ -271,7 +301,7 @@ RefineResult IC3IA::refine()
   } else {
     UnorderedTermSet preds;
     for (auto I : interpolants) {
-      assert(ts_->only_curr(I));
+      assert(conc_ts_.only_curr(I));
       get_predicates(solver_, I, preds);
     }
 
