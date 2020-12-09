@@ -122,12 +122,20 @@ ProverResult IC3Base::check_until(int k)
   int i = reached_k_ + 1;
   assert(i >= 0);
   while (i <= k) {
+    // reset cex_pg_ to null
+    // there might be multiple abstract traces if there's a derived class
+    // doing abstraction refinement
+    cex_pg_ = IC3Goal();
+
     res = step(i);
     ref_res = REFINE_NONE;  // just a default value
 
     if (res == ProverResult::TRUE) {
       return res;
     } else if (res == ProverResult::FALSE) {
+      // expecting cex_pg_ to be non-null and point to the first proof goal in a
+      // trace
+      assert(cex_pg_.target.term);
       ref_res = refine();
       if (ref_res == RefineResult::REFINE_NONE) {
         // found a concrete counterexample
@@ -384,6 +392,7 @@ bool IC3Base::block_all()
     if (!block(pg) && !pg.idx) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
+      cex_pg_ = pg;
       return false;
     }
   }

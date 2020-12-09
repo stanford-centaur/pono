@@ -91,6 +91,9 @@ struct IC3Goal
   //       made it complicated to move from this struct to another place
   std::shared_ptr<IC3Goal> next;
 
+  // null constructor
+  IC3Goal() : idx(0), next(nullptr) {}
+
   IC3Goal(IC3Formula u, size_t i, const std::shared_ptr<IC3Goal> & n)
       : target(u), idx(i), next(n)
   {
@@ -146,6 +149,12 @@ class IC3Base : public Prover
   smt::Term trans_label_;      ///< label to activate trans
   smt::TermVec frame_labels_;  ///< labels to activate frames
   smt::UnorderedTermMap labels_;  //< labels for unsat cores
+
+  IC3Goal cex_pg_;  ///< if a proof goal is traced back to init
+                    ///< this gets set to the first proof goal
+                    ///< in the trace
+                    ///< otherwise starts null, can check that
+                    ///< cex_pg_.target.term is a nullptr
 
   // useful terms
   smt::Term solver_true_;
@@ -257,6 +266,10 @@ class IC3Base : public Prover
    * CEX
    *          - REFINE_SUCCESS if successfully refined / ruled out abstract CEX
    *          - REFINE_FAIL if failed during refinement
+   *  NOTE the counterexample trace is accessible through cex_pg_ which is
+   *  set by block_all when a trace is found
+   *  can reconstruct the trace (without input variable values) by following
+   *  the IC3Goal next field iteratively
    */
   virtual RefineResult refine()
   {
@@ -312,6 +325,9 @@ class IC3Base : public Prover
    *  to ensure termination, always choose proof goal with
    *  smallest time
    *  @return true iff all proof goals were blocked
+   *  if returns false, sets cex_pg_ to the first IC3Goal
+   *  of a trace, e.g. the trace can be recovered by following
+   *  pg.next iteratively
    */
   bool block_all();
 
