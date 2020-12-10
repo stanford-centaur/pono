@@ -58,6 +58,7 @@ pono_add_test(test_ic3ia)
 pono_add_test(test_msat_ic3ia)
 pono_add_test(test_ceg_prophecy_arrays)
 pono_add_test(test_term_analysis)
+pono_add_test(test_partial_model)
 
 
 add_subdirectory(encoders)
