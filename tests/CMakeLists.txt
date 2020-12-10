@@ -74,6 +74,11 @@ target_link_libraries(test_coi gtest_main)
 target_link_libraries(test_coi pono-lib)
 add_test(NAME test_coi COMMAND test_coi)
 
+add_executable(test_partial_model "${PROJECT_SOURCE_DIR}/tests/test_partial_model.cpp")
+target_link_libraries(test_partial_model gtest_main)
+target_link_libraries(test_partial_model pono-lib)
+add_test(NAME test_partial_model COMMAND test_partial_model)
+
 add_executable(test_ts_replace_terms "${PROJECT_SOURCE_DIR}/tests/test_ts_replace_terms.cpp")
 target_link_libraries(test_ts_replace_terms gtest_main)
 target_link_libraries(test_ts_replace_terms pono-lib)
