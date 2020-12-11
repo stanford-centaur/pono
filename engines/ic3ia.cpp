@@ -31,6 +31,9 @@
 
 #include <random>
 
+#include "smt-switch/cvc4_solver.h"
+#include "smt-switch/cvc4_sort.h"
+#include "smt-switch/cvc4_term.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
@@ -49,7 +52,7 @@ IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0),
-      cvc4_(create_solver(CVC4)),
+      cvc4_(create_solver(smt::SolverEnum::CVC4)),
       to_cvc4_(cvc4_),
       from_cvc4_(solver_)
 {
@@ -64,7 +67,7 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0),
-      cvc4_(create_solver(CVC4)),
+      cvc4_(create_solver(smt::SolverEnum::CVC4)),
       to_cvc4_(cvc4_),
       from_cvc4_(solver_)
 {
@@ -82,7 +85,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0),
-      cvc4_(create_solver(CVC4)),
+      cvc4_(create_solver(smt::SolverEnum::CVC4)),
       to_cvc4_(cvc4_),
       from_cvc4_(solver_)
 {
@@ -100,7 +103,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0),
-      cvc4_(create_solver(CVC4)),
+      cvc4_(create_solver(smt::SolverEnum::CVC4)),
       to_cvc4_(cvc4_),
       from_cvc4_(solver_)
 {
@@ -396,7 +399,78 @@ void IC3IA::register_symbol_mappings(size_t i)
 
 bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 {
-  throw PonoException("cvc4_find_preds NYI");
+  namespace cvc4a = ::CVC4::api;
+
+  size_t cex_length = cex.size();
+  assert(cex_length);
+
+  // unroll the counterexample
+  Term solver_formula = unroller_.at_time(abs_ts_.init(), 0);
+  Term t;
+  for (size_t i = 0; i < cex_length; ++i) {
+    t = cex[i];
+    if (i + 1 < cex_length) {
+      t = solver_->make_term(And, t, abs_ts_.trans());
+    }
+    solver_formula =
+        solver_->make_term(And, solver_formula, unroller_.at_time(t, i));
+  }
+
+  cvc4a::Term cvc4_formula = static_pointer_cast<CVC4Term>(
+                                 to_cvc4_.transfer_term(solver_formula, BOOL))
+                                 ->get_cvc4_term();
+  vector<unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction>>
+      cvc4_unroller;
+  for (size_t i = 0; i < cex_length; ++i) {
+    cvc4_unroller.push_back(
+        unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction>());
+    unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction> & m =
+        cvc4_unroller.back();
+    for (auto sv : conc_ts_.statevars()) {
+      Term nv = conc_ts_.next(sv);
+      Term abs_nv = ia_.abstract(nv);
+
+      cvc4a::Term cvc4_sv = static_pointer_cast<CVC4Term>(sv)->get_cvc4_term();
+      cvc4a::Term cvc4_nv = static_pointer_cast<CVC4Term>(nv)->get_cvc4_term();
+      cvc4a::Term cvc4_abs_nv =
+          static_pointer_cast<CVC4Term>(abs_nv)->get_cvc4_term();
+
+      Term unrolled_sv = to_cvc4_.transfer_term(unroller_.at_time(sv, i));
+      Term unrolled_nv = to_cvc4_.transfer_term(unroller_.at_time(nv, i));
+      Term unrolled_abs_nv =
+          to_cvc4_.transfer_term(unroller_.at_time(abs_nv, i));
+
+      cvc4a::Term cvc4_unrolled_sv =
+          static_pointer_cast<CVC4Term>(unrolled_sv)->get_cvc4_term();
+      cvc4a::Term cvc4_unrolled_nv =
+          static_pointer_cast<CVC4Term>(unrolled_nv)->get_cvc4_term();
+      cvc4a::Term cvc4_unrolled_abs_nv =
+          static_pointer_cast<CVC4Term>(unrolled_abs_nv)->get_cvc4_term();
+
+      m[cvc4_sv] = cvc4_unrolled_sv;
+      m[cvc4_nv] = cvc4_unrolled_nv;
+      m[cvc4_abs_nv] = cvc4_unrolled_abs_nv;
+    }
+  }
+
+  const cvc4a::Solver & cvc4_solver =
+      static_pointer_cast<CVC4Solver>(cvc4_)->get_cvc4_solver();
+
+  unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction> to_bound_var;
+  unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction>
+      from_bound_var;
+  for (auto sv : conc_ts_.statevars()) {
+    cvc4a::Term cvc4_sv = static_pointer_cast<CVC4Term>(sv)->get_cvc4_term();
+    cvc4a::Term cvc4_bv =
+        cvc4_solver.mkVar(cvc4_sv.getSort(), cvc4_sv.toString() + "_var");
+    to_bound_var[cvc4_sv] = cvc4_bv;
+    from_bound_var[cvc4_bv] = cvc4_sv;
+  }
+
+  // TODO finish this
+  // create a synthFun, P, and add all the predicate unrollings to cvc4_formula
+  // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2)
+  throw PonoException("WIP");
 }
 
 }  // namespace pono

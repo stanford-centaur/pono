@@ -131,6 +131,10 @@ set(INCLUDE_DIRS
   "${CMAKE_CURRENT_BINARY_DIR}"
   "${GMP_INCLUDE_DIR}"
   "${FLEX_INCLUDE_DIRS}"
+  # HACKED in for CVC4 SyGuS support -- assuming in standard location
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/CVC4/src"
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/CVC4/src/include"
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/CVC4/build/src"
   )
 
 set(SOURCES
