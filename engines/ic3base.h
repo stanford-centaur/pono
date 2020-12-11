@@ -251,7 +251,7 @@ class IC3Base : public Prover
   /** Negates an IC3Formula
    *  @param u the IC3Formula to negate
    */
-  virtual IC3Formula ic3_formula_negate(const IC3Formula & u) const;
+  virtual IC3Formula ic3formula_negate(const IC3Formula & u) const;
 
   /** Generates an abstract transition system
    *  Typically this would set the ts_ pointer to the abstraction
