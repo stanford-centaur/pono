@@ -50,7 +50,8 @@ enum optionIndex
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
-  PROFILING_LOG_FILENAME
+  PROFILING_LOG_FILENAME,
+  IC3IA_CVC4_PRED
 };
 
 struct Arg : public option::Arg
@@ -235,6 +236,12 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --profiling-log \tName of logfile for profiling output"
     " (requires build with linked profiling library 'gperftools')." },
+  { IC3IA_CVC4_PRED,
+    0,
+    "",
+    "ic3ia-cvc4-pred",
+    Arg::None,
+    "  --ic3ia-cvc4-pred \tFind predicates for IC3IA using CVC4 SyGuS." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -347,6 +354,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           profiling_log_filename_ = opt.arg;
 #endif
           break;
+        case IC3IA_CVC4_PRED: ic3ia_cvc4_pred_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

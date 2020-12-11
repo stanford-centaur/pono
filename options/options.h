@@ -70,7 +70,8 @@ class PonoOptions
         ic3_functional_preimage_(default_ic3_functional_preimage_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
         cegp_axiom_red_(default_cegp_axiom_red_),
-        profiling_log_filename_(default_profiling_log_filename_)
+        profiling_log_filename_(default_profiling_log_filename_),
+        ic3ia_cvc4_pred_(default_ic3ia_cvc4_pred_)
   {
   }
 
@@ -107,6 +108,9 @@ class PonoOptions
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
   std::string profiling_log_filename_;
 
+  // experimental option for finding a predicate with CVC4 SyGuS
+  bool ic3ia_cvc4_pred_;
+
  private:
   // Default options
   static const Engine default_engine_ = BMC;
@@ -127,6 +131,7 @@ class PonoOptions
   static const bool default_ic3_functional_preimage_ = false;
   static const bool default_cegp_axiom_red_ = true;
   static const std::string default_profiling_log_filename_;
+  static const bool default_ic3ia_cvc4_pred_ = false;
 };
 
 }  // namespace pono

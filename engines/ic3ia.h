@@ -122,6 +122,19 @@ class IC3IA : public IC3
    *         makes sure not to repeat work
    */
   void register_symbol_mappings(size_t i);
+
+  // Hacked in to experiment with CVC4
+
+  /** Given a counterexample trace (over state vars)
+   *  Unroll the trace and ask CVC4 SyGuS for predicate(s)
+   *  That makes the abstract trace unsat
+   *  @param cex a vector storing the state variable assignments at each step of
+   * an abstract trace
+   *  @param out_preds the set to add predicates to
+   *  @param return true if a predicate was found
+   */
+  bool cvc4_find_preds(const smt::TermVec & cex,
+                       smt::UnorderedTermSet & out_preds);
 };
 
 }  // namespace pono

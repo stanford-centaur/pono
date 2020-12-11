@@ -244,84 +244,92 @@ RefineResult IC3IA::refine()
   }
   assert(cex.size() > 1);
 
-  // use interpolator to get predicates
-  // remember -- need to transfer between solvers
-  assert(interpolator_);
-  Term t = make_and({ conc_ts_.init(), cex[0] });
-  Term A = to_interpolator_.transfer_term(unroller_.at_time(t, 0), BOOL);
+  UnorderedTermSet preds;
 
-  TermVec B;
-  B.reserve(cex.size() - 1);
-  // add to B in reverse order so we can pop_back later
-  for (int i = cex.size() - 1; i >= 0; --i) {
-    register_symbol_mappings(
-        i);  // make sure to_solver_ cache is populated with unrolled symbols
-    t = cex[i];
-    if (i + 1 < cex.size()) {
-      t = solver_->make_term(And, t, conc_ts_.trans());
-    }
-    B.push_back(to_interpolator_.transfer_term(unroller_.at_time(t, i), BOOL));
-  }
-
-  // now get interpolants for each transition starting with the first
-  bool all_sat = true;
-  TermVec interpolants;
-  while (B.size()) {
-    // Note: have to pass the solver (defaults to solver_)
-    Term fullB = make_and(B, interpolator_);
-    Term I;
-    Result r(smt::UNKNOWN, "unset result");
-    try {
-      r = interpolator_->get_interpolant(A, fullB, I);
-    }
-    catch (SmtException & e) {
-      logger.log(3, e.what());
-    }
-
-    all_sat &= r.is_sat();
-    if (r.is_unsat()) {
-      Term untimedI = unroller_.untime(to_solver_.transfer_term(I, BOOL));
-      logger.log(3, "got interpolant: {}", untimedI);
-      interpolants.push_back(untimedI);
-    }
-    // move next cex time step to A
-    // they were added to B in reverse order
-    A = interpolator_->make_term(And, A, B.back());
-    B.pop_back();
-  }
-
-  // record the length of this counterexample
-  // important to set it here because it's used in register_symbol_mapping
-  // to determine if state variables unrolled to a certain length
-  // have already been cached in to_solver_
-  longest_cex_length_ = cex.size();
-
-  if (all_sat) {
-    // this is a real counterexample, so the property is false
-    return RefineResult::REFINE_NONE;
-  } else if (!interpolants.size()) {
-    logger.log(1, "Interpolation failures...couldn't find any new predicates");
-    return RefineResult::REFINE_FAIL;
+  // HACK added to experiment with CVC4 SyGuS for finding predicates
+  if (options_.ic3ia_cvc4_pred_) {
+    cvc4_find_preds(cex, preds);
   } else {
-    UnorderedTermSet preds;
-    for (auto I : interpolants) {
-      assert(conc_ts_.only_curr(I));
-      get_predicates(solver_, I, preds);
+    // use interpolator to get predicates
+    // remember -- need to transfer between solvers
+    assert(interpolator_);
+    Term t = make_and({ conc_ts_.init(), cex[0] });
+    Term A = to_interpolator_.transfer_term(unroller_.at_time(t, 0), BOOL);
+
+    TermVec B;
+    B.reserve(cex.size() - 1);
+    // add to B in reverse order so we can pop_back later
+    for (int i = cex.size() - 1; i >= 0; --i) {
+      register_symbol_mappings(
+          i);  // make sure to_solver_ cache is populated with unrolled symbols
+      t = cex[i];
+      if (i + 1 < cex.size()) {
+        t = solver_->make_term(And, t, conc_ts_.trans());
+      }
+      B.push_back(
+          to_interpolator_.transfer_term(unroller_.at_time(t, i), BOOL));
     }
 
-    // reduce new predicates
-    TermVec preds_vec(preds.begin(), preds.end());
-    if (options_.random_seed_ > 0) {
-      shuffle(preds_vec.begin(),
-              preds_vec.end(),
-              default_random_engine(options_.random_seed_));
+    // now get interpolants for each transition starting with the first
+    bool all_sat = true;
+    TermVec interpolants;
+    while (B.size()) {
+      // Note: have to pass the solver (defaults to solver_)
+      Term fullB = make_and(B, interpolator_);
+      Term I;
+      Result r(smt::UNKNOWN, "unset result");
+      try {
+        r = interpolator_->get_interpolant(A, fullB, I);
+      }
+      catch (SmtException & e) {
+        logger.log(3, e.what());
+      }
+
+      all_sat &= r.is_sat();
+      if (r.is_unsat()) {
+        Term untimedI = unroller_.untime(to_solver_.transfer_term(I, BOOL));
+        logger.log(3, "got interpolant: {}", untimedI);
+        interpolants.push_back(untimedI);
+      }
+      // move next cex time step to A
+      // they were added to B in reverse order
+      A = interpolator_->make_term(And, A, B.back());
+      B.pop_back();
     }
 
-    TermVec red_preds;
-    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
-      // reduction successful
-      preds.clear();
-      preds.insert(red_preds.begin(), red_preds.end());
+    // record the length of this counterexample
+    // important to set it here because it's used in register_symbol_mapping
+    // to determine if state variables unrolled to a certain length
+    // have already been cached in to_solver_
+    longest_cex_length_ = cex.size();
+
+    if (all_sat) {
+      // this is a real counterexample, so the property is false
+      return RefineResult::REFINE_NONE;
+    } else if (!interpolants.size()) {
+      logger.log(1,
+                 "Interpolation failures...couldn't find any new predicates");
+      return RefineResult::REFINE_FAIL;
+    } else {
+      for (auto I : interpolants) {
+        assert(conc_ts_.only_curr(I));
+        get_predicates(solver_, I, preds);
+      }
+
+      // reduce new predicates
+      TermVec preds_vec(preds.begin(), preds.end());
+      if (options_.random_seed_ > 0) {
+        shuffle(preds_vec.begin(),
+                preds_vec.end(),
+                default_random_engine(options_.random_seed_));
+      }
+
+      TermVec red_preds;
+      if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+        // reduction successful
+        preds.clear();
+        preds.insert(red_preds.begin(), red_preds.end());
+      }
     }
 
     // add all the new predicates
@@ -372,6 +380,11 @@ void IC3IA::register_symbol_mappings(size_t i)
     unrolled_sv = unroller_.at_time(sv, i);
     cache[to_interpolator_.transfer_term(unrolled_sv)] = unrolled_sv;
   }
+}
+
+bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
+{
+  throw PonoException("cvc4_find_preds NYI");
 }
 
 }  // namespace pono
