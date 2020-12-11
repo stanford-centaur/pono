@@ -167,7 +167,7 @@ class IC3Base : public Prover
   // ************************** Virtual Methods *******************************
   // IMPORTANT for derived classes
   // These methods should be implemented by a derived class for a particular
-  // "flavor" of IC
+  // "flavor" of IC3
 
   // Pure virtual methods that must be overridden
 
