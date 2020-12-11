@@ -263,7 +263,6 @@ class IC3Base : public Prover
   virtual void abstract()
   {
     // by default this is a No-Op
-    ;
   }
 
   /** Refines an abstract transition system
