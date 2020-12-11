@@ -236,7 +236,7 @@ class IC3Base : public Prover
    *  @ensures resulting IC3Formula children == c
    *  @ensures resulting IC3Formula with is_disjunction true
    */
-  virtual IC3Formula ic3_formula_disjunction(const smt::TermVec & c) const;
+  virtual IC3Formula ic3formula_disjunction(const smt::TermVec & c) const;
 
   /** Creates a conjunction IC3Formula from a vector of terms
    *  @param c the children terms
