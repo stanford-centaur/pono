@@ -246,7 +246,7 @@ class IC3Base : public Prover
    *  note: assumes the children are already in the right polarity
    *  (doesn't negate them)
    */
-  virtual IC3Formula ic3_formula_conjunction(const smt::TermVec & c) const;
+  virtual IC3Formula ic3formula_conjunction(const smt::TermVec & c) const;
 
   /** Negates an IC3Formula
    *  @param u the IC3Formula to negate
