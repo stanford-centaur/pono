@@ -185,7 +185,7 @@ class IC3Base : public Prover
    * include model for next state vars, e.g. add equalities to vector
    */
   virtual IC3Formula get_ic3_formula(smt::TermVec * inputs = nullptr,
-                                     smt::TermVec * nexts = nullptr) const = 0;
+                                     smt::TermVec * out_nexts = nullptr) const = 0;
 
   /** Check whether a given IC3Formula is valid
    *  e.g. if this is a boolean clause it would
