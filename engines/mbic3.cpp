@@ -94,8 +94,8 @@ ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
   solver_->set_opt("produce-unsat-cores", "true");
 }
 
-IC3Formula ModelBasedIC3::get_ic3_formula(TermVec * out_inputs,
-                                          TermVec * out_nexts) const
+IC3Formula ModelBasedIC3::get_model_ic3_formula(TermVec * out_inputs,
+                                                TermVec * out_nexts) const
 {
   DisjointSet ds(disjoint_set_rank);
   TermVec cube_lits;

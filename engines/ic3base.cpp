@@ -232,7 +232,7 @@ bool IC3Base::intersects_bad()
     // TODO: decide how important it is to push the whole bad for model based
     // IC3
     //       currently not doing that, would need to make intersects_bad virtual
-    add_proof_goal(get_ic3_formula(), reached_k_ + 1, NULL);
+    add_proof_goal(get_model_ic3_formula(), reached_k_ + 1, NULL);
   }
 
   pop_solver_context();
@@ -294,7 +294,7 @@ ProverResult IC3Base::step_0()
   solver_->assert_formula(bad_);
   Result r = solver_->check_sat();
   if (r.is_sat()) {
-    IC3Formula c = get_ic3_formula();
+    IC3Formula c = get_model_ic3_formula();
     cex_pg_ = ProofGoal(c, 0, nullptr);
     pop_solver_context();
     return ProverResult::FALSE;
@@ -335,7 +335,7 @@ bool IC3Base::rel_ind_check(size_t i,
     if (options_.ic3_pregen_) {
       predecessor = generalize_predecessor(i, c);
     } else {
-      predecessor = get_ic3_formula();
+      predecessor = get_model_ic3_formula();
     }
     assert(ic3formula_check_valid(predecessor));
     out.push_back(predecessor);

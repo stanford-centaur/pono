@@ -32,8 +32,9 @@ class IC3 : public IC3Base
  protected:
   // pure virtual method implementations
 
-  IC3Formula get_ic3_formula(smt::TermVec * out_inputs = nullptr,
-                             smt::TermVec * out_nexts = nullptr) const override;
+  IC3Formula get_model_ic3_formula(
+      smt::TermVec * out_inputs = nullptr,
+      smt::TermVec * out_nexts = nullptr) const override;
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 

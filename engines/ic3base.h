@@ -15,7 +15,8 @@
 **
 **        To create a particular IC3 instantiation, you must implement the
 *following:
-**           - implement get_ic3_formula and give it semantics to produce the
+**           - implement get_model_ic3_formula and give it semantics to produce
+*the
 **             corresponding IC3Formula for your flavor of IC3
 **             (assumes solver_'s state is SAT from a failed rel_ind_check)
 **             also need to be able to give model (as formulas) for input values
@@ -184,8 +185,9 @@ class IC3Base : public Prover
    * then include model for inputs, e.g. as equalities if nexts non-null, then
    * include model for next state vars, e.g. add equalities to vector
    */
-  virtual IC3Formula get_ic3_formula(smt::TermVec * out_inputs = nullptr,
-                                     smt::TermVec * out_nexts = nullptr) const = 0;
+  virtual IC3Formula get_model_ic3_formula(
+      smt::TermVec * out_inputs = nullptr,
+      smt::TermVec * out_nexts = nullptr) const = 0;
 
   /** Check whether a given IC3Formula is valid
    *  e.g. if this is a boolean clause it would

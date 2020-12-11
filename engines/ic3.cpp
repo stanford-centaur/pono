@@ -41,7 +41,8 @@ IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
 {
 }
 
-IC3Formula IC3::get_ic3_formula(TermVec * out_inputs, TermVec * out_nexts) const
+IC3Formula IC3::get_model_ic3_formula(TermVec * out_inputs,
+                                      TermVec * out_nexts) const
 {
   // expecting all solving in IC3 to be done at context level > 0
   // so if we're getting a model we should not be at context 0
@@ -205,13 +206,13 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
   const UnorderedTermSet & statevars = ts_->statevars();
   TermVec input_lits, next_lits;
-  IC3Formula icf = get_ic3_formula(&input_lits, &next_lits);
+  IC3Formula icf = get_model_ic3_formula(&input_lits, &next_lits);
   const TermVec & cube_lits = icf.children;
 
   if (i == 1) {
     // don't need to generalize if i == 1
     // the predecessor is an initial state
-    return get_ic3_formula();
+    return get_model_ic3_formula();
   }
 
   Term formula = make_and(input_lits);
