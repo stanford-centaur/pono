@@ -43,17 +43,21 @@ class IC3IA : public IC3
   IC3IA(Property & p,
         smt::SolverEnum se,
         smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+
   IC3IA(Property & p,
         const smt::SmtSolver & s,
         smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+
   IC3IA(const PonoOptions & opt,
         Property & p,
         smt::SolverEnum se,
         smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+
   IC3IA(const PonoOptions & opt,
         Property & p,
         const smt::SmtSolver & s,
         smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+
   virtual ~IC3IA() {}
 
   typedef IC3 super;
