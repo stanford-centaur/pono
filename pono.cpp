@@ -202,8 +202,9 @@ int main(int argc, char ** argv)
             "responsibility for meeting the license requirements.");
 #endif
       } else if (pono_options.smt_solver_ == "btor") {
-        // boolector is faster but doesn't support interpolants
         s = BoolectorSolverFactory::create(false);
+      } else if (pono_options.smt_solver_ == "cvc4") {
+        s = CVC4SolverFactory::create(false);
       } else {
         assert(false);
       }
