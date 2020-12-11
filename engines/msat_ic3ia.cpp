@@ -20,6 +20,7 @@
 #include "assert.h"
 #include "smt-switch/msat_factory.h"
 #include "smt-switch/msat_solver.h"
+#include "smt-switch/utils.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 
@@ -67,6 +68,20 @@ ProverResult MsatIC3IA::prove()
   }
   for (auto v : ts_->inputvars()) {
     ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
+  }
+
+  // need to handle UFs also
+  UnorderedTermSet ufs;
+  auto is_uf = [](const Term & term) {
+    return term->get_sort()->get_sort_kind() == smt::FUNCTION;
+  };
+  get_matching_terms(ts_->init(), ufs, is_uf);
+  get_matching_terms(ts_->trans(), ufs, is_uf);
+  get_matching_terms(bad_, ufs, is_uf);
+
+  for (auto uf : ufs) {
+    assert(uf->get_sort()->get_sort_kind() == smt::FUNCTION);
+    ts_solver_cache[to_msat_solver.transfer_term(uf)] = uf;
   }
 
   // get mathsat terms for transition system
