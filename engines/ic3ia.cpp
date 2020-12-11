@@ -401,6 +401,9 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 {
   namespace cvc4a = ::CVC4::api;
 
+  // TODO we might need to instantiate a new solver each time? Not sure
+  cvc4_->set_opt("incremental", "false");
+
   // populate from_cvc4_ cache
   UnorderedTermMap & from_cvc4_cache = from_cvc4_.get_cache();
   for (auto sv : conc_ts_.statevars()) {
@@ -509,6 +512,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   // be something like this need to make sure the quantifiers are correct e.g.
   // want to synthesize a predicate such that formula is unsat
   cvc4_solver.addSygusConstraint(cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula));
+  bool res = cvc4_solver.checkSynth().isUnsat();
 
   Term learned_pred;
   // TODO recover the synthesized function and translate it back to a solver_
@@ -519,7 +523,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   // NOTE in future might look for more than one predicate at a time
   out_preds.insert(learned_pred);
 
-  return true;
+  return res;
 }
 
 }  // namespace pono
