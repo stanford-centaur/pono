@@ -48,7 +48,10 @@ IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      cvc4_(create_solver(CVC4)),
+      to_cvc4_(cvc4_),
+      from_cvc4_(solver_)
 {
 }
 
@@ -60,7 +63,10 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      cvc4_(create_solver(CVC4)),
+      to_cvc4_(cvc4_),
+      from_cvc4_(solver_)
 {
 }
 
@@ -75,7 +81,10 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      cvc4_(create_solver(CVC4)),
+      to_cvc4_(cvc4_),
+      from_cvc4_(solver_)
 {
 }
 
@@ -90,7 +99,10 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      cvc4_(create_solver(CVC4)),
+      to_cvc4_(cvc4_),
+      from_cvc4_(solver_)
 {
 }
 
