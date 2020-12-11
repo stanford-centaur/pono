@@ -136,10 +136,10 @@ IC3Formula ModelBasedIC3::get_ic3_formula(TermVec * out_inputs,
     }
   }
 
-  return ic3_formula_conjunction(cube_lits);
+  return ic3formula_conjunction(cube_lits);
 }
 
-bool ModelBasedIC3::ic3_formula_check_valid(const IC3Formula & u) const
+bool ModelBasedIC3::ic3formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
@@ -256,7 +256,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
         progress = lits.size() < prev_size;
       }
 
-      gen_res.push_back(ic3_formula_negate(ic3_formula_conjunction(lits)));
+      gen_res.push_back(ic3formula_negate(ic3formula_conjunction(lits)));
 
     } else if (options_.mbic3_indgen_mode == 1) {
       TermVec tmp, lits, red_lits;
@@ -275,7 +275,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
       for (auto l : red_lits) {
         curr_lits.push_back(ts_->curr(l));
       }
-      gen_res.push_back(ic3_formula_negate(ic3_formula_conjunction(curr_lits)));
+      gen_res.push_back(ic3formula_negate(ic3formula_conjunction(curr_lits)));
     } else if (options_.mbic3_indgen_mode == 2) {
       // TODO: consider creating a separate derived class for this mode
       interpolator_->reset_assertions();
@@ -309,7 +309,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
         // a single formula, {c} from the conjunctive partition of the
         // interpolant
         // --> interpolant not guaranteed to be a clause
-        gen_res.push_back(ic3_formula_disjunction({ ts_->curr(c) }));
+        gen_res.push_back(ic3formula_disjunction({ ts_->curr(c) }));
       }
 
     } else {
@@ -361,7 +361,7 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
   // if not generalized, the current state assignments in cube_lits
   // are the predecessor
-  IC3Formula res = ic3_formula_conjunction(cube_lits);
+  IC3Formula res = ic3formula_conjunction(cube_lits);
 
   assert(i > 0);
   if (i == 1) {
@@ -418,7 +418,7 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     assert(red_cube_lits.size() > 0);
 
     // update res to the generalization
-    res = ic3_formula_conjunction(red_cube_lits);
+    res = ic3formula_conjunction(red_cube_lits);
 
   } else if (options_.ic3_pregen_ && options_.ic3_functional_preimage_) {
     assert(ts_->is_deterministic());
@@ -435,7 +435,7 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     Term fun_preimage = solver_->substitute(trans_label_, m);
     TermVec conjuncts;
     conjunctive_partition(fun_preimage, conjuncts, true);
-    res = ic3_formula_conjunction(conjuncts);
+    res = ic3formula_conjunction(conjuncts);
   }
   return res;
 }
@@ -469,7 +469,7 @@ bool ModelBasedIC3::intersects_bad()
     // push bad as a proof goal
     TermVec conjuncts;
     conjunctive_partition(bad_, conjuncts, true);
-    IC3Formula bad_at_last_frame = ic3_formula_conjunction(conjuncts);
+    IC3Formula bad_at_last_frame = ic3formula_conjunction(conjuncts);
     add_proof_goal(bad_at_last_frame, reached_k_ + 1, NULL);
   }
 

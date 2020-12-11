@@ -90,7 +90,7 @@ class IC3IA : public IC3
   IC3Formula get_ic3_formula(smt::TermVec * out_inputs = nullptr,
                              smt::TermVec * out_nexts = nullptr) const override;
 
-  bool ic3_formula_check_valid(const IC3Formula & u) const override;
+  bool ic3formula_check_valid(const IC3Formula & u) const override;
 
   // need to override this because IC3IA is not as restricted as
   // (bit-level) IC3

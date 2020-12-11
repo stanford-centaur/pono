@@ -126,10 +126,10 @@ IC3Formula IC3IA::get_ic3_formula(TermVec * out_inputs,
     }
   }
 
-  return ic3_formula_conjunction(conjuncts);
+  return ic3formula_conjunction(conjuncts);
 }
 
-bool IC3IA::ic3_formula_check_valid(const IC3Formula & u) const
+bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals

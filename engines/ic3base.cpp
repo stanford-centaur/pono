@@ -169,7 +169,7 @@ bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
 
 // Protected Methods
 
-IC3Formula IC3Base::ic3_formula_disjunction(const TermVec & c) const
+IC3Formula IC3Base::ic3formula_disjunction(const TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
@@ -180,7 +180,7 @@ IC3Formula IC3Base::ic3_formula_disjunction(const TermVec & c) const
   return res;
 }
 
-IC3Formula IC3Base::ic3_formula_conjunction(const TermVec & c) const
+IC3Formula IC3Base::ic3formula_conjunction(const TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
@@ -191,7 +191,7 @@ IC3Formula IC3Base::ic3_formula_conjunction(const TermVec & c) const
   return res;
 }
 
-IC3Formula IC3Base::ic3_formula_negate(const IC3Formula & u) const
+IC3Formula IC3Base::ic3formula_negate(const IC3Formula & u) const
 {
   const TermVec & children = u.children;
   assert(!u.is_null());
@@ -337,7 +337,7 @@ bool IC3Base::rel_ind_check(size_t i,
     } else {
       predecessor = get_ic3_formula();
     }
-    assert(ic3_formula_check_valid(predecessor));
+    assert(ic3formula_check_valid(predecessor));
     out.push_back(predecessor);
     pop_solver_context();
   } else {
@@ -353,13 +353,13 @@ bool IC3Base::rel_ind_check(size_t i,
       assert(solver_context_ == 0); // important that there are no lingering assertions
       out = inductive_generalization(i, c);
     } else {
-      IC3Formula blocking_unit = ic3_formula_negate(c);
+      IC3Formula blocking_unit = ic3formula_negate(c);
       out.push_back(blocking_unit);
     }
     Term conj = solver_->make_term(true);
     for (auto u : out) {
       solver_->make_term(And, conj, u.term);
-      assert(ic3_formula_check_valid(u));
+      assert(ic3formula_check_valid(u));
       assert(ts_->only_curr(u.term));
     }
     assert(!intersects_initial(solver_->make_term(Not, conj)));
@@ -593,7 +593,7 @@ void IC3Base::add_proof_goal(const IC3Formula & c,
   // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
   // goal should be a Cube
   assert(!c.is_disjunction());
-  assert(ic3_formula_check_valid(c));
+  assert(ic3formula_check_valid(c));
   proof_goals_.push_back(ProofGoal(c, i, n));
 }
 

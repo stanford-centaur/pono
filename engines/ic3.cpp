@@ -77,10 +77,10 @@ IC3Formula IC3::get_ic3_formula(TermVec * out_inputs, TermVec * out_nexts) const
     }
   }
 
-  return ic3_formula_conjunction(children);
+  return ic3formula_conjunction(children);
 }
 
-bool IC3::ic3_formula_check_valid(const IC3Formula & u) const
+bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
@@ -192,8 +192,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 
   // TODO: would it be more intuitive to start with a clause
   //       and generalize the clause directly?
-  IC3Formula blocking_clause =
-      ic3_formula_negate(ic3_formula_conjunction(lits));
+  IC3Formula blocking_clause = ic3formula_negate(ic3formula_conjunction(lits));
   assert(blocking_clause.is_disjunction());  // expecting a clause
   return { blocking_clause };
 }
@@ -251,7 +250,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // formula should not be unsat on its own
   assert(red_cube_lits.size() > 0);
 
-  IC3Formula res = ic3_formula_conjunction(red_cube_lits);
+  IC3Formula res = ic3formula_conjunction(red_cube_lits);
   // expecting a Cube here
   assert(!res.is_disjunction());
 

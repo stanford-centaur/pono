@@ -33,7 +33,7 @@
 **             theories / syntax used in the transition system which
 **             is not supported by this instantiation
 **          [OPTIONAL]
-**           - implement all the ic3_formula_* functions for creating and
+**           - implement all the ic3formula_* functions for creating and
 **             manipulating an IC3Formula if the defaults are not right
 **           - implement abstract() and refine() if this is a CEGAR
 **             flavor of IC3
@@ -195,7 +195,7 @@ class IC3Base : public Prover
    *  @return true iff this is a valid IC3Formula for this
    *          flavor of IC3
    */
-  virtual bool ic3_formula_check_valid(const IC3Formula & u) const = 0;
+  virtual bool ic3formula_check_valid(const IC3Formula & u) const = 0;
 
   /** Attempt to generalize before blocking in frame i
    *  The standard approach is inductive generalization
