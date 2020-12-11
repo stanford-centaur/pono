@@ -180,7 +180,8 @@ endif()
 
 if (WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/ic3ia/")
+  # can't include ic3ia directly because some names clash e.g. ic3.h
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
