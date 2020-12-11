@@ -83,26 +83,24 @@ struct IC3Formula
   //       goals (conjunctions), but IC3Formula can represent both
 };
 
-// TODO change back to ProofGoal once refactor is done
-// don't want to clash with name in MBIC3 for now
-struct IC3Goal
+struct ProofGoal
 {
   // based on open-source ic3ia ProofObligation
   IC3Formula target;
   size_t idx;
   // TODO: see if we can make this a unique_ptr
   //       made it complicated to move from this struct to another place
-  std::shared_ptr<IC3Goal> next;
+  std::shared_ptr<ProofGoal> next;
 
   // null constructor
-  IC3Goal() : idx(0), next(nullptr) {}
+  ProofGoal() : idx(0), next(nullptr) {}
 
-  IC3Goal(IC3Formula u, size_t i, const std::shared_ptr<IC3Goal> & n)
+  ProofGoal(IC3Formula u, size_t i, const std::shared_ptr<ProofGoal> & n)
       : target(u), idx(i), next(n)
   {
   }
 
-  IC3Goal(const IC3Goal & other)
+  ProofGoal(const ProofGoal & other)
       : target(other.target), idx(other.idx), next(other.next)
   {
   }
@@ -145,7 +143,7 @@ class IC3Base : public Prover
   std::vector<std::vector<IC3Formula>> frames_;
 
   ///< stack of outstanding proof goals
-  std::vector<IC3Goal> proof_goals_;
+  std::vector<ProofGoal> proof_goals_;
 
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
@@ -153,11 +151,11 @@ class IC3Base : public Prover
   smt::TermVec frame_labels_;  ///< labels to activate frames
   smt::UnorderedTermMap labels_;  //< labels for unsat cores
 
-  IC3Goal cex_pg_;  ///< if a proof goal is traced back to init
-                    ///< this gets set to the first proof goal
-                    ///< in the trace
-                    ///< otherwise starts null, can check that
-                    ///< cex_pg_.target.term is a nullptr
+  ProofGoal cex_pg_;  ///< if a proof goal is traced back to init
+                      ///< this gets set to the first proof goal
+                      ///< in the trace
+                      ///< otherwise starts null, can check that
+                      ///< cex_pg_.target.term is a nullptr
 
   // useful terms
   smt::Term solver_true_;
@@ -279,7 +277,7 @@ class IC3Base : public Prover
    *  NOTE the counterexample trace is accessible through cex_pg_ which is
    *  set by block_all when a trace is found
    *  can reconstruct the trace (without input variable values) by following
-   *  the IC3Goal next field iteratively
+   *  the ProofGoal next field iteratively
    */
   virtual RefineResult refine()
   {
@@ -335,7 +333,7 @@ class IC3Base : public Prover
    *  to ensure termination, always choose proof goal with
    *  smallest time
    *  @return true iff all proof goals were blocked
-   *  if returns false, sets cex_pg_ to the first IC3Goal
+   *  if returns false, sets cex_pg_ to the first ProofGoal
    *  of a trace, e.g. the trace can be recovered by following
    *  pg.next iteratively
    */
@@ -347,7 +345,7 @@ class IC3Base : public Prover
    *  @return true iff the cube was blocked, otherwise a new proof goal was
    * added to the proof goals
    */
-  bool block(const IC3Goal & pg);
+  bool block(const ProofGoal & pg);
 
   /** Try propagating all clauses from frame index i to the next frame.
    *  @param i the frame index to propagate
@@ -389,7 +387,7 @@ class IC3Base : public Prover
    *  @alters proof_goals_
    *  @ensures returned proof goal is from lowest frame in proof goals
    */
-  IC3Goal get_next_proof_goal();
+  ProofGoal get_next_proof_goal();
 
   /** Create and add a proof goal for cube c for frame i
    *  @param c the cube of the proof goal
@@ -399,7 +397,7 @@ class IC3Base : public Prover
    */
   void add_proof_goal(const IC3Formula & c,
                       size_t i,
-                      std::shared_ptr<IC3Goal> n);
+                      std::shared_ptr<ProofGoal> n);
 
   /** Check if there are common assignments
    *  between A and B

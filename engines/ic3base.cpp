@@ -125,7 +125,7 @@ ProverResult IC3Base::check_until(int k)
     // reset cex_pg_ to null
     // there might be multiple abstract traces if there's a derived class
     // doing abstraction refinement
-    cex_pg_ = IC3Goal();
+    cex_pg_ = ProofGoal();
 
     res = step(i);
     ref_res = REFINE_NONE;  // just a default value
@@ -386,7 +386,7 @@ bool IC3Base::rel_ind_check(size_t i,
 bool IC3Base::block_all()
 {
   while (has_proof_goals()) {
-    IC3Goal pg = get_next_proof_goal();
+    ProofGoal pg = get_next_proof_goal();
     // block can fail, which just means a
     // new proof goal will be added
     if (!block(pg) && !pg.idx) {
@@ -400,7 +400,7 @@ bool IC3Base::block_all()
   return true;
 }
 
-bool IC3Base::block(const IC3Goal & pg)
+bool IC3Base::block(const ProofGoal & pg)
 {
   const IC3Formula & c = pg.target;
   size_t i = pg.idx;
@@ -453,7 +453,7 @@ bool IC3Base::block(const IC3Goal & pg)
     // for now, assume there is only one
     // TODO: extend this to support multiple predecessors
     assert(collateral.size() == 1);
-    add_proof_goal(collateral.at(0), i - 1, make_shared<IC3Goal>(pg));
+    add_proof_goal(collateral.at(0), i - 1, make_shared<ProofGoal>(pg));
     return false;
   }
 }
@@ -574,24 +574,24 @@ void IC3Base::assert_trans_label() const
 
 bool IC3Base::has_proof_goals() const { return !proof_goals_.empty(); }
 
-IC3Goal IC3Base::get_next_proof_goal()
+ProofGoal IC3Base::get_next_proof_goal()
 {
   assert(has_proof_goals());
-  IC3Goal pg = proof_goals_.back();
+  ProofGoal pg = proof_goals_.back();
   proof_goals_.pop_back();
   return pg;
 }
 
 void IC3Base::add_proof_goal(const IC3Formula & c,
                              size_t i,
-                             shared_ptr<IC3Goal> n)
+                             shared_ptr<ProofGoal> n)
 {
   // IC3Formula aligned with frame so proof goal should be negated
   // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
   // goal should be a Cube
   assert(!c.is_disjunction());
   assert(ic3_formula_check_valid(c));
-  proof_goals_.push_back(IC3Goal(c, i, n));
+  proof_goals_.push_back(ProofGoal(c, i, n));
 }
 
 bool IC3Base::intersects(const Term & A, const Term & B)

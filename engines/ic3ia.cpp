@@ -236,7 +236,7 @@ RefineResult IC3IA::refine()
   // recover the counterexample trace
   assert(intersects_initial(cex_pg_.target.term));
   TermVec cex({ cex_pg_.target.term });
-  IC3Goal tmp = cex_pg_;
+  ProofGoal tmp = cex_pg_;
   while (tmp.next) {
     tmp = *(tmp.next);
     cex.push_back(tmp.target.term);
