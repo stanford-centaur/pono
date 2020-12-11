@@ -21,6 +21,7 @@
 #include "smt-switch/msat_factory.h"
 #include "smt-switch/msat_solver.h"
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -147,6 +148,8 @@ bool MsatIC3IA::compute_witness(msat_env env,
   assert(solver_->get_solver_enum() == MSAT);
   solver_->reset_assertions();
 
+  Sort boolsort = solver_->make_sort(BOOL);
+
   vector<ic3ia::TermList> ic3ia_wit;
   ic3.witness(ic3ia_wit);
   assert(ic3ia_wit.size());
@@ -169,11 +172,10 @@ bool MsatIC3IA::compute_witness(msat_env env,
     for (auto msat_eq : ic3ia_wit[i]) {
       // create an smt-switch term for the equality
       Term eq = make_shared<MsatTerm>(env, msat_eq);
-      // either a boolean symbol or an equality
-      assert(eq->is_symbolic_const() && eq->get_sort()->get_sort_kind() == BOOL
-             || eq->get_op() == Equal);
-      solver_->assert_formula(
-          unroller_.at_time(to_ts_solver.transfer_term(eq), i));
+      Term solver_eq = to_ts_solver.transfer_term(eq);
+      // either a literal or an equality
+      assert(is_lit(solver_eq, boolsort) || solver_eq->get_op() == Equal);
+      solver_->assert_formula(unroller_.at_time(solver_eq, i));
     }
   }
 

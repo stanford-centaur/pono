@@ -12,38 +12,18 @@
 ** \brief Bit-level IC3 implementation using the IC3Base abstract base class
 **/
 
+#include "engines/ic3.h"
+
 #include <algorithm>
-#include "assert.h"
 #include <random>
 
-#include "engines/ic3.h"
+#include "assert.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
-
-// helpers
-bool is_lit(const Term & l, const Sort & boolsort)
-{
-  // take a boolsort as an argument for sort aliasing solvers
-  if (l->get_sort() != boolsort) {
-    return false;
-  }
-
-  if (l->is_symbolic_const()) {
-    return true;
-  }
-
-  Op op = l->get_op();
-  // check both for sort aliasing solvers
-  if (op == Not || op == BVNot) {
-    Term first_child = *(l->begin());
-    return first_child->is_symbolic_const();
-  }
-
-  return false;
-}
 
 /** IC3 Implementation */
 
