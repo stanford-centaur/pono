@@ -242,7 +242,11 @@ RefineResult IC3IA::refine()
     cex.push_back(tmp.target.term);
     assert(conc_ts_.only_curr(tmp.target.term));
   }
-  assert(cex.size() > 1);
+
+  if (cex.size() == 1) {
+    // if there are no transitions, then this is a concrete CEX
+    return REFINE_NONE;
+  }
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers

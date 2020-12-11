@@ -294,6 +294,9 @@ ProverResult IC3Base::step_0()
   solver_->assert_formula(bad_);
   Result r = solver_->check_sat();
   if (r.is_sat()) {
+    IC3Formula c = get_ic3_formula();
+    cex_pg_ = ProofGoal(c, 0, nullptr);
+    pop_solver_context();
     return ProverResult::FALSE;
   } else {
     assert(r.is_unsat());
