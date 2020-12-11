@@ -346,21 +346,21 @@ RefineResult IC3IA::refine()
         preds.insert(red_preds.begin(), red_preds.end());
       }
     }
-
-    // add all the new predicates
-    bool found_new_preds = false;
-    for (auto p : preds) {
-      found_new_preds |= add_predicate(p);
-    }
-
-    if (!found_new_preds) {
-      logger.log(1, "No new predicates found...");
-      return RefineResult::REFINE_FAIL;
-    }
-
-    // able to refine the system to rule out this abstract counterexample
-    return RefineResult::REFINE_SUCCESS;
   }
+
+  // add all the new predicates
+  bool found_new_preds = false;
+  for (auto p : preds) {
+    found_new_preds |= add_predicate(p);
+  }
+
+  if (!found_new_preds) {
+    logger.log(1, "No new predicates found...");
+    return RefineResult::REFINE_FAIL;
+  }
+
+  // able to refine the system to rule out this abstract counterexample
+  return RefineResult::REFINE_SUCCESS;
 }
 
 bool IC3IA::add_predicate(const Term & pred)
@@ -401,6 +401,12 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 {
   namespace cvc4a = ::CVC4::api;
 
+  // populate from_cvc4_ cache
+  UnorderedTermMap & from_cvc4_cache = from_cvc4_.get_cache();
+  for (auto sv : conc_ts_.statevars()) {
+    from_cvc4_cache[to_cvc4_.transfer_term(sv)] = sv;
+  }
+
   size_t cex_length = cex.size();
   assert(cex_length);
 
@@ -416,61 +422,104 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
         solver_->make_term(And, solver_formula, unroller_.at_time(t, i));
   }
 
+  // Transfer to a fresh CVC4 solver and get the underlying CVC4 object
   cvc4a::Term cvc4_formula = static_pointer_cast<CVC4Term>(
                                  to_cvc4_.transfer_term(solver_formula, BOOL))
                                  ->get_cvc4_term();
-  vector<unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction>>
-      cvc4_unroller;
-  for (size_t i = 0; i < cex_length; ++i) {
-    cvc4_unroller.push_back(
-        unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction>());
-    unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction> & m =
-        cvc4_unroller.back();
-    for (auto sv : conc_ts_.statevars()) {
-      Term nv = conc_ts_.next(sv);
-      Term abs_nv = ia_.abstract(nv);
 
-      cvc4a::Term cvc4_sv = static_pointer_cast<CVC4Term>(sv)->get_cvc4_term();
-      cvc4a::Term cvc4_nv = static_pointer_cast<CVC4Term>(nv)->get_cvc4_term();
-      cvc4a::Term cvc4_abs_nv =
-          static_pointer_cast<CVC4Term>(abs_nv)->get_cvc4_term();
-
-      Term unrolled_sv = to_cvc4_.transfer_term(unroller_.at_time(sv, i));
-      Term unrolled_nv = to_cvc4_.transfer_term(unroller_.at_time(nv, i));
-      Term unrolled_abs_nv =
-          to_cvc4_.transfer_term(unroller_.at_time(abs_nv, i));
-
-      cvc4a::Term cvc4_unrolled_sv =
-          static_pointer_cast<CVC4Term>(unrolled_sv)->get_cvc4_term();
-      cvc4a::Term cvc4_unrolled_nv =
-          static_pointer_cast<CVC4Term>(unrolled_nv)->get_cvc4_term();
-      cvc4a::Term cvc4_unrolled_abs_nv =
-          static_pointer_cast<CVC4Term>(unrolled_abs_nv)->get_cvc4_term();
-
-      m[cvc4_sv] = cvc4_unrolled_sv;
-      m[cvc4_nv] = cvc4_unrolled_nv;
-      m[cvc4_abs_nv] = cvc4_unrolled_abs_nv;
-    }
+  // get a vector of state variables in the main solver_
+  // NOTE: don't forget to use this vector, we're going to rely on the order
+  TermVec statevars;
+  for (auto sv : conc_ts_.statevars()) {
+    statevars.push_back(sv);
   }
 
+  // Retrieve the underlying fresh cvc4 solver
   const cvc4a::Solver & cvc4_solver =
       static_pointer_cast<CVC4Solver>(cvc4_)->get_cvc4_solver();
 
-  unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction> to_bound_var;
-  unordered_map<cvc4a::Term, cvc4a::Term, cvc4a::TermHashFunction>
-      from_bound_var;
-  for (auto sv : conc_ts_.statevars()) {
-    cvc4a::Term cvc4_sv = static_pointer_cast<CVC4Term>(sv)->get_cvc4_term();
+  // create bound variables to use in the synthesized function
+  vector<cvc4a::Term> cvc4_statevars;
+  cvc4_statevars.reserve(statevars.size());
+  vector<cvc4a::Term> cvc4_boundvars;
+  cvc4_boundvars.reserve(statevars.size());
+  Term transferred_sv;
+  for (auto sv : statevars) {
+    transferred_sv = to_cvc4_.transfer_term(sv);
+    cvc4a::Term cvc4_sv =
+        static_pointer_cast<CVC4Term>(transferred_sv)->get_cvc4_term();
     cvc4a::Term cvc4_bv =
         cvc4_solver.mkVar(cvc4_sv.getSort(), cvc4_sv.toString() + "_var");
-    to_bound_var[cvc4_sv] = cvc4_bv;
-    from_bound_var[cvc4_bv] = cvc4_sv;
+    cvc4_statevars.push_back(cvc4_sv);
+    cvc4_boundvars.push_back(cvc4_bv);
   }
 
-  // TODO finish this
-  // create a synthFun, P, and add all the predicate unrollings to cvc4_formula
-  // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2)
-  throw PonoException("WIP");
+  // Create the predicate to search for
+  // TODO: add grammar constraints -- want it to be a predicate
+  //       There are also likely heuristic choices in the grammar that will
+  //       perform much better
+  cvc4a::Term pred =
+      cvc4_solver.synthFun("P", cvc4_boundvars, cvc4_solver.getBooleanSort());
+
+  // add the implicit predicate abstraction constraints
+  // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2) /\ ...
+  vector<cvc4a::Term> cvc4_unrolled_next_vars;
+  vector<cvc4a::Term> cvc4_unrolled_abstract_vars;
+  for (size_t i = 0; i < cex_length; ++i) {
+    cvc4_unrolled_next_vars.clear();
+    cvc4_unrolled_abstract_vars.clear();
+
+    // CVC4 takes the function as the first child, so insert the pred function
+    // first
+    cvc4_unrolled_next_vars.push_back(pred);
+    cvc4_unrolled_abstract_vars.push_back(pred);
+
+    Term nv, unrolled_nv;
+    cvc4a::Term cvc4_unrolled_nv;
+    Term abs_nv, unrolled_abs_nv;
+    cvc4a::Term cvc4_unrolled_abs_nv;
+    for (auto sv : statevars) {
+      nv = abs_ts_.next(sv);
+      abs_nv = ia_.abstract(nv);
+
+      unrolled_nv = to_cvc4_.transfer_term(unroller_.at_time(nv, i));
+      unrolled_abs_nv = to_cvc4_.transfer_term(unroller_.at_time(abs_nv, i));
+
+      cvc4_unrolled_nv =
+          static_pointer_cast<CVC4Term>(unrolled_nv)->get_cvc4_term();
+      cvc4_unrolled_abs_nv =
+          static_pointer_cast<CVC4Term>(unrolled_abs_nv)->get_cvc4_term();
+
+      cvc4_unrolled_next_vars.push_back(cvc4_unrolled_nv);
+      cvc4_unrolled_abstract_vars.push_back(cvc4_unrolled_abs_nv);
+    }
+
+    cvc4a::Term pred_app_vars =
+        cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_unrolled_next_vars);
+    cvc4a::Term pred_app_abs_vars =
+        cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_unrolled_abstract_vars);
+
+    cvc4_formula = cvc4_solver.mkTerm(
+        cvc4a::AND,
+        cvc4_formula,
+        cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
+  }
+
+  // TODO make sure this is correct -- not sure this makes sense but it should
+  // be something like this need to make sure the quantifiers are correct e.g.
+  // want to synthesize a predicate such that formula is unsat
+  cvc4_solver.addSygusConstraint(cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula));
+
+  Term learned_pred;
+  // TODO recover the synthesized function and translate it back to a solver_
+  // term (learned_pred) and return it
+
+  // will fail here until the TODO above is addressed
+  assert(learned_pred);
+  // NOTE in future might look for more than one predicate at a time
+  out_preds.insert(learned_pred);
+
+  return true;
 }
 
 }  // namespace pono
