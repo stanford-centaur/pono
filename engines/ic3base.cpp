@@ -233,9 +233,6 @@ bool IC3Base::intersects_bad()
   Result r = solver_->check_sat();
 
   if (r.is_sat()) {
-    // TODO: decide how important it is to push the whole bad for model based
-    // IC3
-    //       currently not doing that, would need to make intersects_bad virtual
     add_proof_goal(get_model_ic3_formula(), reached_k_ + 1, NULL);
   }
 
