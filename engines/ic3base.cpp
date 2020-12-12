@@ -83,6 +83,13 @@ void IC3Base::initialize()
   // otherwise it is a No-Op
   abstract();
 
+  // ts_ should not only be set but also be the correct one at this point
+  // e.g. if abstracting, it now points to the abstract transition system
+  assert(ts_);
+
+  // check whether this flavor of IC3 can be applied to this transition system
+  check_ts();
+
   frames_.clear();
   frame_labels_.clear();
   proof_goals_.clear();
@@ -103,9 +110,6 @@ void IC3Base::initialize()
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_->trans()));
-
-  // check whether this flavor of IC3 can be applied to this transition system
-  check_ts();
 }
 
 ProverResult IC3Base::check_until(int k)
