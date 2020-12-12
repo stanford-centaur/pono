@@ -367,9 +367,8 @@ bool IC3Base::rel_ind_check(size_t i,
   assert(solver_context_ == 0);
 
   if (r.is_sat()) {
-    assert(
-        out.size()
-        == 1);  // for now, assuming that there's only one predecessor produced
+    // for now, assuming that there's only one predecessor produced
+    assert(out.size() == 1);
     // this check needs to be here after the solver context has been popped
     // if i == 1 and there's a predecessor, then it should be an initial state
     assert(i != 1 || check_intersects_initial(out.at(0).term));
