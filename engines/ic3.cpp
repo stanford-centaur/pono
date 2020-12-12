@@ -116,7 +116,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
     shuffle(
         lits.begin(), lits.end(), default_random_engine(options_.random_seed_));
   }
-
+//TODO: use unsatcore-reducer
   int iter = 0;
   bool progress = true;
   while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 && progress) {
