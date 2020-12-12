@@ -436,7 +436,6 @@ bool IC3Base::block(const ProofGoal & pg)
     // always a single clause
     size_t min_idx = frames_.size();
     for (auto bu : collateral) {
-      // TODO: fix name -- might not be a clause anymore
       // try to push
       size_t idx = find_highest_frame(i, bu);
       constrain_frame(idx, bu);
