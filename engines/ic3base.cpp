@@ -274,7 +274,7 @@ ProverResult IC3Base::step(int i)
       // save the invariant
       // which is the frame that just had all terms
       // from the previous frames propagated
-      invar_ = get_frame(j + 1);
+      invar_ = get_frame_term(j + 1);
       return ProverResult::TRUE;
     }
   }
@@ -377,7 +377,7 @@ bool IC3Base::rel_ind_check(size_t i,
     // should never intersect with a frame before F[i-1]
     // otherwise, this predecessor should have been found
     // in a previous step (before a new frame was pushed)
-    assert(i < 2 || !intersects(out.at(0).term, get_frame(i - 2)));
+    assert(i < 2 || !intersects(out.at(0).term, get_frame_term(i - 2)));
   }
 
   assert(!r.is_unknown());
@@ -549,7 +549,7 @@ void IC3Base::assert_frame_labels(size_t i) const
   }
 }
 
-Term IC3Base::get_frame(size_t i) const
+Term IC3Base::get_frame_term(size_t i) const
 {
   // TODO: decide if frames should hold IC3Formulas or terms
   //       need to special case initial state if using IC3Formulas

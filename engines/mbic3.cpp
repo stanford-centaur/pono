@@ -266,8 +266,9 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
       split_eq(solver_, tmp, lits);
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
-      Term formula = make_and(
-          { get_frame(i - 1), ts_->trans(), solver_->make_term(Not, c.term) });
+      Term formula = make_and({ get_frame_term(i - 1),
+                                ts_->trans(),
+                                solver_->make_term(Not, c.term) });
       formula = solver_->make_term(Or, formula, ts_->next(ts_->init()));
       reducer_.reduce_assump_unsatcore(formula, lits, red_lits);
       TermVec curr_lits;
@@ -284,7 +285,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
       split_eq(solver_, c.children, conjuncts);
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
-      Term formula = make_and({ get_frame(i - 1),
+      Term formula = make_and({ get_frame_term(i - 1),
                                 ts_->trans(),
                                 solver_->make_term(Not, make_and(conjuncts)) });
       formula = solver_->make_term(Or, formula, ts_->next(ts_->init()));
@@ -399,7 +400,7 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
       // so if it is negated, that doesn't force trans to be false
       // the implication could be more efficient than iff so we want to leave it
       // that way
-      Term pre_formula = get_frame(i - 1);
+      Term pre_formula = get_frame_term(i - 1);
       pre_formula = solver_->make_term(And, pre_formula, ts_->trans());
       pre_formula =
           solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));

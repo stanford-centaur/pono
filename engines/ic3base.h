@@ -373,7 +373,7 @@ class IC3Base : public Prover
    */
   void assert_frame_labels(size_t i) const;
 
-  smt::Term get_frame(size_t i) const;
+  smt::Term get_frame_term(size_t i) const;
 
   void assert_trans_label() const;
 
