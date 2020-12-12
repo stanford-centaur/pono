@@ -36,7 +36,7 @@ namespace pono {
  *  @param t1 the second term
  *  @return true iff t0's hash is less than t1's hash
  */
-bool term_lt(const smt::Term & t0, const smt::Term & t1)
+static bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
 {
   return (t0->hash() < t1->hash());
 }
@@ -668,7 +668,7 @@ Term IC3Base::make_and(TermVec vec, SmtSolver slv) const
   }
 
   // sort the conjuncts
-  std::sort(vec.begin(), vec.end(), term_lt);
+  std::sort(vec.begin(), vec.end(), term_hash_lt);
   Term res = vec[0];
   for (size_t i = 1; i < vec.size(); ++i) {
     res = slv->make_term(And, res, vec[i]);
