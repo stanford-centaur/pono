@@ -115,6 +115,7 @@ ProverResult CegProphecyArrays::prove()
     // system
     // TODO: handle this in a better way
     opts.static_coi_ = false;
+//TODO : think about making it use the same prover -- incrementally
     shared_ptr<Prover> prover =
         make_prover(e_, latest_prop, solver_->get_solver_enum(), opts);
 
