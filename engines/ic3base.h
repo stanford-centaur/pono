@@ -407,14 +407,14 @@ class IC3Base : public Prover
    *  @param B the second term
    *  @return true iff there is an intersection
    */
-  bool intersects(const smt::Term & A, const smt::Term & B);
+  bool check_intersects(const smt::Term & A, const smt::Term & B);
 
   /** Check if the term intersects with the initial states
    *  syntactic sugar for intersects(ts_.init(), t);
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
    */
-  bool intersects_initial(const smt::Term & t);
+  bool check_intersects_initial(const smt::Term & t);
 
   void fix_if_intersects_initial(smt::TermVec & to_keep,
                                  const smt::TermVec & rem);

@@ -362,7 +362,7 @@ bool IC3Base::rel_ind_check(size_t i,
       assert(ic3formula_check_valid(u));
       assert(ts_->only_curr(u.term));
     }
-    assert(!intersects_initial(solver_->make_term(Not, conj)));
+    assert(!check_intersects_initial(solver_->make_term(Not, conj)));
   }
   assert(solver_context_ == 0);
 
@@ -372,12 +372,12 @@ bool IC3Base::rel_ind_check(size_t i,
         == 1);  // for now, assuming that there's only one predecessor produced
     // this check needs to be here after the solver context has been popped
     // if i == 1 and there's a predecessor, then it should be an initial state
-    assert(i != 1 || intersects_initial(out.at(0).term));
+    assert(i != 1 || check_intersects_initial(out.at(0).term));
 
     // should never intersect with a frame before F[i-1]
     // otherwise, this predecessor should have been found
     // in a previous step (before a new frame was pushed)
-    assert(i < 2 || !intersects(out.at(0).term, get_frame_term(i - 2)));
+    assert(i < 2 || !check_intersects(out.at(0).term, get_frame_term(i - 2)));
   }
 
   assert(!r.is_unknown());
@@ -597,7 +597,7 @@ void IC3Base::add_proof_goal(const IC3Formula & c,
   proof_goals_.push_back(ProofGoal(c, i, n));
 }
 
-bool IC3Base::intersects(const Term & A, const Term & B)
+bool IC3Base::check_intersects(const Term & A, const Term & B)
 {
   // should only do this check starting from context 0
   // don't want polluting assumptions
@@ -610,9 +610,9 @@ bool IC3Base::intersects(const Term & A, const Term & B)
   return r.is_sat();
 }
 
-bool IC3Base::intersects_initial(const Term & t)
+bool IC3Base::check_intersects_initial(const Term & t)
 {
-  return intersects(init_label_, t);
+  return check_intersects(init_label_, t);
 }
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)

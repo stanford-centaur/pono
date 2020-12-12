@@ -200,7 +200,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
           }
 
           Term tmp_and_term = make_and(tmp);
-          if (!intersects_initial(tmp_and_term)) {
+          if (!check_intersects_initial(tmp_and_term)) {
             assert(solver_context_ == 0);
             push_solver_context();
             assert_frame_labels(i - 1);
