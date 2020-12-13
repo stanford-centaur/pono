@@ -485,8 +485,6 @@ bool IC3Base::propagate(size_t i)
     if (r.is_unsat()) {
       // mark for removal
       indices_to_remove.insert(j);
-      // add to next frame
-      constrain_frame(i + 1, Fi.at(j));
     }
 
     pop_solver_context();
@@ -502,6 +500,8 @@ bool IC3Base::propagate(size_t i)
   for (size_t j = 0; j < Fi.size(); ++j) {
     if (indices_to_remove.find(j) == indices_to_remove.end()) {
       new_frame_i.push_back(Fi.at(j));
+      // add to next frame
+      constrain_frame(i + 1, Fi.at(j));
     }
   }
 
@@ -522,6 +522,7 @@ void IC3Base::push_frame()
 
 void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint)
 {
+  assert(solver_context_ == 0);
   assert(i > 0);  // there's a special case for frame 0
   assert(i < frame_labels_.size());
   assert(frame_labels_.size() == frames_.size());
