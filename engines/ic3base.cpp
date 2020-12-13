@@ -500,6 +500,7 @@ bool IC3Base::propagate(size_t i)
   for (size_t j = 0; j < Fi.size(); ++j) {
     if (indices_to_remove.find(j) == indices_to_remove.end()) {
       new_frame_i.push_back(Fi.at(j));
+    } else {
       // add to next frame
       constrain_frame(i + 1, Fi.at(j));
     }
