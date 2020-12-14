@@ -111,7 +111,8 @@ IC3IA::IC3IA(const PonoOptions & opt,
 
 // pure virtual method implementations
 
-IC3Formula IC3IA::get_ic3_formula(TermVec * inputs, TermVec * nexts) const
+IC3Formula IC3IA::get_model_ic3_formula(TermVec * out_inputs,
+                                        TermVec * out_nexts) const
 {
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
@@ -123,26 +124,27 @@ IC3Formula IC3IA::get_ic3_formula(TermVec * inputs, TermVec * nexts) const
       conjuncts.push_back(solver_->make_term(Not, p));
     }
 
-    if (nexts) {
+    if (out_nexts) {
       Term next_p = ts_->next(p);
       if (solver_->get_value(next_p) == solver_true_) {
-        nexts->push_back(next_p);
+        out_nexts->push_back(next_p);
       } else {
-        nexts->push_back(solver_->make_term(Not, next_p));
+        out_nexts->push_back(solver_->make_term(Not, next_p));
       }
     }
   }
 
-  if (inputs) {
+  if (out_inputs) {
     for (auto iv : ts_->inputvars()) {
-      inputs->push_back(solver_->make_term(Equal, iv, solver_->get_value(iv)));
+      out_inputs->push_back(
+          solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
   }
 
-  return ic3_formula_conjunction(conjuncts);
+  return ic3formula_conjunction(conjuncts);
 }
 
-bool IC3IA::ic3_formula_check_valid(const IC3Formula & u) const
+bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
@@ -249,7 +251,7 @@ void IC3IA::abstract()
 RefineResult IC3IA::refine()
 {
   // recover the counterexample trace
-  assert(intersects_initial(cex_pg_.target.term));
+  assert(check_intersects_initial(cex_pg_.target.term));
   TermVec cex({ cex_pg_.target.term });
   ProofGoal tmp = cex_pg_;
   while (tmp.next) {
@@ -257,10 +259,15 @@ RefineResult IC3IA::refine()
     cex.push_back(tmp.target.term);
     assert(conc_ts_.only_curr(tmp.target.term));
   }
-  assert(cex.size() > 1);
+
+  if (cex.size() == 1) {
+    // if there are no transitions, then this is a concrete CEX
+    return REFINE_NONE;
+  }
+
+  size_t cex_length = cex.size();
 
   UnorderedTermSet preds;
-
   // HACK added to experiment with CVC4 SyGuS for finding predicates
   if (options_.ic3ia_cvc4_pred_) {
     cvc4_find_preds(cex, preds);

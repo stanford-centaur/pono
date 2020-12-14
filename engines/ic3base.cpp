@@ -36,7 +36,7 @@ namespace pono {
  *  @param t1 the second term
  *  @return true iff t0's hash is less than t1's hash
  */
-bool term_lt(const smt::Term & t0, const smt::Term & t1)
+static bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
 {
   return (t0->hash() < t1->hash());
 }
@@ -83,6 +83,13 @@ void IC3Base::initialize()
   // otherwise it is a No-Op
   abstract();
 
+  // ts_ should not only be set but also be the correct one at this point
+  // e.g. if abstracting, it now points to the abstract transition system
+  assert(ts_);
+
+  // check whether this flavor of IC3 can be applied to this transition system
+  check_ts();
+
   frames_.clear();
   frame_labels_.clear();
   proof_goals_.clear();
@@ -103,9 +110,6 @@ void IC3Base::initialize()
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_->trans()));
-
-  // check whether this flavor of IC3 can be applied to this transition system
-  check_ts();
 }
 
 ProverResult IC3Base::check_until(int k)
@@ -169,7 +173,7 @@ bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
 
 // Protected Methods
 
-IC3Formula IC3Base::ic3_formula_disjunction(const TermVec & c) const
+IC3Formula IC3Base::ic3formula_disjunction(const TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
@@ -180,7 +184,7 @@ IC3Formula IC3Base::ic3_formula_disjunction(const TermVec & c) const
   return res;
 }
 
-IC3Formula IC3Base::ic3_formula_conjunction(const TermVec & c) const
+IC3Formula IC3Base::ic3formula_conjunction(const TermVec & c) const
 {
   assert(c.size());
   Term term = c.at(0);
@@ -191,7 +195,7 @@ IC3Formula IC3Base::ic3_formula_conjunction(const TermVec & c) const
   return res;
 }
 
-IC3Formula IC3Base::ic3_formula_negate(const IC3Formula & u) const
+IC3Formula IC3Base::ic3formula_negate(const IC3Formula & u) const
 {
   const TermVec & children = u.children;
   assert(!u.is_null());
@@ -229,10 +233,7 @@ bool IC3Base::intersects_bad()
   Result r = solver_->check_sat();
 
   if (r.is_sat()) {
-    // TODO: decide how important it is to push the whole bad for model based
-    // IC3
-    //       currently not doing that, would need to make intersects_bad virtual
-    add_proof_goal(get_ic3_formula(), reached_k_ + 1, NULL);
+    add_proof_goal(get_model_ic3_formula(), reached_k_ + 1, NULL);
   }
 
   pop_solver_context();
@@ -274,7 +275,7 @@ ProverResult IC3Base::step(int i)
       // save the invariant
       // which is the frame that just had all terms
       // from the previous frames propagated
-      invar_ = get_frame(j + 1);
+      invar_ = get_frame_term(j + 1);
       return ProverResult::TRUE;
     }
   }
@@ -294,6 +295,9 @@ ProverResult IC3Base::step_0()
   solver_->assert_formula(bad_);
   Result r = solver_->check_sat();
   if (r.is_sat()) {
+    IC3Formula c = get_model_ic3_formula();
+    cex_pg_ = ProofGoal(c, 0, nullptr);
+    pop_solver_context();
     return ProverResult::FALSE;
   } else {
     assert(r.is_unsat());
@@ -332,9 +336,9 @@ bool IC3Base::rel_ind_check(size_t i,
     if (options_.ic3_pregen_) {
       predecessor = generalize_predecessor(i, c);
     } else {
-      predecessor = get_ic3_formula();
+      predecessor = get_model_ic3_formula();
     }
-    assert(ic3_formula_check_valid(predecessor));
+    assert(ic3formula_check_valid(predecessor));
     out.push_back(predecessor);
     pop_solver_context();
   } else {
@@ -350,31 +354,30 @@ bool IC3Base::rel_ind_check(size_t i,
       assert(solver_context_ == 0); // important that there are no lingering assertions
       out = inductive_generalization(i, c);
     } else {
-      IC3Formula blocking_unit = ic3_formula_negate(c);
+      IC3Formula blocking_unit = ic3formula_negate(c);
       out.push_back(blocking_unit);
     }
     Term conj = solver_->make_term(true);
     for (auto u : out) {
       solver_->make_term(And, conj, u.term);
-      assert(ic3_formula_check_valid(u));
+      assert(ic3formula_check_valid(u));
       assert(ts_->only_curr(u.term));
     }
-    assert(!intersects_initial(solver_->make_term(Not, conj)));
+    assert(!check_intersects_initial(solver_->make_term(Not, conj)));
   }
   assert(solver_context_ == 0);
 
   if (r.is_sat()) {
-    assert(
-        out.size()
-        == 1);  // for now, assuming that there's only one predecessor produced
+    // for now, assuming that there's only one predecessor produced
+    assert(out.size() == 1);
     // this check needs to be here after the solver context has been popped
     // if i == 1 and there's a predecessor, then it should be an initial state
-    assert(i != 1 || intersects_initial(out.at(0).term));
+    assert(i != 1 || check_intersects_initial(out.at(0).term));
 
     // should never intersect with a frame before F[i-1]
     // otherwise, this predecessor should have been found
     // in a previous step (before a new frame was pushed)
-    assert(i < 2 || !intersects(out.at(0).term, get_frame(i - 2)));
+    assert(i < 2 || !check_intersects(out.at(0).term, get_frame_term(i - 2)));
   }
 
   assert(!r.is_unknown());
@@ -434,7 +437,6 @@ bool IC3Base::block(const ProofGoal & pg)
     // always a single clause
     size_t min_idx = frames_.size();
     for (auto bu : collateral) {
-      // TODO: fix name -- might not be a clause anymore
       // try to push
       size_t idx = find_highest_frame(i, bu);
       constrain_frame(idx, bu);
@@ -483,8 +485,6 @@ bool IC3Base::propagate(size_t i)
     if (r.is_unsat()) {
       // mark for removal
       indices_to_remove.insert(j);
-      // add to next frame
-      constrain_frame(i + 1, Fi.at(j));
     }
 
     pop_solver_context();
@@ -500,6 +500,9 @@ bool IC3Base::propagate(size_t i)
   for (size_t j = 0; j < Fi.size(); ++j) {
     if (indices_to_remove.find(j) == indices_to_remove.end()) {
       new_frame_i.push_back(Fi.at(j));
+    } else {
+      // add to next frame
+      constrain_frame(i + 1, Fi.at(j));
     }
   }
 
@@ -520,6 +523,7 @@ void IC3Base::push_frame()
 
 void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint)
 {
+  assert(solver_context_ == 0);
   assert(i > 0);  // there's a special case for frame 0
   assert(i < frame_labels_.size());
   assert(frame_labels_.size() == frames_.size());
@@ -546,7 +550,7 @@ void IC3Base::assert_frame_labels(size_t i) const
   }
 }
 
-Term IC3Base::get_frame(size_t i) const
+Term IC3Base::get_frame_term(size_t i) const
 {
   // TODO: decide if frames should hold IC3Formulas or terms
   //       need to special case initial state if using IC3Formulas
@@ -590,11 +594,11 @@ void IC3Base::add_proof_goal(const IC3Formula & c,
   // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
   // goal should be a Cube
   assert(!c.is_disjunction());
-  assert(ic3_formula_check_valid(c));
+  assert(ic3formula_check_valid(c));
   proof_goals_.push_back(ProofGoal(c, i, n));
 }
 
-bool IC3Base::intersects(const Term & A, const Term & B)
+bool IC3Base::check_intersects(const Term & A, const Term & B)
 {
   // should only do this check starting from context 0
   // don't want polluting assumptions
@@ -607,9 +611,9 @@ bool IC3Base::intersects(const Term & A, const Term & B)
   return r.is_sat();
 }
 
-bool IC3Base::intersects_initial(const Term & t)
+bool IC3Base::check_intersects_initial(const Term & t)
 {
-  return intersects(init_label_, t);
+  return check_intersects(init_label_, t);
 }
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
@@ -665,7 +669,7 @@ Term IC3Base::make_and(TermVec vec, SmtSolver slv) const
   }
 
   // sort the conjuncts
-  std::sort(vec.begin(), vec.end(), term_lt);
+  std::sort(vec.begin(), vec.end(), term_hash_lt);
   Term res = vec[0];
   for (size_t i = 1; i < vec.size(); ++i) {
     res = slv->make_term(And, res, vec[i]);

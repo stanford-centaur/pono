@@ -43,17 +43,21 @@ class IC3IA : public IC3
   IC3IA(Property & p,
         smt::SolverEnum se,
         smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+
   IC3IA(Property & p,
         const smt::SmtSolver & s,
         smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+
   IC3IA(const PonoOptions & opt,
         Property & p,
         smt::SolverEnum se,
         smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+
   IC3IA(const PonoOptions & opt,
         Property & p,
         const smt::SmtSolver & s,
         smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+
   virtual ~IC3IA() {}
 
   typedef IC3 super;
@@ -94,10 +98,11 @@ class IC3IA : public IC3
 
   // pure virtual method implementations
 
-  IC3Formula get_ic3_formula(smt::TermVec * inputs = nullptr,
-                             smt::TermVec * nexts = nullptr) const override;
+  IC3Formula get_model_ic3_formula(
+      smt::TermVec * out_inputs = nullptr,
+      smt::TermVec * out_nexts = nullptr) const override;
 
-  bool ic3_formula_check_valid(const IC3Formula & u) const override;
+  bool ic3formula_check_valid(const IC3Formula & u) const override;
 
   // need to override this because IC3IA is not as restricted as
   // (bit-level) IC3

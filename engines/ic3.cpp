@@ -12,38 +12,18 @@
 ** \brief Bit-level IC3 implementation using the IC3Base abstract base class
 **/
 
+#include "engines/ic3.h"
+
 #include <algorithm>
-#include "assert.h"
 #include <random>
 
-#include "engines/ic3.h"
+#include "assert.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
-
-// helpers
-bool is_lit(const Term & l, const Sort & boolsort)
-{
-  // take a boolsort as an argument for sort aliasing solvers
-  if (l->get_sort() != boolsort) {
-    return false;
-  }
-
-  if (l->is_symbolic_const()) {
-    return true;
-  }
-
-  Op op = l->get_op();
-  // check both for sort aliasing solvers
-  if (op == Not || op == BVNot) {
-    Term first_child = *(l->begin());
-    return first_child->is_symbolic_const();
-  }
-
-  return false;
-}
 
 /** IC3 Implementation */
 
@@ -61,7 +41,8 @@ IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
 {
 }
 
-IC3Formula IC3::get_ic3_formula(TermVec * inputs, TermVec * nexts) const
+IC3Formula IC3::get_model_ic3_formula(TermVec * out_inputs,
+                                      TermVec * out_nexts) const
 {
   // expecting all solving in IC3 to be done at context level > 0
   // so if we're getting a model we should not be at context 0
@@ -77,30 +58,30 @@ IC3Formula IC3::get_ic3_formula(TermVec * inputs, TermVec * nexts) const
       children.push_back(solver_->make_term(Not, sv));
     }
 
-    if (nexts) {
+    if (out_nexts) {
       Term nv = ts_->next(sv);
       if (solver_->get_value(nv) == solver_true_) {
-        nexts->push_back(nv);
+        out_nexts->push_back(nv);
       } else {
-        nexts->push_back(solver_->make_term(Not, nv));
+        out_nexts->push_back(solver_->make_term(Not, nv));
       }
     }
   }
 
-  if (inputs) {
+  if (out_inputs) {
     for (auto iv : ts_->inputvars()) {
       if (solver_->get_value(iv) == solver_true_) {
-        inputs->push_back(iv);
+        out_inputs->push_back(iv);
       } else {
-        inputs->push_back(solver_->make_term(Not, iv));
+        out_inputs->push_back(solver_->make_term(Not, iv));
       }
     }
   }
 
-  return ic3_formula_conjunction(children);
+  return ic3formula_conjunction(children);
 }
 
-bool IC3::ic3_formula_check_valid(const IC3Formula & u) const
+bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
@@ -136,7 +117,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
     shuffle(
         lits.begin(), lits.end(), default_random_engine(options_.random_seed_));
   }
-
+//TODO: use unsatcore-reducer
   int iter = 0;
   bool progress = true;
   while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 && progress) {
@@ -155,7 +136,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
       }
 
       Term tmp_and_term = make_and(tmp);
-      if (!intersects_initial(tmp_and_term)) {
+      if (!check_intersects_initial(tmp_and_term)) {
         assert(solver_context_ == 0);
         push_solver_context();
         assert_frame_labels(i - 1);
@@ -212,8 +193,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 
   // TODO: would it be more intuitive to start with a clause
   //       and generalize the clause directly?
-  IC3Formula blocking_clause =
-      ic3_formula_negate(ic3_formula_conjunction(lits));
+  IC3Formula blocking_clause = ic3formula_negate(ic3formula_conjunction(lits));
   assert(blocking_clause.is_disjunction());  // expecting a clause
   return { blocking_clause };
 }
@@ -226,13 +206,13 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
   const UnorderedTermSet & statevars = ts_->statevars();
   TermVec input_lits, next_lits;
-  IC3Formula icf = get_ic3_formula(&input_lits, &next_lits);
+  IC3Formula icf = get_model_ic3_formula(&input_lits, &next_lits);
   const TermVec & cube_lits = icf.children;
 
   if (i == 1) {
     // don't need to generalize if i == 1
     // the predecessor is an initial state
-    return get_ic3_formula();
+    return get_model_ic3_formula();
   }
 
   Term formula = make_and(input_lits);
@@ -252,7 +232,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
     // so if it is negated, that doesn't force trans to be false
     // the implication could be more efficient than iff so we want to leave it
     // that way
-    Term pre_formula = get_frame(i - 1);
+    Term pre_formula = get_frame_term(i - 1);
     pre_formula = solver_->make_term(And, pre_formula, ts_->trans());
     pre_formula =
         solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));
@@ -271,7 +251,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // formula should not be unsat on its own
   assert(red_cube_lits.size() > 0);
 
-  IC3Formula res = ic3_formula_conjunction(red_cube_lits);
+  IC3Formula res = ic3formula_conjunction(red_cube_lits);
   // expecting a Cube here
   assert(!res.is_disjunction());
 

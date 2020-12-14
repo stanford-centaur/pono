@@ -15,7 +15,8 @@
 **
 **        To create a particular IC3 instantiation, you must implement the
 *following:
-**           - implement get_ic3_formula and give it semantics to produce the
+**           - implement get_model_ic3_formula and give it semantics to produce
+*the
 **             corresponding IC3Formula for your flavor of IC3
 **             (assumes solver_'s state is SAT from a failed rel_ind_check)
 **             also need to be able to give model (as formulas) for input values
@@ -33,7 +34,7 @@
 **             theories / syntax used in the transition system which
 **             is not supported by this instantiation
 **          [OPTIONAL]
-**           - implement all the ic3_formula_* functions for creating and
+**           - implement all the ic3formula_* functions for creating and
 **             manipulating an IC3Formula if the defaults are not right
 **           - implement abstract() and refine() if this is a CEGAR
 **             flavor of IC3
@@ -167,7 +168,7 @@ class IC3Base : public Prover
   // ************************** Virtual Methods *******************************
   // IMPORTANT for derived classes
   // These methods should be implemented by a derived class for a particular
-  // "flavor" of IC
+  // "flavor" of IC3
 
   // Pure virtual methods that must be overridden
 
@@ -184,8 +185,9 @@ class IC3Base : public Prover
    * then include model for inputs, e.g. as equalities if nexts non-null, then
    * include model for next state vars, e.g. add equalities to vector
    */
-  virtual IC3Formula get_ic3_formula(smt::TermVec * inputs = nullptr,
-                                     smt::TermVec * nexts = nullptr) const = 0;
+  virtual IC3Formula get_model_ic3_formula(
+      smt::TermVec * out_inputs = nullptr,
+      smt::TermVec * out_nexts = nullptr) const = 0;
 
   /** Check whether a given IC3Formula is valid
    *  e.g. if this is a boolean clause it would
@@ -195,7 +197,7 @@ class IC3Base : public Prover
    *  @return true iff this is a valid IC3Formula for this
    *          flavor of IC3
    */
-  virtual bool ic3_formula_check_valid(const IC3Formula & u) const = 0;
+  virtual bool ic3formula_check_valid(const IC3Formula & u) const = 0;
 
   /** Attempt to generalize before blocking in frame i
    *  The standard approach is inductive generalization
@@ -236,7 +238,7 @@ class IC3Base : public Prover
    *  @ensures resulting IC3Formula children == c
    *  @ensures resulting IC3Formula with is_disjunction true
    */
-  virtual IC3Formula ic3_formula_disjunction(const smt::TermVec & c) const;
+  virtual IC3Formula ic3formula_disjunction(const smt::TermVec & c) const;
 
   /** Creates a conjunction IC3Formula from a vector of terms
    *  @param c the children terms
@@ -246,12 +248,12 @@ class IC3Base : public Prover
    *  note: assumes the children are already in the right polarity
    *  (doesn't negate them)
    */
-  virtual IC3Formula ic3_formula_conjunction(const smt::TermVec & c) const;
+  virtual IC3Formula ic3formula_conjunction(const smt::TermVec & c) const;
 
   /** Negates an IC3Formula
    *  @param u the IC3Formula to negate
    */
-  virtual IC3Formula ic3_formula_negate(const IC3Formula & u) const;
+  virtual IC3Formula ic3formula_negate(const IC3Formula & u) const;
 
   /** Generates an abstract transition system
    *  Typically this would set the ts_ pointer to the abstraction
@@ -263,7 +265,6 @@ class IC3Base : public Prover
   virtual void abstract()
   {
     // by default this is a No-Op
-    ;
   }
 
   /** Refines an abstract transition system
@@ -372,7 +373,7 @@ class IC3Base : public Prover
    */
   void assert_frame_labels(size_t i) const;
 
-  smt::Term get_frame(size_t i) const;
+  smt::Term get_frame_term(size_t i) const;
 
   void assert_trans_label() const;
 
@@ -406,14 +407,14 @@ class IC3Base : public Prover
    *  @param B the second term
    *  @return true iff there is an intersection
    */
-  bool intersects(const smt::Term & A, const smt::Term & B);
+  bool check_intersects(const smt::Term & A, const smt::Term & B);
 
   /** Check if the term intersects with the initial states
    *  syntactic sugar for intersects(ts_.init(), t);
    *  @param t the term to check
    *  @return true iff t intersects with the initial states
    */
-  bool intersects_initial(const smt::Term & t);
+  bool check_intersects_initial(const smt::Term & t);
 
   void fix_if_intersects_initial(smt::TermVec & to_keep,
                                  const smt::TermVec & rem);

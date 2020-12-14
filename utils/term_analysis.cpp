@@ -122,6 +122,27 @@ vector<TermVec> get_combinations(const vector<TermVec> & options)
 
 // end helper functions
 
+bool is_lit(const Term & l, const Sort & boolsort)
+{
+  // take a boolsort as an argument for sort aliasing solvers
+  if (l->get_sort() != boolsort) {
+    return false;
+  }
+
+  if (l->is_symbolic_const()) {
+    return true;
+  }
+
+  Op op = l->get_op();
+  // check both for sort aliasing solvers
+  if (op == Not || op == BVNot) {
+    Term first_child = *(l->begin());
+    return first_child->is_symbolic_const();
+  }
+
+  return false;
+}
+
 UnorderedTermSet get_free_symbols(const Term & term)
 {
   UnorderedTermSet free_symbols;

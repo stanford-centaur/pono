@@ -32,10 +32,11 @@ class IC3 : public IC3Base
  protected:
   // pure virtual method implementations
 
-  IC3Formula get_ic3_formula(smt::TermVec * inputs = nullptr,
-                             smt::TermVec * nexts = nullptr) const override;
+  IC3Formula get_model_ic3_formula(
+      smt::TermVec * out_inputs = nullptr,
+      smt::TermVec * out_nexts = nullptr) const override;
 
-  bool ic3_formula_check_valid(const IC3Formula & u) const override;
+  bool ic3formula_check_valid(const IC3Formula & u) const override;
 
   std::vector<IC3Formula> inductive_generalization(
       size_t i, const IC3Formula & c) override;
