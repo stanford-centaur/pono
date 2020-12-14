@@ -270,7 +270,9 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
                                 ts_->trans(),
                                 solver_->make_term(Not, c.term) });
       formula = solver_->make_term(Or, formula, ts_->next(ts_->init()));
-      reducer_.reduce_assump_unsatcore(formula, lits, red_lits);
+      reducer_.reduce_assump_unsatcore(formula, lits, red_lits, NULL,
+                                       options_.ic3_gen_max_iter_,
+                                       options_.random_seed_);
       TermVec curr_lits;
       curr_lits.reserve(red_lits.size());
       for (auto l : red_lits) {
@@ -412,8 +414,10 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
     TermVec splits, red_cube_lits, rem_cube_lits;
     split_eq(solver_, cube_lits, splits);
-    reducer_.reduce_assump_unsatcore(
-        formula, splits, red_cube_lits, &rem_cube_lits);
+    reducer_.reduce_assump_unsatcore(formula, splits, red_cube_lits,
+                                     &rem_cube_lits,
+                                     options_.ic3_gen_max_iter_,
+                                     options_.random_seed_);
     // should need some assumptions
     // formula should not be unsat on its own
     assert(red_cube_lits.size() > 0);
