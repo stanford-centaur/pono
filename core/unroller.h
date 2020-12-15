@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file
+/*! \file unroller.h
  ** \verbatim
  ** Top contributors (to current version):
  **   Ahmed Irfan, Makai Mann
@@ -32,7 +32,7 @@ class Unroller
 {
  public:
   Unroller(const TransitionSystem & ts, const smt::SmtSolver & solver);
-  ~Unroller();
+  virtual ~Unroller();
 
   /** Return an unrolled version of transition system term t
    *  at time k
