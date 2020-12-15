@@ -319,12 +319,27 @@ RefineResult IC3IA::refine()
       get_predicates(solver_, I, preds);
     }
 
-    // reduce new predicates
-    TermVec preds_vec(preds.begin(), preds.end());
+    // new predicates
+    TermVec preds_vec;
+    for (auto p : preds) {
+      if (predset_.find(p) == predset_.end()) {
+        // unseen predicate
+        preds_vec.push_back(p);
+      }
+    }
+
     if (options_.random_seed_ > 0) {
       shuffle(preds_vec.begin(),
               preds_vec.end(),
               default_random_engine(options_.random_seed_));
+    }
+
+    // reduce new predicates
+    TermVec red_preds;
+    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+      // reduction successful
+      preds.clear();
+      preds.insert(red_preds.begin(), red_preds.end());
     }
 
     // add all the new predicates
@@ -336,13 +351,6 @@ RefineResult IC3IA::refine()
     if (!found_new_preds) {
       logger.log(1, "No new predicates found...");
       return RefineResult::REFINE_FAIL;
-    }
-
-    TermVec red_preds;
-    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
-      // reduction successful
-      preds.clear();
-      preds.insert(red_preds.begin(), red_preds.end());
     }
 
     // clear the current proof goals
