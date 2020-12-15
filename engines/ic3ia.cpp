@@ -96,7 +96,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
 
 // pure virtual method implementations
 
-IC3Formula IC3IA::get_model_ic3_formula(TermVec * out_inputs,
+IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
                                         TermVec * out_nexts) const
 {
   const TermVec & preds = ia_.predicates();

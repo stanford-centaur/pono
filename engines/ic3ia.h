@@ -91,7 +91,7 @@ class IC3IA : public IC3
 
   // pure virtual method implementations
 
-  IC3Formula get_model_ic3_formula(
+  IC3Formula get_model_ic3formula(
       smt::TermVec * out_inputs = nullptr,
       smt::TermVec * out_nexts = nullptr) const override;
 
