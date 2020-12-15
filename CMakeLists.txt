@@ -235,7 +235,8 @@ endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
-target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}" "${GMPXX_LIBRARIES}")
+target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
+target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
 
