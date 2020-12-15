@@ -154,8 +154,8 @@ ProverResult IC3Base::check_until(int k)
     // got unknown, so keep going
     // got false, but was able to refine successfully
     assert(res == ProverResult::UNKNOWN
-           || res == ProverResult::FALSE
-                  && ref_res == RefineResult::REFINE_SUCCESS);
+           || (res == ProverResult::FALSE
+               && ref_res == RefineResult::REFINE_SUCCESS));
 
     // increment i, unless there was a refinement step just done
     if (ref_res != RefineResult::REFINE_SUCCESS) {
