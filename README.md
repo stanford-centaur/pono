@@ -7,10 +7,10 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 ## Setup
 
 * Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with boolector
-* [optional] to build with MathSAT (required for interpolant-based model checking) you need to obtain the libraries yourself
-  * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
-  * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`
-  * then add the `--with-msat` flag to the `setup-smt-switch.sh` command.
+  * [optional] to build with MathSAT (required for interpolant-based model checking) you need to obtain the libraries yourself
+    * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
+    * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`
+    * then add the `--with-msat` flag to the `setup-smt-switch.sh` command.
 * Run `./contrib/setup-btor2tools.sh`.
 * Run `./configure.sh`.
 * Run `cd build`.
