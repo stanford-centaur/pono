@@ -233,7 +233,12 @@ bool IC3Base::intersects_bad()
   Result r = solver_->check_sat();
 
   if (r.is_sat()) {
-    add_proof_goal(get_model_ic3_formula(), reached_k_ + 1, NULL);
+    IC3Formula c = get_model_ic3_formula();
+    // reduce c
+    TermVec red_c;
+    reducer_.reduce_assump_unsatcore(smart_not(bad_), c.children, red_c);
+
+    add_proof_goal(ic3formula_conjunction(red_c), reached_k_ + 1, NULL);
   }
 
   pop_solver_context();
