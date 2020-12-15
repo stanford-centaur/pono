@@ -11,6 +11,9 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
     * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
     * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`
     * then add the `--with-msat` flag to the `setup-smt-switch.sh` command.
+* [optional] Install bison and flex
+  * If you don't have bison and flex installed globally, run `./contrib/setup-bison.sh` and `./contrib/setup-flex.sh`
+  * Even if you do have bison, you might get errors when building complaining about not being able to load `-ly`, then run the bison setup script.
 * Run `./contrib/setup-btor2tools.sh`.
 * Run `./configure.sh`.
 * Run `cd build`.
