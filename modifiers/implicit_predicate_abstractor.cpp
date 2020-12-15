@@ -89,6 +89,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
                                                     const TermVec & new_preds,
                                                     TermVec & out)
 {
+  assert(new_preds.size());
   Term formula = solver_->make_term(true);
 
   for (size_t i = 0; i < cex.size(); ++i) {

@@ -327,13 +327,6 @@ RefineResult IC3IA::refine()
               default_random_engine(options_.random_seed_));
     }
 
-    TermVec red_preds;
-    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
-      // reduction successful
-      preds.clear();
-      preds.insert(red_preds.begin(), red_preds.end());
-    }
-
     // add all the new predicates
     bool found_new_preds = false;
     for (auto p : preds) {
@@ -343,6 +336,13 @@ RefineResult IC3IA::refine()
     if (!found_new_preds) {
       logger.log(1, "No new predicates found...");
       return RefineResult::REFINE_FAIL;
+    }
+
+    TermVec red_preds;
+    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+      // reduction successful
+      preds.clear();
+      preds.insert(red_preds.begin(), red_preds.end());
     }
 
     // clear the current proof goals
