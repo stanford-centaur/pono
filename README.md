@@ -13,7 +13,7 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
     * then add the `--with-msat` flag to the `setup-smt-switch.sh` command.
 * [optional] Install bison and flex
   * If you don't have bison and flex installed globally, run `./contrib/setup-bison.sh` and `./contrib/setup-flex.sh`
-  * Even if you do have bison, you might get errors when building complaining about not being able to load `-ly`, then run the bison setup script.
+  * Even if you do have bison, you might get errors about not being able to load `-ly`. In such a case, run the bison setup script.
 * Run `./contrib/setup-btor2tools.sh`.
 * Run `./configure.sh`.
   * if building with mathsat, also include `--with-msat` as an option to `configure.sh`
