@@ -658,8 +658,8 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 
   cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
 
-  std::cout << "panda constraint: " << constraint << std::endl;
-  std::cout << "panda sygus_constraint: " << sygus_constraint << std::endl;
+//  std::cout << "panda constraint: " << constraint << std::endl;
+//  std::cout << "panda sygus_constraint: " << sygus_constraint << std::endl;
 
   // TODO make sure this is correct -- not sure this makes sense but it should
   // be something like this need to make sure the quantifiers are correct e.g.
