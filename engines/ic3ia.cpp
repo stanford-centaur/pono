@@ -496,7 +496,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   cvc4a::Term cvc4_formula =
       static_pointer_cast<CVC4Term>(ss_cvc4_formula)->get_cvc4_term();
 
-  vector<cvc4a::Term> cvc4_free_vars;
+  unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars;
   for (auto fv : ss_free_vars) {
     cvc4_free_vars.push_back(
         static_pointer_cast<CVC4Term>(fv)->get_cvc4_term());
@@ -568,6 +568,13 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
           static_pointer_cast<CVC4Term>(unrolled_nv)->get_cvc4_term();
       cvc4_unrolled_abs_nv =
           static_pointer_cast<CVC4Term>(unrolled_abs_nv)->get_cvc4_term();
+
+      // most of these were already added above
+      // by traversing cvc4_formula (at smt-switch level)
+      // which uses these same variables
+      // but this just ensures all variables are in this set
+      cvc4_free_vars.insert(cvc4_unrolled_nv);
+      cvc4_free_vars.insert(cvc4_unrolled_abs_nv);
 
       cvc4_unrolled_next_vars.push_back(cvc4_unrolled_nv);
       cvc4_unrolled_abstract_vars.push_back(cvc4_unrolled_abs_nv);
