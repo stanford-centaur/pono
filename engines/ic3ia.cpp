@@ -34,6 +34,7 @@
 #include "smt-switch/cvc4_solver.h"
 #include "smt-switch/cvc4_sort.h"
 #include "smt-switch/cvc4_term.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
@@ -485,10 +486,21 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
         solver_->make_term(And, solver_formula, unroller_.at_time(t, i));
   }
 
-  // Transfer to a fresh CVC4 solver and get the underlying CVC4 object
-  cvc4a::Term cvc4_formula = static_pointer_cast<CVC4Term>(
-                                 to_cvc4_.transfer_term(solver_formula, BOOL))
-                                 ->get_cvc4_term();
+  // Transfer to fresh CVC4 solver
+  Term ss_cvc4_formula = to_cvc4_.transfer_term(solver_formula, BOOL);
+
+  UnorderedTermSet ss_free_vars;
+  get_free_symbolic_consts(ss_cvc4_formula, ss_free_vars);
+
+  // get the underlying CVC4 objects
+  cvc4a::Term cvc4_formula =
+      static_pointer_cast<CVC4Term>(ss_cvc4_formula)->get_cvc4_term();
+
+  vector<cvc4a::Term> cvc4_free_vars;
+  for (auto fv : ss_free_vars) {
+    cvc4_free_vars.push_back(
+        static_pointer_cast<CVC4Term>(fv)->get_cvc4_term());
+  }
 
   // get a vector of state variables in the main solver_
   // NOTE: don't forget to use this vector, we're going to rely on the order
