@@ -584,6 +584,12 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   cvc4_solver.printSynthSolution(std::cout);
   cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
   std::cout << "panda pred_solution: " << pred_solution << std::endl;
+  std::vector<cvc4a::Term> vec;
+  vec.push_back(pred_solution);
+  vec.insert(vec.end(), std::next(cvc4_unrolled_abstract_vars.begin()), cvc4_unrolled_abstract_vars.end());
+  std::cout << "panda size: " << vec.size() << std::endl;
+  cvc4a::Term tt = cvc4_solver.mkTerm(cvc4a::APPLY_UF, vec);
+  std::cout << "panda application: " << tt << std::endl;
 
   Term learned_pred;
   // TODO recover the synthesized function and translate it back to a solver_
