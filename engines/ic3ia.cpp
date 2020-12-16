@@ -73,6 +73,21 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
 {
 }
 
+IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp)
+    : super(p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(itp),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_),
+      longest_cex_length_(0),
+      cvc4_(create_solver(smt::SolverEnum::CVC4)),
+      to_cvc4_(cvc4_),
+      from_cvc4_(solver_)
+{
+}
+
 IC3IA::IC3IA(const PonoOptions & opt,
              Property & p,
              SolverEnum se,
@@ -109,9 +124,27 @@ IC3IA::IC3IA(const PonoOptions & opt,
 {
 }
 
+IC3IA::IC3IA(const PonoOptions & opt,
+             Property & p,
+             const SmtSolver & s,
+             SmtSolver itp)
+    : super(opt, p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(itp),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_),
+      longest_cex_length_(0),
+      cvc4_(create_solver(smt::SolverEnum::CVC4)),
+      to_cvc4_(cvc4_),
+      from_cvc4_(solver_)
+{
+}
+
 // pure virtual method implementations
 
-IC3Formula IC3IA::get_model_ic3_formula(TermVec * out_inputs,
+IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
                                         TermVec * out_nexts) const
 {
   const TermVec & preds = ia_.predicates();
@@ -180,6 +213,12 @@ void IC3IA::check_ts() const
   // no restrictions except that interpolants must be supported
   // instead of checking explicitly, just let the interpolator throw an
   // exception better than maintaining in two places
+
+  if (options_.static_coi_) {
+    throw PonoException(
+        "Abstraction-refinement procedure in IC3IA does not yet work with "
+        "static cone-of-influence");
+  }
 }
 
 void IC3IA::initialize()
@@ -325,6 +364,7 @@ RefineResult IC3IA::refine()
     // have already been cached in to_solver_
     longest_cex_length_ = cex.size();
 
+
     if (all_sat) {
       // this is a real counterexample, so the property is false
       return RefineResult::REFINE_NONE;
@@ -338,14 +378,22 @@ RefineResult IC3IA::refine()
         get_predicates(solver_, I, preds);
       }
 
-      // reduce new predicates
-      TermVec preds_vec(preds.begin(), preds.end());
+      // new predicates
+      TermVec preds_vec;
+      for (auto p : preds) {
+        if (predset_.find(p) == predset_.end()) {
+          // unseen predicate
+          preds_vec.push_back(p);
+        }
+      }
+
       if (options_.random_seed_ > 0) {
         shuffle(preds_vec.begin(),
                 preds_vec.end(),
                 default_random_engine(options_.random_seed_));
       }
 
+      // reduce new predicates
       TermVec red_preds;
       if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
         // reduction successful
@@ -365,6 +413,11 @@ RefineResult IC3IA::refine()
     logger.log(1, "No new predicates found...");
     return RefineResult::REFINE_FAIL;
   }
+
+  // clear the current proof goals
+  // the transitions represented by those backwards reachable traces
+  // may not be precise wrt the new predicates
+  proof_goals_.clear();
 
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;

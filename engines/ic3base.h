@@ -185,7 +185,7 @@ class IC3Base : public Prover
    * then include model for inputs, e.g. as equalities if nexts non-null, then
    * include model for next state vars, e.g. add equalities to vector
    */
-  virtual IC3Formula get_model_ic3_formula(
+  virtual IC3Formula get_model_ic3formula(
       smt::TermVec * out_inputs = nullptr,
       smt::TermVec * out_nexts = nullptr) const = 0;
 
