@@ -165,6 +165,12 @@ void IC3IA::check_ts() const
   // no restrictions except that interpolants must be supported
   // instead of checking explicitly, just let the interpolator throw an
   // exception better than maintaining in two places
+
+  if (options_.static_coi_) {
+    throw PonoException(
+        "Abstraction-refinement procedure in IC3IA does not yet work with "
+        "static cone-of-influence");
+  }
 }
 
 void IC3IA::initialize()
