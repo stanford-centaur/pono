@@ -20,6 +20,16 @@
 
 namespace pono {
 
+/** returns true iff l is a literal
+ *  e.g. either a boolean symbolic constant or its negation
+ *  NOTE will return false for nested negations, i.e. (not (not (not l)))
+ *  @param l the term to check
+ *  @param boolsort a boolean sort from the corresponding solver
+ *         this way sort aliasing solvers are still supported
+ *  @return true iff l is a literal
+ */
+bool is_lit(const smt::Term & l, const smt::Sort & boolsort);
+
 /** returns all the free (not bound to a quantifier) symbols
  *  in a Term
  *  Note: includes uninterpreted functions

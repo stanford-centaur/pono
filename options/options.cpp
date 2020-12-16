@@ -48,9 +48,10 @@ enum optionIndex
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
-  IC3_INDGEN_MODE,
   IC3_FUNCTIONAL_PREIMAGE,
-  PROFILING_LOG_FILENAME
+  MBIC3_INDGEN_MODE,
+  PROFILING_LOG_FILENAME,
+  IC3IA_CVC4_PRED
 };
 
 struct Arg : public option::Arg
@@ -214,18 +215,20 @@ const option::Descriptor usage[] = {
     "  --ic3-gen-max-iter \tMax number of iterations "
     "(greater than zero) for unsatcore-based ic3 generalization. "
     "Setting it to 0 means an unbounded number of iterations." },
-  { IC3_INDGEN_MODE,
-    0,
-    "",
-    "ic3-indgen-mode",
-    Arg::Numeric,
-    "  --ic3-indgen-mode \tIC3 inductive generalization mode [0,2]." },
   { IC3_FUNCTIONAL_PREIMAGE,
     0,
     "",
     "ic3-functional-preimage",
     Arg::None,
     "  --ic3-functional-preimage \tUse functional preimage in ic3." },
+  { MBIC3_INDGEN_MODE,
+    0,
+    "",
+    "mbic3-indgen-mode",
+    Arg::Numeric,
+    "  --mbic3-indgen-mode \tModelBasedIC3 inductive generalization mode "
+    "[0,2].\n\t"
+    "0 - normal, 1 - embedded init constraint, 2 - interpolation." },
   { PROFILING_LOG_FILENAME,
     0,
     "",
@@ -233,6 +236,12 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --profiling-log \tName of logfile for profiling output"
     " (requires build with linked profiling library 'gperftools')." },
+  { IC3IA_CVC4_PRED,
+    0,
+    "",
+    "ic3ia-cvc4-pred",
+    Arg::None,
+    "  --ic3ia-cvc4-pred \tFind predicates for IC3IA using CVC4 SyGuS." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -331,9 +340,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;
-        case IC3_INDGEN_MODE:
-          ic3_indgen_mode_ = atoi(opt.arg);
-          if (!(ic3_indgen_mode_ >= 0 && ic3_indgen_mode_ <= 2))
+        case MBIC3_INDGEN_MODE:
+          mbic3_indgen_mode = atoi(opt.arg);
+          if (!(mbic3_indgen_mode >= 0 && mbic3_indgen_mode <= 2))
             throw PonoException(
                 "--ic3-indgen-mode value must be between 0 and 2.");
           break;
@@ -347,6 +356,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           profiling_log_filename_ = opt.arg;
 #endif
           break;
+        case IC3IA_CVC4_PRED: ic3ia_cvc4_pred_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

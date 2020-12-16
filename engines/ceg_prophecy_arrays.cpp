@@ -93,6 +93,38 @@ CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
 {
 }
 
+ProverResult CegProphecyArrays::prove()
+{
+  initialize();
+
+  ProverResult res = ProverResult::FALSE;
+  while (res == ProverResult::FALSE) {
+    // Refine the system
+    // heuristic -- stop refining when no new axioms are needed.
+    do {
+      if (!refine()) {
+        // real counterexample
+        return ProverResult::FALSE;
+      }
+      reached_k_++;
+    } while (num_added_axioms_);
+
+    Property latest_prop(abs_ts_, solver_->make_term(Not, bad_));
+    PonoOptions opts = options_;
+    // disable static coi because it can't be called more than once on the same
+    // system
+    // TODO: handle this in a better way
+    opts.static_coi_ = false;
+//TODO : think about making it use the same prover -- incrementally
+    shared_ptr<Prover> prover =
+        make_prover(e_, latest_prop, solver_->get_solver_enum(), opts);
+
+    res = prover->prove();
+  }
+
+  return res;
+}
+
 ProverResult CegProphecyArrays::check_until(int k)
 {
   initialize();

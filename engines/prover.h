@@ -25,6 +25,17 @@
 #include "smt-switch/smt.h"
 
 namespace pono {
+
+/** enum for communicating result of a refinement step
+ *  only used for algorithms that use abstraction refinement
+ */
+enum RefineResult
+{
+  REFINE_NONE = 0,  // no refinement necessary (e.g. concrete)
+  REFINE_SUCCESS,   // refinement successful
+  REFINE_FAIL       // failed to refine
+};
+
 class Prover
 {
  public:

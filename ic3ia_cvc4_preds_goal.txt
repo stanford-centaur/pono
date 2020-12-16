@@ -1,0 +1,29 @@
+We have a TransitionSystem with variables
+  x:Int, y:Int, z:Int
+and next state vars
+  x', y', z'
+and abstract vars
+  x^, y^, z^
+
+We have a formula (the unrolled trans):
+  Tr(x@0, y@0, z@0, x^@0, y^@0, z^@0, ..., x^@(k-1), y^@(k-1), z^@(k-1), x@k, y@k, z@k)
+  this is SAT
+
+We are looking for a function with boolean return sort:
+  P : Int -> Int -> Int -> Bool
+  e.g. (declare-fun P (Int Int Int) Bool)
+
+We want
+  phi :=
+    Tr /\ P(x@1, y@1, z@1) <-> P(x^@0, y^@0, z^@0)
+       /\ P(x@2, y@2, z@2) <-> P(x^@1, y^@1, z^@1)
+       ...
+       /\ P(x@k, y@k, z@k) <-> P(x^@(k-1), y^@(k-1), z^@(k-1))
+
+to be unsat
+
+
+We give sygus a grammar and
+  -phi
+
+ makes this valid which means phi is unsat

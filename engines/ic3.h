@@ -1,5 +1,5 @@
 /*********************                                                  */
-/*! \file mbic3.h
+/*! \file ic3.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann, Ahmed Irfan
@@ -9,8 +9,7 @@
 ** All rights reserved.  See the file LICENSE in the top-level source
 ** directory for licensing information.\endverbatim
 **
-** \brief Simple implementation of IC3 using model values
-**
+** \brief Bit-level IC3 implementation using the IC3Base abstract base class
 **/
 
 #pragma once
@@ -19,26 +18,18 @@
 
 namespace pono {
 
-class ModelBasedIC3 : public IC3Base
+class IC3 : public IC3Base
 {
  public:
-  ModelBasedIC3(Property & p, smt::SolverEnum se);
-  ModelBasedIC3(Property & p, const smt::SmtSolver & s);
-  ModelBasedIC3(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  ModelBasedIC3(const PonoOptions & opt,
-                Property & p,
-                const smt::SmtSolver & s);
-  virtual ~ModelBasedIC3() {}
+  IC3(Property & p, smt::SolverEnum se);
+  IC3(Property & p, const smt::SmtSolver & s);
+  IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se);
+  IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  virtual ~IC3() {}
 
   typedef IC3Base super;
 
  protected:
-  // for mbic3_indgen_mode == 2
-  // interpolant based generalization
-  smt::SmtSolver interpolator_;
-  std::unique_ptr<smt::TermTranslator> to_interpolator_;
-  std::unique_ptr<smt::TermTranslator> to_solver_;
-
   // pure virtual method implementations
 
   IC3Formula get_model_ic3_formula(
@@ -54,8 +45,6 @@ class ModelBasedIC3 : public IC3Base
 
   void check_ts() const override;
 
-  bool intersects_bad() override;
-
-  void initialize() override;
 };
+
 }  // namespace pono
