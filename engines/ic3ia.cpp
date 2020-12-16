@@ -599,12 +599,17 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   bool res = cvc4_solver.checkSynth().isUnsat();
   // for debugging: cvc4_solver.printSynthSolution(std::cout);
 
-  Term learned_pred;
-  // TODO recover the synthesized function and translate it back to a solver_
-  // term (learned_pred) and return it
+  cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
+  vector<cvc4a::Term> pred_args({ pred_solution });
+  pred_args.insert(
+      pred_args.end(), cvc4_statevars.begin(), cvc4_statevars.end());
+  cvc4a::Term applied_pred_solution =
+      cvc4_solver.mkTerm(cvc4a::APPLY_UF, pred_args);
+  Term cvc4_learned_pred = make_shared<CVC4Term>(applied_pred_solution);
 
-  // will fail here until the TODO above is addressed
+  Term learned_pred = from_cvc4_.transfer_term(cvc4_learned_pred, BOOL);
   assert(learned_pred);
+
   // NOTE in future might look for more than one predicate at a time
   out_preds.insert(learned_pred);
 
