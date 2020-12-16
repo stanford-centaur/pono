@@ -498,7 +498,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 
   unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars;
   for (auto fv : ss_free_vars) {
-    cvc4_free_vars.push_back(
+    cvc4_free_vars.insert(
         static_pointer_cast<CVC4Term>(fv)->get_cvc4_term());
   }
 
