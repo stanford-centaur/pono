@@ -406,7 +406,6 @@ void IC3IA::register_symbol_mappings(size_t i)
 
 bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 {
-  std::cout << "panda cvc4_find_preds" << std::endl;
   namespace cvc4a = ::CVC4::api;
 
   // TODO we might need to instantiate a new solver each time? Not sure
