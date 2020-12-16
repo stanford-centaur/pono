@@ -567,15 +567,23 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
         cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
   }
 
+  // use sygus variables
+  cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
+  
+
+
+
   // TODO make sure this is correct -- not sure this makes sense but it should
   // be something like this need to make sure the quantifiers are correct e.g.
   // want to synthesize a predicate such that formula is unsat
-  cvc4_solver.addSygusConstraint(cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula));
+  cvc4_solver.addSygusConstraint(constraint);
 
   bool res = cvc4_solver.checkSynth().isUnsat();
   std::cout << "panda res: " << res << std::endl;
   // for debugging: 
   cvc4_solver.printSynthSolution(std::cout);
+  cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
+  std::cout << "panda pred_solution: " << pred_solution << std::endl;
 
   Term learned_pred;
   // TODO recover the synthesized function and translate it back to a solver_
