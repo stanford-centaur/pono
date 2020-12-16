@@ -34,6 +34,7 @@
 #include "smt-switch/cvc4_solver.h"
 #include "smt-switch/cvc4_sort.h"
 #include "smt-switch/cvc4_term.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
@@ -64,6 +65,21 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
       interpolator_(create_interpolating_solver(itp_se)),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_),
+      longest_cex_length_(0),
+      cvc4_(create_solver(smt::SolverEnum::CVC4)),
+      to_cvc4_(cvc4_),
+      from_cvc4_(solver_)
+{
+}
+
+IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp)
+    : super(p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0),
@@ -109,9 +125,27 @@ IC3IA::IC3IA(const PonoOptions & opt,
 {
 }
 
+IC3IA::IC3IA(const PonoOptions & opt,
+             Property & p,
+             const SmtSolver & s,
+             SmtSolver itp)
+    : super(opt, p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(itp),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_),
+      longest_cex_length_(0),
+      cvc4_(create_solver(smt::SolverEnum::CVC4)),
+      to_cvc4_(cvc4_),
+      from_cvc4_(solver_)
+{
+}
+
 // pure virtual method implementations
 
-IC3Formula IC3IA::get_model_ic3_formula(TermVec * out_inputs,
+IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
                                         TermVec * out_nexts) const
 {
   const TermVec & preds = ia_.predicates();
@@ -180,6 +214,12 @@ void IC3IA::check_ts() const
   // no restrictions except that interpolants must be supported
   // instead of checking explicitly, just let the interpolator throw an
   // exception better than maintaining in two places
+
+  if (options_.static_coi_) {
+    throw PonoException(
+        "Abstraction-refinement procedure in IC3IA does not yet work with "
+        "static cone-of-influence");
+  }
 }
 
 void IC3IA::initialize()
@@ -325,6 +365,7 @@ RefineResult IC3IA::refine()
     // have already been cached in to_solver_
     longest_cex_length_ = cex.size();
 
+
     if (all_sat) {
       // this is a real counterexample, so the property is false
       return RefineResult::REFINE_NONE;
@@ -338,14 +379,22 @@ RefineResult IC3IA::refine()
         get_predicates(solver_, I, preds);
       }
 
-      // reduce new predicates
-      TermVec preds_vec(preds.begin(), preds.end());
+      // new predicates
+      TermVec preds_vec;
+      for (auto p : preds) {
+        if (predset_.find(p) == predset_.end()) {
+          // unseen predicate
+          preds_vec.push_back(p);
+        }
+      }
+
       if (options_.random_seed_ > 0) {
         shuffle(preds_vec.begin(),
                 preds_vec.end(),
                 default_random_engine(options_.random_seed_));
       }
 
+      // reduce new predicates
       TermVec red_preds;
       if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
         // reduction successful
@@ -365,6 +414,11 @@ RefineResult IC3IA::refine()
     logger.log(1, "No new predicates found...");
     return RefineResult::REFINE_FAIL;
   }
+
+  // clear the current proof goals
+  // the transitions represented by those backwards reachable traces
+  // may not be precise wrt the new predicates
+  proof_goals_.clear();
 
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;
@@ -432,10 +486,21 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
         solver_->make_term(And, solver_formula, unroller_.at_time(t, i));
   }
 
-  // Transfer to a fresh CVC4 solver and get the underlying CVC4 object
-  cvc4a::Term cvc4_formula = static_pointer_cast<CVC4Term>(
-                                 to_cvc4_.transfer_term(solver_formula, BOOL))
-                                 ->get_cvc4_term();
+  // Transfer to fresh CVC4 solver
+  Term ss_cvc4_formula = to_cvc4_.transfer_term(solver_formula, BOOL);
+
+  UnorderedTermSet ss_free_vars;
+  get_free_symbolic_consts(ss_cvc4_formula, ss_free_vars);
+
+  // get the underlying CVC4 objects
+  cvc4a::Term cvc4_formula =
+      static_pointer_cast<CVC4Term>(ss_cvc4_formula)->get_cvc4_term();
+
+  unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars;
+  for (auto fv : ss_free_vars) {
+    cvc4_free_vars.insert(
+        static_pointer_cast<CVC4Term>(fv)->get_cvc4_term());
+  }
 
   // get a vector of state variables in the main solver_
   // NOTE: don't forget to use this vector, we're going to rely on the order
@@ -552,6 +617,13 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
       cvc4_unrolled_abs_nv =
           static_pointer_cast<CVC4Term>(unrolled_abs_nv)->get_cvc4_term();
 
+      // most of these were already added above
+      // by traversing cvc4_formula (at smt-switch level)
+      // which uses these same variables
+      // but this just ensures all variables are in this set
+      cvc4_free_vars.insert(cvc4_unrolled_nv);
+      cvc4_free_vars.insert(cvc4_unrolled_abs_nv);
+
       cvc4_unrolled_next_vars.push_back(cvc4_unrolled_nv);
       cvc4_unrolled_abstract_vars.push_back(cvc4_unrolled_abs_nv);
     }
@@ -567,16 +639,33 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
         cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
   }
 
-  // use sygus variables
   cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
+
+  // use sygus variables
+  std::map<cvc4a::Term, cvc4a::Term> old_to_new;
+  std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(), cvc4_free_vars.end());
+  for (cvc4a::Term old_var : originals) {
+    cvc4a::Term new_var = cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
+    old_to_new[old_var] = new_var;
+  }
+  std::vector<cvc4a::Term> news;
+  for (cvc4a::Term old_var : originals) {
+    assert(old_to_new.find(old_var) != old_to_new.end());
+    news.push_back(old_to_new[old_var]);
+  }
+  
   
 
+  cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
 
+  std::cout << "panda constraint: " << constraint << std::endl;
+  std::cout << "panda sygus_constraint: " << sygus_constraint << std::endl;
 
   // TODO make sure this is correct -- not sure this makes sense but it should
   // be something like this need to make sure the quantifiers are correct e.g.
   // want to synthesize a predicate such that formula is unsat
-  cvc4_solver.addSygusConstraint(constraint);
+
+  cvc4_solver.addSygusConstraint(sygus_constraint);
 
   bool res = cvc4_solver.checkSynth().isUnsat();
   std::cout << "panda res: " << res << std::endl;
