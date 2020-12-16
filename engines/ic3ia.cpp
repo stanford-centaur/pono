@@ -64,6 +64,18 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
 {
 }
 
+IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp)
+    : super(p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(itp),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_),
+      longest_cex_length_(0)
+{
+}
+
 IC3IA::IC3IA(const PonoOptions & opt,
              Property & p,
              SolverEnum se,
@@ -88,6 +100,21 @@ IC3IA::IC3IA(const PonoOptions & opt,
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
       interpolator_(create_interpolating_solver(itp_se)),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_),
+      longest_cex_length_(0)
+{
+}
+
+IC3IA::IC3IA(const PonoOptions & opt,
+             Property & p,
+             const SmtSolver & s,
+             SmtSolver itp)
+    : super(opt, p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)

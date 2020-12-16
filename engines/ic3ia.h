@@ -40,23 +40,26 @@ class IC3IA : public IC3
  public:
   // itp_se is the SolverEnum for the interpolator
 
-  IC3IA(Property & p,
-        smt::SolverEnum se,
-        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+  IC3IA(Property & p, smt::SolverEnum se, smt::SolverEnum itp_se);
 
-  IC3IA(Property & p,
-        const smt::SmtSolver & s,
-        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+  IC3IA(Property & p, const smt::SmtSolver & s, smt::SolverEnum itp_se);
+
+  IC3IA(Property & p, const smt::SmtSolver & s, smt::SmtSolver itp);
 
   IC3IA(const PonoOptions & opt,
         Property & p,
         smt::SolverEnum se,
-        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+        smt::SolverEnum itp_se);
 
   IC3IA(const PonoOptions & opt,
         Property & p,
         const smt::SmtSolver & s,
-        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+        smt::SolverEnum itp_se);
+
+  IC3IA(const PonoOptions & opt,
+        Property & p,
+        const smt::SmtSolver & s,
+        smt::SmtSolver itp);
 
   virtual ~IC3IA() {}
 
