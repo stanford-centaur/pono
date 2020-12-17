@@ -52,10 +52,7 @@ IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0),
-      cvc4_(create_solver(smt::SolverEnum::CVC4)),
-      to_cvc4_(cvc4_),
-      from_cvc4_(solver_)
+      longest_cex_length_(0)
 {
 }
 
@@ -67,10 +64,7 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0),
-      cvc4_(create_solver(smt::SolverEnum::CVC4)),
-      to_cvc4_(cvc4_),
-      from_cvc4_(solver_)
+      longest_cex_length_(0)
 {
 }
 
@@ -82,10 +76,7 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp)
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0),
-      cvc4_(create_solver(smt::SolverEnum::CVC4)),
-      to_cvc4_(cvc4_),
-      from_cvc4_(solver_)
+      longest_cex_length_(0)
 {
 }
 
@@ -100,10 +91,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0),
-      cvc4_(create_solver(smt::SolverEnum::CVC4)),
-      to_cvc4_(cvc4_),
-      from_cvc4_(solver_)
+      longest_cex_length_(0)
 {
 }
 
@@ -118,10 +106,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0),
-      cvc4_(create_solver(smt::SolverEnum::CVC4)),
-      to_cvc4_(cvc4_),
-      from_cvc4_(solver_)
+      longest_cex_length_(0)
 {
 }
 
@@ -136,10 +121,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0),
-      cvc4_(create_solver(smt::SolverEnum::CVC4)),
-      to_cvc4_(cvc4_),
-      from_cvc4_(solver_)
+      longest_cex_length_(0)
 {
 }
 
@@ -490,8 +472,12 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 {
   namespace cvc4a = ::CVC4::api;
 
-  // TODO we might need to instantiate a new solver each time? Not sure
-  cvc4_->set_opt("incremental", "false");
+  // HACK
+  // hacked in to evaluate CVC4
+  // if done for real, should be sure to do this OR the interpolator, not both
+  smt::SmtSolver cvc4_ = create_solver(smt::SolverEnum::CVC4);
+  smt::TermTranslator to_cvc4_(cvc4_);
+  smt::TermTranslator from_cvc4_(solver_);
 
   // populate from_cvc4_ cache
   UnorderedTermMap & from_cvc4_cache = from_cvc4_.get_cache();

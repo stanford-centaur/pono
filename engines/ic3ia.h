@@ -92,13 +92,6 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
-  // HACK
-  // hacked in to evaluate CVC4
-  // if done for real, should be sure to do this OR the interpolator, not both
-  smt::SmtSolver cvc4_;
-  smt::TermTranslator to_cvc4_;
-  smt::TermTranslator from_cvc4_;
-
   // pure virtual method implementations
 
   IC3Formula get_model_ic3formula(
