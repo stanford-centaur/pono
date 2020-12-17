@@ -27,7 +27,7 @@ namespace pono {
 FunctionalUnroller::FunctionalUnroller(const TransitionSystem & ts,
                                        const SmtSolver & solver,
                                        size_t interval)
-    : super(ts, solver), interval_(interval)
+    : super(ts, solver), interval_(interval), true_(solver_->make_term(true))
 {
   if (!ts.is_functional()) {
     throw PonoException(
@@ -49,22 +49,40 @@ UnorderedTermMap & FunctionalUnroller::var_cache_at_time(unsigned int k)
   const UnorderedTermMap & state_updates = ts_.state_updates();
   while (time_cache_.size() <= k) {
     time_cache_.push_back(UnorderedTermMap());
+    extra_constraints_.push_back(true_);
     UnorderedTermMap & subst = time_cache_.back();
     const unsigned int t = time_cache_.size() - 1;
+    assert(extra_constraints_.size() == t + 1);
 
     // create new state variables instead of substituting
     // every interval_ steps (if interval_ nonzero)
     bool create_new = (interval_ && (k % interval_ == 0));
 
     for (auto v : ts_.statevars()) {
-      if (create_new) {
+      if (create_new || state_updates.find(v) == state_updates.end()) {
         Term new_v = var_at_time(v, t);
         subst[v] = new_v;
+      }
+
+      if (t == 0) {
+        assert(create_new);  // should be creating new symbols at 0
+        // no extra constraints at 0
+        continue;
+      }
+
+      Term fun_subst =
+          solver_->substitute(state_updates.at(v), time_cache_.at(t - 1));
+
+      if (create_new) {
+        // add equality to extra constraints
+        extra_constraints_[t] =
+            solver_->make_term(And,
+                               extra_constraints_[t],
+                               solver_->make_term(Equal, subst[v], fun_subst));
       } else {
-        assert(t > 0);
-        Term subst_v =
-            solver_->substitute(state_updates.at(v), time_cache_.at(t - 1));
-        subst[v] = subst_v;
+        assert(!subst[v]);  // expecting to not have been set already (e.g. be
+                            // null)
+        subst[v] = fun_subst;
       }
     }
 
@@ -75,7 +93,7 @@ UnorderedTermMap & FunctionalUnroller::var_cache_at_time(unsigned int k)
     }
   }
 
-  return time_cache_[k];
+  return time_cache_.at(k);
 }
 
 }  // namespace pono
