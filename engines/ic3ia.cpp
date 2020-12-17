@@ -310,6 +310,34 @@ RefineResult IC3IA::refine()
   UnorderedTermSet preds;
   // HACK added to experiment with CVC4 SyGuS for finding predicates
   if (options_.ic3ia_cvc4_pred_) {
+    // first check if the cex trace is spurious
+    // this is a bit hacky for now -- should refactor later so that
+    // the unrolling is shared with the interpolator approach in the else branch
+    // but don't want to disentagle it from interpolation right now
+    assert(solver_context_ == 0);
+    push_solver_context();
+
+    Term bmc_unrolling = unroller_.at_time(conc_ts_.init(), 0);
+    Term t;
+    for (size_t i = 0; i < cex_length; ++i) {
+      t = unroller_.at_time(cex[i], i);
+      if (i + 1 < cex_length) {
+        t = unroller_.at_time(conc_ts_.trans(), i);
+      }
+      bmc_unrolling = solver_->make_term(And, bmc_unrolling, t);
+    }
+    bmc_unrolling = solver_->make_term(
+        And, bmc_unrolling, unroller_.at_time(bad_, cex_length - 1));
+    solver_->assert_formula(bmc_unrolling);
+    Result r = solver_->check_sat();
+
+    pop_solver_context();
+
+    assert(!r.is_unknown());
+    if (r.is_sat()) {
+      // this is a real counterexample
+      return REFINE_NONE;
+    }
     cvc4_find_preds(cex, preds);
   } else {
     // use interpolator to get predicates
