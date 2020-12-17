@@ -7,6 +7,7 @@
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
+#include "tests/common_ts.h"
 #include "utils/exceptions.h"
 #include "utils/make_provers.h"
 #include "utils/term_walkers.h"
@@ -74,15 +75,8 @@ TEST_P(UtilsUnitTests, FindApply)
 TEST_P(UtilsUnitTests, CheckInvarTrue)
 {
   RelationalTransitionSystem rts(s);
-  Term x = rts.make_statevar("x", bvsort);
-  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
-  // x' = x < 10 ? x + 1 : 0
-  rts.assign_next(
-      x,
-      rts.make_term(Ite,
-                    rts.make_term(BVUlt, x, rts.make_term(10, bvsort)),
-                    rts.make_term(BVAdd, x, rts.make_term(1, bvsort)),
-                    rts.make_term(0, bvsort)));
+  counter_system(rts, rts.make_term(10, bvsort));
+  Term x = rts.named_terms().at("x");
 
   Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
   // property is inductive
@@ -92,15 +86,8 @@ TEST_P(UtilsUnitTests, CheckInvarTrue)
 TEST_P(UtilsUnitTests, CheckInvarFalse)
 {
   RelationalTransitionSystem rts(s);
-  Term x = rts.make_statevar("x", bvsort);
-  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
-  // x' = x <= 10 ? x + 1 : 0
-  rts.assign_next(
-      x,
-      rts.make_term(Ite,
-                    rts.make_term(BVUle, x, rts.make_term(10, bvsort)),
-                    rts.make_term(BVAdd, x, rts.make_term(1, bvsort)),
-                    rts.make_term(0, bvsort)));
+  counter_system(rts, rts.make_term(11, bvsort));
+  Term x = rts.named_terms().at("x");
 
   Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
   EXPECT_FALSE(check_invar(rts, prop, prop));
