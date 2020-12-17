@@ -40,23 +40,26 @@ class IC3IA : public IC3
  public:
   // itp_se is the SolverEnum for the interpolator
 
-  IC3IA(Property & p,
-        smt::SolverEnum se,
-        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+  IC3IA(Property & p, smt::SolverEnum se, smt::SolverEnum itp_se);
 
-  IC3IA(Property & p,
-        const smt::SmtSolver & s,
-        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+  IC3IA(Property & p, const smt::SmtSolver & s, smt::SolverEnum itp_se);
+
+  IC3IA(Property & p, const smt::SmtSolver & s, smt::SmtSolver itp);
 
   IC3IA(const PonoOptions & opt,
         Property & p,
         smt::SolverEnum se,
-        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+        smt::SolverEnum itp_se);
 
   IC3IA(const PonoOptions & opt,
         Property & p,
         const smt::SmtSolver & s,
-        smt::SolverEnum itp_se = smt::SolverEnum::MSAT);
+        smt::SolverEnum itp_se);
+
+  IC3IA(const PonoOptions & opt,
+        Property & p,
+        const smt::SmtSolver & s,
+        smt::SmtSolver itp);
 
   virtual ~IC3IA() {}
 
@@ -89,16 +92,9 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
-  // HACK
-  // hacked in to evaluate CVC4
-  // if done for real, should be sure to do this OR the interpolator, not both
-  smt::SmtSolver cvc4_;
-  smt::TermTranslator to_cvc4_;
-  smt::TermTranslator from_cvc4_;
-
   // pure virtual method implementations
 
-  IC3Formula get_model_ic3_formula(
+  IC3Formula get_model_ic3formula(
       smt::TermVec * out_inputs = nullptr,
       smt::TermVec * out_nexts = nullptr) const override;
 

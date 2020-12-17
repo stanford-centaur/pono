@@ -154,8 +154,8 @@ ProverResult IC3Base::check_until(int k)
     // got unknown, so keep going
     // got false, but was able to refine successfully
     assert(res == ProverResult::UNKNOWN
-           || res == ProverResult::FALSE
-                  && ref_res == RefineResult::REFINE_SUCCESS);
+           || (res == ProverResult::FALSE
+               && ref_res == RefineResult::REFINE_SUCCESS));
 
     // increment i, unless there was a refinement step just done
     if (ref_res != RefineResult::REFINE_SUCCESS) {
@@ -233,7 +233,12 @@ bool IC3Base::intersects_bad()
   Result r = solver_->check_sat();
 
   if (r.is_sat()) {
-    add_proof_goal(get_model_ic3_formula(), reached_k_ + 1, NULL);
+    IC3Formula c = get_model_ic3formula();
+    // reduce c
+    TermVec red_c;
+    reducer_.reduce_assump_unsatcore(smart_not(bad_), c.children, red_c);
+
+    add_proof_goal(ic3formula_conjunction(red_c), reached_k_ + 1, NULL);
   }
 
   pop_solver_context();
@@ -295,7 +300,7 @@ ProverResult IC3Base::step_0()
   solver_->assert_formula(bad_);
   Result r = solver_->check_sat();
   if (r.is_sat()) {
-    IC3Formula c = get_model_ic3_formula();
+    IC3Formula c = get_model_ic3formula();
     cex_pg_ = ProofGoal(c, 0, nullptr);
     pop_solver_context();
     return ProverResult::FALSE;
@@ -336,7 +341,7 @@ bool IC3Base::rel_ind_check(size_t i,
     if (options_.ic3_pregen_) {
       predecessor = generalize_predecessor(i, c);
     } else {
-      predecessor = get_model_ic3_formula();
+      predecessor = get_model_ic3formula();
     }
     assert(ic3formula_check_valid(predecessor));
     out.push_back(predecessor);
