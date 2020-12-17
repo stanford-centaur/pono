@@ -27,7 +27,7 @@ if (WITH_MSAT)
 endif()
 
 macro(pono_add_test name)
-  add_executable(${name} "${PROJECT_SOURCE_DIR}/tests/${name}.cpp")
+  add_executable(${name} "${CMAKE_CURRENT_SOURCE_DIR}/${name}.cpp")
   target_link_libraries(${name} gtest_main)
   target_link_libraries(${name} pono-lib)
   add_test(NAME ${name} COMMAND ${name})
