@@ -34,10 +34,22 @@ class FunctionalUnroller : public Unroller
    */
   FunctionalUnroller(const TransitionSystem & ts,
                      const smt::SmtSolver & solver,
-                     size_t interval);
+                     size_t interval = 0);
+
   ~FunctionalUnroller() {}
 
   typedef Unroller super;
+
+  /** takes a term over current state and input variables
+   *  and returns it at a given time with a functional unrolling
+   *  NOTE: will throw exception if there's a next-state variable
+   *  which makes no sense in a functional unrolling
+   *  @param t the term to unroll (for FunctionalUnroller must
+   *         only have current variables and inputs)
+   *  @param k the time to unroll the term at
+   *  @return the unrolled term
+   */
+  smt::Term at_time(const smt::Term & t, unsigned int k);
 
  protected:
   size_t interval_;

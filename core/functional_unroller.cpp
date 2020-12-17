@@ -14,7 +14,9 @@
 **
 **
 **/
-#include "core/unroller.h"
+#include "core/functional_unroller.h"
+
+#include "assert.h"
 #include "utils/exceptions.h"
 
 using namespace smt;
@@ -33,9 +35,47 @@ FunctionalUnroller::FunctionalUnroller(const TransitionSystem & ts,
   }
 }
 
+Term FunctionalUnroller::at_time(const Term & t, unsigned int k)
+{
+  if (!ts_.no_next(t)) {
+    throw PonoException(
+        "Functional unroller cannot replace next state variables");
+  }
+  return super::at_time(t, k);
+}
+
 UnorderedTermMap & FunctionalUnroller::var_cache_at_time(unsigned int k)
 {
-  throw PonoException("NYI");
+  const UnorderedTermMap & state_updates = ts_.state_updates();
+  while (time_cache_.size() <= k) {
+    time_cache_.push_back(UnorderedTermMap());
+    UnorderedTermMap & subst = time_cache_.back();
+    const unsigned int t = time_cache_.size() - 1;
+
+    // create new state variables instead of substituting
+    // every interval_ steps (if interval_ nonzero)
+    bool create_new = (interval_ && (k % interval_ == 0));
+
+    for (auto v : ts_.statevars()) {
+      if (create_new) {
+        Term new_v = var_at_time(v, t);
+        subst[v] = new_v;
+      } else {
+        assert(t > 0);
+        Term subst_v =
+            solver_->substitute(state_updates.at(v), time_cache_.at(t - 1));
+        subst[v] = subst_v;
+      }
+    }
+
+    // always need to create new input variables
+    for (auto v : ts_.inputvars()) {
+      Term new_v = var_at_time(v, t);
+      subst[v] = new_v;
+    }
+  }
+
+  return time_cache_[k];
 }
 
 }  // namespace pono

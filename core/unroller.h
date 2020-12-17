@@ -46,7 +46,7 @@ class Unroller
    *  @param k the time to unroll the term at
    *  @return the unrolled term
    */
-  smt::Term at_time(const smt::Term & t, unsigned int k);
+  virtual smt::Term at_time(const smt::Term & t, unsigned int k);
 
   smt::Term untime(const smt::Term & t) const;
 
