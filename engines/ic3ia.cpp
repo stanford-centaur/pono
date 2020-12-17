@@ -538,7 +538,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   }
 
   // Retrieve the underlying fresh cvc4 solver
-  const cvc4a::Solver & cvc4_solver =
+  cvc4a::Solver & cvc4_solver =
       static_pointer_cast<CVC4Solver>(cvc4_)->get_cvc4_solver();
 
   // set necessary options for sygus
@@ -633,7 +633,10 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
       pred_args.end(), cvc4_statevars.begin(), cvc4_statevars.end());
   cvc4a::Term applied_pred_solution =
       cvc4_solver.mkTerm(cvc4a::APPLY_UF, pred_args);
-  Term cvc4_learned_pred = make_shared<CVC4Term>(applied_pred_solution);
+
+  // NOTE: need to call simplify, because the predicate is an applied lambda
+  // and smt-switch doesn't handle lambdas yet
+  Term cvc4_learned_pred = make_shared<CVC4Term>(cvc4_solver.simplify(applied_pred_solution));
 
   Term learned_pred = from_cvc4_.transfer_term(cvc4_learned_pred, BOOL);
   assert(learned_pred);
