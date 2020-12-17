@@ -557,7 +557,10 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   // collect all required sorts
   for (auto cvc4_boundvar : cvc4_boundvars) {
     cvc4a::Sort s = cvc4_boundvar.getSort();
-    bv_sorts.insert(s);
+    if (s.isBitVector())
+    {
+      bv_sorts.insert(s);
+    }
   }
 
   // for each sort, introduce a new constructor for the grammar
