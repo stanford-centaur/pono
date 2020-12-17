@@ -769,18 +769,26 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   cvc4_solver.printSynthSolution(std::cout);
 
   cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
-  vector<cvc4a::Term> pred_args({ pred_solution });
-  pred_args.insert(
-      pred_args.end(), cvc4_statevars.begin(), cvc4_statevars.end());
-  cvc4a::Term applied_pred_solution =
-      cvc4_solver.mkTerm(cvc4a::APPLY_UF, pred_args);
 
-  // NOTE: need to call simplify, because the predicate is an applied lambda
-  // and smt-switch doesn't handle lambdas yet
-  Term cvc4_learned_pred = make_shared<CVC4Term>(cvc4_solver.simplify(applied_pred_solution));
+  // instead of applying predicate and simplifying to get rid of the lambda
+  // decided to just do substitution
+  // this keeps the structure that sygus came up with instead of rewriting it
+  // noticed on one example that arithmetic bv operators were replaced with
+  // bitwise operators
 
-  Binarizer binarizer(cvc4_);
-  cvc4_learned_pred = binarizer.process(cvc4_learned_pred);
+  vector<cvc4a::Term> pred_solution_children(pred_solution.begin(),
+                                             pred_solution.end());
+  assert(pred_solution_children.size()
+         == 2);  // expecting a bound_var_list and a term
+  cvc4a::Term pred_solution_statevars =
+      pred_solution_children[1].substitute(cvc4_boundvars, cvc4_statevars);
+
+  Term cvc4_learned_pred = make_shared<CVC4Term>(pred_solution_statevars);
+
+  // Makai: put this back in if it starts failing on term translation
+  //        not all backend solvers support n-ary arguments
+  // Binarizer binarizer(cvc4_);
+  // cvc4_learned_pred = binarizer.process(cvc4_learned_pred);
 
   Term learned_pred = from_cvc4_.transfer_term(cvc4_learned_pred, BOOL);
   assert(learned_pred);
