@@ -34,6 +34,7 @@
 #include "smt-switch/cvc4_solver.h"
 #include "smt-switch/cvc4_sort.h"
 #include "smt-switch/cvc4_term.h"
+#include "smt-switch/identity_walker.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
@@ -43,6 +44,65 @@ using namespace smt;
 using namespace std;
 
 namespace pono {
+
+// helper class for translating back from CVC4
+// which is not always binarized
+class Binarizer : public smt::IdentityWalker
+{
+  typedef smt::IdentityWalker super;
+
+  // probably this class will inherit from SMT-Switch-Walker
+ public:
+  Binarizer(smt::SmtSolver & solver) : super(solver, false){};
+  ~Binarizer(){};
+
+  smt::Term process(smt::Term t)
+  {
+    Term res = visit(t);
+    return res;
+  }
+
+ protected:
+  smt::WalkerStepResult visit_term(smt::Term & t) override
+  {
+    if (!preorder_) {
+      Op o = t->get_op();
+      PrimOp po = o.prim_op;
+      Term res = t;
+
+      TermVec cached_children;
+      for (auto tt : t) {
+        Term cached_tt;
+        assert(in_cache(tt));
+        query_cache(tt, cached_tt);
+        assert(cached_tt);
+        cached_children.push_back(cached_tt);
+      }
+      switch (po) {
+        case BVAnd:
+        case BVOr:
+        case BVXor:
+          // case BVAdd:
+        case BVMul:
+        case Concat:
+          res = solver_->make_term(po, cached_children[0], cached_children[1]);
+          for (size_t i = 2; i < cached_children.size(); i++) {
+            res = solver_->make_term(po, res, cached_children[i]);
+          }
+          break;
+        default:
+          if (!t->is_symbol() && !t->is_value()) {
+            res = solver_->make_term(o, cached_children);
+          }
+          break;
+      }
+
+      save_in_cache(t, res);
+    }
+
+    return Walker_Continue;
+  }
+};
 
 IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
     : super(p, se),
@@ -718,6 +778,9 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   // NOTE: need to call simplify, because the predicate is an applied lambda
   // and smt-switch doesn't handle lambdas yet
   Term cvc4_learned_pred = make_shared<CVC4Term>(cvc4_solver.simplify(applied_pred_solution));
+
+  Binarizer binarizer(cvc4_);
+  cvc4_learned_pred = binarizer.process(cvc4_learned_pred);
 
   Term learned_pred = from_cvc4_.transfer_term(cvc4_learned_pred, BOOL);
   assert(learned_pred);
