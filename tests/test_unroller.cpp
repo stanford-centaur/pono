@@ -201,6 +201,8 @@ TEST_P(UnrollerUnitTests, FunctionalUnroller)
   for (auto fv : expected_free_vars) {
     EXPECT_TRUE(free_vars.find(fv) != free_vars.end()) << "missing " << fv;
   }
+
+  EXPECT_THROW(funroller.at_time(fts.next(x), 4), PonoException) << "FunctionalUnroller can't handle next state variables" << endl;
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
