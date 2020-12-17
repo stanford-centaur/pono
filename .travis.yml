@@ -38,6 +38,7 @@ jobs:
       osx_image: xcode12.2
 
 script:
+  - echo "Skipping Travis build"
   # - source ./scripts/travis-mac-install.sh
   # brew sometimes fails on something even after a successful python installation
   # we don't want the build to fail
