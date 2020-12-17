@@ -65,7 +65,14 @@ class FunctionalUnroller : public Unroller
    *  However, we then need to add equality constraints to
    *  give those symbols meaning
    */
-  smt::Term extra_constraints_at(unsigned int k);
+  smt::Term extra_constraints_at(unsigned int k)
+  {
+    if (k >= extra_constraints_.size()) {
+      throw PonoException("Haven't unrolled enough for extra_constraints at "
+                          + std::to_string(k));
+    }
+    return extra_constraints_.at(k);
+  }
 
  protected:
   size_t interval_;

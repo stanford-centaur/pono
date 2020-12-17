@@ -205,6 +205,50 @@ TEST_P(UnrollerUnitTests, FunctionalUnroller)
   EXPECT_THROW(funroller.at_time(fts.next(x), 4), PonoException) << "FunctionalUnroller can't handle next state variables" << endl;
 }
 
+TEST_P(UnrollerUnitTests, IntermittentFunctionalUnrolling)
+{
+  FunctionalTransitionSystem fts(s);
+  counter_system(fts, fts.make_term(10, bvsort));
+  Term x = fts.named_terms().at("x");
+
+  size_t interval = 4;
+  FunctionalUnroller funroller(fts, s, interval);
+
+  Term x0 = funroller.at_time(x, 0);
+  EXPECT_TRUE(x0->is_symbolic_const());
+
+  Term true_ = s->make_term(true);
+
+  for (size_t i = 1; i < interval; ++i) {
+    Term unrolled_x = funroller.at_time(x, i);
+
+    UnorderedTermSet free_vars;
+    get_free_symbolic_consts(unrolled_x, free_vars);
+    EXPECT_EQ(free_vars.size(), 1);
+    EXPECT_TRUE(free_vars.find(x0) != free_vars.end());
+    EXPECT_EQ(funroller.extra_constraints_at(i), true_);
+  }
+
+  Term x_at_interval = funroller.at_time(x, interval);
+  EXPECT_TRUE(x_at_interval->is_symbolic_const());
+
+  cout << "Functional unrolling at interval got " << x_at_interval << endl;
+
+  // expected constraint is x@4 = pure functional unrolling at 3 plugged into
+  // update function
+  Term update = s->substitute(fts.state_updates().at(x),
+                              { { x, funroller.at_time(x, 3) } });
+  Term expected_eq_constraint = fts.make_term(Equal, x_at_interval, update);
+
+  // not guaranteed to be structurally identical
+  // but should be equivalent
+  s->assert_formula(s->make_term(Distinct,
+                                 expected_eq_constraint,
+                                 funroller.extra_constraints_at(interval)));
+  Result r = s->check_sat();
+  EXPECT_TRUE(r.is_unsat());
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
                          UnrollerUnitTests,
                          testing::ValuesIn(available_solver_enums()));
