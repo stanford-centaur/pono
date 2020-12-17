@@ -547,12 +547,59 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
     cvc4_boundvars.push_back(cvc4_bv);
   }
 
+  // Grammr construction
+  cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
+  cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
+  std::unordered_set<cvc4a::Sort, cvc4a::SortHashFunction> bv_sorts;
+  std::vector<cvc4a::Term> start_bvs;
+
+  for (auto cvc4_boundvar : cvc4_boundvars) {
+    cvc4a::Sort s = cvc4_boundvar.getSort();
+    bv_sorts.insert(s);
+  }
+  for (auto s : bv_sorts) {
+    cvc4a::Term start_bv = cvc4_solver.mkVar(s, s.toString() + "_start");
+    start_bvs.push_back(start_bv);
+  }
+  vector<cvc4a::Term> starts;
+  starts.push_back(start_bool);
+  starts.insert(starts.end(), start_bvs.begin(), start_bvs.end());
+  cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
+
+  for (auto s : start_bvs) {
+    cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
+    cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
+    g.addRules(start_bool, {equals, bvugt});
+  }
+
+
+  for (auto s : start_bvs) {
+    cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
+    cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
+    cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
+    cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
+    cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
+    cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
+    cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
+    cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
+    vector<cvc4a::Term> g_bound_vars;
+    for (auto bound_var : cvc4_boundvars) {
+      if (bound_var.getSort() == s.getSort()) {
+        g_bound_vars.push_back(bound_var);
+      }
+    }
+
+    vector<cvc4a::Term> constructs = {zero, one, bvadd, bvmul, bvand, bvor, bvnot, bvneg};
+    constructs.insert(constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
+    g.addRules(s, constructs);
+  }
+
   // Create the predicate to search for
   // TODO: add grammar constraints -- want it to be a predicate
   //       There are also likely heuristic choices in the grammar that will
   //       perform much better
   cvc4a::Term pred =
-      cvc4_solver.synthFun("P", cvc4_boundvars, cvc4_solver.getBooleanSort());
+      cvc4_solver.synthFun("P", cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
 
   // add the implicit predicate abstraction constraints
   // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2) /\ ...
@@ -605,10 +652,28 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
         cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
   }
 
+  cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
+
+  // use sygus variables
+  std::map<cvc4a::Term, cvc4a::Term> old_to_new;
+  std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(), cvc4_free_vars.end());
+  for (cvc4a::Term old_var : originals) {
+    cvc4a::Term new_var = cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
+    old_to_new[old_var] = new_var;
+  }
+  std::vector<cvc4a::Term> news;
+  for (cvc4a::Term old_var : originals) {
+    assert(old_to_new.find(old_var) != old_to_new.end());
+    news.push_back(old_to_new[old_var]);
+  }
+
+  cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
+
   // TODO make sure this is correct -- not sure this makes sense but it should
   // be something like this need to make sure the quantifiers are correct e.g.
   // want to synthesize a predicate such that formula is unsat
-  cvc4_solver.addSygusConstraint(cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula));
+
+  cvc4_solver.addSygusConstraint(sygus_constraint);
 
   bool res = cvc4_solver.checkSynth().isUnsat();
   // for debugging: 
