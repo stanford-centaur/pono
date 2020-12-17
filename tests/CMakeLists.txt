@@ -32,12 +32,12 @@ add_library(pono-test-lib "${PONO_LIB_TYPE}"
 
 # INCLUDE_DIRS set in top-level CMakeLists.txt
 target_include_directories(pono-test-lib PUBLIC "${INCLUDE_DIRS}")
+target_link_libraries(pono-test-lib pono-lib)
 
 macro(pono_add_test name)
   add_executable(${name} "${CMAKE_CURRENT_SOURCE_DIR}/${name}.cpp")
   target_link_libraries(${name} gtest_main)
-  target_link_libraries(${name} pono-lib)
-  target_link_libraries(${name} pono-test-lib)
+  target_link_libraries(${name} pono-test-lib) # also includes pono-lib because it's linked
   add_test(NAME ${name} COMMAND ${name})
 endmacro()
 
