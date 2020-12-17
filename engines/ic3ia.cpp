@@ -479,6 +479,25 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   smt::TermTranslator to_cvc4_(cvc4_);
   smt::TermTranslator from_cvc4_(solver_);
 
+  // also create a fresh transition system to pass to a fresh unroller
+  // NOTE we have to do this because the default unroller_ can currently
+  //      only unroll the concrete transition system (it doesn't have the
+  //      abstract variables) This should be fixed because it's not intuitive
+  RelationalTransitionSystem cvc4_rts(cvc4_);
+  Term cvc4_init = to_cvc4_.transfer_term(abs_ts_.init());
+  Term cvc4_trans = to_cvc4_.transfer_term(abs_ts_.trans());
+  for (auto v : abs_ts_.statevars()) {
+    cvc4_rts.add_statevar(to_cvc4_.transfer_term(v),
+                          to_cvc4_.transfer_term(abs_ts_.next(v)));
+  }
+
+  for (auto v : abs_ts_.inputvars()) {
+    cvc4_rts.add_inputvar(to_cvc4_.transfer_term(v));
+  }
+
+  cvc4_rts.set_behavior(cvc4_init, cvc4_trans);
+  Unroller cvc4_unroller(cvc4_rts, cvc4_);
+
   // populate from_cvc4_ cache
   UnorderedTermMap & from_cvc4_cache = from_cvc4_.get_cache();
   for (auto sv : conc_ts_.statevars()) {
@@ -489,19 +508,22 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   assert(cex_length);
 
   // unroll the counterexample
-  Term solver_formula = unroller_.at_time(abs_ts_.init(), 0);
+  Term ss_cvc4_formula = cvc4_unroller.at_time(cvc4_rts.init(), 0);
   Term t;
   for (size_t i = 0; i < cex_length; ++i) {
-    t = cex[i];
+    t = to_cvc4_.transfer_term(cex[i], BOOL);
     if (i + 1 < cex_length) {
-      t = solver_->make_term(And, t, abs_ts_.trans());
+      t = cvc4_->make_term(And, t, cvc4_rts.trans());
     }
-    solver_formula =
-        solver_->make_term(And, solver_formula, unroller_.at_time(t, i));
+    ss_cvc4_formula =
+        cvc4_->make_term(And, ss_cvc4_formula, cvc4_unroller.at_time(t, i));
   }
-
-  // Transfer to fresh CVC4 solver
-  Term ss_cvc4_formula = to_cvc4_.transfer_term(solver_formula, BOOL);
+  // redundant but might as well add bad cube
+  ss_cvc4_formula =
+      cvc4_->make_term(And,
+                       ss_cvc4_formula,
+                       cvc4_unroller.at_time(to_cvc4_.transfer_term(bad_, BOOL),
+                                             cex_length - 1));
 
   UnorderedTermSet ss_free_vars;
   get_free_symbolic_consts(ss_cvc4_formula, ss_free_vars);
@@ -629,8 +651,9 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
       nv = abs_ts_.next(sv);
       abs_nv = ia_.abstract(nv);
 
-      unrolled_nv = to_cvc4_.transfer_term(unroller_.at_time(nv, i));
-      unrolled_abs_nv = to_cvc4_.transfer_term(unroller_.at_time(abs_nv, i));
+      unrolled_nv = cvc4_unroller.at_time(to_cvc4_.transfer_term(nv), i);
+      unrolled_abs_nv =
+          cvc4_unroller.at_time(to_cvc4_.transfer_term(abs_nv), i);
 
       cvc4_unrolled_nv =
           static_pointer_cast<CVC4Term>(unrolled_nv)->get_cvc4_term();
