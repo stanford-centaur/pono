@@ -315,21 +315,21 @@ RefineResult IC3IA::refine()
     // use interpolator to get predicates
     // remember -- need to transfer between solvers
     assert(interpolator_);
-    Term t = make_and({ conc_ts_.init(), cex[0] });
+    register_symbol_mappings(0);
+    Term t = make_and({ cex[0], conc_ts_.trans() });
     Term A = to_interpolator_.transfer_term(unroller_.at_time(t, 0), BOOL);
 
     TermVec B;
-    B.reserve(cex.size() - 1);
+    B.reserve(cex_length - 1);
     // add to B in reverse order so we can pop_back later
-    for (int i = cex.size() - 1; i >= 0; --i) {
-      register_symbol_mappings(
-          i);  // make sure to_solver_ cache is populated with unrolled symbols
-      t = cex[i];
-      if (i + 1 < cex.size()) {
-        t = solver_->make_term(And, t, conc_ts_.trans());
+    for (int i = cex_length - 1; i >= 1; --i) {
+      // make sure to_solver_ cache is populated with unrolled symbols
+      register_symbol_mappings(i);
+      t = unroller_.at_time(cex[i], i);
+      if (i + 1 < cex_length) {
+        t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
       }
-      B.push_back(
-          to_interpolator_.transfer_term(unroller_.at_time(t, i), BOOL));
+      B.push_back(to_interpolator_.transfer_term(t, BOOL));
     }
 
     // now get interpolants for each transition starting with the first
