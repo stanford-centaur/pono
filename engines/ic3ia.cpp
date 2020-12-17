@@ -611,7 +611,8 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   cvc4_solver.addSygusConstraint(cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula));
 
   bool res = cvc4_solver.checkSynth().isUnsat();
-  // for debugging: cvc4_solver.printSynthSolution(std::cout);
+  // for debugging: 
+  cvc4_solver.printSynthSolution(std::cout);
 
   cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
   vector<cvc4a::Term> pred_args({ pred_solution });
