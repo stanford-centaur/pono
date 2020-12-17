@@ -56,7 +56,9 @@ UnorderedTermMap & FunctionalUnroller::var_cache_at_time(unsigned int k)
 
     // create new state variables instead of substituting
     // every interval_ steps (if interval_ nonzero)
+    // except when k is zero then we have to create_new regardless
     bool create_new = (interval_ && (k % interval_ == 0));
+    create_new |= !t;
 
     for (auto v : ts_.statevars()) {
       if (create_new || state_updates.find(v) == state_updates.end()) {

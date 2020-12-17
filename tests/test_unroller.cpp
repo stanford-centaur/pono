@@ -3,6 +3,7 @@
 
 #include "core/adaptive_unroller.h"
 #include "core/fts.h"
+#include "core/functional_unroller.h"
 #include "core/rts.h"
 #include "core/unroller.h"
 #include "gtest/gtest.h"
@@ -144,6 +145,62 @@ TEST_P(UnrollerUnitTests, AdaptiveUnroller)
   Term x4py4 = rts.make_term(BVAdd, x4, y4);
   Term x4py4_2 = au.at_time(xpy, 4);
   EXPECT_EQ(x4py4, x4py4_2);
+}
+
+TEST_P(UnrollerUnitTests, FunctionalUnroller)
+{
+  FunctionalTransitionSystem fts(s);
+  counter_system(fts, fts.make_term(10, bvsort));
+  Term x = fts.named_terms().at("x");
+
+  // add an input
+  Term inp = fts.make_inputvar("inp", bvsort);
+
+  // add another state variable
+  Term y = fts.make_statevar("y", bvsort);
+  fts.assign_next(y, fts.make_term(BVAdd, y, inp));
+
+  FunctionalUnroller funroller(fts, s, 0);
+
+  Term x0 = funroller.at_time(x, 0);
+  EXPECT_TRUE(x0->is_symbolic_const());
+  EXPECT_FALSE(funroller.at_time(x, 1)->is_symbolic_const());
+
+  cout << "Pure functional unrolling to 2 gives: " << funroller.at_time(x, 2)
+       << endl;
+  cout << "Input unrolled at 2 gives: " << funroller.at_time(inp, 2) << endl;
+
+  EXPECT_TRUE(funroller.at_time(inp, 2)->is_symbolic_const())
+      << "inputs always need fresh symbols";
+
+  // only free symbol in pure functional unrolling should be state variables at
+  // 0 and inputs since x doesn't have y or inp in the COI, just check that
+  UnorderedTermSet free_vars;
+  get_free_symbolic_consts(funroller.at_time(x, 3), free_vars);
+  EXPECT_EQ(free_vars.size(), 1)
+      << "should only be on constant because of pure unrolling";
+  EXPECT_TRUE(free_vars.find(x0) != free_vars.end())
+      << "expecting one free variable: x@0";
+
+  free_vars.clear();
+
+  // now try with y
+  Term y0 = funroller.at_time(y, 0);
+  EXPECT_TRUE(y0->is_symbolic_const());
+  UnorderedTermSet expected_free_vars({ y0 });
+  size_t unroll_length = 4;
+  for (size_t i = 0; i < unroll_length; ++i) {
+    Term unrolled_inp = funroller.at_time(inp, i);
+    EXPECT_TRUE(unrolled_inp->is_symbolic_const());
+    expected_free_vars.insert(unrolled_inp);
+  }
+
+  Term unrolled_y = funroller.at_time(y, unroll_length);
+  get_free_symbolic_consts(unrolled_y, free_vars);
+  EXPECT_EQ(free_vars.size(), expected_free_vars.size());
+  for (auto fv : expected_free_vars) {
+    EXPECT_TRUE(free_vars.find(fv) != free_vars.end()) << "missing " << fv;
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedUnrollerUnitTests,
