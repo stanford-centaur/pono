@@ -10,6 +10,7 @@
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
+#include "tests/common_ts.h"
 #include "utils/exceptions.h"
 #include "utils/ts_analysis.h"
 
@@ -42,24 +43,22 @@ class EngineUnitTests
     }
 
     bvsort8 = ts->make_sort(BV, 8);
+    max_val = ts->make_term(7, bvsort8);
 
-    // "Hello, World"-style counter test
-    Term cnt = ts->make_statevar("cnt", bvsort8);
-    ts->set_init(ts->make_term(Equal, cnt, ts->make_term(0, bvsort8)));
-    ts->assign_next(
-        cnt,
-        ts->make_term(Ite,
-                      ts->make_term(BVUle, cnt, ts->make_term(6, bvsort8)),
-                      ts->make_term(BVAdd, cnt, ts->make_term(1, bvsort8)),
-                      ts->make_term(0, bvsort8)));
-    Term true_prop = ts->make_term(BVUle, cnt, ts->make_term(7, bvsort8));
+    // populate TS with basic resetting counter system
+    counter_system(*ts, max_val);
+
+    Term x = ts->named_terms().at("x");
+
+    Term true_prop = ts->make_term(BVUle, x, ts->make_term(7, bvsort8));
     true_p = new Property(*ts, true_prop);
 
-    Term false_prop = ts->make_term(BVUle, cnt, ts->make_term(6, bvsort8));
+    Term false_prop = ts->make_term(BVUle, x, ts->make_term(6, bvsort8));
     false_p = new Property(*ts, false_prop);
   }
   SolverEnum se;
   Sort bvsort8;
+  Term max_val;
   TransitionSystem * ts;
   Property * true_p;
   Property * false_p;
