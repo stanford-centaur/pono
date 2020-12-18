@@ -53,7 +53,7 @@ SmtSolver create_shared_env_interp(const SmtSolver & s)
   }
   msat_env orig_env = static_pointer_cast<MsatSolver>(s)->get_msat_env();
   msat_config cfg = ::ic3ia::get_config(::ic3ia::NO_MODEL, true, false);
-  return make_shared<MsatInterpolatingSolver>(
+  return make_shared<MsatInterpolatingSolver>(cfg,
       msat_create_shared_env(cfg, orig_env));
 }
 

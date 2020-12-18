@@ -196,7 +196,7 @@ int main(int argc, char ** argv)
       msat_config cfg = ::ic3ia::get_config(
           ::ic3ia::ModelGeneration::FULL_MODEL, false, false);
       msat_env env = msat_create_env(cfg);
-      s = make_shared<MsatSolver>(env);
+      s = make_shared<MsatSolver>(cfg, env);
 #else
       throw PonoException("ProphIC3 only supported with MathSAT so far");
 #endif
@@ -206,7 +206,7 @@ int main(int argc, char ** argv)
         msat_config cfg = ::ic3ia::get_config(
             ::ic3ia::ModelGeneration::FULL_MODEL, false, false);
         msat_env env = msat_create_env(cfg);
-        s = make_shared<MsatSolver>(env);
+        s = make_shared<MsatSolver>(cfg, env);
 #else
         throw PonoException(
             "This version of pono is built without MathSAT.\nPlease "
