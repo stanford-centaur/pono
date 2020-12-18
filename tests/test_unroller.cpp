@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
+#include "tests/common_ts.h"
 #include "utils/exceptions.h"
 
 using namespace pono;
@@ -32,8 +33,8 @@ protected:
 TEST_P(UnrollerUnitTests, FTS_Unroll)
 {
   FunctionalTransitionSystem fts(s);
-  Term x = fts.make_statevar("x", bvsort);
-  fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+  counter_system(fts, fts.make_term(10, bvsort));
+  Term x = fts.named_terms().at("x");
 
   Unroller u(fts, s);
   Term x0 = u.at_time(x, 0);
@@ -43,8 +44,8 @@ TEST_P(UnrollerUnitTests, FTS_Unroll)
 TEST_P(UnrollerUnitTests, RTS_Unroll)
 {
   RelationalTransitionSystem rts(s);
-  Term x = rts.make_statevar("x", bvsort);
-  rts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+  counter_system(rts, rts.make_term(10, bvsort));
+  Term x = rts.named_terms().at("x");
 
   Unroller u(rts, s);
   Term x0 = u.at_time(x, 0);
@@ -57,8 +58,8 @@ TEST_P(UnrollerUnitTests, RTS_Unroll)
 TEST_P(UnrollerUnitTests, GetTime)
 {
   RelationalTransitionSystem rts(s);
-  Term x = rts.make_statevar("x", bvsort);
-  rts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+  counter_system(rts, rts.make_term(10, bvsort));
+  Term x = rts.named_terms().at("x");
 
   Unroller u(rts, s);
   Term x0 = u.at_time(x, 0);

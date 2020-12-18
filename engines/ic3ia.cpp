@@ -31,11 +31,13 @@
 
 #include <random>
 
+// includes for the CVC4 pred experiment
 #include "smt-switch/cvc4_solver.h"
 #include "smt-switch/cvc4_sort.h"
 #include "smt-switch/cvc4_term.h"
 #include "smt-switch/identity_walker.h"
 #include "smt-switch/utils.h"
+
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
