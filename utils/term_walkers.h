@@ -52,4 +52,28 @@ class TermOpCollector : protected smt::IdentityWalker
   smt::UnorderedTermSet * out_ = nullptr;
 };
 
+/** Class for collecting all subterms and grouping by sort
+ */
+class SubTermCollector : public smt::IdentityWalker
+{
+ public:
+  SubTermCollector(const smt::SmtSolver & solver, bool include_funs = false);
+
+  typedef smt::IdentityWalker super;
+
+  void collect_subterms(smt::Term term);
+
+  const std::unordered_map<smt::Sort, smt::UnorderedTermSet> & get_subterms()
+  {
+    return subterms_;
+  };
+
+ protected:
+  bool include_funs_;  ///< if true, includes function symbols
+
+  std::unordered_map<smt::Sort, smt::UnorderedTermSet> subterms_;
+
+  smt::WalkerStepResult visit_term(smt::Term & term) override;
+};
+
 }  // namespace pono
