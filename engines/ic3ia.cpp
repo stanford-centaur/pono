@@ -35,17 +35,29 @@
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 
+// HACK adding in for now for evaluation
+//      using the configuration
+#include "ic3ia/utils.h"
+#include "smt-switch/msat_solver.h"
+
 using namespace smt;
 using namespace std;
 
 namespace pono {
+
+msat_env create_shared_env_interp(msat_env env)
+{
+  msat_config cfg = ::ic3ia::get_config(::ic3ia::NO_MODEL, true, false);
+  return msat_create_shared_env(cfg, env);
+}
 
 IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
     : super(p, se),
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
+      interpolator_(make_shared<MsatSolver>(create_shared_env_interp(
+          static_pointer_cast<MsatSolver>(solver_)->get_msat_env()))),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
@@ -57,7 +69,8 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
+      interpolator_(make_shared<MsatSolver>(create_shared_env_interp(
+          static_pointer_cast<MsatSolver>(solver_)->get_msat_env()))),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
@@ -84,7 +97,8 @@ IC3IA::IC3IA(const PonoOptions & opt,
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
+      interpolator_(make_shared<MsatSolver>(create_shared_env_interp(
+          static_pointer_cast<MsatSolver>(solver_)->get_msat_env()))),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
@@ -99,7 +113,8 @@ IC3IA::IC3IA(const PonoOptions & opt,
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
+      interpolator_(make_shared<MsatSolver>(create_shared_env_interp(
+          static_pointer_cast<MsatSolver>(solver_)->get_msat_env()))),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
@@ -216,34 +231,34 @@ void IC3IA::initialize()
   // these ones are just initial predicates
 
   // populate cache for existing terms in solver_
-  UnorderedTermMap & cache = to_solver_.get_cache();
-  Term ns;
-  for (auto s : ts_->statevars()) {
-    // common variables are next states, unless used for refinement in IC3IA
-    // then will refer to current state variables after untiming
-    // need to cache both
-    cache[to_interpolator_.transfer_term(s)] = s;
-    ns = ts_->next(s);
-    cache[to_interpolator_.transfer_term(ns)] = ns;
-  }
+  // UnorderedTermMap & cache = to_solver_.get_cache();
+  // Term ns;
+  // for (auto s : ts_->statevars()) {
+  //   // common variables are next states, unless used for refinement in IC3IA
+  //   // then will refer to current state variables after untiming
+  //   // need to cache both
+  //   cache[to_interpolator_.transfer_term(s)] = s;
+  //   ns = ts_->next(s);
+  //   cache[to_interpolator_.transfer_term(ns)] = ns;
+  // }
 
   // need to add uninterpreted functions as well
   // first need to find them all
   // NOTE need to use get_free_symbols NOT get_free_symbolic_consts
   // because the latter ignores uninterpreted functions
-  UnorderedTermSet free_symbols;
-  get_free_symbols(ts_->init(), free_symbols);
-  get_free_symbols(ts_->trans(), free_symbols);
-  get_free_symbols(bad_, free_symbols);
+  // UnorderedTermSet free_symbols;
+  // get_free_symbols(ts_->init(), free_symbols);
+  // get_free_symbols(ts_->trans(), free_symbols);
+  // get_free_symbols(bad_, free_symbols);
 
-  for (auto s : free_symbols) {
-    assert(s->is_symbol());
-    if (s->is_symbolic_const()) {
-      // ignore constants
-      continue;
-    }
-    cache[to_interpolator_.transfer_term(s)] = s;
-  }
+  // for (auto s : free_symbols) {
+  //   assert(s->is_symbol());
+  //   if (s->is_symbolic_const()) {
+  //     // ignore constants
+  //     continue;
+  //   }
+  //   cache[to_interpolator_.transfer_term(s)] = s;
+  // }
 
   // TODO fix generalize_predecessor for ic3ia
   //      might need to override it
@@ -298,7 +313,7 @@ RefineResult IC3IA::refine()
     if (i + 1 < cex_length) {
       t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
     }
-    formulae.push_back(to_interpolator_.transfer_term(t, BOOL));
+    formulae.push_back(t);
   }
 
   TermVec out_interpolants;
@@ -324,7 +339,7 @@ RefineResult IC3IA::refine()
       continue;
     }
 
-    Term solver_I = unroller_.untime(to_solver_.transfer_term(I, BOOL));
+    Term solver_I = unroller_.untime(I);
     assert(conc_ts_.only_curr(solver_I));
     logger.log(3, "got interpolant: {}", solver_I);
     get_predicates(solver_, solver_I, preds);
@@ -398,12 +413,12 @@ void IC3IA::register_symbol_mappings(size_t i)
     // these symbols should have already been handled
   }
 
-  UnorderedTermMap & cache = to_solver_.get_cache();
-  Term unrolled_sv;
-  for (auto sv : ts_->statevars()) {
-    unrolled_sv = unroller_.at_time(sv, i);
-    cache[to_interpolator_.transfer_term(unrolled_sv)] = unrolled_sv;
-  }
+  // UnorderedTermMap & cache = to_solver_.get_cache();
+  // Term unrolled_sv;
+  // for (auto sv : ts_->statevars()) {
+  //   unrolled_sv = unroller_.at_time(sv, i);
+  //   cache[to_interpolator_.transfer_term(unrolled_sv)] = unrolled_sv;
+  // }
 }
 
 }  // namespace pono

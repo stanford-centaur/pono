@@ -40,6 +40,10 @@
 #include "utils/make_provers.h"
 #include "utils/ts_analysis.h"
 
+// HACK temporary for evaluation
+#include "ic3ia/utils.h"
+#include "smt-switch/msat_solver.h"
+
 // TEMP do array abstraction directly here
 #include "modifiers/array_abstractor.h"
 
@@ -168,6 +172,9 @@ int main(int argc, char ** argv)
   }
 
   try {
+    if (pono_options.smt_solver_ != "msat") {
+      throw PonoException("Hacked version of Pono only works with mathsat");
+    }
     SmtSolver s;
     SmtSolver second_solver;
     if (pono_options.engine_ == INTERP) {
@@ -186,14 +193,20 @@ int main(int argc, char ** argv)
     } else if (pono_options.ceg_prophecy_arrays_) {
 #ifdef WITH_MSAT
       // need mathsat for integer solving
-      s = MsatSolverFactory::create(false);
+      msat_config cfg = ::ic3ia::get_config(
+          ::ic3ia::ModelGeneration::FULL_MODEL, false, false);
+      msat_env env = msat_create_env(cfg);
+      s = make_shared<MsatSolver>(env);
 #else
       throw PonoException("ProphIC3 only supported with MathSAT so far");
 #endif
     } else {
       if (pono_options.smt_solver_ == "msat") {
 #ifdef WITH_MSAT
-        s = MsatSolverFactory::create(false);
+        msat_config cfg = ::ic3ia::get_config(
+            ::ic3ia::ModelGeneration::FULL_MODEL, false, false);
+        msat_env env = msat_create_env(cfg);
+        s = make_shared<MsatSolver>(env);
 #else
         throw PonoException(
             "This version of pono is built without MathSAT.\nPlease "
