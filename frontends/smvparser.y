@@ -782,7 +782,7 @@ simple_expr: constant {
               if(bvs_a != bvs_b){
                  throw PonoException("Unsigned/Signed mismatch");
               } else{
-              e = enc.solver_->make_term(smt::Iff, a->getTerm(), b->getTerm());
+              e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
               assert(e);
               $$ = new SMVnode(e,bvs_a);
               }}else{
