@@ -361,6 +361,12 @@ RefineResult IC3IA::refine()
       }
     }
 
+    if (!preds_vec.size()) {
+      logger.log(1,
+                 "IC3IA: refinement failed couldn't find any new predicates");
+      return RefineResult::REFINE_FAIL;
+    }
+
     if (options_.random_seed_ > 0) {
       shuffle(preds_vec.begin(),
               preds_vec.end(),
