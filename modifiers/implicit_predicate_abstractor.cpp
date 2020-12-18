@@ -173,7 +173,7 @@ Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
 {
   Term next_pred = abs_ts_.next(pred);
   // constrain next state vars and abstract vars to agree on this predicate
-  return solver_->make_term(Iff, next_pred, abstract(next_pred));
+  return solver_->make_term(Equal, next_pred, abstract(next_pred));
 }
 
 }  // namespace pono

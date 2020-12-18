@@ -32,7 +32,6 @@ unordered_set<PrimOp> boolops(
       Xor,
       Not,
       Implies,
-      Iff,
       // Note: also including bit-vector operators for solvers that
       //       alias bool and bv of size 1
       //       should not make a difference for solvers that don't
@@ -241,6 +240,13 @@ void get_predicates(const SmtSolver & solver,
       } else if (boolops.find(op.prim_op) == boolops.end()) {
         // boolean terms that do not use a boolean combination operator are
         // predicates
+
+        // one special case is equality between two booleans is not a predicate
+        // this is an iff essentially
+        if (op.prim_op == Equal && children[0]->get_sort() == boolsort) {
+          continue;
+        }
+
         out.insert(t);
       }
     }
