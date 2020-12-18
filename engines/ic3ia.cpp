@@ -45,10 +45,16 @@ using namespace std;
 
 namespace pono {
 
-msat_env create_shared_env_interp(msat_env env)
+SmtSolver create_shared_env_interp(const SmtSolver & s)
 {
+  if (s->get_solver_enum() != MSAT) {
+    throw PonoException(
+        "Hacked version only supports mathsat -- using shared_envs");
+  }
+  msat_env orig_env = static_pointer_cast<MsatSolver>(s)->get_msat_env();
   msat_config cfg = ::ic3ia::get_config(::ic3ia::NO_MODEL, true, false);
-  return msat_create_shared_env(cfg, env);
+  return make_shared<MsatInterpolatingSolver>(
+      msat_create_shared_env(cfg, orig_env));
 }
 
 IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
@@ -56,8 +62,7 @@ IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(make_shared<MsatSolver>(create_shared_env_interp(
-          static_pointer_cast<MsatSolver>(solver_)->get_msat_env()))),
+      interpolator_(create_shared_env_interp(solver_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
@@ -69,8 +74,7 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(make_shared<MsatSolver>(create_shared_env_interp(
-          static_pointer_cast<MsatSolver>(solver_)->get_msat_env()))),
+      interpolator_(create_shared_env_interp(solver_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
@@ -97,8 +101,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(make_shared<MsatSolver>(create_shared_env_interp(
-          static_pointer_cast<MsatSolver>(solver_)->get_msat_env()))),
+      interpolator_(create_shared_env_interp(solver_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
@@ -113,8 +116,7 @@ IC3IA::IC3IA(const PonoOptions & opt,
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(make_shared<MsatSolver>(create_shared_env_interp(
-          static_pointer_cast<MsatSolver>(solver_)->get_msat_env()))),
+      interpolator_(create_shared_env_interp(solver_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
