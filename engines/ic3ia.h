@@ -2,7 +2,7 @@
 /*! \file ic3ia.h
 ** \verbatim
 ** Top contributors (to current version):
-**   Makai Mann
+**   Makai Mann, Ahmed Irfan
 ** This file is part of the pono project.
 ** Copyright (c) 2019 by the authors listed in the file AUTHORS
 ** in the top-level source directory) and their institutional affiliations.
@@ -19,57 +19,98 @@
 **        and the open source implementation:
 **
 **        https://es-static.fbk.eu/people/griggio/ic3ia/index.html
+**
+**  within Pono, we are building on the bit-level IC3 instead of directly
+**  on IC3Base, because a lot of the functionality is the same
+**  In particular, we don't need to override either of the generalization
+**  functions. Instead focusing on abstract/refine.
+**
 **/
 
-#include "engines/mbic3.h"
+#pragma once
+
+#include "engines/ic3.h"
 #include "modifiers/implicit_predicate_abstractor.h"
+#include "smt-switch/term_translator.h"
 
 namespace pono {
 
-// process is mostly the same as model based IC3,
-// but overrides a few methods to only use cubes/clauses over predicates
-class IC3IA : public ModelBasedIC3
+class IC3IA : public IC3
 {
  public:
-  IC3IA(Property & p, smt::SolverEnum se);
-  IC3IA(Property & p, const smt::SmtSolver & slv);
-  IC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  IC3IA(const PonoOptions & opt, Property & p, const smt::SmtSolver & slv);
-  virtual ~IC3IA();
+  // itp_se is the SolverEnum for the interpolator
 
-  typedef ModelBasedIC3 super;
+  IC3IA(Property & p, smt::SolverEnum se, smt::SolverEnum itp_se);
+
+  IC3IA(Property & p, const smt::SmtSolver & s, smt::SolverEnum itp_se);
+
+  IC3IA(Property & p, const smt::SmtSolver & s, smt::SmtSolver itp);
+
+  IC3IA(const PonoOptions & opt,
+        Property & p,
+        smt::SolverEnum se,
+        smt::SolverEnum itp_se);
+
+  IC3IA(const PonoOptions & opt,
+        Property & p,
+        const smt::SmtSolver & s,
+        smt::SolverEnum itp_se);
+
+  IC3IA(const PonoOptions & opt,
+        Property & p,
+        const smt::SmtSolver & s,
+        smt::SmtSolver itp);
+
+  virtual ~IC3IA() {}
+
+  typedef IC3 super;
 
  protected:
-  void initialize() override;
+  // Note: important that conc_ts_ and abs_ts_ are before ia_
+  //       because we will pass them to ia_ and they must be
+  //       be initialized first
 
-  bool block_all() override;
+  TransitionSystem & conc_ts_;  ///< convenient reference to the concrete ts
 
-  // modified to get a bad cube over the predicates
-  bool intersects_bad() override;
+  RelationalTransitionSystem abs_ts_;  ///< the abstract ts
+                                       ///< after initialize, ts_ will point to
+                                       ///< this because the methods from IC3
+                                       ///< should operate on the abstraction
 
-  // modified to get a bad cube over the predicates
-  // TODO: refactor so that generalization and getting cube are different
-  bool get_predecessor(size_t i,
-                       const Conjunction & c,
-                       Conjunction & out_pred) override;
+  ImplicitPredicateAbstractor ia_;
 
-  // use to get a predicate assignment from the current solver context
-  Conjunction get_conjunction_from_model();
+  smt::UnorderedTermSet predset_;  ///< set of current predicates
+  // useful for checking if predicate has been added already
+  // also available as a vector in ia_.predicates()
 
-  /** Overrides the set labels method
-   *  to instead use the abstract transition relation
-   */
-  void set_labels() override;
+  smt::SmtSolver interpolator_;  ///< interpolator for refinement
+  smt::TermTranslator
+      to_interpolator_;  ///< transfer terms from solver_ to interpolator_
+  smt::TermTranslator
+      to_solver_;  ///< transfer terms from interpolator_ to solver_
 
+  size_t longest_cex_length_;  ///< keeps track of longest (abstract)
+                               ///< counterexample
+
+  // pure virtual method implementations
+
+  IC3Formula get_model_ic3formula(
+      smt::TermVec * out_inputs = nullptr,
+      smt::TermVec * out_nexts = nullptr) const override;
+
+  bool ic3formula_check_valid(const IC3Formula & u) const override;
+
+  // need to override this because IC3IA is not as restricted as
+  // (bit-level) IC3
   void check_ts() const override;
 
-  /** Override to use the abstract transition system
-   */
-  bool only_curr(smt::Term & t) override;
+  void initialize() override;
 
-  /** Override to use the abstract transition system
-   */
-  smt::Term next(const smt::Term & t) const override;
+  void abstract() override;
+
+  RefineResult refine() override;
+
+  // specific to IC3IA
 
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)
@@ -80,29 +121,15 @@ class IC3IA : public ModelBasedIC3
    */
   bool add_predicate(const smt::Term & pred);
 
-  /** Refines an abstract counterexample trace
-   *  by looking for new predicates
-   *  @param pg the proof goal that reached the initial state
-   *  @return FALSE if there's really a counterexample, TRUE if
-   *          the counterexample was refined and UNKNOWN if no
-   *          new predicates were found
+  /** Register a state variable mapping in to_solver_
+   *  This is a bit ugly but it's needed because symbols aren't created in
+   * to_solver_ so it needs the mapping from interpolator_ symbols to solver_
+   * symbols
+   *  TODO look into a cleaner solution
+   *  @param i the unrolling for state variables
+   *         makes sure not to repeat work
    */
-  ProverResult refine(ProofGoal pg);
-
-  RelationalTransitionSystem abs_ts_;
-
-  ImplicitPredicateAbstractor ia_;
-
-  smt::UnorderedTermSet predset_;  ///< set of current predicates
-  // useful for checking if predicate has been added already
-  // also available as a vector in ia_.predicates()
-
-  TransitionSystem interp_ts_;  ///< ts_ over interpolator_ terms
-  std::unique_ptr<Unroller> interp_unroller_;
-  ///< unroller for the interpolator
-
-  // useful sorts
-  smt::Sort boolsort_;
+  void register_symbol_mappings(size_t i);
 };
 
 }  // namespace pono

@@ -18,8 +18,7 @@
 #pragma once
 
 #include "engines/prover.h"
-
-#include "ic3.h"
+#include "ic3ia/ic3.h"
 
 namespace pono {
 
