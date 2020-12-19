@@ -65,4 +65,19 @@ void IC3SA::check_ts() const { throw PonoException("IC3SA::check_ts NYI"); }
 
 RefineResult IC3SA::refine() { throw PonoException("IC3SA::refine NYI"); }
 
+void IC3SA::initialize()
+{
+  super::initialize();
+
+  throw PonoException("IC3SA::initialize not completed");
+}
+
+// IC3SA specific methods
+
+EquivalenceClasses IC3SA::get_equivalence_classes_from_model() const
+{
+  // assumes the solver state is sat
+  throw PonoException("IC3SA::get_equivalence_classes_from_model NYI");
+}
+
 }  // namespace pono

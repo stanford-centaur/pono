@@ -28,6 +28,8 @@
 
 namespace pono {
 
+using EquivalenceClasses = std::unordered_map<smt::Sort, smt::DisjointSet>;
+
 class IC3SA : public IC3
 {
  public:
@@ -40,6 +42,9 @@ class IC3SA : public IC3
   typedef IC3 super;
 
  protected:
+  std::unordered_map<smt::Sort, smt::UnorderedTermSet> term_abstraction_;
+  ///< stores all the current terms in the abstraction organized by sort
+
   // virtual method implementations
 
   IC3Formula get_model_ic3formula(
@@ -52,7 +57,18 @@ class IC3SA : public IC3
 
   void check_ts() const override;
 
+  void initialize() override;
+
   RefineResult refine() override;
+
+  // IC3SA specific methods
+
+  /** Get equivalence classes over all current terms in term_abstraction_
+   *  from the current model
+   *  @requires solver_ state is sat
+   *  @return EquivalenceClass partition of the current term abstraction
+   */
+  EquivalenceClasses get_equivalence_classes_from_model() const;
 };
 
 }  // namespace pono
