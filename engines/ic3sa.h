@@ -51,6 +51,8 @@ class IC3SA : public IC3
   IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) override;
 
   void check_ts() const override;
+
+  RefineResult refine() override;
 };
 
 }  // namespace pono

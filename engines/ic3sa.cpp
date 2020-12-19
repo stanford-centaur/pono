@@ -63,4 +63,6 @@ IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
 
 void IC3SA::check_ts() const { throw PonoException("IC3SA::check_ts NYI"); }
 
+RefineResult IC3SA::refine() { throw PonoException("IC3SA::refine NYI"); }
+
 }  // namespace pono
