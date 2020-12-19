@@ -3,8 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-# TEMP pull branch
-# SMT_SWITCH_VERSION=9d8b1ebe5a06c3f7a2f924efcdcaa978f503232a
+SMT_SWITCH_VERSION=6451403529c4d4a3bfc2a43724e7a3ef9365d338
 
 usage () {
     cat <<EOF
@@ -61,10 +60,9 @@ mkdir -p $DEPS
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
     # TEMP pull branch until merged
-    git clone -b btor-uf-sort https://github.com/makaimann/smt-switch
+    git clone https://github.com/makaimann/smt-switch
     cd smt-switch
-    # TODO put back
-    # git checkout -f $SMT_SWITCH_VERSION
+    git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
     if [ $cvc4_home = default ]; then
         ./contrib/setup-cvc4.sh
