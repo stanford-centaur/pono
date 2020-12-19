@@ -46,6 +46,12 @@ class CegProphecyArrays : public CEGAR
                     Engine e,
                     const smt::SmtSolver & solver);
 
+  // HACK override prove so that it calls prove
+  // in the underlying model checker instead of check_until
+  // especially important if msat-ic3ia is the underlying engine
+  // because it only supports prove
+  ProverResult prove() override;
+
   ProverResult check_until(int k) override;
 
   void initialize() override;

@@ -52,7 +52,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, s);
+  IC3IA ic3ia(p, s, SolverEnum::MSAT);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -78,7 +78,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, s);
+  IC3IA ic3ia(p, s, SolverEnum::MSAT);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
 }
@@ -94,7 +94,7 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
 
   Property p(fts, fts.make_term(Le, x, fts.make_term(10, intsort)));
 
-  IC3IA ic3ia(p, s);
+  IC3IA ic3ia(p, s, SolverEnum::MSAT);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -124,7 +124,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 
   Property p(rts, wit);
 
-  IC3IA ic3ia(p, s);
+  IC3IA ic3ia(p, s, SolverEnum::MSAT);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 

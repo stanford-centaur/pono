@@ -32,7 +32,6 @@ unordered_set<PrimOp> boolops(
       Xor,
       Not,
       Implies,
-      Iff,
       // Note: also including bit-vector operators for solvers that
       //       alias bool and bv of size 1
       //       should not make a difference for solvers that don't
@@ -121,6 +120,27 @@ vector<TermVec> get_combinations(const vector<TermVec> & options)
 }
 
 // end helper functions
+
+bool is_lit(const Term & l, const Sort & boolsort)
+{
+  // take a boolsort as an argument for sort aliasing solvers
+  if (l->get_sort() != boolsort) {
+    return false;
+  }
+
+  if (l->is_symbolic_const()) {
+    return true;
+  }
+
+  Op op = l->get_op();
+  // check both for sort aliasing solvers
+  if (op == Not || op == BVNot) {
+    Term first_child = *(l->begin());
+    return first_child->is_symbolic_const();
+  }
+
+  return false;
+}
 
 UnorderedTermSet get_free_symbols(const Term & term)
 {
@@ -220,6 +240,13 @@ void get_predicates(const SmtSolver & solver,
       } else if (boolops.find(op.prim_op) == boolops.end()) {
         // boolean terms that do not use a boolean combination operator are
         // predicates
+
+        // one special case is equality between two booleans is not a predicate
+        // this is an iff essentially
+        if (op.prim_op == Equal && children[0]->get_sort() == boolsort) {
+          continue;
+        }
+
         out.insert(t);
       }
     }

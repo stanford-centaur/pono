@@ -143,10 +143,12 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3base.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3ia.cpp"
   "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/engines/mbic3.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
@@ -178,7 +180,8 @@ endif()
 
 if (WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/ic3ia/")
+  # can't include ic3ia directly because some names clash e.g. ic3.h
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
