@@ -3,7 +3,8 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=00fbcc94821e576e420f786479d3eafa18898bae
+# TEMP pull a branch
+# SMT_SWITCH_VERSION=00fbcc94821e576e420f786479d3eafa18898bae
 
 usage () {
     cat <<EOF
@@ -59,9 +60,10 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    git clone -b msat-solver-env https://github.com/makaimann/smt-switch
     cd smt-switch
-    git checkout -f $SMT_SWITCH_VERSION
+    # TEMP pull a branch
+    # git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
     if [ $cvc4_home = default ]; then
         ./contrib/setup-cvc4.sh
