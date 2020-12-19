@@ -28,7 +28,9 @@
 
 namespace pono {
 
-using EquivalenceClasses = std::unordered_map<smt::Sort, smt::DisjointSet>;
+using EquivalenceClasses =
+    std::unordered_map<smt::Sort,
+                       std::unordered_map<smt::Term, smt::UnorderedTermSet>>;
 
 class IC3SA : public IC3
 {

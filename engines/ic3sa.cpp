@@ -32,6 +32,8 @@ using namespace std;
 
 namespace pono {
 
+// main IC3SA implementation
+
 IC3SA::IC3SA(Property & p, smt::SolverEnum se) : super(p, se) {}
 
 IC3SA::IC3SA(Property & p, const smt::SmtSolver & s) : super(p, s) {}
@@ -73,8 +75,8 @@ void IC3SA::initialize()
   // set up initial term abstraction by getting all subterms
   // TODO consider starting with only a subset -- e.g. variables
   SubTermCollector stc(solver_, false);
-  stc.collect_subterms(ts_.init());
-  stc.collect_subterms(ts_.trans());
+  stc.collect_subterms(ts_->init());
+  stc.collect_subterms(ts_->trans());
   stc.collect_subterms(bad_);
   term_abstraction_ = stc.get_subterms();
 
@@ -86,7 +88,22 @@ void IC3SA::initialize()
 EquivalenceClasses IC3SA::get_equivalence_classes_from_model() const
 {
   // assumes the solver state is sat
-  throw PonoException("IC3SA::get_equivalence_classes_from_model NYI");
+  EquivalenceClasses ec;
+  for (auto elem : term_abstraction_) {
+    const Sort & sort = elem.first;
+    const UnorderedTermSet & terms = elem.second;
+
+    // TODO figure out if a DisjointSet is a better data structure
+    //      will need to keep track of all terms in each partition though
+
+    ec[sort] = std::unordered_map<smt::Term, smt::UnorderedTermSet>();
+    std::unordered_map<smt::Term, smt::UnorderedTermSet> & m = ec.at(sort);
+    for (auto t : terms) {
+      Term val = solver_->get_value(t);
+      m[val].insert(t);
+    }
+  }
+  return ec;
 }
 
 }  // namespace pono
