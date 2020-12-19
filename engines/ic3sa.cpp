@@ -25,6 +25,7 @@
 #include "engines/ic3sa.h"
 
 #include "assert.h"
+#include "utils/term_walkers.h"
 
 using namespace smt;
 using namespace std;
@@ -68,6 +69,14 @@ RefineResult IC3SA::refine() { throw PonoException("IC3SA::refine NYI"); }
 void IC3SA::initialize()
 {
   super::initialize();
+
+  // set up initial term abstraction by getting all subterms
+  // TODO consider starting with only a subset -- e.g. variables
+  SubTermCollector stc(solver_, false);
+  stc.collect_subterms(ts_.init());
+  stc.collect_subterms(ts_.trans());
+  stc.collect_subterms(bad_);
+  term_abstraction_ = stc.get_subterms();
 
   throw PonoException("IC3SA::initialize not completed");
 }
