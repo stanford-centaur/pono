@@ -532,6 +532,7 @@ void IC3IA::register_symbol_mappings(size_t i)
 
 bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 {
+  bool res = false;
   namespace cvc4a = ::CVC4::api;
 
   // HACK
@@ -688,115 +689,125 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
     g.addRules(s, constructs);
   }
 
-  // Create the predicate to search for. Use the grammar
-  cvc4a::Term pred =
-      cvc4_solver.synthFun("P", cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
+  vector<cvc4a::Term> pred_vec;
+  while (true) {
+    // Create the predicate to search for. Use the grammar
+    string pred_name = "P_" + std::to_string(pred_vec.size());
+    cvc4a::Term pred =
+      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
+    pred_vec.push_back(pred);
 
-  // add the implicit predicate abstraction constraints
-  // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2) /\ ...
-  vector<cvc4a::Term> cvc4_unrolled_next_vars;
-  vector<cvc4a::Term> cvc4_unrolled_abstract_vars;
-  for (size_t i = 0; i < cex_length; ++i) {
-    cvc4_unrolled_next_vars.clear();
-    cvc4_unrolled_abstract_vars.clear();
+    // add the implicit predicate abstraction constraints
+    // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2) /\ ...
+    vector<cvc4a::Term> cvc4_unrolled_next_vars;
+    vector<cvc4a::Term> cvc4_unrolled_abstract_vars;
+    for (size_t i = 0; i < cex_length; ++i) {
+      cvc4_unrolled_next_vars.clear();
+      cvc4_unrolled_abstract_vars.clear();
 
-    // CVC4 takes the function as the first child, so insert the pred function
-    // first
-    cvc4_unrolled_next_vars.push_back(pred);
-    cvc4_unrolled_abstract_vars.push_back(pred);
+      // CVC4 takes the function as the first child, so insert the pred function
+      // first
+      cvc4_unrolled_next_vars.push_back(pred);
+      cvc4_unrolled_abstract_vars.push_back(pred);
 
-    Term nv, unrolled_nv;
-    cvc4a::Term cvc4_unrolled_nv;
-    Term abs_nv, unrolled_abs_nv;
-    cvc4a::Term cvc4_unrolled_abs_nv;
-    for (auto sv : statevars) {
-      nv = abs_ts_.next(sv);
-      abs_nv = ia_.abstract(nv);
+      Term nv, unrolled_nv;
+      cvc4a::Term cvc4_unrolled_nv;
+      Term abs_nv, unrolled_abs_nv;
+      cvc4a::Term cvc4_unrolled_abs_nv;
+      for (auto sv : statevars) {
+        nv = abs_ts_.next(sv);
+        abs_nv = ia_.abstract(nv);
 
-      unrolled_nv = cvc4_unroller.at_time(to_cvc4_.transfer_term(nv), i);
-      unrolled_abs_nv =
+        unrolled_nv = cvc4_unroller.at_time(to_cvc4_.transfer_term(nv), i);
+        unrolled_abs_nv =
           cvc4_unroller.at_time(to_cvc4_.transfer_term(abs_nv), i);
 
-      cvc4_unrolled_nv =
+        cvc4_unrolled_nv =
           static_pointer_cast<CVC4Term>(unrolled_nv)->get_cvc4_term();
-      cvc4_unrolled_abs_nv =
+        cvc4_unrolled_abs_nv =
           static_pointer_cast<CVC4Term>(unrolled_abs_nv)->get_cvc4_term();
 
-      // most of these were already added above
-      // by traversing cvc4_formula (at smt-switch level)
-      // which uses these same variables
-      // but this just ensures all variables are in this set
-      cvc4_free_vars.insert(cvc4_unrolled_nv);
-      cvc4_free_vars.insert(cvc4_unrolled_abs_nv);
+        // most of these were already added above
+        // by traversing cvc4_formula (at smt-switch level)
+        // which uses these same variables
+        // but this just ensures all variables are in this set
+        cvc4_free_vars.insert(cvc4_unrolled_nv);
+        cvc4_free_vars.insert(cvc4_unrolled_abs_nv);
 
-      cvc4_unrolled_next_vars.push_back(cvc4_unrolled_nv);
-      cvc4_unrolled_abstract_vars.push_back(cvc4_unrolled_abs_nv);
-    }
+        cvc4_unrolled_next_vars.push_back(cvc4_unrolled_nv);
+        cvc4_unrolled_abstract_vars.push_back(cvc4_unrolled_abs_nv);
+      }
 
-    cvc4a::Term pred_app_vars =
+      cvc4a::Term pred_app_vars =
         cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_unrolled_next_vars);
-    cvc4a::Term pred_app_abs_vars =
+      cvc4a::Term pred_app_abs_vars =
         cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_unrolled_abstract_vars);
 
-    cvc4_formula = cvc4_solver.mkTerm(
-        cvc4a::AND,
-        cvc4_formula,
-        cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
+      cvc4_formula = cvc4_solver.mkTerm(
+                                        cvc4a::AND,
+                                        cvc4_formula,
+                                        cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
+    }
+
+    cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
+
+    // use sygus variables rather than ordinary variables.
+    std::map<cvc4a::Term, cvc4a::Term> old_to_new;
+    std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(), cvc4_free_vars.end());
+    for (cvc4a::Term old_var : originals) {
+      cvc4a::Term new_var = cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
+      old_to_new[old_var] = new_var;
+    }
+    std::vector<cvc4a::Term> news;
+    for (cvc4a::Term old_var : originals) {
+      assert(old_to_new.find(old_var) != old_to_new.end());
+      news.push_back(old_to_new[old_var]);
+    }
+    cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
+
+    // TODO make sure this is correct -- not sure this makes sense but it should
+    // be something like this need to make sure the quantifiers are correct e.g.
+    // want to synthesize a predicate such that formula is unsat
+
+    cvc4_solver.addSygusConstraint(sygus_constraint);
+
+    res = cvc4_solver.checkSynth().isUnsat();
+    if (res)
+      break;
   }
 
-  cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
-
-  // use sygus variables rather than ordinary variables.
-  std::map<cvc4a::Term, cvc4a::Term> old_to_new;
-  std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(), cvc4_free_vars.end());
-  for (cvc4a::Term old_var : originals) {
-    cvc4a::Term new_var = cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
-    old_to_new[old_var] = new_var;
-  }
-  std::vector<cvc4a::Term> news;
-  for (cvc4a::Term old_var : originals) {
-    assert(old_to_new.find(old_var) != old_to_new.end());
-    news.push_back(old_to_new[old_var]);
-  }
-  cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
-
-  // TODO make sure this is correct -- not sure this makes sense but it should
-  // be something like this need to make sure the quantifiers are correct e.g.
-  // want to synthesize a predicate such that formula is unsat
-
-  cvc4_solver.addSygusConstraint(sygus_constraint);
-
-  bool res = cvc4_solver.checkSynth().isUnsat();
-  // for debugging: 
+  // for debugging:
   cvc4_solver.printSynthSolution(std::cout);
 
-  cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
+  for (auto pred : pred_vec) {
+    cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
 
-  // instead of applying predicate and simplifying to get rid of the lambda
-  // decided to just do substitution
-  // this keeps the structure that sygus came up with instead of rewriting it
-  // noticed on one example that arithmetic bv operators were replaced with
-  // bitwise operators
+    // instead of applying predicate and simplifying to get rid of the lambda
+    // decided to just do substitution
+    // this keeps the structure that sygus came up with instead of rewriting it
+    // noticed on one example that arithmetic bv operators were replaced with
+    // bitwise operators
 
-  vector<cvc4a::Term> pred_solution_children(pred_solution.begin(),
-                                             pred_solution.end());
-  assert(pred_solution_children.size()
-         == 2);  // expecting a bound_var_list and a term
-  cvc4a::Term pred_solution_statevars =
+    vector<cvc4a::Term> pred_solution_children(pred_solution.begin(),
+                                               pred_solution.end());
+    assert(pred_solution_children.size()
+           == 2);  // expecting a bound_var_list and a term
+    cvc4a::Term pred_solution_statevars =
       pred_solution_children[1].substitute(cvc4_boundvars, cvc4_statevars);
 
-  Term cvc4_learned_pred = make_shared<CVC4Term>(pred_solution_statevars);
+    Term cvc4_learned_pred = make_shared<CVC4Term>(pred_solution_statevars);
 
-  // Makai: put this back in if it starts failing on term translation
-  //        not all backend solvers support n-ary arguments
-  // Binarizer binarizer(cvc4_);
-  // cvc4_learned_pred = binarizer.process(cvc4_learned_pred);
+    // Makai: put this back in if it starts failing on term translation
+    //        not all backend solvers support n-ary arguments
+    // Binarizer binarizer(cvc4_);
+    // cvc4_learned_pred = binarizer.process(cvc4_learned_pred);
 
-  Term learned_pred = from_cvc4_.transfer_term(cvc4_learned_pred, BOOL);
-  assert(learned_pred);
+    Term learned_pred = from_cvc4_.transfer_term(cvc4_learned_pred, BOOL);
+    assert(learned_pred);
 
-  // NOTE in future might look for more than one predicate at a time
-  out_preds.insert(learned_pred);
+    // NOTE in future might look for more than one predicate at a time
+    out_preds.insert(learned_pred);
+  }
 
   return res;
 }
