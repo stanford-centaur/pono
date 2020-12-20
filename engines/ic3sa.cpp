@@ -51,7 +51,73 @@ IC3SA::IC3SA(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
 IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
                                        TermVec * out_nexts) const
 {
-  throw PonoException("IC3SA::get_model_ic3formula NYI");
+  EquivalenceClasses ec = get_equivalence_classes_from_model();
+
+  // now create a cube expressing this partition
+  TermVec cube_lits;
+  for (const auto & sortelem : ec) {
+    const Sort & sort = sortelem.first;
+
+    // TODO: play around with heuristics for the representative
+    //       to add disequalities over
+    //       e.g. we're not adding all possible disequalities,
+    //       just choosing a representative from each equivalence
+    //       class and adding a disequality to encode the distinctness
+
+    //       currently preferring symbol > generic term > value
+
+    // representatives of the different classes of this sort
+    TermVec representatives;
+    for (const auto & elem : sortelem.second) {
+      const Term & val = elem.first;
+      assert(val->is_value());
+
+      const UnorderedTermSet & terms = elem.second;
+      Term repr = val;
+      bool found_repr = false;
+      bool repr_val = true;
+
+      UnorderedTermSet::const_iterator end = terms.cend();
+      UnorderedTermSet::const_iterator it = terms.cbegin();
+      Term last = *it;
+
+      while (it != end) {
+        const Term & term = *(++it);
+        assert(last->get_sort() == term->get_sort());
+        cube_lits.push_back(solver_->make_term(Equal, last, term));
+        last = term;
+
+        // TODO: see if a DisjointSet would make this easier
+        // update representative for this class
+        if (!found_repr) {
+          if (term->is_symbolic_const()) {
+            repr = term;
+            repr_val = false;
+            found_repr = true;
+          } else if (!term->is_value() && repr_val) {
+            repr = term;
+            repr_val = false;
+          }
+        }
+      }
+    }
+
+    // add disequalities between each pair of representatives from
+    // different equivalent classes
+    for (size_t i = 0; i < representatives.size(); ++i) {
+      for (size_t j = i + 1; j < representatives.size(); ++j) {
+        const Term & ti = representatives.at(i);
+        const Term & tj = representatives.at(j);
+        // should never get the same representative term from different classes
+        assert(ti != tj);
+        cube_lits.push_back(solver_->make_term(Distinct, ti, tj));
+      }
+    }
+  }
+
+  IC3Formula cube = ic3formula_conjunction(cube_lits);
+  assert(ic3formula_check_valid(cube));
+  return cube;
 }
 
 bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
