@@ -26,11 +26,16 @@ class FunctionalUnroller : public Unroller
    *  @param ts the transition system to unroll
    *  @param solver the solver to use
    *  @param interval -- the interval to introduce new timed variables for state
-   *  vars input variables need to be unrolled at every step but state variables
-   *  can be substituted for directly in a functional system for: interval == 1
-   * : equivalent to an Unroller interval > 1  : introduces fresh timed
-   * variables very interval steps interval == 0 : never introduces fresh timed
-   * variables (pure functional substitution in unrolling)
+   *         variables.
+   *         Input variables need to be unrolled at every step but state
+   *         variables can be substituted for directly in a functional system.
+   *
+   *         interval == 0 : never introduces fresh timed variables
+   *         interval == 1 : equivalent to a regular Unroller
+   *         interval > 1  : introduces fresh timed variables every interval
+   *                           steps (pure functional substitution in
+   *                           unrolling). E.g. if 4, then every 4 timesteps
+   *                           it introduce new symbols.
    *
    *  for non-zero interval_ there are extra constraints that need to be added
    *  for an unrolling (that give fresh symbols a meaning)
