@@ -130,7 +130,27 @@ IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
   throw PonoException("IC3SA::generalize_predecessor NYI");
 }
 
-void IC3SA::check_ts() const { throw PonoException("IC3SA::check_ts NYI"); }
+void IC3SA::check_ts() const
+{
+  // TODO: add support for arrays
+
+  for (const auto & sv : ts_->statevars())
+  {
+    SortKind sk = sv->get_sort()->get_sort_kind();
+    if (sk != BOOL && sk != BV)
+    {
+      throw PonoException("IC3SA currently only supports bit-vectors");
+    }
+  }
+  for (const auto & iv : ts_->inputvars())
+  {
+    SortKind sk = iv->get_sort()->get_sort_kind();
+    if (sk != BOOL && sk != BV)
+    {
+      throw PonoException("IC3SA currently only supports bit-vectors");
+    }
+  }
+}
 
 RefineResult IC3SA::refine() { throw PonoException("IC3SA::refine NYI"); }
 
