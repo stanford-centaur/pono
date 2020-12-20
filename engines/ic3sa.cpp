@@ -32,6 +32,35 @@ using namespace std;
 
 namespace pono {
 
+bool is_eq_lit(const Term & t, const Sort & boolsort)
+{
+  if (t->get_sort() != boolsort)
+  {
+    return false;
+  }
+
+  if (t->is_symbolic_const())
+  {
+    // boolean symbol doesn't need an op
+    return true;
+  }
+
+  Op op = t->get_op();
+  assert(!op.is_null());
+
+  if (op == Not)
+  {
+    op = (*(t->begin()))->get_op();
+  }
+
+  if (op != Equal && op != Distinct && op != BVComp)
+  {
+    return false;
+  }
+
+  return true;
+}
+
 // main IC3SA implementation
 
 IC3SA::IC3SA(Property & p, smt::SolverEnum se) : super(p, se) {}
@@ -122,7 +151,20 @@ IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
 
 bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
 {
-  throw PonoException("IC3SA::ic3formula_check_valid NYI");
+  Sort boolsort = solver_->make_sort(BOOL);
+  // check that children are literals
+  Op op;
+  for (auto c : u.children) {
+    if (!is_eq_lit(c, boolsort)) {
+      return false;
+    }
+  }
+
+  // for now not checking the actual term (e.g. u.term)
+  // it's somewhat hard if the underlying solver does rewriting
+
+  // got through all checks without failing
+  return true;
 }
 
 IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
