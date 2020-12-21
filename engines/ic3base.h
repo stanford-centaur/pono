@@ -38,6 +38,9 @@
 **             manipulating an IC3Formula if the defaults are not right
 **           - implement abstract() and refine() if this is a CEGAR
 **             flavor of IC3
+**           - override reset_solver if you need to add back in constraints
+**             to the reset solver that aren't handled by the default
+*8             implementation
 **
 **        Important Notes:
 **           - be sure to use [push/pop]_solver_context instead of using
@@ -142,6 +145,9 @@ class IC3Base : public Prover
   size_t solver_context_;
 
   size_t num_check_sat_since_reset_;
+
+  bool failed_to_reset_solver_;  ///< some solvers don't support reset
+                                 ///< assertions. Stop trying for those solvers.
 
   ///< the frames data structure.
   ///< a vector of the given Unit template
@@ -369,6 +375,14 @@ class IC3Base : public Prover
    */
   void constrain_frame(size_t i, const IC3Formula & constraint);
 
+  /** Adds an implication frame_label_[i] -> constraint
+   *  used as a helper in constrain_frame and when resetting solver
+   *  to re-add those assertions
+   *  @param i highest frame to add constraint to
+   *  @param constraint the constraint associate with frame_label_[i]
+   */
+  void constrain_frame_label(size_t i, const IC3Formula & constraint);
+
   /** Add all the terms at Frame i
    *  Note: the frames_ data structure keeps terms only in the
    *  highest frame where they are known to hold
@@ -454,6 +468,12 @@ class IC3Base : public Prover
   smt::Result check_sat();
 
   smt::Result check_sat_assuming(const smt::TermVec & assumps);
+
+  /** Attempts to reset the solver and re-add constraints
+   *  NOTE: not all solvers support reset_assertions, in which case the
+   * exception is just caught and things continue on as normal
+   */
+  virtual void reset_solver();
 
   /** Create a boolean label for a given term
    *  These are cached in labels_

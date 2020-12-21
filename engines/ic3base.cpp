@@ -47,7 +47,8 @@ IC3Base::IC3Base(Property & p, SolverEnum se)
     : super(p, se),
       reducer_(create_solver(se)),
       solver_context_(0),
-      num_check_sat_since_reset_(0)
+      num_check_sat_since_reset_(0),
+      failed_to_reset_solver_(false)
 {
 }
 
@@ -55,7 +56,8 @@ IC3Base::IC3Base(Property & p, const SmtSolver & s)
     : super(p, s),
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0),
-      num_check_sat_since_reset_(0)
+      num_check_sat_since_reset_(0),
+      failed_to_reset_solver_(false)
 {
 }
 
@@ -63,7 +65,8 @@ IC3Base::IC3Base(const PonoOptions & opt, Property & p, SolverEnum se)
     : super(opt, p, se),
       reducer_(create_solver(se)),
       solver_context_(0),
-      num_check_sat_since_reset_(0)
+      num_check_sat_since_reset_(0),
+      failed_to_reset_solver_(false)
 {
 }
 
@@ -71,7 +74,8 @@ IC3Base::IC3Base(const PonoOptions & opt, Property & p, const SmtSolver & s)
     : super(opt, p, s),
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0),
-      num_check_sat_since_reset_(0)
+      num_check_sat_since_reset_(0),
+      failed_to_reset_solver_(false)
 {
 }
 
@@ -402,6 +406,11 @@ bool IC3Base::rel_ind_check(size_t i,
 bool IC3Base::block_all()
 {
   while (has_proof_goals()) {
+    if (options_.ic3_reset_interval_
+        && num_check_sat_since_reset_ >= options_.ic3_reset_interval_) {
+      reset_solver();
+    }
+
     ProofGoal pg = get_next_proof_goal();
     // block can fail, which just means a
     // new proof goal will be added
@@ -539,10 +548,15 @@ void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint)
   assert(solver_context_ == 0);
   assert(i > 0);  // there's a special case for frame 0
   assert(i < frame_labels_.size());
+  constrain_frame_label(i, constraint);
+  frames_.at(i).push_back(constraint);
+}
+
+void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)
+{
   assert(frame_labels_.size() == frames_.size());
   solver_->assert_formula(
       solver_->make_term(Implies, frame_labels_.at(i), constraint.term));
-  frames_.at(i).push_back(constraint);
 }
 
 void IC3Base::assert_frame_labels(size_t i) const
@@ -712,6 +726,45 @@ Result IC3Base::check_sat_assuming(const smt::TermVec & assumps)
 {
   num_check_sat_since_reset_++;
   return solver_->check_sat_assuming(assumps);
+}
+
+void IC3Base::reset_solver()
+{
+  assert(solver_context_ == 0);
+
+  if (failed_to_reset_solver_) {
+    // don't even bother trying
+    // this solver doesn't support reset_assertions
+    return;
+  }
+
+  try {
+    solver_->reset_assertions();
+
+    // Now need to add back in constraints at context level 0
+    logger.log(2, "IC3Base: Reset solver and now re-adding constraints.");
+
+    // define init and trans label
+    assert(init_label_ == frame_labels_.at(0));
+    solver_->assert_formula(
+        solver_->make_term(Implies, init_label_, ts_->init()));
+    solver_->assert_formula(
+        solver_->make_term(Implies, trans_label_, ts_->trans()));
+
+    for (size_t i = 0; i < frames_.size(); ++i) {
+      for (const auto & constraint : frames_.at(i)) {
+        constrain_frame_label(i, constraint);
+      }
+    }
+  }
+  catch (SmtException & e) {
+    logger.log(1,
+               "Failed to reset solver (underlying solver must not support "
+               "it). Disabling solver resets for rest of run.");
+    failed_to_reset_solver_ = true;
+  }
+
+  num_check_sat_since_reset_ = 0;
 }
 
 Term IC3Base::label(const Term & t)
