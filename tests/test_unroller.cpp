@@ -203,6 +203,28 @@ TEST_P(UnrollerUnitTests, FunctionalUnroller)
   }
 
   EXPECT_THROW(funroller.at_time(fts.next(x), 4), PonoException) << "FunctionalUnroller can't handle next state variables" << endl;
+
+  // check untiming
+  // doesn't make tons of sense to untime a functional unrolling
+  // nevertheless there are certain times where it's needed
+  // just make sure you know what you're doing
+  // e.g. in real applications, probably need to substitute
+  // in values for input variables BEFORE untiming or you will
+  // get a nonsense formula
+  Term untimed_y = funroller.untime(unrolled_y);
+
+  free_vars.clear();
+  get_free_symbolic_consts(untimed_y, free_vars);
+  expected_free_vars.clear();
+  expected_free_vars.insert(y);
+  expected_free_vars.insert(inp);
+
+  EXPECT_EQ(free_vars.size(), expected_free_vars.size());
+
+  for (auto fv : expected_free_vars) {
+    EXPECT_TRUE(free_vars.find(fv) != free_vars.end())
+        << "Expected free variable " << fv << " not in untimed term" << endl;
+  }
 }
 
 TEST_P(UnrollerUnitTests, IntermittentFunctionalUnrolling)
