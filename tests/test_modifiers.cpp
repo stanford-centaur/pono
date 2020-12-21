@@ -9,6 +9,7 @@
 #include "modifiers/prophecy_modifier.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
+#include "tests/common_ts.h"
 #include "utils/exceptions.h"
 
 using namespace pono;
@@ -36,9 +37,9 @@ class ModifierUnitTests : public ::testing::Test,
 TEST_P(ModifierUnitTests, HistoryModifier)
 {
   FunctionalTransitionSystem fts(s);
-  Term x = fts.make_statevar("x", bvsort);
-  fts.constrain_init(fts.make_term(Equal, x, fts.make_term(0, bvsort)));
-  fts.assign_next(x, fts.make_term(BVAdd, x, fts.make_term(1, bvsort)));
+  Term max_val = fts.make_term(10, bvsort);
+  counter_system(fts, max_val);
+  Term x = fts.named_terms().at("x");
 
   HistoryModifier hm(fts);
 
@@ -64,14 +65,9 @@ TEST_P(ModifierUnitTests, HistoryModifier)
 TEST_P(ModifierUnitTests, ProphecyModifierSimple)
 {
   FunctionalTransitionSystem fts(s);
-  Term x = fts.make_statevar("x", bvsort);
-  fts.constrain_init(fts.make_term(Equal, x, fts.make_term(0, bvsort)));
-  Term ite_update =
-      fts.make_term(Ite,
-                    fts.make_term(BVUlt, x, fts.make_term(9, bvsort)),
-                    fts.make_term(BVAdd, x, fts.make_term(1, bvsort)),
-                    x);
-  fts.assign_next(x, ite_update);
+  counter_system(fts, fts.make_term(9, bvsort));
+  Term x = fts.named_terms().at("x");
+
   Term prop = fts.make_term(BVUlt, x, fts.make_term(10, bvsort));
   size_t num_statevars_orig = fts.statevars().size();
   EXPECT_EQ(num_statevars_orig, 1);
@@ -100,15 +96,8 @@ TEST_P(ModifierUnitTests, ProphecyModifierSimple)
 TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
 {
   RelationalTransitionSystem rts(s);
-  Term c = rts.make_statevar("c", bvsort);
-  rts.set_init(rts.make_term(Equal, c, rts.make_term(0, bvsort)));
-  Term c_lt_10 = rts.make_term(BVUlt, c, rts.make_term(10, bvsort));
-  rts.assign_next(
-      c,
-      rts.make_term(Ite,
-                    c_lt_10,
-                    rts.make_term(BVAdd, c, rts.make_term(1, bvsort)),
-                    rts.make_term(0, bvsort)));
+  counter_system(rts, rts.make_term(10, bvsort));
+  Term x = rts.named_terms().at("x");
 
   RelationalTransitionSystem abs_rts(rts.solver());
   Unroller un(abs_rts, abs_rts.solver());
@@ -116,32 +105,32 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
     ia(rts, abs_rts, un);
 
   // check if c <= 10 is inductive on the concrete system
-  Term c_le_10 = rts.make_term(BVUle, c, rts.make_term(10, bvsort));
+  Term x_le_10 = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
   s->push();
-  s->assert_formula(c_le_10);
+  s->assert_formula(x_le_10);
   s->assert_formula(rts.trans());
-  s->assert_formula(s->make_term(Not, rts.next(c_le_10)));
+  s->assert_formula(s->make_term(Not, rts.next(x_le_10)));
   Result r = s->check_sat();
   s->pop();
   EXPECT_TRUE(r.is_unsat());  // expecting it to be inductive
 
   // check if c <= 10 is inductive on the abstract system
   s->push();
-  s->assert_formula(c_le_10);
+  s->assert_formula(x_le_10);
   s->assert_formula(abs_rts.trans());
-  s->assert_formula(s->make_term(Not, abs_rts.next(c_le_10)));
+  s->assert_formula(s->make_term(Not, abs_rts.next(x_le_10)));
   r = s->check_sat();
   s->pop();
   EXPECT_TRUE(r.is_sat());  // expecting check to fail
 
   // add it as a predicate
-  ia.add_predicate(c_le_10);
+  ia.add_predicate(x_le_10);
 
   // check if c <= 10 is inductive on the refined abstract system
   s->push();
-  s->assert_formula(c_le_10);
+  s->assert_formula(x_le_10);
   s->assert_formula(abs_rts.trans());
-  s->assert_formula(s->make_term(Not, abs_rts.next(c_le_10)));
+  s->assert_formula(s->make_term(Not, abs_rts.next(x_le_10)));
   r = s->check_sat();
   s->pop();
   EXPECT_TRUE(r.is_unsat());  // expecting it to be inductive now

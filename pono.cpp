@@ -167,10 +167,11 @@ int main(int argc, char ** argv)
 #endif
   }
 
-  try {
-    SmtSolver s;
-    SmtSolver second_solver;
-    if (pono_options.engine_ == INTERP) {
+  // TEMP comment out error catching now for debugging
+  // try {
+  SmtSolver s;
+  SmtSolver second_solver;
+  if (pono_options.engine_ == INTERP) {
 #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create(false);
@@ -338,28 +339,28 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
-  }
-  catch (PonoException & ce) {
-    cout << ce.what() << endl;
-    cout << "error" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
-    res = ProverResult::ERROR;
-  }
-  catch (SmtException & se) {
-    cout << se.what() << endl;
-    cout << "error" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
-    res = ProverResult::ERROR;
-  }
-  catch (std::exception & e) {
-    cout << "Caught generic exception..." << endl;
-    cout << e.what() << endl;
-    cout << "error" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
-    res = ProverResult::ERROR;
-  }
+    // }
+    // catch (PonoException & ce) {
+    //   cout << ce.what() << endl;
+    //   cout << "error" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    //   res = ProverResult::ERROR;
+    // }
+    // catch (SmtException & se) {
+    //   cout << se.what() << endl;
+    //   cout << "error" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    //   res = ProverResult::ERROR;
+    // }
+    // catch (std::exception & e) {
+    //   cout << "Caught generic exception..." << endl;
+    //   cout << e.what() << endl;
+    //   cout << "error" << endl;
+    //   cout << "b" << pono_options.prop_idx_ << endl;
+    //   res = ProverResult::ERROR;
+    // }
 
-  if (!pono_options.profiling_log_filename_.empty()) {
+    if (!pono_options.profiling_log_filename_.empty()) {
 #ifdef WITH_PROFILING
     ProfilerFlush();
     ProfilerStop();
