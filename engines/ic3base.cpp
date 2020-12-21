@@ -716,7 +716,7 @@ void IC3Base::pop_solver_context()
   solver_context_--;
 }
 
-Result IC3Base::check_sat()
+inline Result IC3Base::check_sat()
 {
   num_check_sat_since_reset_++;
   return solver_->check_sat();
