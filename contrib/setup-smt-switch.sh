@@ -59,7 +59,6 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    # TEMP pull branch until merged
     git clone https://github.com/makaimann/smt-switch
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
