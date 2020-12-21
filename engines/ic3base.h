@@ -47,6 +47,8 @@
 **/
 #pragma once
 
+#include <algorithm>
+
 #include "engines/prover.h"
 #include "smt-switch/utils.h"
 
@@ -59,6 +61,7 @@ struct IC3Formula
   IC3Formula(const smt::Term & t, const smt::TermVec & c, bool n)
       : term(t), children(c), disjunction(n)
   {
+    std::sort(children.begin(), children.end());
   }
 
   IC3Formula(const IC3Formula & other)
