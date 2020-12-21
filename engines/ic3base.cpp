@@ -722,7 +722,7 @@ inline Result IC3Base::check_sat()
   return solver_->check_sat();
 }
 
-Result IC3Base::check_sat_assuming(const smt::TermVec & assumps)
+inline Result IC3Base::check_sat_assuming(const smt::TermVec & assumps)
 {
   num_check_sat_since_reset_++;
   return solver_->check_sat_assuming(assumps);
