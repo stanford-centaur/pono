@@ -44,26 +44,34 @@ static bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
 /** IC3Base */
 
 IC3Base::IC3Base(Property & p, SolverEnum se)
-    : super(p, se), reducer_(create_solver(se)), solver_context_(0)
+    : super(p, se),
+      reducer_(create_solver(se)),
+      solver_context_(0),
+      num_check_sat_since_reset_(0)
 {
 }
 
 IC3Base::IC3Base(Property & p, const SmtSolver & s)
     : super(p, s),
       reducer_(create_solver(s->get_solver_enum())),
-      solver_context_(0)
+      solver_context_(0),
+      num_check_sat_since_reset_(0)
 {
 }
 
 IC3Base::IC3Base(const PonoOptions & opt, Property & p, SolverEnum se)
-    : super(opt, p, se), reducer_(create_solver(se)), solver_context_(0)
+    : super(opt, p, se),
+      reducer_(create_solver(se)),
+      solver_context_(0),
+      num_check_sat_since_reset_(0)
 {
 }
 
 IC3Base::IC3Base(const PonoOptions & opt, Property & p, const SmtSolver & s)
     : super(opt, p, s),
       reducer_(create_solver(s->get_solver_enum())),
-      solver_context_(0)
+      solver_context_(0),
+      num_check_sat_since_reset_(0)
 {
 }
 
@@ -230,7 +238,7 @@ bool IC3Base::intersects_bad()
   assert_frame_labels(reached_k_ + 1);
   // see if it intersects with bad
   solver_->assert_formula(bad_);
-  Result r = solver_->check_sat();
+  Result r = check_sat();
 
   if (r.is_sat()) {
     IC3Formula c = get_model_ic3formula();
@@ -298,7 +306,7 @@ ProverResult IC3Base::step_0()
   push_solver_context();
   solver_->assert_formula(init_label_);
   solver_->assert_formula(bad_);
-  Result r = solver_->check_sat();
+  Result r = check_sat();
   if (r.is_sat()) {
     IC3Formula c = get_model_ic3formula();
     cex_pg_ = ProofGoal(c, 0, nullptr);
@@ -335,7 +343,7 @@ bool IC3Base::rel_ind_check(size_t i,
   // c'
   solver_->assert_formula(ts_->next(c.term));
 
-  Result r = solver_->check_sat();
+  Result r = check_sat();
   if (r.is_sat()) {
     IC3Formula predecessor;
     if (options_.ic3_pregen_) {
@@ -485,7 +493,7 @@ bool IC3Base::propagate(size_t i)
     push_solver_context();
     solver_->assert_formula(solver_->make_term(Not, ts_->next(t)));
 
-    Result r = solver_->check_sat();
+    Result r = check_sat();
     assert(!r.is_unknown());
     if (r.is_unsat()) {
       // mark for removal
@@ -611,7 +619,7 @@ bool IC3Base::check_intersects(const Term & A, const Term & B)
   push_solver_context();
   solver_->assert_formula(A);
   solver_->assert_formula(B);
-  Result r = solver_->check_sat();
+  Result r = check_sat();
   pop_solver_context();
   return r.is_sat();
 }
@@ -651,7 +659,7 @@ size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
   for (j = i; j + 1 < frames_.size(); ++j) {
     push_solver_context();
     assert_frame_labels(j);
-    r = solver_->check_sat();
+    r = check_sat();
     pop_solver_context();
     if (r.is_sat()) {
       break;
@@ -692,6 +700,18 @@ void IC3Base::pop_solver_context()
 {
   solver_->pop();
   solver_context_--;
+}
+
+Result IC3Base::check_sat()
+{
+  num_check_sat_since_reset_++;
+  return solver_->check_sat();
+}
+
+Result IC3Base::check_sat_assuming(const smt::TermVec & assumps)
+{
+  num_check_sat_since_reset_++;
+  return solver_->check_sat_assuming(assumps);
 }
 
 Term IC3Base::label(const Term & t)

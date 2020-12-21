@@ -43,6 +43,9 @@
 **           - be sure to use [push/pop]_solver_context instead of using
 **             the solver interface directly so that the assertions on
 **             the solver context (tracked externally) are correct
+**           - be sure to use the check_sat() and check_sat_assuming
+**             member methods -- they will keep track of the number of
+**             calls since a reset
 **
 **/
 #pragma once
@@ -137,6 +140,8 @@ class IC3Base : public Prover
   //       currently no way to check
   //       then solver_context_ is relative to the starting context
   size_t solver_context_;
+
+  size_t num_check_sat_since_reset_;
 
   ///< the frames data structure.
   ///< a vector of the given Unit template
@@ -445,6 +450,10 @@ class IC3Base : public Prover
    *  updates solver_context_
    */
   void pop_solver_context();
+
+  smt::Result check_sat();
+
+  smt::Result check_sat_assuming(const smt::TermVec & assumps);
 
   /** Create a boolean label for a given term
    *  These are cached in labels_

@@ -151,7 +151,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
           bool_assump.push_back(l);
         }
 
-        Result r = solver_->check_sat_assuming(bool_assump);
+        Result r = check_sat_assuming(bool_assump);
         assert(!r.is_unknown());
 
         if (r.is_sat()) {
