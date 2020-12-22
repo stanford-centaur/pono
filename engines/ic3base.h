@@ -53,6 +53,8 @@
 **/
 #pragma once
 
+#include <algorithm>
+
 #include "engines/prover.h"
 #include "smt-switch/utils.h"
 
@@ -65,6 +67,7 @@ struct IC3Formula
   IC3Formula(const smt::Term & t, const smt::TermVec & c, bool n)
       : term(t), children(c), disjunction(n)
   {
+    std::sort(children.begin(), children.end());
   }
 
   IC3Formula(const IC3Formula & other)
@@ -377,8 +380,12 @@ class IC3Base : public Prover
   /** Adds a constraint to frame i and (implicitly) all frames below it
    *  @param i highest frame to add constraint to
    *  @param constraint the constraint to add
+   *  @param new_contraint true iff the constraint is a
+   *         newly learned blocking constraint. In true, then subsumption check
+   *         is performed
    */
-  void constrain_frame(size_t i, const IC3Formula & constraint);
+  void constrain_frame(size_t i, const IC3Formula & constraint,
+                       bool new_constraint=true);
 
   /** Adds an implication frame_label_[i] -> constraint
    *  used as a helper in constrain_frame and when resetting solver

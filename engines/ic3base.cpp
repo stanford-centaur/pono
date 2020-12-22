@@ -41,6 +41,25 @@ static bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
   return (t0->hash() < t1->hash());
 }
 
+/** Syntactic subsumption check: ? a subsumes b ?
+ *  @param IC3Formula a
+ *  @param IC3Formula b
+ *  returns true iff 'a subsumes b'
+ */
+static bool subsumes(const IC3Formula &a, const IC3Formula &b)
+{
+  assert(a.disjunction == b.disjunction);
+  const TermVec &ac = a.children;
+  const TermVec &bc = b.children;
+  if (a.disjunction) {
+    return (ac.size() <= bc.size() &&
+            std::includes(bc.begin(), bc.end(), ac.begin(), ac.end()));
+  } else {
+    return (ac.size() >= bc.size() &&
+            std::includes(ac.begin(), ac.end(), bc.begin(), bc.end()));
+  }
+}
+
 /** IC3Base */
 
 IC3Base::IC3Base(Property & p, SolverEnum se)
@@ -490,6 +509,17 @@ bool IC3Base::block(const ProofGoal & pg)
 
 bool IC3Base::is_blocked(const ProofGoal & pg)
 {
+  // syntactic check
+  for (size_t i = pg.idx; i < frames_.size(); ++i) {
+    const vector<IC3Formula> & Fi = frames_.at(i);
+    for (size_t j = 0; j < Fi.size(); ++j) {
+      if (subsumes(Fi[j], ic3formula_negate(pg.target))) {
+        return true;
+      }
+    }
+  }
+
+  // now semantic check
   assert(solver_context_ == 0);
 
   push_solver_context();
@@ -543,7 +573,7 @@ bool IC3Base::propagate(size_t i)
       new_frame_i.push_back(Fi.at(j));
     } else {
       // add to next frame
-      constrain_frame(i + 1, Fi.at(j));
+      constrain_frame(i + 1, Fi.at(j), false);
     }
   }
 
@@ -562,7 +592,8 @@ void IC3Base::push_frame()
   frames_.push_back({});
 }
 
-void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint)
+void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
+                              bool new_constraint)
 {
   assert(solver_context_ == 0);
   assert(i > 0);  // there's a special case for frame 0
@@ -574,6 +605,20 @@ void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint)
 void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)
 {
   assert(frame_labels_.size() == frames_.size());
+
+  if (new_constraint) {
+    for (size_t j = 1; j <= i; ++j) { 
+      vector<IC3Formula> & Fj = frames_.at(j);
+      size_t k = 0;
+      for (size_t l = 0; l < Fj.size(); ++l) {
+        if (!subsumes(constraint, Fj[l])) {
+          Fj[k++] = Fj[l];
+        }
+      }
+      Fj.resize(k);
+    }
+  }
+
   solver_->assert_formula(
       solver_->make_term(Implies, frame_labels_.at(i), constraint.term));
 }
