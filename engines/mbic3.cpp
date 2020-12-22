@@ -108,7 +108,7 @@ IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
     out_nexts->reserve(statevars.size());
   }
 
-  for (auto v : statevars) {
+  for (const auto &v : statevars) {
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
     ds.add(v, val);
@@ -122,7 +122,7 @@ IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
   }
 
   // add equalities from disjoint set
-  for (auto v : statevars) {
+  for (const auto &v : statevars) {
     Term t = ds.find(v);
     if (t != v) {
       cube_lits.push_back(solver_->make_term(Equal, t, v));
@@ -130,7 +130,7 @@ IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (auto iv : ts_->inputvars()) {
+    for (const auto &iv : ts_->inputvars()) {
       out_inputs->push_back(
           solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
@@ -141,10 +141,10 @@ IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
 
 bool ModelBasedIC3::ic3formula_check_valid(const IC3Formula & u) const
 {
-  Sort boolsort = solver_->make_sort(BOOL);
+  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Op op;
-  for (auto c : u.children) {
+  for (const auto &c : u.children) {
     if (c->get_sort() != boolsort) {
       return false;
     }
@@ -187,13 +187,13 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
              progress) {
         iter = options_.ic3_gen_max_iter_ > 0 ? iter+1 : iter;
         size_t prev_size = lits.size();
-        for (auto a : lits) {
+        for (const auto &a : lits) {
           // check if we can drop a
           if (keep.find(a) != keep.end()) {
             continue;
           }
           tmp.clear();
-          for (auto aa : lits) {
+          for (const auto &aa : lits) {
             if (a != aa) {
               tmp.push_back(aa);
             }
@@ -209,7 +209,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
 
             Term l;
             bool_assump.clear();
-            for (auto t : tmp) {
+            for (const auto &t : tmp) {
               l = label(t);
               solver_->assert_formula(
                   solver_->make_term(Implies, l, ts_->next(t)));
@@ -260,7 +260,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
 
     } else if (options_.mbic3_indgen_mode == 1) {
       TermVec tmp, lits, red_lits;
-      for (auto a : c.children) {
+      for (const auto &a : c.children) {
         tmp.push_back(ts_->next(a));
       }
       split_eq(solver_, tmp, lits);
@@ -275,7 +275,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
                                        options_.random_seed_);
       TermVec curr_lits;
       curr_lits.reserve(red_lits.size());
-      for (auto l : red_lits) {
+      for (const auto &l : red_lits) {
         curr_lits.push_back(ts_->curr(l));
       }
       gen_res.push_back(ic3formula_negate(ic3formula_conjunction(curr_lits)));
@@ -307,7 +307,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
       TermVec interp_conjuncts;
       conjunctive_partition(solver_interp, interp_conjuncts, true);
 
-      for (auto c : interp_conjuncts) {
+      for (const auto &c : interp_conjuncts) {
         // these will not necessarily be a disjunction actually, they'll just be
         // a single formula, {c} from the conjunctive partition of the
         // interpolant
@@ -326,16 +326,18 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
 
 IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
 {
-  assert(solver_context_
-         == 1);  // shouldn't use solver, solving all in reducer_
+  assert(solver_context_  == 1);  // shouldn't use solver, solving all in
+                                  // reducer_
   DisjointSet ds(disjoint_set_rank);
   UnorderedTermMap model;
   const UnorderedTermSet & statevars = ts_->statevars();
+
   TermVec cube_lits;
   cube_lits.reserve(statevars.size());
   TermVec next_lits;
   next_lits.reserve(statevars.size());
-  for (auto v : statevars) {
+
+  for (const auto &v : statevars) {
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
     ds.add(v, val);
@@ -355,7 +357,7 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
   const UnorderedTermSet & inputvars = ts_->inputvars();
   TermVec input_lits;
   input_lits.reserve(inputvars.size());
-  for (auto v : inputvars) {
+  for (const auto &v : inputvars) {
     Term val = solver_->get_value(v);
     input_lits.push_back(solver_->make_term(Equal, v, val));
     assert(model.find(v) == model.end());
@@ -375,7 +377,7 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
   if (options_.ic3_pregen_ && !options_.ic3_functional_preimage_) {
     // add congruent equalities to cube_lits
-    for (auto v : statevars) {
+    for (const auto &v : statevars) {
       Term t = ds.find(v);
       if (t != v) {
         cube_lits.push_back(solver_->make_term(Equal, t, v));
@@ -429,10 +431,10 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     assert(ts_->is_deterministic());
 
     UnorderedTermMap m;
-    for (auto v : inputvars) {
+    for (const auto &v : inputvars) {
       m[v] = model.at(v);
     }
-    for (auto v : statevars) {
+    for (const auto &v : statevars) {
       Term nv = ts_->next(v);
       m[nv] = model.at(nv);
     }
@@ -448,8 +450,8 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
 void ModelBasedIC3::check_ts() const
 {
   // check if there are arrays or uninterpreted sorts and fail if so
-  for (auto vec : { ts_->statevars(), ts_->inputvars() }) {
-    for (auto st : vec) {
+  for (const auto &vec : { ts_->statevars(), ts_->inputvars() }) {
+    for (const auto &st : vec) {
       SortKind sk = st->get_sort()->get_sort_kind();
       if (sk == ARRAY) {
         throw PonoException("ModelBasedIC3 does not support arrays yet");
@@ -474,7 +476,7 @@ bool ModelBasedIC3::intersects_bad()
     // push bad as a proof goal
     TermVec conjuncts;
     conjunctive_partition(bad_, conjuncts, true);
-    IC3Formula bad_at_last_frame = ic3formula_conjunction(conjuncts);
+    const IC3Formula &bad_at_last_frame = ic3formula_conjunction(conjuncts);
     add_proof_goal(bad_at_last_frame, reached_k_ + 1, NULL);
   }
 
@@ -496,7 +498,7 @@ void ModelBasedIC3::initialize()
 
     UnorderedTermMap & cache = to_solver_->get_cache();
     Term ns;
-    for (auto s : ts_->statevars()) {
+    for (const auto &s : ts_->statevars()) {
       // common variables are next states, unless used for refinement in IC3IA
       // then will refer to current state variables after untiming
       // need to cache both
@@ -514,7 +516,7 @@ void ModelBasedIC3::initialize()
     get_free_symbols(ts_->trans(), free_symbols);
     get_free_symbols(bad_, free_symbols);
 
-    for (auto s : free_symbols) {
+    for (const auto &s : free_symbols) {
       assert(s->is_symbol());
       if (s->is_symbolic_const()) {
         // ignore constants

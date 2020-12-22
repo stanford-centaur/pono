@@ -62,11 +62,11 @@ ProverResult MsatIC3IA::prove()
 
   // give mapping between symbols
   UnorderedTermMap & ts_solver_cache = to_ts_solver.get_cache();
-  for (auto v : ts_->statevars()) {
+  for (const auto &v : ts_->statevars()) {
     ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
     ts_solver_cache[to_msat_solver.transfer_term(ts_->next(v))] = ts_->next(v);
   }
-  for (auto v : ts_->inputvars()) {
+  for (const auto &v : ts_->inputvars()) {
     ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
   }
 
@@ -79,7 +79,7 @@ ProverResult MsatIC3IA::prove()
   get_matching_terms(ts_->trans(), ufs, is_uf);
   get_matching_terms(bad_, ufs, is_uf);
 
-  for (auto uf : ufs) {
+  for (const auto &uf : ufs) {
     assert(uf->get_sort()->get_sort_kind() == smt::FUNCTION);
     ts_solver_cache[to_msat_solver.transfer_term(uf)] = uf;
   }
@@ -95,7 +95,7 @@ ProverResult MsatIC3IA::prove()
                             to_msat_solver.transfer_term(property_.prop()))
                             ->get_msat_term();
   unordered_map<msat_term, msat_term> msat_statevars;
-  for (auto sv : ts_->statevars()) {
+  for (const auto &sv : ts_->statevars()) {
     msat_statevars[static_pointer_cast<MsatTerm>(
                        to_msat_solver.transfer_term(sv))
                        ->get_msat_term()] =
@@ -127,11 +127,11 @@ ProverResult MsatIC3IA::prove()
     vector<ic3ia::TermList> ic3ia_invar;
     ic3.witness(ic3ia_invar);
 
-    for (auto msat_clause : ic3ia_invar)
+    for (const auto &msat_clause : ic3ia_invar)
     {
       Term clause = solver_->make_term(false);
       assert(msat_clause.size());
-      for (msat_term l : msat_clause)
+      for (const &msat_term l : msat_clause)
       {
         clause = solver_->make_term(
             Or,
@@ -184,7 +184,7 @@ bool MsatIC3IA::compute_witness(msat_env env,
       solver_->assert_formula(unroller_.at_time(ts_->trans(), i));
     }
 
-    for (auto msat_eq : ic3ia_wit[i]) {
+    for (const auto &msat_eq : ic3ia_wit[i]) {
       // create an smt-switch term for the equality
       Term eq = make_shared<MsatTerm>(env, msat_eq);
       Term solver_eq = to_ts_solver.transfer_term(eq);
