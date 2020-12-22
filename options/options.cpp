@@ -47,6 +47,7 @@ enum optionIndex
   SMT_SOLVER,
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
+  IC3_RESET_INTERVAL,
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
@@ -206,6 +207,17 @@ const option::Descriptor usage[] = {
     "ic3-no-indgen",
     Arg::None,
     "  --ic3-no-indgen \tDisable inductive generalization in ic3." },
+  { IC3_RESET_INTERVAL,
+    0,
+    "",
+    "ic3-reset-interval",
+    Arg::Numeric,
+    "  --ic3-reset-interval \tNumber of check-sat queries before "
+    "resetting the solver. "
+    "Setting it to 0 means an unbounded number of iterations."
+    "Note: some solvers don't support resetting assertions, in which "
+    "case it will just fail to reset and not try again. This will be "
+    "printed at verbosity 1." },
   { IC3_GEN_MAX_ITER,
     0,
     "",
@@ -332,6 +344,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CLK: clock_name_ = opt.arg; break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
+        case IC3_RESET_INTERVAL: ic3_reset_interval_ = atoi(opt.arg); break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;
         case MBIC3_INDGEN_MODE:
           mbic3_indgen_mode = atoi(opt.arg);

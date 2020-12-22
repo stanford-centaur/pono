@@ -38,11 +38,17 @@
 **             manipulating an IC3Formula if the defaults are not right
 **           - implement abstract() and refine() if this is a CEGAR
 **             flavor of IC3
+**           - override reset_solver if you need to add back in constraints
+**             to the reset solver that aren't handled by the default
+*8             implementation
 **
 **        Important Notes:
 **           - be sure to use [push/pop]_solver_context instead of using
 **             the solver interface directly so that the assertions on
 **             the solver context (tracked externally) are correct
+**           - be sure to use the check_sat() and check_sat_assuming
+**             member methods -- they will keep track of the number of
+**             calls since a reset
 **
 **/
 #pragma once
@@ -137,6 +143,11 @@ class IC3Base : public Prover
   //       currently no way to check
   //       then solver_context_ is relative to the starting context
   size_t solver_context_;
+
+  size_t num_check_sat_since_reset_;
+
+  bool failed_to_reset_solver_;  ///< some solvers don't support reset
+                                 ///< assertions. Stop trying for those solvers.
 
   ///< the frames data structure.
   ///< a vector of the given Unit template
@@ -340,13 +351,18 @@ class IC3Base : public Prover
    */
   bool block_all();
 
-  /** Attempt to block cube c at frame i
-   *  @param i the frame number
-   *  @param c the cube to try blocking
-   *  @return true iff the cube was blocked, otherwise a new proof goal was
-   * added to the proof goals
+  /** Attempt to block the given proof goal
+   *  @param pg the proof goal
+   *  @return true iff the proof goal was blocked,
+   *          otherwise a new proof goal was added to the proof goals
    */
   bool block(const ProofGoal & pg);
+
+  /** Check if the given proof goal is already blocked
+   *  @param pg the proof goal
+   *  @return true iff the proof goal is already blocked
+   */
+  bool is_blocked(const ProofGoal & pg);
 
   /** Try propagating all clauses from frame index i to the next frame.
    *  @param i the frame index to propagate
@@ -363,6 +379,14 @@ class IC3Base : public Prover
    *  @param constraint the constraint to add
    */
   void constrain_frame(size_t i, const IC3Formula & constraint);
+
+  /** Adds an implication frame_label_[i] -> constraint
+   *  used as a helper in constrain_frame and when resetting solver
+   *  to re-add those assertions
+   *  @param i highest frame to add constraint to
+   *  @param constraint the constraint associate with frame_label_[i]
+   */
+  void constrain_frame_label(size_t i, const IC3Formula & constraint);
 
   /** Add all the terms at Frame i
    *  Note: the frames_ data structure keeps terms only in the
@@ -445,6 +469,24 @@ class IC3Base : public Prover
    *  updates solver_context_
    */
   void pop_solver_context();
+
+  inline smt::Result check_sat()
+  {
+    num_check_sat_since_reset_++;
+    return solver_->check_sat();
+  }
+
+  inline smt::Result check_sat_assuming(const smt::TermVec & assumps)
+  {
+    num_check_sat_since_reset_++;
+    return solver_->check_sat_assuming(assumps);
+  }
+
+  /** Attempts to reset the solver and re-add constraints
+   *  NOTE: not all solvers support reset_assertions, in which case the
+   * exception is just caught and things continue on as normal
+   */
+  virtual void reset_solver();
 
   /** Create a boolean label for a given term
    *  These are cached in labels_
