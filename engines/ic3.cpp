@@ -51,7 +51,7 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
   const UnorderedTermSet & statevars = ts_->statevars();
   TermVec children;
   children.reserve(statevars.size());
-  for (auto &sv : ts_->statevars()) {
+  for (auto const &sv : ts_->statevars()) {
     if (solver_->get_value(sv) == solver_true_) {
       children.push_back(sv);
     } else {
@@ -69,7 +69,7 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (auto &iv : ts_->inputvars()) {
+    for (auto const &iv : ts_->inputvars()) {
       if (solver_->get_value(iv) == solver_true_) {
         out_inputs->push_back(iv);
       } else {
@@ -86,7 +86,7 @@ bool IC3::ic3formula_check_valid(const IC3Formula & u) const
   const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Op op;
-  for (auto &c : u.children) {
+  for (auto const &c : u.children) {
     if (!is_lit(c, boolsort)) {
       return false;
     }
@@ -124,13 +124,13 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
   while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 && progress) {
     iter = options_.ic3_gen_max_iter_ > 0 ? iter + 1 : iter;
     size_t prev_size = lits.size();
-    for (auto &a : lits) {
+    for (auto const &a : lits) {
       // check if we can drop a
       if (keep.find(a) != keep.end()) {
         continue;
       }
       tmp.clear();
-      for (auto &aa : lits) {
+      for (auto const &aa : lits) {
         if (a != aa) {
           tmp.push_back(aa);
         }
@@ -146,7 +146,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 
         Term l;
         bool_assump.clear();
-        for (auto &t : tmp) {
+        for (auto const &t : tmp) {
           l = label(t);
           solver_->assert_formula(solver_->make_term(Implies, l, ts_->next(t)));
           bool_assump.push_back(l);
@@ -262,14 +262,14 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 void IC3::check_ts() const
 {
   const Sort &boolsort = solver_->make_sort(BOOL);
-  for (auto &sv : ts_->statevars()) {
+  for (auto const &sv : ts_->statevars()) {
     if (sv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean state variable in bit-level IC3: "
                           + sv->to_string());
     }
   }
 
-  for (auto &iv : ts_->inputvars()) {
+  for (auto const &iv : ts_->inputvars()) {
     if (iv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean input variable in bit-level IC3: "
                           + iv->to_string());
