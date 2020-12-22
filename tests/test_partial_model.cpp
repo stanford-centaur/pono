@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "modifiers/partial_model.h"
+#include "utils/partial_model.h"
 #include "utils/sygus_ic3formula_helper.h"
 #include "smt/available_solvers.h"
 
