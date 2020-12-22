@@ -491,6 +491,17 @@ bool IC3Base::block(const ProofGoal & pg)
 
 bool IC3Base::is_blocked(const ProofGoal & pg)
 {
+  // syntactic check
+  for (size_t i = pg.idx; i < frames_.size(); ++i) {
+    const vector<IC3Formula> & Fi = frames_.at(i);
+    for (size_t j = 0; j < Fi.size(); ++j) {
+      if (subsumes(Fi[j], ic3formula_negate(pg.target))) {
+        return true;
+      }
+    }
+  }
+
+  // now semantic check
   assert(solver_context_ == 0);
 
   push_solver_context();
