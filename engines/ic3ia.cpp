@@ -129,7 +129,7 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
   conjuncts.reserve(preds.size());
-  for (auto const &p : preds) {
+  for (const auto &p : preds) {
     if (solver_->get_value(p) == solver_true_) {
       conjuncts.push_back(p);
     } else {
@@ -147,7 +147,7 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (auto const &iv : ts_->inputvars()) {
+    for (const auto &iv : ts_->inputvars()) {
       out_inputs->push_back(
           solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
@@ -162,7 +162,7 @@ bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
   // check that children are literals
   Term pred;
   Op op;
-  for (auto const &c : u.children) {
+  for (const auto &c : u.children) {
     if (c->get_sort() != boolsort) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
@@ -203,7 +203,7 @@ void IC3IA::initialize()
   UnorderedTermSet preds;
   get_predicates(solver_, ts_->init(), preds, false);
   get_predicates(solver_, bad_, preds, false);
-  for (auto const &p : preds) {
+  for (const auto &p : preds) {
     add_predicate(p);
   }
   // more predicates will be added during refinement

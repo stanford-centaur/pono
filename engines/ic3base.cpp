@@ -358,7 +358,7 @@ bool IC3Base::rel_ind_check(size_t i,
       out.push_back(ic3formula_negate(c));
     }
     Term conj = solver_->make_term(true);
-    for (auto const &u : out) {
+    for (const auto &u : out) {
       solver_->make_term(And, conj, u.term);
       assert(ic3formula_check_valid(u));
       assert(ts_->only_curr(u.term));
@@ -431,7 +431,7 @@ bool IC3Base::block(const ProofGoal & pg)
     assert(collateral.size());
     logger.log(3, "Blocking term at frame {}: {}", i, c.term->to_string());
     if (options_.verbosity_ >= 3) {
-      for (auto const &u : collateral) {
+      for (const auto &u : collateral) {
         logger.log(3, " with {}", u.term->to_string());
       }
     }
@@ -441,7 +441,7 @@ bool IC3Base::block(const ProofGoal & pg)
     // for example, interpolant-based generalization for bit-vectors is not
     // always a single clause
     size_t min_idx = frames_.size();
-    for (auto const &bu : collateral) {
+    for (const auto &bu : collateral) {
       // try to push
       size_t idx = find_highest_frame(i, bu);
       constrain_frame(idx, bu);
@@ -513,7 +513,7 @@ bool IC3Base::propagate(size_t i)
 
   pop_solver_context();
 
-  for (auto const &f : to_push) {
+  for (const auto &f : to_push) {
     constrain_frame(i + 1, f);
   }
 
@@ -570,7 +570,7 @@ Term IC3Base::get_frame_term(size_t i) const
 
   Term res = solver_true_;
   for (size_t j = i; j < frames_.size(); ++j) {
-    for (auto const &u : frames_[j]) {
+    for (const auto &u : frames_[j]) {
       res = solver_->make_term(And, res, u.term);
     }
   }
