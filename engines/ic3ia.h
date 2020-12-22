@@ -29,9 +29,16 @@
 
 #pragma once
 
+
+
+#include "smt-switch/cvc4_solver.h"
+#include "smt-switch/cvc4_sort.h"
+#include "smt-switch/cvc4_term.h"
 #include "engines/ic3.h"
 #include "modifiers/implicit_predicate_abstractor.h"
 #include "smt-switch/term_translator.h"
+
+namespace cvc4a = ::CVC4::api;
 
 namespace pono {
 
@@ -143,6 +150,16 @@ class IC3IA : public IC3
    */
   bool cvc4_find_preds(const smt::TermVec & cex,
                        smt::UnorderedTermSet & out_preds);
+
+
+  std::vector<cvc4a::Term> synth_predicates(cvc4a::Solver& cvc4_solver, int max_num_of_preds, int max_size_per_pred, smt::TermVec statevars, smt::TermTranslator to_cvc4_, Unroller cvc4_unroller, std::unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars, int cex_length, cvc4a::Term cvc4_formula, std::vector<cvc4a::Term> & cvc4_boundvars, std::vector<cvc4a::Term> & cvc4_statevars);
+  std::vector<cvc4a::Term> synth_min_num_of_preds(cvc4a::Solver& cvc4_solver, int max_num_of_preds, int max_size_per_pred, smt::TermVec statevars, smt::TermTranslator to_cvc4_, Unroller cvc4_unroller, std::vector<cvc4a::Term> cvc4_boundvars, cvc4a::Grammar g, int cex_length, std::unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars, cvc4a::Term cvc4_formula);
+cvc4a::Grammar construct_grammar(cvc4a::Solver & cvc4_solver,  std::vector<cvc4a::Term> cvc4_boundvars);
+void add_rules_to_grammar(cvc4a::Solver & cvc4_solver, cvc4a::Grammar & g, std::vector<cvc4a::Term> start_bvs, cvc4a::Term start_bool, std::vector<cvc4a::Term> cvc4_boundvars);
+cvc4a::Term get_constraint(cvc4a::Solver & cvc4_solver, std::vector<cvc4a::Term> & cvc4_unrolled_next_vars, std::vector<cvc4a::Term> & cvc4_unrolled_abstract_vars, int cex_length, cvc4a::Term pred, smt::TermVec statevars, Unroller cvc4_unroller, smt::TermTranslator to_cvc4_, std::unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars, cvc4a::Term cvc4_formula);
+cvc4a::Term transform_to_sygus(cvc4a::Solver & cvc4_solver, cvc4a::Term constraint, std::unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars);
 };
+
+
 
 }  // namespace pono
