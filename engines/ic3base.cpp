@@ -364,7 +364,7 @@ bool IC3Base::rel_ind_check(size_t i,
     }
     Term conj = solver_->make_term(true);
     for (auto u : out) {
-      solver_->make_term(And, conj, u.term);
+      conj = solver_->make_term(And, conj, u.term);
       assert(ic3formula_check_valid(u));
       assert(ts_->only_curr(u.term));
     }
