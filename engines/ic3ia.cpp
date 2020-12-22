@@ -64,6 +64,18 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
 {
 }
 
+IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp)
+    : super(p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(itp),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_),
+      longest_cex_length_(0)
+{
+}
+
 IC3IA::IC3IA(const PonoOptions & opt,
              Property & p,
              SolverEnum se,
@@ -94,9 +106,25 @@ IC3IA::IC3IA(const PonoOptions & opt,
 {
 }
 
+IC3IA::IC3IA(const PonoOptions & opt,
+             Property & p,
+             const SmtSolver & s,
+             SmtSolver itp)
+    : super(opt, p, s),
+      conc_ts_(property_.transition_system()),
+      abs_ts_(solver_),
+      ia_(conc_ts_, abs_ts_, unroller_),
+      interpolator_(itp),
+      to_interpolator_(interpolator_),
+      to_solver_(solver_),
+      longest_cex_length_(0)
+{
+}
+
 // pure virtual method implementations
 
-IC3Formula IC3IA::get_ic3_formula(TermVec * inputs, TermVec * nexts) const
+IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
+                                        TermVec * out_nexts) const
 {
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
@@ -108,26 +136,27 @@ IC3Formula IC3IA::get_ic3_formula(TermVec * inputs, TermVec * nexts) const
       conjuncts.push_back(solver_->make_term(Not, p));
     }
 
-    if (nexts) {
+    if (out_nexts) {
       Term next_p = ts_->next(p);
       if (solver_->get_value(next_p) == solver_true_) {
-        nexts->push_back(next_p);
+        out_nexts->push_back(next_p);
       } else {
-        nexts->push_back(solver_->make_term(Not, next_p));
+        out_nexts->push_back(solver_->make_term(Not, next_p));
       }
     }
   }
 
-  if (inputs) {
+  if (out_inputs) {
     for (auto iv : ts_->inputvars()) {
-      inputs->push_back(solver_->make_term(Equal, iv, solver_->get_value(iv)));
+      out_inputs->push_back(
+          solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
   }
 
-  return ic3_formula_conjunction(conjuncts);
+  return ic3formula_conjunction(conjuncts);
 }
 
-bool IC3IA::ic3_formula_check_valid(const IC3Formula & u) const
+bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
@@ -234,60 +263,45 @@ void IC3IA::abstract()
 RefineResult IC3IA::refine()
 {
   // recover the counterexample trace
-  assert(intersects_initial(cex_pg_.target.term));
+  assert(check_intersects_initial(cex_pg_.target.term));
   TermVec cex({ cex_pg_.target.term });
-  IC3Goal tmp = cex_pg_;
+  ProofGoal tmp = cex_pg_;
   while (tmp.next) {
     tmp = *(tmp.next);
     cex.push_back(tmp.target.term);
     assert(conc_ts_.only_curr(tmp.target.term));
   }
-  assert(cex.size() > 1);
+
+  if (cex.size() == 1) {
+    // if there are no transitions, then this is a concrete CEX
+    return REFINE_NONE;
+  }
+
+  size_t cex_length = cex.size();
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
   assert(interpolator_);
-  Term t = make_and({ conc_ts_.init(), cex[0] });
-  Term A = to_interpolator_.transfer_term(unroller_.at_time(t, 0), BOOL);
 
-  TermVec B;
-  B.reserve(cex.size() - 1);
-  // add to B in reverse order so we can pop_back later
-  for (int i = cex.size() - 1; i >= 0; --i) {
-    register_symbol_mappings(
-        i);  // make sure to_solver_ cache is populated with unrolled symbols
-    t = cex[i];
-    if (i + 1 < cex.size()) {
-      t = solver_->make_term(And, t, conc_ts_.trans());
+  TermVec formulae;
+  for (size_t i = 0; i < cex_length; ++i) {
+    // make sure to_solver_ cache is populated with unrolled symbols
+    register_symbol_mappings(i);
+
+    Term t = unroller_.at_time(cex[i], i);
+    if (i + 1 < cex_length) {
+      t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
     }
-    B.push_back(to_interpolator_.transfer_term(unroller_.at_time(t, i), BOOL));
+    formulae.push_back(to_interpolator_.transfer_term(t, BOOL));
   }
 
-  // now get interpolants for each transition starting with the first
-  bool all_sat = true;
-  TermVec interpolants;
-  while (B.size()) {
-    // Note: have to pass the solver (defaults to solver_)
-    Term fullB = make_and(B, interpolator_);
-    Term I;
-    Result r(smt::UNKNOWN, "unset result");
-    try {
-      r = interpolator_->get_interpolant(A, fullB, I);
-    }
-    catch (SmtException & e) {
-      logger.log(3, e.what());
-    }
+  TermVec out_interpolants;
+  Result r =
+      interpolator_->get_sequence_interpolants(formulae, out_interpolants);
 
-    all_sat &= r.is_sat();
-    if (r.is_unsat()) {
-      Term untimedI = unroller_.untime(to_solver_.transfer_term(I, BOOL));
-      logger.log(3, "got interpolant: {}", untimedI);
-      interpolants.push_back(untimedI);
-    }
-    // move next cex time step to A
-    // they were added to B in reverse order
-    A = interpolator_->make_term(And, A, B.back());
-    B.pop_back();
+  if (r.is_sat()) {
+    // this is a real counterexample, so the property is false
+    return RefineResult::REFINE_NONE;
   }
 
   // record the length of this counterexample
@@ -296,48 +310,60 @@ RefineResult IC3IA::refine()
   // have already been cached in to_solver_
   longest_cex_length_ = cex.size();
 
-  if (all_sat) {
-    // this is a real counterexample, so the property is false
-    return RefineResult::REFINE_NONE;
-  } else if (!interpolants.size()) {
-    logger.log(1, "Interpolation failures...couldn't find any new predicates");
-    return RefineResult::REFINE_FAIL;
-  } else {
-    UnorderedTermSet preds;
-    for (auto I : interpolants) {
-      assert(conc_ts_.only_curr(I));
-      get_predicates(solver_, I, preds);
+  UnorderedTermSet preds;
+  for (auto I : out_interpolants) {
+    if (!I) {
+      assert(
+          r.is_unknown());  // should only have null terms if got unknown result
+      continue;
     }
 
-    // reduce new predicates
-    TermVec preds_vec(preds.begin(), preds.end());
-    if (options_.random_seed_ > 0) {
-      shuffle(preds_vec.begin(),
-              preds_vec.end(),
-              default_random_engine(options_.random_seed_));
-    }
-
-    TermVec red_preds;
-    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
-      // reduction successful
-      preds.clear();
-      preds.insert(red_preds.begin(), red_preds.end());
-    }
-
-    // add all the new predicates
-    bool found_new_preds = false;
-    for (auto p : preds) {
-      found_new_preds |= add_predicate(p);
-    }
-
-    if (!found_new_preds) {
-      logger.log(1, "No new predicates found...");
-      return RefineResult::REFINE_FAIL;
-    }
-
-    // able to refine the system to rule out this abstract counterexample
-    return RefineResult::REFINE_SUCCESS;
+    Term solver_I = unroller_.untime(to_solver_.transfer_term(I, BOOL));
+    assert(conc_ts_.only_curr(solver_I));
+    logger.log(3, "got interpolant: {}", solver_I);
+    get_predicates(solver_, solver_I, preds);
   }
+
+  // new predicates
+  TermVec preds_vec;
+  for (auto p : preds) {
+    if (predset_.find(p) == predset_.end()) {
+      // unseen predicate
+      preds_vec.push_back(p);
+    }
+  }
+
+  if (!preds_vec.size()) {
+    logger.log(1, "IC3IA: refinement failed couldn't find any new predicates");
+    return RefineResult::REFINE_FAIL;
+  }
+
+  if (options_.random_seed_ > 0) {
+    shuffle(preds_vec.begin(),
+            preds_vec.end(),
+            default_random_engine(options_.random_seed_));
+  }
+
+  // reduce new predicates
+  TermVec red_preds;
+  if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+    // reduction successful
+    preds.clear();
+    preds.insert(red_preds.begin(), red_preds.end());
+  }
+
+  // add all the new predicates
+  for (auto p : preds) {
+    add_predicate(p);
+  }
+
+  // clear the current proof goals
+  // the transitions represented by those backwards reachable traces
+  // may not be precise wrt the new predicates
+  proof_goals_.clear();
+
+  // able to refine the system to rule out this abstract counterexample
+  return RefineResult::REFINE_SUCCESS;
 }
 
 bool IC3IA::add_predicate(const Term & pred)

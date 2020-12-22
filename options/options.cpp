@@ -310,9 +310,11 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           break;
       case SMT_SOLVER:
           smt_solver_ = opt.arg;
-          if (smt_solver_ != "btor" && smt_solver_ != "msat") {
+          if (smt_solver_ != "btor" && smt_solver_ != "cvc4"
+              && smt_solver_ != "msat") {
             throw PonoException(
-                "Option '--smt-solver' can be either 'btor' or 'msat'.");
+                "Option '--smt-solver' can be either 'btor', 'cvc4', or "
+                "'msat'.");
           }
           break;
         case NOWITNESS:

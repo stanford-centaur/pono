@@ -89,6 +89,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
                                                     const TermVec & new_preds,
                                                     TermVec & out)
 {
+  assert(new_preds.size());
   Term formula = solver_->make_term(true);
 
   for (size_t i = 0; i < cex.size(); ++i) {
@@ -172,7 +173,7 @@ Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
 {
   Term next_pred = abs_ts_.next(pred);
   // constrain next state vars and abstract vars to agree on this predicate
-  return solver_->make_term(Iff, next_pred, abstract(next_pred));
+  return solver_->make_term(Equal, next_pred, abstract(next_pred));
 }
 
 }  // namespace pono

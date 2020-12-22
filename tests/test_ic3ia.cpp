@@ -8,6 +8,7 @@
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
+#include "tests/common_ts.h"
 #include "utils/ts_analysis.h"
 
 using namespace pono;
@@ -51,7 +52,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, s);
+  IC3IA ic3ia(p, s, SolverEnum::MSAT);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -77,7 +78,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, s);
+  IC3IA ic3ia(p, s, SolverEnum::MSAT);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
 }
@@ -85,19 +86,15 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 TEST_P(IC3IAUnitTests, InductiveIntSafe)
 {
   FunctionalTransitionSystem fts(s);
-  Term x = fts.make_statevar("x", intsort);
+  Term max_val = fts.make_term(10, intsort);
 
-  fts.constrain_init(fts.make_term(Equal, x, fts.make_term(0, intsort)));
-  fts.assign_next(
-      x,
-      fts.make_term(Ite,
-                    fts.make_term(Lt, x, fts.make_term(10, intsort)),
-                    fts.make_term(Plus, x, fts.make_term(1, intsort)),
-                    fts.make_term(0, intsort)));
+  counter_system(fts, max_val);
+
+  Term x = fts.named_terms().at("x");
 
   Property p(fts, fts.make_term(Le, x, fts.make_term(10, intsort)));
 
-  IC3IA ic3ia(p, s);
+  IC3IA ic3ia(p, s, SolverEnum::MSAT);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -127,7 +124,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 
   Property p(rts, wit);
 
-  IC3IA ic3ia(p, s);
+  IC3IA ic3ia(p, s, SolverEnum::MSAT);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 

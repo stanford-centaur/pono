@@ -140,6 +140,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/adaptive_unroller.cpp"
+  "${PROJECT_SOURCE_DIR}/core/functional_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
@@ -183,7 +184,8 @@ endif()
 
 if (WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/ic3ia/")
+  # can't include ic3ia directly because some names clash e.g. ic3.h
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
@@ -240,6 +242,7 @@ endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
+target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)

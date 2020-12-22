@@ -31,6 +31,7 @@
 #include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
+#include "modifiers/coi.h"
 #include "modifiers/control_signals.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
@@ -202,14 +203,23 @@ int main(int argc, char ** argv)
             "responsibility for meeting the license requirements.");
 #endif
       } else if (pono_options.smt_solver_ == "btor") {
-        // boolector is faster but doesn't support interpolants
         s = BoolectorSolverFactory::create(false);
+      } else if (pono_options.smt_solver_ == "cvc4") {
+        s = CVC4SolverFactory::create(false);
       } else {
         assert(false);
       }
 
       s->set_opt("produce-models", "true");
       s->set_opt("incremental", "true");
+    }
+
+    if (pono_options.static_coi_ && !pono_options.no_witness_) {
+      logger.log(
+          0,
+          "Warning: disabling witness production. Temporary restriction -- "
+          "Cannot produce witness with option --static-coi");
+      pono_options.no_witness_ = true;
     }
 
     // TODO: make this less ugly, just need to keep it in scope if using
@@ -251,6 +261,13 @@ int main(int argc, char ** argv)
             add_reset_seq(fts, reset_symbol, pono_options.reset_bnd_);
         // guard the property with reset_done
         prop = fts.solver()->make_term(Implies, reset_done, prop);
+      }
+
+      if (pono_options.static_coi_) {
+        /* Compute the set of state/input variables related to the
+           bad-state property. Based on that information, rebuild the
+           transition relation of the transition system. */
+        ConeOfInfluence coi(fts, { prop }, {}, pono_options.verbosity_);
       }
 
       vector<UnorderedTermMap> cex;
@@ -303,6 +320,16 @@ int main(int argc, char ** argv)
             add_reset_seq(rts, reset_symbol, pono_options.reset_bnd_);
         // guard the property with reset_done
         prop = rts.solver()->make_term(Implies, reset_done, prop);
+      }
+
+      if (pono_options.static_coi_) {
+        // NOTE: currently only supports FunctionalTransitionSystem
+        // but let ConeOfInfluence throw the exception
+        // and this will change in the future
+        /* Compute the set of state/input variables related to the
+           bad-state property. Based on that information, rebuild the
+           transition relation of the transition system. */
+        ConeOfInfluence coi(rts, { prop }, {}, pono_options.verbosity_);
       }
 
       Property p(rts, prop);
