@@ -494,7 +494,7 @@ bool IC3Base::is_blocked(const ProofGoal & pg)
   assert(solver_context_ == 0);
 
   push_solver_context();
-  solver_->assert_formula(get_frame_term(pg.idx));
+  assert_frame_labels(pg.idx);
   solver_->assert_formula(pg.target.term);
   Result r = solver_->check_sat();
   pop_solver_context();
