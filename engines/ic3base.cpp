@@ -716,18 +716,6 @@ void IC3Base::pop_solver_context()
   solver_context_--;
 }
 
-inline Result IC3Base::check_sat()
-{
-  num_check_sat_since_reset_++;
-  return solver_->check_sat();
-}
-
-inline Result IC3Base::check_sat_assuming(const smt::TermVec & assumps)
-{
-  num_check_sat_since_reset_++;
-  return solver_->check_sat_assuming(assumps);
-}
-
 void IC3Base::reset_solver()
 {
   assert(solver_context_ == 0);

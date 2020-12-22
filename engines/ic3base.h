@@ -465,9 +465,17 @@ class IC3Base : public Prover
    */
   void pop_solver_context();
 
-  smt::Result check_sat();
+  inline smt::Result check_sat()
+  {
+    num_check_sat_since_reset_++;
+    return solver_->check_sat();
+  }
 
-  smt::Result check_sat_assuming(const smt::TermVec & assumps);
+  inline smt::Result check_sat_assuming(const smt::TermVec & assumps)
+  {
+    num_check_sat_since_reset_++;
+    return solver_->check_sat_assuming(assumps);
+  }
 
   /** Attempts to reset the solver and re-add constraints
    *  NOTE: not all solvers support reset_assertions, in which case the
