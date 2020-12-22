@@ -396,7 +396,7 @@ bool IC3Base::block_all()
   while (has_proof_goals()) {
     const ProofGoal &pg = get_next_proof_goal();
     if (is_blocked(pg)) {
-      logger.log(3, "Skipping Already blocked proof goal <{}, {}>",
+      logger.log(3, "Skipping already blocked proof goal <{}, {}>",
                  pg.target.term->to_string(), pg.idx);
       continue;
     };
