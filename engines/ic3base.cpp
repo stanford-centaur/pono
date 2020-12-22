@@ -494,7 +494,7 @@ bool IC3Base::is_blocked(const ProofGoal & pg)
   assert(solver_context_ == 0);
 
   push_solver_context();
-  assert_frame_labels(pg.idx);
+  solver_->assert_formula(get_frame_term(pg.idx));
   solver_->assert_formula(pg.target.term);
   Result r = solver_->check_sat();
   pop_solver_context();
@@ -544,7 +544,7 @@ bool IC3Base::propagate(size_t i)
       new_frame_i.push_back(Fi.at(j));
     } else {
       // add to next frame
-      constrain_frame(i + 1, Fi.at(j));
+      constrain_frame(i + 1, Fi.at(j), false);
     }
   }
 
@@ -563,22 +563,25 @@ void IC3Base::push_frame()
   frames_.push_back({});
 }
 
-void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint)
+void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
+                              bool new_constraint)
 {
   assert(solver_context_ == 0);
   assert(i > 0);  // there's a special case for frame 0
   assert(i < frame_labels_.size());
   assert(frame_labels_.size() == frames_.size());
 
-  for (size_t j = 1; j <= i; ++j) {
-    vector<IC3Formula> & Fj = frames_.at(j);
-    size_t k = 0;
-    for (size_t l = 0; l < Fj.size(); ++l) {
-      if (!subsumes(constraint, Fj[l])) {
-        Fj[k++] = Fj[l];
+  if (new_constraint) {
+    for (size_t j = 1; j <= i; ++j) { 
+      vector<IC3Formula> & Fj = frames_.at(j);
+      size_t k = 0;
+      for (size_t l = 0; l < Fj.size(); ++l) {
+        if (!subsumes(constraint, Fj[l])) {
+          Fj[k++] = Fj[l];
+        }
       }
+      Fj.resize(k);
     }
-    Fj.resize(k);
   }
 
   solver_->assert_formula(

@@ -369,8 +369,12 @@ class IC3Base : public Prover
   /** Adds a constraint to frame i and (implicitly) all frames below it
    *  @param i highest frame to add constraint to
    *  @param constraint the constraint to add
+   *  @param new_contraint true iff the constraint is a
+   *         newly learned blocking constraint. In true, then subsumption check
+   *         is performed
    */
-  void constrain_frame(size_t i, const IC3Formula & constraint);
+  void constrain_frame(size_t i, const IC3Formula & constraint,
+                       bool new_constraint=true);
 
   /** Add all the terms at Frame i
    *  Note: the frames_ data structure keeps terms only in the
