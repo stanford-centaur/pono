@@ -340,13 +340,18 @@ class IC3Base : public Prover
    */
   bool block_all();
 
-  /** Attempt to block cube c at frame i
-   *  @param i the frame number
-   *  @param c the cube to try blocking
-   *  @return true iff the cube was blocked, otherwise a new proof goal was
-   * added to the proof goals
+  /** Attempt to block the given proof goal
+   *  @param pg the proof goal
+   *  @return true iff the proof goal was blocked,
+   *          otherwise a new proof goal was added to the proof goals
    */
   bool block(const ProofGoal & pg);
+
+  /** Check if the given proof goal is already blocked
+   *  @param pg the proof goal
+   *  @return true iff the proof goal is already blocked
+   */
+  bool is_blocked(const ProofGoal & pg);
 
   /** Try propagating all clauses from frame index i to the next frame.
    *  @param i the frame index to propagate
