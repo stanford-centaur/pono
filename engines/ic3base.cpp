@@ -413,7 +413,12 @@ bool IC3Base::rel_ind_check(size_t i,
 bool IC3Base::block_all()
 {
   while (has_proof_goals()) {
-    ProofGoal pg = get_next_proof_goal();
+    const ProofGoal &pg = get_next_proof_goal();
+    if (is_blocked(pg)) {
+      logger.log(3, "Skipping already blocked proof goal <{}, {}>",
+                 pg.target.term->to_string(), pg.idx);
+      continue;
+    };
     // block can fail, which just means a
     // new proof goal will be added
     if (!block(pg) && !pg.idx) {
@@ -482,6 +487,19 @@ bool IC3Base::block(const ProofGoal & pg)
     add_proof_goal(collateral.at(0), i - 1, make_shared<ProofGoal>(pg));
     return false;
   }
+}
+
+bool IC3Base::is_blocked(const ProofGoal & pg)
+{
+  assert(solver_context_ == 0);
+
+  push_solver_context();
+  assert_frame_labels(pg.idx);
+  solver_->assert_formula(pg.target.term);
+  Result r = solver_->check_sat();
+  pop_solver_context();
+
+  return r.is_unsat();
 }
 
 bool IC3Base::propagate(size_t i)
