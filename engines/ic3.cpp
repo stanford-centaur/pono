@@ -51,7 +51,7 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
   const UnorderedTermSet & statevars = ts_->statevars();
   TermVec children;
   children.reserve(statevars.size());
-  for (auto sv : ts_->statevars()) {
+  for (auto &sv : ts_->statevars()) {
     if (solver_->get_value(sv) == solver_true_) {
       children.push_back(sv);
     } else {
@@ -69,7 +69,7 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (auto iv : ts_->inputvars()) {
+    for (auto &iv : ts_->inputvars()) {
       if (solver_->get_value(iv) == solver_true_) {
         out_inputs->push_back(iv);
       } else {
@@ -83,10 +83,10 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
 
 bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 {
-  Sort boolsort = solver_->make_sort(BOOL);
+  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Op op;
-  for (auto c : u.children) {
+  for (auto &c : u.children) {
     if (!is_lit(c, boolsort)) {
       return false;
     }
@@ -117,19 +117,20 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
     shuffle(
         lits.begin(), lits.end(), default_random_engine(options_.random_seed_));
   }
-//TODO: use unsatcore-reducer
+
+  //TODO: use unsatcore-reducer
   int iter = 0;
   bool progress = true;
   while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 && progress) {
     iter = options_.ic3_gen_max_iter_ > 0 ? iter + 1 : iter;
     size_t prev_size = lits.size();
-    for (auto a : lits) {
+    for (auto &a : lits) {
       // check if we can drop a
       if (keep.find(a) != keep.end()) {
         continue;
       }
       tmp.clear();
-      for (auto aa : lits) {
+      for (auto &aa : lits) {
         if (a != aa) {
           tmp.push_back(aa);
         }
@@ -145,7 +146,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 
         Term l;
         bool_assump.clear();
-        for (auto t : tmp) {
+        for (auto &t : tmp) {
           l = label(t);
           solver_->assert_formula(solver_->make_term(Implies, l, ts_->next(t)));
           bool_assump.push_back(l);
@@ -193,7 +194,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 
   // TODO: would it be more intuitive to start with a clause
   //       and generalize the clause directly?
-  IC3Formula blocking_clause = ic3formula_negate(ic3formula_conjunction(lits));
+  const IC3Formula &blocking_clause = ic3formula_negate(ic3formula_conjunction(lits));
   assert(blocking_clause.is_disjunction());  // expecting a clause
   return { blocking_clause };
 }
@@ -206,7 +207,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
   const UnorderedTermSet & statevars = ts_->statevars();
   TermVec input_lits, next_lits;
-  IC3Formula icf = get_model_ic3formula(&input_lits, &next_lits);
+  const IC3Formula & icf = get_model_ic3formula(&input_lits, &next_lits);
   const TermVec & cube_lits = icf.children;
 
   if (i == 1) {
@@ -251,7 +252,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // formula should not be unsat on its own
   assert(red_cube_lits.size() > 0);
 
-  IC3Formula res = ic3formula_conjunction(red_cube_lits);
+  const IC3Formula & res = ic3formula_conjunction(red_cube_lits);
   // expecting a Cube here
   assert(!res.is_disjunction());
 
@@ -260,15 +261,15 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
 void IC3::check_ts() const
 {
-  Sort boolsort = solver_->make_sort(BOOL);
-  for (auto sv : ts_->statevars()) {
+  const Sort &boolsort = solver_->make_sort(BOOL);
+  for (auto &sv : ts_->statevars()) {
     if (sv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean state variable in bit-level IC3: "
                           + sv->to_string());
     }
   }
 
-  for (auto iv : ts_->inputvars()) {
+  for (auto &iv : ts_->inputvars()) {
     if (iv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean input variable in bit-level IC3: "
                           + iv->to_string());
