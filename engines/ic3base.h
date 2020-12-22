@@ -444,12 +444,20 @@ class IC3Base : public Prover
   /** Pushes a solver context and keeps track of the context level
    *  updates solver_context_
    */
-  void push_solver_context();
+  inline void push_solver_context()
+  {
+    solver_->push();
+    solver_context_++;
+  }
 
   /** Pops a solver context and keeps track of the context level
    *  updates solver_context_
    */
-  void pop_solver_context();
+  inline void pop_solver_context()
+  {
+    solver_->pop();
+    solver_context_--;
+  }
 
   /** Create a boolean label for a given term
    *  These are cached in labels_
