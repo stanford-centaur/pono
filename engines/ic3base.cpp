@@ -582,15 +582,7 @@ void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
                               bool new_constraint)
 {
   assert(solver_context_ == 0);
-  assert(i > 0);  // there's a special case for frame 0
   assert(i < frame_labels_.size());
-  constrain_frame_label(i, constraint);
-  frames_.at(i).push_back(constraint);
-}
-
-void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)
-{
-  assert(frame_labels_.size() == frames_.size());
 
   if (new_constraint) {
     for (size_t j = 1; j <= i; ++j) { 
@@ -604,6 +596,16 @@ void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)
       Fj.resize(k);
     }
   }
+
+  assert(i > 0);  // there's a special case for frame 0
+
+  constrain_frame_label(i, constraint);
+  frames_.at(i).push_back(constraint);
+}
+
+void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)
+{
+  assert(frame_labels_.size() == frames_.size());
 
   solver_->assert_formula(
       solver_->make_term(Implies, frame_labels_.at(i), constraint.term));
