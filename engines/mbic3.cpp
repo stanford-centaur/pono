@@ -216,7 +216,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
               bool_assump.push_back(l);
             }
 
-            Result r = solver_->check_sat_assuming(bool_assump);
+            Result r = check_sat_assuming(bool_assump);
             assert(!r.is_unknown());
 
             if (r.is_sat()) {
@@ -470,7 +470,7 @@ bool ModelBasedIC3::intersects_bad()
   assert_frame_labels(reached_k_ + 1);
   // see if it intersects with bad
   solver_->assert_formula(bad_);
-  Result r = solver_->check_sat();
+  Result r = check_sat();
 
   if (r.is_sat()) {
     // push bad as a proof goal
