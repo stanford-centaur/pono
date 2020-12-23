@@ -150,6 +150,21 @@ class IC3IA : public IC3
   bool cvc4_find_preds(const smt::TermVec & cex,
                        smt::UnorderedTermSet & out_preds);
 
+  /** Synthesize predicates using CVC4 SyGuS
+   *  used as a helper function for cvc4_find_preds
+   *  @param abs_trace the unrolled abstract trace (over solver_ terms)
+   *  @param state variables over solver_ terms
+   *         will respect this order of state variables (that's why we can't
+   *         just get the set of state variables from the TS)
+   *  @param unrolled_var_args - vector of pairs where first is unrolled
+   *         next vars and second is unrolled abstract variables
+   *         (over solver_ terms)
+   *  @param free_vars - set of all free variables in abs_trace (over solver_
+   *         terms). Includes unrolled input variables also.
+   *  @param num_preds - how many predicates to look for
+   *  @param out_preds - set to add synthesized predicates to
+   *  @return true iff predicates were found that rule out this abstract trace
+   */
   bool cvc4_synthesize_preds(
       const smt::Term & abs_trace,
       const smt::TermVec & statevars,

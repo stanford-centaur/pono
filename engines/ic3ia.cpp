@@ -761,7 +761,6 @@ bool IC3IA::cvc4_synthesize_preds(
     cvc4_boundvars.push_back(cvc4_bv);
   }
 
-  // TODO move this to helper function
   // Grammar construction
   cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars);
 
