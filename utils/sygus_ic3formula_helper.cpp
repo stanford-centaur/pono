@@ -18,7 +18,7 @@
 
 
 namespace pono {
-namespace sygus {
+namespace syntax_analysis {
 
 void GetVariablesFromIC3Formula(const IC3Formula & f, smt::UnorderedTermSet & out) {
   smt::get_free_symbols(f.term, out);
@@ -40,5 +40,5 @@ std::string PrintModel(const IC3Formula & f) {
   return ret;
 }
 
-}  // namespace sygus
+}  // namespace syntax_analysis
 }  // namespace pono

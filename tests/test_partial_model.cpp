@@ -46,7 +46,7 @@ class DynamicCoiUnitTests :
         IC3Formula m = pt.GetPartialModel(ast);   \
         std::cout << "expr: " << ast << std::endl; \
         std::cout << m.term << std::endl;     \
-        std::cout << sygus::PrintModel(m) << std::endl; \
+        std::cout << syntax_analysis::PrintModel(m) << std::endl; \
         s->pop(); s->push();\
         s->assert_formula(NOT(ast));\
         s->assert_formula(m.term);\

@@ -22,13 +22,13 @@
 
 namespace pono {
 
-namespace sygus {
+namespace syntax_analysis {
 
 void GetVariablesFromIC3Formula(const IC3Formula & f, smt::UnorderedTermSet & out);
 
 std::string PrintModel(const IC3Formula & f);
 
-}  // namespace sygus
+}  // namespace syntax_analysis
 }  // namespace pono
 
 

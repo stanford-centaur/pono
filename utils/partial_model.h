@@ -11,7 +11,7 @@
 **
 ** \brief Class for performing dynamic cone of influence reduction based
 **        on the model from the solver. This is essentially extracting a
-**        partial model.
+**        partial model. (see tests/test_partial_model.cpp for usage)
 **
 **/
 

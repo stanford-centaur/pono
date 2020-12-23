@@ -23,7 +23,7 @@
  
 namespace pono {
 
-namespace sygus {
+namespace syntax_analysis {
  
 /// Trim a string from start (in place)
 void StrLeftTrim(std::string& s);
@@ -67,6 +67,6 @@ bool StrEndsWith(const std::string& str, const std::string& suffix);
 /// Finds out if str starts with prefix
 bool StrStartsWith(const std::string& str, const std::string& prefix);
  
-} // namespace sygus
+} // namespace syntax_analysis
 
 } // namespace pono

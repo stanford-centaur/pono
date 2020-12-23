@@ -21,7 +21,7 @@
 
 namespace pono {
 
-namespace sygus {
+namespace syntax_analysis {
 
 // it is of course possible to update it with arbitrary base
 std::string IntToStrCustomBase(uint64_t value, unsigned base, bool uppercase) {
@@ -139,6 +139,6 @@ bool StrStartsWith(const std::string& str, const std::string& prefix) {
 }
 
 
-} // namespace sygus
+} // namespace syntax_analysis
 
 } // namespace pono

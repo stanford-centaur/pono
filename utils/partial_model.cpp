@@ -87,8 +87,8 @@ bool static extract_decimal_width(const std::string & s,
 
 bool static convert_to_boolean_and_check(
   const std::string & decimal, const std::string & width, bool _0or1) {
-  auto s = sygus::IntToStrCustomBase(sygus::StrToULongLong(decimal,10), 2, false);
-  auto width_i = sygus::StrToULongLong(width,10);
+  auto s = syntax_analysis::IntToStrCustomBase(syntax_analysis::StrToULongLong(decimal,10), 2, false);
+  auto width_i = syntax_analysis::StrToULongLong(width,10);
   if (_0or1 && s.length() < width_i) // want 1 but not wide
     return false;
   for (auto pos = s.begin(); pos != s.end(); ++ pos) {
