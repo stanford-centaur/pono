@@ -42,12 +42,78 @@
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 
-namespace cvc4a = ::CVC4::api;
-
 using namespace smt;
 using namespace std;
 
 namespace pono {
+
+namespace cvc4a = ::CVC4::api;
+using CVC4SortSet = std::unordered_set<cvc4a::Sort, cvc4a::SortHashFunction>;
+using CVC4TermVec = std::vector<cvc4a::Term>;
+
+// helper class for generating grammar for CVC4 SyGuS
+cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
+                                 const CVC4TermVec & cvc4_boundvars)
+{
+  // sorts and their terminal constructors (start constructors)
+  cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
+  cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
+  std::vector<cvc4a::Term> start_bvs;
+
+  CVC4SortSet bv_sorts;
+  // collect all required sorts
+  for (auto cvc4_boundvar : cvc4_boundvars) {
+    cvc4a::Sort s = cvc4_boundvar.getSort();
+    if (s.isBitVector()) {
+      bv_sorts.insert(s);
+    }
+  }
+
+  // for each sort, introduce a new constructor for the grammar
+  for (auto s : bv_sorts) {
+    cvc4a::Term start_bv = cvc4_solver.mkVar(s, s.toString() + "_start");
+    start_bvs.push_back(start_bv);
+  }
+
+  // merge the Boolean start and the BV start
+  vector<cvc4a::Term> starts;
+  starts.push_back(start_bool);
+  starts.insert(starts.end(), start_bvs.begin(), start_bvs.end());
+
+  // construct the grammar
+  cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
+
+  for (auto s : start_bvs) {
+    cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
+    cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
+    g.addRules(start_bool, { equals, bvugt });
+  }
+
+  // include bv operations in the grammar
+  for (auto s : start_bvs) {
+    cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
+    cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
+    cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
+    cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
+    cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
+    cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
+    cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
+    cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
+    vector<cvc4a::Term> g_bound_vars;
+    for (auto bound_var : cvc4_boundvars) {
+      if (bound_var.getSort() == s.getSort()) {
+        g_bound_vars.push_back(bound_var);
+      }
+    }
+    vector<cvc4a::Term> constructs = { zero,  one,  bvadd, bvmul,
+                                       bvand, bvor, bvnot, bvneg };
+    constructs.insert(
+        constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
+    g.addRules(s, constructs);
+  }
+
+  return g;
+}
 
 // helper class for translating back from CVC4
 // which is not always binarized
@@ -116,7 +182,8 @@ IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      abs_unroller_(abs_ts_, solver_)
 {
 }
 
@@ -128,7 +195,8 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      abs_unroller_(abs_ts_, solver_)
 {
 }
 
@@ -140,7 +208,8 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp)
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      abs_unroller_(abs_ts_, solver_)
 {
 }
 
@@ -155,7 +224,8 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      abs_unroller_(abs_ts_, solver_)
 {
 }
 
@@ -170,7 +240,8 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(create_interpolating_solver(itp_se)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      abs_unroller_(abs_ts_, solver_)
 {
 }
 
@@ -185,7 +256,8 @@ IC3IA::IC3IA(const PonoOptions & opt,
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      abs_unroller_(abs_ts_, solver_)
 {
 }
 
@@ -197,7 +269,7 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
   conjuncts.reserve(preds.size());
-  for (auto p : preds) {
+  for (const auto &p : preds) {
     if (solver_->get_value(p) == solver_true_) {
       conjuncts.push_back(p);
     } else {
@@ -215,7 +287,7 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (auto iv : ts_->inputvars()) {
+    for (const auto &iv : ts_->inputvars()) {
       out_inputs->push_back(
           solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
@@ -226,11 +298,11 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
 
 bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
-  Sort boolsort = solver_->make_sort(BOOL);
+  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Term pred;
   Op op;
-  for (auto c : u.children) {
+  for (const auto &c : u.children) {
     if (c->get_sort() != boolsort) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
@@ -260,12 +332,6 @@ void IC3IA::check_ts() const
   // no restrictions except that interpolants must be supported
   // instead of checking explicitly, just let the interpolator throw an
   // exception better than maintaining in two places
-
-  if (options_.static_coi_) {
-    throw PonoException(
-        "Abstraction-refinement procedure in IC3IA does not yet work with "
-        "static cone-of-influence");
-  }
 }
 
 void IC3IA::initialize()
@@ -277,7 +343,7 @@ void IC3IA::initialize()
   UnorderedTermSet preds;
   get_predicates(solver_, ts_->init(), preds, false);
   get_predicates(solver_, bad_, preds, false);
-  for (auto p : preds) {
+  for (const auto &p : preds) {
     add_predicate(p);
   }
   // more predicates will be added during refinement
@@ -286,7 +352,7 @@ void IC3IA::initialize()
   // populate cache for existing terms in solver_
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term ns;
-  for (auto s : ts_->statevars()) {
+  for (auto const&s : ts_->statevars()) {
     // common variables are next states, unless used for refinement in IC3IA
     // then will refer to current state variables after untiming
     // need to cache both
@@ -304,7 +370,7 @@ void IC3IA::initialize()
   get_free_symbols(ts_->trans(), free_symbols);
   get_free_symbols(bad_, free_symbols);
 
-  for (auto s : free_symbols) {
+  for (auto const&s : free_symbols) {
     assert(s->is_symbol());
     if (s->is_symbolic_const()) {
       // ignore constants
@@ -363,17 +429,20 @@ RefineResult IC3IA::refine()
     assert(solver_context_ == 0);
     push_solver_context();
 
-    Term bmc_unrolling = unroller_.at_time(conc_ts_.init(), 0);
+    // NOTE only use abs_unroller in ic3ia-cvc4-pred mode
+    // need it to unroll the abs_ts_ in cvc4_find_preds
+    // and can't have two unrollers using same solver
+    Term bmc_unrolling = abs_unroller_.at_time(conc_ts_.init(), 0);
     Term t;
     for (size_t i = 0; i < cex_length; ++i) {
-      t = unroller_.at_time(cex[i], i);
+      t = abs_unroller_.at_time(cex[i], i);
       if (i + 1 < cex_length) {
-        t = unroller_.at_time(conc_ts_.trans(), i);
+        t = abs_unroller_.at_time(conc_ts_.trans(), i);
       }
       bmc_unrolling = solver_->make_term(And, bmc_unrolling, t);
     }
     bmc_unrolling = solver_->make_term(
-        And, bmc_unrolling, unroller_.at_time(bad_, cex_length - 1));
+        And, bmc_unrolling, abs_unroller_.at_time(bad_, cex_length - 1));
     solver_->assert_formula(bmc_unrolling);
     Result r = solver_->check_sat();
 
@@ -386,51 +455,30 @@ RefineResult IC3IA::refine()
     }
     cvc4_find_preds(cex, preds);
   } else {
+
     // use interpolator to get predicates
     // remember -- need to transfer between solvers
     assert(interpolator_);
-    register_symbol_mappings(0);
-    Term t = make_and({ cex[0], conc_ts_.trans() });
-    Term A = to_interpolator_.transfer_term(unroller_.at_time(t, 0), BOOL);
 
-    TermVec B;
-    B.reserve(cex_length - 1);
-    // add to B in reverse order so we can pop_back later
-    for (int i = cex_length - 1; i >= 1; --i) {
+    TermVec formulae;
+    for (size_t i = 0; i < cex_length; ++i) {
       // make sure to_solver_ cache is populated with unrolled symbols
       register_symbol_mappings(i);
-      t = unroller_.at_time(cex[i], i);
+
+      Term t = unroller_.at_time(cex[i], i);
       if (i + 1 < cex_length) {
         t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
       }
-      B.push_back(to_interpolator_.transfer_term(t, BOOL));
+      formulae.push_back(to_interpolator_.transfer_term(t, BOOL));
     }
 
-    // now get interpolants for each transition starting with the first
-    bool all_sat = true;
-    TermVec interpolants;
-    while (B.size()) {
-      // Note: have to pass the solver (defaults to solver_)
-      Term fullB = make_and(B, interpolator_);
-      Term I;
-      Result r(smt::UNKNOWN, "unset result");
-      try {
-        r = interpolator_->get_interpolant(A, fullB, I);
-      }
-      catch (SmtException & e) {
-        logger.log(3, e.what());
-      }
+    TermVec out_interpolants;
+    Result r =
+      interpolator_->get_sequence_interpolants(formulae, out_interpolants);
 
-      all_sat &= r.is_sat();
-      if (r.is_unsat()) {
-        Term untimedI = unroller_.untime(to_solver_.transfer_term(I, BOOL));
-        logger.log(3, "got interpolant: {}", untimedI);
-        interpolants.push_back(untimedI);
-      }
-      // move next cex time step to A
-      // they were added to B in reverse order
-      A = interpolator_->make_term(And, A, B.back());
-      B.pop_back();
+    if (r.is_sat()) {
+      // this is a real counterexample, so the property is false
+      return RefineResult::REFINE_NONE;
     }
 
     // record the length of this counterexample
@@ -439,48 +487,51 @@ RefineResult IC3IA::refine()
     // have already been cached in to_solver_
     longest_cex_length_ = cex.size();
 
+    for (auto const&I : out_interpolants) {
+      if (!I) {
+        assert(
+               r.is_unknown());  // should only have null terms if got unknown result
+        continue;
+      }
 
-    if (all_sat) {
-      // this is a real counterexample, so the property is false
-      return RefineResult::REFINE_NONE;
-    } else if (!interpolants.size()) {
-      logger.log(1,
-                 "Interpolation failures...couldn't find any new predicates");
+      Term solver_I = unroller_.untime(to_solver_.transfer_term(I, BOOL));
+      assert(conc_ts_.only_curr(solver_I));
+      logger.log(3, "got interpolant: {}", solver_I);
+      get_predicates(solver_, solver_I, preds);
+    }
+
+    // new predicates
+    TermVec preds_vec;
+    for (const auto & p : preds) {
+      if (predset_.find(p) == predset_.end()) {
+        // unseen predicate
+        preds_vec.push_back(p);
+      }
+    }
+
+    if (!preds_vec.size()) {
+      logger.log(1, "IC3IA: refinement failed couldn't find any new predicates");
       return RefineResult::REFINE_FAIL;
-    } else {
-      for (auto I : interpolants) {
-        assert(conc_ts_.only_curr(I));
-        get_predicates(solver_, I, preds);
-      }
+    }
 
-      // new predicates
-      TermVec preds_vec;
-      for (auto p : preds) {
-        if (predset_.find(p) == predset_.end()) {
-          // unseen predicate
-          preds_vec.push_back(p);
-        }
-      }
+    if (options_.random_seed_ > 0) {
+      shuffle(preds_vec.begin(),
+              preds_vec.end(),
+              default_random_engine(options_.random_seed_));
+    }
 
-      if (options_.random_seed_ > 0) {
-        shuffle(preds_vec.begin(),
-                preds_vec.end(),
-                default_random_engine(options_.random_seed_));
-      }
-
-      // reduce new predicates
-      TermVec red_preds;
-      if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
-        // reduction successful
-        preds.clear();
-        preds.insert(red_preds.begin(), red_preds.end());
-      }
+    // reduce new predicates
+    TermVec red_preds;
+    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+      // reduction successful
+      preds.clear();
+      preds.insert(red_preds.begin(), red_preds.end());
     }
   }
 
   // add all the new predicates
   bool found_new_preds = false;
-  for (auto p : preds) {
+  for (const auto & p : preds) {
     found_new_preds |= add_predicate(p);
   }
 
@@ -497,8 +548,6 @@ RefineResult IC3IA::refine()
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;
 }
-
-
 
 bool IC3IA::add_predicate(const Term & pred)
 {
@@ -528,214 +577,115 @@ void IC3IA::register_symbol_mappings(size_t i)
 
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term unrolled_sv;
-  for (auto sv : ts_->statevars()) {
+  for (auto const&sv : ts_->statevars()) {
     unrolled_sv = unroller_.at_time(sv, i);
     cache[to_interpolator_.transfer_term(unrolled_sv)] = unrolled_sv;
   }
 }
 
-void IC3IA::add_rules_to_grammar(cvc4a::Solver & cvc4_solver, cvc4a::Grammar & g, std::vector<cvc4a::Term> start_bvs, cvc4a::Term start_bool, vector<cvc4a::Term> cvc4_boundvars) {
-  for (auto s : start_bvs) {
-    cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
-    cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
-    g.addRules(start_bool, {equals, bvugt});
-  }
-
-  // include bv operations in the grammar
-  for (auto s : start_bvs) {
-    cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
-    cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
-    cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
-    cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
-    cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
-    cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
-    cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
-    cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
-    vector<cvc4a::Term> g_bound_vars;
-    for (auto bound_var : cvc4_boundvars) {
-      if (bound_var.getSort() == s.getSort()) {
-        g_bound_vars.push_back(bound_var);
-      }
-    }
-    vector<cvc4a::Term> constructs = {zero, one, bvadd, bvmul, bvand, bvor, bvnot, bvneg};
-    constructs.insert(constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
-    g.addRules(s, constructs);
-  }
-}
-
-cvc4a::Grammar IC3IA::construct_grammar(cvc4a::Solver & cvc4_solver,   vector<cvc4a::Term> cvc4_boundvars) { 
-  // Grammar construction
-  // sorts and their terminal constructors (start constructors)
-  cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
-  cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
-  std::unordered_set<cvc4a::Sort, cvc4a::SortHashFunction> bv_sorts;
-  std::vector<cvc4a::Term> start_bvs;
-
-  // collect all required sorts
-  for (auto cvc4_boundvar : cvc4_boundvars) {
-    cvc4a::Sort s = cvc4_boundvar.getSort();
-    if (s.isBitVector())
-    {
-      bv_sorts.insert(s);
-    }
-  }
-
-  // for each sort, introduce a new constructor for the grammar
-  for (auto s : bv_sorts) {
-    cvc4a::Term start_bv = cvc4_solver.mkVar(s, s.toString() + "_start");
-    start_bvs.push_back(start_bv);
-  }
-
-  // merge the Boolean start and the BV start
-  vector<cvc4a::Term> starts;
-  starts.push_back(start_bool);
-  starts.insert(starts.end(), start_bvs.begin(), start_bvs.end());
-
-  // construct the grammar 
-  cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
-  
-  add_rules_to_grammar(cvc4_solver, g, start_bvs, start_bool, cvc4_boundvars);
-  return g;
-}
-
-
-cvc4a::Term IC3IA::get_constraint(cvc4a::Solver & cvc4_solver, vector<cvc4a::Term> & cvc4_unrolled_next_vars, vector<cvc4a::Term> & cvc4_unrolled_abstract_vars, int cex_length, cvc4a::Term pred, smt::TermVec statevars, Unroller cvc4_unroller, smt::TermTranslator to_cvc4_, std::unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars, cvc4a::Term cvc4_formula) {
-
-    for (size_t i = 0; i < cex_length; ++i) {
-      cvc4_unrolled_next_vars.clear();
-      cvc4_unrolled_abstract_vars.clear();
-
-      // CVC4 takes the function as the first child, so insert the pred function
-      // first
-      cvc4_unrolled_next_vars.push_back(pred);
-      cvc4_unrolled_abstract_vars.push_back(pred);
-
-      Term nv, unrolled_nv;
-      cvc4a::Term cvc4_unrolled_nv;
-      Term abs_nv, unrolled_abs_nv;
-      cvc4a::Term cvc4_unrolled_abs_nv;
-      for (auto sv : statevars) {
-        nv = abs_ts_.next(sv);
-        abs_nv = ia_.abstract(nv);
-
-        unrolled_nv = cvc4_unroller.at_time(to_cvc4_.transfer_term(nv), i);
-        unrolled_abs_nv =
-          cvc4_unroller.at_time(to_cvc4_.transfer_term(abs_nv), i);
-
-        cvc4_unrolled_nv =
-          static_pointer_cast<CVC4Term>(unrolled_nv)->get_cvc4_term();
-        cvc4_unrolled_abs_nv =
-          static_pointer_cast<CVC4Term>(unrolled_abs_nv)->get_cvc4_term();
-
-        // most of these were already added above
-        // by traversing cvc4_formula (at smt-switch level)
-        // which uses these same variables
-        // but this just ensures all variables are in this set
-        cvc4_free_vars.insert(cvc4_unrolled_nv);
-        cvc4_free_vars.insert(cvc4_unrolled_abs_nv);
-
-        cvc4_unrolled_next_vars.push_back(cvc4_unrolled_nv);
-        cvc4_unrolled_abstract_vars.push_back(cvc4_unrolled_abs_nv);
-      }
-
-      cvc4a::Term pred_app_vars =
-        cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_unrolled_next_vars);
-      cvc4a::Term pred_app_abs_vars =
-        cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_unrolled_abstract_vars);
-
-      cvc4_formula = cvc4_solver.mkTerm(
-                                        cvc4a::AND,
-                                        cvc4_formula,
-                                        cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
-    }
-
-    cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
-    return constraint;
-
-}
-
-cvc4a::Term IC3IA::transform_to_sygus(cvc4a::Solver & cvc4_solver, cvc4a::Term constraint,  unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars) {
-    // use sygus variables rather than ordinary variables.
-    std::map<cvc4a::Term, cvc4a::Term> old_to_new;
-    std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(), cvc4_free_vars.end());
-    for (cvc4a::Term old_var : originals) {
-      cvc4a::Term new_var = cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
-      old_to_new[old_var] = new_var;
-    }
-    std::vector<cvc4a::Term> news;
-    for (cvc4a::Term old_var : originals) {
-      assert(old_to_new.find(old_var) != old_to_new.end());
-      news.push_back(old_to_new[old_var]);
-    }
-    cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
-    return sygus_constraint;
-}
-
-std::vector<cvc4a::Term> IC3IA::synth_min_num_of_preds(cvc4a::Solver& cvc4_solver, int max_num_of_preds, int max_size_per_pred, smt::TermVec statevars, smt::TermTranslator to_cvc4_, Unroller cvc4_unroller, vector<cvc4a::Term> cvc4_boundvars, cvc4a::Grammar g, int cex_length,  unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars, cvc4a::Term cvc4_formula) {
-  // main loop
-  vector<cvc4a::Term> pred_vec;
-  for (int num_of_preds = 1; num_of_preds <= max_num_of_preds; num_of_preds++) {
-      std::cout << "panda num_of_preds: " << num_of_preds << std::endl;
-      // Create the predicate to search for. Use the grammar
-      string pred_name = "P_" + std::to_string(num_of_preds);
-      cvc4a::Term pred =
-        cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
-      pred_vec.push_back(pred);
-  
-      // add the implicit predicate abstraction constraints
-      // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2) /\ ...
-      vector<cvc4a::Term> cvc4_unrolled_next_vars;
-      vector<cvc4a::Term> cvc4_unrolled_abstract_vars;
-  
-      //create the constraint
-      cvc4a::Term constraint = get_constraint(cvc4_solver, cvc4_unrolled_next_vars, cvc4_unrolled_abstract_vars, cex_length, pred, statevars, cvc4_unroller, to_cvc4_, cvc4_free_vars, cvc4_formula);
-      cvc4a::Term sygus_constraint = transform_to_sygus(cvc4_solver, constraint, cvc4_free_vars);
-  
-      // try to synth predicates
-      // TODO make sure this is correct -- not sure this makes sense but it should
-      // be something like this need to make sure the quantifiers are correct e.g.
-      // want to synthesize a predicate such that formula is unsat
-      cvc4_solver.addSygusConstraint(sygus_constraint);
-      cvc4a::Result result = cvc4_solver.checkSynth();
-      if (result.isUnsat()) {
-        break;
-      }
-  }
-  return pred_vec;
-}
-  
-
-vector<cvc4a::Term> IC3IA::synth_predicates(cvc4a::Solver & cvc4_solver, int max_num_of_preds, int max_size_per_pred, smt::TermVec statevars, smt::TermTranslator to_cvc4_, Unroller cvc4_unroller, unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars, int cex_length, cvc4a::Term cvc4_formula, vector<cvc4a::Term> & cvc4_boundvars, vector<cvc4a::Term> & cvc4_statevars) {
-
-  // set necessary options for sygus
-  cvc4_solver.setOption("lang", "sygus2");
-  cvc4_solver.setOption("incremental", "false");
-  cvc4_solver.setOption("sygus-abort-size", "1");
-
-  // create bound variables to use in the synthesized function
-  Term transferred_sv;
-  for (auto sv : statevars) {
-    transferred_sv = to_cvc4_.transfer_term(sv);
-    cvc4a::Term cvc4_sv =
-        static_pointer_cast<CVC4Term>(transferred_sv)->get_cvc4_term();
-    cvc4a::Term cvc4_bv =
-        cvc4_solver.mkVar(cvc4_sv.getSort(), cvc4_sv.toString() + "_var");
-    cvc4_statevars.push_back(cvc4_sv);
-    cvc4_boundvars.push_back(cvc4_bv);
-  }
-
-  //create the grammar
-  cvc4a::Grammar g = construct_grammar(cvc4_solver, cvc4_boundvars);
-  
-  // get the predicates
-  vector<cvc4a::Term> pred_vec = synth_min_num_of_preds(cvc4_solver, max_num_of_preds, max_size_per_pred, statevars, to_cvc4_, cvc4_unroller, cvc4_boundvars, g, cex_length, cvc4_free_vars, cvc4_formula);
-  return pred_vec;
-}
-
-
 bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 {
+  size_t cex_length = cex.size();
+  assert(cex_length);
+
+  // unroll the counterexample
+  // IMPORTANT NOTE use the abs_unroller_ because unroller_
+  // is over conc_ts_
+  Term abs_trace = abs_unroller_.at_time(abs_ts_.init(), 0);
+  Term t;
+  for (size_t i = 0; i < cex_length; ++i) {
+    t = cex[i];
+    if (i + 1 < cex_length) {
+      t = solver_->make_term(And, t, abs_ts_.trans());
+    }
+    abs_trace = solver_->make_term(And, abs_trace, abs_unroller_.at_time(t, i));
+  }
+  // redundant but might as well add bad cube
+  abs_trace = solver_->make_term(
+      And, abs_trace, abs_unroller_.at_time(bad_, cex_length - 1));
+
+  // create unrolled state variables
+  // this vector holds pairs where first is next vars
+  // and second is abstract variables
+  // unrolled at the given time
+  vector<pair<TermVec, TermVec>> var_args;
+
+  // free variables in the abs_trace formula
+  UnorderedTermSet free_vars;
+
+  // need to use these state variables in order
+  // it returns a set but we want to rely on the order
+  const UnorderedTermSet & set_statevars = conc_ts_.statevars();
+  TermVec statevars(set_statevars.begin(), set_statevars.end());
+  size_t num_statevars = statevars.size();
+
+  for (size_t i = 0; i < cex_length; ++i) {
+    assert(var_args.size() == i);
+    var_args.push_back(make_pair<TermVec, TermVec>(TermVec(), TermVec()));
+    TermVec & unrolled_next_vars = var_args[i].first;
+    TermVec & unrolled_abs_vars = var_args[i].second;
+
+    unrolled_next_vars.reserve(num_statevars);
+    unrolled_abs_vars.reserve(num_statevars);
+
+    Term nv, unrolled_nv;
+    Term abs_nv, unrolled_abs_nv;
+    for (auto sv : statevars) {
+      nv = abs_ts_.next(sv);
+      abs_nv = ia_.abstract(nv);
+
+      unrolled_nv = abs_unroller_.at_time(nv, i);
+      unrolled_abs_nv = abs_unroller_.at_time(abs_nv, i);
+
+      assert(abs_nv != unrolled_abs_nv);  // check abs vars unrolled corectly
+
+      unrolled_next_vars.push_back(unrolled_nv);
+      unrolled_abs_vars.push_back(unrolled_abs_nv);
+
+      // most of these were already added above
+      // by traversing cvc4_formula (at smt-switch level)
+      // which uses these same variables
+      // but this just ensures all variables are in this set
+      free_vars.insert(unrolled_nv);
+      free_vars.insert(unrolled_abs_nv);
+
+      // just need to get the zero case
+      // otherwise covered by next state variable unrolling
+      if (i == 0) {
+        free_vars.insert(abs_unroller_.at_time(sv, i));
+      }
+    }
+
+    for (auto iv : conc_ts_.inputvars()) {
+      free_vars.insert(abs_unroller_.at_time(iv, i));
+    }
+  }
+
+  bool found_preds = false;
+  size_t num_preds = 1;
+  while (!found_preds) {
+    found_preds = cvc4_synthesize_preds(
+        abs_trace, statevars, var_args, free_vars, num_preds, out_preds);
+    num_preds++;
+  }
+
+  return found_preds;
+}
+
+bool IC3IA::cvc4_synthesize_preds(
+    const smt::Term & abs_trace,
+    const TermVec & statevars,
+    const vector<pair<TermVec, TermVec>> & unrolled_var_args,
+    const UnorderedTermSet & free_vars,
+    size_t num_preds,
+    smt::UnorderedTermSet & out_preds)
+{
+  logger.log(1, "Looking for {} predicates with CVC4 SyGuS", num_preds);
+
   bool res = false;
+  namespace cvc4a = ::CVC4::api;
+
+  assert(unrolled_var_args.size());
 
   // HACK
   // hacked in to evaluate CVC4
@@ -744,82 +694,132 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   smt::TermTranslator to_cvc4_(cvc4_);
   smt::TermTranslator from_cvc4_(solver_);
 
-  // also create a fresh transition system to pass to a fresh unroller
-  // NOTE we have to do this because the default unroller_ can currently
-  //      only unroll the concrete transition system (it doesn't have the
-  //      abstract variables) This should be fixed because it's not intuitive
-  RelationalTransitionSystem cvc4_rts(cvc4_);
-  Term cvc4_init = to_cvc4_.transfer_term(abs_ts_.init());
-  Term cvc4_trans = to_cvc4_.transfer_term(abs_ts_.trans());
-  for (auto v : abs_ts_.statevars()) {
-    cvc4_rts.add_statevar(to_cvc4_.transfer_term(v),
-                          to_cvc4_.transfer_term(abs_ts_.next(v)));
-  }
-
-  for (auto v : abs_ts_.inputvars()) {
-    cvc4_rts.add_inputvar(to_cvc4_.transfer_term(v));
-  }
-
-  cvc4_rts.set_behavior(cvc4_init, cvc4_trans);
-  Unroller cvc4_unroller(cvc4_rts, cvc4_);
-
   // populate from_cvc4_ cache
   UnorderedTermMap & from_cvc4_cache = from_cvc4_.get_cache();
   for (auto sv : conc_ts_.statevars()) {
     from_cvc4_cache[to_cvc4_.transfer_term(sv)] = sv;
   }
 
-  size_t cex_length = cex.size();
-  assert(cex_length);
-
-  // unroll the counterexample
-  Term ss_cvc4_formula = cvc4_unroller.at_time(cvc4_rts.init(), 0);
-  Term t;
-  for (size_t i = 0; i < cex_length; ++i) {
-    t = to_cvc4_.transfer_term(cex[i], BOOL);
-    if (i + 1 < cex_length) {
-      t = cvc4_->make_term(And, t, cvc4_rts.trans());
-    }
-    ss_cvc4_formula =
-        cvc4_->make_term(And, ss_cvc4_formula, cvc4_unroller.at_time(t, i));
-  }
-  // redundant but might as well add bad cube
-  ss_cvc4_formula =
-      cvc4_->make_term(And,
-                       ss_cvc4_formula,
-                       cvc4_unroller.at_time(to_cvc4_.transfer_term(bad_, BOOL),
-                                             cex_length - 1));
-
-  UnorderedTermSet ss_free_vars;
-  get_free_symbolic_consts(ss_cvc4_formula, ss_free_vars);
-
   // get the underlying CVC4 objects
   cvc4a::Term cvc4_formula =
-      static_pointer_cast<CVC4Term>(ss_cvc4_formula)->get_cvc4_term();
+      static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(abs_trace, BOOL))
+          ->get_cvc4_term();
 
   unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars;
-  for (auto fv : ss_free_vars) {
+  for (auto fv : free_vars) {
     cvc4_free_vars.insert(
-        static_pointer_cast<CVC4Term>(fv)->get_cvc4_term());
-  }
-
-  // get a vector of state variables in the main solver_
-  // NOTE: don't forget to use this vector, we're going to rely on the order
-  TermVec statevars;
-  for (auto sv : conc_ts_.statevars()) {
-    statevars.push_back(sv);
+        static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(fv))
+            ->get_cvc4_term());
   }
 
   // Retrieve the underlying fresh cvc4 solver
   cvc4a::Solver & cvc4_solver =
       static_pointer_cast<CVC4Solver>(cvc4_)->get_cvc4_solver();
 
-  vector<cvc4a::Term> cvc4_boundvars;
-  cvc4_boundvars.reserve(statevars.size());
+  // set necessary options for sygus
+  cvc4_solver.setOption("lang", "sygus2");
+  cvc4_solver.setOption("incremental", "false");
+  cvc4_solver.setOption("sygus-abort-size", "2");
+
+  // create bound variables to use in the synthesized function
   vector<cvc4a::Term> cvc4_statevars;
   cvc4_statevars.reserve(statevars.size());
-  vector<cvc4a::Term> pred_vec = synth_predicates(cvc4_solver, 1, 1, statevars, to_cvc4_, cvc4_unroller, cvc4_free_vars, cex_length, cvc4_formula, cvc4_boundvars, cvc4_statevars);
-  res = pred_vec.size() != 0;
+  vector<cvc4a::Term> cvc4_boundvars;
+  cvc4_boundvars.reserve(statevars.size());
+  Term transferred_sv;
+  for (auto sv : statevars) {
+    transferred_sv = to_cvc4_.transfer_term(sv);
+    cvc4a::Term cvc4_sv =
+        static_pointer_cast<CVC4Term>(transferred_sv)->get_cvc4_term();
+    cvc4_statevars.push_back(cvc4_sv);
+    cvc4a::Term cvc4_bv =
+        cvc4_solver.mkVar(cvc4_sv.getSort(), cvc4_sv.toString() + "_var");
+    cvc4_boundvars.push_back(cvc4_bv);
+  }
+
+  // Grammar construction
+  cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars);
+
+  vector<cvc4a::Term> pred_vec;
+  for (size_t n = 0; n < num_preds; ++n) {
+    // Create the predicate to search for. Use the grammar
+    string pred_name = "P_" + std::to_string(n);
+    cvc4a::Term pred =
+      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
+    pred_vec.push_back(pred);
+
+    // add the implicit predicate abstraction constraints
+    // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2) /\ ...
+
+    vector<cvc4a::Term> cvc4_next_var_args;
+    vector<cvc4a::Term> cvc4_abs_var_args;
+
+    for (const auto & var_pair : unrolled_var_args) {
+      const TermVec & unrolled_next_vars = var_pair.first;
+      const TermVec & unrolled_abs_vars = var_pair.second;
+
+      // CVC4 takes the function as the first child, so insert the
+      // pred function first
+      cvc4_next_var_args.clear();
+      cvc4_next_var_args.push_back(pred);
+
+      cvc4_abs_var_args.clear();
+      cvc4_abs_var_args.push_back(pred);
+
+      assert(unrolled_next_vars.size() == unrolled_abs_vars.size());
+      Term nv, abs_nv;
+      for (size_t i = 0; i < unrolled_next_vars.size(); ++i) {
+        nv = to_cvc4_.transfer_term(unrolled_next_vars[i]);
+        abs_nv = to_cvc4_.transfer_term(unrolled_abs_vars[i]);
+
+        cvc4_next_var_args.push_back(
+            static_pointer_cast<CVC4Term>(nv)->get_cvc4_term());
+        cvc4_abs_var_args.push_back(
+            static_pointer_cast<CVC4Term>(abs_nv)->get_cvc4_term());
+      }
+
+      cvc4a::Term pred_app_vars =
+          cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_next_var_args);
+      cvc4a::Term pred_app_abs_vars =
+          cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_abs_var_args);
+
+      cvc4_formula = cvc4_solver.mkTerm(
+                                        cvc4a::AND,
+                                        cvc4_formula,
+                                        cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
+    }
+  }
+
+  cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
+
+  // use sygus variables rather than ordinary variables.
+  std::map<cvc4a::Term, cvc4a::Term> old_to_new;
+  std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(),
+                                     cvc4_free_vars.end());
+  for (cvc4a::Term old_var : originals) {
+    cvc4a::Term new_var =
+        cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
+    old_to_new[old_var] = new_var;
+  }
+  std::vector<cvc4a::Term> news;
+  for (cvc4a::Term old_var : originals) {
+    assert(old_to_new.find(old_var) != old_to_new.end());
+    news.push_back(old_to_new[old_var]);
+  }
+
+  cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
+  cvc4_solver.addSygusConstraint(sygus_constraint);
+  try {
+    res = cvc4_solver.checkSynth().isUnsat();
+  }
+  catch (cvc4a::CVC4ApiException & e) {
+    logger.log(1, "Caught exception from CVC4: {}", e.what());
+    return false;
+  }
+
+  // for debugging:
+  cvc4_solver.printSynthSolution(std::cout);
+
   for (auto pred : pred_vec) {
     cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
 
