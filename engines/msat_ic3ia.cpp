@@ -131,8 +131,7 @@ ProverResult MsatIC3IA::prove()
     {
       Term clause = solver_->make_term(false);
       assert(msat_clause.size());
-      for (const &msat_term l : msat_clause)
-      {
+      for (const msat_term & l : msat_clause) {
         clause = solver_->make_term(
             Or,
             clause,
