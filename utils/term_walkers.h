@@ -53,11 +53,13 @@ class TermOpCollector : protected smt::IdentityWalker
 };
 
 /** Class for collecting all subterms and grouping by sort
+ *  It will also store predicates separately from all the other terms
  */
 class SubTermCollector : public smt::IdentityWalker
 {
  public:
   SubTermCollector(const smt::SmtSolver & solver,
+                   bool exclude_bools = true,
                    bool exclude_funs = true,
                    bool exclude_ites = true);
 
@@ -70,12 +72,22 @@ class SubTermCollector : public smt::IdentityWalker
     return subterms_;
   };
 
+  const smt::UnorderedTermSet & get_predicates() const { return predicates_; }
+
  protected:
+  bool exclude_bools_;  ///< if true, don't include boolean terms in subterms
+                        ///<  (although predicates are still kept separately in
+                        ///<  predicates_).
+
   bool exclude_funs_;  ///< if true, don't include function symbols
 
   bool exclude_ites_;  ///< if true, don't include ITEs
 
+  smt::Sort boolsort_;  ///< boolean sort from solver_
+
   std::unordered_map<smt::Sort, smt::UnorderedTermSet> subterms_;
+
+  smt::UnorderedTermSet predicates_;
 
   smt::WalkerStepResult visit_term(smt::Term & term) override;
 };

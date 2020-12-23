@@ -14,9 +14,10 @@
 **
 **/
 
-#include "assert.h"
-
 #include "utils/term_walkers.h"
+
+#include "assert.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -57,11 +58,14 @@ WalkerStepResult TermOpCollector::visit_term(smt::Term & term)
 }
 
 SubTermCollector::SubTermCollector(const smt::SmtSolver & solver,
+                                   bool exclude_bools,
                                    bool exclude_funs,
                                    bool exclute_ites)
     : super(solver, true),
+      exclude_bools_(exclude_bools),
       exclude_funs_(exclude_funs),
-      exclude_ites_(exclute_ites)
+      exclude_ites_(exclute_ites),
+      boolsort_(solver_->make_sort(BOOL))
 {
 }
 
@@ -72,12 +76,17 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
   if (preorder_) {
     Sort sort = term->get_sort();
 
-    if ((exclude_funs_ && sort->get_sort_kind() == FUNCTION)
+    if ((exclude_bools_ && sort == boolsort_)
+        || (exclude_funs_ && sort->get_sort_kind() == FUNCTION)
         || (exclude_ites_ && term->get_op() == Ite)) {
       return Walker_Continue;
     }
 
-    subterms_[sort].insert(term);
+    if (is_predicate(term, boolsort_)) {
+      predicates_.insert(term);
+    } else {
+      subterms_[sort].insert(term);
+    }
   }
   return Walker_Continue;
 }
