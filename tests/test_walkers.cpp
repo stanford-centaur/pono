@@ -53,7 +53,8 @@ TEST_P(WalkersUnitTests, SubTermCollectorBasic)
     }
   }
 
-  SubTermCollector stc(s, false);
+  // default behavior is to exclude functions and ITEs
+  SubTermCollector stc(s);
   stc.collect_subterms(sum);
 
   const unordered_map<Sort, UnorderedTermSet> & stc_subterms =
@@ -64,7 +65,14 @@ TEST_P(WalkersUnitTests, SubTermCollectorBasic)
   Sort sort;
   for (auto term : all_subterms) {
     sort = term->get_sort();
-    if (sort->get_sort_kind() != FUNCTION) {
+    if (term->get_op() == Ite) {
+      EXPECT_TRUE(stc_subterms.find(sort) != stc_subterms.end())
+          << "expecting to have terms of the same sort because of ITE children"
+          << endl;
+      EXPECT_TRUE(stc_subterms.at(sort).find(term)
+                  == stc_subterms.at(sort).end())
+          << "expecting no ITE terms to be saved" << endl;
+    } else if (sort->get_sort_kind() != FUNCTION) {
       EXPECT_TRUE(stc_subterms.find(sort) != stc_subterms.end())
           << "Missing sort " << sort << endl;
       EXPECT_TRUE(stc_subterms.at(sort).find(term)
@@ -72,8 +80,8 @@ TEST_P(WalkersUnitTests, SubTermCollectorBasic)
     }
   }
 
-  // now try collecting with functions also
-  SubTermCollector stcfun(s, true);
+  // now try collecting with functions and ITEs also
+  SubTermCollector stcfun(s, false, false);
   stcfun.collect_subterms(sum);
 
   const unordered_map<Sort, UnorderedTermSet> & stcfun_subterms =

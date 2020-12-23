@@ -57,7 +57,9 @@ class TermOpCollector : protected smt::IdentityWalker
 class SubTermCollector : public smt::IdentityWalker
 {
  public:
-  SubTermCollector(const smt::SmtSolver & solver, bool include_funs = false);
+  SubTermCollector(const smt::SmtSolver & solver,
+                   bool exclude_funs = true,
+                   bool exclude_ites = true);
 
   typedef smt::IdentityWalker super;
 
@@ -69,7 +71,9 @@ class SubTermCollector : public smt::IdentityWalker
   };
 
  protected:
-  bool include_funs_;  ///< if true, includes function symbols
+  bool exclude_funs_;  ///< if true, don't include function symbols
+
+  bool exclude_ites_;  ///< if true, don't include ITEs
 
   std::unordered_map<smt::Sort, smt::UnorderedTermSet> subterms_;
 

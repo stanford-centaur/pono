@@ -57,8 +57,11 @@ WalkerStepResult TermOpCollector::visit_term(smt::Term & term)
 }
 
 SubTermCollector::SubTermCollector(const smt::SmtSolver & solver,
-                                   bool include_funs)
-    : super(solver, true), include_funs_(include_funs)
+                                   bool exclude_funs,
+                                   bool exclute_ites)
+    : super(solver, true),
+      exclude_funs_(exclude_funs),
+      exclude_ites_(exclute_ites)
 {
 }
 
@@ -68,9 +71,13 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
 {
   if (preorder_) {
     Sort sort = term->get_sort();
-    if (include_funs_ || sort->get_sort_kind() != FUNCTION) {
-      subterms_[sort].insert(term);
+
+    if ((exclude_funs_ && sort->get_sort_kind() == FUNCTION)
+        || (exclude_ites_ && term->get_op() == Ite)) {
+      return Walker_Continue;
     }
+
+    subterms_[sort].insert(term);
   }
   return Walker_Continue;
 }
