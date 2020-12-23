@@ -52,7 +52,9 @@ enum optionIndex
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
-  IC3IA_CVC4_PRED
+  IC3IA_CVC4_PRED,
+  IC3IA_CVC4_PRED_NUM,
+  IC3IA_CVC4_PRED_SIZE
 };
 
 struct Arg : public option::Arg
@@ -254,6 +256,18 @@ const option::Descriptor usage[] = {
     "ic3ia-cvc4-pred",
     Arg::None,
     "  --ic3ia-cvc4-pred \tFind predicates for IC3IA using CVC4 SyGuS." },
+  { IC3IA_CVC4_PRED_NUM,
+    0,
+    "",
+    "ic3ia-cvc4-pred-num",
+    Arg::Numeric,
+    "  --ic3ia-cvc4-pred-num \tlimit number of predicates used."},
+  { IC3IA_CVC4_PRED_SIZE,
+    0,
+    "",
+    "ic3ia-cvc4-pred-size",
+    Arg::Numeric,
+    "  --ic3ia-cvc4-pred-size \tlimit size of each predicate."},
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -370,6 +384,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
 #endif
           break;
         case IC3IA_CVC4_PRED: ic3ia_cvc4_pred_ = true; break;
+        case IC3IA_CVC4_PRED_NUM: ic3ia_cvc4_pred_num_ = atoi(opt.arg); break;
+        case IC3IA_CVC4_PRED_SIZE: ic3ia_cvc4_pred_size_ = atoi(opt.arg); break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
