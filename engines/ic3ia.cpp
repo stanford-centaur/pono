@@ -47,6 +47,74 @@ using namespace std;
 
 namespace pono {
 
+namespace cvc4a = ::CVC4::api;
+using CVC4SortSet = std::unordered_set<cvc4a::Sort, cvc4a::SortHashFunction>;
+using CVC4TermVec = std::vector<cvc4a::Term>;
+
+// helper class for generating grammar for CVC4 SyGuS
+cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
+                                 const CVC4TermVec & cvc4_boundvars)
+{
+  // sorts and their terminal constructors (start constructors)
+  cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
+  cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
+  std::vector<cvc4a::Term> start_bvs;
+
+  CVC4SortSet bv_sorts;
+  // collect all required sorts
+  for (auto cvc4_boundvar : cvc4_boundvars) {
+    cvc4a::Sort s = cvc4_boundvar.getSort();
+    if (s.isBitVector()) {
+      bv_sorts.insert(s);
+    }
+  }
+
+  // for each sort, introduce a new constructor for the grammar
+  for (auto s : bv_sorts) {
+    cvc4a::Term start_bv = cvc4_solver.mkVar(s, s.toString() + "_start");
+    start_bvs.push_back(start_bv);
+  }
+
+  // merge the Boolean start and the BV start
+  vector<cvc4a::Term> starts;
+  starts.push_back(start_bool);
+  starts.insert(starts.end(), start_bvs.begin(), start_bvs.end());
+
+  // construct the grammar
+  cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
+
+  for (auto s : start_bvs) {
+    cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
+    cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
+    g.addRules(start_bool, { equals, bvugt });
+  }
+
+  // include bv operations in the grammar
+  for (auto s : start_bvs) {
+    cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
+    cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
+    cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
+    cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
+    cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
+    cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
+    cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
+    cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
+    vector<cvc4a::Term> g_bound_vars;
+    for (auto bound_var : cvc4_boundvars) {
+      if (bound_var.getSort() == s.getSort()) {
+        g_bound_vars.push_back(bound_var);
+      }
+    }
+    vector<cvc4a::Term> constructs = { zero,  one,  bvadd, bvmul,
+                                       bvand, bvor, bvnot, bvneg };
+    constructs.insert(
+        constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
+    g.addRules(s, constructs);
+  }
+
+  return g;
+}
+
 // helper class for translating back from CVC4
 // which is not always binarized
 class Binarizer : public smt::IdentityWalker
@@ -636,6 +704,8 @@ bool IC3IA::cvc4_synthesize_preds(
     size_t num_preds,
     smt::UnorderedTermSet & out_preds)
 {
+  logger.log(1, "Looking for {} predicates with CVC4 SyGuS", num_preds);
+
   bool res = false;
   namespace cvc4a = ::CVC4::api;
 
@@ -692,61 +762,7 @@ bool IC3IA::cvc4_synthesize_preds(
 
   // TODO move this to helper function
   // Grammar construction
-  // sorts and their terminal constructors (start constructors)
-  cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
-  cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
-  std::unordered_set<cvc4a::Sort, cvc4a::SortHashFunction> bv_sorts;
-  std::vector<cvc4a::Term> start_bvs;
-
-  // collect all required sorts
-  for (auto cvc4_boundvar : cvc4_boundvars) {
-    cvc4a::Sort s = cvc4_boundvar.getSort();
-    if (s.isBitVector())
-    {
-      bv_sorts.insert(s);
-    }
-  }
-
-  // for each sort, introduce a new constructor for the grammar
-  for (auto s : bv_sorts) {
-    cvc4a::Term start_bv = cvc4_solver.mkVar(s, s.toString() + "_start");
-    start_bvs.push_back(start_bv);
-  }
-
-  // merge the Boolean start and the BV start
-  vector<cvc4a::Term> starts;
-  starts.push_back(start_bool);
-  starts.insert(starts.end(), start_bvs.begin(), start_bvs.end());
-
-  // construct the grammar
-  cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
-
-  for (auto s : start_bvs) {
-    cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
-    cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
-    g.addRules(start_bool, {equals, bvugt});
-  }
-
-  // include bv operations in the grammar
-  for (auto s : start_bvs) {
-    cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
-    cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
-    cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
-    cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
-    cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
-    cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
-    cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
-    cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
-    vector<cvc4a::Term> g_bound_vars;
-    for (auto bound_var : cvc4_boundvars) {
-      if (bound_var.getSort() == s.getSort()) {
-        g_bound_vars.push_back(bound_var);
-      }
-    }
-    vector<cvc4a::Term> constructs = {zero, one, bvadd, bvmul, bvand, bvor, bvnot, bvneg};
-    constructs.insert(constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
-    g.addRules(s, constructs);
-  }
+  cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars);
 
   vector<cvc4a::Term> pred_vec;
   for (size_t n = 0; n < num_preds; ++n) {
@@ -811,14 +827,9 @@ bool IC3IA::cvc4_synthesize_preds(
       assert(old_to_new.find(old_var) != old_to_new.end());
       news.push_back(old_to_new[old_var]);
     }
+
     cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
-
-    // TODO make sure this is correct -- not sure this makes sense but it should
-    // be something like this need to make sure the quantifiers are correct e.g.
-    // want to synthesize a predicate such that formula is unsat
-
     cvc4_solver.addSygusConstraint(sygus_constraint);
-
     res = cvc4_solver.checkSynth().isUnsat();
   }
 
