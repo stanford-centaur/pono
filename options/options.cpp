@@ -137,7 +137,7 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT Solver to use: btor or msat." },
+    "  --smt-solver \tSMT Solver to use: btor or msat or cvc4." },
   { NOWITNESS,
     0,
     "",
