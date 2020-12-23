@@ -79,12 +79,6 @@ void Prover::initialize()
   reached_k_ = -1;
   bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
   assert(ts_->only_curr(bad_));
-  if (options_.static_coi_) {
-    /* Compute the set of state/input variables related to the
-       bad-state property. Based on that information, rebuild the
-       transition relation of the transition system. */
-    ConeOfInfluence coi(*ts_, { bad_ }, {}, options_.verbosity_);
-  }
 
   initialized_ = true;
 }

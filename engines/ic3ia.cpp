@@ -269,7 +269,7 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
   conjuncts.reserve(preds.size());
-  for (auto p : preds) {
+  for (const auto &p : preds) {
     if (solver_->get_value(p) == solver_true_) {
       conjuncts.push_back(p);
     } else {
@@ -287,7 +287,7 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (auto iv : ts_->inputvars()) {
+    for (const auto &iv : ts_->inputvars()) {
       out_inputs->push_back(
           solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
@@ -298,11 +298,11 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
 
 bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
-  Sort boolsort = solver_->make_sort(BOOL);
+  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Term pred;
   Op op;
-  for (auto c : u.children) {
+  for (const auto &c : u.children) {
     if (c->get_sort() != boolsort) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
@@ -332,12 +332,6 @@ void IC3IA::check_ts() const
   // no restrictions except that interpolants must be supported
   // instead of checking explicitly, just let the interpolator throw an
   // exception better than maintaining in two places
-
-  if (options_.static_coi_) {
-    throw PonoException(
-        "Abstraction-refinement procedure in IC3IA does not yet work with "
-        "static cone-of-influence");
-  }
 }
 
 void IC3IA::initialize()
@@ -349,7 +343,7 @@ void IC3IA::initialize()
   UnorderedTermSet preds;
   get_predicates(solver_, ts_->init(), preds, false);
   get_predicates(solver_, bad_, preds, false);
-  for (auto p : preds) {
+  for (const auto &p : preds) {
     add_predicate(p);
   }
   // more predicates will be added during refinement
@@ -358,7 +352,7 @@ void IC3IA::initialize()
   // populate cache for existing terms in solver_
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term ns;
-  for (auto s : ts_->statevars()) {
+  for (auto const&s : ts_->statevars()) {
     // common variables are next states, unless used for refinement in IC3IA
     // then will refer to current state variables after untiming
     // need to cache both
@@ -376,7 +370,7 @@ void IC3IA::initialize()
   get_free_symbols(ts_->trans(), free_symbols);
   get_free_symbols(bad_, free_symbols);
 
-  for (auto s : free_symbols) {
+  for (auto const&s : free_symbols) {
     assert(s->is_symbol());
     if (s->is_symbolic_const()) {
       // ignore constants
@@ -461,51 +455,30 @@ RefineResult IC3IA::refine()
     }
     cvc4_find_preds(cex, preds);
   } else {
+
     // use interpolator to get predicates
     // remember -- need to transfer between solvers
     assert(interpolator_);
-    register_symbol_mappings(0);
-    Term t = make_and({ cex[0], conc_ts_.trans() });
-    Term A = to_interpolator_.transfer_term(unroller_.at_time(t, 0), BOOL);
 
-    TermVec B;
-    B.reserve(cex_length - 1);
-    // add to B in reverse order so we can pop_back later
-    for (int i = cex_length - 1; i >= 1; --i) {
+    TermVec formulae;
+    for (size_t i = 0; i < cex_length; ++i) {
       // make sure to_solver_ cache is populated with unrolled symbols
       register_symbol_mappings(i);
-      t = unroller_.at_time(cex[i], i);
+
+      Term t = unroller_.at_time(cex[i], i);
       if (i + 1 < cex_length) {
         t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
       }
-      B.push_back(to_interpolator_.transfer_term(t, BOOL));
+      formulae.push_back(to_interpolator_.transfer_term(t, BOOL));
     }
 
-    // now get interpolants for each transition starting with the first
-    bool all_sat = true;
-    TermVec interpolants;
-    while (B.size()) {
-      // Note: have to pass the solver (defaults to solver_)
-      Term fullB = make_and(B, interpolator_);
-      Term I;
-      Result r(smt::UNKNOWN, "unset result");
-      try {
-        r = interpolator_->get_interpolant(A, fullB, I);
-      }
-      catch (SmtException & e) {
-        logger.log(3, e.what());
-      }
+    TermVec out_interpolants;
+    Result r =
+      interpolator_->get_sequence_interpolants(formulae, out_interpolants);
 
-      all_sat &= r.is_sat();
-      if (r.is_unsat()) {
-        Term untimedI = unroller_.untime(to_solver_.transfer_term(I, BOOL));
-        logger.log(3, "got interpolant: {}", untimedI);
-        interpolants.push_back(untimedI);
-      }
-      // move next cex time step to A
-      // they were added to B in reverse order
-      A = interpolator_->make_term(And, A, B.back());
-      B.pop_back();
+    if (r.is_sat()) {
+      // this is a real counterexample, so the property is false
+      return RefineResult::REFINE_NONE;
     }
 
     // record the length of this counterexample
@@ -514,48 +487,51 @@ RefineResult IC3IA::refine()
     // have already been cached in to_solver_
     longest_cex_length_ = cex.size();
 
+    for (auto const&I : out_interpolants) {
+      if (!I) {
+        assert(
+               r.is_unknown());  // should only have null terms if got unknown result
+        continue;
+      }
 
-    if (all_sat) {
-      // this is a real counterexample, so the property is false
-      return RefineResult::REFINE_NONE;
-    } else if (!interpolants.size()) {
-      logger.log(1,
-                 "Interpolation failures...couldn't find any new predicates");
+      Term solver_I = unroller_.untime(to_solver_.transfer_term(I, BOOL));
+      assert(conc_ts_.only_curr(solver_I));
+      logger.log(3, "got interpolant: {}", solver_I);
+      get_predicates(solver_, solver_I, preds);
+    }
+
+    // new predicates
+    TermVec preds_vec;
+    for (const auto & p : preds) {
+      if (predset_.find(p) == predset_.end()) {
+        // unseen predicate
+        preds_vec.push_back(p);
+      }
+    }
+
+    if (!preds_vec.size()) {
+      logger.log(1, "IC3IA: refinement failed couldn't find any new predicates");
       return RefineResult::REFINE_FAIL;
-    } else {
-      for (auto I : interpolants) {
-        assert(conc_ts_.only_curr(I));
-        get_predicates(solver_, I, preds);
-      }
+    }
 
-      // new predicates
-      TermVec preds_vec;
-      for (auto p : preds) {
-        if (predset_.find(p) == predset_.end()) {
-          // unseen predicate
-          preds_vec.push_back(p);
-        }
-      }
+    if (options_.random_seed_ > 0) {
+      shuffle(preds_vec.begin(),
+              preds_vec.end(),
+              default_random_engine(options_.random_seed_));
+    }
 
-      if (options_.random_seed_ > 0) {
-        shuffle(preds_vec.begin(),
-                preds_vec.end(),
-                default_random_engine(options_.random_seed_));
-      }
-
-      // reduce new predicates
-      TermVec red_preds;
-      if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
-        // reduction successful
-        preds.clear();
-        preds.insert(red_preds.begin(), red_preds.end());
-      }
+    // reduce new predicates
+    TermVec red_preds;
+    if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+      // reduction successful
+      preds.clear();
+      preds.insert(red_preds.begin(), red_preds.end());
     }
   }
 
   // add all the new predicates
   bool found_new_preds = false;
-  for (auto p : preds) {
+  for (const auto & p : preds) {
     found_new_preds |= add_predicate(p);
   }
 
@@ -601,7 +577,7 @@ void IC3IA::register_symbol_mappings(size_t i)
 
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term unrolled_sv;
-  for (auto sv : ts_->statevars()) {
+  for (auto const&sv : ts_->statevars()) {
     unrolled_sv = unroller_.at_time(sv, i);
     cache[to_interpolator_.transfer_term(unrolled_sv)] = unrolled_sv;
   }

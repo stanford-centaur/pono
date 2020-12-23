@@ -56,4 +56,23 @@ WalkerStepResult TermOpCollector::visit_term(smt::Term & term)
   return Walker_Continue;
 }
 
+SubTermCollector::SubTermCollector(const smt::SmtSolver & solver,
+                                   bool include_funs)
+    : super(solver, true), include_funs_(include_funs)
+{
+}
+
+void SubTermCollector::collect_subterms(Term term) { visit(term); }
+
+WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
+{
+  if (preorder_) {
+    Sort sort = term->get_sort();
+    if (include_funs_ || sort->get_sort_kind() != FUNCTION) {
+      subterms_[sort].insert(term);
+    }
+  }
+  return Walker_Continue;
+}
+
 }  // namespace pono
