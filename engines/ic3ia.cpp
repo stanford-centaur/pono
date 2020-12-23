@@ -663,7 +663,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 
   bool found_preds = false;
   size_t num_preds = 1;
-  while (!found_preds) {
+  while (!found_preds && num_preds <= options_.ic3ia_cvc4_pred_num_) {
     found_preds = cvc4_synthesize_preds(
         abs_trace, statevars, var_args, free_vars, num_preds, out_preds);
     num_preds++;
@@ -719,7 +719,7 @@ bool IC3IA::cvc4_synthesize_preds(
   // set necessary options for sygus
   cvc4_solver.setOption("lang", "sygus2");
   cvc4_solver.setOption("incremental", "false");
-  cvc4_solver.setOption("sygus-abort-size", "2");
+  cvc4_solver.setOption("sygus-abort-size", std::to_string(options_.ic3ia_cvc4_pred_size_));
 
   // create bound variables to use in the synthesized function
   vector<cvc4a::Term> cvc4_statevars;
