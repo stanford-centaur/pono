@@ -61,6 +61,8 @@ class IC3SA : public IC3
 
   void check_ts() const override;
 
+  bool intersects_bad() override;
+
   void initialize() override;
 
   RefineResult refine() override;

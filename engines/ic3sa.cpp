@@ -205,6 +205,13 @@ void IC3SA::check_ts() const
 
 RefineResult IC3SA::refine() { throw PonoException("IC3SA::refine NYI"); }
 
+bool IC3SA::intersects_bad()
+{
+  // TODO should generalize bad cube using COI
+  // e.g. only terms that appear in bad_
+  throw PonoException("IC3SA::intersects_bad NYI");
+}
+
 void IC3SA::initialize()
 {
   super::initialize();
