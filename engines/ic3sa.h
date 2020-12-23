@@ -44,6 +44,8 @@ class IC3SA : public IC3
   typedef IC3 super;
 
  protected:
+  smt::UnorderedTermSet predset_;  ///< stores all predicates in abstraction
+
   std::unordered_map<smt::Sort, smt::UnorderedTermSet> term_abstraction_;
   ///< stores all the current terms in the abstraction organized by sort
 

@@ -80,10 +80,19 @@ IC3SA::IC3SA(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
 IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
                                        TermVec * out_nexts) const
 {
-  EquivalenceClasses ec = get_equivalence_classes_from_model();
-
-  // now create a cube expressing this partition
   TermVec cube_lits;
+
+  // first populate with predicates
+  for (const auto & p : predset_) {
+    if (solver_->get_value(p) == solver_true_) {
+      cube_lits.push_back(p);
+    } else {
+      cube_lits.push_back(solver_->make_term(Not, p));
+    }
+  }
+
+  EquivalenceClasses ec = get_equivalence_classes_from_model();
+  // now add to the cube expressing this partition
   for (const auto & sortelem : ec) {
     const Sort & sort = sortelem.first;
 
@@ -202,11 +211,13 @@ void IC3SA::initialize()
 
   // set up initial term abstraction by getting all subterms
   // TODO consider starting with only a subset -- e.g. variables
-  SubTermCollector stc(solver_, false);
+  SubTermCollector stc(solver_);
   stc.collect_subterms(ts_->init());
   stc.collect_subterms(ts_->trans());
   stc.collect_subterms(bad_);
+  // NOTE this is a copy, but only done in the beginning so should be okay
   term_abstraction_ = stc.get_subterms();
+  predset_ = stc.get_predicates();
 
   throw PonoException("IC3SA::initialize not completed");
 }
