@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include "core/adaptive_unroller.h"
 #include "engines/ic3.h"
 #include "modifiers/implicit_predicate_abstractor.h"
 #include "smt-switch/term_translator.h"
@@ -92,6 +93,11 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
+  // hacked in for ic3ia-cvc4-pred
+  // need to be able to unroll abstract ts (regular ic3ia doesn't)
+  // and currently the unroller_ is over the conc_ts_
+  AdaptiveUnroller abs_unroller_;
+
   // pure virtual method implementations
 
   IC3Formula get_model_ic3formula(
@@ -143,6 +149,15 @@ class IC3IA : public IC3
    */
   bool cvc4_find_preds(const smt::TermVec & cex,
                        smt::UnorderedTermSet & out_preds);
+
+  bool cvc4_synthesize_preds(
+      const smt::Term & abs_trace,
+      const smt::TermVec & statevars,
+      const std::vector<std::pair<smt::TermVec, smt::TermVec>> &
+          unrolled_var_args,
+      const smt::UnorderedTermSet & free_vars,
+      size_t num_preds,
+      smt::UnorderedTermSet & out_preds);
 };
 
 }  // namespace pono
