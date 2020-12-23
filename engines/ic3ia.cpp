@@ -686,7 +686,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   }
 
   bool found_preds = false;
-  size_t num_preds = 0;
+  size_t num_preds = 1;
   while (!found_preds) {
     found_preds = cvc4_synthesize_preds(
         abs_trace, statevars, var_args, free_vars, num_preds, out_preds);
@@ -743,6 +743,7 @@ bool IC3IA::cvc4_synthesize_preds(
   // set necessary options for sygus
   cvc4_solver.setOption("lang", "sygus2");
   cvc4_solver.setOption("incremental", "false");
+  cvc4_solver.setOption("sygus-abort-size", "2");
 
   // create bound variables to use in the synthesized function
   vector<cvc4a::Term> cvc4_statevars;
@@ -812,25 +813,33 @@ bool IC3IA::cvc4_synthesize_preds(
                                         cvc4_formula,
                                         cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
     }
+  }
 
-    cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
+  cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
 
-    // use sygus variables rather than ordinary variables.
-    std::map<cvc4a::Term, cvc4a::Term> old_to_new;
-    std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(), cvc4_free_vars.end());
-    for (cvc4a::Term old_var : originals) {
-      cvc4a::Term new_var = cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
-      old_to_new[old_var] = new_var;
-    }
-    std::vector<cvc4a::Term> news;
-    for (cvc4a::Term old_var : originals) {
-      assert(old_to_new.find(old_var) != old_to_new.end());
-      news.push_back(old_to_new[old_var]);
-    }
+  // use sygus variables rather than ordinary variables.
+  std::map<cvc4a::Term, cvc4a::Term> old_to_new;
+  std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(),
+                                     cvc4_free_vars.end());
+  for (cvc4a::Term old_var : originals) {
+    cvc4a::Term new_var =
+        cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
+    old_to_new[old_var] = new_var;
+  }
+  std::vector<cvc4a::Term> news;
+  for (cvc4a::Term old_var : originals) {
+    assert(old_to_new.find(old_var) != old_to_new.end());
+    news.push_back(old_to_new[old_var]);
+  }
 
-    cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
-    cvc4_solver.addSygusConstraint(sygus_constraint);
+  cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
+  cvc4_solver.addSygusConstraint(sygus_constraint);
+  try {
     res = cvc4_solver.checkSynth().isUnsat();
+  }
+  catch (cvc4a::CVC4ApiException & e) {
+    logger.log(1, "Caught exception from CVC4: {}", e.what());
+    return false;
   }
 
   // for debugging:
