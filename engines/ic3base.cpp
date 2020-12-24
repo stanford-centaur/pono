@@ -160,6 +160,7 @@ ProverResult IC3Base::check_until(int k)
     // there might be multiple abstract traces if there's a derived class
     // doing abstraction refinement
     cex_pg_ = ProofGoal();
+    assert(!cex_pg_.next);
 
     res = step(i);
     ref_res = REFINE_NONE;  // just a default value
@@ -425,7 +426,7 @@ bool IC3Base::block_all()
       reset_solver();
     }
 
-    const ProofGoal &pg = get_next_proof_goal();
+    ProofGoal pg = get_next_proof_goal();
     if (is_blocked(pg)) {
       logger.log(3, "Skipping already blocked proof goal <{}, {}>",
                  pg.target.term->to_string(), pg.idx);
@@ -445,7 +446,7 @@ bool IC3Base::block_all()
   return true;
 }
 
-bool IC3Base::block(const ProofGoal & pg)
+bool IC3Base::block(ProofGoal & pg)
 {
   const IC3Formula & c = pg.target;
   size_t i = pg.idx;
@@ -497,7 +498,7 @@ bool IC3Base::block(const ProofGoal & pg)
     // for now, assume there is only one
     // TODO: extend this to support multiple predecessors
     assert(collateral.size() == 1);
-    add_proof_goal(collateral.at(0), i - 1, make_shared<ProofGoal>(pg));
+    add_proof_goal(collateral.at(0), i - 1, &pg);
     return false;
   }
 }
@@ -660,21 +661,19 @@ bool IC3Base::has_proof_goals() const { return !proof_goals_.empty(); }
 ProofGoal IC3Base::get_next_proof_goal()
 {
   assert(has_proof_goals());
-  ProofGoal pg = proof_goals_.back();
-  proof_goals_.pop_back();
+  ProofGoal pg = *(proof_goals_.top());
+  proof_goals_.pop();
   return pg;
 }
 
-void IC3Base::add_proof_goal(const IC3Formula & c,
-                             size_t i,
-                             shared_ptr<ProofGoal> n)
+void IC3Base::add_proof_goal(const IC3Formula & c, size_t i, ProofGoal * n)
 {
   // IC3Formula aligned with frame so proof goal should be negated
   // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
   // goal should be a Cube
   assert(!c.is_disjunction());
   assert(ic3formula_check_valid(c));
-  proof_goals_.push_back(ProofGoal(c, i, n));
+  proof_goals_.push_new(c, i, n);
 }
 
 bool IC3Base::check_intersects(const Term & A, const Term & B)

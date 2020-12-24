@@ -54,6 +54,7 @@
 #pragma once
 
 #include <algorithm>
+#include <queue>
 
 #include "engines/prover.h"
 #include "smt-switch/utils.h"
@@ -100,13 +101,12 @@ struct ProofGoal
   size_t idx;
   // TODO: see if we can make this a unique_ptr
   //       made it complicated to move from this struct to another place
-  std::shared_ptr<ProofGoal> next;
+  ProofGoal * next;
 
   // null constructor
   ProofGoal() : idx(0), next(nullptr) {}
 
-  ProofGoal(IC3Formula u, size_t i, const std::shared_ptr<ProofGoal> & n)
-      : target(u), idx(i), next(n)
+  ProofGoal(IC3Formula u, size_t i, ProofGoal * n) : target(u), idx(i), next(n)
   {
   }
 
@@ -114,6 +114,68 @@ struct ProofGoal
       : target(other.target), idx(other.idx), next(other.next)
   {
   }
+
+  ProofGoal operator=(ProofGoal other)
+  {
+    std::swap(target, other.target);
+    std::swap(idx, other.idx);
+    std::swap(next, other.next);
+    return *this;
+  }
+};
+
+/**
+ * Ordering for proof obligations in the priority queue (see below) -- borrowed
+ * from open-source ic3ia implementation
+ */
+struct ProofGoalOrder
+{
+  bool operator()(const ProofGoal * a, const ProofGoal * b) const
+  {
+    return b->idx < a->idx;
+  }
+};
+
+/**
+ * Priority queue of proof obligations borrowed from open-source ic3ia
+ * implementation
+ */
+class ProofGoalQueue
+{
+ public:
+  ~ProofGoalQueue() { clear(); }
+
+  void clear()
+  {
+    for (auto p : store_) {
+      delete p;
+    }
+    store_.clear();
+    while (!queue_.empty()) {
+      queue_.pop();
+    }
+  }
+
+  // TODO: make sure code is consistent with pointers -- hacked in this priority
+  // queue and changed from shared_ptr to raw pointer
+  void push_new(const IC3Formula & c, unsigned int t, ProofGoal * n = NULL)
+  {
+    ProofGoal * pg = new ProofGoal(c, t, n);
+    push(pg);
+    store_.push_back(pg);
+  }
+
+  void push(ProofGoal * p) { queue_.push(p); }
+  ProofGoal * top() { return queue_.top(); }
+  void pop() { queue_.pop(); }
+  bool empty() const { return queue_.empty(); }
+
+ private:
+  typedef std::
+      priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
+          Queue;
+  Queue queue_;
+  std::vector<ProofGoal *> store_;
 };
 
 class IC3Base : public Prover
@@ -157,8 +219,8 @@ class IC3Base : public Prover
   ///< which changes depending on the implementation
   std::vector<std::vector<IC3Formula>> frames_;
 
-  ///< stack of outstanding proof goals
-  std::vector<ProofGoal> proof_goals_;
+  ///< priority queue of outstanding proof goals
+  ProofGoalQueue proof_goals_;
 
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
@@ -359,7 +421,7 @@ class IC3Base : public Prover
    *  @return true iff the proof goal was blocked,
    *          otherwise a new proof goal was added to the proof goals
    */
-  bool block(const ProofGoal & pg);
+  bool block(ProofGoal & pg);
 
   /** Check if the given proof goal is already blocked
    *  @param pg the proof goal
@@ -427,9 +489,7 @@ class IC3Base : public Prover
    *  @param n pointer to the proof goal that led to this one -- null for bad
    *  (i.e. end of trace)
    */
-  void add_proof_goal(const IC3Formula & c,
-                      size_t i,
-                      std::shared_ptr<ProofGoal> n);
+  void add_proof_goal(const IC3Formula & c, size_t i, ProofGoal * n);
 
   /** Check if there are common assignments
    *  between A and B
