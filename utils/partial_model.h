@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "utils/sygus_ic3formula_helper.h"
 #include "engines/ic3base.h"
 
 namespace pono {
@@ -70,6 +71,8 @@ public:
    *  @return the partial model in ic3formula
    */
   IC3Formula GetPartialModel(const smt::Term & ast);
+  std::pair<IC3Formula,syntax_analysis::IC3FormulaModel> 
+    GetPartialModelInCube(const smt::Term & ast);
 
 
   // add an API to use buffers 

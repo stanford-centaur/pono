@@ -15,7 +15,7 @@
 **
 **/
 
-#include "modifiers/partial_model.h"
+#include "utils/partial_model.h"
 #include "utils/str_util.h"
 
 #include "assert.h"
@@ -40,6 +40,32 @@ IC3Formula PartialModelGen::GetPartialModel(const smt::Term & ast) {
   return IC3Formula(conj, conjvec, false /*not a disjunction*/ );
 } // GetPartialModel to ic3formula
 
+
+std::pair<IC3Formula,syntax_analysis::IC3FormulaModel> 
+    PartialModelGen::GetPartialModelInCube(const smt::Term & ast) {
+  
+  GetVarList(ast);
+
+  std::unordered_map<smt::Term, smt::Term> cube;
+
+  smt::Term conj;
+  smt::TermVec conjvec;
+  for (smt::Term v : dfs_vars_) {
+    smt::Term val = solver_->get_value(v);
+    cube.emplace(v,val);
+    auto eq = solver_->make_term(smt::Op(smt::PrimOp::Equal), v,val );
+    conjvec.push_back( eq );
+    if (conj) {
+      conj = solver_->make_term(smt::Op(smt::PrimOp::And), conj, eq);
+    } else {
+      conj = eq;
+    }
+  }
+
+  return std::make_pair(IC3Formula(conj, conjvec,
+      false /*not a disjunction*/ ), 
+    syntax_analysis::IC3FormulaModel(std::move(cube), conj));
+}
 
 void PartialModelGen::GetVarList(const smt::Term & ast ) {
   dfs_walked_.clear();

@@ -27,7 +27,7 @@ void CustomFunctionalTransitionSystem::make_nextvar_for_inputs() {
     const auto & input_name = term_to_name_.at(i);
     const auto next_input_name = input_name + ".next";
     const auto sort = i->get_sort();
-    auto next_inputvar = solver_->make_symbol(name, sort);
+    auto next_inputvar = solver_->make_symbol(next_input_name, sort);
 
     next_inputvars_.insert(next_inputvar);
     next_map_[i] = next_inputvar;
@@ -40,6 +40,12 @@ void CustomFunctionalTransitionSystem::make_nextvar_for_inputs() {
 
 
 // init 
+SygusPdr::~SygusPdr() {
+  for (const auto & ic3f_mptr : model2cube_) {
+    if(ic3f_mptr.second)
+      delete ic3f_mptr.second;
+  }
+} // SygusPdr::~SygusPdr
 
 void SygusPdr::initialize()
 {

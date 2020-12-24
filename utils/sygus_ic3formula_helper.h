@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "engines/ic3base.h"
+#include "smt-switch/smt.h"
 
 #include <string>
 
@@ -24,9 +24,36 @@ namespace pono {
 
 namespace syntax_analysis {
 
-void GetVariablesFromIC3Formula(const IC3Formula & f, smt::UnorderedTermSet & out);
+// I really want to cache some of the results
+// instead of deciding the variables again and again
+// and only class of partial model can construct
 
-std::string PrintModel(const IC3Formula & f);
+class IC3FormulaModel {
+ typedef std::unordered_map<smt::Term, smt::Term> cube_t;
+ public:
+  // because we need to assign the expr_ and cube_ 
+  IC3FormulaModel(cube_t && cube, const smt::Term & expr) : cube_(cube), expr_(expr) {}
+  
+  // here we really do the extraction
+  // IC3FormulaModel(const IC3Formula & f);
+  
+  // move constructor
+  IC3FormulaModel(IC3FormulaModel && f);
+    
+  IC3FormulaModel & operator=(IC3FormulaModel && other);
+  
+ protected:
+  cube_t cube_;
+  smt::Term expr_;
+  
+ public:
+  std::string vars_to_canonical_string() const;
+  std::string to_string() const;
+  void get_varset(std::unordered_set<smt::Term> & varset) const;
+  smt::Term to_expr() const { return expr_; }
+  
+}; // IC3FormulaModel
+
 
 }  // namespace syntax_analysis
 }  // namespace pono

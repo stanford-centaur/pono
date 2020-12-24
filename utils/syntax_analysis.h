@@ -35,8 +35,8 @@ public:
   
   
   // this includes Constant Terms (will be inserted)
-  const PerVarsetInfo & GetAllTermsForVarsInModel(Model * m, smt::SmtSolver & s);
-  unsigned GetMoreTerms(Model * pre, Model * post, TermLearner & term_learner); // return delta terms
+  const PerVarsetInfo & GetAllTermsForVarsInModel(IC3FormulaModel * m, smt::SmtSolver & s);
+  unsigned GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * post, TermLearner & term_learner); // return delta terms
 
 protected:
   std::unordered_set<std::string> constants_strings_;
@@ -72,16 +72,16 @@ protected:
   // 2. ----------------------------------------------
   // helps with the Terms
   const PerVarsetInfo & SetupTermsForVarModelNormal(
-    Model * m, const std::string & canonical_string);
+    IC3FormulaModel * m, const std::string & canonical_string);
 
   const PerVarsetInfo & SetupTermsForVarModeExt(
-    Model * m, const std::string & canonical_string, smt::SmtSolver & s);
+    IC3FormulaModel * m, const std::string & canonical_string, smt::SmtSolver & s);
 
   const PerVarsetInfo & SetupTermsForVarModelVC(
-    Model * m, const std::string & canonical_string);
+    IC3FormulaModel * m, const std::string & canonical_string);
   
   const PerVarsetInfo & SetupTermsForVarModeSplit(
-    Model * m, const std::string & canonical_string, smt::SmtSolver & solver_);
+    IC3FormulaModel * m, const std::string & canonical_string, smt::SmtSolver & solver_);
   
 }; // class VarTermManager
 

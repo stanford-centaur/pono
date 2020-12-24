@@ -25,13 +25,16 @@
 #pragma once
 
 #include "engines/ic3base.h"
+#include "core/fts.h"
+#include "utils/sygus_ic3formula_helper.h"
+#include "utils/partial_model.h"
 
 namespace pono {
 
 // this class is added simply because SygusPdr would like to see such a transition system
 class CustomFunctionalTransitionSystem : public FunctionalTransitionSystem {
  public:
-  CustomFunctionalTransitionSystem() : CustomFunctionalTransitionSystem() { }
+  CustomFunctionalTransitionSystem() : FunctionalTransitionSystem() { }
   CustomFunctionalTransitionSystem(const smt::SmtSolver & s) : FunctionalTransitionSystem(s) { }
   CustomFunctionalTransitionSystem(const TransitionSystem & other_ts,
                              smt::TermTranslator & tt) : FunctionalTransitionSystem(other_ts, tt) {  }
@@ -53,7 +56,10 @@ class SygusPdr : public IC3Base
   SygusPdr(const PonoOptions & opt,
                 Property & p,
                 const smt::SmtSolver & s);
-  virtual ~SygusPdr() {}
+  virtual ~SygusPdr(); // need to free the pointers
+
+  // we cannot allow copy assignment
+  SygusPdr & operator=(const SygusPdr &) = delete;
 
   typedef IC3Base super;
  
@@ -78,8 +84,9 @@ class SygusPdr : public IC3Base
 
   void initialize() override;
 
- private:
-  // store 
+  // store the relation between IC3Formula to IC3Models
+  std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> model2cube_;
+  PartialModelGen partial_model_getter;
   
 }; // class SygusPdr
 

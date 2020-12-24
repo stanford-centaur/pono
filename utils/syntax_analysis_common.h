@@ -18,6 +18,9 @@
 #pragma once
 
 #include "smt-switch/smt.h"
+#include "utils/sygus_ic3formula_helper.h"
+
+#include <map>
 
 namespace pono {
 
@@ -128,7 +131,10 @@ struct PerCexInfo {
   PerCexInfo(const PerVarsetInfo & info) : varset_info(info) {}
 };
 
-typedef std::unordered_map<Model *, PerCexInfo>   cex_term_map_t; // the enumeration position of a cex
+// cex -> related information
+// Here I don't use `IC3Formula *` because it is changing
+// and not reliable
+typedef std::unordered_map<IC3FormulaModel *, PerCexInfo>   cex_term_map_t; // the enumeration position of a cex
 
 
 } // namespace syntax_analysis

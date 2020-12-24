@@ -15,8 +15,7 @@
  **/
 
 
-#include "syntax_analysis_common.cpp"
-
+#include "utils/syntax_analysis_common.h"
 #include "utils/str_util.h"
 #include "utils/container_shortcut.h"
 
@@ -92,7 +91,7 @@ static unsigned get_width(const smt::Term & t) {
 // if true, inserting is done
 bool PerVarsetInfo::TermLearnerInsertTerm(const smt::Term & new_term) {
 
-  auto term_string = new_term->to_raw_string();
+  auto term_string = new_term->to_string();
   auto ins_res = terms_strings.insert(term_string);
   if (!ins_res.second) // if already exists, will not insert
     return false;

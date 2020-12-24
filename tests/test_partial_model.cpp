@@ -43,13 +43,13 @@ class DynamicCoiUnitTests :
       auto ast = EQ(p, u);        \
       s->assert_formula(ast);            \
       if ( s->check_sat().is_sat() ) {   \
-        IC3Formula m = pt.GetPartialModel(ast);   \
+        auto m_cube = pt.GetPartialModelInCube(ast);   \
         std::cout << "expr: " << ast << std::endl; \
-        std::cout << m.term << std::endl;     \
-        std::cout << syntax_analysis::PrintModel(m) << std::endl; \
+        std::cout << m_cube.first.term << std::endl;     \
+        std::cout << m_cube.second.to_string() << std::endl; \
         s->pop(); s->push();\
         s->assert_formula(NOT(ast));\
-        s->assert_formula(m.term);\
+        s->assert_formula(m_cube.first.term);\
         EXPECT_TRUE(s->check_sat().is_unsat()); \
       }                                  \
       s->pop();                          \
