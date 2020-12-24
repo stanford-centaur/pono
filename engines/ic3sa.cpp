@@ -25,6 +25,7 @@
 #include "engines/ic3sa.h"
 
 #include "assert.h"
+#include "smt-switch/utils.h"
 #include "utils/term_walkers.h"
 
 using namespace smt;
@@ -80,6 +81,11 @@ IC3SA::IC3SA(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
 IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
                                        TermVec * out_nexts) const
 {
+  if (out_inputs || out_nexts) {
+    // TODO handle this case -- when asking for inputs or next
+    throw PonoException("IC3SA::get_model_ic3formula not fully implemented");
+  }
+
   TermVec cube_lits;
 
   // first populate with predicates
@@ -91,68 +97,9 @@ IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
     }
   }
 
-  EquivalenceClasses ec = get_equivalence_classes_from_model();
-  // now add to the cube expressing this partition
-  for (const auto & sortelem : ec) {
-    const Sort & sort = sortelem.first;
-
-    // TODO: play around with heuristics for the representative
-    //       to add disequalities over
-    //       e.g. we're not adding all possible disequalities,
-    //       just choosing a representative from each equivalence
-    //       class and adding a disequality to encode the distinctness
-
-    //       currently preferring symbol > generic term > value
-
-    // representatives of the different classes of this sort
-    TermVec representatives;
-    for (const auto & elem : sortelem.second) {
-      const Term & val = elem.first;
-      assert(val->is_value());
-
-      const UnorderedTermSet & terms = elem.second;
-      Term repr = val;
-      bool found_repr = false;
-      bool repr_val = true;
-
-      UnorderedTermSet::const_iterator end = terms.cend();
-      UnorderedTermSet::const_iterator it = terms.cbegin();
-      Term last = *it;
-
-      while (it != end) {
-        const Term & term = *(++it);
-        assert(last->get_sort() == term->get_sort());
-        cube_lits.push_back(solver_->make_term(Equal, last, term));
-        last = term;
-
-        // TODO: see if a DisjointSet would make this easier
-        // update representative for this class
-        if (!found_repr) {
-          if (term->is_symbolic_const()) {
-            repr = term;
-            repr_val = false;
-            found_repr = true;
-          } else if (!term->is_value() && repr_val) {
-            repr = term;
-            repr_val = false;
-          }
-        }
-      }
-    }
-
-    // add disequalities between each pair of representatives from
-    // different equivalent classes
-    for (size_t i = 0; i < representatives.size(); ++i) {
-      for (size_t j = i + 1; j < representatives.size(); ++j) {
-        const Term & ti = representatives.at(i);
-        const Term & tj = representatives.at(j);
-        // should never get the same representative term from different classes
-        assert(ti != tj);
-        cube_lits.push_back(solver_->make_term(Distinct, ti, tj));
-      }
-    }
-  }
-
+  // TODO make sure that projecting on state variables here makes sense
+  EquivalenceClasses ec = get_equivalence_classes_from_model(ts_->statevars());
+  construct_partition(ec, cube_lits);
   IC3Formula cube = ic3formula_conjunction(cube_lits);
   assert(ic3formula_check_valid(cube));
   return cube;
@@ -183,6 +130,9 @@ IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
 
 void IC3SA::check_ts() const
 {
+  // TODO: everything in ic3sa should be a state variable (at least according to
+  // paper)
+  //       might work if we just remove input variables from the subterms
   // TODO: add support for arrays
 
   for (const auto & sv : ts_->statevars())
@@ -207,9 +157,44 @@ RefineResult IC3SA::refine() { throw PonoException("IC3SA::refine NYI"); }
 
 bool IC3SA::intersects_bad()
 {
-  // TODO should generalize bad cube using COI
-  // e.g. only terms that appear in bad_
-  throw PonoException("IC3SA::intersects_bad NYI");
+  push_solver_context();
+  // assert the last frame (conjunction over clauses)
+  assert_frame_labels(reached_k_ + 1);
+  // see if it intersects with bad
+  solver_->assert_formula(bad_);
+  Result r = check_sat();
+
+  if (r.is_sat()) {
+    // start with a structural COI for reduction
+
+    TermVec cube_lits;
+
+    // first populate with predicates
+    for (const auto & p : predset_) {
+      if (!in_projection(p, vars_in_bad_)) {
+        continue;
+      }
+
+      if (solver_->get_value(p) == solver_true_) {
+        cube_lits.push_back(p);
+      } else {
+        cube_lits.push_back(solver_->make_term(Not, p));
+      }
+    }
+
+    // TODO make sure that projecting on state variables here makes sense
+    EquivalenceClasses ec = get_equivalence_classes_from_model(vars_in_bad_);
+    construct_partition(ec, cube_lits);
+    // reduce cube_lits
+    TermVec red_c;
+    reducer_.reduce_assump_unsatcore(smart_not(bad_), cube_lits, red_c);
+    add_proof_goal(ic3formula_conjunction(red_c), reached_k_ + 1, NULL);
+  }
+
+  pop_solver_context();
+
+  assert(!r.is_unknown());
+  return r.is_sat();
 }
 
 void IC3SA::initialize()
@@ -222,16 +207,38 @@ void IC3SA::initialize()
   stc.collect_subterms(ts_->init());
   stc.collect_subterms(ts_->trans());
   stc.collect_subterms(bad_);
-  // NOTE this is a copy, but only done in the beginning so should be okay
-  term_abstraction_ = stc.get_subterms();
-  predset_ = stc.get_predicates();
+
+  // TODO make sure this is right
+  // I think we'll always project models onto at least state variables
+  // so, we should prune those terms now
+  // otherwise we'll do unnecessary iteration over them every time we get a
+  // model
+
+  for (const auto & elem : stc.get_subterms()) {
+    const Sort & sort = elem.first;
+    for (const auto & term : elem.second) {
+      if (ts_->only_curr(term)) {
+        term_abstraction_[sort].insert(term);
+      }
+    }
+  }
+
+  for (const auto & p : stc.get_predicates()) {
+    if (ts_->only_curr(p)) {
+      predset_.insert(p);
+    }
+  }
+
+  // collect variables in bad_
+  get_free_symbolic_consts(bad_, vars_in_bad_);
 
   throw PonoException("IC3SA::initialize not completed");
 }
 
 // IC3SA specific methods
 
-EquivalenceClasses IC3SA::get_equivalence_classes_from_model() const
+EquivalenceClasses IC3SA::get_equivalence_classes_from_model(
+    const UnorderedTermSet & to_keep) const
 {
   // assumes the solver state is sat
   EquivalenceClasses ec;
@@ -245,11 +252,78 @@ EquivalenceClasses IC3SA::get_equivalence_classes_from_model() const
     ec[sort] = std::unordered_map<smt::Term, smt::UnorderedTermSet>();
     std::unordered_map<smt::Term, smt::UnorderedTermSet> & m = ec.at(sort);
     for (auto t : terms) {
-      Term val = solver_->get_value(t);
-      m[val].insert(t);
+      if (in_projection(t, to_keep)) {
+        Term val = solver_->get_value(t);
+        m[val].insert(t);
+      }
     }
   }
   return ec;
+}
+
+void IC3SA::construct_partition(const EquivalenceClasses & ec,
+                                TermVec & out_cube) const
+{
+  // now add to the cube expressing this partition
+  for (const auto & sortelem : ec) {
+    const Sort & sort = sortelem.first;
+
+    // TODO: play around with heuristics for the representative
+    //       to add disequalities over
+    //       e.g. we're not adding all possible disequalities,
+    //       just choosing a representative from each equivalence
+    //       class and adding a disequality to encode the distinctness
+
+    //       currently preferring symbol > generic term > value
+
+    // representatives of the different classes of this sort
+    TermVec representatives;
+    for (const auto & elem : sortelem.second) {
+      const Term & val = elem.first;
+      assert(val->is_value());
+
+      const UnorderedTermSet & terms = elem.second;
+      Term repr = val;
+      bool found_repr = false;
+      bool repr_val = true;
+
+      UnorderedTermSet::const_iterator end = terms.cend();
+      UnorderedTermSet::const_iterator it = terms.cbegin();
+      Term last = *it;
+
+      while (it != end) {
+        const Term & term = *(++it);
+        assert(last->get_sort() == term->get_sort());
+        out_cube.push_back(solver_->make_term(Equal, last, term));
+        last = term;
+
+        // TODO: see if a DisjointSet would make this easier
+        // update representative for this class
+        if (!found_repr) {
+          if (term->is_symbolic_const()) {
+            repr = term;
+            repr_val = false;
+            found_repr = true;
+          } else if (!term->is_value() && repr_val) {
+            repr = term;
+            repr_val = false;
+          }
+        }
+      }
+    }
+
+    // add disequalities between each pair of representatives from
+    // different equivalent classes
+    for (size_t i = 0; i < representatives.size(); ++i) {
+      for (size_t j = i + 1; j < representatives.size(); ++j) {
+        const Term & ti = representatives.at(i);
+        const Term & tj = representatives.at(j);
+        // should never get the same representative term from different classes
+        assert(ti != tj);
+        out_cube.push_back(solver_->make_term(Distinct, ti, tj));
+      }
+    }
+  }
 }
 
 }  // namespace pono

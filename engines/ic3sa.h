@@ -49,6 +49,8 @@ class IC3SA : public IC3
   std::unordered_map<smt::Sort, smt::UnorderedTermSet> term_abstraction_;
   ///< stores all the current terms in the abstraction organized by sort
 
+  smt::UnorderedTermSet vars_in_bad_;  ///< variables occurring in bad
+
   // virtual method implementations
 
   IC3Formula get_model_ic3formula(
@@ -72,9 +74,42 @@ class IC3SA : public IC3
   /** Get equivalence classes over all current terms in term_abstraction_
    *  from the current model
    *  @requires solver_ state is sat
+   *  @param to_keep - set of symbols to include in the partition
    *  @return EquivalenceClass partition of the current term abstraction
    */
-  EquivalenceClasses get_equivalence_classes_from_model() const;
+  EquivalenceClasses get_equivalence_classes_from_model(
+      const smt::UnorderedTermSet & to_keep) const;
+
+  /** Generate the literals for the partition given by ec and add to cube
+   *  @param ec the equivalence classes partition
+   *  @param out_cube vector of formulae to add to
+   */
+  void construct_partition(const EquivalenceClasses & ec,
+                           smt::TermVec & out_cube) const;
+
+  /** Check if a term is in the projection
+   *  @param t the term to check
+   *  @param to_keep the symbols for the projection
+   *  @return true iff t only contains symbols from to_keep
+   */
+  inline bool in_projection(const smt::Term & t,
+                            const smt::UnorderedTermSet & to_keep) const
+  {
+    // TODO can improve this with a specialized function which returns false
+    // as soon as it finds a symbol outside of to_keep when traversing t
+
+    smt::UnorderedTermSet free_vars;
+    get_free_symbolic_consts(t, free_vars);
+    bool in_projection = true;
+    for (const auto & fv : free_vars) {
+      if (to_keep.find(fv) == to_keep.end()) {
+        // this term contains a symbol not in the to_keep set
+        in_projection = false;
+        break;
+      }
+    }
+    return in_projection;
+  }
 };
 
 }  // namespace pono
