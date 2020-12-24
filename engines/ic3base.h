@@ -160,7 +160,7 @@ class ProofGoalQueue
   {
     ProofGoal * pg = new ProofGoal(c, t, n);
     push(pg);
-    store_.push_back(pg);
+    store_.insert(pg);
   }
 
   void push(ProofGoal * p) { queue_.push(p); }
@@ -173,7 +173,10 @@ class ProofGoalQueue
       priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
           Queue;
   Queue queue_;
-  std::vector<ProofGoal *> store_;
+  // TODO fix this
+  // used to be a vector but using a set because might add the same pointer
+  // twice need to use push instead of push_new in the right places
+  std::unordered_set<ProofGoal *> store_;
 };
 
 class IC3Base : public Prover
