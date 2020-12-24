@@ -202,10 +202,16 @@ void IC3IA::initialize()
   // NOTE: abstract is called automatically in IC3Base initialize
   UnorderedTermSet preds;
   get_predicates(solver_, ts_->init(), preds, false);
+  size_t num_init_preds = preds.size();
   get_predicates(solver_, bad_, preds, false);
+  size_t num_prop_preds = preds.size() - num_init_preds;
   for (const auto &p : preds) {
     add_predicate(p);
   }
+  logger.log(1, "Number predicates found in init: {}", num_init_preds);
+  logger.log(1, "Number predicates found in prop: {}", num_prop_preds);
+  logger.log(1, "Total number of initial predicates: {}", num_init_preds + num_prop_preds);
+  assert(preds.size() == (num_init_preds + num_prop_preds));
   // more predicates will be added during refinement
   // these ones are just initial predicates
 
