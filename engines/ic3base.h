@@ -99,8 +99,6 @@ struct ProofGoal
   // based on open-source ic3ia ProofObligation
   IC3Formula target;
   size_t idx;
-  // TODO: see if we can make this a unique_ptr
-  //       made it complicated to move from this struct to another place
   ProofGoal * next;
 
   // null constructor
@@ -228,11 +226,11 @@ class IC3Base : public Prover
   smt::TermVec frame_labels_;  ///< labels to activate frames
   smt::UnorderedTermMap labels_;  //< labels for unsat cores
 
-  ProofGoal cex_pg_;  ///< if a proof goal is traced back to init
-                      ///< this gets set to the first proof goal
-                      ///< in the trace
-                      ///< otherwise starts null, can check that
-                      ///< cex_pg_.target.term is a nullptr
+  ProofGoal * cex_pg_;  ///< if a proof goal is traced back to init
+                        ///< this gets set to the first proof goal
+                        ///< in the trace
+                        ///< otherwise starts null, can check that
+                        ///< cex_pg_.target.term is a nullptr
 
   // useful terms
   smt::Term solver_true_;
@@ -421,13 +419,13 @@ class IC3Base : public Prover
    *  @return true iff the proof goal was blocked,
    *          otherwise a new proof goal was added to the proof goals
    */
-  bool block(ProofGoal & pg);
+  bool block(ProofGoal * pg);
 
   /** Check if the given proof goal is already blocked
    *  @param pg the proof goal
    *  @return true iff the proof goal is already blocked
    */
-  bool is_blocked(const ProofGoal & pg);
+  bool is_blocked(ProofGoal * pg);
 
   /** Try propagating all clauses from frame index i to the next frame.
    *  @param i the frame index to propagate
@@ -481,7 +479,7 @@ class IC3Base : public Prover
    *  @alters proof_goals_
    *  @ensures returned proof goal is from lowest frame in proof goals
    */
-  ProofGoal get_next_proof_goal();
+  ProofGoal * get_next_proof_goal();
 
   /** Create and add a proof goal for cube c for frame i
    *  @param c the cube of the proof goal
