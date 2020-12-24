@@ -156,10 +156,10 @@ ProverResult IC3Base::check_until(int k)
   int i = reached_k_ + 1;
   assert(i >= 0);
   while (i <= k) {
-    // reset cex_pg_ to null
+    // reset cex_pg_->to null
     // there might be multiple abstract traces if there's a derived class
     // doing abstraction refinement
-    cex_pg_ = ProofGoal();
+    cex_pg_ = new ProofGoal();
 
     res = step(i);
     ref_res = REFINE_NONE;  // just a default value
@@ -169,7 +169,7 @@ ProverResult IC3Base::check_until(int k)
     } else if (res == ProverResult::FALSE) {
       // expecting cex_pg_ to be non-null and point to the first proof goal in a
       // trace
-      assert(cex_pg_.target.term);
+      assert(cex_pg_->target.term);
       ref_res = refine();
       if (ref_res == RefineResult::REFINE_NONE) {
         // found a concrete counterexample
@@ -328,7 +328,7 @@ ProverResult IC3Base::step_0()
   Result r = check_sat();
   if (r.is_sat()) {
     const IC3Formula &c = get_model_ic3formula();
-    cex_pg_ = ProofGoal(c, 0, nullptr);
+    cex_pg_ = new ProofGoal(c, 0, nullptr);
     pop_solver_context();
     return ProverResult::FALSE;
   } else {
@@ -425,16 +425,18 @@ bool IC3Base::block_all()
       reset_solver();
     }
 
-    const ProofGoal &pg = get_next_proof_goal();
+    ProofGoal * pg = get_next_proof_goal();
     if (is_blocked(pg)) {
-      logger.log(3, "Skipping already blocked proof goal <{}, {}>",
-                 pg.target.term->to_string(), pg.idx);
+      logger.log(3,
+                 "Skipping already blocked proof goal <{}, {}>",
+                 pg->target.term->to_string(),
+                 pg->idx);
       continue;
     };
 
     // block can fail, which just means a
     // new proof goal will be added
-    if (!block(pg) && !pg.idx) {
+    if (!block(pg) && !pg->idx) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
       cex_pg_ = pg;
@@ -445,10 +447,10 @@ bool IC3Base::block_all()
   return true;
 }
 
-bool IC3Base::block(const ProofGoal & pg)
+bool IC3Base::block(ProofGoal * pg)
 {
-  const IC3Formula & c = pg.target;
-  size_t i = pg.idx;
+  const IC3Formula & c = pg->target;
+  size_t i = pg->idx;
 
   logger.log(
       3, "Attempting to block proof goal <{}, {}>", c.term->to_string(), i);
@@ -489,7 +491,7 @@ bool IC3Base::block(const ProofGoal & pg)
 
     // we're limited by the minimum index that a conjunct could be pushed to
     if (min_idx + 1 < frames_.size()) {
-      add_proof_goal(c, min_idx + 1, pg.next);
+      add_proof_goal(c, min_idx + 1, pg->next);
     }
     return true;
   } else {
@@ -497,18 +499,18 @@ bool IC3Base::block(const ProofGoal & pg)
     // for now, assume there is only one
     // TODO: extend this to support multiple predecessors
     assert(collateral.size() == 1);
-    add_proof_goal(collateral.at(0), i - 1, make_shared<ProofGoal>(pg));
+    add_proof_goal(collateral.at(0), i - 1, pg);
     return false;
   }
 }
 
-bool IC3Base::is_blocked(const ProofGoal & pg)
+bool IC3Base::is_blocked(ProofGoal * pg)
 {
   // syntactic check
-  for (size_t i = pg.idx; i < frames_.size(); ++i) {
+  for (size_t i = pg->idx; i < frames_.size(); ++i) {
     const vector<IC3Formula> & Fi = frames_.at(i);
     for (size_t j = 0; j < Fi.size(); ++j) {
-      if (subsumes(Fi[j], ic3formula_negate(pg.target))) {
+      if (subsumes(Fi[j], ic3formula_negate(pg->target))) {
         return true;
       }
     }
@@ -518,8 +520,8 @@ bool IC3Base::is_blocked(const ProofGoal & pg)
   assert(solver_context_ == 0);
 
   push_solver_context();
-  assert_frame_labels(pg.idx);
-  solver_->assert_formula(pg.target.term);
+  assert_frame_labels(pg->idx);
+  solver_->assert_formula(pg->target.term);
   Result r = check_sat();
   pop_solver_context();
 
@@ -657,24 +659,22 @@ void IC3Base::assert_trans_label() const
 
 bool IC3Base::has_proof_goals() const { return !proof_goals_.empty(); }
 
-ProofGoal IC3Base::get_next_proof_goal()
+ProofGoal * IC3Base::get_next_proof_goal()
 {
   assert(has_proof_goals());
-  ProofGoal pg = proof_goals_.back();
+  ProofGoal * pg = proof_goals_.back();
   proof_goals_.pop_back();
   return pg;
 }
 
-void IC3Base::add_proof_goal(const IC3Formula & c,
-                             size_t i,
-                             shared_ptr<ProofGoal> n)
+void IC3Base::add_proof_goal(const IC3Formula & c, size_t i, ProofGoal * n)
 {
   // IC3Formula aligned with frame so proof goal should be negated
   // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
   // goal should be a Cube
   assert(!c.is_disjunction());
   assert(ic3formula_check_valid(c));
-  proof_goals_.push_back(ProofGoal(c, i, n));
+  proof_goals_.push_back(new ProofGoal(c, i, n));
 }
 
 bool IC3Base::check_intersects(const Term & A, const Term & B)
