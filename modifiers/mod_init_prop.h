@@ -37,13 +37,17 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
 
   // replace initial states
   Term initstate1 = ts.make_statevar("__initstate1", ts.make_sort(BOOL));
-  Term initstate2 = ts.make_statevar("__initstate2", ts.make_sort(BOOL));
+
+  Term init = ts.init();
+  ts.set_init(initstate1);
+
+  // NOTE: relies on feature of ts to not add constraint to init
+  for (const auto & c : ts.constraints()) {
+    ts.add_constraint(ts.make_term(Implies, initstate1, c), false);
+  }
 
   ts.assign_next(initstate1, ts.make_term(false));
-  ts.assign_next(initstate2, initstate1);
-  ts.add_constraint(ts.make_term(Implies, initstate2, ts.init()));
-
-  ts.set_init(ts.make_term(And, initstate1, ts.make_term(Not, initstate2)));
+  ts.add_constraint(ts.make_term(Implies, initstate1, init), false);
   ts.constrain_init(new_prop);
 
   return new_prop;
