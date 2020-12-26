@@ -51,7 +51,8 @@ enum optionIndex
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
-  PROFILING_LOG_FILENAME
+  PROFILING_LOG_FILENAME,
+  MOD_INIT_PROP
 };
 
 struct Arg : public option::Arg
@@ -247,6 +248,13 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --profiling-log \tName of logfile for profiling output"
     " (requires build with linked profiling library 'gperftools')." },
+  { MOD_INIT_PROP,
+    0,
+    "",
+    "mod-init-prop",
+    Arg::None,
+    "  --mod-init-prop \tReplace init and prop with state variables -- can "
+    "extend trace by up to two steps." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -362,6 +370,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           profiling_log_filename_ = opt.arg;
 #endif
           break;
+        case MOD_INIT_PROP: mod_init_prop_ = true;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

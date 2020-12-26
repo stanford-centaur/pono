@@ -33,6 +33,7 @@
 #include "frontends/smv_encoder.h"
 #include "modifiers/coi.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/mod_init_prop.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
@@ -270,6 +271,10 @@ int main(int argc, char ** argv)
         ConeOfInfluence coi(fts, { prop }, {}, pono_options.verbosity_);
       }
 
+      if (pono_options.mod_init_prop_) {
+        modify_init_and_prop(fts, prop);
+      }
+
       vector<UnorderedTermMap> cex;
       Property p(fts, prop);
       res = check_prop(pono_options, p, s, second_solver, cex);
@@ -330,6 +335,10 @@ int main(int argc, char ** argv)
            bad-state property. Based on that information, rebuild the
            transition relation of the transition system. */
         ConeOfInfluence coi(rts, { prop }, {}, pono_options.verbosity_);
+      }
+
+      if (pono_options.mod_init_prop_) {
+        modify_init_and_prop(rts, prop);
       }
 
       Property p(rts, prop);
