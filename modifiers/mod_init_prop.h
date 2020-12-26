@@ -32,7 +32,6 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
   Term new_prop = prop;
   if (!is_lit(prop, boolsort)) {
     new_prop = ts.make_statevar("__propvar", boolsort);
-    ts.constrain_init(new_prop);
     ts.assign_next(new_prop, prop);
   }
 
@@ -45,6 +44,7 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
   ts.add_constraint(ts.make_term(Implies, initstate2, ts.init()));
 
   ts.set_init(ts.make_term(And, initstate1, ts.make_term(Not, initstate2)));
+  ts.constrain_init(new_prop);
 
   return new_prop;
 }
