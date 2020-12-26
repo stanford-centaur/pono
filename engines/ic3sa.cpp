@@ -203,6 +203,8 @@ void IC3SA::initialize()
 
   // set up initial term abstraction by getting all subterms
   // TODO consider starting with only a subset -- e.g. variables
+  // TODO consider keeping a cache from terms to their free variables
+  //      for use in COI
   SubTermCollector stc(solver_);
   stc.collect_subterms(ts_->init());
   stc.collect_subterms(ts_->trans());
