@@ -31,7 +31,7 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
   Sort boolsort = ts.make_sort(BOOL);
   Term new_prop = prop;
   if (!is_lit(prop, boolsort)) {
-    Term new_prop = ts.make_statevar("__propvar", boolsort);
+    new_prop = ts.make_statevar("__propvar", boolsort);
     ts.constrain_init(new_prop);
     ts.assign_next(new_prop, prop);
   }

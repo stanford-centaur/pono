@@ -272,7 +272,7 @@ int main(int argc, char ** argv)
       }
 
       if (pono_options.mod_init_prop_) {
-        modify_init_and_prop(fts, prop);
+        prop = modify_init_and_prop(fts, prop);
       }
 
       vector<UnorderedTermMap> cex;
@@ -338,7 +338,7 @@ int main(int argc, char ** argv)
       }
 
       if (pono_options.mod_init_prop_) {
-        modify_init_and_prop(rts, prop);
+        prop = modify_init_and_prop(rts, prop);
       }
 
       Property p(rts, prop);
