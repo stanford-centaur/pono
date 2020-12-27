@@ -15,6 +15,7 @@
  **/
 
 #include "utils/syntax_analysis.h"
+#include "utils/syntax_analysis_walker.h"
 #include "utils/container_shortcut.h"
 
 #include <cassert>
@@ -184,7 +185,7 @@ const PerVarsetInfo & VarTermManager::SetupTermsForVarModeSplit(
   if (term_cache_item.terms.find(1) == term_cache_item.terms.end()  ||
         term_cache_item.terms.at(1).constants.empty()) {
     auto c0 = solver_->make_term(0);
-    term_cache_item.terms_strings.insert(c0->to_raw_string());
+    term_cache_item.terms_strings.insert(c0->to_string());
     term_cache_item.terms[1].constants.push_back(c0);
   }
 
@@ -289,7 +290,7 @@ void VarTermManager::insert_split(
       auto t = solver_->make_term(smt::Op(smt::PrimOp::Extract, lr_pair.first, lr_pair.second), sv);
       assert(lr_pair.first>=lr_pair.second);
       auto w = lr_pair.first-lr_pair.second+1;
-      auto res = term_cache_item.terms_strings.insert(t->to_raw_string());
+      auto res = term_cache_item.terms_strings.insert(t->to_string());
       if (res.second)
         term_cache_item.terms[w].terms.push_back(t);
       // Parent relation? All_terms ?
@@ -310,7 +311,7 @@ void VarTermManager::insert_vars_only(
       width = v->get_sort()->get_width();
     else
       continue;
-    auto res = term_cache_item.terms_strings.insert(v->to_raw_string());
+    auto res = term_cache_item.terms_strings.insert(v->to_string());
     if(res.second)
       term_cache_item.terms[width].terms.push_back(v);
   }
@@ -327,14 +328,14 @@ void VarTermManager::insert_vars_and_extracts(
       width = v->get_sort()->get_width();
     else
       continue;
-    auto res = term_cache_item.terms_strings.insert(v->to_raw_string());
+    auto res = term_cache_item.terms_strings.insert(v->to_string());
     if(res.second) {
       term_cache_item.terms[width].terms.push_back(v);
     } // if insert successful    
     if (width > 1) {
       for (unsigned idx = 0; idx < width; ++idx) {
         auto t = solver_->make_term(smt::Op(smt::PrimOp::Extract, idx, idx), v);
-        auto res = term_cache_item.terms_strings.insert(t->to_raw_string());
+        auto res = term_cache_item.terms_strings.insert(t->to_string());
         if (res.second)
           term_cache_item.terms[1].terms.push_back(t);
       } // for each bit       
@@ -346,7 +347,7 @@ void VarTermManager::term_const_w1_const(PerVarsetInfo & term_cache_item /*OUT*/
   if (term_cache_item.terms.find(1) == term_cache_item.terms.end()  ||
         term_cache_item.terms.at(1).constants.empty()) {
     auto c0 = solver_->make_term(0);
-    term_cache_item.terms_strings.insert(c0->to_raw_string());
+    term_cache_item.terms_strings.insert(c0->to_string());
     term_cache_item.terms[1].constants.push_back(c0);
   }
 } // term_const_w1_const
@@ -362,7 +363,7 @@ void VarTermManager::const_to_per_varset(PerVarsetInfo & term_cache_item /*OUT*/
 
     const auto &cvec = w_cs_pair.second;
     for (auto && c : cvec) {
-      auto ins_res = term_cache_item.terms_strings.insert(c->to_raw_string());
+      auto ins_res = term_cache_item.terms_strings.insert(c->to_string());
       if(ins_res.second) {
         term_cache_item.terms[width].constants.push_back(c);
         ++ nterm_walked;
@@ -383,7 +384,7 @@ unsigned VarTermManager::insert_from_termsmap_w_width(
 
     const auto & tvec = w_t_pair.second;
     for(auto && t : tvec) {
-      auto tstr = t->to_raw_string();
+      auto tstr = t->to_string();
       auto ins_res = term_cache_item.terms_strings.insert(tstr);
       if (ins_res.second) { // if indeed inserted
         term_cache_item.terms[width].terms.push_back(t);
@@ -398,7 +399,7 @@ unsigned VarTermManager::insert_from_termsmap_w_width(
 void VarTermManager::insert_from_constmap(const PerVarsetInfo::width_term_map_t & w_c_map) {
   for (const auto & width_constvec_pair : w_c_map) {
     for (const auto & c : width_constvec_pair.second)  {
-      auto cnstr_str = c->to_raw_string();
+      auto cnstr_str = c->to_string();
       auto ins_res = constants_strings_.insert(cnstr_str);
       if (ins_res.second) // if insertion is successful
         width_to_constants_[width_constvec_pair.first].push_back(c);

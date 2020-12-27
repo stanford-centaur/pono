@@ -144,12 +144,49 @@ void TermExtractor::PostChild(const smt::Term & ast) {
   } // end of op
 } // PostChild
 
+
+// ---------------------------------------------- //
+//                                                //
+//              TermScore Map                     //
+//                                                //
+// ---------------------------------------------- //
+
+
+bool TermScore::Skip(const smt::Term & ast) {
+  return IN(ast, scores_);
+}
+
+void TermScore::PreChild(const smt::Term & ast) {
+  assert(!IN(ast, scores_));
+ // walked_nodes_.insert(ast);
+}
+
+void TermScore::PostChild(const smt::Term & ast) {
+ // for all its child, add parent pointer to the map
+  unsigned width = 1;
+  if (ast->get_sort()->get_sort_kind() == smt::SortKind::BOOL)
+    width = 1;
+  else if (ast->get_sort()->get_sort_kind() == smt::SortKind::BV)
+    width = ast->get_sort()->get_width();
+
+  if (ast->is_symbolic_const()) {
+    scores_.emplace(ast,term_score_t(width*2)); // width*2
+  } else if ( ast->is_value() ) { 
+    scores_.emplace(ast,term_score_t(width)); // width
+  } else { // we will hope it is op
+    auto ret = scores_.emplace(ast,term_score_t(width));   // width  
+    for(auto && c : *ast) { // for each of its child node
+      ret.first->second.score += scores_.at(c).score;
+      //  iterator->the score
+    } // sum their scores and add one for itself
+  } // end of op
+} // PostChild
+
 // ---------------------------------------------- //
 //                                                //
 //              Parent Extract                    //
 //                                                //
 // ---------------------------------------------- //
-ParentExtract::parent_map_t ParentExtract::parent_;
 
 bool ParentExtract::Skip(const smt::Term & ast) {
   return IN(ast, walked_nodes_);
@@ -283,22 +320,25 @@ unsigned TermLearner::vars_extract_bit_level(IC3FormulaModel * post,  /*OUTPUT*/
     auto width = v->get_sort()->get_width();
     for (unsigned idx = 0; idx < width; ++idx) {
       auto t = solver_->make_term(smt::Op(smt::PrimOp::Extract, idx, idx), v);
-      ParentExtract::RegisterNewParentRelation(v, t);
+      parent_extractor_.RegisterNewParentRelation(v, t);
       bool is_new = varset_info.TermLearnerInsertTerm(t) ;
       //std::cout << "Extract " << v->to_raw_string() << "[" << idx << "] is_new:" << is_new << std::endl;
       nterm += is_new ? 1 : 0;
     }
   }
 
-  GlobalTimer.RegisterEventCount("TermLearner.NewTermBl", nterm);
+  //GlobalTimer.RegisterEventCount("TermLearner.NewTermBl", nterm);
   return nterm;
 } // vars_extract_bit_level
 
 
 
 // return learned new terms
-unsigned TermLearner::learn_terms_from_cex(IC3FormulaModel * pre, IC3FormulaModel * post, /*OUTPUT*/  PerVarsetInfo & varset_info ) {
-  // you will need the full model of pre !
+unsigned TermLearner::learn_terms_from_cex(
+    IC3FormulaModel * pre_full_model, IC3FormulaModel * post,
+    /*OUTPUT*/  PerVarsetInfo & varset_info ) {
+
+  #error "you will need the full model of pre !"
   assert(IN(pre, to_full_model_map));
   Model * full_pre = to_full_model_map.at(pre);
   auto pre_prop = full_pre->to_expr_btor(solver_);
@@ -375,7 +415,7 @@ unsigned TermLearner::concat_to_extract(/*INOUT*/  PerVarsetInfo & varset_info) 
     for (const auto & t : terms) {
       for (const auto & pos : extract_positions) {
         auto new_term = solver_->make_term(smt::Op(smt::PrimOp::Extract, pos.first, pos.second), t);
-        ParentExtract::RegisterNewParentRelation(t, new_term);
+        parent_extractor_.RegisterNewParentRelation(t, new_term);
         nterm += varset_info.TermLearnerInsertTerm(new_term) ? 1 : 0;
       } // for each postion
     } // for each term
@@ -476,13 +516,12 @@ unsigned TermLearner::replace_hierachically(
   smt::TermVec new_terms;
   unsigned ret = replace_hierachically_w_parent(orig, repl, varset_info, new_terms);
   for (const auto & nt : new_terms)
-    D(3, "{}", nt->to_raw_string() );
+    D(3, "{}", nt->to_string() );
   D(3, "ret = {}", ret);
   assert(ret == new_terms.size());
   if (ret != 0) {
-    ParentExtract extractor;
     for (const auto & t : new_terms) {
-      extractor.WalkBFS(t);
+      parent_extractor_.WalkBFS(t);
     }
   }
   return ret;
@@ -494,7 +533,8 @@ unsigned TermLearner::replace_hierachically_w_parent(
   smt::TermVec & output_new_terms ) {
   
   D(3, "  [ReplaceParent] {} --> {} ", orig->to_raw_string(), repl->to_raw_string());
-  assert(!parent_map_.empty());
+  const auto & parent_map_ = parent_extractor_.GetParentRelation();
+  assert(! parent_map_.empty() );
   auto parent_termvec_pos = parent_map_.find(orig);
   if (parent_termvec_pos == parent_map_.end())
     return 0; // if has no parent term, no replacement
@@ -503,7 +543,6 @@ unsigned TermLearner::replace_hierachically_w_parent(
     return 0; // if has no parent term, no replacement
   unsigned nterm = 0;
 
-  ParentExtract::parent_map_t new_parent_relation;
   for(const auto & p : parentvec ) {
     if (varset_info.TermLearnerIsOut(p)) {
       D(3, "  [ReplaceParent]    not in parent: {} , out", p->to_raw_string() );

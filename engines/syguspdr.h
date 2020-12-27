@@ -28,6 +28,9 @@
 #include "core/fts.h"
 #include "utils/sygus_ic3formula_helper.h"
 #include "utils/partial_model.h"
+#include "utils/syntax_analysis_common.h"
+#include "utils/syntax_analysis_walker.h"
+#include "utils/syntax_analysis.h"
 
 namespace pono {
 
@@ -86,7 +89,20 @@ class SygusPdr : public IC3Base
 
   // store the relation between IC3Formula to IC3Models
   std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> model2cube_;
+  std::unordered_map<syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
+    to_full_model_map_;
+  syntax_analysis::cex_term_map_t cex_term_map_;
+
   PartialModelGen partial_model_getter;
+  std::unique_ptr<syntax_analysis::OpExtractor> op_extract_;
+
+  syntax_analysis::TermScore term_score_walker_;
+  unsigned GetScore(const smt::Term & t);
+
+  syntax_analysis::ParentExtract parent_of_terms_;
+  syntax_analysis::VarTermManager sygus_term_manager_;
+  std::unique_ptr<syntax_analysis::TermLearner> term_learner_;
+  syntax_analysis::to_next_t to_next_func_;
   
 }; // class SygusPdr
 

@@ -35,6 +35,31 @@ public:
   void WalkBFS(const smt::Term & ast);
 }; // Walker
 
+
+// -----------------------------------------------------
+
+// we'd better extract from msat's term
+// btor's mixing bool and 1-width bv will
+// create problems
+class OpExtractor : public Walker {
+
+public:
+  syntax_analysis::SyntaxStructure & 
+    GetSyntaxConstruct() {
+      return constructs; }
+
+protected:
+  std::unordered_set<smt::Term> walked_nodes_;
+  std::unordered_set<smt::Term> all_symbols_;
+  syntax_analysis::SyntaxStructure constructs;
+  
+  virtual bool Skip(const smt::Term & ast) override;
+  virtual void PreChild(const smt::Term & ast) override;
+  virtual void PostChild(const smt::Term & ast) override;
+
+
+}; // class OpExtractor
+
 // -----------------------------------------------------
 
 class TermExtractor : public Walker {
@@ -82,6 +107,31 @@ protected:
 
 }; // class TermExtractor
 
+// -----------------------------------------------------
+
+
+class TermScore : public Walker {
+public:
+  // ----------- TYPE --------------- //
+  struct term_score_t {
+    unsigned score;
+    term_score_t(unsigned s) : score(s) {}
+  };
+  
+  typedef std::unordered_map<smt::Term, term_score_t> score_map_t;
+
+  TermScore() {} // do nothing
+  const score_map_t & GetScoreMap() const {return scores_;}
+  
+protected:
+  score_map_t scores_;
+  
+  virtual bool Skip(const smt::Term & ast) override;
+  virtual void PreChild(const smt::Term & ast) override;
+  virtual void PostChild(const smt::Term & ast) override;
+
+}; // TermScore
+
 
 // -----------------------------------------------------
 
@@ -91,9 +141,9 @@ public:
   typedef std::unordered_map<smt::Term, smt::UnorderedTermSet> parent_map_t;
 
   ParentExtract() {} // do nothing
-  static void ClearCache() { parent_.clear(); }
-  static const parent_map_t & GetParentRelation() {return parent_;}
-  static bool RegisterNewParentRelation(const smt::Term &child, const smt::Term &parent) {
+  void ClearCache() { parent_.clear(); }
+  const parent_map_t & GetParentRelation() {return parent_;}
+  bool RegisterNewParentRelation(const smt::Term &child, const smt::Term &parent) {
     auto ret = parent_[child].insert(parent);
     return ret.second;
   }
@@ -101,7 +151,7 @@ public:
 protected:
 
   std::unordered_set<smt::Term> walked_nodes_;
-  static parent_map_t parent_;
+  parent_map_t parent_;
   
   virtual bool Skip(const smt::Term & ast) override;
   virtual void PreChild(const smt::Term & ast) override;
@@ -162,17 +212,15 @@ protected:
 
 // you may also want to register the model -> full model map
 class TermLearner {
-public: // -- static -- model-to-model map
-  using parent_map_t = ParentExtract::parent_map_t;
 
 public:
   TermLearner(const smt::Term & trans_btor, to_next_t to_next_func, 
       //cex_term_map_t & cex_pred_map, 
-      smt::SmtSolver & btor, const parent_map_t & parent_map) : 
+      smt::SmtSolver & btor, ParentExtract & parent_extractor) : 
     trans_(trans_btor), to_next_(to_next_func),
     // cex_pred_map_ref_(cex_pred_map),
     solver_(btor),
-    parent_map_(parent_map) {}
+    parent_extractor_(parent_extractor) {}
     
   unsigned learn_terms_from_cex(IC3FormulaModel * pre, IC3FormulaModel * post, /*OUTPUT*/  PerVarsetInfo & varset_info );
   unsigned vars_extract_bit_level(IC3FormulaModel * post,  /*OUTPUT*/  PerVarsetInfo & varset_info) ;
@@ -182,7 +230,7 @@ protected:
   to_next_t to_next_;
   //cex_term_map_t & cex_pred_map_ref_; // from unsat enum
   smt::SmtSolver & solver_;
-  const parent_map_t & parent_map_; // ParentExtract
+  ParentExtract & parent_extractor_; // ParentExtract
   
 protected:
   unsigned same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_info );

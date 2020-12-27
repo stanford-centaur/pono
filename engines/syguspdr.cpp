@@ -37,16 +37,39 @@ void CustomFunctionalTransitionSystem::make_nextvar_for_inputs() {
 }
 
 // ----------------------------------------------------------------
+// Helper functions
+// ----------------------------------------------------------------
+
+unsigned SygusPdr::GetScore(const smt::Term & t) {
+  const auto & score_map = term_score_walker_.GetScoreMap();
+  auto pos = score_map.find(t);
+  if (pos != score_map.end())
+    return pos->second.score;
+  term_score_walker_.WalkBFS(t);
+  pos = score_map.find(t);
+  assert (pos != score_map.end());
+  return pos->second.score;
+}
+
+// ----------------------------------------------------------------
+// IC3 override
+// ----------------------------------------------------------------
 
 
-// init 
+// ----------------------------------------------------------------
+// destruct -- free the memory
 SygusPdr::~SygusPdr() {
   for (const auto & ic3f_mptr : model2cube_) {
     if(ic3f_mptr.second)
       delete ic3f_mptr.second;
   }
+  for (const auto & partial2full : to_full_model_map_) {
+    if (partial2full.second)
+      delete partial2full.second; // delete the full models
+  }
 } // SygusPdr::~SygusPdr
 
+// init 
 void SygusPdr::initialize()
 {
   
@@ -57,49 +80,51 @@ void SygusPdr::initialize()
   
   // initialize the caches  
   // extract the operators
-  op_extract_ = std::make_unique<OpExtractor>();
-  op_extract_->WalkBFS(ts_msat_.init());
-  op_extract_->WalkBFS(ts_msat_.trans());
+  op_extract_ = std::make_unique<syntax_analysis::OpExtractor>();
+  op_extract_->WalkBFS(orig_ts_.init());
+  op_extract_->WalkBFS(orig_ts_.trans());
   op_extract_->GetSyntaxConstruct().RemoveConcat();
   op_extract_->GetSyntaxConstruct().RemoveExtract();
   op_extract_->GetSyntaxConstruct().AndOrConvert();
   op_extract_->GetSyntaxConstruct().RemoveUnusedStructure();
   
   // clear the mass if used by previous object
-  unsat_enum::Enumerator::ClearCache();
-  unsat_enum::ParentExtract::ClearCache();
-  unsat_enum::TermLearner::ClearCache();
-  unsat_enum::TermScore::ClearCache();
+  // syntax_analysis::TermLearner::ClearCache();
+  // partial to full model
   
-  // clear the mass if used by previous object
-  unsat_enum::Enumerator::ClearCache();
-  unsat_enum::ParentExtract::ClearCache();
-  unsat_enum::TermLearner::ClearCache();
-  unsat_enum::TermScore::ClearCache();
 
   { // 1. register terms to find exprs
     // 2. extract parent from the same terms
-    unsat_enum::ParentExtract parent_relation_extractor;
-    for (auto && v_nxtexpr_pair : ts_.state_updates()) {
+    for (auto && v_nxtexpr_pair : orig_ts_ .state_updates()) {
       sygus_term_manager_.RegisterTermsToWalk(v_nxtexpr_pair.second);
-      parent_relation_extractor.WalkBFS(v_nxtexpr_pair.second);
+      parent_of_terms_.WalkBFS(v_nxtexpr_pair.second);
     }
-    sygus_term_manager_.RegisterTermsToWalk(ts_.init());
-    parent_relation_extractor.WalkBFS(ts_.init());
+    sygus_term_manager_.RegisterTermsToWalk(orig_ts_.init());
+    parent_of_terms_.WalkBFS(orig_ts_.init());
 
-    sygus_term_manager_.RegisterTermsToWalk(ts_.constraint());
-    parent_relation_extractor.WalkBFS(ts_.constraint());
+    for (const auto & c : orig_ts_.constraints()) {
+      sygus_term_manager_.RegisterTermsToWalk(c);
+      parent_of_terms_.WalkBFS(c);
+    }
 
     sygus_term_manager_.RegisterTermsToWalk(property_.prop());
-    parent_relation_extractor.WalkBFS(property_.prop());
+    parent_of_terms_.WalkBFS(property_.prop());
   }
 
+  // cache two lambda functions for sygus enum
+  to_next_func_ = [&] (const smt::Term & v) -> smt::Term {
+    return orig_ts_.next(v);
+  };
+
   { // now create TermLearner
-    term_learner_.reset(new unsat_enum::TermLearner(
-      ts_.trans(), to_next_func_, solver_, 
-      unsat_enum::ParentExtract::GetParentRelation()
+    term_learner_.reset(new syntax_analysis::TermLearner(
+      orig_ts_.trans(), to_next_func_, solver_, 
+      parent_of_terms_
     ));
   }
+  
+  #error "create CustomFunctionalTransitionSystem"
+
 }
 
 
