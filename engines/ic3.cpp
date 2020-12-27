@@ -30,6 +30,7 @@ namespace pono {
 IC3::IC3(Property & p, const smt::SmtSolver & s, PonoOptions opt)
   : super(p, s, opt)
 {
+  solver_->set_opt("produce-unsat-cores", "true");
 }
 
 IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,

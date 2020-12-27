@@ -25,7 +25,6 @@ class ModifierUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
     boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
     arrsort = s->make_sort(ARRAY, bvsort, bvsort);

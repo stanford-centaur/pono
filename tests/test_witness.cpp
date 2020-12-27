@@ -37,9 +37,6 @@ TEST_P(WitnessUnitTests, SimpleDefaultSolver)
   Property prop(fts, prop_term);
 
   SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
-  s->set_opt("produce-models", "true");
-
   Bmc bmc(prop, s);
   ProverResult r = bmc.check_until(9);
   ASSERT_EQ(r, FALSE);
@@ -79,9 +76,6 @@ TEST_P(WitnessUnitTests, ArraysDefaultSolver)
   Property prop(fts, prop_term);
 
   SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
-  s->set_opt("produce-models", "true");
-
   Bmc bmc(prop, s);
   ProverResult r = bmc.check_until(6);
   ASSERT_EQ(r, FALSE);

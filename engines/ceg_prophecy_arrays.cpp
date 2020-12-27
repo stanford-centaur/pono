@@ -73,8 +73,6 @@ ProverResult CegProphecyArrays::prove()
 
     //TODO : think about making it use the same prover -- incrementally
     SmtSolver s = create_solver(solver_->get_solver_enum());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
     shared_ptr<Prover> prover =
       make_prover(e_, latest_prop, s, opts);
 
@@ -107,8 +105,6 @@ ProverResult CegProphecyArrays::check_until(int k)
     opts.static_coi_ = false;
 
     SmtSolver s = create_solver(solver_->get_solver_enum());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
     shared_ptr<Prover> prover =
         make_prover(e_, latest_prop, s, opts);
 

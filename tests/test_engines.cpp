@@ -67,8 +67,6 @@ class EngineUnitTests
 TEST_P(EngineUnitTests, BmcTrue)
 {
   SmtSolver s = create_solver(se);
-  s->set_opt("incremental", "true");
-  s->set_opt("produce-models", "true");
   Bmc b(*true_p, s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
@@ -77,8 +75,6 @@ TEST_P(EngineUnitTests, BmcTrue)
 TEST_P(EngineUnitTests, BmcFalse)
 {
   SmtSolver s = create_solver(se);
-  s->set_opt("incremental", "true");
-  s->set_opt("produce-models", "true");
   Bmc b(*false_p, s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
@@ -87,8 +83,6 @@ TEST_P(EngineUnitTests, BmcFalse)
 TEST_P(EngineUnitTests, BmcSimplePathTrue)
 {
   SmtSolver s = create_solver(se);
-  s->set_opt("incremental", "true");
-  s->set_opt("produce-models", "true");
   BmcSimplePath bsp(*true_p, s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
@@ -97,8 +91,6 @@ TEST_P(EngineUnitTests, BmcSimplePathTrue)
 TEST_P(EngineUnitTests, BmcSimplePathFalse)
 {
   SmtSolver s = create_solver(se);
-  s->set_opt("incremental", "true");
-  s->set_opt("produce-models", "true");
   BmcSimplePath bsp(*false_p, s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
@@ -107,8 +99,6 @@ TEST_P(EngineUnitTests, BmcSimplePathFalse)
 TEST_P(EngineUnitTests, KInductionTrue)
 {
   SmtSolver s = create_solver(se);
-  s->set_opt("incremental", "true");
-  s->set_opt("produce-models", "true");
   KInduction kind(*true_p, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
@@ -117,8 +107,6 @@ TEST_P(EngineUnitTests, KInductionTrue)
 TEST_P(EngineUnitTests, KInductionFalse)
 {
   SmtSolver s = create_solver(se);
-  s->set_opt("incremental", "true");
-  s->set_opt("produce-models", "true");
   KInduction kind(*false_p, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
@@ -176,8 +164,6 @@ class InterpWinTests : public ::testing::Test,
   void SetUp() override
   {
     s = ::smt::MsatSolverFactory::create(false);
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
     itp = ::smt::MsatSolverFactory::create_interpolating_solver();
 
     TSEnum ts_type = GetParam();

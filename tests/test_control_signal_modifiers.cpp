@@ -22,8 +22,6 @@ class ControlUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("produce-models", "true");
-    s->set_opt("incremental", "true");
     boolsort = s->make_sort(BOOL);
     bvsort1 = s->make_sort(BV, 1);
     bvsort8 = s->make_sort(BV, 8);
@@ -60,8 +58,6 @@ TEST_P(ControlUnitTests, SimpleReset)
   // need to use a fresh solver to check the property again
   // pass the SolverEnum to use the same type of solver
   SmtSolver ns = create_solver(s->get_solver_enum());
-  ns->set_opt("incremental", "true");
-  ns->set_opt("produce-models", "true");
 
   Bmc bmc(p, ns);
   r = bmc.check_until(10);
@@ -111,8 +107,6 @@ TEST_P(ControlUnitTests, SimpleClock)
   // need to use a fresh solver to check the property again
   // pass the SolverEnum to use the same type of solver
   SmtSolver ns = create_solver(s->get_solver_enum());
-  ns->set_opt("incremental", "true");
-  ns->set_opt("produce-models", "true");
 
   Bmc bmc(p, ns);
   r = bmc.check_until(10);
