@@ -66,42 +66,60 @@ class EngineUnitTests
 
 TEST_P(EngineUnitTests, BmcTrue)
 {
-  Bmc b(*true_p, se);
+  SmtSolver s = create_solver(se);
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  Bmc b(*true_p, s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(EngineUnitTests, BmcFalse)
 {
-  Bmc b(*false_p, se);
+  SmtSolver s = create_solver(se);
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  Bmc b(*false_p, s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
 TEST_P(EngineUnitTests, BmcSimplePathTrue)
 {
-  BmcSimplePath bsp(*true_p, se);
+  SmtSolver s = create_solver(se);
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  BmcSimplePath bsp(*true_p, s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
 TEST_P(EngineUnitTests, BmcSimplePathFalse)
 {
-  BmcSimplePath bsp(*false_p, se);
+  SmtSolver s = create_solver(se);
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  BmcSimplePath bsp(*false_p, s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
 TEST_P(EngineUnitTests, KInductionTrue)
 {
-  KInduction kind(*true_p, se);
+  SmtSolver s = create_solver(se);
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  KInduction kind(*true_p, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
 TEST_P(EngineUnitTests, KInductionFalse)
 {
-  KInduction kind(*false_p, se);
+  SmtSolver s = create_solver(se);
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  KInduction kind(*false_p, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }

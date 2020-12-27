@@ -39,10 +39,8 @@ enum RefineResult
 class Prover
 {
  public:
-  Prover(Property & p, smt::SolverEnum se);
-  Prover(Property & p, const smt::SmtSolver & s);
-  Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  Prover(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  Prover(Property & p, const smt::SmtSolver & s,
+         PonoOptions opt = PonoOptions());
 
   virtual ~Prover();
 

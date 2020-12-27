@@ -140,8 +140,19 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
     return;
   }
 
-  std::shared_ptr<Prover> prover = make_prover(eng, prop, se);
-  ProverResult r = prover->check_until(9);
+  SmtSolver s = create_solver(se);
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+
+  ProverResult r;
+  if (eng == INTERP && se == MSAT) {
+    SmtSolver interp_s = create_interpolating_solver(MSAT_INTERPOLATOR);
+    std::shared_ptr<Prover> prover = make_prover(eng, prop, s, interp_s);
+    r = prover->check_until(9);
+  } else {
+    std::shared_ptr<Prover> prover = make_prover(eng, prop, s);
+    r = prover->check_until(9);
+  }
   ASSERT_EQ(r, FALSE);
 }
 
