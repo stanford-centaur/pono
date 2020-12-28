@@ -130,7 +130,7 @@ struct ProofGoalOrder
 {
   bool operator()(const ProofGoal * a, const ProofGoal * b) const
   {
-    return b->idx < a->idx;
+    return a->idx < b->idx;
   }
 };
 
