@@ -27,6 +27,9 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
 {
   logger.log(1, "Modifying init and prop");
 
+  // copy constraints from before we start modifying the system
+  TermVec constraints = ts.constraints();
+
   // replace prop if it's not already a literal
   Sort boolsort = ts.make_sort(BOOL);
   Term new_prop = prop;
@@ -42,9 +45,14 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
   ts.set_init(initstate1);
 
   // NOTE: relies on feature of ts to not add constraint to init
-  for (const auto & c : ts.constraints()) {
-    ts.add_constraint(ts.make_term(Implies, initstate1, c), false);
+  for (const auto & c : constraints) {
+    // TODO possibly refactor constraints so next state versions aren't
+    // automatically added
+    if (ts.no_next(c)) {
+      ts.add_constraint(ts.make_term(Implies, initstate1, c), false);
+    }
   }
+  cout << "after whole loop" << endl;
 
   ts.assign_next(initstate1, ts.make_term(false));
   ts.add_constraint(ts.make_term(Implies, initstate1, init), false);
