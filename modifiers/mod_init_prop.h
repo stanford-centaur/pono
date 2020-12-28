@@ -52,7 +52,6 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
       ts.add_constraint(ts.make_term(Implies, initstate1, c), false);
     }
   }
-  cout << "after whole loop" << endl;
 
   ts.assign_next(initstate1, ts.make_term(false));
   ts.add_constraint(ts.make_term(Implies, initstate1, init), false);
