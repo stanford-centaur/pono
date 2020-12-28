@@ -53,7 +53,6 @@
 **/
 #pragma once
 
-#include <algorithm>
 #include <queue>
 
 #include "engines/prover.h"
@@ -120,6 +119,8 @@ struct ProofGoal
     std::swap(next, other.next);
     return *this;
   }
+
+  bool operator<(const ProofGoal & other) const { return idx < other.idx; }
 };
 
 /**
@@ -130,37 +131,30 @@ struct ProofGoalOrder
 {
   bool operator()(const ProofGoal * a, const ProofGoal * b) const
   {
-    return b->idx < a->idx;
+    std::cout << "doing comparison" << std::endl;
+    throw std::exception();
+    return (*b) < (*a);
   }
 };
 
 /**
- * Priority queue of proof obligations borrowed from open-source ic3ia
- * implementation
+ * Priority queue of proof obligations
  */
-class ProofGoalQueue
+class ProofQueue
 {
  public:
-  ~ProofGoalQueue() { clear(); }
-
-  void clear()
+  ~ProofQueue()
   {
     for (auto p : store_) {
       delete p;
     }
-    store_.clear();
-    while (!queue_.empty()) {
-      queue_.pop();
-    }
   }
 
-  // TODO: make sure code is consistent with pointers -- hacked in this priority
-  // queue and changed from shared_ptr to raw pointer
   void push_new(const IC3Formula & c, unsigned int t, ProofGoal * n = NULL)
   {
-    ProofGoal * pg = new ProofGoal(c, t, n);
-    push(pg);
-    store_.insert(pg);
+    ProofGoal * po = new ProofGoal(c, t, n);
+    push(po);
+    store_.push_back(po);
   }
 
   void push(ProofGoal * p) { queue_.push(p); }
@@ -173,10 +167,7 @@ class ProofGoalQueue
       priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
           Queue;
   Queue queue_;
-  // TODO fix this
-  // used to be a vector but using a set because might add the same pointer
-  // twice need to use push instead of push_new in the right places
-  std::unordered_set<ProofGoal *> store_;
+  std::vector<ProofGoal *> store_;
 };
 
 class IC3Base : public Prover
@@ -221,7 +212,7 @@ class IC3Base : public Prover
   std::vector<std::vector<IC3Formula>> frames_;
 
   ///< priority queue of outstanding proof goals
-  ProofGoalQueue proof_goals_;
+  ProofQueue proof_goals_;
 
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
