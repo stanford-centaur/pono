@@ -20,7 +20,7 @@
 #include <climits>
 #include <functional>
 
-#include "modifiers/coi.h"
+#include "modifiers/static_coi.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 
