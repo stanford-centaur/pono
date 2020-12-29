@@ -1,6 +1,6 @@
 #include "core/fts.h"
 #include "gtest/gtest.h"
-#include "modifiers/coi.h"
+#include "modifiers/static_coi.h"
 #include "smt/available_solvers.h"
 
 using namespace pono;
@@ -45,7 +45,7 @@ TEST_P(CoiUnitTests, SimpleCoiTest)
   Term out = fts.make_term(BVSub, regres, one);
   fts.name_term("out", out);
 
-  ConeOfInfluence coi(fts, { out });
+  StaticConeOfInfluence coi(fts, { out });
 
   const UnorderedTermSet & statevars = fts.statevars();
   const UnorderedTermSet & inputvars = fts.inputvars();

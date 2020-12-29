@@ -148,11 +148,10 @@ IF WITH_COREIR == "ON":
             CoreIREncoder(Module * top_mod, RelationalTransitionSystem & ts) except +
 
 
-cdef extern from "modifiers/coi.h" namespace "pono":
-    cdef cppclass ConeOfInfluence:
-        ConeOfInfluence(TransitionSystem & ts,
+cdef extern from "modifiers/static_coi.h" namespace "pono":
+    cdef cppclass StaticConeOfInfluence:
+        StaticConeOfInfluence(TransitionSystem & ts,
                         const c_TermVec & to_keep,
-                        const c_TermVec & to_remove,
                         int verbosity) except +
 
 
