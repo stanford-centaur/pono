@@ -581,12 +581,14 @@ void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
   assert(i < frame_labels_.size());
 
   if (new_constraint) {
-    for (size_t j = 1; j <= i; ++j) { 
+    for (size_t j = 1; j <= i; ++j) {
       vector<IC3Formula> & Fj = frames_.at(j);
       size_t k = 0;
       for (size_t l = 0; l < Fj.size(); ++l) {
         if (!subsumes(constraint, Fj[l])) {
           Fj[k++] = Fj[l];
+        } else {
+          num_subsumed_++;
         }
       }
       Fj.resize(k);
@@ -597,6 +599,8 @@ void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
 
   constrain_frame_label(i, constraint);
   frames_.at(i).push_back(constraint);
+
+  std::cout << "num_subsumed_ = " << num_subsumed_ << std::endl;
 }
 
 void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)

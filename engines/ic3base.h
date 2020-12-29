@@ -206,6 +206,8 @@ class IC3Base : public Prover
                               ///< otherwise starts null, can check that
                               ///< cex_pg_.target.term is a nullptr
 
+  size_t num_subsumed_ = 0;
+
   ///< the frames data structure.
   ///< a vector of the given Unit template
   ///< which changes depending on the implementation
