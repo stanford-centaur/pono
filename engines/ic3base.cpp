@@ -426,18 +426,22 @@ bool IC3Base::block_all()
       reset_solver();
     }
 
-    ProofGoal * pg = get_next_proof_goal();
+    ProofGoal * pg = get_top_proof_goal();
     if (is_blocked(pg)) {
       logger.log(3,
                  "Skipping already blocked proof goal <{}, {}>",
                  pg->target.term->to_string(),
                  pg->idx);
+      remove_top_proof_goal();
       continue;
     };
 
     // block can fail, which just means a
     // new proof goal will be added
-    if (!block(pg) && !pg->idx) {
+    if (block(pg)) {
+      // if successfully blocked, then remove that proof goal
+      remove_top_proof_goal();
+    } else if (!pg->idx) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
       cex_pg_ = pg;

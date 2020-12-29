@@ -461,19 +461,24 @@ class IC3Base : public Prover
    */
   inline bool has_proof_goals() const { return !proof_goals_.empty(); }
 
-  /** Gets a new proof goal (and removes it from proof_goals_)
+  /** Gets a new proof goal
    *  @requires has_proof_goals()
    *  @return a proof goal with the lowest available frame number
+   *          i.e. from the top of the priority queue
    *  @alters proof_goals_
    *  @ensures returned proof goal is from lowest frame in proof goals
    */
-  inline ProofGoal * get_next_proof_goal()
+  inline ProofGoal * get_top_proof_goal()
   {
     assert(has_proof_goals());
     ProofGoal * pg = proof_goals_.top();
-    proof_goals_.pop();
     return pg;
   }
+
+  /** Removes the proof goal at the top of the priority queue
+   *  Proof goals should be removed once they are blocked
+   */
+  inline void remove_top_proof_goal() { proof_goals_.pop(); }
 
   /** Create and add a proof goal for cube c for frame i
    *  @param c the cube of the proof goal
