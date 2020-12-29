@@ -119,17 +119,15 @@ struct ProofGoal
 class IC3Base : public Prover
 {
  public:
+  typedef Prover super;
+
   /** IC3Base constructors take the normal arguments for a prover
    *  + a function that can create an IC3Formula
    *  Depending on the derived class IC3 implementation, the exact
    *  type of IC3Formula will differ: e.g. Clause, Disjunction
    */
-  IC3Base(Property & p, smt::SolverEnum se);
-  IC3Base(Property & p, const smt::SmtSolver & s);
-  IC3Base(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  IC3Base(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
-
-  typedef Prover super;
+  IC3Base(Property & p, const smt::SmtSolver & s,
+          PonoOptions opt = PonoOptions());
 
   void initialize() override;
 

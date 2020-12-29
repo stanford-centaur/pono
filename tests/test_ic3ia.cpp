@@ -24,9 +24,6 @@ class IC3IAUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
-    s->set_opt("produce-unsat-cores", "true");
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
     intsort = s->make_sort(INT);
@@ -52,7 +49,9 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, s, SolverEnum::MSAT);
+  SmtSolver ss = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
+
+  IC3IA ic3ia(p, s, ss);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -78,7 +77,9 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, s, SolverEnum::MSAT);
+  SmtSolver ss = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
+
+  IC3IA ic3ia(p, s, ss);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
 }
@@ -94,7 +95,9 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
 
   Property p(fts, fts.make_term(Le, x, fts.make_term(10, intsort)));
 
-  IC3IA ic3ia(p, s, SolverEnum::MSAT);
+  SmtSolver ss = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
+
+  IC3IA ic3ia(p, s, ss);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -124,7 +127,9 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 
   Property p(rts, wit);
 
-  IC3IA ic3ia(p, s, SolverEnum::MSAT);
+  SmtSolver ss = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
+
+  IC3IA ic3ia(p, s, ss);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 

@@ -21,10 +21,8 @@ namespace pono {
 class IC3 : public IC3Base
 {
  public:
-  IC3(Property & p, smt::SolverEnum se);
-  IC3(Property & p, const smt::SmtSolver & s);
-  IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  IC3(Property & p, const smt::SmtSolver & s, PonoOptions opt = PonoOptions());
+
   virtual ~IC3() {}
 
   typedef IC3Base super;

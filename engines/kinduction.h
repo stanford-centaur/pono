@@ -23,12 +23,9 @@ namespace pono {
 class KInduction : public Prover
 {
  public:
-  KInduction(Property & p, smt::SolverEnum se);
-  KInduction(Property & p, const smt::SmtSolver & solver);
-  KInduction(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  KInduction(const PonoOptions & opt,
-             Property & p,
-             const smt::SmtSolver & solver);
+  KInduction(Property & p, const smt::SmtSolver & solver,
+             PonoOptions opt = PonoOptions());
+
   ~KInduction();
 
   typedef Prover super;
