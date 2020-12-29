@@ -128,6 +128,9 @@ struct ProofGoal
  */
 struct ProofGoalOrder
 {
+  // comparison for priority queue
+  // since priority queue returns largest element, we swap the arguments
+  // -- we want the lowest index to be processed first
   bool operator()(const ProofGoal * a, const ProofGoal * b) const
   {
     return b->idx < a->idx;
@@ -154,8 +157,6 @@ class ProofGoalQueue
     }
   }
 
-  // TODO: make sure code is consistent with pointers -- hacked in this priority
-  // queue and changed from shared_ptr to raw pointer
   void push_new(const IC3Formula & c, unsigned int t, ProofGoal * n = NULL)
   {
     ProofGoal * pg = new ProofGoal(c, t, n);
