@@ -152,7 +152,6 @@ cdef extern from "modifiers/static_coi.h" namespace "pono":
     cdef cppclass StaticConeOfInfluence:
         StaticConeOfInfluence(TransitionSystem & ts,
                         const c_TermVec & to_keep,
-                        const c_TermVec & to_remove,
                         int verbosity) except +
 
 
