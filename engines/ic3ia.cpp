@@ -663,7 +663,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 
   bool found_preds = false;
   size_t num_preds = 1;
-  while (!found_preds && num_preds <= options_.ic3ia_cvc4_pred_num_) {
+  while (!found_preds) {
     found_preds = cvc4_synthesize_preds(
         abs_trace, statevars, var_args, free_vars, num_preds, out_preds);
     num_preds++;
