@@ -144,7 +144,18 @@ void IC3SA::check_ts() const
   }
 }
 
-RefineResult IC3SA::refine() { throw PonoException("IC3SA::refine NYI"); }
+RefineResult IC3SA::refine()
+{
+  // TODO use functional unroller incrementally
+  // until the query becomes unsat
+  // then add terms to term abstraction
+  // (after substituting for inputs) and untiming
+  // TODO maybe have option for functional unroller
+  // to not use @0 if never using other state variables
+  // TODO figure out if we should project
+  //      / how we limit the number of added terms
+  throw PonoException("IC3SA::refine NYI");
+}
 
 bool IC3SA::intersects_bad()
 {
