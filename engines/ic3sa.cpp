@@ -224,8 +224,6 @@ void IC3SA::initialize()
 
   // collect variables in bad_
   get_free_symbolic_consts(bad_, vars_in_bad_);
-
-  throw PonoException("IC3SA::initialize not completed");
 }
 
 // IC3SA specific methods
