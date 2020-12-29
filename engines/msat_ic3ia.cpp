@@ -29,17 +29,8 @@ using namespace std;
 
 namespace pono {
 
-MsatIC3IA::MsatIC3IA(Property & p, smt::SolverEnum se) : super(p, se) {}
-
-MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver) : super(p, solver)
-{
-}
-
-MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-  : super(opt, p, se) {}
-
-MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, const SmtSolver & solver)
-  : super(opt, p, solver)
+MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver, PonoOptions opt)
+    : super(p, solver, opt)
 {
 }
 
