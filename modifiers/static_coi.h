@@ -1,5 +1,5 @@
 /*********************                                                  */
-/*! \file coi.h
+/*! \file static_coi.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Florian Lonsing, Makai Mann
@@ -19,7 +19,7 @@
 #include "core/ts.h"
 
 namespace pono {
-class ConeOfInfluence
+class StaticConeOfInfluence
 {
  public:
   /** This class computes the cone of influence on construction
@@ -28,10 +28,10 @@ class ConeOfInfluence
    *  The cone-of-influence will keep all the variables from terms in
    *    to_keep and any variables that influence those variables.
    */
-  ConeOfInfluence(TransitionSystem & ts,
-                  const smt::TermVec & to_keep,
-                  const smt::TermVec & to_remove = {},
-                  int verbosity = 1);
+  StaticConeOfInfluence(TransitionSystem & ts,
+                        const smt::TermVec & to_keep,
+                        const smt::TermVec & to_remove = {},
+                        int verbosity = 1);
 
  protected:
   /* Debugging helper functions. */

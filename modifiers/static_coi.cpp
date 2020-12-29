@@ -14,7 +14,7 @@
 **
 **/
 
-#include "modifiers/coi.h"
+#include "modifiers/static_coi.h"
 
 #include "assert.h"
 #include "smt-switch/utils.h"
@@ -25,10 +25,10 @@ using namespace std;
 
 namespace pono {
 
-ConeOfInfluence::ConeOfInfluence(TransitionSystem & ts,
-                                 const TermVec & to_keep,
-                                 const TermVec & to_remove,
-                                 int verbosity)
+StaticConeOfInfluence::StaticConeOfInfluence(TransitionSystem & ts,
+                                             const TermVec & to_keep,
+                                             const TermVec & to_remove,
+                                             int verbosity)
     : ts_(ts),
       to_remove_(to_remove.begin(), to_remove.end()),
       verbosity_(verbosity)
@@ -63,7 +63,7 @@ ConeOfInfluence::ConeOfInfluence(TransitionSystem & ts,
 }
 
 /* For debugging only. */
-void ConeOfInfluence::print_term_dfs(const Term & term)
+void StaticConeOfInfluence::print_term_dfs(const Term & term)
 {
   UnorderedTermSet visited_terms;
   TermVec open_terms;
@@ -90,7 +90,7 @@ void ConeOfInfluence::print_term_dfs(const Term & term)
 }
 
 /* For debugging only. */
-void ConeOfInfluence::print_coi_info(const TermVec & to_keep)
+void StaticConeOfInfluence::print_coi_info(const TermVec & to_keep)
 {
   cout << "TEST PRINT COI\n";
   cout << "terms to keep:" << endl;
@@ -116,17 +116,18 @@ void ConeOfInfluence::print_coi_info(const TermVec & to_keep)
 }
 
 /* Add 'term' to 'set' if it does not already appear there. */
-void ConeOfInfluence::collect_coi_term(UnorderedTermSet & set,
-                                       const Term & term)
+void StaticConeOfInfluence::collect_coi_term(UnorderedTermSet & set,
+                                             const Term & term)
 {
   if (set.find(term) == set.end()) set.insert(term);
 }
 
 /* Traverse 'term', collect state/input variables, and add them to
    global sets 'new_coi_state_vars' and 'new_coi_input_vars'. */
-void ConeOfInfluence::compute_term_coi(const Term & term,
-                                       UnorderedTermSet & new_coi_state_vars,
-                                       UnorderedTermSet & new_coi_input_vars)
+void StaticConeOfInfluence::compute_term_coi(
+    const Term & term,
+    UnorderedTermSet & new_coi_state_vars,
+    UnorderedTermSet & new_coi_input_vars)
 {
   assert(term != NULL);
   TermVec open_terms;
@@ -173,7 +174,7 @@ void ConeOfInfluence::compute_term_coi(const Term & term,
 
 /* Collect state/input variables that appear in next-state functions
    of state-variables that were already collected. */
-void ConeOfInfluence::compute_coi_next_state_funcs()
+void StaticConeOfInfluence::compute_coi_next_state_funcs()
 {
   UnorderedTermSet new_coi_state_vars;
   UnorderedTermSet new_coi_input_vars;
@@ -217,7 +218,7 @@ void ConeOfInfluence::compute_coi_next_state_funcs()
 
 /* Collect state/input variables that appear in constraints that were
    added to the transition system. */
-void ConeOfInfluence::compute_coi_trans_constraints()
+void StaticConeOfInfluence::compute_coi_trans_constraints()
 {
   UnorderedTermSet new_coi_state_vars;
   UnorderedTermSet new_coi_input_vars;
@@ -238,7 +239,7 @@ void ConeOfInfluence::compute_coi_trans_constraints()
 }
 
 /* Main COI function. */
-void ConeOfInfluence::compute_coi(const TermVec & to_keep)
+void StaticConeOfInfluence::compute_coi(const TermVec & to_keep)
 {
   assert(coi_visited_terms_.empty());
   if (verbosity_ >= 3) print_coi_info(to_keep);
