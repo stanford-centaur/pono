@@ -254,7 +254,7 @@ const option::Descriptor usage[] = {
     "mod-init-prop",
     Arg::None,
     "  --mod-init-prop \tReplace init and prop with state variables -- can "
-    "extend trace by up to two steps." },
+    "extend trace by up to two steps. Recommended for use with ic3ia." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
