@@ -35,10 +35,10 @@ using EquivalenceClasses =
 class IC3SA : public IC3
 {
  public:
-  IC3SA(Property & p, smt::SolverEnum se);
-  IC3SA(Property & p, const smt::SmtSolver & s);
-  IC3SA(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  IC3SA(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  IC3SA(Property & p,
+        const smt::SmtSolver & solver,
+        PonoOptions opt = PonoOptions());
+
   virtual ~IC3SA() {}
 
   typedef IC3 super;

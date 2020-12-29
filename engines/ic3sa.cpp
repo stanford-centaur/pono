@@ -64,17 +64,8 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
 
 // main IC3SA implementation
 
-IC3SA::IC3SA(Property & p, smt::SolverEnum se) : super(p, se) {}
-
-IC3SA::IC3SA(Property & p, const smt::SmtSolver & s) : super(p, s) {}
-
-IC3SA::IC3SA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-    : super(opt, p, se)
-{
-}
-
-IC3SA::IC3SA(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
-    : super(opt, p, s)
+IC3SA::IC3SA(Property & p, const smt::SmtSolver & solver, PonoOptions opt)
+    : super(p, solver, opt)
 {
 }
 
