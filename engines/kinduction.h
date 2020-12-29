@@ -26,7 +26,7 @@ class KInduction : public Prover
   KInduction(Property & p, const smt::SmtSolver & solver,
              PonoOptions opt = PonoOptions());
 
-  ~KInduction();
+  virtual ~KInduction();
 
   typedef Prover super;
 
