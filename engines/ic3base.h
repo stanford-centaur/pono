@@ -163,19 +163,15 @@ class ProofGoalQueue
     store_.insert(pg);
   }
 
-  void push(ProofGoal * p) {
-    std::cout << "ic3ia: before ProofQueue push" << std::endl;
-    queue_.push(p);
-    std::cout << "ic3ia: after ProofQueue push" << std::endl;
-  }
+  void push(ProofGoal * p) { queue_.push(p); }
   ProofGoal * top() { return queue_.top(); }
   void pop() { queue_.pop(); }
   bool empty() const { return queue_.empty(); }
 
  private:
-  typedef std::priority_queue<ProofGoal *,
-                              std::vector<ProofGoal *>,
-                              ProofGoalOrder> Queue;
+  typedef std::
+      priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
+          Queue;
   Queue queue_;
   // TODO fix this
   // used to be a vector but using a set because might add the same pointer
