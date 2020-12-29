@@ -99,9 +99,10 @@ struct ProofGoal
   // based on open-source ic3ia ProofObligation
   IC3Formula target;
   size_t idx;
-  ProofGoal * next;
+  const ProofGoal * next;
 
-  ProofGoal(IC3Formula u, size_t i, ProofGoal * n) : target(u), idx(i), next(n)
+  ProofGoal(IC3Formula u, size_t i, const ProofGoal * n)
+      : target(u), idx(i), next(n)
   {
   }
 };
@@ -141,7 +142,9 @@ class ProofGoalQueue
     }
   }
 
-  void push_new(const IC3Formula & c, unsigned int t, ProofGoal * n = NULL)
+  void push_new(const IC3Formula & c,
+                unsigned int t,
+                const ProofGoal * n = NULL)
   {
     ProofGoal * pg = new ProofGoal(c, t, n);
     push(pg);
@@ -197,11 +200,11 @@ class IC3Base : public Prover
   bool failed_to_reset_solver_;  ///< some solvers don't support reset
                                  ///< assertions. Stop trying for those solvers.
 
-  ProofGoal * cex_pg_;  ///< if a proof goal is traced back to init
-                        ///< this gets set to the first proof goal
-                        ///< in the trace
-                        ///< otherwise starts null, can check that
-                        ///< cex_pg_.target.term is a nullptr
+  const ProofGoal * cex_pg_;  ///< if a proof goal is traced back to init
+                              ///< this gets set to the first proof goal
+                              ///< in the trace
+                              ///< otherwise starts null, can check that
+                              ///< cex_pg_.target.term is a nullptr
 
   ///< the frames data structure.
   ///< a vector of the given Unit template
@@ -404,13 +407,13 @@ class IC3Base : public Prover
    *  @return true iff the proof goal was blocked,
    *          otherwise a new proof goal was added to the proof goals
    */
-  bool block(ProofGoal * pg);
+  bool block(const ProofGoal * pg);
 
   /** Check if the given proof goal is already blocked
    *  @param pg the proof goal
    *  @return true iff the proof goal is already blocked
    */
-  bool is_blocked(ProofGoal * pg);
+  bool is_blocked(const ProofGoal * pg);
 
   /** Try propagating all clauses from frame index i to the next frame.
    *  @param i the frame index to propagate
@@ -483,7 +486,7 @@ class IC3Base : public Prover
    *  @param n pointer to the proof goal that led to this one -- null for bad
    *  (i.e. end of trace)
    */
-  void add_proof_goal(const IC3Formula & c, size_t i, ProofGoal * n);
+  void add_proof_goal(const IC3Formula & c, size_t i, const ProofGoal * n);
 
   /** Check if there are common assignments
    *  between A and B

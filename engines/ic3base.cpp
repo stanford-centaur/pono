@@ -410,7 +410,7 @@ bool IC3Base::block_all()
       reset_solver();
     }
 
-    ProofGoal * pg = get_top_proof_goal();
+    const ProofGoal * pg = get_top_proof_goal();
     if (is_blocked(pg)) {
       logger.log(3,
                  "Skipping already blocked proof goal <{}, {}>",
@@ -441,7 +441,7 @@ bool IC3Base::block_all()
   return true;
 }
 
-bool IC3Base::block(ProofGoal * pg)
+bool IC3Base::block(const ProofGoal * pg)
 {
   const IC3Formula & c = pg->target;
   size_t i = pg->idx;
@@ -498,7 +498,7 @@ bool IC3Base::block(ProofGoal * pg)
   }
 }
 
-bool IC3Base::is_blocked(ProofGoal * pg)
+bool IC3Base::is_blocked(const ProofGoal * pg)
 {
   // syntactic check
   for (size_t i = pg->idx; i < frames_.size(); ++i) {
@@ -651,7 +651,9 @@ void IC3Base::assert_trans_label() const
   solver_->assert_formula(trans_label_);
 }
 
-void IC3Base::add_proof_goal(const IC3Formula & c, size_t i, ProofGoal * n)
+void IC3Base::add_proof_goal(const IC3Formula & c,
+                             size_t i,
+                             const ProofGoal * n)
 {
   // IC3Formula aligned with frame so proof goal should be negated
   // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
