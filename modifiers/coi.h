@@ -2,7 +2,7 @@
 /*! \file coi.h
 ** \verbatim
 ** Top contributors (to current version):
-**   Makai Mann
+**   Florian Lonsing, Makai Mann
 ** This file is part of the pono project.
 ** Copyright (c) 2019 by the authors listed in the file AUTHORS
 ** in the top-level source directory) and their institutional affiliations.
