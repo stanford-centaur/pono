@@ -267,7 +267,7 @@ int main(int argc, char ** argv)
         /* Compute the set of state/input variables related to the
            bad-state property. Based on that information, rebuild the
            transition relation of the transition system. */
-        StaticConeOfInfluence coi(fts, { prop }, {}, pono_options.verbosity_);
+        StaticConeOfInfluence coi(fts, { prop }, pono_options.verbosity_);
       }
 
       vector<UnorderedTermMap> cex;
@@ -329,7 +329,7 @@ int main(int argc, char ** argv)
         /* Compute the set of state/input variables related to the
            bad-state property. Based on that information, rebuild the
            transition relation of the transition system. */
-        StaticConeOfInfluence coi(rts, { prop }, {}, pono_options.verbosity_);
+        StaticConeOfInfluence coi(rts, { prop }, pono_options.verbosity_);
       }
 
       Property p(rts, prop);

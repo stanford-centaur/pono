@@ -17,6 +17,7 @@
 #pragma once
 
 #include "core/ts.h"
+#include "utils/fcoi.h"
 
 namespace pono {
 class StaticConeOfInfluence
@@ -30,32 +31,16 @@ class StaticConeOfInfluence
    */
   StaticConeOfInfluence(TransitionSystem & ts,
                         const smt::TermVec & to_keep,
-                        const smt::TermVec & to_remove = {},
                         int verbosity = 1);
 
  protected:
-  /* Debugging helper functions. */
-  void print_coi_info(const smt::TermVec & to_keep);
-  void print_term_dfs(const smt::Term & term);
-  /* Key functions. */
-  void compute_coi(const smt::TermVec & to_keep);
-  void compute_coi_trans_constraints();
-  void compute_term_coi(const smt::Term & term,
-                        smt::UnorderedTermSet & new_coi_state_vars,
-                        smt::UnorderedTermSet & new_coi_input_vars);
-  void compute_coi_next_state_funcs();
 
   TransitionSystem & ts_;
   int verbosity_;
-  smt::UnorderedTermSet to_remove_;
-  /* TermSets containing those state and input variables that appear
-     in the term 'bad_' that represents the bad-state property. This
-     information is used to rebuild the transition relation of the
-     transition system 'ts_' of the property. */
-  smt::UnorderedTermSet statevars_in_coi_;
-  smt::UnorderedTermSet inputvars_in_coi_;
-  /* Set of terms already visited in COI analysis. */
-  smt::UnorderedTermSet coi_visited_terms_;
+
+  FunctionalConeOfInfluence coi_;  ///< class for computing symbols in
+                                   ///< cone-of-influence of terms
+
   unsigned int orig_num_statevars_;
   unsigned int orig_num_inputvars_;
 };

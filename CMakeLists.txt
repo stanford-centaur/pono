@@ -164,6 +164,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${PROJECT_SOURCE_DIR}/refiners/array_axiom_enumerator.cpp"
   "${PROJECT_SOURCE_DIR}/smt/available_solvers.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/fcoi.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   "${PROJECT_SOURCE_DIR}/utils/make_provers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
