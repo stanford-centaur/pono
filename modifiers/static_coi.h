@@ -39,7 +39,6 @@ class StaticConeOfInfluence
   void print_term_dfs(const smt::Term & term);
   /* Key functions. */
   void compute_coi(const smt::TermVec & to_keep);
-  void collect_coi_term(smt::UnorderedTermSet & set, const smt::Term & term);
   void compute_coi_trans_constraints();
   void compute_term_coi(const smt::Term & term,
                         smt::UnorderedTermSet & new_coi_state_vars,

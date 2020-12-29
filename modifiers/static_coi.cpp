@@ -115,13 +115,6 @@ void StaticConeOfInfluence::print_coi_info(const TermVec & to_keep)
   for (auto constr : ts_.constraints()) cout << "  " << constr << "\n";
 }
 
-/* Add 'term' to 'set' if it does not already appear there. */
-void StaticConeOfInfluence::collect_coi_term(UnorderedTermSet & set,
-                                             const Term & term)
-{
-  if (set.find(term) == set.end()) set.insert(term);
-}
-
 /* Traverse 'term', collect state/input variables, and add them to
    global sets 'new_coi_state_vars' and 'new_coi_input_vars'. */
 void StaticConeOfInfluence::compute_term_coi(
@@ -155,12 +148,12 @@ void StaticConeOfInfluence::compute_term_coi(
           assert(ts_.inputvars().find(cur) == ts_.inputvars().end());
           assert(!ts_.is_next_var(cur));
           logger.log(3, "collect COI statevar {}", cur);
-          collect_coi_term(new_coi_state_vars, cur);
+          new_coi_state_vars.insert(cur);
         } else if (ts_.inputvars().find(cur) != ts_.inputvars().end()) {
           assert(!ts_.is_curr_var(cur));
           assert(!ts_.is_next_var(cur));
           logger.log(3, "collect COI inputvar {}", cur);
-          collect_coi_term(new_coi_input_vars, cur);
+          new_coi_input_vars.insert(cur);
         }
       }
 
@@ -208,7 +201,7 @@ void StaticConeOfInfluence::compute_coi_next_state_funcs()
       }
     }
     for (auto sv : new_coi_input_vars) {
-      collect_coi_term(inputvars_in_coi_, sv);
+      inputvars_in_coi_.insert(sv);
     }
 
     new_coi_state_vars.clear();
