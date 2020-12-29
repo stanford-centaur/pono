@@ -658,16 +658,6 @@ void IC3Base::assert_trans_label() const
   solver_->assert_formula(trans_label_);
 }
 
-bool IC3Base::has_proof_goals() const { return !proof_goals_.empty(); }
-
-ProofGoal * IC3Base::get_next_proof_goal()
-{
-  assert(has_proof_goals());
-  ProofGoal * pg = proof_goals_.top();
-  proof_goals_.pop();
-  return pg;
-}
-
 void IC3Base::add_proof_goal(const IC3Formula & c, size_t i, ProofGoal * n)
 {
   // IC3Formula aligned with frame so proof goal should be negated

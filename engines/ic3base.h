@@ -459,7 +459,7 @@ class IC3Base : public Prover
   /** Check if there are more proof goals
    *  @return true iff there are more proof goals
    */
-  bool has_proof_goals() const;
+  inline bool has_proof_goals() const { return !proof_goals_.empty(); }
 
   /** Gets a new proof goal (and removes it from proof_goals_)
    *  @requires has_proof_goals()
@@ -467,7 +467,13 @@ class IC3Base : public Prover
    *  @alters proof_goals_
    *  @ensures returned proof goal is from lowest frame in proof goals
    */
-  ProofGoal * get_next_proof_goal();
+  inline ProofGoal * get_next_proof_goal()
+  {
+    assert(has_proof_goals());
+    ProofGoal * pg = proof_goals_.top();
+    proof_goals_.pop();
+    return pg;
+  }
 
   /** Create and add a proof goal for cube c for frame i
    *  @param c the cube of the proof goal
