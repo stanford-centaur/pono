@@ -366,8 +366,7 @@ RefineResult IC3IA::refine()
   // clear the current proof goals
   // the transitions represented by those backwards reachable traces
   // may not be precise wrt the new predicates
-  // proof_goals_.clear();
-  proof_goals_ = ProofQueue();
+  proof_goals_.clear();
 
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;

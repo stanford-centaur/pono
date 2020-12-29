@@ -122,7 +122,7 @@ void IC3Base::initialize()
 
   frames_.clear();
   frame_labels_.clear();
-  // proof_goals_.clear();
+  proof_goals_.clear();
   // first frame is always the initial states
   push_frame();
   // can't use constrain_frame for initial states because not guaranteed to be
