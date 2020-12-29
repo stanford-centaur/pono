@@ -101,9 +101,6 @@ struct ProofGoal
   size_t idx;
   ProofGoal * next;
 
-  // null constructor
-  ProofGoal() : idx(0), next(nullptr) {}
-
   ProofGoal(IC3Formula u, size_t i, ProofGoal * n) : target(u), idx(i), next(n)
   {
   }
@@ -177,6 +174,8 @@ class IC3Base : public Prover
   IC3Base(Property & p, const smt::SmtSolver & s,
           PonoOptions opt = PonoOptions());
 
+  virtual ~IC3Base();
+
   void initialize() override;
 
   ProverResult check_until(int k) override;
@@ -198,6 +197,12 @@ class IC3Base : public Prover
   bool failed_to_reset_solver_;  ///< some solvers don't support reset
                                  ///< assertions. Stop trying for those solvers.
 
+  ProofGoal * cex_pg_;  ///< if a proof goal is traced back to init
+                        ///< this gets set to the first proof goal
+                        ///< in the trace
+                        ///< otherwise starts null, can check that
+                        ///< cex_pg_.target.term is a nullptr
+
   ///< the frames data structure.
   ///< a vector of the given Unit template
   ///< which changes depending on the implementation
@@ -211,12 +216,6 @@ class IC3Base : public Prover
   smt::Term trans_label_;      ///< label to activate trans
   smt::TermVec frame_labels_;  ///< labels to activate frames
   smt::UnorderedTermMap labels_;  //< labels for unsat cores
-
-  ProofGoal * cex_pg_;  ///< if a proof goal is traced back to init
-                        ///< this gets set to the first proof goal
-                        ///< in the trace
-                        ///< otherwise starts null, can check that
-                        ///< cex_pg_.target.term is a nullptr
 
   // useful terms
   smt::Term solver_true_;

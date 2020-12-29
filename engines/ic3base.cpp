@@ -67,8 +67,17 @@ IC3Base::IC3Base(Property & p, const SmtSolver & s, PonoOptions opt)
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0),
       num_check_sat_since_reset_(0),
-      failed_to_reset_solver_(false)
+      failed_to_reset_solver_(false),
+      cex_pg_(nullptr)
 {
+}
+
+IC3Base::~IC3Base()
+{
+  if (cex_pg_) {
+    delete cex_pg_;
+    cex_pg_ = nullptr;
+  }
 }
 
 void IC3Base::initialize()
@@ -129,11 +138,13 @@ ProverResult IC3Base::check_until(int k)
   int i = reached_k_ + 1;
   assert(i >= 0);
   while (i <= k) {
-    // reset cex_pg_->to null
+    // reset cex_pg_ to null
     // there might be multiple abstract traces if there's a derived class
     // doing abstraction refinement
-    cex_pg_ = new ProofGoal();
-    assert(!cex_pg_->next);
+    if (cex_pg_) {
+      delete cex_pg_;
+      cex_pg_ = nullptr;
+    }
 
     res = step(i);
     ref_res = REFINE_NONE;  // just a default value
@@ -419,7 +430,10 @@ bool IC3Base::block_all()
     } else if (!pg->idx) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
-      cex_pg_ = pg;
+      // NOTE: creating a new allocation
+      //       because the pg memory is already managed
+      //       by proof_goals_
+      cex_pg_ = new ProofGoal(pg->target, pg->idx, pg->next);
       return false;
     }
   }
