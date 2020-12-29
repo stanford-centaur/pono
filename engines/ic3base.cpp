@@ -440,6 +440,8 @@ bool IC3Base::block_all()
     // new proof goal will be added
     if (block(pg)) {
       // if successfully blocked, then remove that proof goal
+      // expecting the top proof goal to still be pg
+      assert(pg == get_top_proof_goal());
       remove_top_proof_goal();
     } else if (!pg->idx) {
       // if a proof goal cannot be blocked at zero
