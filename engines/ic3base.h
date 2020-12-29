@@ -147,6 +147,7 @@ class ProofGoalQueue
                 const ProofGoal * n = NULL)
   {
     ProofGoal * pg = new ProofGoal(c, t, n);
+    std::cout << "queue size before pushing new cube: " << queue_.size() << std::endl;
     push(pg);
     store_.push_back(pg);
   }
