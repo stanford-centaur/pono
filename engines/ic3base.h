@@ -107,19 +107,6 @@ struct ProofGoal
   ProofGoal(IC3Formula u, size_t i, ProofGoal * n) : target(u), idx(i), next(n)
   {
   }
-
-  ProofGoal(const ProofGoal & other)
-      : target(other.target), idx(other.idx), next(other.next)
-  {
-  }
-
-  ProofGoal operator=(ProofGoal other)
-  {
-    std::swap(target, other.target);
-    std::swap(idx, other.idx);
-    std::swap(next, other.next);
-    return *this;
-  }
 };
 
 /**
