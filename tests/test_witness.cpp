@@ -36,7 +36,8 @@ TEST_P(WitnessUnitTests, SimpleDefaultSolver)
   Term prop_term = fts.make_term(BVUlt, x, eight);
   Property prop(fts, prop_term);
 
-  Bmc bmc(prop, GetParam());
+  SmtSolver s = create_solver(GetParam());
+  Bmc bmc(prop, s);
   ProverResult r = bmc.check_until(9);
   ASSERT_EQ(r, FALSE);
 
@@ -74,7 +75,8 @@ TEST_P(WitnessUnitTests, ArraysDefaultSolver)
   Term prop_term = fts.make_term(Distinct, fts.make_term(Select, arr, x), ten);
   Property prop(fts, prop_term);
 
-  Bmc bmc(prop, GetParam());
+  SmtSolver s = create_solver(GetParam());
+  Bmc bmc(prop, s);
   ProverResult r = bmc.check_until(6);
   ASSERT_EQ(r, FALSE);
 

@@ -22,9 +22,6 @@ class MsatIC3IAUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
-    s->set_opt("produce-unsat-cores", "true");
     boolsort = s->make_sort(BOOL);
     intsort = s->make_sort(INT);
   }
