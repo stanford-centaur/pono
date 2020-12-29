@@ -62,35 +62,8 @@ static bool subsumes(const IC3Formula &a, const IC3Formula &b)
 
 /** IC3Base */
 
-IC3Base::IC3Base(Property & p, SolverEnum se)
-    : super(p, se),
-      reducer_(create_solver(se)),
-      solver_context_(0),
-      num_check_sat_since_reset_(0),
-      failed_to_reset_solver_(false)
-{
-}
-
-IC3Base::IC3Base(Property & p, const SmtSolver & s)
-    : super(p, s),
-      reducer_(create_solver(s->get_solver_enum())),
-      solver_context_(0),
-      num_check_sat_since_reset_(0),
-      failed_to_reset_solver_(false)
-{
-}
-
-IC3Base::IC3Base(const PonoOptions & opt, Property & p, SolverEnum se)
-    : super(opt, p, se),
-      reducer_(create_solver(se)),
-      solver_context_(0),
-      num_check_sat_since_reset_(0),
-      failed_to_reset_solver_(false)
-{
-}
-
-IC3Base::IC3Base(const PonoOptions & opt, Property & p, const SmtSolver & s)
-    : super(opt, p, s),
+IC3Base::IC3Base(Property & p, const SmtSolver & s, PonoOptions opt)
+    : super(p, s, opt),
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0),
       num_check_sat_since_reset_(0),

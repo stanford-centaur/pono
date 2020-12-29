@@ -41,9 +41,12 @@ namespace pono {
  *  @param se the SolverEnum to identify which type of solver
  *  @param logging whether or not to keep track of term DAG at smt-switch level
  *         defaults to false because generally slower
+ *  @param set the incremental option for the solver
+ *  @param set the procude-model option for the solver
  *  @return an SmtSolver
  */
-smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false);
+smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false,
+                             bool incremental=true, bool produce_model=true);
 
 /** Creates an interpolating SmtSolver of the provided type */
 smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);
