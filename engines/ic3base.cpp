@@ -41,6 +41,43 @@ static bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
   return (t0->hash() < t1->hash());
 }
 
+/** Checks if a contains all the terms of b
+ *  NOTE: can't rely on std::includes because it uses operator<
+ *  and smt-switch doesn't have a meaningful operator< on terms
+ *  i.e. can't be used for equality (term_hash_lt wouldn't work)
+ *  @param a vector of terms
+ *  @param b vector of terms
+ *  @return true iff a contains all the terms in b
+ */
+static bool term_includes(const TermVec & a, const TermVec & b)
+{
+  if (a.size() > b.size()) {
+    return false;
+  }
+
+  unordered_map<size_t, UnorderedTermSet> hash_b;
+
+  // to speed up search, organize by hash
+  for (auto const & bb : b) {
+    hash_b[bb->hash()].insert(bb);
+  }
+
+  size_t aa_hash;
+  for (auto const & aa : a) {
+    aa_hash = aa->hash();
+    auto it = hash_b.find(aa_hash);
+    if (it != hash_b.end()) {
+      it->second.erase(aa);
+      if (!it->second.size()) {
+        hash_b.erase(aa_hash);
+      }
+    }
+  }
+
+  // if a includes all terms of b, then hash_b will be empty
+  return !(hash_b.size());
+}
+
 /** Syntactic subsumption check: ? a subsumes b ?
  *  @param IC3Formula a
  *  @param IC3Formula b
