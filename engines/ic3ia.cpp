@@ -40,77 +40,9 @@ using namespace std;
 
 namespace pono {
 
-IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
-    : super(p, se),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
-    : super(p, s),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp)
-    : super(p, s),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(itp),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(const PonoOptions & opt,
-             Property & p,
-             SolverEnum se,
-             SolverEnum itp_se)
-    : super(opt, p, se),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(const PonoOptions & opt,
-             Property & p,
-             const SmtSolver & s,
-             SolverEnum itp_se)
-    : super(opt, p, s),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(const PonoOptions & opt,
-             Property & p,
-             const SmtSolver & s,
-             SmtSolver itp)
-    : super(opt, p, s),
+IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp,
+             PonoOptions opt)
+    : super(p, s, opt),
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
       ia_(conc_ts_, abs_ts_, unroller_),
@@ -202,10 +134,16 @@ void IC3IA::initialize()
   // NOTE: abstract is called automatically in IC3Base initialize
   UnorderedTermSet preds;
   get_predicates(solver_, ts_->init(), preds, false);
+  size_t num_init_preds = preds.size();
   get_predicates(solver_, bad_, preds, false);
+  size_t num_prop_preds = preds.size() - num_init_preds;
   for (const auto &p : preds) {
     add_predicate(p);
   }
+  logger.log(1, "Number predicates found in init: {}", num_init_preds);
+  logger.log(1, "Number predicates found in prop: {}", num_prop_preds);
+  logger.log(1, "Total number of initial predicates: {}", num_init_preds + num_prop_preds);
+  assert(preds.size() == (num_init_preds + num_prop_preds));
   // more predicates will be added during refinement
   // these ones are just initial predicates
 

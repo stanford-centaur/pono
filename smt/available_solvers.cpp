@@ -33,37 +33,40 @@ const std::vector<SolverEnum> solver_enums({
 #endif
 });
 
-SmtSolver create_solver(SolverEnum se, bool logging)
+SmtSolver create_solver(SolverEnum se, bool logging, bool incremental,
+                        bool produce_model)
 {
+  SmtSolver s;
   switch (se) {
     case BTOR: {
-      return BoolectorSolverFactory::create(logging);
+      s = BoolectorSolverFactory::create(logging);
       break;
-      ;
     }
     case CVC4: {
-      return CVC4SolverFactory::create(logging);
+      s = CVC4SolverFactory::create(logging);
       break;
-      ;
     }
 #if WITH_MSAT
     case MSAT: {
-      return MsatSolverFactory::create(logging);
+      s = MsatSolverFactory::create(logging);
       break;
-      ;
     }
 #endif
 #if WITH_YICES2
     case YICES2: {
-      return Yices2SolverFactory::create(logging);
+      s = Yices2SolverFactory::create(logging);
       break;
-      ;
     }
 #endif
     default: {
       throw SmtException("Unhandled solver enum");
     }
   }
+
+  s->set_opt("incremental", incremental ? "true" : "false");
+  s->set_opt("produce-models", produce_model ? "true" : "false");
+
+  return s;
 }
 
 SmtSolver create_interpolating_solver(SolverEnum se)

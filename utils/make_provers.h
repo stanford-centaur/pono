@@ -24,11 +24,6 @@ std::vector<Engine> all_engines();
 
 std::shared_ptr<Prover> make_prover(Engine e,
                                     Property & p,
-                                    smt::SolverEnum se,
-                                    PonoOptions opts = PonoOptions());
-
-std::shared_ptr<Prover> make_prover(Engine e,
-                                    Property & p,
                                     smt::SmtSolver & slv,
                                     PonoOptions opts = PonoOptions());
 

@@ -26,42 +26,14 @@ using namespace smt;
 
 namespace pono {
 
-InterpolantMC::InterpolantMC(Property & p, SolverEnum se)
-    : super(p, se),
-      interpolator_(create_interpolating_solver(se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_)
-{
-}
-
 InterpolantMC::InterpolantMC(Property & p,
                              const SmtSolver & slv,
-                             const SmtSolver & itp)
-    : super(p, slv),
+                             const SmtSolver & itp,
+                             PonoOptions opt)
+    : super(p, slv, opt),
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_)
-{
-}
-
-InterpolantMC::InterpolantMC(const PonoOptions & opt,
-                             Property & p,
-                             SolverEnum se)
-    : super(opt, p, se),
-      interpolator_(create_interpolating_solver(se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_)
-{
-}
-
-InterpolantMC::InterpolantMC(const PonoOptions & opt,
-                             Property & p,
-                             const SmtSolver & slv,
-                             const SmtSolver & itp)
-    : super(opt, p, slv),
-      interpolator_(itp),
-      to_interpolator_(itp),
-      to_solver_(slv)
 {
 }
 
