@@ -78,23 +78,18 @@ static bool term_includes(const TermVec & a, const TermVec & b)
   return !(hash_b.size());
 }
 
-/** Syntactic subsumption check: ? a subsumes b ?
+/** Syntactic subsumption check for clauses: ? a subsumes b ?
  *  @param IC3Formula a
  *  @param IC3Formula b
  *  returns true iff 'a subsumes b'
  */
 static bool subsumes(const IC3Formula &a, const IC3Formula &b)
 {
+  assert(a.disjunction);
   assert(a.disjunction == b.disjunction);
   const TermVec &ac = a.children;
   const TermVec &bc = b.children;
-  if (a.disjunction) {
-    return (ac.size() <= bc.size() &&
-            std::includes(bc.begin(), bc.end(), ac.begin(), ac.end()));
-  } else {
-    return (ac.size() >= bc.size() &&
-            std::includes(ac.begin(), ac.end(), bc.begin(), bc.end()));
-  }
+  return term_includes(bc, ac);
 }
 
 /** IC3Base */
