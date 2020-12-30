@@ -183,7 +183,7 @@ RefineResult IC3SA::refine()
   while (tmp->next) {
     tmp = tmp->next;
     cex.push_back(tmp->target.term);
-    assert(conc_ts_.only_curr(tmp->target.term));
+    assert(ts_->only_curr(tmp->target.term));
   }
 
   size_t cex_length = cex.size();
