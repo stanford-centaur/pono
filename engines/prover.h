@@ -101,7 +101,7 @@ class Prover
             ///< guaranteed to be fully initialized in the constructor
             ///< of the engine
             ///< this is because abstraction might not happen until later
-  TransitionSystem &
+  const TransitionSystem &
       orig_ts_;  ///< reference to original TS before copied to new solver
 
   Unroller unroller_;
