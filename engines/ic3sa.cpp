@@ -194,6 +194,13 @@ RefineResult IC3SA::refine()
   // set up initial substitution map
   gen_inputvars_at_time(0);
   UnorderedTermMap subst = inputvars_at_time_.at(0);
+  const UnorderedTermMap & state_updates = ts_->state_updates();
+  // start by just mapping to state variables
+  for (const auto & sv : ts_->statevars()) {
+    if (state_updates.find(sv) != state_updates.end()) {
+      subst[sv] = sv;
+    }
+  }
 
   Term p = ts_->init();
   Term c = cex[0];
