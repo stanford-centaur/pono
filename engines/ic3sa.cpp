@@ -461,9 +461,10 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
       UnorderedTermSet::const_iterator end = terms.cend();
       UnorderedTermSet::const_iterator it = terms.cbegin();
       Term last = *it;
+      it++;
 
       while (it != end) {
-        const Term & term = *(++it);
+        const Term & term = *(it++);
         assert(last->get_sort() == term->get_sort());
         out_cube.push_back(solver_->make_term(Equal, last, term));
         last = term;
