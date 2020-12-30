@@ -26,6 +26,7 @@
 
 #include "assert.h"
 #include "smt-switch/utils.h"
+#include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
 
 using namespace smt;
@@ -117,6 +118,7 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
 IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
 {
   // TODO: use the JustifyCOI algorithm from the paper
+  //       e.g. partial_model
   // compute cone-of-influence of target c
   fcoi_.compute_coi({ c.term });
   const UnorderedTermSet & coi_symbols = fcoi_.statevars_in_coi();
@@ -188,17 +190,25 @@ RefineResult IC3SA::refine()
 
   size_t cex_length = cex.size();
 
-  // TODO use functional unroller incrementally
+  Term p = ts_->init();
+  Term formula;
+  // TODO loop up to cex_length
+  //      with implicit unrolling
+  //      need to understand how T is being used
+  //      with a functional unrolling in algorithm
+
+  // TODO use symbolic_post_image
   // until the query becomes unsat
   // then add terms to term abstraction
   // (after substituting for inputs) and untiming
-  // NOTE: might be easier to not use functional unroller actually
+  // NOTE: seems easier to not use functional unroller
   //       need symbolic post-image *under current model*
   // TODO maybe have option for functional unroller
   // to not use @0 if never using other state variables
   // TODO figure out if we should project
   //      / how we limit the number of added terms
   // TODO get minimal unsat core
+  // TODO add symbols from the MUS to the projection set permanently
   throw PonoException("IC3SA::refine NYI");
 }
 
@@ -283,6 +293,50 @@ void IC3SA::initialize()
 }
 
 // IC3SA specific methods
+
+Term IC3SA::symbolic_post_image(size_t i, const Term & p, const Term & c)
+{
+  gen_inputvars_at_time(i);
+  Term post_image = solver_->make_term(And, p, c);
+
+  // TODO use partial_model to handle boolean structure
+  //      for now just keeping full boolean structure
+  // TODO cache which state updates contain ITEs
+  //      and don't even run on the ones which don't
+
+  // need to copy here, because this substitution
+  // is only for this particular model
+  UnorderedTermMap subst = inputvars_at_time_.at(i);
+  const UnorderedTermMap & state_updates = ts_->state_updates();
+  for (const auto & sv : ts_->statevars()) {
+    if (state_updates.find(sv) != state_updates.end()) {
+      // TODO: consider traversing multiple at once to make use of
+      //       the same cache
+      subst[sv] = remove_ites_under_model(solver_, state_updates.at(sv));
+    }
+  }
+  return solver_->substitute(post_image, subst);
+}
+
+void IC3SA::gen_inputvars_at_time(size_t i)
+{
+  const UnorderedTermMap & state_updates = ts_->state_updates();
+  while (inputvars_at_time_.size() <= i) {
+    inputvars_at_time_.push_back(UnorderedTermMap());
+    UnorderedTermMap & subst = inputvars_at_time_.back();
+    for (const auto & v : ts_->inputvars()) {
+      subst[v] = solver_->make_symbol(v->to_string() + "@" + std::to_string(i),
+                                      v->get_sort());
+    }
+
+    for (auto const & v : ts_->statevars()) {
+      if (state_updates.find(v) == state_updates.end()) {
+        subst[v] = solver_->make_symbol(
+            v->to_string() + "@" + std::to_string(i), v->get_sort());
+      }
+    }
+  }
+}
 
 EquivalenceClasses IC3SA::get_equivalence_classes_from_model(
     const UnorderedTermSet & to_keep) const

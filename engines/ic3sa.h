@@ -52,7 +52,14 @@ class IC3SA : public IC3
 
   smt::UnorderedTermSet vars_in_bad_;  ///< variables occurring in bad
 
+  // TODO: replace this with partial_model
   FunctionalConeOfInfluence fcoi_;
+
+  std::vector<smt::UnorderedTermMap>
+      inputvars_at_time_;  ///< unrolled variables
+                           ///< only the unconstrained variables
+                           ///< e.g. input variables and state vars
+                           ///< with no next state update
 
   // virtual method implementations
 
@@ -73,6 +80,25 @@ class IC3SA : public IC3
   RefineResult refine() override;
 
   // IC3SA specific methods
+
+  /** Computes the symbolic post-image of
+   *  pi /\ ci under the current model
+   *  @requires current solver_ state is SAT
+   *  @param pi post-image computation of initial states at step i
+   *  @param ci the cube from a counterexample at step i
+   *  @return the symbolic post image given the current model at step i+1
+   */
+  smt::Term symbolic_post_image(size_t i,
+                                const smt::Term & p,
+                                const smt::Term & c);
+
+  /** Create fresh symbolic constants for input variables
+   *  and state variables with no next state at time i
+   *  functions like the unroller, but only unrolls
+   *  unconstrained variables
+   *  @param i the time-step
+   */
+  void gen_inputvars_at_time(size_t i);
 
   /** Get equivalence classes over all current terms in term_abstraction_
    *  from the current model
