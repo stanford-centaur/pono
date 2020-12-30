@@ -50,7 +50,8 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
   Op op = t->get_op();
   assert(!op.is_null());
 
-  if (op == Not)
+  // also include BVNot for boolector
+  if (op == Not || op == BVNot)
   {
     op = (*(t->begin()))->get_op();
   }
