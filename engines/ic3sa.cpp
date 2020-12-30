@@ -290,7 +290,7 @@ bool IC3SA::intersects_bad()
       }
     }
 
-    // TODO make sure that projecting on state variables here makes sense
+    // TODO make sure that projecting on variables in bad here makes sense
     EquivalenceClasses ec = get_equivalence_classes_from_model(vars_in_bad_);
     construct_partition(ec, cube_lits);
     // reduce cube_lits
