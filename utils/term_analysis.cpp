@@ -150,7 +150,7 @@ bool is_predicate(const Term & t, const Sort & boolsort, bool include_symbols)
 
   const Op & op = t->get_op();
 
-  if (include_symbols && is_lit(t, boolsort)) {
+  if (include_symbols && t->is_symbolic_const()) {
     return true;
   } else if (op.is_null()) {
     // no term with a null operator can be a predicate

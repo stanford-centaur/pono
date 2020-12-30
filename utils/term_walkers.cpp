@@ -76,7 +76,8 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
   if (preorder_) {
     Sort sort = term->get_sort();
 
-    if (is_predicate(term, boolsort_)) {
+    // want to include literals as predicates here so passing true
+    if (is_predicate(term, boolsort_, true)) {
       // TODO: consider handling ITEs here
       //       will still show up in predicates instead of being expanded
       predicates_.insert(term);
