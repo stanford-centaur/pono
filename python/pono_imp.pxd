@@ -114,6 +114,16 @@ cdef extern from "engines/bmc_simplepath.h" namespace "pono":
         BmcSimplePath(const Property & p, c_SmtSolver & solver) except +
 
 
+cdef extern from "engines/ic3.h" namespace "pono":
+    cdef cppclass IC3(Prover):
+        IC3(const Property & p, c_SmtSolver & solver) except +
+
+
+cdef extern from "engines/ic3ia.h" namespace "pono":
+    cdef cppclass IC3IA(Prover):
+        IC3IA(const Property & p, c_SmtSolver & solver, c_SmtSolver & interpolator) except +
+
+
 cdef extern from "engines/interpolantmc.h" namespace "pono":
     cdef cppclass InterpolantMC(Prover):
         InterpolantMC(const Property & p, c_SmtSolver & s, c_SmtSolver & interpolator) except +

@@ -18,6 +18,8 @@ from pono_imp cimport Prover as c_Prover
 from pono_imp cimport Bmc as c_Bmc
 from pono_imp cimport KInduction as c_KInduction
 from pono_imp cimport BmcSimplePath as c_BmcSimplePath
+from pono_imp cimport IC3 as c_IC3
+from pono_imp cimport IC3IA as c_IC3IA
 from pono_imp cimport InterpolantMC as c_InterpolantMC
 from pono_imp cimport ModelBasedIC3 as c_ModelBasedIC3
 IF WITH_MSAT_IC3IA == "ON":
@@ -473,6 +475,30 @@ cdef class KInduction(__AbstractProver):
 cdef class BmcSimplePath(__AbstractProver):
     def __cinit__(self, Property p, SmtSolver s):
         self.cp = new c_BmcSimplePath(p.cp[0], s.css)
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
+
+
+cdef class IC3(__AbstractProver):
+    '''
+    Bit-level IC3 variant
+    '''
+    def __cinit__(self, Property p, SmtSolver s):
+        self.cp = new c_IC3(p.cp[0], s.css)
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
+
+
+cdef class IC3IA(__AbstractProver):
+    '''
+    IC3 via Implicit Predicate Abstraction
+    '''
+    def __cinit__(self, Property p, SmtSolver s, SmtSolver interp):
+        self.cp = new c_IC3IA(p.cp[0], s.css, interp.css)
         self._solver = s
 
     def __dealloc__(self):

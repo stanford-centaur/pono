@@ -75,6 +75,22 @@ def test_kind(create_solver):
 
     assert res is None, "KInduction shouldn't be able to solve this property"
 
+
+@pytest.mark.parametrize("solver_and_interpolator", available_solvers.solver_and_interpolators.values())
+def test_interp(solver_and_interpolator):
+    s = solver_and_interpolator[0](False)
+    s.set_opt('produce-models', 'true')
+    s.set_opt('incremental', 'true')
+    itp = solver_and_interpolator[1]()
+
+    prop = build_simple_alu_fts(s)
+
+    ic3ia = c.IC3IA(prop, s, itp)
+    res = ic3ia.check_until(10)
+
+    assert res is True, "IC3IA be able to solve this property"
+
+
 @pytest.mark.parametrize("solver_and_interpolator", available_solvers.solver_and_interpolators.values())
 def test_interp(solver_and_interpolator):
     s = solver_and_interpolator[0](False)
