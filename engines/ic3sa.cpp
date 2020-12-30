@@ -73,13 +73,7 @@ IC3SA::IC3SA(Property & p, const smt::SmtSolver & solver, PonoOptions opt)
 IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
                                        TermVec * out_nexts) const
 {
-  if (out_inputs || out_nexts) {
-    // TODO handle this case -- when asking for inputs or next
-    throw PonoException("IC3SA::get_model_ic3formula not fully implemented");
-  }
-
   TermVec cube_lits;
-
   // first populate with predicates
   for (const auto & p : predset_) {
     if (solver_->get_value(p) == solver_true_) {
@@ -94,6 +88,21 @@ IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
   construct_partition(ec, cube_lits);
   IC3Formula cube = ic3formula_conjunction(cube_lits);
   assert(ic3formula_check_valid(cube));
+
+  if (out_nexts) {
+    for (const auto & sv : ts_->statevars()) {
+      out_nexts->push_back(
+          solver_->make_term(Equal, sv, solver_->get_value(sv)));
+    }
+  }
+
+  if (out_inputs) {
+    for (const auto & iv : ts_->inputvars()) {
+      out_inputs->push_back(
+          solver_->make_term(Equal, iv, solver_->get_value(iv)));
+    }
+  }
+
   return cube;
 }
 
