@@ -142,7 +142,7 @@ bool is_lit(const Term & l, const Sort & boolsort)
   return false;
 }
 
-bool is_predicate(const Term & t, const Sort & boolsort)
+bool is_predicate(const Term & t, const Sort & boolsort, bool include_symbols)
 {
   if (t->get_sort() != boolsort) {
     return false;
@@ -150,11 +150,14 @@ bool is_predicate(const Term & t, const Sort & boolsort)
 
   const Op & op = t->get_op();
 
-  // no term with a null operator can be a predicate
-  if (op.is_null()) {
+  if (include_symbols && is_lit(t, boolsort)) {
+    return true;
+  } else if (op.is_null()) {
+    // no term with a null operator can be a predicate
     return false;
   }
 
+  assert(!op.is_null());
   if (boolops.find(op.prim_op) != boolops.end()) {
     // boolean operators cannot make predicates
     return false;
@@ -224,12 +227,8 @@ void get_predicates(const SmtSolver & solver,
         continue;
       }
 
-      if (t->is_symbol()) {
-        if (include_symbols) {
-          out.insert(t);
-        }
-        continue;
-      } else if (t->is_value()) {
+      if (t->is_value()) {
+        // values are not predicates
         continue;
       }
 
@@ -263,7 +262,7 @@ void get_predicates(const SmtSolver & solver,
           // add this term to the stack of terms to check for predicates
           to_visit.push_back(res);
         }
-      } else if (is_predicate(t, boolsort)) {
+      } else if (is_predicate(t, boolsort, include_symbols)) {
         out.insert(t);
       }
     }

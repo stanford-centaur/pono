@@ -34,9 +34,12 @@ bool is_lit(const smt::Term & l, const smt::Sort & boolsort);
  *  @param t the term to check
  *  @param boolsort a boolean sort from the corresponding solver
  *         this way sort aliasing solvers are still supported
+ *  @param include_symbols if true then counts literals as predicates
  *  @return true iff t is a predicate
  */
-bool is_predicate(const smt::Term & t, const smt::Sort & boolsort);
+bool is_predicate(const smt::Term & t,
+                  const smt::Sort & boolsort,
+                  bool include_symbols = false);
 
 /** returns all the free (not bound to a quantifier) symbols
  *  in a Term
