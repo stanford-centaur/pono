@@ -19,6 +19,7 @@
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ic3ia.h"
+#include "engines/ic3sa.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
@@ -33,7 +34,11 @@ using namespace std;
 
 namespace pono {
 
-vector<Engine> all_engines() { return { BMC, BMC_SP, KIND, INTERP, MBIC3 }; }
+vector<Engine> all_engines()
+{
+  return { BMC,   BMC_SP,       KIND,       INTERP,
+           MBIC3, IC3IA_ENGINE, MSAT_IC3IA, IC3SA_ENGINE };
+}
 
 shared_ptr<Prover> make_prover(Engine e,
                                Property & p,
@@ -68,6 +73,8 @@ shared_ptr<Prover> make_prover(Engine e,
   } else if (e == MSAT_IC3IA) {
     return make_shared<MsatIC3IA>(p, slv, opts);
 #endif
+  } else if (e == IC3SA_ENGINE) {
+    return make_shared<IC3SA>(p, slv, opts);
   } else {
     throw PonoException("Unhandled engine");
   }
