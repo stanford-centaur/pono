@@ -116,6 +116,7 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
 
 IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
 {
+  // TODO: use the JustifyCOI algorithm from the paper
   // compute cone-of-influence of target c
   fcoi_.compute_coi({ c.term });
   const UnorderedTermSet & coi_symbols = fcoi_.statevars_in_coi();
