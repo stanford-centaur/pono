@@ -178,6 +178,8 @@ void IC3SA::check_ts() const
 
 RefineResult IC3SA::refine()
 {
+  assert(solver_context_ == 0);
+
   // recover the counterexample trace
   assert(check_intersects_initial(cex_pg_->target.term));
   TermVec cex({ cex_pg_->target.term });
@@ -189,9 +191,49 @@ RefineResult IC3SA::refine()
   }
 
   size_t cex_length = cex.size();
+  assert(cex_length);
+  // TODO figure out correct action if cex_length == 1
+  if (cex_length == 1) {
+    // I suspect these will always be concrete, but need to double check
+    throw PonoException("Length one CEX not handled yet");
+  }
+
+  // set up initial substitution map
+  gen_inputvars_at_time(0);
+  UnorderedTermMap subst = inputvars_at_time_.at(0);
 
   Term p = ts_->init();
+  Term c = cex[0];
   Term formula;
+  Result r;
+  bool refined = false;
+  for (size_t i = 1; i < cex_length; ++i) {
+    formula = solver_->make_term(And, p, c);
+    formula = solver_->make_term(And, formula, ts_->trans());
+    formula = solver_->substitute(formula, subst);
+    formula = solver_->make_term(And, formula, ts_->next(cex[i]));
+
+    assert(solver_context_ == 0);
+    push_solver_context();
+
+    solver_->assert_formula(formula);
+    r = solver_->check_sat();
+    if (r.is_sat()) {
+      p = symbolic_post_image(i, subst, p, c);
+      c = cex[i];
+    } else {
+      refined = true;
+      throw PonoException("unsat refinement case not implemented yet");
+    }
+
+    pop_solver_context();
+  }
+
+  if (!refined) {
+    // concrete counterexample
+    return REFINE_NONE;
+  }
+
   // TODO loop up to cex_length
   //      with implicit unrolling
   //      need to understand how T is being used
