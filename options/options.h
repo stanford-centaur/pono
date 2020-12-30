@@ -64,6 +64,7 @@ class PonoOptions
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
         static_coi_(default_static_coi_),
+        show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
         ic3_pregen_(default_ic3_pregen_),
         ic3_indgen_(default_ic3_indgen_),
@@ -98,6 +99,7 @@ class PonoOptions
   std::string filename_;
   std::string smt_solver_; ///< underlying smt solver
   bool static_coi_;
+  bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
   // ic3 options
   bool ic3_pregen_;  ///< generalize counterexamples in IC3
@@ -124,6 +126,7 @@ class PonoOptions
   static const bool default_no_witness_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
   static const bool default_static_coi_ = false;
+  static const bool default_show_invar_ = false;
   static const bool default_check_invar_ = false;
   static const size_t default_reset_bnd_ = 1;
   static const std::string default_smt_solver_;
