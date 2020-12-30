@@ -26,14 +26,8 @@
 
 namespace pono {
 
-// forward declarations for friends
-class ArrayAbstractor;
-
 class TransitionSystem
 {
-  friend ArrayAbstractor;  // Abstractors need access to TransitionSystem
-                           // internals
-
  public:
   /** use CVC4 by default (doesn't require logging so pass false)
    *  it supports the most theories and doesn't rewrite-on-the-fly or alias
@@ -134,7 +128,7 @@ class TransitionSystem
    *   constrain_inputs
    * throws an exception if it has next states (should go in trans)
    */
-  void add_constraint(const smt::Term & constraint);
+  void add_constraint(const smt::Term & constraint, bool to_init = true);
 
   /* Gives a term a name
    *   This can be used to track particular values in a witness
@@ -207,6 +201,17 @@ class TransitionSystem
    */
   smt::Term lookup(std::string name) const;
 
+  /** Adds a state variable with the given next state
+   *  @param cv the current state variable
+   *  @param nv the next state variable
+   */
+  void add_statevar(const smt::Term & cv, const smt::Term & nv);
+
+  /** Adds an input variable
+   *  @param v the input variable
+   */
+  void add_inputvar(const smt::Term & v);
+
   // getters
   const smt::SmtSolver & solver() const { return solver_; };
 
@@ -274,6 +279,25 @@ class TransitionSystem
   /* Returns true iff all the symbols in the formula are inputs and current
    * states */
   bool no_next(const smt::Term & term) const;
+
+  /** EXPERTS ONLY
+   *  Drop the state update for these variables and rebuild the system
+   *  @param svs the state variables to drop updates for
+   */
+  void drop_state_updates(const smt::TermVec & svs);
+
+  /** EXPERTS ONLY
+   * Replace terms in the transition system with other terms
+   *  Traverses all the data structures and updates them with
+   *  the replacements
+   *  Recommended usage is for experts only. Use this feature
+   *    to cut out parts of the design by replacing terms with
+   *    fresh inputs. Then cone of influence reduction can remove
+   *    the unconnected parts of the transition system
+   *  @param to_replace a mapping from terms in the transition
+   *         system to their replacement.
+   */
+  void replace_terms(const smt::UnorderedTermMap & to_replace);
 
   // term building functionality -- forwards to the underlying SmtSolver
   // assumes all Terms/Sorts belong to solver_
@@ -475,17 +499,6 @@ class TransitionSystem
   typedef std::vector<const smt::UnorderedTermSet *> UnorderedTermSetPtrVec;
 
   // helpers and checkers
-
-  /** Adds a state variable
-   *  @param cv the current state variable
-   *  @param nv the next state variable
-   */
-  void add_statevar(const smt::Term & cv, const smt::Term & nv);
-
-  /** Adds an input variable
-   *  @param v the input variable
-   */
-  void add_inputvar(const smt::Term & v);
 
   /** Returns true iff all symbols in term are present in at least one of the
    * term sets

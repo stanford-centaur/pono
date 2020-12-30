@@ -4,7 +4,7 @@ project(pono)
 
 set(PONO_MAJOR 0)   # Major component of Pono version
 set(PONO_MINOR 1)   # Minor component of Pono version
-set(PONO_RELEASE 0) # Release component of Pono version
+set(PONO_RELEASE 1) # Release component of Pono version
 
 # handle different versions of CMake
 if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
@@ -140,24 +140,31 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/adaptive_unroller.cpp"
+  "${PROJECT_SOURCE_DIR}/core/functional_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3base.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3ia.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/engines/mbic3.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_node.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/implicit_predicate_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/history_modifier.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/prophecy_modifier.cpp"
-  "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/static_coi.cpp"
   "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${PROJECT_SOURCE_DIR}/refiners/array_axiom_enumerator.cpp"
   "${PROJECT_SOURCE_DIR}/smt/available_solvers.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/fcoi.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   "${PROJECT_SOURCE_DIR}/utils/make_provers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
@@ -175,7 +182,8 @@ endif()
 
 if (WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/ic3ia/")
+  # can't include ic3ia directly because some names clash e.g. ic3.h
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
@@ -189,8 +197,6 @@ target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 # Should we build python bindings
 option (BUILD_PYTHON_BINDINGS
    "Build Python bindings")
-option (USE_PYTHON2
-   "Use Python2 for bindings")
 
 if (BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
@@ -234,6 +240,7 @@ endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
+target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)

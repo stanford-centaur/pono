@@ -24,81 +24,34 @@
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 
+#include "smt/available_solvers.h"
+
 using namespace smt;
 using namespace std;
 
 namespace pono {
 
-CegProphecyArrays::CegProphecyArrays(Property & p, Engine e, smt::SolverEnum se)
-    : super(p, se),
-      conc_ts_(p.transition_system()),
-      solver_(conc_ts_.solver()),
-      abs_ts_(solver_),
-      e_(e),
-      abs_unroller_(abs_ts_, solver_),
-      aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_),
-      num_added_axioms_(0)
-{
-  initialize();
-}
-
 CegProphecyArrays::CegProphecyArrays(Property & p,
                                      Engine e,
-                                     const SmtSolver & solver)
-    : super(p, solver),
+                                     const SmtSolver & solver,
+                                     PonoOptions opt)
+    : super(p, solver, opt),
       conc_ts_(p.transition_system()),
       solver_(conc_ts_.solver()),
       abs_ts_(solver_),
       e_(e),
       abs_unroller_(abs_ts_, solver_),
       aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
+      aae_(aa_, abs_unroller_, p.prop(), options_.cegp_axiom_red_),
       pm_(abs_ts_),
       num_added_axioms_(0)
 {
-  initialize();
-}
-
-CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
-                                     Property & p,
-                                     Engine e,
-                                     smt::SolverEnum se)
-    : super(opt, p, se),
-      conc_ts_(p.transition_system()),
-      solver_(conc_ts_.solver()),
-      abs_ts_(solver_),
-      e_(e),
-      abs_unroller_(abs_ts_, solver_),
-      aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_),
-      num_added_axioms_(0)
-{
-  initialize();
-}
-
-CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
-                                     Property & p,
-                                     Engine e,
-                                     const smt::SmtSolver & solver)
-    : super(opt, p, solver),
-      conc_ts_(p.transition_system()),
-      solver_(conc_ts_.solver()),
-      abs_ts_(solver_),
-      abs_unroller_(abs_ts_, solver_),
-      e_(e),
-      aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_),
-      num_added_axioms_(0)
-{
-  initialize();
 }
 
 ProverResult CegProphecyArrays::prove()
 {
+  initialize();
+
   ProverResult res = ProverResult::FALSE;
   while (res == ProverResult::FALSE) {
     // Refine the system
@@ -117,8 +70,11 @@ ProverResult CegProphecyArrays::prove()
     // system
     // TODO: handle this in a better way
     opts.static_coi_ = false;
+
+    //TODO : think about making it use the same prover -- incrementally
+    SmtSolver s = create_solver(solver_->get_solver_enum());
     shared_ptr<Prover> prover =
-        make_prover(e_, latest_prop, solver_->get_solver_enum(), opts);
+      make_prover(e_, latest_prop, s, opts);
 
     res = prover->prove();
   }
@@ -128,6 +84,8 @@ ProverResult CegProphecyArrays::prove()
 
 ProverResult CegProphecyArrays::check_until(int k)
 {
+  initialize();
+
   ProverResult res = ProverResult::FALSE;
   while (res == ProverResult::FALSE && reached_k_ <= k) {
     // Refine the system
@@ -145,8 +103,10 @@ ProverResult CegProphecyArrays::check_until(int k)
     // system
     // TODO: handle this in a better way
     opts.static_coi_ = false;
+
+    SmtSolver s = create_solver(solver_->get_solver_enum());
     shared_ptr<Prover> prover =
-        make_prover(e_, latest_prop, solver_->get_solver_enum(), opts);
+        make_prover(e_, latest_prop, s, opts);
 
     res = prover->check_until(k);
   }
@@ -162,6 +122,8 @@ ProverResult CegProphecyArrays::check_until(int k)
 
 void CegProphecyArrays::initialize()
 {
+  super::initialize();
+
   abstract();
 
   bool contains_arrays = false;

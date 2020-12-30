@@ -37,6 +37,8 @@ cdef extern from "core/ts.h" namespace "pono":
         const c_TermVec & constraints() except +
         bint is_functional() except +
         bint is_deterministic() except +
+        void drop_state_updates(const c_TermVec & svs) except +
+        void replace_terms(const c_UnorderedTermMap & to_replace) except +
         c_Sort make_sort(const string name, uint64_t arity) except +
         c_Sort make_sort(const c_SortKind sk) except +
         c_Sort make_sort(const c_SortKind sk, uint64_t size) except +
@@ -116,9 +118,11 @@ cdef extern from "engines/interpolantmc.h" namespace "pono":
     cdef cppclass InterpolantMC(Prover):
         InterpolantMC(const Property & p, c_SmtSolver & s, c_SmtSolver & interpolator) except +
 
+
 cdef extern from "engines/mbic3.h" namespace "pono":
     cdef cppclass ModelBasedIC3(Prover):
         ModelBasedIC3(const Property & p, c_SmtSolver & solver) except +
+
 
 # WITH_MSAT_IC3IA is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
 IF WITH_MSAT_IC3IA == "ON":
@@ -143,6 +147,14 @@ IF WITH_COREIR == "ON":
             CoreIREncoder(string filename, RelationalTransitionSystem & ts) except +
             CoreIREncoder(Module * top_mod, RelationalTransitionSystem & ts) except +
 
+
+cdef extern from "modifiers/static_coi.h" namespace "pono":
+    cdef cppclass StaticConeOfInfluence:
+        StaticConeOfInfluence(TransitionSystem & ts,
+                        const c_TermVec & to_keep,
+                        int verbosity) except +
+
+
 cdef extern from "modifiers/history_modifier.h" namespace "pono":
     cdef cppclass HistoryModifier:
         HistoryModifier(TransitionSystem & ts) except +
@@ -157,6 +169,3 @@ cdef extern from "printers/vcd_witness_printer.h" namespace "pono":
 cdef extern from "utils/logger.h" namespace "pono":
     void set_global_logger_verbosity(unsigned int v) except +
 
-
-cdef extern from "utils/term_analysis.h" namespace "pono":
-    void get_free_symbols(const c_Term & term, c_UnorderedTermSet & out_symbols) except +

@@ -115,7 +115,7 @@ const unordered_map<Btor2Tag, smt::PrimOp> boolopmap({
     { BTOR2_TAG_xor, Xor },
     { BTOR2_TAG_not, Not },
     // { BTOR2_TAG_implies, Implies },
-    { BTOR2_TAG_iff, Iff },
+    { BTOR2_TAG_iff, Equal },
     // handling specially -- could have array arguments
     // { BTOR2_TAG_eq, Equal },
     //{ BTOR2_TAG_neq, Distinct }

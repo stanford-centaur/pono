@@ -20,7 +20,6 @@ Configures the CMAKE build environment.
 --with-coreir-extern    build the CoreIR frontend using an installation of coreir in /usr/local/lib (default: off)
 --debug                 build debug with debug symbols (default: off)
 --python                compile with python bindings (default: off)
---py2                   use python2 interpreter (default: python3)
 --static-lib            build a static library (default: shared)
 --static                build a static executable (default: dynamic); implies --static-lib
 --with-profiling        build with gperftools for profiling (default: off)
@@ -42,7 +41,6 @@ with_coreir=default
 with_coreir_extern=default
 debug=default
 python=default
-py2=default
 lib_type=SHARED
 static_exec=NO
 with_profiling=default
@@ -84,9 +82,6 @@ do
         --python)
             python=yes
             ;;
-        --py2)
-            py2=yes
-            ;;
         --static-lib)
             lib_type=STATIC
             ;;
@@ -119,9 +114,6 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $python != default ] \
     && cmake_opts="$cmake_opts -DBUILD_PYTHON_BINDINGS=ON"
-
-[ $py2 != default ] \
-    && cmake_opts="$cmake_opts -DUSE_PYTHON2=ON"
 
 [ $with_profiling != default ] \
     && cmake_opts="$cmake_opts -DWITH_PROFILING=$with_profiling"

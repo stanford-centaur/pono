@@ -17,6 +17,7 @@
 #include "engines/interpolantmc.h"
 
 #include "smt-switch/exceptions.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
@@ -25,53 +26,25 @@ using namespace smt;
 
 namespace pono {
 
-InterpolantMC::InterpolantMC(Property & p, SolverEnum se)
-    : super(p, se),
-      interpolator_(create_interpolating_solver(se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_)
-{
-  initialize();
-}
-
 InterpolantMC::InterpolantMC(Property & p,
                              const SmtSolver & slv,
-                             const SmtSolver & itp)
-    : super(p, slv),
+                             const SmtSolver & itp,
+                             PonoOptions opt)
+    : super(p, slv, opt),
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {
-  initialize();
-}
-
-InterpolantMC::InterpolantMC(const PonoOptions & opt,
-                             Property & p,
-                             SolverEnum se)
-    : super(opt, p, se),
-      interpolator_(create_interpolating_solver(se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_)
-{
-  initialize();
-}
-
-InterpolantMC::InterpolantMC(const PonoOptions & opt,
-                             Property & p,
-                             const SmtSolver & slv,
-                             const SmtSolver & itp)
-    : super(opt, p, slv),
-      interpolator_(itp),
-      to_interpolator_(itp),
-      to_solver_(slv)
-{
-  initialize();
 }
 
 InterpolantMC::~InterpolantMC() {}
 
 void InterpolantMC::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
 
   reset_assertions(interpolator_);
@@ -82,11 +55,11 @@ void InterpolantMC::initialize()
   // B)
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term tmp1;
-  for (auto s : ts_.statevars()) {
+  for (auto s : ts_->statevars()) {
     tmp1 = unroller_.at_time(s, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
-  for (auto i : ts_.inputvars()) {
+  for (auto i : ts_->inputvars()) {
     tmp1 = unroller_.at_time(i, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
@@ -94,8 +67,8 @@ void InterpolantMC::initialize()
   // need to copy over UF as well
   UnorderedTermSet free_symbols;
   get_free_symbols(bad_, free_symbols);
-  get_free_symbols(ts_.init(), free_symbols);
-  get_free_symbols(ts_.trans(), free_symbols);
+  get_free_symbols(ts_->init(), free_symbols);
+  get_free_symbols(ts_->trans(), free_symbols);
   for (auto s : free_symbols) {
     if (s->get_sort()->get_sort_kind() == FUNCTION) {
       cache[to_interpolator_.transfer_term(s)] = s;
@@ -103,14 +76,16 @@ void InterpolantMC::initialize()
   }
 
   concrete_cex_ = false;
-  init0_ = unroller_.at_time(ts_.init(), 0);
-  transA_ = unroller_.at_time(ts_.trans(), 0);
+  init0_ = unroller_.at_time(ts_->init(), 0);
+  transA_ = unroller_.at_time(ts_->trans(), 0);
   transB_ = solver_->make_term(true);
   bad_disjuncts_ = solver_->make_term(false);
 }
 
 ProverResult InterpolantMC::check_until(int k)
 {
+  initialize();
+
   try {
     for (int i = 0; i <= k; ++i) {
       if (step(i)) {
@@ -204,7 +179,8 @@ bool InterpolantMC::step(int i)
   // transB can't have any symbols from time 0 in it
   assert(i > 0);
   // extend the unrolling
-  transB_ = solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
+  transB_ =
+      solver_->make_term(And, transB_, unroller_.at_time(ts_->trans(), i));
   ++reached_k_;
 
   return false;

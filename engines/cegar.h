@@ -26,23 +26,12 @@ class CEGAR : public Prover
   typedef Prover super;
 
  public:
-  CEGAR(Property & p, smt::SolverEnum se) : super(p, se) { initialize(); }
-  CEGAR(Property & p, const smt::SmtSolver & solver) : super(p, solver)
+  CEGAR(Property & p, const smt::SmtSolver & solver,
+        PonoOptions opt = PonoOptions())
+    : super(p, solver)
   {
-    super::initialize();
   }
-  CEGAR(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-      : super(opt, p, se)
-  {
-    super::initialize();
-  }
-  CEGAR(const PonoOptions & opt,
-        Property & p,
-        const smt::SmtSolver & solver)
-      : super(opt, p, solver)
-  {
-    super::initialize();
-  }
+
   virtual ~CEGAR(){};
 
  protected:

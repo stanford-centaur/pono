@@ -3,7 +3,7 @@
 
 #include "core/fts.h"
 #include "core/rts.h"
-#include "engines/mbic3.h"
+#include "engines/ic3.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/ts_analysis.h"
@@ -21,9 +21,6 @@ class IC3UnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
-    s->set_opt("produce-unsat-cores", "true");
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
   }
@@ -48,12 +45,12 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
 
   Property p(rts, s->make_term(Not, s1));
 
-  ModelBasedIC3 mbic3(p, s);
-  ProverResult r = mbic3.prove();
+  IC3 ic3(p, s);
+  ProverResult r = ic3.prove();
   ASSERT_EQ(r, TRUE);
 
   // get the invariant
-  Term invar = mbic3.invar();
+  Term invar = ic3.invar();
   ASSERT_TRUE(check_invar(rts, p.prop(), invar));
 }
 
@@ -74,8 +71,8 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  ModelBasedIC3 mbic3(p, s);
-  ProverResult r = mbic3.prove();
+  IC3 ic3(p, s);
+  ProverResult r = ic3.prove();
   ASSERT_EQ(r, FALSE);
 }
 

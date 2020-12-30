@@ -18,18 +18,16 @@
 #pragma once
 
 #include "engines/prover.h"
-
-#include "ic3.h"
+#include "ic3ia/ic3.h"
 
 namespace pono {
 
 class MsatIC3IA : public Prover
 {
  public:
-  MsatIC3IA(Property & p, smt::SolverEnum se);
-  MsatIC3IA(Property & p, const smt::SmtSolver & solver);
-  MsatIC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  MsatIC3IA(const PonoOptions & opt, Property & p, const smt::SmtSolver & solver);
+  MsatIC3IA(Property & p,
+            const smt::SmtSolver & solver,
+            PonoOptions opt = PonoOptions());
 
   typedef Prover super;
 

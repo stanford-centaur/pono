@@ -20,32 +20,25 @@
 #include "assert.h"
 #include "smt-switch/msat_factory.h"
 #include "smt-switch/msat_solver.h"
+#include "smt-switch/utils.h"
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
 
-MsatIC3IA::MsatIC3IA(Property & p, smt::SolverEnum se) : super(p, se) {}
-
-MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver) : super(p, solver)
+MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver, PonoOptions opt)
+    : super(p, solver, opt)
 {
-  super::initialize();
-}
-
-MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-  : super(opt, p, se) {}
-
-MsatIC3IA::MsatIC3IA(const PonoOptions & opt, Property & p, const SmtSolver & solver)
-  : super(opt, p, solver)
-{
-  super::initialize();
 }
 
 ProverResult MsatIC3IA::prove()
 {
-  if (ts_.solver()->get_solver_enum() != MSAT) {
+  super::initialize();
+
+  if (ts_->solver()->get_solver_enum() != MSAT) {
     throw PonoException("MsatIC3IA only supports mathsat solver.");
   }
 
@@ -60,31 +53,45 @@ ProverResult MsatIC3IA::prove()
 
   // give mapping between symbols
   UnorderedTermMap & ts_solver_cache = to_ts_solver.get_cache();
-  for (auto v : ts_.statevars()) {
+  for (const auto &v : ts_->statevars()) {
     ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
-    ts_solver_cache[to_msat_solver.transfer_term(ts_.next(v))] = ts_.next(v);
+    ts_solver_cache[to_msat_solver.transfer_term(ts_->next(v))] = ts_->next(v);
   }
-  for (auto v : ts_.inputvars()) {
+  for (const auto &v : ts_->inputvars()) {
     ts_solver_cache[to_msat_solver.transfer_term(v)] = v;
+  }
+
+  // need to handle UFs also
+  UnorderedTermSet ufs;
+  auto is_uf = [](const Term & term) {
+    return term->get_sort()->get_sort_kind() == smt::FUNCTION;
+  };
+  get_matching_terms(ts_->init(), ufs, is_uf);
+  get_matching_terms(ts_->trans(), ufs, is_uf);
+  get_matching_terms(bad_, ufs, is_uf);
+
+  for (const auto &uf : ufs) {
+    assert(uf->get_sort()->get_sort_kind() == smt::FUNCTION);
+    ts_solver_cache[to_msat_solver.transfer_term(uf)] = uf;
   }
 
   // get mathsat terms for transition system
   msat_term msat_init =
-      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_.init()))
+      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_->init()))
           ->get_msat_term();
   msat_term msat_trans =
-      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_.trans()))
+      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_->trans()))
           ->get_msat_term();
   msat_term msat_prop = static_pointer_cast<MsatTerm>(
                             to_msat_solver.transfer_term(property_.prop()))
                             ->get_msat_term();
   unordered_map<msat_term, msat_term> msat_statevars;
-  for (auto sv : ts_.statevars()) {
+  for (const auto &sv : ts_->statevars()) {
     msat_statevars[static_pointer_cast<MsatTerm>(
                        to_msat_solver.transfer_term(sv))
                        ->get_msat_term()] =
         static_pointer_cast<MsatTerm>(
-            to_msat_solver.transfer_term(ts_.next(sv)))
+            to_msat_solver.transfer_term(ts_->next(sv)))
             ->get_msat_term();
   }
   // initialize the transition system
@@ -111,12 +118,11 @@ ProverResult MsatIC3IA::prove()
     vector<ic3ia::TermList> ic3ia_invar;
     ic3.witness(ic3ia_invar);
 
-    for (auto msat_clause : ic3ia_invar)
+    for (const auto &msat_clause : ic3ia_invar)
     {
       Term clause = solver_->make_term(false);
       assert(msat_clause.size());
-      for (msat_term l : msat_clause)
-      {
+      for (const msat_term & l : msat_clause) {
         clause = solver_->make_term(
             Or,
             clause,
@@ -147,6 +153,8 @@ bool MsatIC3IA::compute_witness(msat_env env,
   assert(solver_->get_solver_enum() == MSAT);
   solver_->reset_assertions();
 
+  Sort boolsort = solver_->make_sort(BOOL);
+
   vector<ic3ia::TermList> ic3ia_wit;
   ic3.witness(ic3ia_wit);
   assert(ic3ia_wit.size());
@@ -156,24 +164,23 @@ bool MsatIC3IA::compute_witness(msat_env env,
 
   // set up a BMC query
   // with state variables constrained at each step
-  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+  solver_->assert_formula(unroller_.at_time(ts_->init(), 0));
   // assert that bad_ is not null
   // i.e. this prover was correctly initialized
   assert(bad_);
   solver_->assert_formula(unroller_.at_time(bad_, ic3ia_wit.size() - 1));
   for (size_t i = 0; i < ic3ia_wit.size(); ++i) {
     if (i + 1 < ic3ia_wit.size()) {
-      solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
+      solver_->assert_formula(unroller_.at_time(ts_->trans(), i));
     }
 
-    for (auto msat_eq : ic3ia_wit[i]) {
+    for (const auto &msat_eq : ic3ia_wit[i]) {
       // create an smt-switch term for the equality
       Term eq = make_shared<MsatTerm>(env, msat_eq);
-      // either a boolean symbol or an equality
-      assert(eq->is_symbolic_const() && eq->get_sort()->get_sort_kind() == BOOL
-             || eq->get_op() == Equal);
-      solver_->assert_formula(
-          unroller_.at_time(to_ts_solver.transfer_term(eq), i));
+      Term solver_eq = to_ts_solver.transfer_term(eq);
+      // either a literal or an equality
+      assert(is_lit(solver_eq, boolsort) || solver_eq->get_op() == Equal);
+      solver_->assert_formula(unroller_.at_time(solver_eq, i));
     }
   }
 

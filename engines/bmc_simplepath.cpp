@@ -22,26 +22,9 @@ using namespace smt;
 
 namespace pono {
 
-BmcSimplePath::BmcSimplePath(Property & p, SolverEnum se) : super(p, se)
-{
-}
-
-BmcSimplePath::BmcSimplePath(Property & p, const SmtSolver & solver)
-    : super(p, solver)
-{
-}
-
-BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
-                             Property & p,
-                             SolverEnum se)
-    : super(opt, p, se)
-{
-}
-
-BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
-                             Property & p,
-                             const smt::SmtSolver & solver)
-    : super(opt, p, solver)
+BmcSimplePath::BmcSimplePath(Property & p, const SmtSolver & solver,
+                             PonoOptions opt)
+  : super(p, solver, opt)
 {
 }
 
@@ -49,6 +32,8 @@ BmcSimplePath::~BmcSimplePath() {}
 
 ProverResult BmcSimplePath::check_until(int k)
 {
+  initialize();
+
   for (int i = 0; i <= k; ++i) {
     logger.log(1, "Checking Bmc at bound: {}", i);
     if (!base_step(i)) {
@@ -71,11 +56,11 @@ bool BmcSimplePath::cover_step(int i)
 
   solver_->push();
   solver_->assert_formula(init0_);
-  Term not_init = solver_->make_term(PrimOp::Not, ts_.init());
+  Term not_init = solver_->make_term(PrimOp::Not, ts_->init());
   for (int j = 1; j <= i; ++j) {
     solver_->assert_formula(unroller_.at_time(not_init, j));
   }
-  if (ts_.statevars().size() && check_simple_path_lazy(i)) {
+  if (ts_->statevars().size() && check_simple_path_lazy(i)) {
     return true;
   }
   solver_->pop();

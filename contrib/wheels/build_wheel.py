@@ -61,7 +61,7 @@ class CMakeBuild(build_ext):
         # contrib folder
         contrib_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         # build smt-switch
-        contrib_smt_switch = os.path.join(contrib_path, "setup-smt-switch.sh")
+        contrib_smt_switch = [os.path.join(contrib_path, "setup-smt-switch.sh"), "--python"]
         subprocess.check_call(contrib_smt_switch)
         # build btor2
         contrib_btor2 = os.path.join(contrib_path, "setup-btor2tools.sh")
@@ -72,6 +72,9 @@ class CMakeBuild(build_ext):
         # build flex
         contrib_flex = os.path.join(contrib_path, "setup-flex.sh")
         subprocess.check_call(contrib_flex)
+        # build coreir
+        contrib_coreir = os.path.join(contrib_path, "setup-coreir.sh")
+        subprocess.check_call(contrib_coreir)
 
         # configure
         root_dir = os.path.dirname(contrib_path)
@@ -81,7 +84,7 @@ class CMakeBuild(build_ext):
         python_make_dir = os.path.join(build_dir, "python")
         if not os.path.isfile(os.path.join(python_make_dir, "Makefile")):
             configure_path = os.path.join(root_dir, "configure.sh")
-            configure_args = [configure_path, "--python"]
+            configure_args = [configure_path, "--python", "--with-coreir"]
             subprocess.check_call(configure_args, cwd=root_dir)
 
         # build the main library
@@ -104,13 +107,14 @@ class CMakeBuild(build_ext):
 
 setup(
     name='pono',
-    version='0.1.0',
+    version='0.1.1',
     author='Makai Mann',
     ext_modules=[CMakeExtension('pono')],
     cmdclass=dict(build_ext=CMakeBuild),
     long_description='python bindings for Pono (next generation of CoSA)',
     url='https://github.com/upscale-project/pono',
     license='BSD',
+    install_requires=['smt-switch'],
     tests_require=['pytest'],
     zip_safe=False,
 )

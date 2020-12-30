@@ -29,15 +29,18 @@ enum Engine
   KIND,
   INTERP,
   MBIC3,
+  IC3IA_ENGINE,
   MSAT_IC3IA
 };
 
-const std::unordered_map<std::string, Engine> str2engine({ { "bmc", BMC },
-                                                           { "bmc-sp", BMC_SP },
-                                                           { "ind", KIND },
-                                                           { "interp", INTERP },
-                                                           { "mbic3", MBIC3 },
-                                                           { "msat-ic3ia", MSAT_IC3IA }});
+const std::unordered_map<std::string, Engine> str2engine(
+    { { "bmc", BMC },
+      { "bmc-sp", BMC_SP },
+      { "ind", KIND },
+      { "interp", INTERP },
+      { "mbic3", MBIC3 },
+      { "ic3ia", IC3IA_ENGINE },
+      { "msat-ic3ia", MSAT_IC3IA } });
 
 /*************************************** Options class
  * ************************************************/
@@ -63,11 +66,13 @@ class PonoOptions
         ic3_pregen_(default_ic3_pregen_),
         ic3_indgen_(default_ic3_indgen_),
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
-        ic3_indgen_mode_(default_ic3_indgen_mode_),
+        ic3_reset_interval_(default_ic3_reset_interval_),
+        mbic3_indgen_mode(default_mbic3_indgen_mode),
         ic3_functional_preimage_(default_ic3_functional_preimage_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
         cegp_axiom_red_(default_cegp_axiom_red_),
-        profiling_log_filename_(default_profiling_log_filename_)
+        profiling_log_filename_(default_profiling_log_filename_),
+        mod_init_prop_(default_mod_init_prop_)
   {
   }
 
@@ -95,14 +100,17 @@ class PonoOptions
   // ic3 options
   bool ic3_pregen_;  ///< generalize counterexamples in IC3
   bool ic3_indgen_;  ///< inductive generalization in IC3
+  unsigned int ic3_reset_interval_;  ///< number of check sat calls before
+                                     ///< resetting. 0 means unbounded
   unsigned int ic3_gen_max_iter_; ///< max iterations in ic3 generalization. 0
                                   ///means unbounded
-  unsigned int ic3_indgen_mode_; ///< inductive generalization mode [0,2]
+  unsigned int mbic3_indgen_mode;  ///< inductive generalization mode [0,2]
   bool ic3_functional_preimage_; ///< functional preimage in IC3
   // ceg-prophecy-arrays options
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
   std::string profiling_log_filename_;
+  bool mod_init_prop_;  ///< replace init and prop with boolean state vars
 
  private:
   // Default options
@@ -119,11 +127,13 @@ class PonoOptions
   static const std::string default_smt_solver_;
   static const bool default_ic3_pregen_ = true;
   static const bool default_ic3_indgen_ = true;
+  static const unsigned int default_ic3_reset_interval_ = 5000;
   static const unsigned int default_ic3_gen_max_iter_ = 2;
-  static const unsigned int default_ic3_indgen_mode_ = 0;
+  static const unsigned int default_mbic3_indgen_mode = 0;
   static const bool default_ic3_functional_preimage_ = false;
   static const bool default_cegp_axiom_red_ = true;
   static const std::string default_profiling_log_filename_;
+  static const bool default_mod_init_prop_ = false;
 };
 
 }  // namespace pono
