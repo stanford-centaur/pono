@@ -65,7 +65,7 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
 // main IC3SA implementation
 
 IC3SA::IC3SA(Property & p, const smt::SmtSolver & solver, PonoOptions opt)
-    : super(p, solver, opt)
+    : super(p, solver, opt), fcoi_(*ts_, opt.verbosity_)
 {
 }
 
@@ -116,7 +116,36 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
 
 IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
 {
-  throw PonoException("IC3SA::generalize_predecessor NYI");
+  // compute cone-of-influence of target c
+  fcoi_.compute_coi({ c.term });
+  const UnorderedTermSet & coi_symbols = fcoi_.statevars_in_coi();
+  assert(coi_symbols.size() <= ts_->statevars().size());
+
+  TermVec cube_lits;
+
+  // first populate with predicates
+  UnorderedTermSet free_symbols;
+  for (const auto & p : predset_) {
+    free_symbols.clear();
+    get_free_symbolic_consts(p, free_symbols);
+    for (const auto & fv : free_symbols) {
+      if (coi_symbols.find(fv) != coi_symbols.end()) {
+        continue;
+      }
+    }
+
+    if (solver_->get_value(p) == solver_true_) {
+      cube_lits.push_back(p);
+    } else {
+      cube_lits.push_back(solver_->make_term(Not, p));
+    }
+  }
+
+  EquivalenceClasses ec = get_equivalence_classes_from_model(coi_symbols);
+  construct_partition(ec, cube_lits);
+  IC3Formula cube = ic3formula_conjunction(cube_lits);
+  assert(ic3formula_check_valid(cube));
+  return cube;
 }
 
 void IC3SA::check_ts() const

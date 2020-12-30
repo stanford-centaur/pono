@@ -25,6 +25,7 @@
 #pragma once
 
 #include "engines/ic3.h"
+#include "utils/fcoi.h"
 
 namespace pono {
 
@@ -50,6 +51,8 @@ class IC3SA : public IC3
   ///< stores all the current terms in the abstraction organized by sort
 
   smt::UnorderedTermSet vars_in_bad_;  ///< variables occurring in bad
+
+  FunctionalConeOfInfluence fcoi_;
 
   // virtual method implementations
 
