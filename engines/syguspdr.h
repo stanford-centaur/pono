@@ -103,6 +103,7 @@ class SygusPdr : public IC3Base
   syntax_analysis::VarTermManager sygus_term_manager_;
   std::unique_ptr<syntax_analysis::TermLearner> term_learner_;
   syntax_analysis::to_next_t to_next_func_;
+  CustomFunctionalTransitionSystem * custom_ts_;
   
 }; // class SygusPdr
 

@@ -51,10 +51,44 @@ unsigned SygusPdr::GetScore(const smt::Term & t) {
   return pos->second.score;
 }
 
+
 // ----------------------------------------------------------------
-// IC3 override
+// Constructor & Destructor
 // ----------------------------------------------------------------
 
+SygusPdr::SygusPdr(Property & p, SolverEnum se) : super(p, se),
+  partial_model_getter(solver_), custom_ts_(NULL)
+{
+  solver_->set_opt("produce-unsat-cores", "true");
+}
+
+SygusPdr::SygusPdr(Property & p, const SmtSolver & slv)
+    : super(p, slv),
+      partial_model_getter(solver_),
+      custom_ts_(NULL)
+{
+  solver_->set_opt("produce-unsat-cores", "true");
+}
+
+SygusPdr::SygusPdr(const PonoOptions & opt,
+                             Property & p,
+                             const SolverEnum se)
+    : super(opt, p, se),
+      partial_model_getter(solver_),
+      custom_ts_(NULL)
+{
+  solver_->set_opt("produce-unsat-cores", "true");
+}
+
+SygusPdr::SygusPdr(const PonoOptions & opt,
+                             Property & p,
+                             const SmtSolver & slv)
+    : super(opt, p, slv),
+      partial_model_getter(solver_),
+      custom_ts_(NULL)
+{
+  solver_->set_opt("produce-unsat-cores", "true");
+}
 
 // ----------------------------------------------------------------
 // destruct -- free the memory
@@ -67,7 +101,14 @@ SygusPdr::~SygusPdr() {
     if (partial2full.second)
       delete partial2full.second; // delete the full models
   }
+  if (custom_ts_)
+    delete custom_ts_;
 } // SygusPdr::~SygusPdr
+
+// ----------------------------------------------------------------
+// IC3 override
+// ----------------------------------------------------------------
+
 
 // init 
 void SygusPdr::initialize()
@@ -76,13 +117,18 @@ void SygusPdr::initialize()
   if (initialized_)
     return;
 
+  custom_ts_ = 
+    new CustomFunctionalTransitionSystem(orig_ts_, smt::TermTranslator( orig_ts_.solver()) );
+  ts_ = custom_ts_;
+  custom_ts_->make_nextvar_for_inputs();
+
   super::initialize();
   
   // initialize the caches  
   // extract the operators
   op_extract_ = std::make_unique<syntax_analysis::OpExtractor>();
-  op_extract_->WalkBFS(orig_ts_.init());
-  op_extract_->WalkBFS(orig_ts_.trans());
+  op_extract_->WalkBFS(custom_ts_->init());
+  op_extract_->WalkBFS(custom_ts_->trans());
   op_extract_->GetSyntaxConstruct().RemoveConcat();
   op_extract_->GetSyntaxConstruct().RemoveExtract();
   op_extract_->GetSyntaxConstruct().AndOrConvert();
@@ -95,14 +141,14 @@ void SygusPdr::initialize()
 
   { // 1. register terms to find exprs
     // 2. extract parent from the same terms
-    for (auto && v_nxtexpr_pair : orig_ts_ .state_updates()) {
+    for (auto && v_nxtexpr_pair : custom_ts_->state_updates()) {
       sygus_term_manager_.RegisterTermsToWalk(v_nxtexpr_pair.second);
       parent_of_terms_.WalkBFS(v_nxtexpr_pair.second);
     }
-    sygus_term_manager_.RegisterTermsToWalk(orig_ts_.init());
-    parent_of_terms_.WalkBFS(orig_ts_.init());
+    sygus_term_manager_.RegisterTermsToWalk(custom_ts_->init());
+    parent_of_terms_.WalkBFS(custom_ts_->init());
 
-    for (const auto & c : orig_ts_.constraints()) {
+    for (const auto & c : custom_ts_->constraints()) {
       sygus_term_manager_.RegisterTermsToWalk(c);
       parent_of_terms_.WalkBFS(c);
     }
@@ -113,19 +159,18 @@ void SygusPdr::initialize()
 
   // cache two lambda functions for sygus enum
   to_next_func_ = [&] (const smt::Term & v) -> smt::Term {
-    return orig_ts_.next(v);
+    return custom_ts_->next(v);
   };
 
   { // now create TermLearner
     term_learner_.reset(new syntax_analysis::TermLearner(
-      orig_ts_.trans(), to_next_func_, solver_, 
+      custom_ts_->trans(), to_next_func_, solver_, 
       parent_of_terms_
     ));
   }
-  
-  #error "create CustomFunctionalTransitionSystem"
 
-}
+
+} // initialize
 
 
 void SygusPdr::check_ts() const
@@ -146,7 +191,9 @@ void SygusPdr::check_ts() const
       }
     }
   }
-}
+} // check_ts
+
+
 
 }  // namespace pono
 
