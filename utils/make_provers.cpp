@@ -36,8 +36,9 @@ namespace pono {
 
 vector<Engine> all_engines()
 {
-  return { BMC,   BMC_SP,       KIND,       INTERP,
-           MBIC3, IC3IA_ENGINE, MSAT_IC3IA, IC3SA_ENGINE };
+  return {
+    BMC, BMC_SP, KIND, INTERP, MBIC3, IC3IA_ENGINE,
+  };
 }
 
 shared_ptr<Prover> make_prover(Engine e,
