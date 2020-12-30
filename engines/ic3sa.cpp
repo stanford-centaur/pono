@@ -296,6 +296,7 @@ void IC3SA::initialize()
 
 Term IC3SA::symbolic_post_image(size_t i, const Term & p, const Term & c)
 {
+  assert(i >= 1);
   gen_inputvars_at_time(i);
   Term post_image = solver_->make_term(And, p, c);
 
@@ -304,17 +305,26 @@ Term IC3SA::symbolic_post_image(size_t i, const Term & p, const Term & c)
   // TODO cache which state updates contain ITEs
   //      and don't even run on the ones which don't
 
+  UnorderedTermMap prev_subst = inputvars_at_time_.at(i - 1);
   // need to copy here, because this substitution
   // is only for this particular model
   UnorderedTermMap subst = inputvars_at_time_.at(i);
   const UnorderedTermMap & state_updates = ts_->state_updates();
+  TermVec svs;
+  TermVec sv_updates;
   for (const auto & sv : ts_->statevars()) {
     if (state_updates.find(sv) != state_updates.end()) {
-      // TODO: consider traversing multiple at once to make use of
-      //       the same cache
-      subst[sv] = remove_ites_under_model(solver_, state_updates.at(sv));
+      svs.push_back(sv);
+      sv_updates.push_back(state_updates.at(sv));
     }
   }
+
+  TermVec replaced_ites = remove_ites_under_model(solver_, sv_updates);
+  assert(replaced_ites.size() == svs.size());
+  for (size_t i = 0; i < svs.size(); ++i) {
+    subst[svs[i]] = replaced_ites[i];
+  }
+
   return solver_->substitute(post_image, subst);
 }
 

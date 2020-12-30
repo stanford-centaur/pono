@@ -270,13 +270,12 @@ void get_predicates(const SmtSolver & solver,
   }
 }
 
-Term remove_ites_under_model(const SmtSolver & solver, const Term & term)
+TermVec remove_ites_under_model(const SmtSolver & solver, const TermVec & terms)
 {
-  TermVec to_visit({ term });
   UnorderedTermSet visited;
-
   UnorderedTermMap cache;
 
+  TermVec to_visit = terms;
   Term solver_true = solver->make_term(true);
   Term t;
   while (to_visit.size()) {
@@ -325,7 +324,12 @@ Term remove_ites_under_model(const SmtSolver & solver, const Term & term)
     }
   }
 
-  return cache.at(term);
+  TermVec res;
+  res.reserve(terms.size());
+  for (const auto & tt : terms) {
+    res.push_back(cache.at(tt));
+  }
+  return res;
 }
 
 }  // namespace pono

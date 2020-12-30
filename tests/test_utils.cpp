@@ -186,7 +186,9 @@ TEST_P(UtilsUnitTests, RemoveItes)
   Result r = s->check_sat();
   EXPECT_TRUE(r.is_sat());
 
-  Term symbolic_return_val = remove_ites_under_model(s, top);
+  TermVec replaced = remove_ites_under_model(s, { top });
+  ASSERT_EQ(replaced.size(), 1);
+  Term symbolic_return_val = replaced[0];
   EXPECT_FALSE(symbolic_return_val->is_value());
   EXPECT_EQ(s->get_value(top), s->get_value(symbolic_return_val));
 

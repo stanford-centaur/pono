@@ -63,16 +63,17 @@ void get_predicates(const smt::SmtSolver & solver,
                     smt::UnorderedTermSet & out,
                     bool include_symbols = false);
 
-/** Traverses the term structure replacing any ITEs with
+/** Traverses the terms and replaces any ITEs with
  *  their return value under the current model
  *  @requires state of solver is SAT (no push/pop since last SAT call)
  *  @param solver the solver associated with this term
  *         where the last call to check_sat was SAT
- *  @param term the term to replace ITEs in
- *  @return the symbolic return value of the ITE
- *          under the current model
+ *  @param terms the terms to replace ITEs in
+ *  @return the terms in the same order with ITEs replaced by
+ *          their symbolic return value under the model
+ *
  */
-smt::Term remove_ites_under_model(const smt::SmtSolver & solver,
-                                  const smt::Term & term);
+smt::TermVec remove_ites_under_model(const smt::SmtSolver & solver,
+                                     const smt::TermVec & terms);
 
 }  // namespace pono
