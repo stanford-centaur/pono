@@ -77,6 +77,8 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
     Sort sort = term->get_sort();
 
     if (is_predicate(term, boolsort_)) {
+      // TODO: consider handling ITEs here
+      //       will still show up in predicates instead of being expanded
       predicates_.insert(term);
     } else if ((exclude_bools_ && sort == boolsort_)
                || (exclude_funs_ && sort->get_sort_kind() == FUNCTION)
