@@ -133,9 +133,9 @@ void IC3IA::initialize()
   // add all the predicates from init and property to the abstraction
   // NOTE: abstract is called automatically in IC3Base initialize
   UnorderedTermSet preds;
-  get_predicates(solver_, ts_->init(), preds, false);
+  get_predicates(solver_, ts_->init(), preds, true);
   size_t num_init_preds = preds.size();
-  get_predicates(solver_, bad_, preds, false);
+  get_predicates(solver_, bad_, preds, true);
   size_t num_prop_preds = preds.size() - num_init_preds;
   for (const auto &p : preds) {
     add_predicate(p);

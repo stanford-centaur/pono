@@ -128,7 +128,7 @@ class TransitionSystem
    *   constrain_inputs
    * throws an exception if it has next states (should go in trans)
    */
-  void add_constraint(const smt::Term & constraint);
+  void add_constraint(const smt::Term & constraint, bool to_init = true);
 
   /* Gives a term a name
    *   This can be used to track particular values in a witness
