@@ -112,7 +112,9 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
   // check that children are literals
   Op op;
   for (auto c : u.children) {
-    if (!is_eq_lit(c, boolsort)) {
+    if (!is_eq_lit(c, boolsort) &&
+        !is_lit(c, boolsort) &&
+        !is_predicate(c, boolsort, true)) {
       return false;
     }
   }
