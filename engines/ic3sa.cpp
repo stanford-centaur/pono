@@ -176,14 +176,29 @@ void IC3SA::check_ts() const
 
 RefineResult IC3SA::refine()
 {
+  // recover the counterexample trace
+  assert(check_intersects_initial(cex_pg_->target.term));
+  TermVec cex({ cex_pg_->target.term });
+  const ProofGoal * tmp = cex_pg_;
+  while (tmp->next) {
+    tmp = tmp->next;
+    cex.push_back(tmp->target.term);
+    assert(conc_ts_.only_curr(tmp->target.term));
+  }
+
+  size_t cex_length = cex.size();
+
   // TODO use functional unroller incrementally
   // until the query becomes unsat
   // then add terms to term abstraction
   // (after substituting for inputs) and untiming
+  // NOTE: might be easier to not use functional unroller actually
+  //       need symbolic post-image *under current model*
   // TODO maybe have option for functional unroller
   // to not use @0 if never using other state variables
   // TODO figure out if we should project
   //      / how we limit the number of added terms
+  // TODO get minimal unsat core
   throw PonoException("IC3SA::refine NYI");
 }
 
