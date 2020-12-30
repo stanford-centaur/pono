@@ -76,14 +76,12 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
   if (preorder_) {
     Sort sort = term->get_sort();
 
-    if ((exclude_bools_ && sort == boolsort_)
-        || (exclude_funs_ && sort->get_sort_kind() == FUNCTION)
-        || (exclude_ites_ && term->get_op() == Ite)) {
-      return Walker_Continue;
-    }
-
     if (is_predicate(term, boolsort_)) {
       predicates_.insert(term);
+    } else if ((exclude_bools_ && sort == boolsort_)
+               || (exclude_funs_ && sort->get_sort_kind() == FUNCTION)
+               || (exclude_ites_ && term->get_op() == Ite)) {
+      return Walker_Continue;
     } else {
       subterms_[sort].insert(term);
     }
