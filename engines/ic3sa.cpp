@@ -294,32 +294,41 @@ void IC3SA::initialize()
 
 // IC3SA specific methods
 
-Term IC3SA::symbolic_post_image(size_t i, const Term & p, const Term & c)
+Term IC3SA::symbolic_post_image(size_t i,
+                                UnorderedTermMap & subst,
+                                const Term & p,
+                                const Term & c)
 {
-  assert(i >= 1);
-  gen_inputvars_at_time(i);
-  Term post_image = solver_->make_term(And, p, c);
-
   // TODO use partial_model to handle boolean structure
   //      for now just keeping full boolean structure
   // TODO cache which state updates contain ITEs
   //      and don't even run on the ones which don't
 
-  UnorderedTermMap prev_subst = inputvars_at_time_.at(i - 1);
-  // need to copy here, because this substitution
-  // is only for this particular model
-  UnorderedTermMap subst = inputvars_at_time_.at(i);
+  assert(i >= 1);
+  Term post_image = solver_->make_term(And, p, c);
+
+  gen_inputvars_at_time(i);
+  // update input variables with latest time
+  for (const auto & elem : inputvars_at_time_.at(i)) {
+    subst[elem.first] = elem.second;
+  }
+
   const UnorderedTermMap & state_updates = ts_->state_updates();
   TermVec svs;
-  TermVec sv_updates;
+  TermVec subst_updates;
   for (const auto & sv : ts_->statevars()) {
     if (state_updates.find(sv) != state_updates.end()) {
       svs.push_back(sv);
-      sv_updates.push_back(state_updates.at(sv));
+      // NOTE: creating a fresh map with only the relevant substitution
+      //       for performance purposes -- otherwise smt-switch has
+      //       has to unpack every element of the mapping into
+      //       the underlying solver objects
+      subst_updates.push_back(
+          solver_->substitute(subst.at(sv), { { sv, state_updates.at(sv) } }));
     }
   }
 
-  TermVec replaced_ites = remove_ites_under_model(solver_, sv_updates);
+  TermVec replaced_ites = remove_ites_under_model(solver_, subst_updates);
   assert(replaced_ites.size() == svs.size());
   for (size_t i = 0; i < svs.size(); ++i) {
     subst[svs[i]] = replaced_ites[i];

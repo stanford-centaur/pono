@@ -85,10 +85,12 @@ class IC3SA : public IC3
    *  pi /\ ci under the current model
    *  @requires current solver_ state is SAT
    *  @param pi post-image computation of initial states at step i
+   *  @param subst the substitution map to use and update
    *  @param ci the cube from a counterexample at step i
    *  @return the symbolic post image given the current model at step i+1
    */
   smt::Term symbolic_post_image(size_t i,
+                                smt::UnorderedTermMap & subst,
                                 const smt::Term & p,
                                 const smt::Term & c);
 
