@@ -498,4 +498,18 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
   }
 }
 
+void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const
+{
+  cout << "======== beginning of equivalence classes debug printing" << endl;
+  for (const auto & elem : ec) {
+    for (const auto & elem2 : elem.second) {
+      cout << elem2.first << " : " << elem.first << endl;
+      for (const auto & term : elem2.second) {
+        cout << "\t" << term << endl;
+      }
+    }
+  }
+  cout << "======== end of equivalence classes debug printing" << endl;
+}
+
 }  // namespace pono

@@ -141,6 +141,9 @@ class IC3SA : public IC3
     }
     return in_projection;
   }
+
+  // debug methods
+  void debug_print_equivalence_classes(EquivalenceClasses ec) const;
 };
 
 }  // namespace pono
