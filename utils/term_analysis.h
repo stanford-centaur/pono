@@ -30,6 +30,14 @@ namespace pono {
  */
 bool is_lit(const smt::Term & l, const smt::Sort & boolsort);
 
+/** returns true iff t is a predicate
+ *  @param t the term to check
+ *  @param boolsort a boolean sort from the corresponding solver
+ *         this way sort aliasing solvers are still supported
+ *  @return true iff t is a predicate
+ */
+bool is_predicate(const smt::Term & t, const smt::Sort & boolsort);
+
 /** returns all the free (not bound to a quantifier) symbols
  *  in a Term
  *  Note: includes uninterpreted functions

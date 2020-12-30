@@ -20,7 +20,7 @@
 #include <climits>
 #include <functional>
 
-#include "modifiers/coi.h"
+#include "modifiers/static_coi.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 
@@ -29,37 +29,10 @@ using namespace std;
 
 namespace pono {
 
-Prover::Prover(Property & p, smt::SolverEnum se)
-    : Prover(p, create_solver(se))
-{
-  solver_->set_opt("incremental", "true");
-  solver_->set_opt("produce-models", "true");
-}
-
-Prover::Prover(Property & p, const smt::SmtSolver & s)
+Prover::Prover(Property & p, const smt::SmtSolver & s, PonoOptions opt)
     : initialized_(false),
       solver_(s),
       to_prover_solver_(s),
-      property_(p, to_prover_solver_),
-      ts_(&property_.transition_system()),
-      orig_ts_(p.transition_system()),
-      unroller_(*ts_, solver_)
-{
-}
-
-Prover::Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-    : Prover(opt, p, create_solver(se))
-{
-  solver_->set_opt("incremental", "true");
-  solver_->set_opt("produce-models", "true");
-}
-
-Prover::Prover(const PonoOptions & opt,
-               Property & p,
-               const smt::SmtSolver & s)
-    : initialized_(false),
-      solver_(s),
-      to_prover_solver_(solver_),
       property_(p, to_prover_solver_),
       ts_(&property_.transition_system()),
       orig_ts_(p.transition_system()),

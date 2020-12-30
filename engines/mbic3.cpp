@@ -67,29 +67,9 @@ static void split_eq(SmtSolver & solver, const TermVec & in, TermVec & out)
   }
 }
 
-ModelBasedIC3::ModelBasedIC3(Property & p, SolverEnum se) : super(p, se)
-{
-  solver_->set_opt("produce-unsat-cores", "true");
-}
-
-ModelBasedIC3::ModelBasedIC3(Property & p, const SmtSolver & slv)
-    : super(p, slv)
-{
-  solver_->set_opt("produce-unsat-cores", "true");
-}
-
-ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
-                             Property & p,
-                             const SolverEnum se)
-    : super(opt, p, se)
-{
-  solver_->set_opt("produce-unsat-cores", "true");
-}
-
-ModelBasedIC3::ModelBasedIC3(const PonoOptions & opt,
-                             Property & p,
-                             const SmtSolver & slv)
-    : super(opt, p, slv)
+ModelBasedIC3::ModelBasedIC3(Property & p, const SmtSolver & slv,
+                             PonoOptions opt)
+  : super(p, slv, opt)
 {
   solver_->set_opt("produce-unsat-cores", "true");
 }

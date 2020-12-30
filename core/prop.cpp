@@ -26,7 +26,8 @@ using namespace smt;
 
 namespace pono {
 
-Property::Property(TransitionSystem & ts, const Term & p, std::string name)
+Property::Property(const TransitionSystem & ts, const Term & p,
+                   std::string name)
   : ts_(ts), prop_(p), name_(name)
 {
   // find a name if it wasn't provided

@@ -22,8 +22,6 @@ class ControlUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("produce-models", "true");
-    s->set_opt("incremental", "true");
     boolsort = s->make_sort(BOOL);
     bvsort1 = s->make_sort(BV, 1);
     bvsort8 = s->make_sort(BV, 8);
@@ -59,7 +57,9 @@ TEST_P(ControlUnitTests, SimpleReset)
   Property p(fts, p_true_term);
   // need to use a fresh solver to check the property again
   // pass the SolverEnum to use the same type of solver
-  Bmc bmc(p, s->get_solver_enum());
+  SmtSolver ns = create_solver(s->get_solver_enum());
+
+  Bmc bmc(p, ns);
   r = bmc.check_until(10);
   EXPECT_EQ(r,
             ProverResult::UNKNOWN);  // bmc can't prove, will only say unknown
@@ -106,7 +106,9 @@ TEST_P(ControlUnitTests, SimpleClock)
   Property p(rts, p_term);
   // need to use a fresh solver to check the property again
   // pass the SolverEnum to use the same type of solver
-  Bmc bmc(p, s->get_solver_enum());
+  SmtSolver ns = create_solver(s->get_solver_enum());
+
+  Bmc bmc(p, ns);
   r = bmc.check_until(10);
   EXPECT_EQ(r,
             ProverResult::UNKNOWN);  // bmc can't prove, will only say unknown

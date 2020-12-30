@@ -27,7 +27,7 @@ IF WITH_COREIR == "ON":
     from pono_imp cimport Module as c_Module
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
 from pono_imp cimport HistoryModifier as c_HistoryModifier
-from pono_imp cimport ConeOfInfluence as c_ConeOfInfluence
+from pono_imp cimport StaticConeOfInfluence as c_StaticConeOfInfluence
 from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 
@@ -512,7 +512,7 @@ cdef class HistoryModifier:
         term.ct = dref(self.chm).get_hist(target.ct, delay)
         return term
 
-def coi_reduction(__AbstractTransitionSystem ts, to_keep, to_remove=[], verbosity=1):
+def coi_reduction(__AbstractTransitionSystem ts, to_keep, verbosity=1):
     '''
 
     ts - a transition system
@@ -524,14 +524,11 @@ def coi_reduction(__AbstractTransitionSystem ts, to_keep, to_remove=[], verbosit
 
     '''
     cdef vector[c_Term] c_to_keep
-    cdef vector[c_Term] c_to_remove
     for t in to_keep:
         c_to_keep.push_back((<Term?> t).ct)
-    for t in to_remove:
-        c_to_remove.push_back((<Term?> t).ct)
 
     assert len(to_keep) == c_to_keep.size()
-    c_ConeOfInfluence(dref(ts.cts), c_to_keep, c_to_remove, verbosity)
+    c_StaticConeOfInfluence(dref(ts.cts), c_to_keep, verbosity)
 
 cdef class VCDWitnessPrinter:
     cdef c_VCDWitnessPrinter * cvwp

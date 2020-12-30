@@ -33,18 +33,10 @@ class CegProphecyArrays : public CEGAR
   typedef CEGAR super;
 
  public:
-  CegProphecyArrays(Property & p, Engine e, smt::SolverEnum se);
   CegProphecyArrays(Property & p,
                     Engine e,
-                    const smt::SmtSolver & solver);
-  CegProphecyArrays(const PonoOptions & opt,
-                    Property & p,
-                    Engine e,
-                    smt::SolverEnum se);
-  CegProphecyArrays(const PonoOptions & opt,
-                    Property & p,
-                    Engine e,
-                    const smt::SmtSolver & solver);
+                    const smt::SmtSolver & solver,
+                    PonoOptions opt = PonoOptions());
 
   // HACK override prove so that it calls prove
   // in the underlying model checker instead of check_until

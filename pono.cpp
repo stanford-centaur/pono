@@ -31,8 +31,9 @@
 #include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
-#include "modifiers/coi.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/mod_init_prop.h"
+#include "modifiers/static_coi.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
@@ -66,7 +67,7 @@ ProverResult check_prop(PonoOptions pono_options,
   if (pono_options.ceg_prophecy_arrays_) {
     // don't instantiate the sub-prover directly
     // just pass the engine to CegProphecyArrays
-    prover = std::make_shared<CegProphecyArrays>(pono_options, p, eng, s);
+    prover = std::make_shared<CegProphecyArrays>(p, eng, s, pono_options);
   } else if (eng != INTERP) {
     assert(!second_solver);
     prover = make_prover(eng, p, s, pono_options);
@@ -214,12 +215,24 @@ int main(int argc, char ** argv)
       s->set_opt("incremental", "true");
     }
 
-    if (pono_options.static_coi_ && !pono_options.no_witness_) {
-      logger.log(
-          0,
-          "Warning: disabling witness production. Temporary restriction -- "
-          "Cannot produce witness with option --static-coi");
-      pono_options.no_witness_ = true;
+    // limitations with COI
+    if (pono_options.static_coi_) {
+      if (!pono_options.no_witness_) {
+        logger.log(
+            0,
+            "Warning: disabling witness production. Temporary restriction -- "
+            "Cannot produce witness with option --static-coi");
+        pono_options.no_witness_ = true;
+      }
+      if (pono_options.mod_init_prop_) {
+        // Issue explained here:
+        // https://github.com/upscale-project/pono/pull/160 will be resolved
+        // once state variables removed by COI are removed from init then should
+        // do static-coi BEFORE mod-init-prop
+        logger.log(0,
+                   "Warning: --mod-init-prop and --static-coi don't work "
+                   "well together currently.");
+      }
     }
 
     // TODO: make this less ugly, just need to keep it in scope if using
@@ -263,11 +276,15 @@ int main(int argc, char ** argv)
         prop = fts.solver()->make_term(Implies, reset_done, prop);
       }
 
+      if (pono_options.mod_init_prop_) {
+        prop = modify_init_and_prop(fts, prop);
+      }
+
       if (pono_options.static_coi_) {
         /* Compute the set of state/input variables related to the
            bad-state property. Based on that information, rebuild the
            transition relation of the transition system. */
-        ConeOfInfluence coi(fts, { prop }, {}, pono_options.verbosity_);
+        StaticConeOfInfluence coi(fts, { prop }, pono_options.verbosity_);
       }
 
       vector<UnorderedTermMap> cex;
@@ -322,14 +339,18 @@ int main(int argc, char ** argv)
         prop = rts.solver()->make_term(Implies, reset_done, prop);
       }
 
+      if (pono_options.mod_init_prop_) {
+        prop = modify_init_and_prop(rts, prop);
+      }
+
       if (pono_options.static_coi_) {
         // NOTE: currently only supports FunctionalTransitionSystem
-        // but let ConeOfInfluence throw the exception
+        // but let StaticConeOfInfluence throw the exception
         // and this will change in the future
         /* Compute the set of state/input variables related to the
            bad-state property. Based on that information, rebuild the
            transition relation of the transition system. */
-        ConeOfInfluence coi(rts, { prop }, {}, pono_options.verbosity_);
+        StaticConeOfInfluence coi(rts, { prop }, pono_options.verbosity_);
       }
 
       Property p(rts, prop);
