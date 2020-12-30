@@ -34,36 +34,6 @@ using namespace std;
 
 namespace pono {
 
-bool is_eq_lit(const Term & t, const Sort & boolsort)
-{
-  if (t->get_sort() != boolsort)
-  {
-    return false;
-  }
-
-  if (t->is_symbolic_const())
-  {
-    // boolean symbol doesn't need an op
-    return true;
-  }
-
-  Op op = t->get_op();
-  assert(!op.is_null());
-
-  // also include BVNot for boolector
-  if (op == Not || op == BVNot)
-  {
-    op = (*(t->begin()))->get_op();
-  }
-
-  if (op != Equal && op != Distinct && op != BVComp)
-  {
-    return false;
-  }
-
-  return true;
-}
-
 // main IC3SA implementation
 
 IC3SA::IC3SA(Property & p, const smt::SmtSolver & solver, PonoOptions opt)
@@ -113,9 +83,20 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
   // check that children are literals
   Op op;
   for (auto c : u.children) {
-    if (!is_eq_lit(c, boolsort) &&
-        !is_lit(c, boolsort) &&
-        !is_predicate(c, boolsort, true)) {
+    op = c->get_op();
+
+    if (c->get_sort() != boolsort) {
+      return false;
+    }
+
+    // include bvnot for boolector
+    if (op == Not || op == BVNot) {
+      c = smart_not(c);
+    }
+
+    // an equality is a predicate, so we just need to check
+    // is_predicate, not specifically for equalities
+    if (!is_predicate(c, boolsort, true)) {
       return false;
     }
   }
