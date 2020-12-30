@@ -32,6 +32,7 @@
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/mod_init_prop.h"
 #include "modifiers/static_coi.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
@@ -214,12 +215,24 @@ int main(int argc, char ** argv)
       s->set_opt("incremental", "true");
     }
 
-    if (pono_options.static_coi_ && !pono_options.no_witness_) {
-      logger.log(
-          0,
-          "Warning: disabling witness production. Temporary restriction -- "
-          "Cannot produce witness with option --static-coi");
-      pono_options.no_witness_ = true;
+    // limitations with COI
+    if (pono_options.static_coi_) {
+      if (!pono_options.no_witness_) {
+        logger.log(
+            0,
+            "Warning: disabling witness production. Temporary restriction -- "
+            "Cannot produce witness with option --static-coi");
+        pono_options.no_witness_ = true;
+      }
+      if (pono_options.mod_init_prop_) {
+        // Issue explained here:
+        // https://github.com/upscale-project/pono/pull/160 will be resolved
+        // once state variables removed by COI are removed from init then should
+        // do static-coi BEFORE mod-init-prop
+        logger.log(0,
+                   "Warning: --mod-init-prop and --static-coi don't work "
+                   "well together currently.");
+      }
     }
 
     // TODO: make this less ugly, just need to keep it in scope if using
@@ -261,6 +274,10 @@ int main(int argc, char ** argv)
             add_reset_seq(fts, reset_symbol, pono_options.reset_bnd_);
         // guard the property with reset_done
         prop = fts.solver()->make_term(Implies, reset_done, prop);
+      }
+
+      if (pono_options.mod_init_prop_) {
+        prop = modify_init_and_prop(fts, prop);
       }
 
       if (pono_options.static_coi_) {
@@ -320,6 +337,10 @@ int main(int argc, char ** argv)
             add_reset_seq(rts, reset_symbol, pono_options.reset_bnd_);
         // guard the property with reset_done
         prop = rts.solver()->make_term(Implies, reset_done, prop);
+      }
+
+      if (pono_options.mod_init_prop_) {
+        prop = modify_init_and_prop(rts, prop);
       }
 
       if (pono_options.static_coi_) {
