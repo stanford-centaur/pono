@@ -66,7 +66,7 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
 // main IC3SA implementation
 
 IC3SA::IC3SA(Property & p, const smt::SmtSolver & solver, PonoOptions opt)
-    : super(p, solver, opt), fcoi_(*ts_, opt.verbosity_)
+    : super(p, solver, opt), fcoi_(*ts_, 0)
 {
 }
 
