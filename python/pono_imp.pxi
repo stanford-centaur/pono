@@ -53,6 +53,7 @@ ctypedef const unordered_map[c_Term, c_Term]* const_UnorderedTermMapPtr
 ctypedef unordered_map[c_Term, c_Term].const_iterator c_UnorderedTermMap_const_iterator
 
 cdef class __AbstractTransitionSystem:
+    # this pointer is allocated and deallocated by derived classes
     cdef c_TransitionSystem* cts
     cdef SmtSolver _solver
     def __cinit__(self, SmtSolver s):
@@ -391,6 +392,7 @@ cdef class Unroller:
 
 
 cdef class __AbstractProver:
+    # this pointer is allocated and deallocated by derived classes
     cdef c_Prover* cp
     cdef Property _property
     cdef SmtSolver _solver
@@ -500,6 +502,9 @@ IF WITH_MSAT_IC3IA == "ON":
         def __cinit__(self, Property p, SmtSolver s):
             self.cp = new c_MsatIC3IA(p.cp[0], s.css)
             self._solver = s
+
+        def __dealloc__(self):
+            del self.cp
 
 
 cdef class BTOR2Encoder:
