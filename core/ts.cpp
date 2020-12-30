@@ -237,14 +237,16 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
   }
 }
 
-void TransitionSystem::add_constraint(const Term & constraint)
+void TransitionSystem::add_constraint(const Term & constraint, bool to_init)
 {
   // constraints can make it so not every state has a next state
   // TODO: revisit this and possibly rename functional/deterministic
   deterministic_ = false;
 
   if (only_curr(constraint)) {
-    init_ = solver_->make_term(And, init_, constraint);
+    if (to_init) {
+      init_ = solver_->make_term(And, init_, constraint);
+    }
     trans_ = solver_->make_term(And, trans_, constraint);
     // add over next states
     Term next_constraint = solver_->substitute(constraint, next_map_);
