@@ -10,6 +10,7 @@
 #include "tests/common_ts.h"
 #include "utils/exceptions.h"
 #include "utils/make_provers.h"
+#include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
 #include "utils/ts_analysis.h"
 
@@ -149,6 +150,66 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
     r = prover->check_until(9);
   }
   ASSERT_EQ(r, FALSE);
+}
+
+TEST_P(UtilsUnitTests, RemoveItes)
+{
+  Term a = s->make_symbol("a", boolsort);
+  Term b = s->make_symbol("b", boolsort);
+  Term x = s->make_symbol("x", bvsort);
+  Term y = s->make_symbol("y", bvsort);
+  Term one = s->make_term(1, bvsort);
+
+  Term xp1 = s->make_term(BVAdd, x, one);
+  Term yp1 = s->make_term(BVAdd, y, one);
+  Term xpy = s->make_term(BVAdd, x, y);
+
+  TermVec conditions(
+      { s->make_term(BVUlt, xp1, s->make_term(10, bvsort)),
+        s->make_term(BVUge, yp1, s->make_term(40, bvsort)),
+        s->make_term(
+            And,
+            b,
+            s->make_term(
+                And, a, s->make_term(BVUge, xpy, s->make_term(20, bvsort)))) });
+
+  ASSERT_EQ(conditions.size(), 3);
+
+  Term ite_1 = s->make_term(Ite, conditions[0], xp1, x);
+  Term ite_2 = s->make_term(Ite, conditions[1], y, yp1);
+  Term ite = s->make_term(Ite, conditions[2], ite_1, ite_2);
+
+  Term top = s->make_term(BVSub, s->make_term(BVSub, ite, one), one);
+
+  s->assert_formula(s->make_term(Or, a, s->make_term(Not, b)));
+
+  Result r = s->check_sat();
+  EXPECT_TRUE(r.is_sat());
+
+  Term symbolic_return_val = remove_ites_under_model(s, top);
+  EXPECT_FALSE(symbolic_return_val->is_value());
+  EXPECT_EQ(s->get_value(top), s->get_value(symbolic_return_val));
+
+  Term s_true = s->make_term(true);
+  TermVec assertions;
+  assertions.reserve(conditions.size());
+  for (const auto & c : conditions) {
+    ASSERT_EQ(c->get_sort(), boolsort);
+    if (s->get_value(c) == s_true) {
+      assertions.push_back(c);
+    } else {
+      assertions.push_back(s->make_term(Not, c));
+    }
+  }
+
+  for (const auto & a : assertions) {
+    s->assert_formula(a);
+  }
+
+  // check that these terms are equivalent under this path
+  s->assert_formula(s->make_term(Distinct, top, symbolic_return_val));
+  r = s->check_sat();
+  EXPECT_TRUE(r.is_unsat());
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedUtilsUnitTests,

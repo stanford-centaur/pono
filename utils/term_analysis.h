@@ -63,4 +63,16 @@ void get_predicates(const smt::SmtSolver & solver,
                     smt::UnorderedTermSet & out,
                     bool include_symbols = false);
 
+/** Traverses the term structure replacing any ITEs with
+ *  their return value under the current model
+ *  @requires state of solver is SAT (no push/pop since last SAT call)
+ *  @param solver the solver associated with this term
+ *         where the last call to check_sat was SAT
+ *  @param term the term to replace ITEs in
+ *  @return the symbolic return value of the ITE
+ *          under the current model
+ */
+smt::Term remove_ites_under_model(const smt::SmtSolver & solver,
+                                  const smt::Term & term);
+
 }  // namespace pono

@@ -270,4 +270,62 @@ void get_predicates(const SmtSolver & solver,
   }
 }
 
+Term remove_ites_under_model(const SmtSolver & solver, const Term & term)
+{
+  TermVec to_visit({ term });
+  UnorderedTermSet visited;
+
+  UnorderedTermMap cache;
+
+  Term solver_true = solver->make_term(true);
+  Term t;
+  while (to_visit.size()) {
+    t = to_visit.back();
+    to_visit.pop_back();
+
+    if (visited.find(t) == visited.end()) {
+      to_visit.push_back(t);
+      visited.insert(t);
+      for (const auto & tt : t) {
+        to_visit.push_back(tt);
+      }
+    } else {
+      // post-order case
+
+      TermVec cached_children;
+      for (const auto & tt : t) {
+        cached_children.push_back(tt);
+      }
+      Op op = t->get_op();
+
+      if (op == Ite) {
+        if (solver->get_value(cached_children[0]) == solver_true) {
+          // if case
+          cache[t] = cached_children[1];
+        } else {
+          // else case
+          cache[t] = cached_children[2];
+        }
+      } else if (cached_children.size()) {
+        // rebuild to take into account any changes
+        if (!op.is_null()) {
+          cache[t] = solver->make_term(op, cached_children);
+        } else {
+          assert(cached_children.size() == 1);  // must be a constant array
+          assert(t->get_sort()->get_sort_kind() == ARRAY);
+          cache[t] = solver->make_term(cached_children[0], t->get_sort());
+        }
+      } else {
+        // just map to itself in the cache
+        // when there's no children
+        cache[t] = t;
+      }
+
+      assert(cache.find(t) != cache.end());
+    }
+  }
+
+  return cache.at(term);
+}
+
 }  // namespace pono
