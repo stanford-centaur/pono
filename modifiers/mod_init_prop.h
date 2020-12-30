@@ -15,6 +15,7 @@
 **/
 
 #include "core/ts.h"
+#include "smt-switch/utils.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 
@@ -42,6 +43,9 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
   Term initstate1 = ts.make_statevar("__initstate1", ts.make_sort(BOOL));
 
   Term init = ts.init();
+  TermVec init_constraints;
+  conjunctive_partition(init, init_constraints, true);
+
   ts.set_init(initstate1);
 
   // NOTE: relies on feature of ts to not add constraint to init
@@ -54,8 +58,12 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
   }
 
   ts.assign_next(initstate1, ts.make_term(false));
-  ts.add_constraint(ts.make_term(Implies, initstate1, init), false);
   ts.constrain_init(new_prop);
+
+  // add initial state constraints for initstate1
+  for (const auto & ic : init_constraints) {
+    ts.add_constraint(ts.make_term(Implies, initstate1, ic), false);
+  }
 
   return new_prop;
 }
