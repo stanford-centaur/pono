@@ -393,6 +393,20 @@ void IC3SA::initialize()
 {
   super::initialize();
 
+  // IC3SA assumes input variables are modeled as state variables
+  // with no update function
+  // This seems important because otherwise we need to drop terms
+  // containing input variables from IC3Formulas
+  // because of destructive update, get copy of input variables first
+  UnorderedTermSet inputvars = ts_->inputvars();
+  for (const auto & iv : inputvars) {
+    ts_->promote_inputvar(iv);
+  }
+
+  // TODO with change above, don't need to check only_curr everywhere
+  // technically should remove those checks (or at least guard with an assert)
+  assert(!ts_->inputvars().size());
+
   // set up initial term abstraction by getting all subterms
   // TODO consider starting with only a subset -- e.g. variables
   // TODO consider keeping a cache from terms to their free variables
