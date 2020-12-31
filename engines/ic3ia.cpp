@@ -41,10 +41,10 @@ using namespace std;
 namespace pono {
 
 IC3IA::IC3IA(const Property & p, const TransitionSystem & ts,
-             const SmtSolver & s, SmtSolver itp,
+             const SmtSolver & s, const SmtSolver & itp,
              PonoOptions opt)
-    : super(p, TransitionSystem(s), s, opt),
-      conc_ts_(ts),
+    : super(p, RelationalTransitionSystem(s), s, opt),
+      conc_ts_(ts, to_prover_solver_),
       ia_(conc_ts_, ts_, unroller_),
       interpolator_(itp),
       to_interpolator_(interpolator_),
@@ -206,7 +206,7 @@ RefineResult IC3IA::refine()
   while (tmp->next) {
     tmp = tmp->next;
     cex.push_back(tmp->target.term);
-    assert(conc_ts_.only_curr(tmp->target.term));
+    assert(ts_.only_curr(tmp->target.term));
   }
 
   if (cex.size() == 1) {

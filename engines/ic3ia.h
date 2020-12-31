@@ -42,7 +42,7 @@ class IC3IA : public IC3
 
 
   IC3IA(const Property & p, const TransitionSystem & ts,
-        const smt::SmtSolver & s, smt::SmtSolver itp,
+        const smt::SmtSolver & s, const smt::SmtSolver & itp,
         PonoOptions opt = PonoOptions());
 
   virtual ~IC3IA() {}
@@ -54,8 +54,7 @@ class IC3IA : public IC3
   //       because we will pass them to ia_ and they must be
   //       be initialized first
 
-  const TransitionSystem & conc_ts_;  ///< convenient reference to the concrete
-                                      ///ts
+  TransitionSystem conc_ts_; 
 
   ImplicitPredicateAbstractor ia_;
 

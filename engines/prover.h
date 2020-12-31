@@ -90,10 +90,12 @@ class Prover
 
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
-  const Property &orig_property_;
+
+  Property orig_property_;
+  TransitionSystem orig_ts_;  ///< reference to original TS before
+                                      ///copied to new solver
+
   TransitionSystem ts_;
-  //  const TransitionSystem &
-  //    orig_ts_;  ///< reference to original TS before copied to new solver
 
   Unroller unroller_;
 

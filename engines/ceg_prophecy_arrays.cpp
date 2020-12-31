@@ -42,7 +42,7 @@ CegProphecyArrays::CegProphecyArrays(const Property & p,
       abs_unroller_(ts_, solver_),
       aa_(conc_ts_, ts_, true),
       aae_(aa_, abs_unroller_,
-           p.transition_system().solver() == solver_
+           orig_ts_.solver() == solver_
            ? p.prop()
            : to_prover_solver_.transfer_term(p.prop()),
            options_.cegp_axiom_red_),
@@ -67,7 +67,7 @@ ProverResult CegProphecyArrays::prove()
       reached_k_++;
     } while (num_added_axioms_);
 
-    Property latest_prop(ts_, solver_->make_term(Not, bad_));
+    Property latest_prop(solver_, solver_->make_term(Not, bad_));
     PonoOptions opts = options_;
     // disable static coi because it can't be called more than once on the same
     // system
@@ -77,7 +77,7 @@ ProverResult CegProphecyArrays::prove()
     //TODO : think about making it use the same prover -- incrementally
     SmtSolver s = create_solver(solver_->get_solver_enum());
     shared_ptr<Prover> prover =
-      make_prover(e_, latest_prop, s, opts);
+      make_prover(e_, latest_prop, ts_, s, opts);
 
     res = prover->prove();
   }
@@ -100,7 +100,7 @@ ProverResult CegProphecyArrays::check_until(int k)
       reached_k_++;
     } while (num_added_axioms_ && reached_k_ <= k);
 
-    Property latest_prop(ts_, solver_->make_term(Not, bad_));
+    Property latest_prop(solver_, solver_->make_term(Not, bad_));
     PonoOptions opts = options_;
     // disable static coi because it can't be called more than once on the same
     // system
@@ -108,8 +108,7 @@ ProverResult CegProphecyArrays::check_until(int k)
     opts.static_coi_ = false;
 
     SmtSolver s = create_solver(solver_->get_solver_enum());
-    shared_ptr<Prover> prover =
-        make_prover(e_, latest_prop, s, opts);
+    shared_ptr<Prover> prover = make_prover(e_, latest_prop, ts_, s, opts);
 
     res = prover->check_until(k);
   }
@@ -153,7 +152,7 @@ void CegProphecyArrays::abstract()
 {
   // the ArrayAbstractor already abstracted the transition system on
   // construction -- only need to abstract bad
-  Term prop_term = (ts_.solver() == orig_property_.transition_system().solver())
+  Term prop_term = (ts_.solver() == orig_property_.solver())
     ? orig_property_.prop()
     : to_prover_solver_.transfer_term(orig_property_.prop());
   bad_ = solver_->make_term(smt::PrimOp::Not, aa_.abstract(prop_term));

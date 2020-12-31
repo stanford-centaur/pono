@@ -24,21 +24,19 @@ namespace pono {
 class Property
 {
  public:
-  Property(const TransitionSystem & ts, const smt::Term & p,
+  Property(const smt::SmtSolver & s, const smt::Term & p,
            std::string name="");
 
   ~Property();
 
-  const smt::Term prop() const { return prop_; }
+  const smt::Term & prop() const { return prop_; }
 
-  const TransitionSystem & transition_system() const { return ts_; }
+  const smt::SmtSolver & solver() const { return solver_; }
 
   std::string name() { return name_; };
 
  private:
-  void initialize();
-
-  TransitionSystem ts_;
+  smt::SmtSolver solver_;
 
   smt::Term prop_;
 

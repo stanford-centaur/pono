@@ -60,10 +60,10 @@ TEST_P(UFUnitTests, InductiveProp)
 
   Term p = rts.make_term(
       Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort)));
-  Property prop(rts, p);
+  Property prop(rts.solver(), p);
 
   s->push();
-  KInduction kind(prop, prop.transition_system(), s);
+  KInduction kind(prop, rts, s);
   ProverResult r = kind.check_until(5);
   EXPECT_EQ(r, ProverResult::TRUE);
   s->pop();
@@ -118,11 +118,11 @@ TEST_P(UFUnitTests, FalseProp)
       rts.make_term(
           Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort))));
 
-  Property prop(rts, p);
+  Property prop(rts.solver(), p);
 
   ASSERT_FALSE(rts.is_functional());
   s->push();
-  KInduction kind(prop, prop.transition_system(), s);
+  KInduction kind(prop, rts, s);
   ProverResult r = kind.check_until(10);
   EXPECT_EQ(r, ProverResult::FALSE);
   s->pop();
