@@ -155,6 +155,7 @@ class ProofGoalQueue
   ProofGoal * top() { return queue_.top(); }
   void pop() { queue_.pop(); }
   bool empty() const { return queue_.empty(); }
+  size_t size() const { return queue_.size(); }
 
  private:
   typedef std::
