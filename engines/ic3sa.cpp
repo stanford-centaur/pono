@@ -445,14 +445,14 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
       assert(val->is_value());
 
       const UnorderedTermSet & terms = elem.second;
-      Term repr = val;
-      bool found_repr = false;
-      bool repr_val = true;
-
       UnorderedTermSet::const_iterator end = terms.cend();
       UnorderedTermSet::const_iterator it = terms.cbegin();
       Term last = *it;
       it++;
+
+      Term repr = last;
+      bool found_repr = false;
+      bool repr_val = repr->is_value();
 
       while (it != end) {
         const Term & term = *(it++);
