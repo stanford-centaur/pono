@@ -207,6 +207,10 @@ RefineResult IC3SA::refine()
     throw PonoException("Length one CEX not handled yet");
   }
 
+  // used to get rid of "unrolled" variables
+  // after successfully refining
+  UnorderedTermMap last_model_vals;
+
   // set up initial substitution map
   gen_inputvars_at_time(0);
   UnorderedTermMap subst = inputvars_at_time_.at(0);
@@ -242,7 +246,7 @@ RefineResult IC3SA::refine()
 
     r = solver_->check_sat();
     if (r.is_sat()) {
-      assumps = symbolic_post_image(i, subst);
+      assumps = symbolic_post_image(i, subst, last_model_vals);
       // add cube to it
       assumps.insert(
           assumps.end(), cex[i].children.begin(), cex[i].children.end());
@@ -255,10 +259,6 @@ RefineResult IC3SA::refine()
       TermVec unsatcore;
       reducer_.reduce_assump_unsatcore(trans, assumps, unsatcore);
       assert(unsatcore.size());
-      // TODO replace input variables here
-      // TODO consider trying to replace input variables by substitution
-      //      I guess that means other terms that had the same value in
-      //      the last satisfiable solver call? Not totally clear on that.
       // TODO consider removing ITEs at this step also
       Term m = make_and(unsatcore);
       // instead of sv -> state_update, maps sv' -> state_update
@@ -266,10 +266,19 @@ RefineResult IC3SA::refine()
       for (const auto & elem : state_updates) {
         next_updates[ts_->next(elem.first)] = elem.second;
       }
+      // get rid of next-state variables
       m = solver_->substitute(m, next_updates);
+
+      // get rid of fresh symbolic constants for unconstrained variables
+      // e.g. inputs and state variables with no state update
+      // TODO consider trying to replace input variables by substitution
+      //      I guess that means other terms that had the same value in
+      //      the last satisfiable solver call? Not totally clear on that.
+      m = solver_->substitute(m, last_model_vals);
+
       Term axiom = solver_->make_term(Not, m);
-      assert(ts_->only_curr(axiom));
-      ts_->add_invar(axiom);
+      assert(ts_->no_next(axiom));
+      ts_->add_constraint(axiom);
       logger.log(2, "IC3SA::refine learning axiom: {}", axiom);
 
       // NOTE we have an issue where it's too specific
@@ -420,7 +429,9 @@ void IC3SA::initialize()
 
 // IC3SA specific methods
 
-TermVec IC3SA::symbolic_post_image(size_t i, UnorderedTermMap & subst)
+TermVec IC3SA::symbolic_post_image(size_t i,
+                                   UnorderedTermMap & subst,
+                                   UnorderedTermMap & last_model_vals)
 {
   // TODO use partial_model to handle boolean structure
   //      for now just keeping full boolean structure
@@ -428,11 +439,23 @@ TermVec IC3SA::symbolic_post_image(size_t i, UnorderedTermMap & subst)
   //      and don't even run on the ones which don't
 
   assert(i >= 1);
+
+  // update last model values
+  for (const auto & m : inputvars_at_time_) {
+    for (const auto & elem : m) {
+      last_model_vals[elem.second] = solver_->get_value(elem.second);
+    }
+  }
+
   gen_inputvars_at_time(i);
   const UnorderedTermMap & unconstrained_i_vars = inputvars_at_time_.at(i);
   // update input variables with latest time
   for (const auto & elem : unconstrained_i_vars) {
     subst[elem.first] = elem.second;
+    // this is just for convenience when removing fresh symbolic constants
+    // later. These new "unrollings" were not in last model, so we just
+    // map them back to the "untimed" version
+    last_model_vals[elem.second] = elem.first;
   }
 
   const UnorderedTermMap & state_updates = ts_->state_updates();

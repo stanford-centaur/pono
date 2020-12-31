@@ -86,12 +86,16 @@ class IC3SA : public IC3
   /** Computes the symbolic post-image of
    *  pi /\ ci under the current model
    *  @requires current solver_ state is SAT
-   *  @param pi post-image computation of initial states at step i
+   *  @param i the current step
    *  @param subst the substitution map to use and update
-   *  @param ci the cube from a counterexample at step i
+   *  @param last_model_vals map to keep track of model assignments for inputs
+   *         in current model (for convenience maps latest unrolling -- which
+   *         didn't exist for this model to the "untimed" input variables)
    *  @return the symbolic post image given the current model at step i+1
    */
-  smt::TermVec symbolic_post_image(size_t i, smt::UnorderedTermMap & subst);
+  smt::TermVec symbolic_post_image(size_t i,
+                                   smt::UnorderedTermMap & subst,
+                                   smt::UnorderedTermMap & last_model_vals);
 
   /** Create fresh symbolic constants for input variables
    *  and state variables with no next state at time i
