@@ -611,12 +611,22 @@ bool IC3SA::add_to_term_abstraction(const Term & axiom)
   bool new_terms = false;
 
   for (const auto & p : stc.get_predicates()) {
-    new_terms |= predset_.insert(p).second;
+    // TODO : figure out if we need to promote all input vars
+    //        for this algorithm to work
+    //        not sure it's okay to just drop terms containing inputs
+    if (ts_->only_curr(p)) {
+      new_terms |= predset_.insert(p).second;
+    }
   }
 
   for (const auto & elem : stc.get_subterms()) {
     for (const auto & term : elem.second) {
-      new_terms |= term_abstraction_[elem.first].insert(term).second;
+      // TODO : figure out if we need to promote all input vars
+      //        for this algorithm to work
+      //        not sure it's okay to just drop terms containing inputs
+      if (ts_->only_curr(term)) {
+        new_terms |= term_abstraction_[elem.first].insert(term).second;
+      }
     }
   }
 
