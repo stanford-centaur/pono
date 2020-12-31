@@ -175,6 +175,8 @@ void IC3SA::check_ts() const
 RefineResult IC3SA::refine()
 {
   // TODO try substituting in trans vs symbolic post-image
+  //      trans substitution idea is hand-wavey, but want to end up
+  //      with (cnt + 1 + 1) instead of just cnt = 1 for example
   // TODO add option for using interpolants
   assert(solver_context_ == 0);
 
@@ -207,13 +209,17 @@ RefineResult IC3SA::refine()
     }
   }
 
-  Term p = ts_->init();
+  TermVec pvec = { ts_->init() };
   Term c = cex[0];
   Term formula;
   Result r;
   bool refined = false;
   for (size_t i = 1; i < cex_length; ++i) {
-    formula = solver_->make_term(And, p, c);
+    // TODO use labels
+    formula = c;
+    for (const auto & p : pvec) {
+      formula = solver_->make_term(And, p, formula);
+    }
     formula = solver_->make_term(And, formula, ts_->trans());
     formula = solver_->substitute(formula, subst);
     formula = solver_->make_term(And, formula, ts_->next(cex[i]));
@@ -224,7 +230,7 @@ RefineResult IC3SA::refine()
     solver_->assert_formula(formula);
     r = solver_->check_sat();
     if (r.is_sat()) {
-      p = symbolic_post_image(i, subst, p, c);
+      pvec = symbolic_post_image(i, subst);
       c = cex[i];
     } else {
       refined = true;
@@ -341,10 +347,7 @@ void IC3SA::initialize()
 
 // IC3SA specific methods
 
-Term IC3SA::symbolic_post_image(size_t i,
-                                UnorderedTermMap & subst,
-                                const Term & p,
-                                const Term & c)
+TermVec IC3SA::symbolic_post_image(size_t i, UnorderedTermMap & subst)
 {
   // TODO use partial_model to handle boolean structure
   //      for now just keeping full boolean structure
@@ -352,15 +355,24 @@ Term IC3SA::symbolic_post_image(size_t i,
   //      and don't even run on the ones which don't
 
   assert(i >= 1);
-  Term post_image = solver_->make_term(And, p, c);
-
   gen_inputvars_at_time(i);
+  const UnorderedTermMap & unconstrained_i_vars = inputvars_at_time_.at(i);
   // update input variables with latest time
-  for (const auto & elem : inputvars_at_time_.at(i)) {
+  for (const auto & elem : unconstrained_i_vars) {
     subst[elem.first] = elem.second;
   }
 
   const UnorderedTermMap & state_updates = ts_->state_updates();
+  // update state variables value
+  for (const auto & sv : ts_->statevars()) {
+    if (state_updates.find(sv) != state_updates.end()) {
+      subst[sv] = solver_->get_value(sv);
+    } else {
+      subst[sv] = unconstrained_i_vars.at(sv);
+    }
+  }
+
+  // TODO: can probably combine this with one of the other loops
   TermVec svs;
   TermVec subst_updates;
   for (const auto & sv : ts_->statevars()) {
@@ -377,11 +389,17 @@ Term IC3SA::symbolic_post_image(size_t i,
 
   TermVec replaced_ites = remove_ites_under_model(solver_, subst_updates);
   assert(replaced_ites.size() == svs.size());
+
+  TermVec res;
+  // getting sv' = syntactic evaluation of update function
+  // and then switching back to sv
   for (size_t i = 0; i < svs.size(); ++i) {
-    subst[svs[i]] = replaced_ites[i];
+    // TODO: use substitute_terms to save time when copying maps back and forth
+    res.push_back(solver_->make_term(
+        Equal, svs[i], solver_->substitute(replaced_ites[i], subst)));
   }
 
-  return solver_->substitute(post_image, subst);
+  return res;
 }
 
 void IC3SA::gen_inputvars_at_time(size_t i)

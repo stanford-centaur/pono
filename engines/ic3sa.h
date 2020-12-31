@@ -89,10 +89,7 @@ class IC3SA : public IC3
    *  @param ci the cube from a counterexample at step i
    *  @return the symbolic post image given the current model at step i+1
    */
-  smt::Term symbolic_post_image(size_t i,
-                                smt::UnorderedTermMap & subst,
-                                const smt::Term & p,
-                                const smt::Term & c);
+  smt::TermVec symbolic_post_image(size_t i, smt::UnorderedTermMap & subst);
 
   /** Create fresh symbolic constants for input variables
    *  and state variables with no next state at time i
