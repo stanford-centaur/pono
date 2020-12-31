@@ -120,6 +120,12 @@ IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
   const UnorderedTermSet & coi_symbols = fcoi_.statevars_in_coi();
   assert(coi_symbols.size() <= ts_->statevars().size());
 
+  logger.log(
+      2,
+      "IC3SA::generalize_predecessor projecting on {}/{} state variables",
+      coi_symbols.size(),
+      ts_->statevars().size());
+
   TermVec cube_lits;
 
   // first populate with predicates
