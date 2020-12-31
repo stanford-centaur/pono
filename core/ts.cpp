@@ -386,6 +386,18 @@ void TransitionSystem::add_inputvar(const Term & v)
   name_term(v->to_string(), v);
 }
 
+Term TransitionSystem::promote_inputvar(const Term & iv)
+{
+  size_t num_erased = inputvars_.erase(iv);
+  if (!num_erased) {
+    throw PonoException("Cannot promote non-inputvars: " + iv->to_string());
+  }
+
+  Term nv = solver_->make_symbol(iv->to_string() + ".next", iv->get_sort());
+  add_statevar(iv, nv);
+  return nv;
+}
+
 // term building methods -- forwards to SmtSolver solver_
 
 Sort TransitionSystem::make_sort(const std::string name, uint64_t arity)

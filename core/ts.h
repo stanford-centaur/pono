@@ -212,6 +212,13 @@ class TransitionSystem
    */
   void add_inputvar(const smt::Term & v);
 
+  /** EXPERTS ONLY
+   *  Promote an input variable to a state variable
+   *  @param iv the input variable to promote
+   *  @return the newly created next state variable
+   */
+  smt::Term promote_inputvar(const smt::Term & iv);
+
   // getters
   const smt::SmtSolver & solver() const { return solver_; };
 
