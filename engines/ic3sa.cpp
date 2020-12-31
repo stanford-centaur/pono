@@ -26,6 +26,7 @@
 
 #include "assert.h"
 #include "smt-switch/utils.h"
+#include "utils/logger.h"
 #include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
 
@@ -182,11 +183,12 @@ RefineResult IC3SA::refine()
 
   // recover the counterexample trace
   assert(check_intersects_initial(cex_pg_->target.term));
-  TermVec cex({ cex_pg_->target.term });
+  vector<IC3Formula> cex({ cex_pg_->target });
   const ProofGoal * tmp = cex_pg_;
   while (tmp->next) {
     tmp = tmp->next;
-    cex.push_back(tmp->target.term);
+    cex.push_back(tmp->target);
+    assert(!tmp->target.disjunction);  // expecting a conjunction
     assert(ts_->only_curr(tmp->target.term));
   }
 
@@ -209,31 +211,62 @@ RefineResult IC3SA::refine()
     }
   }
 
-  TermVec pvec = { ts_->init() };
-  Term c = cex[0];
-  Term formula;
+  // assumps is for p_{i-1} /\ c_{i-1} /\ c_i' from paper
+  TermVec assumps(cex[0].children.begin(), cex[0].children.end());
+  assumps.push_back(ts_->init());
+  Term trans = ts_->trans();
   Result r;
   bool refined = false;
   for (size_t i = 1; i < cex_length; ++i) {
-    // TODO use labels
-    formula = c;
-    for (const auto & p : pvec) {
-      formula = solver_->make_term(And, p, formula);
+    // add ci'
+    // TODO use substitute_terms to save time when copying map
+    for (const auto & c : cex[i].children) {
+      assumps.push_back(ts_->next(c));
     }
-    formula = solver_->make_term(And, formula, ts_->trans());
-    formula = solver_->substitute(formula, subst);
-    formula = solver_->make_term(And, formula, ts_->next(cex[i]));
 
     assert(solver_context_ == 0);
     push_solver_context();
 
-    solver_->assert_formula(formula);
+    solver_->assert_formula(trans);
+
+    for (const auto & a : assumps) {
+      solver_->assert_formula(a);
+    }
+
     r = solver_->check_sat();
     if (r.is_sat()) {
-      pvec = symbolic_post_image(i, subst);
-      c = cex[i];
+      assumps = symbolic_post_image(i, subst);
+      // add cube to it
+      assumps.insert(
+          assumps.end(), cex[i].children.begin(), cex[i].children.end());
     } else {
       refined = true;
+
+      // get MUS
+      // TODO check we're reducing over the correct vector
+      //      should we include the cex cubes?
+      TermVec unsatcore;
+      reducer_.reduce_assump_unsatcore(trans, assumps, unsatcore);
+      assert(unsatcore.size());
+      // TODO replace input variables here
+      // TODO consider trying to replace input variables by substitution
+      //      I guess that means other terms that had the same value in
+      //      the last satisfiable solver call? Not totally clear on that.
+      // TODO consider removing ITEs at this step also
+      Term m = make_and(unsatcore);
+      // instead of sv -> state_update, maps sv' -> state_update
+      UnorderedTermMap next_updates;
+      for (const auto & elem : state_updates) {
+        next_updates[ts_->next(elem.first)] = elem.second;
+      }
+      m = solver_->substitute(m, next_updates);
+      Term axiom = solver_->make_term(Not, m);
+      assert(ts_->only_curr(axiom));
+      ts_->add_invar(axiom);
+      logger.log(2, "IC3SA::refine learning axiom: {}", axiom);
+
+      // TODO add terms to abstraction
+
       throw PonoException("unsat refinement case not implemented yet");
     }
 
@@ -378,12 +411,7 @@ TermVec IC3SA::symbolic_post_image(size_t i, UnorderedTermMap & subst)
   for (const auto & sv : ts_->statevars()) {
     if (state_updates.find(sv) != state_updates.end()) {
       svs.push_back(sv);
-      // NOTE: creating a fresh map with only the relevant substitution
-      //       for performance purposes -- otherwise smt-switch has
-      //       has to unpack every element of the mapping into
-      //       the underlying solver objects
-      subst_updates.push_back(
-          solver_->substitute(subst.at(sv), { { sv, state_updates.at(sv) } }));
+      subst_updates.push_back(state_updates.at(sv));
     }
   }
 
