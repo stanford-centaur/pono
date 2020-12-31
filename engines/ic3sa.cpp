@@ -461,8 +461,8 @@ TermVec IC3SA::symbolic_post_image(size_t i,
     }
   }
 
-  gen_inputvars_at_time(i);
-  const UnorderedTermMap & unconstrained_i_vars = inputvars_at_time_.at(i);
+  gen_inputvars_at_time(i - 1);
+  const UnorderedTermMap & unconstrained_i_vars = inputvars_at_time_.at(i - 1);
   // update input variables with latest time
   for (const auto & elem : unconstrained_i_vars) {
     subst[elem.first] = elem.second;
