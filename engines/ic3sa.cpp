@@ -265,12 +265,39 @@ RefineResult IC3SA::refine()
       ts_->add_invar(axiom);
       logger.log(2, "IC3SA::refine learning axiom: {}", axiom);
 
-      // TODO add terms to abstraction
+      // NOTE we have an issue where it's too specific
+      // for example, if there's a counter, we might get a trace
+      // c0: cnt = 0 /\ cnt < 6
+      // c1: cnt != 0 /\ cnt < 6
+      // c2: cnt != 0 /\ cnt + 1 = 6 /\ cnt < 6
+      // c3: -(cnt < 6)
+      //
+      // then in the c1 -> c2 check we'd learn the axiom
+      // cnt != 1 \/ cnt != 4
+      // but really it would be better to have learned
+      //     cnt + 2 >= 6 \/ cnt < 6
+      // although that's structurally true anyway
+      // might just be a mistake to focus on such a simple example
+      // that has a real cex trace
 
-      throw PonoException("unsat refinement case not implemented yet");
+      // add all state variables to projection set
+      UnorderedTermSet free_vars;
+      get_free_symbolic_consts(axiom, free_vars);
+      for (const auto & fv : free_vars) {
+        if (ts_->is_curr_var(fv)) {
+          projection_set_.insert(fv);
+        }
+      }
+
+      bool new_terms_added = add_to_term_abstraction(axiom);
+      assert(new_terms_added);
     }
 
     pop_solver_context();
+
+    if (refined) {
+      break;
+    }
   }
 
   if (!refined) {
@@ -295,7 +322,7 @@ RefineResult IC3SA::refine()
   //      / how we limit the number of added terms
   // TODO get minimal unsat core
   // TODO add symbols from the MUS to the projection set permanently
-  throw PonoException("IC3SA::refine NYI");
+  return REFINE_SUCCESS;
 }
 
 bool IC3SA::intersects_bad()
@@ -538,6 +565,26 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
       }
     }
   }
+}
+
+bool IC3SA::add_to_term_abstraction(const Term & axiom)
+{
+  SubTermCollector stc(solver_);
+  stc.collect_subterms(axiom);
+
+  bool new_terms = false;
+
+  for (const auto & p : stc.get_predicates()) {
+    new_terms |= predset_.insert(p).second;
+  }
+
+  for (const auto & elem : stc.get_subterms()) {
+    for (const auto & term : elem.second) {
+      new_terms |= term_abstraction_[elem.first].insert(term).second;
+    }
+  }
+
+  return new_terms;
 }
 
 void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const

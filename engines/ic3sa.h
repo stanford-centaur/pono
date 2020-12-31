@@ -50,6 +50,8 @@ class IC3SA : public IC3
   std::unordered_map<smt::Sort, smt::UnorderedTermSet> term_abstraction_;
   ///< stores all the current terms in the abstraction organized by sort
 
+  smt::UnorderedTermSet projection_set_;  ///< variables always in projection
+
   smt::UnorderedTermSet vars_in_bad_;  ///< variables occurring in bad
 
   // TODO: replace this with partial_model
@@ -115,10 +117,18 @@ class IC3SA : public IC3
   void construct_partition(const EquivalenceClasses & ec,
                            smt::TermVec & out_cube) const;
 
+  /** Add subterms from axiom to the term abstraction
+   *  @param axiom the term to mine for subterms
+   *  @return true iff new terms were added
+   *  @modifies term_abstraction_ and predset_
+   */
+  bool add_to_term_abstraction(const smt::Term & axiom);
+
   /** Check if a term is in the projection
    *  @param t the term to check
    *  @param to_keep the symbols for the projection
    *  @return true iff t only contains symbols from to_keep
+   *          or the global projection_set_
    */
   inline bool in_projection(const smt::Term & t,
                             const smt::UnorderedTermSet & to_keep) const
@@ -130,7 +140,8 @@ class IC3SA : public IC3
     get_free_symbolic_consts(t, free_vars);
     bool in_projection = true;
     for (const auto & fv : free_vars) {
-      if (to_keep.find(fv) == to_keep.end()) {
+      if (to_keep.find(fv) == to_keep.end()
+          && projection_set_.find(fv) == projection_set_.end()) {
         // this term contains a symbol not in the to_keep set
         in_projection = false;
         break;
