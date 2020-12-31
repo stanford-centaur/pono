@@ -32,6 +32,8 @@
 using namespace smt;
 using namespace std;
 
+// TODO add option to use interpolants in inductive generalization
+
 namespace pono {
 
 // main IC3SA implementation
@@ -149,6 +151,7 @@ void IC3SA::check_ts() const
   // TODO: everything in ic3sa should be a state variable (at least according to
   // paper)
   //       might work if we just remove input variables from the subterms
+  // TODO: add option to promote all inputs to be state vars
   // TODO: add support for arrays
 
   for (const auto & sv : ts_->statevars())
@@ -171,6 +174,8 @@ void IC3SA::check_ts() const
 
 RefineResult IC3SA::refine()
 {
+  // TODO try substituting in trans vs symbolic post-image
+  // TODO add option for using interpolants
   assert(solver_context_ == 0);
 
   // recover the counterexample trace
