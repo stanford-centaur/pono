@@ -128,6 +128,8 @@ class Log
  public:
   Log() : verbosity(0), verbosity_set(false) {}
 
+  Log(size_t v) : verbosity(v), verbosity_set(true) {}
+
   /* Logs to the terminal using Python-style format string
    * @param level the verbosity level to print this log (prints for any
    * verbosity greater than this level)
@@ -135,9 +137,7 @@ class Log
    * @param args comma separated list of inputs for the format string
    */
   template <typename... Args>
-  void log(unsigned int level,
-           const std::string & format,
-           const Args &... args) const
+  void log(size_t level, const std::string & format, const Args &... args) const
   {
     if (level <= verbosity)
     {
@@ -153,8 +153,8 @@ class Log
    * @param args comma separated list of inputs for the format string
    */
   template <typename... Args>
-  void log(unsigned int lower,
-           unsigned int upper,
+  void log(size_t lower,
+           size_t upper,
            const std::string & format,
            const Args &... args) const
   {
@@ -167,7 +167,7 @@ class Log
   /* set verbosity -- can only be set once
    * @param v the verbosity to set
    */
-  void set_verbosity(unsigned int v)
+  void set_verbosity(size_t v)
   {
     if (!verbosity_set)
     {
@@ -180,13 +180,13 @@ class Log
   }
 
  protected:
-  int verbosity;
+  size_t verbosity;
   bool verbosity_set;
 };
 
 // globally avaiable logger instance
 extern Log logger;
 
-void set_global_logger_verbosity(unsigned int v);
+void set_global_logger_verbosity(size_t v);
 
 }  // namespace pono
