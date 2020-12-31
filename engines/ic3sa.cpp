@@ -183,16 +183,17 @@ RefineResult IC3SA::refine()
 
   // recover the counterexample trace
   assert(check_intersects_initial(cex_pg_->target.term));
-  vector<IC3Formula> cex({ cex_pg_->target });
+  vector<IC3Formula> cex;
   const ProofGoal * tmp = cex_pg_;
-  while (tmp->next) {
-    tmp = tmp->next;
+  while (tmp) {
     cex.push_back(tmp->target);
     assert(!tmp->target.disjunction);  // expecting a conjunction
     assert(ts_->only_curr(tmp->target.term));
+    tmp = tmp->next;
   }
 
   size_t cex_length = cex.size();
+  logger.log(2, "IC3SA::refine with cex of length {}", cex_length);
   assert(cex_length);
   // TODO figure out correct action if cex_length == 1
   if (cex_length == 1) {
