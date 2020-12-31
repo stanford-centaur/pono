@@ -193,7 +193,7 @@ RefineResult IC3SA::refine()
   }
 
   size_t cex_length = cex.size();
-  logger.log(2, "IC3SA::refine with cex of length {}", cex_length);
+  logger.log(1, "IC3SA::refine cex of length {}", cex_length);
   assert(cex_length);
   // TODO figure out correct action if cex_length == 1
   if (cex_length == 1) {
@@ -300,6 +300,12 @@ RefineResult IC3SA::refine()
       break;
     }
   }
+
+  // need to clear proof goals
+  // cubes in proof goals aren't precise wrt to updated
+  // terms (if refined)
+  // so the partial trace it holds is no longer precise
+  proof_goals_.clear();
 
   if (!refined) {
     // concrete counterexample
