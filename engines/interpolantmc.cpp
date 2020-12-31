@@ -50,11 +50,6 @@ void InterpolantMC::initialize()
 
   reset_assertions(interpolator_);
 
-  const Term &prop_term = (ts_.solver() == orig_property_.transition_system().solver())
-    ? orig_property_.prop()
-    : to_prover_solver_.transfer_term(orig_property_.prop());
-  bad_ = solver_->make_term(smt::PrimOp::Not, prop_term);
-
   // symbols are already created in solver
   // need to add symbols at time 1 to cache
   // (only time 1 because Craig Interpolant has to share symbols between A and
