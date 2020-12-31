@@ -25,9 +25,11 @@ class Property
 {
  public:
   Property(const smt::SmtSolver & s, const smt::Term & p,
-           std::string name="");
+           std::string name="")
+    : solver_(s), prop_(p), name_(name)
+  {};
 
-  ~Property();
+  ~Property() {};
 
   const smt::Term & prop() const { return prop_; }
 
