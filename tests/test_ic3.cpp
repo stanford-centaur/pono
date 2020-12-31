@@ -45,7 +45,7 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
 
   Property p(rts, s->make_term(Not, s1));
 
-  IC3 ic3(p, s);
+  IC3 ic3(p, p.transition_system(), s);
   ProverResult r = ic3.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -71,7 +71,7 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
 
   Property p(fts, s->make_term(Not, s1));
 
-  IC3 ic3(p, s);
+  IC3 ic3(p, p.transition_system(), s);
   ProverResult r = ic3.prove();
   ASSERT_EQ(r, FALSE);
 }

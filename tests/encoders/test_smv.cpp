@@ -37,7 +37,7 @@ TEST_P(SmvFileUnitTests, Encode)
   SMVEncoder se(filename, rts);
 
   Property prop(rts, se.propvec()[0]);
-  KInduction kind(prop, s);
+  KInduction kind(prop, prop.transition_system(), s);
   ProverResult res = kind.check_until(10);
   EXPECT_EQ(res, benchmark.second);
 }

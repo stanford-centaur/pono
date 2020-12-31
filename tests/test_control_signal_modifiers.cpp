@@ -46,7 +46,7 @@ TEST_P(ControlUnitTests, SimpleReset)
   Term p_false_term = fts.make_term(BVUle, x, fts.make_term(10, bvsort8));
   Property p_false(fts, p_false_term);
   // use a new context so unroller doesn't clash on unrolled symbols
-  Bmc bmc_false(p_false, s);
+  Bmc bmc_false(p_false, p_false.transition_system(), s);
   ProverResult r = bmc_false.check_until(2);
   EXPECT_EQ(r, ProverResult::FALSE);
 
@@ -59,7 +59,7 @@ TEST_P(ControlUnitTests, SimpleReset)
   // pass the SolverEnum to use the same type of solver
   SmtSolver ns = create_solver(s->get_solver_enum());
 
-  Bmc bmc(p, ns);
+  Bmc bmc(p, p.transition_system(), ns);
   r = bmc.check_until(10);
   EXPECT_EQ(r,
             ProverResult::UNKNOWN);  // bmc can't prove, will only say unknown
@@ -96,7 +96,7 @@ TEST_P(ControlUnitTests, SimpleClock)
       rts.make_term(BVLshr, state_counter, rts.make_term(1, bvsort8)));
   Property p_false(rts, p_term);
   // use a new context so unroller doesn't clash on unrolled symbols
-  Bmc bmc_false(p_false, s);
+  Bmc bmc_false(p_false, p_false.transition_system(), s);
   ProverResult r = bmc_false.check_until(2);
   EXPECT_EQ(r, ProverResult::FALSE);
 
@@ -108,7 +108,7 @@ TEST_P(ControlUnitTests, SimpleClock)
   // pass the SolverEnum to use the same type of solver
   SmtSolver ns = create_solver(s->get_solver_enum());
 
-  Bmc bmc(p, ns);
+  Bmc bmc(p, p.transition_system(), ns);
   r = bmc.check_until(10);
   EXPECT_EQ(r,
             ProverResult::UNKNOWN);  // bmc can't prove, will only say unknown

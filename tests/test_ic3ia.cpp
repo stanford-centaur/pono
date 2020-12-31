@@ -51,7 +51,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 
   SmtSolver ss = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
 
-  IC3IA ic3ia(p, s, ss);
+  IC3IA ic3ia(p, p.transition_system(), s, ss);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -79,7 +79,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 
   SmtSolver ss = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
 
-  IC3IA ic3ia(p, s, ss);
+  IC3IA ic3ia(p, p.transition_system(), s, ss);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
 }
@@ -97,7 +97,7 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
 
   SmtSolver ss = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
 
-  IC3IA ic3ia(p, s, ss);
+  IC3IA ic3ia(p, p.transition_system(), s, ss);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -129,7 +129,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 
   SmtSolver ss = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
 
-  IC3IA ic3ia(p, s, ss);
+  IC3IA ic3ia(p, p.transition_system(), s, ss);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 

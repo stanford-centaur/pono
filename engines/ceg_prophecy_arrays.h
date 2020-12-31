@@ -33,7 +33,8 @@ class CegProphecyArrays : public CEGAR
   typedef CEGAR super;
 
  public:
-  CegProphecyArrays(Property & p,
+  CegProphecyArrays(const Property & p,
+                    const TransitionSystem & ts,
                     Engine e,
                     const smt::SmtSolver & solver,
                     PonoOptions opt = PonoOptions());
@@ -50,8 +51,7 @@ class CegProphecyArrays : public CEGAR
 
  protected:
   const TransitionSystem & conc_ts_;
-  const smt::SmtSolver & solver_;
-  RelationalTransitionSystem abs_ts_;
+
   Engine e_;
 
   // TODO: see if there's a better organization where we can re-use the same

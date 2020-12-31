@@ -49,7 +49,7 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
   Property p(fts, be.propvec()[0]);
-  KInduction kind(p, s);
+  KInduction kind(p, p.transition_system(), s);
   ProverResult r = kind.check_until(2);
   EXPECT_EQ(r, ProverResult::TRUE);
 }

@@ -40,7 +40,7 @@ TEST(CegProphecyArraysTest, Simple)
   Term prop_term = rts.make_term(
       BVUlt, rts.make_term(Select, a, j), rts.make_term(200, bvsort32));
   Property prop(rts, prop_term);
-  CegProphecyArrays cegp(prop, INTERP, s);
+  CegProphecyArrays cegp(prop, prop.transition_system(), INTERP, s);
   ProverResult r = cegp.check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
 }

@@ -39,7 +39,8 @@ enum RefineResult
 class Prover
 {
  public:
-  Prover(Property & p, const smt::SmtSolver & s,
+  Prover(const Property & p, const TransitionSystem & ts,
+         const smt::SmtSolver & s,
          PonoOptions opt = PonoOptions());
 
   virtual ~Prover();
@@ -89,24 +90,14 @@ class Prover
 
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
-  Property property_;
-  TransitionSystem *
-      ts_;  ///< pointer to main transition system
-            ///< by default this is the one in property_
-            ///< however, this can change depending on the engine
-            ///< for example, a CEGAR technique will usually
-            ///< set the main ts_ to be the abstraction, and
-            ///< and keep a reference to the concrete transition system
-            ///< Additionally, the pointed-to transition system is NOT
-            ///< guaranteed to be fully initialized in the constructor
-            ///< of the engine
-            ///< this is because abstraction might not happen until later
-  TransitionSystem &
-      orig_ts_;  ///< reference to original TS before copied to new solver
+  const Property &orig_property_;
+  TransitionSystem ts_;
 
   Unroller unroller_;
 
   int reached_k_;
+
+  //TODO: add engine enum
 
   smt::Term bad_;
 

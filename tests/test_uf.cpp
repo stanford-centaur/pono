@@ -63,7 +63,7 @@ TEST_P(UFUnitTests, InductiveProp)
   Property prop(rts, p);
 
   s->push();
-  KInduction kind(prop, s);
+  KInduction kind(prop, prop.transition_system(), s);
   ProverResult r = kind.check_until(5);
   EXPECT_EQ(r, ProverResult::TRUE);
   s->pop();
@@ -122,7 +122,7 @@ TEST_P(UFUnitTests, FalseProp)
 
   ASSERT_FALSE(rts.is_functional());
   s->push();
-  KInduction kind(prop, s);
+  KInduction kind(prop, prop.transition_system(), s);
   ProverResult r = kind.check_until(10);
   EXPECT_EQ(r, ProverResult::FALSE);
   s->pop();

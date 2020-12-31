@@ -67,7 +67,7 @@ class EngineUnitTests
 TEST_P(EngineUnitTests, BmcTrue)
 {
   SmtSolver s = create_solver(se);
-  Bmc b(*true_p, s);
+  Bmc b(*true_p, true_p->transition_system(), s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
@@ -75,7 +75,7 @@ TEST_P(EngineUnitTests, BmcTrue)
 TEST_P(EngineUnitTests, BmcFalse)
 {
   SmtSolver s = create_solver(se);
-  Bmc b(*false_p, s);
+  Bmc b(*false_p, false_p->transition_system(), s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
@@ -83,7 +83,7 @@ TEST_P(EngineUnitTests, BmcFalse)
 TEST_P(EngineUnitTests, BmcSimplePathTrue)
 {
   SmtSolver s = create_solver(se);
-  BmcSimplePath bsp(*true_p, s);
+  BmcSimplePath bsp(*true_p, true_p->transition_system(), s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
@@ -91,7 +91,7 @@ TEST_P(EngineUnitTests, BmcSimplePathTrue)
 TEST_P(EngineUnitTests, BmcSimplePathFalse)
 {
   SmtSolver s = create_solver(se);
-  BmcSimplePath bsp(*false_p, s);
+  BmcSimplePath bsp(*false_p, false_p->transition_system(), s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
@@ -99,7 +99,7 @@ TEST_P(EngineUnitTests, BmcSimplePathFalse)
 TEST_P(EngineUnitTests, KInductionTrue)
 {
   SmtSolver s = create_solver(se);
-  KInduction kind(*true_p, s);
+  KInduction kind(*true_p, true_p->transition_system(), s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
@@ -107,7 +107,7 @@ TEST_P(EngineUnitTests, KInductionTrue)
 TEST_P(EngineUnitTests, KInductionFalse)
 {
   SmtSolver s = create_solver(se);
-  KInduction kind(*false_p, s);
+  KInduction kind(*false_p, false_p->transition_system(), s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
@@ -136,7 +136,7 @@ class InterpUnitTest : public EngineUnitTests
 
 TEST_P(InterpUnitTest, InterpTrue)
 {
-  InterpolantMC itpmc(*true_p, s, itp);
+  InterpolantMC itpmc(*true_p, true_p->transition_system(), s, itp);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 
@@ -146,7 +146,7 @@ TEST_P(InterpUnitTest, InterpTrue)
 
 TEST_P(InterpUnitTest, InterpFalse)
 {
-  InterpolantMC itpmc(*false_p, s, itp);
+  InterpolantMC itpmc(*false_p, false_p->transition_system(), s, itp);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
@@ -219,28 +219,28 @@ class InterpWinTests : public ::testing::Test,
 
 TEST_P(InterpWinTests, BmcFail)
 {
-  Bmc b(*true_p, s);
+  Bmc b(*true_p, true_p->transition_system(), s);
   ProverResult r = b.check_until(10);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(InterpWinTests, BmcSimplePathFail)
 {
-  BmcSimplePath bsp(*true_p, s);
+  BmcSimplePath bsp(*true_p, true_p->transition_system(), s);
   ProverResult r = bsp.check_until(10);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(InterpWinTests, KInductionFail)
 {
-  KInduction kind(*true_p, s);
+  KInduction kind(*true_p, true_p->transition_system(), s);
   ProverResult r = kind.check_until(10);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(InterpWinTests, InterpWin)
 {
-  InterpolantMC itpmc(*true_p, s, itp);
+  InterpolantMC itpmc(*true_p, true_p->transition_system(), s, itp);
   ProverResult r = itpmc.check_until(10);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
