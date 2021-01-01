@@ -545,53 +545,36 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
 
     //       currently preferring symbol > generic term > value
 
-    // representatives of the different classes of this sort
-    TermVec representatives;
+    const UnorderedTermSet * last_set = nullptr;
     for (const auto & elem : sortelem.second) {
       const Term & val = elem.first;
       assert(val->is_value());
 
-      const UnorderedTermSet & terms = elem.second;
-      UnorderedTermSet::const_iterator end = terms.cend();
-      UnorderedTermSet::const_iterator it = terms.cbegin();
-      Term last = *it;
-      it++;
-
-      Term repr = last;
-      bool found_repr = false;
-      bool repr_val = repr->is_value();
-
-      while (it != end) {
-        const Term & term = *(it++);
-        assert(last->get_sort() == term->get_sort());
-        out_cube.push_back(solver_->make_term(Equal, last, term));
-        last = term;
-
-        // TODO: see if a DisjointSet would make this easier
-        // update representative for this class
-        if (!found_repr) {
-          if (term->is_symbolic_const()) {
-            repr = term;
-            repr_val = false;
-            found_repr = true;
-          } else if (!term->is_value() && repr_val) {
-            repr = term;
-            repr_val = false;
+      TermVec terms(elem.second.begin(), elem.second.end());
+      for (const auto & t1 : terms) {
+        for (const auto & t2 : terms) {
+          if (t1 != t2 && !t1->is_value() && !t2->is_value()) {
+            Term res = solver_->make_term(Equal, t1, t2);
+            if (!res->is_value()) {
+              out_cube.push_back(res);
+            }
           }
         }
       }
-    }
 
-    // add disequalities between each pair of representatives from
-    // different equivalent classes
-    for (size_t i = 0; i < representatives.size(); ++i) {
-      for (size_t j = i + 1; j < representatives.size(); ++j) {
-        const Term & ti = representatives.at(i);
-        const Term & tj = representatives.at(j);
-        // should never get the same representative term from different classes
-        assert(ti != tj);
-        out_cube.push_back(solver_->make_term(Distinct, ti, tj));
+      if (last_set) {
+        for (const auto & t1 : *last_set) {
+          for (const auto & t2 : terms) {
+            if (t1 != t2 && !t1->is_value() && !t2->is_value()) {
+              Term res = solver_->make_term(Distinct, t1, t2);
+              if (!res->is_value()) {
+                out_cube.push_back(res);
+              }
+            }
+          }
+        }
       }
+      last_set = &elem.second;
     }
   }
 }
