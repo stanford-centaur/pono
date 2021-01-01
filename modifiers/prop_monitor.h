@@ -1,5 +1,5 @@
 /*********************                                                  */
-/*! \file mod_init_prop.h
+/*! \file prop_monitor.h
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann, Ahmed Irfan
