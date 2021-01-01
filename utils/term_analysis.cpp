@@ -24,24 +24,29 @@ using namespace std;
 
 namespace pono {
 
-// set of boolean operators
+// set of operators which cannot be predicates
+// mostly boolean operators plus some special cases
+// and the bit-vector versions for boolector
 // boolean terms with these operators are not predicates
-unordered_set<PrimOp> boolops(
-    { And,
-      Or,
-      Xor,
-      Not,
-      Implies,
-      // Note: also including bit-vector operators for solvers that
-      //       alias bool and bv of size 1
-      //       should not make a difference for solvers that don't
-      //       alias, because it will check if it's a boolean first.
-      //       so this is just to make this method work for all solvers
-      BVAnd,
-      BVOr,
-      BVXor,
-      BVNand,
-      BVNot });
+unordered_set<PrimOp> nonpred_ops({
+    And,
+    Or,
+    Xor,
+    Not,
+    Implies,
+    Ite,
+    // Note: also including bit-vector operators for solvers that
+    //       alias bool and bv of size 1
+    //       should not make a difference for solvers that don't
+    //       alias, because it will check if it's a boolean first.
+    //       so this is just to make this method work for all solvers
+    BVAnd,
+    BVOr,
+    BVXor,
+    BVNand,
+    BVNot,
+    Extract  // otherwise boolector will count single-bit extracts
+});
 
 // helper functions
 
@@ -153,15 +158,17 @@ bool is_predicate(const Term & t, const Sort & boolsort, bool include_symbols)
   if (include_symbols && t->is_symbolic_const()) {
     return true;
   } else if (op.is_null()) {
-    // no term with a null operator can be a predicate
+    // cannot be a predicate with a null op unless including symbols
     return false;
   }
 
   assert(!op.is_null());
-  if (boolops.find(op.prim_op) != boolops.end()) {
+  if (nonpred_ops.find(op.prim_op) != nonpred_ops.end()) {
     // boolean operators cannot make predicates
     return false;
   }
+
+  TermVec children(t->begin(), t->end());
 
   // boolean terms that do not use a boolean combination operator are
   // predicates
@@ -169,6 +176,15 @@ bool is_predicate(const Term & t, const Sort & boolsort, bool include_symbols)
   // this is an iff essentially
   if (op.prim_op == Equal && (*t->begin())->get_sort() == boolsort) {
     return false;
+  }
+
+  for (const auto & c : children) {
+    // special-case for boolector which does rewriting and aliases
+    // sorts
+    // predicates cannot be combinations of non-predicates
+    if (nonpred_ops.find(c->get_op().prim_op) != nonpred_ops.end()) {
+      return false;
+    }
   }
 
   // if it made it through all the checks, then it's a predicate

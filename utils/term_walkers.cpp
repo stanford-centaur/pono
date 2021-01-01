@@ -22,6 +22,11 @@
 using namespace smt;
 using namespace std;
 
+// include bv versions for boolector
+// won't matter for other solvers because the sort won't be boolean
+unordered_set<PrimOp> boolops(
+    { And, Or, Xor, Not, Implies, BVAnd, BVOr, BVXor, BVNand, BVNot });
+
 namespace pono {
 
 void TermOpCollector::find_matching_terms(
@@ -81,8 +86,13 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
       // TODO: consider handling ITEs here
       //       will still show up in predicates instead of being expanded
       predicates_.insert(term);
-    } else if ((exclude_bools_ && sort == boolsort_)
-               || (exclude_funs_ && sort->get_sort_kind() == FUNCTION)
+    } else if (exclude_bools_ && sort == boolsort_) {
+      if (boolops.find(term->get_op().prim_op) == boolops.end()) {
+        // special-case for boolector to make sure it keeps terms like
+        // ((_ extract 0 0) x)
+        subterms_[sort].insert(term);
+      }
+    } else if ((exclude_funs_ && sort->get_sort_kind() == FUNCTION)
                || (exclude_ites_ && term->get_op() == Ite)) {
       return Walker_Continue;
     } else {

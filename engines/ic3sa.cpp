@@ -47,12 +47,6 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
     return false;
   }
 
-  // for boolector
-  // only include one-bit BVs
-  if (sort->get_sort_kind() == BV && sort->get_width() != 1) {
-    return false;
-  }
-
   Op op = t->get_op();
   if (op.is_null()) {
     return false;
