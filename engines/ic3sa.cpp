@@ -261,13 +261,6 @@ RefineResult IC3SA::refine()
       assert(unsatcore.size());
       // TODO consider removing ITEs at this step also
       Term m = make_and(unsatcore);
-      // instead of sv -> state_update, maps sv' -> state_update
-      UnorderedTermMap next_updates;
-      for (const auto & elem : state_updates) {
-        next_updates[ts_->next(elem.first)] = elem.second;
-      }
-      // get rid of next-state variables
-      m = solver_->substitute(m, next_updates);
 
       // get rid of fresh symbolic constants for unconstrained variables
       // e.g. inputs and state variables with no state update
@@ -275,6 +268,14 @@ RefineResult IC3SA::refine()
       //      I guess that means other terms that had the same value in
       //      the last satisfiable solver call? Not totally clear on that.
       m = solver_->substitute(m, last_model_vals);
+
+      // instead of sv -> state_update, maps sv' -> state_update
+      UnorderedTermMap next_updates;
+      for (const auto & elem : state_updates) {
+        next_updates[ts_->next(elem.first)] = elem.second;
+      }
+      // get rid of next-state variables
+      m = solver_->substitute(m, next_updates);
 
       Term axiom = solver_->make_term(Not, m);
       assert(ts_->no_next(axiom));
@@ -398,14 +399,14 @@ void IC3SA::initialize()
   // This seems important because otherwise we need to drop terms
   // containing input variables from IC3Formulas
   // because of destructive update, get copy of input variables first
-  UnorderedTermSet inputvars = ts_->inputvars();
-  for (const auto & iv : inputvars) {
-    ts_->promote_inputvar(iv);
-  }
-
+  // TODO: decide whether to include this or not
+  // UnorderedTermSet inputvars = ts_->inputvars();
+  // for (const auto & iv : inputvars) {
+  //   ts_->promote_inputvar(iv);
+  // }
   // TODO with change above, don't need to check only_curr everywhere
   // technically should remove those checks (or at least guard with an assert)
-  assert(!ts_->inputvars().size());
+  // assert(!ts_->inputvars().size());
 
   // set up initial term abstraction by getting all subterms
   // TODO consider starting with only a subset -- e.g. variables
@@ -466,10 +467,9 @@ TermVec IC3SA::symbolic_post_image(size_t i,
   // update input variables with latest time
   for (const auto & elem : unconstrained_i_vars) {
     subst[elem.first] = elem.second;
-    // this is just for convenience when removing fresh symbolic constants
-    // later. These new "unrollings" were not in last model, so we just
-    // map them back to the "untimed" version
-    last_model_vals[elem.second] = elem.first;
+    // get the value from the input variable before replacement
+    Term val = solver_->get_value(elem.first);
+    last_model_vals[elem.second] = val;
   }
 
   const UnorderedTermMap & state_updates = ts_->state_updates();
