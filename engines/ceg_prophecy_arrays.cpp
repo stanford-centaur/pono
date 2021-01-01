@@ -70,16 +70,10 @@ ProverResult CegProphecyArrays::prove()
     } while (num_added_axioms_);
 
     Property latest_prop(solver_, solver_->make_term(Not, bad_));
-    PonoOptions opts = options_;
-    // disable static coi because it can't be called more than once on the same
-    // system
-    // TODO: handle this in a better way
-    opts.static_coi_ = false;
-
     //TODO : think about making it use the same prover -- incrementally
     SmtSolver s = create_solver(solver_->get_solver_enum());
     shared_ptr<Prover> prover =
-      make_prover(e_, latest_prop, ts_, s, opts);
+      make_prover(e_, latest_prop, ts_, s, options_);
 
     res = prover->prove();
   }
