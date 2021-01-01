@@ -121,12 +121,12 @@ class IC3SA : public IC3
   void construct_partition(const EquivalenceClasses & ec,
                            smt::TermVec & out_cube) const;
 
-  /** Add subterms from axiom to the term abstraction
+  /** Add all subterms from term to the term abstraction
    *  @param axiom the term to mine for subterms
    *  @return true iff new terms were added
    *  @modifies term_abstraction_ and predset_
    */
-  bool add_to_term_abstraction(const smt::Term & axiom);
+  bool add_to_term_abstraction(const smt::Term & term);
 
   /** Check if a term is in the projection
    *  @param t the term to check
@@ -156,6 +156,7 @@ class IC3SA : public IC3
 
   // debug methods
   void debug_print_equivalence_classes(EquivalenceClasses ec) const;
+  void debug_print_term_abstraction() const;
 };
 
 }  // namespace pono

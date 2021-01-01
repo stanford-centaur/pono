@@ -421,7 +421,6 @@ bool IC3Base::rel_ind_check(size_t i,
     // this check needs to be here after the solver context has been popped
     // if i == 1 and there's a predecessor, then it should be an initial state
     assert(i != 1 || check_intersects_initial(out.at(0).term));
-
     // should never intersect with a frame before F[i-1]
     // otherwise, this predecessor should have been found
     // in a previous step (before a new frame was pushed)

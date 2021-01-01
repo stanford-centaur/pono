@@ -37,6 +37,32 @@ using namespace std;
 
 namespace pono {
 
+// checks if t is an equality literal
+// includes BV operators for boolector
+// but checks for boolean sort first
+bool is_eq_lit(const Term & t, const Sort & boolsort)
+{
+  const Sort & sort = t->get_sort();
+  if (sort != boolsort) {
+    return false;
+  }
+
+  // for boolector
+  // only include one-bit BVs
+  if (sort->get_sort_kind() == BV && sort->get_width() != 1) {
+    return false;
+  }
+
+  Op op = t->get_op();
+  if (op.is_null()) {
+    return false;
+  } else if (op == Not || op == BVNot) {
+    op = (*(t->begin()))->get_op();
+  }
+
+  return (op == Equal || op == BVComp || op == Distinct);
+}
+
 // main IC3SA implementation
 
 IC3SA::IC3SA(Property & p, const smt::SmtSolver & solver, PonoOptions opt)
@@ -401,31 +427,15 @@ void IC3SA::initialize()
   // TODO consider starting with only a subset -- e.g. variables
   // TODO consider keeping a cache from terms to their free variables
   //      for use in COI
-  SubTermCollector stc(solver_);
-  stc.collect_subterms(ts_->init());
-  stc.collect_subterms(ts_->trans());
-  stc.collect_subterms(bad_);
-
-  // TODO make sure this is right
+  // create one big term to traverse for finding subterms
+  // TODO make it an option to add ts_->trans()
+  // TODO make sure projecting on state variables is right
   // I think we'll always project models onto at least state variables
   // so, we should prune those terms now
   // otherwise we'll do unnecessary iteration over them every time we get a
   // model
-
-  for (const auto & elem : stc.get_subterms()) {
-    const Sort & sort = elem.first;
-    for (const auto & term : elem.second) {
-      if (ts_->only_curr(term)) {
-        term_abstraction_[sort].insert(term);
-      }
-    }
-  }
-
-  for (const auto & p : stc.get_predicates()) {
-    if (ts_->only_curr(p)) {
-      predset_.insert(p);
-    }
-  }
+  add_to_term_abstraction(solver_->make_term(
+      And, solver_->make_term(And, ts_->init(), ts_->trans()), bad_));
 
   // collect variables in bad_
   get_free_symbolic_consts(bad_, vars_in_bad_);
@@ -606,10 +616,11 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
   }
 }
 
-bool IC3SA::add_to_term_abstraction(const Term & axiom)
+bool IC3SA::add_to_term_abstraction(const Term & term)
 {
+  Sort boolsort = solver_->make_sort(BOOL);
   SubTermCollector stc(solver_);
-  stc.collect_subterms(axiom);
+  stc.collect_subterms(term);
 
   bool new_terms = false;
 
@@ -617,6 +628,10 @@ bool IC3SA::add_to_term_abstraction(const Term & axiom)
     // TODO : figure out if we need to promote all input vars
     //        for this algorithm to work
     //        not sure it's okay to just drop terms containing inputs
+    // NOTE might have duplicated predicates wrt equivalences
+    //      but ran into issues when I removed it because predicate
+    //      values have to be included and currently we're not adding
+    //      all possible equalities / disequalities
     if (ts_->only_curr(p)) {
       new_terms |= predset_.insert(p).second;
     }
@@ -648,6 +663,18 @@ void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const
     }
   }
   cout << "======== end of equivalence classes debug printing" << endl;
+}
+
+void IC3SA::debug_print_term_abstraction() const
+{
+  cout << "======== beginning of term abstraction debug printing" << endl;
+  for (const auto & sortelem : term_abstraction_) {
+    cout << sortelem.first << ":" << endl;
+    for (const auto & term : sortelem.second) {
+      cout << "\t" << term << endl;
+    }
+  }
+  cout << "======== end of term abstraction debug printing" << endl;
 }
 
 }  // namespace pono
