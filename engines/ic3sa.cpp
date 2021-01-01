@@ -221,6 +221,7 @@ RefineResult IC3SA::refine()
   Term trans = ts_->trans();
   Result r;
   bool refined = false;
+  Term axiom;
   for (size_t i = 1; i < cex_length; ++i) {
     // add ci'
     // TODO use substitute_terms to save time when copying map
@@ -270,7 +271,7 @@ RefineResult IC3SA::refine()
       // replace next-state variables with functional substitution
       m = solver_->substitute(m, next_updates);
 
-      Term axiom = solver_->make_term(Not, m);
+      axiom = solver_->make_term(Not, m);
       assert(ts_->no_next(axiom));
       ts_->add_constraint(axiom);
       logger.log(2, "IC3SA::refine learning axiom: {}", axiom);
@@ -291,6 +292,16 @@ RefineResult IC3SA::refine()
     pop_solver_context();
 
     if (refined) {
+      // expecting only one axioms
+      // needs to be changed if we don't break from the loop upon finding an
+      // axiom add semantics for trans_label_
+      assert(axiom);
+      assert(solver_context_ == 0);
+      solver_->assert_formula(solver_->make_term(Implies, trans_label_, axiom));
+      if (ts_->only_curr(axiom)) {
+        solver_->assert_formula(
+            solver_->make_term(Implies, trans_label_, ts_->next(axiom)));
+      }
       break;
     }
   }
