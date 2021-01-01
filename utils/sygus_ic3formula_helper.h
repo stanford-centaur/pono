@@ -29,8 +29,8 @@ namespace syntax_analysis {
 // and only class of partial model can construct
 
 class IC3FormulaModel {
- typedef std::unordered_map<smt::Term, smt::Term> cube_t;
  public:
+  typedef std::unordered_map<smt::Term, smt::Term> cube_t;
   // because we need to assign the expr_ and cube_ 
   IC3FormulaModel(cube_t && cube, const smt::Term & expr) : cube_(cube), expr_(expr) {}
   

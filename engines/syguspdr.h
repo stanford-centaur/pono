@@ -42,23 +42,24 @@ class CustomFunctionalTransitionSystem : public FunctionalTransitionSystem {
   CustomFunctionalTransitionSystem(const TransitionSystem & other_ts,
                              smt::TermTranslator & tt) : FunctionalTransitionSystem(other_ts, tt) {  }
   void make_nextvar_for_inputs();
+
+  // curr_var -> replace by var
   smt::Term to_next_func(const smt::Term & term) { 
       return FunctionalTransitionSystem::to_next_func(term); }
+  const smt::UnorderedTermMap & input_var_to_next_map() const {return next_inputvars_;}
+
  protected:
   // next variables for the system inputs 
-  smt::UnorderedTermSet next_inputvars_;
+  smt::UnorderedTermMap next_inputvars_;
 
 }; // class CustomFunctionalTransitionSystem
 
 class SygusPdr : public IC3Base
 {
  public:
-  SygusPdr(Property & p, smt::SolverEnum se);
-  SygusPdr(Property & p, const smt::SmtSolver & s);
-  SygusPdr(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  SygusPdr(const PonoOptions & opt,
-                Property & p,
-                const smt::SmtSolver & s);
+
+  SygusPdr(Property & p, const smt::SmtSolver & s,
+                PonoOptions opt = PonoOptions());
   virtual ~SygusPdr(); // need to free the pointers
 
   // we cannot allow copy assignment
@@ -87,6 +88,12 @@ class SygusPdr : public IC3Base
 
   void initialize() override;
 
+
+  virtual void abstract() override;
+
+  virtual RefineResult refine() override;
+
+
   // store the relation between IC3Formula to IC3Models
   std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> model2cube_;
   std::unordered_map<syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
@@ -105,6 +112,12 @@ class SygusPdr : public IC3Base
   syntax_analysis::to_next_t to_next_func_;
   CustomFunctionalTransitionSystem * custom_ts_;
   
+  smt::Term bad_next_;
+  smt::TermVec constraints_curr_var_;
+
+  bool has_assumptions;
+  bool keep_var_in_partial_model(const smt::Term & v) const;
+
 }; // class SygusPdr
 
 }  // namespace pono

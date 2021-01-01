@@ -26,10 +26,35 @@ namespace pono {
 
 namespace syntax_analysis {
 
+/* Internal Function */
+bool static extract_decimal_width(const std::string & s,
+  std::string & decimal, std::string & width)
+{
+  if(s.substr(0,5) != "(_ bv")
+    return false;
+  auto space_idx = s.find(' ', 5);
+  if(space_idx == std::string::npos )
+    return false;
+  auto rpara_idx = s.find(')', space_idx);
+  if(rpara_idx == std::string::npos )
+    return false;
+
+  decimal = s.substr(5,space_idx-5);
+  width = s.substr(space_idx+1,rpara_idx-(space_idx+1));
+  return true;
+}
+
 // --------------------  eval_val ----------------
 
 eval_val::eval_val(const std::string & val) {
-  assert(val.find("#b") == 0);
+  if(val.find("#b") != 0) { // then it is (_ bvX width)
+    type = type_t::STR;
+    std::string width; // width is no use
+    assert(extract_decimal_width(val, sv, width));
+    return;
+  }
+
+  // #b something here
   size_t pos = 2;
   for(; pos < val.length() ; ++ pos) {
     if ( val.at(pos) != '0' )
@@ -63,9 +88,11 @@ bool eval_val::operator<(const eval_val &r) const {
   if (sv.length() > r.sv.length())
     return false;
   for(size_t pos = 0; pos < sv.length(); ++ pos) {
-    if (sv.at(pos) == '0' && r.sv.at(pos) == '1')
+    //if (sv.at(pos) == '0' && r.sv.at(pos) == '1')
+    if (sv.at(pos) < r.sv.at(pos))
       return true;
-    if (sv.at(pos) == '1' && r.sv.at(pos) == '0')
+    //if (sv.at(pos) == '1' && r.sv.at(pos) == '0')
+    if (sv.at(pos) > r.sv.at(pos))
       return false;
   }
   return false; // equal both string, same length and save val
@@ -77,6 +104,7 @@ std::string eval_val::to_string() const {
     return "(bv" + std::to_string(nv)+" X)";
   return "#b"+sv;
 } // to_string
+
 
 // --------------------  PerVarsetInfo ----------------
 static unsigned get_width(const smt::Term & t) {

@@ -1,0 +1,84 @@
+/*********************                                                        */
+/*! \file sygus_predicate_constructor.h
+** \verbatim
+** Top contributors (to current version):
+**   Hongce Zhang
+** This file is part of the pono project.
+** Copyright (c) 2020 by the authors listed in the file AUTHORS
+** in the top-level source directory) and their institutional affiliations.
+** All rights reserved.  See the file LICENSE in the top-level source
+** directory for licensing information.\endverbatim
+**
+** \brief Utility class to help manage/construct the predicates
+**
+**/
+
+#pragma once
+
+#include "utils/syntax_analysis.h"
+#include "utils/sygus_ic3formula_helper.h"
+#include "smt-switch/utils.h"
+
+#include <vector>
+#include <functional>
+#include <list>
+
+
+namespace pono {
+namespace syntax_analysis {
+
+class PredConstructor {
+  // extract_model_t
+  
+protected:
+  smt::UnsatCoreReducer & reducer_;
+  smt::SmtSolver & solver_;
+  smt::Term trans_;
+  smt::Term init_;
+  smt::Term prev_;
+  IC3FormulaModel * cex_; // the cexs to block
+    
+  
+protected:
+  // btor_var_to_msat_t btor_var_to_msat_;
+  // const btor_var_to_msat_var_map_t & btor_var_to_msat_var_map_;
+  to_next_t to_next_;
+  
+  PerCexInfo & per_cex_info_; // per var set info here
+  
+  void terms_to_predicates();
+  
+  void DebugPredicates(const smt::TermVec & inpreds, const smt::Term & base, const smt::Term & init, bool rm_pre) ;
+  bool check_failed_at_init(const smt::Term & F_and_T);
+
+public:
+  // constraints are included in the T part
+  PredConstructor(
+    to_next_t to_next_func,
+    smt::UnsatCoreReducer & reducer,
+    smt::SmtSolver & solver,
+    const smt::Term & T_btor, const smt::Term & Init_btor, const smt::Term & Fprev_btor,
+    IC3FormulaModel * cex,
+    PerCexInfo & per_cex_info // from pdr class, this will allow us to not use static data
+    //bool init_per_cex_info,
+    // VarTermManager & var_term_extractor 
+    // setup_cex_info will be in pdr class
+  );
+  
+  const smt::TermVec & GetAllPredNext() const { return per_cex_info_.predicates_nxt; }
+  
+  
+  void GetOneCandidate(smt::TermVec & cands, bool iterative_reduction, bool mus_traverse_reduction);
+   
+  bool CheckPrepointNowHasPred(IC3FormulaModel * m);
+
+protected:
+  // true means still unsat
+  bool GetInitialUnsatCore(const smt::Term & base_term, const smt::Term & F_and_T, 
+    smt::UnorderedTermSet & initial_core);
+
+}; // PredConstructor
+
+} // namespace syntax_analysis
+} // namespace pono
+
