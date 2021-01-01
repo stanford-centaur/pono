@@ -207,20 +207,14 @@ RefineResult IC3SA::refine()
     throw PonoException("Length one CEX not handled yet");
   }
 
+  const UnorderedTermMap & state_updates = ts_->state_updates();
+
   // used to get rid of "unrolled" variables
   // after successfully refining
   UnorderedTermMap last_model_vals;
 
   // set up initial substitution map
-  gen_inputvars_at_time(0);
-  UnorderedTermMap subst = inputvars_at_time_.at(0);
-  const UnorderedTermMap & state_updates = ts_->state_updates();
-  // start by just mapping to state variables
-  for (const auto & sv : ts_->statevars()) {
-    if (state_updates.find(sv) != state_updates.end()) {
-      subst[sv] = sv;
-    }
-  }
+  UnorderedTermMap subst;
 
   // assumps is for p_{i-1} /\ c_{i-1} /\ c_i' from paper
   TermVec assumps(cex[0].children.begin(), cex[0].children.end());
@@ -274,28 +268,13 @@ RefineResult IC3SA::refine()
       for (const auto & elem : state_updates) {
         next_updates[ts_->next(elem.first)] = elem.second;
       }
-      // get rid of next-state variables
+      // replace next-state variables with functional substitution
       m = solver_->substitute(m, next_updates);
 
       Term axiom = solver_->make_term(Not, m);
       assert(ts_->no_next(axiom));
       ts_->add_constraint(axiom);
       logger.log(2, "IC3SA::refine learning axiom: {}", axiom);
-
-      // NOTE we have an issue where it's too specific
-      // for example, if there's a counter, we might get a trace
-      // c0: cnt = 0 /\ cnt < 6
-      // c1: cnt != 0 /\ cnt < 6
-      // c2: cnt != 0 /\ cnt + 1 = 6 /\ cnt < 6
-      // c3: -(cnt < 6)
-      //
-      // then in the c1 -> c2 check we'd learn the axiom
-      // cnt != 1 \/ cnt != 4
-      // but really it would be better to have learned
-      //     cnt + 2 >= 6 \/ cnt < 6
-      // although that's structurally true anyway
-      // might just be a mistake to focus on such a simple example
-      // that has a real cex trace
 
       // add all state variables to projection set
       UnorderedTermSet free_vars;
