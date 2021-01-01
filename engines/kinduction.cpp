@@ -116,10 +116,10 @@ Term KInduction::simple_path_constraint(int i, int j)
 
   Term disj = false_;
   for (const auto &v : ts_.statevars()) {
-    const Term &vi = unroller_.at_time(v, i);
-    const Term &vj = unroller_.at_time(v, j);
-    const Term &eq = solver_->make_term(PrimOp::Equal, vi, vj);
-    const Term &neq = solver_->make_term(PrimOp::Not, eq);
+    Term vi = unroller_.at_time(v, i);
+    Term vj = unroller_.at_time(v, j);
+    Term eq = solver_->make_term(PrimOp::Equal, vi, vj);
+    Term neq = solver_->make_term(PrimOp::Not, eq);
     disj = solver_->make_term(PrimOp::Or, disj, neq);
   }
 
