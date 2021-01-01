@@ -672,8 +672,14 @@ void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const
   cout << "======== end of equivalence classes debug printing" << endl;
 }
 
-void IC3SA::debug_print_term_abstraction() const
+void IC3SA::debug_print_syntax_abstraction() const
 {
+  cout << "======== beginning of predicate set debug printing" << endl;
+  for (const auto & p : predset_) {
+    cout << "\t" << p << endl;
+  }
+  cout << "======== end of predicate set debug printing" << endl;
+
   cout << "======== beginning of term abstraction debug printing" << endl;
   for (const auto & sortelem : term_abstraction_) {
     cout << sortelem.first << ":" << endl;
@@ -682,6 +688,19 @@ void IC3SA::debug_print_term_abstraction() const
     }
   }
   cout << "======== end of term abstraction debug printing" << endl;
+}
+
+void IC3SA::debug_print_cex_trace(const std::vector<IC3Formula> & cex)
+{
+  cout << "======== beginning of cex trace debug printing" << endl;
+  for (size_t i = 0; i < cex.size(); ++i) {
+    cout << "c" << i << ": ";
+    for (const auto & c : cex[i].children) {
+      cout << c << " /\\ ";
+    }
+    cout << endl;
+  }
+  cout << "======== end of cex trace debug printing" << endl;
 }
 
 }  // namespace pono

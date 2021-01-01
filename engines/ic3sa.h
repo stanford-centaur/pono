@@ -156,7 +156,8 @@ class IC3SA : public IC3
 
   // debug methods
   void debug_print_equivalence_classes(EquivalenceClasses ec) const;
-  void debug_print_term_abstraction() const;
+  void debug_print_syntax_abstraction() const;
+  void debug_print_cex_trace(const std::vector<IC3Formula> & cex);
 };
 
 }  // namespace pono
