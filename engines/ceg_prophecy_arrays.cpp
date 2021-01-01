@@ -49,6 +49,8 @@ CegProphecyArrays::CegProphecyArrays(const Property & p,
       pm_(ts_),
       num_added_axioms_(0)
 {
+  // point orig_ts_ to the correct one
+  orig_ts_ = ts;
 }
 
 ProverResult CegProphecyArrays::prove()
