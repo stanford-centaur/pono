@@ -116,7 +116,19 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
     if (op == Not || op == BVNot) {
       c = smart_not(c);
     }
+  }
 
+  // HACK trouble to accurately identify predicates in boolector
+  // because of simplification. Something that starts as a predicate
+  // might not end up one, e.g. (= ((_ extract 0 0) x) #b0)
+  // just becomes ((_ extract 0 0) x) which we don't consider a predicate
+  // TODO possible fix is to just treat all 1-bit vals as predicates in btor
+  // TODO check if logging
+  if (solver_->get_solver_enum() == BTOR) {
+    return true;
+  }
+
+  for (const auto & c : u.children) {
     // an equality is a predicate, so we just need to check
     // is_predicate, not specifically for equalities
     if (!is_predicate(c, boolsort, true)) {
