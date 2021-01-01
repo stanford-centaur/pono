@@ -427,15 +427,16 @@ void IC3SA::initialize()
   // TODO consider starting with only a subset -- e.g. variables
   // TODO consider keeping a cache from terms to their free variables
   //      for use in COI
-  // create one big term to traverse for finding subterms
+
   // TODO make it an option to add ts_->trans()
   // TODO make sure projecting on state variables is right
   // I think we'll always project models onto at least state variables
   // so, we should prune those terms now
   // otherwise we'll do unnecessary iteration over them every time we get a
   // model
-  add_to_term_abstraction(solver_->make_term(
-      And, solver_->make_term(And, ts_->init(), ts_->trans()), bad_));
+  add_to_term_abstraction(ts_->init());
+  add_to_term_abstraction(ts_->trans());
+  add_to_term_abstraction(bad_);
 
   // collect variables in bad_
   get_free_symbolic_consts(bad_, vars_in_bad_);
