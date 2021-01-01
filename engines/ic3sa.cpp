@@ -104,17 +104,9 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
 {
   Sort boolsort = solver_->make_sort(BOOL);
   // check that children are literals
-  Op op;
-  for (auto c : u.children) {
-    op = c->get_op();
-
+  for (const auto & c : u.children) {
     if (c->get_sort() != boolsort) {
       return false;
-    }
-
-    // include bvnot for boolector
-    if (op == Not || op == BVNot) {
-      c = smart_not(c);
     }
   }
 
@@ -128,7 +120,15 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
     return true;
   }
 
-  for (const auto & c : u.children) {
+  Op op;
+  for (auto c : u.children) {
+    op = c->get_op();
+
+    // include bvnot for boolector (if we ever include boolector in this check)
+    if (op == Not || op == BVNot) {
+      c = smart_not(c);
+    }
+
     // an equality is a predicate, so we just need to check
     // is_predicate, not specifically for equalities
     if (!is_predicate(c, boolsort, true)) {
