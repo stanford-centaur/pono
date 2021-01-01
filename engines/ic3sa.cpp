@@ -201,10 +201,9 @@ RefineResult IC3SA::refine()
   size_t cex_length = cex.size();
   logger.log(1, "IC3SA::refine cex of length {}", cex_length);
   assert(cex_length);
-  // TODO figure out correct action if cex_length == 1
   if (cex_length == 1) {
-    // I suspect these will always be concrete, but need to double check
-    throw PonoException("Length one CEX not handled yet");
+    // TODO make sure that this is indeed a concrete CEX
+    return REFINE_NONE;
   }
 
   const UnorderedTermMap & state_updates = ts_->state_updates();
