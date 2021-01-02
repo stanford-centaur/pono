@@ -49,6 +49,8 @@ class ModelBasedIC3 : public IC3Base
 
   IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) override;
 
+  bool get_bad(IC3Formula & out) override;
+
   void check_ts() const override;
 
   void initialize() override;
