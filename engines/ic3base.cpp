@@ -104,7 +104,6 @@ void IC3Base::initialize()
 
   frames_.clear();
   frame_labels_.clear();
-  proof_goals_.clear();
   // first frame is always the initial states
   frames_.push_back({});
   frame_labels_.push_back(
@@ -291,7 +290,7 @@ RefineResult IC3Base::rec_block(const IC3Formula & bad)
 
     if (p->idx == 0) {
       // doing differently than msat-ic3ia -- reconstructing in refine()
-      cex_pg_ = p;
+      cex_pg_ = new ProofGoal(p->target, p->idx, p->next);
       RefineResult s = refine();
       if (s == REFINE_SUCCESS) {
         // upon successful refinement, we clear the queue of proof
@@ -304,6 +303,12 @@ RefineResult IC3Base::rec_block(const IC3Formula & bad)
         // flush the queue
         while (!queue.empty()) {
           queue.pop();
+        }
+
+        // and reset cex_pg_
+        if (cex_pg_) {
+          delete cex_pg_;
+          cex_pg_ = nullptr;
         }
       }
       return s;
@@ -628,18 +633,6 @@ void IC3Base::assert_trans_label() const
   // just because of how IC3 works
   assert(solver_context_ > 0);
   solver_->assert_formula(trans_label_);
-}
-
-void IC3Base::add_proof_goal(const IC3Formula & c,
-                             size_t i,
-                             const ProofGoal * n)
-{
-  // IC3Formula aligned with frame so proof goal should be negated
-  // e.g. for bit-level IC3, IC3Formula is a Clause and the proof
-  // goal should be a Cube
-  assert(!c.is_disjunction());
-  assert(ic3formula_check_valid(c));
-  proof_goals_.push_new(c, i, n);
 }
 
 bool IC3Base::check_intersects(const Term & A, const Term & B)

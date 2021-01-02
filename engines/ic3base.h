@@ -214,9 +214,6 @@ class IC3Base : public Prover
   ///< which changes depending on the implementation
   std::vector<std::vector<IC3Formula>> frames_;
 
-  ///< priority queue of outstanding proof goals
-  ProofGoalQueue proof_goals_;
-
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
   smt::Term trans_label_;      ///< label to activate trans
@@ -443,38 +440,6 @@ class IC3Base : public Prover
   smt::Term get_frame_term(size_t i) const;
 
   void assert_trans_label() const;
-
-  /** Check if there are more proof goals
-   *  @return true iff there are more proof goals
-   */
-  inline bool has_proof_goals() const { return !proof_goals_.empty(); }
-
-  /** Gets a new proof goal
-   *  @requires has_proof_goals()
-   *  @return a proof goal with the lowest available frame number
-   *          i.e. from the top of the priority queue
-   *  @alters proof_goals_
-   *  @ensures returned proof goal is from lowest frame in proof goals
-   */
-  inline ProofGoal * get_top_proof_goal()
-  {
-    assert(has_proof_goals());
-    ProofGoal * pg = proof_goals_.top();
-    return pg;
-  }
-
-  /** Removes the proof goal at the top of the priority queue
-   *  Proof goals should be removed once they are blocked
-   */
-  inline void remove_top_proof_goal() { proof_goals_.pop(); }
-
-  /** Create and add a proof goal for cube c for frame i
-   *  @param c the cube of the proof goal
-   *  @param i the frame number for the proof goal
-   *  @param n pointer to the proof goal that led to this one -- null for bad
-   *  (i.e. end of trace)
-   */
-  void add_proof_goal(const IC3Formula & c, size_t i, const ProofGoal * n);
 
   /** Check if there are common assignments
    *  between A and B
