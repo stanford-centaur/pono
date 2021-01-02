@@ -62,7 +62,10 @@
 
 namespace pono {
 
-// TODO refine -- currently using my version
+// TODO Things to try
+//      use their refine -- currently using my version
+//      use label variables for each of the predicates
+//        currently label implications are at solver_context_ > 0
 
 struct IC3Formula
 {

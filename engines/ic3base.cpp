@@ -120,6 +120,7 @@ void IC3Base::initialize()
   assert(!trans_label_);
   // frame 0 label is identical to init label
   init_label_ = frame_labels_[0];
+  solver_->make_term(Implies, init_label_, ts_->init());
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_->trans()));
@@ -390,11 +391,16 @@ bool IC3Base::block(const IC3Formula & c,
     std::shuffle(idx.begin(), idx.end(), rng_);
 
     for (size_t i : idx) {
-      assumps.push_back(label(primed.children.at(i)));
+      Term lbl = label(primed.children.at(i));
+      assumps.push_back(lbl);
+      solver_->assert_formula(
+          solver_->make_term(Implies, lbl, primed.children.at(i)));
     }
   } else {
     for (const auto & l : primed.children) {
-      assumps.push_back(label(l));
+      Term lbl = label(l);
+      solver_->assert_formula(solver_->make_term(Implies, lbl, l));
+      assumps.push_back(lbl);
     }
   }
 

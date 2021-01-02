@@ -140,6 +140,7 @@ void IC3IA::initialize()
   for (const auto &p : preds) {
     add_predicate(p);
   }
+
   logger.log(1, "Number predicates found in init: {}", num_init_preds);
   logger.log(1, "Number predicates found in prop: {}", num_prop_preds);
   logger.log(1, "Total number of initial predicates: {}", num_init_preds + num_prop_preds);
@@ -301,6 +302,7 @@ RefineResult IC3IA::refine()
 
 bool IC3IA::add_predicate(const Term & pred)
 {
+  assert(solver_context_ == 0);
   if (predset_.find(pred) != predset_.end()) {
     // don't allow re-adding the same predicate
     return false;
