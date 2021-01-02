@@ -399,10 +399,17 @@ bool IC3SA::intersects_bad()
     // TODO make sure that projecting on variables in bad here makes sense
     EquivalenceClasses ec = get_equivalence_classes_from_model(vars_in_bad_);
     construct_partition(ec, cube_lits);
+    assert(cube_lits.size());
     // reduce cube_lits
     TermVec red_c;
-    reducer_.reduce_assump_unsatcore(smart_not(bad_), cube_lits, red_c);
-    add_proof_goal(ic3formula_conjunction(red_c), reached_k_ + 1, NULL);
+    bool is_unsat =
+        reducer_.reduce_assump_unsatcore(smart_not(bad_), cube_lits, red_c);
+    if (is_unsat) {
+      assert(red_c.size());
+      add_proof_goal(ic3formula_conjunction(red_c), reached_k_ + 1, NULL);
+    } else {
+      add_proof_goal(ic3formula_conjunction(cube_lits), reached_k_ + 1, NULL);
+    }
   }
 
   pop_solver_context();
@@ -607,7 +614,12 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
           }
         }
       }
+
+      // save the representative for this partition
+      representatives.push_back(repr);
     }
+
+    assert(representatives.size() == sortelem.second.size());
 
     // add disequalities between each pair of representatives from
     // different equivalent classes
