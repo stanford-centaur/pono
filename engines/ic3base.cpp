@@ -372,6 +372,7 @@ bool IC3Base::block(const IC3Formula & c,
 {
   assert(idx > 0);
   assert(solver_context_ == 0);
+  assert(!c.disjunction);
 
   // check whether ~c is inductive relative to F[idx-1], i.e.
   // ~c & F[idx-1] & T |= ~c', that is
@@ -437,7 +438,8 @@ bool IC3Base::block(const IC3Formula & c,
       // fails. We fix this by re-adding back literals until
       // "init & candidate" is unsat
       fix_if_intersects_initial(candidate, rest);
-      *out = ic3formula_negate(ic3formula_conjunction(candidate));
+      *out = ic3formula_conjunction(candidate);
+      assert(!out->disjunction);
       pop_solver_context();
     } else {
       pop_solver_context();
@@ -509,7 +511,7 @@ bool IC3Base::propagate()
       logger.log(4, "{}", f.at(i).term);
       logger.log(3, "from {} to {}", k, k + 1);
 
-      if (!block(f[i], k + 1, &to_add.back(), false)) {
+      if (!block(ic3formula_negate(f[i]), k + 1, &to_add.back(), false)) {
         to_add.pop_back();
       } else {
         logger.log(3, "success");
@@ -517,7 +519,7 @@ bool IC3Base::propagate()
     }
 
     for (IC3Formula & c : to_add) {
-      constrain_frame(c, k + 1);
+      constrain_frame(ic3formula_negate(c), k + 1);
     }
     if (frames_[k].empty()) {
       // fixpoint: frames_[k] == frames_[k+1]
