@@ -251,8 +251,8 @@ ProverResult IC3Base::step_0()
   assert(reached_k_ < 0);
 
   push_solver_context();
-  solver_->assert_formula(init_label_);
-  solver_->assert_formula(bad_);
+  assert_frame_labels(0);
+  activate_bad();
   Result r = check_sat();
   if (r.is_sat()) {
     const IC3Formula &c = get_model_ic3formula();

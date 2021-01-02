@@ -67,6 +67,7 @@ namespace pono {
 //      use label variables for each of the predicates
 //        currently label implications are at solver_context_ > 0
 //      keep everything as cubes instead of converting back and forth
+//      don't return ic3formula, just append to it
 
 struct IC3Formula
 {
