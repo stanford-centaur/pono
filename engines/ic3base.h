@@ -55,11 +55,14 @@
 
 #include <algorithm>
 #include <queue>
+#include <random>
 
 #include "engines/prover.h"
 #include "smt-switch/utils.h"
 
 namespace pono {
+
+// TODO refine -- currently using my version
 
 struct IC3Formula
 {
@@ -217,6 +220,7 @@ class IC3Base : public Prover
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
   smt::Term trans_label_;      ///< label to activate trans
+  smt::Term bad_label_;        ///< label to activate bad
   smt::TermVec frame_labels_;  ///< labels to activate frames
   smt::UnorderedTermMap labels_;  //< labels for unsat cores
 
@@ -356,7 +360,7 @@ class IC3Base : public Prover
    * goals This method can be overriden if you want to add more than a single
    *  IC3Formula that intersects bad to the proof goals
    */
-  virtual bool intersects_bad();
+  virtual bool get_bad(IC3Formula & out);
 
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented
@@ -370,28 +374,10 @@ class IC3Base : public Prover
    */
   ProverResult step_0();
 
-  /** Do a relative inductiveness check at frame i-1
-   *  aka see if c at frame i is reachable from frame i-1
-   *  @requires c -> F[i]
-   *  @param i the frame number
-   *  @param c the IC3Formula to check
-   *  @param out the output collateral: a vector interpreted as a conjunction of
-   * IC3Formulas if the check succeeds (e.g. is UNSAT), then returns a vector of
-   * blocking units to be added to Frame i if the check fails (e.g. is SAT),
-   * then returns a vector of predecessors Note 1: this method calls
-   * inductive_generalization and generalize_predecessor if options_.ic3_pregen_
-   * and options_.ic3_indgen_ are set, respectively Note 2: in most cases, the
-   * vector returned will be size one
-   *  @return true iff c is inductive relative to frame i-1
-   *  @ensures returns false  : out -> F[i-1] /\ \forall s in out . (s, c) \in
-   * [T] returns true   : out unchanged, F[i-1] /\ T /\ c' is unsat
-   */
-  bool rel_ind_check(size_t i,
-                     const IC3Formula & c,
-                     std::vector<IC3Formula> & out);
-
   // Helper methods
 
+  RefineResult rec_block(const IC3Formula & bad);
+  // replacing with rec_block temporarily
   /** Attempt to block all proof goals
    *  to ensure termination, always choose proof goal with
    *  smallest time
@@ -400,14 +386,17 @@ class IC3Base : public Prover
    *  of a trace, e.g. the trace can be recovered by following
    *  pg.next iteratively
    */
-  bool block_all();
+  // bool block_all();
 
   /** Attempt to block the given proof goal
    *  @param pg the proof goal
    *  @return true iff the proof goal was blocked,
    *          otherwise a new proof goal was added to the proof goals
    */
-  bool block(const ProofGoal * pg);
+  bool block(const IC3Formula & c,
+             unsigned int idx,
+             IC3Formula * out,
+             bool compute_cti);
 
   /** Check if the given proof goal is already blocked
    *  @param pg the proof goal
@@ -420,7 +409,7 @@ class IC3Base : public Prover
    *  @return true iff all the clauses are propagated (this means property was
    * proven)
    */
-  bool propagate(size_t i);
+  bool propagate();
 
   /** Add a new frame */
   void push_frame();
@@ -432,8 +421,7 @@ class IC3Base : public Prover
    *         newly learned blocking constraint. In true, then subsumption check
    *         is performed
    */
-  void constrain_frame(size_t i, const IC3Formula & constraint,
-                       bool new_constraint=true);
+  void constrain_frame(const IC3Formula & constraint, size_t i);
 
   /** Adds an implication frame_label_[i] -> constraint
    *  used as a helper in constrain_frame and when resetting solver
@@ -573,6 +561,41 @@ class IC3Base : public Prover
    ** or applying Not if the term is not already negated.
    */
   smt::Term smart_not(const smt::Term & t) const;
+
+  // added temporarily from msat-ic3ia
+  void generalize(IC3Formula & c, unsigned int & idx);
+  void push(IC3Formula & c, unsigned int & idx);
+  void generalize_and_push(IC3Formula & c, unsigned int & idx);
+  void generalize_bad(IC3Formula & c);
+
+  IC3Formula get_next(const IC3Formula & c)
+  {
+    smt::TermVec ret;
+    ret.reserve(c.children.size());
+
+    for (const auto & l : c.children) {
+      ret.push_back(ts_->next(l));
+    }
+    return ic3formula_conjunction(ret);
+  }
+
+  inline void activate_bad()
+  {
+    assert(solver_context_ != 0);
+    solver_->assert_formula(bad_label_);
+  }
+
+  inline size_t depth() const { return frames_.size() - 1; }
+
+  // temporary storage used by generalization methods
+  smt::TermVec tmp_;
+
+  // TODO try a regular set instead of unordered?
+  smt::UnorderedTermSet gen_needed_;
+  ///< set of literals that cannot be dropped from the current cube. used in
+  ///< generalize()
+
+  std::minstd_rand rng_;  ///< pseudo-random number generator
 };
 
 }  // namespace pono

@@ -51,8 +51,6 @@ class ModelBasedIC3 : public IC3Base
 
   void check_ts() const override;
 
-  bool intersects_bad() override;
-
   void initialize() override;
 };
 }  // namespace pono
