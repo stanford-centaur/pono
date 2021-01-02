@@ -102,7 +102,7 @@ const option::Descriptor usage[] = {
     "engine",
     Arg::NonEmpty,
     "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, "
-    "interp, mbic3, ic3ia, msat-ic3ia]." },
+    "interp, mbic3, ic3ia, msat-ic3ia, sygus-pdr]." },
   { BOUND,
     0,
     "k",

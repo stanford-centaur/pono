@@ -32,6 +32,9 @@ class IC3FormulaModel {
  public:
   typedef std::unordered_map<smt::Term, smt::Term> cube_t;
   // because we need to assign the expr_ and cube_ 
+  // I intentionally make this a rvalue reference
+  // because very often we need to construct the map
+  // first and want to avoid a copy
   IC3FormulaModel(cube_t && cube, const smt::Term & expr) : cube_(cube), expr_(expr) {}
   
   // here we really do the extraction
