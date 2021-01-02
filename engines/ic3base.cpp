@@ -106,7 +106,9 @@ void IC3Base::initialize()
   frame_labels_.clear();
   proof_goals_.clear();
   // first frame is always the initial states
-  push_frame();
+  frames_.push_back({});
+  frame_labels_.push_back(
+      solver_->make_symbol("__frame_label_0", solver_->make_sort(BOOL)));
   // can't use constrain_frame for initial states because not guaranteed to be
   // an IC3Formula it's handled specially
   solver_->assert_formula(
@@ -135,6 +137,10 @@ ProverResult IC3Base::check_until(int k)
   // ever initializing base classes
   assert(initialized_);
 
+  if (step_0() == ProverResult::FALSE) {
+    return ProverResult::FALSE;
+  }
+
   while (depth() <= k) {
     IC3Formula bad;
     while (get_bad(bad)) {
@@ -147,6 +153,7 @@ ProverResult IC3Base::check_until(int k)
         return ProverResult::UNKNOWN;
       }
     }
+    reached_k_ = depth();
     push_frame();
     if (propagate()) {
       return ProverResult::TRUE;
@@ -516,7 +523,6 @@ bool IC3Base::propagate()
 void IC3Base::push_frame()
 {
   size_t depth = frames_.size() - 1;
-  assert(depth == reached_k_ + 2);
 
   if (depth) {
     string row;
