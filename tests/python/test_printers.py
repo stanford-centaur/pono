@@ -24,8 +24,8 @@ def test_vcd_trace(create_solver):
 
     prop_term = ts.make_term(ss.primops.BVUle, x, solver.make_term(9, x.get_sort()))
 
-    prop = pono.Property(ts, prop_term)
-    bmc = pono.Bmc(prop, solver)
+    prop = pono.Property(ts.solver(), prop_term)
+    bmc = pono.Bmc(prop, ts, solver)
     res = bmc.check_until(10)
     assert res == False, "res should be false, not just unknown (i.e. None)"
 

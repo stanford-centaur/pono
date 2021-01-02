@@ -46,19 +46,17 @@ def build_simple_alu_fts(s:ss.SmtSolver)->pono.Property:
                                      s.make_term(BVSub, a, b)))
 
     # Create a property: (spec_cnt == imp_cnt - 1)
-    prop = pono.Property(fts, s.make_term(Equal,
-                                       spec_res,
-                                       imp_res))
-    return prop
+    prop = pono.Property(s, s.make_term(Equal, spec_res, imp_res))
+    return prop, fts
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_bmc(create_solver):
     s = create_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
-    prop = build_simple_alu_fts(s)
+    prop, ts = build_simple_alu_fts(s)
 
-    bmc = pono.Bmc(prop, s)
+    bmc = pono.Bmc(prop, ts, s)
     res = bmc.check_until(10)
 
     assert res is None, "BMC shouldn't be able to solve"
@@ -68,9 +66,9 @@ def test_kind(create_solver):
     s = create_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
-    prop = build_simple_alu_fts(s)
+    prop, ts = build_simple_alu_fts(s)
 
-    kind = pono.KInduction(prop, s)
+    kind = pono.KInduction(prop, ts, s)
     res = kind.check_until(10)
 
     assert res is None, "KInduction shouldn't be able to solve this property"
@@ -83,9 +81,9 @@ def test_interp(solver_and_interpolator):
     s.set_opt('incremental', 'true')
     itp = solver_and_interpolator[1]()
 
-    prop = build_simple_alu_fts(s)
+    prop, ts = build_simple_alu_fts(s)
 
-    ic3ia = pono.IC3IA(prop, s, itp)
+    ic3ia = pono.IC3IA(prop, ts, s, itp)
     res = ic3ia.check_until(10)
 
     assert res is True, "IC3IA be able to solve this property"
@@ -98,9 +96,9 @@ def test_interp(solver_and_interpolator):
     s.set_opt('incremental', 'true')
     itp = solver_and_interpolator[1]()
 
-    prop = build_simple_alu_fts(s)
+    prop, ts = build_simple_alu_fts(s)
 
-    interp = pono.InterpolantMC(prop, s, itp)
+    interp = pono.InterpolantMC(prop, ts, s, itp)
     res = interp.check_until(10)
 
     assert res is True, "InterpolantMC be able to solve this property"
@@ -110,16 +108,16 @@ def test_kind_inductive_prop(create_solver):
     s = create_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
-    prop = build_simple_alu_fts(s)
+    prop, ts = build_simple_alu_fts(s)
 
     states = {str(sv):sv for sv in prop.transition_system.statevars}
 
     prop = pono.Property(prop.transition_system,
-                      s.make_term(And,
-                                  s.make_term(Equal, states['cfg'], s.make_term(0, s.make_sort(BV, 1))),
-                                  prop.prop))
+                         s.make_term(And,
+                                     s.make_term(Equal, states['cfg'], s.make_term(0, s.make_sort(BV, 1))),
+                                     prop.prop))
 
-    kind = pono.KInduction(prop, s)
+    kind = pono.KInduction(prop, ts, s)
     res = kind.check_until(10)
 
     assert res is True, "KInduction should be able to solve this manually strengthened property"
