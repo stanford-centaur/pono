@@ -17,7 +17,7 @@
 #pragma once
 
 #include "utils/syntax_analysis_common.h"
-
+#include "options/options.h"
 
 namespace pono {
 namespace syntax_analysis {
@@ -35,10 +35,15 @@ public:
   
   
   // this includes Constant Terms (will be inserted)
-  const PerVarsetInfo & GetAllTermsForVarsInModel(IC3FormulaModel * m, smt::SmtSolver & s);
+  const PerVarsetInfo & GetAllTermsForVarsInModel(
+    IC3FormulaModel * m, smt::SmtSolver & s, SyGuSTermMode term_mode,
+    unsigned term_extract_depth, unsigned initial_term_width,
+    unsigned initial_term_inc, unsigned accumulated_term_bound);
+
   unsigned GetMoreTerms(
     IC3FormulaModel * pre, IC3FormulaModel * post, TermLearner & term_learner,
-    const smt::Term & trans, bool failed_at_init); // return delta terms
+    const smt::Term & trans, bool failed_at_init,
+    SyGuSTermMode term_mode); // return delta terms
 
 protected:
   std::unordered_set<std::string> constants_strings_;
@@ -74,7 +79,9 @@ protected:
   // 2. ----------------------------------------------
   // helps with the Terms
   const PerVarsetInfo & SetupTermsForVarModelNormal(
-    IC3FormulaModel * m, const std::string & canonical_string);
+    IC3FormulaModel * m, const std::string & canonical_string,
+    unsigned term_extract_depth, unsigned initial_term_width,
+    unsigned initial_term_inc, unsigned accumulated_term_bound);
 
   const PerVarsetInfo & SetupTermsForVarModeExt(
     IC3FormulaModel * m, const std::string & canonical_string, smt::SmtSolver & s);

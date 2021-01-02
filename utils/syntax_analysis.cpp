@@ -27,7 +27,7 @@ namespace syntax_analysis {
 // return delta(#terms)
 // add options, add bool, add trans
 unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * post, TermLearner & term_learner,
-    const smt::Term & trans, bool failed_at_init) {
+    const smt::Term & trans, bool failed_at_init, SyGuSTermMode term_mode) {
   // decide the policy
   assert(pre && post);
   std::string var_string = post->vars_to_canonical_string();
@@ -40,7 +40,7 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * p
   assert(varset_info.state.stage != PerVarsetInfo::state_t::VCLT);
   assert(varset_info.state.stage != PerVarsetInfo::state_t::VCLTE);
 #endif
-  assert(GlobalAPdrConfig.TERM_MODE != GlobalAPdrConfig.VAR_C_EXT);
+  assert(term_mode != SyGuSTermMode::VAR_C_EXT);
   // if we already extract bits, we should be forever good
 
   switch(varset_info.state.stage) {
@@ -79,7 +79,9 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * p
 
 // we just won't compute canonical_string twice
 const PerVarsetInfo & VarTermManager::SetupTermsForVarModelNormal(
-  IC3FormulaModel * m, const std::string & canonical_string) {
+  IC3FormulaModel * m, const std::string & canonical_string,
+  unsigned term_extract_depth, unsigned initial_term_width,
+  unsigned initial_term_inc, unsigned accumulated_term_bound) {
 
   bool collect_constant = width_to_constants_.empty();
   std::unordered_set<smt::Term> varset;
@@ -91,7 +93,7 @@ const PerVarsetInfo & VarTermManager::SetupTermsForVarModelNormal(
 
   // now TERM_EXTRACT_DEPTH
   TermExtractor extractor(varset, collect_constant, 
-    GlobalAPdrConfig.TERM_EXTRACT_DEPTH, 
+    term_extract_depth, 
     pos->second.terms_buffer,
     pos->second.all_terms);
 
@@ -110,12 +112,12 @@ const PerVarsetInfo & VarTermManager::SetupTermsForVarModelNormal(
 
   unsigned nterm_walked = 0;
   unsigned width_start = 0;
-  unsigned width_end = GlobalAPdrConfig.INITIAL_TERM_WIDTH;
+  unsigned width_end = initial_term_width;
   do{
     nterm_walked += insert_from_termsmap_w_width(terms /*IN*/, term_cache_item /*OUT*/, width_start, width_end );
-    width_start += GlobalAPdrConfig.INITIAL_TERM_INC;
-    width_end += GlobalAPdrConfig.INITIAL_TERM_INC;
-  } while(nterm_walked <= GlobalAPdrConfig.ACCUMULATED_TERM_BOUND);
+    width_start += initial_term_inc;
+    width_end += initial_term_inc;
+  } while(nterm_walked <= accumulated_term_bound);
 
   pos->second.state.stage = PerVarsetInfo::state_t::WPARTIAL;
   pos->second.state.partial_width_done = width_start; // the start of next time
@@ -125,20 +127,25 @@ const PerVarsetInfo & VarTermManager::SetupTermsForVarModelNormal(
 
 
 // will distinguish constants and terms because we don't need c==c or c=/=c
-const PerVarsetInfo & VarTermManager::GetAllTermsForVarsInModel(IC3FormulaModel * m , smt::SmtSolver & s) {
+const PerVarsetInfo & VarTermManager::GetAllTermsForVarsInModel(
+  IC3FormulaModel * m , smt::SmtSolver & s,
+  SyGuSTermMode term_mode,
+  unsigned term_extract_depth, unsigned initial_term_width,
+  unsigned initial_term_inc, unsigned accumulated_term_bound) {
 
   std::string var_string = m->vars_to_canonical_string();
   auto pos = terms_cache_.find(var_string);
   if ( pos != terms_cache_.end() )  {
     return pos->second;
   }
-  if (GlobalAPdrConfig.TERM_MODE == GlobalAPdrConfig.FROM_DESIGN_LEARN_EXT)
-    return SetupTermsForVarModelNormal(m, var_string);
-  if (GlobalAPdrConfig.TERM_MODE == GlobalAPdrConfig.VAR_C_EXT)
+  if (term_mode == SyGuSTermMode::FROM_DESIGN_LEARN_EXT)
+    return SetupTermsForVarModelNormal(m, var_string,
+      term_extract_depth, initial_term_width, initial_term_inc, accumulated_term_bound);
+  if (term_mode == SyGuSTermMode::VAR_C_EXT)
     return SetupTermsForVarModeExt(m, var_string, s);
-  if (GlobalAPdrConfig.TERM_MODE == GlobalAPdrConfig.SPLIT_FROM_DESIGN)
+  if (term_mode == SyGuSTermMode::SPLIT_FROM_DESIGN)
     return SetupTermsForVarModeSplit(m, var_string, s);
-  if (GlobalAPdrConfig.TERM_MODE == GlobalAPdrConfig.VAR_C_EQ_LT)
+  if (term_mode == SyGuSTermMode::VAR_C_EQ_LT)
     return SetupTermsForVarModelVC(m, var_string); // just var and constant, you don't need a lot more
 
   assert(false);

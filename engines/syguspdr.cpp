@@ -349,7 +349,7 @@ bool SygusPdr::propose_new_terms(
       sygus_term_manager_.GetMoreTerms(
         pre_model, post_model, *(term_learner_.get()),
         ts_->trans(),
-        failed_at_init);
+        failed_at_init, options_.sygus_term_mode_);
     logger.log(3, "[propose-new-term] Round {}. Get {} new terms.", proposing_new_terms_round, n_new_terms);
     if (n_new_terms != 0) {
       syntax_analysis::PredConstructor pred_collector_(
@@ -386,7 +386,12 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info (syntax_analysis::IC3Form
     std::tie(cex_term_map_pos ,  nouse) =
       cex_term_map_.emplace(post_model, 
           syntax_analysis::PerCexInfo( 
-            sygus_term_manager_.GetAllTermsForVarsInModel(post_model, solver_, options_.term_option ) ) );
+            sygus_term_manager_.GetAllTermsForVarsInModel(post_model, solver_,
+              options_.sygus_term_mode_,
+              options_.sygus_term_extract_depth_,
+              options_.sygus_initial_term_width_,
+              options_.sygus_initial_term_inc_,
+              options_.sygus_accumulated_term_bound_ ) ) );
   } // if no terms, set up them first
 
   syntax_analysis::PerCexInfo & per_cex_info = cex_term_map_pos->second;
