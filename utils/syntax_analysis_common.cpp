@@ -212,7 +212,7 @@ bool is_primop_symmetry(smt::PrimOp op) {
       case smt::PrimOp::And:
       case smt::PrimOp::Or:
       case smt::PrimOp::Xor:
-      case smt::PrimOp::Iff:
+      // case smt::PrimOp::Iff: why?
       case smt::PrimOp::BVAnd:
       case smt::PrimOp::BVOr:
       case smt::PrimOp::BVXor:

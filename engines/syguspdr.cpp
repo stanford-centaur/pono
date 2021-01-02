@@ -93,9 +93,12 @@ void SygusPdr::initialize()
   
   if (initialized_)
     return;
+  {
+    TermTranslator tmp_translator( orig_ts_.solver());
+    custom_ts_ = 
+      new CustomFunctionalTransitionSystem(orig_ts_, tmp_translator );
+  }
 
-  custom_ts_ = 
-    new CustomFunctionalTransitionSystem(orig_ts_, TermTranslator( orig_ts_.solver()) );
   ts_ = custom_ts_;
   custom_ts_->make_nextvar_for_inputs();
 
@@ -367,7 +370,7 @@ bool SygusPdr::propose_new_terms(
         const auto & pred_nxt = pred_collector_.GetAllPredNext();
         for (const auto & p: pred_nxt)
           solver_->assert_formula(p);
-      auto res = solver_->check_sat();
+      auto res = check_sat();
       pop_solver_context();
 
       if (res.is_unsat())
@@ -402,7 +405,7 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info (syntax_analysis::IC3Form
   disable_all_labels();
 
   solver_->assert_formula( post_model->to_expr() );
-  auto res = solver_->check_sat();
+  auto res = check_sat();
   assert (res.is_sat());
   // for each witdh
   for (const auto & width_term_const_pair : per_cex_info.varset_info.terms) {
@@ -683,7 +686,7 @@ ProverResult SygusPdr::step_0()
   solver_->assert_formula(init_label_);
   assert_trans_label();
   solver_->assert_formula( bad_next_ );
-  Result r = check_sat();
+  r = check_sat();
   if (r.is_sat()) {
     IC3Formula c = generalize_predecessor(0, IC3Formula(bad_, {bad_}, false));
     cex_pg_ = new ProofGoal(c, 0, nullptr);

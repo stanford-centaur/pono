@@ -120,7 +120,7 @@ class SygusPdr : public IC3Base
   std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     ExtractPartialModel(const smt::Term & p);
   std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
-    ExtractInitPrimeModel(const Term & p_prime);
+    ExtractInitPrimeModel(const smt::Term & p_prime);
 
   std::unique_ptr<syntax_analysis::OpExtractor> op_extract_;
 
@@ -148,7 +148,7 @@ class SygusPdr : public IC3Base
     bool failed_at_init);
 
   syntax_analysis::PerCexInfo & setup_cex_info (syntax_analysis::IC3FormulaModel * post_model);
-  IC3Formula select_predicates(const Term & base, const TermVec & preds_nxt);
+  IC3Formula select_predicates(const smt::Term & base, const smt::TermVec & preds_nxt);
   bool try_recursive_block_goal_at_or_before(const IC3Formula & to_block, unsigned fidx);
 
 }; // class SygusPdr

@@ -19,6 +19,8 @@
 #include "smt-switch/smt.h"
 #include "utils/syntax_analysis_common.h"
 
+#include <set>
+
 namespace pono {
 namespace syntax_analysis {
 

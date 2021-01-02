@@ -34,7 +34,7 @@ class DynamicCoiUnitTests :
 #define BVAND(x, y) (s->make_term(BVAnd, (x), (y)))
 #define BVOR(x, y) (s->make_term(BVOr, (x), (y)))
 #define EQ(x, y) (s->make_term(Equal, (x), (y)))
-#define BoolEQ(x, y) (s->make_term(Iff, (x), (y)))
+//#define BoolEQ(x, y) (s->make_term(Iff, (x), (y)))
 #define ITE(c, x, y) (s->make_term(Ite, (c), (x), (y)))
 
 #define CheckPartialModel(p,u) \
@@ -91,7 +91,7 @@ TEST_P(DynamicCoiUnitTests, SimpleCoiTest)
     auto e2 = ITE(EQ(SUB(x, y), x), ADD(a, b), SUB(a, c));
     auto e3 = ITE(EQ(BVAND(x, y), x), BVAND(a, b), BVOR(a, c));
     auto e4a = ITE(EQ(SUB(u, SUB(v,w)), d), ADD(e, f), g);
-    auto e4b = ITE( BoolEQ( EQ(BVAND(a, SUB(e1,e2)), f), EQ(BVAND(x, y), x) ), ADD(e4a, f), e1);
+    auto e4b = ITE( EQ( EQ(BVAND(a, SUB(e1,e2)), f), EQ(BVAND(x, y), x) ), ADD(e4a, f), e1);
 
 
     PartialModelGen pt(s);

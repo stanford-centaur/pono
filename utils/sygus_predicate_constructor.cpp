@@ -109,8 +109,6 @@ void PredConstructor::TermsDumping() const {
 
 void PredConstructor::terms_to_predicates() {
 
-  GlobalTimer.RegisterEventStart("Enum.PredGen", per_cex_info_.predicates_nxt.size() );
-
   bool use_lt = per_cex_info_.varset_info.use_lt();
   bool use_lte = per_cex_info_.varset_info.use_lte();
 
@@ -199,7 +197,6 @@ void PredConstructor::terms_to_predicates() {
     per_cex_info_.prev_per_width_term_num[width].term_num = nt_size;
   } // end of w_term_cnst_pair
 
-  GlobalTimer.RegisterEventEnd("Enum.PredGen", per_cex_info_.predicates_nxt.size() );
 } // terms_to_predicates
 
 
