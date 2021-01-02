@@ -59,6 +59,7 @@ void Prover::initialize()
       ? orig_property_.prop()
       : to_prover_solver_.transfer_term(orig_property_.prop());
     bad_ = solver_->make_term(smt::PrimOp::Not, prop_term);
+    assert(ts_.only_curr(bad_));
   }
 
   initialized_ = true;
