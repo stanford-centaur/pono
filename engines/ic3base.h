@@ -537,17 +537,6 @@ class IC3Base : public Prover
   void generalize_and_push(IC3Formula & c, unsigned int & idx);
   void generalize_bad(IC3Formula & c);
 
-  IC3Formula get_next(const IC3Formula & c)
-  {
-    smt::TermVec ret;
-    ret.reserve(c.children.size());
-
-    for (const auto & l : c.children) {
-      ret.push_back(ts_->next(l));
-    }
-    return ic3formula_conjunction(ret);
-  }
-
   inline void activate_bad()
   {
     assert(solver_context_ != 0);

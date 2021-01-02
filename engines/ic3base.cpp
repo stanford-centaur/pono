@@ -385,21 +385,25 @@ bool IC3Base::block(const IC3Formula & c,
 
   // assume c'
   TermVec assumps;
-  IC3Formula primed = get_next(c);
-  assert(c.children.size() == primed.children.size());
+  // going to rely on matching order between primed and c.children
+  TermVec primed;
+  primed.reserve(c.children.size());
+  for (const auto & cc : c.children) {
+    primed.push_back(ts_->next(cc));
+  }
+  assert(c.children.size() == primed.size());
   if (options_.random_seed_) {
-    std::vector<size_t> idx(primed.children.size());
+    std::vector<size_t> idx(primed.size());
     std::iota(idx.begin(), idx.end(), 0);
     std::shuffle(idx.begin(), idx.end(), rng_);
 
     for (size_t i : idx) {
-      Term lbl = label(primed.children.at(i));
+      Term lbl = label(primed.at(i));
       assumps.push_back(lbl);
-      solver_->assert_formula(
-          solver_->make_term(Implies, lbl, primed.children.at(i)));
+      solver_->assert_formula(solver_->make_term(Implies, lbl, primed.at(i)));
     }
   } else {
-    for (const auto & l : primed.children) {
+    for (const auto & l : primed) {
       Term lbl = label(l);
       solver_->assert_formula(solver_->make_term(Implies, lbl, l));
       assumps.push_back(lbl);
@@ -423,9 +427,9 @@ bool IC3Base::block(const IC3Formula & c,
       TermVec & candidate = out->children;
       TermVec rest;
       candidate.clear();
-      assert(c.children.size() == primed.children.size());
-      for (size_t i = 0; i < primed.children.size(); ++i) {
-        Term a = label(primed.children[i]);
+      assert(c.children.size() == primed.size());
+      for (size_t i = 0; i < primed.size(); ++i) {
+        Term a = label(primed.at(i));
         if (core.find(a) != core.end()) {
           candidate.push_back(c.children.at(i));
         } else {
@@ -565,6 +569,7 @@ void IC3Base::constrain_frame(const IC3Formula & c, size_t idx)
   assert(solver_context_ == 0);
   assert(idx < frame_labels_.size());
   assert(c.disjunction);
+  assert(c.children.size());
 
   // copied from msat-ic3ia (as several other functions in this branch were)
   // trying to debug performance
@@ -590,7 +595,8 @@ void IC3Base::constrain_frame(const IC3Formula & c, size_t idx)
       solver_->make_term(Implies, frame_labels_.at(idx), c.term));
   frames_[idx].push_back(c);
 
-  logger.log(3, "adding cube of size {} at level {}", c.children.size(), idx);
+  logger.log(
+      3, "adding disjunction of size {} at level {}", c.children.size(), idx);
   logger.log(4, "{}", c.term);
 }
 
