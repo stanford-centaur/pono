@@ -386,6 +386,7 @@ bool IC3Base::block(const IC3Formula & c,
   // assume c'
   TermVec assumps;
   IC3Formula primed = get_next(c);
+  assert(c.children.size() == primed.children.size());
   if (options_.random_seed_) {
     std::vector<size_t> idx(primed.children.size());
     std::iota(idx.begin(), idx.end(), 0);
@@ -422,6 +423,7 @@ bool IC3Base::block(const IC3Formula & c,
       TermVec & candidate = out->children;
       TermVec rest;
       candidate.clear();
+      assert(c.children.size() == primed.children.size());
       for (size_t i = 0; i < primed.children.size(); ++i) {
         Term a = label(primed.children[i]);
         if (core.find(a) != core.end()) {
@@ -841,8 +843,12 @@ void IC3Base::generalize(IC3Formula & c, unsigned int & idx)
 
       // after editing tmp, recreate it
       tmp_form = ic3formula_conjunction(tmp_);
+      // don't want to pass the exact same object as both a
+      // const IC3Formula & and an IC3Formula * to block
+      // not sure how that's working in msat-ic3ia
+      IC3Formula to_block = tmp_form;
       if (check_intersects_initial(tmp_form.term)
-          || !block(tmp_form, idx, &tmp_form, false)) {
+          || !block(to_block, idx, &tmp_form, false)) {
         // remember that we failed to remove l, so that we do not try
         // this again later in the loop
         gen_needed_.insert(l);
