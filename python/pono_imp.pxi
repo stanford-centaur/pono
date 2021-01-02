@@ -350,10 +350,10 @@ cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
 
 cdef class Property:
     cdef c_Property* cp
-    cdef __AbstractTransitionSystem ts
-    def __cinit__(self, __AbstractTransitionSystem ts, Term p):
-        self.cp = new c_Property(ts.cts[0], p.ct)
-        self.ts = ts
+    cdef SmtSolver _solver
+    def __cinit__(self, SmtSolver s, Term p):
+        self.cp = new c_Property(s.css, p.ct)
+        self._solver = s
 
     def __dealloc__(self):
         del self.cp
@@ -365,8 +365,8 @@ cdef class Property:
         return p
 
     @property
-    def transition_system(self):
-        return self.ts
+    def solver(self):
+        return self._solver
 
 
 cdef class Unroller:
@@ -397,6 +397,7 @@ cdef class __AbstractProver:
     # this pointer is allocated and deallocated by derived classes
     cdef c_Prover* cp
     cdef Property _property
+    cdef __AbstractTransitionSystem _ts
     cdef SmtSolver _solver
 
     def initialize(self):
@@ -455,8 +456,9 @@ cdef class __AbstractProver:
 
 
 cdef class Bmc(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_Bmc(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_Bmc(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
@@ -464,8 +466,9 @@ cdef class Bmc(__AbstractProver):
 
 
 cdef class KInduction(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_KInduction(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_KInduction(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
@@ -473,8 +476,9 @@ cdef class KInduction(__AbstractProver):
 
 
 cdef class BmcSimplePath(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_BmcSimplePath(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_BmcSimplePath(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
@@ -485,8 +489,8 @@ cdef class IC3(__AbstractProver):
     '''
     Bit-level IC3 variant
     '''
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_IC3(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_IC3(p.cp[0], ts.cts[0], s.css)
         self._solver = s
 
     def __dealloc__(self):
@@ -497,8 +501,9 @@ cdef class IC3IA(__AbstractProver):
     '''
     IC3 via Implicit Predicate Abstraction
     '''
-    def __cinit__(self, Property p, SmtSolver s, SmtSolver interp):
-        self.cp = new c_IC3IA(p.cp[0], s.css, interp.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s, SmtSolver interp):
+        self.cp = new c_IC3IA(p.cp[0], ts.cts[0], s.css, interp.css)
+        self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
@@ -506,8 +511,9 @@ cdef class IC3IA(__AbstractProver):
 
 
 cdef class InterpolantMC(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s, SmtSolver interp):
-        self.cp = new c_InterpolantMC(p.cp[0], s.css, interp.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s, SmtSolver interp):
+        self.cp = new c_InterpolantMC(p.cp[0], ts.cts[0], s.css, interp.css)
+        self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
@@ -515,8 +521,9 @@ cdef class InterpolantMC(__AbstractProver):
 
 
 cdef class ModelBasedIC3(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_ModelBasedIC3(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_ModelBasedIC3(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
@@ -525,8 +532,9 @@ cdef class ModelBasedIC3(__AbstractProver):
 
 IF WITH_MSAT_IC3IA == "ON":
     cdef class MsatIC3IA(__AbstractProver):
-        def __cinit__(self, Property p, SmtSolver s):
-            self.cp = new c_MsatIC3IA(p.cp[0], s.css)
+        def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+            self.cp = new c_MsatIC3IA(p.cp[0], ts.cts[0], s.css)
+            self._ts = ts
             self._solver = s
 
         def __dealloc__(self):
