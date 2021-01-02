@@ -229,10 +229,11 @@ bool IC3Base::get_bad(IC3Formula & out)
   Result r = check_sat();
   if (r.is_sat()) {
     out = get_model_ic3formula();
+    pop_solver_context();
     generalize_bad(out);
+  } else {
+    pop_solver_context();
   }
-
-  pop_solver_context();
 
   assert(!r.is_unknown());
   return r.is_sat();
@@ -364,16 +365,17 @@ bool IC3Base::block(const IC3Formula & c,
                     bool compute_cti)
 {
   assert(idx > 0);
+  assert(solver_context_ == 0);
 
   // check whether ~c is inductive relative to F[idx-1], i.e.
   // ~c & F[idx-1] & T |= ~c', that is
   // solve(~c & F[idx-1] & T & c') is unsat
 
+  push_solver_context();
   // activate T and F[idx-1]
   assert_frame_labels(idx - 1);
   assert_trans_label();
 
-  assert(solver_context_ == 0);
   // assume c'
   TermVec assumps;
   IC3Formula primed = get_next(c);
@@ -429,6 +431,8 @@ bool IC3Base::block(const IC3Formula & c,
     } else {
       pop_solver_context();
     }
+    pop_solver_context();
+    assert(solver_context_ == 0);
     return true;
   } else {
     // relative induction fails. If requested, extract a predecessor of c
@@ -446,6 +450,7 @@ bool IC3Base::block(const IC3Formula & c,
     //   generalize_pre(primed, inputs, *out);
     // }
 
+    pop_solver_context();
     assert(solver_context_ == 0);
     return false;
   }
@@ -875,6 +880,8 @@ void IC3Base::generalize_and_push(IC3Formula & c, unsigned int & idx)
 
 inline void IC3Base::generalize_bad(IC3Formula & c)
 {
+  assert(solver_context_ == 0);
+  assert(c.children.size());
   UnorderedTermMap label_to_term;
   TermVec assumps;
   for (const auto & l : c.children) {
@@ -889,6 +896,7 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
   if (r.is_unsat()) {
     UnorderedTermSet core;
     solver_->get_unsat_core(core);
+    assert(core.size());
     auto it =
         std::remove_if(assumps.begin(), assumps.end(), [&core](const Term & l) {
           return core.find(l) == core.end();
