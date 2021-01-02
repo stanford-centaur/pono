@@ -414,7 +414,7 @@ bool IC3Base::block(const IC3Formula & c,
   // temporarily assert ~c
   push_solver_context();
   solver_->assert_formula(ic3formula_negate(c).term);
-  Result r = solver_->check_sat_assuming(assumps);
+  Result r = check_sat_assuming(assumps);
   if (r.is_unsat()) {
     // relative induction succeeds. If required (out != NULL), generalize
     // ~c to a stronger clause, by looking at the literals of c' that occur
@@ -754,6 +754,7 @@ void IC3Base::reset_solver()
         solver_->make_term(Implies, init_label_, ts_->init()));
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, ts_->trans()));
+    solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 
     for (size_t i = 0; i < frames_.size(); ++i) {
       for (const auto & constraint : frames_.at(i)) {
@@ -908,7 +909,7 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
   push_solver_context();
   Term prop = property_.prop();
   solver_->assert_formula(prop);
-  Result r = solver_->check_sat_assuming(assumps);
+  Result r = check_sat_assuming(assumps);
   // pretty sure this has to be unsat because it's a bad cube
   assert(r.is_unsat());
   if (r.is_unsat()) {
