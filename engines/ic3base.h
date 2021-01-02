@@ -62,12 +62,13 @@
 
 namespace pono {
 
-// TODO Things to try
+// TODO Things to try for performance debugging
 //      use their refine -- currently using my version
 //      use label variables for each of the predicates
 //        currently label implications are at solver_context_ > 0
 //      keep everything as cubes instead of converting back and forth
 //      don't return ic3formula, just append to it
+//      could also try shared environments / correct configs again
 
 struct IC3Formula
 {
