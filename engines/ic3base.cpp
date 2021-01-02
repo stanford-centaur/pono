@@ -231,6 +231,7 @@ bool IC3Base::get_bad(IC3Formula & out)
     out = get_model_ic3formula();
     pop_solver_context();
     generalize_bad(out);
+    logger.log(2, "Got bad cube of size: {}", out.children.size());
   } else {
     pop_solver_context();
   }
@@ -902,11 +903,14 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
     Term lbl = label(l);
     label_to_term[lbl] = l;
     assumps.push_back(lbl);
+    solver_->assert_formula(solver_->make_term(Implies, lbl, l));
   }
   push_solver_context();
   Term prop = property_.prop();
   solver_->assert_formula(prop);
   Result r = solver_->check_sat_assuming(assumps);
+  // pretty sure this has to be unsat because it's a bad cube
+  assert(r.is_unsat());
   if (r.is_unsat()) {
     UnorderedTermSet core;
     solver_->get_unsat_core(core);

@@ -166,7 +166,7 @@ void ImplicitPredicateAbstractor::do_abstraction()
   // Right now state_updates, constraints, and named_terms are not updated
   Term trans = conc_ts_.trans();
   abs_rts_.set_trans(abstract(trans));
-  logger.log(3, "Set abstract transition relation to {}", abs_rts_.trans());
+  logger.log(5, "Set abstract transition relation to {}", abs_rts_.trans());
 }
 
 Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)

@@ -58,8 +58,8 @@ ProverResult check_prop(PonoOptions pono_options,
 {
   logger.log(1, "Solving property: {}", p.name());
 
-  logger.log(3, "INIT:\n{}", p.transition_system().init());
-  logger.log(3, "TRANS:\n{}", p.transition_system().trans());
+  logger.log(5, "INIT:\n{}", p.transition_system().init());
+  logger.log(5, "TRANS:\n{}", p.transition_system().trans());
 
   Engine eng = pono_options.engine_;
 
