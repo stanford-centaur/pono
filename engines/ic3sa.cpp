@@ -581,6 +581,7 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
 
     // representatives of the different classes of this sort
     TermVec representatives;
+    Term lit;
     for (const auto & elem : sortelem.second) {
       const Term & val = elem.first;
       assert(val->is_value());
@@ -598,7 +599,11 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
       while (it != end) {
         const Term & term = *(it++);
         assert(last->get_sort() == term->get_sort());
-        out_cube.push_back(solver_->make_term(Equal, last, term));
+        lit = solver_->make_term(Equal, last, term);
+        if (!lit->is_value()) {
+          // only add if not trivially true
+          out_cube.push_back(lit);
+        }
         last = term;
 
         // TODO: see if a DisjointSet would make this easier
@@ -629,7 +634,15 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
         const Term & tj = representatives.at(j);
         // should never get the same representative term from different classes
         assert(ti != tj);
-        out_cube.push_back(solver_->make_term(Distinct, ti, tj));
+        if (ti->is_value() && tj->is_value()) {
+          // if there are two values, don't need to express disequality
+          continue;
+        }
+        lit = solver_->make_term(Distinct, ti, tj);
+        if (!lit->is_value()) {
+          // only add if not trivially true
+          out_cube.push_back(lit);
+        }
       }
     }
   }
