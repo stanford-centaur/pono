@@ -333,7 +333,7 @@ RefineResult IC3Base::rec_block(const IC3Formula & bad)
         // relative induction holds
         generalize_and_push(c, idx);
         // add c to F[idx]...F[0]
-        constrain_frame(c, idx);
+        constrain_frame(ic3formula_negate(c), idx);
         if (idx < depth()) {
           // if we are not at the frontier, try to block p at later
           // steps. Remember that p is a state that leads to a bad
@@ -437,7 +437,7 @@ bool IC3Base::block(const IC3Formula & c,
       // fails. We fix this by re-adding back literals until
       // "init & candidate" is unsat
       fix_if_intersects_initial(candidate, rest);
-      *out = ic3formula_conjunction(candidate);
+      *out = ic3formula_negate(ic3formula_conjunction(candidate));
       pop_solver_context();
     } else {
       pop_solver_context();
@@ -560,6 +560,7 @@ void IC3Base::constrain_frame(const IC3Formula & c, size_t idx)
 {
   assert(solver_context_ == 0);
   assert(idx < frame_labels_.size());
+  assert(c.disjunction);
 
   // copied from msat-ic3ia (as several other functions in this branch were)
   // trying to debug performance
