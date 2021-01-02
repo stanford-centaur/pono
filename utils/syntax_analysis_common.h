@@ -125,7 +125,7 @@ struct PerCexInfo {
 
   std::unordered_map<smt::Term,eval_val> terms_val_under_cex;
   std::vector<smt::Term> predicates_nxt;
-  std::unordered_map<smt::Term, smt::Term> pred_next_to_pred_curr;
+  // std::unordered_map<smt::Term, smt::Term> pred_next_to_pred_curr;
   const PerVarsetInfo & varset_info; // reference from VarTermManager
 
   std::map<unsigned, term_const_num> prev_per_width_term_num;

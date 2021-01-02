@@ -36,7 +36,9 @@ public:
   
   // this includes Constant Terms (will be inserted)
   const PerVarsetInfo & GetAllTermsForVarsInModel(IC3FormulaModel * m, smt::SmtSolver & s);
-  unsigned GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * post, TermLearner & term_learner); // return delta terms
+  unsigned GetMoreTerms(
+    IC3FormulaModel * pre, IC3FormulaModel * post, TermLearner & term_learner,
+    const smt::Term & trans, bool failed_at_init); // return delta terms
 
 protected:
   std::unordered_set<std::string> constants_strings_;

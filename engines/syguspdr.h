@@ -67,7 +67,21 @@ class SygusPdr : public IC3Base
 
   typedef IC3Base super;
  
+ public:
+  // some override that were unnecessary but I found that I need to do
+  // inorder to adjust the style
+  virtual ProverResult check_until(int k) override;
+
  protected:
+  /** Perform a IC3 step
+   *  @param i
+   */
+  ProverResult step(int i); // will be called in the parent version of check_until
+
+  /** Perform the base IC3 step (zero case)
+   */
+  ProverResult step_0();  // will be called in the parent version of check_until
+
 
   // pure virtual method implementations
 
@@ -96,11 +110,18 @@ class SygusPdr : public IC3Base
 
   // store the relation between IC3Formula to IC3Models
   std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> model2cube_;
-  std::unordered_map<syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
-    to_full_model_map_;
+  //std::unordered_map<syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
+  //  to_full_model_map_;
   syntax_analysis::cex_term_map_t cex_term_map_;
 
   PartialModelGen partial_model_getter;
+
+  IC3Formula get_initial_bad_model();
+  std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
+    ExtractPartialModel(const smt::Term & p);
+  std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
+    ExtractInitPrimeModel(const Term & p_prime);
+
   std::unique_ptr<syntax_analysis::OpExtractor> op_extract_;
 
   syntax_analysis::TermScore term_score_walker_;
@@ -117,6 +138,18 @@ class SygusPdr : public IC3Base
 
   bool has_assumptions;
   bool keep_var_in_partial_model(const smt::Term & v) const;
+  void disable_all_labels();
+  bool propose_new_terms(
+    syntax_analysis::IC3FormulaModel * pre_model,
+    syntax_analysis::IC3FormulaModel * post_model,
+    syntax_analysis::PerCexInfo & per_cex_info,
+    const smt::Term & F_T_not_cex,
+    const smt::Term & Init_prime,
+    bool failed_at_init);
+
+  syntax_analysis::PerCexInfo & setup_cex_info (syntax_analysis::IC3FormulaModel * post_model);
+  IC3Formula select_predicates(const Term & base, const TermVec & preds_nxt);
+  bool try_recursive_block_goal_at_or_before(const IC3Formula & to_block, unsigned fidx);
 
 }; // class SygusPdr
 

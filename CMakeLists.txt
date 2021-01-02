@@ -172,6 +172,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/utils/term_walkers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/ts_analysis.cpp"
   "${PROJECT_SOURCE_DIR}/utils/sygus_ic3formula_helper.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/sygus_predicate_constructor.cpp"
   "${PROJECT_SOURCE_DIR}/utils/str_util.cpp"
   "${PROJECT_SOURCE_DIR}/utils/partial_model.cpp"
   "${PROJECT_SOURCE_DIR}/utils/syntax_analysis_common.cpp"

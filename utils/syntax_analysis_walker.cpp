@@ -25,7 +25,7 @@
   #define INFO(...) D(0, __VA_ARGS__)
 #else
   #define D(...) do {} while (0)
-  #define INFO(...) logger.log(1, __VA_ARGS__)
+  #define INFO(...) logger.log(3, __VA_ARGS__)
 #endif
 
 namespace pono {
@@ -336,31 +336,29 @@ unsigned TermLearner::vars_extract_bit_level(IC3FormulaModel * post,  /*OUTPUT*/
 // return learned new terms
 unsigned TermLearner::learn_terms_from_cex(
     IC3FormulaModel * pre_full_model, IC3FormulaModel * post,
+    const smt::Term & trans,
+    bool pre_is_init_prime,
     /*OUTPUT*/  PerVarsetInfo & varset_info ) {
 
-  #error "you will need the full model of pre !"
-  assert(IN(pre, to_full_model_map));
-  Model * full_pre = to_full_model_map.at(pre);
-  auto pre_prop = full_pre->to_expr_btor(solver_);
+  auto pre_prop = pre_full_model->to_expr();
 
-  auto post_prop = NOT(to_next_(post->to_expr_btor(solver_)));
+  auto post_prop = solver_->make_term(smt::Not,(to_next_(post->to_expr())));
   unsigned delta_term_num = 0;
-  GlobalTimer.RegisterEventStart("TermLearner.NewTermRepl", 0);
   D(0, "[TermLearner] Pre model : {}", full_pre->to_string() );
   D(0, "[TermLearner] Post model : {}", post->to_string() );
   solver_->push();
     solver_->assert_formula(pre_prop);
-    solver_->assert_formula(trans_);
+    if (!pre_is_init_prime)
+      solver_->assert_formula(trans);
     solver_->assert_formula(post_prop);
     auto res = solver_->check_sat();
     assert(res.is_sat());
     // okay now we need to find the right model on terms
     delta_term_num += concat_to_extract(varset_info);
-    delta_term_num += same_val_replace_ast(varset_info);
+    delta_term_num += same_val_replace_ast(varset_info); // only this use the model
     delta_term_num += extract_complement(varset_info);
 
   solver_->pop();
-  GlobalTimer.RegisterEventEnd("TermLearner.NewTermRepl", delta_term_num);
   D(0, "  [TermLearner] Learn new terms #{}", delta_term_num);
   return delta_term_num;  
 } // learn_terms_from_cex

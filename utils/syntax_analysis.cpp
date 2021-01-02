@@ -25,7 +25,9 @@ namespace syntax_analysis {
 
 
 // return delta(#terms)
-unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * post, TermLearner & term_learner) {
+// add options, add bool, add trans
+unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * post, TermLearner & term_learner,
+    const smt::Term & trans, bool failed_at_init) {
   // decide the policy
   assert(pre && post);
   std::string var_string = post->vars_to_canonical_string();
@@ -60,7 +62,8 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * p
     case PerVarsetInfo::state_t::FROMCEX:
       // stay FROMCEX, just try if we can do anything more
       {
-        auto nterms = term_learner.learn_terms_from_cex(pre, post, varset_info);
+        auto nterms = term_learner.learn_terms_from_cex(pre, post,
+          trans, failed_at_init, /*output*/ varset_info);
         if (nterms != 0)
           return nterms;
         // else

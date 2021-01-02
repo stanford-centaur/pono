@@ -28,14 +28,12 @@ namespace pono {
 namespace syntax_analysis {
 
 class PredConstructor {
-  // extract_model_t
   
 protected:
-  smt::UnsatCoreReducer & reducer_;
   smt::SmtSolver & solver_;
-  smt::Term trans_;
-  smt::Term init_;
-  smt::Term prev_;
+  // smt::Term trans_;
+  // smt::Term init_;
+  // smt::Term prev_;
   IC3FormulaModel * cex_; // the cexs to block
     
   
@@ -48,16 +46,14 @@ protected:
   
   void terms_to_predicates();
   
-  void DebugPredicates(const smt::TermVec & inpreds, const smt::Term & base, const smt::Term & init, bool rm_pre) ;
-  bool check_failed_at_init(const smt::Term & F_and_T);
+  void TermsDumping() const;
 
 public:
   // constraints are included in the T part
   PredConstructor(
     to_next_t to_next_func,
-    smt::UnsatCoreReducer & reducer,
     smt::SmtSolver & solver,
-    const smt::Term & T_btor, const smt::Term & Init_btor, const smt::Term & Fprev_btor,
+    // const smt::Term & T_btor, const smt::Term & Init_btor, const smt::Term & Fprev_btor,
     IC3FormulaModel * cex,
     PerCexInfo & per_cex_info // from pdr class, this will allow us to not use static data
     //bool init_per_cex_info,
@@ -66,16 +62,6 @@ public:
   );
   
   const smt::TermVec & GetAllPredNext() const { return per_cex_info_.predicates_nxt; }
-  
-  
-  void GetOneCandidate(smt::TermVec & cands, bool iterative_reduction, bool mus_traverse_reduction);
-   
-  bool CheckPrepointNowHasPred(IC3FormulaModel * m);
-
-protected:
-  // true means still unsat
-  bool GetInitialUnsatCore(const smt::Term & base_term, const smt::Term & F_and_T, 
-    smt::UnorderedTermSet & initial_core);
 
 }; // PredConstructor
 

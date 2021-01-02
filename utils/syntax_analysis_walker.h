@@ -214,19 +214,22 @@ protected:
 class TermLearner {
 
 public:
-  TermLearner(const smt::Term & trans_btor, to_next_t to_next_func, 
+  TermLearner( to_next_t to_next_func, 
       //cex_term_map_t & cex_pred_map, 
       smt::SmtSolver & btor, ParentExtract & parent_extractor) : 
-    trans_(trans_btor), to_next_(to_next_func),
+    to_next_(to_next_func),
     // cex_pred_map_ref_(cex_pred_map),
     solver_(btor),
     parent_extractor_(parent_extractor) {}
     
-  unsigned learn_terms_from_cex(IC3FormulaModel * pre, IC3FormulaModel * post, /*OUTPUT*/  PerVarsetInfo & varset_info );
+  unsigned learn_terms_from_cex(IC3FormulaModel * pre, IC3FormulaModel * post, 
+    const smt::Term & trans,
+    bool pre_is_init_prime,
+    /*OUTPUT*/  PerVarsetInfo & varset_info );
   unsigned vars_extract_bit_level(IC3FormulaModel * post,  /*OUTPUT*/  PerVarsetInfo & varset_info) ;
   
 protected:
-  smt::Term trans_;
+  // smt::Term trans_; // you need to give the full constraints and etc...
   to_next_t to_next_;
   //cex_term_map_t & cex_pred_map_ref_; // from unsat enum
   smt::SmtSolver & solver_;
