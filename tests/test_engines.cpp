@@ -127,8 +127,8 @@ class InterpUnitTest : public EngineUnitTests
   void SetUp() override
   {
     EngineUnitTests::SetUp();
-    s = ::smt::MsatSolverFactory::create(false);
-    itp = ::smt::MsatSolverFactory::create_interpolating_solver();
+    s = create_solver(MSAT);
+    itp = create_interpolating_solver(MSAT);
   }
   SmtSolver s;
   SmtSolver itp;
@@ -163,8 +163,8 @@ class InterpWinTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = ::smt::MsatSolverFactory::create(false);
-    itp = ::smt::MsatSolverFactory::create_interpolating_solver();
+    s = create_solver(MSAT);
+    itp = create_interpolating_solver(MSAT);
 
     TSEnum ts_type = GetParam();
     if (ts_type == Functional) {
