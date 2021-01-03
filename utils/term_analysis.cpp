@@ -165,6 +165,8 @@ bool is_predicate(const Term & t, const Sort & boolsort, bool include_symbols)
   assert(!op.is_null());
   if (nonpred_ops.find(op.prim_op) != nonpred_ops.end()) {
     // boolean operators cannot make predicates
+    // also included extract because otherwise boolector
+    // would include single-bit extracts
     return false;
   }
 
@@ -176,15 +178,6 @@ bool is_predicate(const Term & t, const Sort & boolsort, bool include_symbols)
   // this is an iff essentially
   if (op.prim_op == Equal && (*t->begin())->get_sort() == boolsort) {
     return false;
-  }
-
-  for (const auto & c : children) {
-    // special-case for boolector which does rewriting and aliases
-    // sorts
-    // predicates cannot be combinations of non-predicates
-    if (nonpred_ops.find(c->get_op().prim_op) != nonpred_ops.end()) {
-      return false;
-    }
   }
 
   // if it made it through all the checks, then it's a predicate
