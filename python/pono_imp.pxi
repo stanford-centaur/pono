@@ -30,6 +30,7 @@ IF WITH_COREIR == "ON":
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
 from pono_imp cimport HistoryModifier as c_HistoryModifier
 from pono_imp cimport StaticConeOfInfluence as c_StaticConeOfInfluence
+from pono_imp cimport add_prop_monitor as c_add_prop_monitor
 from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 
@@ -564,6 +565,9 @@ IF WITH_COREIR == "ON":
 
         def __dealloc__(self):
             del self.cbe
+
+def add_prop_monitor(__AbstractTransitionSystem ts, Term prop):
+    c_add_prop_monitor(dref(ts.cts), prop.ct)
 
 cdef class HistoryModifier:
     cdef c_HistoryModifier * chm

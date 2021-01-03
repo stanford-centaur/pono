@@ -173,6 +173,9 @@ cdef extern from "modifiers/static_coi.h" namespace "pono":
                         const c_TermVec & to_keep,
                         int verbosity) except +
 
+cdef extern from "modifiers/prop_monitor.h" namespace "pono":
+    c_Term add_prop_monitor(TransitionSystem & ts,
+                            const c_Term & prop) except +
 
 cdef extern from "modifiers/history_modifier.h" namespace "pono":
     cdef cppclass HistoryModifier:
