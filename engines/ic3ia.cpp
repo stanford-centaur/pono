@@ -143,7 +143,7 @@ void IC3IA::initialize()
 
   logger.log(1, "Number predicates found in init: {}", num_init_preds);
   logger.log(1, "Number predicates found in prop: {}", num_prop_preds);
-  logger.log(1, "Total number of initial predicates: {}", num_init_preds + num_prop_preds);
+  logger.log(1, "Total number of initial predicates: {}", predset_.size());
   assert(preds.size() == (num_init_preds + num_prop_preds));
   // more predicates will be added during refinement
   // these ones are just initial predicates
@@ -203,6 +203,7 @@ RefineResult IC3IA::refine()
 {
   // recover the counterexample trace
   assert(check_intersects_initial(cex_pg_->target.term));
+
   TermVec cex;
   const ProofGoal * tmp = cex_pg_;
   while (tmp) {
@@ -217,6 +218,7 @@ RefineResult IC3IA::refine()
   }
 
   size_t cex_length = cex.size();
+  logger.log(1, "trying to refine cex of length {}", cex_length);
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
