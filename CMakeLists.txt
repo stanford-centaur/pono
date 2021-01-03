@@ -179,6 +179,11 @@ if (WITH_COREIR OR WITH_COREIR_EXTERN)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
+if (WITH_MSAT)
+  # need direct access to mathsat for setting options
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
+endif()
+
 if (WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
   # can't include ic3ia directly because some names clash e.g. ic3.h
