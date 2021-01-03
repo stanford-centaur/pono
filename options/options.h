@@ -24,10 +24,12 @@ namespace pono {
 // Engine options
 enum Engine
 {
+  NONE = -1,
   BMC = 0,
   BMC_SP,
   KIND,
   INTERP,
+  IC3_BOOL,
   MBIC3,
   IC3IA_ENGINE,
   MSAT_IC3IA

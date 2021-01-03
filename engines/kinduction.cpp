@@ -26,6 +26,7 @@ KInduction::KInduction(const Property & p, const TransitionSystem & ts,
                        PonoOptions opt)
   : super(p, ts, solver, opt)
 {
+  engine_ = Engine::KIND;
 }
 
 KInduction::~KInduction() {}

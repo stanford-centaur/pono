@@ -51,6 +51,7 @@ IC3IA::IC3IA(const Property & p, const TransitionSystem & ts,
       to_solver_(solver_),
       longest_cex_length_(0)
 {
+  engine_ = Engine::IC3IA_ENGINE;
 }
 
 // pure virtual method implementations

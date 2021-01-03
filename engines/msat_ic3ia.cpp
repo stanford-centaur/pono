@@ -33,6 +33,7 @@ MsatIC3IA::MsatIC3IA(const Property & p, const TransitionSystem & ts,
                      const SmtSolver & solver, PonoOptions opt)
   : super(p, ts, solver, opt)
 {
+  engine_ = Engine::MSAT_IC3IA;
 }
 
 ProverResult MsatIC3IA::prove()
