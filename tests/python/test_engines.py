@@ -110,12 +110,12 @@ def test_kind_inductive_prop(create_solver):
     s.set_opt('incremental', 'true')
     prop, ts = build_simple_alu_fts(s)
 
-    states = {str(sv):sv for sv in prop.transition_system.statevars}
+    states = {str(sv):sv for sv in ts.statevars}
 
-    prop = pono.Property(prop.transition_system,
-                         s.make_term(And,
-                                     s.make_term(Equal, states['cfg'], s.make_term(0, s.make_sort(BV, 1))),
-                                     prop.prop))
+    prop = pono.Property(s, s.make_term(And,
+                                        s.make_term(Equal, states['cfg'],
+                                                    s.make_term(0, s.make_sort(BV, 1))),
+                                        prop.prop))
 
     kind = pono.KInduction(prop, ts, s)
     res = kind.check_until(10)
