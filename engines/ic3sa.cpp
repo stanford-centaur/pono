@@ -451,6 +451,13 @@ void IC3SA::initialize()
   add_to_term_abstraction(ts_->trans());
   add_to_term_abstraction(bad_);
 
+  Sort boolsort = solver_->make_sort(BOOL);
+  // not expecting boolean sorts in term abstraction
+  // except for boolector which doesn't distinguish between
+  // bit-vectors of size one and booleans
+  assert(solver_->get_solver_enum() == BTOR
+         || term_abstraction_.find(boolsort) == term_abstraction_.end());
+
   // collect variables in bad_
   get_free_symbolic_consts(bad_, vars_in_bad_);
 }

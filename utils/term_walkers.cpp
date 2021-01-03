@@ -87,9 +87,27 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
       //       will still show up in predicates instead of being expanded
       predicates_.insert(term);
     } else if (exclude_bools_ && sort == boolsort_) {
-      if (boolops.find(term->get_op().prim_op) == boolops.end()) {
-        // special-case for boolector to make sure it keeps terms like
-        // ((_ extract 0 0) x)
+      // special-case for boolector to make sure it keeps terms like
+      // ((_ extract 0 0) x)
+      // because it cannot distinguish between bit-vectors of width 1
+      // and booleans
+
+      bool add_term = (boolops.find(term->get_op().prim_op) == boolops.end());
+
+      if (add_term) {
+        // one extra case to consider is equalities between booleans
+        // don't want to add those because it's just <->
+        // e.g. it's technically a boolean operation
+        Op op = term->get_op();
+        if (op == Equal || op == BVComp) {
+          Sort child_sort = (*(term->begin()))->get_sort();
+          if (child_sort == boolsort_) {
+            add_term = false;
+          }
+        }
+      }
+
+      if (add_term) {
         subterms_[sort].insert(term);
       }
     } else if ((exclude_funs_ && sort->get_sort_kind() == FUNCTION)
