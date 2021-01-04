@@ -5,7 +5,9 @@ from smt_switch.primops import And, BVAdd, BVSub, Equal, Ite
 import pono
 import available_solvers
 
-def build_simple_alu_fts(s:ss.SmtSolver)->pono.Property, pono.FunctionalTransitionSystem:
+from typing import Tuple
+
+def build_simple_alu_fts(s:ss.SmtSolver)->Tuple[pono.Property, pono.FunctionalTransitionSystem]:
     '''
     Creates a simple alu transition system
     @param s - an SmtSolver from smt_switch
