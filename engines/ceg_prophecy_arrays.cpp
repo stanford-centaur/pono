@@ -51,6 +51,7 @@ CegProphecyArrays::CegProphecyArrays(const Property & p,
 {
   // point orig_ts_ to the correct one
   orig_ts_ = ts;
+  engine_ = e;
 }
 
 ProverResult CegProphecyArrays::prove()

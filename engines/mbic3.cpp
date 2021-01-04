@@ -72,6 +72,7 @@ ModelBasedIC3::ModelBasedIC3(const Property & p, const TransitionSystem & ts,
                              PonoOptions opt)
   : super(p, ts, slv, opt)
 {
+  engine_ = Engine::MBIC3;
   solver_->set_opt("produce-unsat-cores", "true");
 }
 

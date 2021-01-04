@@ -36,6 +36,7 @@ InterpolantMC::InterpolantMC(const Property & p,
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {
+  engine_ = Engine::INTERP;
 }
 
 InterpolantMC::~InterpolantMC() {}
