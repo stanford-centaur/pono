@@ -18,6 +18,8 @@ from pono_imp cimport Prover as c_Prover
 from pono_imp cimport Bmc as c_Bmc
 from pono_imp cimport KInduction as c_KInduction
 from pono_imp cimport BmcSimplePath as c_BmcSimplePath
+from pono_imp cimport IC3 as c_IC3
+from pono_imp cimport IC3IA as c_IC3IA
 from pono_imp cimport InterpolantMC as c_InterpolantMC
 from pono_imp cimport ModelBasedIC3 as c_ModelBasedIC3
 IF WITH_MSAT_IC3IA == "ON":
@@ -28,6 +30,7 @@ IF WITH_COREIR == "ON":
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
 from pono_imp cimport HistoryModifier as c_HistoryModifier
 from pono_imp cimport StaticConeOfInfluence as c_StaticConeOfInfluence
+from pono_imp cimport add_prop_monitor as c_add_prop_monitor
 from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 
@@ -53,14 +56,11 @@ ctypedef const unordered_map[c_Term, c_Term]* const_UnorderedTermMapPtr
 ctypedef unordered_map[c_Term, c_Term].const_iterator c_UnorderedTermMap_const_iterator
 
 cdef class __AbstractTransitionSystem:
+    # this pointer is allocated and deallocated by derived classes
     cdef c_TransitionSystem* cts
     cdef SmtSolver _solver
-    # Note: don't want to allow null TransitionSystems
-    # means there's no way to instantiate a transition system without the solver
     def __cinit__(self, SmtSolver s):
-        # if not specified, this creates a relational transition system under the hood
-        self.cts = new c_RelationalTransitionSystem(s.css)
-        self._solver = s
+        pass
 
     def set_init(self, Term init):
         dref(self.cts).set_init(init.ct)
@@ -327,6 +327,9 @@ cdef class RelationalTransitionSystem(__AbstractTransitionSystem):
         self.cts = new c_RelationalTransitionSystem(s.css)
         self._solver = s
 
+    def __dealloc__(self):
+        del self.cts
+
     def set_behavior(self, Term init, Term trans):
         dref(<c_RelationalTransitionSystem * ?> self.cts).set_behavior(init.ct, trans.ct)
 
@@ -342,23 +345,29 @@ cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
         self.cts = new c_FunctionalTransitionSystem(s.css)
         self._solver = s
 
+    def __dealloc__(self):
+        del self.cts
+
 
 cdef class Property:
     cdef c_Property* cp
-    cdef __AbstractTransitionSystem ts
-    def __cinit__(self, __AbstractTransitionSystem ts, Term p):
-        self.cp = new c_Property(ts.cts[0], p.ct)
-        self.ts = ts
+    cdef SmtSolver _solver
+    def __cinit__(self, SmtSolver s, Term p):
+        self.cp = new c_Property(s.css, p.ct)
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
 
     @property
     def prop(self):
-        cdef Term p = Term(self.ts.solver)
+        cdef Term p = Term(self._solver)
         p.ct = dref(self.cp).prop()
         return p
 
     @property
-    def transition_system(self):
-        return self.ts
+    def solver(self):
+        return self._solver
 
 
 cdef class Unroller:
@@ -367,6 +376,9 @@ cdef class Unroller:
     def __cinit__(self, __AbstractTransitionSystem ts, SmtSolver s):
         self.cu = new c_Unroller(ts.cts[0], s.css)
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cu
 
     def at_time(self, Term t, unsigned int k):
         cdef Term term = Term(self._solver)
@@ -383,8 +395,10 @@ cdef class Unroller:
 
 
 cdef class __AbstractProver:
+    # this pointer is allocated and deallocated by derived classes
     cdef c_Prover* cp
     cdef Property _property
+    cdef __AbstractTransitionSystem _ts
     cdef SmtSolver _solver
 
     def initialize(self):
@@ -443,46 +457,98 @@ cdef class __AbstractProver:
 
 
 cdef class Bmc(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_Bmc(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_Bmc(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
 
 
 cdef class KInduction(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_KInduction(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_KInduction(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
 
 
 cdef class BmcSimplePath(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_BmcSimplePath(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_BmcSimplePath(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
+
+
+cdef class IC3(__AbstractProver):
+    '''
+    Bit-level IC3 variant
+    '''
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_IC3(p.cp[0], ts.cts[0], s.css)
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
+
+
+cdef class IC3IA(__AbstractProver):
+    '''
+    IC3 via Implicit Predicate Abstraction
+    '''
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s, SmtSolver interp):
+        self.cp = new c_IC3IA(p.cp[0], ts.cts[0], s.css, interp.css)
+        self._ts = ts
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
 
 
 cdef class InterpolantMC(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s, SmtSolver interp):
-        self.cp = new c_InterpolantMC(p.cp[0], s.css, interp.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s, SmtSolver interp):
+        self.cp = new c_InterpolantMC(p.cp[0], ts.cts[0], s.css, interp.css)
+        self._ts = ts
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
 
 
 cdef class ModelBasedIC3(__AbstractProver):
-    def __cinit__(self, Property p, SmtSolver s):
-        self.cp = new c_ModelBasedIC3(p.cp[0], s.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_ModelBasedIC3(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
         self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
 
 
 IF WITH_MSAT_IC3IA == "ON":
     cdef class MsatIC3IA(__AbstractProver):
-        def __cinit__(self, Property p, SmtSolver s):
-            self.cp = new c_MsatIC3IA(p.cp[0], s.css)
+        def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+            self.cp = new c_MsatIC3IA(p.cp[0], ts.cts[0], s.css)
+            self._ts = ts
             self._solver = s
+
+        def __dealloc__(self):
+            del self.cp
 
 
 cdef class BTOR2Encoder:
     cdef c_BTOR2Encoder * cbe
     def __cinit__(self, str filename, __AbstractTransitionSystem ts):
         self.cbe = new c_BTOR2Encoder(filename.encode(), dref(ts.cts))
+
+    def __dealloc__(self):
+        del self.cbe
 
 IF WITH_COREIR == "ON":
     cdef class CoreIREncoder:
@@ -497,12 +563,21 @@ IF WITH_COREIR == "ON":
             else:
                 raise ValueError("CoreIR encoder takes a pycoreir Context or a filename but got {}".format(mod))
 
+        def __dealloc__(self):
+            del self.cbe
+
+def add_prop_monitor(__AbstractTransitionSystem ts, Term prop):
+    c_add_prop_monitor(dref(ts.cts), prop.ct)
+
 cdef class HistoryModifier:
     cdef c_HistoryModifier * chm
     cdef __AbstractTransitionSystem _ts
     def __cinit__(self, __AbstractTransitionSystem ts):
         self.chm = new c_HistoryModifier(dref(ts.cts));
         self._ts = ts
+
+    def __dealloc__(self):
+        del self.chm
 
     def get_hist(self, Term target, int delay):
         if delay < 0:
@@ -511,24 +586,6 @@ cdef class HistoryModifier:
         cdef Term term = Term(self._ts.solver)
         term.ct = dref(self.chm).get_hist(target.ct, delay)
         return term
-
-def coi_reduction(__AbstractTransitionSystem ts, to_keep, verbosity=1):
-    '''
-
-    ts - a transition system
-    to_keep - a list of terms from ts to keep in the reduction
-
-    Run cone-of-influence reduction on the TransitionSystem ts in-place,
-    keeping all variables in the terms in to_keep and any variables that
-    influence them in the transition relation.
-
-    '''
-    cdef vector[c_Term] c_to_keep
-    for t in to_keep:
-        c_to_keep.push_back((<Term?> t).ct)
-
-    assert len(to_keep) == c_to_keep.size()
-    c_StaticConeOfInfluence(dref(ts.cts), c_to_keep, verbosity)
 
 cdef class VCDWitnessPrinter:
     cdef c_VCDWitnessPrinter * cvwp
@@ -543,8 +600,29 @@ cdef class VCDWitnessPrinter:
         assert len(cex) == dref(c_cex).size(), 'expecting C++ view of witness to be the same length'
         self.cvwp = new c_VCDWitnessPrinter(dref(ts.cts), dref(c_cex))
 
+    def __dealloc__(self):
+        del self.cvwp
+        del self.c_cex
+
     def dump_trace_to_file(self, str vcd_file_name):
         dref(self.cvwp).dump_trace_to_file(vcd_file_name.encode())
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)
+
+def coi_reduction(__AbstractTransitionSystem ts, to_keep, verbosity=1):
+    '''
+
+    ts - a transition system
+    to_keep - a list of terms from ts to keep in the reduction
+    Run cone-of-influence reduction on the TransitionSystem ts in-place,
+    keeping all variables in the terms in to_keep and any variables that
+    influence them in the transition relation.
+
+    '''
+    cdef vector[c_Term] c_to_keep
+    for t in to_keep:
+        c_to_keep.push_back((<Term?> t).ct)
+
+    assert len(to_keep) == c_to_keep.size()
+    c_StaticConeOfInfluence(dref(ts.cts), c_to_keep, verbosity)

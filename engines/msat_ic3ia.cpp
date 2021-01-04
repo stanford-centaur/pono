@@ -29,14 +29,15 @@ using namespace std;
 
 namespace pono {
 
-MsatIC3IA::MsatIC3IA(Property & p, const SmtSolver & solver, PonoOptions opt)
-    : super(p, solver, opt)
+MsatIC3IA::MsatIC3IA(const Property & p, const TransitionSystem & ts,
+                     const SmtSolver & solver, PonoOptions opt)
+  : super(p, ts, solver, opt)
 {
 }
 
 ProverResult MsatIC3IA::prove()
 {
-  super::initialize();
+  initialize();
 
   if (ts_->solver()->get_solver_enum() != MSAT) {
     throw PonoException("MsatIC3IA only supports mathsat solver.");

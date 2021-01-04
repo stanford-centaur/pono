@@ -174,7 +174,8 @@ class IC3Base : public Prover
    *  Depending on the derived class IC3 implementation, the exact
    *  type of IC3Formula will differ: e.g. Clause, Disjunction
    */
-  IC3Base(Property & p, const smt::SmtSolver & s,
+  IC3Base(const Property & p, const TransitionSystem & ts,
+          const smt::SmtSolver & s,
           PonoOptions opt = PonoOptions());
 
   virtual ~IC3Base();

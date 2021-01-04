@@ -44,9 +44,9 @@ TEST_P(ControlUnitTests, SimpleReset)
   fts.assign_next(x,
                   fts.make_term(Ite, rst, fts.make_term(0, bvsort8), x_update));
   Term p_false_term = fts.make_term(BVUle, x, fts.make_term(10, bvsort8));
-  Property p_false(fts, p_false_term);
+  Property p_false(fts.solver(), p_false_term);
   // use a new context so unroller doesn't clash on unrolled symbols
-  Bmc bmc_false(p_false, s);
+  Bmc bmc_false(p_false, fts, s);
   ProverResult r = bmc_false.check_until(2);
   EXPECT_EQ(r, ProverResult::FALSE);
 
@@ -54,12 +54,12 @@ TEST_P(ControlUnitTests, SimpleReset)
   Term reset_done = add_reset_seq(fts, rst, 1);
   // guard the property
   Term p_true_term = fts.make_term(Implies, reset_done, p_false_term);
-  Property p(fts, p_true_term);
+  Property p(fts.solver(), p_true_term);
   // need to use a fresh solver to check the property again
   // pass the SolverEnum to use the same type of solver
   SmtSolver ns = create_solver(s->get_solver_enum());
 
-  Bmc bmc(p, ns);
+  Bmc bmc(p, fts, ns);
   r = bmc.check_until(10);
   EXPECT_EQ(r,
             ProverResult::UNKNOWN);  // bmc can't prove, will only say unknown
@@ -94,21 +94,21 @@ TEST_P(ControlUnitTests, SimpleClock)
       Equal,
       x,
       rts.make_term(BVLshr, state_counter, rts.make_term(1, bvsort8)));
-  Property p_false(rts, p_term);
+  Property p_false(rts.solver(), p_term);
   // use a new context so unroller doesn't clash on unrolled symbols
-  Bmc bmc_false(p_false, s);
+  Bmc bmc_false(p_false, rts, s);
   ProverResult r = bmc_false.check_until(2);
   EXPECT_EQ(r, ProverResult::FALSE);
 
   // add a clock
   toggle_clock(rts, clk);
   // guard the property
-  Property p(rts, p_term);
+  Property p(rts.solver(), p_term);
   // need to use a fresh solver to check the property again
   // pass the SolverEnum to use the same type of solver
   SmtSolver ns = create_solver(s->get_solver_enum());
 
-  Bmc bmc(p, ns);
+  Bmc bmc(p, rts, ns);
   r = bmc.check_until(10);
   EXPECT_EQ(r,
             ProverResult::UNKNOWN);  // bmc can't prove, will only say unknown

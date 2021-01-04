@@ -1,6 +1,6 @@
 import pytest
 import smt_switch as ss
-import pono as c
+import pono
 from typing import Set
 
 
@@ -11,11 +11,11 @@ def test_fts_unroller(create_solver):
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
 
-    ts = c.FunctionalTransitionSystem(solver)
+    ts = pono.FunctionalTransitionSystem(solver)
     x = ts.make_statevar('x', bvsort4)
     mem = ts.make_statevar('mem', arrsort)
 
-    u = c.Unroller(ts, solver)
+    u = pono.Unroller(ts, solver)
 
     x0 = u.at_time(x, 0)
     assert x0 != x
@@ -49,11 +49,11 @@ def test_fts_unroller(create_solver):
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
 
-    ts = c.RelationalTransitionSystem(solver)
+    ts = pono.RelationalTransitionSystem(solver)
     x = ts.make_statevar('x', bvsort4)
     mem = ts.make_statevar('mem', arrsort)
 
-    u = c.Unroller(ts, solver)
+    u = pono.Unroller(ts, solver)
 
     x0 = u.at_time(x, 0)
     assert x0 != x
