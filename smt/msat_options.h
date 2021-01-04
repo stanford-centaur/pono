@@ -73,6 +73,7 @@ msat_config get_msat_config_for_ic3(bool interp)
   }
 
   msat_set_option(cfg, "model_generation", interp ? "false" : "true");
+  msat_set_option(cfg, "bool_model_generation", "false");
 
   return cfg;
 }

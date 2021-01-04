@@ -66,6 +66,8 @@ class IC3IA : public IC3
   // useful for checking if predicate has been added already
   // also available as a vector in ia_.predicates()
 
+  smt::TermVec predlbl_;
+
   smt::SmtSolver interpolator_;  ///< interpolator for refinement
   smt::TermTranslator
       to_interpolator_;  ///< transfer terms from solver_ to interpolator_
@@ -74,6 +76,8 @@ class IC3IA : public IC3
 
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
+
+  smt::Sort boolsort_;
 
   // pure virtual method implementations
 
