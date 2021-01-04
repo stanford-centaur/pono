@@ -29,10 +29,10 @@ namespace pono {
 InterpolantMC::InterpolantMC(const Property & p,
                              const TransitionSystem & ts,
                              const SmtSolver & slv,
-                             const SmtSolver & itp,
                              PonoOptions opt)
     : super(p, ts, slv, opt),
-      interpolator_(itp),
+      // only mathsat interpolator supported
+      interpolator_(create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR)),
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {

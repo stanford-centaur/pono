@@ -28,10 +28,4 @@ std::shared_ptr<Prover> make_prover(Engine e,
                                     const smt::SmtSolver & slv,
                                     PonoOptions opts = PonoOptions());
 
-std::shared_ptr<Prover> make_prover(Engine e,
-                                    const Property & p,
-                                    const TransitionSystem & ts,
-                                    const smt::SmtSolver & slv,
-                                    const smt::SmtSolver & itp,
-                                    PonoOptions opts = PonoOptions());
 }  // namespace pono
