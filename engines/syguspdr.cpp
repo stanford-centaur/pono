@@ -102,7 +102,6 @@ void SygusPdr::initialize()
   ts_ = custom_ts_;
   custom_ts_->make_nextvar_for_inputs();
 
-  bad_next_ = custom_ts_->next(bad_);
 
   // has_assumption
   has_assumptions = ! (custom_ts_->constraints().empty());
@@ -119,9 +118,10 @@ void SygusPdr::initialize()
   }
 
   super::initialize();
+  bad_next_ = custom_ts_->next(bad_); // bad is only available after parent's init
   { // add P to F[1]
     auto prop = smart_not(bad_);
-    constrain_frame(1, IC3Formula(prop, {prop}, false), true);
+    constrain_frame(1, IC3Formula(prop, {prop}, true), true);
   }
   
   // initialize the caches  
@@ -277,9 +277,11 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
         if (!failed_at_init) {
           std::tie(pre_formula, pre_model) =
             ExtractPartialModel( cex );
+          logger.log(3, "Generated MAY-block model {}", pre_model->to_string());
         } else {
           std::tie(pre_formula, pre_model) =
             ExtractInitPrimeModel( Init_prime ); // this can be only the prime vars
+          logger.log(3, "Generated MAY-block model (init) {}", pre_model->to_string());
         }
         // note Here you must give a formula with current variables
       } else
@@ -290,6 +292,7 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
     if (insufficient_pred) {
       // extract Proof goal from partial_model
       if (!failed_at_init) {
+        logger.log(3, "Try recursive block the above model.");
         if(try_recursive_block_goal_at_or_before(pre_formula, i-1))
           continue; // see if we have next that we may need to block
       } // if we failed at init, then we will anyway need to 
@@ -327,7 +330,8 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
   }
   unsatcore.clear(); // reuse this
   reducer_.linear_reduce_assump_unsatcore(base, sorted_unsatcore, unsatcore, NULL, 0);
-  
+  assert(!unsatcore.empty());
+
   TermVec curr_lits;
   curr_lits.reserve(unsatcore.size());
   for (const auto &l : unsatcore) 
@@ -471,15 +475,13 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
   for (const auto & v : varlist) {
     Term val = solver_->get_value(v);
     auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
-    if (keep_var_in_partial_model(v)) {
-      cube_partial.emplace(v,val);
-      conjvec_partial.push_back( eq );
-      if (conj_partial) {
-        conj_partial = solver_->make_term(Op(PrimOp::And), conj_partial, eq);
-      } else {
-        conj_partial = eq;
-      }
-    } // end of partial model
+    cube_partial.emplace(v,val);
+    conjvec_partial.push_back( eq );
+    if (conj_partial) {
+      conj_partial = solver_->make_term(Op(PrimOp::And), conj_partial, eq);
+    } else {
+      conj_partial = eq;
+    }
   }
   syntax_analysis::IC3FormulaModel * partial_model = 
     new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
@@ -682,6 +684,7 @@ ProverResult SygusPdr::step_0()
   }
   pop_solver_context();
 
+  logger.log(1, "Checking if initial states transit to property");
   push_solver_context(); // sat(Init /\ T /\ bad')?
   solver_->assert_formula(init_label_);
   assert_trans_label();
