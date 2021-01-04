@@ -478,7 +478,7 @@ bool IC3Base::block(const ProofGoal * pg)
   size_t i = pg->idx;
 
   logger.log(
-      3, "Attempting to block proof goal <{}, {}>", c.term->to_string(), i);
+      3, "Attempting to block proof goal <{}, {}>", c.term, i);
 
   assert(i < frames_.size());
   assert(i >= 0);
