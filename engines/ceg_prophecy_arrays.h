@@ -28,9 +28,10 @@
 
 namespace pono {
 
-class CegProphecyArrays : public CEGAR
+template<class Prover_T>
+class CegProphecyArrays : public CEGAR<Prover_T>
 {
-  typedef CEGAR super;
+  typedef CEGAR<Prover_T> super;
 
  public:
   CegProphecyArrays(const Property & p,
@@ -68,8 +69,8 @@ class CegProphecyArrays : public CEGAR
 
   smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
 
-  void abstract() override;
-  bool refine() override;
+  void cegar_abstract() override;
+  bool cegar_refine() override;
 
   // helpers
   smt::Term get_bmc_formula(size_t b);
