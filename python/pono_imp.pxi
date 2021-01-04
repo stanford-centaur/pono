@@ -361,7 +361,7 @@ cdef class Property:
 
     @property
     def prop(self):
-        cdef Term p = Term(self.ts.solver)
+        cdef Term p = Term(self._solver)
         p.ct = dref(self.cp).prop()
         return p
 
