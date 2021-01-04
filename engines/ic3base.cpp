@@ -454,13 +454,14 @@ bool IC3Base::block(const IC3Formula & c,
     pop_solver_context();
     assert(solver_context_ == 0);
     return true;
-  } else if (r.is_sat()) {
+  } else {
     // relative induction fails. If requested, extract a predecessor of c
     // (i.e. a counterexample to induction - CTI) from the model found by
     // the SMT solver
+    TermVec inputs;
     if (compute_cti) {
       assert(out);
-      *out = get_model_ic3formula();
+      *out = get_model_ic3formula(&inputs);
     }
     pop_solver_context();
     // TODO check that msat-ic3ia really doesn't generalize
@@ -472,9 +473,6 @@ bool IC3Base::block(const IC3Formula & c,
     pop_solver_context();
     assert(solver_context_ == 0);
     return false;
-  } else {
-    assert(r.is_unknown());
-    throw PonoException("Got unknown in solver call");
   }
 }
 

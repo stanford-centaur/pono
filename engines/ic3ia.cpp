@@ -40,7 +40,8 @@ using namespace std;
 
 namespace pono {
 
-IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp, PonoOptions opt)
+IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp,
+             PonoOptions opt)
     : super(p, s, opt),
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
@@ -48,8 +49,7 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp, PonoOptions opt)
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0),
-      boolsort_(solver_->make_sort(BOOL))
+      longest_cex_length_(0)
 {
 }
 
@@ -61,14 +61,11 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
   conjuncts.reserve(preds.size());
-  assert(preds.size() == predlbl_.size());
-  Term p;
-  for (size_t i = 0; i < predlbl_.size(); ++i) {
-    p = predlbl_[i];
+  for (const auto &p : preds) {
     if (solver_->get_value(p) == solver_true_) {
-      conjuncts.push_back(preds[i]);
+      conjuncts.push_back(p);
     } else {
-      conjuncts.push_back(solver_->make_term(Not, preds[i]));
+      conjuncts.push_back(solver_->make_term(Not, p));
     }
 
     if (out_nexts) {
@@ -93,11 +90,12 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
 
 bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
+  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Term pred;
   Op op;
   for (const auto &c : u.children) {
-    if (c->get_sort() != boolsort_) {
+    if (c->get_sort() != boolsort) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
     }
@@ -199,14 +197,6 @@ void IC3IA::abstract()
   assert(abs_ts_.init());  // should be non-null
   assert(abs_ts_.trans());
   ts_ = &abs_ts_;
-
-  // boolean variables are part of the predicate domain
-  // add them to labels so they're aligned but don't
-  // need any assertions because they're the same term
-  for (const auto & sv : ia_.predicates()) {
-    assert(ts_->is_curr_var(sv));
-    predlbl_.push_back(sv);
-  }
 }
 
 RefineResult IC3IA::refine()
@@ -320,12 +310,6 @@ bool IC3IA::add_predicate(const Term & pred)
     return false;
   }
 
-  // create a label
-  Term pl =
-      solver_->make_symbol("pred" + std::to_string(predset_.size()), boolsort_);
-  solver_->assert_formula(solver_->make_term(Equal, pl, pred));
-  predlbl_.push_back(pl);
-
   assert(ts_->only_curr(pred));
   logger.log(2, "adding predicate {}", pred);
   predset_.insert(pred);
@@ -336,8 +320,6 @@ bool IC3IA::add_predicate(const Term & pred)
   assert(!solver_context_);  // should be at context 0
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
-
-  assert(predlbl_.size() == ia_.predicates().size());
   return true;
 }
 
