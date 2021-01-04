@@ -512,8 +512,8 @@ cdef class IC3IA(__AbstractProver):
 
 
 cdef class InterpolantMC(__AbstractProver):
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s, SmtSolver interp):
-        self.cp = new c_InterpolantMC(p.cp[0], ts.cts[0], s.css, interp.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_InterpolantMC(p.cp[0], ts.cts[0], s.css)
         self._ts = ts
         self._solver = s
 

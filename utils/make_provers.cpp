@@ -49,8 +49,7 @@ shared_ptr<Prover> make_prover(Engine e,
     return make_shared<KInduction>(p, ts, slv, opts);
   } else if (e == INTERP) {
 #ifdef WITH_MSAT
-    SmtSolver s = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
-    return make_prover(e, p, ts, slv, s, opts);
+    return make_shared<InterpolantMC>(p, ts, slv, opts);
 #else
     throw PonoException(
         "Interpolant-based modelchecking requires an interpolator");
@@ -81,9 +80,7 @@ shared_ptr<Prover> make_prover(Engine e,
                                const SmtSolver & itp,
                                PonoOptions opts)
 {
-  if (e == INTERP) {
-    return make_shared<InterpolantMC>(p, ts, slv, itp, opts);
-  } else if (e == IC3IA_ENGINE) {
+  if (e == IC3IA_ENGINE) {
     return make_shared<IC3IA>(p, ts, slv, itp, opts);
   } else {
     throw PonoException(

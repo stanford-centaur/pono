@@ -96,11 +96,10 @@ def test_interp(solver_and_interpolator):
     s = solver_and_interpolator[0](False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
-    itp = solver_and_interpolator[1]()
 
     prop, ts = build_simple_alu_fts(s)
 
-    interp = pono.InterpolantMC(prop, ts, s, itp)
+    interp = pono.InterpolantMC(prop, ts, s)
     res = interp.check_until(10)
 
     assert res is True, "InterpolantMC be able to solve this property"

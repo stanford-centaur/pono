@@ -133,7 +133,7 @@ cdef extern from "engines/ic3ia.h" namespace "pono":
 cdef extern from "engines/interpolantmc.h" namespace "pono":
     cdef cppclass InterpolantMC(Prover):
         InterpolantMC(const Property & p, const TransitionSystem & ts,
-                      c_SmtSolver & s, c_SmtSolver & interpolator) except +
+                      c_SmtSolver & s) except +
 
 
 cdef extern from "engines/mbic3.h" namespace "pono":
