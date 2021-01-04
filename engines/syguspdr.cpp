@@ -152,8 +152,8 @@ void SygusPdr::initialize()
       }
     }
 
-    sygus_term_manager_.RegisterTermsToWalk(property_.prop());
-    parent_of_terms_.WalkBFS(property_.prop());
+    // sygus_term_manager_.RegisterTermsToWalk(property_.prop());
+    // parent_of_terms_.WalkBFS(property_.prop());
   }
 
   // cache two lambda functions for sygus enum
@@ -229,22 +229,21 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
   auto model_pos = model2cube_.find( c.term );
   assert(model_pos != model2cube_.end());
   syntax_analysis::IC3FormulaModel * post_model = model_pos->second;
-  syntax_analysis::PerCexInfo & per_cex_info = setup_cex_info(post_model);
-  // find the related info
-  
+
+
   syntax_analysis::PredConstructor pred_collector_(
     to_next_func_, solver_,
     post_model, // IC3FormulaModel * cex 
-    per_cex_info
+    setup_cex_info(post_model)
   );
 
   Term Fprev = get_frame_term(i - 1);
   Term T = ts_->trans();
   Term Init_prime = ts_->next(ts_->init());
   const Term & cex = c.term;
-  Term not_cex = smart_not(cex);
+  //Term not_cex = smart_not(cex);
   Term cex_prime = ts_->next(cex);
-  Term F_T_not_cex = make_and( {Fprev, not_cex, T} );
+  Term F_T_not_cex = make_and( {Fprev, T} ); // , not_cex
   Term base = 
     solver_->make_term(Or,
       F_T_not_cex,
@@ -297,9 +296,11 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
           continue; // see if we have next that we may need to block
       } // if we failed at init, then we will anyway need to 
       // propose new terms
+      logger.log(3, "Cannot block MAY-block model {}", pre_model->to_string());
+      logger.log(3, "Back to F[{}]->[{}], get new terms.", i-1,i);
 
       bool succ = 
-        propose_new_terms(pre_model, post_model, per_cex_info,
+        propose_new_terms(pre_model, post_model,
           F_T_not_cex, Init_prime, failed_at_init);
       assert(succ);
       // it has loop inside
@@ -318,31 +319,45 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
 IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_nxt) {
   TermVec unsatcore;
   TermVec sorted_unsatcore;
-  reducer_.reduce_assump_unsatcore(base, preds_nxt, unsatcore, NULL, 0, options_.random_seed_);
+  logger.log(3,"[IterativeReduction] Initial core size {}", preds_nxt.size());
+
+  UnorderedTermSet pred_set(preds_nxt.begin(), preds_nxt.end());
+  TermVec deduplicate_preds_nxt(pred_set.begin(), pred_set.end());
+  
+  reducer_.reduce_assump_unsatcore(base, deduplicate_preds_nxt, unsatcore, NULL, 0, options_.random_seed_);
+
+  logger.log(3,"[IterativeReduction] End core size {}", unsatcore.size());
   std::vector<std::pair<unsigned, Term>> score_vec;
   for (const auto & t : unsatcore) {
     auto score = GetScore(t);
     score_vec.push_back(std::make_pair(score, t));
   }
   std::sort(score_vec.begin(),score_vec.end());
+  std::unordered_map<Term, unsigned> term_id_map;
+  unsigned pidx = 0;
   for (auto pos = score_vec.rbegin(); pos != score_vec.rend(); ++ pos) {
     sorted_unsatcore.push_back(pos->second);
+    logger.log(4, "{}: Score: {} expr: {}", pidx, pos->first, pos->second->to_string());
+    term_id_map.emplace(pos->second, pidx ++);
   }
   unsatcore.clear(); // reuse this
   reducer_.linear_reduce_assump_unsatcore(base, sorted_unsatcore, unsatcore, NULL, 0);
   assert(!unsatcore.empty());
 
   TermVec curr_lits;
+  std::cout << "result : {";
   curr_lits.reserve(unsatcore.size());
-  for (const auto &l : unsatcore) 
+  for (const auto &l : unsatcore)  {
     curr_lits.push_back(ts_->curr(l));
+    std::cout << term_id_map.at(l) << ",";
+  }
+  std::cout << "}" << std::endl;
   return ic3formula_negate(ic3formula_conjunction(curr_lits));
 } // select_predicates
 
 bool SygusPdr::propose_new_terms(
     syntax_analysis::IC3FormulaModel * pre_model,
     syntax_analysis::IC3FormulaModel * post_model,
-    syntax_analysis::PerCexInfo & per_cex_info,
     const smt::Term & F_T_not_cex,
     const smt::Term & Init_prime,
     bool failed_at_init
@@ -362,7 +377,9 @@ bool SygusPdr::propose_new_terms(
       syntax_analysis::PredConstructor pred_collector_(
         to_next_func_, solver_,
         post_model, // IC3FormulaModel * cex 
-        per_cex_info
+        setup_cex_info(post_model) 
+        // you need to set this up every time you use it
+        // this is needed to eval new terms
       );
       Term base = 
         solver_->make_term(Or,
@@ -438,10 +455,12 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info (syntax_analysis::IC3Form
 
 IC3Formula SygusPdr::get_initial_bad_model() {
   Term conj_full;
+  TermVec conjvec;
   for (const auto & v : ts_->statevars()) {
     Term val = solver_->get_value(v);
     auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
-    
+    conjvec.push_back(eq);
+
     if (conj_full)
       conj_full = solver_->make_term(Op(PrimOp::And), conj_full, eq);
     else
@@ -451,14 +470,17 @@ IC3Formula SygusPdr::get_initial_bad_model() {
   for (const auto & v : ts_->inputvars()) {
     Term val = solver_->get_value(v);
     auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
+    conjvec.push_back(eq);
     
     if (conj_full)
       conj_full = solver_->make_term(Op(PrimOp::And), conj_full, eq);
     else
       conj_full = eq;
   }
+  assert(conj_full);
+  assert(!conjvec.empty());
 
-  return IC3Formula(conj_full, {conj_full}, false /*not a disjunction*/ );
+  return IC3Formula(conj_full, conjvec, false /*not a disjunction*/ );
 } // get_initial_bad_model
 
 std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
@@ -483,6 +505,12 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
       conj_partial = eq;
     }
   }
+  if (conj_partial == nullptr) {
+    conj_partial = solver_true_;
+    assert(conjvec_partial.empty());
+    conjvec_partial.push_back(solver_true_);
+  }
+
   syntax_analysis::IC3FormulaModel * partial_model = 
     new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
 
@@ -502,12 +530,25 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
 
   UnorderedTermSet varlist;
   Term bad_state_no_nxt = custom_ts_->to_next_func(p);
+
+  logger.log(4, "[PartialModel] prime state : {}", bad_state_no_nxt->to_string());
   if (has_assumptions) {
+    logger.log(4, "[PartialModel] assumptions (mapped): {}",constraints_curr_var_.size());
+    unsigned idx = 0;
+    for (const auto & c : constraints_curr_var_)
+      logger.log(4, "[PartialModel] assumption #{} : {}", idx ++, c->to_string());
     constraints_curr_var_.push_back(bad_state_no_nxt);
     partial_model_getter.GetVarListForAsts(constraints_curr_var_, varlist);
     constraints_curr_var_.pop_back();
   } else {
     partial_model_getter.GetVarList(bad_state_no_nxt, varlist);
+  }
+
+  {
+    logger.log(4, "[PartialModel] before cutting vars: ");
+    for (const auto & v : varlist)
+      logger.log(4, "[PartialModel] {} := {} ", v->to_string(), solver_->get_value(v)->to_string());
+    logger.log(4, "[PartialModel] ------------------- ");
   }
 
   Term conj_partial;
@@ -527,6 +568,11 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
         conj_partial = eq;
       }
     } // end of partial model
+  }
+  if (conj_partial == nullptr) {
+    conj_partial = solver_true_;
+    assert(conjvec_partial.empty());
+    conjvec_partial.push_back(solver_true_);
   }
   syntax_analysis::IC3FormulaModel * partial_model = 
     new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
@@ -583,8 +629,11 @@ bool SygusPdr::try_recursive_block_goal_at_or_before(const IC3Formula & to_block
     }
 
     const ProofGoal * pg = get_top_proof_goal();
-    if(pg->idx > fidx)
+    logger.log(2,"-- try block @{} : {}", pg->idx, pg->target.term->to_string());
+    if(pg->idx > fidx) {
+      logger.log(2, "-- {} > {}, return true", pg->idx, fidx);
       return true;
+    }
 
     if (is_blocked(pg)) {
       logger.log(3,
@@ -597,18 +646,20 @@ bool SygusPdr::try_recursive_block_goal_at_or_before(const IC3Formula & to_block
 
     // block can fail, which just means a
     // new proof goal will be added in block
-    if (block(pg)) {
+    if ( SygusPdr::block(pg, true)) {
       // if successfully blocked, then remove that proof goal
       // expecting the top proof goal to still be pg
       assert(pg == get_top_proof_goal());
       remove_top_proof_goal();
+      logger.log(2,"-- try block @{} (succeed, removed): {}", pg->idx, pg->target.term->to_string());
     } else if (!pg->idx) {
       // if a proof goal cannot be blocked at zero
       // then there's a counterexample
       // NOTE: creating a new allocation
       //       because the pg memory is already managed
       //       by proof_goals_
-      
+      logger.log(2,"-- try block @{} (failed, removed): {}", pg->idx, pg->target.term->to_string());
+    
       // pop all added goals
       pg = get_top_proof_goal();
       while(true) {
@@ -622,10 +673,13 @@ bool SygusPdr::try_recursive_block_goal_at_or_before(const IC3Formula & to_block
         } else
           break;        
       }
+      logger.log(2,"-- now back to @{} : {}", get_top_proof_goal()->idx, get_top_proof_goal()->target.term);
       return false;
     }
-  }
+    logger.log(2,"-- has pred, now its predecessor");
+  } // end of while
   assert(!has_proof_goals());
+  logger.log(2,"-- no goals");
   return true;
 } // block_all_goal_at_or_before
 
@@ -811,6 +865,143 @@ ProverResult SygusPdr::check_until(int k)
   }
 
   return ProverResult::UNKNOWN;
+}
+
+
+bool SygusPdr::block(const ProofGoal * pg, bool mayblock)
+{
+  const IC3Formula & c = pg->target;
+  size_t i = pg->idx;
+
+  logger.log(
+      3, "Attempting to block proof goal <{}, {}>", c.term->to_string(), i);
+
+  assert(i < frames_.size());
+  assert(i >= 0);
+  // TODO: assert c -> frames_[i]
+
+  if (i == 0) {
+    // can't block anymore -- this is a counterexample
+    return false;
+  }
+
+  std::vector<IC3Formula> collateral;  // populated by rel_ind_check
+  if (SygusPdr::rel_ind_check(i, c, collateral, mayblock)) {
+    // collateral is a vector of blocking units
+    assert(collateral.size());
+    logger.log(3, "Blocking term at frame {}: {}", i, c.term->to_string());
+    if (options_.verbosity_ >= 3) {
+      for (const auto &u : collateral) {
+        logger.log(3, " with {}", u.term->to_string());
+      }
+    }
+
+    // Most IC3 implementations will have only a single element in the vector
+    // e.g. a single clause. But this is not guaranteed for all
+    // for example, interpolant-based generalization for bit-vectors is not
+    // always a single clause
+    size_t min_idx = frames_.size();
+    for (const auto &bu : collateral) {
+      // try to push
+      size_t idx = find_highest_frame(i, bu);
+      constrain_frame(idx, bu);
+      if (idx < min_idx) {
+        min_idx = idx;
+      }
+    }
+
+    // we're limited by the minimum index that a conjunct could be pushed to
+    if (min_idx + 1 < frames_.size()) {
+      add_proof_goal(c, min_idx + 1, pg->next);
+    }
+    return true;
+  } else {
+    // collateral is a vector of predecessors
+    // for now, assume there is only one
+    // TODO: extend this to support multiple predecessors
+    assert(collateral.size() == 1);
+    add_proof_goal(collateral.at(0), i - 1, pg);
+    return false;
+  }
+}
+
+
+bool SygusPdr::rel_ind_check(size_t i,
+                            const IC3Formula & c,
+                            std::vector<IC3Formula> & out,
+                            bool mayblock)
+{
+  assert(i > 0);
+  assert(i < frames_.size());
+  // expecting to be the polarity for proof goals, not frames
+  // e.g. a conjunction
+  assert(!c.is_disjunction());
+  assert(!out.size());  // expecting to get an empty vector to populate
+
+  assert(solver_context_ == 0);
+  push_solver_context();
+
+  // F[i-1]
+  assert_frame_labels(i - 1);
+  // -c
+  // solver_->assert_formula(solver_->make_term(Not, c.term));
+  // Trans
+  assert_trans_label();
+  // c'
+  solver_->assert_formula(ts_->next(c.term));
+
+  Result r = check_sat();
+  if (r.is_sat()) {
+    IC3Formula predecessor;
+    if (options_.ic3_pregen_) {
+      predecessor = generalize_predecessor(i, c);
+    } else {
+      predecessor = get_model_ic3formula();
+    }
+    assert(ic3formula_check_valid(predecessor));
+    out.push_back(predecessor);
+    pop_solver_context();
+  } else {
+    // TODO: consider automatically taking advantage
+    //       of an unsat core. Took it out for now (was in MBIC3)
+    //       because it needs to work for any IC3Formula
+    //       Maybe IC3Formula needs to know how to generalize itself
+    //         or at least how to make a conjunctive partition
+    //         or it's possible they all can function approximately the same
+    //       would also have to move the pop_solver_context later
+    pop_solver_context();
+    if (options_.ic3_indgen_) {
+      assert(solver_context_ == 0); // important that there are no lingering assertions
+      out = inductive_generalization(i, c);
+    } else {
+      out.push_back(ic3formula_negate(c));
+    }
+    Term conj = solver_->make_term(true);
+    for (const auto &u : out) {
+      conj = solver_->make_term(And, conj, u.term);
+      assert(ic3formula_check_valid(u));
+      assert(ts_->only_curr(u.term));
+    }
+    assert(!check_intersects_initial(solver_->make_term(Not, conj)));
+  }
+  assert(solver_context_ == 0);
+
+  if (r.is_sat()) {
+    // for now, assuming that there's only one predecessor produced
+    assert(out.size() == 1);
+    // this check needs to be here after the solver context has been popped
+    // if i == 1 and there's a predecessor, then it should be an initial state
+    assert(i != 1 || check_intersects_initial(out.at(0).term));
+
+    // should never intersect with a frame before F[i-1]
+    // otherwise, this predecessor should have been found
+    // in a previous step (before a new frame was pushed)
+    if (!mayblock)
+      assert(i < 2 || !check_intersects(out.at(0).term, get_frame_term(i - 2)));
+  }
+
+  assert(!r.is_unknown());
+  return r.is_unsat();
 }
 
 }  // namespace pono

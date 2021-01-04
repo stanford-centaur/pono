@@ -79,7 +79,8 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * p
 
 // we just won't compute canonical_string twice
 const PerVarsetInfo & VarTermManager::SetupTermsForVarModelNormal(
-  IC3FormulaModel * m, const std::string & canonical_string,
+  IC3FormulaModel * m, const std::string & canonical_string, 
+  smt::SmtSolver & solver_,
   unsigned term_extract_depth, unsigned initial_term_width,
   unsigned initial_term_inc, unsigned accumulated_term_bound) {
 
@@ -122,6 +123,8 @@ const PerVarsetInfo & VarTermManager::SetupTermsForVarModelNormal(
   pos->second.state.stage = PerVarsetInfo::state_t::WPARTIAL;
   pos->second.state.partial_width_done = width_start; // the start of next time
 
+  term_const_w1_const(term_cache_item, solver_);
+
   return term_cache_item;
 } // SetupTermsForVar
 
@@ -139,14 +142,14 @@ const PerVarsetInfo & VarTermManager::GetAllTermsForVarsInModel(
     return pos->second;
   }
   if (term_mode == SyGuSTermMode::FROM_DESIGN_LEARN_EXT)
-    return SetupTermsForVarModelNormal(m, var_string,
+    return SetupTermsForVarModelNormal(m, var_string, s, 
       term_extract_depth, initial_term_width, initial_term_inc, accumulated_term_bound);
   if (term_mode == SyGuSTermMode::VAR_C_EXT)
     return SetupTermsForVarModeExt(m, var_string, s);
   if (term_mode == SyGuSTermMode::SPLIT_FROM_DESIGN)
     return SetupTermsForVarModeSplit(m, var_string, s);
   if (term_mode == SyGuSTermMode::VAR_C_EQ_LT)
-    return SetupTermsForVarModelVC(m, var_string); // just var and constant, you don't need a lot more
+    return SetupTermsForVarModelVC(m, var_string, s); // just var and constant, you don't need a lot more
 
   assert(false);
 } // GetAllTermsFor
@@ -192,18 +195,14 @@ const PerVarsetInfo & VarTermManager::SetupTermsForVarModeSplit(
   const_to_per_varset(term_cache_item, 0, (unsigned)(-1), nouse);
 
   // make sure there is at least a one for bv1
-  if (term_cache_item.terms.find(1) == term_cache_item.terms.end()  ||
-        term_cache_item.terms.at(1).constants.empty()) {
-    auto c0 = solver_->make_term(0);
-    term_cache_item.terms_strings.insert(c0->to_string());
-    term_cache_item.terms[1].constants.push_back(c0);
-  }
+  term_const_w1_const(term_cache_item, solver_);
 
   return term_cache_item;
 } // SetupTermsForVarModeSplit
 
 const PerVarsetInfo & VarTermManager::SetupTermsForVarModelVC(
-  IC3FormulaModel * m, const std::string & canonical_string)
+  IC3FormulaModel * m, const std::string & canonical_string,
+  smt::SmtSolver & solver_)
 {
   bool collect_constant = width_to_constants_.empty();
   std::unordered_set<smt::Term> varset;
@@ -234,6 +233,7 @@ const PerVarsetInfo & VarTermManager::SetupTermsForVarModelVC(
 
   unsigned nouse = 0;
   const_to_per_varset(term_cache_item, 0, (unsigned)(-1), nouse);
+  term_const_w1_const(term_cache_item, solver_);
 
   return term_cache_item;
 } // SetupTermsForVarModelVC
@@ -343,6 +343,7 @@ void VarTermManager::insert_vars_and_extracts(
       term_cache_item.terms[width].terms.push_back(v);
     } // if insert successful    
     if (width > 1) {
+      // make the extract
       for (unsigned idx = 0; idx < width; ++idx) {
         auto t = solver_->make_term(smt::Op(smt::PrimOp::Extract, idx, idx), v);
         auto res = term_cache_item.terms_strings.insert(t->to_string());

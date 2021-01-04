@@ -457,6 +457,12 @@ bool IC3Base::block_all()
     if (block(pg)) {
       // if successfully blocked, then remove that proof goal
       // expecting the top proof goal to still be pg
+      if (pg != get_top_proof_goal()) {
+        logger.log(3, "[block_all] after block top {} : {} ",
+          get_top_proof_goal()->idx,
+          get_top_proof_goal()->target.term->to_string());
+        logger.log(3, "[block_all] pg {} : {} ", pg->idx, pg->target.term->to_string());
+      }
       assert(pg == get_top_proof_goal());
       remove_top_proof_goal();
     } else if (!pg->idx) {

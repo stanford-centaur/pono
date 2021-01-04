@@ -49,7 +49,7 @@ PredConstructor::PredConstructor(
   terms_to_predicates();
 }
 
-#define TERM_TABLE_DEBUG_LVL 0
+#define TERM_TABLE_DEBUG_LVL 2
 void PredConstructor::TermsDumping() const {
 #if TERM_TABLE_DEBUG_LVL >= 1
   
@@ -75,7 +75,7 @@ void PredConstructor::TermsDumping() const {
                 << (terms_consts.constants.back()->to_string()) <<  " (" << nc_size << ")" << std::endl;
 #else
     for (auto && t : terms_consts.constants)
-      std::cout << t->to_raw_string() << ", ";
+      std::cout << t->to_string() << ", ";
     std::cout << " (" << nc_size << ")\n";
 #endif
     
@@ -90,7 +90,7 @@ void PredConstructor::TermsDumping() const {
                 << (terms_consts.terms.back()->to_string()) <<  " (" << nt_size << ")" << std::endl;
 #else
     for (auto && t : terms_consts.terms)
-      std::cout << t->to_raw_string() << ", ";
+      std::cout << t->to_string() << ", ";
     std::cout << " (" << nt_size << ")\n";
 #endif
     
@@ -102,7 +102,8 @@ void PredConstructor::TermsDumping() const {
 #define ADD_PRED(pred_curr) \
         if (!((pred_curr)->is_value())) { \
           auto pred_next = to_next_(pred_curr); \
-          preds.push_back(pred_next); \
+          if ( pred_str.insert( pred_curr->to_string()).second )\
+            preds.push_back(pred_next); \
         }
 
 // next_to_curr.emplace(pred_next, pred_curr); 
@@ -113,6 +114,7 @@ void PredConstructor::terms_to_predicates() {
   bool use_lte = per_cex_info_.varset_info.use_lte();
 
   auto & preds = per_cex_info_.predicates_nxt;
+  auto & pred_str = per_cex_info_.predicates_str;
   // auto & next_to_curr = per_cex_info_.pred_next_to_pred_curr;
   const auto & value_map = per_cex_info_.terms_val_under_cex;
   for (auto && w_term_cnst_pair : per_cex_info_.varset_info.terms) {

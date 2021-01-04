@@ -79,7 +79,7 @@ protected:
   // 2. ----------------------------------------------
   // helps with the Terms
   const PerVarsetInfo & SetupTermsForVarModelNormal(
-    IC3FormulaModel * m, const std::string & canonical_string,
+    IC3FormulaModel * m, const std::string & canonical_string, smt::SmtSolver & s,
     unsigned term_extract_depth, unsigned initial_term_width,
     unsigned initial_term_inc, unsigned accumulated_term_bound);
 
@@ -87,7 +87,7 @@ protected:
     IC3FormulaModel * m, const std::string & canonical_string, smt::SmtSolver & s);
 
   const PerVarsetInfo & SetupTermsForVarModelVC(
-    IC3FormulaModel * m, const std::string & canonical_string);
+    IC3FormulaModel * m, const std::string & canonical_string, smt::SmtSolver & s);
   
   const PerVarsetInfo & SetupTermsForVarModeSplit(
     IC3FormulaModel * m, const std::string & canonical_string, smt::SmtSolver & solver_);

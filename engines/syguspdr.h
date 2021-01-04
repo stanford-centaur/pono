@@ -67,6 +67,11 @@ class SygusPdr : public IC3Base
 
   typedef IC3Base super;
  
+
+  // -----------------------------------------------------------------
+  // I had to override these functions (some are not virtual, though)
+  // -----------------------------------------------------------------
+
  public:
   // some override that were unnecessary but I found that I need to do
   // inorder to adjust the style
@@ -82,8 +87,18 @@ class SygusPdr : public IC3Base
    */
   ProverResult step_0();  // will be called in the parent version of check_until
 
+  bool block(const ProofGoal * pg, bool mayblock); // to support the may block
 
+  bool rel_ind_check(size_t i,
+                     const IC3Formula & c,
+                     std::vector<IC3Formula> & out,
+                     bool mayblock);
+
+
+
+  // -----------------------------------------------------------------
   // pure virtual method implementations
+  // -----------------------------------------------------------------
 
   IC3Formula get_model_ic3formula(
       smt::TermVec * out_inputs = nullptr,
@@ -107,6 +122,9 @@ class SygusPdr : public IC3Base
 
   virtual RefineResult refine() override;
 
+  // -----------------------------------------------------------------
+  // SyGuS related functions
+  // -----------------------------------------------------------------
 
   // store the relation between IC3Formula to IC3Models
   std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> model2cube_;
@@ -142,7 +160,6 @@ class SygusPdr : public IC3Base
   bool propose_new_terms(
     syntax_analysis::IC3FormulaModel * pre_model,
     syntax_analysis::IC3FormulaModel * post_model,
-    syntax_analysis::PerCexInfo & per_cex_info,
     const smt::Term & F_T_not_cex,
     const smt::Term & Init_prime,
     bool failed_at_init);
