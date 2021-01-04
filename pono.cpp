@@ -56,7 +56,6 @@ ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
                         const TransitionSystem & ts,
                         const SmtSolver & s,
-                        const SmtSolver & second_solver,
                         std::vector<UnorderedTermMap> & cex)
 {
   logger.log(1, "Solving property: {}", p.name());
@@ -68,8 +67,6 @@ ProverResult check_prop(PonoOptions pono_options,
 
   std::shared_ptr<Prover> prover;
   if (pono_options.ceg_prophecy_arrays_) {
-    // don't instantiate the sub-prover directly
-    // just pass the engine to CegProphecyArrays
     prover = std::make_shared<CegProphecyArrays<Bmc>>(p, ts, s, pono_options);
   } else {
     prover = make_prover(eng, p, ts, s, pono_options);
@@ -170,7 +167,6 @@ int main(int argc, char ** argv)
 
   try {
     SmtSolver s;
-    SmtSolver second_solver;
     if (pono_options.engine_ == INTERP) {
 #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
@@ -297,7 +293,7 @@ int main(int argc, char ** argv)
 
       vector<UnorderedTermMap> cex;
       Property p(s, prop, prop_name);
-      res = check_prop(pono_options, p, fts, s, second_solver, cex);
+      res = check_prop(pono_options, p, fts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -373,7 +369,7 @@ int main(int argc, char ** argv)
 
       Property p(s, prop, prop_name);
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, p, rts, s, second_solver, cex);
+      res = check_prop(pono_options, p, rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
