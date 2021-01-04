@@ -36,7 +36,6 @@ class CegProphecyArrays : public CEGAR<Prover_T>
  public:
   CegProphecyArrays(const Property & p,
                     const TransitionSystem & ts,
-                    Engine e,
                     const smt::SmtSolver & solver,
                     PonoOptions opt = PonoOptions());
 
@@ -52,8 +51,6 @@ class CegProphecyArrays : public CEGAR<Prover_T>
 
  protected:
   const TransitionSystem & conc_ts_;
-
-  Engine e_;
 
   // TODO: see if there's a better organization where we can re-use the same
   // unroller currently this is very important, or it won't unroll the

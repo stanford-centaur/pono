@@ -45,12 +45,10 @@ namespace pono {
 template<class Prover_T>
 CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
                                                const TransitionSystem & ts,
-                                               Engine e,
                                                const SmtSolver & solver,
                                                PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
       conc_ts_(ts),
-      e_(e),
       abs_unroller_(super::ts_, super::solver_),
       aa_(conc_ts_, super::ts_, true),
       aae_(aa_, abs_unroller_,
@@ -63,7 +61,6 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
 {
   // point orig_ts_ to the correct one
   super::orig_ts_ = ts;
-  super::engine_ = e;
 }
 
 template<class Prover_T>
@@ -88,7 +85,7 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
     //TODO : think about making it use the same prover -- incrementally
     SmtSolver s = create_solver(super::solver_->get_solver_enum());
     shared_ptr<Prover> prover =
-      make_prover(e_, latest_prop, super::ts_, s, super::options_);
+      make_prover(super::engine_, latest_prop, super::ts_, s, super::options_);
 
     res = prover->prove();
   }
@@ -116,7 +113,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
                          super::solver_->make_term(Not, super::bad_));
     SmtSolver s = create_solver(super::solver_->get_solver_enum());
     shared_ptr<Prover> prover =
-      make_prover(e_, latest_prop, super::ts_, s, super::options_);
+      make_prover(super::engine_, latest_prop, super::ts_, s, super::options_);
 
     res = prover->check_until(k);
   }

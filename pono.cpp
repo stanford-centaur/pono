@@ -70,7 +70,7 @@ ProverResult check_prop(PonoOptions pono_options,
   if (pono_options.ceg_prophecy_arrays_) {
     // don't instantiate the sub-prover directly
     // just pass the engine to CegProphecyArrays
-    prover = std::make_shared<CegProphecyArrays<Bmc>>(p, ts, eng, s, pono_options);
+    prover = std::make_shared<CegProphecyArrays<Bmc>>(p, ts, s, pono_options);
   } else {
     prover = make_prover(eng, p, ts, s, pono_options);
   }
