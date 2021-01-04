@@ -174,7 +174,6 @@ int main(int argc, char ** argv)
 #ifdef WITH_MSAT
       // need mathsat for interpolant based model checking
       s = MsatSolverFactory::create(false);
-      second_solver = MsatSolverFactory::create_interpolating_solver();
 #else
       throw PonoException(
           "Interpolation-based model checking requires MathSAT and "
