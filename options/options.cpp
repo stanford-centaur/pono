@@ -47,10 +47,12 @@ enum optionIndex
   SMT_SOLVER,
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
+  IC3_RESET_INTERVAL,
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
-  PROFILING_LOG_FILENAME
+  PROFILING_LOG_FILENAME,
+  MOD_INIT_PROP
 };
 
 struct Arg : public option::Arg
@@ -136,7 +138,7 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT Solver to use: btor or msat." },
+    "  --smt-solver \tSMT Solver to use: btor or msat or cvc4." },
   { NOWITNESS,
     0,
     "",
@@ -206,6 +208,17 @@ const option::Descriptor usage[] = {
     "ic3-no-indgen",
     Arg::None,
     "  --ic3-no-indgen \tDisable inductive generalization in ic3." },
+  { IC3_RESET_INTERVAL,
+    0,
+    "",
+    "ic3-reset-interval",
+    Arg::Numeric,
+    "  --ic3-reset-interval \tNumber of check-sat queries before "
+    "resetting the solver. "
+    "Setting it to 0 means an unbounded number of iterations."
+    "Note: some solvers don't support resetting assertions, in which "
+    "case it will just fail to reset and not try again. This will be "
+    "printed at verbosity 1." },
   { IC3_GEN_MAX_ITER,
     0,
     "",
@@ -235,6 +248,13 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --profiling-log \tName of logfile for profiling output"
     " (requires build with linked profiling library 'gperftools')." },
+  { MOD_INIT_PROP,
+    0,
+    "",
+    "mod-init-prop",
+    Arg::None,
+    "  --mod-init-prop \tReplace init and prop with state variables -- can "
+    "extend trace by up to two steps. Recommended for use with ic3ia." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -332,6 +352,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CLK: clock_name_ = opt.arg; break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
+        case IC3_RESET_INTERVAL: ic3_reset_interval_ = atoi(opt.arg); break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;
         case MBIC3_INDGEN_MODE:
           mbic3_indgen_mode = atoi(opt.arg);
@@ -349,6 +370,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           profiling_log_filename_ = opt.arg;
 #endif
           break;
+        case MOD_INIT_PROP: mod_init_prop_ = true;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

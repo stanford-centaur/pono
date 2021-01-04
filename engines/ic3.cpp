@@ -27,31 +27,24 @@ namespace pono {
 
 /** IC3 Implementation */
 
-IC3::IC3(Property & p, smt::SolverEnum se) : super(p, se) {}
-
-IC3::IC3(Property & p, const smt::SmtSolver & s) : super(p, s) {}
-
-IC3::IC3(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-    : super(opt, p, se)
+IC3::IC3(const Property & p, const TransitionSystem & ts,
+         const smt::SmtSolver & s, PonoOptions opt)
+  : super(p, ts, s, opt)
 {
-}
-
-IC3::IC3(const PonoOptions & opt, Property & p, const smt::SmtSolver & s)
-    : super(opt, p, s)
-{
+  solver_->set_opt("produce-unsat-cores", "true");
 }
 
 IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
-                                      TermVec * out_nexts) const
+                                     TermVec * out_nexts) const
 {
   // expecting all solving in IC3 to be done at context level > 0
   // so if we're getting a model we should not be at context 0
   assert(solver_context_);
 
-  const UnorderedTermSet & statevars = ts_->statevars();
+  const UnorderedTermSet & statevars = ts_.statevars();
   TermVec children;
   children.reserve(statevars.size());
-  for (auto sv : ts_->statevars()) {
+  for (const auto &sv : ts_.statevars()) {
     if (solver_->get_value(sv) == solver_true_) {
       children.push_back(sv);
     } else {
@@ -59,7 +52,7 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
     }
 
     if (out_nexts) {
-      Term nv = ts_->next(sv);
+      Term nv = ts_.next(sv);
       if (solver_->get_value(nv) == solver_true_) {
         out_nexts->push_back(nv);
       } else {
@@ -69,7 +62,7 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (auto iv : ts_->inputvars()) {
+    for (const auto &iv : ts_.inputvars()) {
       if (solver_->get_value(iv) == solver_true_) {
         out_inputs->push_back(iv);
       } else {
@@ -83,10 +76,10 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
 
 bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 {
-  Sort boolsort = solver_->make_sort(BOOL);
+  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Op op;
-  for (auto c : u.children) {
+  for (const auto &c : u.children) {
     if (!is_lit(c, boolsort)) {
       return false;
     }
@@ -117,19 +110,20 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
     shuffle(
         lits.begin(), lits.end(), default_random_engine(options_.random_seed_));
   }
-//TODO: use unsatcore-reducer
+
+  //TODO: use unsatcore-reducer
   int iter = 0;
   bool progress = true;
   while (iter <= options_.ic3_gen_max_iter_ && lits.size() > 1 && progress) {
     iter = options_.ic3_gen_max_iter_ > 0 ? iter + 1 : iter;
     size_t prev_size = lits.size();
-    for (auto a : lits) {
+    for (const auto &a : lits) {
       // check if we can drop a
       if (keep.find(a) != keep.end()) {
         continue;
       }
       tmp.clear();
-      for (auto aa : lits) {
+      for (const auto &aa : lits) {
         if (a != aa) {
           tmp.push_back(aa);
         }
@@ -145,13 +139,13 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 
         Term l;
         bool_assump.clear();
-        for (auto t : tmp) {
+        for (const auto &t : tmp) {
           l = label(t);
-          solver_->assert_formula(solver_->make_term(Implies, l, ts_->next(t)));
+          solver_->assert_formula(solver_->make_term(Implies, l, ts_.next(t)));
           bool_assump.push_back(l);
         }
 
-        Result r = solver_->check_sat_assuming(bool_assump);
+        Result r = check_sat_assuming(bool_assump);
         assert(!r.is_unknown());
 
         if (r.is_sat()) {
@@ -193,7 +187,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
 
   // TODO: would it be more intuitive to start with a clause
   //       and generalize the clause directly?
-  IC3Formula blocking_clause = ic3formula_negate(ic3formula_conjunction(lits));
+  const IC3Formula &blocking_clause = ic3formula_negate(ic3formula_conjunction(lits));
   assert(blocking_clause.is_disjunction());  // expecting a clause
   return { blocking_clause };
 }
@@ -204,9 +198,9 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // sat
   assert(i > 0);
 
-  const UnorderedTermSet & statevars = ts_->statevars();
+  const UnorderedTermSet & statevars = ts_.statevars();
   TermVec input_lits, next_lits;
-  IC3Formula icf = get_model_ic3formula(&input_lits, &next_lits);
+  const IC3Formula & icf = get_model_ic3formula(&input_lits, &next_lits);
   const TermVec & cube_lits = icf.children;
 
   if (i == 1) {
@@ -216,12 +210,12 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   }
 
   Term formula = make_and(input_lits);
-  if (ts_->is_deterministic()) {
+  if (ts_.is_deterministic()) {
     // NOTE: need to use full trans, not just trans_label_ here
     //       because we are passing it to the reducer_
-    formula = solver_->make_term(And, formula, ts_->trans());
+    formula = solver_->make_term(And, formula, ts_.trans());
     formula = solver_->make_term(
-        And, formula, solver_->make_term(Not, ts_->next(c.term)));
+        And, formula, solver_->make_term(Not, ts_.next(c.term)));
   } else {
     formula = solver_->make_term(And, formula, make_and(next_lits));
 
@@ -233,10 +227,10 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
     // the implication could be more efficient than iff so we want to leave it
     // that way
     Term pre_formula = get_frame_term(i - 1);
-    pre_formula = solver_->make_term(And, pre_formula, ts_->trans());
+    pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
     pre_formula =
         solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));
-    pre_formula = solver_->make_term(And, pre_formula, ts_->next(c.term));
+    pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term));
     formula =
         solver_->make_term(And, formula, solver_->make_term(Not, pre_formula));
   }
@@ -251,7 +245,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // formula should not be unsat on its own
   assert(red_cube_lits.size() > 0);
 
-  IC3Formula res = ic3formula_conjunction(red_cube_lits);
+  const IC3Formula & res = ic3formula_conjunction(red_cube_lits);
   // expecting a Cube here
   assert(!res.is_disjunction());
 
@@ -260,15 +254,15 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
 void IC3::check_ts() const
 {
-  Sort boolsort = solver_->make_sort(BOOL);
-  for (auto sv : ts_->statevars()) {
+  const Sort &boolsort = solver_->make_sort(BOOL);
+  for (const auto &sv : ts_.statevars()) {
     if (sv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean state variable in bit-level IC3: "
                           + sv->to_string());
     }
   }
 
-  for (auto iv : ts_->inputvars()) {
+  for (const auto &iv : ts_.inputvars()) {
     if (iv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean input variable in bit-level IC3: "
                           + iv->to_string());

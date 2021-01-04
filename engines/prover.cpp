@@ -20,7 +20,8 @@
 #include <climits>
 #include <functional>
 
-#include "modifiers/coi.h"
+#include "core/rts.h"
+#include "modifiers/static_coi.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 
@@ -29,41 +30,15 @@ using namespace std;
 
 namespace pono {
 
-Prover::Prover(Property & p, smt::SolverEnum se)
-    : Prover(p, create_solver(se))
-{
-  solver_->set_opt("incremental", "true");
-  solver_->set_opt("produce-models", "true");
-}
-
-Prover::Prover(Property & p, const smt::SmtSolver & s)
+Prover::Prover(const Property & p, const TransitionSystem & ts,
+               const smt::SmtSolver & s, PonoOptions opt)
     : initialized_(false),
       solver_(s),
       to_prover_solver_(s),
-      property_(p, to_prover_solver_),
-      ts_(&property_.transition_system()),
-      orig_ts_(p.transition_system()),
-      unroller_(*ts_, solver_)
-{
-}
-
-Prover::Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-    : Prover(opt, p, create_solver(se))
-{
-  solver_->set_opt("incremental", "true");
-  solver_->set_opt("produce-models", "true");
-}
-
-Prover::Prover(const PonoOptions & opt,
-               Property & p,
-               const smt::SmtSolver & s)
-    : initialized_(false),
-      solver_(s),
-      to_prover_solver_(solver_),
-      property_(p, to_prover_solver_),
-      ts_(&property_.transition_system()),
-      orig_ts_(p.transition_system()),
-      unroller_(*ts_, solver_),
+      orig_property_(p),
+      orig_ts_(ts),
+      ts_(ts, to_prover_solver_),
+      unroller_(ts_, solver_),
       options_(opt)
 {
 }
@@ -77,8 +52,19 @@ void Prover::initialize()
   }
 
   reached_k_ = -1;
-  bad_ = solver_->make_term(smt::PrimOp::Not, property_.prop());
-  assert(ts_->only_curr(bad_));
+
+  if (!bad_) {
+    // initialize bad_ if it is not set already
+    const Term &prop_term = (ts_.solver() == orig_property_.solver())
+      ? orig_property_.prop()
+      : to_prover_solver_.transfer_term(orig_property_.prop());
+    bad_ = solver_->make_term(smt::PrimOp::Not, prop_term);
+    assert(ts_.only_curr(bad_));
+  }
+
+  if (!ts_.only_curr(bad_)) {
+    throw PonoException("Property should not contain inputs or next state variables");
+  }
 
   initialized_ = true;
 }
@@ -112,10 +98,10 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
           "currently incompatible with witness generation.");
     // need to add symbols to cache
     UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
-    for (auto v : orig_ts_.statevars()) {
+    for (const auto &v : orig_ts_.statevars()) {
       cache[to_prover_solver_.transfer_term(v)] = v;
     }
-    for (auto v : orig_ts_.inputvars()) {
+    for (const auto &v : orig_ts_.inputvars()) {
       cache[to_prover_solver_.transfer_term(v)] = v;
     }
 
@@ -136,15 +122,15 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     out.push_back(UnorderedTermMap());
     UnorderedTermMap & map = out.back();
 
-    for (auto v : orig_ts_.statevars()) {
-      SortKind sk = v->get_sort()->get_sort_kind();
-      Term pv = transfer_to_prover_as(v, sk);
+    for (const auto &v : orig_ts_.statevars()) {
+      const SortKind &sk = v->get_sort()->get_sort_kind();
+      const Term &pv = transfer_to_prover_as(v, sk);
       map[v] = transfer_to_orig_ts_as(wit_map.at(pv), sk);
     }
 
-    for (auto v : orig_ts_.inputvars()) {
-      SortKind sk = v->get_sort()->get_sort_kind();
-      Term pv = transfer_to_prover_as(v, sk);
+    for (const auto &v : orig_ts_.inputvars()) {
+      const SortKind &sk = v->get_sort()->get_sort_kind();
+      const Term &pv = transfer_to_prover_as(v, sk);
       try {
         map[v] = transfer_to_orig_ts_as(wit_map.at(pv), sk);
       }
@@ -155,9 +141,9 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     }
 
     if (success) {
-      for (auto elem : orig_ts_.named_terms()) {
-        SortKind sk = elem.second->get_sort()->get_sort_kind();
-        Term pt = transfer_to_prover_as(elem.second, sk);
+      for (const auto &elem : orig_ts_.named_terms()) {
+        const SortKind &sk = elem.second->get_sort()->get_sort_kind();
+        const Term &pt = transfer_to_prover_as(elem.second, sk);
         try {
           map[elem.second] = transfer_to_orig_ts_as(wit_map.at(pt), sk);
         }
@@ -197,12 +183,12 @@ Term Prover::to_orig_ts(Term t, SortKind sk)
     // need to add symbols to cache
     TermTranslator to_orig_ts_solver(orig_ts_.solver());
     UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
-    for (auto v : orig_ts_.statevars()) {
+    for (const auto &v : orig_ts_.statevars()) {
       cache[to_prover_solver_.transfer_term(v)] = v;
-      Term nv = orig_ts_.next(v);
+      const Term &nv = orig_ts_.next(v);
       cache[to_prover_solver_.transfer_term(nv)] = v;
     }
-    for (auto v : orig_ts_.inputvars()) {
+    for (const auto &v : orig_ts_.inputvars()) {
       cache[to_prover_solver_.transfer_term(v)] = v;
     }
     return to_orig_ts_solver.transfer_term(t, sk);
@@ -222,20 +208,20 @@ bool Prover::compute_witness()
     witness_.push_back(UnorderedTermMap());
     UnorderedTermMap & map = witness_.back();
 
-    for (auto v : ts_->statevars()) {
-      Term vi = unroller_.at_time(v, i);
-      Term r = solver_->get_value(vi);
+    for (const auto &v : ts_.statevars()) {
+      const Term &vi = unroller_.at_time(v, i);
+      const Term &r = solver_->get_value(vi);
       map[v] = r;
     }
 
-    for (auto v : ts_->inputvars()) {
-      Term vi = unroller_.at_time(v, i);
-      Term r = solver_->get_value(vi);
+    for (const auto &v : ts_.inputvars()) {
+      const Term &vi = unroller_.at_time(v, i);
+      const Term &r = solver_->get_value(vi);
       map[v] = r;
     }
 
-    for (auto elem : ts_->named_terms()) {
-      Term ti = unroller_.at_time(elem.second, i);
+    for (const auto &elem : ts_.named_terms()) {
+      const Term &ti = unroller_.at_time(elem.second, i);
       map[elem.second] = solver_->get_value(ti);
     }
   }

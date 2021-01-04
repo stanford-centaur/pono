@@ -59,7 +59,7 @@ class FunctionalUnroller : public Unroller
    *  @param k the time to unroll the term at
    *  @return the unrolled term
    */
-  smt::Term at_time(const smt::Term & t, unsigned int k);
+  smt::Term at_time(const smt::Term & t, unsigned int k) override;
 
   /** Provides extra constraints for a functional unrolling
    *  with intermittent fresh symbols

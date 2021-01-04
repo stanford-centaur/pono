@@ -26,6 +26,7 @@
 #include "engines/msat_ic3ia.h"
 #endif
 
+#include "smt/available_solvers.h"
 
 using namespace smt;
 using namespace std;
@@ -35,62 +36,38 @@ namespace pono {
 vector<Engine> all_engines() { return { BMC, BMC_SP, KIND, INTERP, MBIC3 }; }
 
 shared_ptr<Prover> make_prover(Engine e,
-                               Property & p,
-                               SolverEnum se,
+                               const Property & p,
+                               const TransitionSystem & ts,
+                               const SmtSolver & slv,
                                PonoOptions opts)
 {
   if (e == BMC) {
-    return make_shared<Bmc>(opts, p, se);
+    return make_shared<Bmc>(p, ts, slv, opts);
   } else if (e == BMC_SP) {
-    return make_shared<BmcSimplePath>(opts, p, se);
+    return make_shared<BmcSimplePath>(p, ts, slv, opts);
   } else if (e == KIND) {
-    return make_shared<KInduction>(opts, p, se);
+    return make_shared<KInduction>(p, ts, slv, opts);
   } else if (e == INTERP) {
-    return make_shared<InterpolantMC>(opts, p, se);
-  } else if (e == MBIC3) {
-    return make_shared<ModelBasedIC3>(opts, p, se);
-  } else if (e == IC3IA_ENGINE) {
 #ifdef WITH_MSAT
-    return make_shared<IC3IA>(opts, p, se, SolverEnum::MSAT);
+    SmtSolver s = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
+    return make_prover(e, p, ts, slv, s, opts);
 #else
-    throw PonoException(
-        "IC3IA uses MathSAT for interpolants, but not built with MathSAT");
-#endif
-#ifdef WITH_MSAT_IC3IA
-  } else if (e == MSAT_IC3IA) {
-    return make_shared<MsatIC3IA>(opts, p, se);
-#endif
-  } else {
-    throw PonoException("Unhandled engine");
-  }
-}
-
-shared_ptr<Prover> make_prover(Engine e,
-                               Property & p,
-                               SmtSolver & slv,
-                               PonoOptions opts)
-{
-  if (e == BMC) {
-    return make_shared<Bmc>(opts, p, slv);
-  } else if (e == BMC_SP) {
-    return make_shared<BmcSimplePath>(opts, p, slv);
-  } else if (e == KIND) {
-    return make_shared<KInduction>(opts, p, slv);
-  } else if (e == INTERP) {
     throw PonoException(
         "Interpolant-based modelchecking requires an interpolator");
+#endif
   } else if (e == MBIC3) {
-    return make_shared<ModelBasedIC3>(opts, p, slv);
+    return make_shared<ModelBasedIC3>(p, ts, slv, opts);
   } else if (e == IC3IA_ENGINE) {
 #ifdef WITH_MSAT
-    return make_shared<IC3IA>(opts, p, slv, SolverEnum::MSAT);
+    SmtSolver s = create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR);
+    return make_prover(e, p, ts, slv, s, opts);
 #else
     throw PonoException(
         "IC3IA uses MathSAT for interpolants, but not built with MathSAT");
 #endif
 #ifdef WITH_MSAT_IC3IA
   } else if (e == MSAT_IC3IA) {
-    return make_shared<MsatIC3IA>(opts, p, slv);
+    return make_shared<MsatIC3IA>(p, ts, slv, opts);
 #endif
   } else {
     throw PonoException("Unhandled engine");
@@ -98,15 +75,16 @@ shared_ptr<Prover> make_prover(Engine e,
 }
 
 shared_ptr<Prover> make_prover(Engine e,
-                               Property & p,
-                               SmtSolver & slv,
-                               SmtSolver & itp,
+                               const Property & p,
+                               const TransitionSystem & ts,
+                               const SmtSolver & slv,
+                               const SmtSolver & itp,
                                PonoOptions opts)
 {
   if (e == INTERP) {
-    return make_shared<InterpolantMC>(opts, p, slv, itp);
+    return make_shared<InterpolantMC>(p, ts, slv, itp, opts);
   } else if (e == IC3IA_ENGINE) {
-    return make_shared<IC3IA>(opts, p, slv, itp);
+    return make_shared<IC3IA>(p, ts, slv, itp, opts);
   } else {
     throw PonoException(
         "Got unexpected engine when passing a solver and interpolator to "

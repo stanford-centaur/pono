@@ -142,6 +142,36 @@ bool is_lit(const Term & l, const Sort & boolsort)
   return false;
 }
 
+bool is_predicate(const Term & t, const Sort & boolsort)
+{
+  if (t->get_sort() != boolsort) {
+    return false;
+  }
+
+  const Op & op = t->get_op();
+
+  // no term with a null operator can be a predicate
+  if (op.is_null()) {
+    return false;
+  }
+
+  if (boolops.find(op.prim_op) != boolops.end()) {
+    // boolean operators cannot make predicates
+    return false;
+  }
+
+  // boolean terms that do not use a boolean combination operator are
+  // predicates
+  // one special case is equality between two booleans is not a predicate
+  // this is an iff essentially
+  if (op.prim_op == Equal && (*t->begin())->get_sort() == boolsort) {
+    return false;
+  }
+
+  // if it made it through all the checks, then it's a predicate
+  return true;
+}
+
 UnorderedTermSet get_free_symbols(const Term & term)
 {
   UnorderedTermSet free_symbols;
@@ -203,11 +233,6 @@ void get_predicates(const SmtSolver & solver,
         continue;
       }
 
-      Op op = t->get_op();
-      // no case in smt-switch (yet) where boolean term that is not
-      // a symbolic const will have a null operator
-      assert(!op.is_null());
-
       // special case for ITE children
       // Note: we're trying to never include an ITE in a predicate
       //       so if we get y = ite(x < 10, x+1, 0), we want to add
@@ -229,6 +254,7 @@ void get_predicates(const SmtSolver & solver,
         vector<TermVec> all_combinations = get_combinations(options);
 
         // then rebuild for each TermVec of children
+        const Op & op = t->get_op();
         Term res;
         for (auto comb : all_combinations) {
           // construct a new term with the given combination of children
@@ -237,16 +263,7 @@ void get_predicates(const SmtSolver & solver,
           // add this term to the stack of terms to check for predicates
           to_visit.push_back(res);
         }
-      } else if (boolops.find(op.prim_op) == boolops.end()) {
-        // boolean terms that do not use a boolean combination operator are
-        // predicates
-
-        // one special case is equality between two booleans is not a predicate
-        // this is an iff essentially
-        if (op.prim_op == Equal && children[0]->get_sort() == boolsort) {
-          continue;
-        }
-
+      } else if (is_predicate(t, boolsort)) {
         out.insert(t);
       }
     }

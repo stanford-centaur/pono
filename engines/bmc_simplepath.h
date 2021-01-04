@@ -23,19 +23,17 @@ namespace pono {
 class BmcSimplePath : public KInduction
 {
  public:
-  BmcSimplePath(Property & p, smt::SolverEnum se);
-  BmcSimplePath(Property & p, const smt::SmtSolver & solver);
-  BmcSimplePath(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  BmcSimplePath(const PonoOptions & opt,
-                Property & p,
-                const smt::SmtSolver & solver);
+  BmcSimplePath(const Property & p, const TransitionSystem & ts,
+                const smt::SmtSolver & solver,
+                PonoOptions opt = PonoOptions());
+
   ~BmcSimplePath();
 
   typedef KInduction super;
 
   ProverResult check_until(int k) override;
 
- private:
+ protected:
   bool cover_step(int i);
 
 };  // BmcSimplePath

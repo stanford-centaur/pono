@@ -40,80 +40,12 @@ using namespace std;
 
 namespace pono {
 
-IC3IA::IC3IA(Property & p, SolverEnum se, SolverEnum itp_se)
-    : super(p, se),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(Property & p, const SmtSolver & s, SolverEnum itp_se)
-    : super(p, s),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp)
-    : super(p, s),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(itp),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(const PonoOptions & opt,
-             Property & p,
-             SolverEnum se,
-             SolverEnum itp_se)
-    : super(opt, p, se),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(const PonoOptions & opt,
-             Property & p,
-             const SmtSolver & s,
-             SolverEnum itp_se)
-    : super(opt, p, s),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
-      interpolator_(create_interpolating_solver(itp_se)),
-      to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      longest_cex_length_(0)
-{
-}
-
-IC3IA::IC3IA(const PonoOptions & opt,
-             Property & p,
-             const SmtSolver & s,
-             SmtSolver itp)
-    : super(opt, p, s),
-      conc_ts_(property_.transition_system()),
-      abs_ts_(solver_),
-      ia_(conc_ts_, abs_ts_, unroller_),
+IC3IA::IC3IA(const Property & p, const TransitionSystem & ts,
+             const SmtSolver & s, const SmtSolver & itp,
+             PonoOptions opt)
+    : super(p, RelationalTransitionSystem(s), s, opt),
+      conc_ts_(ts, to_prover_solver_),
+      ia_(conc_ts_, ts_, unroller_),
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
@@ -124,12 +56,12 @@ IC3IA::IC3IA(const PonoOptions & opt,
 // pure virtual method implementations
 
 IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
-                                        TermVec * out_nexts) const
+                                       TermVec * out_nexts) const
 {
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
   conjuncts.reserve(preds.size());
-  for (auto p : preds) {
+  for (const auto &p : preds) {
     if (solver_->get_value(p) == solver_true_) {
       conjuncts.push_back(p);
     } else {
@@ -137,7 +69,7 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
     }
 
     if (out_nexts) {
-      Term next_p = ts_->next(p);
+      Term next_p = ts_.next(p);
       if (solver_->get_value(next_p) == solver_true_) {
         out_nexts->push_back(next_p);
       } else {
@@ -147,7 +79,7 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (auto iv : ts_->inputvars()) {
+    for (const auto &iv : ts_.inputvars()) {
       out_inputs->push_back(
           solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
@@ -158,11 +90,11 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
 
 bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
-  Sort boolsort = solver_->make_sort(BOOL);
+  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Term pred;
   Op op;
-  for (auto c : u.children) {
+  for (const auto &c : u.children) {
     if (c->get_sort() != boolsort) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
@@ -201,23 +133,29 @@ void IC3IA::initialize()
   // add all the predicates from init and property to the abstraction
   // NOTE: abstract is called automatically in IC3Base initialize
   UnorderedTermSet preds;
-  get_predicates(solver_, ts_->init(), preds, false);
-  get_predicates(solver_, bad_, preds, false);
-  for (auto p : preds) {
+  get_predicates(solver_, ts_.init(), preds, true);
+  size_t num_init_preds = preds.size();
+  get_predicates(solver_, bad_, preds, true);
+  size_t num_prop_preds = preds.size() - num_init_preds;
+  for (const auto &p : preds) {
     add_predicate(p);
   }
+  logger.log(1, "Number predicates found in init: {}", num_init_preds);
+  logger.log(1, "Number predicates found in prop: {}", num_prop_preds);
+  logger.log(1, "Total number of initial predicates: {}", num_init_preds + num_prop_preds);
+  assert(preds.size() == (num_init_preds + num_prop_preds));
   // more predicates will be added during refinement
   // these ones are just initial predicates
 
   // populate cache for existing terms in solver_
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term ns;
-  for (auto s : ts_->statevars()) {
+  for (auto const&s : ts_.statevars()) {
     // common variables are next states, unless used for refinement in IC3IA
     // then will refer to current state variables after untiming
     // need to cache both
     cache[to_interpolator_.transfer_term(s)] = s;
-    ns = ts_->next(s);
+    ns = ts_.next(s);
     cache[to_interpolator_.transfer_term(ns)] = ns;
   }
 
@@ -226,11 +164,11 @@ void IC3IA::initialize()
   // NOTE need to use get_free_symbols NOT get_free_symbolic_consts
   // because the latter ignores uninterpreted functions
   UnorderedTermSet free_symbols;
-  get_free_symbols(ts_->init(), free_symbols);
-  get_free_symbols(ts_->trans(), free_symbols);
+  get_free_symbols(ts_.init(), free_symbols);
+  get_free_symbols(ts_.trans(), free_symbols);
   get_free_symbols(bad_, free_symbols);
 
-  for (auto s : free_symbols) {
+  for (auto const&s : free_symbols) {
     assert(s->is_symbol());
     if (s->is_symbolic_const()) {
       // ignore constants
@@ -255,21 +193,20 @@ void IC3IA::abstract()
 {
   // main abstraction already done in constructor of ia_
   // just need to set ts_ to the abstraction
-  assert(abs_ts_.init());  // should be non-null
-  assert(abs_ts_.trans());
-  ts_ = &abs_ts_;
+  assert(ts_.init());  // should be non-null
+  assert(ts_.trans());
 }
 
 RefineResult IC3IA::refine()
 {
   // recover the counterexample trace
-  assert(check_intersects_initial(cex_pg_.target.term));
-  TermVec cex({ cex_pg_.target.term });
-  ProofGoal tmp = cex_pg_;
-  while (tmp.next) {
-    tmp = *(tmp.next);
-    cex.push_back(tmp.target.term);
-    assert(conc_ts_.only_curr(tmp.target.term));
+  assert(check_intersects_initial(cex_pg_->target.term));
+  TermVec cex({ cex_pg_->target.term });
+  const ProofGoal * tmp = cex_pg_;
+  while (tmp->next) {
+    tmp = tmp->next;
+    cex.push_back(tmp->target.term);
+    assert(ts_.only_curr(tmp->target.term));
   }
 
   if (cex.size() == 1) {
@@ -311,7 +248,7 @@ RefineResult IC3IA::refine()
   longest_cex_length_ = cex.size();
 
   UnorderedTermSet preds;
-  for (auto I : out_interpolants) {
+  for (auto const&I : out_interpolants) {
     if (!I) {
       assert(
           r.is_unknown());  // should only have null terms if got unknown result
@@ -326,7 +263,7 @@ RefineResult IC3IA::refine()
 
   // new predicates
   TermVec preds_vec;
-  for (auto p : preds) {
+  for (auto const&p : preds) {
     if (predset_.find(p) == predset_.end()) {
       // unseen predicate
       preds_vec.push_back(p);
@@ -353,7 +290,7 @@ RefineResult IC3IA::refine()
   }
 
   // add all the new predicates
-  for (auto p : preds) {
+  for (auto const&p : preds) {
     add_predicate(p);
   }
 
@@ -373,7 +310,7 @@ bool IC3IA::add_predicate(const Term & pred)
     return false;
   }
 
-  assert(ts_->only_curr(pred));
+  assert(ts_.only_curr(pred));
   logger.log(2, "adding predicate {}", pred);
   predset_.insert(pred);
   // add predicate to abstraction and get the new constraint
@@ -394,7 +331,7 @@ void IC3IA::register_symbol_mappings(size_t i)
 
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term unrolled_sv;
-  for (auto sv : ts_->statevars()) {
+  for (const auto &sv : ts_.statevars()) {
     unrolled_sv = unroller_.at_time(sv, i);
     cache[to_interpolator_.transfer_term(unrolled_sv)] = unrolled_sv;
   }
