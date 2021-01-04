@@ -52,12 +52,6 @@ class CegProphecyArrays : public CEGAR<Prover_T>
  protected:
   const TransitionSystem & conc_ts_;
 
-  // TODO: see if there's a better organization where we can re-use the same
-  // unroller currently this is very important, or it won't unroll the
-  // abstracted variables correctly and this will fail SILENTLY
-  // It is CRUCIAL that we use an AdaptiveUnroller here
-  // otherwise, it will not unroll added auxiliary variables correctly
-  AdaptiveUnroller abs_unroller_;  ///< unroller for abs_ts_
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;

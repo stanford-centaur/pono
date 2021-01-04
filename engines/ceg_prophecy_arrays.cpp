@@ -49,9 +49,8 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
                                                PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
       conc_ts_(ts),
-      abs_unroller_(super::ts_, super::solver_),
       aa_(conc_ts_, super::ts_, true),
-      aae_(aa_, abs_unroller_,
+      aae_(aa_, super::unroller_,
            super::orig_ts_.solver() == super::solver_
            ? p.prop()
            : super::to_prover_solver_.transfer_term(p.prop()),
@@ -205,7 +204,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
           : super::reached_k_;
         for (size_t k = 0; k <= max_k; ++k) {
           abs_bmc_formula = super::solver_->make_term(
-              And, abs_bmc_formula, abs_unroller_.at_time(ax, k));
+              And, abs_bmc_formula, super::unroller_.at_time(ax, k));
         }
       }
 
@@ -230,10 +229,10 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     vector<pair<Term, Term>> proph_vars;
     for (auto timed_idx : instantiations) {
       // number of steps before the property violation
-      size_t delay = super::reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
+      size_t delay = super::reached_k_ + 1 - super::unroller_.get_curr_time(timed_idx);
       // Prophecy Modifier will add prophecy and history variables
       // automatically here but it does NOT update the property
-      Term idx = abs_unroller_.untime(timed_idx);
+      Term idx = super::unroller_.untime(timed_idx);
       // can't target a non-current state variable
       // because the target will appear in the updated property
       assert(delay > 0 || super::ts_.only_curr(idx));
@@ -306,16 +305,16 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
 template<class Prover_T>
 Term CegProphecyArrays<Prover_T>::get_bmc_formula(size_t b)
 {
-  Term abs_bmc_formula = abs_unroller_.at_time(super::ts_.init(), 0);
+  Term abs_bmc_formula = super::unroller_.at_time(super::ts_.init(), 0);
   for (int k = 0; k < b; ++k) {
     abs_bmc_formula =
       super::solver_->make_term(And, abs_bmc_formula,
-                                abs_unroller_.at_time(super::ts_.trans(), k));
+                                super::unroller_.at_time(super::ts_.trans(), k));
   }
 
   return
     super::solver_->make_term(And, abs_bmc_formula,
-                              abs_unroller_.at_time(super::bad_, b));
+                              super::unroller_.at_time(super::bad_, b));
 }
 
 template<class Prover_T>
@@ -339,7 +338,7 @@ CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(const Term & abs_bmc_form
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax =
         super::solver_->make_term(And, unrolled_ax,
-                                  abs_unroller_.at_time(ax, k));
+                                  super::unroller_.at_time(ax, k));
     }
 
     lbl = label(unrolled_ax);
@@ -381,8 +380,8 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
     assert(ax_inst.instantiations.size() == 1);
     unrolled_idx = *(ax_inst.instantiations.begin());
     size_t delay =
-      super::reached_k_ + 1 - abs_unroller_.get_curr_time(unrolled_idx);
-    idx = abs_unroller_.untime(unrolled_idx);
+      super::reached_k_ + 1 - super::unroller_.get_curr_time(unrolled_idx);
+    idx = super::unroller_.untime(unrolled_idx);
     map_nonconsec_ax[delay][idx].push_back(ax_inst);
   }
 
