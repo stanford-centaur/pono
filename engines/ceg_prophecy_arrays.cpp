@@ -21,11 +21,21 @@
 #include "assert.h"
 
 #include "engines/ceg_prophecy_arrays.h"
-#include "engines/bmc.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 
 #include "smt/available_solvers.h"
+
+#include "engines/bmc.h"
+#include "engines/bmc_simplepath.h"
+#include "engines/ic3ia.h"
+#include "engines/interpolantmc.h"
+#include "engines/kinduction.h"
+#include "engines/mbic3.h"
+
+#ifdef WITH_MSAT_IC3IA
+#include "engines/msat_ic3ia.h"
+#endif
 
 using namespace smt;
 using namespace std;
@@ -458,4 +468,13 @@ Term CegProphecyArrays<Prover_T>::label(const Term & t)
 }
 
 template class CegProphecyArrays<Bmc>;
+template class CegProphecyArrays<BmcSimplePath>;
+template class CegProphecyArrays<KInduction>;
+template class CegProphecyArrays<InterpolantMC>;
+template class CegProphecyArrays<ModelBasedIC3>;
+template class CegProphecyArrays<IC3IA>;
+
+#ifdef WITH_MSAT_IC3IA
+template class CegProphecyArrays<MsatIC3IA>;
+#endif
 }  // namespace pono
