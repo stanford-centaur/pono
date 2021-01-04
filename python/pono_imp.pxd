@@ -127,7 +127,7 @@ cdef extern from "engines/ic3.h" namespace "pono":
 cdef extern from "engines/ic3ia.h" namespace "pono":
     cdef cppclass IC3IA(Prover):
         IC3IA(const Property & p, const TransitionSystem & ts,
-              c_SmtSolver & solver, c_SmtSolver & interpolator) except +
+              c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/interpolantmc.h" namespace "pono":

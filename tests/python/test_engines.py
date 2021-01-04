@@ -81,11 +81,10 @@ def test_interp(solver_and_interpolator):
     s = solver_and_interpolator[0](False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
-    itp = solver_and_interpolator[1]()
 
     prop, ts = build_simple_alu_fts(s)
 
-    ic3ia = pono.IC3IA(prop, ts, s, itp)
+    ic3ia = pono.IC3IA(prop, ts, s)
     res = ic3ia.check_until(10)
 
     assert res is True, "IC3IA be able to solve this property"
