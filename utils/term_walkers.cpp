@@ -92,7 +92,10 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
       // because it cannot distinguish between bit-vectors of width 1
       // and booleans
 
-      bool add_term = (boolops.find(term->get_op().prim_op) == boolops.end());
+      bool add_term =
+          !term->is_value();  // don't want to add constant true/false
+
+      add_term &= (boolops.find(term->get_op().prim_op) == boolops.end());
 
       if (add_term) {
         // one extra case to consider is equalities between booleans
