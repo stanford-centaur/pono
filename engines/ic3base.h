@@ -59,7 +59,6 @@
 
 #include "engines/prover.h"
 #include "smt-switch/utils.h"
-#include "utils/term_analysis.h"
 
 namespace pono {
 
@@ -534,12 +533,7 @@ class IC3Base : public Prover
    *  @param t a boolean formula to create a label for
    *  @return the indicator variable label for this term
    */
-  inline smt::Term label(const smt::Term & t)
-  {
-    // TEMP make label a no-op for evaluating ic3ia
-    assert(is_lit(t, boolsort_));
-    return t;
-  }
+  smt::Term label(const smt::Term & t);
 
   /** Negates a term by stripping the leading Not if it's there,
    ** or applying Not if the term is not already negated.

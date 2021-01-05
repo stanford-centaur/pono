@@ -792,6 +792,48 @@ void IC3Base::reset_solver()
   num_check_sat_since_reset_ = 0;
 }
 
+Term IC3Base::label(const Term & t)
+{
+  // might need to remove this
+  // typically assuming we're not adding labels
+  // at the base context
+  // but this might not always be true
+  assert(solver_context_ > 0);
+
+  if (is_lit(t, boolsort_)) {
+    // just point to itself
+    labels_[t] = t;
+    return t;
+  }
+
+  auto it = labels_.find(t);
+  if (it != labels_.end()) {
+    solver_->assert_formula(solver_->make_term(Implies, it->second, t));
+    return it->second;
+  }
+
+  unsigned i = 0;
+  Term l;
+  while (true) {
+    try {
+      l = solver_->make_symbol(
+          "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
+          boolsort_);
+      solver_->assert_formula(solver_->make_term(Implies, l, t));
+      break;
+    }
+    catch (IncorrectUsageException & e) {
+      ++i;
+    }
+    catch (SmtException & e) {
+      throw e;
+    }
+  }
+
+  labels_[t] = l;
+  return l;
+}
+
 smt::Term IC3Base::smart_not(const Term & t) const
 {
   const Op &op = t->get_op();
