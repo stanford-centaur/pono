@@ -281,37 +281,53 @@ RefineResult IC3IA::refine()
   }
 
   // new predicates
-  TermVec preds_vec;
+  TermVec fresh_preds_vec;
   for (auto const&p : preds) {
     if (predset_.find(p) == predset_.end()) {
       // unseen predicate
-      preds_vec.push_back(p);
+      fresh_preds_vec.push_back(p);
     }
   }
 
-  if (!preds_vec.size()) {
+  if (!fresh_preds_vec.size()) {
     logger.log(1, "IC3IA: refinement failed couldn't find any new predicates");
     return RefineResult::REFINE_FAIL;
   }
 
   if (options_.random_seed_ > 0) {
-    shuffle(preds_vec.begin(),
-            preds_vec.end(),
+    shuffle(fresh_preds_vec.begin(),
+            fresh_preds_vec.end(),
             default_random_engine(options_.random_seed_));
   }
 
   // reduce new predicates
   TermVec red_preds;
-  if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+  if (ia_.reduce_predicates(cex, fresh_preds_vec, red_preds)) {
     // reduction successful
-    preds.clear();
-    preds.insert(red_preds.begin(), red_preds.end());
+    if (red_preds.size() < fresh_preds_vec.size()) {
+      fresh_preds_vec.clear();
+      fresh_preds_vec.insert(
+          fresh_preds_vec.end(), red_preds.begin(), red_preds.end());
+    }
+  } else {
+    // should only fail if removed all predicates
+    // this can happen when there are uninterpreted functions
+    // the unrolling can force incompatible UF interpretations
+    // but IC3 (which doesn't unroll) still needs the predicates
+    // in this case, just use all the fresh predicates
+    assert(red_preds.size() == 0);
   }
 
   // add all the new predicates
-  for (auto const&p : preds) {
-    add_predicate(p);
+  for (auto const & p : fresh_preds_vec) {
+    bool new_pred = add_predicate(p);
+    // expecting all new predicates
+    // duplicates were filtered out above
+    assert(new_pred);
   }
+
+  logger.log(
+      1, "{} new predicates added by refinement", fresh_preds_vec.size());
 
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;

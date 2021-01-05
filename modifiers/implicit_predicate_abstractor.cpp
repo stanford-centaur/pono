@@ -93,6 +93,12 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
   Term formula = solver_->make_term(true);
 
   for (size_t i = 0; i < cex.size(); ++i) {
+    // TODO : there's currently a bug in this unrolling
+    //        which doesn't unroll the abstract variables
+    //        this was fixed by a (somewhat unrelated) change
+    //        in master that refactored the provers
+    //        make sure that gets incorporated
+    //        and consider having some kind of sanity check assertion
     formula = solver_->make_term(And, formula, unroller_.at_time(cex[i], i));
     if (i != cex.size() - 1) {
       formula = solver_->make_term(And, formula,
