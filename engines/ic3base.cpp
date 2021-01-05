@@ -675,7 +675,7 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 
       push_solver_context();
       solver_->assert_formula(init_label_);
-      Result r = solver_->check_sat_assuming(to_keep);
+      Result r = check_sat_assuming(to_keep);
       assert(r.is_unsat());
       UnorderedTermSet core;
       solver_->get_unsat_core(core);
