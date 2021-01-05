@@ -399,20 +399,15 @@ bool IC3Base::block(const IC3Formula & c,
     std::shuffle(idx.begin(), idx.end(), rng_);
 
     for (size_t i : idx) {
-      Term lbl = label(primed.at(i));
-      assumps.push_back(lbl);
-      solver_->assert_formula(solver_->make_term(Implies, lbl, primed.at(i)));
+      assumps.push_back(primed.at(i));
     }
   } else {
     for (const auto & l : primed) {
-      Term lbl = label(l);
-      solver_->assert_formula(solver_->make_term(Implies, lbl, l));
-      assumps.push_back(lbl);
+      assumps.push_back(l);
     }
   }
 
   // temporarily assert ~c
-  push_solver_context();
   solver_->assert_formula(ic3formula_negate(c).term);
   Result r = check_sat_assuming(assumps);
   if (r.is_unsat()) {
@@ -430,8 +425,7 @@ bool IC3Base::block(const IC3Formula & c,
       candidate.clear();
       assert(c.children.size() == primed.size());
       for (size_t i = 0; i < primed.size(); ++i) {
-        Term a = label(primed.at(i));
-        if (core.find(a) != core.end()) {
+        if (core.find(primed.at(i)) != core.end()) {
           candidate.push_back(c.children.at(i));
         } else {
           rest.push_back(c.children.at(i));
@@ -444,14 +438,13 @@ bool IC3Base::block(const IC3Formula & c,
       // is not inductive relative to F[idx-1], as the base case
       // fails. We fix this by re-adding back literals until
       // "init & candidate" is unsat
+      pop_solver_context();
       fix_if_intersects_initial(candidate, rest);
       *out = ic3formula_conjunction(candidate);
       assert(!out->disjunction);
-      pop_solver_context();
     } else {
       pop_solver_context();
     }
-    pop_solver_context();
     assert(solver_context_ == 0);
     return true;
   } else {
@@ -470,7 +463,6 @@ bool IC3Base::block(const IC3Formula & c,
     //   generalize_pre(primed, inputs, *out);
     // }
 
-    pop_solver_context();
     assert(solver_context_ == 0);
     return false;
   }
@@ -537,7 +529,8 @@ bool IC3Base::propagate()
   if (k < depth()) {
     logger.log(2, "fixpoint found at frame {}", k);
     assert(!frames_.at(k).size());
-    invar_ = get_frame_term(k + 1);
+    set_invar(k);
+    assert(invar_);
     logger.log(2, "invariant: {}", invar_);
     return true;
   }
@@ -571,6 +564,7 @@ void IC3Base::constrain_frame(const IC3Formula & c, size_t idx)
   assert(idx < frame_labels_.size());
   assert(c.disjunction);
   assert(c.children.size());
+  assert(!check_intersects_initial(ic3formula_negate(c).term));
 
   // copied from msat-ic3ia (as several other functions in this branch were)
   // trying to debug performance
@@ -673,17 +667,28 @@ bool IC3Base::check_intersects_initial(const Term & t)
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
+  assert(!solver_context_);
   if (rem.size() != 0) {
-    // TODO: there's a tricky issue here. The reducer doesn't have the label
-    // assumptions so we can't use init_label_ here. need to come up with a
-    // better interface. Should we add label assumptions to reducer?
-    const Term &formula = solver_->make_term(And, ts_->init(), make_and(to_keep));
-    reducer_.reduce_assump_unsatcore(formula,
-                                     rem,
-                                     to_keep,
-                                     NULL,
-                                     options_.ic3_gen_max_iter_,
-                                     options_.random_seed_);
+    if (check_intersects_initial(make_and(to_keep))) {
+      size_t n = to_keep.size();
+      to_keep.insert(to_keep.end(), rem.begin(), rem.end());
+
+      push_solver_context();
+      solver_->assert_formula(init_label_);
+      Result r = solver_->check_sat_assuming(to_keep);
+      assert(r.is_unsat());
+      UnorderedTermSet core;
+      solver_->get_unsat_core(core);
+      pop_solver_context();
+
+      to_keep.resize(n);
+
+      for (const auto & l : rem) {
+        if (core.find(l) != core.end()) {
+          to_keep.push_back(l);
+        }
+      }
+    }
   }
 }
 

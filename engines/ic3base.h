@@ -519,6 +519,8 @@ class IC3Base : public Prover
    */
   virtual void reset_solver();
 
+  virtual void set_invar(size_t k) { invar_ = get_frame_term(k + 1); }
+
   /** Create a boolean label for a given term
    *  These are cached in labels_
    *  good for using unsat cores

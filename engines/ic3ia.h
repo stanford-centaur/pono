@@ -75,6 +75,12 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
+  smt::Sort boolsort_;
+
+  smt::TermVec predvars_;
+  smt::UnorderedTermMap pred2lbl_;
+  smt::UnorderedTermMap lbl2pred_;
+
   // pure virtual method implementations
 
   IC3Formula get_model_ic3formula(
@@ -88,6 +94,13 @@ class IC3IA : public IC3
   void check_ts() const override;
 
   void initialize() override;
+
+  void reset_solver() override;
+
+  void set_invar(size_t k) override
+  {
+    invar_ = solver_->substitute(get_frame_term(k + 1), lbl2pred_);
+  }
 
   void abstract() override;
 

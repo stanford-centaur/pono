@@ -40,8 +40,7 @@ using namespace std;
 
 namespace pono {
 
-IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp,
-             PonoOptions opt)
+IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp, PonoOptions opt)
     : super(p, s, opt),
       conc_ts_(property_.transition_system()),
       abs_ts_(solver_),
@@ -49,7 +48,8 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp,
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0)
+      longest_cex_length_(0),
+      boolsort_(solver_->make_sort(BOOL))
 {
 }
 
@@ -58,10 +58,9 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp,
 IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
                                         TermVec * out_nexts) const
 {
-  const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
-  conjuncts.reserve(preds.size());
-  for (const auto &p : preds) {
+  conjuncts.reserve(predvars_.size());
+  for (const auto & p : predvars_) {
     if (solver_->get_value(p) == solver_true_) {
       conjuncts.push_back(p);
     } else {
@@ -190,6 +189,20 @@ void IC3IA::initialize()
   }
 }
 
+void IC3IA::reset_solver()
+{
+  assert(!solver_context_);
+  super::reset_solver();
+
+  // now add predicate relationships
+  Term eq;
+  for (const auto & elem : pred2lbl_) {
+    eq = solver_->make_term(Equal, elem.first, elem.second);
+    solver_->assert_formula(eq);
+    solver_->assert_formula(ts_->next(eq));
+  }
+}
+
 void IC3IA::abstract()
 {
   // main abstraction already done in constructor of ia_
@@ -197,6 +210,9 @@ void IC3IA::abstract()
   assert(abs_ts_.init());  // should be non-null
   assert(abs_ts_.trans());
   ts_ = &abs_ts_;
+
+  predvars_ = ia_.predicates();
+  predset_.insert(predvars_.begin(), predvars_.end());
 }
 
 RefineResult IC3IA::refine()
@@ -207,8 +223,8 @@ RefineResult IC3IA::refine()
   TermVec cex;
   const ProofGoal * tmp = cex_pg_;
   while (tmp) {
-    cex.push_back(tmp->target.term);
-    assert(conc_ts_.only_curr(tmp->target.term));
+    cex.push_back(solver_->substitute(tmp->target.term, lbl2pred_));
+    assert(conc_ts_.only_curr(cex.back()));
     tmp = tmp->next;
   }
 
@@ -309,17 +325,34 @@ bool IC3IA::add_predicate(const Term & pred)
     // don't allow re-adding the same predicate
     return false;
   }
-
   assert(ts_->only_curr(pred));
   logger.log(2, "adding predicate {}", pred);
+  std::string predname = ".pred" + std::to_string(predset_.size());
   predset_.insert(pred);
+
   // add predicate to abstraction and get the new constraint
   Term predabs_rel = ia_.add_predicate(pred);
   // refine the transition relation incrementally
   // by adding a new constraint
-  assert(!solver_context_);  // should be at context 0
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
+
+  Term predvar;
+  if (pred->is_symbolic_const()) {
+    predvar = pred;
+  } else {
+    predvar = ts_->make_statevar(predname, boolsort_);
+    Term eq = solver_->make_term(Equal, predvar, pred);
+    solver_->assert_formula(eq);
+    solver_->assert_formula(ts_->next(eq));
+
+    pred2lbl_[pred] = predvar;
+    lbl2pred_[predvar] = pred;
+  }
+
+  predvars_.push_back(predvar);
+
+  assert(ia_.predicates().size() == predvars_.size());
   return true;
 }
 
