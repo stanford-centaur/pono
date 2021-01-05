@@ -35,6 +35,7 @@
 
 // these are for setting specific options
 // e.g. in create_solver_for
+#include "smt-switch/logging_solver.h"
 #include "smt-switch/msat_solver.h"
 #include "smt/msat_options.h"
 
@@ -104,29 +105,34 @@ SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
     return create_solver(se, logging);
   }
 
-  switch (se) {
-    case BTOR: {
-      SmtSolver s = create_solver(se, logging);
-      s->set_opt("base-context-1", "true");
-      return s;
-      break;
+  bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
+  // special cases
+  if (se == BTOR && e == IC3IA_ENGINE) {
+    // for IC3IA it's best to be able to reset the solver
+    // and boolector will do substitutions when there
+    // are assertions at the base level
+    // e.g. pred1 <-> p(X, Y)
+    // then pred1 will be substituted for and no longer be
+    // a symbol which causes problems for substitution, etc.
+    SmtSolver s = create_solver(se, logging);
+    s->set_opt("base-context-1", "true");
+    return s;
+  }
+#ifdef WITH_MSAT
+  else if (se == MSAT && ic3_engine) {
+    // These will be managed by the solver object
+    // don't need to destroy
+    msat_config cfg = get_msat_config_for_ic3(false);
+    msat_env env = msat_create_env(cfg);
+    SmtSolver s = std::make_shared<MsatSolver>(cfg, env);
+    if (logging) {
+      s = make_shared<LoggingSolver>(s);
     }
-
-#if WITH_MSAT
-      // for convenience -- accept any MSAT SolverEnum
-    case MSAT: {
-      // These will be managed by the solver object
-      // don't need to destroy
-      msat_config cfg = get_msat_config_for_ic3(false);
-      msat_env env = msat_create_env(cfg);
-      return std::make_shared<MsatSolver>(cfg, env);
-      break;
-      ;
-    }
+    return s;
+  }
 #endif
-    default: {
-      throw SmtException("Unhandled solver enum");
-    }
+  else {
+    return create_solver(se, logging);
   }
 }
 
