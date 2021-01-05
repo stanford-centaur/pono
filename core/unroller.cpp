@@ -63,7 +63,7 @@ size_t Unroller::get_var_time(const Term & v) const
 
 size_t Unroller::get_curr_time(const smt::Term & t) const
 {
-  TermVec free_vars;
+  UnorderedTermSet free_vars;
   get_free_symbolic_consts(t, free_vars);
   unordered_set<size_t> times;
   for (auto fv : free_vars) {

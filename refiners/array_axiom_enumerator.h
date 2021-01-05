@@ -76,7 +76,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
  public:
   ArrayAxiomEnumerator(ArrayAbstractor & aa,
                        Unroller & un,
-                       const smt::Term & bad,
+                       const smt::Term & prop,
                        bool red_axioms);
 
   typedef AxiomEnumerator super;

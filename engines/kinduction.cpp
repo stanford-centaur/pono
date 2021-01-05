@@ -21,38 +21,24 @@ using namespace smt;
 
 namespace pono {
 
-KInduction::KInduction(Property & p, SolverEnum se) : super(p, se)
+KInduction::KInduction(const Property & p, const TransitionSystem & ts,
+                       const SmtSolver & solver,
+                       PonoOptions opt)
+  : super(p, ts, solver, opt)
 {
-  initialize();
-}
-
-KInduction::KInduction(Property & p, const SmtSolver & solver)
-    : super(p, solver)
-{
-  initialize();
-}
-
-KInduction::KInduction(const PonoOptions & opt,
-                       Property & p,
-                       SolverEnum se)
-    : super(opt, p, se)
-{
-  initialize();
-}
-
-KInduction::KInduction(const PonoOptions & opt,
-                       Property & p,
-                       const smt::SmtSolver & solver)
-    : super(opt, p, solver)
-{
-  initialize();
+  engine_ = Engine::KIND;
 }
 
 KInduction::~KInduction() {}
 
 void KInduction::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
+
   // NOTE: There's an implicit assumption that this solver is only used for
   // model checking once Otherwise there could be conflicting assertions to
   // the solver or it could just be polluted with redundant assertions in the
@@ -65,9 +51,12 @@ void KInduction::initialize()
 
 ProverResult KInduction::check_until(int k)
 {
+  initialize();
+
   for (int i = 0; i <= k; ++i) {
     logger.log(1, "Checking k-induction base case at bound: {}", i);
     if (!base_step(i)) {
+      compute_witness();
       return ProverResult::FALSE;
     }
     logger.log(1, "Checking k-induction inductive step at bound: {}", i);
@@ -94,8 +83,9 @@ bool KInduction::base_step(int i)
   }
   solver_->pop();
 
+  const Term &prop = solver_->make_term(Not, bad_);
   solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
-  solver_->assert_formula(unroller_.at_time(property_.prop(), i));
+  solver_->assert_formula(unroller_.at_time(prop, i));
 
   return true;
 }
@@ -126,7 +116,7 @@ Term KInduction::simple_path_constraint(int i, int j)
   assert(ts_.statevars().size());
 
   Term disj = false_;
-  for (auto v : ts_.statevars()) {
+  for (const auto &v : ts_.statevars()) {
     Term vi = unroller_.at_time(v, i);
     Term vj = unroller_.at_time(v, j);
     Term eq = solver_->make_term(PrimOp::Equal, vi, vj);

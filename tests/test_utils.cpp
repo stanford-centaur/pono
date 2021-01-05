@@ -7,6 +7,7 @@
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
+#include "tests/common_ts.h"
 #include "utils/exceptions.h"
 #include "utils/make_provers.h"
 #include "utils/term_walkers.h"
@@ -25,8 +26,6 @@ class UtilsUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
     boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
     funsort = s->make_sort(FUNCTION, { bvsort, boolsort });
@@ -74,15 +73,8 @@ TEST_P(UtilsUnitTests, FindApply)
 TEST_P(UtilsUnitTests, CheckInvarTrue)
 {
   RelationalTransitionSystem rts(s);
-  Term x = rts.make_statevar("x", bvsort);
-  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
-  // x' = x < 10 ? x + 1 : 0
-  rts.assign_next(
-      x,
-      rts.make_term(Ite,
-                    rts.make_term(BVUlt, x, rts.make_term(10, bvsort)),
-                    rts.make_term(BVAdd, x, rts.make_term(1, bvsort)),
-                    rts.make_term(0, bvsort)));
+  counter_system(rts, rts.make_term(10, bvsort));
+  Term x = rts.named_terms().at("x");
 
   Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
   // property is inductive
@@ -92,15 +84,8 @@ TEST_P(UtilsUnitTests, CheckInvarTrue)
 TEST_P(UtilsUnitTests, CheckInvarFalse)
 {
   RelationalTransitionSystem rts(s);
-  Term x = rts.make_statevar("x", bvsort);
-  rts.constrain_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
-  // x' = x <= 10 ? x + 1 : 0
-  rts.assign_next(
-      x,
-      rts.make_term(Ite,
-                    rts.make_term(BVUle, x, rts.make_term(10, bvsort)),
-                    rts.make_term(BVAdd, x, rts.make_term(1, bvsort)),
-                    rts.make_term(0, bvsort)));
+  counter_system(rts, rts.make_term(11, bvsort));
+  Term x = rts.named_terms().at("x");
 
   Term prop = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
   EXPECT_FALSE(check_invar(rts, prop, prop));
@@ -143,18 +128,26 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   fts.assign_next(x, fts.make_term(BVAdd, x, one));
 
   Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts, prop_term);
+  Property prop(fts.solver(), prop_term);
 
   SolverEnum se = get<0>(GetParam());
   Engine eng = get<1>(GetParam());
 
-  if (eng == INTERP && se != MSAT && se != MSAT_LOGGING) {
+  if (eng == INTERP && se != MSAT) {
     // skip interpolation unless the solver is MathSAT
     return;
   }
 
-  std::shared_ptr<Prover> prover = make_prover(eng, prop, se);
-  ProverResult r = prover->check_until(9);
+  SmtSolver s = create_solver(se);
+  ProverResult r;
+  if (eng == INTERP && se == MSAT) {
+    SmtSolver interp_s = create_interpolating_solver(MSAT_INTERPOLATOR);
+    std::shared_ptr<Prover> prover = make_prover(eng, prop, fts, s, interp_s);
+    r = prover->check_until(9);
+  } else {
+    std::shared_ptr<Prover> prover = make_prover(eng, prop, fts, s);
+    r = prover->check_until(9);
+  }
   ASSERT_EQ(r, FALSE);
 }
 

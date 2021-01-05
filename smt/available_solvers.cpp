@@ -22,68 +22,51 @@ namespace pono {
 
 // list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
-  BTOR, BTOR_LOGGING, CVC4, CVC4_LOGGING,
+  BTOR, CVC4,
 
 #if WITH_MSAT
-      MSAT, MSAT_LOGGING,
+      MSAT,
 #endif
 
 #if WITH_YICES2
-      YICES2, YICES2_LOGGING,
+      YICES2,
 #endif
 });
 
-SmtSolver create_solver(SolverEnum se)
+SmtSolver create_solver(SolverEnum se, bool logging, bool incremental,
+                        bool produce_model)
 {
+  SmtSolver s;
   switch (se) {
     case BTOR: {
-      return BoolectorSolverFactory::create(false);
+      s = BoolectorSolverFactory::create(logging);
       break;
-      ;
-    }
-    case BTOR_LOGGING: {
-      return BoolectorSolverFactory::create(true);
-      break;
-      ;
     }
     case CVC4: {
-      return CVC4SolverFactory::create(false);
+      s = CVC4SolverFactory::create(logging);
       break;
-      ;
-    }
-    case CVC4_LOGGING: {
-      return CVC4SolverFactory::create(true);
-      break;
-      ;
     }
 #if WITH_MSAT
     case MSAT: {
-      return MsatSolverFactory::create(false);
+      s = MsatSolverFactory::create(logging);
       break;
-      ;
-    }
-    case MSAT_LOGGING: {
-      return MsatSolverFactory::create(true);
-      break;
-      ;
     }
 #endif
 #if WITH_YICES2
     case YICES2: {
-      return Yices2SolverFactory::create(false);
+      s = Yices2SolverFactory::create(logging);
       break;
-      ;
-    }
-    case YICES2_LOGGING: {
-      return Yices2SolverFactory::create(true);
-      break;
-      ;
     }
 #endif
     default: {
       throw SmtException("Unhandled solver enum");
     }
   }
+
+  s->set_opt("incremental", incremental ? "true" : "false");
+  s->set_opt("produce-models", produce_model ? "true" : "false");
+
+  return s;
 }
 
 SmtSolver create_interpolating_solver(SolverEnum se)
@@ -92,7 +75,6 @@ SmtSolver create_interpolating_solver(SolverEnum se)
 #if WITH_MSAT
     // for convenience -- accept any MSAT SolverEnum
     case MSAT:
-    case MSAT_LOGGING:
     case MSAT_INTERPOLATOR: {
       return MsatSolverFactory::create_interpolating_solver();
       break;
@@ -112,17 +94,6 @@ const std::vector<SolverEnum> itp_enums({
 });
 
 std::vector<SolverEnum> available_solver_enums() { return solver_enums; }
-
-std::vector<SolverEnum> available_no_logging_solver_enums()
-{
-  std::vector<SolverEnum> enums;
-  for (auto se : solver_enums) {
-    if (!is_logging_solver_enum(se)) {
-      enums.push_back(se);
-    }
-  }
-  return enums;
-}
 
 std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; };
 

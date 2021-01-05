@@ -2,11 +2,11 @@
 #include <tuple>
 #include <vector>
 
-#include "available_solvers.h"
 #include "core/fts.h"
 #include "engines/kinduction.h"
 #include "frontends/btor2_encoder.h"
 #include "gtest/gtest.h"
+#include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
 
 using namespace pono;
@@ -48,8 +48,8 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
   filename += "/tests/encoders/inputs/btor2/mulo-test.btor2";
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
-  Property p(fts, be.propvec()[0]);
-  KInduction kind(p, s);
+  Property p(fts.solver(), be.propvec()[0]);
+  KInduction kind(p, fts, s);
   ProverResult r = kind.check_until(2);
   EXPECT_EQ(r, ProverResult::TRUE);
 }
@@ -57,13 +57,13 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverBtor2FileUnitTests,
     Btor2FileUnitTests,
-    testing::Combine(testing::ValuesIn(available_no_logging_solver_enums()),
+    testing::Combine(testing::ValuesIn(available_solver_enums()),
                      // from test_encoder_inputs.h
                      testing::ValuesIn(btor2_inputs)));
 
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverBtor2UnitTests,
     Btor2UnitTests,
-    testing::ValuesIn(available_no_logging_solver_enums()));
+    testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests

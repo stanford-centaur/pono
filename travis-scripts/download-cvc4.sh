@@ -35,7 +35,7 @@ if [ ! -d "$DEPS/CVC4" ]; then
     elif [[ "$OSTYPE" == msys* ]]; then
         echo "Pre-compiled libraries for Windows not yet available"
     elif [[ "$OSTYPE" == cygwin* ]]; then
-        curl -o CVC4.tar.bz2 -L https://mathsat.fbk.eu/download.php?file=mathsat-5.6.3-darwin-libcxx-x86_64.tar.gz
+        curl -o CVC4.tar.bz2 -L http://web.stanford.edu/~makaim/files/CVC4-linux.tar.bz2
     else
         echo "Unrecognized OSTYPE=$OSTYPE"
         exit 1

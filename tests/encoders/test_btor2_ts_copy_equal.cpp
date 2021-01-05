@@ -2,13 +2,11 @@
 #include <tuple>
 #include <vector>
 
-#include "gtest/gtest.h"
-
-#include "available_solvers.h"
-#include "test_encoder_inputs.h"
-
 #include "core/fts.h"
 #include "frontends/btor2_encoder.h"
+#include "gtest/gtest.h"
+#include "smt/available_solvers.h"
+#include "test_encoder_inputs.h"
 
 using namespace pono;
 using namespace smt;
@@ -185,7 +183,7 @@ TEST_P(CopyUnitTests, CopyToDefault)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCopyUnitTests,
     CopyUnitTests,
-    testing::Combine(testing::ValuesIn(available_no_logging_solver_enums()),
+    testing::Combine(testing::ValuesIn(available_solver_enums()),
                      // from test_encoder_inputs.h
                      testing::ValuesIn(btor2_inputs)));
 

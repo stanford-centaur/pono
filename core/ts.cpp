@@ -14,15 +14,42 @@
  **
  **/
 
-#include <functional>
-#include "assert.h"
+#include "core/ts.h"
 
-#include "ts.h"
+#include <functional>
+
+#include "assert.h"
+#include "smt-switch/substitution_walker.h"
+#include "smt-switch/utils.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
+
+void swap(TransitionSystem & ts1, TransitionSystem & ts2)
+{
+  std::swap(ts1.solver_, ts2.solver_);
+  std::swap(ts1.init_, ts2.init_);
+  std::swap(ts1.trans_, ts2.trans_);
+  std::swap(ts1.statevars_, ts2.statevars_);
+  std::swap(ts1.next_statevars_, ts2.next_statevars_);
+  std::swap(ts1.inputvars_, ts2.inputvars_);
+  std::swap(ts1.named_terms_, ts2.named_terms_);
+  std::swap(ts1.term_to_name_, ts2.term_to_name_);
+  std::swap(ts1.state_updates_, ts2.state_updates_);
+  std::swap(ts1.next_map_, ts2.next_map_);
+  std::swap(ts1.curr_map_, ts2.curr_map_);
+  std::swap(ts1.functional_, ts2.functional_);
+  std::swap(ts1.deterministic_, ts2.deterministic_);
+  std::swap(ts1.constraints_, ts2.constraints_);
+}
+
+TransitionSystem & TransitionSystem::operator=(TransitionSystem other)
+{
+  swap(*this, other);
+  return *this;
+}
 
 TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
                                    TermTranslator & tt)
@@ -65,6 +92,10 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     named_terms_[elem.first] = transfer(elem.second);
   }
 
+  for (auto elem : other_ts.term_to_name_) {
+    term_to_name_[transfer(elem.first)] = elem.second;
+  }
+
   // variables might have already be in the TermTranslator cache
   // with a different sort (due to sort aliasing)
   // use the SortKind as a hint when transferring
@@ -94,6 +125,29 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   }
   functional_ = other_ts.functional_;
   deterministic_ = other_ts.deterministic_;
+}
+
+bool TransitionSystem::operator==(const TransitionSystem & other) const
+{
+  return (solver_ == other.solver_ &&
+          init_ == other.init_ &&
+          trans_ == other.trans_ &&
+          statevars_ == other.statevars_ &&
+          next_statevars_ == other.next_statevars_ &&
+          inputvars_ == other.inputvars_ &&
+          named_terms_ == other.named_terms_ &&
+          term_to_name_ == other.term_to_name_ &&
+          state_updates_ == other.state_updates_ &&
+          next_map_ == other.next_map_ &&
+          curr_map_ == other.curr_map_ &&
+          functional_ == other.functional_ &&
+          deterministic_ == other.deterministic_ &&
+          constraints_ == other.constraints_);
+}
+
+bool TransitionSystem::operator!=(const TransitionSystem & other) const
+{
+  return !(*this == other);
 }
 
 void TransitionSystem::set_init(const Term & init)
@@ -183,14 +237,16 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
   }
 }
 
-void TransitionSystem::add_constraint(const Term & constraint)
+void TransitionSystem::add_constraint(const Term & constraint, bool to_init)
 {
   // constraints can make it so not every state has a next state
   // TODO: revisit this and possibly rename functional/deterministic
   deterministic_ = false;
 
   if (only_curr(constraint)) {
-    init_ = solver_->make_term(And, init_, constraint);
+    if (to_init) {
+      init_ = solver_->make_term(And, init_, constraint);
+    }
     trans_ = solver_->make_term(And, trans_, constraint);
     // add over next states
     Term next_constraint = solver_->substitute(constraint, next_map_);
@@ -272,6 +328,62 @@ smt::Term TransitionSystem::lookup(std::string name) const
     throw PonoException("Could not find term named: " + name);
   }
   return it->second;
+}
+
+void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
+{
+  // TODO: this runs even if called from make_statevar
+  //       could refactor entirely, or just pass a flag
+  //       saying whether to check these things or not
+
+  if (statevars_.find(cv) != statevars_.end()) {
+    throw PonoException("Cannot redeclare a state variable");
+  }
+
+  if (next_statevars_.find(nv) != next_statevars_.end()) {
+    throw PonoException("Cannot redeclare a state variable");
+  }
+
+  if (next_statevars_.find(cv) != next_statevars_.end()) {
+    throw PonoException(
+        "Cannot use an existing next state variable as a current state var");
+  }
+
+  if (statevars_.find(nv) != statevars_.end()) {
+    throw PonoException(
+        "Cannot use an existing state variable as a next state var");
+  }
+
+  if (inputvars_.find(cv) != inputvars_.end()
+      || inputvars_.find(nv) != inputvars_.end()) {
+    throw PonoException(
+        "Cannot re-use an input variable as a current or next state var");
+  }
+
+  statevars_.insert(cv);
+  next_statevars_.insert(nv);
+  next_map_[cv] = nv;
+  curr_map_[nv] = cv;
+  // automatically include in named_terms
+  name_term(cv->to_string(), cv);
+  name_term(nv->to_string(), nv);
+}
+
+void TransitionSystem::add_inputvar(const Term & v)
+{
+  // TODO: this check is running even when used by make_inputvar
+  //       could refactor entirely or just pass a boolean saying whether or not
+  //       to check these things
+  if (statevars_.find(v) != statevars_.end()
+      || next_statevars_.find(v) != next_statevars_.end()
+      || inputvars_.find(v) != inputvars_.end()) {
+    throw PonoException(
+        "Cannot reuse an existing variable as an input variable");
+  }
+
+  inputvars_.insert(v);
+  // automatically include in named_terms
+  name_term(v->to_string(), v);
 }
 
 // term building methods -- forwards to SmtSolver solver_
@@ -398,27 +510,47 @@ void TransitionSystem::rebuild_trans_based_on_coi(
     }
   }
   state_updates_ = reduced_state_updates;
+
+  /* update named_terms and term_to_name_ by removing terms that are not in coi
+   */
+  unordered_map<string, Term> reduced_named_terms;
+  unordered_map<Term, string> reduced_term_to_name;
+  UnorderedTermSet free_vars;
+  for (auto elem : named_terms_) {
+    free_vars.clear();
+    get_free_symbolic_consts(elem.second, free_vars);
+    bool any_in_coi = false;
+    Term currvar;
+    for (auto v : free_vars) {
+      // v is an input variable, current variable, or next variable
+      // we want the current version of a state variable
+      auto it = curr_map_.find(v);
+      if (it != curr_map_.end()) {
+        // get the current state version of a next variable
+        currvar = it->second;
+      } else {
+        currvar = v;
+      }
+
+      if (state_vars_in_coi.find(currvar) != state_vars_in_coi.end()
+          || input_vars_in_coi.find(currvar) != input_vars_in_coi.end()) {
+        any_in_coi = true;
+        break;
+      }
+    }
+    if (any_in_coi) {
+      reduced_named_terms[elem.first] = elem.second;
+      // NOTE: name might not be the same as elem.first
+      //       need to use the representative name
+      //       stored in term_to_name_
+      reduced_term_to_name[elem.second] = term_to_name_.at(elem.second);
+    }
+  }
+  named_terms_ = reduced_named_terms;
+  term_to_name_ = reduced_term_to_name;
 }
 
 // protected methods
-
-void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
-{
-  statevars_.insert(cv);
-  next_statevars_.insert(nv);
-  next_map_[cv] = nv;
-  curr_map_[nv] = cv;
-  // automatically include in named_terms
-  named_terms_[cv->to_string()] = cv;
-  named_terms_[nv->to_string()] = nv;
-}
-
-void TransitionSystem::add_inputvar(const Term & v)
-{
-  inputvars_.insert(v);
-  // automatically include in named_terms
-  named_terms_[v->to_string()] = v;
-}
 
 bool TransitionSystem::contains(const Term & term,
                                 UnorderedTermSetPtrVec term_sets) const
@@ -466,6 +598,108 @@ bool TransitionSystem::only_curr(const Term & term) const
 bool TransitionSystem::no_next(const Term & term) const
 {
   return contains(term, UnorderedTermSetPtrVec{ &statevars_, &inputvars_ });
+}
+
+void TransitionSystem::drop_state_updates(const TermVec & svs)
+{
+  for (auto sv : svs) {
+    if (!is_curr_var(sv)) {
+      throw PonoException("Got non-state var in drop_state_updates");
+    }
+    state_updates_.erase(sv);
+  }
+
+  // now rebuild trans
+  /* Clear current transition relation 'trans_'. */
+  trans_ = solver_->make_term(true);
+
+  /* Add next-state functions for state variables in COI. */
+  for (auto elem : state_updates_) {
+    assert(elem.second);  // should be non-null if in map
+    Term eq = solver_->make_term(Equal, next_map_.at(elem.first), elem.second);
+    trans_ = solver_->make_term(And, trans_, eq);
+  }
+
+  /* Add global constraints added to previous 'trans_'. */
+  for (auto constr : constraints_) {
+    trans_ = solver_->make_term(And, trans_, constr);
+  }
+}
+
+void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
+{
+  // first check that all the replacements contain known symbols
+  UnorderedTermSetPtrVec all_symbols(
+      { &statevars_, &inputvars_, &next_statevars_ });
+  for (auto elem : to_replace) {
+    bool known = contains(elem.first, all_symbols);
+    known &= contains(elem.second, all_symbols);
+    if (!known) {
+      throw PonoException("Got an unknown symbol in replace_terms map");
+    }
+  }
+
+  // use a substitution walker because
+  //   1. it keeps a persistent cache
+  //   2. it supports substituting arbitrary terms (e.g. not just mapping from
+  //   symbols)
+  SubstitutionWalker sw(solver_, to_replace);
+
+  // now rebuild terms in every data structure with replacements
+  init_ = sw.visit(init_);
+  if (!only_curr(init_)) {
+    throw PonoException(
+        "Replaced a state variable appearing in init with an input in "
+        "replace_terms");
+  }
+  trans_ = sw.visit(trans_);
+
+  unordered_map<string, Term> new_named_terms;
+  unordered_map<Term, string> new_term_to_name;
+  for (auto elem : named_terms_) {
+    new_named_terms[elem.first] = sw.visit(elem.second);
+    new_term_to_name[sw.visit(elem.second)] = term_to_name_.at(elem.second);
+  }
+  named_terms_ = new_named_terms;
+  term_to_name_ = new_term_to_name;
+
+  // NOTE: don't need to update vars, let COI reduction handle that
+  UnorderedTermMap new_state_updates;
+  Term sv, update;
+  for (auto elem : state_updates_) {
+    sv = elem.first;
+    sv = sw.visit(sv);
+    update = sw.visit(elem.second);
+    if (functional_ && !no_next(update)) {
+      throw PonoException(
+          "Got a next state variable in a state update for a functional "
+          "TransitionSystem in replace_terms");
+    }
+    new_state_updates[sv] = update;
+  }
+  state_updates_ = new_state_updates;
+
+  UnorderedTermMap new_next_map_;
+  UnorderedTermMap new_curr_map_;
+  Term c, n;
+  for (auto elem : next_map_) {
+    c = elem.first;
+    n = elem.second;
+    c = sw.visit(c);
+    n = sw.visit(n);
+    new_next_map_[c] = n;
+    assert(curr_map_.at(elem.second) == elem.first);
+    new_curr_map_[n] = c;
+  }
+  next_map_ = new_next_map_;
+  curr_map_ = new_curr_map_;
+
+  TermVec new_constraints;
+  new_constraints.reserve(constraints_.size());
+  for (auto c : constraints_) {
+    new_constraints.push_back(sw.visit(c));
+  }
+  constraints_ = new_constraints;
 }
 
 bool TransitionSystem::known_symbols(const Term & term) const

@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=59f56303fa791d21b4f8418bbcd4thb3ca52d344091
+SMT_SWITCH_VERSION=53ad7bd0a88c6e8cb6e8989540fc7899a668b6f2
 
 usage () {
     cat <<EOF
@@ -26,6 +26,7 @@ die () {
 
 WITH_MSAT=default
 CONF_OPTS=""
+WITH_PYTHON=default
 cvc4_home=default
 
 while [ $# -gt 0 ]
@@ -36,6 +37,7 @@ do
             WITH_MSAT=ON
             CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
         --python)
+            WITH_PYTHON=YES
             CONF_OPTS="$CONF_OPTS --python";;
         --cvc4-home) die "missing argument to $1 (see -h)" ;;
         --cvc4-home=*)
@@ -64,10 +66,15 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     if [ $cvc4_home = default ]; then
         ./contrib/setup-cvc4.sh
     fi
+    if [ $WITH_PYTHON = YES ]; then
+        ./contrib/setup-skbuild.sh
+    fi
     ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static
     cd build
     make -j$(nproc)
-    make test
+    # TODO put this back
+    # temporarily disable due to test-disjointset issue
+    # make test
     make install
     cd $DIR
 else

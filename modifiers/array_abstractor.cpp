@@ -270,6 +270,7 @@ void ArrayAbstractor::do_abstraction()
   // now we just need to set the initial states and trans
   abs_rts.set_init(abs_init);
   abs_rts.set_trans(abs_trans);
+  // TODO: constraints and state_updates are not updated correctly
 }
 
 void ArrayAbstractor::abstract_vars()
@@ -356,17 +357,6 @@ Sort ArrayAbstractor::abstract_array_sort(const Sort & conc_sort)
 
     return abs_sort;
   }
-}
-
-void ArrayAbstractor::update_term_cache(const Term & conc_term,
-                                        const Term & abs_term)
-{
-  // abstraction should never change
-  assert(abstraction_cache_.find(conc_term) == abstraction_cache_.end());
-  assert(concretization_cache_.find(abs_term) == concretization_cache_.end());
-
-  abstraction_cache_[conc_term] = abs_term;
-  concretization_cache_[abs_term] = conc_term;
 }
 
 void ArrayAbstractor::update_sort_cache(const Sort & conc_sort,

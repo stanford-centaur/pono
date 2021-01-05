@@ -25,13 +25,23 @@
 #include "smt-switch/smt.h"
 
 namespace pono {
+
+/** enum for communicating result of a refinement step
+ *  only used for algorithms that use abstraction refinement
+ */
+enum RefineResult
+{
+  REFINE_NONE = 0,  // no refinement necessary (e.g. concrete)
+  REFINE_SUCCESS,   // refinement successful
+  REFINE_FAIL       // failed to refine
+};
+
 class Prover
 {
  public:
-  Prover(Property & p, smt::SolverEnum se);
-  Prover(Property & p, const smt::SmtSolver & s);
-  Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  Prover(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  Prover(const Property & p, const TransitionSystem & ts,
+         const smt::SmtSolver & s,
+         PonoOptions opt = PonoOptions());
 
   virtual ~Prover();
 
@@ -47,7 +57,7 @@ class Prover
    * variables. Only valid if the property has been proven true. Only supported
    * by some engines
    */
-  virtual smt::Term invar();
+  smt::Term invar();
 
  protected:
   /** Take a term from the Prover's solver
@@ -68,48 +78,41 @@ class Prover
    */
   smt::Term to_orig_ts(smt::Term t);
 
+  /** Default implementation for computing a witness
+   *  Assumes that this engine is unrolling-based and that the solver
+   *   state is currently satisfiable with a counterexample trace
+   *  populates witness_
+   *  @return true on success
+   */
+  bool compute_witness();
+
+  bool initialized_;
+
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
-  Property property_;
-  TransitionSystem &
-      ts_;  ///< convenient reference to transition system in property
-  TransitionSystem &
-      orig_ts_;  ///< reference to original TS before copied to new solver
+
+  Property orig_property_; ///< original property before copied to new solver
+  TransitionSystem orig_ts_;  ///< original TS before copied to new solver
+
+  TransitionSystem ts_;
 
   Unroller unroller_;
 
   int reached_k_;
 
+  //TODO: add engine enum
+
   smt::Term bad_;
 
   PonoOptions options_;
 
- private:
-  /* Cone-of-influence analysis. */
+  Engine engine_;
 
-  /* Debugging helper functions. */
-  void print_coi_info();
-  void print_term_dfs(const smt::Term & term);
-  /* Key functions. */
-  void compute_coi();
-  void collect_coi_term(smt::UnorderedTermSet & set, const smt::Term & term);
-  void compute_coi_trans_constraints();
-  void compute_term_coi(const smt::Term & term,
-                        smt::UnorderedTermSet & new_coi_state_vars,
-                        smt::UnorderedTermSet & new_coi_input_vars);
-  void compute_coi_next_state_funcs();
+  // NOTE: both witness_ and invar_ are use terms from the engine's solver
 
-  /* TermSets containing those state and input variables that appear
-     in the term 'bad_' that represents the bad-state property. This
-     information is used to rebuild the transition relation of the
-     transition system 'ts_' of the property. */
-  smt::UnorderedTermSet statevars_in_coi_;
-  smt::UnorderedTermSet inputvars_in_coi_;
-  /* Set of terms already visited in COI analysis. */
-  smt::UnorderedTermSet coi_visited_terms_;
-  unsigned int orig_num_statevars_;
-  unsigned int orig_num_inputvars_;
+  std::vector<smt::UnorderedTermMap> witness_; ///< populated by a witness if a CEX is found
 
-  /* End: cone-of-influence analysis. */
+  smt::Term invar_; ///< populated with an invariant if the engine supports it
+
 };
 }  // namespace pono

@@ -12,6 +12,7 @@ setup(name='pono',
       version='${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}',
       url='https://github.com/upscale-project/pono',
       license='BSD',
+      install_requires=['smt-switch'],
       test_requires=['pytest'],
       package_data={'': ['pono.so']},
       zip_safe=False)

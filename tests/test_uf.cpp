@@ -22,9 +22,6 @@ class UFUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
-    s->set_opt("produce-unsat-cores", "true");
     boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
     funsort = s->make_sort(FUNCTION, { bvsort, boolsort });
@@ -63,10 +60,10 @@ TEST_P(UFUnitTests, InductiveProp)
 
   Term p = rts.make_term(
       Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort)));
-  Property prop(rts, p);
+  Property prop(rts.solver(), p);
 
   s->push();
-  KInduction kind(prop, s);
+  KInduction kind(prop, rts, s);
   ProverResult r = kind.check_until(5);
   EXPECT_EQ(r, ProverResult::TRUE);
   s->pop();
@@ -91,7 +88,7 @@ TEST_P(UFUnitTests, FalseProp)
   }
 
   // TODO: update this when the bug is fixed
-  if (s->get_solver_enum() == CVC4 || s->get_solver_enum() == CVC4_LOGGING) {
+  if (s->get_solver_enum() == CVC4) {
     std::cout << "Warning: not running with CVC4 because it segfaults "
               << "in the TsatProof part of its modded minisat for "
               << "an unknown reason." << std::endl;
@@ -121,11 +118,11 @@ TEST_P(UFUnitTests, FalseProp)
       rts.make_term(
           Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort))));
 
-  Property prop(rts, p);
+  Property prop(rts.solver(), p);
 
   ASSERT_FALSE(rts.is_functional());
   s->push();
-  KInduction kind(prop, s);
+  KInduction kind(prop, rts, s);
   ProverResult r = kind.check_until(10);
   EXPECT_EQ(r, ProverResult::FALSE);
   s->pop();

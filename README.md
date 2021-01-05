@@ -7,14 +7,42 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 ## Setup
 
 * Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with boolector
-* [optional] to build with MathSAT (required for interpolant-based model checking) you need to obtain the libraries yourself
-  * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
-  * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`
-  * then add the `--with-msat` flag to the `setup-smt-switch.sh` command.
+  * [optional] to build with MathSAT (required for interpolant-based model checking) you need to obtain the libraries yourself
+    * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
+    * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`
+    * then add the `--with-msat` flag to the `setup-smt-switch.sh` command.
+* [optional] Install bison and flex
+  * If you don't have bison and flex installed globally, run `./contrib/setup-bison.sh` and `./contrib/setup-flex.sh`
+  * Even if you do have bison, you might get errors about not being able to load `-ly`. In such a case, run the bison setup script.
 * Run `./contrib/setup-btor2tools.sh`.
 * Run `./configure.sh`.
+  * if building with mathsat, also include `--with-msat` as an option to `configure.sh`
 * Run `cd build`.
 * Run `make`.
+
+
+### Profiling
+
+We link against the [gperftools library](https://github.com/gperftools/gperftools)
+to generate profiling data. To enable profiling, run `./configure.sh`
+with flag `--with-profiling` and recompile Pono by running `make` in
+the `build` directory. This assumes that you have installed the
+gperftools library before, e.g., on Ubuntu, run `sudo apt-get install
+google-perftools libgoogle-perftools-dev`.
+
+To profile, run `./pono --profiling-log=<log-file> ...` where
+`<log-file>` is the path to a file where profiling data is
+written. After normal or abnormal (e.g. via sending a signal)
+termination of Pono, the collected profile data can be analyzed by
+running, e.g., `google-pprof --text ./pono <log-file>` to produce a
+textual profile. See `man google-pprof` for further options.
+
+In general, see
+[https://github.com/gperftools/gperftools/tree/master/docs](https://github.com/gperftools/gperftools/tree/master/docs)
+for further information about gperftools.
+
+gperftools is licensed under a BSD 3-clause license, see
+[https://github.com/gperftools/gperftools/blob/master/COPYING](https://github.com/gperftools/gperftools/blob/master/COPYING).
 
 ## Existing code
 

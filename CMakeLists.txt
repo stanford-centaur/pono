@@ -4,7 +4,7 @@ project(pono)
 
 set(PONO_MAJOR 0)   # Major component of Pono version
 set(PONO_MINOR 1)   # Minor component of Pono version
-set(PONO_RELEASE 0) # Release component of Pono version
+set(PONO_RELEASE 1) # Release component of Pono version
 
 # handle different versions of CMake
 if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
@@ -22,22 +22,20 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_definitions(-DPONO_SRC_DIR=${PROJECT_SOURCE_DIR})
 
+if(APPLE)
+  set(SHARED_LIB_EXT "dylib")
+else()
+  set(SHARED_LIB_EXT "so")
+endif()
+
 if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}")
-include_directories("${PROJECT_SOURCE_DIR}/utils")
-include_directories("${PROJECT_SOURCE_DIR}/core")
-include_directories("${PROJECT_SOURCE_DIR}/engines")
-include_directories("${PROJECT_SOURCE_DIR}/frontends")
-include_directories("${PROJECT_SOURCE_DIR}/smt")
-include_directories("${PROJECT_SOURCE_DIR}/options")
-include_directories("/usr/local/include")
-include_directories("/usr/local/Cellar/gmp/6.2.0/include")
-
-link_directories("/usr/local/lib")
-link_directories("/usr/local/Cellar/gmp/6.2.0/lib")
+if (WITH_PROFILING)
+  find_library(GOOGLE_PERF profiler REQUIRED)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
+endif()
 
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/flex/flex-install")
@@ -59,40 +57,51 @@ find_library(LIBRT rt)
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
 
-include_directories("${FLEX_INCLUDE_DIRS}")
-
 # TODO: Use find_package
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
+set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
+
+# rely on cmake modules from smt-switch (required anyway)
+set(CMAKE_MODULE_PATH ${SMT_SWITCH_DIR}/cmake)
+
+find_package(GMP REQUIRED)
+
 # Check that dependencies are there
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch/smt.h")
+if (NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
   message(FATAL_ERROR "Missing smt-switch headers -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.a")
+if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
   message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.a")
+if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
   message(FATAL_ERROR "Missing smt-switch boolector library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.a")
+if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc4.a")
   message(FATAL_ERROR "Missing smt-switch cvc4 library -- try running ./contrib/setup-smt-switch.sh --with-cvc4")
 endif()
 
 if (WITH_MSAT)
-  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.a")
+  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
     message(FATAL_ERROR "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-msat")
   endif()
 endif()
 
+if (WITH_MSAT_IC3IA)
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
+    message(FATAL_ERROR "Missing ic3ia library -- try running ./contrib/setup-ic3ia.sh")
+  endif()
+endif()
+
 if (WITH_COREIR)
-  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
     message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
   endif()
-  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
+  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}")
     message(FATAL_ERROR "Missing verilogAST library from coreir. Try running ./contrib/setup-coreir.sh")
   endif()
 endif()
@@ -101,9 +110,6 @@ endif()
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
 endif()
-
-# rely on cmake modules from smt-switch (required anyway)
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/deps/smt-switch/cmake)
 
 # Generate the SMV parser using Flex/Bison
 BISON_TARGET(SMVParser ${PROJECT_SOURCE_DIR}/frontends/smvparser.y
@@ -115,31 +121,49 @@ FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
 
 ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
 
-add_library(pono-lib "${PONO_LIB_TYPE}"
+set(INCLUDE_DIRS
+  "${PROJECT_SOURCE_DIR}"
+  "${PROJECT_SOURCE_DIR}/contrib/"
+  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
+  "${SMT_SWITCH_DIR}/local/include"
+  # generated Bison headers go in build directory
+  "${CMAKE_CURRENT_BINARY_DIR}"
+  "${GMP_INCLUDE_DIR}"
+  "${FLEX_INCLUDE_DIRS}"
+  )
+
+set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
-  "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/adaptive_unroller.cpp"
+  "${PROJECT_SOURCE_DIR}/core/functional_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3base.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3ia.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/engines/mbic3.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_node.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/implicit_predicate_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/history_modifier.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/prophecy_modifier.cpp"
-  "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/static_coi.cpp"
   "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${PROJECT_SOURCE_DIR}/refiners/array_axiom_enumerator.cpp"
   "${PROJECT_SOURCE_DIR}/smt/available_solvers.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/fcoi.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   "${PROJECT_SOURCE_DIR}/utils/make_provers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
@@ -150,61 +174,82 @@ add_library(pono-lib "${PONO_LIB_TYPE}"
   "${FLEX_SMVScanner_OUTPUTS}"
   )
 
-set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
-
-if (WITH_COREIR)
+if (WITH_COREIR OR WITH_COREIR_EXTERN)
   add_definitions(-DWITH_COREIR)
-  target_sources(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
-target_include_directories(pono-lib PUBLIC
-  "${PROJECT_SOURCE_DIR}/utils"
-  "${PROJECT_SOURCE_DIR}/core"
-  "${PROJECT_SOURCE_DIR}/contrib/"
-  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include"
-  # generated Bison headers go in build directory
-  "${CMAKE_CURRENT_BINARY_DIR}"
-  )
+if (WITH_MSAT_IC3IA)
+  add_definitions(-DWITH_MSAT_IC3IA)
+  # can't include ic3ia directly because some names clash e.g. ic3.h
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
+endif()
+
+
+add_library(pono-lib "${PONO_LIB_TYPE}" ${SOURCES})
+set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
+
+target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
 # Should we build python bindings
 option (BUILD_PYTHON_BINDINGS
    "Build Python bindings")
-option (USE_PYTHON2
-   "Use Python2 for bindings")
 
 if (BUILD_PYTHON_BINDINGS)
-  if (USE_PYTHON2)
-    message("-- We understand: it's hard to let go. We'll try to use Python2, but it's not really supported, so no promises.")
-    find_package(PythonInterp 2.7 REQUIRED)
-  else()
-    find_package(PythonInterp 3 REQUIRED)
-  endif()
   add_subdirectory(python)
 endif()
 
-target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-btor.a")
-target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-cvc4.a")
+target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
+target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc4.a")
 
 if (WITH_MSAT)
-  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch-msat.a")
+  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+endif()
+
+if (WITH_MSAT_IC3IA)
+  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
+endif()
+
+if (WITH_COREIR_EXTERN)
+  if(APPLE)
+    set(COREIR_EXTERN_PREFIX "/usr/local")
+  else()
+    set(COREIR_EXTERN_PREFIX "/usr")
+  endif()
+  add_library(coreir SHARED IMPORTED)
+  set_target_properties(coreir PROPERTIES
+    IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libcoreir${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
+  )
+  add_library(verilogAST SHARED IMPORTED)
+  set_target_properties(verilogAST PROPERTIES
+    IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libverilogAST${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
+  )
+  target_link_libraries(pono-lib PUBLIC coreir verilogAST)
 endif()
 
 if (WITH_COREIR)
   target_include_directories(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
-  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.so")
-  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.so")
+  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
+  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}")
 endif()
 
-target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/lib/libsmt-switch.a")
+target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
-target_link_libraries(pono-lib PUBLIC gmp)
+target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
+target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
 
 if (LIBRT)
   target_link_libraries(pono-lib PUBLIC ${LIBRT})
+endif()
+
+if (GOOGLE_PERF)
+  target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
 endif()
 
 enable_testing()
@@ -222,7 +267,7 @@ target_include_directories(pono-bin PUBLIC
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
   "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include")
+  "${SMT_SWITCH_DIR}/local/include")
 
 target_link_libraries(pono-bin PUBLIC pono-lib)
 

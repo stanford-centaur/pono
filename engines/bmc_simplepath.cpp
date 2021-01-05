@@ -22,36 +22,24 @@ using namespace smt;
 
 namespace pono {
 
-BmcSimplePath::BmcSimplePath(Property & p, SolverEnum se) : super(p, se)
+BmcSimplePath::BmcSimplePath(const Property & p, const TransitionSystem & ts,
+                             const SmtSolver & solver,
+                             PonoOptions opt)
+  : super(p, ts, solver, opt)
 {
-}
-
-BmcSimplePath::BmcSimplePath(Property & p, const SmtSolver & solver)
-    : super(p, solver)
-{
-}
-
-BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
-                             Property & p,
-                             SolverEnum se)
-    : super(opt, p, se)
-{
-}
-
-BmcSimplePath::BmcSimplePath(const PonoOptions & opt,
-                             Property & p,
-                             const smt::SmtSolver & solver)
-    : super(opt, p, solver)
-{
+  engine_ = Engine::BMC_SP;
 }
 
 BmcSimplePath::~BmcSimplePath() {}
 
 ProverResult BmcSimplePath::check_until(int k)
 {
+  initialize();
+
   for (int i = 0; i <= k; ++i) {
     logger.log(1, "Checking Bmc at bound: {}", i);
     if (!base_step(i)) {
+      compute_witness();
       return ProverResult::FALSE;
     }
     logger.log(1, "Checking simple path at bound: {}", i);

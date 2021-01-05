@@ -120,8 +120,8 @@ public:
  VCDWitnessPrinter(const TransitionSystem & ts,
                    const std::vector<smt::UnorderedTermMap> & cex);
 
- void DumpTraceToFile(const std::string & vcd_file_name) const;
- void DebugDump() const;
+ void dump_trace_to_file(const std::string & vcd_file_name) const;
+ void debug_dump() const;
 
 }; // class VCDWitnessPrinter
 

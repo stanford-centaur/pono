@@ -24,81 +24,68 @@
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 
+#include "smt/available_solvers.h"
+
 using namespace smt;
 using namespace std;
 
 namespace pono {
 
-CegProphecyArrays::CegProphecyArrays(Property & p, Engine e, smt::SolverEnum se)
-    : super(p, se),
-      conc_ts_(p.transition_system()),
-      solver_(conc_ts_.solver()),
-      abs_ts_(solver_),
+CegProphecyArrays::CegProphecyArrays(const Property & p,
+                                     const TransitionSystem & ts,
+                                     Engine e,
+                                     const SmtSolver & solver,
+                                     PonoOptions opt)
+    : super(p, RelationalTransitionSystem(solver), solver, opt),
+      conc_ts_(ts),
       e_(e),
-      abs_unroller_(abs_ts_, solver_),
-      aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_),
+      abs_unroller_(ts_, solver_),
+      aa_(conc_ts_, ts_, true),
+      aae_(aa_, abs_unroller_,
+           orig_ts_.solver() == solver_
+           ? p.prop()
+           : to_prover_solver_.transfer_term(p.prop()),
+           options_.cegp_axiom_red_),
+      pm_(ts_),
       num_added_axioms_(0)
 {
-  initialize();
+  // point orig_ts_ to the correct one
+  orig_ts_ = ts;
+  engine_ = e;
 }
 
-CegProphecyArrays::CegProphecyArrays(Property & p,
-                                     Engine e,
-                                     const SmtSolver & solver)
-    : super(p, solver),
-      conc_ts_(p.transition_system()),
-      solver_(conc_ts_.solver()),
-      abs_ts_(solver_),
-      e_(e),
-      abs_unroller_(abs_ts_, solver_),
-      aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_),
-      num_added_axioms_(0)
+ProverResult CegProphecyArrays::prove()
 {
   initialize();
-}
 
-CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
-                                     Property & p,
-                                     Engine e,
-                                     smt::SolverEnum se)
-    : super(opt, p, se),
-      conc_ts_(p.transition_system()),
-      solver_(conc_ts_.solver()),
-      abs_ts_(solver_),
-      e_(e),
-      abs_unroller_(abs_ts_, solver_),
-      aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_),
-      num_added_axioms_(0)
-{
-  initialize();
-}
+  ProverResult res = ProverResult::FALSE;
+  while (res == ProverResult::FALSE) {
+    // Refine the system
+    // heuristic -- stop refining when no new axioms are needed.
+    do {
+      if (!refine()) {
+        // real counterexample
+        return ProverResult::FALSE;
+      }
+      reached_k_++;
+    } while (num_added_axioms_);
 
-CegProphecyArrays::CegProphecyArrays(const PonoOptions & opt,
-                                     Property & p,
-                                     Engine e,
-                                     const smt::SmtSolver & solver)
-    : super(opt, p, solver),
-      conc_ts_(p.transition_system()),
-      solver_(conc_ts_.solver()),
-      abs_ts_(solver_),
-      abs_unroller_(abs_ts_, solver_),
-      e_(e),
-      aa_(conc_ts_, abs_ts_, true),
-      aae_(aa_, abs_unroller_, bad_, options_.cegp_axiom_red_),
-      pm_(abs_ts_),
-      num_added_axioms_(0)
-{
-  initialize();
+    Property latest_prop(solver_, solver_->make_term(Not, bad_));
+    //TODO : think about making it use the same prover -- incrementally
+    SmtSolver s = create_solver(solver_->get_solver_enum());
+    shared_ptr<Prover> prover =
+      make_prover(e_, latest_prop, ts_, s, options_);
+
+    res = prover->prove();
+  }
+
+  return res;
 }
 
 ProverResult CegProphecyArrays::check_until(int k)
 {
+  initialize();
+
   ProverResult res = ProverResult::FALSE;
   while (res == ProverResult::FALSE && reached_k_ <= k) {
     // Refine the system
@@ -110,14 +97,15 @@ ProverResult CegProphecyArrays::check_until(int k)
       reached_k_++;
     } while (num_added_axioms_ && reached_k_ <= k);
 
-    Property latest_prop(abs_ts_, solver_->make_term(Not, bad_));
+    Property latest_prop(solver_, solver_->make_term(Not, bad_));
     PonoOptions opts = options_;
     // disable static coi because it can't be called more than once on the same
     // system
     // TODO: handle this in a better way
     opts.static_coi_ = false;
-    shared_ptr<Prover> prover =
-        make_prover(e_, latest_prop, solver_->get_solver_enum(), opts);
+
+    SmtSolver s = create_solver(solver_->get_solver_enum());
+    shared_ptr<Prover> prover = make_prover(e_, latest_prop, ts_, s, opts);
 
     res = prover->check_until(k);
   }
@@ -134,16 +122,18 @@ ProverResult CegProphecyArrays::check_until(int k)
 void CegProphecyArrays::initialize()
 {
   abstract();
+  // call super initializer after abstraction
+  super::initialize();
 
   bool contains_arrays = false;
-  for (auto sv : conc_ts_.statevars()) {
+  for (const auto &sv : conc_ts_.statevars()) {
     if (sv->get_sort()->get_sort_kind() == ARRAY) {
       contains_arrays = true;
       break;
     }
   }
 
-  for (auto iv : conc_ts_.inputvars()) {
+  for (const auto &iv : conc_ts_.inputvars()) {
     if (iv->get_sort()->get_sort_kind() == ARRAY) {
       contains_arrays = true;
       break;
@@ -159,13 +149,16 @@ void CegProphecyArrays::abstract()
 {
   // the ArrayAbstractor already abstracted the transition system on
   // construction -- only need to abstract bad
-  bad_ = aa_.abstract(bad_);
+  Term prop_term = (ts_.solver() == orig_property_.solver())
+    ? orig_property_.prop()
+    : to_prover_solver_.transfer_term(orig_property_.prop());
+  bad_ = solver_->make_term(smt::PrimOp::Not, aa_.abstract(prop_term));
 
   // the abstract system should have all the same state and input variables
   // but abstracted
   // plus it will have some new variables for the witnesses and lambdas
-  assert(abs_ts_.statevars().size() >= conc_ts_.statevars().size());
-  assert(abs_ts_.inputvars().size() >= conc_ts_.inputvars().size());
+  assert(ts_.statevars().size() >= conc_ts_.statevars().size());
+  assert(ts_.inputvars().size() >= conc_ts_.inputvars().size());
 }
 
 bool CegProphecyArrays::refine()
@@ -196,7 +189,7 @@ bool CegProphecyArrays::refine()
       // needed for it to be unsat with all the nonconsecutive axioms
       // it will be updated again later anyway
       for (auto ax : consecutive_axioms) {
-        size_t max_k = abs_ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
+        size_t max_k = ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
         for (size_t k = 0; k <= max_k; ++k) {
           abs_bmc_formula = solver_->make_term(
               And, abs_bmc_formula, abs_unroller_.at_time(ax, k));
@@ -230,7 +223,7 @@ bool CegProphecyArrays::refine()
       Term idx = abs_unroller_.untime(timed_idx);
       // can't target a non-current state variable
       // because the target will appear in the updated property
-      assert(delay > 0 || abs_ts_.only_curr(idx));
+      assert(delay > 0 || ts_.only_curr(idx));
       proph_vars.push_back(pm_.get_proph(idx, delay));
     }
 
@@ -269,18 +262,19 @@ bool CegProphecyArrays::refine()
 
   // add consecutive axioms to the system
   // TODO: make sure we're adding current / next correctly
+  RelationalTransitionSystem &rts = static_cast<RelationalTransitionSystem &>(ts_); 
   for (auto ax : consecutive_axioms) {
     num_added_axioms_++;
     if (reached_k_ == -1) {
       // if only checking initial state
       // need to add to init
-      abs_ts_.constrain_init(ax);
+      rts.constrain_init(ax);
     }
 
-    abs_ts_.constrain_trans(ax);
-    if (abs_ts_.only_curr(ax)) {
+    rts.constrain_trans(ax);
+    if (rts.only_curr(ax)) {
       // add the next state version if it's an invariant over current state vars
-      abs_ts_.constrain_trans(abs_ts_.next(ax));
+      rts.constrain_trans(ts_.next(ax));
     }
   }
 
@@ -293,10 +287,10 @@ bool CegProphecyArrays::refine()
 // helpers
 Term CegProphecyArrays::get_bmc_formula(size_t b)
 {
-  Term abs_bmc_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
+  Term abs_bmc_formula = abs_unroller_.at_time(ts_.init(), 0);
   for (int k = 0; k < b; ++k) {
     abs_bmc_formula = solver_->make_term(
-        And, abs_bmc_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
+        And, abs_bmc_formula, abs_unroller_.at_time(ts_.trans(), k));
   }
   return solver_->make_term(
       And, abs_bmc_formula, abs_unroller_.at_time(bad_, b));
@@ -316,7 +310,7 @@ void CegProphecyArrays::reduce_consecutive_axioms(const Term & abs_bmc_formula,
   Term lbl;
   for (auto ax : consec_ax) {
     unrolled_ax = solver_->make_term(true);
-    size_t max_k = abs_ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
+    size_t max_k = ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax =
           solver_->make_term(And, unrolled_ax, abs_unroller_.at_time(ax, k));

@@ -4,13 +4,10 @@
 #include <tuple>
 #include <vector>
 
-#include "gtest/gtest.h"
-
-#include "available_solvers.h"
-
 #include "core/rts.h"
 #include "frontends/coreir_encoder.h"
-
+#include "gtest/gtest.h"
+#include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
 
 using namespace pono;
@@ -52,7 +49,7 @@ TEST_P(CoreIRUnitTests, EncodeForceAbstract)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCoreIRUnitTests,
     CoreIRUnitTests,
-    testing::Combine(testing::ValuesIn(available_no_logging_solver_enums()),
+    testing::Combine(testing::ValuesIn(available_solver_enums()),
                      // from test_encoder_inputs.h
                      testing::ValuesIn(coreir_inputs)));
 

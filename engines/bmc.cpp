@@ -21,35 +21,23 @@ using namespace smt;
 
 namespace pono {
 
-Bmc::Bmc(Property & p, smt::SolverEnum se) : super(p, se)
+Bmc::Bmc(const Property & p, const TransitionSystem & ts,
+         const SmtSolver & solver, PonoOptions opt)
+  : super(p, ts, solver, opt)
 {
-  initialize();
-}
-
-Bmc::Bmc(Property & p, const SmtSolver & solver) : super(p, solver)
-{
-  initialize();
-}
-
-Bmc::Bmc(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-  : super(opt, p, se)
-{
-  initialize();
-}
-
-Bmc::Bmc(const PonoOptions & opt,
-         Property & p,
-         const smt::SmtSolver & solver)
-    : super(opt, p, solver)
-{
-  initialize();
+  engine_ = Engine::BMC;
 }
 
 Bmc::~Bmc() {}
 
 void Bmc::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
+
   // NOTE: There's an implicit assumption that this solver is only used for
   // model checking once Otherwise there could be conflicting assertions to
   // the solver or it could just be polluted with redundant assertions in the
@@ -60,8 +48,11 @@ void Bmc::initialize()
 
 ProverResult Bmc::check_until(int k)
 {
+  initialize();
+
   for (int i = 0; i <= k; ++i) {
     if (!step(i)) {
+      compute_witness();
       return ProverResult::FALSE;
     }
   }

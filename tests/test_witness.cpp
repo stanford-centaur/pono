@@ -1,8 +1,6 @@
 #include <utility>
 #include <vector>
 
-#include "gtest/gtest.h"
-
 #include "core/fts.h"
 #include "core/rts.h"
 #include "core/unroller.h"
@@ -10,9 +8,10 @@
 #include "engines/bmc_simplepath.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
+#include "gtest/gtest.h"
+#include "smt/available_solvers.h"
+#include "tests/common_ts.h"
 #include "utils/exceptions.h"
-
-#include "available_solvers.h"
 
 using namespace pono;
 using namespace smt;
@@ -30,18 +29,15 @@ TEST_P(WitnessUnitTests, SimpleDefaultSolver)
   // use default solver
   FunctionalTransitionSystem fts;
   Sort bvsort8 = fts.make_sort(BV, 8);
-  Sort boolsort = fts.make_sort(BOOL);
-  Term one = fts.make_term(1, bvsort8);
+  counter_system(fts, fts.make_term(20, bvsort8));
+  Term x = fts.named_terms().at("x");
+
   Term eight = fts.make_term(8, bvsort8);
-  Term x = fts.make_statevar("x", bvsort8);
-
-  fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
-  fts.assign_next(x, fts.make_term(BVAdd, x, one));
-
   Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts, prop_term);
+  Property prop(fts.solver(), prop_term);
 
-  Bmc bmc(prop, GetParam());
+  SmtSolver s = create_solver(GetParam());
+  Bmc bmc(prop, fts, s);
   ProverResult r = bmc.check_until(9);
   ASSERT_EQ(r, FALSE);
 
@@ -77,9 +73,10 @@ TEST_P(WitnessUnitTests, ArraysDefaultSolver)
 
   Term ten = fts.make_term(10, bvsort8);
   Term prop_term = fts.make_term(Distinct, fts.make_term(Select, arr, x), ten);
-  Property prop(fts, prop_term);
+  Property prop(fts.solver(), prop_term);
 
-  Bmc bmc(prop, GetParam());
+  SmtSolver s = create_solver(GetParam());
+  Bmc bmc(prop, fts, s);
   ProverResult r = bmc.check_until(6);
   ASSERT_EQ(r, FALSE);
 

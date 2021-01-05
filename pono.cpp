@@ -14,24 +14,27 @@
 **
 **/
 
+#include <csignal>
 #include <iostream>
 #include "assert.h"
+
+#ifdef WITH_PROFILING
+#include <gperftools/profiler.h>
+#endif
 
 #include "smt-switch/boolector_factory.h"
 #ifdef WITH_MSAT
 #include "smt-switch/msat_factory.h"
 #endif
 
-#include "bmc.h"
-#include "bmc_simplepath.h"
 #include "core/fts.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
-#include "interpolantmc.h"
-#include "kinduction.h"
-#include "mbic3.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/mod_init_prop.h"
+#include "modifiers/prop_monitor.h"
+#include "modifiers/static_coi.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
@@ -50,14 +53,15 @@ using namespace std;
 
 ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
-                        SmtSolver & s,
-                        SmtSolver & second_solver,
+                        const TransitionSystem & ts,
+                        const SmtSolver & s,
+                        const SmtSolver & second_solver,
                         std::vector<UnorderedTermMap> & cex)
 {
   logger.log(1, "Solving property: {}", p.name());
 
-  logger.log(3, "INIT:\n{}", p.transition_system().init());
-  logger.log(3, "TRANS:\n{}", p.transition_system().trans());
+  logger.log(3, "INIT:\n{}", ts.init());
+  logger.log(3, "TRANS:\n{}", ts.trans());
 
   Engine eng = pono_options.engine_;
 
@@ -65,13 +69,13 @@ ProverResult check_prop(PonoOptions pono_options,
   if (pono_options.ceg_prophecy_arrays_) {
     // don't instantiate the sub-prover directly
     // just pass the engine to CegProphecyArrays
-    prover = std::make_shared<CegProphecyArrays>(pono_options, p, eng, s);
+    prover = std::make_shared<CegProphecyArrays>(p, ts, eng, s, pono_options);
   } else if (eng != INTERP) {
     assert(!second_solver);
-    prover = make_prover(eng, p, s, pono_options);
+    prover = make_prover(eng, p, ts, s, pono_options);
   } else {
     assert(second_solver);
-    prover = make_prover(eng, p, s, second_solver, pono_options);
+    prover = make_prover(eng, p, ts, s, second_solver, pono_options);
   }
   assert(prover);
 
@@ -79,14 +83,28 @@ ProverResult check_prop(PonoOptions pono_options,
   //       consider calling prover for CegProphecyArrays (so that underlying
   //       model checker runs prove unbounded) or possibly, have a command line
   //       flag to pick between the two
-  ProverResult r = prover->check_until(pono_options.bound_);
+  ProverResult r;
+  if (pono_options.engine_ == MSAT_IC3IA)
+  {
+    // HACK MSAT_IC3IA does not support check_until
+    r = prover->prove();
+  }
+  else
+  {
+    r = prover->check_until(pono_options.bound_);
+  }
 
   if (r == FALSE && !pono_options.no_witness_) {
-    prover->witness(cex);
+    bool success = prover->witness(cex);
+    if (!success) {
+      logger.log(
+          0,
+          "Only got a partial witness from engine. Not suitable for printing.");
+    }
   } else if (r == TRUE && pono_options.check_invar_) {
     try {
       Term invar = prover->invar();
-      bool invar_passes = check_invar(p.transition_system(), p.prop(), invar);
+      bool invar_passes = check_invar(ts, p.prop(), invar);
       std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
                 << std::endl;
       if (!invar_passes) {
@@ -102,6 +120,29 @@ ProverResult check_prop(PonoOptions pono_options,
   return r;
 }
 
+// Note: signal handlers are registered only when profiling is enabled.
+void profiling_sig_handler(int sig)
+{
+  std::string signame;
+  switch (sig) {
+    case SIGINT: signame = "SIGINT"; break;
+    case SIGTERM: signame = "SIGTERM"; break;
+    case SIGALRM: signame = "SIGALRM"; break;
+    default:
+      throw PonoException(
+          "Caught unexpected signal"
+          "in profiling signal handler.");
+  }
+  logger.log(0, "\n Signal {} received\n", signame);
+#ifdef WITH_PROFILING
+  ProfilerFlush();
+  ProfilerStop();
+#endif
+  // Switch back to default handling for signal 'sig' and raise it.
+  signal(sig, SIG_DFL);
+  raise(sig);
+}
+
 int main(int argc, char ** argv)
 {
   PonoOptions pono_options;
@@ -115,6 +156,20 @@ int main(int argc, char ** argv)
 
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
+
+  // For profiling: set signal handlers for common signals to abort
+  // program.  This is necessary to gracefully stop profiling when,
+  // e.g., an external time limit is enforced to stop the program.
+  if (!pono_options.profiling_log_filename_.empty()) {
+    signal(SIGINT, profiling_sig_handler);
+    signal(SIGTERM, profiling_sig_handler);
+    signal(SIGALRM, profiling_sig_handler);
+#ifdef WITH_PROFILING
+    logger.log(
+        0, "Profiling log filename: {}", pono_options.profiling_log_filename_);
+    ProfilerStart(pono_options.profiling_log_filename_.c_str());
+#endif
+  }
 
   try {
     SmtSolver s;
@@ -151,14 +206,35 @@ int main(int argc, char ** argv)
             "responsibility for meeting the license requirements.");
 #endif
       } else if (pono_options.smt_solver_ == "btor") {
-        // boolector is faster but doesn't support interpolants
         s = BoolectorSolverFactory::create(false);
+      } else if (pono_options.smt_solver_ == "cvc4") {
+        s = CVC4SolverFactory::create(false);
       } else {
         assert(false);
       }
 
       s->set_opt("produce-models", "true");
       s->set_opt("incremental", "true");
+    }
+
+    // limitations with COI
+    if (pono_options.static_coi_) {
+      if (!pono_options.no_witness_) {
+        logger.log(
+            0,
+            "Warning: disabling witness production. Temporary restriction -- "
+            "Cannot produce witness with option --static-coi");
+        pono_options.no_witness_ = true;
+      }
+      if (pono_options.mod_init_prop_) {
+        // Issue explained here:
+        // https://github.com/upscale-project/pono/pull/160 will be resolved
+        // once state variables removed by COI are removed from init then should
+        // do static-coi BEFORE mod-init-prop
+        logger.log(0,
+                   "Warning: --mod-init-prop and --static-coi don't work "
+                   "well together currently.");
+      }
     }
 
     // TODO: make this less ugly, just need to keep it in scope if using
@@ -178,7 +254,11 @@ int main(int argc, char ** argv)
             + " is greater than the number of properties in file "
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
+
       Term prop = propvec[pono_options.prop_idx_];
+      // get property name before it is rewritten
+      const string prop_name = fts.get_name(prop);
+
       if (!pono_options.clock_name_.empty()) {
         Term clock_symbol = fts.lookup(pono_options.clock_name_);
         toggle_clock(fts, clock_symbol);
@@ -202,9 +282,26 @@ int main(int argc, char ** argv)
         prop = fts.solver()->make_term(Implies, reset_done, prop);
       }
 
+      if (pono_options.mod_init_prop_) {
+        prop = modify_init_and_prop(fts, prop);
+      }
+
+      if (pono_options.static_coi_) {
+        /* Compute the set of state/input variables related to the
+           bad-state property. Based on that information, rebuild the
+           transition relation of the transition system. */
+        StaticConeOfInfluence coi(fts, { prop }, pono_options.verbosity_);
+      }
+
+      if (!fts.only_curr(prop)) {
+        logger.log(1, "Got next state or input variables in property. "
+                   "Generating a monitor state.");
+        prop = add_prop_monitor(fts, prop);
+      }
+
       vector<UnorderedTermMap> cex;
-      Property p(fts, prop);
-      res = check_prop(pono_options, p, s, second_solver, cex);
+      Property p(s, prop, prop_name);
+      res = check_prop(pono_options, p, fts, s, second_solver, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -217,7 +314,7 @@ int main(int argc, char ** argv)
           print_witness_btor(btor_enc, cex);
           if (!pono_options.vcd_name_.empty()) {
             VCDWitnessPrinter vcdprinter(fts, cex);
-            vcdprinter.DumpTraceToFile(pono_options.vcd_name_);
+            vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
           }
         }
       } else if (res == TRUE) {
@@ -241,7 +338,11 @@ int main(int argc, char ** argv)
             + " is greater than the number of properties in file "
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
+
       Term prop = propvec[pono_options.prop_idx_];
+      // get property name before it is rewritten
+      const string prop_name = rts.get_name(prop);
+
       if (!pono_options.clock_name_.empty()) {
         Term clock_symbol = rts.lookup(pono_options.clock_name_);
         toggle_clock(rts, clock_symbol);
@@ -254,9 +355,29 @@ int main(int argc, char ** argv)
         prop = rts.solver()->make_term(Implies, reset_done, prop);
       }
 
-      Property p(rts, prop);
+      if (pono_options.mod_init_prop_) {
+        prop = modify_init_and_prop(rts, prop);
+      }
+
+      if (pono_options.static_coi_) {
+        // NOTE: currently only supports FunctionalTransitionSystem
+        // but let StaticConeOfInfluence throw the exception
+        // and this will change in the future
+        /* Compute the set of state/input variables related to the
+           bad-state property. Based on that information, rebuild the
+           transition relation of the transition system. */
+        StaticConeOfInfluence coi(rts, { prop }, pono_options.verbosity_);
+      }
+
+      if (!rts.only_curr(prop)) {
+        logger.log(1, "Got next state or input variables in property. "
+                   "Generating a monitor state.");
+        prop = add_prop_monitor(rts, prop);
+      }
+
+      Property p(s, prop, prop_name);
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, p, s, second_solver, cex);
+      res = check_prop(pono_options, p, rts, s, second_solver, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -274,7 +395,7 @@ int main(int argc, char ** argv)
         assert(!pono_options.no_witness_ || pono_options.vcd_name_.empty());
         if (!pono_options.vcd_name_.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
-          vcdprinter.DumpTraceToFile(pono_options.vcd_name_);
+          vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
         }
       } else if (res == TRUE) {
         cout << "unsat" << endl;
@@ -305,6 +426,13 @@ int main(int argc, char ** argv)
     cout << "error" << endl;
     cout << "b" << pono_options.prop_idx_ << endl;
     res = ProverResult::ERROR;
+  }
+
+  if (!pono_options.profiling_log_filename_.empty()) {
+#ifdef WITH_PROFILING
+    ProfilerFlush();
+    ProfilerStop();
+#endif
   }
 
   return res;
