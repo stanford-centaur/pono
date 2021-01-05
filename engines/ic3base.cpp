@@ -385,22 +385,27 @@ bool IC3Base::block(const IC3Formula & c,
   assert_trans_label();
 
   // assume c'
-  // going to rely on matching order between primed and c.children
+  // going to rely on matching order between primed and children
+  // TODO try to avoid this copy while also allowing for random
+  //      seed shuffling and not messing up sorted IC3Formulas
+  TermVec children = c.children;
   TermVec primed;
-  primed.reserve(c.children.size());
+  primed.reserve(children.size());
   assumps_.clear();
-  assumps_.reserve(c.children.size());
-  for (const auto & cc : c.children) {
+  assumps_.reserve(children.size());
+  for (const auto & cc : children) {
     primed.push_back(ts_->next(cc));
   }
-  assert(c.children.size() == primed.size());
-  if (options_.random_seed_) {
+  assert(children.size() == primed.size());
+  if (false && options_.random_seed_) {
     std::vector<size_t> idx(primed.size());
     std::iota(idx.begin(), idx.end(), 0);
     std::shuffle(idx.begin(), idx.end(), rng_);
 
+    children.clear();
     for (size_t i : idx) {
       assumps_.push_back(label(primed.at(i)));
+      children.push_back(c.children.at(i));
     }
   } else {
     for (const auto & l : primed) {
@@ -424,12 +429,12 @@ bool IC3Base::block(const IC3Formula & c,
       TermVec & candidate = out->children;
       TermVec rest;
       candidate.clear();
-      assert(c.children.size() == assumps_.size());
+      assert(children.size() == assumps_.size());
       for (size_t i = 0; i < assumps_.size(); ++i) {
         if (core.find(assumps_.at(i)) != core.end()) {
-          candidate.push_back(c.children.at(i));
+          candidate.push_back(children.at(i));
         } else {
-          rest.push_back(c.children.at(i));
+          rest.push_back(children.at(i));
         }
       }
       // now candidate is a subset of c that is enough for
@@ -495,6 +500,7 @@ bool IC3Base::is_blocked(const ProofGoal * pg)
 
 bool IC3Base::propagate()
 {
+  assert(!solver_context_);
   std::vector<IC3Formula> to_add;
 
   size_t k = 1;
