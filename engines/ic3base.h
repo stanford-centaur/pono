@@ -230,6 +230,9 @@ class IC3Base : public Prover
   // useful terms
   smt::Term solver_true_;
 
+  // useful sorts
+  smt::Sort boolsort_;
+
   // TODO Make sure all comments are updated!
 
   // *************************** Main Methods *********************************
@@ -524,6 +527,8 @@ class IC3Base : public Prover
   /** Create a boolean label for a given term
    *  These are cached in labels_
    *  good for using unsat cores
+   *  automatically adds assertion lbl <-> t to
+   *  the current context
    *
    *  @param t a boolean formula to create a label for
    *  @return the indicator variable label for this term

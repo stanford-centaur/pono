@@ -23,6 +23,7 @@
 #include "assert.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -68,7 +69,8 @@ IC3Base::IC3Base(Property & p, const SmtSolver & s, PonoOptions opt)
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),
       cex_pg_(nullptr),
-      rng_(options_.random_seed_)
+      rng_(options_.random_seed_),
+      boolsort_(solver_->make_sort(BOOL))
 {
 }
 
@@ -106,8 +108,7 @@ void IC3Base::initialize()
   frame_labels_.clear();
   // first frame is always the initial states
   frames_.push_back({});
-  frame_labels_.push_back(
-      solver_->make_symbol("__frame_label_0", solver_->make_sort(BOOL)));
+  frame_labels_.push_back(solver_->make_symbol("__frame_label_0", boolsort_));
   // can't use constrain_frame for initial states because not guaranteed to be
   // an IC3Formula it's handled specially
   solver_->assert_formula(
@@ -115,16 +116,15 @@ void IC3Base::initialize()
   push_frame();
 
   // set semantics of TS labels
-  Sort boolsort = solver_->make_sort(BOOL);
   assert(!init_label_);
   assert(!trans_label_);
   // frame 0 label is identical to init label
   init_label_ = frame_labels_[0];
   solver_->make_term(Implies, init_label_, ts_->init());
-  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+  trans_label_ = solver_->make_symbol("__trans_label", boolsort_);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_->trans()));
-  bad_label_ = solver_->make_symbol("__bad_label", boolsort);
+  bad_label_ = solver_->make_symbol("__bad_label", boolsort_);
   solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 }
 
@@ -385,9 +385,9 @@ bool IC3Base::block(const IC3Formula & c,
   assert_trans_label();
 
   // assume c'
-  TermVec assumps;
   // going to rely on matching order between primed and c.children
   TermVec primed;
+  tmp_.clear();
   primed.reserve(c.children.size());
   for (const auto & cc : c.children) {
     primed.push_back(ts_->next(cc));
@@ -399,17 +399,17 @@ bool IC3Base::block(const IC3Formula & c,
     std::shuffle(idx.begin(), idx.end(), rng_);
 
     for (size_t i : idx) {
-      assumps.push_back(primed.at(i));
+      tmp_.push_back(label(primed.at(i)));
     }
   } else {
     for (const auto & l : primed) {
-      assumps.push_back(l);
+      tmp_.push_back(label(l));
     }
   }
 
   // temporarily assert ~c
   solver_->assert_formula(ic3formula_negate(c).term);
-  Result r = check_sat_assuming(assumps);
+  Result r = check_sat_assuming(tmp_);
   if (r.is_unsat()) {
     // relative induction succeeds. If required (out != NULL), generalize
     // ~c to a stronger clause, by looking at the literals of c' that occur
@@ -423,9 +423,9 @@ bool IC3Base::block(const IC3Formula & c,
       TermVec & candidate = out->children;
       TermVec rest;
       candidate.clear();
-      assert(c.children.size() == primed.size());
-      for (size_t i = 0; i < primed.size(); ++i) {
-        if (core.find(primed.at(i)) != core.end()) {
+      assert(c.children.size() == tmp_.size());
+      for (size_t i = 0; i < tmp_.size(); ++i) {
+        if (core.find(tmp_.at(i)) != core.end()) {
           candidate.push_back(c.children.at(i));
         } else {
           rest.push_back(c.children.at(i));
@@ -552,9 +552,8 @@ void IC3Base::push_frame()
 
   assert(frame_labels_.size() == frames_.size());
   // pushes an empty frame
-  frame_labels_.push_back(
-      solver_->make_symbol("__frame_label_" + std::to_string(frames_.size()),
-                           solver_->make_sort(BOOL)));
+  frame_labels_.push_back(solver_->make_symbol(
+      "__frame_label_" + std::to_string(frames_.size()), boolsort_));
   frames_.push_back({});
 }
 
@@ -669,26 +668,35 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
   assert(!solver_context_);
   if (rem.size() != 0) {
-    if (check_intersects_initial(make_and(to_keep))) {
-      size_t n = to_keep.size();
-      to_keep.insert(to_keep.end(), rem.begin(), rem.end());
+    push_solver_context();
 
-      push_solver_context();
-      solver_->assert_formula(init_label_);
-      Result r = check_sat_assuming(to_keep);
-      assert(r.is_unsat());
-      UnorderedTermSet core;
-      solver_->get_unsat_core(core);
-      pop_solver_context();
+    solver_->assert_formula(init_label_);
+    solver_->assert_formula(make_and(to_keep));
+    Result r = check_sat();
+    if (r.is_unsat()) {
+      return;
+    }
 
-      to_keep.resize(n);
+    tmp_.clear();
+    for (const auto & r : rem) {
+      tmp_.push_back(label(r));
+    }
+    r = check_sat_assuming(tmp_);
+    assert(r.is_unsat());
+    UnorderedTermSet core;
+    solver_->get_unsat_core(core);
+    assert(core.size());
 
-      for (const auto & l : rem) {
-        if (core.find(l) != core.end()) {
-          to_keep.push_back(l);
-        }
+    pop_solver_context();
+
+    assert(tmp_.size() == rem.size());
+    for (size_t i = 0; i < rem.size(); ++i) {
+      if (core.find(tmp_.at(i)) != core.end()) {
+        to_keep.push_back(rem.at(i));
       }
     }
+  } else {
+    assert(!check_intersects_initial(make_and(to_keep)));
   }
 }
 
@@ -779,9 +787,22 @@ void IC3Base::reset_solver()
 
 Term IC3Base::label(const Term & t)
 {
+  // might need to remove this
+  // typically assuming we're not adding labels
+  // at the base context
+  // but this might not always be true
+  assert(solver_context_ > 0);
+
+  if (is_lit(t, boolsort_)) {
+    // just point to itself
+    labels_[t] = t;
+    return t;
+  }
+
   auto it = labels_.find(t);
   if (it != labels_.end()) {
-    return labels_.at(t);
+    solver_->assert_formula(solver_->make_term(Implies, it->second, t));
+    return it->second;
   }
 
   unsigned i = 0;
@@ -790,7 +811,8 @@ Term IC3Base::label(const Term & t)
     try {
       l = solver_->make_symbol(
           "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
-          solver_->make_sort(BOOL));
+          boolsort_);
+      solver_->assert_formula(solver_->make_term(Implies, l, t));
       break;
     }
     catch (IncorrectUsageException & e) {
@@ -903,29 +925,26 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
 {
   assert(solver_context_ == 0);
   assert(c.children.size());
-  UnorderedTermMap label_to_term;
-  TermVec assumps;
-  for (const auto & l : c.children) {
-    assumps.push_back(l);
-  }
   push_solver_context();
+  tmp_.clear();
+  for (const auto & l : c.children) {
+    tmp_.push_back(label(l));
+  }
   Term prop = property_.prop();
   solver_->assert_formula(prop);
-  Result r = check_sat_assuming(assumps);
+  Result r = check_sat_assuming(tmp_);
   // pretty sure this has to be unsat because it's a bad cube
   assert(r.is_unsat());
   if (r.is_unsat()) {
     UnorderedTermSet core;
     solver_->get_unsat_core(core);
     assert(core.size());
-    auto it =
-        std::remove_if(assumps.begin(), assumps.end(), [&core](const Term & l) {
-          return core.find(l) == core.end();
-        });
-    assumps.resize(it - assumps.begin());
     TermVec cube_lits;
-    for (const auto & l : assumps) {
-      cube_lits.push_back(l);
+    assert(tmp_.size() == c.children.size());
+    for (size_t i = 0; i < tmp_.size(); ++i) {
+      if (core.find(tmp_.at(i)) != core.end()) {
+        cube_lits.push_back(c.children.at(i));
+      }
     }
     c = ic3formula_conjunction(cube_lits);
   }

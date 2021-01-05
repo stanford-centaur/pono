@@ -48,8 +48,7 @@ IC3IA::IC3IA(Property & p, const SmtSolver & s, SmtSolver itp, PonoOptions opt)
       interpolator_(itp),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
-      longest_cex_length_(0),
-      boolsort_(solver_->make_sort(BOOL))
+      longest_cex_length_(0)
 {
 }
 

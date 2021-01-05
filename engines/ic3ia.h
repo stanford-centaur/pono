@@ -75,8 +75,6 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
-  smt::Sort boolsort_;
-
   smt::TermVec predvars_;
   smt::UnorderedTermMap pred2lbl_;
   smt::UnorderedTermMap lbl2pred_;
