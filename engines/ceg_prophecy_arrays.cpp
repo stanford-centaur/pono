@@ -72,7 +72,7 @@ ProverResult CegProphecyArrays::prove()
 
     Property latest_prop(solver_, solver_->make_term(Not, bad_));
     //TODO : think about making it use the same prover -- incrementally
-    SmtSolver s = create_solver(solver_->get_solver_enum());
+    SmtSolver s = create_solver_for(solver_->get_solver_enum(), e_, false);
     shared_ptr<Prover> prover =
       make_prover(e_, latest_prop, ts_, s, options_);
 
