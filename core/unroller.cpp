@@ -129,6 +129,8 @@ UnorderedTermMap & Unroller::var_cache_at_time(unsigned int k)
   size_t current_num_vars = ts_.statevars().size();
   current_num_vars += ts_.inputvars().size();
 
+  // if new variables are added to the transition system, we need to update the
+  // timed-var-term-map
   if (current_num_vars > num_vars_) {
     num_vars_ = current_num_vars;
     size_t t = 0;
