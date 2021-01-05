@@ -21,7 +21,6 @@
 #include "core/ts.h"
 #include "core/unroller.h"
 #include "options/options.h"
-
 #include "smt-switch/smt.h"
 
 namespace pono {

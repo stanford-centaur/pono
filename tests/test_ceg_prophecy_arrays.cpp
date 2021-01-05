@@ -1,9 +1,8 @@
-#include "gtest/gtest.h"
-
 #include "engines/ceg_prophecy_arrays.h"
+#include "gtest/gtest.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
-#include "smt/available_solvers.h"
 
 #ifdef WITH_MSAT
 

@@ -17,21 +17,20 @@
 **
 **/
 
-#include <map>
-#include "assert.h"
-
 #include "engines/ceg_prophecy_arrays.h"
-#include "utils/logger.h"
-#include "utils/make_provers.h"
 
-#include "smt/available_solvers.h"
+#include <map>
 
+#include "assert.h"
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ic3ia.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
+#include "smt/available_solvers.h"
+#include "utils/logger.h"
+#include "utils/make_provers.h"
 
 #ifdef WITH_MSAT_IC3IA
 #include "engines/msat_ic3ia.h"
@@ -42,7 +41,7 @@ using namespace std;
 
 namespace pono {
 
-template<class Prover_T>
+template <class Prover_T>
 CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
                                                const TransitionSystem & ts,
                                                const SmtSolver & solver,
@@ -50,10 +49,11 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
     : super(p, RelationalTransitionSystem(solver), solver, opt),
       conc_ts_(ts),
       aa_(conc_ts_, super::ts_, true),
-      aae_(aa_, super::unroller_,
+      aae_(aa_,
+           super::unroller_,
            super::orig_ts_.solver() == super::solver_
-           ? p.prop()
-           : super::to_prover_solver_.transfer_term(p.prop()),
+               ? p.prop()
+               : super::to_prover_solver_.transfer_term(p.prop()),
            super::options_.cegp_axiom_red_),
       pm_(super::ts_),
       num_added_axioms_(0)
@@ -62,7 +62,7 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
   super::orig_ts_ = ts;
 }
 
-template<class Prover_T>
+template <class Prover_T>
 ProverResult CegProphecyArrays<Prover_T>::prove()
 {
   initialize();
@@ -82,9 +82,10 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
     Property latest_prop(super::solver_,
                          super::solver_->make_term(Not, super::bad_));
     //TODO : think about making it use the same prover -- incrementally
-    SmtSolver s = create_solver(super::solver_->get_solver_enum());
-    shared_ptr<Prover> prover =
-      make_prover(super::engine_, latest_prop, super::ts_, s, super::options_);
+    SmtSolver s = create_solver_for(
+        super::solver_->get_solver_enum(), super::engine_, false);
+    shared_ptr<Prover> prover = make_prover(
+        super::engine_, latest_prop, super::ts_, s, super::options_);
 
     res = prover->prove();
   }
@@ -92,7 +93,7 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
   return res;
 }
 
-template<class Prover_T>
+template <class Prover_T>
 ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
 {
   initialize();
@@ -110,9 +111,10 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
 
     Property latest_prop(super::solver_,
                          super::solver_->make_term(Not, super::bad_));
-    SmtSolver s = create_solver(super::solver_->get_solver_enum());
-    shared_ptr<Prover> prover =
-      make_prover(super::engine_, latest_prop, super::ts_, s, super::options_);
+    SmtSolver s = create_solver_for(
+        super::solver_->get_solver_enum(), super::engine_, false);
+    shared_ptr<Prover> prover = make_prover(
+        super::engine_, latest_prop, super::ts_, s, super::options_);
 
     res = prover->check_until(k);
   }
@@ -126,7 +128,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
   return res;
 }
 
-template<class Prover_T>
+template <class Prover_T>
 void CegProphecyArrays<Prover_T>::initialize()
 {
   cegar_abstract();
@@ -153,15 +155,17 @@ void CegProphecyArrays<Prover_T>::initialize()
   }
 }
 
-template<class Prover_T>
+template <class Prover_T>
 void CegProphecyArrays<Prover_T>::cegar_abstract()
 {
   // the ArrayAbstractor already abstracted the transition system on
   // construction -- only need to abstract bad
   Term prop_term = (super::ts_.solver() == super::orig_property_.solver())
-    ? super::orig_property_.prop()
-    : super::to_prover_solver_.transfer_term(super::orig_property_.prop());
-  super::bad_ = super::solver_->make_term(smt::PrimOp::Not, aa_.abstract(prop_term));
+                       ? super::orig_property_.prop()
+                       : super::to_prover_solver_.transfer_term(
+                           super::orig_property_.prop());
+  super::bad_ =
+      super::solver_->make_term(smt::PrimOp::Not, aa_.abstract(prop_term));
 
   // the abstract system should have all the same state and input variables
   // but abstracted
@@ -170,7 +174,7 @@ void CegProphecyArrays<Prover_T>::cegar_abstract()
   assert(super::ts_.inputvars().size() >= conc_ts_.inputvars().size());
 }
 
-template<class Prover_T>
+template <class Prover_T>
 bool CegProphecyArrays<Prover_T>::cegar_refine()
 {
   num_added_axioms_ = 0;
@@ -199,9 +203,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
       // needed for it to be unsat with all the nonconsecutive axioms
       // it will be updated again later anyway
       for (auto ax : consecutive_axioms) {
-        size_t max_k = super::ts_.only_curr(ax)
-          ? super::reached_k_ + 1
-          : super::reached_k_;
+        size_t max_k = super::ts_.only_curr(ax) ? super::reached_k_ + 1
+                                                : super::reached_k_;
         for (size_t k = 0; k <= max_k; ++k) {
           abs_bmc_formula = super::solver_->make_term(
               And, abs_bmc_formula, super::unroller_.at_time(ax, k));
@@ -229,7 +232,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     vector<pair<Term, Term>> proph_vars;
     for (auto timed_idx : instantiations) {
       // number of steps before the property violation
-      size_t delay = super::reached_k_ + 1 - super::unroller_.get_curr_time(timed_idx);
+      size_t delay =
+          super::reached_k_ + 1 - super::unroller_.get_curr_time(timed_idx);
       // Prophecy Modifier will add prophecy and history variables
       // automatically here but it does NOT update the property
       Term idx = super::unroller_.untime(timed_idx);
@@ -252,11 +256,10 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
       Term proph_var = p.first;
       Term target = p.second;
       aae_.add_index(proph_var);
-      super::bad_ =
-        super::solver_->make_term(And,
-                                  super::solver_->make_term(Equal,
-                                                            proph_var, target),
-                                  super::bad_);
+      super::bad_ = super::solver_->make_term(
+          And,
+          super::solver_->make_term(Equal, proph_var, target),
+          super::bad_);
     }
 
     // need to update the bmc formula with the transformations
@@ -264,8 +267,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     abs_bmc_formula = get_bmc_formula(super::reached_k_ + 1);
 
     // search for axioms again but don't include nonconsecutive ones
-    bool ok = aae_.enumerate_axioms(abs_bmc_formula, super::reached_k_ + 1,
-                                    false);
+    bool ok =
+        aae_.enumerate_axioms(abs_bmc_formula, super::reached_k_ + 1, false);
     // should be guaranteed to rule out counterexamples at this bound
     assert(ok);
     consecutive_axioms = aae_.get_consecutive_axioms();
@@ -278,8 +281,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
 
   // add consecutive axioms to the system
   // TODO: make sure we're adding current / next correctly
-  RelationalTransitionSystem &rts =
-    static_cast<RelationalTransitionSystem &>(super::ts_);
+  RelationalTransitionSystem & rts =
+      static_cast<RelationalTransitionSystem &>(super::ts_);
   for (auto ax : consecutive_axioms) {
     num_added_axioms_++;
     if (super::reached_k_ == -1) {
@@ -302,25 +305,22 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
 }
 
 // helpers
-template<class Prover_T>
+template <class Prover_T>
 Term CegProphecyArrays<Prover_T>::get_bmc_formula(size_t b)
 {
   Term abs_bmc_formula = super::unroller_.at_time(super::ts_.init(), 0);
   for (int k = 0; k < b; ++k) {
-    abs_bmc_formula =
-      super::solver_->make_term(And, abs_bmc_formula,
-                                super::unroller_.at_time(super::ts_.trans(), k));
+    abs_bmc_formula = super::solver_->make_term(
+        And, abs_bmc_formula, super::unroller_.at_time(super::ts_.trans(), k));
   }
 
-  return
-    super::solver_->make_term(And, abs_bmc_formula,
-                              super::unroller_.at_time(super::bad_, b));
+  return super::solver_->make_term(
+      And, abs_bmc_formula, super::unroller_.at_time(super::bad_, b));
 }
 
-template<class Prover_T>
-void
-CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(const Term & abs_bmc_formula,
-                                                       UnorderedTermSet & consec_ax)
+template <class Prover_T>
+void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
+    const Term & abs_bmc_formula, UnorderedTermSet & consec_ax)
 {
   UnorderedTermSet reduced_ax;
   super::solver_->push();
@@ -334,17 +334,16 @@ CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(const Term & abs_bmc_form
   for (auto ax : consec_ax) {
     unrolled_ax = super::solver_->make_term(true);
     size_t max_k =
-      super::ts_.only_curr(ax) ? super::reached_k_ + 1 : super::reached_k_;
+        super::ts_.only_curr(ax) ? super::reached_k_ + 1 : super::reached_k_;
     for (size_t k = 0; k <= max_k; ++k) {
-      unrolled_ax =
-        super::solver_->make_term(And, unrolled_ax,
-                                  super::unroller_.at_time(ax, k));
+      unrolled_ax = super::solver_->make_term(
+          And, unrolled_ax, super::unroller_.at_time(ax, k));
     }
 
     lbl = label(unrolled_ax);
     label2ax[lbl] = ax;
-    super::solver_->assert_formula(super::solver_->make_term(Implies, lbl,
-                                                             unrolled_ax));
+    super::solver_->assert_formula(
+        super::solver_->make_term(Implies, lbl, unrolled_ax));
     assumps.push_back(lbl);
   }
 
@@ -365,7 +364,7 @@ CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(const Term & abs_bmc_form
   super::solver_->pop();
 }
 
-template<class Prover_T>
+template <class Prover_T>
 AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
     const Term & abs_bmc_formula, const AxiomVec & nonconsec_ax)
 {
@@ -380,7 +379,7 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
     assert(ax_inst.instantiations.size() == 1);
     unrolled_idx = *(ax_inst.instantiations.begin());
     size_t delay =
-      super::reached_k_ + 1 - super::unroller_.get_curr_time(unrolled_idx);
+        super::reached_k_ + 1 - super::unroller_.get_curr_time(unrolled_idx);
     idx = super::unroller_.untime(unrolled_idx);
     map_nonconsec_ax[delay][idx].push_back(ax_inst);
   }
@@ -434,7 +433,7 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
   return red_nonconsec_ax;
 }
 
-template<class Prover_T>
+template <class Prover_T>
 Term CegProphecyArrays<Prover_T>::label(const Term & t)
 {
   auto it = labels_.find(t);
