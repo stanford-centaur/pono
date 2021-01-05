@@ -28,7 +28,7 @@
 
 namespace pono {
 
-template<class Prover_T>
+template <class Prover_T>
 class CegProphecyArrays : public CEGAR<Prover_T>
 {
   typedef CEGAR<Prover_T> super;

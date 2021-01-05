@@ -37,7 +37,7 @@
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
-#include "prop.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 #include "utils/ts_analysis.h"
@@ -164,48 +164,10 @@ int main(int argc, char ** argv)
   }
 
   try {
-    SmtSolver s;
-    if (pono_options.engine_ == INTERP) {
-#ifdef WITH_MSAT
-      // need mathsat for interpolant based model checking
-      s = MsatSolverFactory::create(false);
-#else
-      throw PonoException(
-          "Interpolation-based model checking requires MathSAT and "
-          "this version of pono is built without MathSAT.\nPlease "
-          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-          "Note: MathSAT has a custom license and you must assume all "
-          "responsibility for meeting the license requirements.");
-#endif
-    } else if (pono_options.ceg_prophecy_arrays_) {
-#ifdef WITH_MSAT
-      // need mathsat for integer solving
-      s = MsatSolverFactory::create(false);
-#else
-      throw PonoException("ProphIC3 only supported with MathSAT so far");
-#endif
-    } else {
-      if (pono_options.smt_solver_ == "msat") {
-#ifdef WITH_MSAT
-        s = MsatSolverFactory::create(false);
-#else
-        throw PonoException(
-            "This version of pono is built without MathSAT.\nPlease "
-            "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-            "Note: MathSAT has a custom license and you must assume all "
-            "responsibility for meeting the license requirements.");
-#endif
-      } else if (pono_options.smt_solver_ == "btor") {
-        s = BoolectorSolverFactory::create(false);
-      } else if (pono_options.smt_solver_ == "cvc4") {
-        s = CVC4SolverFactory::create(false);
-      } else {
-        assert(false);
-      }
-
-      s->set_opt("produce-models", "true");
-      s->set_opt("incremental", "true");
-    }
+    // no logging by default
+    // could create an option for logging solvers in the future
+    SmtSolver s = create_solver_for(
+        pono_options.smt_solver_, pono_options.engine_, false);
 
     // limitations with COI
     if (pono_options.static_coi_) {

@@ -21,15 +21,17 @@
 
 namespace pono {
 
-template<class Prover_T>
+template <class Prover_T>
 class CEGAR : public Prover_T
 {
   typedef Prover_T super;
+
  public:
-  CEGAR(const Property & p, const TransitionSystem & ts,
+  CEGAR(const Property & p,
+        const TransitionSystem & ts,
         const smt::SmtSolver & solver,
         PonoOptions opt = PonoOptions())
-    : super(p, ts, solver, opt)
+      : super(p, ts, solver, opt)
   {
   }
 
