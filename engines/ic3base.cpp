@@ -41,43 +41,6 @@ static bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
   return (t0->hash() < t1->hash());
 }
 
-/** Checks if a contains all the terms of b
- *  NOTE: can't rely on std::includes because it uses operator<
- *  and smt-switch doesn't have a meaningful operator< on terms
- *  i.e. can't be used for equality (term_hash_lt wouldn't work)
- *  @param a vector of terms
- *  @param b vector of terms
- *  @return true iff a contains all the terms in b
- */
-static bool term_includes(const TermVec & a, const TermVec & b)
-{
-  if (a.size() > b.size()) {
-    return false;
-  }
-
-  unordered_map<size_t, UnorderedTermSet> hash_b;
-
-  // to speed up search, organize by hash
-  for (auto const & bb : b) {
-    hash_b[bb->hash()].insert(bb);
-  }
-
-  size_t aa_hash;
-  for (auto const & aa : a) {
-    aa_hash = aa->hash();
-    auto it = hash_b.find(aa_hash);
-    if (it != hash_b.end()) {
-      it->second.erase(aa);
-      if (!it->second.size()) {
-        hash_b.erase(aa_hash);
-      }
-    }
-  }
-
-  // if a includes all terms of b, then hash_b will be empty
-  return !(hash_b.size());
-}
-
 /** Syntactic subsumption check for clauses: ? a subsumes b ?
  *  @param IC3Formula a
  *  @param IC3Formula b
@@ -89,13 +52,17 @@ static bool subsumes(const IC3Formula &a, const IC3Formula &b)
   assert(a.disjunction == b.disjunction);
   const TermVec &ac = a.children;
   const TermVec &bc = b.children;
-  return term_includes(bc, ac);
+  // NOTE: IC3Formula children are sorted on construction
+  //       Uses unique id of term, from term->get_id()
+  return ac.size() <= bc.size()
+         && std::includes(bc.begin(), bc.end(), ac.begin(), ac.end());
 }
 
 /** IC3Base */
 
-IC3Base::IC3Base(Property & p, const SmtSolver & s, PonoOptions opt)
-    : super(p, s, opt),
+IC3Base::IC3Base(const Property & p, const TransitionSystem & ts,
+                 const SmtSolver & s, PonoOptions opt)
+    : super(p, ts, s, opt),
       reducer_(create_solver(s->get_solver_enum())),
       solver_context_(0),
       num_check_sat_since_reset_(0),
@@ -127,10 +94,6 @@ void IC3Base::initialize()
   // otherwise it is a No-Op
   abstract();
 
-  // ts_ should not only be set but also be the correct one at this point
-  // e.g. if abstracting, it now points to the abstract transition system
-  assert(ts_);
-
   // check whether this flavor of IC3 can be applied to this transition system
   check_ts();
 
@@ -142,7 +105,7 @@ void IC3Base::initialize()
   // can't use constrain_frame for initial states because not guaranteed to be
   // an IC3Formula it's handled specially
   solver_->assert_formula(
-      solver_->make_term(Implies, frame_labels_.at(0), ts_->init()));
+      solver_->make_term(Implies, frame_labels_.at(0), ts_.init()));
   push_frame();
 
   // set semantics of TS labels
@@ -153,7 +116,7 @@ void IC3Base::initialize()
   init_label_ = frame_labels_[0];
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
   solver_->assert_formula(
-      solver_->make_term(Implies, trans_label_, ts_->trans()));
+      solver_->make_term(Implies, trans_label_, ts_.trans()));
 }
 
 ProverResult IC3Base::check_until(int k)
@@ -377,7 +340,7 @@ bool IC3Base::rel_ind_check(size_t i,
   // Trans
   assert_trans_label();
   // c'
-  solver_->assert_formula(ts_->next(c.term));
+  solver_->assert_formula(ts_.next(c.term));
 
   Result r = check_sat();
   if (r.is_sat()) {
@@ -409,7 +372,7 @@ bool IC3Base::rel_ind_check(size_t i,
     for (const auto &u : out) {
       conj = solver_->make_term(And, conj, u.term);
       assert(ic3formula_check_valid(u));
-      assert(ts_->only_curr(u.term));
+      assert(ts_.only_curr(u.term));
     }
     assert(!check_intersects_initial(solver_->make_term(Not, conj)));
   }
@@ -572,7 +535,7 @@ bool IC3Base::propagate(size_t i)
     // Check F[i] /\ t /\ T /\ -t'
     // NOTE: asserting t is redundant because t \in F[i]
     push_solver_context();
-    solver_->assert_formula(solver_->make_term(Not, ts_->next(t)));
+    solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
 
     Result r = check_sat();
     assert(!r.is_unknown());
@@ -662,7 +625,7 @@ Term IC3Base::get_frame_term(size_t i) const
   //       need to special case initial state if using IC3Formulas
   if (i == 0) {
     // F[0] is always the initial states constraint
-    return ts_->init();
+    return ts_.init();
   }
 
   Term res = solver_true_;
@@ -718,7 +681,7 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
     // TODO: there's a tricky issue here. The reducer doesn't have the label
     // assumptions so we can't use init_label_ here. need to come up with a
     // better interface. Should we add label assumptions to reducer?
-    const Term &formula = solver_->make_term(And, ts_->init(), make_and(to_keep));
+    const Term &formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
     reducer_.reduce_assump_unsatcore(formula,
                                      rem,
                                      to_keep,
@@ -734,7 +697,7 @@ size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
   const Term &c = u.term;
   push_solver_context();
   solver_->assert_formula(c);
-  solver_->assert_formula(solver_->make_term(Not, ts_->next(c)));
+  solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
   assert_trans_label();
 
   Result r;
@@ -792,9 +755,9 @@ void IC3Base::reset_solver()
     // define init and trans label
     assert(init_label_ == frame_labels_.at(0));
     solver_->assert_formula(
-        solver_->make_term(Implies, init_label_, ts_->init()));
+        solver_->make_term(Implies, init_label_, ts_.init()));
     solver_->assert_formula(
-        solver_->make_term(Implies, trans_label_, ts_->trans()));
+        solver_->make_term(Implies, trans_label_, ts_.trans()));
 
     for (size_t i = 0; i < frames_.size(); ++i) {
       for (const auto & constraint : frames_.at(i)) {

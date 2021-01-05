@@ -1,6 +1,6 @@
 import pytest
 import smt_switch as ss
-import pono as c
+import pono
 
 def build_simple_ts(solver, TS):
     bvsort = solver.make_sort(ss.sortkinds.BV, 8)
@@ -21,12 +21,12 @@ def build_simple_ts(solver, TS):
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_cons_fts(create_solver):
     solver = create_solver(False)
-    solver, ts = build_simple_ts(solver, c.FunctionalTransitionSystem)
+    solver, ts = build_simple_ts(solver, pono.FunctionalTransitionSystem)
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_query_fts(create_solver):
     solver = create_solver(False)
-    solver, ts = build_simple_ts(solver, c.FunctionalTransitionSystem)
+    solver, ts = build_simple_ts(solver, pono.FunctionalTransitionSystem)
 
     assert len(ts.statevars) == 2
     assert len(ts.state_updates) == 1
@@ -45,7 +45,7 @@ def test_query_fts(create_solver):
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_func_update_fts(create_solver):
     solver = create_solver(False)
-    solver, ts = build_simple_ts(solver, c.FunctionalTransitionSystem)
+    solver, ts = build_simple_ts(solver, pono.FunctionalTransitionSystem)
 
     states = list(ts.statevars)
     try:
@@ -57,12 +57,12 @@ def test_func_update_fts(create_solver):
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_cons_rts(create_solver):
     solver = create_solver(False)
-    solver, ts = build_simple_ts(solver, c.RelationalTransitionSystem)
+    solver, ts = build_simple_ts(solver, pono.RelationalTransitionSystem)
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_query_rts(create_solver):
     solver = create_solver(False)
-    solver, ts = build_simple_ts(solver, c.RelationalTransitionSystem)
+    solver, ts = build_simple_ts(solver, pono.RelationalTransitionSystem)
 
     assert len(ts.statevars) == 2
     assert len(ts.state_updates) == 1

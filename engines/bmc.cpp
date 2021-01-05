@@ -21,9 +21,11 @@ using namespace smt;
 
 namespace pono {
 
-Bmc::Bmc(Property & p, const SmtSolver & solver, PonoOptions opt)
-  : super(p, solver, opt)
+Bmc::Bmc(const Property & p, const TransitionSystem & ts,
+         const SmtSolver & solver, PonoOptions opt)
+  : super(p, ts, solver, opt)
 {
+  engine_ = Engine::BMC;
 }
 
 Bmc::~Bmc() {}
@@ -35,12 +37,13 @@ void Bmc::initialize()
   }
 
   super::initialize();
+
   // NOTE: There's an implicit assumption that this solver is only used for
   // model checking once Otherwise there could be conflicting assertions to
   // the solver or it could just be polluted with redundant assertions in the
   // future we can use solver_->reset_assertions(), but it is not currently
   // supported in boolector
-  solver_->assert_formula(unroller_.at_time(ts_->init(), 0));
+  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
 }
 
 ProverResult Bmc::check_until(int k)
@@ -64,7 +67,7 @@ bool Bmc::step(int i)
 
   bool res = true;
   if (i > 0) {
-    solver_->assert_formula(unroller_.at_time(ts_->trans(), i - 1));
+    solver_->assert_formula(unroller_.at_time(ts_.trans(), i - 1));
   }
 
   solver_->push();

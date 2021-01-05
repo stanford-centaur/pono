@@ -129,7 +129,7 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   fts.assign_next(x, fts.make_term(BVAdd, x, one));
 
   Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts, prop_term);
+  Property prop(fts.solver(), prop_term);
 
   SolverEnum se = get<0>(GetParam());
   Engine eng = get<1>(GetParam());
@@ -140,15 +140,9 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   }
 
   SmtSolver s = create_solver(se);
-  ProverResult r;
-  if (eng == INTERP && se == MSAT) {
-    SmtSolver interp_s = create_interpolating_solver(MSAT_INTERPOLATOR);
-    std::shared_ptr<Prover> prover = make_prover(eng, prop, s, interp_s);
-    r = prover->check_until(9);
-  } else {
-    std::shared_ptr<Prover> prover = make_prover(eng, prop, s);
-    r = prover->check_until(9);
-  }
+  std::shared_ptr<Prover> prover = make_prover(eng, prop, fts, s);
+  ProverResult r = prover->check_until(9);
+
   ASSERT_EQ(r, FALSE);
 }
 

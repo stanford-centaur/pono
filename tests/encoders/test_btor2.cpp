@@ -48,8 +48,8 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
   filename += "/tests/encoders/inputs/btor2/mulo-test.btor2";
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
-  Property p(fts, be.propvec()[0]);
-  KInduction kind(p, s);
+  Property p(fts.solver(), be.propvec()[0]);
+  KInduction kind(p, fts, s);
   ProverResult r = kind.check_until(2);
   EXPECT_EQ(r, ProverResult::TRUE);
 }
