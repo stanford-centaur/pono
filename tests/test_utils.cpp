@@ -139,15 +139,9 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   }
 
   SmtSolver s = create_solver(se);
-  ProverResult r;
-  if (eng == INTERP && se == MSAT) {
-    SmtSolver interp_s = create_interpolating_solver(MSAT_INTERPOLATOR);
-    std::shared_ptr<Prover> prover = make_prover(eng, prop, fts, s, interp_s);
-    r = prover->check_until(9);
-  } else {
-    std::shared_ptr<Prover> prover = make_prover(eng, prop, fts, s);
-    r = prover->check_until(9);
-  }
+  std::shared_ptr<Prover> prover = make_prover(eng, prop, fts, s);
+  ProverResult r = prover->check_until(9);
+
   ASSERT_EQ(r, FALSE);
 }
 

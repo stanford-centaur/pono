@@ -28,8 +28,6 @@
 #endif
 
 #include "core/fts.h"
-#include "core/prop.h"
-#include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "modifiers/control_signals.h"
@@ -67,9 +65,7 @@ ProverResult check_prop(PonoOptions pono_options,
 
   std::shared_ptr<Prover> prover;
   if (pono_options.ceg_prophecy_arrays_) {
-    // don't instantiate the sub-prover directly
-    // just pass the engine to CegProphecyArrays
-    prover = std::make_shared<CegProphecyArrays>(p, ts, eng, s, pono_options);
+    prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
   } else {
     prover = make_prover(eng, p, ts, s, pono_options);
   }

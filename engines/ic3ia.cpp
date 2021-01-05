@@ -40,13 +40,15 @@ using namespace std;
 
 namespace pono {
 
-IC3IA::IC3IA(const Property & p, const TransitionSystem & ts,
-             const SmtSolver & s, const SmtSolver & itp,
+IC3IA::IC3IA(const Property & p,
+             const TransitionSystem & ts,
+             const SmtSolver & s,
              PonoOptions opt)
     : super(p, RelationalTransitionSystem(s), s, opt),
       conc_ts_(ts, to_prover_solver_),
       ia_(conc_ts_, ts_, unroller_),
-      interpolator_(itp),
+      // only mathsat interpolator supported
+      interpolator_(create_interpolating_solver(SolverEnum::MSAT_INTERPOLATOR)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
