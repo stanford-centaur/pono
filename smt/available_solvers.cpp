@@ -99,12 +99,19 @@ SmtSolver create_solver(SolverEnum se, bool logging, bool incremental,
 
 SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
 {
-  if (se != MSAT) {
+  if (se != MSAT && se != BTOR) {
     // no special options yet for solvers other than mathsat
     return create_solver(se, logging);
   }
 
   switch (se) {
+    case BTOR: {
+      SmtSolver s = create_solver(se, logging);
+      s->set_opt("base-context-1", "true");
+      return s;
+      break;
+    }
+
 #if WITH_MSAT
       // for convenience -- accept any MSAT SolverEnum
     case MSAT: {
