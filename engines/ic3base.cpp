@@ -387,8 +387,9 @@ bool IC3Base::block(const IC3Formula & c,
   // assume c'
   // going to rely on matching order between primed and c.children
   TermVec primed;
-  tmp_.clear();
   primed.reserve(c.children.size());
+  assumps_.clear();
+  assumps_.reserve(c.children.size());
   for (const auto & cc : c.children) {
     primed.push_back(ts_->next(cc));
   }
@@ -399,17 +400,17 @@ bool IC3Base::block(const IC3Formula & c,
     std::shuffle(idx.begin(), idx.end(), rng_);
 
     for (size_t i : idx) {
-      tmp_.push_back(label(primed.at(i)));
+      assumps_.push_back(label(primed.at(i)));
     }
   } else {
     for (const auto & l : primed) {
-      tmp_.push_back(label(l));
+      assumps_.push_back(label(l));
     }
   }
 
   // temporarily assert ~c
   solver_->assert_formula(ic3formula_negate(c).term);
-  Result r = check_sat_assuming(tmp_);
+  Result r = check_sat_assuming(assumps_);
   if (r.is_unsat()) {
     // relative induction succeeds. If required (out != NULL), generalize
     // ~c to a stronger clause, by looking at the literals of c' that occur
@@ -423,9 +424,9 @@ bool IC3Base::block(const IC3Formula & c,
       TermVec & candidate = out->children;
       TermVec rest;
       candidate.clear();
-      assert(c.children.size() == tmp_.size());
-      for (size_t i = 0; i < tmp_.size(); ++i) {
-        if (core.find(tmp_.at(i)) != core.end()) {
+      assert(c.children.size() == assumps_.size());
+      for (size_t i = 0; i < assumps_.size(); ++i) {
+        if (core.find(assumps_.at(i)) != core.end()) {
           candidate.push_back(c.children.at(i));
         } else {
           rest.push_back(c.children.at(i));
@@ -563,6 +564,7 @@ void IC3Base::constrain_frame(const IC3Formula & c, size_t idx)
   assert(idx < frame_labels_.size());
   assert(c.disjunction);
   assert(c.children.size());
+  assert(ts_->only_curr(c.term));
   assert(!check_intersects_initial(ic3formula_negate(c).term));
 
   // copied from msat-ic3ia (as several other functions in this branch were)
@@ -679,11 +681,12 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
       return;
     }
 
-    tmp_.clear();
+    assumps_.clear();
+    assumps_.reserve(rem.size());
     for (const auto & r : rem) {
-      tmp_.push_back(label(r));
+      assumps_.push_back(label(r));
     }
-    r = check_sat_assuming(tmp_);
+    r = check_sat_assuming(assumps_);
     assert(r.is_unsat());
     UnorderedTermSet core;
     solver_->get_unsat_core(core);
@@ -691,9 +694,9 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 
     pop_solver_context();
 
-    assert(tmp_.size() == rem.size());
+    assert(assumps_.size() == rem.size());
     for (size_t i = 0; i < rem.size(); ++i) {
-      if (core.find(tmp_.at(i)) != core.end()) {
+      if (core.find(assumps_.at(i)) != core.end()) {
         to_keep.push_back(rem.at(i));
       }
     }
@@ -929,14 +932,17 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
 {
   assert(solver_context_ == 0);
   assert(c.children.size());
+
   push_solver_context();
-  tmp_.clear();
+
+  assumps_.clear();
+  assumps_.reserve(c.children.size());
   for (const auto & l : c.children) {
-    tmp_.push_back(label(l));
+    assumps_.push_back(label(l));
   }
   Term prop = property_.prop();
   solver_->assert_formula(prop);
-  Result r = check_sat_assuming(tmp_);
+  Result r = check_sat_assuming(assumps_);
   // pretty sure this has to be unsat because it's a bad cube
   assert(r.is_unsat());
   if (r.is_unsat()) {
@@ -944,9 +950,9 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
     solver_->get_unsat_core(core);
     assert(core.size());
     TermVec cube_lits;
-    assert(tmp_.size() == c.children.size());
-    for (size_t i = 0; i < tmp_.size(); ++i) {
-      if (core.find(tmp_.at(i)) != core.end()) {
+    assert(assumps_.size() == c.children.size());
+    for (size_t i = 0; i < assumps_.size(); ++i) {
+      if (core.find(assumps_.at(i)) != core.end()) {
         cube_lits.push_back(c.children.at(i));
       }
     }

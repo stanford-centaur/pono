@@ -557,6 +557,11 @@ class IC3Base : public Prover
   // temporary storage used by generalization methods
   smt::TermVec tmp_;
 
+  // temporary storage used for assumptions
+  // be careful with this, don't want subprocedures
+  // to modify the same data structure
+  smt::TermVec assumps_;
+
   // TODO try a regular set instead of unordered?
   smt::UnorderedTermSet gen_needed_;
   ///< set of literals that cannot be dropped from the current cube. used in
