@@ -57,9 +57,9 @@ TEST_P(IC3SAUnitTests, SimpleSystemSafe)
   Term v = ts.named_terms().at("v");
   Term one = ts.make_term(1, ts.make_sort(BV, 8));
 
-  Property p(ts, ts.make_term(Distinct, ts.make_term(BVAdd, u, v), one));
+  Property p(s, s->make_term(Distinct, ts.make_term(BVAdd, u, v), one));
 
-  IC3SA ic3sa(p, s);
+  IC3SA ic3sa(p, ts, s);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::TRUE);
   ASSERT_TRUE(check_invar(ts, p.prop(), ic3sa.invar()));
@@ -74,11 +74,11 @@ TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)
   Sort bvsort8 = ts.make_sort(BV, 8);
 
   Property p(
-      ts,
-      ts.make_term(
+      s,
+      s->make_term(
           Distinct, ts.make_term(BVAdd, u, v), ts.make_term(10, bvsort8)));
 
-  IC3SA ic3sa(p, s);
+  IC3SA ic3sa(p, ts, s);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
 }

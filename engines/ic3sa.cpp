@@ -59,9 +59,13 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
 
 // main IC3SA implementation
 
-IC3SA::IC3SA(Property & p, const smt::SmtSolver & solver, PonoOptions opt)
-    : super(p, solver, opt), fcoi_(*ts_, 0)
+IC3SA::IC3SA(const Property & p,
+             const TransitionSystem & ts,
+             const smt::SmtSolver & solver,
+             PonoOptions opt)
+    : super(p, ts, solver, opt), fcoi_(ts_, 0)
 {
+  engine_ = Engine::IC3SA_ENGINE;
 }
 
 IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
@@ -78,20 +82,20 @@ IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
   }
 
   // TODO make sure that projecting on state variables here makes sense
-  EquivalenceClasses ec = get_equivalence_classes_from_model(ts_->statevars());
+  EquivalenceClasses ec = get_equivalence_classes_from_model(ts_.statevars());
   construct_partition(ec, cube_lits);
   IC3Formula cube = ic3formula_conjunction(cube_lits);
   assert(ic3formula_check_valid(cube));
 
   if (out_nexts) {
-    for (const auto & sv : ts_->statevars()) {
+    for (const auto & sv : ts_.statevars()) {
       out_nexts->push_back(
           solver_->make_term(Equal, sv, solver_->get_value(sv)));
     }
   }
 
   if (out_inputs) {
-    for (const auto & iv : ts_->inputvars()) {
+    for (const auto & iv : ts_.inputvars()) {
       out_inputs->push_back(
           solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
@@ -150,13 +154,13 @@ IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
   // compute cone-of-influence of target c
   fcoi_.compute_coi({ c.term });
   const UnorderedTermSet & coi_symbols = fcoi_.statevars_in_coi();
-  assert(coi_symbols.size() <= ts_->statevars().size());
+  assert(coi_symbols.size() <= ts_.statevars().size());
 
   logger.log(
       2,
       "IC3SA::generalize_predecessor projecting on {}/{} state variables",
       coi_symbols.size(),
-      ts_->statevars().size());
+      ts_.statevars().size());
 
   TermVec cube_lits;
 
@@ -193,16 +197,14 @@ void IC3SA::check_ts() const
   // TODO: add option to promote all inputs to be state vars
   // TODO: add support for arrays
 
-  for (const auto & sv : ts_->statevars())
-  {
+  for (const auto & sv : ts_.statevars()) {
     SortKind sk = sv->get_sort()->get_sort_kind();
     if (sk != BOOL && sk != BV)
     {
       throw PonoException("IC3SA currently only supports bit-vectors");
     }
   }
-  for (const auto & iv : ts_->inputvars())
-  {
+  for (const auto & iv : ts_.inputvars()) {
     SortKind sk = iv->get_sort()->get_sort_kind();
     if (sk != BOOL && sk != BV)
     {
@@ -226,7 +228,7 @@ RefineResult IC3SA::refine()
   while (tmp) {
     cex.push_back(tmp->target);
     assert(!tmp->target.disjunction);  // expecting a conjunction
-    assert(ts_->only_curr(tmp->target.term));
+    assert(ts_.only_curr(tmp->target.term));
     tmp = tmp->next;
   }
 
@@ -238,7 +240,7 @@ RefineResult IC3SA::refine()
     return REFINE_NONE;
   }
 
-  const UnorderedTermMap & state_updates = ts_->state_updates();
+  const UnorderedTermMap & state_updates = ts_.state_updates();
 
   // used to get rid of "unrolled" variables
   // after successfully refining
@@ -249,8 +251,8 @@ RefineResult IC3SA::refine()
 
   // assumps is for p_{i-1} /\ c_{i-1} /\ c_i' from paper
   TermVec assumps(cex[0].children.begin(), cex[0].children.end());
-  assumps.push_back(ts_->init());
-  Term trans = ts_->trans();
+  assumps.push_back(ts_.init());
+  Term trans = ts_.trans();
   Result r;
   bool refined = false;
   Term axiom;
@@ -258,7 +260,7 @@ RefineResult IC3SA::refine()
     // add ci'
     // TODO use substitute_terms to save time when copying map
     for (const auto & c : cex[i].children) {
-      assumps.push_back(ts_->next(c));
+      assumps.push_back(ts_.next(c));
     }
 
     assert(solver_context_ == 0);
@@ -298,21 +300,21 @@ RefineResult IC3SA::refine()
       // instead of sv -> state_update, maps sv' -> state_update
       UnorderedTermMap next_updates;
       for (const auto & elem : state_updates) {
-        next_updates[ts_->next(elem.first)] = elem.second;
+        next_updates[ts_.next(elem.first)] = elem.second;
       }
       // replace next-state variables with functional substitution
       m = solver_->substitute(m, next_updates);
 
       axiom = solver_->make_term(Not, m);
-      assert(ts_->no_next(axiom));
-      ts_->add_constraint(axiom);
+      assert(ts_.no_next(axiom));
+      ts_.add_constraint(axiom);
       logger.log(2, "IC3SA::refine learning axiom: {}", axiom);
 
       // add all state variables to projection set
       UnorderedTermSet free_vars;
       get_free_symbolic_consts(axiom, free_vars);
       for (const auto & fv : free_vars) {
-        if (ts_->is_curr_var(fv)) {
+        if (ts_.is_curr_var(fv)) {
           projection_set_.insert(fv);
         }
       }
@@ -330,9 +332,9 @@ RefineResult IC3SA::refine()
       assert(axiom);
       assert(solver_context_ == 0);
       solver_->assert_formula(solver_->make_term(Implies, trans_label_, axiom));
-      if (ts_->only_curr(axiom)) {
+      if (ts_.only_curr(axiom)) {
         solver_->assert_formula(
-            solver_->make_term(Implies, trans_label_, ts_->next(axiom)));
+            solver_->make_term(Implies, trans_label_, ts_.next(axiom)));
       }
       break;
     }
@@ -428,27 +430,27 @@ void IC3SA::initialize()
   // containing input variables from IC3Formulas
   // because of destructive update, get copy of input variables first
   // TODO: decide whether to include this or not
-  // UnorderedTermSet inputvars = ts_->inputvars();
+  // UnorderedTermSet inputvars = ts_.inputvars();
   // for (const auto & iv : inputvars) {
-  //   ts_->promote_inputvar(iv);
+  //   ts_.promote_inputvar(iv);
   // }
   // TODO with change above, don't need to check only_curr everywhere
   // technically should remove those checks (or at least guard with an assert)
-  // assert(!ts_->inputvars().size());
+  // assert(!ts_.inputvars().size());
 
   // set up initial term abstraction by getting all subterms
   // TODO consider starting with only a subset -- e.g. variables
   // TODO consider keeping a cache from terms to their free variables
   //      for use in COI
 
-  // TODO make it an option to add ts_->trans()
+  // TODO make it an option to add ts_.trans()
   // TODO make sure projecting on state variables is right
   // I think we'll always project models onto at least state variables
   // so, we should prune those terms now
   // otherwise we'll do unnecessary iteration over them every time we get a
   // model
-  add_to_term_abstraction(ts_->init());
-  add_to_term_abstraction(ts_->trans());
+  add_to_term_abstraction(ts_.init());
+  add_to_term_abstraction(ts_.trans());
   add_to_term_abstraction(bad_);
 
   Sort boolsort = solver_->make_sort(BOOL);
@@ -492,9 +494,9 @@ TermVec IC3SA::symbolic_post_image(size_t i,
     last_model_vals[elem.second] = val;
   }
 
-  const UnorderedTermMap & state_updates = ts_->state_updates();
+  const UnorderedTermMap & state_updates = ts_.state_updates();
   // update state variables value
-  for (const auto & sv : ts_->statevars()) {
+  for (const auto & sv : ts_.statevars()) {
     if (state_updates.find(sv) != state_updates.end()) {
       subst[sv] = solver_->get_value(sv);
     } else {
@@ -505,7 +507,7 @@ TermVec IC3SA::symbolic_post_image(size_t i,
   // TODO: can probably combine this with one of the other loops
   TermVec svs;
   TermVec subst_updates;
-  for (const auto & sv : ts_->statevars()) {
+  for (const auto & sv : ts_.statevars()) {
     if (state_updates.find(sv) != state_updates.end()) {
       svs.push_back(sv);
       subst_updates.push_back(state_updates.at(sv));
@@ -529,16 +531,16 @@ TermVec IC3SA::symbolic_post_image(size_t i,
 
 void IC3SA::gen_inputvars_at_time(size_t i)
 {
-  const UnorderedTermMap & state_updates = ts_->state_updates();
+  const UnorderedTermMap & state_updates = ts_.state_updates();
   while (inputvars_at_time_.size() <= i) {
     inputvars_at_time_.push_back(UnorderedTermMap());
     UnorderedTermMap & subst = inputvars_at_time_.back();
-    for (const auto & v : ts_->inputvars()) {
+    for (const auto & v : ts_.inputvars()) {
       subst[v] = solver_->make_symbol(v->to_string() + "@" + std::to_string(i),
                                       v->get_sort());
     }
 
-    for (auto const & v : ts_->statevars()) {
+    for (auto const & v : ts_.statevars()) {
       if (state_updates.find(v) == state_updates.end()) {
         subst[v] = solver_->make_symbol(
             v->to_string() + "@" + std::to_string(i), v->get_sort());
@@ -671,7 +673,7 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
     //      but ran into issues when I removed it because predicate
     //      values have to be included and currently we're not adding
     //      all possible equalities / disequalities
-    if (ts_->only_curr(p)) {
+    if (ts_.only_curr(p)) {
       new_terms |= predset_.insert(p).second;
     }
   }
@@ -681,7 +683,7 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
       // TODO : figure out if we need to promote all input vars
       //        for this algorithm to work
       //        not sure it's okay to just drop terms containing inputs
-      if (ts_->only_curr(term)) {
+      if (ts_.only_curr(term)) {
         new_terms |= term_abstraction_[elem.first].insert(term).second;
       }
     }

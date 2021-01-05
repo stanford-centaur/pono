@@ -36,7 +36,8 @@ using EquivalenceClasses =
 class IC3SA : public IC3
 {
  public:
-  IC3SA(Property & p,
+  IC3SA(const Property & p,
+        const TransitionSystem & ts,
         const smt::SmtSolver & solver,
         PonoOptions opt = PonoOptions());
 

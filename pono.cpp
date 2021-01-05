@@ -112,7 +112,7 @@ ProverResult check_prop(PonoOptions pono_options,
 
   if (r == TRUE && pono_options.check_invar_ && invar) {
     try {
-      bool invar_passes = check_invar(p.transition_system(), p.prop(), invar);
+      bool invar_passes = check_invar(ts, p.prop(), invar);
       std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
                 << std::endl;
       if (!invar_passes) {

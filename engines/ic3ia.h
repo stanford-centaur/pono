@@ -54,7 +54,7 @@ class IC3IA : public IC3
   //       because we will pass them to ia_ and they must be
   //       be initialized first
 
-  TransitionSystem conc_ts_; 
+  TransitionSystem conc_ts_;
 
   ImplicitPredicateAbstractor ia_;
 

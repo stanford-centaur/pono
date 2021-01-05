@@ -37,9 +37,7 @@ namespace pono {
 
 vector<Engine> all_engines()
 {
-  return {
-    BMC, BMC_SP, KIND, INTERP, MBIC3, IC3IA_ENGINE,
-  };
+  return { BMC, BMC_SP, KIND, INTERP, MBIC3, IC3IA_ENGINE, IC3SA_ENGINE };
 }
 
 shared_ptr<Prover> make_prover(Engine e,
@@ -75,7 +73,7 @@ shared_ptr<Prover> make_prover(Engine e,
     return make_shared<MsatIC3IA>(p, ts, slv, opts);
 #endif
   } else if (e == IC3SA_ENGINE) {
-    return make_shared<IC3SA>(p, slv, opts);
+    return make_shared<IC3SA>(p, ts, slv, opts);
   } else {
     throw PonoException("Unhandled engine");
   }
@@ -108,10 +106,12 @@ shared_ptr<Prover> make_ceg_proph_prover(Engine e,
 #ifdef WITH_MSAT_IC3IA
   else if (e == MSAT_IC3IA) {
     return std::make_shared<CegProphecyArrays<MsatIC3IA>>(p, ts, slv, opts);
-}
+  }
 #endif
- else {
-   throw PonoException("Unhandled engine");
+  else if (e == IC3SA_ENGINE) {
+    return std::make_shared<CegProphecyArrays<IC3SA>>(p, ts, slv, opts);
+  } else {
+    throw PonoException("Unhandled engine");
   }
 }
 

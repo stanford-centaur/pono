@@ -17,21 +17,21 @@
 **
 **/
 
-#include <map>
-#include "assert.h"
-
 #include "engines/ceg_prophecy_arrays.h"
-#include "utils/logger.h"
-#include "utils/make_provers.h"
 
-#include "smt/available_solvers.h"
+#include <map>
 
+#include "assert.h"
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ic3ia.h"
+#include "engines/ic3sa.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
+#include "smt/available_solvers.h"
+#include "utils/logger.h"
+#include "utils/make_provers.h"
 
 #ifdef WITH_MSAT_IC3IA
 #include "engines/msat_ic3ia.h"
@@ -469,6 +469,7 @@ template class CegProphecyArrays<KInduction>;
 template class CegProphecyArrays<InterpolantMC>;
 template class CegProphecyArrays<ModelBasedIC3>;
 template class CegProphecyArrays<IC3IA>;
+template class CegProphecyArrays<IC3SA>;
 
 #ifdef WITH_MSAT_IC3IA
 template class CegProphecyArrays<MsatIC3IA>;
