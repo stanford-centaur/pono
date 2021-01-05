@@ -674,6 +674,8 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
     solver_->assert_formula(make_and(to_keep));
     Result r = check_sat();
     if (r.is_unsat()) {
+      pop_solver_context();
+      assert(!solver_context_);
       return;
     }
 
@@ -698,6 +700,8 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
   } else {
     assert(!check_intersects_initial(make_and(to_keep)));
   }
+
+  assert(!solver_context_);
 }
 
 size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
