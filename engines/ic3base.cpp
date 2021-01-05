@@ -906,10 +906,7 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
   UnorderedTermMap label_to_term;
   TermVec assumps;
   for (const auto & l : c.children) {
-    Term lbl = label(l);
-    label_to_term[lbl] = l;
-    assumps.push_back(lbl);
-    solver_->assert_formula(solver_->make_term(Implies, lbl, l));
+    assumps.push_back(l);
   }
   push_solver_context();
   Term prop = property_.prop();
@@ -927,8 +924,8 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
         });
     assumps.resize(it - assumps.begin());
     TermVec cube_lits;
-    for (const auto & lbl : assumps) {
-      cube_lits.push_back(label_to_term.at(lbl));
+    for (const auto & l : assumps) {
+      cube_lits.push_back(l);
     }
     c = ic3formula_conjunction(cube_lits);
   }
