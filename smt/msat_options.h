@@ -13,6 +13,9 @@
 **
 **
 **/
+#pragma once
+
+#ifdef WITH_MSAT
 
 #include "mathsat.h"
 
@@ -77,3 +80,5 @@ msat_config get_msat_config_for_ic3(bool interp)
   return cfg;
 }
 }  // namespace pono
+
+#endif
