@@ -116,7 +116,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
   }
 
   size_t n = out.size();
-  reducer_.reduce_assump_unsatcore(formula, assumps, red_assumps);
+  reducer_.reduce_assump_unsatcore(formula, assumps, red_assumps, nullptr, 1);
   for (const auto &a : red_assumps) {
     out.push_back(assumps_to_pred.at(a));
   }
