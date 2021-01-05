@@ -19,7 +19,7 @@
 #include "core/prop.h"
 #include "core/proverresult.h"
 #include "core/ts.h"
-#include "core/unroller.h"
+#include "core/adaptive_unroller.h"
 #include "options/options.h"
 
 #include "smt-switch/smt.h"
@@ -96,7 +96,7 @@ class Prover
 
   TransitionSystem ts_;
 
-  Unroller unroller_;
+  AdaptiveUnroller unroller_;
 
   int reached_k_;
 

@@ -18,6 +18,7 @@
 
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
+#include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
@@ -69,6 +70,40 @@ shared_ptr<Prover> make_prover(Engine e,
 #endif
   } else {
     throw PonoException("Unhandled engine");
+  }
+}
+
+shared_ptr<Prover> make_ceg_proph_prover(Engine e,
+                                         const Property & p,
+                                         const TransitionSystem & ts,
+                                         const SmtSolver & slv,
+                                         PonoOptions opts)
+{
+  if (e == BMC) { 
+    return std::make_shared<CegProphecyArrays<Bmc>>(p, ts, slv, opts);
+  } else if (e == BMC_SP) {
+    return std::make_shared<CegProphecyArrays<BmcSimplePath>>(p, ts, slv, opts);
+  } else if (e == KIND) {
+    return std::make_shared<CegProphecyArrays<KInduction>>(p, ts, slv, opts);
+  } else if (e == INTERP) {
+    return std::make_shared<CegProphecyArrays<InterpolantMC>>(p, ts, slv, opts);
+  } else if (e == MBIC3) {
+    return std::make_shared<CegProphecyArrays<ModelBasedIC3>>(p, ts, slv, opts);
+  } else if (e == IC3IA_ENGINE) {
+#ifdef WITH_MSAT
+    return std::make_shared<CegProphecyArrays<IC3IA>>(p, ts, slv, opts);
+#else
+    throw PonoException(
+        "IC3IA uses MathSAT for interpolants, but not built with MathSAT");
+#endif
+  }
+#ifdef WITH_MSAT_IC3IA
+  else if (e == MSAT_IC3IA) {
+    return std::make_shared<CegProphecyArrays<MsatIC3IA>>(p, ts, slv, opts);
+}
+#endif
+ else {
+   throw PonoException("Unhandled engine");
   }
 }
 
