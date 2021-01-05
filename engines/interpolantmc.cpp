@@ -26,15 +26,18 @@ using namespace smt;
 
 namespace pono {
 
-InterpolantMC::InterpolantMC(Property & p,
+InterpolantMC::InterpolantMC(const Property & p,
+                             const TransitionSystem & ts,
                              const SmtSolver & slv,
-                             const SmtSolver & itp,
                              PonoOptions opt)
-    : super(p, slv, opt),
-      interpolator_(itp),
+    : super(p, ts, slv, opt),
+      // only mathsat interpolator supported
+      interpolator_(create_interpolating_solver_for(
+          SolverEnum::MSAT_INTERPOLATOR, Engine::INTERP)),
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {
+  engine_ = Engine::INTERP;
 }
 
 InterpolantMC::~InterpolantMC() {}
@@ -55,11 +58,11 @@ void InterpolantMC::initialize()
   // B)
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term tmp1;
-  for (auto s : ts_->statevars()) {
+  for (const auto & s : ts_.statevars()) {
     tmp1 = unroller_.at_time(s, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
-  for (auto i : ts_->inputvars()) {
+  for (const auto & i : ts_.inputvars()) {
     tmp1 = unroller_.at_time(i, 1);
     cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
   }
@@ -67,17 +70,17 @@ void InterpolantMC::initialize()
   // need to copy over UF as well
   UnorderedTermSet free_symbols;
   get_free_symbols(bad_, free_symbols);
-  get_free_symbols(ts_->init(), free_symbols);
-  get_free_symbols(ts_->trans(), free_symbols);
-  for (auto s : free_symbols) {
+  get_free_symbols(ts_.init(), free_symbols);
+  get_free_symbols(ts_.trans(), free_symbols);
+  for (const auto & s : free_symbols) {
     if (s->get_sort()->get_sort_kind() == FUNCTION) {
       cache[to_interpolator_.transfer_term(s)] = s;
     }
   }
 
   concrete_cex_ = false;
-  init0_ = unroller_.at_time(ts_->init(), 0);
-  transA_ = unroller_.at_time(ts_->trans(), 0);
+  init0_ = unroller_.at_time(ts_.init(), 0);
+  transA_ = unroller_.at_time(ts_.trans(), 0);
   transB_ = solver_->make_term(true);
   bad_disjuncts_ = solver_->make_term(false);
 }
@@ -179,8 +182,7 @@ bool InterpolantMC::step(int i)
   // transB can't have any symbols from time 0 in it
   assert(i > 0);
   // extend the unrolling
-  transB_ =
-      solver_->make_term(And, transB_, unroller_.at_time(ts_->trans(), i));
+  transB_ = solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
   ++reached_k_;
 
   return false;

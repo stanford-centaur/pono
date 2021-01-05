@@ -23,13 +23,15 @@ namespace pono {
 std::vector<Engine> all_engines();
 
 std::shared_ptr<Prover> make_prover(Engine e,
-                                    Property & p,
-                                    smt::SmtSolver & slv,
+                                    const Property & p,
+                                    const TransitionSystem & ts,
+                                    const smt::SmtSolver & slv,
                                     PonoOptions opts = PonoOptions());
 
-std::shared_ptr<Prover> make_prover(Engine e,
-                                    Property & p,
-                                    smt::SmtSolver & slv,
-                                    smt::SmtSolver & itp,
-                                    PonoOptions opts = PonoOptions());
+std::shared_ptr<Prover> make_ceg_proph_prover(Engine e,
+                                              const Property & p,
+                                              const TransitionSystem & ts,
+                                              const smt::SmtSolver & slv,
+                                              PonoOptions opts = PonoOptions());
+
 }  // namespace pono

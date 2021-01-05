@@ -27,17 +27,18 @@
 
 #if WITH_MSAT
 #include "smt-switch/msat_factory.h"
-#endif
-
-#if WITH_YICES2
-#include "smt-switch/yices2_factory.h"
-#endif
 
 // these are for setting specific options
 // e.g. in create_solver_for
 #include "smt-switch/logging_solver.h"
 #include "smt-switch/msat_solver.h"
 #include "smt/msat_options.h"
+
+#endif
+
+#if WITH_YICES2
+#include "smt-switch/yices2_factory.h"
+#endif
 
 using namespace smt;
 using namespace std;
@@ -114,6 +115,8 @@ SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
     // e.g. pred1 <-> p(X, Y)
     // then pred1 will be substituted for and no longer be
     // a symbol which causes problems for substitution, etc.
+    // TODO adjust this based on whether we settle on using
+    // variables for predicates in ic3ia
     SmtSolver s = create_solver(se, logging);
     s->set_opt("base-context-1", "true");
     return s;

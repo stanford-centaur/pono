@@ -2,7 +2,7 @@
 /*! \file mod_init_prop.h
 ** \verbatim
 ** Top contributors (to current version):
-**   Makai Mann
+**   Makai Mann, Ahmed Irfan
 ** This file is part of the pono project.
 ** Copyright (c) 2019 by the authors listed in the file AUTHORS
 ** in the top-level source directory) and their institutional affiliations.
@@ -14,36 +14,36 @@
 **
 **/
 
+#pragma once
+
 #include "core/ts.h"
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 
-using namespace std;
-using namespace smt;
-
 namespace pono {
 
-Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
+smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
 {
   logger.log(1, "Modifying init and prop");
 
   // copy constraints from before we start modifying the system
-  TermVec constraints = ts.constraints();
+  smt::TermVec constraints = ts.constraints();
 
   // replace prop if it's not already a literal
-  Sort boolsort = ts.make_sort(BOOL);
-  Term new_prop = prop;
+  smt::Sort boolsort = ts.make_sort(smt::BOOL);
+  smt::Term new_prop = prop;
   if (!is_lit(prop, boolsort)) {
     new_prop = ts.make_statevar("__propvar", boolsort);
     ts.assign_next(new_prop, prop);
   }
 
   // replace initial states
-  Term initstate1 = ts.make_statevar("__initstate1", ts.make_sort(BOOL));
+  smt::Term initstate1 =
+      ts.make_statevar("__initstate1", ts.make_sort(smt::BOOL));
 
-  Term init = ts.init();
-  TermVec init_constraints;
+  smt::Term init = ts.init();
+  smt::TermVec init_constraints;
   conjunctive_partition(init, init_constraints, true);
 
   ts.set_init(initstate1);
@@ -53,7 +53,7 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
     // TODO possibly refactor constraints so next state versions aren't
     // automatically added
     if (ts.no_next(c)) {
-      ts.add_constraint(ts.make_term(Implies, initstate1, c), false);
+      ts.add_constraint(ts.make_term(smt::Implies, initstate1, c), false);
     }
   }
 
@@ -62,7 +62,7 @@ Term modify_init_and_prop(TransitionSystem & ts, const Term & prop)
 
   // add initial state constraints for initstate1
   for (const auto & ic : init_constraints) {
-    ts.add_constraint(ts.make_term(Implies, initstate1, ic), false);
+    ts.add_constraint(ts.make_term(smt::Implies, initstate1, ic), false);
   }
 
   return new_prop;

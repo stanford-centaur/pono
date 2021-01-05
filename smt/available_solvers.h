@@ -41,7 +41,7 @@ smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);
 
 // same as create_interpolating_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
-smt::SmtSolver create_interpolating_solver(smt::SolverEnum se, Engine e);
+smt::SmtSolver create_interpolating_solver_for(smt::SolverEnum se, Engine e);
 
 // collect all the available solvers
 std::vector<smt::SolverEnum> available_solver_enums();

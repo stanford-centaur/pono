@@ -67,22 +67,25 @@ static void split_eq(SmtSolver & solver, const TermVec & in, TermVec & out)
   }
 }
 
-ModelBasedIC3::ModelBasedIC3(Property & p, const SmtSolver & slv,
+ModelBasedIC3::ModelBasedIC3(const Property & p,
+                             const TransitionSystem & ts,
+                             const SmtSolver & slv,
                              PonoOptions opt)
-  : super(p, slv, opt)
+    : super(p, ts, slv, opt)
 {
+  engine_ = Engine::MBIC3;
   solver_->set_opt("produce-unsat-cores", "true");
 }
 
 IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
-                                                TermVec * out_nexts) const
+                                               TermVec * out_nexts) const
 {
   DisjointSet ds(disjoint_set_rank);
   TermVec cube_lits;
-  const UnorderedTermSet & statevars = ts_->statevars();
+  const UnorderedTermSet & statevars = ts_.statevars();
 
   if (out_inputs) {
-    out_inputs->reserve(ts_->inputvars().size());
+    out_inputs->reserve(ts_.inputvars().size());
   }
   if (out_nexts) {
     out_nexts->reserve(statevars.size());
@@ -92,10 +95,10 @@ IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
     ds.add(v, val);
-    assert(ts_->is_curr_var(v));
+    assert(ts_.is_curr_var(v));
 
     if (out_nexts) {
-      Term nv = ts_->next(v);
+      Term nv = ts_.next(v);
       out_nexts->push_back(
           solver_->make_term(Equal, nv, solver_->get_value(nv)));
     }
@@ -110,7 +113,7 @@ IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (const auto &iv : ts_->inputvars()) {
+    for (const auto & iv : ts_.inputvars()) {
       out_inputs->push_back(
           solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
@@ -239,22 +242,22 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
     } else if (options_.mbic3_indgen_mode == 1) {
       TermVec tmp, lits, red_lits;
       for (const auto &a : c.children) {
-        tmp.push_back(ts_->next(a));
+        tmp.push_back(ts_.next(a));
       }
       split_eq(solver_, tmp, lits);
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({ get_frame_term(i - 1),
-                                ts_->trans(),
+                                ts_.trans(),
                                 solver_->make_term(Not, c.term) });
-      formula = solver_->make_term(Or, formula, ts_->next(ts_->init()));
+      formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
       reducer_.reduce_assump_unsatcore(formula, lits, red_lits, NULL,
                                        options_.ic3_gen_max_iter_,
                                        options_.random_seed_);
       TermVec curr_lits;
       curr_lits.reserve(red_lits.size());
       for (const auto &l : red_lits) {
-        curr_lits.push_back(ts_->curr(l));
+        curr_lits.push_back(ts_.curr(l));
       }
       gen_res.push_back(ic3formula_negate(ic3formula_conjunction(curr_lits)));
     } else if (options_.mbic3_indgen_mode == 2) {
@@ -266,15 +269,15 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
 
       // ( (frame /\ trans /\ not(c)) \/ init') /\ c' is unsat
       Term formula = make_and({ get_frame_term(i - 1),
-                                ts_->trans(),
+                                ts_.trans(),
                                 solver_->make_term(Not, make_and(conjuncts)) });
-      formula = solver_->make_term(Or, formula, ts_->next(ts_->init()));
+      formula = solver_->make_term(Or, formula, ts_.next(ts_.init()));
 
       Term int_A = to_interpolator_->transfer_term(formula, BOOL);
       // still use c in B
       // only split equalities in A to encourage more general unsat proofs /
       // interpolants
-      Term int_B = to_interpolator_->transfer_term(ts_->next(c.term), BOOL);
+      Term int_B = to_interpolator_->transfer_term(ts_.next(c.term), BOOL);
 
       Term interp;
       Result r = interpolator_->get_interpolant(int_A, int_B, interp);
@@ -290,7 +293,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
         // a single formula, {c} from the conjunctive partition of the
         // interpolant
         // --> interpolant not guaranteed to be a clause
-        gen_res.push_back(ic3formula_disjunction({ ts_->curr(c) }));
+        gen_res.push_back(ic3formula_disjunction({ ts_.curr(c) }));
       }
 
     } else {
@@ -308,7 +311,7 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
                                   // reducer_
   DisjointSet ds(disjoint_set_rank);
   UnorderedTermMap model;
-  const UnorderedTermSet & statevars = ts_->statevars();
+  const UnorderedTermSet & statevars = ts_.statevars();
 
   TermVec cube_lits;
   cube_lits.reserve(statevars.size());
@@ -319,12 +322,12 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
     ds.add(v, val);
-    assert(ts_->is_curr_var(v));
+    assert(ts_.is_curr_var(v));
     assert(model.find(v) == model.end());
     model[v] = val;
 
-    Term nv = ts_->next(v);
-    assert(ts_->is_next_var(nv));
+    Term nv = ts_.next(v);
+    assert(ts_.is_next_var(nv));
     Term next_val = solver_->get_value(nv);
     next_lits.push_back(solver_->make_term(Equal, nv, next_val));
     assert(model.find(nv) == model.end());
@@ -332,7 +335,7 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
   }
 
   // collect input assignments
-  const UnorderedTermSet & inputvars = ts_->inputvars();
+  const UnorderedTermSet & inputvars = ts_.inputvars();
   TermVec input_lits;
   input_lits.reserve(inputvars.size());
   for (const auto &v : inputvars) {
@@ -364,14 +367,14 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
     Term formula = make_and(input_lits);
 
-    if (ts_->is_deterministic()) {
+    if (ts_.is_deterministic()) {
       // NOTE: reducer doesn't have semantics for trans_label_
       // better to just use whole trans for now
       // Optionally in the future we could add those semantics
       // to the reducer_'s solver
-      formula = solver_->make_term(And, formula, ts_->trans());
+      formula = solver_->make_term(And, formula, ts_.trans());
       formula = solver_->make_term(
-          And, formula, solver_->make_term(Not, ts_->next(c.term)));
+          And, formula, solver_->make_term(Not, ts_.next(c.term)));
     } else {
       formula = solver_->make_term(And, formula, make_and(next_lits));
 
@@ -383,10 +386,10 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
       // the implication could be more efficient than iff so we want to leave it
       // that way
       Term pre_formula = get_frame_term(i - 1);
-      pre_formula = solver_->make_term(And, pre_formula, ts_->trans());
+      pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
       pre_formula =
           solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));
-      pre_formula = solver_->make_term(And, pre_formula, ts_->next(c.term));
+      pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term));
 
       formula = solver_->make_term(
           And, formula, solver_->make_term(Not, pre_formula));
@@ -406,14 +409,14 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     res = ic3formula_conjunction(red_cube_lits);
 
   } else if (options_.ic3_pregen_ && options_.ic3_functional_preimage_) {
-    assert(ts_->is_deterministic());
+    assert(ts_.is_deterministic());
 
     UnorderedTermMap m;
     for (const auto &v : inputvars) {
       m[v] = model.at(v);
     }
     for (const auto &v : statevars) {
-      Term nv = ts_->next(v);
+      Term nv = ts_.next(v);
       m[nv] = model.at(nv);
     }
 
@@ -469,18 +472,18 @@ void ModelBasedIC3::initialize()
 
   // only need interpolator infrastructure for mode 2 (interpolation)
   if (options_.mbic3_indgen_mode == 2) {
-    interpolator_ = create_interpolating_solver(MSAT_INTERPOLATOR);
+    interpolator_ = create_interpolating_solver_for(MSAT_INTERPOLATOR, engine_);
     to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
     to_solver_ = std::make_unique<TermTranslator>(solver_);
 
     UnorderedTermMap & cache = to_solver_->get_cache();
     Term ns;
-    for (const auto &s : ts_->statevars()) {
+    for (const auto & s : ts_.statevars()) {
       // common variables are next states, unless used for refinement in IC3IA
       // then will refer to current state variables after untiming
       // need to cache both
       cache[to_interpolator_->transfer_term(s)] = s;
-      ns = ts_->next(s);
+      ns = ts_.next(s);
       cache[to_interpolator_->transfer_term(ns)] = ns;
     }
 
@@ -489,8 +492,8 @@ void ModelBasedIC3::initialize()
     // NOTE need to use get_free_symbols NOT get_free_symbolic_consts
     // because the latter ignores uninterpreted functions
     UnorderedTermSet free_symbols;
-    get_free_symbols(ts_->init(), free_symbols);
-    get_free_symbols(ts_->trans(), free_symbols);
+    get_free_symbols(ts_.init(), free_symbols);
+    get_free_symbols(ts_.trans(), free_symbols);
     get_free_symbols(bad_, free_symbols);
 
     for (const auto &s : free_symbols) {

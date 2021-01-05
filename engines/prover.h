@@ -16,12 +16,11 @@
 
 #pragma once
 
+#include "core/adaptive_unroller.h"
 #include "core/prop.h"
 #include "core/proverresult.h"
 #include "core/ts.h"
-#include "core/unroller.h"
 #include "options/options.h"
-
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -39,7 +38,9 @@ enum RefineResult
 class Prover
 {
  public:
-  Prover(Property & p, const smt::SmtSolver & s,
+  Prover(const Property & p,
+         const TransitionSystem & ts,
+         const smt::SmtSolver & s,
          PonoOptions opt = PonoOptions());
 
   virtual ~Prover();
@@ -89,28 +90,23 @@ class Prover
 
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
-  Property property_;
-  TransitionSystem *
-      ts_;  ///< pointer to main transition system
-            ///< by default this is the one in property_
-            ///< however, this can change depending on the engine
-            ///< for example, a CEGAR technique will usually
-            ///< set the main ts_ to be the abstraction, and
-            ///< and keep a reference to the concrete transition system
-            ///< Additionally, the pointed-to transition system is NOT
-            ///< guaranteed to be fully initialized in the constructor
-            ///< of the engine
-            ///< this is because abstraction might not happen until later
-  const TransitionSystem &
-      orig_ts_;  ///< reference to original TS before copied to new solver
 
-  Unroller unroller_;
+  Property orig_property_;    ///< original property before copied to new solver
+  TransitionSystem orig_ts_;  ///< original TS before copied to new solver
+
+  TransitionSystem ts_;
+
+  AdaptiveUnroller unroller_;
 
   int reached_k_;
+
+  // TODO: add engine enum
 
   smt::Term bad_;
 
   PonoOptions options_;
+
+  Engine engine_;
 
   // NOTE: both witness_ and invar_ are use terms from the engine's solver
 

@@ -40,8 +40,9 @@ class IC3IA : public IC3
  public:
   // itp_se is the SolverEnum for the interpolator
 
-
-  IC3IA(Property & p, const smt::SmtSolver & s, smt::SmtSolver itp,
+  IC3IA(const Property & p,
+        const TransitionSystem & ts,
+        const smt::SmtSolver & s,
         PonoOptions opt = PonoOptions());
 
   virtual ~IC3IA() {}
@@ -53,12 +54,7 @@ class IC3IA : public IC3
   //       because we will pass them to ia_ and they must be
   //       be initialized first
 
-  TransitionSystem & conc_ts_;  ///< convenient reference to the concrete ts
-
-  RelationalTransitionSystem abs_ts_;  ///< the abstract ts
-                                       ///< after initialize, ts_ will point to
-                                       ///< this because the methods from IC3
-                                       ///< should operate on the abstraction
+  TransitionSystem conc_ts_;
 
   ImplicitPredicateAbstractor ia_;
 

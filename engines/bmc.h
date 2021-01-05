@@ -23,7 +23,9 @@ namespace pono {
 class Bmc : public Prover
 {
  public:
-  Bmc(Property & p, const smt::SmtSolver & solver,
+  Bmc(const Property & p,
+      const TransitionSystem & ts,
+      const smt::SmtSolver & solver,
       PonoOptions opt = PonoOptions());
 
   ~Bmc();
@@ -34,7 +36,7 @@ class Bmc : public Prover
 
   ProverResult check_until(int k) override;
 
- private:
+ protected:
   bool step(int i);
 
 };  // class Bmc

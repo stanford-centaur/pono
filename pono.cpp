@@ -28,12 +28,11 @@
 #endif
 
 #include "core/fts.h"
-#include "core/prop.h"
-#include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "modifiers/control_signals.h"
 #include "modifiers/mod_init_prop.h"
+#include "modifiers/prop_monitor.h"
 #include "modifiers/static_coi.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
@@ -50,26 +49,24 @@ using namespace pono;
 using namespace smt;
 using namespace std;
 
-
 ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
-                        SmtSolver & s,
+                        const TransitionSystem & ts,
+                        const SmtSolver & s,
                         std::vector<UnorderedTermMap> & cex)
 {
   logger.log(1, "Solving property: {}", p.name());
 
-  logger.log(5, "INIT:\n{}", p.transition_system().init());
-  logger.log(5, "TRANS:\n{}", p.transition_system().trans());
+  logger.log(3, "INIT:\n{}", ts.init());
+  logger.log(3, "TRANS:\n{}", ts.trans());
 
   Engine eng = pono_options.engine_;
 
   std::shared_ptr<Prover> prover;
   if (pono_options.ceg_prophecy_arrays_) {
-    // don't instantiate the sub-prover directly
-    // just pass the engine to CegProphecyArrays
-    prover = std::make_shared<CegProphecyArrays>(p, eng, s, pono_options);
+    prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
   } else {
-    prover = make_prover(eng, p, s, pono_options);
+    prover = make_prover(eng, p, ts, s, pono_options);
   }
   assert(prover);
 
@@ -98,7 +95,7 @@ ProverResult check_prop(PonoOptions pono_options,
   } else if (r == TRUE && pono_options.check_invar_) {
     try {
       Term invar = prover->invar();
-      bool invar_passes = check_invar(p.transition_system(), p.prop(), invar);
+      bool invar_passes = check_invar(ts, p.prop(), invar);
       std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
                 << std::endl;
       if (!invar_passes) {
@@ -208,7 +205,11 @@ int main(int argc, char ** argv)
             + " is greater than the number of properties in file "
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
+
       Term prop = propvec[pono_options.prop_idx_];
+      // get property name before it is rewritten
+      const string prop_name = fts.get_name(prop);
+
       if (!pono_options.clock_name_.empty()) {
         Term clock_symbol = fts.lookup(pono_options.clock_name_);
         toggle_clock(fts, clock_symbol);
@@ -243,9 +244,16 @@ int main(int argc, char ** argv)
         StaticConeOfInfluence coi(fts, { prop }, pono_options.verbosity_);
       }
 
+      if (!fts.only_curr(prop)) {
+        logger.log(1,
+                   "Got next state or input variables in property. "
+                   "Generating a monitor state.");
+        prop = add_prop_monitor(fts, prop);
+      }
+
       vector<UnorderedTermMap> cex;
-      Property p(fts, prop);
-      res = check_prop(pono_options, p, s, cex);
+      Property p(s, prop, prop_name);
+      res = check_prop(pono_options, p, fts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -282,7 +290,11 @@ int main(int argc, char ** argv)
             + " is greater than the number of properties in file "
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
+
       Term prop = propvec[pono_options.prop_idx_];
+      // get property name before it is rewritten
+      const string prop_name = rts.get_name(prop);
+
       if (!pono_options.clock_name_.empty()) {
         Term clock_symbol = rts.lookup(pono_options.clock_name_);
         toggle_clock(rts, clock_symbol);
@@ -309,9 +321,16 @@ int main(int argc, char ** argv)
         StaticConeOfInfluence coi(rts, { prop }, pono_options.verbosity_);
       }
 
-      Property p(rts, prop);
+      if (!rts.only_curr(prop)) {
+        logger.log(1,
+                   "Got next state or input variables in property. "
+                   "Generating a monitor state.");
+        prop = add_prop_monitor(rts, prop);
+      }
+
+      Property p(s, prop, prop_name);
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, p, s, cex);
+      res = check_prop(pono_options, p, rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 

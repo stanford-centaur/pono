@@ -27,23 +27,27 @@ namespace pono {
 
 /** IC3 Implementation */
 
-IC3::IC3(Property & p, const smt::SmtSolver & s, PonoOptions opt)
-  : super(p, s, opt)
+IC3::IC3(const Property & p,
+         const TransitionSystem & ts,
+         const smt::SmtSolver & s,
+         PonoOptions opt)
+    : super(p, ts, s, opt)
 {
+  engine_ = Engine::IC3_BOOL;
   solver_->set_opt("produce-unsat-cores", "true");
 }
 
 IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
-                                      TermVec * out_nexts) const
+                                     TermVec * out_nexts) const
 {
   // expecting all solving in IC3 to be done at context level > 0
   // so if we're getting a model we should not be at context 0
   assert(solver_context_);
 
-  const UnorderedTermSet & statevars = ts_->statevars();
+  const UnorderedTermSet & statevars = ts_.statevars();
   TermVec children;
   children.reserve(statevars.size());
-  for (const auto &sv : ts_->statevars()) {
+  for (const auto & sv : ts_.statevars()) {
     if (solver_->get_value(sv) == solver_true_) {
       children.push_back(sv);
     } else {
@@ -51,7 +55,7 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
     }
 
     if (out_nexts) {
-      Term nv = ts_->next(sv);
+      Term nv = ts_.next(sv);
       if (solver_->get_value(nv) == solver_true_) {
         out_nexts->push_back(nv);
       } else {
@@ -61,7 +65,7 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
   }
 
   if (out_inputs) {
-    for (const auto &iv : ts_->inputvars()) {
+    for (const auto & iv : ts_.inputvars()) {
       if (solver_->get_value(iv) == solver_true_) {
         out_inputs->push_back(iv);
       } else {
@@ -196,7 +200,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // sat
   assert(i > 0);
 
-  const UnorderedTermSet & statevars = ts_->statevars();
+  const UnorderedTermSet & statevars = ts_.statevars();
   TermVec input_lits, next_lits;
   const IC3Formula & icf = get_model_ic3formula(&input_lits, &next_lits);
   const TermVec & cube_lits = icf.children;
@@ -208,12 +212,12 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   }
 
   Term formula = make_and(input_lits);
-  if (ts_->is_deterministic()) {
+  if (ts_.is_deterministic()) {
     // NOTE: need to use full trans, not just trans_label_ here
     //       because we are passing it to the reducer_
-    formula = solver_->make_term(And, formula, ts_->trans());
+    formula = solver_->make_term(And, formula, ts_.trans());
     formula = solver_->make_term(
-        And, formula, solver_->make_term(Not, ts_->next(c.term)));
+        And, formula, solver_->make_term(Not, ts_.next(c.term)));
   } else {
     formula = solver_->make_term(And, formula, make_and(next_lits));
 
@@ -225,10 +229,10 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
     // the implication could be more efficient than iff so we want to leave it
     // that way
     Term pre_formula = get_frame_term(i - 1);
-    pre_formula = solver_->make_term(And, pre_formula, ts_->trans());
+    pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
     pre_formula =
         solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));
-    pre_formula = solver_->make_term(And, pre_formula, ts_->next(c.term));
+    pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term));
     formula =
         solver_->make_term(And, formula, solver_->make_term(Not, pre_formula));
   }
@@ -253,14 +257,14 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 void IC3::check_ts() const
 {
   const Sort &boolsort = solver_->make_sort(BOOL);
-  for (const auto &sv : ts_->statevars()) {
+  for (const auto & sv : ts_.statevars()) {
     if (sv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean state variable in bit-level IC3: "
                           + sv->to_string());
     }
   }
 
-  for (const auto &iv : ts_->inputvars()) {
+  for (const auto & iv : ts_.inputvars()) {
     if (iv->get_sort() != boolsort) {
       throw PonoException("Got non-boolean input variable in bit-level IC3: "
                           + iv->to_string());

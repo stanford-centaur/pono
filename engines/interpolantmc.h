@@ -27,9 +27,9 @@ class InterpolantMC : public Prover
 {
  public:
   // IMPORTANT: assume the property was built using the interpolating solver
-  InterpolantMC(Property & p,
+  InterpolantMC(const Property & p,
+                const TransitionSystem & ts,
                 const smt::SmtSolver & slv,
-                const smt::SmtSolver & itp,
                 PonoOptions opt = PonoOptions());
 
   ~InterpolantMC();
@@ -40,7 +40,7 @@ class InterpolantMC : public Prover
 
   ProverResult check_until(int k) override;
 
- private:
+ protected:
   bool step(int i);
   bool step_0();
 
