@@ -232,7 +232,7 @@ define_decl:
     DEFINE define_body
     | define_decl define_body;
 
-define_body: complex_identifier ASSIGNSYM basic_expr ";" {
+define_body: complex_identifier ASSIGNSYM basic_expr semioption {
   if(enc.module_flat){
               SMVnode *a = $3;
               smt::Term define_var = a->getTerm();
@@ -251,8 +251,8 @@ define_body: complex_identifier ASSIGNSYM basic_expr ";" {
 
 assign_decl: ASSIGN assign_list;
 
-assign_list: assign_test ";"
-            | assign_list assign_test ";";
+assign_list: assign_test semioption
+            | assign_list assign_test semioption;
 
 assign_test: complex_identifier ASSIGNSYM simple_expr {
   if(enc.module_flat){
@@ -290,7 +290,7 @@ ivar_test:
 
 
 ivar_list:
-    complex_identifier ":" type_identifier ";" {
+    complex_identifier ":" type_identifier semioption {
         if(enc.module_flat){
          type_node *a = $3;
          smt::Term input = enc.rts_.make_inputvar($1, a->getSort());
@@ -313,7 +313,7 @@ var_test:
    | var_test var_list;
 
 var_list:
-    complex_identifier ":" type_identifier ";"{
+    complex_identifier ":" type_identifier semioption{
       if(enc.module_flat){
          type_node *a = $3;
          smt::Term state = enc.rts_.make_statevar($1, a->getSort());
@@ -330,7 +330,7 @@ var_list:
           enc.var_list_.push_back(new var_node_c($1,$3,SMVnode::BasicT));
       }
     }
-    | complex_identifier ":" module_type_identifier ";"{
+    | complex_identifier ":" module_type_identifier semioption{
       if(enc.module_flat){
         throw PonoException("module preprocess error");
       }else{
@@ -364,7 +364,7 @@ frozenvar_test:
   | frozenvar_test frozenvar_list ;
 
 frozenvar_list:
-  complex_identifier ":" type_identifier ";" {
+  complex_identifier ":" type_identifier semioption {
     if(enc.module_flat){
       type_node *a = $3;
       smt::Term state = enc.rts_.make_statevar($1, a->getSort());
@@ -388,7 +388,7 @@ frozenvar_list:
 
 init_constraint: INIT init_list;
 
-init_list: simple_expr ";"{
+init_list: simple_expr semioption{
   if(enc.module_flat){
         SMVnode *a = $1;
         enc.rts_.constrain_init(a->getTerm());
@@ -400,7 +400,7 @@ init_list: simple_expr ";"{
 
 trans_constraint: TRANS trans_list;
 
-trans_list: basic_expr ";"{
+trans_list: basic_expr semioption{
   if(enc.module_flat){
             SMVnode *a = $1;
             if(!case_true){
@@ -417,7 +417,7 @@ trans_list: basic_expr ";"{
 
 invar_constraint: INVAR invar_list;
 
-invar_list: simple_expr ";"{
+invar_list: simple_expr semioption{
   if(enc.module_flat){
             SMVnode *a = $1;
             enc.rts_.add_invar(a->getTerm());
@@ -433,7 +433,7 @@ invar_list: simple_expr ";"{
 
 invarspec_test: INVARSPEC invarspec_list;
 
-invarspec_list: basic_expr ";" {
+invarspec_list: basic_expr semioption {
   if(enc.module_flat){
                 SMVnode *a = $1;
                 smt::Term prop = a->getTerm();
@@ -1412,6 +1412,8 @@ sizev:
     "[" integer_val "]"{
         $$  = stoi($2);
     };
+
+semioption     : | SEMICOLON;
 %%
 
 void pono::smvparser::error (const location &loc, const std::string& m)
