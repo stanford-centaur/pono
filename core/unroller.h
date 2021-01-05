@@ -85,6 +85,9 @@ class Unroller
   smt::UnorderedTermMap untime_cache_;
   std::unordered_map<smt::Term, size_t> var_times_;
 
+  size_t num_vars_;  ///< the last known number of variables in the transition
+                     ///< system
+
 };  // class Unroller
 
 }  // namespace pono
