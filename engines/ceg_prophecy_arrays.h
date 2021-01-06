@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "core/adaptive_unroller.h"
 #include "engines/cegar.h"
 #include "modifiers/array_abstractor.h"
 #include "modifiers/prophecy_modifier.h"
@@ -28,7 +27,7 @@
 
 namespace pono {
 
-template<class Prover_T>
+template <class Prover_T>
 class CegProphecyArrays : public CEGAR<Prover_T>
 {
   typedef CEGAR<Prover_T> super;

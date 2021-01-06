@@ -270,7 +270,6 @@ const option::Descriptor usage[] = {
 
 namespace pono {
 
-const std::string PonoOptions::default_smt_solver_ = "btor";
 const std::string PonoOptions::default_profiling_log_filename_ = "";
 
 Engine PonoOptions::to_engine(std::string s)
@@ -336,15 +335,19 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
             throw PonoException(
                 "Options '--vcd' and '--no-witness' are incompatible.");
           break;
-      case SMT_SOLVER:
-          smt_solver_ = opt.arg;
-          if (smt_solver_ != "btor" && smt_solver_ != "cvc4"
-              && smt_solver_ != "msat") {
-            throw PonoException(
-                "Option '--smt-solver' can be either 'btor', 'cvc4', or "
-                "'msat'.");
+        case SMT_SOLVER: {
+          if (opt.arg == std::string("btor")) {
+            smt_solver_ = smt::BTOR;
+          } else if (opt.arg == std::string("cvc4")) {
+            smt_solver_ = smt::CVC4;
+          } else if (opt.arg == std::string("msat")) {
+            smt_solver_ = smt::MSAT;
+          } else {
+            throw PonoException("Unknown solver: " + std::string(opt.arg));
+            break;
           }
           break;
+        }
         case NOWITNESS:
           no_witness_ = true;
           if (!vcd_name_.empty())
@@ -387,9 +390,14 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
       }
     }
 
-    if (smt_solver_ != "msat" && engine_ == Engine::INTERP) {
+    if (smt_solver_ != smt::MSAT && engine_ == Engine::INTERP) {
       throw PonoException(
           "Interpolation engine can be only used with '--smt-solver msat'.");
+    }
+
+    if (ceg_prophecy_arrays_ && smt_solver_ != smt::MSAT) {
+      throw PonoException(
+          "Counterexample-guided prophecy only supported with MathSAT so far");
     }
   }
   catch (PonoException & ce) {

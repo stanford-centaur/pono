@@ -17,7 +17,10 @@
 #pragma once
 
 #include <unordered_map>
+#include <unordered_set>
+
 #include "core/proverresult.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 
@@ -32,8 +35,11 @@ enum Engine
   IC3_BOOL,
   MBIC3,
   IC3IA_ENGINE,
-  MSAT_IC3IA,
-  IC3SA_ENGINE
+  IC3SA_ENGINE,
+  MSAT_IC3IA
+  // NOTE: if adding an IC3 variant,
+  // make sure to update ic3_variants in smt/available_solvers.cpp
+  // used for setting solver options appropriately
 };
 
 const std::unordered_map<std::string, Engine> str2engine(
@@ -99,7 +105,7 @@ class PonoOptions
   size_t reset_bnd_;
   std::string clock_name_;
   std::string filename_;
-  std::string smt_solver_; ///< underlying smt solver
+  smt::SolverEnum smt_solver_;  ///< underlying smt solver
   bool static_coi_;
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
@@ -131,7 +137,9 @@ class PonoOptions
   static const bool default_show_invar_ = false;
   static const bool default_check_invar_ = false;
   static const size_t default_reset_bnd_ = 1;
-  static const std::string default_smt_solver_;
+  // TODO distinguish when solver is not set and choose a
+  //      good solver for the provided engine automatically
+  static const smt::SolverEnum default_smt_solver_ = smt::BTOR;
   static const bool default_ic3_pregen_ = true;
   static const bool default_ic3_indgen_ = true;
   static const unsigned int default_ic3_reset_interval_ = 5000;

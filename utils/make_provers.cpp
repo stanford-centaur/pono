@@ -85,7 +85,7 @@ shared_ptr<Prover> make_ceg_proph_prover(Engine e,
                                          const SmtSolver & slv,
                                          PonoOptions opts)
 {
-  if (e == BMC) { 
+  if (e == BMC) {
     return std::make_shared<CegProphecyArrays<Bmc>>(p, ts, slv, opts);
   } else if (e == BMC_SP) {
     return std::make_shared<CegProphecyArrays<BmcSimplePath>>(p, ts, slv, opts);
@@ -110,7 +110,8 @@ shared_ptr<Prover> make_ceg_proph_prover(Engine e,
 #endif
   else if (e == IC3SA_ENGINE) {
     return std::make_shared<CegProphecyArrays<IC3SA>>(p, ts, slv, opts);
-  } else {
+  }
+  else {
     throw PonoException("Unhandled engine");
   }
 }
