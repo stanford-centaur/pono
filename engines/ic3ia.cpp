@@ -146,7 +146,9 @@ void IC3IA::initialize()
 
   logger.log(1, "Number predicates found in init: {}", num_init_preds);
   logger.log(1, "Number predicates found in prop: {}", num_prop_preds);
-  logger.log(1, "Total number of initial predicates: {}", predset_.size());
+  logger.log(1,
+             "Total number of initial predicates and boolean vars: {}",
+             predset_.size());
   assert(preds.size() == (num_init_preds + num_prop_preds));
   // more predicates will be added during refinement
   // these ones are just initial predicates
