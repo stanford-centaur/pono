@@ -1,4 +1,7 @@
 # Pono: an SMT-based model checker built on [smt-switch](https://github.com/makaimann/smt-switch)
+
+Important NOTE: This is just a performance debugging branch of Pono. It has code in `engines/ic3base.cpp` which is **heavily** influenced by the open-source [ic3ia implementation](https://es-static.fbk.eu/people/griggio/ic3ia/index.html) by Alberto Griggio. We are only using this branch to help identify performance issues with our implementation and this version of the code should not be distributed.
+
 Pono is a performant, adaptable, and extensible SMT-based model checker implemented in C++. It was developed as the next
 generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was originally named _cosa2_.
 
