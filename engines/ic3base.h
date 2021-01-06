@@ -223,7 +223,9 @@ class IC3Base : public Prover
    *  @requires !rel_ind_check(i, c, _)
    *  @param i the frame number to generalize it against
    *  @param c the IC3Formula that should be blocked
-   *  @return a generalized IC3Formula
+   *  @return a vector of IC3Formulas interpreted as a conjunction of
+   * IC3Formulas. Standard IC3 implementations will have a size one vector (e.g.
+   * a single clause) Let the returned conjunction term be d
    *  @ensures d -> !c and F[i-1] /\ d /\ T /\ !d' is unsat
    *           e.g. it blocks c and is inductive relative to F[i-1]
    */
