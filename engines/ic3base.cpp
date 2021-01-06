@@ -395,6 +395,7 @@ bool IC3Base::block_all()
   IC3Formula bad_goal;
   while (intersects_bad(bad_goal)) {
     assert(bad_goal.term);  // expecting non-null
+    assert(proof_goals.empty());  // bad should be the first goal each iteration
     proof_goals.new_proof_goal(bad_goal, frontier_idx(), nullptr);
 
     while (!proof_goals.empty()) {
