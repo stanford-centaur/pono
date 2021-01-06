@@ -780,9 +780,6 @@ void IC3Base::reset_solver()
   try {
     solver_->reset_assertions();
 
-    // Now need to add back in constraints at context level 0
-    logger.log(2, "IC3Base: Reset solver and now re-adding constraints.");
-
     // define init and trans label
     assert(init_label_ == frame_labels_.at(0));
     solver_->assert_formula(
@@ -796,6 +793,8 @@ void IC3Base::reset_solver()
         constrain_frame_label(i, constraint);
       }
     }
+
+    logger.log(2, "IC3Base: Reset solver and now re-added constraints.");
   }
   catch (SmtException & e) {
     logger.log(1,
