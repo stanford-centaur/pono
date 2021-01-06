@@ -85,17 +85,17 @@ void IC3Base::initialize()
     return;
   }
 
-  super::initialize();
-
-  assert(solver_context_ == 0);  // expecting to be at base context level
-  solver_true_ = solver_->make_term(true);
-
   // abstract the transition relation if this is a CEGAR implementation
   // otherwise it is a No-Op
   abstract();
 
+  super::initialize();
+
   // check whether this flavor of IC3 can be applied to this transition system
   check_ts();
+
+  assert(solver_context_ == 0);  // expecting to be at base context level
+  solver_true_ = solver_->make_term(true);
 
   frames_.clear();
   frame_labels_.clear();

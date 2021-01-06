@@ -55,9 +55,9 @@ class ImplicitPredicateAbstractor : public Abstractor
                          const smt::TermVec & new_preds,
                          smt::TermVec & out);
 
- protected:
   void do_abstraction() override;
 
+ protected:
   smt::Term predicate_refinement(const smt::Term & pred);
 
   const smt::SmtSolver & solver_;

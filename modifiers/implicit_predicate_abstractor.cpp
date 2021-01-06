@@ -49,19 +49,6 @@ ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
         "Implicit predicate abstraction needs a relational abstract system");
   }
 
-  // assume abstract transition starts empty
-  // need to add all state variables and set behavior
-  for (auto v : conc_ts_.statevars()) {
-    abs_rts_.add_statevar(v, conc_ts_.next(v));
-  }
-  for (auto v : conc_ts_.inputvars()) {
-    abs_rts_.add_inputvar(v);
-  }
-  // should start with the exact same behavior
-  abs_rts_.set_behavior(conc_ts_.init(), conc_ts_.trans());
-
-  do_abstraction();
-
 }
 
 Term ImplicitPredicateAbstractor::abstract(Term & t)
@@ -128,6 +115,17 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
 void ImplicitPredicateAbstractor::do_abstraction()
 {
   logger.log(1, "Generating implicit predicate abstraction.");
+
+  // assume abstract transition starts empty
+  // need to add all state variables and set behavior
+  for (auto v : conc_ts_.statevars()) {
+    abs_rts_.add_statevar(v, conc_ts_.next(v));
+  }
+  for (auto v : conc_ts_.inputvars()) {
+    abs_rts_.add_inputvar(v);
+  }
+  // should start with the exact same behavior
+  abs_rts_.set_behavior(conc_ts_.init(), conc_ts_.trans());
 
   // assume abs_ts_ is relational -- required for this abstraction
   // Note: abs_rts_ is abs_ts_ with a static cast to RelationalTransitionSystem&
