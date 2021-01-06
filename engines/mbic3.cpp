@@ -193,7 +193,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
             Term l;
             bool_assump.clear();
             for (const auto &t : tmp) {
-              l = label(ts_->next(t));
+              l = label(ts_.next(t));
               bool_assump.push_back(l);
             }
 
@@ -453,7 +453,7 @@ bool ModelBasedIC3::get_bad(IC3Formula & out)
 void ModelBasedIC3::check_ts() const
 {
   // check if there are arrays or uninterpreted sorts and fail if so
-  for (const auto &vec : { ts_->statevars(), ts_->inputvars() }) {
+  for (const auto & vec : { ts_.statevars(), ts_.inputvars() }) {
     for (const auto &st : vec) {
       SortKind sk = st->get_sort()->get_sort_kind();
       if (sk == ARRAY) {

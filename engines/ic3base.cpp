@@ -119,7 +119,7 @@ void IC3Base::initialize()
   assert(!trans_label_);
   // frame 0 label is identical to init label
   init_label_ = frame_labels_[0];
-  solver_->make_term(Implies, init_label_, ts_->init());
+  solver_->make_term(Implies, init_label_, ts_.init());
   trans_label_ = solver_->make_symbol("__trans_label", boolsort_);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
@@ -393,7 +393,7 @@ bool IC3Base::block(const IC3Formula & c,
   assumps_.clear();
   assumps_.reserve(children.size());
   for (const auto & cc : children) {
-    primed.push_back(ts_->next(cc));
+    primed.push_back(ts_.next(cc));
   }
   assert(children.size() == primed.size());
   if (false && options_.random_seed_) {
@@ -569,7 +569,7 @@ void IC3Base::constrain_frame(const IC3Formula & c, size_t idx)
   assert(idx < frame_labels_.size());
   assert(c.disjunction);
   assert(c.children.size());
-  assert(ts_->only_curr(c.term));
+  assert(ts_.only_curr(c.term));
   assert(!check_intersects_initial(ic3formula_negate(c).term));
 
   // copied from msat-ic3ia (as several other functions in this branch were)
@@ -950,8 +950,7 @@ inline void IC3Base::generalize_bad(IC3Formula & c)
   for (const auto & l : c.children) {
     assumps_.push_back(label(l));
   }
-  Term prop = property_.prop();
-  solver_->assert_formula(prop);
+  solver_->assert_formula(solver_->make_term(Not, bad_));
   Result r = check_sat_assuming(assumps_);
   // pretty sure this has to be unsat because it's a bad cube
   assert(r.is_unsat());

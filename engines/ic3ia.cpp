@@ -203,7 +203,7 @@ void IC3IA::reset_solver()
   for (const auto & elem : pred2lbl_) {
     eq = solver_->make_term(Equal, elem.first, elem.second);
     solver_->assert_formula(eq);
-    solver_->assert_formula(ts_->next(eq));
+    solver_->assert_formula(ts_.next(eq));
   }
 }
 
@@ -360,10 +360,10 @@ bool IC3IA::add_predicate(const Term & pred)
   if (pred->is_symbolic_const()) {
     predvar = pred;
   } else {
-    predvar = ts_->make_statevar(predname, boolsort_);
+    predvar = ts_.make_statevar(predname, boolsort_);
     Term eq = solver_->make_term(Equal, predvar, pred);
     solver_->assert_formula(eq);
-    solver_->assert_formula(ts_->next(eq));
+    solver_->assert_formula(ts_.next(eq));
 
     pred2lbl_[pred] = predvar;
     lbl2pred_[predvar] = pred;

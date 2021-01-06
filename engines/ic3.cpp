@@ -143,7 +143,7 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
         Term l;
         bool_assump.clear();
         for (const auto &t : tmp) {
-          l = label(ts_->next(t));
+          l = label(ts_.next(t));
           bool_assump.push_back(l);
         }
 
