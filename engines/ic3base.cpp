@@ -171,8 +171,8 @@ ProverResult IC3Base::check_until(int k)
   ProverResult res;
   RefineResult ref_res;
   int i = reached_k_ + 1;
-  assert(i >= 0);
-  while (i <= k) {
+  assert(reached_k_ + 1 >= 0);
+  for (size_t i = reached_k_ + 1; i <= k; ++i) {
     // reset cex_pg_ to null
     // there might be multiple abstract traces if there's a derived class
     // doing abstraction refinement
@@ -182,34 +182,8 @@ ProverResult IC3Base::check_until(int k)
     }
 
     res = step(i);
-    ref_res = REFINE_NONE;  // just a default value
-
-    if (res == ProverResult::TRUE) {
+    if (res != ProverResult::UNKNOWN) {
       return res;
-    } else if (res == ProverResult::FALSE) {
-      // expecting cex_pg_ to be non-null and point to the first proof goal in a
-      // trace
-      assert(cex_pg_->target.term);
-      ref_res = refine();
-      if (ref_res == RefineResult::REFINE_NONE) {
-        // found a concrete counterexample
-        return res;
-      } else if (ref_res == RefineResult::REFINE_FAIL) {
-        logger.log(1, "Failed in refinement.");
-        return ProverResult::UNKNOWN;
-      }
-    }
-
-    // two cases
-    // got unknown, so keep going
-    // got false, but was able to refine successfully
-    assert(res == ProverResult::UNKNOWN
-           || (res == ProverResult::FALSE
-               && ref_res == RefineResult::REFINE_SUCCESS));
-
-    // increment i, unless there was a refinement step just done
-    if (ref_res != RefineResult::REFINE_SUCCESS) {
-      i++;
     }
   }
 
