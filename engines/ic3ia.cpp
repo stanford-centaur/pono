@@ -205,12 +205,12 @@ RefineResult IC3IA::refine()
 {
   // recover the counterexample trace
   assert(check_intersects_initial(cex_pg_->target.term));
-  TermVec cex({ cex_pg_->target.term });
+  TermVec cex;
   const ProofGoal * tmp = cex_pg_;
-  while (tmp->next) {
-    tmp = tmp->next;
+  while (tmp) {
     cex.push_back(tmp->target.term);
     assert(ts_.only_curr(tmp->target.term));
+    tmp = tmp->next;
   }
 
   if (cex.size() == 1) {
