@@ -44,7 +44,8 @@ class FunctionalUnroller : public Unroller
    */
   FunctionalUnroller(const TransitionSystem & ts,
                      const smt::SmtSolver & solver,
-                     size_t interval = 0);
+                     size_t interval = 0,
+                     const std::string & time_identifier = "@");
 
   ~FunctionalUnroller() {}
 
