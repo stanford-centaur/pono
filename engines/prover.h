@@ -85,6 +85,8 @@ class Prover
    */
   bool compute_witness();
 
+  virtual TransitionSystem & prover_ts() { return ts_; };
+
   bool initialized_;
 
   smt::SmtSolver solver_;

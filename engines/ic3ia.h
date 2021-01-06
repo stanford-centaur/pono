@@ -71,6 +71,7 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
+  TransitionSystem & prover_ts() override { return conc_ts_; };
   // pure virtual method implementations
 
   IC3Formula get_model_ic3formula(
