@@ -171,7 +171,7 @@ void FunctionalConeOfInfluence::compute_term_coi(
     UnorderedTermSet & new_coi_state_vars,
     UnorderedTermSet & new_coi_input_vars)
 {
-  assert(term != NULL);
+  assert(term);
   TermVec open_terms;
   open_terms.push_back(term);
   Term cur;
@@ -226,7 +226,7 @@ void FunctionalConeOfInfluence::compute_coi_next_state_funcs()
     unprocessed_state_vars.pop_back();
     assert(ts_.is_curr_var(state_var));
     const smt::UnorderedTermMap & state_updates = ts_.state_updates();
-    Term next_func = NULL;
+    Term next_func(nullptr);
     /* May find state variables without next-function. */
     auto elem = ts_.state_updates().find(state_var);
     if (elem != ts_.state_updates().end()) next_func = elem->second;
