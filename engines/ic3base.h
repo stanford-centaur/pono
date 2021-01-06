@@ -122,48 +122,6 @@ struct ProofGoalOrder
   }
 };
 
-/**
- * Priority queue of proof obligations borrowed from open-source ic3ia
- * implementation
- */
-class ProofGoalQueue
-{
- public:
-  ~ProofGoalQueue() { clear(); }
-
-  void clear()
-  {
-    for (auto p : store_) {
-      delete p;
-    }
-    store_.clear();
-    while (!queue_.empty()) {
-      queue_.pop();
-    }
-  }
-
-  void push_new(const IC3Formula & c,
-                unsigned int t,
-                const ProofGoal * n = NULL)
-  {
-    ProofGoal * pg = new ProofGoal(c, t, n);
-    push(pg);
-    store_.push_back(pg);
-  }
-
-  void push(ProofGoal * p) { queue_.push(p); }
-  ProofGoal * top() { return queue_.top(); }
-  void pop() { queue_.pop(); }
-  bool empty() const { return queue_.empty(); }
-
- private:
-  typedef std::
-      priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
-          Queue;
-  Queue queue_;
-  std::vector<ProofGoal *> store_;
-};
-
 class IC3Base : public Prover
 {
  public:
@@ -213,8 +171,6 @@ class IC3Base : public Prover
   std::vector<std::vector<IC3Formula>> frames_;
 
   ///< priority queue of outstanding proof goals
-  ProofGoalQueue proof_goals_;
-
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
   smt::Term trans_label_;      ///< label to activate trans
@@ -357,7 +313,7 @@ class IC3Base : public Prover
    * goals This method can be overriden if you want to add more than a single
    *  IC3Formula that intersects bad to the proof goals
    */
-  virtual bool intersects_bad();
+  virtual bool intersects_bad(IC3Formula & out);
 
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented
@@ -387,9 +343,7 @@ class IC3Base : public Prover
    *  @ensures returns false  : out -> F[i-1] /\ \forall s in out . (s, c) \in
    * [T] returns true   : out unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool rel_ind_check(size_t i,
-                     const IC3Formula & c,
-                     std::vector<IC3Formula> & out);
+  bool rel_ind_check(size_t i, const IC3Formula & c, IC3Formula & out);
 
   // Helper methods
 
@@ -402,13 +356,6 @@ class IC3Base : public Prover
    *  pg.next iteratively
    */
   bool block_all();
-
-  /** Attempt to block the given proof goal
-   *  @param pg the proof goal
-   *  @return true iff the proof goal was blocked,
-   *          otherwise a new proof goal was added to the proof goals
-   */
-  bool block(const ProofGoal * pg);
 
   /** Check if the given proof goal is already blocked
    *  @param pg the proof goal
@@ -456,38 +403,6 @@ class IC3Base : public Prover
   smt::Term get_frame_term(size_t i) const;
 
   void assert_trans_label() const;
-
-  /** Check if there are more proof goals
-   *  @return true iff there are more proof goals
-   */
-  inline bool has_proof_goals() const { return !proof_goals_.empty(); }
-
-  /** Gets a new proof goal
-   *  @requires has_proof_goals()
-   *  @return a proof goal with the lowest available frame number
-   *          i.e. from the top of the priority queue
-   *  @alters proof_goals_
-   *  @ensures returned proof goal is from lowest frame in proof goals
-   */
-  inline ProofGoal * get_top_proof_goal()
-  {
-    assert(has_proof_goals());
-    ProofGoal * pg = proof_goals_.top();
-    return pg;
-  }
-
-  /** Removes the proof goal at the top of the priority queue
-   *  Proof goals should be removed once they are blocked
-   */
-  inline void remove_top_proof_goal() { proof_goals_.pop(); }
-
-  /** Create and add a proof goal for cube c for frame i
-   *  @param c the cube of the proof goal
-   *  @param i the frame number for the proof goal
-   *  @param n pointer to the proof goal that led to this one -- null for bad
-   *  (i.e. end of trace)
-   */
-  void add_proof_goal(const IC3Formula & c, size_t i, const ProofGoal * n);
 
   /** Check if there are common assignments
    *  between A and B
@@ -560,6 +475,8 @@ class IC3Base : public Prover
    * exception is just caught and things continue on as normal
    */
   virtual void reset_solver();
+
+  inline size_t frontier_idx() const { return frames_.size() - 1; }
 
   /** Create a boolean label for a given term
    *  These are cached in labels_

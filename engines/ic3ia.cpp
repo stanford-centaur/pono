@@ -205,12 +205,12 @@ RefineResult IC3IA::refine()
 {
   // recover the counterexample trace
   assert(check_intersects_initial(cex_pg_->target.term));
-  TermVec cex({ cex_pg_->target.term });
+  TermVec cex;
   const ProofGoal * tmp = cex_pg_;
-  while (tmp->next) {
-    tmp = tmp->next;
+  while (tmp) {
     cex.push_back(tmp->target.term);
     assert(ts_.only_curr(tmp->target.term));
+    tmp = tmp->next;
   }
 
   if (cex.size() == 1) {
@@ -297,11 +297,6 @@ RefineResult IC3IA::refine()
   for (auto const&p : preds) {
     add_predicate(p);
   }
-
-  // clear the current proof goals
-  // the transitions represented by those backwards reachable traces
-  // may not be precise wrt the new predicates
-  proof_goals_.clear();
 
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;
