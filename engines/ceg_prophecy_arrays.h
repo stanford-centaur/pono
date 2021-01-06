@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "core/adaptive_unroller.h"
 #include "engines/cegar.h"
 #include "modifiers/array_abstractor.h"
 #include "modifiers/prophecy_modifier.h"

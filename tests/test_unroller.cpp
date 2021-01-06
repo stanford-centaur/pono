@@ -1,7 +1,6 @@
 #include <utility>
 #include <vector>
 
-#include "core/adaptive_unroller.h"
 #include "core/fts.h"
 #include "core/functional_unroller.h"
 #include "core/rts.h"
@@ -125,15 +124,15 @@ TEST_P(UnrollerUnitTests, StagedUnrolling)
   EXPECT_EQ(x4py4_2, x4py4);
 }
 
-TEST_P(UnrollerUnitTests, AdaptiveUnroller)
+TEST_P(UnrollerUnitTests, Unroller)
 {
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", bvsort);
 
-  AdaptiveUnroller au(rts, s);
+  Unroller au(rts, s);
   Term x4 = au.at_time(x, 4);
 
-  // add a new variable after declaring the AdaptiveUnroller
+  // add a new variable after declaring the Unroller
   // this kind of unroller allows this
   Term y = rts.make_statevar("y", bvsort);
   Term xpy = rts.make_term(BVAdd, x, y);
