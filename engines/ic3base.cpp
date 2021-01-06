@@ -13,6 +13,16 @@
 **        the unit used in frames, pre-image computation, and inductive
 **        and predecessor generalization techniques.
 **
+**  IMPORTANT NOTE: This version has code that is *heavily* influenced
+**                  by the open-source ic3ia implementation by
+**                  Alberto Griggio
+**                  https://es-static.fbk.eu/people/griggio/ic3ia/index.html
+**
+**                  We are only using this to help identify performance issues
+**                  with our implementation
+**
+**  This version of the ocde should NOT be distributed
+**
 **/
 
 #include "engines/ic3base.h"

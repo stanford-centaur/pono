@@ -1,49 +1,7 @@
-BSD 3-Clause License
+This is a performance debugging version of Pono which should not be distributed.
 
-Copyright (c) 2019, Stanford University
+Please see the master branch for a BSD-3 clause version of the code with
+permissive use.
+
+Copyright (c) 2019, Stanford University and authors in AUTHORS
 All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
--------------------------------------------------------------------------------
- Third-Party Software
--------------------------------------------------------------------------------
-
-The Pono source code includes third-party software which has its own
-copyright and licensing terms, as described below.
-
-The 'contrib/fmt' directory contains third-party software. The
-copyright and licensing information is in the 'contrib/fmt/format.h'
-file.
-
-The 'contrib/optionparser-1.7' directory contains third-party
-software. The copyright and licensing information is in the
-'contrib/optionparser-1.7/src/optionparser.h' file.
-
-Pono optionally links against the third-party gperftools library, which comes
-under a BSD 3-clause license. The copyright and licensing information
-can be found here: https://github.com/gperftools/gperftools/blob/master/COPYING
