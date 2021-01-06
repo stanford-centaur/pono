@@ -418,6 +418,7 @@ bool IC3Base::block_all()
             delete cex_pg_;
             cex_pg_ = nullptr;
           }
+          continue;
         } else if (s == REFINE_NONE) {
           // this is a real counterexample
           // TODO refactor this
