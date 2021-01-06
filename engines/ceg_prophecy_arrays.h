@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "core/unroller.h"
 #include "engines/cegar.h"
 #include "modifiers/array_abstractor.h"
 #include "modifiers/prophecy_modifier.h"
@@ -50,7 +51,8 @@ class CegProphecyArrays : public CEGAR<Prover_T>
 
  protected:
   const TransitionSystem & conc_ts_;
-
+  TransitionSystem & abs_ts_;
+  Unroller abs_unroller_;
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;

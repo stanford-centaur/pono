@@ -142,6 +142,10 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
 {
   conc_bad_ = solver_->make_term(Not, prop);
   false_ = solver_->make_term(false);
+}
+
+void ArrayAxiomEnumerator::initialize()
+{
   collect_arrays_and_indices();
   create_lambda_indices();
 }

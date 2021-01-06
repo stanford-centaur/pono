@@ -96,9 +96,9 @@ class ArrayAbstractor : public Abstractor
   // if true, then array equality is abstracted with a UF
   bool abstract_array_equality() const { return abstract_array_equality_; };
 
- protected:
   void do_abstraction() override;
 
+ protected:
   /** Populates abs_walker_'s cache and sort maps (abstract_sorts_,
    *  and concrete_sorts_) with array abstractions.
    *  Adds all the variables to the abs_ts_ --

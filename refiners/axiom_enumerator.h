@@ -57,6 +57,7 @@ class AxiomEnumerator
 
   virtual ~AxiomEnumerator(){};
 
+  virtual void initialize() = 0;
   /** Check the axiom set over an abstract trace formula
    *  @param abs_trace_formula a formula representing the abstract trace
    *         it is assumed to be an (abstract) trace of ts_
