@@ -445,7 +445,7 @@ void ModelBasedIC3::check_ts() const
   }
 }
 
-bool ModelBasedIC3::intersects_bad()
+bool ModelBasedIC3::intersects_bad(IC3Formula & out)
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
@@ -458,8 +458,7 @@ bool ModelBasedIC3::intersects_bad()
     // push bad as a proof goal
     TermVec conjuncts;
     conjunctive_partition(bad_, conjuncts, true);
-    const IC3Formula &bad_at_last_frame = ic3formula_conjunction(conjuncts);
-    add_proof_goal(bad_at_last_frame, reached_k_ + 1, NULL);
+    out = ic3formula_conjunction(conjuncts);
   }
 
   pop_solver_context();
