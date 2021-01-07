@@ -570,6 +570,7 @@ void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
   assert(solver_context_ == 0);
   assert(i < frame_labels_.size());
   assert(constraint.disjunction);
+  assert(ts_.only_curr(constraint.term));
 
   if (new_constraint) {
     for (size_t j = 1; j <= i; ++j) {

@@ -302,7 +302,8 @@ IC3Formula ModelBasedIC3::inductive_generalization(size_t i,
       Sort interp_boolsort = interpolator_->make_sort(BOOL);
       for (const auto & ii : interp_disjuncts) {
         assert(ii->get_sort() == interp_boolsort);
-        solver_interp_disjuncts.push_back(to_solver_->transfer_term(ii, BOOL));
+        solver_interp_disjuncts.push_back(
+            ts_.curr(to_solver_->transfer_term(ii, BOOL)));
       }
 
       assert(solver_interp_disjuncts.size() == interp_disjuncts.size());
