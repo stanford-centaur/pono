@@ -99,8 +99,6 @@ class Prover
 
   int reached_k_;
 
-  //TODO: add engine enum
-
   smt::Term bad_;
 
   PonoOptions options_;
