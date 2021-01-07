@@ -146,14 +146,20 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
 
 void ArrayAxiomEnumerator::initialize()
 {
+  assert(!initialized_);
+
   collect_arrays_and_indices();
   create_lambda_indices();
+
+  initialized_ = true;
 }
 
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
                                             size_t bound,
                                             bool include_nonconsecutive)
 {
+  assert(initialized_);
+
   // IMPORTANT: clear state from last run
   clear_state();
 
@@ -300,75 +306,12 @@ void ArrayAxiomEnumerator::add_index(const Term & idx)
   }
 }
 
-void ArrayAxiomEnumerator::clear_state()
-{
-  // clear the previous axioms
-  axioms_to_check_.clear();
-  violated_axioms_.clear();
-  ts_axioms_.clear();
-  to_axiom_inst_.clear();
-  consecutive_axioms_.clear();
-  nonconsecutive_axioms_.clear();
-}
-
-// protected methods
-
-void ArrayAxiomEnumerator::collect_arrays_and_indices()
-{
-  ArrayFinder af(*this);
-  // just visit each (concrete) term of the transition system
-  Term init = aa_.conc_ts().init();
-  Term trans = aa_.conc_ts().trans();
-  af.visit(init);
-  af.visit(trans);
-  assert(conc_bad_);
-  af.visit(conc_bad_);
-
-  for (auto idx : index_set_) {
-    if (ts_.only_curr(idx)) {
-      cur_index_set_.insert(idx);
-    }
-  }
-}
-
-void ArrayAxiomEnumerator::create_lambda_indices()
-{
-  unordered_set<Sort> conc_array_idx_sorts;
-  const TransitionSystem & conc_ts = aa_.conc_ts();
-  for (auto sv : conc_ts.statevars()) {
-    Sort sort = sv->get_sort();
-    if (sort->get_sort_kind() == ARRAY) {
-      conc_array_idx_sorts.insert(sort->get_indexsort());
-    }
-  }
-  for (auto i : conc_ts.inputvars()) {
-    Sort sort = i->get_sort();
-    if (sort->get_sort_kind() == ARRAY) {
-      conc_array_idx_sorts.insert(sort->get_indexsort());
-    }
-  }
-
-  // create a lambda var for each sort
-  Sort intsort = solver_->make_sort(INT);
-  size_t lam_num = 0;
-  // TODO: make this less confusing
-  // ts_ is const
-  // but the same TransitionSystem is accessible through the ArrayAbstractor
-  // and is mutable
-  TransitionSystem & mutable_ts = aa_.abs_ts();
-  for (auto idxsort : conc_array_idx_sorts) {
-    Term lam = mutable_ts.make_statevar("lambda_" + std::to_string(lam_num++),
-                                        // always using an integer sort for
-                                        // lambdas to avoid finite domain issues
-                                        intsort);
-    lambdas_[idxsort] = lam;
-  }
-}
-
 bool ArrayAxiomEnumerator::check_consecutive_axioms(AxiomClass ac,
                                                     bool only_curr,
                                                     int lemma_limit)
 {
+  assert(initialized_);
+
   logger.log(3, "Checking consecutive axioms for class: {}", to_string(ac));
   UnorderedTermSet & indices = only_curr ? cur_index_set_ : index_set_;
 
@@ -423,6 +366,8 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
                                                        size_t i,
                                                        int lemma_limit)
 {
+  assert(initialized_);
+
   logger.log(3,
              "Checking nonconsecutive axioms at {} for class: {}",
              i,
@@ -486,6 +431,74 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
     }
   }
   return num_found_lemmas;
+}
+
+
+// protected methods
+
+void ArrayAxiomEnumerator::collect_arrays_and_indices()
+{
+  assert(initialized_);
+
+  ArrayFinder af(*this);
+  // just visit each (concrete) term of the transition system
+  Term init = aa_.conc_ts().init();
+  Term trans = aa_.conc_ts().trans();
+  af.visit(init);
+  af.visit(trans);
+  assert(conc_bad_);
+  af.visit(conc_bad_);
+
+  for (auto idx : index_set_) {
+    if (ts_.only_curr(idx)) {
+      cur_index_set_.insert(idx);
+    }
+  }
+}
+
+void ArrayAxiomEnumerator::create_lambda_indices()
+{
+  unordered_set<Sort> conc_array_idx_sorts;
+  const TransitionSystem & conc_ts = aa_.conc_ts();
+  for (auto sv : conc_ts.statevars()) {
+    Sort sort = sv->get_sort();
+    if (sort->get_sort_kind() == ARRAY) {
+      conc_array_idx_sorts.insert(sort->get_indexsort());
+    }
+  }
+  for (auto i : conc_ts.inputvars()) {
+    Sort sort = i->get_sort();
+    if (sort->get_sort_kind() == ARRAY) {
+      conc_array_idx_sorts.insert(sort->get_indexsort());
+    }
+  }
+
+  // create a lambda var for each sort
+  Sort intsort = solver_->make_sort(INT);
+  size_t lam_num = 0;
+  // TODO: make this less confusing
+  // ts_ is const
+  // but the same TransitionSystem is accessible through the ArrayAbstractor
+  // and is mutable
+  TransitionSystem & mutable_ts = aa_.abs_ts();
+  for (auto idxsort : conc_array_idx_sorts) {
+    Term lam = mutable_ts.make_statevar("lambda_" + std::to_string(lam_num++),
+                                        // always using an integer sort for
+                                        // lambdas to avoid finite domain issues
+                                        intsort);
+    lambdas_[idxsort] = lam;
+  }
+}
+
+void ArrayAxiomEnumerator::clear_state()
+{
+  // clear the previous axioms
+  axioms_to_check_.clear();
+  violated_axioms_.clear();
+  ts_axioms_.clear();
+  to_axiom_inst_.clear();
+  consecutive_axioms_.clear();
+  nonconsecutive_axioms_.clear();
 }
 
 bool ArrayAxiomEnumerator::is_violated(const Term & ax) const

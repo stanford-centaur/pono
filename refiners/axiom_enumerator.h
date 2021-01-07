@@ -51,13 +51,15 @@ class AxiomEnumerator
  public:
   // TODO: brainstorm the right interface
   //       would it be better for it to add axioms or not?
-  AxiomEnumerator(const TransitionSystem & ts) : ts_(ts), solver_(ts.solver())
+  AxiomEnumerator(const TransitionSystem & ts)
+    : ts_(ts), solver_(ts.solver()), initialized_(false)
   {
   }
 
   virtual ~AxiomEnumerator(){};
 
   virtual void initialize() = 0;
+
   /** Check the axiom set over an abstract trace formula
    *  @param abs_trace_formula a formula representing the abstract trace
    *         it is assumed to be an (abstract) trace of ts_
@@ -111,6 +113,8 @@ class AxiomEnumerator
  protected:
   const TransitionSystem & ts_;
   const smt::SmtSolver & solver_;
+
+  bool initialized_;
 };
 
 }  // namespace pono
