@@ -103,6 +103,8 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
   ImplicitPredicateAbstractor
     ia(rts, abs_rts, un);
 
+  ia.do_abstraction();
+
   // check if c <= 10 is inductive on the concrete system
   Term x_le_10 = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
   s->push();

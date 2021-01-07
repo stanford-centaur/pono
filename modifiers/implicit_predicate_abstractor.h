@@ -55,9 +55,9 @@ class ImplicitPredicateAbstractor : public Abstractor
                          const smt::TermVec & new_preds,
                          smt::TermVec & out);
 
- protected:
   void do_abstraction() override;
 
+ protected:
   smt::Term predicate_refinement(const smt::Term & pred);
 
   const smt::SmtSolver & solver_;
@@ -72,6 +72,8 @@ class ImplicitPredicateAbstractor : public Abstractor
 
   smt::TermVec predicates_;  ///< list of predicates in abstraction over current
                              ///< state vars
+
+  bool abstracted_; ///< true iff do_abstraction has been called
 };
 
 }  // namespace pono

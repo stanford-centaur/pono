@@ -48,14 +48,16 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
                                                PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
       conc_ts_(ts),
-      aa_(conc_ts_, super::ts_, true),
+      abs_ts_(super::prover_interface_ts()),
+      abs_unroller_(abs_ts_, "{@}"),
+      aa_(conc_ts_, abs_ts_, true),
       aae_(aa_,
-           super::unroller_,
+           abs_unroller_,
            super::orig_ts_.solver() == super::solver_
                ? p.prop()
                : super::to_prover_solver_.transfer_term(p.prop()),
            super::options_.cegp_axiom_red_),
-      pm_(super::ts_),
+      pm_(abs_ts_),
       num_added_axioms_(0)
 {
   // point orig_ts_ to the correct one
@@ -85,7 +87,7 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
     SmtSolver s = create_solver_for(
         super::solver_->get_solver_enum(), super::engine_, false);
     shared_ptr<Prover> prover = make_prover(
-        super::engine_, latest_prop, super::ts_, s, super::options_);
+        super::engine_, latest_prop, abs_ts_, s, super::options_);
 
     res = prover->prove();
   }
@@ -114,7 +116,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     SmtSolver s = create_solver_for(
         super::solver_->get_solver_enum(), super::engine_, false);
     shared_ptr<Prover> prover = make_prover(
-        super::engine_, latest_prop, super::ts_, s, super::options_);
+        super::engine_, latest_prop, abs_ts_, s, super::options_);
 
     res = prover->check_until(k);
   }
@@ -158,9 +160,11 @@ void CegProphecyArrays<Prover_T>::initialize()
 template <class Prover_T>
 void CegProphecyArrays<Prover_T>::cegar_abstract()
 {
+  aa_.do_abstraction();
+  aae_.initialize();
   // the ArrayAbstractor already abstracted the transition system on
   // construction -- only need to abstract bad
-  Term prop_term = (super::ts_.solver() == super::orig_property_.solver())
+  Term prop_term = (abs_ts_.solver() == super::orig_property_.solver())
                        ? super::orig_property_.prop()
                        : super::to_prover_solver_.transfer_term(
                            super::orig_property_.prop());
@@ -170,8 +174,8 @@ void CegProphecyArrays<Prover_T>::cegar_abstract()
   // the abstract system should have all the same state and input variables
   // but abstracted
   // plus it will have some new variables for the witnesses and lambdas
-  assert(super::ts_.statevars().size() >= conc_ts_.statevars().size());
-  assert(super::ts_.inputvars().size() >= conc_ts_.inputvars().size());
+  assert(abs_ts_.statevars().size() >= conc_ts_.statevars().size());
+  assert(abs_ts_.inputvars().size() >= conc_ts_.inputvars().size());
 }
 
 template <class Prover_T>
@@ -203,11 +207,11 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
       // needed for it to be unsat with all the nonconsecutive axioms
       // it will be updated again later anyway
       for (auto ax : consecutive_axioms) {
-        size_t max_k = super::ts_.only_curr(ax) ? super::reached_k_ + 1
+        size_t max_k = abs_ts_.only_curr(ax) ? super::reached_k_ + 1
                                                 : super::reached_k_;
         for (size_t k = 0; k <= max_k; ++k) {
           abs_bmc_formula = super::solver_->make_term(
-              And, abs_bmc_formula, super::unroller_.at_time(ax, k));
+              And, abs_bmc_formula, abs_unroller_.at_time(ax, k));
         }
       }
 
@@ -233,13 +237,13 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     for (auto timed_idx : instantiations) {
       // number of steps before the property violation
       size_t delay =
-          super::reached_k_ + 1 - super::unroller_.get_curr_time(timed_idx);
+          super::reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
       // Prophecy Modifier will add prophecy and history variables
       // automatically here but it does NOT update the property
-      Term idx = super::unroller_.untime(timed_idx);
+      Term idx = abs_unroller_.untime(timed_idx);
       // can't target a non-current state variable
       // because the target will appear in the updated property
-      assert(delay > 0 || super::ts_.only_curr(idx));
+      assert(delay > 0 || abs_ts_.only_curr(idx));
       proph_vars.push_back(pm_.get_proph(idx, delay));
     }
 
@@ -282,7 +286,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
   // add consecutive axioms to the system
   // TODO: make sure we're adding current / next correctly
   RelationalTransitionSystem & rts =
-      static_cast<RelationalTransitionSystem &>(super::ts_);
+      static_cast<RelationalTransitionSystem &>(abs_ts_);
   for (auto ax : consecutive_axioms) {
     num_added_axioms_++;
     if (super::reached_k_ == -1) {
@@ -294,7 +298,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     rts.constrain_trans(ax);
     if (rts.only_curr(ax)) {
       // add the next state version if it's an invariant over current state vars
-      rts.constrain_trans(super::ts_.next(ax));
+      rts.constrain_trans(abs_ts_.next(ax));
     }
   }
 
@@ -308,14 +312,14 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
 template <class Prover_T>
 Term CegProphecyArrays<Prover_T>::get_bmc_formula(size_t b)
 {
-  Term abs_bmc_formula = super::unroller_.at_time(super::ts_.init(), 0);
+  Term abs_bmc_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
   for (int k = 0; k < b; ++k) {
     abs_bmc_formula = super::solver_->make_term(
-        And, abs_bmc_formula, super::unroller_.at_time(super::ts_.trans(), k));
+        And, abs_bmc_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
   }
 
   return super::solver_->make_term(
-      And, abs_bmc_formula, super::unroller_.at_time(super::bad_, b));
+      And, abs_bmc_formula, abs_unroller_.at_time(super::bad_, b));
 }
 
 template <class Prover_T>
@@ -334,10 +338,10 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
   for (auto ax : consec_ax) {
     unrolled_ax = super::solver_->make_term(true);
     size_t max_k =
-        super::ts_.only_curr(ax) ? super::reached_k_ + 1 : super::reached_k_;
+        abs_ts_.only_curr(ax) ? super::reached_k_ + 1 : super::reached_k_;
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = super::solver_->make_term(
-          And, unrolled_ax, super::unroller_.at_time(ax, k));
+          And, unrolled_ax, abs_unroller_.at_time(ax, k));
     }
 
     lbl = label(unrolled_ax);
@@ -379,8 +383,8 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
     assert(ax_inst.instantiations.size() == 1);
     unrolled_idx = *(ax_inst.instantiations.begin());
     size_t delay =
-        super::reached_k_ + 1 - super::unroller_.get_curr_time(unrolled_idx);
-    idx = super::unroller_.untime(unrolled_idx);
+        super::reached_k_ + 1 - abs_unroller_.get_curr_time(unrolled_idx);
+    idx = abs_unroller_.untime(unrolled_idx);
     map_nonconsec_ax[delay][idx].push_back(ax_inst);
   }
 

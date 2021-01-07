@@ -204,7 +204,8 @@ void IC3IA::initialize()
 
 void IC3IA::abstract()
 {
-  // main abstraction already done in constructor of ia_
+  ia_.do_abstraction();
+
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
 }
