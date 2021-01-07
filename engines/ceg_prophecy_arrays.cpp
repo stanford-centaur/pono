@@ -48,7 +48,7 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
                                                PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
       conc_ts_(ts),
-      abs_ts_(super::prover_ts()),
+      abs_ts_(super::prover_interface_ts()),
       abs_unroller_(abs_ts_, solver, "{@}"),
       aa_(conc_ts_, abs_ts_, true),
       aae_(aa_,
