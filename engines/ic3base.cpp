@@ -406,7 +406,7 @@ bool IC3Base::block(const IC3Formula & c,
     primed.push_back(ts_.next(cc));
   }
   assert(children.size() == primed.size());
-  if (false && options_.random_seed_) {
+  if (options_.random_seed_) {
     std::vector<size_t> idx(primed.size());
     std::iota(idx.begin(), idx.end(), 0);
     std::shuffle(idx.begin(), idx.end(), rng_);
