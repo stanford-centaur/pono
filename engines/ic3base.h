@@ -338,15 +338,15 @@ class IC3Base : public Prover
    *  @param c the IC3Formula to check
    *  @param out the output collateral:
    *         if query is UNSAT, it will do a cheap unsat-core based
-   *         generalization of c and set collateral to a subset
-   *         (as a conjunction still)
-   *         if query is SAT and get_pred is TRUE, will set collateral
-   *         to the predecessor CTI after generalizaing the predecessor
-   *         (if that option is enabled)
-   *         NOTE: this code does not call the (generally more expensive)
+   *           generalization of c and set out to a subset
+   *           (as a conjunction still)
+   *         if query is SAT and get_pred is TRUE, will set out to
+   *           the predecessor CTI after generalizing the predecessor
+   *           (if that option is enabled)
+   *         NOTE: this code does not call the (typically more expensive)
    *               inductive_generalization
-   *  @param get_pred if set to true, will set collateral to the predecessor
-   *                  on a SAT query. This option exists because rel_ind_check
+   *  @param get_pred if set to true, will set out to the predecessor on a
+   *                  SAT query. This option exists because rel_ind_check
    *                  is used in several places including the default
    *                  inductive_generalization procedure, where we don't need
    *                  predecessors if it's SAT. (in that case, SAT just means
