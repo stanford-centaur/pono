@@ -35,8 +35,7 @@ IC3::IC3(const Property & p, const TransitionSystem & ts,
   solver_->set_opt("produce-unsat-cores", "true");
 }
 
-IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
-                                     TermVec * out_nexts) const
+IC3Formula IC3::get_model_ic3formula() const
 {
   // expecting all solving in IC3 to be done at context level > 0
   // so if we're getting a model we should not be at context 0
@@ -50,25 +49,6 @@ IC3Formula IC3::get_model_ic3formula(TermVec * out_inputs,
       children.push_back(sv);
     } else {
       children.push_back(solver_->make_term(Not, sv));
-    }
-
-    if (out_nexts) {
-      Term nv = ts_.next(sv);
-      if (solver_->get_value(nv) == solver_true_) {
-        out_nexts->push_back(nv);
-      } else {
-        out_nexts->push_back(solver_->make_term(Not, nv));
-      }
-    }
-  }
-
-  if (out_inputs) {
-    for (const auto &iv : ts_.inputvars()) {
-      if (solver_->get_value(iv) == solver_true_) {
-        out_inputs->push_back(iv);
-      } else {
-        out_inputs->push_back(solver_->make_term(Not, iv));
-      }
     }
   }
 
@@ -93,21 +73,24 @@ bool IC3::ic3formula_check_valid(const IC3Formula & u) const
   return true;
 }
 
-IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
+void IC3::predecessor_generalization(size_t i,
+                                     const IC3Formula & c,
+                                     IC3Formula & pred)
 {
   // TODO: change this so we don't have to depend on the solver context to be
   // sat
   assert(i > 0);
+  assert(!pred.disjunction);
 
   const UnorderedTermSet & statevars = ts_.statevars();
-  TermVec input_lits, next_lits;
-  const IC3Formula & icf = get_model_ic3formula(&input_lits, &next_lits);
-  const TermVec & cube_lits = icf.children;
+  TermVec input_lits = get_input_values();
+  TermVec next_lits = get_next_state_values();
+  const TermVec & cube_lits = pred.children;
 
   if (i == 1) {
     // don't need to generalize if i == 1
     // the predecessor is an initial state
-    return get_model_ic3formula();
+    return;
   }
 
   Term formula = make_and(input_lits);
@@ -146,11 +129,9 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
   // formula should not be unsat on its own
   assert(red_cube_lits.size() > 0);
 
-  const IC3Formula & res = ic3formula_conjunction(red_cube_lits);
+  pred = ic3formula_conjunction(red_cube_lits);
   // expecting a Cube here
-  assert(!res.disjunction);
-
-  return res;
+  assert(!pred.disjunction);
 }
 
 void IC3::check_ts() const

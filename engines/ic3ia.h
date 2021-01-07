@@ -54,7 +54,7 @@ class IC3IA : public IC3
   //       because we will pass them to ia_ and they must be
   //       be initialized first
 
-  TransitionSystem conc_ts_; 
+  TransitionSystem conc_ts_;
 
   ImplicitPredicateAbstractor ia_;
 
@@ -73,9 +73,7 @@ class IC3IA : public IC3
 
   // pure virtual method implementations
 
-  IC3Formula get_model_ic3formula(
-      smt::TermVec * out_inputs = nullptr,
-      smt::TermVec * out_nexts = nullptr) const override;
+  IC3Formula get_model_ic3formula() const override;
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 

@@ -321,10 +321,12 @@ IC3Formula IC3Base::inductive_generalization(size_t i, const IC3Formula & c)
   return block;
 }
 
-IC3Formula IC3Base::generalize_predecessor(size_t i, const IC3Formula & c)
+void IC3Base::predecessor_generalization(size_t i,
+                                         const IC3Formula & c,
+                                         IC3Formula & pred)
 {
   // by default does no generalization
-  return get_model_ic3formula();
+  return;
 }
 
 bool IC3Base::intersects_bad(IC3Formula & out)
@@ -453,10 +455,12 @@ bool IC3Base::rel_ind_check(size_t i,
   Result r = check_sat_assuming(assumps_);
   if (r.is_sat()) {
     if (get_pred) {
+      out = get_model_ic3formula();
       if (options_.ic3_pregen_) {
-        out = generalize_predecessor(i, c);
-      } else {
-        out = get_model_ic3formula();
+        predecessor_generalization(i, c, out);
+        assert(out.term);
+        assert(out.children.size());
+        assert(!out.disjunction);  // expecting a conjunction
       }
     }
     assert(ic3formula_check_valid(out));
@@ -824,6 +828,28 @@ size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
   pop_solver_context();
 
   return j;
+}
+
+TermVec IC3Base::get_input_values() const
+{
+  TermVec out_inputs;
+  out_inputs.reserve(ts_.inputvars().size());
+  for (const auto & iv : ts_.inputvars()) {
+    out_inputs.push_back(solver_->make_term(Equal, iv, solver_->get_value(iv)));
+  }
+  return out_inputs;
+}
+
+TermVec IC3Base::get_next_state_values() const
+{
+  TermVec out_nexts;
+  out_nexts.reserve(ts_.statevars().size());
+  Term nv;
+  for (const auto & sv : ts_.statevars()) {
+    nv = ts_.next(sv);
+    out_nexts.push_back(solver_->make_term(Equal, nv, solver_->get_value(nv)));
+  }
+  return out_nexts;
 }
 
 Term IC3Base::make_and(TermVec vec, SmtSolver slv) const

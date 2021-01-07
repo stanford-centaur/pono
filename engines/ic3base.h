@@ -16,12 +16,8 @@
 **        To create a particular IC3 instantiation, you must implement the
 *following:
 **           - implement get_model_ic3_formula and give it semantics to produce
-*the
-**             corresponding IC3Formula for your flavor of IC3
+**             the corresponding IC3Formula for your flavor of IC3
 **             (assumes solver_'s state is SAT from a failed rel_ind_check)
-**             also need to be able to give model (as formulas) for input values
-**             and next-state variable values if inputs/nexts are non-null,
-*respectively
 **           - optionally override inductive_generalization
 **             (default aggressively minimizes)
 **           - optionally override generalize_predecessor
@@ -198,19 +194,11 @@ class IC3Base : public Prover
   /** Get an IC3Formula from the current model
    *  @requires last call to check_sat of solver_ was satisfiable and context
    * hasn't changed
-   *  @param inputs - pointer to a vector. If non-null populate with input
-   *                  variable model
-   *  @param nexts - pointer to a vector. If non-null populate with next
-   *                 state variable model
    *  @return an IC3Formula over current state variables with is_disjunction
    *          false depending on the flavor of IC3, this might be a boolean
-   * cube, a theory cube, a cube of predicates, etc... AND if inputs non-null,
-   * then include model for inputs, e.g. as equalities if nexts non-null, then
-   * include model for next state vars, e.g. add equalities to vector
+   *          cube, a theory cube, a cube of predicates, etc...
    */
-  virtual IC3Formula get_model_ic3formula(
-      smt::TermVec * out_inputs = nullptr,
-      smt::TermVec * out_nexts = nullptr) const = 0;
+  virtual IC3Formula get_model_ic3formula() const = 0;
 
   /** Check whether a given IC3Formula is valid
    *  e.g. if this is a boolean clause it would
@@ -270,13 +258,17 @@ class IC3Base : public Prover
    *  @requires rel_ind_check(i, c)
    *  @requires the solver_ context is currently satisfiable
    *  @param i the frame number
-   *  @param c the IC3Formula to find a general predecessor for
-   *  @return a new IC3Formula d
-   *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
+   *  @param c the IC3Formula conjunction to find a general predecessor for
+   *  @param pred the predecessor. originally passed as full assignment
+   *         and then is updated in to be a generalized predecessor
+   *  @ensures pred -> F[i-1] /\
+               forall s \in [pred] exists s' \in [c]. (pred ,c) \in [T]
    *  @ensures no calls to the solver_ because the context is polluted with
    *           other assertions
    */
-  virtual IC3Formula generalize_predecessor(size_t i, const IC3Formula & c);
+  virtual void predecessor_generalization(size_t i,
+                                          const IC3Formula & c,
+                                          IC3Formula & pred);
 
   /** Generates an abstract transition system
    *  Typically this would set the ts_ pointer to the abstraction
@@ -445,6 +437,20 @@ class IC3Base : public Prover
    *          to that frame
    */
   size_t find_highest_frame(size_t i, const IC3Formula & u);
+
+  /** Returns a vector of equalities between input variables
+   *  and their values in the current model
+   *  @require solver_ state to be SAT
+   *  @return vector of equalities
+   */
+  smt::TermVec get_input_values() const;
+
+  /** Returns a vector of equalities between next state variables
+   *  and their values in the current model
+   *  @require solver_ state to be SAT
+   *  @return vector of equalities
+   */
+  smt::TermVec get_next_state_values() const;
 
   /** Creates a reduce and of the vector of boolean terms
    *  It also sorts the vector by the hash
