@@ -227,7 +227,7 @@ IC3Formula IC3Base::ic3formula_negate(const IC3Formula & u) const
   neg_children.reserve(children.size());
   Term nc = smart_not(children.at(0));
 
-  bool is_clause = u.is_disjunction();
+  bool is_clause = u.disjunction;
   Term term = nc;
   neg_children.push_back(nc);
   for (size_t i = 1; i < children.size(); ++i) {
@@ -335,7 +335,7 @@ bool IC3Base::rel_ind_check(size_t i, const IC3Formula & c, IC3Formula & out)
   assert(i < frames_.size());
   // expecting to be the polarity for proof goals, not frames
   // e.g. a conjunction
-  assert(!c.is_disjunction());
+  assert(!c.disjunction);
 
   assert(solver_context_ == 0);
   push_solver_context();
@@ -456,34 +456,24 @@ bool IC3Base::block_all()
         assert(pg == proof_goals.top());
         proof_goals.pop();
 
-        vector<IC3Formula> blocking_units;
         if (options_.ic3_indgen_) {
-          assert(collateral.term);
-          blocking_units = inductive_generalization(pg->idx, collateral);
+          collateral = inductive_generalization(pg->idx, collateral);
         } else {
-          blocking_units.push_back(ic3formula_negate(pg->target));
-        }
-        assert(blocking_units.size());
-
-        // Most IC3 implementations will have only a single element in the
-        // vector e.g. a single clause. But this is not guaranteed for all for
-        // example, interpolant-based generalization for bit-vectors is not
-        // always a single clause
-        size_t min_idx = frames_.size();
-        for (const auto & bu : blocking_units) {
-          // try to push
-          size_t idx = find_highest_frame(pg->idx, bu);
-          constrain_frame(idx, bu);
-          if (idx < min_idx) {
-            min_idx = idx;
-          }
+          // just negate the term
+          collateral = ic3formula_negate(collateral);
         }
 
-        // we're limited by the minimum index that a conjunct could be pushed to
-        if (min_idx + 1 < frames_.size()) {
+        size_t idx = find_highest_frame(pg->idx, collateral);
+        assert(idx >= pg->idx);
+        constrain_frame(idx, collateral);
+
+        // re-add the proof goal at a higher frame if not blocked
+        // up to the frontier
+        if (idx < frontier_idx()) {
           assert(!pg->target.disjunction);
-          proof_goals.new_proof_goal(pg->target, min_idx + 1, pg->next);
+          proof_goals.new_proof_goal(pg->target, idx + 1, pg->next);
         }
+
       } else {
         // could not block this proof goal
         assert(collateral.term);
@@ -579,9 +569,10 @@ void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
 {
   assert(solver_context_ == 0);
   assert(i < frame_labels_.size());
+  assert(constraint.disjunction);
 
   if (new_constraint) {
-    for (size_t j = 1; j <= i; ++j) { 
+    for (size_t j = 1; j <= i; ++j) {
       vector<IC3Formula> & Fj = frames_.at(j);
       size_t k = 0;
       for (size_t l = 0; l < Fj.size(); ++l) {
@@ -687,7 +678,7 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 
 size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
 {
-  assert(u.is_disjunction());
+  assert(u.disjunction);
   const Term &c = u.term;
   push_solver_context();
   solver_->assert_formula(c);
