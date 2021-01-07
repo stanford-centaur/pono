@@ -308,7 +308,7 @@ IC3Formula IC3Base::inductive_generalization(size_t i, const IC3Formula & c)
       // NOTE: don't need to increment j because
       //       the one at position j was put at
       //       end of vector
-      assert(gen.children.at(j) != dropped);
+      assert(j + 1 == gen.children.size() || gen.children.at(j) != dropped);
     }
   }
 
