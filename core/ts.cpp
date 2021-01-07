@@ -476,7 +476,7 @@ void TransitionSystem::rebuild_trans_based_on_coi(
 {
   /* Clear current transition relation 'trans_'. */
   trans_ = solver_->make_term(true);
-  
+
   /* Add next-state functions for state variables in COI. */
   for (auto state_var : state_vars_in_coi) {
     Term next_func = NULL;
@@ -496,13 +496,25 @@ void TransitionSystem::rebuild_trans_based_on_coi(
     trans_ = solver_->make_term(And, trans_, constr);
 
   statevars_.clear();
-  for (auto var : state_vars_in_coi) statevars_.insert(var);
+  // Have to add any state variables in init back in
+  // this is because COI doesn't consider init and if
+  // we remove those state variables then the TS is
+  // ill-formed (e.g. init will contain unknown symbols)
+  // this shouldn't affect performance much, because
+  // variables in init that are not in the COI *only*
+  // appear in init
+  get_free_symbolic_consts(init_, statevars_);
+  for (auto var : state_vars_in_coi) {
+    statevars_.insert(var);
+  }
 
   inputvars_.clear();
-  for (auto var : input_vars_in_coi) inputvars_.insert(var);
+  for (auto var : input_vars_in_coi) {
+    inputvars_.insert(var);
+  }
 
   smt::UnorderedTermMap reduced_state_updates;
-  for (auto var : state_vars_in_coi) {
+  for (const auto & var : statevars_) {
     auto elem = state_updates_.find(var);
     if (elem != state_updates_.end()) {
       Term next_func = elem->second;
@@ -532,8 +544,8 @@ void TransitionSystem::rebuild_trans_based_on_coi(
         currvar = v;
       }
 
-      if (state_vars_in_coi.find(currvar) != state_vars_in_coi.end()
-          || input_vars_in_coi.find(currvar) != input_vars_in_coi.end()) {
+      if (statevars_.find(currvar) != statevars_.end()
+          || inputvars_.find(currvar) != inputvars_.end()) {
         any_in_coi = true;
         break;
       }
