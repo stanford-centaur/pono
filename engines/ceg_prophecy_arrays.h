@@ -50,7 +50,7 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   void initialize() override;
 
  protected:
-  const TransitionSystem & conc_ts_;
+  TransitionSystem conc_ts_;
   TransitionSystem & abs_ts_;
   Unroller abs_unroller_;
   ArrayAbstractor aa_;
@@ -60,6 +60,8 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   size_t num_added_axioms_;  ///< set by refine to the number of added axioms
 
   smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
+
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; }
 
   void cegar_abstract() override;
   bool cegar_refine() override;
