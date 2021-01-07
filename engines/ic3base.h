@@ -340,7 +340,7 @@ class IC3Base : public Prover
    *         if query is UNSAT, it will do a cheap unsat-core based
    *         generalization of c and set collateral to a subset
    *         (as a conjunction still)
-   *         if query is SAT and get_cti is TRUE, will set collateral
+   *         if query is SAT and get_pred is TRUE, will set collateral
    *         to the predecessor CTI after generalizaing the predecessor
    *         (if that option is enabled)
    *         NOTE: this code does not call the (generally more expensive)
