@@ -523,7 +523,8 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   }
   state_updates_ = reduced_state_updates;
 
-  /* update named_terms and term_to_name_ by removing terms that are not in coi
+  /* update named_terms and term_to_name_ by removing terms that
+     no longer exist in the system
    */
   unordered_map<string, Term> reduced_named_terms;
   unordered_map<Term, string> reduced_term_to_name;
@@ -531,7 +532,7 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   for (auto elem : named_terms_) {
     free_vars.clear();
     get_free_symbolic_consts(elem.second, free_vars);
-    bool any_in_coi = false;
+    bool all_in_sys = true;
     Term currvar;
     for (auto v : free_vars) {
       // v is an input variable, current variable, or next variable
@@ -544,13 +545,14 @@ void TransitionSystem::rebuild_trans_based_on_coi(
         currvar = v;
       }
 
-      if (statevars_.find(currvar) != statevars_.end()
-          || inputvars_.find(currvar) != inputvars_.end()) {
-        any_in_coi = true;
+      if (statevars_.find(currvar) == statevars_.end()
+          && inputvars_.find(currvar) == inputvars_.end()) {
+        all_in_sys = false;
         break;
       }
     }
-    if (any_in_coi) {
+
+    if (all_in_sys) {
       reduced_named_terms[elem.first] = elem.second;
       // NOTE: name might not be the same as elem.first
       //       need to use the representative name
