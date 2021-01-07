@@ -93,7 +93,12 @@ TEST_P(TermAnalysisUnitTests, GetPredicatesIte)
     expected_preds.insert(ep);
   }
   UnorderedTermSet preds;
-  get_predicates(s, formula, preds);
+  // use option to split ITEs
+  bool include_symbols = false;
+  bool search_subterms = false;
+  bool split_ites = true;
+  get_predicates(
+      s, formula, preds, include_symbols, search_subterms, split_ites);
 
   EXPECT_EQ(preds.size(), expected_preds.size());
 

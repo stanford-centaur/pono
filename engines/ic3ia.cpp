@@ -137,9 +137,9 @@ void IC3IA::initialize()
   // add all the predicates from init and property to the abstraction
   // NOTE: abstract is called automatically in IC3Base initialize
   UnorderedTermSet preds;
-  get_predicates(solver_, ts_.init(), preds, true);
+  get_predicates(solver_, ts_.init(), preds, false, false, true);
   size_t num_init_preds = preds.size();
-  get_predicates(solver_, bad_, preds, true);
+  get_predicates(solver_, bad_, preds, false, false, true);
   size_t num_prop_preds = preds.size() - num_init_preds;
   for (const auto &p : preds) {
     add_predicate(p);
@@ -204,12 +204,12 @@ RefineResult IC3IA::refine()
 {
   // recover the counterexample trace
   assert(check_intersects_initial(cex_pg_->target.term));
-  TermVec cex({ cex_pg_->target.term });
+  TermVec cex;
   const ProofGoal * tmp = cex_pg_;
-  while (tmp->next) {
-    tmp = tmp->next;
+  while (tmp) {
     cex.push_back(tmp->target.term);
     assert(ts_.only_curr(tmp->target.term));
+    tmp = tmp->next;
   }
 
   if (cex.size() == 1) {
@@ -261,7 +261,7 @@ RefineResult IC3IA::refine()
     Term solver_I = unroller_.untime(to_solver_.transfer_term(I, BOOL));
     assert(conc_ts_.only_curr(solver_I));
     logger.log(3, "got interpolant: {}", solver_I);
-    get_predicates(solver_, solver_I, preds);
+    get_predicates(solver_, solver_I, preds, false, false, true);
   }
 
   // new predicates
@@ -296,11 +296,6 @@ RefineResult IC3IA::refine()
   for (auto const&p : preds) {
     add_predicate(p);
   }
-
-  // clear the current proof goals
-  // the transitions represented by those backwards reachable traces
-  // may not be precise wrt the new predicates
-  proof_goals_.clear();
 
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;

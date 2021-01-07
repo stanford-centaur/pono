@@ -93,10 +93,9 @@ bool IC3::ic3formula_check_valid(const IC3Formula & u) const
   return true;
 }
 
-std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
-                                                      const IC3Formula & c)
+IC3Formula IC3::inductive_generalization(size_t i, const IC3Formula & c)
 {
-  assert(!c.is_disjunction());  // expecting a cube
+  assert(!c.disjunction);  // expecting a cube
 
   if (options_.mbic3_indgen_mode != 0) {
     throw PonoException("Boolean IC3 only supports indgen mode 0 but got "
@@ -189,8 +188,8 @@ std::vector<IC3Formula> IC3::inductive_generalization(size_t i,
   // TODO: would it be more intuitive to start with a clause
   //       and generalize the clause directly?
   const IC3Formula &blocking_clause = ic3formula_negate(ic3formula_conjunction(lits));
-  assert(blocking_clause.is_disjunction());  // expecting a clause
-  return { blocking_clause };
+  assert(blocking_clause.disjunction);  // expecting a clause
+  return blocking_clause;
 }
 
 IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
@@ -248,7 +247,7 @@ IC3Formula IC3::generalize_predecessor(size_t i, const IC3Formula & c)
 
   const IC3Formula & res = ic3formula_conjunction(red_cube_lits);
   // expecting a Cube here
-  assert(!res.is_disjunction());
+  assert(!res.disjunction);
 
   return res;
 }

@@ -143,14 +143,14 @@ bool ModelBasedIC3::ic3formula_check_valid(const IC3Formula & u) const
   return true;
 }
 
-vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
-                                                           const IC3Formula & c)
+IC3Formula ModelBasedIC3::inductive_generalization(size_t i,
+                                                   const IC3Formula & c)
 {
   // only need interpolator if in mode 2
   assert(options_.mbic3_indgen_mode == 2 || interpolator_ == nullptr);
 
-  assert(!c.is_disjunction());
-  vector<IC3Formula> gen_res;
+  assert(!c.disjunction);
+  IC3Formula gen_res;
 
   if (options_.ic3_indgen_) {
     if (options_.mbic3_indgen_mode == 0) {
@@ -238,7 +238,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
         progress = lits.size() < prev_size;
       }
 
-      gen_res.push_back(ic3formula_negate(ic3formula_conjunction(lits)));
+      gen_res = ic3formula_negate(ic3formula_conjunction(lits));
 
     } else if (options_.mbic3_indgen_mode == 1) {
       TermVec tmp, lits, red_lits;
@@ -260,7 +260,7 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
       for (const auto &l : red_lits) {
         curr_lits.push_back(ts_.curr(l));
       }
-      gen_res.push_back(ic3formula_negate(ic3formula_conjunction(curr_lits)));
+      gen_res = ic3formula_negate(ic3formula_conjunction(curr_lits));
     } else if (options_.mbic3_indgen_mode == 2) {
       // TODO: consider creating a separate derived class for this mode
       interpolator_->reset_assertions();
@@ -283,26 +283,36 @@ vector<IC3Formula> ModelBasedIC3::inductive_generalization(size_t i,
       Term interp;
       Result r = interpolator_->get_interpolant(int_A, int_B, interp);
       assert(r.is_unsat());
+      logger.log(3, "Got interpolant: {}", interp);
 
-      Term solver_interp = to_solver_->transfer_term(interp);
-      logger.log(3, "Got interpolant: {}", solver_interp);
-      TermVec interp_conjuncts;
-      conjunctive_partition(solver_interp, interp_conjuncts, true);
+      // Note: structure of interpolant is not guaranteed to be a clause
+      //       but we'll at least try to split it up into disjuncts
+      // Note 2: using disjunctive_partition before translating back to
+      //         main solver because boolector removes ORs when putting into
+      //         AIG form
+      //         but since boolector doesn't support interpolation we know
+      //         the interpolator is not boolector
 
-      for (const auto &c : interp_conjuncts) {
-        // these will not necessarily be a disjunction actually, they'll just be
-        // a single formula, {c} from the conjunctive partition of the
-        // interpolant
-        // --> interpolant not guaranteed to be a clause
-        gen_res.push_back(ic3formula_disjunction({ ts_.curr(c) }));
+      TermVec interp_disjuncts;
+      disjunctive_partition(interp, interp_disjuncts);
+
+      TermVec solver_interp_disjuncts;
+      solver_interp_disjuncts.reserve(interp_disjuncts.size());
+
+      Sort interp_boolsort = interpolator_->make_sort(BOOL);
+      for (const auto & ii : interp_disjuncts) {
+        assert(ii->get_sort() == interp_boolsort);
+        solver_interp_disjuncts.push_back(
+            ts_.curr(to_solver_->transfer_term(ii, BOOL)));
       }
 
+      assert(solver_interp_disjuncts.size() == interp_disjuncts.size());
+      gen_res = ic3formula_disjunction(solver_interp_disjuncts);
     } else {
       assert(false);
     }
   }
-
-  assert(gen_res.size());
+  assert(gen_res.term);
   return gen_res;
 }
 
@@ -445,7 +455,7 @@ void ModelBasedIC3::check_ts() const
   }
 }
 
-bool ModelBasedIC3::intersects_bad()
+bool ModelBasedIC3::intersects_bad(IC3Formula & out)
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
@@ -458,8 +468,7 @@ bool ModelBasedIC3::intersects_bad()
     // push bad as a proof goal
     TermVec conjuncts;
     conjunctive_partition(bad_, conjuncts, true);
-    const IC3Formula &bad_at_last_frame = ic3formula_conjunction(conjuncts);
-    add_proof_goal(bad_at_last_frame, reached_k_ + 1, NULL);
+    out = ic3formula_conjunction(conjuncts);
   }
 
   pop_solver_context();
