@@ -37,8 +37,6 @@ class IC3 : public IC3Base
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 
-  IC3Formula inductive_generalization(size_t i, const IC3Formula & c) override;
-
   IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) override;
 
   void check_ts() const override;

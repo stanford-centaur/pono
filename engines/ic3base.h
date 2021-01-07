@@ -22,8 +22,10 @@
 **             also need to be able to give model (as formulas) for input values
 **             and next-state variable values if inputs/nexts are non-null,
 *respectively
-**           - implement inductive_generalization
-**           - implement generalize_predecessor
+**           - optionally override inductive_generalization
+**             (default aggressively minimizes)
+**           - optionally override generalize_predecessor
+**             (default just takes whole model)
 **             this one is special because it is called with solver_context == 1
 **             and assuming the state is SAT so you can query with
 **             solver_->get_value(Term)
@@ -220,33 +222,6 @@ class IC3Base : public Prover
    */
   virtual bool ic3formula_check_valid(const IC3Formula & u) const = 0;
 
-  /** Attempt to generalize before blocking in frame i
-   *  The standard approach is inductive generalization
-   *  @requires !rel_ind_check(i, c, _)
-   *  @requires c is a conjunction (e.g. !c.disjunction)
-   *  @param i the frame number to generalize it against
-   *  @param c the IC3Formula that should be blocked
-   *  @return a generalized IC3Formula
-   *
-   *  Let the returned formula be d
-   *  @ensures d -> !c and F[i-1] /\ d /\ T /\ !d' is unsat
-   *           e.g. it blocks c and is inductive relative to F[i-1]
-   */
-  virtual IC3Formula inductive_generalization(size_t i,
-                                              const IC3Formula & c) = 0;
-
-  /** Generalize a counterexample
-   *  @requires rel_ind_check(i, c)
-   *  @requires the solver_ context is currently satisfiable
-   *  @param i the frame number
-   *  @param c the IC3Formula to find a general predecessor for
-   *  @return a new IC3Formula d
-   *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
-   *  @ensures no calls to the solver_ because the context is polluted with
-   *           other assertions
-   */
-  virtual IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) = 0;
-
   /** Checks if every thing in the current transition system is supported
    *  by the current instantiation
    *  throws a PonoException with a relevant message if not.
@@ -276,6 +251,32 @@ class IC3Base : public Prover
    *  @param u the IC3Formula to negate
    */
   virtual IC3Formula ic3formula_negate(const IC3Formula & u) const;
+
+  /** Attempt to generalize before blocking in frame i
+   *  The standard approach is inductive generalization
+   *  @requires !rel_ind_check(i, c, _)
+   *  @requires c is a conjunction (e.g. !c.disjunction)
+   *  @param i the frame number to generalize it against
+   *  @param c the IC3Formula that should be blocked
+   *  @return a generalized IC3Formula
+   *
+   *  Let the returned formula be d
+   *  @ensures d -> !c and F[i-1] /\ d /\ T /\ !d' is unsat
+   *           e.g. it blocks c and is inductive relative to F[i-1]
+   */
+  virtual IC3Formula inductive_generalization(size_t i, const IC3Formula & c);
+
+  /** Generalize a counterexample
+   *  @requires rel_ind_check(i, c)
+   *  @requires the solver_ context is currently satisfiable
+   *  @param i the frame number
+   *  @param c the IC3Formula to find a general predecessor for
+   *  @return a new IC3Formula d
+   *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
+   *  @ensures no calls to the solver_ because the context is polluted with
+   *           other assertions
+   */
+  virtual IC3Formula generalize_predecessor(size_t i, const IC3Formula & c);
 
   /** Generates an abstract transition system
    *  Typically this would set the ts_ pointer to the abstraction
@@ -335,18 +336,28 @@ class IC3Base : public Prover
    *  @requires c -> F[i]
    *  @param i the frame number
    *  @param c the IC3Formula to check
-   *  @param out the output collateral: a vector interpreted as a conjunction of
-   * IC3Formulas if the check succeeds (e.g. is UNSAT), then returns a vector of
-   * blocking units to be added to Frame i if the check fails (e.g. is SAT),
-   * then returns a vector of predecessors Note 1: this method calls
-   * inductive_generalization and generalize_predecessor if options_.ic3_pregen_
-   * and options_.ic3_indgen_ are set, respectively Note 2: in most cases, the
-   * vector returned will be size one
+   *  @param out the output collateral:
+   *         if query is UNSAT, it will do a cheap unsat-core based
+   * generalization of c and set collateral to a subset (as a conjunction still)
+   *         if query is SAT and get_cti is TRUE, will set collateral
+   *         to the predecessor CTI after generalizaing the predecessor
+   *         (if that option is enabled)
+   *         NOTE: this code does not call the (generally more expensive)
+   *               inductive_generalization
+   *  @param get_pred if set to true, will set collateral to the predecessor
+   *                  on a SAT query. This option exists because rel_ind_check
+   *                  is used in several places including the default
+   *                  inductive_generalization procedure, where we don't need
+   *                  predecessors if it's SAT. (in that case, SAT just means
+   *                  we can't drop the literal we tried dropping)
    *  @return true iff c is inductive relative to frame i-1
    *  @ensures returns false  : out -> F[i-1] /\ \forall s in out . (s, c) \in
    * [T] returns true   : out unchanged, F[i-1] /\ T /\ c' is unsat
    */
-  bool rel_ind_check(size_t i, const IC3Formula & c, IC3Formula & out);
+  bool rel_ind_check(size_t i,
+                     const IC3Formula & c,
+                     IC3Formula & out,
+                     bool get_pred = true);
 
   // Helper methods
 

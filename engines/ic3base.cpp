@@ -244,6 +244,89 @@ IC3Formula IC3Base::ic3formula_negate(const IC3Formula & u) const
   return IC3Formula(term, neg_children, !is_clause);
 }
 
+IC3Formula IC3Base::inductive_generalization(size_t i, const IC3Formula & c)
+{
+  assert(!solver_context_);
+  assert(i <= frontier_idx());
+  assert(!c.disjunction);  // expecting a cube
+  // be default will try to find a minimal cube
+  // NOTE: not necessarily minimum (e.g. it's a local minimum)
+
+  logger.log(
+      3, "trying to generalize an IC3Formula of size {}", c.children.size());
+
+  // TODO use unsat core reducer
+  // TODO use ic3_gen_max_iter_ option or remove it
+  //      maybe default zero could mean unbounded
+  //      seems like a good compromise
+
+  UnorderedTermSet necessary;  // populated with children we
+                               // can't drop
+
+  IC3Formula gen = c;
+  IC3Formula out;
+  Term dropped;
+  size_t j = 0;
+  while (j < gen.children.size() && gen.children.size() > 1) {
+    // TODO use random_seed_ if set for shuffling
+    //      order of drop attempts
+
+    // try dropping j
+    dropped = gen.children.at(j);
+    if (necessary.find(dropped) != necessary.end()) {
+      // can't drop this one
+      j++;
+      continue;
+    }
+
+    gen.children.erase(gen.children.begin() + j);
+
+    // TODO: decide if it's too expensive to create fresh
+    //       IC3Formula each time -- which sorts the elements
+    //       if so, could consider not automatically sorting
+    //       and instead only doing it for subsumption checks
+    gen = ic3formula_conjunction(gen.children);
+
+    if (!check_intersects_initial(gen.term)
+        && rel_ind_check(i, gen, out, false)) {
+      // we can drop this literal
+
+      // out was generalized with an unsat core in
+      // rel_ind_check
+      // we can't rely on the order of the children
+      // being the same
+      gen = out;
+      j = 0;  // start iteration over
+    } else {
+      // could not drop this child
+      necessary.insert(dropped);
+      // NOTE gen.term won't be updated
+      //      but gen will be reconstructed in
+      //      next iteration anyway
+      gen.children.push_back(dropped);
+
+      // NOTE: don't need to increment j because
+      //       the one at position j was put at
+      //       end of vector
+      assert(gen.children.at(j) != dropped);
+    }
+  }
+
+  // reconstruct the IC3Formula -- need to make sure term is valid
+  // since we've been modifying gen.children
+  gen = ic3formula_conjunction(gen.children);
+  assert(!check_intersects_initial(gen.term));
+  IC3Formula block = ic3formula_negate(gen);
+  assert(block.disjunction);
+  return block;
+}
+
+IC3Formula IC3Base::generalize_predecessor(size_t i, const IC3Formula & c)
+{
+  // by default does no generalization
+  return get_model_ic3formula();
+}
+
 bool IC3Base::intersects_bad(IC3Formula & out)
 {
   push_solver_context();
@@ -329,7 +412,10 @@ ProverResult IC3Base::step_0()
   return ProverResult::UNKNOWN;
 }
 
-bool IC3Base::rel_ind_check(size_t i, const IC3Formula & c, IC3Formula & out)
+bool IC3Base::rel_ind_check(size_t i,
+                            const IC3Formula & c,
+                            IC3Formula & out,
+                            bool get_pred)
 {
   assert(i > 0);
   assert(i < frames_.size());
@@ -366,10 +452,12 @@ bool IC3Base::rel_ind_check(size_t i, const IC3Formula & c, IC3Formula & out)
 
   Result r = check_sat_assuming(assumps_);
   if (r.is_sat()) {
-    if (options_.ic3_pregen_) {
-      out = generalize_predecessor(i, c);
-    } else {
-      out = get_model_ic3formula();
+    if (get_pred) {
+      if (options_.ic3_pregen_) {
+        out = generalize_predecessor(i, c);
+      } else {
+        out = get_model_ic3formula();
+      }
     }
     assert(ic3formula_check_valid(out));
     pop_solver_context();
