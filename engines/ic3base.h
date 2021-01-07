@@ -83,8 +83,6 @@ struct IC3Formula
   /** Returns true iff this IC3Formula has not been initialized */
   bool is_null() const { return (term == nullptr); };
 
-  bool is_disjunction() const { return disjunction; };
-
   smt::Term term;  ///< term representation of this formula
   smt::TermVec
       children;  ///< flattened children of either a disjunction or conjunction
@@ -221,16 +219,17 @@ class IC3Base : public Prover
   /** Attempt to generalize before blocking in frame i
    *  The standard approach is inductive generalization
    *  @requires !rel_ind_check(i, c, _)
+   *  @requires c is a conjunction (e.g. !c.disjunction)
    *  @param i the frame number to generalize it against
    *  @param c the IC3Formula that should be blocked
-   *  @return a vector of IC3Formulas interpreted as a conjunction of
-   * IC3Formulas. Standard IC3 implementations will have a size one vector (e.g.
-   * a single clause) Let the returned conjunction term be d
+   *  @return a generalized IC3Formula
+   *
+   *  Let the returned formula be d
    *  @ensures d -> !c and F[i-1] /\ d /\ T /\ !d' is unsat
    *           e.g. it blocks c and is inductive relative to F[i-1]
    */
-  virtual std::vector<IC3Formula> inductive_generalization(
-      size_t i, const IC3Formula & c) = 0;
+  virtual IC3Formula inductive_generalization(size_t i,
+                                              const IC3Formula & c) = 0;
 
   /** Generalize a counterexample
    *  @requires rel_ind_check(i, c)
