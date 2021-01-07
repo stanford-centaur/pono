@@ -26,8 +26,8 @@ using namespace std;
 
 namespace pono {
 
-Unroller::Unroller(const TransitionSystem & ts, const SmtSolver & solver, const string & time_identifier)
-  : ts_(ts), solver_(solver), time_id_(time_identifier)
+Unroller::Unroller(const TransitionSystem & ts, const string & time_identifier)
+  : ts_(ts), solver_(ts.solver()), time_id_(time_identifier)
 {
   num_vars_ = ts_.statevars().size();
   num_vars_ += ts_.inputvars().size();

@@ -38,7 +38,7 @@ Prover::Prover(const Property & p, const TransitionSystem & ts,
       orig_property_(p),
       orig_ts_(ts),
       ts_(ts, to_prover_solver_),
-      unroller_(ts_, solver_),
+      unroller_(ts_),
       options_(opt),
       engine_(Engine::NONE)
 {
