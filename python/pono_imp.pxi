@@ -375,7 +375,7 @@ cdef class Unroller:
     cdef SmtSolver _solver
     def __cinit__(self, __AbstractTransitionSystem ts):
         self.cu = new c_Unroller(ts.cts[0])
-        self._solver = ts.solver()
+        self._solver = ts._solver
 
     def __dealloc__(self):
         del self.cu
