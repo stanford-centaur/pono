@@ -289,6 +289,10 @@ RefineResult IC3IA::refine()
   TermVec red_preds;
   if (ia_.reduce_predicates(cex, fresh_preds, red_preds)) {
     // reduction successful
+    logger.log(2,
+               "reduce predicates successful {}/{}",
+               red_preds.size(),
+               fresh_preds.size());
     if (red_preds.size() < fresh_preds.size()) {
       fresh_preds.clear();
       fresh_preds.insert(fresh_preds.end(), red_preds.begin(), red_preds.end());
@@ -300,6 +304,7 @@ RefineResult IC3IA::refine()
     // but IC3 (which doesn't unroll) still needs the predicates
     // in this case, just use all the fresh predicates
     assert(red_preds.size() == 0);
+    logger.log(2, "reduce predicates FAILED");
   }
 
   // add all the new predicates
@@ -309,6 +314,8 @@ RefineResult IC3IA::refine()
     // they were already filtered above
     assert(new_pred);
   }
+
+  logger.log(1, "{} new predicates added by refinement", fresh_preds.size());
 
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;
