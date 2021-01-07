@@ -148,10 +148,10 @@ void ArrayAxiomEnumerator::initialize()
 {
   assert(!initialized_);
 
+  initialized_ = true;
+
   collect_arrays_and_indices();
   create_lambda_indices();
-
-  initialized_ = true;
 }
 
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
