@@ -99,7 +99,7 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
   Term x = rts.named_terms().at("x");
 
   RelationalTransitionSystem abs_rts(rts.solver());
-  Unroller un(abs_rts, abs_rts.solver());
+  Unroller un(abs_rts);
   ImplicitPredicateAbstractor
     ia(rts, abs_rts, un);
 

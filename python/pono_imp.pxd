@@ -75,7 +75,7 @@ cdef extern from "core/prop.h" namespace "pono":
 
 cdef extern from "core/unroller.h" namespace "pono":
     cdef cppclass Unroller:
-        Unroller(const TransitionSystem & ts, c_SmtSolver & solver) except +
+        Unroller(const TransitionSystem & ts) except +
         c_Term at_time(const c_Term & t, unsigned int k) except +
         c_Term untime(const c_Term & t) except +
         size_t get_var_time(const c_Term & v) except +

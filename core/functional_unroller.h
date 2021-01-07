@@ -43,7 +43,6 @@ class FunctionalUnroller : public Unroller
    *
    */
   FunctionalUnroller(const TransitionSystem & ts,
-                     const smt::SmtSolver & solver,
                      size_t interval = 0);
 
   ~FunctionalUnroller() {}

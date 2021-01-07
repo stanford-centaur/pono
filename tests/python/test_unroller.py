@@ -15,7 +15,7 @@ def test_fts_unroller(create_solver):
     x = ts.make_statevar('x', bvsort4)
     mem = ts.make_statevar('mem', arrsort)
 
-    u = pono.Unroller(ts, solver)
+    u = pono.Unroller(ts)
 
     x0 = u.at_time(x, 0)
     assert x0 != x
@@ -53,7 +53,7 @@ def test_fts_unroller(create_solver):
     x = ts.make_statevar('x', bvsort4)
     mem = ts.make_statevar('mem', arrsort)
 
-    u = pono.Unroller(ts, solver)
+    u = pono.Unroller(ts)
 
     x0 = u.at_time(x, 0)
     assert x0 != x
