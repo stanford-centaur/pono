@@ -137,9 +137,9 @@ void IC3IA::initialize()
   // add all the predicates from init and property to the abstraction
   // NOTE: abstract is called automatically in IC3Base initialize
   UnorderedTermSet preds;
-  get_predicates(solver_, ts_.init(), preds, true);
+  get_predicates(solver_, ts_.init(), preds, false, false, true);
   size_t num_init_preds = preds.size();
-  get_predicates(solver_, bad_, preds, true);
+  get_predicates(solver_, bad_, preds, false, false, true);
   size_t num_prop_preds = preds.size() - num_init_preds;
   for (const auto &p : preds) {
     add_predicate(p);
@@ -262,7 +262,7 @@ RefineResult IC3IA::refine()
     Term solver_I = unroller_.untime(to_solver_.transfer_term(I, BOOL));
     assert(conc_ts_.only_curr(solver_I));
     logger.log(3, "got interpolant: {}", solver_I);
-    get_predicates(solver_, solver_I, preds);
+    get_predicates(solver_, solver_I, preds, false, false, true);
   }
 
   // new predicates
