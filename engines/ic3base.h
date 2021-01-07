@@ -178,6 +178,10 @@ class IC3Base : public Prover
   // useful terms
   smt::Term solver_true_;
 
+  // re-usable data structures
+  // NOTE: be sure not to overwrite these in nested function calls
+  smt::TermVec assumps_;  ///< used for storing assumptions
+
   // TODO Make sure all comments are updated!
 
   // *************************** Main Methods *********************************

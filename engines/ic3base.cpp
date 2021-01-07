@@ -346,10 +346,25 @@ bool IC3Base::rel_ind_check(size_t i, const IC3Formula & c, IC3Formula & out)
   solver_->assert_formula(solver_->make_term(Not, c.term));
   // Trans
   assert_trans_label();
-  // c'
-  solver_->assert_formula(ts_.next(c.term));
 
-  Result r = check_sat();
+  // use assumptions for c' so we can get cheap initial
+  // generalization if the check is unsat
+
+  // NOTE: relying on same order between assumps_ and c.children
+  assumps_.clear();
+  {
+    // TODO shuffle assumps and (a copy of) c.children
+    //      if random seed is set
+    Term lbl, ccnext;
+    for (const auto & cc : c.children) {
+      ccnext = ts_.next(cc);
+      lbl = label(ccnext);
+      solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
+      assumps_.push_back(lbl);
+    }
+  }
+
+  Result r = check_sat_assuming(assumps_);
   if (r.is_sat()) {
     if (options_.ic3_pregen_) {
       out = generalize_predecessor(i, c);
@@ -359,15 +374,32 @@ bool IC3Base::rel_ind_check(size_t i, const IC3Formula & c, IC3Formula & out)
     assert(ic3formula_check_valid(out));
     pop_solver_context();
   } else {
-    // TODO: consider automatically taking advantage
-    //       of an unsat core. Took it out for now (was in MBIC3)
-    //       because it needs to work for any IC3Formula
-    //       Maybe IC3Formula needs to know how to generalize itself
-    //         or at least how to make a conjunctive partition
-    //         or it's possible they all can function approximately the same
-    //       would also have to move the pop_solver_context later
-    out = c;
+    // Use unsat core to get cheap generalization
+
+    UnorderedTermSet core;
+    solver_->get_unsat_core(core);
+    assert(core.size());
+
+    TermVec gen;  // cheap unsat-core generalization of c
+    TermVec rem;  // conjuncts removed by unsat core
+                  // might need to be re-added if it
+                  // ends up intersecting with initial
+    assert(assumps_.size() == c.children.size());
+    for (size_t i = 0; i < assumps_.size(); ++i) {
+      if (core.find(assumps_.at(i)) == core.end()) {
+        rem.push_back(c.children.at(i));
+      } else {
+        gen.push_back(c.children.at(i));
+      }
+    }
+
     pop_solver_context();
+
+    fix_if_intersects_initial(gen, rem);
+    assert(gen.size() >= core.size());
+
+    // keep it as a conjunction for now
+    out = ic3formula_conjunction(gen);
   }
   assert(!solver_context_);
 
