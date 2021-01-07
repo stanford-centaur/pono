@@ -72,6 +72,8 @@ class ImplicitPredicateAbstractor : public Abstractor
 
   smt::TermVec predicates_;  ///< list of predicates in abstraction over current
                              ///< state vars
+
+  bool abstracted_; ///< true iff do_abstraction has been called
 };
 
 }  // namespace pono

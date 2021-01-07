@@ -58,13 +58,16 @@ Term ImplicitPredicateAbstractor::abstract(Term & t)
 
 Term ImplicitPredicateAbstractor::concrete(Term & t)
 {
+  assert(abstracted_);
   return solver_->substitute(t, concretization_cache_);
 }
 
 // TODO: somewhere should add predicates from init / prop by default
 Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
 {
+  assert(abstracted_);
   assert(abs_ts_.only_curr(pred));
+
   predicates_.push_back(pred);
 
   Term rel = predicate_refinement(pred);
@@ -76,7 +79,9 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
                                                     const TermVec & new_preds,
                                                     TermVec & out)
 {
+  assert(abstracted_);
   assert(new_preds.size());
+
   Term formula = solver_->make_term(true);
 
   for (size_t i = 0; i < cex.size(); ++i) {
@@ -115,6 +120,8 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
 void ImplicitPredicateAbstractor::do_abstraction()
 {
   logger.log(1, "Generating implicit predicate abstraction.");
+
+  abstracted_ = true;
 
   // assume abstract transition starts empty
   // need to add all state variables and set behavior
