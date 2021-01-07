@@ -31,7 +31,7 @@ namespace pono {
 class Unroller
 {
  public:
-  Unroller(const TransitionSystem & ts, const smt::SmtSolver & solver);
+  Unroller(const TransitionSystem & ts);
   virtual ~Unroller();
 
   /** Return an unrolled version of transition system term t
