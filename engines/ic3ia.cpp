@@ -112,7 +112,7 @@ bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
     }
 
     // expecting either a boolean variable or a predicate
-    if (!pred->is_symbolic_const() && predset_.find(pred) == predset_.end()) {
+    if (predset_.find(pred) == predset_.end()) {
       logger.log(3, "ERROR IC3IA IC3Formula contains unknown atom: {}", pred);
       return false;
     }
@@ -134,10 +134,20 @@ void IC3IA::initialize()
 {
   super::initialize();
 
+  Sort boolsort = solver_->make_sort(BOOL);
+  // add predicates automatically added by ia_
+  // to our predset_
+  // needed to prevent adding duplicate predicates later
+  for (const auto & p : ia_.predicates()) {
+    // ia_ automatically includes all boolean variables
+    assert(p->is_symbolic_const() && p->get_sort() == boolsort);
+    predset_.insert(p);
+  }
+
   // add all the predicates from init and property to the abstraction
   // NOTE: abstract is called automatically in IC3Base initialize
   UnorderedTermSet preds;
-  get_predicates(solver_, ts_.init(), preds, false, false, true);
+  get_predicates(solver_, conc_ts_.init(), preds, false, false, true);
   size_t num_init_preds = preds.size();
   get_predicates(solver_, bad_, preds, false, false, true);
   size_t num_prop_preds = preds.size() - num_init_preds;
@@ -146,8 +156,7 @@ void IC3IA::initialize()
   }
   logger.log(1, "Number predicates found in init: {}", num_init_preds);
   logger.log(1, "Number predicates found in prop: {}", num_prop_preds);
-  logger.log(1, "Total number of initial predicates: {}", num_init_preds + num_prop_preds);
-  assert(preds.size() == (num_init_preds + num_prop_preds));
+  logger.log(1, "Total number of initial predicates: {}", preds.size());
   // more predicates will be added during refinement
   // these ones are just initial predicates
 
@@ -196,7 +205,6 @@ void IC3IA::initialize()
 void IC3IA::abstract()
 {
   // main abstraction already done in constructor of ia_
-  // just need to set ts_ to the abstraction
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
 }
@@ -338,6 +346,9 @@ bool IC3IA::add_predicate(const Term & pred)
   assert(!solver_context_);  // should be at context 0
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
+
+  assert(predset_.size() == ia_.predicates().size());
+
   return true;
 }
 
