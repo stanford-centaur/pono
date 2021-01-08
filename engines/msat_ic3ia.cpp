@@ -79,15 +79,15 @@ ProverResult MsatIC3IA::prove()
   }
 
   // get mathsat terms for transition system
-  msat_term msat_init =
-      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_.init()))
-          ->get_msat_term();
-  msat_term msat_trans =
-      static_pointer_cast<MsatTerm>(to_msat_solver.transfer_term(ts_.trans()))
-          ->get_msat_term();
+  msat_term msat_init = static_pointer_cast<MsatTerm>(
+                            to_msat_solver.transfer_term(ts_.init(), BOOL))
+                            ->get_msat_term();
+  msat_term msat_trans = static_pointer_cast<MsatTerm>(
+                             to_msat_solver.transfer_term(ts_.trans(), BOOL))
+                             ->get_msat_term();
   msat_term msat_prop =
       static_pointer_cast<MsatTerm>(
-          to_msat_solver.transfer_term(solver_->make_term(Not, bad_)))
+          to_msat_solver.transfer_term(solver_->make_term(Not, bad_), BOOL))
           ->get_msat_term();
   unordered_map<msat_term, msat_term> msat_statevars;
   for (const auto & sv : ts_.statevars()) {
