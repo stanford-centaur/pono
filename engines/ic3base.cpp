@@ -387,8 +387,6 @@ ProverResult IC3Base::step(int i)
     }
   }
 
-  reset_solver();
-
   ++reached_k_;
 
   return ProverResult::UNKNOWN;
