@@ -76,7 +76,7 @@ class IC3SA : public IC3
 
   void check_ts() const override;
 
-  bool intersects_bad() override;
+  bool intersects_bad(IC3Formula & out) override;
 
   void initialize() override;
 

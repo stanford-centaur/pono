@@ -340,12 +340,6 @@ RefineResult IC3SA::refine()
     }
   }
 
-  // need to clear proof goals
-  // cubes in proof goals aren't precise wrt to updated
-  // terms (if refined)
-  // so the partial trace it holds is no longer precise
-  proof_goals_.clear();
-
   if (!refined) {
     // concrete counterexample
     return REFINE_NONE;
@@ -371,7 +365,7 @@ RefineResult IC3SA::refine()
   return REFINE_SUCCESS;
 }
 
-bool IC3SA::intersects_bad()
+bool IC3SA::intersects_bad(IC3Formula & out)
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
@@ -408,9 +402,9 @@ bool IC3SA::intersects_bad()
         reducer_.reduce_assump_unsatcore(smart_not(bad_), cube_lits, red_c);
     if (is_unsat) {
       assert(red_c.size());
-      add_proof_goal(ic3formula_conjunction(red_c), reached_k_ + 1, NULL);
+      out = ic3formula_conjunction(red_c);
     } else {
-      add_proof_goal(ic3formula_conjunction(cube_lits), reached_k_ + 1, NULL);
+      out = ic3formula_conjunction(cube_lits);
     }
   }
 
