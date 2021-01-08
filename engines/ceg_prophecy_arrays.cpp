@@ -494,26 +494,38 @@ void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & c
 template <>
 void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
 {
-  RelationalTransitionSystem & rts =
+  const RelationalTransitionSystem & rts =
+    static_cast<const RelationalTransitionSystem &>(abs_ts_);
+  RelationalTransitionSystem & sub_rts =
     static_cast<RelationalTransitionSystem &>(ts_);
-  for (auto ax : consecutive_axioms) {
-    if (reached_k_ == -1) {
-      // if only checking initial state
-      // need to add to init
-      rts.constrain_init(ax);
-    }
 
-    Term abs_ax = ia_.abstract(ax);
-    rts.constrain_trans(abs_ax);
-    if (rts.only_curr(ax)) {
-      // add the next state version if it's an invariant over current state vars
-      rts.constrain_trans(abs_ts_.next(abs_ax));
+  // add newly added prophecy and history variables
+  const UnorderedTermSet & sv = rts.statevars();
+  const UnorderedTermSet & sub_sv = sub_rts.statevars();
+  for (const auto & v : sv) {
+    if (sub_sv.find(v) == sub_sv.end()) {
+      cout << v << endl;
+      sub_rts.add_statevar(v, rts.next(v));
     }
   }
 
+  // reset init and trans
+  sub_rts.set_init(rts.init());
+  Term trans = rts.trans();
+  sub_rts.set_trans(ia_.abstract(trans));
+
+  // add predicates from init and trans
   UnorderedTermSet preds;
   get_predicates(solver_, abs_ts_.init(), preds, false, false, true);
   get_predicates(solver_, bad_, preds, false, false, true);
+  // add previously found predicates
+  preds.insert(predset_.begin(), predset_.end());
+  predset_.clear();
+
+  // reset the solver
+  reset_solver();
+
+  // add predicates
   for (const auto &p : preds) {
     add_predicate(p);
   }

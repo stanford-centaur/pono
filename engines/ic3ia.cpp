@@ -335,7 +335,8 @@ bool IC3IA::add_predicate(const Term & pred)
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
 
-  assert(predset_.size() == ia_.predicates().size());
+  //TODO: fix the assertion -- commented because of incremental ceg-proph
+  //  assert(predset_.size() == ia_.predicates().size());
 
   return true;
 }
