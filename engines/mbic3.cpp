@@ -76,31 +76,17 @@ ModelBasedIC3::ModelBasedIC3(const Property & p, const TransitionSystem & ts,
   solver_->set_opt("produce-unsat-cores", "true");
 }
 
-IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
-                                               TermVec * out_nexts) const
+IC3Formula ModelBasedIC3::get_model_ic3formula() const
 {
   DisjointSet ds(disjoint_set_rank);
   TermVec cube_lits;
   const UnorderedTermSet & statevars = ts_.statevars();
-
-  if (out_inputs) {
-    out_inputs->reserve(ts_.inputvars().size());
-  }
-  if (out_nexts) {
-    out_nexts->reserve(statevars.size());
-  }
 
   for (const auto &v : statevars) {
     Term val = solver_->get_value(v);
     cube_lits.push_back(solver_->make_term(Equal, v, val));
     ds.add(v, val);
     assert(ts_.is_curr_var(v));
-
-    if (out_nexts) {
-      Term nv = ts_.next(v);
-      out_nexts->push_back(
-          solver_->make_term(Equal, nv, solver_->get_value(nv)));
-    }
   }
 
   // add equalities from disjoint set
@@ -108,13 +94,6 @@ IC3Formula ModelBasedIC3::get_model_ic3formula(TermVec * out_inputs,
     Term t = ds.find(v);
     if (t != v) {
       cube_lits.push_back(solver_->make_term(Equal, t, v));
-    }
-  }
-
-  if (out_inputs) {
-    for (const auto &iv : ts_.inputvars()) {
-      out_inputs->push_back(
-          solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
   }
 
@@ -316,8 +295,13 @@ IC3Formula ModelBasedIC3::inductive_generalization(size_t i,
   return gen_res;
 }
 
-IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
+void ModelBasedIC3::predecessor_generalization(size_t i,
+                                               const IC3Formula & c,
+                                               IC3Formula & pred)
 {
+  // NOTE: for now this implementation doesn't use pred
+  //       except to assign to it at the end
+  //       need the model in a particular format
   assert(solver_context_  == 1);  // shouldn't use solver, solving all in
                                   // reducer_
   DisjointSet ds(disjoint_set_rank);
@@ -356,15 +340,11 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     model[v] = val;
   }
 
-  // if not generalized, the current state assignments in cube_lits
-  // are the predecessor
-  IC3Formula res = ic3formula_conjunction(cube_lits);
-
   assert(i > 0);
   if (i == 1) {
     // don't need to generalize if i == 1
     // the predecessor is an initial state
-    return res;
+    return;
   }
 
   if (options_.ic3_pregen_ && !options_.ic3_functional_preimage_) {
@@ -416,8 +396,8 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     // formula should not be unsat on its own
     assert(red_cube_lits.size() > 0);
 
-    // update res to the generalization
-    res = ic3formula_conjunction(red_cube_lits);
+    // update pred to the generalization
+    pred = ic3formula_conjunction(red_cube_lits);
 
   } else if (options_.ic3_pregen_ && options_.ic3_functional_preimage_) {
     assert(ts_.is_deterministic());
@@ -434,9 +414,8 @@ IC3Formula ModelBasedIC3::generalize_predecessor(size_t i, const IC3Formula & c)
     Term fun_preimage = solver_->substitute(trans_label_, m);
     TermVec conjuncts;
     conjunctive_partition(fun_preimage, conjuncts, true);
-    res = ic3formula_conjunction(conjuncts);
+    pred = ic3formula_conjunction(conjuncts);
   }
-  return res;
 }
 
 void ModelBasedIC3::check_ts() const
@@ -479,6 +458,10 @@ bool ModelBasedIC3::intersects_bad(IC3Formula & out)
 
 void ModelBasedIC3::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
 
   // only need interpolator infrastructure for mode 2 (interpolation)

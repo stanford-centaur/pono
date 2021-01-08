@@ -56,7 +56,7 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
            abs_unroller_,
            super::orig_ts_.solver() == super::solver_
                ? p.prop()
-               : super::to_prover_solver_.transfer_term(p.prop()),
+               : super::to_prover_solver_.transfer_term(p.prop(), BOOL),
            super::options_.cegp_axiom_red_),
       pm_(abs_ts_),
       num_added_axioms_(0)
@@ -134,6 +134,10 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
 template <class Prover_T>
 void CegProphecyArrays<Prover_T>::initialize()
 {
+  if (super::initialized_) {
+    return;
+  }
+
   cegar_abstract();
   // call super initializer after abstraction
   super::initialize();
@@ -168,7 +172,7 @@ void CegProphecyArrays<Prover_T>::cegar_abstract()
   Term prop_term = (abs_ts_.solver() == super::orig_property_.solver())
                        ? super::orig_property_.prop()
                        : super::to_prover_solver_.transfer_term(
-                           super::orig_property_.prop());
+                           super::orig_property_.prop(), BOOL);
   super::bad_ =
       super::solver_->make_term(smt::PrimOp::Not, aa_.abstract(prop_term));
 
