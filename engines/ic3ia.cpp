@@ -180,13 +180,11 @@ void IC3IA::initialize()
 
 void IC3IA::abstract()
 {
-  UnorderedTermSet bool_symbols = ia_.do_abstraction();
+  const UnorderedTermSet &bool_symbols = ia_.do_abstraction();
   // add predicates automatically added by ia_
   // to our predset_
   // needed to prevent adding duplicate predicates later
-  for (const auto & b : bool_symbols) {
-    predset_.insert(b);
-  }
+  predset_.insert(bool_symbols.begin(), bool_symbols.end());
 
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
