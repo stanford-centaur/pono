@@ -489,6 +489,7 @@ void CegProphecyArrays<Prover_T>::refine_ts(const UnorderedTermSet & consecutive
 template <class Prover_T>
 void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
 {
+  // No-Op
 }
 
 template <>
