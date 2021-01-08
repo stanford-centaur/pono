@@ -59,8 +59,7 @@ IC3IA::IC3IA(const Property & p,
 
 // pure virtual method implementations
 
-IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
-                                       TermVec * out_nexts) const
+IC3Formula IC3IA::get_model_ic3formula() const
 {
   const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
@@ -70,22 +69,6 @@ IC3Formula IC3IA::get_model_ic3formula(TermVec * out_inputs,
       conjuncts.push_back(p);
     } else {
       conjuncts.push_back(solver_->make_term(Not, p));
-    }
-
-    if (out_nexts) {
-      Term next_p = ts_.next(p);
-      if (solver_->get_value(next_p) == solver_true_) {
-        out_nexts->push_back(next_p);
-      } else {
-        out_nexts->push_back(solver_->make_term(Not, next_p));
-      }
-    }
-  }
-
-  if (out_inputs) {
-    for (const auto &iv : ts_.inputvars()) {
-      out_inputs->push_back(
-          solver_->make_term(Equal, iv, solver_->get_value(iv)));
     }
   }
 
