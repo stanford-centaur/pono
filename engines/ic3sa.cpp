@@ -68,8 +68,7 @@ IC3SA::IC3SA(const Property & p,
   engine_ = Engine::IC3SA_ENGINE;
 }
 
-IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
-                                       TermVec * out_nexts) const
+IC3Formula IC3SA::get_model_ic3formula() const
 {
   TermVec cube_lits;
   // first populate with predicates
@@ -86,20 +85,6 @@ IC3Formula IC3SA::get_model_ic3formula(TermVec * out_inputs,
   construct_partition(ec, cube_lits);
   IC3Formula cube = ic3formula_conjunction(cube_lits);
   assert(ic3formula_check_valid(cube));
-
-  if (out_nexts) {
-    for (const auto & sv : ts_.statevars()) {
-      out_nexts->push_back(
-          solver_->make_term(Equal, sv, solver_->get_value(sv)));
-    }
-  }
-
-  if (out_inputs) {
-    for (const auto & iv : ts_.inputvars()) {
-      out_inputs->push_back(
-          solver_->make_term(Equal, iv, solver_->get_value(iv)));
-    }
-  }
 
   return cube;
 }
@@ -147,7 +132,9 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
   return true;
 }
 
-IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
+void IC3SA::predecessor_generalization(size_t i,
+                                       const IC3Formula & c,
+                                       IC3Formula & pred)
 {
   // TODO: use the JustifyCOI algorithm from the paper
   //       e.g. partial_model
@@ -184,9 +171,8 @@ IC3Formula IC3SA::generalize_predecessor(size_t i, const IC3Formula & c)
 
   EquivalenceClasses ec = get_equivalence_classes_from_model(coi_symbols);
   construct_partition(ec, cube_lits);
-  IC3Formula cube = ic3formula_conjunction(cube_lits);
-  assert(ic3formula_check_valid(cube));
-  return cube;
+  pred = ic3formula_conjunction(cube_lits);
+  assert(ic3formula_check_valid(pred));
 }
 
 void IC3SA::check_ts() const

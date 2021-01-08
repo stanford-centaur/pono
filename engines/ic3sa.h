@@ -66,13 +66,13 @@ class IC3SA : public IC3
 
   // virtual method implementations
 
-  IC3Formula get_model_ic3formula(
-      smt::TermVec * out_inputs = nullptr,
-      smt::TermVec * out_nexts = nullptr) const override;
+  IC3Formula get_model_ic3formula() const override;
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 
-  IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) override;
+  void predecessor_generalization(size_t i,
+                                  const IC3Formula & c,
+                                  IC3Formula & pred) override;
 
   void check_ts() const override;
 
