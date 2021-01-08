@@ -509,6 +509,15 @@ class IC3Base : public Prover
    */
   smt::Term label(const smt::Term & t);
 
+  /** Add an implication l -> f to the base solver context
+   *  Note: adds to both reducer_solver_ and solver_
+   *  @requires solver_context_ == 0
+   *  @param l a boolean literal label -- can be obtained with label
+   *         method above, or given a special name manually
+   *  @param f a boolean formula to associate with the label
+   */
+  void assume_label(const smt::Term & l, const smt::Term & f);
+
   /** Negates a term by stripping the leading Not if it's there,
    ** or applying Not if the term is not already negated.
    */

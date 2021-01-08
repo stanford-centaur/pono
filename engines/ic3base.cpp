@@ -155,8 +155,7 @@ void IC3Base::initialize()
   // frame 0 label is identical to init label
   init_label_ = frame_labels_[0];
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
-  solver_->assert_formula(
-      solver_->make_term(Implies, trans_label_, ts_.trans()));
+  assume_label(trans_label_, ts_.trans());
 }
 
 ProverResult IC3Base::check_until(int k)
@@ -421,13 +420,13 @@ bool IC3Base::rel_ind_check(size_t i,
                             IC3Formula & out,
                             bool get_pred)
 {
+  assert(!solver_context_);
   assert(i > 0);
   assert(i < frames_.size());
   // expecting to be the polarity for proof goals, not frames
   // e.g. a conjunction
   assert(!c.disjunction);
 
-  assert(solver_context_ == 0);
   push_solver_context();
 
   // F[i-1]
@@ -721,8 +720,7 @@ void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)
 {
   assert(frame_labels_.size() == frames_.size());
 
-  solver_->assert_formula(
-      solver_->make_term(Implies, frame_labels_.at(i), constraint.term));
+  assume_label(frame_labels_.at(i), constraint.term);
 }
 
 void IC3Base::assert_frame_labels(size_t i) const
@@ -790,10 +788,8 @@ bool IC3Base::check_intersects_initial(const Term & t)
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
   if (rem.size() != 0) {
-    // TODO: there's a tricky issue here. The reducer doesn't have the label
-    // assumptions so we can't use init_label_ here. need to come up with a
-    // better interface. Should we add label assumptions to reducer?
-    const Term &formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
+    const Term & formula =
+        solver_->make_term(And, init_label_, make_and(to_keep));
     reducer_.reduce_assump_unsatcore(formula,
                                      rem,
                                      to_keep,
@@ -875,7 +871,7 @@ Term IC3Base::make_and(TermVec vec, SmtSolver slv) const
 
 void IC3Base::reset_solver()
 {
-  assert(solver_context_ == 0);
+  assert(!solver_context_);
 
   if (failed_to_reset_solver_) {
     // don't even bother trying
@@ -885,16 +881,15 @@ void IC3Base::reset_solver()
 
   try {
     solver_->reset_assertions();
+    reducer_.reset_assertions();
 
     // Now need to add back in constraints at context level 0
     logger.log(2, "IC3Base: Reset solver and now re-adding constraints.");
 
     // define init and trans label
     assert(init_label_ == frame_labels_.at(0));
-    solver_->assert_formula(
-        solver_->make_term(Implies, init_label_, ts_.init()));
-    solver_->assert_formula(
-        solver_->make_term(Implies, trans_label_, ts_.trans()));
+    assume_label(init_label_, ts_.init());
+    assume_label(trans_label_, ts_.trans());
 
     for (size_t i = 0; i < frames_.size(); ++i) {
       for (const auto & constraint : frames_.at(i)) {
@@ -938,6 +933,12 @@ Term IC3Base::label(const Term & t)
 
   labels_[t] = l;
   return l;
+}
+
+void IC3Base::assume_label(const smt::Term & l, const smt::Term & f)
+{
+  solver_->assert_formula(solver_->make_term(Implies, l, f));
+  reducer_.assume_label(l, f);
 }
 
 smt::Term IC3Base::smart_not(const Term & t) const
