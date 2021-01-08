@@ -592,6 +592,10 @@ bool IC3Base::block_all()
 
         size_t idx = find_highest_frame(pg->idx, collateral);
         assert(idx >= pg->idx);
+
+        assert(collateral.disjunction);
+        assert(collateral.term);
+        assert(collateral.children.size());
         constrain_frame(idx, collateral);
 
         // re-add the proof goal at a higher frame if not blocked
@@ -797,29 +801,32 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
   }
 }
 
-size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
+size_t IC3Base::find_highest_frame(size_t i, IC3Formula & u)
 {
+  assert(!solver_context_);
   assert(u.disjunction);
-  const Term &c = u.term;
-  push_solver_context();
-  solver_->assert_formula(c);
-  solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
-  assert_trans_label();
+  assert(u.term);
+  assert(u.children.size());
 
-  Result r;
+  IC3Formula conj = ic3formula_negate(u);
+  IC3Formula gen;
   size_t j = i;
-  for (; j + 1 < frames_.size(); ++j) {
-    push_solver_context();
-    assert_frame_labels(j);
-    r = check_sat();
-    pop_solver_context();
-    if (r.is_sat()) {
+  for (; j < frontier_idx(); ++j) {
+    assert(!conj.disjunction);
+    if (rel_ind_check(j + 1, conj, gen, false)) {
+      std::swap(conj, gen);
+    } else {
       break;
     }
   }
+  assert(!conj.disjunction);
+  assert(conj.term);
+  assert(conj.children.size());
 
-  pop_solver_context();
-
+  u = ic3formula_negate(conj);
+  assert(u.disjunction);
+  assert(u.term);
+  assert(u.children.size());
   return j;
 }
 
