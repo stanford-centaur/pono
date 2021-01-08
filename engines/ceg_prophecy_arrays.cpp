@@ -133,6 +133,10 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
 template <class Prover_T>
 void CegProphecyArrays<Prover_T>::initialize()
 {
+  if (super::initialized_) {
+    return;
+  }
+
   cegar_abstract();
   // call super initializer after abstraction
   super::initialize();
