@@ -26,7 +26,6 @@ namespace pono {
 class InterpolantMC : public Prover
 {
  public:
-  // IMPORTANT: assume the property was built using the interpolating solver
   InterpolantMC(const Property & p,
                 const TransitionSystem & ts,
                 const smt::SmtSolver & slv,

@@ -112,7 +112,7 @@ bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
     }
 
     // expecting either a boolean variable or a predicate
-    if (!pred->is_symbolic_const() && predset_.find(pred) == predset_.end()) {
+    if (predset_.find(pred) == predset_.end()) {
       logger.log(3, "ERROR IC3IA IC3Formula contains unknown atom: {}", pred);
       return false;
     }
@@ -134,20 +134,29 @@ void IC3IA::initialize()
 {
   super::initialize();
 
+  Sort boolsort = solver_->make_sort(BOOL);
+  // add predicates automatically added by ia_
+  // to our predset_
+  // needed to prevent adding duplicate predicates later
+  for (const auto & p : ia_.predicates()) {
+    // ia_ automatically includes all boolean variables
+    assert(p->is_symbolic_const() && p->get_sort() == boolsort);
+    predset_.insert(p);
+  }
+
   // add all the predicates from init and property to the abstraction
   // NOTE: abstract is called automatically in IC3Base initialize
   UnorderedTermSet preds;
-  get_predicates(solver_, ts_.init(), preds, true);
+  get_predicates(solver_, conc_ts_.init(), preds, false, false, true);
   size_t num_init_preds = preds.size();
-  get_predicates(solver_, bad_, preds, true);
+  get_predicates(solver_, bad_, preds, false, false, true);
   size_t num_prop_preds = preds.size() - num_init_preds;
   for (const auto &p : preds) {
     add_predicate(p);
   }
   logger.log(1, "Number predicates found in init: {}", num_init_preds);
   logger.log(1, "Number predicates found in prop: {}", num_prop_preds);
-  logger.log(1, "Total number of initial predicates: {}", num_init_preds + num_prop_preds);
-  assert(preds.size() == (num_init_preds + num_prop_preds));
+  logger.log(1, "Total number of initial predicates: {}", preds.size());
   // more predicates will be added during refinement
   // these ones are just initial predicates
 
@@ -195,8 +204,8 @@ void IC3IA::initialize()
 
 void IC3IA::abstract()
 {
-  // main abstraction already done in constructor of ia_
-  // just need to set ts_ to the abstraction
+  ia_.do_abstraction();
+
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
 }
@@ -205,12 +214,12 @@ RefineResult IC3IA::refine()
 {
   // recover the counterexample trace
   assert(check_intersects_initial(cex_pg_->target.term));
-  TermVec cex({ cex_pg_->target.term });
+  TermVec cex;
   const ProofGoal * tmp = cex_pg_;
-  while (tmp->next) {
-    tmp = tmp->next;
+  while (tmp) {
     cex.push_back(tmp->target.term);
     assert(ts_.only_curr(tmp->target.term));
+    tmp = tmp->next;
   }
 
   if (cex.size() == 1) {
@@ -262,46 +271,60 @@ RefineResult IC3IA::refine()
     Term solver_I = unroller_.untime(to_solver_.transfer_term(I, BOOL));
     assert(conc_ts_.only_curr(solver_I));
     logger.log(3, "got interpolant: {}", solver_I);
-    get_predicates(solver_, solver_I, preds);
+    get_predicates(solver_, solver_I, preds, false, false, true);
   }
 
   // new predicates
-  TermVec preds_vec;
+  TermVec fresh_preds;
   for (auto const&p : preds) {
     if (predset_.find(p) == predset_.end()) {
       // unseen predicate
-      preds_vec.push_back(p);
+      fresh_preds.push_back(p);
     }
   }
 
-  if (!preds_vec.size()) {
+  if (!fresh_preds.size()) {
     logger.log(1, "IC3IA: refinement failed couldn't find any new predicates");
     return RefineResult::REFINE_FAIL;
   }
 
   if (options_.random_seed_ > 0) {
-    shuffle(preds_vec.begin(),
-            preds_vec.end(),
+    shuffle(fresh_preds.begin(),
+            fresh_preds.end(),
             default_random_engine(options_.random_seed_));
   }
 
   // reduce new predicates
   TermVec red_preds;
-  if (ia_.reduce_predicates(cex, preds_vec, red_preds)) {
+  if (ia_.reduce_predicates(cex, fresh_preds, red_preds)) {
     // reduction successful
-    preds.clear();
-    preds.insert(red_preds.begin(), red_preds.end());
+    logger.log(2,
+               "reduce predicates successful {}/{}",
+               red_preds.size(),
+               fresh_preds.size());
+    if (red_preds.size() < fresh_preds.size()) {
+      fresh_preds.clear();
+      fresh_preds.insert(fresh_preds.end(), red_preds.begin(), red_preds.end());
+    }
+  } else {
+    // should only fail if removed all predicates
+    // this can happen when there are uninterpreted functions
+    // the unrolling can force incompatible UF interpretations
+    // but IC3 (which doesn't unroll) still needs the predicates
+    // in this case, just use all the fresh predicates
+    assert(red_preds.size() == 0);
+    logger.log(2, "reduce predicates FAILED");
   }
 
   // add all the new predicates
-  for (auto const&p : preds) {
-    add_predicate(p);
+  for (auto const & p : fresh_preds) {
+    bool new_pred = add_predicate(p);
+    // expect all predicates to be new (e.g. unseen)
+    // they were already filtered above
+    assert(new_pred);
   }
 
-  // clear the current proof goals
-  // the transitions represented by those backwards reachable traces
-  // may not be precise wrt the new predicates
-  proof_goals_.clear();
+  logger.log(1, "{} new predicates added by refinement", fresh_preds.size());
 
   // able to refine the system to rule out this abstract counterexample
   return RefineResult::REFINE_SUCCESS;
@@ -324,6 +347,9 @@ bool IC3IA::add_predicate(const Term & pred)
   assert(!solver_context_);  // should be at context 0
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
+
+  assert(predset_.size() == ia_.predicates().size());
+
   return true;
 }
 
