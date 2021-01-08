@@ -520,7 +520,7 @@ void IC3SA::gen_inputvars_at_time(size_t i)
                                       v->get_sort());
     }
 
-    for (auto const & v : ts_.statevars()) {
+    for (const auto & v : ts_.statevars()) {
       if (state_updates.find(v) == state_updates.end()) {
         subst[v] = solver_->make_symbol(
             v->to_string() + "@" + std::to_string(i), v->get_sort());
@@ -534,7 +534,7 @@ EquivalenceClasses IC3SA::get_equivalence_classes_from_model(
 {
   // assumes the solver state is sat
   EquivalenceClasses ec;
-  for (auto elem : term_abstraction_) {
+  for (const auto & elem : term_abstraction_) {
     const Sort & sort = elem.first;
     const UnorderedTermSet & terms = elem.second;
 
@@ -543,7 +543,7 @@ EquivalenceClasses IC3SA::get_equivalence_classes_from_model(
 
     ec[sort] = std::unordered_map<smt::Term, smt::UnorderedTermSet>();
     std::unordered_map<smt::Term, smt::UnorderedTermSet> & m = ec.at(sort);
-    for (auto t : terms) {
+    for (const auto & t : terms) {
       if (in_projection(t, to_keep)) {
         Term val = solver_->get_value(t);
         m[val].insert(t);
