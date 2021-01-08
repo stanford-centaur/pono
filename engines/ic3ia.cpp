@@ -115,6 +115,10 @@ void IC3IA::check_ts() const
 
 void IC3IA::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
 
   Sort boolsort = solver_->make_sort(BOOL);

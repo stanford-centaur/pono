@@ -96,6 +96,10 @@ class CegProphecyArrays : public CEGAR<Prover_T>
    *  @return the label
    */
   smt::Term label(const smt::Term & t);
+
+  void refine_ts(const smt::UnorderedTermSet & consecutive_axioms);
+
+  void refine_subprover_ts(const smt::UnorderedTermSet & consecutive_axioms);
 };
 
 }  // namespace pono
