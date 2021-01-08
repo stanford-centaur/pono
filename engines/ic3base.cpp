@@ -376,7 +376,7 @@ ProverResult IC3Base::step(int i)
   logger.log(1, "Propagation phase at frame {}", i);
   // propagation phase
   push_frame();
-  for (size_t j = 1; j < frames_.size() - 1; ++j) {
+  for (size_t j = 1; j < frontier_idx(); ++j) {
     if (propagate(j)) {
       assert(j + 1 < frames_.size());
       // save the invariant
@@ -641,42 +641,35 @@ bool IC3Base::is_blocked(const ProofGoal * pg)
 
 bool IC3Base::propagate(size_t i)
 {
-  assert(i + 1 < frames_.size());
+  assert(!solver_context_);
+  assert(i < frontier_idx());
 
-  vector<IC3Formula> to_push;
   vector<IC3Formula> & Fi = frames_.at(i);
 
-  push_solver_context();
-  assert_frame_labels(i);
-  assert_trans_label();
-
   size_t k = 0;
+  IC3Formula gen;
   for (size_t j = 0; j < Fi.size(); ++j) {
-    const Term & t = Fi.at(j).term;
+    const IC3Formula & c = Fi.at(j);
+    assert(c.disjunction);
+    assert(c.term);
+    assert(c.children.size());
 
-    // Relative inductiveness check
-    // Check F[i] /\ t /\ T /\ -t'
-    // NOTE: asserting t is redundant because t \in F[i]
-    push_solver_context();
-    solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
-
-    Result r = check_sat();
-    assert(!r.is_unknown());
-    if (r.is_unsat()) {
-      to_push.push_back(Fi.at(j));
+    // NOTE: rel_ind_check works on conjunctions
+    //       need to negate
+    if (rel_ind_check(i + 1, ic3formula_negate(c), gen, false)) {
+      // can push to next frame
+      // got unsat-core based generalization
+      assert(gen.term);
+      assert(gen.children.size());
+      constrain_frame(i + 1, ic3formula_negate(gen), false);
     } else {
-      Fi[k++] = Fi.at(j);
+      // have to keep this one at this frame
+      Fi[k++] = c;
     }
-
-    pop_solver_context();
   }
+
+  // get rid of garbage at end of frame
   Fi.resize(k);
-
-  pop_solver_context();
-
-  for (const auto &f : to_push) {
-    constrain_frame(i + 1, f, false);
-  }
 
   return Fi.empty();
 }
