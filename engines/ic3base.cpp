@@ -101,10 +101,15 @@ static bool subsumes(const IC3Formula &a, const IC3Formula &b)
 
 /** IC3Base */
 
-IC3Base::IC3Base(const Property & p, const TransitionSystem & ts,
-                 const SmtSolver & s, PonoOptions opt)
+IC3Base::IC3Base(const Property & p,
+                 const TransitionSystem & ts,
+                 const SmtSolver & s,
+                 PonoOptions opt)
     : super(p, ts, s, opt),
-      reducer_(create_solver(s->get_solver_enum())),
+      // NOTE: this is a hack
+      // TODO fix this
+      reducer_(create_solver_for(
+          s->get_solver_enum(), Engine::IC3IA_ENGINE, false, NO_MODEL)),
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),

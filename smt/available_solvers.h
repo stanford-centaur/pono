@@ -16,10 +16,22 @@
 
 #pragma once
 
+#include <iostream>
+
 #include "options/options.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
+
+// trying different msat options
+enum ModelOption
+{
+  FULL_MODEL = 0,
+  BOOL_MODEL,
+  NO_MODEL
+};
+
+std::ostream & operator<<(std::ostream & os, ModelOption m);
 
 /** Creates an SmtSolver of the provided type
  *  @param se the SolverEnum to identify which type of solver
@@ -34,7 +46,10 @@ smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false,
 
 // same as create_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
-smt::SmtSolver create_solver_for(smt::SolverEnum se, Engine e, bool logging);
+smt::SmtSolver create_solver_for(smt::SolverEnum se,
+                                 Engine e,
+                                 bool logging,
+                                 ModelOption m = FULL_MODEL);
 
 /** Creates an interpolating SmtSolver of the provided type */
 smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);

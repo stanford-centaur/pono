@@ -18,11 +18,12 @@
 #ifdef WITH_MSAT
 
 #include "mathsat.h"
+#include "utils/exceptions.h"
 
 namespace pono {
 // configuration options copied from open-source ic3ia implementation
 // https://es-static.fbk.eu/people/griggio/ic3ia/index.html
-msat_config get_msat_config_for_ic3(bool interp)
+msat_config get_msat_config_for_ic3(bool interp, ModelOption m)
 {
   msat_config cfg = msat_create_config();
 
@@ -75,7 +76,20 @@ msat_config get_msat_config_for_ic3(bool interp)
     msat_set_option(cfg, "theory.bv.eager", "false");
   }
 
-  msat_set_option(cfg, "model_generation", interp ? "false" : "true");
+  if (interp && m != NO_MODEL) {
+    throw PonoException("interpolation doesn't need model");
+  }
+
+  msat_set_option(cfg, "model_generation", "false");
+  msat_set_option(cfg, "bool_model_generation", "false");
+
+  if (m == BOOL_MODEL) {
+    msat_set_option(cfg, "bool_model_generation", "true");
+  } else if (m == FULL_MODEL) {
+    msat_set_option(cfg, "model_generation", "true");
+  } else {
+    assert(m == NO_MODEL);
+  }
 
   return cfg;
 }

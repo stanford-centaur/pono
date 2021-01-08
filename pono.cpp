@@ -167,7 +167,10 @@ int main(int argc, char ** argv)
     // no logging by default
     // could create an option for logging solvers in the future
     SmtSolver s = create_solver_for(
-        pono_options.smt_solver_, pono_options.engine_, false);
+        pono_options.smt_solver_,
+        pono_options.engine_,
+        false,
+        pono_options.engine_ == IC3IA_ENGINE ? BOOL_MODEL : FULL_MODEL);
 
     // limitations with COI
     if (pono_options.static_coi_) {

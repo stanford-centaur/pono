@@ -16,10 +16,11 @@
 
 #include "smt/available_solvers.h"
 
-#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "assert.h"
 
 // these two always included
 #include "smt-switch/boolector_factory.h"
@@ -43,6 +44,19 @@ using namespace smt;
 using namespace std;
 
 namespace pono {
+
+ostream & operator<<(ostream & os, ModelOption m)
+{
+  if (m == FULL_MODEL) {
+    os << "FULL_MODEL";
+  } else if (m == BOOL_MODEL) {
+    os << "BOOL_MODEL";
+  } else {
+    assert(m == NO_MODEL);
+    os << "NO_MODEL";
+  }
+  return os;
+}
 
 // list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
@@ -98,7 +112,10 @@ SmtSolver create_solver(SolverEnum se, bool logging, bool incremental,
   return s;
 }
 
-SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
+SmtSolver create_solver_for(SolverEnum se,
+                            Engine e,
+                            bool logging,
+                            ModelOption m)
 {
   if (se != MSAT && se != BTOR) {
     // no special options yet for solvers other than mathsat
@@ -124,7 +141,7 @@ SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
   else if (se == MSAT && ic3_engine) {
     // These will be managed by the solver object
     // don't need to destroy
-    msat_config cfg = get_msat_config_for_ic3(false);
+    msat_config cfg = get_msat_config_for_ic3(false, m);
     msat_env env = msat_create_env(cfg);
     SmtSolver s = std::make_shared<MsatSolver>(cfg, env);
     if (logging) {
@@ -169,7 +186,7 @@ SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
     case MSAT_INTERPOLATOR: {
       // These will be managed by the solver object
       // don't need to destroy
-      msat_config cfg = get_msat_config_for_ic3(true);
+      msat_config cfg = get_msat_config_for_ic3(true, NO_MODEL);
       msat_env env = msat_create_env(cfg);
       return std::make_shared<MsatInterpolatingSolver>(cfg, env);
       break;
