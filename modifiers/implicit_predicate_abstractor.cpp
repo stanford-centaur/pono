@@ -53,6 +53,7 @@ ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
 
 Term ImplicitPredicateAbstractor::abstract(Term & t)
 {
+  assert(abstracted_);
   return solver_->substitute(t, abstraction_cache_);
 }
 
@@ -64,6 +65,7 @@ Term ImplicitPredicateAbstractor::concrete(Term & t)
 
 Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
 {
+  assert(abstracted_);
   Term next_pred = abs_ts_.next(pred);
   // constrain next state vars and abstract vars to agree on this predicate
   return solver_->make_term(Equal, next_pred, abstract(next_pred));
