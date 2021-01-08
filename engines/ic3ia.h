@@ -91,13 +91,10 @@ class IC3IA : public IC3
 
   RefineResult refine() override;
 
-  void reset_solver() override;
-
   // specific to IC3IA
 
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)
-   *  and also incrementally updates the local transition relation
    *  and declares a new predicate state var (in pred_statevars_)
    *  @param pred the predicate over current state variables
    *  @return true iff the predicate was new (not seen before)

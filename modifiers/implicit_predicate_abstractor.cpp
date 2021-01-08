@@ -71,7 +71,6 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
   Term rel = predicate_refinement(pred);
   if (predicates_.find(pred) == predicates_.end()) {
     predicates_.insert(pred);
-    abs_rts_.constrain_trans(rel);
   }
 
   return rel;

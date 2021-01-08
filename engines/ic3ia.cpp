@@ -317,22 +317,6 @@ RefineResult IC3IA::refine()
   return RefineResult::REFINE_SUCCESS;
 }
 
-void IC3IA::reset_solver()
-{
-  super::reset_solver();
-
-  if (failed_to_reset_solver_){
-    return;
-  }
-
-  // copy of added predicates
-  UnorderedTermSet preds = predset_;
-  predset_.clear();
-  for (const auto & p : preds) {
-    add_predicate(p);
-  }
-}
-
 bool IC3IA::add_predicate(const Term & pred)
 {
   if (predset_.find(pred) != predset_.end()) {
@@ -345,6 +329,7 @@ bool IC3IA::add_predicate(const Term & pred)
   predset_.insert(pred);
   // add predicate to abstraction and get the new constraint
   Term predabs_rel = ia_.add_predicate(pred);
+  static_cast<RelationalTransitionSystem&>(ts_).constrain_trans(predabs_rel);
   // refine the transition relation incrementally
   // by adding a new constraint
   assert(!solver_context_);  // should be at context 0
