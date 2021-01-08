@@ -62,18 +62,11 @@ Term ImplicitPredicateAbstractor::concrete(Term & t)
   return solver_->substitute(t, concretization_cache_);
 }
 
-// TODO: somewhere should add predicates from init / prop by default
-Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
+Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
 {
-  assert(abstracted_);
-  assert(abs_ts_.only_curr(pred));
-
-  Term rel = predicate_refinement(pred);
-  if (predicates_.find(pred) == predicates_.end()) {
-    predicates_.insert(pred);
-  }
-
-  return rel;
+  Term next_pred = abs_ts_.next(pred);
+  // constrain next state vars and abstract vars to agree on this predicate
+  return solver_->make_term(Equal, next_pred, abstract(next_pred));
 }
 
 bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
@@ -117,13 +110,13 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
   return out.size() > n;
 }
 
-
-void ImplicitPredicateAbstractor::do_abstraction()
+UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
 {
   logger.log(1, "Generating implicit predicate abstraction.");
 
   abstracted_ = true;
 
+  UnorderedTermSet conc_predicates;
   // assume abstract transition starts empty
   // need to add all state variables and set behavior
   for (auto v : conc_ts_.statevars()) {
@@ -157,7 +150,7 @@ void ImplicitPredicateAbstractor::do_abstraction()
       // so there doesn't need to be a relation added, e.g.
       // P(X') <-> P(X^) is not needed for boolean variables
       assert(abs_ts_.is_curr_var(sv));
-      predicates_.insert(sv);
+      conc_predicates.insert(sv);
       continue;
     }
     Term nv = conc_ts_.next(sv);
@@ -173,13 +166,8 @@ void ImplicitPredicateAbstractor::do_abstraction()
   Term trans = conc_ts_.trans();
   abs_rts_.set_trans(abstract(trans));
   logger.log(3, "Set abstract transition relation to {}", abs_rts_.trans());
-}
 
-Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
-{
-  Term next_pred = abs_ts_.next(pred);
-  // constrain next state vars and abstract vars to agree on this predicate
-  return solver_->make_term(Equal, next_pred, abstract(next_pred));
+  return conc_predicates;
 }
 
 }  // namespace pono
