@@ -61,7 +61,7 @@ IC3IA::IC3IA(const Property & p,
 
 IC3Formula IC3IA::get_model_ic3formula() const
 {
-  const TermVec & preds = ia_.predicates();
+  const UnorderedTermSet & preds = ia_.predicates();
   TermVec conjuncts;
   conjuncts.reserve(preds.size());
   for (const auto &p : preds) {
@@ -317,6 +317,22 @@ RefineResult IC3IA::refine()
   return RefineResult::REFINE_SUCCESS;
 }
 
+void IC3IA::reset_solver()
+{
+  super::reset_solver();
+
+  if (failed_to_reset_solver_){
+    return;
+  }
+
+  // copy of added predicates
+  UnorderedTermSet preds = predset_;
+  predset_.clear();
+  for (const auto & p : preds) {
+    add_predicate(p);
+  }
+}
+
 bool IC3IA::add_predicate(const Term & pred)
 {
   if (predset_.find(pred) != predset_.end()) {
@@ -335,7 +351,7 @@ bool IC3IA::add_predicate(const Term & pred)
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
 
-  assert(predset_.size() == ia_.predicates().size());
+  //assert(predset_.size() == ia_.predicates().size());
 
   return true;
 }

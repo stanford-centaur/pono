@@ -91,6 +91,8 @@ class IC3IA : public IC3
 
   RefineResult refine() override;
 
+  void reset_solver() override;
+
   // specific to IC3IA
 
   /** Adds predicate to abstraction

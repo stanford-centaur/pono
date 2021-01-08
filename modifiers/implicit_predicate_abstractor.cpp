@@ -68,10 +68,12 @@ Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
   assert(abstracted_);
   assert(abs_ts_.only_curr(pred));
 
-  predicates_.push_back(pred);
-
   Term rel = predicate_refinement(pred);
-  abs_rts_.constrain_trans(rel);
+  if (predicates_.find(pred) == predicates_.end()) {
+    predicates_.insert(pred);
+    abs_rts_.constrain_trans(rel);
+  }
+
   return rel;
 }
 
@@ -156,7 +158,7 @@ void ImplicitPredicateAbstractor::do_abstraction()
       // so there doesn't need to be a relation added, e.g.
       // P(X') <-> P(X^) is not needed for boolean variables
       assert(abs_ts_.is_curr_var(sv));
-      predicates_.push_back(sv);
+      predicates_.insert(sv);
       continue;
     }
     Term nv = conc_ts_.next(sv);

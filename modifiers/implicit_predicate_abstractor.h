@@ -49,7 +49,7 @@ class ImplicitPredicateAbstractor : public Abstractor
    *  current state variables
    *  @return vector of predicates
    */
-  const smt::TermVec & predicates() const { return predicates_; };
+  const smt::UnorderedTermSet & predicates() const { return predicates_; };
 
   bool reduce_predicates(const smt::TermVec & cex,
                          const smt::TermVec & new_preds,
@@ -70,8 +70,8 @@ class ImplicitPredicateAbstractor : public Abstractor
   ///< relational version of abs_ts_
   ///< this abstraction requires a relational system
 
-  smt::TermVec predicates_;  ///< list of predicates in abstraction over current
-                             ///< state vars
+  smt::UnorderedTermSet predicates_;  ///< set of predicates in abstraction
+                                      ///over current state vars
 
   bool abstracted_; ///< true iff do_abstraction has been called
 };
