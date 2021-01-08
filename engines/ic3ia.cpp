@@ -53,7 +53,7 @@ using CVC4TermVec = std::vector<cvc4a::Term>;
 
 // helper class for generating grammar for CVC4 SyGuS
 cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
-                                 const CVC4TermVec & cvc4_boundvars)
+                                 const CVC4TermVec & cvc4_boundvars, bool all_consts)
 {
   // sorts and their terminal constructors (start constructors)
   cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
@@ -93,6 +93,7 @@ cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
   for (auto s : start_bvs) {
     cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
     cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
+    cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
     cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
     cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
     cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
@@ -105,8 +106,15 @@ cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
         g_bound_vars.push_back(bound_var);
       }
     }
-    vector<cvc4a::Term> constructs = { zero,  one,  bvadd, bvmul,
+    vector<cvc4a::Term> constructs = {bvadd, bvmul,
                                        bvand, bvor, bvnot, bvneg };
+    if (!all_consts) {
+      constructs.push_back(zero);
+      constructs.push_back(one);
+      constructs.push_back(min_signed);
+    } else {
+      g.addAnyConstant(s);
+    }
     constructs.insert(
         constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
     g.addRules(s, constructs);
@@ -738,7 +746,7 @@ bool IC3IA::cvc4_synthesize_preds(
   }
 
   // Grammar construction
-  cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars);
+  cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars, options_.ic3ia_cvc4_pred_all_consts_);
 
   vector<cvc4a::Term> pred_vec;
   for (size_t n = 0; n < num_preds; ++n) {

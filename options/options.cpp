@@ -53,7 +53,8 @@ enum optionIndex
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
   IC3IA_CVC4_PRED,
-  IC3IA_CVC4_PRED_SIZE
+  IC3IA_CVC4_PRED_SIZE,
+  IC3IA_CVC4_PRED_ALL_CONSTS
 };
 
 struct Arg : public option::Arg
@@ -261,6 +262,12 @@ const option::Descriptor usage[] = {
     "ic3ia-cvc4-pred-size",
     Arg::Numeric,
     "  --ic3ia-cvc4-pred-size \tlimit size of each predicate."},
+{ IC3IA_CVC4_PRED_ALL_CONSTS,
+    0,
+    "",
+    "ic3ia-cvc4-pred-all-consts",
+    Arg::None,
+    "  --ic3ia-cvc4-pred-all-consts \tuse all constants in the grammar."},
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -378,6 +385,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           break;
         case IC3IA_CVC4_PRED: ic3ia_cvc4_pred_ = true; break;
         case IC3IA_CVC4_PRED_SIZE: ic3ia_cvc4_pred_size_ = atoi(opt.arg); break;
+        case IC3IA_CVC4_PRED_ALL_CONSTS: ic3ia_cvc4_pred_all_consts_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

@@ -73,7 +73,8 @@ class PonoOptions
         cegp_axiom_red_(default_cegp_axiom_red_),
         profiling_log_filename_(default_profiling_log_filename_),
         ic3ia_cvc4_pred_(default_ic3ia_cvc4_pred_),
-        ic3ia_cvc4_pred_size_(default_ic3ia_cvc4_pred_size_)
+        ic3ia_cvc4_pred_size_(default_ic3ia_cvc4_pred_size_),
+        ic3ia_cvc4_pred_all_consts_(default_ic3ia_cvc4_pred_all_consts_)
   {
   }
 
@@ -115,6 +116,7 @@ class PonoOptions
   // experimental option for finding a predicate with CVC4 SyGuS
   bool ic3ia_cvc4_pred_;
   unsigned int ic3ia_cvc4_pred_size_;
+  bool ic3ia_cvc4_pred_all_consts_;
 
  private:
   // Default options
@@ -138,6 +140,7 @@ class PonoOptions
   static const bool default_cegp_axiom_red_ = true;
   static const std::string default_profiling_log_filename_;
   static const bool default_ic3ia_cvc4_pred_ = false;
+  static const bool default_ic3ia_cvc4_pred_all_consts_ = false;
   static const bool default_ic3ia_cvc4_pred_size_ = 10;
 };
 
