@@ -71,7 +71,7 @@ shared_ptr<Prover> make_prover(Engine e,
     return make_shared<MsatIC3IA>(p, ts, slv, opts);
 #endif
   } else if (e == SYGUS_PDR) {
-    return make_shared<SygusPdr>(p, slv, opts);
+    return make_shared<SygusPdr>(p, ts, slv, opts);
   } else {
     throw PonoException("Unhandled engine");
   }
