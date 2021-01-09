@@ -61,10 +61,9 @@ IC3IA::IC3IA(const Property & p,
 
 IC3Formula IC3IA::get_model_ic3formula() const
 {
-  const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
-  conjuncts.reserve(preds.size());
-  for (const auto &p : preds) {
+  conjuncts.reserve(predset_.size());
+  for (const auto &p : predset_) {
     if (solver_->get_value(p) == solver_true_) {
       conjuncts.push_back(p);
     } else {
@@ -120,16 +119,6 @@ void IC3IA::initialize()
   }
 
   super::initialize();
-
-  Sort boolsort = solver_->make_sort(BOOL);
-  // add predicates automatically added by ia_
-  // to our predset_
-  // needed to prevent adding duplicate predicates later
-  for (const auto & p : ia_.predicates()) {
-    // ia_ automatically includes all boolean variables
-    assert(p->is_symbolic_const() && p->get_sort() == boolsort);
-    predset_.insert(p);
-  }
 
   // add all the predicates from init and property to the abstraction
   // NOTE: abstract is called automatically in IC3Base initialize
@@ -191,7 +180,11 @@ void IC3IA::initialize()
 
 void IC3IA::abstract()
 {
-  ia_.do_abstraction();
+  const UnorderedTermSet &bool_symbols = ia_.do_abstraction();
+  // add predicates automatically added by ia_
+  // to our predset_
+  // needed to prevent adding duplicate predicates later
+  predset_.insert(bool_symbols.begin(), bool_symbols.end());
 
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
@@ -328,14 +321,13 @@ bool IC3IA::add_predicate(const Term & pred)
   logger.log(2, "adding predicate {}", pred);
   predset_.insert(pred);
   // add predicate to abstraction and get the new constraint
-  Term predabs_rel = ia_.add_predicate(pred);
+  Term predabs_rel = ia_.predicate_refinement(pred);
+  static_cast<RelationalTransitionSystem&>(ts_).constrain_trans(predabs_rel);
   // refine the transition relation incrementally
   // by adding a new constraint
   assert(!solver_context_);  // should be at context 0
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
-
-  assert(predset_.size() == ia_.predicates().size());
 
   return true;
 }
