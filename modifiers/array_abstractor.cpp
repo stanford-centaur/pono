@@ -194,7 +194,6 @@ ArrayAbstractor::ArrayAbstractor(const TransitionSystem & conc_ts,
       abs_walker_(*this, &abstraction_cache_),
       conc_walker_(*this, &concretization_cache_)
 {
-  do_abstraction();
 }
 
 Term ArrayAbstractor::abstract(Term & t) { return abs_walker_.visit(t); }

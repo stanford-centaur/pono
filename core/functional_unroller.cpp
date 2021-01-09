@@ -25,9 +25,10 @@ using namespace std;
 namespace pono {
 
 FunctionalUnroller::FunctionalUnroller(const TransitionSystem & ts,
-                                       const SmtSolver & solver,
-                                       size_t interval)
-    : super(ts, solver), interval_(interval), true_(solver_->make_term(true))
+                                       size_t interval,
+                                       const string & time_identifier)
+  : super(ts, time_identifier), interval_(interval),
+    true_(solver_->make_term(true))
 {
   if (!ts.is_functional()) {
     throw PonoException(

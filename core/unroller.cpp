@@ -26,9 +26,11 @@ using namespace std;
 
 namespace pono {
 
-Unroller::Unroller(const TransitionSystem & ts, const SmtSolver & solver)
-    : ts_(ts), solver_(solver)
+Unroller::Unroller(const TransitionSystem & ts, const string & time_identifier)
+  : ts_(ts), solver_(ts.solver()), time_id_(time_identifier)
 {
+  num_vars_ = ts_.statevars().size();
+  num_vars_ += ts_.inputvars().size();
 }
 
 Unroller::~Unroller() {}
@@ -94,7 +96,7 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
   }
 
   std::string name = v->to_string();
-  name += "@" + std::to_string(k);
+  name += time_id_ + std::to_string(k);
   Term timed_v = solver_->make_symbol(name, v->get_sort());
   cache[v] = timed_v;
   untime_cache_[timed_v] = v;
@@ -123,7 +125,33 @@ UnorderedTermMap & Unroller::var_cache_at_time(unsigned int k)
     }
   }
 
-  return time_cache_[k];
+  UnorderedTermMap & var_cache = time_cache_[k];
+  size_t current_num_vars = ts_.statevars().size();
+  current_num_vars += ts_.inputvars().size();
+
+  // if new variables are added to the transition system, we need to update the
+  // timed-var-term-map
+  if (current_num_vars > num_vars_) {
+    num_vars_ = current_num_vars;
+    size_t t = 0;
+    for (UnorderedTermMap & st : time_cache_) {
+      for (auto v : ts_.statevars()) {
+        Term vn = ts_.next(v);
+        Term new_v = var_at_time(v, t);
+        Term new_vn = var_at_time(v, t + 1);
+        st[v] = new_v;
+        st[vn] = new_vn;
+      }
+      for (auto v : ts_.inputvars()) {
+        Term new_v = var_at_time(v, t);
+        st[v] = new_v;
+      }
+
+      ++t;
+    }
+  }
+
+  return var_cache;
 }
 
 }  // namespace pono

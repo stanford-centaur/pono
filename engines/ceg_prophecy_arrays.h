@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "core/adaptive_unroller.h"
+#include "core/unroller.h"
 #include "engines/cegar.h"
 #include "modifiers/array_abstractor.h"
 #include "modifiers/prophecy_modifier.h"
@@ -28,14 +28,14 @@
 
 namespace pono {
 
-class CegProphecyArrays : public CEGAR
+template <class Prover_T>
+class CegProphecyArrays : public CEGAR<Prover_T>
 {
-  typedef CEGAR super;
+  typedef CEGAR<Prover_T> super;
 
  public:
   CegProphecyArrays(const Property & p,
                     const TransitionSystem & ts,
-                    Engine e,
                     const smt::SmtSolver & solver,
                     PonoOptions opt = PonoOptions());
 
@@ -50,16 +50,9 @@ class CegProphecyArrays : public CEGAR
   void initialize() override;
 
  protected:
-  const TransitionSystem & conc_ts_;
-
-  Engine e_;
-
-  // TODO: see if there's a better organization where we can re-use the same
-  // unroller currently this is very important, or it won't unroll the
-  // abstracted variables correctly and this will fail SILENTLY
-  // It is CRUCIAL that we use an AdaptiveUnroller here
-  // otherwise, it will not unroll added auxiliary variables correctly
-  AdaptiveUnroller abs_unroller_;  ///< unroller for abs_ts_
+  TransitionSystem conc_ts_;
+  TransitionSystem & abs_ts_;
+  Unroller abs_unroller_;
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;
@@ -68,8 +61,10 @@ class CegProphecyArrays : public CEGAR
 
   smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
 
-  void abstract() override;
-  bool refine() override;
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; }
+
+  void cegar_abstract() override;
+  bool cegar_refine() override;
 
   // helpers
   smt::Term get_bmc_formula(size_t b);

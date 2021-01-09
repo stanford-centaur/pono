@@ -40,9 +40,9 @@ class IC3IA : public IC3
  public:
   // itp_se is the SolverEnum for the interpolator
 
-
-  IC3IA(const Property & p, const TransitionSystem & ts,
-        const smt::SmtSolver & s, const smt::SmtSolver & itp,
+  IC3IA(const Property & p,
+        const TransitionSystem & ts,
+        const smt::SmtSolver & s,
         PonoOptions opt = PonoOptions());
 
   virtual ~IC3IA() {}
@@ -54,7 +54,7 @@ class IC3IA : public IC3
   //       because we will pass them to ia_ and they must be
   //       be initialized first
 
-  TransitionSystem conc_ts_; 
+  TransitionSystem conc_ts_;
 
   ImplicitPredicateAbstractor ia_;
 
@@ -71,11 +71,13 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
+  /** Overriding the method. This will return the concrete_ts_ because ts_ is an
+   *  abstraction of concrete_ts_.
+   */
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; };
   // pure virtual method implementations
 
-  IC3Formula get_model_ic3formula(
-      smt::TermVec * out_inputs = nullptr,
-      smt::TermVec * out_nexts = nullptr) const override;
+  IC3Formula get_model_ic3formula() const override;
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 
@@ -93,7 +95,6 @@ class IC3IA : public IC3
 
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)
-   *  and also incrementally updates the local transition relation
    *  and declares a new predicate state var (in pred_statevars_)
    *  @param pred the predicate over current state variables
    *  @return true iff the predicate was new (not seen before)

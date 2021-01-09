@@ -81,6 +81,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
 
   typedef AxiomEnumerator super;
 
+  void initialize() override;
+
   bool enumerate_axioms(const smt::Term & abs_trace_formula,
                         size_t bound,
                         bool include_nonconsecutive = true) override;

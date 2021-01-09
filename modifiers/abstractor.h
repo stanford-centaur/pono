@@ -68,13 +68,6 @@ class Abstractor
   TransitionSystem & abs_ts() const { return abs_ts_; };
 
  protected:
-  /** Perform the abstraction
-   *  This should populate the abstraction and concretization caches
-   *  This is a NOP implementation. Derived classes will implement this.
-   *  Should be called in derived class constructor.
-   */
-  virtual void do_abstraction(){};
-
   /** Populates term caches
    *  @param conc_term the concrete term
    *  @param abs_term the abstract term

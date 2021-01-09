@@ -138,7 +138,6 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
-  "${PROJECT_SOURCE_DIR}/core/adaptive_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/functional_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
@@ -185,6 +184,11 @@ set(SOURCES
 if (WITH_COREIR OR WITH_COREIR_EXTERN)
   add_definitions(-DWITH_COREIR)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
+endif()
+
+if (WITH_MSAT)
+  # need direct access to mathsat for setting options
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
 endif()
 
 if (WITH_MSAT_IC3IA)
