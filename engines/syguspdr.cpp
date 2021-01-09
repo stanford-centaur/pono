@@ -15,6 +15,7 @@
 **/
 
 #include "engines/syguspdr.h"
+#include "utils/container_shortcut.h"
 #include "utils/logger.h"
 #include "utils/sygus_predicate_constructor.h"
 
@@ -56,9 +57,10 @@ unsigned SygusPdr::GetScore(const Term & t) {
 // ----------------------------------------------------------------
 // Constructor & Destructor
 // ----------------------------------------------------------------
-SygusPdr::SygusPdr(Property & p, const SmtSolver & slv,
-                             PonoOptions opt)
-  : super(p, slv, opt),
+SygusPdr::SygusPdr(const Property & p, const TransitionSystem & ts,
+        const SmtSolver & s,
+        PonoOptions opt)
+  : super(p, ts, s, opt),
     partial_model_getter(solver_),
     custom_ts_(NULL),
     has_assumptions(true) // most conservative way
@@ -99,9 +101,10 @@ void SygusPdr::initialize()
       new CustomFunctionalTransitionSystem(orig_ts_, tmp_translator );
   }
 
-  ts_ = custom_ts_;
+  ts_ = *custom_ts_;
   custom_ts_->make_nextvar_for_inputs();
-
+  // I really need the prime variable for inputs
+  // otherwise the corner cases are hard to handle...
 
   // has_assumption
   has_assumptions = ! (custom_ts_->constraints().empty());
@@ -174,12 +177,12 @@ void SygusPdr::initialize()
 void SygusPdr::check_ts() const
 {
   // check if there are arrays or uninterpreted sorts and fail if so
-  if (!ts_->is_functional())
+  if (!ts_.is_functional())
     throw PonoException(
       "SyGuS PDR only supports functional transition systems.");
     // check if there are arrays or uninterpreted sorts and fail if so
-  for (auto vec : { ts_->statevars(), ts_->inputvars() }) {
-    for (auto st : vec) {
+  for (const auto & vec : { ts_.statevars(), ts_.inputvars() }) {
+    for (const auto & st : vec) {
       SortKind sk = st->get_sort()->get_sort_kind();
       if (sk == ARRAY) {
         throw PonoException("SyGuS PDR does not support arrays yet");
@@ -188,6 +191,13 @@ void SygusPdr::check_ts() const
             "SyGuS PDR does not support uninterpreted sorts yet.");
       }
     }
+  }
+  //check each state has a next function
+  for (const auto & sv : ts_.statevars() ) {
+    const auto & update = ts_.state_updates();
+    if (update.find(sv) == update.end())
+      throw PonoException("State var `" + sv->to_string() +"` has no next function assigned."
+        " Will mess up SyGuS PDR's internal logic." );
   }
 } // check_ts
 
@@ -237,25 +247,34 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
     setup_cex_info(post_model)
   );
 
-  Term Fprev = get_frame_term(i - 1);
-  Term T = ts_->trans();
-  Term Init_prime = ts_->next(ts_->init());
+  Term Init_prime = ts_.next(ts_.init());
   const Term & cex = c.term;
   //Term not_cex = smart_not(cex);
-  Term cex_prime = ts_->next(cex);
+  Term cex_prime = ts_.next(cex);
+  Term Fprev = get_frame_term(i - 1);
+  Term T = ts_.trans();
   Term F_T_not_cex = make_and( {Fprev, T} ); // , not_cex
   Term base = 
     solver_->make_term(Or,
       F_T_not_cex,
       Init_prime);
 
-
   IC3Formula pre_formula;
   syntax_analysis::IC3FormulaModel * pre_model = NULL;
+  syntax_analysis::IC3FormulaModel * pre_full_model = NULL;
   bool failed_at_init;
 
   bool insufficient_pred = false;
   do {
+    // refresh the frame lemmas
+    Fprev = get_frame_term(i - 1);
+    T = ts_.trans();
+    F_T_not_cex = make_and( {Fprev, T} ); // , not_cex
+    base = 
+      solver_->make_term(Or,
+        F_T_not_cex,
+        Init_prime);
+
     { // step 1 - check if the pred are good if not construct the model
       const auto & pred_nxt_ = pred_collector_.GetAllPredNext();
       push_solver_context();
@@ -274,8 +293,14 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
         insufficient_pred = true;
         failed_at_init = solver_->get_value(Init_prime)->to_int() != 0;
         if (!failed_at_init) {
-          std::tie(pre_formula, pre_model) =
-            ExtractPartialModel( cex );
+          // here the problem is the model used for 
+          if (pre_full_model) {
+            delete pre_full_model;
+            pre_full_model = NULL;
+          }
+
+          std::tie(pre_formula, pre_model, pre_full_model) =
+            ExtractPartialAndFullModel( post_model );
           logger.log(3, "Generated MAY-block model {}", pre_model->to_string());
         } else {
           std::tie(pre_formula, pre_model) =
@@ -286,7 +311,7 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
       } else
         insufficient_pred = false;
       pop_solver_context();
-    }
+    } // end of step 1
 
     if (insufficient_pred) {
       // extract Proof goal from partial_model
@@ -299,14 +324,21 @@ std::vector<IC3Formula> SygusPdr::inductive_generalization(
       logger.log(3, "Cannot block MAY-block model {}", pre_model->to_string());
       logger.log(3, "Back to F[{}]->[{}], get new terms.", i-1,i);
 
+      assert(pre_full_model);
       bool succ = 
-        propose_new_terms(pre_model, post_model,
+        propose_new_terms(pre_full_model, post_model,
           F_T_not_cex, Init_prime, failed_at_init);
       assert(succ);
+      delete pre_full_model;
+      pre_full_model = NULL;
+
       // it has loop inside
       // and it must succeed because eventually we will end with bit-level things
     }
   }while(insufficient_pred);
+
+  if (pre_full_model)
+    delete pre_full_model;
 
   // at this point we have enough preds
   // reduce the preds
@@ -348,7 +380,7 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
   std::cout << "result : {";
   curr_lits.reserve(unsatcore.size());
   for (const auto &l : unsatcore)  {
-    curr_lits.push_back(ts_->curr(l));
+    curr_lits.push_back(ts_.curr(l));
     std::cout << term_id_map.at(l) << ",";
   }
   std::cout << "}" << std::endl;
@@ -370,7 +402,7 @@ bool SygusPdr::propose_new_terms(
     n_new_terms = 
       sygus_term_manager_.GetMoreTerms(
         pre_model, post_model, *(term_learner_.get()),
-        ts_->trans(),
+        ts_.trans(),
         failed_at_init, options_.sygus_term_mode_);
     logger.log(3, "[propose-new-term] Round {}. Get {} new terms.", proposing_new_terms_round, n_new_terms);
     if (n_new_terms != 0) {
@@ -456,7 +488,7 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info (syntax_analysis::IC3Form
 IC3Formula SygusPdr::get_initial_bad_model() {
   Term conj_full;
   TermVec conjvec;
-  for (const auto & v : ts_->statevars()) {
+  for (const auto & v : ts_.statevars()) {
     Term val = solver_->get_value(v);
     auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
     conjvec.push_back(eq);
@@ -467,7 +499,7 @@ IC3Formula SygusPdr::get_initial_bad_model() {
       conj_full = eq;
   }
 
-  for (const auto & v : ts_->inputvars()) {
+  for (const auto & v : ts_.inputvars()) {
     Term val = solver_->get_value(v);
     auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
     conjvec.push_back(eq);
@@ -523,13 +555,88 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
   );
 } // ExtractInitPrimeModel 
 
+std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
+    SygusPdr::ExtractPartialAndFullModel(syntax_analysis::IC3FormulaModel * post_model) {
+  // we get varset from post_model, this will save us from one term walk
+  UnorderedTermSet varset;
+  post_model->get_varset(varset);
+  TermVec pre_var;
+  for (const auto & v : varset) {
+    if (IN(v,ts_.statevars())) {
+      auto update_pos = ts_.state_updates().find(v);
+      assert( update_pos != ts_.state_updates().end() );
+      pre_var.push_back(update_pos->second);
+    } // if it is input then we should not need
+  }
+  UnorderedTermSet varlist;
+  partial_model_getter.GetVarListForAsts(pre_var, varlist);
+
+  // get varset, convert to current var (take care of input vars)
+  // extract var from it, with/without inputs
+  // and also extract the full model
+  {
+    Term conj_partial;
+    TermVec conjvec_partial;
+    syntax_analysis::IC3FormulaModel::cube_t cube_partial;
+
+    Term conj_full;
+    syntax_analysis::IC3FormulaModel::cube_t cube_full;
+
+    for (const auto & v : varlist) {
+      Term val = solver_->get_value(v);
+      auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
+
+      cube_full.emplace(v, val);
+      if (conj_full)
+        conj_full = solver_->make_term(Op(PrimOp::And), conj_full, eq);
+      else
+        conj_full = eq;
+
+      if (keep_var_in_partial_model(v)) {
+        cube_partial.emplace(v,val);
+        conjvec_partial.push_back( eq );
+        if (conj_partial) {
+          conj_partial = solver_->make_term(Op(PrimOp::And), conj_partial, eq);
+        } else {
+          conj_partial = eq;
+        }
+      } // end of partial model
+    }
+    assert(conj_full); // at least there should be var in the model
+    if (conj_full == nullptr)
+      conj_full = solver_true_;
+
+    if (conj_partial == nullptr) {
+      conj_partial = solver_true_;
+      assert(conjvec_partial.empty());
+      conjvec_partial.push_back(solver_true_);
+    }
+    syntax_analysis::IC3FormulaModel * partial_model = 
+      new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
+
+    syntax_analysis::IC3FormulaModel * full_model = 
+      new syntax_analysis::IC3FormulaModel(std::move(cube_full), conj_full);
+
+    assert(partial_model && full_model);
+    model2cube_.emplace(conj_partial, partial_model);
+
+    return std::make_tuple(
+      IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
+      partial_model,
+      full_model
+    );
+  } // end model making block
+} // ExtractPartialAndFullModel
+
 std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     SygusPdr::ExtractPartialModel(const Term & p) {
   // extract using keep_var_in_partial_model  
   assert(custom_ts_->no_next(p));
 
   UnorderedTermSet varlist;
-  Term bad_state_no_nxt = custom_ts_->to_next_func(p);
+  Term bad_state_no_nxt = custom_ts_->to_next_func(
+    solver_->substitute(p, custom_ts_->input_var_to_next_map()));
+  // we need to make sure input vars are mapped to next input vars
 
   logger.log(4, "[PartialModel] prime state : {}", bad_state_no_nxt->to_string());
   if (has_assumptions) {
@@ -620,7 +727,13 @@ RefineResult SygusPdr::refine() {
 
 
 bool SygusPdr::try_recursive_block_goal_at_or_before(const IC3Formula & to_block, unsigned fidx) {
+  ProofGoal * old_goal = get_top_proof_goal();
+  size_t old_size = proof_goals_.size();
   add_proof_goal(to_block, fidx, NULL);
+  ProofGoal * new_goal = get_top_proof_goal();
+  assert (old_goal != new_goal);
+  assert (new_goal->idx == fidx);
+  assert (old_goal->idx > new_goal->idx);
 
   while (has_proof_goals()) {
     if (options_.ic3_reset_interval_
@@ -631,6 +744,9 @@ bool SygusPdr::try_recursive_block_goal_at_or_before(const IC3Formula & to_block
     const ProofGoal * pg = get_top_proof_goal();
     logger.log(2,"-- try block @{} : {}", pg->idx, pg->target.term->to_string());
     if(pg->idx > fidx) {
+      // this is the desired exit of function
+      assert(proof_goals_.size() == old_size);
+      assert(pg == old_goal);
       logger.log(2, "-- {} > {}, return true", pg->idx, fidx);
       return true;
     }
@@ -676,9 +792,9 @@ bool SygusPdr::try_recursive_block_goal_at_or_before(const IC3Formula & to_block
       logger.log(2,"-- now back to @{} : {}", get_top_proof_goal()->idx, get_top_proof_goal()->target.term);
       return false;
     }
-    logger.log(2,"-- has pred, now its predecessor");
+    // logger.log(2,"-- has pred, now its predecessor");
   } // end of while
-  assert(!has_proof_goals());
+  assert(false); // we shoud not end here
   logger.log(2,"-- no goals");
   return true;
 } // block_all_goal_at_or_before
@@ -911,9 +1027,9 @@ bool SygusPdr::block(const ProofGoal * pg, bool mayblock)
     }
 
     // we're limited by the minimum index that a conjunct could be pushed to
-    if (min_idx + 1 < frames_.size()) {
+    if (!mayblock && (min_idx + 1 < frames_.size())) {
       add_proof_goal(c, min_idx + 1, pg->next);
-    }
+    } // for may-block, there is no obligation to block it if cannot be pushed
     return true;
   } else {
     // collateral is a vector of predecessors
@@ -948,7 +1064,7 @@ bool SygusPdr::rel_ind_check(size_t i,
   // Trans
   assert_trans_label();
   // c'
-  solver_->assert_formula(ts_->next(c.term));
+  solver_->assert_formula(ts_.next(c.term));
 
   Result r = check_sat();
   if (r.is_sat()) {
@@ -980,7 +1096,7 @@ bool SygusPdr::rel_ind_check(size_t i,
     for (const auto &u : out) {
       conj = solver_->make_term(And, conj, u.term);
       assert(ic3formula_check_valid(u));
-      assert(ts_->only_curr(u.term));
+      assert(ts_.only_curr(u.term));
     }
     assert(!check_intersects_initial(solver_->make_term(Not, conj)));
   }

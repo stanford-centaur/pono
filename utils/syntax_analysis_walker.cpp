@@ -19,7 +19,7 @@
 #include "utils/container_shortcut.h"
 #include "utils/term_analysis.h"
  
- // #define DEBUG
+#define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)
@@ -252,11 +252,11 @@ void TermExtractor::PostChild(const smt::Term & ast) {
     unsigned max_level = 0;
     bool all_in = true;
     // bool some_in = false;
-    D(0, "Walk : {} ", ast->to_raw_string());
+    D(0, "Walk : {} ", ast->to_string());
 
     for(auto && p : *ast) { // for each of its child node
 
-      D(0, "  - Child : {} , lv: {} , in: {}", p->to_raw_string(), walked_nodes_[p].level, walked_nodes_[p].in);
+      D(0, "  - Child : {} , lv: {} , in: {}", p->to_string(), walked_nodes_[p].level, walked_nodes_[p].in);
       max_level = std::max( walked_nodes_[p].level, max_level );
       all_in &= walked_nodes_[p].in;
     //  some_in |= walked_nodes_[p].related;
@@ -269,7 +269,7 @@ void TermExtractor::PostChild(const smt::Term & ast) {
     // walked_nodes_[ast].related = some_in;
     walked_nodes_[ast].level = max_level;
 
-    D(0, "Result lv: {} , in: {} , related: {}", max_level, all_in, some_in);
+    // D(0, "Result lv: {} , in: {} , related: {}", max_level, all_in, some_in);
 
     if (max_level <= level_ && all_in) {
       width_to_terms_[width].push_back(ast);
@@ -459,7 +459,7 @@ unsigned TermLearner::vars_extract_bit_level(IC3FormulaModel * post,  /*OUTPUT*/
       auto t = solver_->make_term(smt::Op(smt::PrimOp::Extract, idx, idx), v);
       parent_extractor_.RegisterNewParentRelation(v, t);
       bool is_new = varset_info.TermLearnerInsertTerm(t) ;
-      //std::cout << "Extract " << v->to_raw_string() << "[" << idx << "] is_new:" << is_new << std::endl;
+      //std::cout << "Extract " << v->to_string() << "[" << idx << "] is_new:" << is_new << std::endl;
       nterm += is_new ? 1 : 0;
     }
   }
@@ -481,7 +481,7 @@ unsigned TermLearner::learn_terms_from_cex(
 
   auto post_prop = solver_->make_term(smt::Not,(to_next_(post->to_expr())));
   unsigned delta_term_num = 0;
-  D(0, "[TermLearner] Pre model : {}", full_pre->to_string() );
+  D(0, "[TermLearner] Pre model : {}", pre_full_model->to_string() );
   D(0, "[TermLearner] Post model : {}", post->to_string() );
   solver_->push();
     solver_->assert_formula(pre_prop);
@@ -601,10 +601,10 @@ unsigned TermLearner::same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_in
       std::cout << "EQ class, val: " << val_tvec_pair.first.to_string() <<" w" << width
         << " #old:" << tvec_old.size() <<" |-> #new:" << tvec_new.size() << "\n  * ";
       for(const auto & t : tvec_old)
-        std::cout <<t->to_raw_string() << " , ";
+        std::cout <<t->to_string() << " , ";
       std::cout << " :|old -> new|: ";
       for(const auto & t : tvec_new)
-        std::cout <<t->to_raw_string() << " , ";
+        std::cout <<t->to_string() << " , ";
       std::cout << std::endl;
 #endif
       // old -> new & new -> new
@@ -669,7 +669,7 @@ unsigned TermLearner::replace_hierachically_w_parent(
   const smt::Term & orig, const smt::Term & repl, PerVarsetInfo & varset_info,
   smt::TermVec & output_new_terms ) {
   
-  D(3, "  [ReplaceParent] {} --> {} ", orig->to_raw_string(), repl->to_raw_string());
+  D(3, "  [ReplaceParent] {} --> {} ", orig->to_string(), repl->to_string());
   const auto & parent_map_ = parent_extractor_.GetParentRelation();
   assert(! parent_map_.empty() );
   auto parent_termvec_pos = parent_map_.find(orig);
@@ -682,7 +682,7 @@ unsigned TermLearner::replace_hierachically_w_parent(
 
   for(const auto & p : parentvec ) {
     if (varset_info.TermLearnerIsOut(p)) {
-      D(3, "  [ReplaceParent]    not in parent: {} , out", p->to_raw_string() );
+      D(3, "  [ReplaceParent]    not in parent: {} , out", p->to_string() );
       continue;
     }
 
@@ -703,17 +703,17 @@ unsigned TermLearner::replace_hierachically_w_parent(
 
        bool is_new_term = varset_info.TermLearnerInsertTerm(new_parent);
         if (is_new_term) {
-          D(3, "  [ReplaceParent]    in parent (new): {} ==> {}", p->to_raw_string(), new_parent->to_raw_string() );
+          D(3, "  [ReplaceParent]    in parent (new): {} ==> {}", p->to_string(), new_parent->to_string() );
           output_new_terms.push_back(new_parent);
           new_terms.push_back(new_parent);
         } else {
-          D(3, "  [ReplaceParent]    in parent (exists): {} ==> {}", p->to_raw_string(), new_parent->to_raw_string() );
+          D(3, "  [ReplaceParent]    in parent (exists): {} ==> {}", p->to_string(), new_parent->to_string() );
         }
         old_children[idx] = orig;
       }
     } // replace_child_in_parent
     for (const auto & nt : new_terms) {
-        D(1,"  [TermLearner Replace] {} ==> {}", p->to_raw_string(), nt->to_raw_string());
+        D(1,"  [TermLearner Replace] {} ==> {}", p->to_string(), nt->to_string());
         nterm += 1 + replace_hierachically_w_parent(p, nt, varset_info,output_new_terms );
           //ParentExtract::RegisterNewParentRelation(c, out.back());
     }

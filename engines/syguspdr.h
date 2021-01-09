@@ -58,7 +58,8 @@ class SygusPdr : public IC3Base
 {
  public:
 
-  SygusPdr(Property & p, const smt::SmtSolver & s,
+  SygusPdr(const Property & p, const TransitionSystem & ts,
+                const smt::SmtSolver & s,
                 PonoOptions opt = PonoOptions());
   virtual ~SygusPdr(); // need to free the pointers
 
@@ -139,6 +140,8 @@ class SygusPdr : public IC3Base
     ExtractPartialModel(const smt::Term & p);
   std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     ExtractInitPrimeModel(const smt::Term & p_prime);
+  std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
+    ExtractPartialAndFullModel(syntax_analysis::IC3FormulaModel * post_model);
 
   std::unique_ptr<syntax_analysis::OpExtractor> op_extract_;
 
