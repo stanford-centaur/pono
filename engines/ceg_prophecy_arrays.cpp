@@ -500,21 +500,6 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   RelationalTransitionSystem & sub_rts =
     static_cast<RelationalTransitionSystem &>(ts_);
 
-  // add newly added prophecy and history variables
-  const UnorderedTermSet & sv = rts.statevars();
-  const UnorderedTermSet & sub_sv = sub_rts.statevars();
-  for (const auto & v : sv) {
-    if (sub_sv.find(v) == sub_sv.end()) {
-      cout << v << endl;
-      sub_rts.add_statevar(v, rts.next(v));
-    }
-  }
-
-  // reset init and trans
-  sub_rts.set_init(rts.init());
-  Term trans = rts.trans();
-  sub_rts.set_trans(ia_.abstract(trans));
-
   // add predicates from init and trans
   UnorderedTermSet preds;
   get_predicates(solver_, abs_ts_.init(), preds, false, false, true);
@@ -522,6 +507,9 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   // add previously found predicates
   preds.insert(predset_.begin(), predset_.end());
   predset_.clear();
+
+  // reset init and trans -- done with calling ia_.do_abstraction
+  predset_ = ia_.do_abstraction();
 
   // reset the solver
   reset_solver();
