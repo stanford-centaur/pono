@@ -373,9 +373,9 @@ cdef class Property:
 cdef class Unroller:
     cdef c_Unroller* cu
     cdef SmtSolver _solver
-    def __cinit__(self, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cu = new c_Unroller(ts.cts[0], s.css)
-        self._solver = s
+    def __cinit__(self, __AbstractTransitionSystem ts):
+        self.cu = new c_Unroller(ts.cts[0])
+        self._solver = ts._solver
 
     def __dealloc__(self):
         del self.cu
@@ -502,8 +502,8 @@ cdef class IC3IA(__AbstractProver):
     '''
     IC3 via Implicit Predicate Abstraction
     '''
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s, SmtSolver interp):
-        self.cp = new c_IC3IA(p.cp[0], ts.cts[0], s.css, interp.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_IC3IA(p.cp[0], ts.cts[0], s.css)
         self._ts = ts
         self._solver = s
 
@@ -512,8 +512,8 @@ cdef class IC3IA(__AbstractProver):
 
 
 cdef class InterpolantMC(__AbstractProver):
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s, SmtSolver interp):
-        self.cp = new c_InterpolantMC(p.cp[0], ts.cts[0], s.css, interp.css)
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_InterpolantMC(p.cp[0], ts.cts[0], s.css)
         self._ts = ts
         self._solver = s
 

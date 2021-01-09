@@ -21,7 +21,6 @@
 #include "core/ts.h"
 #include "core/unroller.h"
 #include "options/options.h"
-
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -86,6 +85,13 @@ class Prover
    */
   bool compute_witness();
 
+  /** Returns the reference of the interface ts, which is a copy of orig_ts but
+   *  built using solver_. By default, the method returns a reference to ts_.
+   *  The derived classes may be based on abstraction-refinement methods (e.g.
+   *  IC3IA). In that case, the method would return the concrete ts.
+   */
+  virtual TransitionSystem & prover_interface_ts() { return ts_; };
+
   bool initialized_;
 
   smt::SmtSolver solver_;
@@ -100,11 +106,11 @@ class Prover
 
   int reached_k_;
 
-  //TODO: add engine enum
-
   smt::Term bad_;
 
   PonoOptions options_;
+
+  Engine engine_;
 
   // NOTE: both witness_ and invar_ are use terms from the engine's solver
 

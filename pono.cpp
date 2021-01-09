@@ -28,7 +28,6 @@
 #endif
 
 #include "core/fts.h"
-#include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "modifiers/control_signals.h"
@@ -38,7 +37,7 @@
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
-#include "prop.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 #include "utils/ts_analysis.h"
@@ -55,7 +54,6 @@ ProverResult check_prop(PonoOptions pono_options,
                         Property & p,
                         const TransitionSystem & ts,
                         const SmtSolver & s,
-                        const SmtSolver & second_solver,
                         std::vector<UnorderedTermMap> & cex)
 {
   logger.log(1, "Solving property: {}", p.name());
@@ -67,15 +65,9 @@ ProverResult check_prop(PonoOptions pono_options,
 
   std::shared_ptr<Prover> prover;
   if (pono_options.ceg_prophecy_arrays_) {
-    // don't instantiate the sub-prover directly
-    // just pass the engine to CegProphecyArrays
-    prover = std::make_shared<CegProphecyArrays>(p, ts, eng, s, pono_options);
-  } else if (eng != INTERP) {
-    assert(!second_solver);
-    prover = make_prover(eng, p, ts, s, pono_options);
+    prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
   } else {
-    assert(second_solver);
-    prover = make_prover(eng, p, ts, s, second_solver, pono_options);
+    prover = make_prover(eng, p, ts, s, pono_options);
   }
   assert(prover);
 
@@ -172,50 +164,10 @@ int main(int argc, char ** argv)
   }
 
   try {
-    SmtSolver s;
-    SmtSolver second_solver;
-    if (pono_options.engine_ == INTERP) {
-#ifdef WITH_MSAT
-      // need mathsat for interpolant based model checking
-      s = MsatSolverFactory::create(false);
-      second_solver = MsatSolverFactory::create_interpolating_solver();
-#else
-      throw PonoException(
-          "Interpolation-based model checking requires MathSAT and "
-          "this version of pono is built without MathSAT.\nPlease "
-          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-          "Note: MathSAT has a custom license and you must assume all "
-          "responsibility for meeting the license requirements.");
-#endif
-    } else if (pono_options.ceg_prophecy_arrays_) {
-#ifdef WITH_MSAT
-      // need mathsat for integer solving
-      s = MsatSolverFactory::create(false);
-#else
-      throw PonoException("ProphIC3 only supported with MathSAT so far");
-#endif
-    } else {
-      if (pono_options.smt_solver_ == "msat") {
-#ifdef WITH_MSAT
-        s = MsatSolverFactory::create(false);
-#else
-        throw PonoException(
-            "This version of pono is built without MathSAT.\nPlease "
-            "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-            "Note: MathSAT has a custom license and you must assume all "
-            "responsibility for meeting the license requirements.");
-#endif
-      } else if (pono_options.smt_solver_ == "btor") {
-        s = BoolectorSolverFactory::create(false);
-      } else if (pono_options.smt_solver_ == "cvc4") {
-        s = CVC4SolverFactory::create(false);
-      } else {
-        assert(false);
-      }
-
-      s->set_opt("produce-models", "true");
-      s->set_opt("incremental", "true");
-    }
+    // no logging by default
+    // could create an option for logging solvers in the future
+    SmtSolver s = create_solver_for(
+        pono_options.smt_solver_, pono_options.engine_, false);
 
     // limitations with COI
     if (pono_options.static_coi_) {
@@ -301,7 +253,7 @@ int main(int argc, char ** argv)
 
       vector<UnorderedTermMap> cex;
       Property p(s, prop, prop_name);
-      res = check_prop(pono_options, p, fts, s, second_solver, cex);
+      res = check_prop(pono_options, p, fts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -377,7 +329,7 @@ int main(int argc, char ** argv)
 
       Property p(s, prop, prop_name);
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, p, rts, s, second_solver, cex);
+      res = check_prop(pono_options, p, rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 

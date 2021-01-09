@@ -127,16 +127,14 @@ class InterpUnitTest : public EngineUnitTests
   void SetUp() override
   {
     EngineUnitTests::SetUp();
-    s = ::smt::MsatSolverFactory::create(false);
-    itp = ::smt::MsatSolverFactory::create_interpolating_solver();
+    s = create_solver(MSAT);
   }
   SmtSolver s;
-  SmtSolver itp;
 };
 
 TEST_P(InterpUnitTest, InterpTrue)
 {
-  InterpolantMC itpmc(*true_p, *ts, s, itp);
+  InterpolantMC itpmc(*true_p, *ts, s);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 
@@ -146,7 +144,7 @@ TEST_P(InterpUnitTest, InterpTrue)
 
 TEST_P(InterpUnitTest, InterpFalse)
 {
-  InterpolantMC itpmc(*false_p, *ts, s, itp);
+  InterpolantMC itpmc(*false_p, *ts, s);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
@@ -163,8 +161,7 @@ class InterpWinTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = ::smt::MsatSolverFactory::create(false);
-    itp = ::smt::MsatSolverFactory::create_interpolating_solver();
+    s = create_solver(MSAT);
 
     TSEnum ts_type = GetParam();
     if (ts_type == Functional) {
@@ -240,7 +237,7 @@ TEST_P(InterpWinTests, KInductionFail)
 
 TEST_P(InterpWinTests, InterpWin)
 {
-  InterpolantMC itpmc(*true_p, *ts, s, itp);
+  InterpolantMC itpmc(*true_p, *ts, s);
   ProverResult r = itpmc.check_until(10);
   ASSERT_EQ(r, ProverResult::TRUE);
 }

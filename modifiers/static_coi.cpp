@@ -47,7 +47,11 @@ StaticConeOfInfluence::StaticConeOfInfluence(TransitionSystem & ts,
 
   ts_.rebuild_trans_based_on_coi(statevars_in_coi, inputvars_in_coi);
 
-  assert(statevars_in_coi.size() == ts_.statevars().size());
+  // NOTE: Cannot expect ts_.statevars().size() == statevars_in_coi.size()
+  //       because, we cannot remove state variables from system that
+  //       occur in init. This is because COI ignores init, and removing
+  //       them would make the TS ill-formed. This should not affect
+  //       performance though, since they were removed from trans
   assert(inputvars_in_coi.size() == ts_.inputvars().size());
 
   logger.log(
@@ -60,6 +64,9 @@ StaticConeOfInfluence::StaticConeOfInfluence(TransitionSystem & ts,
       "COI analysis completed: {} remaining state variables, {} original",
       statevars_in_coi.size(),
       orig_num_statevars_);
+  logger.log(1,
+             "COI analysis note: state variables occurring in init will "
+             "not be removed from system");
 }
 
 }  // namespace pono

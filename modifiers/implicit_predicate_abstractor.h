@@ -35,31 +35,27 @@ class ImplicitPredicateAbstractor : public Abstractor
 
   smt::Term concrete(smt::Term & t) override;
 
-  /** Add a predicate to the abstraction
-   *  @param pred the predicate to add (over concrete current state variables)
+  /** Returns the predicate refinement of the given predicate
+   *  @param pred the predicate to refine
+   *  (over concrete current state variables)
    *  @return the condition: pred(X') <-> pred(X^)
-   *          that was added to the abstract transition relation
    *          this is for use in a procedure that wants to incrementally add
    *          predicates instead of re-adding the whole updated transition
    * relation
    */
-  smt::Term add_predicate(const smt::Term & pred);
-
-  /** Returns reference to vector of all current predicates over
-   *  current state variables
-   *  @return vector of predicates
-   */
-  const smt::TermVec & predicates() const { return predicates_; };
+  smt::Term predicate_refinement(const smt::Term & pred);
 
   bool reduce_predicates(const smt::TermVec & cex,
                          const smt::TermVec & new_preds,
                          smt::TermVec & out);
 
+  /** Does the abstraction and returns a set of concrete boolean symbols
+   *  abstraction
+   *  @return set of concrete boolean symbols
+   */
+  smt::UnorderedTermSet do_abstraction();
+
  protected:
-  void do_abstraction() override;
-
-  smt::Term predicate_refinement(const smt::Term & pred);
-
   const smt::SmtSolver & solver_;
 
   Unroller & unroller_;
@@ -70,8 +66,7 @@ class ImplicitPredicateAbstractor : public Abstractor
   ///< relational version of abs_ts_
   ///< this abstraction requires a relational system
 
-  smt::TermVec predicates_;  ///< list of predicates in abstraction over current
-                             ///< state vars
+  bool abstracted_; ///< true iff do_abstraction has been called
 };
 
 }  // namespace pono

@@ -25,6 +25,7 @@ Bmc::Bmc(const Property & p, const TransitionSystem & ts,
          const SmtSolver & solver, PonoOptions opt)
   : super(p, ts, solver, opt)
 {
+  engine_ = Engine::BMC;
 }
 
 Bmc::~Bmc() {}

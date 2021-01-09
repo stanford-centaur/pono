@@ -182,7 +182,9 @@ UnorderedTermSet get_free_symbols(const Term & term)
 void get_predicates(const SmtSolver & solver,
                     const Term & term,
                     UnorderedTermSet & out,
-                    bool include_symbols)
+                    bool include_symbols,
+                    bool search_subterms,
+                    bool split_ites)
 {
   // NOTE: this is better than checking the SortKind of a sort
   //       some solvers alias sorts and might return a SortKind
@@ -213,7 +215,6 @@ void get_predicates(const SmtSolver & solver,
       Term c;
       for (size_t i = 0; i < children.size(); ++i) {
         c = children[i];
-        to_visit.push_back(c);
         if (c->get_op() == Ite) {
           ite_indices.insert(i);
         }
@@ -233,18 +234,21 @@ void get_predicates(const SmtSolver & solver,
         continue;
       }
 
+      bool is_pred = false;
       // special case for ITE children
       // Note: we're trying to never include an ITE in a predicate
       //       so if we get y = ite(x < 10, x+1, 0), we want to add
       //       y = x+1 and y = 0 as the predicates instead of the
       //       whole formula
-      if (ite_indices.size()) {
+      if (split_ites && ite_indices.size()) {
         vector<TermVec> options;
         for (size_t i = 0; i < children.size(); ++i) {
           if (ite_indices.find(i) != ite_indices.end()) {
             TermVec ite_children(children[i]->begin(), children[i]->end());
             assert(ite_children.size() == 3);
             options.push_back({ ite_children[1], ite_children[2] });
+            // look for predicates in the ite condition
+            to_visit.push_back(ite_children[0]);
           } else {
             options.push_back({ children[i] });
           }
@@ -265,6 +269,11 @@ void get_predicates(const SmtSolver & solver,
         }
       } else if (is_predicate(t, boolsort)) {
         out.insert(t);
+        is_pred = true;
+      }
+
+      if (!is_pred || search_subterms) {
+        to_visit.insert(to_visit.end(), children.begin(), children.end());
       }
     }
   }

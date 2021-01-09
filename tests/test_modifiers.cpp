@@ -99,9 +99,11 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
   Term x = rts.named_terms().at("x");
 
   RelationalTransitionSystem abs_rts(rts.solver());
-  Unroller un(abs_rts, abs_rts.solver());
+  Unroller un(abs_rts);
   ImplicitPredicateAbstractor
     ia(rts, abs_rts, un);
+
+  ia.do_abstraction();
 
   // check if c <= 10 is inductive on the concrete system
   Term x_le_10 = rts.make_term(BVUle, x, rts.make_term(10, bvsort));
@@ -123,7 +125,8 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
   EXPECT_TRUE(r.is_sat());  // expecting check to fail
 
   // add it as a predicate
-  ia.add_predicate(x_le_10);
+  Term ref = ia.predicate_refinement(x_le_10);
+  abs_rts.constrain_trans(ref);
 
   // check if c <= 10 is inductive on the refined abstract system
   s->push();

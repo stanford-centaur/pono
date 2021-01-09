@@ -49,47 +49,35 @@ ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
         "Implicit predicate abstraction needs a relational abstract system");
   }
 
-  // assume abstract transition starts empty
-  // need to add all state variables and set behavior
-  for (auto v : conc_ts_.statevars()) {
-    abs_rts_.add_statevar(v, conc_ts_.next(v));
-  }
-  for (auto v : conc_ts_.inputvars()) {
-    abs_rts_.add_inputvar(v);
-  }
-  // should start with the exact same behavior
-  abs_rts_.set_behavior(conc_ts_.init(), conc_ts_.trans());
-
-  do_abstraction();
-
 }
 
 Term ImplicitPredicateAbstractor::abstract(Term & t)
 {
+  assert(abstracted_);
   return solver_->substitute(t, abstraction_cache_);
 }
 
 Term ImplicitPredicateAbstractor::concrete(Term & t)
 {
+  assert(abstracted_);
   return solver_->substitute(t, concretization_cache_);
 }
 
-// TODO: somewhere should add predicates from init / prop by default
-Term ImplicitPredicateAbstractor::add_predicate(const Term & pred)
+Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
 {
-  assert(abs_ts_.only_curr(pred));
-  predicates_.push_back(pred);
-
-  Term rel = predicate_refinement(pred);
-  abs_rts_.constrain_trans(rel);
-  return rel;
+  assert(abstracted_);
+  Term next_pred = abs_ts_.next(pred);
+  // constrain next state vars and abstract vars to agree on this predicate
+  return solver_->make_term(Equal, next_pred, abstract(next_pred));
 }
 
 bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
                                                     const TermVec & new_preds,
                                                     TermVec & out)
 {
+  assert(abstracted_);
   assert(new_preds.size());
+
   Term formula = solver_->make_term(true);
 
   for (size_t i = 0; i < cex.size(); ++i) {
@@ -116,7 +104,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
   }
 
   size_t n = out.size();
-  reducer_.reduce_assump_unsatcore(formula, assumps, red_assumps);
+  reducer_.reduce_assump_unsatcore(formula, assumps, red_assumps, nullptr, 1);
   for (const auto &a : red_assumps) {
     out.push_back(assumps_to_pred.at(a));
   }
@@ -124,10 +112,23 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
   return out.size() > n;
 }
 
-
-void ImplicitPredicateAbstractor::do_abstraction()
+UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
 {
   logger.log(1, "Generating implicit predicate abstraction.");
+
+  abstracted_ = true;
+
+  UnorderedTermSet conc_predicates;
+  // assume abstract transition starts empty
+  // need to add all state variables and set behavior
+  for (auto v : conc_ts_.statevars()) {
+    abs_rts_.add_statevar(v, conc_ts_.next(v));
+  }
+  for (auto v : conc_ts_.inputvars()) {
+    abs_rts_.add_inputvar(v);
+  }
+  // should start with the exact same behavior
+  abs_rts_.set_behavior(conc_ts_.init(), conc_ts_.trans());
 
   // assume abs_ts_ is relational -- required for this abstraction
   // Note: abs_rts_ is abs_ts_ with a static cast to RelationalTransitionSystem&
@@ -151,7 +152,7 @@ void ImplicitPredicateAbstractor::do_abstraction()
       // so there doesn't need to be a relation added, e.g.
       // P(X') <-> P(X^) is not needed for boolean variables
       assert(abs_ts_.is_curr_var(sv));
-      predicates_.push_back(sv);
+      conc_predicates.insert(sv);
       continue;
     }
     Term nv = conc_ts_.next(sv);
@@ -167,13 +168,8 @@ void ImplicitPredicateAbstractor::do_abstraction()
   Term trans = conc_ts_.trans();
   abs_rts_.set_trans(abstract(trans));
   logger.log(3, "Set abstract transition relation to {}", abs_rts_.trans());
-}
 
-Term ImplicitPredicateAbstractor::predicate_refinement(const Term & pred)
-{
-  Term next_pred = abs_ts_.next(pred);
-  // constrain next state vars and abstract vars to agree on this predicate
-  return solver_->make_term(Equal, next_pred, abstract(next_pred));
+  return conc_predicates;
 }
 
 }  // namespace pono

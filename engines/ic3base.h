@@ -16,14 +16,12 @@
 **        To create a particular IC3 instantiation, you must implement the
 *following:
 **           - implement get_model_ic3_formula and give it semantics to produce
-*the
-**             corresponding IC3Formula for your flavor of IC3
+**             the corresponding IC3Formula for your flavor of IC3
 **             (assumes solver_'s state is SAT from a failed rel_ind_check)
-**             also need to be able to give model (as formulas) for input values
-**             and next-state variable values if inputs/nexts are non-null,
-*respectively
-**           - implement inductive_generalization
-**           - implement generalize_predecessor
+**           - optionally override inductive_generalization
+**             (default aggressively minimizes)
+**           - optionally override generalize_predecessor
+**             (default just takes whole model)
 **             this one is special because it is called with solver_context == 1
 **             and assuming the state is SAT so you can query with
 **             solver_->get_value(Term)
@@ -83,8 +81,6 @@ struct IC3Formula
   /** Returns true iff this IC3Formula has not been initialized */
   bool is_null() const { return (term == nullptr); };
 
-  bool is_disjunction() const { return disjunction; };
-
   smt::Term term;  ///< term representation of this formula
   smt::TermVec
       children;  ///< flattened children of either a disjunction or conjunction
@@ -120,48 +116,6 @@ struct ProofGoalOrder
   {
     return b->idx < a->idx;
   }
-};
-
-/**
- * Priority queue of proof obligations borrowed from open-source ic3ia
- * implementation
- */
-class ProofGoalQueue
-{
- public:
-  ~ProofGoalQueue() { clear(); }
-
-  void clear()
-  {
-    for (auto p : store_) {
-      delete p;
-    }
-    store_.clear();
-    while (!queue_.empty()) {
-      queue_.pop();
-    }
-  }
-
-  void push_new(const IC3Formula & c,
-                unsigned int t,
-                const ProofGoal * n = NULL)
-  {
-    ProofGoal * pg = new ProofGoal(c, t, n);
-    push(pg);
-    store_.push_back(pg);
-  }
-
-  void push(ProofGoal * p) { queue_.push(p); }
-  ProofGoal * top() { return queue_.top(); }
-  void pop() { queue_.pop(); }
-  bool empty() const { return queue_.empty(); }
-
- private:
-  typedef std::
-      priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
-          Queue;
-  Queue queue_;
-  std::vector<ProofGoal *> store_;
 };
 
 class IC3Base : public Prover
@@ -213,8 +167,6 @@ class IC3Base : public Prover
   std::vector<std::vector<IC3Formula>> frames_;
 
   ///< priority queue of outstanding proof goals
-  ProofGoalQueue proof_goals_;
-
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
   smt::Term trans_label_;      ///< label to activate trans
@@ -223,6 +175,10 @@ class IC3Base : public Prover
 
   // useful terms
   smt::Term solver_true_;
+
+  // re-usable data structures
+  // NOTE: be sure not to overwrite these in nested function calls
+  smt::TermVec assumps_;  ///< used for storing assumptions
 
   // TODO Make sure all comments are updated!
 
@@ -238,19 +194,11 @@ class IC3Base : public Prover
   /** Get an IC3Formula from the current model
    *  @requires last call to check_sat of solver_ was satisfiable and context
    * hasn't changed
-   *  @param inputs - pointer to a vector. If non-null populate with input
-   *                  variable model
-   *  @param nexts - pointer to a vector. If non-null populate with next
-   *                 state variable model
    *  @return an IC3Formula over current state variables with is_disjunction
    *          false depending on the flavor of IC3, this might be a boolean
-   * cube, a theory cube, a cube of predicates, etc... AND if inputs non-null,
-   * then include model for inputs, e.g. as equalities if nexts non-null, then
-   * include model for next state vars, e.g. add equalities to vector
+   *          cube, a theory cube, a cube of predicates, etc...
    */
-  virtual IC3Formula get_model_ic3formula(
-      smt::TermVec * out_inputs = nullptr,
-      smt::TermVec * out_nexts = nullptr) const = 0;
+  virtual IC3Formula get_model_ic3formula() const = 0;
 
   /** Check whether a given IC3Formula is valid
    *  e.g. if this is a boolean clause it would
@@ -261,32 +209,6 @@ class IC3Base : public Prover
    *          flavor of IC3
    */
   virtual bool ic3formula_check_valid(const IC3Formula & u) const = 0;
-
-  /** Attempt to generalize before blocking in frame i
-   *  The standard approach is inductive generalization
-   *  @requires !rel_ind_check(i, c, _)
-   *  @param i the frame number to generalize it against
-   *  @param c the IC3Formula that should be blocked
-   *  @return a vector of IC3Formulas interpreted as a conjunction of
-   * IC3Formulas. Standard IC3 implementations will have a size one vector (e.g.
-   * a single clause) Let the returned conjunction term be d
-   *  @ensures d -> !c and F[i-1] /\ d /\ T /\ !d' is unsat
-   *           e.g. it blocks c and is inductive relative to F[i-1]
-   */
-  virtual std::vector<IC3Formula> inductive_generalization(
-      size_t i, const IC3Formula & c) = 0;
-
-  /** Generalize a counterexample
-   *  @requires rel_ind_check(i, c)
-   *  @requires the solver_ context is currently satisfiable
-   *  @param i the frame number
-   *  @param c the IC3Formula to find a general predecessor for
-   *  @return a new IC3Formula d
-   *  @ensures d -> F[i-1] /\ forall s \in [d] exists s' \in [c]. (d,c) \in [T]
-   *  @ensures no calls to the solver_ because the context is polluted with
-   *           other assertions
-   */
-  virtual IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) = 0;
 
   /** Checks if every thing in the current transition system is supported
    *  by the current instantiation
@@ -317,6 +239,36 @@ class IC3Base : public Prover
    *  @param u the IC3Formula to negate
    */
   virtual IC3Formula ic3formula_negate(const IC3Formula & u) const;
+
+  /** Attempt to generalize before blocking in frame i
+   *  The standard approach is inductive generalization
+   *  @requires !rel_ind_check(i, c, _)
+   *  @requires c is a conjunction (e.g. !c.disjunction)
+   *  @param i the frame number to generalize it against
+   *  @param c the IC3Formula that should be blocked
+   *  @return a generalized IC3Formula
+   *
+   *  Let the returned formula be d
+   *  @ensures d -> !c and F[i-1] /\ d /\ T /\ !d' is unsat
+   *           e.g. it blocks c and is inductive relative to F[i-1]
+   */
+  virtual IC3Formula inductive_generalization(size_t i, const IC3Formula & c);
+
+  /** Generalize a counterexample
+   *  @requires rel_ind_check(i, c)
+   *  @requires the solver_ context is currently satisfiable
+   *  @param i the frame number
+   *  @param c the IC3Formula conjunction to find a general predecessor for
+   *  @param pred the predecessor. originally passed as full assignment
+   *         and then is updated in to be a generalized predecessor
+   *  @ensures pred -> F[i-1] /\
+               forall s \in [pred] exists s' \in [c]. (pred ,c) \in [T]
+   *  @ensures no calls to the solver_ because the context is polluted with
+   *           other assertions
+   */
+  virtual void predecessor_generalization(size_t i,
+                                          const IC3Formula & c,
+                                          IC3Formula & pred);
 
   /** Generates an abstract transition system
    *  Typically this would set the ts_ pointer to the abstraction
@@ -357,7 +309,7 @@ class IC3Base : public Prover
    * goals This method can be overriden if you want to add more than a single
    *  IC3Formula that intersects bad to the proof goals
    */
-  virtual bool intersects_bad();
+  virtual bool intersects_bad(IC3Formula & out);
 
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented
@@ -376,20 +328,29 @@ class IC3Base : public Prover
    *  @requires c -> F[i]
    *  @param i the frame number
    *  @param c the IC3Formula to check
-   *  @param out the output collateral: a vector interpreted as a conjunction of
-   * IC3Formulas if the check succeeds (e.g. is UNSAT), then returns a vector of
-   * blocking units to be added to Frame i if the check fails (e.g. is SAT),
-   * then returns a vector of predecessors Note 1: this method calls
-   * inductive_generalization and generalize_predecessor if options_.ic3_pregen_
-   * and options_.ic3_indgen_ are set, respectively Note 2: in most cases, the
-   * vector returned will be size one
+   *  @param out the output collateral:
+   *         if query is UNSAT, it will do a cheap unsat-core based
+   *           generalization of c and set out to a subset
+   *           (as a conjunction still)
+   *         if query is SAT and get_pred is TRUE, will set out to
+   *           the predecessor CTI after generalizing the predecessor
+   *           (if that option is enabled)
+   *         NOTE: this code does not call the (typically more expensive)
+   *               inductive_generalization
+   *  @param get_pred if set to true, will set out to the predecessor on a
+   *                  SAT query. This option exists because rel_ind_check
+   *                  is used in several places including the default
+   *                  inductive_generalization procedure, where we don't need
+   *                  predecessors if it's SAT. (in that case, SAT just means
+   *                  we can't drop the literal we tried dropping)
    *  @return true iff c is inductive relative to frame i-1
    *  @ensures returns false  : out -> F[i-1] /\ \forall s in out . (s, c) \in
    * [T] returns true   : out unchanged, F[i-1] /\ T /\ c' is unsat
    */
   bool rel_ind_check(size_t i,
                      const IC3Formula & c,
-                     std::vector<IC3Formula> & out);
+                     IC3Formula & out,
+                     bool get_pred = true);
 
   // Helper methods
 
@@ -402,13 +363,6 @@ class IC3Base : public Prover
    *  pg.next iteratively
    */
   bool block_all();
-
-  /** Attempt to block the given proof goal
-   *  @param pg the proof goal
-   *  @return true iff the proof goal was blocked,
-   *          otherwise a new proof goal was added to the proof goals
-   */
-  bool block(const ProofGoal * pg);
 
   /** Check if the given proof goal is already blocked
    *  @param pg the proof goal
@@ -457,38 +411,6 @@ class IC3Base : public Prover
 
   void assert_trans_label() const;
 
-  /** Check if there are more proof goals
-   *  @return true iff there are more proof goals
-   */
-  inline bool has_proof_goals() const { return !proof_goals_.empty(); }
-
-  /** Gets a new proof goal
-   *  @requires has_proof_goals()
-   *  @return a proof goal with the lowest available frame number
-   *          i.e. from the top of the priority queue
-   *  @alters proof_goals_
-   *  @ensures returned proof goal is from lowest frame in proof goals
-   */
-  inline ProofGoal * get_top_proof_goal()
-  {
-    assert(has_proof_goals());
-    ProofGoal * pg = proof_goals_.top();
-    return pg;
-  }
-
-  /** Removes the proof goal at the top of the priority queue
-   *  Proof goals should be removed once they are blocked
-   */
-  inline void remove_top_proof_goal() { proof_goals_.pop(); }
-
-  /** Create and add a proof goal for cube c for frame i
-   *  @param c the cube of the proof goal
-   *  @param i the frame number for the proof goal
-   *  @param n pointer to the proof goal that led to this one -- null for bad
-   *  (i.e. end of trace)
-   */
-  void add_proof_goal(const IC3Formula & c, size_t i, const ProofGoal * n);
-
   /** Check if there are common assignments
    *  between A and B
    *  i.e. if A /\ B is SAT
@@ -510,11 +432,26 @@ class IC3Base : public Prover
 
   /** Returns the highest frame this unit can be pushed to
    *  @param i the starting frame index
-   *  @param u the unit to check how far it can be pushed
+   *  @param u the IC3Formula to check how far it can be pushed
+   *         automatically gets generalized with unsat-cores
    *  @return index >= i such that this unit can be added
    *          to that frame
    */
-  size_t find_highest_frame(size_t i, const IC3Formula & u);
+  size_t find_highest_frame(size_t i, IC3Formula & u);
+
+  /** Returns a vector of equalities between input variables
+   *  and their values in the current model
+   *  @require solver_ state to be SAT
+   *  @return vector of equalities
+   */
+  smt::TermVec get_input_values() const;
+
+  /** Returns a vector of equalities between next state variables
+   *  and their values in the current model
+   *  @require solver_ state to be SAT
+   *  @return vector of equalities
+   */
+  smt::TermVec get_next_state_values() const;
 
   /** Creates a reduce and of the vector of boolean terms
    *  It also sorts the vector by the hash
@@ -560,6 +497,8 @@ class IC3Base : public Prover
    * exception is just caught and things continue on as normal
    */
   virtual void reset_solver();
+
+  inline size_t frontier_idx() const { return frames_.size() - 1; }
 
   /** Create a boolean label for a given term
    *  These are cached in labels_

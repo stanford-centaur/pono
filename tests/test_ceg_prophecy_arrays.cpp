@@ -1,10 +1,8 @@
-#include "gtest/gtest.h"
-
 #include "engines/ceg_prophecy_arrays.h"
-#include "engines/kinduction.h"
-#include "utils/logger.h"
-
+#include "gtest/gtest.h"
 #include "smt/available_solvers.h"
+#include "utils/logger.h"
+#include "utils/make_provers.h"
 
 #ifdef WITH_MSAT
 
@@ -40,8 +38,8 @@ TEST(CegProphecyArraysTest, Simple)
   Term prop_term = rts.make_term(
       BVUlt, rts.make_term(Select, a, j), rts.make_term(200, bvsort32));
   Property prop(s, prop_term);
-  CegProphecyArrays cegp(prop, rts, INTERP, s);
-  ProverResult r = cegp.check_until(5);
+  std::shared_ptr<Prover> cegp = make_ceg_proph_prover(INTERP, prop, rts, s);
+  ProverResult r = cegp->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
