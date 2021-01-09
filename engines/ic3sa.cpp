@@ -174,6 +174,32 @@ void IC3SA::predecessor_generalization(size_t i,
   construct_partition(ec, cube_lits);
   pred = ic3formula_conjunction(TermVec(cube_lits.begin(), cube_lits.end()));
   assert(ic3formula_check_valid(pred));
+
+  // debugging
+
+  TermVec model_vec;
+  for (const auto & sv : ts_.statevars()) {
+    model_vec.push_back(solver_->make_term(Equal, sv, solver_->get_value(sv)));
+  }
+
+  assert(solver_context_ == 1);
+  pop_solver_context();
+  assert(!solver_context_);
+
+  push_solver_context();
+
+  solver_->assert_formula(make_and(model_vec));
+  solver_->assert_formula(solver_->make_term(Not, pred.term));
+
+  Result r = solver_->check_sat();
+  assert(r.is_unsat());
+
+  pop_solver_context();
+
+  push_solver_context();
+  assert(solver_context_ == 1);
+
+  // end debugging
 }
 
 void IC3SA::check_ts() const
