@@ -70,20 +70,21 @@ IC3SA::IC3SA(const Property & p,
 
 IC3Formula IC3SA::get_model_ic3formula() const
 {
-  TermVec cube_lits;
+  UnorderedTermSet cube_lits;
   // first populate with predicates
   for (const auto & p : predset_) {
     if (solver_->get_value(p) == solver_true_) {
-      cube_lits.push_back(p);
+      cube_lits.insert(p);
     } else {
-      cube_lits.push_back(solver_->make_term(Not, p));
+      cube_lits.insert(solver_->make_term(Not, p));
     }
   }
 
   // TODO make sure that projecting on state variables here makes sense
   EquivalenceClasses ec = get_equivalence_classes_from_model(ts_.statevars());
   construct_partition(ec, cube_lits);
-  IC3Formula cube = ic3formula_conjunction(cube_lits);
+  IC3Formula cube =
+      ic3formula_conjunction(TermVec(cube_lits.begin(), cube_lits.end()));
   assert(ic3formula_check_valid(cube));
 
   return cube;
@@ -149,7 +150,7 @@ void IC3SA::predecessor_generalization(size_t i,
       coi_symbols.size(),
       ts_.statevars().size());
 
-  TermVec cube_lits;
+  UnorderedTermSet cube_lits;
 
   // first populate with predicates
   UnorderedTermSet free_symbols;
@@ -163,15 +164,15 @@ void IC3SA::predecessor_generalization(size_t i,
     }
 
     if (solver_->get_value(p) == solver_true_) {
-      cube_lits.push_back(p);
+      cube_lits.insert(p);
     } else {
-      cube_lits.push_back(solver_->make_term(Not, p));
+      cube_lits.insert(solver_->make_term(Not, p));
     }
   }
 
   EquivalenceClasses ec = get_equivalence_classes_from_model(coi_symbols);
   construct_partition(ec, cube_lits);
-  pred = ic3formula_conjunction(cube_lits);
+  pred = ic3formula_conjunction(TermVec(cube_lits.begin(), cube_lits.end()));
   assert(ic3formula_check_valid(pred));
 }
 
@@ -363,7 +364,7 @@ bool IC3SA::intersects_bad(IC3Formula & out)
   if (r.is_sat()) {
     // start with a structural COI for reduction
 
-    TermVec cube_lits;
+    UnorderedTermSet cube_lits;
 
     // first populate with predicates
     for (const auto & p : predset_) {
@@ -372,9 +373,9 @@ bool IC3SA::intersects_bad(IC3Formula & out)
       }
 
       if (solver_->get_value(p) == solver_true_) {
-        cube_lits.push_back(p);
+        cube_lits.insert(p);
       } else {
-        cube_lits.push_back(solver_->make_term(Not, p));
+        cube_lits.insert(solver_->make_term(Not, p));
       }
     }
 
@@ -383,14 +384,15 @@ bool IC3SA::intersects_bad(IC3Formula & out)
     construct_partition(ec, cube_lits);
     assert(cube_lits.size());
     // reduce cube_lits
+    TermVec cube_vec(cube_lits.begin(), cube_lits.end());
     TermVec red_c;
     bool is_unsat =
-        reducer_.reduce_assump_unsatcore(smart_not(bad_), cube_lits, red_c);
+        reducer_.reduce_assump_unsatcore(smart_not(bad_), cube_vec, red_c);
     if (is_unsat) {
       assert(red_c.size());
       out = ic3formula_conjunction(red_c);
     } else {
-      out = ic3formula_conjunction(cube_lits);
+      out = ic3formula_conjunction(cube_vec);
     }
   }
 
@@ -554,7 +556,7 @@ EquivalenceClasses IC3SA::get_equivalence_classes_from_model(
 }
 
 void IC3SA::construct_partition(const EquivalenceClasses & ec,
-                                TermVec & out_cube) const
+                                UnorderedTermSet & out_cube) const
 {
   // now add to the cube expressing this partition
   for (const auto & sortelem : ec) {
@@ -591,7 +593,7 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
         lit = solver_->make_term(Equal, last, term);
         if (!lit->is_value()) {
           // only add if not trivially true
-          out_cube.push_back(lit);
+          out_cube.insert(lit);
         }
         last = term;
 
@@ -630,7 +632,7 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
         lit = solver_->make_term(Distinct, ti, tj);
         if (!lit->is_value()) {
           // only add if not trivially true
-          out_cube.push_back(lit);
+          out_cube.insert(lit);
         }
       }
     }

@@ -117,10 +117,10 @@ class IC3SA : public IC3
 
   /** Generate the literals for the partition given by ec and add to cube
    *  @param ec the equivalence classes partition
-   *  @param out_cube vector of formulae to add to
+   *  @param out_cube set of formulae to add to
    */
   void construct_partition(const EquivalenceClasses & ec,
-                           smt::TermVec & out_cube) const;
+                           smt::UnorderedTermSet & out_cube) const;
 
   /** Add all subterms from term to the term abstraction
    *  @param axiom the term to mine for subterms
