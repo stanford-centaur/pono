@@ -376,7 +376,7 @@ ProverResult IC3Base::step(int i)
   logger.log(1, "Propagation phase at frame {}", i);
   // propagation phase
   push_frame();
-  for (size_t j = 1; j < frames_.size() - 1; ++j) {
+  for (size_t j = 1; j < frontier_idx(); ++j) {
     if (propagate(j)) {
       assert(j + 1 < frames_.size());
       // save the invariant
@@ -386,6 +386,8 @@ ProverResult IC3Base::step(int i)
       return ProverResult::TRUE;
     }
   }
+
+  reset_solver();
 
   ++reached_k_;
 
@@ -592,6 +594,10 @@ bool IC3Base::block_all()
 
         size_t idx = find_highest_frame(pg->idx, collateral);
         assert(idx >= pg->idx);
+
+        assert(collateral.disjunction);
+        assert(collateral.term);
+        assert(collateral.children.size());
         constrain_frame(idx, collateral);
 
         // re-add the proof goal at a higher frame if not blocked
@@ -641,42 +647,35 @@ bool IC3Base::is_blocked(const ProofGoal * pg)
 
 bool IC3Base::propagate(size_t i)
 {
-  assert(i + 1 < frames_.size());
+  assert(!solver_context_);
+  assert(i < frontier_idx());
 
-  vector<IC3Formula> to_push;
   vector<IC3Formula> & Fi = frames_.at(i);
 
-  push_solver_context();
-  assert_frame_labels(i);
-  assert_trans_label();
-
   size_t k = 0;
+  IC3Formula gen;
   for (size_t j = 0; j < Fi.size(); ++j) {
-    const Term & t = Fi.at(j).term;
+    const IC3Formula & c = Fi.at(j);
+    assert(c.disjunction);
+    assert(c.term);
+    assert(c.children.size());
 
-    // Relative inductiveness check
-    // Check F[i] /\ t /\ T /\ -t'
-    // NOTE: asserting t is redundant because t \in F[i]
-    push_solver_context();
-    solver_->assert_formula(solver_->make_term(Not, ts_.next(t)));
-
-    Result r = check_sat();
-    assert(!r.is_unknown());
-    if (r.is_unsat()) {
-      to_push.push_back(Fi.at(j));
+    // NOTE: rel_ind_check works on conjunctions
+    //       need to negate
+    if (rel_ind_check(i + 1, ic3formula_negate(c), gen, false)) {
+      // can push to next frame
+      // got unsat-core based generalization
+      assert(gen.term);
+      assert(gen.children.size());
+      constrain_frame(i + 1, ic3formula_negate(gen), false);
     } else {
-      Fi[k++] = Fi.at(j);
+      // have to keep this one at this frame
+      Fi[k++] = c;
     }
-
-    pop_solver_context();
   }
+
+  // get rid of garbage at end of frame
   Fi.resize(k);
-
-  pop_solver_context();
-
-  for (const auto &f : to_push) {
-    constrain_frame(i + 1, f, false);
-  }
 
   return Fi.empty();
 }
@@ -804,29 +803,32 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
   }
 }
 
-size_t IC3Base::find_highest_frame(size_t i, const IC3Formula & u)
+size_t IC3Base::find_highest_frame(size_t i, IC3Formula & u)
 {
+  assert(!solver_context_);
   assert(u.disjunction);
-  const Term &c = u.term;
-  push_solver_context();
-  solver_->assert_formula(c);
-  solver_->assert_formula(solver_->make_term(Not, ts_.next(c)));
-  assert_trans_label();
+  assert(u.term);
+  assert(u.children.size());
 
-  Result r;
+  IC3Formula conj = ic3formula_negate(u);
+  IC3Formula gen;
   size_t j = i;
-  for (; j + 1 < frames_.size(); ++j) {
-    push_solver_context();
-    assert_frame_labels(j);
-    r = check_sat();
-    pop_solver_context();
-    if (r.is_sat()) {
+  for (; j < frontier_idx(); ++j) {
+    assert(!conj.disjunction);
+    if (rel_ind_check(j + 1, conj, gen, false)) {
+      std::swap(conj, gen);
+    } else {
       break;
     }
   }
+  assert(!conj.disjunction);
+  assert(conj.term);
+  assert(conj.children.size());
 
-  pop_solver_context();
-
+  u = ic3formula_negate(conj);
+  assert(u.disjunction);
+  assert(u.term);
+  assert(u.children.size());
   return j;
 }
 

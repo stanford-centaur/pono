@@ -458,6 +458,10 @@ bool ModelBasedIC3::intersects_bad(IC3Formula & out)
 
 void ModelBasedIC3::initialize()
 {
+  if (initialized_) {
+    return;
+  }
+
   super::initialize();
 
   // only need interpolator infrastructure for mode 2 (interpolation)

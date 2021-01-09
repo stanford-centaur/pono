@@ -125,7 +125,8 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
   EXPECT_TRUE(r.is_sat());  // expecting check to fail
 
   // add it as a predicate
-  ia.add_predicate(x_le_10);
+  Term ref = ia.predicate_refinement(x_le_10);
+  abs_rts.constrain_trans(ref);
 
   // check if c <= 10 is inductive on the refined abstract system
   s->push();

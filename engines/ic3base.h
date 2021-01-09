@@ -432,11 +432,12 @@ class IC3Base : public Prover
 
   /** Returns the highest frame this unit can be pushed to
    *  @param i the starting frame index
-   *  @param u the unit to check how far it can be pushed
+   *  @param u the IC3Formula to check how far it can be pushed
+   *         automatically gets generalized with unsat-cores
    *  @return index >= i such that this unit can be added
    *          to that frame
    */
-  size_t find_highest_frame(size_t i, const IC3Formula & u);
+  size_t find_highest_frame(size_t i, IC3Formula & u);
 
   /** Returns a vector of equalities between input variables
    *  and their values in the current model
