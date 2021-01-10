@@ -38,7 +38,7 @@ Prover::Prover(const Property & p, const TransitionSystem & ts,
       orig_property_(p),
       orig_ts_(ts),
       ts_(ts, to_prover_solver_),
-      unroller_(ts_, solver_),
+      unroller_(ts_),
       options_(opt),
       engine_(Engine::NONE)
 {
@@ -56,9 +56,10 @@ void Prover::initialize()
 
   if (!bad_) {
     // initialize bad_ if it is not set already
-    const Term &prop_term = (ts_.solver() == orig_property_.solver())
-      ? orig_property_.prop()
-      : to_prover_solver_.transfer_term(orig_property_.prop());
+    const Term & prop_term =
+        (ts_.solver() == orig_property_.solver())
+            ? orig_property_.prop()
+            : to_prover_solver_.transfer_term(orig_property_.prop(), BOOL);
     bad_ = solver_->make_term(smt::PrimOp::Not, prop_term);
     assert(ts_.only_curr(bad_));
   }

@@ -50,8 +50,6 @@ TEST_P(CoiUnitTests, SimpleCoiTest)
   const UnorderedTermSet & statevars = fts.statevars();
   const UnorderedTermSet & inputvars = fts.inputvars();
   const unordered_map<string, Term> & named_terms = fts.named_terms();
-  EXPECT_EQ(statevars.size(), 1);
-  EXPECT_TRUE(statevars.find(regres) != statevars.end());
   EXPECT_EQ(inputvars.size(), 3);
   EXPECT_TRUE(inputvars.find(a) != inputvars.end());
   EXPECT_TRUE(inputvars.find(b) != inputvars.end());

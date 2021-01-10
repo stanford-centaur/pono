@@ -75,7 +75,7 @@ cdef extern from "core/prop.h" namespace "pono":
 
 cdef extern from "core/unroller.h" namespace "pono":
     cdef cppclass Unroller:
-        Unroller(const TransitionSystem & ts, c_SmtSolver & solver) except +
+        Unroller(const TransitionSystem & ts) except +
         c_Term at_time(const c_Term & t, unsigned int k) except +
         c_Term untime(const c_Term & t) except +
         size_t get_var_time(const c_Term & v) except +
@@ -127,13 +127,13 @@ cdef extern from "engines/ic3.h" namespace "pono":
 cdef extern from "engines/ic3ia.h" namespace "pono":
     cdef cppclass IC3IA(Prover):
         IC3IA(const Property & p, const TransitionSystem & ts,
-              c_SmtSolver & solver, c_SmtSolver & interpolator) except +
+              c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/interpolantmc.h" namespace "pono":
     cdef cppclass InterpolantMC(Prover):
         InterpolantMC(const Property & p, const TransitionSystem & ts,
-                      c_SmtSolver & s, c_SmtSolver & interpolator) except +
+                      c_SmtSolver & s) except +
 
 
 cdef extern from "engines/mbic3.h" namespace "pono":

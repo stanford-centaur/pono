@@ -31,7 +31,9 @@ namespace pono {
 class Unroller
 {
  public:
-  Unroller(const TransitionSystem & ts, const smt::SmtSolver & solver);
+  Unroller(const TransitionSystem & ts,
+           const std::string &time_identifier = "@");
+
   virtual ~Unroller();
 
   /** Return an unrolled version of transition system term t
@@ -78,12 +80,16 @@ class Unroller
 
   const TransitionSystem & ts_;
   const smt::SmtSolver solver_;
+  const std::string time_id_;
 
   typedef std::vector<smt::UnorderedTermMap> TimeCache;
   TimeCache time_cache_;
   TimeCache time_var_map_;
   smt::UnorderedTermMap untime_cache_;
   std::unordered_map<smt::Term, size_t> var_times_;
+
+  size_t num_vars_;  ///< the last known number of variables in the transition
+                     ///< system
 
 };  // class Unroller
 
