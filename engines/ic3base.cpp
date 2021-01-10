@@ -344,12 +344,28 @@ bool IC3Base::intersects_bad(IC3Formula & out)
   Result r = check_sat();
 
   if (r.is_sat()) {
-    const IC3Formula &c = get_model_ic3formula();
-    // reduce c
-    TermVec red_c;
-    reducer_.reduce_assump_unsatcore(smart_not(bad_), c.children, red_c);
+    out = get_model_ic3formula();
+    assert(out.term);
+    assert(out.children.size());
+    assert(ic3formula_check_valid(out));
 
-    out = ic3formula_conjunction(red_c);
+    // reduce
+    TermVec red_c;
+    // with abstraction can't guarantee this is unsat
+    if (reducer_.reduce_assump_unsatcore(
+            smart_not(bad_), out.children, red_c)) {
+      logger.log(1,
+                 "generalized bad cube to {}/{}",
+                 red_c.size(),
+                 out.children.size());
+      out = ic3formula_conjunction(red_c);
+
+      assert(out.term);
+      assert(out.children.size());
+      assert(ic3formula_check_valid(out));
+    } else {
+      logger.log(1, "generalizing bad failed");
+    }
   }
 
   pop_solver_context();
