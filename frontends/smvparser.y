@@ -244,6 +244,9 @@ define_body: complex_identifier ASSIGNSYM basic_expr semioption {
               }   else if(a->getType() == SMVnode::WordArray){
                enc.arrayty_[$1] = a->getElementType();
               }
+               else if(a->getType() == SMVnode::IntArray){
+               enc.arrayint_[$1] = a->getElementType();
+              }
   }else{
       enc.define_list_.push_back(new define_node_c($1,$3));
   }
@@ -273,7 +276,7 @@ assign_test: complex_identifier ASSIGNSYM simple_expr {
          enc.assign_list_.push_back(new assign_node_c("init",$3,$6));
         }
         }
-        | TOK_NEXT "("complex_identifier ")" ASSIGNSYM next_expr {
+        | TOK_NEXT "(" complex_identifier ")" ASSIGNSYM next_expr {
         if(enc.module_flat){
           SMVnode *a = $6;
           smt::Term state = enc.terms_[$3];
@@ -301,6 +304,9 @@ ivar_list:
          } else if(a->getType() == SMVnode::WordArray){
           enc.arrayty_[$1] = a->getElementType();
         }
+        else if(a->getType() == SMVnode::IntArray){
+          enc.arrayint_[$1] = a->getElementType();
+        }
          enc.terms_[$1] = input;
         }else{
           SMVnode *a = new ivar_node_c($1,$3);
@@ -324,7 +330,9 @@ var_list:
            enc.signedbv_[$1] = state;
          } else if(a->getType() == SMVnode::WordArray){
           enc.arrayty_[$1] = a->getElementType();
-      }
+         } else if(a->getType() == SMVnode::IntArray){
+          enc.arrayint_[$1] = a->getElementType();
+         } 
       }else{
           SMVnode *a = new var_node_c($1,$3,SMVnode::BasicT);
           enc.var_list_.push_back(new var_node_c($1,$3,SMVnode::BasicT));
@@ -375,6 +383,8 @@ frozenvar_list:
            enc.signedbv_[$1] = state;
       } else if(a->getType() == SMVnode::WordArray){
           enc.arrayty_[$1] = a->getElementType();
+      } else if(a->getType() == SMVnode::IntArray){
+          enc.arrayint_[$1] = a->getElementType();
       }
       smt::Term n = enc.rts_.next(state);
       smt::Term e = enc.solver_->make_term(smt::Equal, n, state);
@@ -587,8 +597,11 @@ simple_expr: constant {
               } else if(enc.signedbv_.find($1) != enc.signedbv_.end()){
                 $$ = new SMVnode(tok, SMVnode::Signed);
               } else if(enc.arrayty_.find($1) != enc.arrayty_.end()){
-                $$ = new SMVnode(tok, SMVnode::WordArray);
-              }else{
+                $$ = new SMVnode(tok, SMVnode::WordArray,enc.arrayty_[$1]);
+              } else if(enc.arrayint_.find($1) != enc.arrayint_.end()){
+                $$ = new SMVnode(tok, SMVnode::IntArray,enc.arrayint_[$1]);
+              }
+              else{
                 smt::SortKind kind_ = tok->get_sort()->get_sort_kind();
                 assert(tok);
                 if (kind_ == smt::BV || kind_ == smt::BOOL) $$ = new SMVnode(tok,SMVnode::Boolean);
@@ -1217,9 +1230,13 @@ simple_expr: constant {
             SMVnode *a = $3;
             SMVnode *b = $5;
             SMVnode *c = $7;
-            if(a->getElementType() == c->getType()){
+            if((a->getElementType() == c->getType()) && (a->getType()==SMVnode::WordArray)){
               smt::Term write_r =  enc.solver_->make_term(smt::Store, a->getTerm(),b->getTerm(),c->getTerm());
               $$ = new SMVnode(write_r,SMVnode::WordArray, a->getElementType());
+            }
+            else if((a->getElementType() == c->getType()) && (a->getType()==SMVnode::IntArray)){
+              smt::Term write_r =  enc.solver_->make_term(smt::Store, a->getTerm(),b->getTerm(),c->getTerm());
+              $$ = new SMVnode(write_r,SMVnode::IntArray, a->getElementType());
             }
             else{
                 throw PonoException("word array WRITE type error");
@@ -1239,13 +1256,49 @@ simple_expr: constant {
             }
           }
           | CONSTARRAY "(" tok_typeof "(" complex_identifier ")" "," basic_expr ")" {
-             throw PonoException("No constarray");
+             if(enc.module_flat){
+             SMVnode *a = $8;
+             smt::Term tok = enc.terms_.at($5);
+             assert(tok);
+              if(enc.arrayty_.find($5) != enc.arrayty_.end()){
+                 smt::Sort kind_ = tok->get_sort();
+                smt::Term const_arr = enc.solver_->make_term(a->getTerm(),kind_);
+                $$ = new SMVnode(const_arr,SMVnode::WordArray,a->getType());
+              } else if (enc.arrayint_.find($5) != enc.arrayint_.end()){
+                smt::Sort sort_ = tok->get_sort();
+                smt::Term const_arr = enc.solver_->make_term(a->getTerm(),sort_);
+                $$ = new SMVnode(const_arr,SMVnode::IntArray,SMVnode::Integer);
+              }
+              else{
+                throw PonoException("The type of the const array is wrong");
+              }
+             }else{
+               $$ = new constarray_type_expr($5, $8);
+             }
           }
           | CONSTARRAY "(" arrayword sizev of type_identifier "," basic_expr ")" {
-            throw PonoException("No constarray");
+            if(enc.module_flat){
+             SMVnode *a = $8;
+             type_node *b = $6;
+             smt::Sort arraysort = enc.solver_->make_sort(smt::BV,$4);
+             smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort,b->getSort());
+             smt::Term const_arr = enc.solver_->make_term(a->getTerm(),sort_);
+             $$ = new SMVnode(const_arr,SMVnode::WordArray, a->getType());
+             }else{
+               $$ = new constarray_word_expr($4, $6, $8);
+             }
           }
           | CONSTARRAY "(" arrayinteger of type_identifier "," basic_expr ")" {
-            throw PonoException("No constarray");
+            if(enc.module_flat){
+             SMVnode *a = $7;
+             type_node *b = $5;
+             smt::Sort arraysort = enc.solver_->make_sort(smt::INT);
+             smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort, b->getSort());
+             smt::Term const_arr = enc.solver_->make_term(a->getTerm(),sort_);
+             $$ = new SMVnode(const_arr,SMVnode::IntArray,a->getType());
+             }else{
+               $$ = new constarray_int_expr($5, $7);
+             }
           }
           | case_expr {
             SMVnode *a = $1;
@@ -1390,19 +1443,28 @@ word_type: signed_word sizev {
 };
 
 array_type: arrayword sizev of type_identifier{
-  if(enc.module_flat){
-            smt::Sort arraysort = enc.solver_->make_sort(smt::BV,$2);
-            SMVnode *a = $4;
-            smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort,a->getSort());
-            $$ = new type_node(sort_,SMVnode::WordArray,a->getType());
-  }else{
-    SMVnode *temp = $4;
-    string n = "array word" + std::to_string($2) + "of " + temp->getName();
-    $$ = new type_node(n);
-  }
+            if(enc.module_flat){
+              smt::Sort arraysort = enc.solver_->make_sort(smt::BV,$2);
+              SMVnode *a = $4;
+              smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort,a->getSort());
+              $$ = new type_node(sort_,SMVnode::WordArray,a->getType());
+            }else{
+              SMVnode *temp = $4;
+              string n = "array word" + std::to_string($2) + "of " + temp->getName();
+              $$ = new type_node(n);
+            }
           }
           | arrayinteger of type_identifier{
-            throw PonoException("no array integer type now");
+           if(enc.module_flat){
+            smt::Sort arraysort = enc.solver_->make_sort(smt::INT);
+            SMVnode *a = $3;
+            smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort,a->getSort());
+            $$ = new type_node(sort_,SMVnode::IntArray,a->getType());
+            }else{
+            SMVnode *temp = $3;
+            string n = "array integer of " + temp->getName();
+            $$ = new type_node(n);
+            }
           }
           | array_tok of type_identifier{
             throw PonoException("No other array now");

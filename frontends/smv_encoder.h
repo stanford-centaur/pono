@@ -63,6 +63,7 @@ class SMVEncoder
   std::unordered_map<std::string, smt::Term>  unsignedbv_;
   std::deque<std::pair<int, smt::Term>> transterm_;
   std::unordered_map<std::string, SMVnode::Type>  arrayty_;
+  std::unordered_map<std::string, SMVnode::Type>  arrayint_;
   ///< casecheck_: vector of booleans, each element is an Or of all the conditions in a case statement.
   ///< caseterm_: used to temporaily store each statement in case body before future process check that the conditions cover all possibilities (required by nuXmv manual)
   ///< casestore_: used to temporarily store constraint with ite tree, if the condition is satisfied, add the constraint

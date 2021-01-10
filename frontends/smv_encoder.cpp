@@ -82,6 +82,9 @@ std::stringstream pono::SMVEncoder::preprocess()
   std::stringstream str;
   str << "MODULE main" << std::endl;
   main_n->process_main(module_list, str);
+  std::ofstream outfile ("new.txt");
+  std::cout<< str.str();
   parse_flat(str);
+  
   return str;
 }

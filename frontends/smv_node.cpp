@@ -699,6 +699,7 @@ void pono::write_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " , ";
   ex3->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
 }
 
 void pono::word1_expr::generate_ostream(
@@ -833,7 +834,7 @@ void pono::ite_expr::generate_ostream(
   s << " ? ";
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " : ";
-  ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
+  ex3->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
 void pono::floor_expr::generate_ostream(
@@ -845,6 +846,46 @@ void pono::floor_expr::generate_ostream(
 {
   s << "floor ( ";
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
+}
+
+void pono::constarray_type_expr::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  s << "CONSTARRAY ( typeof ( " << prefix << id << " ) ,";
+  ex->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
+}
+
+void pono::constarray_word_expr::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  s << "CONSTARRAY ( array word " << size << " of";
+  ex1->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " , ";
+  ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
+}
+
+void pono::constarray_int_expr::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  s << "CONSTARRAY ( array integer of " ;
+  ex1->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " , ";
+  ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " ) ";
 }
 
