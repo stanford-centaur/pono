@@ -70,7 +70,7 @@ class SygusPdr : public IC3Base
  
 
   // -----------------------------------------------------------------
-  // I had to override these functions (some are not virtual, though)
+  // override existing facilities to achieve bad = model(F /\ T -> P')
   // -----------------------------------------------------------------
 
  public:
@@ -88,33 +88,45 @@ class SygusPdr : public IC3Base
    */
   ProverResult step_0();  // will be called in the parent version of check_until
 
-  bool block(const ProofGoal * pg, bool mayblock); // to support the may block
+  // -----------------------------------------------------------------
+  // Below are for May-Block
+  // -----------------------------------------------------------------
+  
+  bool rel_ind_check_may_block(size_t i,
+                              const IC3Formula & c,
+                              IC3Formula & out);
+
+  bool try_recursive_block_goal(const IC3Formula & to_block, unsigned fidx);
+
+  // -----------------------------------------------------------------
+  // Not to make a new model if blockable
+  // -----------------------------------------------------------------
 
   bool rel_ind_check(size_t i,
                      const IC3Formula & c,
-                     std::vector<IC3Formula> & out,
-                     bool mayblock);
-
-
+                     IC3Formula & out,
+                     bool get_pred);
+  
+  bool block_all();
 
   // -----------------------------------------------------------------
   // pure virtual method implementations
   // -----------------------------------------------------------------
 
-  IC3Formula get_model_ic3formula(
-      smt::TermVec * out_inputs = nullptr,
-      smt::TermVec * out_nexts = nullptr) const override;
+  virtual IC3Formula get_model_ic3formula() const override;
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 
-  std::vector<IC3Formula> inductive_generalization(
-      size_t i, const IC3Formula & c) override;
 
-  IC3Formula generalize_predecessor(size_t i, const IC3Formula & c) override;
+  virtual IC3Formula inductive_generalization(size_t i, const IC3Formula & c) override;
+
+  virtual void predecessor_generalization(size_t i,
+                                          const IC3Formula & c,
+                                          IC3Formula & pred) override;
 
   void check_ts() const override;
 
-  bool intersects_bad() override;
+  bool intersects_bad(IC3Formula & out) override;
 
   void initialize() override;
 
@@ -169,8 +181,7 @@ class SygusPdr : public IC3Base
 
   syntax_analysis::PerCexInfo & setup_cex_info (syntax_analysis::IC3FormulaModel * post_model);
   IC3Formula select_predicates(const smt::Term & base, const smt::TermVec & preds_nxt);
-  bool try_recursive_block_goal_at_or_before(const IC3Formula & to_block, unsigned fidx);
-
+ 
 }; // class SygusPdr
 
 }  // namespace pono
