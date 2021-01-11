@@ -82,6 +82,13 @@ class IC3IA : public IC3
   TransitionSystem & prover_interface_ts() override { return conc_ts_; };
   // pure virtual method implementations
 
+  // HACK
+  void set_invar(size_t k) override
+  {
+    invar_ = get_frame_term(k);
+    invar_ = solver_->substitute(invar_, lbl2pred_);
+  }
+
   IC3Formula get_model_ic3formula() const override;
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;

@@ -184,6 +184,9 @@ class IC3Base : public Prover
 
   // *************************** Main Methods *********************************
 
+  // HACK
+  virtual void set_invar(size_t k) { invar_ = get_frame_term(k); }
+
   // ************************** Virtual Methods *******************************
   // IMPORTANT for derived classes
   // These methods should be implemented by a derived class for a particular
