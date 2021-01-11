@@ -75,9 +75,11 @@ OpAbstractor::OpAbstractor(
   } 
 } // OpAbstractor
 
-bool check_possible(const Term & res, const TermVec & arg, Op op, Term & rhs_val) {
+bool check_possible(const Term & res, const TermVec & arg, Op op, Term & rhs_val,
+    const SmtSolver & orig_solver) {
   SmtSolver s = create_solver(BTOR, false, false ,false);
   TermTranslator tr(s);
+  TermTranslator tr_back(orig_solver);
   TermVec tr_arg;
 
   assert(res->is_value());
@@ -94,7 +96,7 @@ bool check_possible(const Term & res, const TermVec & arg, Op op, Term & rhs_val
   );
   auto eq_sat = s->check_sat();
   if (eq_sat.is_unsat()) {
-    rhs_val = s->get_value(rhs);
+    rhs_val = tr_back.transfer_term(s->get_value(rhs));
   }
   return eq_sat.is_sat();
 }
@@ -110,9 +112,10 @@ bool OpAbstractor::refine_with_constraints(
   Unroller unroller(abs_ts_);
   // unroll from 0 --> ...
   const ProofGoal * ptr = goal_at_init;
+  const ProofGoal * prev_ptr = NULL;
   unsigned time = 0;
 
-  auto & solver_ = abs_ts_.solver();
+  const auto & solver_ = abs_ts_.solver();
   solver_->push();
   while(ptr) {
     bool refined = false;
@@ -128,7 +131,8 @@ bool OpAbstractor::refine_with_constraints(
 
       // find term (result) in the model
       UnorderedTermSet vars;
-      get_free_symbols( ptr->target.term, vars);
+      assert(prev_ptr);
+      get_free_symbols( prev_ptr->target.term, vars);
       for (auto & abs_term : op_abstracted) {
         if (vars.find(abs_term.result) != vars.end()) {
           // now eval the result (time-1) and the args (time-1)
@@ -141,12 +145,9 @@ bool OpAbstractor::refine_with_constraints(
               solver_->get_value(
                 unroller.at_time(arg, time-1)));
           }
-          Term res_val_other;
-          if (!check_possible(res_val, arg_val, abs_term.op, res_val_other)) {
+          Term res_val;
+          if (!check_possible(res_val, arg_val, abs_term.op, res_val, solver_)) {
             // create an assumption
-            TermTranslator tr_back(solver_);
-            auto res_val = tr_back.transfer_term(res_val_other);
-
             auto refine_res = solver_->make_term(Equal, abs_term.result , res_val);
 
             unsigned arg_idx = 0;
@@ -174,6 +175,7 @@ bool OpAbstractor::refine_with_constraints(
       break;
 
     ++ time;
+    prev_ptr = ptr;
     ptr = ptr->next;
   } // end of while
 
