@@ -324,6 +324,18 @@ void IC3IA::reset_solver()
     Term eq = solver_->make_term(Equal, elem.first, elem.second);
     solver_->assert_formula(eq);
     solver_->assert_formula(ts_.next(eq));
+
+    // reducer
+    reducer_.assume_label(elem.first, elem.second);
+    reducer_.assume_label(solver_->make_term(Not, elem.first),
+                          solver_->make_term(Not, elem.second));
+
+    Term npredvar = ts_.next(elem.first);
+    Term npred = ts_.next(elem.second);
+
+    reducer_.assume_label(npredvar, npred);
+    reducer_.assume_label(solver_->make_term(Not, npredvar),
+                          solver_->make_term(Not, npred));
   }
 }
 
@@ -355,6 +367,18 @@ bool IC3IA::add_predicate(const Term & pred)
   Term eq = solver_->make_term(Equal, predvar, pred);
   solver_->assert_formula(eq);
   solver_->assert_formula(ts_.next(eq));
+
+  // reducer
+  reducer_.assume_label(predvar, pred);
+  reducer_.assume_label(solver_->make_term(Not, predvar),
+                        solver_->make_term(Not, pred));
+
+  Term npredvar = ts_.next(predvar);
+  Term npred = ts_.next(pred);
+
+  reducer_.assume_label(npredvar, npred);
+  reducer_.assume_label(solver_->make_term(Not, npredvar),
+                        solver_->make_term(Not, npred));
 
   pred2lbl_[pred] = predvar;
   lbl2pred_[predvar] = pred;

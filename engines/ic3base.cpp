@@ -152,6 +152,7 @@ void IC3Base::initialize()
   // an IC3Formula it's handled specially
   solver_->assert_formula(
       solver_->make_term(Implies, frame_labels_.at(0), ts_.init()));
+  reducer_.assume_label(frame_labels_.at(0), ts_.init());
   push_frame();
 
   // set semantics of TS labels
@@ -163,6 +164,7 @@ void IC3Base::initialize()
   trans_label_ = solver_->make_symbol("__trans_label", boolsort);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
+  reducer_.assume_label(trans_label_, ts_.trans());
 }
 
 ProverResult IC3Base::check_until(int k)
@@ -355,7 +357,7 @@ bool IC3Base::intersects_bad(IC3Formula & out)
     // with abstraction can't guarantee this is unsat
     if (reducer_.reduce_assump_unsatcore(
             smart_not(bad_), out.children, red_c)) {
-      logger.log(1,
+      logger.log(2,
                  "generalized bad cube to {}/{}",
                  red_c.size(),
                  out.children.size());
@@ -365,7 +367,7 @@ bool IC3Base::intersects_bad(IC3Formula & out)
       assert(out.children.size());
       assert(ic3formula_check_valid(out));
     } else {
-      logger.log(1, "generalizing bad failed");
+      logger.log(2, "generalizing bad failed");
     }
   }
 
@@ -745,6 +747,7 @@ void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)
 
   solver_->assert_formula(
       solver_->make_term(Implies, frame_labels_.at(i), constraint.term));
+  reducer_.assume_label(frame_labels_.at(i), constraint.term);
 }
 
 void IC3Base::assert_frame_labels(size_t i) const
@@ -813,45 +816,15 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
   assert(!solver_context_);
   if (rem.size() != 0) {
-    // HACK because using predvars
-    push_solver_context();
+    Term formula = solver_->make_term(And, init_label_, make_and(to_keep));
 
-    solver_->assert_formula(init_label_);
-    solver_->assert_formula(make_and(to_keep));
-
-    Result r = check_sat();
-
-    if (r.is_sat()) {
-      // HACK know they're all literals
-      TermVec assumps;
-      Sort boolsort = solver_->make_sort(BOOL);
-      for (const auto & c : rem) {
-        assert(is_lit(c, boolsort));
-        assumps.push_back(c);
-      }
-
-      Result r = check_sat_assuming(rem);
-
-      UnorderedTermSet core;
-      solver_->get_unsat_core(core);
-      assert(core.size());
-      for (const auto & cc : core) {
-        to_keep.push_back(cc);
-      }
-    }
-
-    pop_solver_context();
-
-    // // TODO: there's a tricky issue here. The reducer doesn't have the label
-    // // assumptions so we can't use init_label_ here. need to come up with a
-    // // better interface. Should we add label assumptions to reducer?
-    // const Term &formula = solver_->make_term(And, ts_.init(),
-    // make_and(to_keep)); reducer_.reduce_assump_unsatcore(formula,
-    //                                  rem,
-    //                                  to_keep,
-    //                                  NULL,
-    //                                  options_.ic3_gen_max_iter_,
-    //                                  options_.random_seed_);
+    bool success = reducer_.reduce_assump_unsatcore(formula,
+                                                    rem,
+                                                    to_keep,
+                                                    NULL,
+                                                    options_.ic3_gen_max_iter_,
+                                                    options_.random_seed_);
+    assert(success);
   }
 }
 
@@ -937,6 +910,7 @@ void IC3Base::reset_solver()
 
   try {
     solver_->reset_assertions();
+    reducer_.reset_assertions();
 
     // Now need to add back in constraints at context level 0
     logger.log(2, "IC3Base: Reset solver and now re-adding constraints.");
@@ -945,8 +919,10 @@ void IC3Base::reset_solver()
     assert(init_label_ == frame_labels_.at(0));
     solver_->assert_formula(
         solver_->make_term(Implies, init_label_, ts_.init()));
+    reducer_.assume_label(init_label_, ts_.init());
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, ts_.trans()));
+    reducer_.assume_label(trans_label_, ts_.trans());
 
     for (size_t i = 0; i < frames_.size(); ++i) {
       for (const auto & constraint : frames_.at(i)) {
