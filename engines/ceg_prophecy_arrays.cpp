@@ -502,7 +502,7 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   RelationalTransitionSystem & sub_rts =
     static_cast<RelationalTransitionSystem &>(ts_);
 
-  // add predicates from init and trans
+  // add predicates from init and bad
   UnorderedTermSet preds;
   get_predicates(solver_, abs_ts_.init(), preds, false, false, true);
   get_predicates(solver_, bad_, preds, false, false, true);
