@@ -295,7 +295,9 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     reduce_consecutive_axioms(abs_bmc_formula, consecutive_axioms);
   }
 
-  refine_ts(consecutive_axioms);
+  if (consecutive_axioms.size() > 0) {
+    refine_ts(consecutive_axioms);
+  }
 
   // able to successfully refine
   return true;
