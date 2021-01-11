@@ -594,6 +594,7 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
         if (!lit->is_value()) {
           // only add if not trivially true
           out_cube.insert(lit);
+          assert(solver_->get_value(lit) == solver_true_);
         }
         last = term;
 
@@ -633,6 +634,7 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
         if (!lit->is_value()) {
           // only add if not trivially true
           out_cube.insert(lit);
+          assert(solver_->get_value(lit) == solver_true_);
         }
       }
     }
