@@ -23,16 +23,6 @@
 
 namespace pono {
 
-// trying different msat options
-enum ModelOption
-{
-  FULL_MODEL = 0,
-  BOOL_MODEL,
-  NO_MODEL
-};
-
-std::ostream & operator<<(std::ostream & os, ModelOption m);
-
 /** Creates an SmtSolver of the provided type
  *  @param se the SolverEnum to identify which type of solver
  *  @param logging whether or not to keep track of term DAG at smt-switch level
@@ -46,10 +36,13 @@ smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false,
 
 // same as create_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
-smt::SmtSolver create_solver_for(smt::SolverEnum se,
-                                 Engine e,
-                                 bool logging,
-                                 ModelOption m = FULL_MODEL);
+smt::SmtSolver create_solver_for(smt::SolverEnum se, Engine e, bool logging);
+
+// same as create_solver but will set reasonable options
+// for a reducing solver (e.g. produce-models off)
+// unsat cores on
+// and other solver-specific options where appropriate
+smt::SmtSolver create_reducer_for(smt::SolverEnum se, Engine e, bool logging);
 
 /** Creates an interpolating SmtSolver of the provided type */
 smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);

@@ -109,8 +109,8 @@ IC3Base::IC3Base(const Property & p,
     : super(p, ts, s, opt),
       // NOTE: this is a hack
       // TODO fix this
-      reducer_(create_solver_for(
-          s->get_solver_enum(), Engine::IC3IA_ENGINE, false, NO_MODEL)),
+      reducer_(create_reducer_for(
+          s->get_solver_enum(), Engine::IC3IA_ENGINE, false)),
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),
