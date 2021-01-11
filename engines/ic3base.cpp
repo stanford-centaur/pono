@@ -482,7 +482,11 @@ bool IC3Base::rel_ind_check(size_t i,
     for (const auto & cc : c.children) {
       ccnext = ts_.next(cc);
       lbl = label(ccnext);
-      solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
+      if (lbl != ccnext) {
+        // only need to add assertion if the label is not the same as ccnext
+        // could be the same if ccnext is already a literal
+        solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
+      }
       assumps_.push_back(lbl);
     }
   }
@@ -960,22 +964,28 @@ Term IC3Base::label(const Term & t)
     return labels_.at(t);
   }
 
-  unsigned i = 0;
   Term l;
-  while (true) {
-    try {
-      l = solver_->make_symbol(
-          "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
-          solver_->make_sort(BOOL));
-      break;
-    }
-    catch (IncorrectUsageException & e) {
-      ++i;
-    }
-    catch (SmtException & e) {
-      throw e;
+  if (is_lit(t, boolsort_)) {
+    // this can be the label itself
+    l = t;
+  } else {
+    unsigned i = 0;
+    while (true) {
+      try {
+        l = solver_->make_symbol(
+            "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
+            solver_->make_sort(BOOL));
+        break;
+      }
+      catch (IncorrectUsageException & e) {
+        ++i;
+      }
+      catch (SmtException & e) {
+        throw e;
+      }
     }
   }
+  assert(l);
 
   labels_[t] = l;
   return l;
