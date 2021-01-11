@@ -79,12 +79,11 @@ IC3Formula IC3IA::get_model_ic3formula() const
 
 bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
-  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Term pred;
   Op op;
   for (const auto &c : u.children) {
-    if (c->get_sort() != boolsort) {
+    if (c->get_sort() != boolsort_) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
     }
@@ -358,11 +357,10 @@ bool IC3IA::add_predicate(const Term & pred)
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
 
-  Sort boolsort = solver_->make_sort(BOOL);
-  assert(!is_lit(pred, boolsort));
+  assert(!is_lit(pred, boolsort_));
 
   Term predvar =
-      ts_.make_statevar(".pred" + std::to_string(pred2lbl_.size()), boolsort);
+      ts_.make_statevar(".pred" + std::to_string(pred2lbl_.size()), boolsort_);
   predvars_.insert(predvar);
   Term eq = solver_->make_term(Equal, predvar, pred);
   solver_->assert_formula(eq);

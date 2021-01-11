@@ -170,11 +170,14 @@ class IC3Base : public Prover
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
   smt::Term trans_label_;      ///< label to activate trans
+  smt::Term bad_label_;        ///< label to activate bad
   smt::TermVec frame_labels_;  ///< labels to activate frames
   smt::UnorderedTermMap labels_;  //< labels for unsat cores
 
   // useful terms
   smt::Term solver_true_;
+
+  smt::Sort boolsort_;
 
   // re-usable data structures
   // NOTE: be sure not to overwrite these in nested function calls

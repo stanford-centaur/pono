@@ -114,7 +114,8 @@ IC3Base::IC3Base(const Property & p,
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),
-      cex_pg_(nullptr)
+      cex_pg_(nullptr),
+      boolsort_(solver_->make_sort(BOOL))
 {
 }
 
@@ -156,15 +157,20 @@ void IC3Base::initialize()
   push_frame();
 
   // set semantics of TS labels
-  Sort boolsort = solver_->make_sort(BOOL);
   assert(!init_label_);
   assert(!trans_label_);
+  assert(!bad_label_);
   // frame 0 label is identical to init label
   init_label_ = frame_labels_[0];
-  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+
+  trans_label_ = solver_->make_symbol("__trans_label", boolsort_);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
   reducer_.assume_label(trans_label_, ts_.trans());
+
+  bad_label_ = solver_->make_symbol("__bad_label", boolsort_);
+  solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
+  reducer_.assume_label(bad_label_, bad_);
 }
 
 ProverResult IC3Base::check_until(int k)
@@ -343,7 +349,10 @@ bool IC3Base::intersects_bad(IC3Formula & out)
   // assert the last frame (conjunction over clauses)
   assert_frame_labels(reached_k_ + 1);
   // see if it intersects with bad
-  solver_->assert_formula(bad_);
+  solver_->assert_formula(bad_label_);
+  // don't need transition relation for this check
+  // can deactivate it
+  solver_->assert_formula(solver_->make_term(Not, trans_label_));
   Result r = check_sat();
 
   if (r.is_sat()) {
@@ -915,14 +924,18 @@ void IC3Base::reset_solver()
     // Now need to add back in constraints at context level 0
     logger.log(2, "IC3Base: Reset solver and now re-adding constraints.");
 
-    // define init and trans label
+    // define init, trans, and bad labels
     assert(init_label_ == frame_labels_.at(0));
     solver_->assert_formula(
         solver_->make_term(Implies, init_label_, ts_.init()));
     reducer_.assume_label(init_label_, ts_.init());
+
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, ts_.trans()));
     reducer_.assume_label(trans_label_, ts_.trans());
+
+    solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
+    reducer_.assume_label(bad_label_, bad_);
 
     for (size_t i = 0; i < frames_.size(); ++i) {
       for (const auto & constraint : frames_.at(i)) {
