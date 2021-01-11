@@ -22,6 +22,7 @@
 #include "assert.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -810,17 +811,47 @@ bool IC3Base::check_intersects_initial(const Term & t)
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
+  assert(!solver_context_);
   if (rem.size() != 0) {
-    // TODO: there's a tricky issue here. The reducer doesn't have the label
-    // assumptions so we can't use init_label_ here. need to come up with a
-    // better interface. Should we add label assumptions to reducer?
-    const Term &formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
-    reducer_.reduce_assump_unsatcore(formula,
-                                     rem,
-                                     to_keep,
-                                     NULL,
-                                     options_.ic3_gen_max_iter_,
-                                     options_.random_seed_);
+    // HACK because using predvars
+    push_solver_context();
+
+    solver_->assert_formula(init_label_);
+    solver_->assert_formula(make_and(to_keep));
+
+    Result r = check_sat();
+
+    if (r.is_sat()) {
+      // HACK know they're all literals
+      TermVec assumps;
+      Sort boolsort = solver_->make_sort(BOOL);
+      for (const auto & c : rem) {
+        assert(is_lit(c, boolsort));
+        assumps.push_back(c);
+      }
+
+      Result r = check_sat_assuming(rem);
+
+      UnorderedTermSet core;
+      solver_->get_unsat_core(core);
+      assert(core.size());
+      for (const auto & cc : core) {
+        to_keep.push_back(cc);
+      }
+    }
+
+    pop_solver_context();
+
+    // // TODO: there's a tricky issue here. The reducer doesn't have the label
+    // // assumptions so we can't use init_label_ here. need to come up with a
+    // // better interface. Should we add label assumptions to reducer?
+    // const Term &formula = solver_->make_term(And, ts_.init(),
+    // make_and(to_keep)); reducer_.reduce_assump_unsatcore(formula,
+    //                                  rem,
+    //                                  to_keep,
+    //                                  NULL,
+    //                                  options_.ic3_gen_max_iter_,
+    //                                  options_.random_seed_);
   }
 }
 

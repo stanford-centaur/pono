@@ -71,6 +71,11 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
+  smt::UnorderedTermMap pred2lbl_;
+  smt::UnorderedTermMap lbl2pred_;
+
+  smt::UnorderedTermSet predvars_;
+
   /** Overriding the method. This will return the concrete_ts_ because ts_ is an
    *  abstraction of concrete_ts_.
    */
@@ -90,6 +95,8 @@ class IC3IA : public IC3
   void abstract() override;
 
   RefineResult refine() override;
+
+  void reset_solver() override;
 
   // specific to IC3IA
 

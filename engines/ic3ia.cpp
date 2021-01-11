@@ -62,9 +62,12 @@ IC3IA::IC3IA(const Property & p,
 IC3Formula IC3IA::get_model_ic3formula() const
 {
   TermVec conjuncts;
-  conjuncts.reserve(predset_.size());
-  for (const auto &p : predset_) {
-    if (solver_->get_value(p) == solver_true_) {
+  conjuncts.reserve(predvars_.size());
+  Term val;
+  for (const auto & p : predvars_) {
+    val = solver_->get_value(p);
+    assert(val->is_value());
+    if (val == solver_true_) {
       conjuncts.push_back(p);
     } else {
       conjuncts.push_back(solver_->make_term(Not, p));
@@ -94,7 +97,7 @@ bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
     }
 
     // expecting either a boolean variable or a predicate
-    if (predset_.find(pred) == predset_.end()) {
+    if (predvars_.find(pred) == predvars_.end()) {
       logger.log(3, "ERROR IC3IA IC3Formula contains unknown atom: {}", pred);
       return false;
     }
@@ -185,6 +188,9 @@ void IC3IA::abstract()
   // to our predset_
   // needed to prevent adding duplicate predicates later
   predset_.insert(bool_symbols.begin(), bool_symbols.end());
+  assert(!predvars_.size());
+  predvars_.insert(bool_symbols.begin(), bool_symbols.end());
+  predset_.insert(bool_symbols.begin(), bool_symbols.end());
 
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
@@ -197,7 +203,7 @@ RefineResult IC3IA::refine()
   TermVec cex;
   const ProofGoal * tmp = cex_pg_;
   while (tmp) {
-    cex.push_back(tmp->target.term);
+    cex.push_back(solver_->substitute(tmp->target.term, lbl2pred_));
     assert(ts_.only_curr(tmp->target.term));
     tmp = tmp->next;
   }
@@ -310,6 +316,17 @@ RefineResult IC3IA::refine()
   return RefineResult::REFINE_SUCCESS;
 }
 
+void IC3IA::reset_solver()
+{
+  super::reset_solver();
+
+  for (const auto & elem : lbl2pred_) {
+    Term eq = solver_->make_term(Equal, elem.first, elem.second);
+    solver_->assert_formula(eq);
+    solver_->assert_formula(ts_.next(eq));
+  }
+}
+
 bool IC3IA::add_predicate(const Term & pred)
 {
   if (predset_.find(pred) != predset_.end()) {
@@ -328,6 +345,19 @@ bool IC3IA::add_predicate(const Term & pred)
   assert(!solver_context_);  // should be at context 0
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, predabs_rel));
+
+  Sort boolsort = solver_->make_sort(BOOL);
+  assert(!is_lit(pred, boolsort));
+
+  Term predvar =
+      ts_.make_statevar(".pred" + std::to_string(pred2lbl_.size()), boolsort);
+  predvars_.insert(predvar);
+  Term eq = solver_->make_term(Equal, predvar, pred);
+  solver_->assert_formula(eq);
+  solver_->assert_formula(ts_.next(eq));
+
+  pred2lbl_[pred] = predvar;
+  lbl2pred_[predvar] = pred;
 
   return true;
 }
