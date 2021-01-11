@@ -57,6 +57,8 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;
 
+  int reached_k_; ///< local variable to check the length of BMC refinement run
+
   size_t num_added_axioms_;  ///< set by refine to the number of added axioms
 
   smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
@@ -94,6 +96,10 @@ class CegProphecyArrays : public CEGAR<Prover_T>
    *  @return the label
    */
   smt::Term label(const smt::Term & t);
+
+  void refine_ts(const smt::UnorderedTermSet & consecutive_axioms);
+
+  void refine_subprover_ts(const smt::UnorderedTermSet & consecutive_axioms);
 };
 
 }  // namespace pono

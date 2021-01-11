@@ -29,8 +29,10 @@
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
 #include "smt/available_solvers.h"
+
 #include "utils/logger.h"
 #include "utils/make_provers.h"
+#include "utils/term_analysis.h"
 
 #ifdef WITH_MSAT_IC3IA
 #include "engines/msat_ic3ia.h"
@@ -53,11 +55,12 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
       aa_(conc_ts_, abs_ts_, true),
       aae_(aa_,
            abs_unroller_,
-           super::orig_ts_.solver() == super::solver_
+           ts.solver() == super::solver_
                ? p.prop()
                : super::to_prover_solver_.transfer_term(p.prop(), BOOL),
            super::options_.cegp_axiom_red_),
       pm_(abs_ts_),
+      reached_k_(-1),
       num_added_axioms_(0)
 {
   // point orig_ts_ to the correct one
@@ -78,18 +81,20 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
         // real counterexample
         return ProverResult::FALSE;
       }
-      super::reached_k_++;
+      reached_k_++;
     } while (num_added_axioms_);
 
-    Property latest_prop(super::solver_,
-                         super::solver_->make_term(Not, super::bad_));
-    //TODO : think about making it use the same prover -- incrementally
-    SmtSolver s = create_solver_for(
-        super::solver_->get_solver_enum(), super::engine_, false);
-    shared_ptr<Prover> prover = make_prover(
-        super::engine_, latest_prop, abs_ts_, s, super::options_);
-
-    res = prover->prove();
+    if (super::engine_ != IC3IA_ENGINE) {
+      Property latest_prop(super::solver_,
+                           super::solver_->make_term(Not, super::bad_));
+      SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
+                                      super::engine_, false);
+      shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
+                                              abs_ts_, s, super::options_);
+      res = prover->prove();
+    } else {
+      res = super::prove();
+    }
   }
 
   return res;
@@ -101,24 +106,27 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
   initialize();
 
   ProverResult res = ProverResult::FALSE;
-  while (res == ProverResult::FALSE && super::reached_k_ <= k) {
+  while (res == ProverResult::FALSE && reached_k_ <= k) {
     // Refine the system
     // heuristic -- stop refining when no new axioms are needed.
     do {
       if (!cegar_refine()) {
         return ProverResult::FALSE;
       }
-      super::reached_k_++;
-    } while (num_added_axioms_ && super::reached_k_ <= k);
+      reached_k_++;
+    } while (num_added_axioms_ && reached_k_ <= k);
 
-    Property latest_prop(super::solver_,
-                         super::solver_->make_term(Not, super::bad_));
-    SmtSolver s = create_solver_for(
-        super::solver_->get_solver_enum(), super::engine_, false);
-    shared_ptr<Prover> prover = make_prover(
-        super::engine_, latest_prop, abs_ts_, s, super::options_);
-
-    res = prover->check_until(k);
+    if (super::engine_ != IC3IA_ENGINE) {
+      Property latest_prop(super::solver_,
+                           super::solver_->make_term(Not, super::bad_));
+      SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
+                                      super::engine_, false);
+      shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
+                                              abs_ts_, s, super::options_);
+      res = prover->check_until(k);
+    } else {
+      res = super::check_until(k);
+    }
   }
 
   if (res == ProverResult::FALSE) {
@@ -188,10 +196,10 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
   num_added_axioms_ = 0;
   // TODO use ArrayAxiomEnumerator and modifiers to refine the system
   // create BMC formula
-  Term abs_bmc_formula = get_bmc_formula(super::reached_k_ + 1);
+  Term abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
   // check array axioms over the abstract system
-  if (!aae_.enumerate_axioms(abs_bmc_formula, super::reached_k_ + 1)) {
+  if (!aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1)) {
     // concrete CEX
     return false;
   }
@@ -211,8 +219,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
       // needed for it to be unsat with all the nonconsecutive axioms
       // it will be updated again later anyway
       for (auto ax : consecutive_axioms) {
-        size_t max_k = abs_ts_.only_curr(ax) ? super::reached_k_ + 1
-                                                : super::reached_k_;
+        size_t max_k = abs_ts_.only_curr(ax) ? reached_k_ + 1
+                                                : reached_k_;
         for (size_t k = 0; k <= max_k; ++k) {
           abs_bmc_formula = super::solver_->make_term(
               And, abs_bmc_formula, abs_unroller_.at_time(ax, k));
@@ -241,7 +249,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     for (auto timed_idx : instantiations) {
       // number of steps before the property violation
       size_t delay =
-          super::reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
+          reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
       // Prophecy Modifier will add prophecy and history variables
       // automatically here but it does NOT update the property
       Term idx = abs_unroller_.untime(timed_idx);
@@ -272,11 +280,11 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
 
     // need to update the bmc formula with the transformations
     // to abs_ts_
-    abs_bmc_formula = get_bmc_formula(super::reached_k_ + 1);
+    abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
     // search for axioms again but don't include nonconsecutive ones
     bool ok =
-        aae_.enumerate_axioms(abs_bmc_formula, super::reached_k_ + 1, false);
+        aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
     // should be guaranteed to rule out counterexamples at this bound
     assert(ok);
     consecutive_axioms = aae_.get_consecutive_axioms();
@@ -287,26 +295,9 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     reduce_consecutive_axioms(abs_bmc_formula, consecutive_axioms);
   }
 
-  // add consecutive axioms to the system
-  // TODO: make sure we're adding current / next correctly
-  RelationalTransitionSystem & rts =
-      static_cast<RelationalTransitionSystem &>(abs_ts_);
-  for (auto ax : consecutive_axioms) {
-    num_added_axioms_++;
-    if (super::reached_k_ == -1) {
-      // if only checking initial state
-      // need to add to init
-      rts.constrain_init(ax);
-    }
-
-    rts.constrain_trans(ax);
-    if (rts.only_curr(ax)) {
-      // add the next state version if it's an invariant over current state vars
-      rts.constrain_trans(abs_ts_.next(ax));
-    }
+  if (consecutive_axioms.size() > 0) {
+    refine_ts(consecutive_axioms);
   }
-
-  logger.log(1, "CEGP: refine added {} axiom(s)", num_added_axioms_);
 
   // able to successfully refine
   return true;
@@ -342,7 +333,7 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
   for (auto ax : consec_ax) {
     unrolled_ax = super::solver_->make_term(true);
     size_t max_k =
-        abs_ts_.only_curr(ax) ? super::reached_k_ + 1 : super::reached_k_;
+        abs_ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = super::solver_->make_term(
           And, unrolled_ax, abs_unroller_.at_time(ax, k));
@@ -387,7 +378,7 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
     assert(ax_inst.instantiations.size() == 1);
     unrolled_idx = *(ax_inst.instantiations.begin());
     size_t delay =
-        super::reached_k_ + 1 - abs_unroller_.get_curr_time(unrolled_idx);
+        reached_k_ + 1 - abs_unroller_.get_curr_time(unrolled_idx);
     idx = abs_unroller_.untime(unrolled_idx);
     map_nonconsec_ax[delay][idx].push_back(ax_inst);
   }
@@ -468,6 +459,68 @@ Term CegProphecyArrays<Prover_T>::label(const Term & t)
 
   labels_[t] = l;
   return l;
+}
+
+template <class Prover_T>
+void CegProphecyArrays<Prover_T>::refine_ts(const UnorderedTermSet & consecutive_axioms)
+{
+  // add consecutive axioms to the system
+  // TODO: make sure we're adding current / next correctly
+  RelationalTransitionSystem & rts =
+    static_cast<RelationalTransitionSystem &>(abs_ts_);
+  for (const auto & ax : consecutive_axioms) {
+    num_added_axioms_++;
+    if (reached_k_ == -1) {
+      // if only checking initial state
+      // need to add to init
+      rts.constrain_init(ax);
+    }
+
+    rts.constrain_trans(ax);
+    if (rts.only_curr(ax)) {
+      // add the next state version if it's an invariant over current state vars
+      rts.constrain_trans(abs_ts_.next(ax));
+    }
+  }
+
+  logger.log(1, "CEGP: refine added {} axiom(s)", num_added_axioms_);
+
+  refine_subprover_ts(consecutive_axioms);
+}
+
+template <class Prover_T>
+void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
+{
+  // No-Op
+}
+
+template <>
+void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
+{
+  const RelationalTransitionSystem & rts =
+    static_cast<const RelationalTransitionSystem &>(abs_ts_);
+  RelationalTransitionSystem & sub_rts =
+    static_cast<RelationalTransitionSystem &>(ts_);
+
+  // add predicates from init and bad
+  UnorderedTermSet preds;
+  get_predicates(solver_, abs_ts_.init(), preds, false, false, true);
+  get_predicates(solver_, bad_, preds, false, false, true);
+  // instead of add previously found predicates, we add all the predicates in frame 1
+  // preds.insert(predset_.begin(), predset_.end());
+  get_predicates(solver_, get_frame_term(1), preds, false, false, true);
+  predset_.clear();
+
+  // reset init and trans -- done with calling ia_.do_abstraction
+  predset_ = ia_.do_abstraction();
+
+  // reset the solver
+  reset_solver();
+
+  // add predicates
+  for (const auto &p : preds) {
+    add_predicate(p);
+  }
 }
 
 template class CegProphecyArrays<Bmc>;
