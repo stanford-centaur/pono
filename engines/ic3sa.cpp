@@ -151,10 +151,22 @@ void IC3SA::predecessor_generalization(size_t i,
       ts_.statevars().size());
 
   UnorderedTermSet cube_lits;
+  UnorderedTermSet full_lits;
+  UnorderedTermSet preds;
 
   // first populate with predicates
   UnorderedTermSet free_symbols;
+  Term tmp;
   for (const auto & p : predset_) {
+    if (solver_->get_value(p) == solver_true_) {
+      tmp = p;
+    } else {
+      tmp = solver_->make_term(Not, p);
+    }
+
+    // full_lits.insert(tmp);
+    // preds.insert(tmp);
+
     free_symbols.clear();
     get_free_symbolic_consts(p, free_symbols);
     for (const auto & fv : free_symbols) {
@@ -163,13 +175,11 @@ void IC3SA::predecessor_generalization(size_t i,
       }
     }
 
-    if (solver_->get_value(p) == solver_true_) {
-      cube_lits.insert(p);
-    } else {
-      cube_lits.insert(solver_->make_term(Not, p));
-    }
+    cube_lits.insert(tmp);
   }
 
+  // EquivalenceClasses ec_full =
+  // get_equivalence_classes_from_model(ts_.statevars());
   EquivalenceClasses ec = get_equivalence_classes_from_model(coi_symbols);
   construct_partition(ec, cube_lits);
   pred = ic3formula_conjunction(TermVec(cube_lits.begin(), cube_lits.end()));
@@ -193,6 +203,86 @@ void IC3SA::predecessor_generalization(size_t i,
 
   Result r = solver_->check_sat();
   assert(r.is_unsat());
+
+  // if (r.is_sat())
+  // {
+  //   cout << "assertion failure!" << endl;
+  //   cout << "checking containment of full model" << endl;
+  //   cout << "projected on " << coi_symbols.size() << " / " <<
+  //   ts_.statevars().size() << endl;
+
+  //   pop_solver_context();
+  //   assert(!solver_context_);
+  //   push_solver_context();
+
+  //   solver_->assert_formula(make_and(model_vec));
+
+  //   construct_partition(ec_full, full_lits);
+  //   IC3Formula full_pred = ic3formula_conjunction(TermVec(full_lits.begin(),
+  //   full_lits.end())); solver_->assert_formula(full_pred.term);
+
+  //   r = solver_->check_sat();
+  //   if (!r.is_sat())
+  //   {
+  //     cout << "containment of full model failed!" << endl;
+  //     TermVec reduced;
+  //     TermVec all_assumps = model_vec;
+  //     all_assumps.insert(all_assumps.end(), full_lits.begin(),
+  //     full_lits.end()); bool res
+  //     =reducer_.reduce_assump_unsatcore(solver_->make_term(true),
+  //     all_assumps, reduced); assert(res); assert(reduced.size()); cout <<
+  //     "got unsat core of size " << reduced.size() << endl; TermVec
+  //     from_model; TermVec from_abstract; for (const auto & cc : reduced)
+  //     {
+  //       if (full_lits.find(cc) == full_lits.end())
+  //       {
+  //         from_model.push_back(cc);
+  //       }
+  //       else
+  //       {
+  //         from_abstract.push_back(cc);
+  //       }
+  //     }
+
+  //     cout << "from model:" << endl;
+  //     for (const auto & cc : from_model)
+  //     {
+  //       cout << "\t" << cc << endl;
+  //     }
+
+  //     cout << "from abstraction:" << endl;
+  //     for (const auto & cc : from_abstract)
+  //     {
+  //       if (preds.find(cc) != preds.end())
+  //       {
+  //         cout << "\tfrom_pred: " << cc << endl;
+  //       }
+  //       else
+  //       {
+  //         cout << "\t" << cc << endl;
+  //       }
+  //     }
+
+  //     pop_solver_context();
+  //     assert(!solver_context_);
+  //     push_solver_context();
+
+  //     solver_->assert_formula(make_and(reduced));
+  //     Result rr = solver_->check_sat();
+  //     cout << "check that it's unsat = " << rr << endl;
+
+  //     // debug_print_equivalence_classes(ec_full);
+
+  //     pop_solver_context();
+  //     push_solver_context();
+  //   }
+  //   assert(r.is_sat());
+
+  //   pop_solver_context();
+  //   push_solver_context();
+
+  //   assert(false);
+  // }
 
   pop_solver_context();
 
@@ -618,6 +708,36 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
         assert(last->get_sort() == term->get_sort());
         lit = solver_->make_term(Equal, last, term);
         if (!lit->is_value()) {
+          TermVec children(lit->begin(), lit->end());
+          Term t1 = children[0];
+          Term t2 = children[1];
+          string short_name = t1->to_string();
+          string long_name = t2->to_string();
+          if (long_name.length() < short_name.length()) {
+            std::swap(short_name, long_name);
+            std::swap(t1, t2);
+          }
+
+          if (short_name == "f_wbm.f_nreqs" && t2->get_op() == Concat) {
+            cout << "potentially creating bad equality!" << endl;
+            cout << "lit = " << lit << endl;
+            cout << "t1 := " << solver_->get_value(t1) << endl;
+            cout << "t2 := " << solver_->get_value(t2) << endl;
+
+            if (solver_->get_value(t1) != solver_->get_value(t2)) {
+              cout << "diff between t1/t2 and last/term" << endl;
+              cout << "t1 := " << t1 << endl;
+              cout << "t2 := " << t2 << endl;
+              cout << "last := " << last << endl;
+              cout << "term := " << term << endl;
+              cout << "last := " << solver_->get_value(last) << endl;
+              cout << "term := " << solver_->get_value(term) << endl;
+            }
+
+            assert(solver_->get_value(last) == solver_->get_value(term));
+            assert(solver_->get_value(t1) == solver_->get_value(t2));
+          }
+
           // only add if not trivially true
           out_cube.insert(lit);
         }
