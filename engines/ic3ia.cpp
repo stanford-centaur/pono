@@ -63,12 +63,14 @@ IC3Formula IC3IA::get_model_ic3formula() const
 {
   TermVec conjuncts;
   conjuncts.reserve(predset_.size());
+  Term val;
   for (const auto &p : predset_) {
-    if (solver_->get_value(p) == solver_true_) {
+    if ((val = solver_->get_value(p)) == solver_true_) {
       conjuncts.push_back(p);
     } else {
       conjuncts.push_back(solver_->make_term(Not, p));
     }
+    assert(val->is_value());
   }
 
   return ic3formula_conjunction(conjuncts);
