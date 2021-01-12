@@ -510,7 +510,7 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   // preds.insert(predset_.begin(), predset_.end());
   get_predicates(solver_, get_frame_term(1), preds, false, false, true);
   predset_.clear();
-  predvars_.clear();
+  predlbls_.clear();
 
   // reset init and trans -- done with calling ia_.do_abstraction
   predset_ = ia_.do_abstraction();

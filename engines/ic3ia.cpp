@@ -62,9 +62,9 @@ IC3IA::IC3IA(const Property & p,
 IC3Formula IC3IA::get_model_ic3formula() const
 {
   TermVec conjuncts;
-  conjuncts.reserve(predvars_.size());
+  conjuncts.reserve(predlbls_.size());
   Term val;
-  for (const auto &p : predvars_) {
+  for (const auto & p : predlbls_) {
     if ((val = solver_->get_value(p)) == solver_true_) {
       conjuncts.push_back(lbl2pred_.at(p));
     } else {
@@ -343,12 +343,11 @@ bool IC3IA::add_predicate(const Term & pred)
   Term npred = ts_.next(pred);
   Term nlbl = label(npred);
 
-  predvars_.insert(lbl);
+  predlbls_.insert(lbl);
 
   solver_->assert_formula(solver_->make_term(Equal, lbl, pred));
   solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
 
-  pred2lbl_[pred] = lbl;
   lbl2pred_[lbl] = pred;
 
   if (!is_lit(pred, boolsort_)) {

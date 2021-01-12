@@ -412,7 +412,7 @@ ProverResult IC3Base::step(int i)
       // save the invariant
       // which is the frame that just had all terms
       // from the previous frames propagated
-      set_invar(j + 1);
+      invar_ = get_frame_term(j + 1);
       return ProverResult::TRUE;
     }
   }
