@@ -185,10 +185,9 @@ void IC3IA::abstract()
   // add predicates automatically added by ia_
   // to our predset_
   // needed to prevent adding duplicate predicates later
-  predset_.insert(bool_symbols.begin(), bool_symbols.end());
-  assert(!predvars_.size());
-  predvars_.insert(bool_symbols.begin(), bool_symbols.end());
-  predset_.insert(bool_symbols.begin(), bool_symbols.end());
+  for (const auto & sym : bool_symbols) {
+    add_predicate(sym);
+  }
 
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
@@ -337,16 +336,7 @@ bool IC3IA::add_predicate(const Term & pred)
   assert(ts_.only_curr(pred));
   logger.log(2, "adding predicate {}", pred);
   predset_.insert(pred);
-  // add predicate to abstraction and get the new constraint
-  Term predabs_rel = ia_.predicate_refinement(pred);
-  static_cast<RelationalTransitionSystem&>(ts_).constrain_trans(predabs_rel);
-  // refine the transition relation incrementally
-  // by adding a new constraint
-  assert(!solver_context_);  // should be at context 0
-  solver_->assert_formula(
-      solver_->make_term(Implies, trans_label_, predabs_rel));
 
-  assert(!is_lit(pred, boolsort_));
 
   Term lbl = label(pred);
 
@@ -360,6 +350,20 @@ bool IC3IA::add_predicate(const Term & pred)
 
   pred2lbl_[pred] = lbl;
   lbl2pred_[lbl] = pred;
+
+  if (!is_lit(pred, boolsort_)) {
+    // only need to modify transition relation for non constants
+    // boolean constants will be precise
+
+    // add predicate to abstraction and get the new constraint
+    Term predabs_rel = ia_.predicate_refinement(pred);
+    static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(predabs_rel);
+    // refine the transition relation incrementally
+    // by adding a new constraint
+    assert(!solver_context_);  // should be at context 0
+    solver_->assert_formula(
+        solver_->make_term(Implies, trans_label_, predabs_rel));
+  }
 
   return true;
 }
