@@ -104,7 +104,9 @@ ProverResult MsatIC3IA::prove()
 
   // just using default options for now
   ic3ia::Options ic3ia_opts;
-  // the only option we pass through is verbosity
+  // the only options we pass through are
+  // verbosity and random seed
+  ic3ia_opts.seed = options_.random_seed_;
   ic3ia_opts.verbosity = options_.verbosity_;
   ic3ia::Logger & l = ic3ia::Logger::get();
   l.set_verbosity(ic3ia_opts.verbosity);

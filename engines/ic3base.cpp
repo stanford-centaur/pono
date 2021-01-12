@@ -366,7 +366,7 @@ bool IC3Base::intersects_bad(IC3Formula & out)
     // with abstraction can't guarantee this is unsat
     if (reducer_.reduce_assump_unsatcore(
             smart_not(bad_), out.children, red_c)) {
-      logger.log(2,
+      logger.log(1,
                  "generalized bad cube to {}/{}",
                  red_c.size(),
                  out.children.size());
@@ -376,7 +376,7 @@ bool IC3Base::intersects_bad(IC3Formula & out)
       assert(out.children.size());
       assert(ic3formula_check_valid(out));
     } else {
-      logger.log(2, "generalizing bad failed");
+      logger.log(1, "generalizing bad failed");
     }
   }
 
