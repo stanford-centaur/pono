@@ -23,6 +23,16 @@ using namespace smt;
 
 namespace pono {
 
+
+// #define DEBUG
+#ifdef DEBUG
+  #define D(...) logger.log( __VA_ARGS__ )
+  #define INFO(...) D(0, __VA_ARGS__)
+#else
+  #define D(...) do {} while (0)
+  #define INFO(...) logger.log(3, __VA_ARGS__)
+#endif
+
 void CustomFunctionalTransitionSystem::make_nextvar_for_inputs() {
   // make next variables for the input variables
   for (const auto & i : inputvars_) {
@@ -241,7 +251,6 @@ IC3Formula SygusPdr::inductive_generalization(
   // this is to produce the lemma
   // find the model
   auto model_pos = model2cube_.find( c.term );
-  std::cout << "c.term hash: " << c.term->hash() << " " << c.term->to_string() << std::endl;
   assert(model_pos != model2cube_.end());
   syntax_analysis::IC3FormulaModel * post_model = model_pos->second;
 
@@ -375,7 +384,7 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
   unsigned pidx = 0;
   for (auto pos = score_vec.rbegin(); pos != score_vec.rend(); ++ pos) {
     sorted_unsatcore.push_back(pos->second);
-    logger.log(4, "{}: Score: {} expr: {}", pidx, pos->first, pos->second->to_string());
+    D(4, "{}: Score: {} expr: {}", pidx, pos->first, pos->second->to_string());
     term_id_map.emplace(pos->second, pidx ++);
   }
   unsatcore.clear(); // reuse this
@@ -383,13 +392,10 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
   assert(!unsatcore.empty());
 
   TermVec curr_lits;
-  std::cout << "result : {";
   curr_lits.reserve(unsatcore.size());
   for (const auto &l : unsatcore)  {
     curr_lits.push_back(ts_.curr(l));
-    std::cout << term_id_map.at(l) << ",";
   }
-  std::cout << "}" << std::endl;
   return ic3formula_negate(ic3formula_conjunction(curr_lits));
 } // select_predicates
 
@@ -553,12 +559,7 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
 
   assert(partial_model);
-  model2cube_.emplace(conj_partial, partial_model);
-  std::cout << "[model2cube emplace] " << conj_partial->hash() 
-            << "(" << conj_partial->to_string() << ")"
-            << " -> "
-            << partial_model->to_string() << std::endl;
-  
+  model2cube_.emplace(conj_partial, partial_model);  
 
   return std::make_pair(
     IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
@@ -630,10 +631,6 @@ std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3F
 
     assert(partial_model && full_model);
     model2cube_.emplace(conj_partial, partial_model);
-    std::cout << "[model2cube emplace] " << conj_partial->hash() 
-              << "(" << conj_partial->to_string() << ")"
-              << " -> "
-              << partial_model->to_string() << std::endl;
 
     return std::make_tuple(
       IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
@@ -653,12 +650,12 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     solver_->substitute(p, custom_ts_->input_var_to_next_map()));
   // we need to make sure input vars are mapped to next input vars
 
-  logger.log(4, "[PartialModel] prime state : {}", bad_state_no_nxt->to_string());
+  D(4, "[PartialModel] prime state : {}", bad_state_no_nxt->to_string());
   if (has_assumptions) {
-    logger.log(4, "[PartialModel] assumptions (mapped): {}",constraints_curr_var_.size());
+    D(4, "[PartialModel] assumptions (mapped): {}",constraints_curr_var_.size());
     unsigned idx = 0;
     for (const auto & c : constraints_curr_var_)
-      logger.log(4, "[PartialModel] assumption #{} : {}", idx ++, c->to_string());
+      D(4, "[PartialModel] assumption #{} : {}", idx ++, c->to_string());
     constraints_curr_var_.push_back(bad_state_no_nxt);
     partial_model_getter.GetVarListForAsts(constraints_curr_var_, varlist);
     constraints_curr_var_.pop_back();
@@ -667,10 +664,10 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
   }
 
   {
-    logger.log(4, "[PartialModel] before cutting vars: ");
+    D(4, "[PartialModel] before cutting vars: ");
     for (const auto & v : varlist)
-      logger.log(4, "[PartialModel] {} := {} ", v->to_string(), solver_->get_value(v)->to_string());
-    logger.log(4, "[PartialModel] ------------------- ");
+      D(4, "[PartialModel] {} := {} ", v->to_string(), solver_->get_value(v)->to_string());
+    D(4, "[PartialModel] ------------------- ");
   }
 
   Term conj_partial;
@@ -701,10 +698,6 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
 
   assert(partial_model);
   model2cube_.emplace(conj_partial, partial_model);
-  std::cout << "[model2cube emplace] " << conj_partial->hash() 
-            << "(" << conj_partial->to_string() << ")"
-            << " -> "
-            << partial_model->to_string() << std::endl;
 
   return std::make_pair(
     IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
