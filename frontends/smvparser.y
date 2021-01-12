@@ -126,6 +126,7 @@ module_decl:
       enc.trans_list_.clear();
       enc.invar_list_.clear();
       enc.invarspec_list_.clear();
+      enc.assign_list_.clear();
      }
   }
   | MODULE complex_identifier "(" module_parameters ")" {
@@ -136,7 +137,7 @@ module_decl:
   | MODULE complex_identifier "(" module_parameters ")" module_body {
     if(!enc.module_flat){
       enc.module_list[$2] = new module_node($2,$4,$6);
-            enc.define_list_.clear();
+      enc.define_list_.clear();
       enc.ivar_list_.clear();
       enc.var_list_.clear();
       enc.init_list_.clear();
@@ -144,6 +145,7 @@ module_decl:
       enc.trans_list_.clear();
       enc.invar_list_.clear();
       enc.invarspec_list_.clear();
+      enc.assign_list_.clear();
     }
   }
 
