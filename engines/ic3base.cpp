@@ -479,9 +479,10 @@ bool IC3Base::rel_ind_check(size_t i,
     for (const auto & cc : c.children) {
       ccnext = ts_.next(cc);
       lbl = label(ccnext);
-      if (lbl != ccnext) {
+      if (lbl != ccnext && !is_global_label(lbl)) {
         // only need to add assertion if the label is not the same as ccnext
         // could be the same if ccnext is already a literal
+        // and is not alreayd in a global assumption
         solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
       }
       assumps_.push_back(lbl);
@@ -984,6 +985,12 @@ Term IC3Base::label(const Term & t)
 
   labels_[t] = l;
   return l;
+}
+
+bool IC3Base::is_global_label(const Term & l) const
+{
+  return (l == trans_label_ || l == bad_label_
+          || std::count(frame_labels_.begin(), frame_labels_.end(), l));
 }
 
 smt::Term IC3Base::smart_not(const Term & t) const

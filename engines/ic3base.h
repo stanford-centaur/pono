@@ -41,6 +41,11 @@
 **             implementation
 **           - if you decide to use additional labels, make sure to add
 **             them to solver_ in both initialize and reset_solver
+**           - if your implementation tends to use the same labels often
+**             you can add the semantics (e.g. equality / implication)
+**             at the base context level, and just make sure that
+**             is_global_label returns true for those labels by overriding
+**             just don't forget to re-add those assertions in reset_solver
 **
 **        Important Notes:
 **           - be sure to use [push/pop]_solver_context instead of using
@@ -513,6 +518,11 @@ class IC3Base : public Prover
    *  @return the indicator variable label for this term
    */
   smt::Term label(const smt::Term & t);
+
+  /** Returns true iff this label
+   *  already has semantics assigned at the base context level
+   */
+  virtual bool is_global_label(const smt::Term & l) const;
 
   /** Negates a term by stripping the leading Not if it's there,
    ** or applying Not if the term is not already negated.

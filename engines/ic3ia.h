@@ -78,6 +78,7 @@ class IC3IA : public IC3
   // predicates. This should still work fine with other solvers
   smt::UnorderedTermMap lbl2pred_;
   smt::UnorderedTermSet predlbls_;
+  smt::UnorderedTermSet nextpredlbls_;
 
   /** Overriding the method. This will return the concrete_ts_ because ts_ is an
    *  abstraction of concrete_ts_.
@@ -100,6 +101,8 @@ class IC3IA : public IC3
   RefineResult refine() override;
 
   void reset_solver() override;
+
+  bool is_global_label(const smt::Term & l) const override;
 
   // specific to IC3IA
 

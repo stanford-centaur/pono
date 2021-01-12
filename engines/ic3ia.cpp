@@ -326,6 +326,21 @@ void IC3IA::reset_solver()
   }
 }
 
+bool IC3IA::is_global_label(const Term & l) const
+{
+  // all labels used by IC3IA should be globally assumed
+  // the assertion will check that this assumption holds though
+  assert(super::is_global_label(l) ||
+         // the predlbls can be used in either positive or negative
+         // because their assumption is a bi-implication
+         predlbls_.find(l) != predlbls_.end()
+         || predlbls_.find(smart_not(l)) != predlbls_.end()
+         || nextpredlbls_.find(l) != nextpredlbls_.end()
+         || nextpredlbls_.find(smart_not(l)) != nextpredlbls_.end());
+
+  return true;
+}
+
 bool IC3IA::add_predicate(const Term & pred)
 {
   if (predset_.find(pred) != predset_.end()) {
@@ -339,11 +354,16 @@ bool IC3IA::add_predicate(const Term & pred)
 
 
   Term lbl = label(pred);
+  // set the negated label as well
+  // can use in either polarity because we add a bi-implication
+  labels_[solver_->make_term(Not, pred)] = solver_->make_term(Not, lbl);
 
   Term npred = ts_.next(pred);
   Term nlbl = label(npred);
+  labels_[solver_->make_term(Not, npred)] = solver_->make_term(Not, nlbl);
 
   predlbls_.insert(lbl);
+  nextpredlbls_.insert(nlbl);
 
   solver_->assert_formula(solver_->make_term(Equal, lbl, pred));
   solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
