@@ -250,12 +250,16 @@ void TransitionSystem::add_constraint(const Term & constraint,
       init_ = solver_->make_term(And, init_, constraint);
     }
     trans_ = solver_->make_term(And, trans_, constraint);
-    // add over next states
-    Term next_constraint = solver_->substitute(constraint, next_map_);
-    trans_ = solver_->make_term(And, trans_, next_constraint);
     constraints_.push_back(constraint);
-    constraints_.push_back(next_constraint);
-  } else if (to_next && no_next(constraint)) {
+
+    if (to_next) {
+      // add over next states
+      Term next_constraint = solver_->substitute(constraint, next_map_);
+      trans_ = solver_->make_term(And, trans_, next_constraint);
+      constraints_.push_back(next_constraint);
+    }
+
+  } else if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
     constraints_.push_back(constraint);
   } else {
