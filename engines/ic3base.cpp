@@ -824,6 +824,9 @@ bool IC3Base::check_intersects_initial(const Term & t)
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
   assert(!solver_context_);
+  // TODO: there's a tricky issue here. The reducer doesn't have the label
+  // assumptions so we can't use init_label_ here. need to come up with a
+  // better interface. Should we add label assumptions to reducer?
   if (rem.size() != 0) {
     Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
 
@@ -919,7 +922,6 @@ void IC3Base::reset_solver()
 
   try {
     solver_->reset_assertions();
-    reducer_.reset_assertions();
 
     // Now need to add back in constraints at context level 0
     logger.log(2, "IC3Base: Reset solver and now re-adding constraints.");
