@@ -107,8 +107,6 @@ IC3Base::IC3Base(const Property & p,
                  const SmtSolver & s,
                  PonoOptions opt)
     : super(p, ts, s, opt),
-      // NOTE: this is a hack
-      // TODO fix this
       reducer_(create_reducer_for(
           s->get_solver_enum(), Engine::IC3IA_ENGINE, false)),
       solver_context_(0),
