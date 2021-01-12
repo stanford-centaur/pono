@@ -71,6 +71,11 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
+  // Since MathSAT is the best solver for IC3IA it helps to use
+  // its bool_model_generation option which doesn't enable
+  // model generation for theories
+  // instead, we assign indicator labels to check the value of
+  // predicates. This should still work fine with other solvers
   smt::UnorderedTermMap lbl2pred_;
   smt::UnorderedTermSet predlbls_;
 
