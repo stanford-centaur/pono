@@ -480,7 +480,7 @@ bool IC3Base::rel_ind_check(size_t i,
       if (lbl != ccnext && !is_global_label(lbl)) {
         // only need to add assertion if the label is not the same as ccnext
         // could be the same if ccnext is already a literal
-        // and is not alreayd in a global assumption
+        // and is not already in a global assumption
         solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
       }
       assumps_.push_back(lbl);
