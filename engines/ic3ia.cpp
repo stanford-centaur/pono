@@ -351,7 +351,8 @@ bool IC3IA::add_predicate(const Term & pred)
   assert(ts_.only_curr(pred));
   logger.log(2, "adding predicate {}", pred);
   predset_.insert(pred);
-
+  assert(pred->get_sort() == boolsort_);
+  assert(pred->is_symbolic_const() || is_predicate(pred, boolsort_));
 
   Term lbl = label(pred);
   // set the negated label as well
@@ -370,7 +371,7 @@ bool IC3IA::add_predicate(const Term & pred)
 
   lbl2pred_[lbl] = pred;
 
-  if (!is_lit(pred, boolsort_)) {
+  if (!pred->is_symbolic_const()) {
     // only need to modify transition relation for non constants
     // boolean constants will be precise
 
