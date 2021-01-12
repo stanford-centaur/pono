@@ -146,7 +146,7 @@ class PonoOptions
   static const bool default_cegp_axiom_red_ = true;
   static const std::string default_profiling_log_filename_;
   static const bool default_mod_init_prop_ = false;
-  static const bool default_assume_prop_ = false;
+  static const bool default_assume_prop_ = true;
 };
 
 }  // namespace pono
