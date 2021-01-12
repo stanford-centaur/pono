@@ -66,6 +66,15 @@
 
 namespace pono {
 
+// TODO for this branch
+// change step_0 to step_01 which checks one transition also
+// add property to fresh frame (maybe don't need it in label then)
+//    could consider only adding it once a frame is done
+//    might be a simpler implementation
+// update intersects_bad and possible get_model_ic3formula
+//    maybe ic3formula can stay the same? e.g. bad cube is actually
+//    something that transitions to bad, isn't bad itself
+
 struct IC3Formula
 {
   // nullary constructor
