@@ -276,7 +276,7 @@ assign_test: complex_identifier ASSIGNSYM simple_expr {
          enc.assign_list_.push_back(new assign_node_c("init",$3,$6));
         }
         }
-        | TOK_NEXT "(" complex_identifier ")" ASSIGNSYM next_expr {
+        | TOK_NEXT "(" complex_identifier ")" ASSIGNSYM basic_expr {
         if(enc.module_flat){
           SMVnode *a = $6;
           smt::Term state = enc.terms_[$3];

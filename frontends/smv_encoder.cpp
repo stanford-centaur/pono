@@ -83,6 +83,7 @@ std::stringstream pono::SMVEncoder::preprocess()
   str << "MODULE main" << std::endl;
   main_n->process_main(module_list, str);
   parse_flat(str);
-  
+  std::cout << "final" <<std::endl;
+  std::cout<< str.str();
   return str;
 }

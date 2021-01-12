@@ -133,7 +133,7 @@ void pono::assign_node_c::generate_ostream(
   if (pre == "")
     s << prefix << id << " := ";
   else
-    s << "( " << pre << prefix << id << ") :=";
+    s << pre << " ( " <<  prefix << id << ") :=";
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " ;" << endl;
 }
