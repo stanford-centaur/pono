@@ -200,7 +200,7 @@ RefineResult IC3IA::refine()
   TermVec cex;
   const ProofGoal * tmp = cex_pg_;
   while (tmp) {
-    cex.push_back(solver_->substitute(tmp->target.term, lbl2pred_));
+    cex.push_back(tmp->target.term);
     assert(ts_.only_curr(tmp->target.term));
     tmp = tmp->next;
   }
