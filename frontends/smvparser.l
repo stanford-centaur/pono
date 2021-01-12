@@ -22,7 +22,7 @@
 %%
 
 [ \t]     ;
-MODULE {return pono::smvparser::make_MODULE(_encoder.loc);}
+MODULE {yylineno = 1; return pono::smvparser::make_MODULE(_encoder.loc);}
 IVAR   {return pono::smvparser::make_IVAR(_encoder.loc);}
 VAR  {return pono::smvparser::make_VAR(_encoder.loc);}
 INVAR   {return pono::smvparser::make_INVAR(_encoder.loc);}
@@ -85,6 +85,8 @@ clock {return pono::smvparser::make_time_type(_encoder.loc);}
 in {return pono::smvparser::make_OP_IN(_encoder.loc);}
 
 [fF] {return pono::smvparser::make_fraction_prefix(yytext,_encoder.loc);}
+[0-9]+           {return pono::smvparser::make_integer_val(yytext,_encoder.loc);}
+-[0-9]+           {return pono::smvparser::make_neg_integer_val(yytext,_encoder.loc);}
 "->"  {return pono::smvparser::make_OP_IMPLY(_encoder.loc);}
 "<->"  {return pono::smvparser::make_OP_BI(_encoder.loc);}
 "!"  {return pono::smvparser::make_OP_NOT(_encoder.loc);}
@@ -131,8 +133,6 @@ in {return pono::smvparser::make_OP_IN(_encoder.loc);}
 <WORD_BASE>_/[0-9a-fA-F]+ {BEGIN(WORD_VALUE); return pono::smvparser::make_UNDER(_encoder.loc);}
 <WORD_VALUE>[0-9a-fA-F]+ {BEGIN(INITIAL); return pono::smvparser::make_integer_val(yytext,_encoder.loc);}
 
-[0-9]+           {return pono::smvparser::make_integer_val(yytext,_encoder.loc);}
--[0-9]+           {return pono::smvparser::make_neg_integer_val(yytext,_encoder.loc);}
 [a-zA-Z_][A-Za-z0-9_\$#-]*  {return pono::smvparser::make_tok_name(yytext,_encoder.loc);}
 \n   {_encoder.loc.lines(yyleng);}
 .    {}

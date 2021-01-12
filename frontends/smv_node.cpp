@@ -320,8 +320,8 @@ void pono::invar_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    s << "INVAR" << endl;
     for (int i = ex_li.size() - 1; i > -1; i--) {
+      s << "INVAR" << endl;
       ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
@@ -335,8 +335,9 @@ void pono::invarspec_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    s << "INVARSPEC" << endl;
+    
     for (int i = ex_li.size() - 1; i > -1; i--) {
+      s << "INVARSPEC" << endl;
       ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }

@@ -31,18 +31,22 @@ class SMVEncoder
       : rts_(rts), solver_(rts.solver())
   {
     module_flat = false;
+    file = filename;
     parse(filename);
     preprocess();
     module_flat = true;
-    std::string flatten =filename.substr(0,filename.find_last_of(".")) + "_flatten.txt";
-    std::ofstream ofile(flatten);
-    ofile << preprocess().str();
-    ofile.close();
+    loc.end.line = 0;
+    //std::string flatten =filename.substr(0,filename.find_last_of(".")) + "_flatten.txt";
+    //std::ofstream ofile(flatten);
+    std::string output= preprocess().str();
+    //ofile << output <<std::endl;
+    //ofile.close();
     processCase();
   };
 
  public:
   // Important members
+  string file;
   int parse(std::string filename);
   int parse_flat(std::istream& s);
   smt::Term parseString(std::string newline);

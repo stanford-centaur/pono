@@ -429,7 +429,7 @@ trans_list: basic_expr semioption{
 
 invar_constraint: INVAR invar_list;
 
-invar_list: simple_expr semioption{
+invar_list: basic_expr semioption{
   if(enc.module_flat){
             SMVnode *a = $1;
             enc.rts_.add_invar(a->getTerm());
@@ -575,6 +575,7 @@ real_constant: real_val{
 | exponential_number{ $$ = $1; };
 
 float_number: integer_val "." integer_val{ $$ = $1 + "." + $3; }
+            | neg_integer_val "." integer_val { $$ = $1 + "." + $3; }
 
 fractional_number: fraction_prefix "'" integer_val "/" integer_val{ $$ = $1 + "'" + $3 + "/" + $5; }
 
@@ -772,7 +773,7 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed mismatch");
+                 throw PonoException(to_string(enc.loc.end.line) + "Unsigned/Signed mismatch");
               } else{
               e = enc.solver_->make_term(smt::Implies, a->getTerm(), b->getTerm());
               assert(e);
@@ -795,7 +796,7 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed mismatch");
+                 throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed mismatch");
               } else{
               e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
               assert(e);
@@ -812,7 +813,7 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term e;
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed mismatch");
+                 throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed mismatch");
               } else{
                e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
               }
@@ -830,7 +831,7 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term e;
               if(bvs_a != bvs_b){
-                 throw PonoException("Unsigned/Signed mismatch");
+                 throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed mismatch");
               } else{
                 e = enc.solver_->make_term(smt::Distinct, a->getTerm(), b->getTerm());
               }
@@ -855,7 +856,7 @@ simple_expr: constant {
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSlt, a->getTerm(), b->getTerm());
                   } else{
-                    throw PonoException ("Unsigned/Signed mismatch");
+                    throw PonoException (to_string(enc.loc.end.line) +"Unsigned/Signed mismatch");
                   }
               }
                   assert(res);
@@ -881,7 +882,7 @@ simple_expr: constant {
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSgt, a->getTerm(), b->getTerm());
                   } else{
-                    throw PonoException ("Unsigned/Signed mismatch");
+                    throw PonoException (to_string(enc.loc.end.line) +"Unsigned/Signed mismatch");
                   }
               }
                   assert(res);
@@ -905,7 +906,7 @@ simple_expr: constant {
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSle, a->getTerm(), b->getTerm());
                   } else{
-                    throw PonoException ("Unsigned/Signed bitvector mismatch");
+                    throw PonoException (to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
                   }
               }
                   assert(res);
@@ -929,7 +930,7 @@ simple_expr: constant {
                   } else if (bvs_a == bvs_b == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSge, a->getTerm(), b->getTerm());
                   } else{
-                    throw PonoException ("Unsigned/Signed mismatch");
+                    throw PonoException (to_string(enc.loc.end.line) +"Unsigned/Signed mismatch");
                   }
               }
                   assert(res);
@@ -971,7 +972,7 @@ simple_expr: constant {
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
-                   throw PonoException("Unsigned/Signed bitvector mismatch");
+                   throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
                   } else{
                   res = enc.solver_->make_term(smt::BVAdd, a->getTerm(), b->getTerm());
                   assert(res); //check res non-null
@@ -996,7 +997,7 @@ simple_expr: constant {
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
-                   throw PonoException("Unsigned/Signed bitvector mismatch");
+                   throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
                   } else{
                   assert(res); //check res non-null
                   res = enc.solver_->make_term(smt::BVSub, a->getTerm(), b->getTerm());
@@ -1021,7 +1022,7 @@ simple_expr: constant {
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
-                   throw PonoException("Unsigned/Signed bitvector mismatch");
+                   throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
                   } else{
                   assert(res); //check res non-null
                   res = enc.solver_->make_term(smt::BVMul, a->getTerm(), b->getTerm());
@@ -1053,7 +1054,7 @@ simple_expr: constant {
                     res = enc.solver_->make_term(smt::BVSdiv, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Signed);
                   } else{
-                    throw PonoException ("Unsigned/Signed bitvector mismatch");
+                    throw PonoException (to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
                   }
               }
               }else{
@@ -1082,7 +1083,7 @@ simple_expr: constant {
                     assert(res); //check res non-null
                     $$ = new SMVnode(res,SMVnode::Signed);
                   } else{
-                    throw PonoException ("Unsigned/Signed bitvector mismatch");
+                    throw PonoException (to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
                   }
               }
               }else{
@@ -1129,7 +1130,7 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               if(bvs_a != bvs_b){
-                throw PonoException("Unsigned/Signed bitvector mismatch");
+                throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
               } else{
                 smt::Term res = enc.solver_->make_term(smt::Concat, a->getTerm(), b->getTerm());
                 assert(res); //check res non-null
