@@ -330,14 +330,7 @@ bool IC3IA::is_global_label(const Term & l) const
 {
   // all labels used by IC3IA should be globally assumed
   // the assertion will check that this assumption holds though
-  assert(super::is_global_label(l) ||
-         // the predlbls can be used in either positive or negative
-         // because their assumption is a bi-implication
-         predlbls_.find(l) != predlbls_.end()
-         || predlbls_.find(smart_not(l)) != predlbls_.end()
-         || nextpredlbls_.find(l) != nextpredlbls_.end()
-         || nextpredlbls_.find(smart_not(l)) != nextpredlbls_.end());
-
+  assert(super::is_global_label(l) || all_lbls_.find(l) != all_lbls_.end());
   return true;
 }
 
@@ -359,19 +352,19 @@ bool IC3IA::add_predicate(const Term & pred)
   // can use in either polarity because we add a bi-implication
   labels_[solver_->make_term(Not, pred)] = solver_->make_term(Not, lbl);
 
+  predlbls_.insert(lbl);
+  lbl2pred_[lbl] = pred;
+
   Term npred = ts_.next(pred);
   Term nlbl = label(npred);
   labels_[solver_->make_term(Not, npred)] = solver_->make_term(Not, nlbl);
 
-  predlbls_.insert(lbl);
-  nextpredlbls_.insert(nlbl);
-
-  solver_->assert_formula(solver_->make_term(Equal, lbl, pred));
-  solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
-
-  lbl2pred_[lbl] = pred;
-
   if (!pred->is_symbolic_const()) {
+    // only need to assert equalities for labels that are distinct
+    assert(lbl != pred);
+    solver_->assert_formula(solver_->make_term(Equal, lbl, pred));
+    solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+
     // only need to modify transition relation for non constants
     // boolean constants will be precise
 
@@ -384,6 +377,12 @@ bool IC3IA::add_predicate(const Term & pred)
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, predabs_rel));
   }
+
+  // keep track of the labels and different polarities for debugging assertions
+  all_lbls_.insert(lbl);
+  all_lbls_.insert(solver_->make_term(Not, lbl));
+  all_lbls_.insert(nlbl);
+  all_lbls_.insert(solver_->make_term(Not, nlbl));
 
   return true;
 }

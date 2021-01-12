@@ -78,7 +78,12 @@ class IC3IA : public IC3
   // predicates. This should still work fine with other solvers
   smt::UnorderedTermMap lbl2pred_;
   smt::UnorderedTermSet predlbls_;
-  smt::UnorderedTermSet nextpredlbls_;
+  smt::UnorderedTermSet all_lbls_;  ///< for debugging assertions only
+                                    ///< keeps track of both polarities
+                                    ///< mostly needed because some solvers
+                                    ///< do automatic top-level propagation
+                                    ///< which means you can't count on a symbol
+                                    ///< staying a symbol
 
   /** Overriding the method. This will return the concrete_ts_ because ts_ is an
    *  abstraction of concrete_ts_.
