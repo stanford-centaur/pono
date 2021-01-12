@@ -513,7 +513,10 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   predlbls_.clear();
 
   // reset init and trans -- done with calling ia_.do_abstraction
-  predset_ = ia_.do_abstraction();
+  // then add all boolean constants as (precise) predicates
+  for (const auto & p : ia_.do_abstraction()) {
+    preds.insert(p);
+  }
 
   // reset the solver
   reset_solver();
