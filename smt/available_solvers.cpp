@@ -112,25 +112,10 @@ SmtSolver create_solver(SolverEnum se,
 
 SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
 {
-  if (se != MSAT && se != BTOR) {
+  bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
+  if (se != MSAT) {
     // no special options yet for solvers other than mathsat
     return create_solver(se, logging);
-  }
-
-  bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
-  // special cases
-  if (se == BTOR && e == IC3IA_ENGINE) {
-    // for IC3IA it's best to be able to reset the solver
-    // and boolector will do substitutions when there
-    // are assertions at the base level
-    // e.g. pred1 <-> p(X, Y)
-    // then pred1 will be substituted for and no longer be
-    // a symbol which causes problems for substitution, etc.
-    // TODO adjust this based on whether we settle on using
-    // variables for predicates in ic3ia
-    SmtSolver s = create_solver(se, logging);
-    s->set_opt("base-context-1", "true");
-    return s;
   }
 #ifdef WITH_MSAT
   else if (se == MSAT && ic3_engine) {
@@ -172,10 +157,6 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
     s = create_solver_base(se, logging);
     s->set_opt("incremental", "true");
     s->set_opt("produce-unsat-cores", "true");
-  }
-
-  if (se == BTOR && e == IC3IA_ENGINE) {
-    s->set_opt("base-context-1", "true");
   }
 
   assert(s);
