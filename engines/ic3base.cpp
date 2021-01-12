@@ -164,6 +164,10 @@ void IC3Base::initialize()
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
 
+  // assume property in pre-state
+  Term prop = smart_not(bad_);
+  solver_->assert_formula(solver_->make_term(Implies, trans_label_, prop));
+
   bad_label_ = solver_->make_symbol("__bad_label", boolsort_);
   solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 }
@@ -932,6 +936,10 @@ void IC3Base::reset_solver()
 
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, ts_.trans()));
+
+    // assume property in pre-state
+    Term prop = smart_not(bad_);
+    solver_->assert_formula(solver_->make_term(Implies, trans_label_, prop));
 
     solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 
