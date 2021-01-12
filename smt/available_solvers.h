@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <iostream>
+
 #include "options/options.h"
 #include "smt-switch/smt.h"
 
@@ -35,6 +37,12 @@ smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false,
 // same as create_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
 smt::SmtSolver create_solver_for(smt::SolverEnum se, Engine e, bool logging);
+
+// same as create_solver but will set reasonable options
+// for a reducing solver (e.g. produce-models off)
+// unsat cores on
+// and other solver-specific options where appropriate
+smt::SmtSolver create_reducer_for(smt::SolverEnum se, Engine e, bool logging);
 
 /** Creates an interpolating SmtSolver of the provided type */
 smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);

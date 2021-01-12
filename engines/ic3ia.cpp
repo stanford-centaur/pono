@@ -62,13 +62,13 @@ IC3IA::IC3IA(const Property & p,
 IC3Formula IC3IA::get_model_ic3formula() const
 {
   TermVec conjuncts;
-  conjuncts.reserve(predset_.size());
+  conjuncts.reserve(predlbls_.size());
   Term val;
-  for (const auto &p : predset_) {
+  for (const auto & p : predlbls_) {
     if ((val = solver_->get_value(p)) == solver_true_) {
-      conjuncts.push_back(p);
+      conjuncts.push_back(lbl2pred_.at(p));
     } else {
-      conjuncts.push_back(solver_->make_term(Not, p));
+      conjuncts.push_back(solver_->make_term(Not, lbl2pred_.at(p)));
     }
     assert(val->is_value());
   }
@@ -78,12 +78,11 @@ IC3Formula IC3IA::get_model_ic3formula() const
 
 bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
-  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Term pred;
   Op op;
   for (const auto &c : u.children) {
-    if (c->get_sort() != boolsort) {
+    if (c->get_sort() != boolsort_) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
     }
@@ -186,7 +185,9 @@ void IC3IA::abstract()
   // add predicates automatically added by ia_
   // to our predset_
   // needed to prevent adding duplicate predicates later
-  predset_.insert(bool_symbols.begin(), bool_symbols.end());
+  for (const auto & sym : bool_symbols) {
+    add_predicate(sym);
+  }
 
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
@@ -312,6 +313,27 @@ RefineResult IC3IA::refine()
   return RefineResult::REFINE_SUCCESS;
 }
 
+void IC3IA::reset_solver()
+{
+  super::reset_solver();
+
+  for (const auto & elem : lbl2pred_) {
+    solver_->assert_formula(solver_->make_term(Equal, elem.first, elem.second));
+
+    Term npred = ts_.next(elem.second);
+    Term nlbl = label(npred);
+    solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+  }
+}
+
+bool IC3IA::is_global_label(const Term & l) const
+{
+  // all labels used by IC3IA should be globally assumed
+  // the assertion will check that this assumption holds though
+  assert(super::is_global_label(l) || all_lbls_.find(l) != all_lbls_.end());
+  return true;
+}
+
 bool IC3IA::add_predicate(const Term & pred)
 {
   if (predset_.find(pred) != predset_.end()) {
@@ -322,14 +344,45 @@ bool IC3IA::add_predicate(const Term & pred)
   assert(ts_.only_curr(pred));
   logger.log(2, "adding predicate {}", pred);
   predset_.insert(pred);
-  // add predicate to abstraction and get the new constraint
-  Term predabs_rel = ia_.predicate_refinement(pred);
-  static_cast<RelationalTransitionSystem&>(ts_).constrain_trans(predabs_rel);
-  // refine the transition relation incrementally
-  // by adding a new constraint
-  assert(!solver_context_);  // should be at context 0
-  solver_->assert_formula(
-      solver_->make_term(Implies, trans_label_, predabs_rel));
+  assert(pred->get_sort() == boolsort_);
+  assert(pred->is_symbolic_const() || is_predicate(pred, boolsort_));
+
+  Term lbl = label(pred);
+  // set the negated label as well
+  // can use in either polarity because we add a bi-implication
+  labels_[solver_->make_term(Not, pred)] = solver_->make_term(Not, lbl);
+
+  predlbls_.insert(lbl);
+  lbl2pred_[lbl] = pred;
+
+  Term npred = ts_.next(pred);
+  Term nlbl = label(npred);
+  labels_[solver_->make_term(Not, npred)] = solver_->make_term(Not, nlbl);
+
+  if (!pred->is_symbolic_const()) {
+    // only need to assert equalities for labels that are distinct
+    assert(lbl != pred);
+    solver_->assert_formula(solver_->make_term(Equal, lbl, pred));
+    solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+
+    // only need to modify transition relation for non constants
+    // boolean constants will be precise
+
+    // add predicate to abstraction and get the new constraint
+    Term predabs_rel = ia_.predicate_refinement(pred);
+    static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(predabs_rel);
+    // refine the transition relation incrementally
+    // by adding a new constraint
+    assert(!solver_context_);  // should be at context 0
+    solver_->assert_formula(
+        solver_->make_term(Implies, trans_label_, predabs_rel));
+  }
+
+  // keep track of the labels and different polarities for debugging assertions
+  all_lbls_.insert(lbl);
+  all_lbls_.insert(solver_->make_term(Not, lbl));
+  all_lbls_.insert(nlbl);
+  all_lbls_.insert(solver_->make_term(Not, nlbl));
 
   return true;
 }

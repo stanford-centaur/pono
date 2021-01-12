@@ -17,12 +17,19 @@
 
 #ifdef WITH_MSAT
 
+#include <string>
+#include <unordered_map>
+
 #include "mathsat.h"
+#include "utils/exceptions.h"
 
 namespace pono {
+
+using StringMap = std::unordered_map<std::string, std::string>;
+
 // configuration options copied from open-source ic3ia implementation
 // https://es-static.fbk.eu/people/griggio/ic3ia/index.html
-msat_config get_msat_config_for_ic3(bool interp)
+msat_config get_msat_config_for_ic3(bool interp, const StringMap & options)
 {
   msat_config cfg = msat_create_config();
 
@@ -75,7 +82,14 @@ msat_config get_msat_config_for_ic3(bool interp)
     msat_set_option(cfg, "theory.bv.eager", "false");
   }
 
-  msat_set_option(cfg, "model_generation", interp ? "false" : "true");
+  for (const auto & optpair : options) {
+    int fail =
+        msat_set_option(cfg, optpair.first.c_str(), optpair.second.c_str());
+    if (fail) {
+      throw PonoException("Failed to set mathsat option: " + optpair.first
+                          + " => " + optpair.second);
+    }
+  }
 
   return cfg;
 }

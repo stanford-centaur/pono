@@ -57,11 +57,10 @@ IC3Formula IC3::get_model_ic3formula() const
 
 bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 {
-  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Op op;
   for (const auto &c : u.children) {
-    if (!is_lit(c, boolsort)) {
+    if (!is_lit(c, boolsort_)) {
       return false;
     }
   }
@@ -136,16 +135,15 @@ void IC3::predecessor_generalization(size_t i,
 
 void IC3::check_ts() const
 {
-  const Sort &boolsort = solver_->make_sort(BOOL);
   for (const auto &sv : ts_.statevars()) {
-    if (sv->get_sort() != boolsort) {
+    if (sv->get_sort() != boolsort_) {
       throw PonoException("Got non-boolean state variable in bit-level IC3: "
                           + sv->to_string());
     }
   }
 
   for (const auto &iv : ts_.inputvars()) {
-    if (iv->get_sort() != boolsort) {
+    if (iv->get_sort() != boolsort_) {
       throw PonoException("Got non-boolean input variable in bit-level IC3: "
                           + iv->to_string());
     }
