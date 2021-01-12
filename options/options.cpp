@@ -52,7 +52,8 @@ enum optionIndex
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
-  MOD_INIT_PROP
+  MOD_INIT_PROP,
+  ASSUME_PROP
 };
 
 struct Arg : public option::Arg
@@ -255,6 +256,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --mod-init-prop \tReplace init and prop with state variables -- can "
     "extend trace by up to two steps. Recommended for use with ic3ia." },
+  { ASSUME_PROP,
+    0,
+    "",
+    "assume-prop",
+    Arg::None,
+    "  --assume-prop \t(EXPERT OPTION) assume property in pre-state" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup

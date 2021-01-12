@@ -245,6 +245,12 @@ int main(int argc, char ** argv)
         StaticConeOfInfluence coi(fts, { prop }, pono_options.verbosity_);
       }
 
+      if (pono_options.assume_prop_) {
+        // NOTE: crucial that mod_init_prop pass is before this pass
+        // can't assume the non-delayed prop and also delay it
+        prop_in_trans(fts, prop);
+      }
+
       if (!fts.only_curr(prop)) {
         logger.log(1, "Got next state or input variables in property. "
                    "Generating a monitor state.");
@@ -319,6 +325,12 @@ int main(int argc, char ** argv)
            bad-state property. Based on that information, rebuild the
            transition relation of the transition system. */
         StaticConeOfInfluence coi(rts, { prop }, pono_options.verbosity_);
+      }
+
+      if (pono_options.assume_prop_) {
+        // NOTE: crucial that mod_init_prop pass is before this pass
+        // can't assume the non-delayed prop and also delay it
+        prop_in_trans(rts, prop);
       }
 
       if (!rts.only_curr(prop)) {
