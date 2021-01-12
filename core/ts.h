@@ -126,9 +126,16 @@ class TransitionSystem
    * if the constraint only has current states, equivalent to add_invar
    * if there are only current states and inputs, equivalent to
    *   constrain_inputs
+   *  @param constraint the constraint to add
+   *  @param to_init whether it should be added to init as well
+   *         (if it only contains state variables)
+   *  @param to_next whether the next version should be added as well
+   *         (if it only contains state variables)
    * throws an exception if it has next states (should go in trans)
    */
-  void add_constraint(const smt::Term & constraint, bool to_init = true);
+  void add_constraint(const smt::Term & constraint,
+                      bool to_init = true,
+                      bool to_next = true);
 
   /* Gives a term a name
    *   This can be used to track particular values in a witness
