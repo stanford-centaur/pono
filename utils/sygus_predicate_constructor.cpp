@@ -49,7 +49,7 @@ PredConstructor::PredConstructor(
   terms_to_predicates();
 }
 
-#define TERM_TABLE_DEBUG_LVL 2
+#define TERM_TABLE_DEBUG_LVL 0
 void PredConstructor::TermsDumping() const {
 #if TERM_TABLE_DEBUG_LVL >= 1
   
