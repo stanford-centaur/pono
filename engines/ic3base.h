@@ -40,8 +40,7 @@
 **             to the reset solver that aren't handled by the default
 **             implementation
 **           - if you decide to use additional labels, make sure to add
-**             them to solver_ and reducer_ (with assume_label)
-**             in both initialize and reset_solver
+**             them to solver_ in both initialize and reset_solver
 **
 **        Important Notes:
 **           - be sure to use [push/pop]_solver_context instead of using

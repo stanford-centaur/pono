@@ -66,9 +66,9 @@ IC3Formula IC3IA::get_model_ic3formula() const
   Term val;
   for (const auto &p : predvars_) {
     if ((val = solver_->get_value(p)) == solver_true_) {
-      conjuncts.push_back(p);
+      conjuncts.push_back(lbl2pred_.at(p));
     } else {
-      conjuncts.push_back(solver_->make_term(Not, p));
+      conjuncts.push_back(solver_->make_term(Not, lbl2pred_.at(p)));
     }
     assert(val->is_value());
   }
@@ -95,7 +95,7 @@ bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
     }
 
     // expecting either a boolean variable or a predicate
-    if (predvars_.find(pred) == predvars_.end()) {
+    if (predset_.find(pred) == predset_.end()) {
       logger.log(3, "ERROR IC3IA IC3Formula contains unknown atom: {}", pred);
       return false;
     }
@@ -319,21 +319,11 @@ void IC3IA::reset_solver()
   super::reset_solver();
 
   for (const auto & elem : lbl2pred_) {
-    Term eq = solver_->make_term(Equal, elem.first, elem.second);
-    solver_->assert_formula(eq);
-    solver_->assert_formula(ts_.next(eq));
+    solver_->assert_formula(solver_->make_term(Equal, elem.first, elem.second));
 
-    // reducer
-    reducer_.assume_label(elem.first, elem.second);
-    reducer_.assume_label(solver_->make_term(Not, elem.first),
-                          solver_->make_term(Not, elem.second));
-
-    Term npredvar = ts_.next(elem.first);
     Term npred = ts_.next(elem.second);
-
-    reducer_.assume_label(npredvar, npred);
-    reducer_.assume_label(solver_->make_term(Not, npredvar),
-                          solver_->make_term(Not, npred));
+    Term nlbl = label(npred);
+    solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
   }
 }
 
@@ -358,27 +348,18 @@ bool IC3IA::add_predicate(const Term & pred)
 
   assert(!is_lit(pred, boolsort_));
 
-  Term predvar =
-      ts_.make_statevar(".pred" + std::to_string(pred2lbl_.size()), boolsort_);
-  predvars_.insert(predvar);
-  Term eq = solver_->make_term(Equal, predvar, pred);
-  solver_->assert_formula(eq);
-  solver_->assert_formula(ts_.next(eq));
+  Term lbl = label(pred);
 
-  // reducer
-  reducer_.assume_label(predvar, pred);
-  reducer_.assume_label(solver_->make_term(Not, predvar),
-                        solver_->make_term(Not, pred));
-
-  Term npredvar = ts_.next(predvar);
   Term npred = ts_.next(pred);
+  Term nlbl = label(npred);
 
-  reducer_.assume_label(npredvar, npred);
-  reducer_.assume_label(solver_->make_term(Not, npredvar),
-                        solver_->make_term(Not, npred));
+  predvars_.insert(lbl);
 
-  pred2lbl_[pred] = predvar;
-  lbl2pred_[predvar] = pred;
+  solver_->assert_formula(solver_->make_term(Equal, lbl, pred));
+  solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+
+  pred2lbl_[pred] = lbl;
+  lbl2pred_[lbl] = pred;
 
   return true;
 }

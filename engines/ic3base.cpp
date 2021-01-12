@@ -153,7 +153,6 @@ void IC3Base::initialize()
   // an IC3Formula it's handled specially
   solver_->assert_formula(
       solver_->make_term(Implies, frame_labels_.at(0), ts_.init()));
-  reducer_.assume_label(frame_labels_.at(0), ts_.init());
   push_frame();
 
   // set semantics of TS labels
@@ -166,11 +165,9 @@ void IC3Base::initialize()
   trans_label_ = solver_->make_symbol("__trans_label", boolsort_);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
-  reducer_.assume_label(trans_label_, ts_.trans());
 
   bad_label_ = solver_->make_symbol("__bad_label", boolsort_);
   solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
-  reducer_.assume_label(bad_label_, bad_);
 }
 
 ProverResult IC3Base::check_until(int k)
@@ -760,7 +757,6 @@ void IC3Base::constrain_frame_label(size_t i, const IC3Formula & constraint)
 
   solver_->assert_formula(
       solver_->make_term(Implies, frame_labels_.at(i), constraint.term));
-  reducer_.assume_label(frame_labels_.at(i), constraint.term);
 }
 
 void IC3Base::assert_frame_labels(size_t i) const
@@ -829,7 +825,7 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
   assert(!solver_context_);
   if (rem.size() != 0) {
-    Term formula = solver_->make_term(And, init_label_, make_and(to_keep));
+    Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
 
     bool success = reducer_.reduce_assump_unsatcore(formula,
                                                     rem,
@@ -932,14 +928,11 @@ void IC3Base::reset_solver()
     assert(init_label_ == frame_labels_.at(0));
     solver_->assert_formula(
         solver_->make_term(Implies, init_label_, ts_.init()));
-    reducer_.assume_label(init_label_, ts_.init());
 
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, ts_.trans()));
-    reducer_.assume_label(trans_label_, ts_.trans());
 
     solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
-    reducer_.assume_label(bad_label_, bad_);
 
     for (size_t i = 0; i < frames_.size(); ++i) {
       for (const auto & constraint : frames_.at(i)) {
