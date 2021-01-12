@@ -241,7 +241,6 @@ IC3Formula SygusPdr::inductive_generalization(
   // this is to produce the lemma
   // find the model
   auto model_pos = model2cube_.find( c.term );
-  std::cout << "c.term hash: " << c.term->hash() << " " << c.term->to_string() << std::endl;
   assert(model_pos != model2cube_.end());
   syntax_analysis::IC3FormulaModel * post_model = model_pos->second;
 
@@ -383,13 +382,10 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
   assert(!unsatcore.empty());
 
   TermVec curr_lits;
-  std::cout << "result : {";
   curr_lits.reserve(unsatcore.size());
   for (const auto &l : unsatcore)  {
     curr_lits.push_back(ts_.curr(l));
-    std::cout << term_id_map.at(l) << ",";
   }
-  std::cout << "}" << std::endl;
   return ic3formula_negate(ic3formula_conjunction(curr_lits));
 } // select_predicates
 
@@ -553,12 +549,7 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
 
   assert(partial_model);
-  model2cube_.emplace(conj_partial, partial_model);
-  std::cout << "[model2cube emplace] " << conj_partial->hash() 
-            << "(" << conj_partial->to_string() << ")"
-            << " -> "
-            << partial_model->to_string() << std::endl;
-  
+  model2cube_.emplace(conj_partial, partial_model);  
 
   return std::make_pair(
     IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
@@ -630,10 +621,6 @@ std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3F
 
     assert(partial_model && full_model);
     model2cube_.emplace(conj_partial, partial_model);
-    std::cout << "[model2cube emplace] " << conj_partial->hash() 
-              << "(" << conj_partial->to_string() << ")"
-              << " -> "
-              << partial_model->to_string() << std::endl;
 
     return std::make_tuple(
       IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
@@ -701,10 +688,6 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
 
   assert(partial_model);
   model2cube_.emplace(conj_partial, partial_model);
-  std::cout << "[model2cube emplace] " << conj_partial->hash() 
-            << "(" << conj_partial->to_string() << ")"
-            << " -> "
-            << partial_model->to_string() << std::endl;
 
   return std::make_pair(
     IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
