@@ -173,6 +173,11 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
     s->set_opt("incremental", "true");
     s->set_opt("produce-unsat-cores", "true");
   }
+
+  if (se == BTOR && e == IC3IA_ENGINE) {
+    s->set_opt("base-context-1", "true");
+  }
+
   assert(s);
   return s;
 }
