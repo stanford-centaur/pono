@@ -182,6 +182,13 @@ class TransitionSystem
    */
   bool is_next_var(const smt::Term & sv) const;
 
+  /* @param t the term to check
+   * @return true if t is an input variable
+   *
+   * Returns false for any other term
+   */
+  bool is_input_var(const smt::Term & t) const;
+
   /** Looks for a representative name for a term
    *  It searches for a name that was assigned to the term
    *  if it cannot be found, then it just returns the

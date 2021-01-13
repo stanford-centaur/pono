@@ -69,7 +69,7 @@ class IC3SA : public IC3
                            ///< e.g. input variables and state vars
                            ///< with no next state update
 
-  UnorderedTermSet visited_; ///< temporary var for justify_coi
+  smt::UnorderedTermSet visited_;  ///< temporary var for justify_coi
 
   // useful sort
   smt::Sort boolsort_;
@@ -139,7 +139,7 @@ class IC3SA : public IC3
    */
   bool add_to_term_abstraction(const smt::Term & term);
 
-  void justify_coi(smt::TermVec to_visit, UnorderedTermSet & projection);
+  void justify_coi(smt::TermVec to_visit, smt::UnorderedTermSet & projection);
 
   // helper function for justify_coi
   smt::Term get_controlling(const smt::Term & t) const;

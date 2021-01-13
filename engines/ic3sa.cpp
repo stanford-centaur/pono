@@ -49,10 +49,9 @@ unordered_set logical_ops({
 
 inline bool is_logical_op(const Term & t, const Sort & boolsort)
 {
-  Op & op = t->get_op();
-  return ((t->get_sort() == boolsort) &&
-          !op.is_null() &&
-          (logical_ops.find(op.prim_op) != logical_opts.end()));
+  const Op & op = t->get_op();
+  return ((t->get_sort() == boolsort) && !op.is_null()
+          && (logical_ops.find(op.prim_op) != logical_ops.end()));
 }
 
 // checks if t is an equality literal
@@ -704,6 +703,7 @@ void IC3SA::justify_coi(TermVec to_visit, UnorderedTermSet & projection)
   assert(solver_context_);
   visited_.clear();
   TermVec children;
+  UnorderedTermSet free_vars;
   const UnorderedTermMap & state_updates = ts_.state_updates();
 
   Term t;
@@ -712,11 +712,10 @@ void IC3SA::justify_coi(TermVec to_visit, UnorderedTermSet & projection)
     t = to_visit.back();
     to_visit.pop_back();
 
-    if (visited.find(t) != visited.end())
-    {
+    if (visited_.find(t) != visited_.end()) {
       continue;
     }
-    visited.insert(t);
+    visited_.insert(t);
 
     if (t->get_op() == Ite)
     {
@@ -756,14 +755,23 @@ void IC3SA::justify_coi(TermVec to_visit, UnorderedTermSet & projection)
     }
     else
     {
-      to_visit.insert(to_visit.end(), t->begin(), t->end());
+      assert(!is_logical_op(t, boolsort_));
+      get_free_symbolic_consts(t, free_vars);
     }
+  }
 
-    throw PonoException("NYI -- need to check implementation above and add to projection at some point");
+  const UnorderedTermSet & inputvars = ts_.inputvars();
+  for (const auto & fv : free_vars) {
+    // don't include input variables in projection
+    if (!ts_.is_input_var(fv)) {
+      // not expecting any next state vars
+      assert(ts_.is_curr_var(fv));
+      projection.insert(fv);
+    }
   }
 }
 
-Term get_controlling(const Term & t)
+Term IC3SA::get_controlling(const Term & t) const
 {
   throw PonoException("NYI");
 }
