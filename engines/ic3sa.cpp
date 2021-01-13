@@ -37,6 +37,24 @@ using namespace std;
 
 namespace pono {
 
+unordered_set logical_ops({
+                           And,
+                           Or,
+                           // include bit-vector versions for boolector
+                           // will prune out based on sort if not-applicable
+                           // e.g. for other solvers
+                           BVOr,
+                           BVAnd
+  });
+
+inline bool is_logical_op(const Term & t, const Sort & boolsort)
+{
+  Op & op = t->get_op();
+  return ((t->get_sort() == boolsort) &&
+          !op.is_null() &&
+          (logical_ops.find(op.prim_op) != logical_opts.end()));
+}
+
 // checks if t is an equality literal
 // includes BV operators for boolector
 // but checks for boolean sort first
@@ -63,7 +81,10 @@ IC3SA::IC3SA(const Property & p,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
              PonoOptions opt)
-    : super(p, ts, solver, opt), fcoi_(ts_, 0)
+    : super(p, ts, solver, opt),
+      // TODO remove this when justify_coi is done
+      fcoi_(ts_, 0),
+      boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;
 }
@@ -674,6 +695,77 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
   }
 
   return new_terms;
+}
+
+void IC3SA::justify_coi(TermVec to_visit, UnorderedTermSet & projection)
+{
+  // expecting to have a satisfiable context
+  // and IC3Base only solves at context levels > 0
+  assert(solver_context_);
+  visited_.clear();
+  TermVec children;
+  const UnorderedTermMap & state_updates = ts_.state_updates();
+
+  Term t;
+  while(!to_visit.empty())
+  {
+    t = to_visit.back();
+    to_visit.pop_back();
+
+    if (visited.find(t) != visited.end())
+    {
+      continue;
+    }
+    visited.insert(t);
+
+    if (t->get_op() == Ite)
+    {
+      children.clear();
+      children.insert(children.end(), t->begin(), t->end());
+      assert(children.size() == 3);
+      if (solver_->get_value(children[0]) == solver_true_)
+      {
+        // the if branch is active
+        to_visit.push_back(children[1]);
+      }
+      else
+      {
+        // the else branch is active
+        to_visit.push_back(children[2]);
+      }
+    }
+    else if (is_logical_op(t, boolsort_))
+    {
+      Op op = t->get_op();
+      // include bitvector versions for boolector
+      // won't even be in this case if the solver doesn't consider it a boolean
+      // though
+      if ((((op == And) || (op == BVAnd)) && solver_->get_value(t) != solver_true_) ||
+          (((op == Or) || (op == BVOr)) && solver_->get_value(t) == solver_true_))
+      {
+        to_visit.push_back(get_controlling(t));
+      }
+      else
+      {
+        to_visit.insert(to_visit.end(), t->begin(), t->end());
+      }
+    }
+    else if (ts_.is_next_var(t) && state_updates.find(t) != state_updates.end())
+    {
+      to_visit.push_back(state_updates.at(t));
+    }
+    else
+    {
+      to_visit.insert(to_visit.end(), t->begin(), t->end());
+    }
+
+    throw PonoException("NYI -- need to check implementation above and add to projection at some point");
+  }
+}
+
+Term get_controlling(const Term & t)
+{
+  throw PonoException("NYI");
 }
 
 void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const
