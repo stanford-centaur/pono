@@ -37,15 +37,13 @@ using namespace std;
 
 namespace pono {
 
-unordered_set logical_ops({
-                           And,
-                           Or,
-                           // include bit-vector versions for boolector
-                           // will prune out based on sort if not-applicable
-                           // e.g. for other solvers
-                           BVOr,
-                           BVAnd
-  });
+unordered_set<PrimOp> logical_ops({ And,
+                                    Or,
+                                    // include bit-vector versions for boolector
+                                    // will prune out based on sort if
+                                    // not-applicable e.g. for other solvers
+                                    BVOr,
+                                    BVAnd });
 
 inline bool is_logical_op(const Term & t, const Sort & boolsort)
 {
