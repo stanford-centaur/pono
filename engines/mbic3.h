@@ -46,7 +46,7 @@ class ModelBasedIC3 : public IC3Base
   IC3Formula inductive_generalization(size_t i, const IC3Formula & c) override;
 
   void predecessor_generalization(size_t i,
-                                  const IC3Formula & c,
+                                  const smt::Term & c,
                                   IC3Formula & pred) override;
 
   void check_ts() const override;

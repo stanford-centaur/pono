@@ -335,7 +335,7 @@ IC3Formula IC3Base::inductive_generalization(size_t i, const IC3Formula & c)
 }
 
 void IC3Base::predecessor_generalization(size_t i,
-                                         const IC3Formula & c,
+                                         const Term & c,
                                          IC3Formula & pred)
 {
   // by default does no generalization
@@ -362,28 +362,14 @@ bool IC3Base::intersects_bad(IC3Formula & out)
     assert(out.children.size());
     assert(ic3formula_check_valid(out));
 
-    // disable generalization
-    // TODO maybe allow predecessor generalization here
-    // main problem now is that bad_ might not be an IC3Formula
-    // could always use a label for it though
+    if (options_.ic3_pregen_) {
+      // try to generalize if predecessor generalization enabled
+      predecessor_generalization(frames_.size(), bad_, out);
+    }
 
-    // // reduce
-    // TermVec red_c;
-    // // with abstraction can't guarantee this is unsat
-    // if (reducer_.reduce_assump_unsatcore(
-    //         smart_not(bad_), out.children, red_c)) {
-    //   logger.log(1,
-    //              "generalized bad cube to {}/{}",
-    //              red_c.size(),
-    //              out.children.size());
-    //   out = ic3formula_conjunction(red_c);
-
-    //   assert(out.term);
-    //   assert(out.children.size());
-    //   assert(ic3formula_check_valid(out));
-    // } else {
-    //   logger.log(1, "generalizing bad failed");
-    // }
+    assert(out.term);
+    assert(out.children.size());
+    assert(ic3formula_check_valid(out));
   }
 
   pop_solver_context();
@@ -524,7 +510,7 @@ bool IC3Base::rel_ind_check(size_t i,
     if (get_pred) {
       out = get_model_ic3formula();
       if (options_.ic3_pregen_) {
-        predecessor_generalization(i, c, out);
+        predecessor_generalization(i, c.term, out);
         assert(out.term);
         assert(out.children.size());
         assert(!out.disjunction);  // expecting a conjunction

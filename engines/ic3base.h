@@ -277,7 +277,8 @@ class IC3Base : public Prover
    *  @requires rel_ind_check(i, c)
    *  @requires the solver_ context is currently satisfiable
    *  @param i the frame number
-   *  @param c the IC3Formula conjunction to find a general predecessor for
+   *  @param c the term that failed to be blocked at i
+   *         (over current state vars)
    *  @param pred the predecessor. originally passed as full assignment
    *         and then is updated in to be a generalized predecessor
    *  @ensures pred -> F[i-1] /\
@@ -286,7 +287,7 @@ class IC3Base : public Prover
    *           other assertions
    */
   virtual void predecessor_generalization(size_t i,
-                                          const IC3Formula & c,
+                                          const smt::Term & c,
                                           IC3Formula & pred);
 
   /** Generates an abstract transition system
