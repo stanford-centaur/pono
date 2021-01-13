@@ -750,22 +750,20 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
     else if (ts_.is_next_var(t) && state_updates.find(t) != state_updates.end())
     {
       to_visit_.push_back(state_updates.at(t));
-    }
-    else
-    {
-      assert(!is_logical_op(t, boolsort_));
-      get_free_symbolic_consts(t, free_vars);
+    } else if (ts_.is_curr_var(t)) {
+      free_vars.insert(t);
+    } else {
+      for (const auto & tt : t) {
+        to_visit_.push_back(tt);
+      }
     }
   }
 
   const UnorderedTermSet & inputvars = ts_.inputvars();
   for (const auto & fv : free_vars) {
-    // don't include input variables in projection
-    if (!ts_.is_input_var(fv)) {
-      // not expecting any next state vars
-      assert(ts_.is_curr_var(fv));
-      projection.insert(fv);
-    }
+    // not expecting any next state vars or inputs
+    assert(ts_.is_curr_var(fv));
+    projection.insert(fv);
   }
 }
 
