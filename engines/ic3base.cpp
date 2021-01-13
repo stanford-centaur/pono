@@ -112,18 +112,11 @@ IC3Base::IC3Base(const Property & p,
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),
-      cex_pg_(nullptr),
       boolsort_(solver_->make_sort(BOOL))
 {
 }
 
-IC3Base::~IC3Base()
-{
-  if (cex_pg_) {
-    delete cex_pg_;
-    cex_pg_ = nullptr;
-  }
-}
+IC3Base::~IC3Base() {}
 
 void IC3Base::initialize()
 {
@@ -186,14 +179,6 @@ ProverResult IC3Base::check_until(int k)
   int i = reached_k_ + 1;
   assert(reached_k_ + 1 >= 0);
   for (size_t i = reached_k_ + 1; i <= k; ++i) {
-    // reset cex_pg_ to null
-    // there might be multiple abstract traces if there's a derived class
-    // doing abstraction refinement
-    if (cex_pg_) {
-      delete cex_pg_;
-      cex_pg_ = nullptr;
-    }
-
     res = step(i);
     if (res != ProverResult::UNKNOWN) {
       return res;
@@ -430,6 +415,9 @@ ProverResult IC3Base::step_01()
     Result r = check_sat();
     if (r.is_sat()) {
       pop_solver_context();
+      // trace is only one bad state that intersects with initial
+      cex_.clear();
+      cex_.push_back(bad_);
       return ProverResult::FALSE;
     } else {
       assert(r.is_unsat());
@@ -448,8 +436,10 @@ ProverResult IC3Base::step_01()
   Result r = check_sat();
   if (r.is_sat()) {
     const IC3Formula &c = get_model_ic3formula();
-    cex_pg_ = new ProofGoal(c, 0, nullptr);
     pop_solver_context();
+    ProofGoal * pg = new ProofGoal(c, 0, nullptr);
+    reconstruct_trace(pg, cex_);
+    delete pg;
     return ProverResult::FALSE;
   } else {
     assert(r.is_unsat());
@@ -581,9 +571,8 @@ bool IC3Base::block_all()
 
       if (!pg->idx) {
         // went all the way back to initial
-        // TODO refactor refinement to not use cex_pg_
         // need to create a new proof goal that's not managed by the queue
-        cex_pg_ = new ProofGoal(pg->target, pg->idx, pg->next);
+        reconstruct_trace(pg, cex_);
         RefineResult s = refine();
         if (s == REFINE_SUCCESS) {
           // on successful refinement, clear the queue of proof goals
@@ -592,18 +581,10 @@ bool IC3Base::block_all()
           // that refines but can keep proof goals around
           proof_goals.clear();
 
-          // and reset cex_pg_
-          if (cex_pg_) {
-            delete cex_pg_;
-            cex_pg_ = nullptr;
-          }
           continue;
         } else if (s == REFINE_NONE) {
           // this is a real counterexample
-          // TODO refactor this
-          assert(cex_pg_);
-          assert(cex_pg_->target.term == pg->target.term);
-          assert(cex_pg_->idx == pg->idx);
+          assert(cex_.size());
           return false;
         } else {
           assert(s == REFINE_FAIL);
@@ -904,6 +885,25 @@ TermVec IC3Base::get_next_state_values() const
     out_nexts.push_back(solver_->make_term(Equal, nv, solver_->get_value(nv)));
   }
   return out_nexts;
+}
+
+void IC3Base::reconstruct_trace(const ProofGoal * pg, TermVec & out)
+{
+  assert(!solver_context_);
+  assert(pg);
+  assert(pg->target.term);
+  assert(check_intersects_initial(pg->target.term));
+
+  out.clear();
+  while (pg) {
+    out.push_back(pg->target.term);
+    assert(ts_.only_curr(out.back()));
+    pg = pg->next;
+  }
+
+  // always add bad as last state so it's a full trace
+  // NOTE this is because the reaches_bad implementation
+  out.push_back(bad_);
 }
 
 Term IC3Base::make_and(TermVec vec, SmtSolver slv) const

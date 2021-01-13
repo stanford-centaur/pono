@@ -162,11 +162,8 @@ class IC3Base : public Prover
   bool failed_to_reset_solver_;  ///< some solvers don't support reset
                                  ///< assertions. Stop trying for those solvers.
 
-  const ProofGoal * cex_pg_;  ///< if a proof goal is traced back to init
-                              ///< this gets set to the first proof goal
-                              ///< in the trace
-                              ///< otherwise starts null, can check that
-                              ///< cex_pg_.target.term is a nullptr
+  smt::TermVec cex_;  ///< a vector of terms over state variables describing
+                      ///< a (possibly abstract) counterexample trace
 
   ///< the frames data structure.
   ///< a vector of the given Unit template
@@ -301,10 +298,8 @@ class IC3Base : public Prover
    * CEX
    *          - REFINE_SUCCESS if successfully refined / ruled out abstract CEX
    *          - REFINE_FAIL if failed during refinement
-   *  NOTE the counterexample trace is accessible through cex_pg_ which is
+   *  NOTE the counterexample trace is accessible through cex_ which is
    *  set by block_all when a trace is found
-   *  can reconstruct the trace (without input variable values) by following
-   *  the ProofGoal next field iteratively
    */
   virtual RefineResult refine()
   {
@@ -367,9 +362,7 @@ class IC3Base : public Prover
    *  to ensure termination, always choose proof goal with
    *  smallest time
    *  @return true iff all proof goals were blocked
-   *  if returns false, sets cex_pg_ to the first ProofGoal
-   *  of a trace, e.g. the trace can be recovered by following
-   *  pg.next iteratively
+   *  if returns false, sets cex_ to the trace
    */
   bool block_all();
 
@@ -461,6 +454,17 @@ class IC3Base : public Prover
    *  @return vector of equalities
    */
   smt::TermVec get_next_state_values() const;
+
+  /** Constructs a counterexample trace by following the
+   *  next pointers of pg until the end of the trace
+   *  @param pg the proof goal that starts at the initial states
+   *  @param out the vector to populate
+   *  NOTE: because of the reaches_bad implementation, the last goal
+   *  in the pg chain is not a bad state, but rather a state that
+   *  can reach bad in one step.
+   *  thus this method always adds bad_ to the end of the vector
+   */
+  void reconstruct_trace(const ProofGoal * pg, smt::TermVec & out);
 
   /** Creates a reduce and of the vector of boolean terms
    *  It also sorts the vector by the hash
