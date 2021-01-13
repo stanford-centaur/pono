@@ -81,8 +81,6 @@ IC3SA::IC3SA(const Property & p,
              const smt::SmtSolver & solver,
              PonoOptions opt)
     : super(p, ts, solver, opt),
-      // TODO remove this when justify_coi is done
-      fcoi_(ts_, 0),
       boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;
@@ -157,11 +155,9 @@ void IC3SA::predecessor_generalization(size_t i,
                                        const IC3Formula & c,
                                        IC3Formula & pred)
 {
-  // TODO: use the JustifyCOI algorithm from the paper
-  //       e.g. partial_model
-  // compute cone-of-influence of target c
-  fcoi_.compute_coi({ c.term });
-  const UnorderedTermSet & coi_symbols = fcoi_.statevars_in_coi();
+  UnorderedTermSet coi_symbols = projection_set_;
+
+  justify_coi(ts_.next(c.term), coi_symbols);
   assert(coi_symbols.size() <= ts_.statevars().size());
 
   logger.log(
@@ -696,21 +692,23 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
   return new_terms;
 }
 
-void IC3SA::justify_coi(TermVec to_visit, UnorderedTermSet & projection)
+void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
 {
   // expecting to have a satisfiable context
   // and IC3Base only solves at context levels > 0
   assert(solver_context_);
+  to_visit_.clear();
   visited_.clear();
+  to_visit_.push_back(c);
+
   TermVec children;
   UnorderedTermSet free_vars;
   const UnorderedTermMap & state_updates = ts_.state_updates();
 
   Term t;
-  while(!to_visit.empty())
-  {
-    t = to_visit.back();
-    to_visit.pop_back();
+  while (!to_visit_.empty()) {
+    t = to_visit_.back();
+    to_visit_.pop_back();
 
     if (visited_.find(t) != visited_.end()) {
       continue;
@@ -725,12 +723,12 @@ void IC3SA::justify_coi(TermVec to_visit, UnorderedTermSet & projection)
       if (solver_->get_value(children[0]) == solver_true_)
       {
         // the if branch is active
-        to_visit.push_back(children[1]);
+        to_visit_.push_back(children[1]);
       }
       else
       {
         // the else branch is active
-        to_visit.push_back(children[2]);
+        to_visit_.push_back(children[2]);
       }
     }
     else if (is_logical_op(t, boolsort_))
@@ -742,16 +740,16 @@ void IC3SA::justify_coi(TermVec to_visit, UnorderedTermSet & projection)
       if ((((op == And) || (op == BVAnd)) && solver_->get_value(t) != solver_true_) ||
           (((op == Or) || (op == BVOr)) && solver_->get_value(t) == solver_true_))
       {
-        to_visit.push_back(get_controlling(t));
+        to_visit_.push_back(get_controlling(t));
       }
       else
       {
-        to_visit.insert(to_visit.end(), t->begin(), t->end());
+        to_visit_.insert(to_visit_.end(), t->begin(), t->end());
       }
     }
     else if (ts_.is_next_var(t) && state_updates.find(t) != state_updates.end())
     {
-      to_visit.push_back(state_updates.at(t));
+      to_visit_.push_back(state_updates.at(t));
     }
     else
     {

@@ -25,7 +25,6 @@
 #pragma once
 
 #include "engines/ic3.h"
-#include "utils/fcoi.h"
 
 namespace pono {
 
@@ -60,15 +59,13 @@ class IC3SA : public IC3
 
   smt::UnorderedTermSet vars_in_bad_;  ///< variables occurring in bad
 
-  // TODO: replace this with partial_model
-  FunctionalConeOfInfluence fcoi_;
-
   std::vector<smt::UnorderedTermMap>
       inputvars_at_time_;  ///< unrolled variables
                            ///< only the unconstrained variables
                            ///< e.g. input variables and state vars
                            ///< with no next state update
 
+  smt::TermVec to_visit_;          ///< temporary var for justify_coi
   smt::UnorderedTermSet visited_;  ///< temporary var for justify_coi
 
   // useful sort
@@ -139,7 +136,7 @@ class IC3SA : public IC3
    */
   bool add_to_term_abstraction(const smt::Term & term);
 
-  void justify_coi(smt::TermVec to_visit, smt::UnorderedTermSet & projection);
+  void justify_coi(smt::Term c, smt::UnorderedTermSet & projection);
 
   // helper function for justify_coi
   smt::Term get_controlling(smt::Term t) const;
