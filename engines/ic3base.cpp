@@ -348,7 +348,7 @@ bool IC3Base::intersects_bad(IC3Formula & out)
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
-  assert_frame_labels(reached_k_ + 1);
+  assert_frame_labels(frontier_idx());
   // see if it intersects with bad in next states
   solver_->assert_formula(ts_.next(bad_));
   // don't need transition relation for this check
@@ -398,14 +398,14 @@ ProverResult IC3Base::step(int i)
     return ProverResult::UNKNOWN;
   }
 
-  if (reached_k_ < 0) {
-    return step_0();
+  if (reached_k_ < 1) {
+    return step_01();
   }
 
   // reached_k_ is the number of transitions that have been checked
   // at this point there are reached_k_ + 1 frames that don't
   // intersect bad, and reached_k_ + 2 frames overall
-  assert(reached_k_ + 2 == frames_.size());
+  assert(reached_k_ == frontier_idx());
   logger.log(1, "Blocking phase at frame {}", i);
   if (!block_all()) {
     // counter-example
@@ -434,14 +434,33 @@ ProverResult IC3Base::step(int i)
   return ProverResult::UNKNOWN;
 }
 
-ProverResult IC3Base::step_0()
+ProverResult IC3Base::step_01()
 {
-  logger.log(1, "Checking if initial states satisfy property");
-  assert(reached_k_ < 0);
+  assert(reached_k_ < 1);
+  if (reached_k_ < 0) {
+    logger.log(1, "Checking if initial states satisfy property");
+
+    push_solver_context();
+    solver_->assert_formula(init_label_);
+    solver_->assert_formula(bad_);
+    Result r = check_sat();
+    if (r.is_sat()) {
+      pop_solver_context();
+      return ProverResult::FALSE;
+    } else {
+      assert(r.is_unsat());
+      reached_k_ = 0;  // keep reached_k_ aligned with number of frames
+    }
+    pop_solver_context();
+  }
+
+  assert(reached_k_ == 0);
+  logger.log(1, "Checking if property can be violated in one-step");
 
   push_solver_context();
   solver_->assert_formula(init_label_);
-  solver_->assert_formula(bad_);
+  solver_->assert_formula(trans_label_);
+  solver_->assert_formula(ts_.next(bad_));
   Result r = check_sat();
   if (r.is_sat()) {
     const IC3Formula &c = get_model_ic3formula();
@@ -450,9 +469,10 @@ ProverResult IC3Base::step_0()
     return ProverResult::FALSE;
   } else {
     assert(r.is_unsat());
-    reached_k_ = 0;  // keep reached_k_ aligned with number of frames
+    reached_k_ = 1;  // keep reached_k_ aligned with number of frames
   }
   pop_solver_context();
+
   return ProverResult::UNKNOWN;
 }
 

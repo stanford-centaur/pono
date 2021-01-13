@@ -340,7 +340,7 @@ class IC3Base : public Prover
 
   /** Perform the base IC3 step (zero case)
    */
-  ProverResult step_0();
+  ProverResult step_01();
 
   /** Do a relative inductiveness check at frame i-1
    *  aka see if c at frame i is reachable from frame i-1
