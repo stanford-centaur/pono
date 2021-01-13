@@ -422,6 +422,7 @@ ProverResult IC3Base::step(int i)
       // which is the frame that just had all terms
       // from the previous frames propagated
       invar_ = get_frame_term(j + 1);
+      invar_ = solver_->make_term(And, invar_, smart_not(bad_));
       return ProverResult::TRUE;
     }
   }
