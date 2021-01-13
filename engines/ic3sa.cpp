@@ -166,8 +166,9 @@ void IC3SA::predecessor_generalization(size_t i,
       coi_symbols.size(),
       ts_.statevars().size());
 
-  UnorderedTermSet cube_lits;
+  assert(coi_symbols.size());
 
+  UnorderedTermSet cube_lits;
   // first populate with predicates
   for (const auto & p : predset_) {
     if (!in_projection(p, coi_symbols)) {
@@ -715,6 +716,8 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
       children.clear();
       children.insert(children.end(), t->begin(), t->end());
       assert(children.size() == 3);
+      // always visit the condition
+      to_visit_.push_back(children[0]);
       if (solver_->get_value(children[0]) == solver_true_)
       {
         // the if branch is active
