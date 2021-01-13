@@ -342,9 +342,7 @@ void IC3Base::predecessor_generalization(size_t i,
   return;
 }
 
-// TODO change name if we keep this update
-//      because it's no longer intersects_bad
-bool IC3Base::intersects_bad(IC3Formula & out)
+bool IC3Base::reaches_bad(IC3Formula & out)
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
@@ -572,11 +570,11 @@ bool IC3Base::block_all()
 {
   assert(!solver_context_);
   ProofGoalQueue proof_goals;
-  IC3Formula bad_goal;
-  while (intersects_bad(bad_goal)) {
-    assert(bad_goal.term);  // expecting non-null
+  IC3Formula goal;
+  while (reaches_bad(goal)) {
+    assert(goal.term);            // expecting non-null
     assert(proof_goals.empty());  // bad should be the first goal each iteration
-    proof_goals.new_proof_goal(bad_goal, frontier_idx(), nullptr);
+    proof_goals.new_proof_goal(goal, frontier_idx(), nullptr);
 
     while (!proof_goals.empty()) {
       const ProofGoal * pg = proof_goals.top();
@@ -665,8 +663,8 @@ bool IC3Base::block_all()
       }
     }  // end while(!proof_goals.empty())
 
-    assert(!(bad_goal = IC3Formula()).term);  // in debug mode, reset it
-  }                                           // end while(intersects_bad())
+    assert(!(goal = IC3Formula()).term);  // in debug mode, reset it
+  }                                       // end while(reaches_bad(goal))
 
   assert(proof_goals.empty());
   return true;
