@@ -245,16 +245,17 @@ int main(int argc, char ** argv)
         StaticConeOfInfluence coi(fts, { prop }, pono_options.verbosity_);
       }
 
-      if (pono_options.assume_prop_) {
-        // NOTE: crucial that mod_init_prop pass is before this pass
-        // can't assume the non-delayed prop and also delay it
-        prop_in_trans(fts, prop);
-      }
-
       if (!fts.only_curr(prop)) {
         logger.log(1, "Got next state or input variables in property. "
                    "Generating a monitor state.");
         prop = add_prop_monitor(fts, prop);
+      }
+
+      if (pono_options.assume_prop_) {
+        // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
+        // before this pass can't assume the non-delayed prop and also
+        // delay it
+        prop_in_trans(fts, prop);
       }
 
       vector<UnorderedTermMap> cex;
@@ -327,16 +328,17 @@ int main(int argc, char ** argv)
         StaticConeOfInfluence coi(rts, { prop }, pono_options.verbosity_);
       }
 
-      if (pono_options.assume_prop_) {
-        // NOTE: crucial that mod_init_prop pass is before this pass
-        // can't assume the non-delayed prop and also delay it
-        prop_in_trans(rts, prop);
-      }
-
       if (!rts.only_curr(prop)) {
         logger.log(1, "Got next state or input variables in property. "
                    "Generating a monitor state.");
         prop = add_prop_monitor(rts, prop);
+      }
+
+      if (pono_options.assume_prop_) {
+        // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
+        // before this pass can't assume the non-delayed prop and also
+        // delay it
+        prop_in_trans(rts, prop);
       }
 
       Property p(s, prop, prop_name);
