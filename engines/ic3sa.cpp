@@ -169,14 +169,9 @@ void IC3SA::predecessor_generalization(size_t i,
   UnorderedTermSet cube_lits;
 
   // first populate with predicates
-  UnorderedTermSet free_symbols;
   for (const auto & p : predset_) {
-    free_symbols.clear();
-    get_free_symbolic_consts(p, free_symbols);
-    for (const auto & fv : free_symbols) {
-      if (coi_symbols.find(fv) != coi_symbols.end()) {
-        continue;
-      }
+    if (!in_projection(p, coi_symbols)) {
+      continue;
     }
 
     if (solver_->get_value(p) == solver_true_) {
