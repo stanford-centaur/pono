@@ -251,6 +251,13 @@ int main(int argc, char ** argv)
         prop = add_prop_monitor(fts, prop);
       }
 
+      if (pono_options.assume_prop_) {
+        // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
+        // before this pass can't assume the non-delayed prop and also
+        // delay it
+        prop_in_trans(fts, prop);
+      }
+
       vector<UnorderedTermMap> cex;
       Property p(s, prop, prop_name);
       res = check_prop(pono_options, p, fts, s, cex);
@@ -325,6 +332,13 @@ int main(int argc, char ** argv)
         logger.log(1, "Got next state or input variables in property. "
                    "Generating a monitor state.");
         prop = add_prop_monitor(rts, prop);
+      }
+
+      if (pono_options.assume_prop_) {
+        // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
+        // before this pass can't assume the non-delayed prop and also
+        // delay it
+        prop_in_trans(rts, prop);
       }
 
       Property p(s, prop, prop_name);

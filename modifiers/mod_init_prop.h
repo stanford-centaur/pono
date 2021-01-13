@@ -68,4 +68,14 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
   return new_prop;
 }
 
+// optimization to assume the property in the pre-state
+// although confusing, this is sound as long as you always check
+// for a property violation over the next-state variables
+void prop_in_trans(TransitionSystem & ts, const smt::Term & prop)
+{
+  // NOTE: CRUCIAL that we pass false, false here
+  // cannot add to init or the next states
+  ts.add_constraint(prop, false, false);
+}
+
 }  // namespace pono

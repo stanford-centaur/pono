@@ -52,7 +52,8 @@ enum optionIndex
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
-  MOD_INIT_PROP
+  MOD_INIT_PROP,
+  NO_ASSUME_PROP
 };
 
 struct Arg : public option::Arg
@@ -255,6 +256,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --mod-init-prop \tReplace init and prop with state variables -- can "
     "extend trace by up to two steps. Recommended for use with ic3ia." },
+  { NO_ASSUME_PROP,
+    0,
+    "",
+    "no-assume-prop",
+    Arg::None,
+    "  --no-assume-prop \tdisable assuming property in pre-state (default "
+    "enabled)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -374,6 +382,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
 #endif
           break;
         case MOD_INIT_PROP: mod_init_prop_ = true;
+        case NO_ASSUME_PROP: assume_prop_ = false;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
