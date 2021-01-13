@@ -741,10 +741,9 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
       {
         to_visit_.insert(to_visit_.end(), t->begin(), t->end());
       }
-    }
-    else if (ts_.is_next_var(t) && state_updates.find(t) != state_updates.end())
-    {
-      to_visit_.push_back(state_updates.at(t));
+    } else if (ts_.is_next_var(t)
+               && state_updates.find(ts_.curr(t)) != state_updates.end()) {
+      to_visit_.push_back(state_updates.at(ts_.curr(t)));
     } else if (ts_.is_curr_var(t)) {
       free_vars.insert(t);
     } else {
