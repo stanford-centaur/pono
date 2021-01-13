@@ -36,11 +36,7 @@ class SMVEncoder
     preprocess();
     module_flat = true;
     loc.end.line = 0;
-    //std::string flatten =filename.substr(0,filename.find_last_of(".")) + "_flatten.txt";
-    //std::ofstream ofile(flatten);
     std::string output= preprocess().str();
-    //ofile << output <<std::endl;
-    //ofile.close();
     processCase();
   };
 
