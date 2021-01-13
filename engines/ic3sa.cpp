@@ -771,9 +771,27 @@ void IC3SA::justify_coi(TermVec to_visit, UnorderedTermSet & projection)
   }
 }
 
-Term IC3SA::get_controlling(const Term & t) const
+Term IC3SA::get_controlling(Term t) const
 {
-  throw PonoException("NYI");
+  assert(solver_context_);
+  const Op & op = t->get_op();
+  assert(!op.is_null());
+
+  Term controlling_val = solver_true_;
+  if (((op == And) || (op == BVAnd)) && solver_->get_value(t) != solver_true_) {
+    // controlling val for and is false
+    controlling_val = solver_->make_term(false);
+  }
+
+  Term controlling_term;
+  for (const auto & tt : t) {
+    if (solver_->get_value(tt) == controlling_val) {
+      controlling_term = tt;
+      break;
+    }
+  }
+  assert(controlling_term);
+  return controlling_term;
 }
 
 void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const

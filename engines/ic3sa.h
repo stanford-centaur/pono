@@ -142,7 +142,7 @@ class IC3SA : public IC3
   void justify_coi(smt::TermVec to_visit, smt::UnorderedTermSet & projection);
 
   // helper function for justify_coi
-  smt::Term get_controlling(const smt::Term & t) const;
+  smt::Term get_controlling(smt::Term t) const;
 
   /** Check if a term is in the projection
    *  @param t the term to check
