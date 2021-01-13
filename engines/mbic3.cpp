@@ -434,28 +434,6 @@ void ModelBasedIC3::check_ts() const
   }
 }
 
-bool ModelBasedIC3::intersects_bad(IC3Formula & out)
-{
-  push_solver_context();
-  // assert the last frame (conjunction over clauses)
-  assert_frame_labels(reached_k_ + 1);
-  // see if it intersects with bad
-  solver_->assert_formula(bad_);
-  Result r = check_sat();
-
-  if (r.is_sat()) {
-    // push bad as a proof goal
-    TermVec conjuncts;
-    conjunctive_partition(bad_, conjuncts, true);
-    out = ic3formula_conjunction(conjuncts);
-  }
-
-  pop_solver_context();
-
-  assert(!r.is_unknown());
-  return r.is_sat();
-}
-
 void ModelBasedIC3::initialize()
 {
   if (initialized_) {
