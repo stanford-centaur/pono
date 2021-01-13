@@ -204,6 +204,8 @@ RefineResult IC3IA::refine()
     assert(ts_.only_curr(tmp->target.term));
     tmp = tmp->next;
   }
+  // always assume the last step goes to a bad state
+  cex.push_back(bad_);
 
   if (cex.size() == 1) {
     // if there are no transitions, then this is a concrete CEX

@@ -342,16 +342,18 @@ void IC3Base::predecessor_generalization(size_t i,
   return;
 }
 
+// TODO change name if we keep this update
+//      because it's no longer intersects_bad
 bool IC3Base::intersects_bad(IC3Formula & out)
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
   assert_frame_labels(reached_k_ + 1);
-  // see if it intersects with bad
-  solver_->assert_formula(bad_label_);
+  // see if it intersects with bad in next states
+  solver_->assert_formula(ts_.next(bad_));
   // don't need transition relation for this check
   // can deactivate it
-  solver_->assert_formula(solver_->make_term(Not, trans_label_));
+  solver_->assert_formula(trans_label_);
   Result r = check_sat();
 
   if (r.is_sat()) {
@@ -360,23 +362,28 @@ bool IC3Base::intersects_bad(IC3Formula & out)
     assert(out.children.size());
     assert(ic3formula_check_valid(out));
 
-    // reduce
-    TermVec red_c;
-    // with abstraction can't guarantee this is unsat
-    if (reducer_.reduce_assump_unsatcore(
-            smart_not(bad_), out.children, red_c)) {
-      logger.log(1,
-                 "generalized bad cube to {}/{}",
-                 red_c.size(),
-                 out.children.size());
-      out = ic3formula_conjunction(red_c);
+    // disable generalization
+    // TODO maybe allow predecessor generalization here
+    // main problem now is that bad_ might not be an IC3Formula
+    // could always use a label for it though
 
-      assert(out.term);
-      assert(out.children.size());
-      assert(ic3formula_check_valid(out));
-    } else {
-      logger.log(1, "generalizing bad failed");
-    }
+    // // reduce
+    // TermVec red_c;
+    // // with abstraction can't guarantee this is unsat
+    // if (reducer_.reduce_assump_unsatcore(
+    //         smart_not(bad_), out.children, red_c)) {
+    //   logger.log(1,
+    //              "generalized bad cube to {}/{}",
+    //              red_c.size(),
+    //              out.children.size());
+    //   out = ic3formula_conjunction(red_c);
+
+    //   assert(out.term);
+    //   assert(out.children.size());
+    //   assert(ic3formula_check_valid(out));
+    // } else {
+    //   logger.log(1, "generalizing bad failed");
+    // }
   }
 
   pop_solver_context();
