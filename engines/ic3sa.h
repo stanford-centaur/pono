@@ -65,6 +65,11 @@ class IC3SA : public IC3
                            ///< e.g. input variables and state vars
                            ///< with no next state update
 
+  std::unordered_map<smt::Term, smt::UnorderedTermSet> constraint_vars_;
+  ///< this data structure is used to find (current state) variables
+  ///< that are related by a constraint
+  ///< this is needed for soundness in justify_coi
+
   smt::TermVec to_visit_;          ///< temporary var for justify_coi
   smt::UnorderedTermSet visited_;  ///< temporary var for justify_coi
 

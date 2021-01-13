@@ -72,6 +72,22 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
   return (op == Equal || op == BVComp || op == Distinct);
 }
 
+// helper function for an assertion
+// returns true iff all the variables in t are next-state vars
+bool all_next(const TransitionSystem & ts, const Term & t)
+{
+  UnorderedTermSet vars;
+  get_free_symbolic_consts(t, vars);
+  bool all_next = true;
+  for (const auto & v : vars) {
+    if (!ts.is_next_var(v)) {
+      all_next = false;
+      break;
+    }
+  }
+  return all_next;
+}
+
 // main IC3SA implementation
 
 IC3SA::IC3SA(const Property & p,
@@ -193,6 +209,10 @@ void IC3SA::check_ts() const
   //       might work if we just remove input variables from the subterms
   // TODO: add option to promote all inputs to be state vars
   // TODO: add support for arrays
+
+  if (!ts_.is_functional()) {
+    throw PonoException("IC3SA requires a functional transition system.");
+  }
 
   for (const auto & sv : ts_.statevars()) {
     SortKind sk = sv->get_sort()->get_sort_kind();
@@ -454,6 +474,22 @@ void IC3SA::initialize()
 
   // collect variables in bad_
   get_free_symbolic_consts(bad_, vars_in_bad_);
+
+  // populate the map used in justify_coi to take constraints into account
+  assert(ts_.is_functional());
+  UnorderedTermSet tmp_vars;
+  for (const auto & constraint : ts_.constraints()) {
+    if (ts_.no_next(constraint)) {
+      tmp_vars.clear();
+      get_free_symbolic_consts(constraint, tmp_vars);
+      constraint_vars_[constraint] = tmp_vars;
+    } else {
+      // functional system should not have constraints
+      // that mention both current state and next state variables
+      // compiler should optimize away this lambda if not using it in the assert
+      assert(all_next(ts_, constraint));
+    }
+  }
 }
 
 // IC3SA specific methods
@@ -747,6 +783,17 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
       to_visit_.push_back(state_updates.at(ts_.curr(t)));
     } else if (ts_.is_curr_var(t)) {
       free_vars.insert(t);
+
+      // need to add any constraints that this variable is involved in
+      // to the visit stack
+      for (const auto & elem : constraint_vars_) {
+        if (elem.second.find(t) != elem.second.end()) {
+          // this variable occurs in this constraint
+          // add the constraint
+          to_visit_.push_back(elem.first);
+        }
+      }
+
     } else {
       for (const auto & tt : t) {
         to_visit_.push_back(tt);
