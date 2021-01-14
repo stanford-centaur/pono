@@ -272,8 +272,11 @@ bool CegarValues<Prover_T>::cegar_refine()
         logger.log(2, "CegarValues adding refinement axiom {}", equalities[i]);
         // need to refine both systems
         cegval_ts_.add_constraint(equalities[i]);
-        prover_ts_.add_constraint(
-            from_cegval_solver_.transfer_term(equalities[i], BOOL));
+        Term transferred_eq =
+            from_cegval_solver_.transfer_term(equalities[i], BOOL);
+        // TODO this should be more modular
+        //      can't assume super::abs_ts_ is the right one to constrain
+        super::abs_ts_.add_constraint(transferred_eq);
       }
     }
   }
