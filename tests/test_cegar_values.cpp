@@ -45,11 +45,8 @@ TEST(CegValues, Simple)
   shared_ptr<Prover> ceg =
       make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s);
 
-  ceg->initialize();
-
-  // TODO actually run the system
-  // ProverResult r = ceg->check_until(5);
-  // ASSERT_EQ(r, ProverResult::TRUE);
+  ProverResult r = ceg->check_until(5);
+  ASSERT_EQ(r, ProverResult::TRUE);
 }
 
 }  // namespace pono_tests

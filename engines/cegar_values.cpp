@@ -23,7 +23,9 @@
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
 #include "smt-switch/identity_walker.h"
+#include "smt/available_solvers.h"
 #include "utils/exceptions.h"
+#include "utils/make_provers.h"
 
 using namespace smt;
 using namespace std;
@@ -121,7 +123,22 @@ CegarValues<Prover_T>::CegarValues(const Property & p,
 template <class Prover_T>
 ProverResult CegarValues<Prover_T>::check_until(int k)
 {
-  throw PonoException("NYI");
+  initialize();
+
+  ProverResult res = ProverResult::FALSE;
+  while (res == ProverResult::FALSE) {
+    // need to call parent's check_until in case it
+    // is another cegar loop rather than an engine
+    res = super::check_until(k);
+
+    if (res == ProverResult::FALSE) {
+      if (!cegar_refine()) {
+        return ProverResult::FALSE;
+      }
+    }
+  }
+
+  return res;
 }
 
 template <class Prover_T>

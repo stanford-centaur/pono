@@ -145,6 +145,8 @@ void CegProphecyArrays<Prover_T>::initialize()
     return;
   }
 
+  // specify which cegar_abstract in case
+  // we're inheriting from another cegar algorithm
   CegProphecyArrays::cegar_abstract();
   // call super initializer after abstraction
   super::initialize();
