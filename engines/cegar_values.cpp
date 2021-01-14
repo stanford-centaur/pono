@@ -18,6 +18,10 @@
 
 #include <unordered_set>
 
+#include "core/fts.h"
+#include "core/rts.h"
+#include "engines/ceg_prophecy_arrays.h"
+#include "engines/ic3ia.h"
 #include "smt-switch/identity_walker.h"
 #include "utils/exceptions.h"
 
@@ -96,14 +100,23 @@ class ValueAbstractor : protected smt::IdentityWalker
   UnorderedTermMap & abstracted_values_;
 };
 
+TransitionSystem create_fresh_ts(bool functional, const SmtSolver & solver)
+{
+  if (functional) {
+    return FunctionalTransitionSystem(solver);
+  } else {
+    return RelationalTransitionSystem(solver);
+  }
+}
+
 template <class Prover_T>
 CegarValues<Prover_T>::CegarValues(const Property & p,
                                    const TransitionSystem & ts,
                                    const smt::SmtSolver & solver,
                                    PonoOptions opt)
-    : super(p, ts, solver, opt),
-      conc_ts_(ts),
-      abs_ts_(super::prover_interface_ts())
+    : super(p, create_fresh_ts(ts.is_functional(), solver), solver, opt),
+      conc_ts_(ts, super::to_prover_solver_),
+      prover_ts_(super::prover_interface_ts())
 {
 }
 
@@ -137,5 +150,8 @@ bool CegarValues<Prover_T>::cegar_refine()
 {
   throw PonoException("NYI");
 }
+
+// TODO add other template classes
+template class CegarValues<CegProphecyArrays<IC3IA>>;
 
 }  // namespace pono
