@@ -183,11 +183,6 @@ void CegarValues<Prover_T>::initialize()
                                       boolsort);
     cegval_labels_[elem.first] = lbl;
   }
-
-  // TODO clean this up -- managing the property / bad is a mess
-  // need to reset it a because super::initialize set it to the
-  // negated original (non-abstract) property
-  super::bad_ = from_cegval_solver_.transfer_term(cegval_bad_, BOOL);
 }
 
 template <class Prover_T>
@@ -207,13 +202,8 @@ void CegarValues<Prover_T>::cegar_abstract()
         .set_behavior(va.visit(init), va.visit(trans));
   }
 
-  // TODO clean this up -- it's a mess with the property
-  // and bad_ in Prover::initialize
-  Term prop_term = (super::solver_ == super::orig_property_.solver())
-                       ? super::orig_property_.prop()
-                       : super::to_prover_solver_.transfer_term(
-                           super::orig_property_.prop(), BOOL);
-  super::bad_ = super::solver_->make_term(Not, va.visit(prop_term));
+  assert(super::bad_);
+  super::bad_ = va.visit(super::bad_);
   cegval_bad_ = to_cegval_solver_.transfer_term(super::bad_, BOOL);
 
   // expecting to have had values to abstract

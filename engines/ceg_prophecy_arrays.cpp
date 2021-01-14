@@ -178,12 +178,8 @@ void CegProphecyArrays<Prover_T>::cegar_abstract()
   aae_.initialize();
   // the ArrayAbstractor already abstracted the transition system on
   // construction -- only need to abstract bad
-  Term prop_term = (abs_ts_.solver() == super::orig_property_.solver())
-                       ? super::orig_property_.prop()
-                       : super::to_prover_solver_.transfer_term(
-                           super::orig_property_.prop(), BOOL);
-  super::bad_ =
-      super::solver_->make_term(smt::PrimOp::Not, aa_.abstract(prop_term));
+  assert(super::bad_);
+  super::bad_ = aa_.abstract(super::bad_);
 
   // the abstract system should have all the same state and input variables
   // but abstracted
