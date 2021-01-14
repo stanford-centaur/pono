@@ -50,13 +50,11 @@ static unordered_set<PrimOp> nl_ops({ Mult,
 
 /** Class for abstracting values with frozen variables
  */
-class ValueAbstractor : protected smt::IdentityWalker
+class ValueAbstractor : public smt::IdentityWalker
 {
  public:
   ValueAbstractor(TransitionSystem & ts, UnorderedTermMap & abstracted_values)
-      // enable cache clearing because we want to traverse the whole
-      // formula each time when looking for terms
-      : smt::IdentityWalker(ts.solver(), true),
+      : smt::IdentityWalker(ts.solver(), false),
         ts_(ts),
         abstracted_values_(abstracted_values)
   {
@@ -66,10 +64,10 @@ class ValueAbstractor : protected smt::IdentityWalker
   smt::WalkerStepResult visit_term(smt::Term & term) override
   {
     if (!preorder_) {
-      if (term->is_value()) {
+      if (term->is_value() && term->get_sort()->get_sort_kind() != ARRAY) {
         // create a frozen variable
-        Term frozen_var = ts_.make_statevar(
-            "__abs_" + std::to_string(term->is_value()), term->get_sort());
+        Term frozen_var =
+            ts_.make_statevar("__abs_" + term->to_string(), term->get_sort());
         // make sure it's frozen
         ts_.assign_next(frozen_var, frozen_var);
         save_in_cache(term, frozen_var);
@@ -78,7 +76,7 @@ class ValueAbstractor : protected smt::IdentityWalker
       }
 
       Op op = term->get_op();
-      if (nl_ops.find(op.prim_op) == nl_ops.end()) {
+      if (!op.is_null() && nl_ops.find(op.prim_op) == nl_ops.end()) {
         // only rebuild terms with operators that can't
         // create nonlinearities by replacing constant values
         TermVec cached_children;
@@ -133,16 +131,42 @@ void CegarValues<Prover_T>::initialize()
     return;
   }
 
-  cegar_abstract();
+  // specify which cegar_abstract in case
+  // we're inheriting from another cegar algorithm
+  CegarValues::cegar_abstract();
   super::initialize();
 }
 
 template <class Prover_T>
 void CegarValues<Prover_T>::cegar_abstract()
 {
-  ValueAbstractor va(super::ts_, to_vals_);
+  prover_ts_ = conc_ts_;
+  ValueAbstractor va(prover_ts_, to_vals_);
 
-  throw PonoException("NYI");
+  // now update with abstraction
+  if (prover_ts_.is_functional()) {
+    throw PonoException("Functional TS NYI in cegar_values");
+  } else {
+    Term init = prover_ts_.init();
+    Term trans = prover_ts_.trans();
+    static_cast<RelationalTransitionSystem &>(prover_ts_)
+        .set_behavior(va.visit(init), va.visit(trans));
+  }
+
+  // TODO clean this up
+  // kind of complicated to get property because super initialize
+  // hasn't been run yet
+  Term prop_term = (prover_ts_.solver() == super::orig_property_.solver())
+                       ? super::orig_property_.prop()
+                       : super::to_prover_solver_.transfer_term(
+                           super::orig_property_.prop(), BOOL);
+  super::bad_ =
+      super::solver_->make_term(smt::PrimOp::Not, va.visit(prop_term));
+
+  assert(super::bad_);
+
+  // expecting to have had values to abstract
+  assert(to_vals_.size());
 }
 
 template <class Prover_T>

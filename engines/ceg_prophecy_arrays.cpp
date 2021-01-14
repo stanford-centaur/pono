@@ -145,7 +145,7 @@ void CegProphecyArrays<Prover_T>::initialize()
     return;
   }
 
-  cegar_abstract();
+  CegProphecyArrays::cegar_abstract();
   // call super initializer after abstraction
   super::initialize();
 
