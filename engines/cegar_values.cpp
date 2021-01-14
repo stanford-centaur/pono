@@ -70,8 +70,8 @@ class ValueAbstractor : public smt::IdentityWalker
         // create a frozen variable
         Term frozen_var =
             ts_.make_statevar("__abs_" + term->to_string(), term->get_sort());
-        // make sure it's frozen
-        ts_.assign_next(frozen_var, frozen_var);
+        // will be made frozen later
+        // since the transition system will be modified after this
         save_in_cache(term, frozen_var);
         abstracted_values_[frozen_var] = term;
         return Walker_Continue;
@@ -155,8 +155,8 @@ void CegarValues<Prover_T>::initialize()
 
   // specify which cegar_abstract in case
   // we're inheriting from another cegar algorithm
-  // calls super::initialize within cegar_abstract
   CegarValues::cegar_abstract();
+  super::initialize();
 
   // update local version of ts over fresh solver
   cegval_ts_ = TransitionSystem(prover_ts_, to_cegval_solver_);
@@ -172,13 +172,28 @@ void CegarValues<Prover_T>::initialize()
   for (const auto & iv : prover_ts_.inputvars()) {
     cache[to_cegval_solver_.transfer_term(iv)] = iv;
   }
+
+  // create labels for each abstract value
+  Sort boolsort = cegval_solver_->make_sort(BOOL);
+  Term lbl;
+  for (const auto & elem : to_vals_) {
+    lbl = cegval_solver_->make_symbol("__assump_" + elem.second->to_string(),
+                                      boolsort);
+    cegval_labels_[elem.first] = lbl;
+  }
+
+  // TODO clean this up -- managing the property / bad is a mess
+  // need to reset it a because super::initialize set it to the
+  // negated original (non-abstract) property
+  super::bad_ = from_cegval_solver_.transfer_term(cegval_bad_, BOOL);
 }
 
 template <class Prover_T>
 void CegarValues<Prover_T>::cegar_abstract()
 {
   prover_ts_ = conc_ts_;
-  ValueAbstractor va(prover_ts_, to_vals_);
+  UnorderedTermMap prover_to_vals;
+  ValueAbstractor va(prover_ts_, prover_to_vals);
 
   // now update with abstraction
   if (prover_ts_.is_functional()) {
@@ -190,22 +205,30 @@ void CegarValues<Prover_T>::cegar_abstract()
         .set_behavior(va.visit(init), va.visit(trans));
   }
 
-  // TODO clean this up
-  // need to initialize bad and then abstract it
-  super::initialize();
-  assert(super::bad_);
-  super::bad_ = va.visit(super::bad_);
+  // TODO clean this up -- it's a mess with the property
+  // and bad_ in Prover::initialize
+  Term prop_term = (super::solver_ == super::orig_property_.solver())
+                       ? super::orig_property_.prop()
+                       : super::to_prover_solver_.transfer_term(
+                           super::orig_property_.prop(), BOOL);
+  super::bad_ = super::solver_->make_term(Not, va.visit(prop_term));
+  cegval_bad_ = to_cegval_solver_.transfer_term(super::bad_, BOOL);
 
   // expecting to have had values to abstract
-  assert(to_vals_.size());
+  assert(prover_to_vals.size());
+  // copy over to the other solver
+  for (const auto & elem : prover_to_vals) {
+    // also make sure the abstract variables are frozen
+    prover_ts_.assign_next(elem.first, elem.first);
+    to_vals_[to_cegval_solver_.transfer_term(elem.first)] =
+        to_cegval_solver_.transfer_term(elem.second);
+  }
 }
 
 template <class Prover_T>
 bool CegarValues<Prover_T>::cegar_refine()
 {
   size_t cex_length = super::witness_length();
-
-  Term cegval_bad = to_cegval_solver_.transfer_term(super::bad_, BOOL);
 
   // create bmc formula for abstract system
   Term bmcform = cegval_un_.at_time(cegval_ts_.init(), 0);
@@ -214,11 +237,44 @@ bool CegarValues<Prover_T>::cegar_refine()
         And, bmcform, cegval_un_.at_time(cegval_ts_.trans(), i));
   }
   bmcform = cegval_solver_->make_term(
-      And, bmcform, cegval_un_.at_time(cegval_bad, cex_length));
+      And, bmcform, cegval_un_.at_time(cegval_bad_, cex_length));
+
+  cegval_solver_->push();
+  cegval_solver_->assert_formula(bmcform);
 
   // TODO add lemmas to both cegval_ts_ and prover_ts_
+  TermVec assumps;
+  TermVec equalities;
+  for (const auto & elem : to_vals_) {
+    assert(cegval_ts_.is_curr_var(elem.first));
+    assert(elem.second->is_value());
+    Term lbl = cegval_labels_.at(elem.first);
+    assumps.push_back(lbl);
+    // since the variables are frozen, only need to add at time step 0
+    Term eqval = cegval_solver_->make_term(Equal, elem.first, elem.second);
+    equalities.push_back(eqval);
+    Term eqval0 = cegval_un_.at_time(eqval, 0);
+    Term imp = cegval_solver_->make_term(Implies, lbl, eqval0);
+    cegval_solver_->assert_formula(imp);
+    cout << "assuming " << imp << endl;
+  }
+  assert(assumps.size() == equalities.size());
+
+  Result r = cegval_solver_->check_sat_assuming(assumps);
+
+  // do refinement if needed
+  if (r.is_unsat()) {
+    // TODO fill this in!
+    cout << "got unsat" << endl;
+  } else {
+    // TODO Fix bug, shouldn't be getting sat
+    cout << "got sat" << endl;
+  }
+
+  cegval_solver_->pop();
 
   throw PonoException("CegarValues::cegar_refine NYI");
+  return r.is_unsat();
 }
 
 // TODO add other template classes

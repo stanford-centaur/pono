@@ -77,7 +77,7 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
     // Refine the system
     // heuristic -- stop refining when no new axioms are needed.
     do {
-      if (!cegar_refine()) {
+      if (!CegProphecyArrays::cegar_refine()) {
         // real counterexample
         return ProverResult::FALSE;
       }

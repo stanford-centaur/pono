@@ -38,7 +38,6 @@ class CegarValues : public CEGAR<Prover_T>
  protected:
   TransitionSystem conc_ts_;
   TransitionSystem & prover_ts_;
-  smt::UnorderedTermMap to_vals_;
 
   // solver and associated infrastructure for
   // unrolling based refinement
@@ -47,6 +46,10 @@ class CegarValues : public CEGAR<Prover_T>
   smt::TermTranslator from_cegval_solver_;
   TransitionSystem cegval_ts_;
   Unroller cegval_un_;
+  smt::UnorderedTermMap to_vals_;
+  smt::Term cegval_bad_;
+
+  smt::UnorderedTermMap cegval_labels_;  // labels for each abstract value
 
   void cegar_abstract() override;
 
