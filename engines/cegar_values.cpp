@@ -33,11 +33,6 @@ using namespace std;
 
 namespace pono {
 
-// TODO add a value abstractor
-//      make sure not to introduce nonlinearities
-//      implement generic backend
-//      then specialize for IC3IA
-
 static unordered_set<PrimOp> nl_ops({ Mult,
                                       Div,
                                       Mod,
