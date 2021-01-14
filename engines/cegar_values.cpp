@@ -155,8 +155,8 @@ void CegarValues<Prover_T>::initialize()
 
   // specify which cegar_abstract in case
   // we're inheriting from another cegar algorithm
+  // calls super::initialize within cegar_abstract
   CegarValues::cegar_abstract();
-  super::initialize();
 
   // update local version of ts over fresh solver
   cegval_ts_ = TransitionSystem(prover_ts_, to_cegval_solver_);
@@ -191,16 +191,10 @@ void CegarValues<Prover_T>::cegar_abstract()
   }
 
   // TODO clean this up
-  // kind of complicated to get property because super initialize
-  // hasn't been run yet
-  Term prop_term = (prover_ts_.solver() == super::orig_property_.solver())
-                       ? super::orig_property_.prop()
-                       : super::to_prover_solver_.transfer_term(
-                           super::orig_property_.prop(), BOOL);
-  super::bad_ =
-      super::solver_->make_term(smt::PrimOp::Not, va.visit(prop_term));
-
+  // need to initialize bad and then abstract it
+  super::initialize();
   assert(super::bad_);
+  super::bad_ = va.visit(super::bad_);
 
   // expecting to have had values to abstract
   assert(to_vals_.size());
@@ -209,6 +203,21 @@ void CegarValues<Prover_T>::cegar_abstract()
 template <class Prover_T>
 bool CegarValues<Prover_T>::cegar_refine()
 {
+  size_t cex_length = super::witness_length();
+
+  Term cegval_bad = to_cegval_solver_.transfer_term(super::bad_, BOOL);
+
+  // create bmc formula for abstract system
+  Term bmcform = cegval_un_.at_time(cegval_ts_.init(), 0);
+  for (size_t i = 0; i < cex_length; ++i) {
+    bmcform = cegval_solver_->make_term(
+        And, bmcform, cegval_un_.at_time(cegval_ts_.trans(), i));
+  }
+  bmcform = cegval_solver_->make_term(
+      And, bmcform, cegval_un_.at_time(cegval_bad, cex_length));
+
+  // TODO add lemmas to both cegval_ts_ and prover_ts_
+
   throw PonoException("CegarValues::cegar_refine NYI");
 }
 
