@@ -166,8 +166,15 @@ int main(int argc, char ** argv)
   try {
     // no logging by default
     // could create an option for logging solvers in the future
-    SmtSolver s = create_solver_for(
-        pono_options.smt_solver_, pono_options.engine_, false);
+
+    // HACK bool_model_generation for IC3IA breaks CegProphecyArrays
+    // longer term fix will use a different solver in CegProphecyArrays,
+    // but for now just force full model generation in that case
+
+    SmtSolver s = create_solver_for(pono_options.smt_solver_,
+                                    pono_options.engine_,
+                                    false,
+                                    pono_options.ceg_prophecy_arrays_);
 
     // limitations with COI
     if (pono_options.static_coi_) {
