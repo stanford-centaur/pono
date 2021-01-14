@@ -25,6 +25,7 @@
 #include "smt-switch/identity_walker.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
+#include "utils/logger.h"
 #include "utils/make_provers.h"
 
 using namespace smt;
@@ -123,6 +124,7 @@ CegarValues<Prover_T>::CegarValues(const Property & p,
       cegval_ts_(cegval_solver_),
       cegval_un_(cegval_ts_)
 {
+  cegval_solver_->set_opt("produce-unsat-cores", "true");
 }
 
 template <class Prover_T>
@@ -256,7 +258,6 @@ bool CegarValues<Prover_T>::cegar_refine()
     Term eqval0 = cegval_un_.at_time(eqval, 0);
     Term imp = cegval_solver_->make_term(Implies, lbl, eqval0);
     cegval_solver_->assert_formula(imp);
-    cout << "assuming " << imp << endl;
   }
   assert(assumps.size() == equalities.size());
 
@@ -264,16 +265,20 @@ bool CegarValues<Prover_T>::cegar_refine()
 
   // do refinement if needed
   if (r.is_unsat()) {
-    // TODO fill this in!
-    cout << "got unsat" << endl;
-  } else {
-    // TODO Fix bug, shouldn't be getting sat
-    cout << "got sat" << endl;
+    UnorderedTermSet core;
+    cegval_solver_->get_unsat_core(core);
+    for (size_t i = 0; i < assumps.size(); ++i) {
+      if (core.find(assumps[i]) != core.end()) {
+        logger.log(2, "CegarValues adding refinement axiom {}", equalities[i]);
+        // need to refine both systems
+        cegval_ts_.add_constraint(equalities[i]);
+        prover_ts_.add_constraint(
+            from_cegval_solver_.transfer_term(equalities[i], BOOL));
+      }
+    }
   }
-
   cegval_solver_->pop();
 
-  throw PonoException("CegarValues::cegar_refine NYI");
   return r.is_unsat();
 }
 
