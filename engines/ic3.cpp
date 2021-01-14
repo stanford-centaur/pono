@@ -73,7 +73,7 @@ bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 }
 
 void IC3::predecessor_generalization(size_t i,
-                                     const IC3Formula & c,
+                                     const Term & c,
                                      IC3Formula & pred)
 {
   // TODO: change this so we don't have to depend on the solver context to be
@@ -97,8 +97,8 @@ void IC3::predecessor_generalization(size_t i,
     // NOTE: need to use full trans, not just trans_label_ here
     //       because we are passing it to the reducer_
     formula = solver_->make_term(And, formula, ts_.trans());
-    formula = solver_->make_term(
-        And, formula, solver_->make_term(Not, ts_.next(c.term)));
+    formula =
+        solver_->make_term(And, formula, solver_->make_term(Not, ts_.next(c)));
   } else {
     formula = solver_->make_term(And, formula, make_and(next_lits));
 
@@ -112,8 +112,8 @@ void IC3::predecessor_generalization(size_t i,
     Term pre_formula = get_frame_term(i - 1);
     pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
     pre_formula =
-        solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));
-    pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term));
+        solver_->make_term(And, pre_formula, solver_->make_term(Not, c));
+    pre_formula = solver_->make_term(And, pre_formula, ts_.next(c));
     formula =
         solver_->make_term(And, formula, solver_->make_term(Not, pre_formula));
   }

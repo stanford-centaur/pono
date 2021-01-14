@@ -195,22 +195,14 @@ void IC3IA::abstract()
 
 RefineResult IC3IA::refine()
 {
-  // recover the counterexample trace
-  assert(check_intersects_initial(cex_pg_->target.term));
-  TermVec cex;
-  const ProofGoal * tmp = cex_pg_;
-  while (tmp) {
-    cex.push_back(tmp->target.term);
-    assert(ts_.only_curr(tmp->target.term));
-    tmp = tmp->next;
-  }
-
-  if (cex.size() == 1) {
+  // counterexample trace should have been populated
+  assert(cex_.size());
+  if (cex_.size() == 1) {
     // if there are no transitions, then this is a concrete CEX
     return REFINE_NONE;
   }
 
-  size_t cex_length = cex.size();
+  size_t cex_length = cex_.size();
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
@@ -221,7 +213,7 @@ RefineResult IC3IA::refine()
     // make sure to_solver_ cache is populated with unrolled symbols
     register_symbol_mappings(i);
 
-    Term t = unroller_.at_time(cex[i], i);
+    Term t = unroller_.at_time(cex_[i], i);
     if (i + 1 < cex_length) {
       t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
     }
@@ -241,7 +233,7 @@ RefineResult IC3IA::refine()
   // important to set it here because it's used in register_symbol_mapping
   // to determine if state variables unrolled to a certain length
   // have already been cached in to_solver_
-  longest_cex_length_ = cex.size();
+  longest_cex_length_ = cex_length;
 
   UnorderedTermSet preds;
   for (auto const&I : out_interpolants) {
@@ -279,7 +271,7 @@ RefineResult IC3IA::refine()
 
   // reduce new predicates
   TermVec red_preds;
-  if (ia_.reduce_predicates(cex, fresh_preds, red_preds)) {
+  if (ia_.reduce_predicates(cex_, fresh_preds, red_preds)) {
     // reduction successful
     logger.log(2,
                "reduce predicates successful {}/{}",
