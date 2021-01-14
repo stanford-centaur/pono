@@ -160,6 +160,18 @@ void CegarValues<Prover_T>::initialize()
 
   // update local version of ts over fresh solver
   cegval_ts_ = TransitionSystem(prover_ts_, to_cegval_solver_);
+  // update cache
+  UnorderedTermMap & cache = from_cegval_solver_.get_cache();
+  Term nv;
+  for (const auto & sv : prover_ts_.statevars()) {
+    nv = prover_ts_.next(sv);
+    cache[to_cegval_solver_.transfer_term(sv)] = sv;
+    cache[to_cegval_solver_.transfer_term(nv)] = nv;
+  }
+
+  for (const auto & iv : prover_ts_.inputvars()) {
+    cache[to_cegval_solver_.transfer_term(iv)] = iv;
+  }
 }
 
 template <class Prover_T>
