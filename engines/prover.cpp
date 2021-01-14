@@ -160,6 +160,8 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
   return success;
 }
 
+size_t Prover::witness_length() const { return reached_k_ + 1; }
+
 Term Prover::invar()
 {
   if (!invar_)

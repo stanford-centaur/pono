@@ -147,6 +147,8 @@ class IC3Base : public Prover
 
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
+  size_t witness_length() const;
+
  protected:
 
   smt::UnsatCoreReducer reducer_;

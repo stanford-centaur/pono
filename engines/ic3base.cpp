@@ -193,6 +193,13 @@ bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
   throw PonoException("IC3 witness NYI");
 }
 
+size_t IC3Base::witness_length() const
+{
+  // expecting there to have been a witness computed
+  assert(cex_.size());
+  return cex_.size();
+}
+
 // Protected Methods
 
 IC3Formula IC3Base::ic3formula_disjunction(const TermVec & c) const
