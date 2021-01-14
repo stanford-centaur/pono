@@ -122,11 +122,16 @@ SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
     // These will be managed by the solver object
     // don't need to destroy
     unordered_map<string, string> opts({ { "model_generation", "true" } });
-    if (e == IC3IA_ENGINE) {
-      // only need boolean model
-      opts["bool_model_generation"] = "true";
-      opts["model_generation"] = "false";
-    }
+    // TEMPORARY FIX
+    // this breaks CegProphecyArrays as-is
+    // because the model evaluation doesn't work
+    // longer term fix will use a different solver
+    // TODO replace this once CegProphecyArrays is updated
+    // if (e == IC3IA_ENGINE) {
+    //   // only need boolean model
+    //   opts["bool_model_generation"] = "true";
+    //   opts["model_generation"] = "false";
+    // }
     msat_config cfg = get_msat_config_for_ic3(false, opts);
     msat_env env = msat_create_env(cfg);
     SmtSolver s = std::make_shared<MsatSolver>(cfg, env);
