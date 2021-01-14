@@ -97,7 +97,7 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
     }
   }
 
-  if (res == ProverResult::TRUE) {
+  if (res == ProverResult::TRUE && super::invar_) {
     // update the invariant
     super::invar_ = aa_.concrete(super::invar_);
   }
@@ -129,6 +129,16 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
                                               abs_ts_, s, super::options_);
       res = prover->check_until(k);
+      if (res == ProverResult::TRUE) {
+        try {
+          // set the invariant
+          super::invar_ = prover->invar();
+        }
+        catch (std::exception & e) {
+          logger.log(3, "Failed to set invariant because {}", e.what());
+          continue;
+        }
+      }
     } else {
       res = super::check_until(k);
     }
@@ -140,7 +150,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     return ProverResult::UNKNOWN;
   }
 
-  if (res == ProverResult::TRUE) {
+  if (res == ProverResult::TRUE && super::invar_) {
     // update the invariant
     super::invar_ = aa_.concrete(super::invar_);
   }

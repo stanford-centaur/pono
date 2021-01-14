@@ -145,7 +145,7 @@ ProverResult CegarValues<Prover_T>::check_until(int k)
     }
   }
 
-  if (res == ProverResult::TRUE) {
+  if (res == ProverResult::TRUE && super::invar_) {
     // update the invariant
     UnorderedTermMap super_to_vals;
     for (const auto & elem : to_vals_) {

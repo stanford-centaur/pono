@@ -120,7 +120,7 @@ class Prover
 
   Engine engine_;
 
-  // NOTE: both witness_ and invar_ are use terms from the engine's solver
+  // NOTE: both witness_ and invar_ use terms from the engine's solver
 
   std::vector<smt::UnorderedTermMap> witness_; ///< populated by a witness if a CEX is found
 

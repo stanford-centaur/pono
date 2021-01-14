@@ -192,6 +192,7 @@ Term Prover::to_orig_ts(Term t, SortKind sk)
     for (const auto &v : orig_ts_.inputvars()) {
       cache[to_prover_solver_.transfer_term(v)] = v;
     }
+    // TODO: need a to add UFs to the cache also
     return to_orig_ts_solver.transfer_term(t, sk);
   }
 }
