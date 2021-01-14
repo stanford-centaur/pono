@@ -116,7 +116,12 @@ CegarValues<Prover_T>::CegarValues(const Property & p,
                                    PonoOptions opt)
     : super(p, create_fresh_ts(ts.is_functional(), solver), solver, opt),
       conc_ts_(ts, super::to_prover_solver_),
-      prover_ts_(super::prover_interface_ts())
+      prover_ts_(super::prover_interface_ts()),
+      cegval_solver_(create_solver(solver->get_solver_enum())),
+      to_cegval_solver_(cegval_solver_),
+      from_cegval_solver_(super::solver_),
+      cegval_ts_(cegval_solver_),
+      cegval_un_(cegval_ts_)
 {
 }
 
@@ -152,6 +157,9 @@ void CegarValues<Prover_T>::initialize()
   // we're inheriting from another cegar algorithm
   CegarValues::cegar_abstract();
   super::initialize();
+
+  // update local version of ts over fresh solver
+  cegval_ts_ = TransitionSystem(prover_ts_, to_cegval_solver_);
 }
 
 template <class Prover_T>
@@ -189,7 +197,7 @@ void CegarValues<Prover_T>::cegar_abstract()
 template <class Prover_T>
 bool CegarValues<Prover_T>::cegar_refine()
 {
-  throw PonoException("NYI");
+  throw PonoException("CegarValues::cegar_refine NYI");
 }
 
 // TODO add other template classes

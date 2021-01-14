@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "core/unroller.h"
 #include "engines/cegar.h"
 
 namespace pono {
@@ -38,6 +39,14 @@ class CegarValues : public CEGAR<Prover_T>
   TransitionSystem conc_ts_;
   TransitionSystem & prover_ts_;
   smt::UnorderedTermMap to_vals_;
+
+  // solver and associated infrastructure for
+  // unrolling based refinement
+  smt::SmtSolver cegval_solver_;
+  smt::TermTranslator to_cegval_solver_;
+  smt::TermTranslator from_cegval_solver_;
+  TransitionSystem cegval_ts_;
+  Unroller cegval_un_;
 
   void cegar_abstract() override;
 
