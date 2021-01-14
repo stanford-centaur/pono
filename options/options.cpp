@@ -53,7 +53,8 @@ enum optionIndex
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
   MOD_INIT_PROP,
-  NO_ASSUME_PROP
+  NO_ASSUME_PROP,
+  CEGP_ABS_VALS
 };
 
 struct Arg : public option::Arg
@@ -263,6 +264,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --no-assume-prop \tdisable assuming property in pre-state (default "
     "enabled)" },
+  { CEGP_ABS_VALS,
+    0,
+    "",
+    "cegp-abs-vals",
+    Arg::None,
+    "  --cegp-abs-vals \tabstract values in ceg-prophecy-arrays (only "
+    "supported for IC3IA)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -383,6 +391,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           break;
         case MOD_INIT_PROP: mod_init_prop_ = true;
         case NO_ASSUME_PROP: assume_prop_ = false;
+        case CEGP_ABS_VALS: cegp_abs_vals_ = true;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

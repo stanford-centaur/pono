@@ -28,6 +28,11 @@
 #endif
 
 #include "core/fts.h"
+// TODO hide these in make_prover
+#include "engines/ceg_prophecy_arrays.h"
+#include "engines/cegar_values.h"
+#include "engines/ic3ia.h"
+// end TODO
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "modifiers/control_signals.h"
@@ -64,7 +69,14 @@ ProverResult check_prop(PonoOptions pono_options,
   Engine eng = pono_options.engine_;
 
   std::shared_ptr<Prover> prover;
-  if (pono_options.ceg_prophecy_arrays_) {
+  if (pono_options.cegp_abs_vals_) {
+    if (eng != IC3IA_ENGINE || !pono_options.ceg_prophecy_arrays_) {
+      throw PonoException(
+          "--cegp-abs-vals only supported with -e ic3ia --ceg-prophecy-arrays");
+    }
+    prover = std::make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(
+        p, ts, s, pono_options);
+  } else if (pono_options.ceg_prophecy_arrays_) {
     prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
   } else {
     prover = make_prover(eng, p, ts, s, pono_options);
