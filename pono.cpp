@@ -28,11 +28,6 @@
 #endif
 
 #include "core/fts.h"
-// TODO hide these in make_prover
-#include "engines/ceg_prophecy_arrays.h"
-#include "engines/cegar_values.h"
-#include "engines/ic3ia.h"
-// end TODO
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "modifiers/control_signals.h"
@@ -46,9 +41,6 @@
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 #include "utils/ts_analysis.h"
-
-// TEMP do array abstraction directly here
-#include "modifiers/array_abstractor.h"
 
 using namespace pono;
 using namespace smt;
@@ -70,12 +62,7 @@ ProverResult check_prop(PonoOptions pono_options,
 
   std::shared_ptr<Prover> prover;
   if (pono_options.cegp_abs_vals_) {
-    if (eng != IC3IA_ENGINE || !pono_options.ceg_prophecy_arrays_) {
-      throw PonoException(
-          "--cegp-abs-vals only supported with -e ic3ia --ceg-prophecy-arrays");
-    }
-    prover = std::make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(
-        p, ts, s, pono_options);
+    prover = make_cegar_values_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_prophecy_arrays_) {
     prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
   } else {
