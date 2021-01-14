@@ -82,6 +82,7 @@ std::stringstream pono::SMVEncoder::preprocess()
   std::stringstream str;
   str << "MODULE main" << std::endl;
   main_n->process_main(module_list, str);
+  //generate text file
   if(module_flat){
     std::string flatten =file.substr(0,file.find_last_of(".")) + "_flatten.txt";
     std::ofstream ofile(flatten);

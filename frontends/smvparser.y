@@ -283,7 +283,14 @@ assign_test: complex_identifier ASSIGNSYM simple_expr {
         if(enc.module_flat){
           SMVnode *a = $6;
           smt::Term state = enc.terms_[$3];
-          enc.rts_.assign_next(state,a->getTerm());
+          //enc.rts_.assign_next(state,a->getTerm());
+          assert(enc.rts_.is_curr_var(state));
+          if (enc.rts_.only_curr(a->getTerm())){
+            enc.rts_.assign_next(state, a->getTerm());
+          }else
+          {
+            enc.rts_.constrain_trans(enc.rts_.make_term(smt::Equal, enc.rts_.next(state), a->getTerm()));
+          }
           }else{
           enc.assign_list_.push_back(new assign_node_c("next",$3,$6));
           }
