@@ -120,7 +120,7 @@ CegarValues<Prover_T>::CegarValues(const Property & p,
       prover_ts_(super::prover_interface_ts()),
       cegval_solver_(create_solver(solver->get_solver_enum())),
       to_cegval_solver_(cegval_solver_),
-      from_cegval_solver_(super::solver_),
+      from_cegval_solver_(super::prover_interface_ts().solver()),
       cegval_ts_(cegval_solver_),
       cegval_un_(cegval_ts_)
 {
