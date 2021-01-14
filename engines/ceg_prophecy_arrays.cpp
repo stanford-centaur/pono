@@ -110,7 +110,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     // Refine the system
     // heuristic -- stop refining when no new axioms are needed.
     do {
-      if (!cegar_refine()) {
+      if (!CegProphecyArrays::cegar_refine()) {
         return ProverResult::FALSE;
       }
       reached_k_++;
