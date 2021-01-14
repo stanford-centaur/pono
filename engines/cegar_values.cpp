@@ -16,6 +16,9 @@
 
 #include "engines/cegar_values.h"
 
+#include <unordered_set>
+
+#include "smt-switch/identity_walker.h"
 #include "utils/exceptions.h"
 
 using namespace smt;
@@ -28,12 +31,79 @@ namespace pono {
 //      implement generic backend
 //      then specialize for IC3IA
 
+static unordered_set<PrimOp> nl_ops({ Mult,
+                                      Div,
+                                      Mod,
+                                      Abs,
+                                      Pow,
+                                      IntDiv,
+                                      BVMul,
+                                      BVUdiv,
+                                      BVSdiv,
+                                      BVUrem,
+                                      BVSrem,
+                                      BVSmod });
+
+/** Class for abstracting values with frozen variables
+ */
+class ValueAbstractor : protected smt::IdentityWalker
+{
+ public:
+  ValueAbstractor(TransitionSystem & ts, UnorderedTermMap & abstracted_values)
+      // enable cache clearing because we want to traverse the whole
+      // formula each time when looking for terms
+      : smt::IdentityWalker(ts.solver(), true),
+        ts_(ts),
+        abstracted_values_(abstracted_values)
+  {
+  }
+
+ protected:
+  smt::WalkerStepResult visit_term(smt::Term & term) override
+  {
+    if (!preorder_) {
+      if (term->is_value()) {
+        // create a frozen variable
+        Term frozen_var = ts_.make_statevar(
+            "__abs_" + std::to_string(term->is_value()), term->get_sort());
+        // make sure it's frozen
+        ts_.assign_next(frozen_var, frozen_var);
+        save_in_cache(term, frozen_var);
+        abstracted_values_[frozen_var] = term;
+        return Walker_Continue;
+      }
+
+      Op op = term->get_op();
+      if (nl_ops.find(op.prim_op) == nl_ops.end()) {
+        // only rebuild terms with operators that can't
+        // create nonlinearities by replacing constant values
+        TermVec cached_children;
+        Term c;
+        for (const auto & t : term) {
+          c = t;
+          query_cache(t, c);
+          cached_children.push_back(c);
+        }
+        save_in_cache(term, solver_->make_term(op, cached_children));
+      } else {
+        save_in_cache(term, term);
+      }
+    }
+    return Walker_Continue;
+  }
+
+  TransitionSystem & ts_;
+  UnorderedTermMap & abstracted_values_;
+};
+
 template <class Prover_T>
 CegarValues<Prover_T>::CegarValues(const Property & p,
                                    const TransitionSystem & ts,
                                    const smt::SmtSolver & solver,
                                    PonoOptions opt)
-    : super(p, ts, solver, opt)
+    : super(p, ts, solver, opt),
+      conc_ts_(ts),
+      abs_ts_(super::prover_interface_ts())
 {
 }
 
@@ -46,12 +116,19 @@ ProverResult CegarValues<Prover_T>::check_until(int k)
 template <class Prover_T>
 void CegarValues<Prover_T>::initialize()
 {
-  throw PonoException("NYI");
+  if (super::initialized_) {
+    return;
+  }
+
+  cegar_abstract();
+  super::initialize();
 }
 
 template <class Prover_T>
 void CegarValues<Prover_T>::cegar_abstract()
 {
+  ValueAbstractor va(super::ts_, to_vals_);
+
   throw PonoException("NYI");
 }
 

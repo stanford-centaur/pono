@@ -35,6 +35,8 @@ class CegarValues : public CEGAR<Prover_T>
   void initialize() override;
 
  protected:
+  TransitionSystem conc_ts_;
+  TransitionSystem & abs_ts_;
   smt::UnorderedTermMap to_vals_;
 
   void cegar_abstract() override;
