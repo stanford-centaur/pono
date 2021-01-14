@@ -198,14 +198,37 @@ void CegarValues<Prover_T>::initialize()
 template <class Prover_T>
 void CegarValues<Prover_T>::cegar_abstract()
 {
-  prover_ts_ = conc_ts_;
   UnorderedTermMap prover_to_vals;
   ValueAbstractor va(prover_ts_, prover_to_vals);
 
   // now update with abstraction
   if (prover_ts_.is_functional()) {
-    throw PonoException("Functional TS NYI in cegar_values");
+    // add variables
+    for (const auto & sv : conc_ts_.statevars()) {
+      prover_ts_.add_statevar(sv, conc_ts_.next(sv));
+    }
+
+    for (const auto & iv : conc_ts_.inputvars()) {
+      prover_ts_.add_inputvar(iv);
+    }
+
+    Term init = prover_ts_.init();
+    prover_ts_.set_init(va.visit(init));
+
+    // state updates
+    for (auto elem : conc_ts_.state_updates()) {
+      prover_ts_.assign_next(elem.first, va.visit(elem.second));
+    }
+
+    for (auto con : conc_ts_.constraints()) {
+      // NOTE: there should be better infrastructure for re-adding constraints
+      // currently have to avoid re-adding the next version
+      if (conc_ts_.no_next(con)) {
+        prover_ts_.add_constraint(va.visit(con));
+      }
+    }
   } else {
+    prover_ts_ = conc_ts_;
     Term init = prover_ts_.init();
     Term trans = prover_ts_.trans();
     static_cast<RelationalTransitionSystem &>(prover_ts_)
