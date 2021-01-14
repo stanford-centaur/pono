@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/ts_analysis.h"
 
 // need mathsat for ic3ia
 #ifdef WITH_MSAT
@@ -47,6 +48,11 @@ TEST(CegValues, Simple)
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
+
+  Term invar = ceg->invar();
+  cout << "got invariant " << invar << endl;
+  // can't check invariant because it has prophecy variables in it
+  // TODO consider checking the universally quantified version with CVC4
 }
 
 }  // namespace pono_tests

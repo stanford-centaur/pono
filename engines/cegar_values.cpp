@@ -145,6 +145,16 @@ ProverResult CegarValues<Prover_T>::check_until(int k)
     }
   }
 
+  if (res == ProverResult::TRUE) {
+    // update the invariant
+    UnorderedTermMap super_to_vals;
+    for (const auto & elem : to_vals_) {
+      super_to_vals[from_cegval_solver_.transfer_term(elem.first)] =
+          from_cegval_solver_.transfer_term(elem.second);
+    }
+    super::invar_ = super::solver_->substitute(super::invar_, super_to_vals);
+  }
+
   return res;
 }
 

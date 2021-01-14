@@ -97,6 +97,11 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
     }
   }
 
+  if (res == ProverResult::TRUE) {
+    // update the invariant
+    super::invar_ = aa_.concrete(super::invar_);
+  }
+
   return res;
 }
 
@@ -133,6 +138,11 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     // can't count on false result over abstraction when only checking up until
     // a bound
     return ProverResult::UNKNOWN;
+  }
+
+  if (res == ProverResult::TRUE) {
+    // update the invariant
+    super::invar_ = aa_.concrete(super::invar_);
   }
 
   return res;
