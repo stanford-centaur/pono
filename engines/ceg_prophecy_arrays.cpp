@@ -527,12 +527,15 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   }
 }
 
+// ceg-prophecy is incremental for ic3ia
+template class CegProphecyArrays<IC3IA>;
+
+// the below engines work when ceg-prophecy is non-incremental. 
 template class CegProphecyArrays<Bmc>;
 template class CegProphecyArrays<BmcSimplePath>;
 template class CegProphecyArrays<KInduction>;
 template class CegProphecyArrays<InterpolantMC>;
 template class CegProphecyArrays<ModelBasedIC3>;
-template class CegProphecyArrays<IC3IA>;
 
 #ifdef WITH_MSAT_IC3IA
 template class CegProphecyArrays<MsatIC3IA>;
