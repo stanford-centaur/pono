@@ -55,7 +55,8 @@ class ValueAbstractor : public smt::IdentityWalker
   ValueAbstractor(TransitionSystem & ts, UnorderedTermMap & abstracted_values)
       : smt::IdentityWalker(ts.solver(), false),
         ts_(ts),
-        abstracted_values_(abstracted_values)
+        abstracted_values_(abstracted_values),
+        boolsort_(ts_.solver()->make_sort(BOOL))
   {
   }
 
@@ -63,7 +64,9 @@ class ValueAbstractor : public smt::IdentityWalker
   smt::WalkerStepResult visit_term(smt::Term & term) override
   {
     if (!preorder_) {
-      if (term->is_value() && term->get_sort()->get_sort_kind() != ARRAY) {
+      Sort sort = term->get_sort();
+      if (term->is_value() && sort != boolsort_
+          && sort->get_sort_kind() != ARRAY) {
         // create a frozen variable
         Term frozen_var =
             ts_.make_statevar("__abs_" + term->to_string(), term->get_sort());
@@ -95,6 +98,7 @@ class ValueAbstractor : public smt::IdentityWalker
 
   TransitionSystem & ts_;
   UnorderedTermMap & abstracted_values_;
+  Sort boolsort_;
 };
 
 template <class Prover_T>
