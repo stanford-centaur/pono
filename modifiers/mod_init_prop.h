@@ -50,6 +50,7 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
 
   // NOTE: relies on feature of ts to not add constraint to init
   for (const auto & e : constraints) {
+    // TODO fix this! Need to allow adding to next but not init
     ts.add_constraint(ts.make_term(smt::Implies, initstate1, e.first), false);
   }
 
