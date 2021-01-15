@@ -282,17 +282,31 @@ bool CegarValues<Prover_T>::cegar_refine()
         logger.log(2, "CegarValues adding refinement axiom {}", equalities[i]);
         // need to refine both systems
         cegval_ts_.add_constraint(equalities[i]);
-        Term transferred_eq =
-            from_cegval_solver_.transfer_term(equalities[i], BOOL);
         // TODO this should be more modular
         //      can't assume super::abs_ts_ is the right one to constrain
-        super::abs_ts_.add_constraint(transferred_eq);
+        refine_subprover_ts(equalities[i]);
       }
     }
   }
   cegval_solver_->pop();
 
   return r.is_unsat();
+}
+
+template <class Prover_T>
+void CegarValues<Prover_T>::refine_subprover_ts(const Term & constraint)
+{
+  throw PonoException("CegarValues::refine_subprover_ts NYI for generic case");
+}
+
+template <>
+void CegarValues<CegProphecyArrays<IC3IA>>::refine_subprover_ts(
+    const Term & constraint)
+{
+  Term transferred_constraint =
+      from_cegval_solver_.transfer_term(constraint, BOOL);
+  assert(super::abs_ts_.only_curr(transferred_constraint));
+  super::abs_ts_.add_constraint(transferred_constraint);
 }
 
 // TODO add other template classes

@@ -54,6 +54,8 @@ class CegarValues : public CEGAR<Prover_T>
   void cegar_abstract() override;
 
   bool cegar_refine() override;
+
+  void refine_subprover_ts(const smt::Term & constraint);
 };
 
 }  // namespace pono
