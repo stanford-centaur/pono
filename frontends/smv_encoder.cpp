@@ -33,8 +33,8 @@ smt::Term pono::SMVEncoder::parseString(std::string newline)
 void pono::SMVEncoder::processCase()
 {
   std::future_status status;
-  solver_->push();
   for (int i = 0; i < casecheck_.size(); i++) {
+    solver_->push();
     Term bad_ = solver_->make_term(smt::PrimOp::Not, casecheck_[i]);
     solver_->assert_formula(bad_);
     auto fut = std::async(
@@ -56,8 +56,9 @@ void pono::SMVEncoder::processCase()
         }
       }
     }
-    if (status == std::future_status::timeout)
+    if (status == std::future_status::timeout) {
       throw PonoException("case timeout check error");
+    }
     solver_->pop();
   }
 }
