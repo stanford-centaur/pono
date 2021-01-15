@@ -193,15 +193,18 @@ ProverResult IC3Base::check_until(int k)
         return ProverResult::FALSE;
       } else {
         assert(s == REFINE_FAIL);
+        assert(!solver_context_);
         throw PonoException("Refinement failed");
       }
     }
 
     if (res != ProverResult::UNKNOWN) {
+      assert(!solver_context_);
       return res;
     }
   }
 
+  assert(!solver_context_);
   return ProverResult::UNKNOWN;
 }
 
