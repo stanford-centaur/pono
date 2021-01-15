@@ -740,8 +740,7 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
     }
     visited_.insert(t);
 
-    if (t->get_op() == Ite)
-    {
+    if (t->get_op() == Ite) {
       children.clear();
       children.insert(children.end(), t->begin(), t->end());
       assert(children.size() == 3);
