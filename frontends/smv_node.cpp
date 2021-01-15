@@ -133,7 +133,7 @@ void pono::assign_node_c::generate_ostream(
   if (pre == "")
     s << prefix << id << " := ";
   else
-    s << "( " << pre << prefix << id << ") :=";
+    s << pre << " ( " <<  prefix << id << ") :=";
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " ;" << endl;
 }
@@ -320,8 +320,8 @@ void pono::invar_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    s << "INVAR" << endl;
     for (int i = ex_li.size() - 1; i > -1; i--) {
+      s << "INVAR" << endl;
       ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
@@ -335,8 +335,9 @@ void pono::invarspec_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    s << "INVARSPEC" << endl;
+    
     for (int i = ex_li.size() - 1; i > -1; i--) {
+      s << "INVARSPEC" << endl;
       ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
@@ -699,6 +700,7 @@ void pono::write_expr::generate_ostream(
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " , ";
   ex3->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
 }
 
 void pono::word1_expr::generate_ostream(
@@ -833,7 +835,7 @@ void pono::ite_expr::generate_ostream(
   s << " ? ";
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " : ";
-  ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
+  ex3->generate_ostream(name, prefix, module_list, new_prefix, s);
 }
 
 void pono::floor_expr::generate_ostream(
@@ -845,6 +847,46 @@ void pono::floor_expr::generate_ostream(
 {
   s << "floor ( ";
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
+}
+
+void pono::constarray_type_expr::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  s << "CONSTARRAY ( typeof ( " << prefix << id << " ) ,";
+  ex->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
+}
+
+void pono::constarray_word_expr::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  s << "CONSTARRAY ( array word " << size << " of";
+  ex1->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " , ";
+  ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
+}
+
+void pono::constarray_int_expr::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  s << "CONSTARRAY ( array integer of " ;
+  ex1->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " , ";
+  ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " ) ";
 }
 

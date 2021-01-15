@@ -31,18 +31,18 @@ class SMVEncoder
       : rts_(rts), solver_(rts.solver())
   {
     module_flat = false;
+    file = filename;
     parse(filename);
     preprocess();
     module_flat = true;
-    std::string flatten =filename.substr(0,filename.find_last_of(".")) + "_flatten.txt";
-    std::ofstream ofile(flatten);
-    ofile << preprocess().str();
-    ofile.close();
+    loc.end.line = 0;
+    std::string output= preprocess().str();
     processCase();
   };
 
  public:
   // Important members
+  string file;
   int parse(std::string filename);
   int parse_flat(std::istream& s);
   smt::Term parseString(std::string newline);
@@ -63,6 +63,7 @@ class SMVEncoder
   std::unordered_map<std::string, smt::Term>  unsignedbv_;
   std::deque<std::pair<int, smt::Term>> transterm_;
   std::unordered_map<std::string, SMVnode::Type>  arrayty_;
+  std::unordered_map<std::string, SMVnode::Type>  arrayint_;
   ///< casecheck_: vector of booleans, each element is an Or of all the conditions in a case statement.
   ///< caseterm_: used to temporaily store each statement in case body before future process check that the conditions cover all possibilities (required by nuXmv manual)
   ///< casestore_: used to temporarily store constraint with ite tree, if the condition is satisfied, add the constraint
