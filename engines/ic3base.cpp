@@ -403,8 +403,7 @@ ProverResult IC3Base::step(int i)
       invar_ = solver_->make_term(And, invar_, prop);
       // TEMP add this for sanity checking ceg-prophecy-arrays
       if (!check_invar(ts_, prop, invar_)) {
-        logger.log(0, "internal invariant check failed!");
-        return ProverResult::UNKNOWN;
+        throw PonoException("internal invariant check failed!");
       }
       return ProverResult::TRUE;
     }
