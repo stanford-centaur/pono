@@ -32,7 +32,6 @@ IC3::IC3(const Property & p, const TransitionSystem & ts,
   : super(p, ts, s, opt)
 {
   engine_ = Engine::IC3_BOOL;
-  solver_->set_opt("produce-unsat-cores", "true");
 }
 
 IC3Formula IC3::get_model_ic3formula() const

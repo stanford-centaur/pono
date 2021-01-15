@@ -115,10 +115,11 @@ SmtSolver create_solver_for(SolverEnum se,
                             bool logging,
                             bool full_model)
 {
+  SmtSolver s;
   bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
   if (se != MSAT) {
     // no special options yet for solvers other than mathsat
-    return create_solver(se, logging);
+    s = create_solver(se, logging);
   }
 #ifdef WITH_MSAT
   else if (se == MSAT && ic3_engine) {
@@ -132,7 +133,7 @@ SmtSolver create_solver_for(SolverEnum se,
     }
     msat_config cfg = get_msat_config_for_ic3(false, opts);
     msat_env env = msat_create_env(cfg);
-    SmtSolver s = std::make_shared<MsatSolver>(cfg, env);
+    s = std::make_shared<MsatSolver>(cfg, env);
     if (logging) {
       s = make_shared<LoggingSolver>(s);
     }
@@ -140,8 +141,14 @@ SmtSolver create_solver_for(SolverEnum se,
   }
 #endif
   else {
-    return create_solver(se, logging);
+    throw PonoException("Unhandled case in create_solver_for");
   }
+
+  assert(s);
+  if (ic3_engine) {
+    s->set_opt("produce-unsat-cores", "true");
+  }
+  return s;
 }
 
 SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
