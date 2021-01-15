@@ -783,7 +783,6 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
     }
   }
 
-  const UnorderedTermSet & inputvars = ts_.inputvars();
   for (const auto & fv : free_vars) {
     // not expecting any next state vars or inputs
     assert(ts_.is_curr_var(fv));
