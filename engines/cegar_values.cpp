@@ -22,6 +22,7 @@
 #include "core/rts.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
+#include "math.h"
 #include "smt-switch/identity_walker.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
@@ -56,7 +57,9 @@ class ValueAbstractor : public smt::IdentityWalker
       : smt::IdentityWalker(ts.solver(), false),
         ts_(ts),
         abstracted_values_(abstracted_values),
-        boolsort_(ts_.solver()->make_sort(BOOL))
+        boolsort_(ts_.solver()->make_sort(BOOL)),
+        // hardcoding a value now
+        cutoff_(100)
   {
   }
 
@@ -65,8 +68,39 @@ class ValueAbstractor : public smt::IdentityWalker
   {
     if (!preorder_) {
       Sort sort = term->get_sort();
-      if (term->is_value() && sort != boolsort_
-          && sort->get_sort_kind() != ARRAY) {
+      SortKind sk = sort->get_sort_kind();
+      if (term->is_value() && (sk == REAL || sk == INT || sk == BV)) {
+        // don't even consider bitwidths that are too small
+        if (sk == BV && sort->get_width() < ceil(log2(cutoff_))) {
+          save_in_cache(term, term);
+          return Walker_Continue;
+        }
+
+        // do a quick check with the solver
+        // assuming it's at base context
+        const SmtSolver & solver = ts_.solver();
+
+        Term zero = solver->make_term(0, sort);
+        Op minus = (sk == BV) ? BVSub : Minus;
+        Op lt = (sk == BV) ? BVUlt : Lt;
+        Op gt = (sk == BV) ? BVUgt : Gt;
+
+        Term cutoff_term = solver->make_term(cutoff_, sort);
+        Term neg_cutoff_term = solver->make_term(minus, zero, cutoff_term);
+
+        solver->push();
+
+        solver->assert_formula(solver->make_term(lt, term, cutoff_term));
+        solver->assert_formula(solver->make_term(gt, term, neg_cutoff_term));
+        Result r = solver->check_sat();
+
+        solver->pop();
+
+        if (r.is_sat()) {
+          save_in_cache(term, term);
+          return Walker_Continue;
+        }
+
         // create a frozen variable
         Term frozen_var =
             ts_.make_statevar("__abs_" + term->to_string(), term->get_sort());
@@ -99,6 +133,7 @@ class ValueAbstractor : public smt::IdentityWalker
   TransitionSystem & ts_;
   UnorderedTermMap & abstracted_values_;
   Sort boolsort_;
+  size_t cutoff_;
 };
 
 template <class Prover_T>
