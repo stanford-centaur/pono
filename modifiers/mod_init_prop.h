@@ -46,15 +46,17 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
   smt::TermVec init_constraints;
   conjunctive_partition(init, init_constraints, true);
 
-  ts.set_init(initstate1);
-
   // NOTE: relies on feature of ts to not add constraint to init
   for (const auto & e : constraints) {
-    // TODO fix this! Need to allow adding to next but not init
-    ts.add_constraint(ts.make_term(smt::Implies, initstate1, e.first), false);
+    ts.add_constraint(ts.make_term(smt::Implies, initstate1, e.first),
+                      e.second);
   }
 
   ts.assign_next(initstate1, ts.make_term(false));
+
+  // adding the constraints above might have put constraints in init
+  // overwrite that now
+  ts.set_init(initstate1);
   ts.constrain_init(new_prop);
 
   // add initial state constraints for initstate1
