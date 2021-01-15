@@ -27,6 +27,7 @@
 #include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
+#include "utils/ts_manipulation.h"
 
 using namespace smt;
 using namespace std;
@@ -95,15 +96,6 @@ class ValueAbstractor : public smt::IdentityWalker
   TransitionSystem & ts_;
   UnorderedTermMap & abstracted_values_;
 };
-
-TransitionSystem create_fresh_ts(bool functional, const SmtSolver & solver)
-{
-  if (functional) {
-    return FunctionalTransitionSystem(solver);
-  } else {
-    return RelationalTransitionSystem(solver);
-  }
-}
 
 template <class Prover_T>
 CegarValues<Prover_T>::CegarValues(const Property & p,

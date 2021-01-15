@@ -169,6 +169,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_walkers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/ts_analysis.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/ts_manipulation.cpp"
   "${PROJECT_SOURCE_DIR}/options/options.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
