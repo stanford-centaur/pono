@@ -422,11 +422,7 @@ trans_constraint: TRANS trans_list;
 trans_list: basic_expr semioption{
   if(enc.module_flat){
             SMVnode *a = $1;
-            if(!case_true){
-              enc.rts_.constrain_trans(a->getTerm());
-            }else{
-              enc.casestore_.push_back(a->getTerm());
-            }
+            enc.rts_.constrain_trans(a->getTerm());
             case_true = false;
   }else{
     SMVnode *a = new trans_node_c($1);

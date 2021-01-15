@@ -49,9 +49,10 @@ void pono::SMVEncoder::processCase()
     while (status != std::future_status::timeout) {
       if (status == std::future_status::ready) {
         if (fut.get()) {
-          rts_.constrain_trans(casestore_[i]);
           break;
-        } else {
+        }
+        else {
+          // TODO would be nice if we could give a line number
           throw PonoException("case error");
         }
       }

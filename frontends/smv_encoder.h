@@ -66,9 +66,7 @@ class SMVEncoder
   std::unordered_map<std::string, SMVnode::Type>  arrayint_;
   ///< casecheck_: vector of booleans, each element is an Or of all the conditions in a case statement.
   ///< caseterm_: used to temporaily store each statement in case body before future process check that the conditions cover all possibilities (required by nuXmv manual)
-  ///< casestore_: used to temporarily store constraint with ite tree, if the condition is satisfied, add the constraint
   std::vector<smt::Term> casecheck_;
-  std::vector<smt::Term> casestore_;
   std::vector<std::pair<SMVnode*,SMVnode*>> caseterm_;
   ///< module_list: map from module name to module node
   std::unordered_map<std::string,module_node*> module_list;
