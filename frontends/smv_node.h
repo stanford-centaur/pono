@@ -54,6 +54,8 @@ struct SMVnode
     Integer,
     Real,
     Boolean,
+    // TODO shouldn't have separate WordArray and IntArray types
+    // should just be Array ideally
     WordArray,
     IntArray,
     Default

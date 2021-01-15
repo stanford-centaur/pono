@@ -422,11 +422,7 @@ trans_constraint: TRANS trans_list;
 trans_list: basic_expr semioption{
   if(enc.module_flat){
             SMVnode *a = $1;
-            if(!case_true){
-              enc.rts_.constrain_trans(a->getTerm());
-            }else{
-              enc.casestore_.push_back(a->getTerm());
-            }
+            enc.rts_.constrain_trans(a->getTerm());
             case_true = false;
   }else{
     SMVnode *a = new trans_node_c($1);
@@ -1250,18 +1246,23 @@ simple_expr: constant {
             SMVnode *a = $3;
             SMVnode *b = $5;
             SMVnode *c = $7;
-            if((a->getElementType() == c->getType()) && (a->getType()==SMVnode::WordArray)){
-              smt::Term write_r =  enc.solver_->make_term(smt::Store, a->getTerm(),b->getTerm(),c->getTerm());
-              $$ = new SMVnode(write_r,SMVnode::WordArray, a->getElementType());
+            smt::Sort arrsort = a->getTerm()->get_sort();
+            smt::Sort idxsort = b->getTerm()->get_sort();
+            smt::Sort elemsort = c->getTerm()->get_sort();
+            if (arrsort->get_sort_kind() != smt::ARRAY ||
+                arrsort->get_indexsort() != idxsort ||
+                arrsort->get_elemsort() != elemsort)
+            {
+              // TODO: would be good to print the SMV text and line number
+              throw PonoException("Type checking error in array write");
             }
-            else if((a->getElementType() == c->getType()) && (a->getType()==SMVnode::IntArray)){
-              smt::Term write_r =  enc.solver_->make_term(smt::Store, a->getTerm(),b->getTerm(),c->getTerm());
-              $$ = new SMVnode(write_r,SMVnode::IntArray, a->getElementType());
+            smt::Term write_r = enc.solver_->make_term(smt::Store,
+                                                       a->getTerm(),
+                                                       b->getTerm(),
+                                                       c->getTerm());
+            $$ = new SMVnode(write_r, a->getType(), a->getElementType());
             }
             else{
-                throw PonoException("word array WRITE type error");
-              }
-            }else{
               $$ = new write_expr($3,$5,$7);
             }
           }
