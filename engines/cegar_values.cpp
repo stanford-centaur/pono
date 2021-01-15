@@ -214,9 +214,7 @@ void CegarValues<Prover_T>::cegar_abstract()
     for (auto con : conc_ts_.constraints()) {
       // NOTE: there should be better infrastructure for re-adding constraints
       // currently have to avoid re-adding the next version
-      if (conc_ts_.no_next(con)) {
-        prover_ts_.add_constraint(va.visit(con));
-      }
+      prover_ts_.add_constraint(va.visit(con.first), con.second);
     }
   } else {
     Term trans = conc_ts_.trans();
