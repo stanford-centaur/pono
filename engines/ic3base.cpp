@@ -23,6 +23,7 @@
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
+#include "utils/ts_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -398,7 +399,13 @@ ProverResult IC3Base::step(int i)
       // which is the frame that just had all terms
       // from the previous frames propagated
       invar_ = get_frame_term(j + 1);
-      invar_ = solver_->make_term(And, invar_, smart_not(bad_));
+      Term prop = smart_not(bad_);
+      invar_ = solver_->make_term(And, invar_, prop);
+      // TEMP add this for sanity checking ceg-prophecy-arrays
+      if (!check_invar(ts_, prop, invar_)) {
+        logger.log(0, "internal invariant check failed!");
+        return ProverResult::UNKNOWN;
+      }
       return ProverResult::TRUE;
     }
   }
