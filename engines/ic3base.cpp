@@ -181,6 +181,22 @@ ProverResult IC3Base::check_until(int k)
   assert(reached_k_ + 1 >= 0);
   for (size_t i = reached_k_ + 1; i <= k; ++i) {
     res = step(i);
+
+    if (res == ProverResult::FALSE) {
+      assert(cex_.size());
+      RefineResult s = refine();
+      if (s == REFINE_SUCCESS) {
+        continue;
+      } else if (s == REFINE_NONE) {
+        // this is a real counterexample
+        assert(cex_.size());
+        return ProverResult::FALSE;
+      } else {
+        assert(s == REFINE_FAIL);
+        throw PonoException("Refinement failed");
+      }
+    }
+
     if (res != ProverResult::UNKNOWN) {
       return res;
     }
@@ -586,23 +602,14 @@ bool IC3Base::block_all()
         // went all the way back to initial
         // need to create a new proof goal that's not managed by the queue
         reconstruct_trace(pg, cex_);
-        RefineResult s = refine();
-        if (s == REFINE_SUCCESS) {
-          // on successful refinement, clear the queue of proof goals
-          // which might not have been precise
-          // TODO might have to change this if there's an algorithm
-          // that refines but can keep proof goals around
-          proof_goals.clear();
 
-          continue;
-        } else if (s == REFINE_NONE) {
-          // this is a real counterexample
-          assert(cex_.size());
-          return false;
-        } else {
-          assert(s == REFINE_FAIL);
-          throw PonoException("Refinement failed");
-        }
+        // in case this is spurious, clear the queue of proof goals
+        // which might not have been precise
+        // TODO might have to change this if there's an algorithm
+        // that refines but can keep proof goals around
+        proof_goals.clear();
+
+        return false;
       }
 
       if (is_blocked(pg)) {
