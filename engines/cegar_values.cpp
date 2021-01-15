@@ -192,20 +192,20 @@ void CegarValues<Prover_T>::cegar_abstract()
   UnorderedTermMap prover_to_vals;
   ValueAbstractor va(prover_ts_, prover_to_vals);
 
+  // add variables
+  for (const auto & sv : conc_ts_.statevars()) {
+    prover_ts_.add_statevar(sv, conc_ts_.next(sv));
+  }
+
+  for (const auto & iv : conc_ts_.inputvars()) {
+    prover_ts_.add_inputvar(iv);
+  }
+
+  Term init = conc_ts_.init();
+  prover_ts_.set_init(va.visit(init));
+
   // now update with abstraction
   if (prover_ts_.is_functional()) {
-    // add variables
-    for (const auto & sv : conc_ts_.statevars()) {
-      prover_ts_.add_statevar(sv, conc_ts_.next(sv));
-    }
-
-    for (const auto & iv : conc_ts_.inputvars()) {
-      prover_ts_.add_inputvar(iv);
-    }
-
-    Term init = prover_ts_.init();
-    prover_ts_.set_init(va.visit(init));
-
     // state updates
     for (auto elem : conc_ts_.state_updates()) {
       prover_ts_.assign_next(elem.first, va.visit(elem.second));
@@ -219,9 +219,7 @@ void CegarValues<Prover_T>::cegar_abstract()
       }
     }
   } else {
-    prover_ts_ = conc_ts_;
-    Term init = prover_ts_.init();
-    Term trans = prover_ts_.trans();
+    Term trans = conc_ts_.trans();
     static_cast<RelationalTransitionSystem &>(prover_ts_)
         .set_behavior(va.visit(init), va.visit(trans));
   }
