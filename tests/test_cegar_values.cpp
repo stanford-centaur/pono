@@ -48,11 +48,6 @@ TEST(CegValues, SimpleSafe)
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
-
-  Term invar = ceg->invar();
-  cout << "got invariant " << invar << endl;
-  // can't check invariant because it has prophecy variables in it
-  // TODO consider checking the universally quantified version with CVC4
 }
 
 TEST(CegValues, SimpleUnsafe)
