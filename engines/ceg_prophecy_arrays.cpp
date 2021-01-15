@@ -84,17 +84,17 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
       reached_k_++;
     } while (num_added_axioms_);
 
-    if (super::engine_ != IC3IA_ENGINE) {
-      Property latest_prop(super::solver_,
-                           super::solver_->make_term(Not, super::bad_));
-      SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
-                                      super::engine_, false);
-      shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
-                                              abs_ts_, s, super::options_);
-      res = prover->prove();
-    } else {
-      res = super::prove();
-    }
+    // if (super::engine_ != IC3IA_ENGINE) {
+    Property latest_prop(super::solver_,
+                         super::solver_->make_term(Not, super::bad_));
+    SmtSolver s = create_solver_for(
+        super::solver_->get_solver_enum(), super::engine_, false, false);
+    shared_ptr<Prover> prover =
+        make_prover(super::engine_, latest_prop, abs_ts_, s, super::options_);
+    res = prover->prove();
+    // } else {
+    //   res = super::prove();
+    // }
   }
 
   if (res == ProverResult::TRUE && super::invar_) {
@@ -121,27 +121,28 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       reached_k_++;
     } while (num_added_axioms_ && reached_k_ <= k);
 
-    if (super::engine_ != IC3IA_ENGINE) {
-      Property latest_prop(super::solver_,
-                           super::solver_->make_term(Not, super::bad_));
-      SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
-                                      super::engine_, false);
-      shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
-                                              abs_ts_, s, super::options_);
-      res = prover->check_until(k);
-      if (res == ProverResult::TRUE) {
-        try {
-          // set the invariant
-          super::invar_ = prover->invar();
-        }
-        catch (std::exception & e) {
-          logger.log(3, "Failed to set invariant because {}", e.what());
-          continue;
-        }
-      }
-    } else {
-      res = super::check_until(k);
-    }
+    // if (super::engine_ != IC3IA_ENGINE) {
+
+    Property latest_prop(super::solver_,
+                         super::solver_->make_term(Not, super::bad_));
+    SmtSolver s = create_solver_for(
+        super::solver_->get_solver_enum(), super::engine_, false);
+    shared_ptr<Prover> prover =
+        make_prover(super::engine_, latest_prop, abs_ts_, s, super::options_);
+    res = prover->check_until(k);
+    // if (res == ProverResult::TRUE) {
+    //   try {
+    //     // set the invariant
+    //     super::invar_ = prover->invar();
+    //   }
+    //   catch (std::exception & e) {
+    //     logger.log(3, "Failed to set invariant because {}", e.what());
+    //     continue;
+    //   }
+    // }
+    // } else {
+    //   res = super::check_until(k);
+    // }
   }
 
   if (res == ProverResult::FALSE) {
@@ -150,10 +151,10 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     return ProverResult::UNKNOWN;
   }
 
-  if (res == ProverResult::TRUE && super::invar_) {
-    // update the invariant
-    super::invar_ = aa_.concrete(super::invar_);
-  }
+  // if (res == ProverResult::TRUE && super::invar_) {
+  //   // update the invariant
+  //   super::invar_ = aa_.concrete(super::invar_);
+  // }
 
   return res;
 }
@@ -512,53 +513,54 @@ void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & c
   // No-Op
 }
 
-template <>
-void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
-{
-  const RelationalTransitionSystem & rts =
-    static_cast<const RelationalTransitionSystem &>(abs_ts_);
-  RelationalTransitionSystem & sub_rts =
-    static_cast<RelationalTransitionSystem &>(ts_);
+// template <>
+// void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
+// {
+//   const RelationalTransitionSystem & rts =
+//     static_cast<const RelationalTransitionSystem &>(abs_ts_);
+//   RelationalTransitionSystem & sub_rts =
+//     static_cast<RelationalTransitionSystem &>(ts_);
 
-  // add predicates from init and bad
-  UnorderedTermSet preds;
-  get_predicates(solver_, abs_ts_.init(), preds, false, false, true);
-  get_predicates(solver_, bad_, preds, false, false, true);
-  // instead of add previously found predicates, we add all the predicates in frame 1
-  // preds.insert(predset_.begin(), predset_.end());
-  get_predicates(solver_, get_frame_term(1), preds, false, false, true);
-  predset_.clear();
-  predlbls_.clear();
+//   // add predicates from init and bad
+//   UnorderedTermSet preds;
+//   get_predicates(solver_, abs_ts_.init(), preds, false, false, true);
+//   get_predicates(solver_, bad_, preds, false, false, true);
+//   // instead of add previously found predicates, we add all the predicates in frame 1
+//   // preds.insert(predset_.begin(), predset_.end());
+//   get_predicates(solver_, get_frame_term(1), preds, false, false, true);
+//   predset_.clear();
+//   predlbls_.clear();
 
-  // don't add boolean symbols that are never used in the system
-  // this is an optimization and a fix for some options
-  // if using mathsat with bool_model_generation
-  // it will fail to get the value of symbols that don't
-  // appear in the query
-  // thus we don't include those symbols in our cubes
-  UnorderedTermSet used_symbols;
-  get_free_symbolic_consts(ts_.init(), used_symbols);
-  get_free_symbolic_consts(ts_.trans(), used_symbols);
-  get_free_symbolic_consts(bad_, used_symbols);
+//   // don't add boolean symbols that are never used in the system
+//   // this is an optimization and a fix for some options
+//   // if using mathsat with bool_model_generation
+//   // it will fail to get the value of symbols that don't
+//   // appear in the query
+//   // thus we don't include those symbols in our cubes
+//   UnorderedTermSet used_symbols;
+//   get_free_symbolic_consts(ts_.init(), used_symbols);
+//   get_free_symbolic_consts(ts_.trans(), used_symbols);
+//   get_free_symbolic_consts(bad_, used_symbols);
 
-  // reset init and trans -- done with calling ia_.do_abstraction
-  // then add all boolean constants as (precise) predicates
-  for (const auto & p : ia_.do_abstraction()) {
-    assert(p->is_symbolic_const());
-    if (used_symbols.find(p) != used_symbols.end()) {
-      preds.insert(p);
-    }
-  }
+//   // reset init and trans -- done with calling ia_.do_abstraction
+//   // then add all boolean constants as (precise) predicates
+//   for (const auto & p : ia_.do_abstraction()) {
+//     assert(p->is_symbolic_const());
+//     if (used_symbols.find(p) != used_symbols.end()) {
+//       preds.insert(p);
+//     }
+//   }
 
-  // reset the solver
-  reset_solver();
+//   // reset the solver
+//   reset_solver();
 
-  // add predicates
-  for (const auto &p : preds) {
-    add_predicate(p);
-  }
-}
+//   // add predicates
+//   for (const auto &p : preds) {
+//     add_predicate(p);
+//   }
+// }
 
+// DISABLE incremental mode temporarily
 // ceg-prophecy is incremental for ic3ia
 template class CegProphecyArrays<IC3IA>;
 
