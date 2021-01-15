@@ -37,20 +37,15 @@ using namespace std;
 
 namespace pono {
 
-unordered_set<PrimOp> logical_ops({ And,
-                                    Or,
-                                    // include bit-vector versions for boolector
-                                    // will prune out based on sort if
-                                    // not-applicable e.g. for other solvers
-                                    BVOr,
-                                    BVAnd });
-
-inline bool is_logical_op(const Term & t, const Sort & boolsort)
-{
-  const Op & op = t->get_op();
-  return ((t->get_sort() == boolsort) && !op.is_null()
-          && (logical_ops.find(op.prim_op) != logical_ops.end()));
-}
+unordered_set<PrimOp> controllable_ops(
+    { And,
+      Or,
+      Implies,
+      // include bit-vector versions for boolector
+      // will prune out based on sort if
+      // not-applicable e.g. for other solvers
+      BVOr,
+      BVAnd });
 
 // checks if t is an equality literal
 // includes BV operators for boolector
@@ -762,22 +757,9 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
         // the else branch is active
         to_visit_.push_back(children[2]);
       }
-    }
-    else if (is_logical_op(t, boolsort_))
-    {
-      Op op = t->get_op();
-      // include bitvector versions for boolector
-      // won't even be in this case if the solver doesn't consider it a boolean
-      // though
-      if ((((op == And) || (op == BVAnd)) && solver_->get_value(t) != solver_true_) ||
-          (((op == Or) || (op == BVOr)) && solver_->get_value(t) == solver_true_))
-      {
-        to_visit_.push_back(get_controlling(t));
-      }
-      else
-      {
-        to_visit_.insert(to_visit_.end(), t->begin(), t->end());
-      }
+    } else if (t->get_sort() == boolsort_
+               && is_controlled(t->get_op().prim_op, solver_->get_value(t))) {
+      to_visit_.push_back(get_controlling(t));
     } else if (ts_.is_next_var(t)
                && state_updates.find(ts_.curr(t)) != state_updates.end()) {
       to_visit_.push_back(state_updates.at(ts_.curr(t)));
@@ -809,14 +791,40 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
   }
 }
 
+bool IC3SA::is_controlled(PrimOp po, const Term & val) const
+{
+  assert(val->is_value());
+
+  if (controllable_ops.find(po) == controllable_ops.end()) {
+    return false;
+  } else if (po == And || po == BVAnd) {
+    return val != solver_true_;
+  } else if (po == Or || po == BVOr || po == Implies) {
+    return val == solver_true_;
+  } else {
+    throw PonoException("Unhandled case in IC3SA::is_controlled");
+  }
+}
+
 Term IC3SA::get_controlling(Term t) const
 {
   assert(solver_context_);
-  const Op & op = t->get_op();
+  Op op = t->get_op();
+  assert(is_controlled(op.prim_op, solver_->get_value(t)));
   assert(!op.is_null());
 
+  if (op == Implies) {
+    // temporarily rewrite t as an Or
+    TermVec children(t->begin(), t->end());
+    assert(children.size() == 2);
+    t = solver_->make_term(Or, smart_not(children[0]), children[1]);
+    op = t->get_op();
+  }
+
+  assert(op == And || op == BVAnd || op == Or || op == BVOr);
+
   Term controlling_val = solver_true_;
-  if (((op == And) || (op == BVAnd)) && solver_->get_value(t) != solver_true_) {
+  if (op == And || op == BVAnd) {
     // controlling val for and is false
     controlling_val = solver_->make_term(false);
   }
