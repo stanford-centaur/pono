@@ -1,4 +1,6 @@
 from libc.stdint cimport uint64_t
+from libcpp cimport bool
+from libcpp.pair cimport pair
 from libcpp.string cimport string
 from libcpp.unordered_map cimport unordered_map
 from libcpp.unordered_set cimport unordered_set
@@ -19,7 +21,7 @@ cdef extern from "core/ts.h" namespace "pono":
         void assign_next(const c_Term & state, const c_Term & val) except +
         void add_invar(const c_Term & constraint) except +
         void constrain_inputs(const c_Term & constraint) except +
-        void add_constraint(const c_Term & constraint) except +
+        void add_constraint(const c_Term & constraint, bint to_init_and_next) except +
         void name_term(const string name, const c_Term & t) except +
         c_Term make_inputvar(const string name, const c_Sort & sort) except +
         c_Term make_statevar(const string name, const c_Sort & sort) except +
@@ -34,7 +36,7 @@ cdef extern from "core/ts.h" namespace "pono":
         c_Term trans() except +
         const c_UnorderedTermMap & state_updates() except +
         unordered_map[string, c_Term] & named_terms() except +
-        const c_TermVec & constraints() except +
+        const vector[pair[c_Term, bool]] & constraints() except +
         bint is_functional() except +
         bint is_deterministic() except +
         void drop_state_updates(const c_TermVec & svs) except +

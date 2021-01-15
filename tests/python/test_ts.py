@@ -31,7 +31,7 @@ def test_query_fts(create_solver):
     assert len(ts.statevars) == 2
     assert len(ts.state_updates) == 1
     assert len(ts.named_terms) == 5, "expecting a named term for each curr/next state var and explicitly named term"
-    assert len(ts.constraints) == 2, "expecting the added constraint over current and next state vars"
+    assert len(ts.constraints) == 1, "expecting the added constraint over current state vars only"
     assert ts.is_functional()
     assert not ts.is_deterministic(), "not deterministic because no update for y"
 
@@ -67,7 +67,7 @@ def test_query_rts(create_solver):
     assert len(ts.statevars) == 2
     assert len(ts.state_updates) == 1
     assert len(ts.named_terms) == 5, "expecting a named term for each curr/next state var and explicitly named term"
-    assert len(ts.constraints) == 2, "expecting the added constraint over current and next state vars"
+    assert len(ts.constraints) == 1, "expecting the added constraint over current state vars only"
     assert not ts.is_functional()
 
     states = list(ts.statevars)
