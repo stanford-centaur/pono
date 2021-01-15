@@ -61,7 +61,8 @@ const std::vector<SolverEnum> solver_enums({
 // keep this up-to-date for setting solver options
 // IC3 uses the solver in a different way, so different
 // options are appropriate than for other engines
-std::unordered_set<Engine> ic3_variants({ MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
+std::unordered_set<Engine> ic3_variants(
+    { IC3_BOOL, MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
 
 // internal method for creating a particular solver
 // doesn't set any options
@@ -141,7 +142,7 @@ SmtSolver create_solver_for(SolverEnum se,
   }
 #endif
   else {
-    throw PonoException("Unhandled case in create_solver_for");
+    s = create_solver(se, logging);
   }
 
   assert(s);

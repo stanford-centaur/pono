@@ -19,7 +19,7 @@ TEST(CegValues, SimpleSafe)
 {
   set_global_logger_verbosity(1);
 
-  SmtSolver s = create_solver(MSAT);
+  SmtSolver s = create_solver_for(MSAT, IC3IA_ENGINE, false, true);
   RelationalTransitionSystem rts(s);
   Sort bvsort8 = rts.make_sort(BV, 8);
   Sort bvsort32 = rts.make_sort(BV, 32);
@@ -59,7 +59,7 @@ TEST(CegValues, SimpleUnsafe)
 {
   set_global_logger_verbosity(1);
 
-  SmtSolver s = create_solver(MSAT);
+  SmtSolver s = create_solver_for(MSAT, IC3IA_ENGINE, false, true);
   RelationalTransitionSystem rts(s);
   Sort bvsort8 = rts.make_sort(BV, 8);
   Sort bvsort32 = rts.make_sort(BV, 32);
