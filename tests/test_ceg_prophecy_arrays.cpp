@@ -17,6 +17,7 @@ TEST(CegProphecyArraysTest, Simple)
   set_global_logger_verbosity(1);
 
   SmtSolver s = create_solver(MSAT);
+  s->set_opt("produce-unsat-cores", "true");
   RelationalTransitionSystem rts(s);
   Sort bvsort8 = rts.make_sort(BV, 8);
   Sort bvsort32 = rts.make_sort(BV, 32);

@@ -23,7 +23,7 @@ class IC3IAUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    s = create_solver_for(GetParam(), IC3IA_ENGINE, false);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
     intsort = s->make_sort(INT);

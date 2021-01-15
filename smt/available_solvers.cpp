@@ -61,7 +61,8 @@ const std::vector<SolverEnum> solver_enums({
 // keep this up-to-date for setting solver options
 // IC3 uses the solver in a different way, so different
 // options are appropriate than for other engines
-std::unordered_set<Engine> ic3_variants({ MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
+std::unordered_set<Engine> ic3_variants(
+    { IC3_BOOL, MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
 
 // internal method for creating a particular solver
 // doesn't set any options
@@ -115,10 +116,11 @@ SmtSolver create_solver_for(SolverEnum se,
                             bool logging,
                             bool full_model)
 {
+  SmtSolver s;
   bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
   if (se != MSAT) {
     // no special options yet for solvers other than mathsat
-    return create_solver(se, logging);
+    s = create_solver(se, logging);
   }
 #ifdef WITH_MSAT
   else if (se == MSAT && ic3_engine) {
@@ -132,7 +134,7 @@ SmtSolver create_solver_for(SolverEnum se,
     }
     msat_config cfg = get_msat_config_for_ic3(false, opts);
     msat_env env = msat_create_env(cfg);
-    SmtSolver s = std::make_shared<MsatSolver>(cfg, env);
+    s = std::make_shared<MsatSolver>(cfg, env);
     if (logging) {
       s = make_shared<LoggingSolver>(s);
     }
@@ -140,8 +142,14 @@ SmtSolver create_solver_for(SolverEnum se,
   }
 #endif
   else {
-    return create_solver(se, logging);
+    s = create_solver(se, logging);
   }
+
+  assert(s);
+  if (ic3_engine) {
+    s->set_opt("produce-unsat-cores", "true");
+  }
+  return s;
 }
 
 SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
