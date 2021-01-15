@@ -389,9 +389,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           profiling_log_filename_ = opt.arg;
 #endif
           break;
-        case MOD_INIT_PROP: mod_init_prop_ = true;
-        case NO_ASSUME_PROP: assume_prop_ = false;
-        case CEGP_ABS_VALS: cegp_abs_vals_ = true;
+        case MOD_INIT_PROP: mod_init_prop_ = true; break;
+        case NO_ASSUME_PROP: assume_prop_ = false; break;
+        case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
