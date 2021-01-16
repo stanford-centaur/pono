@@ -77,7 +77,7 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
     // Refine the system
     // heuristic -- stop refining when no new axioms are needed.
     do {
-      if (!cegar_refine()) {
+      if (!CegProphecyArrays::cegar_refine()) {
         // real counterexample
         return ProverResult::FALSE;
       }
@@ -97,6 +97,11 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
     }
   }
 
+  if (res == ProverResult::TRUE && super::invar_) {
+    // update the invariant
+    super::invar_ = aa_.concrete(super::invar_);
+  }
+
   return res;
 }
 
@@ -110,7 +115,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     // Refine the system
     // heuristic -- stop refining when no new axioms are needed.
     do {
-      if (!cegar_refine()) {
+      if (!CegProphecyArrays::cegar_refine()) {
         return ProverResult::FALSE;
       }
       reached_k_++;
@@ -124,6 +129,16 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
                                               abs_ts_, s, super::options_);
       res = prover->check_until(k);
+      if (res == ProverResult::TRUE) {
+        try {
+          // set the invariant
+          super::invar_ = prover->invar();
+        }
+        catch (std::exception & e) {
+          logger.log(3, "Failed to set invariant because {}", e.what());
+          continue;
+        }
+      }
     } else {
       res = super::check_until(k);
     }
@@ -133,6 +148,11 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     // can't count on false result over abstraction when only checking up until
     // a bound
     return ProverResult::UNKNOWN;
+  }
+
+  if (res == ProverResult::TRUE && super::invar_) {
+    // update the invariant
+    super::invar_ = aa_.concrete(super::invar_);
   }
 
   return res;
@@ -145,7 +165,9 @@ void CegProphecyArrays<Prover_T>::initialize()
     return;
   }
 
-  cegar_abstract();
+  // specify which cegar_abstract in case
+  // we're inheriting from another cegar algorithm
+  CegProphecyArrays::cegar_abstract();
   // call super initializer after abstraction
   super::initialize();
 
@@ -176,12 +198,8 @@ void CegProphecyArrays<Prover_T>::cegar_abstract()
   aae_.initialize();
   // the ArrayAbstractor already abstracted the transition system on
   // construction -- only need to abstract bad
-  Term prop_term = (abs_ts_.solver() == super::orig_property_.solver())
-                       ? super::orig_property_.prop()
-                       : super::to_prover_solver_.transfer_term(
-                           super::orig_property_.prop(), BOOL);
-  super::bad_ =
-      super::solver_->make_term(smt::PrimOp::Not, aa_.abstract(prop_term));
+  assert(super::bad_);
+  super::bad_ = aa_.abstract(super::bad_);
 
   // the abstract system should have all the same state and input variables
   // but abstracted
@@ -527,12 +545,15 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   }
 }
 
+// ceg-prophecy is incremental for ic3ia
+template class CegProphecyArrays<IC3IA>;
+
+// the below engines work when ceg-prophecy is non-incremental. 
 template class CegProphecyArrays<Bmc>;
 template class CegProphecyArrays<BmcSimplePath>;
 template class CegProphecyArrays<KInduction>;
 template class CegProphecyArrays<InterpolantMC>;
 template class CegProphecyArrays<ModelBasedIC3>;
-template class CegProphecyArrays<IC3IA>;
 
 #ifdef WITH_MSAT_IC3IA
 template class CegProphecyArrays<MsatIC3IA>;

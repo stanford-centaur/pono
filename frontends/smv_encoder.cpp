@@ -33,8 +33,8 @@ smt::Term pono::SMVEncoder::parseString(std::string newline)
 void pono::SMVEncoder::processCase()
 {
   std::future_status status;
-  solver_->push();
   for (int i = 0; i < casecheck_.size(); i++) {
+    solver_->push();
     Term bad_ = solver_->make_term(smt::PrimOp::Not, casecheck_[i]);
     solver_->assert_formula(bad_);
     auto fut = std::async(
@@ -49,15 +49,17 @@ void pono::SMVEncoder::processCase()
     while (status != std::future_status::timeout) {
       if (status == std::future_status::ready) {
         if (fut.get()) {
-          rts_.constrain_trans(casestore_[i]);
           break;
-        } else {
+        }
+        else {
+          // TODO would be nice if we could give a line number
           throw PonoException("case error");
         }
       }
     }
-    if (status == std::future_status::timeout)
+    if (status == std::future_status::timeout) {
       throw PonoException("case timeout check error");
+    }
     solver_->pop();
   }
 }
@@ -82,6 +84,13 @@ std::stringstream pono::SMVEncoder::preprocess()
   std::stringstream str;
   str << "MODULE main" << std::endl;
   main_n->process_main(module_list, str);
+  // TODO add a command line flag to re-enable dumping the debug file
+  // generate text file
+  // if(module_flat){
+  //   std::string flatten =file.substr(0,file.find_last_of(".")) +
+  //   "_flatten.txt"; std::ofstream ofile(flatten); ofile << str.str()
+  //   <<std::endl; ofile.close();
+  // }
   parse_flat(str);
   return str;
 }

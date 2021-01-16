@@ -61,7 +61,8 @@ const std::vector<SolverEnum> solver_enums({
 // keep this up-to-date for setting solver options
 // IC3 uses the solver in a different way, so different
 // options are appropriate than for other engines
-std::unordered_set<Engine> ic3_variants({ MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
+std::unordered_set<Engine> ic3_variants(
+    { IC3_BOOL, MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
 
 // internal method for creating a particular solver
 // doesn't set any options
@@ -110,26 +111,30 @@ SmtSolver create_solver(SolverEnum se,
   return s;
 }
 
-SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
+SmtSolver create_solver_for(SolverEnum se,
+                            Engine e,
+                            bool logging,
+                            bool full_model)
 {
+  SmtSolver s;
   bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
   if (se != MSAT) {
     // no special options yet for solvers other than mathsat
-    return create_solver(se, logging);
+    s = create_solver(se, logging);
   }
 #ifdef WITH_MSAT
   else if (se == MSAT && ic3_engine) {
     // These will be managed by the solver object
     // don't need to destroy
     unordered_map<string, string> opts({ { "model_generation", "true" } });
-    if (e == IC3IA_ENGINE) {
+    if (!full_model && e == IC3IA_ENGINE) {
       // only need boolean model
       opts["bool_model_generation"] = "true";
       opts["model_generation"] = "false";
     }
     msat_config cfg = get_msat_config_for_ic3(false, opts);
     msat_env env = msat_create_env(cfg);
-    SmtSolver s = std::make_shared<MsatSolver>(cfg, env);
+    s = std::make_shared<MsatSolver>(cfg, env);
     if (logging) {
       s = make_shared<LoggingSolver>(s);
     }
@@ -137,14 +142,26 @@ SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
   }
 #endif
   else {
-    return create_solver(se, logging);
+    s = create_solver(se, logging);
   }
+
+  assert(s);
+  if (ic3_engine) {
+    s->set_opt("produce-unsat-cores", "true");
+  }
+  return s;
 }
 
 SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
 {
   SmtSolver s;
-  if (se == MSAT) {
+  if (se != MSAT) {
+    s = create_solver_base(se, logging);
+    s->set_opt("incremental", "true");
+    s->set_opt("produce-unsat-cores", "true");
+  }
+#ifdef WITH_MSAT
+  else {
     // no models needed for a reducer
     unordered_map<string, string> opts({ { "model_generation", "false" } });
     msat_config cfg = get_msat_config_for_ic3(false, opts);
@@ -153,11 +170,8 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
     if (logging) {
       s = make_shared<LoggingSolver>(s);
     }
-  } else {
-    s = create_solver_base(se, logging);
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-unsat-cores", "true");
   }
+#endif
 
   assert(s);
   return s;
