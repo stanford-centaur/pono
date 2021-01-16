@@ -19,7 +19,7 @@
 #include "utils/container_shortcut.h"
 #include "utils/term_analysis.h"
  
-// #define DEBUG
+#define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)

@@ -119,8 +119,7 @@ void SygusPdr::initialize()
   // otherwise the corner cases are hard to handle...
 
 
-  super::initialize();
-  reset_solver(); // I don't need the trans->prop thing
+  super::initialize(); // I don't need the trans->prop thing
 
   bad_next_ = ts_.next(bad_); // bad is only available after parent's init
   { // add P to F[1]
@@ -136,8 +135,9 @@ void SygusPdr::initialize()
     // op_abstractor_ = std::make_unique<OpUfAbstractor>(
     //   orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}), bad_, 4);
     
-    SygusPdr::reset_solver(); // reset trans and etc...
   }
+  SygusPdr::reset_solver(); // reset trans if abstracted
+  // and even if not, I don't need the trans->prop thing
 
 
   { // create custom_ts_
@@ -148,8 +148,11 @@ void SygusPdr::initialize()
   }
 
   // has_assumption
-  has_assumptions = ! (custom_ts_->constraints().empty());
+  has_assumptions = false;
   for (const auto & c_initnext : custom_ts_->constraints()) {
+    if (!c_initnext.second)
+      continue;
+    has_assumptions = true;
     assert(custom_ts_->no_next(c_initnext.first));
     // if (no_next) {
     constraints_curr_var_.push_back(c_initnext.first);
@@ -185,10 +188,13 @@ void SygusPdr::initialize()
     parent_of_terms_.WalkBFS(custom_ts_->init());
 
     for (const auto & c_next_init : custom_ts_->constraints()) {
-      if (custom_ts_->no_next(c_next_init.first)) {
-        sygus_term_manager_.RegisterTermsToWalk(c_next_init.first);
-        parent_of_terms_.WalkBFS(c_next_init.first);
-      }
+      if (!c_next_init.second)
+        continue;
+      assert(custom_ts_->no_next(c_next_init.first));
+      //if (custom_ts_->no_next(c_next_init.first)) {
+      sygus_term_manager_.RegisterTermsToWalk(c_next_init.first);
+      parent_of_terms_.WalkBFS(c_next_init.first);
+      //  }
     }
 
     // sygus_term_manager_.RegisterTermsToWalk(property_.prop());
