@@ -80,6 +80,21 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
   ASSERT_EQ(r, FALSE);
 }
 
+TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
+{
+  FunctionalTransitionSystem fts(s);
+  Term max_val = s->make_term(10, bvsort8);
+  counter_system(fts, max_val);
+  Term x = fts.named_terms().at("x");
+
+  Term prop_term = s->make_term(BVUlt, x, s->make_term(9, bvsort8));
+  Property p(s, prop_term);
+
+  IC3IA ic3ia(p, fts, s);
+  ProverResult r = ic3ia.prove();
+  ASSERT_EQ(r, FALSE);
+}
+
 TEST_P(IC3IAUnitTests, InductiveIntSafe)
 {
   FunctionalTransitionSystem fts(s);
