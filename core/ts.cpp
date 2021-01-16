@@ -313,6 +313,11 @@ bool TransitionSystem::is_next_var(const Term & sv) const
   return (next_statevars_.find(sv) != next_statevars_.end());
 }
 
+bool TransitionSystem::is_input_var(const Term & sv) const
+{
+  return (inputvars_.find(sv) != inputvars_.end());
+}
+
 std::string TransitionSystem::get_name(const Term & t) const
 {
   const auto & it = term_to_name_.find(t);

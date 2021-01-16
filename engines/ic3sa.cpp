@@ -37,6 +37,16 @@ using namespace std;
 
 namespace pono {
 
+unordered_set<PrimOp> controllable_ops(
+    { And,
+      Or,
+      Implies,
+      // include bit-vector versions for boolector
+      // will prune out based on sort if
+      // not-applicable e.g. for other solvers
+      BVOr,
+      BVAnd });
+
 // checks if t is an equality literal
 // includes BV operators for boolector
 // but checks for boolean sort first
@@ -57,13 +67,30 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
   return (op == Equal || op == BVComp || op == Distinct);
 }
 
+// helper function for an assertion
+// returns true iff all the variables in t are next-state vars
+bool all_next(const TransitionSystem & ts, const Term & t)
+{
+  UnorderedTermSet vars;
+  get_free_symbolic_consts(t, vars);
+  bool all_next = true;
+  for (const auto & v : vars) {
+    if (!ts.is_next_var(v)) {
+      all_next = false;
+      break;
+    }
+  }
+  return all_next;
+}
+
 // main IC3SA implementation
 
 IC3SA::IC3SA(const Property & p,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
              PonoOptions opt)
-    : super(p, ts, solver, opt), fcoi_(ts_, 0)
+    : super(p, ts, solver, opt),
+      boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;
 }
@@ -137,11 +164,9 @@ void IC3SA::predecessor_generalization(size_t i,
                                        const IC3Formula & c,
                                        IC3Formula & pred)
 {
-  // TODO: use the JustifyCOI algorithm from the paper
-  //       e.g. partial_model
-  // compute cone-of-influence of target c
-  fcoi_.compute_coi({ c.term });
-  const UnorderedTermSet & coi_symbols = fcoi_.statevars_in_coi();
+  UnorderedTermSet coi_symbols = projection_set_;
+
+  justify_coi(ts_.next(c.term), coi_symbols);
   assert(coi_symbols.size() <= ts_.statevars().size());
 
   logger.log(
@@ -150,17 +175,13 @@ void IC3SA::predecessor_generalization(size_t i,
       coi_symbols.size(),
       ts_.statevars().size());
 
-  UnorderedTermSet cube_lits;
+  assert(coi_symbols.size());
 
+  UnorderedTermSet cube_lits;
   // first populate with predicates
-  UnorderedTermSet free_symbols;
   for (const auto & p : predset_) {
-    free_symbols.clear();
-    get_free_symbolic_consts(p, free_symbols);
-    for (const auto & fv : free_symbols) {
-      if (coi_symbols.find(fv) != coi_symbols.end()) {
-        continue;
-      }
+    if (!in_projection(p, coi_symbols)) {
+      continue;
     }
 
     if (solver_->get_value(p) == solver_true_) {
@@ -183,6 +204,10 @@ void IC3SA::check_ts() const
   //       might work if we just remove input variables from the subterms
   // TODO: add option to promote all inputs to be state vars
   // TODO: add support for arrays
+
+  if (!ts_.is_functional()) {
+    throw PonoException("IC3SA requires a functional transition system.");
+  }
 
   for (const auto & sv : ts_.statevars()) {
     SortKind sk = sv->get_sort()->get_sort_kind();
@@ -444,6 +469,22 @@ void IC3SA::initialize()
 
   // collect variables in bad_
   get_free_symbolic_consts(bad_, vars_in_bad_);
+
+  // populate the map used in justify_coi to take constraints into account
+  assert(ts_.is_functional());
+  UnorderedTermSet tmp_vars;
+  for (const auto & constraint : ts_.constraints()) {
+    if (ts_.no_next(constraint)) {
+      tmp_vars.clear();
+      get_free_symbolic_consts(constraint, tmp_vars);
+      constraint_vars_[constraint] = tmp_vars;
+    } else {
+      // functional system should not have constraints
+      // that mention both current state and next state variables
+      // compiler should optimize away this lambda if not using it in the assert
+      assert(all_next(ts_, constraint));
+    }
+  }
 }
 
 // IC3SA specific methods
@@ -674,6 +715,127 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
   }
 
   return new_terms;
+}
+
+void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
+{
+  // expecting to have a satisfiable context
+  // and IC3Base only solves at context levels > 0
+  assert(solver_context_);
+  to_visit_.clear();
+  visited_.clear();
+  to_visit_.push_back(c);
+
+  TermVec children;
+  UnorderedTermSet free_vars;
+  const UnorderedTermMap & state_updates = ts_.state_updates();
+
+  Term t;
+  while (!to_visit_.empty()) {
+    t = to_visit_.back();
+    to_visit_.pop_back();
+
+    if (visited_.find(t) != visited_.end()) {
+      continue;
+    }
+    visited_.insert(t);
+
+    if (t->get_op() == Ite) {
+      children.clear();
+      children.insert(children.end(), t->begin(), t->end());
+      assert(children.size() == 3);
+      // always visit the condition
+      to_visit_.push_back(children[0]);
+      if (solver_->get_value(children[0]) == solver_true_)
+      {
+        // the if branch is active
+        to_visit_.push_back(children[1]);
+      }
+      else
+      {
+        // the else branch is active
+        to_visit_.push_back(children[2]);
+      }
+    } else if (t->get_sort() == boolsort_
+               && is_controlled(t->get_op().prim_op, solver_->get_value(t))) {
+      to_visit_.push_back(get_controlling(t));
+    } else if (ts_.is_next_var(t)
+               && state_updates.find(ts_.curr(t)) != state_updates.end()) {
+      to_visit_.push_back(state_updates.at(ts_.curr(t)));
+    } else if (ts_.is_curr_var(t)) {
+      free_vars.insert(t);
+
+      // need to add any constraints that this variable is involved in
+      // to the visit stack
+      for (const auto & elem : constraint_vars_) {
+        if (elem.second.find(t) != elem.second.end()) {
+          // this variable occurs in this constraint
+          // add the constraint
+          to_visit_.push_back(elem.first);
+        }
+      }
+
+    } else {
+      for (const auto & tt : t) {
+        to_visit_.push_back(tt);
+      }
+    }
+  }
+
+  for (const auto & fv : free_vars) {
+    // not expecting any next state vars or inputs
+    assert(ts_.is_curr_var(fv));
+    projection.insert(fv);
+  }
+}
+
+bool IC3SA::is_controlled(PrimOp po, const Term & val) const
+{
+  assert(val->is_value());
+
+  if (controllable_ops.find(po) == controllable_ops.end()) {
+    return false;
+  } else if (po == And || po == BVAnd) {
+    return val != solver_true_;
+  } else if (po == Or || po == BVOr || po == Implies) {
+    return val == solver_true_;
+  } else {
+    throw PonoException("Unhandled case in IC3SA::is_controlled");
+  }
+}
+
+Term IC3SA::get_controlling(Term t) const
+{
+  assert(solver_context_);
+  Op op = t->get_op();
+  assert(is_controlled(op.prim_op, solver_->get_value(t)));
+  assert(!op.is_null());
+
+  if (op == Implies) {
+    // temporarily rewrite t as an Or
+    TermVec children(t->begin(), t->end());
+    assert(children.size() == 2);
+    t = solver_->make_term(Or, smart_not(children[0]), children[1]);
+    op = t->get_op();
+  }
+
+  assert(op == And || op == BVAnd || op == Or || op == BVOr);
+
+  Term controlling_val = solver_true_;
+  if (op == And || op == BVAnd) {
+    // controlling val for and is false
+    controlling_val = solver_->make_term(false);
+  }
+
+  Term controlling_term;
+  for (const auto & tt : t) {
+    if (solver_->get_value(tt) == controlling_val) {
+      controlling_term = tt;
+      break;
+    }
+  }
+  assert(controlling_term);
+  return controlling_term;
 }
 
 void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const

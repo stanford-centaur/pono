@@ -25,13 +25,14 @@
 #pragma once
 
 #include "engines/ic3.h"
-#include "utils/fcoi.h"
 
 namespace pono {
 
 using EquivalenceClasses =
     std::unordered_map<smt::Sort,
                        std::unordered_map<smt::Term, smt::UnorderedTermSet>>;
+
+using TypedTerms = std::unordered_map<smt::Sort, smt::UnorderedTermSet>;
 
 class IC3SA : public IC3
 {
@@ -48,21 +49,32 @@ class IC3SA : public IC3
  protected:
   smt::UnorderedTermSet predset_;  ///< stores all predicates in abstraction
 
-  std::unordered_map<smt::Sort, smt::UnorderedTermSet> term_abstraction_;
+  // TODO remove this and generate it on the fly
+  //      less performant from a time perspective but can get
+  //      better generalization by using only terms in the actual query
+  TypedTerms term_abstraction_;
   ///< stores all the current terms in the abstraction organized by sort
 
   smt::UnorderedTermSet projection_set_;  ///< variables always in projection
 
   smt::UnorderedTermSet vars_in_bad_;  ///< variables occurring in bad
 
-  // TODO: replace this with partial_model
-  FunctionalConeOfInfluence fcoi_;
-
   std::vector<smt::UnorderedTermMap>
       inputvars_at_time_;  ///< unrolled variables
                            ///< only the unconstrained variables
                            ///< e.g. input variables and state vars
                            ///< with no next state update
+
+  std::unordered_map<smt::Term, smt::UnorderedTermSet> constraint_vars_;
+  ///< this data structure is used to find (current state) variables
+  ///< that are related by a constraint
+  ///< this is needed for soundness in justify_coi
+
+  smt::TermVec to_visit_;          ///< temporary var for justify_coi
+  smt::UnorderedTermSet visited_;  ///< temporary var for justify_coi
+
+  // useful sort
+  smt::Sort boolsort_;
 
   // virtual method implementations
 
@@ -128,6 +140,13 @@ class IC3SA : public IC3
    *  @modifies term_abstraction_ and predset_
    */
   bool add_to_term_abstraction(const smt::Term & term);
+
+  void justify_coi(smt::Term c, smt::UnorderedTermSet & projection);
+
+  bool is_controlled(smt::PrimOp po, const smt::Term & val) const;
+
+  // helper function for justify_coi
+  smt::Term get_controlling(smt::Term t) const;
 
   /** Check if a term is in the projection
    *  @param t the term to check
