@@ -804,6 +804,9 @@ Term IC3Base::get_frame_term(size_t i) const
       res = solver_->make_term(And, res, u.term);
     }
   }
+
+  // the property is implicitly part of the frame
+  res = solver_->make_term(And, res, smart_not(bad_));
   return res;
 }
 
