@@ -179,7 +179,7 @@ ProverResult IC3Base::check_until(int k)
   RefineResult ref_res;
   int i = reached_k_ + 1;
   assert(reached_k_ + 1 >= 0);
-  for (size_t i = reached_k_ + 1; i <= k; ++i) {
+  while (i <= k) {
     res = step(i);
 
     if (res == ProverResult::FALSE) {
@@ -196,6 +196,8 @@ ProverResult IC3Base::check_until(int k)
         assert(!solver_context_);
         throw PonoException("Refinement failed");
       }
+    } else {
+      ++i;
     }
 
     if (res != ProverResult::UNKNOWN) {
