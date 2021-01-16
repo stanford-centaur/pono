@@ -62,7 +62,7 @@ const std::vector<SolverEnum> solver_enums({
 // IC3 uses the solver in a different way, so different
 // options are appropriate than for other engines
 std::unordered_set<Engine> ic3_variants(
-    { IC3_BOOL, MBIC3, IC3IA_ENGINE, MSAT_IC3IA, SYGUS_PDR });
+    { IC3_BOOL, MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
 
 // internal method for creating a particular solver
 // doesn't set any options
@@ -149,15 +149,13 @@ SmtSolver create_solver_for(SolverEnum se,
   if (ic3_engine) {
     s->set_opt("produce-unsat-cores", "true");
   }
-  if (e == Engine::SYGUS_PDR) {
-    s->set_opt("base-context-1", "true");
-  }
   return s;
 }
 
 SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
 {
   SmtSolver s;
+#ifdef WITH_MSAT
   if (se == MSAT) {
     // no models needed for a reducer
     unordered_map<string, string> opts({ { "model_generation", "false" } });
@@ -167,6 +165,9 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
     if (logging) {
       s = make_shared<LoggingSolver>(s);
     }
+#else
+  if (false) {
+#endif
   } else {
     s = create_solver_base(se, logging);
     s->set_opt("incremental", "true");

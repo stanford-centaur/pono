@@ -74,6 +74,11 @@ SygusPdr::SygusPdr(const Property & p, const TransitionSystem & ts,
     has_assumptions(true) // most conservative way
 {
   solver_->set_opt("produce-unsat-cores", "true");
+
+  // we need to have the reset-assertion capability 
+  if(solver_->get_solver_enum() == SolverEnum::BTOR)
+    solver_->set_opt("base-context-1", "true");
+  // actually the above is already done in 
 }
 
 // destruct -- free the memory
@@ -115,10 +120,13 @@ void SygusPdr::initialize()
 
 
   super::initialize();
+  reset_solver(); // I don't need the trans->prop thing
+
   bad_next_ = ts_.next(bad_); // bad is only available after parent's init
   { // add P to F[1]
     auto prop = smart_not(bad_);
-    constrain_frame(1, IC3Formula(prop, {prop}, true), true);
+    SygusPdr::constrain_frame(1, IC3Formula(prop, {prop}, true), true);
+    // this may be redundant given the base ic3 use trans_label-> prop
   }
 
 
@@ -128,7 +136,7 @@ void SygusPdr::initialize()
     // op_abstractor_ = std::make_unique<OpUfAbstractor>(
     //   orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}), bad_, 4);
     
-    reset_solver(); // reset trans and etc...
+    SygusPdr::reset_solver(); // reset trans and etc...
   }
 
 
@@ -141,16 +149,18 @@ void SygusPdr::initialize()
 
   // has_assumption
   has_assumptions = ! (custom_ts_->constraints().empty());
-  for (const auto & c : custom_ts_->constraints()) {
-    if (custom_ts_->no_next(c)) {
-      constraints_curr_var_.push_back(c);
-      // translate input_var to next input_var
-      // but the state var ...
-      constraints_curr_var_.push_back(
-        custom_ts_->to_next_func(
-          solver_->substitute(c,
-            custom_ts_->input_var_to_next_map())));
-    } // else skip
+  for (const auto & c_initnext : custom_ts_->constraints()) {
+    assert(custom_ts_->no_next(c_initnext.first));
+    // if (no_next) {
+    constraints_curr_var_.push_back(c_initnext.first);
+    // translate input_var to next input_var
+    // but the state var ...
+    // we will get to next anyway
+    constraints_curr_var_.push_back(
+      custom_ts_->to_next_func(
+        solver_->substitute(c_initnext.first,
+          custom_ts_->input_var_to_next_map())));
+    // } // else skip
   }
   
   // initialize the caches  
@@ -174,10 +184,10 @@ void SygusPdr::initialize()
     sygus_term_manager_.RegisterTermsToWalk(custom_ts_->init());
     parent_of_terms_.WalkBFS(custom_ts_->init());
 
-    for (const auto & c : custom_ts_->constraints()) {
-      if (custom_ts_->no_next(c)) {
-        sygus_term_manager_.RegisterTermsToWalk(c);
-        parent_of_terms_.WalkBFS(c);
+    for (const auto & c_next_init : custom_ts_->constraints()) {
+      if (custom_ts_->no_next(c_next_init.first)) {
+        sygus_term_manager_.RegisterTermsToWalk(c_next_init.first);
+        parent_of_terms_.WalkBFS(c_next_init.first);
       }
     }
 
@@ -278,6 +288,7 @@ IC3Formula SygusPdr::inductive_generalization(
   //Term not_cex = smart_not(cex);
   Term cex_prime = ts_.next(cex);
   Term Fprev = get_frame_term(i - 1);
+  // since we add the property as a lemma, so we should be okay here
   Term T = ts_.trans();
   Term F_T_not_cex = make_and( {Fprev, T} ); // , not_cex
   Term base = 
@@ -720,13 +731,14 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
 } // SygusPdr::ExtractPartialAndFullModel
 
 
-void SygusPdr::predecessor_generalization(size_t i, const IC3Formula & c, IC3Formula & pred) {
+void SygusPdr::predecessor_generalization(size_t i, const Term & cterm, IC3Formula & pred) {
   // used in rel_ind_check
   // extract the model based on var list
+  // NOTE: i may be incorrect, it is given as F/\T->(here is i)
 
   // no need to pop (pop in rel_ind_check)
   // return the model and build IC3FormulaModel
-  auto partial_full_model = ExtractPartialModel(c.term);
+  auto partial_full_model = ExtractPartialModel(cterm);
   pred = partial_full_model.first;
 } // generalize_predecessor
 
@@ -758,11 +770,11 @@ RefineResult SygusPdr::refine() {
   if (!options_.sygus_use_operator_abstraction_)
     return REFINE_NONE;
 
-  assert(cex_pg_);
+  assert(witness_length()>0);
 
   TermVec new_constraints;
   bool succ = op_abstractor_->refine_with_constraints(
-    cex_pg_, bad_, new_constraints);
+    cex_, bad_, new_constraints);
   assert(succ == (!new_constraints.empty()));
   if (succ) {
     for (const auto & c : new_constraints) {
@@ -843,7 +855,7 @@ bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block, unsigned fi
   while(!proof_goals.empty()) {
     const ProofGoal * pg = proof_goals.top();
     if (pg->idx == 0) { // fail
-      // do we refine ? this is just may proof goal
+      // do we refine ? no, because this is just a may proof goal
       return false;
     }
 
@@ -874,7 +886,7 @@ bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block, unsigned fi
       assert(collateral.disjunction);
       assert(collateral.term);
       assert(collateral.children.size());
-      constrain_frame(idx, collateral);
+      SygusPdr::constrain_frame(idx, collateral);
     } else {
       // could not block this proof goal
       assert(collateral.term);
@@ -914,7 +926,7 @@ bool SygusPdr::rel_ind_check_may_block(size_t i,
   Result r = check_sat();
   if (r.is_sat()) {
     // get model
-    predecessor_generalization(i, c, out);
+    predecessor_generalization(i, c.term, out);
     assert(out.term);
     assert(out.children.size());
     assert(!out.disjunction);  // expecting a conjunction
@@ -945,11 +957,11 @@ void SygusPdr::disable_all_labels() {
 
 // called in step to produce a bad state
 // this is actually F /\ T -> bad'
-bool SygusPdr::intersects_bad(IC3Formula & out)
+bool SygusPdr::reaches_bad(IC3Formula & out)
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
-  assert_frame_labels(reached_k_ + 1);
+  assert_frame_labels(frontier_idx());
   assert_trans_label();
   // see if it intersects with bad
   solver_->assert_formula(bad_next_);
@@ -957,7 +969,8 @@ bool SygusPdr::intersects_bad(IC3Formula & out)
 
   if (r.is_sat()) {
     predecessor_generalization(
-      reached_k_ + 1, IC3Formula(bad_, {bad_}, false), out );
+      frames_.size(), bad_, out );
+    // actually the first is not used
   }
 
   pop_solver_context();
@@ -966,67 +979,70 @@ bool SygusPdr::intersects_bad(IC3Formula & out)
   return r.is_sat();
 } // intersects_bad
 
-ProverResult SygusPdr::step_0()
-{ // difference from the base class implementation: 
-  // INIT/\T->P' and 
-  logger.log(1, "Checking if initial states satisfy property");
-  assert(reached_k_ < 0);
 
-  push_solver_context(); // sat(Init /\ bad)?
+ProverResult SygusPdr::step_01()
+{ // differs from base class now in get_initial_bad_model
+  assert(reached_k_ < 1);
+  if (reached_k_ < 0) {
+    logger.log(1, "Checking if initial states satisfy property");
+
+    push_solver_context();
+    solver_->assert_formula(init_label_);
+    solver_->assert_formula(bad_);
+    Result r = check_sat();
+    if (r.is_sat()) {
+      pop_solver_context();
+      // trace is only one bad state that intersects with initial
+      cex_.clear();
+      cex_.push_back(bad_);
+      return ProverResult::FALSE;
+    } else {
+      assert(r.is_unsat());
+      reached_k_ = 0;  // keep reached_k_ aligned with number of frames
+    }
+    pop_solver_context();
+  }
+
+  assert(reached_k_ == 0);
+  logger.log(1, "Checking if property can be violated in one-step");
+
+  push_solver_context();
   solver_->assert_formula(init_label_);
-  solver_->assert_formula(bad_);
+  solver_->assert_formula(trans_label_);
+  solver_->assert_formula(ts_.next(bad_));
   Result r = check_sat();
   if (r.is_sat()) {
     IC3Formula c = get_initial_bad_model();
-    cex_pg_ = new ProofGoal(c, 0, nullptr);
     pop_solver_context();
+    ProofGoal * pg = new ProofGoal(c, 0, nullptr);
+    reconstruct_trace(pg, cex_);
+    delete pg;
     return ProverResult::FALSE;
   } else {
     assert(r.is_unsat());
-    reached_k_ = 0;  // keep reached_k_ aligned with number of frames
-  }
-  pop_solver_context();
-
-  logger.log(1, "Checking if initial states transit to property");
-  push_solver_context(); // sat(Init /\ T /\ bad')?
-  solver_->assert_formula(init_label_);
-  assert_trans_label();
-  solver_->assert_formula( bad_next_ );
-  r = check_sat();
-  if (r.is_sat()) {
-    IC3Formula c = get_initial_bad_model();
-    cex_pg_ = new ProofGoal(c, 0, nullptr);
-    pop_solver_context();
-    return ProverResult::FALSE;
-  } else {
-    assert(r.is_unsat());
-    reached_k_ = 0;  // keep reached_k_ aligned with number of frames
+    reached_k_ = 1;  // keep reached_k_ aligned with number of frames
   }
   pop_solver_context();
 
   return ProverResult::UNKNOWN;
-} // step_0
+}
 
-
-// this is the same as the base class
-// but because step_0 is not virtual
-// and I want to change rel_ind_check
-// to avoid the reduce unsat core part
-// I have to write it again
+// difference : 1. no need for invar to be conjuncted
+// 2. call SygusPdr::block_all
 ProverResult SygusPdr::step(int i)
 {
   if (i <= reached_k_) {
     return ProverResult::UNKNOWN;
   }
 
-  if (reached_k_ < 0) {
-    return SygusPdr::step_0();
+  if (reached_k_ < 1) {
+    return step_01();
   }
 
   // reached_k_ is the number of transitions that have been checked
   // at this point there are reached_k_ + 1 frames that don't
   // intersect bad, and reached_k_ + 2 frames overall
-  assert(reached_k_ + 2 == frames_.size());
+  assert(reached_k_ == frontier_idx());
   logger.log(1, "Blocking phase at frame {}", i);
   if (!SygusPdr::block_all()) {
     // counter-example
@@ -1043,7 +1059,7 @@ ProverResult SygusPdr::step(int i)
       // which is the frame that just had all terms
       // from the previous frames propagated
       invar_ = get_frame_term(j + 1);
-      D(3, "INV: {}", invar_);
+      // invar_ = solver_->make_term(And, invar_, smart_not(bad_));
       return ProverResult::TRUE;
     }
   }
@@ -1053,7 +1069,7 @@ ProverResult SygusPdr::step(int i)
   ++reached_k_;
 
   return ProverResult::UNKNOWN;
-} // step
+}
 
 
 // this is the same as the base class
@@ -1073,22 +1089,30 @@ ProverResult SygusPdr::check_until(int k)
   int i = reached_k_ + 1;
   assert(reached_k_ + 1 >= 0);
   for (size_t i = reached_k_ + 1; i <= k; ++i) {
-    // reset cex_pg_ to null
-    // there might be multiple abstract traces if there's a derived class
-    // doing abstraction refinement
-    if (cex_pg_) {
-      delete cex_pg_;
-      cex_pg_ = nullptr;
+    res = step(i);
+
+    if (res == ProverResult::FALSE) {
+      assert(cex_.size());
+      RefineResult s = refine();
+      if (s == REFINE_SUCCESS) {
+        continue;
+      } else if (s == REFINE_NONE) {
+        // this is a real counterexample
+        assert(cex_.size());
+        return ProverResult::FALSE;
+      } else {
+        assert(s == REFINE_FAIL);
+        throw PonoException("Refinement failed");
+      }
     }
 
-    res = SygusPdr::step(i);
     if (res != ProverResult::UNKNOWN) {
       return res;
     }
   }
 
   return ProverResult::UNKNOWN;
-} // check_until
+}// check_until
 
 
 // ---------------------------------------------------------------------
@@ -1130,7 +1154,12 @@ bool SygusPdr::rel_ind_check(size_t i,
     for (const auto & cc : c.children) {
       ccnext = ts_.next(cc);
       lbl = label(ccnext);
-      solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
+      if (lbl != ccnext && !is_global_label(lbl)) {
+        // only need to add assertion if the label is not the same as ccnext
+        // could be the same if ccnext is already a literal
+        // and is not already in a global assumption
+        solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
+      }
       assumps_.push_back(lbl);
     }
   }
@@ -1140,7 +1169,7 @@ bool SygusPdr::rel_ind_check(size_t i,
     if (get_pred) {
       out = get_model_ic3formula();
       if (options_.ic3_pregen_) {
-        predecessor_generalization(i, c, out);
+        predecessor_generalization(i, c.term, out);
         assert(out.term);
         assert(out.children.size());
         assert(!out.disjunction);  // expecting a conjunction
@@ -1178,49 +1207,30 @@ bool SygusPdr::rel_ind_check(size_t i,
 // there is no difference from the base class
 // but I want to update rel_ind_check
 bool SygusPdr::block_all()
-{ 
-  typedef MayProofGoalQueue ProofGoalQueue;
+{
   assert(!solver_context_);
-  ProofGoalQueue proof_goals;
-  IC3Formula bad_goal;
-  while (intersects_bad(bad_goal)) {
-    assert(bad_goal.term);  // expecting non-null
+  MayProofGoalQueue proof_goals;
+  IC3Formula goal;
+  while (SygusPdr::reaches_bad(goal)) {
+    assert(goal.term);            // expecting non-null
     assert(proof_goals.empty());  // bad should be the first goal each iteration
-    proof_goals.new_proof_goal(bad_goal, frontier_idx(), nullptr);
+    proof_goals.new_proof_goal(goal, frontier_idx(), nullptr);
 
     while (!proof_goals.empty()) {
       const ProofGoal * pg = proof_goals.top();
 
       if (!pg->idx) {
         // went all the way back to initial
-        // TODO refactor refinement to not use cex_pg_
         // need to create a new proof goal that's not managed by the queue
-        cex_pg_ = new ProofGoal(pg->target, pg->idx, pg->next);
-        RefineResult s = refine();
-        if (s == REFINE_SUCCESS) {
-          // on successful refinement, clear the queue of proof goals
-          // which might not have been precise
-          // TODO might have to change this if there's an algorithm
-          // that refines but can keep proof goals around
-          proof_goals.clear();
+        reconstruct_trace(pg, cex_);
 
-          // and reset cex_pg_
-          if (cex_pg_) {
-            delete cex_pg_;
-            cex_pg_ = nullptr;
-          }
-          continue;
-        } else if (s == REFINE_NONE) {
-          // this is a real counterexample
-          // TODO refactor this
-          assert(cex_pg_);
-          assert(cex_pg_->target.term == pg->target.term);
-          assert(cex_pg_->idx == pg->idx);
-          return false;
-        } else {
-          assert(s == REFINE_FAIL);
-          throw PonoException("Refinement failed");
-        }
+        // in case this is spurious, clear the queue of proof goals
+        // which might not have been precise
+        // TODO might have to change this if there's an algorithm
+        // that refines but can keep proof goals around
+        proof_goals.clear();
+
+        return false;
       }
 
       if (is_blocked(pg)) {
@@ -1235,7 +1245,7 @@ bool SygusPdr::block_all()
       }
 
       IC3Formula collateral;  // populated by rel_ind_check
-      if (SygusPdr::rel_ind_check(pg->idx, pg->target, collateral, true)) {
+      if (rel_ind_check(pg->idx, pg->target, collateral, true)) {
         // this proof goal can be blocked
         assert(!solver_context_);
         assert(collateral.term);
@@ -1259,7 +1269,8 @@ bool SygusPdr::block_all()
         assert(collateral.disjunction);
         assert(collateral.term);
         assert(collateral.children.size());
-        constrain_frame(idx, collateral);
+        SygusPdr::constrain_frame(idx, collateral);
+
         // re-add the proof goal at a higher frame if not blocked
         // up to the frontier
         if (idx < frontier_idx()) {
@@ -1274,14 +1285,125 @@ bool SygusPdr::block_all()
       }
     }  // end while(!proof_goals.empty())
 
-    assert(!(bad_goal = IC3Formula()).term);  // in debug mode, reset it
-  }                                           // end while(intersects_bad())
+    assert(!(goal = IC3Formula()).term);  // in debug mode, reset it
+  }                                       // end while(reaches_bad(goal))
 
   assert(proof_goals.empty());
   return true;
 } // block_all
 
+// -----------------------------------------------------------------
+// allow input in the constraint (when there are additional constraints)
+// -----------------------------------------------------------------
 
+
+static bool subsumes(const IC3Formula &a, const IC3Formula &b)
+{
+  assert(a.disjunction);
+  assert(a.disjunction == b.disjunction);
+  const TermVec &ac = a.children;
+  const TermVec &bc = b.children;
+  // NOTE: IC3Formula children are sorted on construction
+  //       Uses unique id of term, from term->get_id()
+  return ac.size() <= bc.size()
+         && std::includes(bc.begin(), bc.end(), ac.begin(), ac.end());
+}
+
+
+void SygusPdr::constrain_frame(size_t i, const IC3Formula & constraint,
+                              bool new_constraint)
+{
+  assert(solver_context_ == 0);
+  assert(i < frame_labels_.size());
+  assert(constraint.disjunction);
+  if (has_assumptions)
+    assert(ts_.no_next(constraint.term));
+  else
+    assert(ts_.only_curr(constraint.term));
+
+  if (new_constraint) {
+    for (size_t j = 1; j <= i; ++j) {
+      std::vector<IC3Formula> & Fj = frames_.at(j);
+      size_t k = 0;
+      for (size_t l = 0; l < Fj.size(); ++l) {
+        if (!subsumes(constraint, Fj[l])) {
+          Fj[k++] = Fj[l];
+        }
+      }
+      Fj.resize(k);
+    }
+  }
+
+  assert(i > 0);  // there's a special case for frame 0
+
+  constrain_frame_label(i, constraint);
+  frames_.at(i).push_back(constraint);
+}
+
+// -----------------------------------------------------------------
+// Require the capability to reset solver
+// -----------------------------------------------------------------
+
+void SygusPdr::reset_solver()
+{
+  assert(solver_context_ == 0);
+
+  // for syguspdr, we must be able to reset solver
+  assert (!failed_to_reset_solver_);
+
+  try {
+    solver_->reset_assertions();
+
+    // Now need to add back in constraints at context level 0
+    logger.log(2, "SygusPdr: Reset solver and now re-adding constraints.");
+
+    // define init, trans, and bad labels
+    assert(init_label_ == frame_labels_.at(0));
+    solver_->assert_formula(
+        solver_->make_term(Implies, init_label_, ts_.init()));
+
+    solver_->assert_formula(
+        solver_->make_term(Implies, trans_label_, ts_.trans()));
+
+    // assume property in pre-state
+
+    solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
+
+    for (size_t i = 0; i < frames_.size(); ++i) {
+      for (const auto & constraint : frames_.at(i)) {
+        constrain_frame_label(i, constraint);
+      }
+    }
+  }
+  catch (SmtException & e) {
+    logger.log(1,
+               "Failed to reset solver (underlying solver must not support "
+               "it). Disabling solver resets for rest of run.");
+    throw e; // SyGuS requires reset solver capability 
+  }
+
+  num_check_sat_since_reset_ = 0;
+}
+
+// difference : I don't need to conjuct with property, 
+// because it is already added as a lemma/constraint
+Term SygusPdr::get_frame_term(size_t i) const
+{
+  // TODO: decide if frames should hold IC3Formulas or terms
+  //       need to special case initial state if using IC3Formulas
+  if (i == 0) {
+    // F[0] is always the initial states constraint
+    return ts_.init();
+  }
+
+  Term res = solver_true_;
+  for (size_t j = i; j < frames_.size(); ++j) {
+    for (const auto &u : frames_[j]) {
+      res = solver_->make_term(And, res, u.term);
+    }
+  }
+  return res;
+}
 
 }  // namespace pono
 

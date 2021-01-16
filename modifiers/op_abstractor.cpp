@@ -113,7 +113,7 @@ bool check_possible(const Term & res, const TermVec & arg, Op op,
 
 bool OpInpAbstractor::refine_with_constraints(
     // TODO: how to put the trace in here?
-    const ProofGoal * goal_at_init,
+    const smt::TermVec & cexs,
     const Term & bad,
     smt::TermVec & out) {
   
@@ -121,49 +121,45 @@ bool OpInpAbstractor::refine_with_constraints(
   if (op_abstracted.empty())
     return false;
 
-  assert(goal_at_init);
-  assert(goal_at_init->idx == 0);
+  assert(cexs.size() > 1);
 
   // unroll from 0 --> ...
-  const ProofGoal * ptr = goal_at_init;
-  const ProofGoal * prev_ptr = NULL;
-  unsigned time = 0;
+  size_t trace_pos = 0;
 
   const auto & solver_ = abs_ts_.solver();
   solver_->push();
   bool refined = false;
-  ProofGoal last_proof_goal(IC3Formula(bad, {bad}, false), 0, NULL);
 
-  while(true) {
+  while(trace_pos != cexs.size()) {
     refined = false;
-    logger.log(3, "Refine cex t{} : {}", time, ptr->target.term->to_string());
-    assert(time == ptr->idx);
+    const auto & curr_term = cexs.at(trace_pos);
+    logger.log(3, "Refine cex t{} : {}", trace_pos, curr_term->to_string());
 
-    if (time == 0) {
+    if (trace_pos == 0) {
       solver_->assert_formula( unroller_->at_time(abs_ts_.init(), 0) );
-      solver_->assert_formula( unroller_->at_time(ptr->target.term, 0));
+      solver_->assert_formula( unroller_->at_time(curr_term, 0));
     } else {
       // trans will include constraints
-      solver_->assert_formula( unroller_->at_time(abs_ts_.trans(), time-1) );
-      solver_->assert_formula( unroller_->at_time(ptr->target.term, time));
+      solver_->assert_formula( unroller_->at_time(abs_ts_.trans(), trace_pos-1) );
+      solver_->assert_formula( unroller_->at_time(curr_term, trace_pos));
       auto res = solver_->check_sat();
       assert (res.is_sat());
 
       // find term (result) in the model
       UnorderedTermSet vars;
-      assert(prev_ptr);
-      get_free_symbols( prev_ptr->target.term, vars);
+      const auto & prev_term = cexs.at(trace_pos-1);
+      get_free_symbols( prev_term, vars);
       for (auto & abs_term : op_abstracted) {
         if (vars.find(abs_term.result) != vars.end()) {
-          // now eval the result (time-1) and the args (time-1)
+          // now eval the result (trace_pos-1) and the args (trace_pos-1)
           // and see if violated
           auto res_val = solver_->get_value(
-            unroller_->at_time(abs_term.result, time-1));
+            unroller_->at_time(abs_term.result, trace_pos-1));
           TermVec arg_val;
           for (const auto & arg : abs_term.args) {
             arg_val.push_back(
               solver_->get_value(
-                unroller_->at_time(arg, time-1)));
+                unroller_->at_time(arg, trace_pos-1)));
           }
           if (!check_possible(res_val, arg_val, abs_term.op, solver_)) {
             // create an assumption
@@ -203,24 +199,15 @@ bool OpInpAbstractor::refine_with_constraints(
           // check if this is possible
         } // end if find this abs_term exists
       }
-    } // else (time > 0)
+    } // else (trace_pos > 0)
 
     if (refined)
       break;
 
-    ++ time;
-    prev_ptr = ptr;
-    if (ptr->next)
-      ptr = ptr->next;
-    else {
-      last_proof_goal.idx = time;
-      ptr = & last_proof_goal;
-    }
-    if (prev_ptr == ptr) // when both points to last_proof_goal
-      break;
+    ++ trace_pos;
   } // end of while
 
-  assert(time > 0);
+  assert(trace_pos > 0);
 
   solver_->pop();
   return refined;
@@ -310,7 +297,7 @@ TransitionSystem & OpUfAbstractor::abstract_ts(
 
 bool OpUfAbstractor::refine_with_constraints(
     // TODO: how to put the trace in here?
-    const ProofGoal * goal_at_init,
+    const smt::TermVec & cexs,
     const Term & bad,
     smt::TermVec & out) {
   
@@ -318,55 +305,51 @@ bool OpUfAbstractor::refine_with_constraints(
   if (op_abstracted.empty())
     return false;
 
-  assert(goal_at_init);
-  assert(goal_at_init->idx == 0);
+  assert(cexs.size() > 1);
 
   // unroll from 0 --> ...
-  const ProofGoal * ptr = goal_at_init;
-  const ProofGoal * prev_ptr = NULL;
-  unsigned time = 0;
+  size_t trace_pos = 0;
 
   const auto & solver_ = abs_ts_.solver();
   solver_->push();
   bool refined = false;
-  ProofGoal last_proof_goal(IC3Formula(bad, {bad}, false), 0, NULL);
 
-  while(true) {
+  while(trace_pos != cexs.size()) {
     refined = false;
-    logger.log(3, "Refine cex t{} : {}", time, ptr->target.term->to_string());
-    assert(time == ptr->idx);
+    const auto & curr_term = cexs.at(trace_pos);
+    logger.log(3, "Refine cex t{} : {}", trace_pos, curr_term->to_string());
 
-    if (time == 0) {
+    if (trace_pos == 0) {
       solver_->assert_formula( unroller_->at_time(abs_ts_.init(), 0) );
-      solver_->assert_formula( unroller_->at_time(ptr->target.term, 0));
+      solver_->assert_formula( unroller_->at_time(curr_term, 0));
     } else {
       // trans will include constraints
-      solver_->assert_formula( unroller_->at_time(abs_ts_.trans(), time-1) );
-      solver_->assert_formula( unroller_->at_time(ptr->target.term, time));
+      solver_->assert_formula( unroller_->at_time(abs_ts_.trans(), trace_pos-1) );
+      solver_->assert_formula( unroller_->at_time(curr_term, trace_pos));
       auto res = solver_->check_sat();
       assert (res.is_sat());
 
       // find term (result) in the model
       UnorderedTermSet ufs;
-      assert(prev_ptr);
+      const auto & prev_term = cexs.at(trace_pos-1);
       // get_free_symbols( prev_ptr->target.term, vars);
       // here we need ptr->target.term 's prev expression
       // extract all f,  find the existence of some f?
       uf_extractor_.extract_uf_in_term( 
-        solver_->substitute( prev_ptr->target.term,
+        solver_->substitute( prev_term,
         abs_ts_.state_updates()) , ufs);
 
       for (auto & abs_term : op_abstracted) {
         if (ufs.find(abs_term.uf) != ufs.end()) {
-          // now eval the result (time-1) and the args (time-1)
+          // now eval the result (trace_pos-1) and the args (trace_pos-1)
           // and see if violated
           auto res_val = solver_->get_value(
-            unroller_->at_time(abs_term.result, time-1));
+            unroller_->at_time(abs_term.result, trace_pos-1));
           TermVec arg_val;
           for (const auto & arg : abs_term.args) {
             arg_val.push_back(
               solver_->get_value(
-                unroller_->at_time(arg, time-1)));
+                unroller_->at_time(arg, trace_pos-1)));
           }
           if (!check_possible(res_val, arg_val, abs_term.op, solver_)) {
             // create an assumption
@@ -401,24 +384,15 @@ bool OpUfAbstractor::refine_with_constraints(
           // check if this is possible
         } // end if find this abs_term exists
       }
-    } // else (time > 0)
+    } // else (trace_pos > 0)
 
     if (refined)
       break;
 
-    ++ time;
-    prev_ptr = ptr;
-    if (ptr->next)
-      ptr = ptr->next;
-    else {
-      last_proof_goal.idx = time;
-      ptr = & last_proof_goal;
-    }
-    if (prev_ptr == ptr) // when both points to last_proof_goal
-      break;
+    ++ trace_pos;
   } // end of while
 
-  assert(time > 0);
+  assert(trace_pos > 0);
 
   solver_->pop();
   return refined;

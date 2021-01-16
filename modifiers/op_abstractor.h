@@ -36,7 +36,7 @@ public:
   // return true if it can refine
   // otherwise return false
   virtual bool refine_with_constraints(
-    const ProofGoal * goal_at_init,
+    const smt::TermVec & cexs,
     const smt::Term & bad,
     smt::TermVec & out) = 0;
     
@@ -68,7 +68,7 @@ public:
   // return true if it can refine
   // otherwise return false
   virtual bool refine_with_constraints(
-    const ProofGoal * goal_at_init,
+    const smt::TermVec & cexs,
     const smt::Term & bad,
     smt::TermVec & out) override;
 
@@ -130,7 +130,7 @@ public:
   // return true if it can refine
   // otherwise return false
   virtual bool refine_with_constraints(
-    const ProofGoal * goal_at_init,
+    const smt::TermVec & cexs,
     const smt::Term & bad,
     smt::TermVec & out) override;
 
