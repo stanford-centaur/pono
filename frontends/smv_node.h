@@ -54,7 +54,10 @@ struct SMVnode
     Integer,
     Real,
     Boolean,
+    // TODO shouldn't have separate WordArray and IntArray types
+    // should just be Array ideally
     WordArray,
+    IntArray,
     Default
   };
   smt::Term tm;
@@ -269,6 +272,10 @@ class type_node : public SMVnode
   }
   std::string getName() { return type_name; }
   std::vector<SMVnode *> get_list() { return ex_li; }
+  Type getType() { return bvt; }
+  Type getElementType() { return ele_type; }
+  smt::Sort getSort() { return st; }
+  smt::Term getTerm() { return tm; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1247,6 +1254,51 @@ class floor_expr : public SMVnode
                         std::unordered_map<string, string> new_prefix,
                         ostream & s);
 };
+
+class constarray_type_expr : public SMVnode
+{
+  pono::SMVnode * ex;
+  string id;
+
+ public:
+  constarray_type_expr( string input, pono::SMVnode * e){ id = input; ex = e; }
+  void generate_ostream(std::string name,
+                        std::string prefix,
+                        std::unordered_map<string, module_node *> module_list,
+                        std::unordered_map<string, string> new_prefix,
+                        ostream & s);
+};
+
+class constarray_word_expr : public SMVnode
+{
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
+  int size;
+
+ public:
+  constarray_word_expr(int sizet, pono::type_node * e1, pono::SMVnode * e2) { size = sizet; ex1 = e1; ex2 = e2; }
+  void generate_ostream(std::string name,
+                        std::string prefix,
+                        std::unordered_map<string, module_node *> module_list,
+                        std::unordered_map<string, string> new_prefix,
+                        ostream & s);
+};
+
+class constarray_int_expr : public SMVnode
+{
+  pono::SMVnode * ex1;
+  pono::SMVnode * ex2;
+
+ public:
+  constarray_int_expr(pono::type_node * e1, pono::SMVnode * e2) { ex1 = e1; ex2 = e2; }
+  void generate_ostream(std::string name,
+                        std::string prefix,
+                        std::unordered_map<string, module_node *> module_list,
+                        std::unordered_map<string, string> new_prefix,
+                        ostream & s);
+};
+
+
 class case_expr : public SMVnode
 {
   std::vector<pono::SMVnode *> ex_l;

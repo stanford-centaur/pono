@@ -71,6 +71,20 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
+  // Since MathSAT is the best solver for IC3IA it helps to use
+  // its bool_model_generation option which doesn't enable
+  // model generation for theories
+  // instead, we assign indicator labels to check the value of
+  // predicates. This should still work fine with other solvers
+  smt::UnorderedTermMap lbl2pred_;
+  smt::UnorderedTermSet predlbls_;
+  smt::UnorderedTermSet all_lbls_;  ///< for debugging assertions only
+                                    ///< keeps track of both polarities
+                                    ///< mostly needed because some solvers
+                                    ///< do automatic top-level propagation
+                                    ///< which means you can't count on a symbol
+                                    ///< staying a symbol
+
   /** Overriding the method. This will return the concrete_ts_ because ts_ is an
    *  abstraction of concrete_ts_.
    */
@@ -90,6 +104,10 @@ class IC3IA : public IC3
   void abstract() override;
 
   RefineResult refine() override;
+
+  void reset_solver() override;
+
+  bool is_global_label(const smt::Term & l) const override;
 
   // specific to IC3IA
 

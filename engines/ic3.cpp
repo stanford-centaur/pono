@@ -32,7 +32,6 @@ IC3::IC3(const Property & p, const TransitionSystem & ts,
   : super(p, ts, s, opt)
 {
   engine_ = Engine::IC3_BOOL;
-  solver_->set_opt("produce-unsat-cores", "true");
 }
 
 IC3Formula IC3::get_model_ic3formula() const
@@ -57,11 +56,10 @@ IC3Formula IC3::get_model_ic3formula() const
 
 bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 {
-  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Op op;
   for (const auto &c : u.children) {
-    if (!is_lit(c, boolsort)) {
+    if (!is_lit(c, boolsort_)) {
       return false;
     }
   }
@@ -74,7 +72,7 @@ bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 }
 
 void IC3::predecessor_generalization(size_t i,
-                                     const IC3Formula & c,
+                                     const Term & c,
                                      IC3Formula & pred)
 {
   // TODO: change this so we don't have to depend on the solver context to be
@@ -98,8 +96,8 @@ void IC3::predecessor_generalization(size_t i,
     // NOTE: need to use full trans, not just trans_label_ here
     //       because we are passing it to the reducer_
     formula = solver_->make_term(And, formula, ts_.trans());
-    formula = solver_->make_term(
-        And, formula, solver_->make_term(Not, ts_.next(c.term)));
+    formula =
+        solver_->make_term(And, formula, solver_->make_term(Not, ts_.next(c)));
   } else {
     formula = solver_->make_term(And, formula, make_and(next_lits));
 
@@ -113,8 +111,8 @@ void IC3::predecessor_generalization(size_t i,
     Term pre_formula = get_frame_term(i - 1);
     pre_formula = solver_->make_term(And, pre_formula, ts_.trans());
     pre_formula =
-        solver_->make_term(And, pre_formula, solver_->make_term(Not, c.term));
-    pre_formula = solver_->make_term(And, pre_formula, ts_.next(c.term));
+        solver_->make_term(And, pre_formula, solver_->make_term(Not, c));
+    pre_formula = solver_->make_term(And, pre_formula, ts_.next(c));
     formula =
         solver_->make_term(And, formula, solver_->make_term(Not, pre_formula));
   }
@@ -136,16 +134,15 @@ void IC3::predecessor_generalization(size_t i,
 
 void IC3::check_ts() const
 {
-  const Sort &boolsort = solver_->make_sort(BOOL);
   for (const auto &sv : ts_.statevars()) {
-    if (sv->get_sort() != boolsort) {
+    if (sv->get_sort() != boolsort_) {
       throw PonoException("Got non-boolean state variable in bit-level IC3: "
                           + sv->to_string());
     }
   }
 
   for (const auto &iv : ts_.inputvars()) {
-    if (iv->get_sort() != boolsort) {
+    if (iv->get_sort() != boolsort_) {
       throw PonoException("Got non-boolean input variable in bit-level IC3: "
                           + iv->to_string());
     }

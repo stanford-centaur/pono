@@ -28,7 +28,7 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
   logger.log(1, "Modifying init and prop");
 
   // copy constraints from before we start modifying the system
-  smt::TermVec constraints = ts.constraints();
+  std::vector<std::pair<smt::Term, bool>> constraints = ts.constraints();
 
   // replace prop if it's not already a literal
   smt::Sort boolsort = ts.make_sort(smt::BOOL);
@@ -46,18 +46,17 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
   smt::TermVec init_constraints;
   conjunctive_partition(init, init_constraints, true);
 
-  ts.set_init(initstate1);
-
   // NOTE: relies on feature of ts to not add constraint to init
-  for (const auto & c : constraints) {
-    // TODO possibly refactor constraints so next state versions aren't
-    // automatically added
-    if (ts.no_next(c)) {
-      ts.add_constraint(ts.make_term(smt::Implies, initstate1, c), false);
-    }
+  for (const auto & e : constraints) {
+    ts.add_constraint(ts.make_term(smt::Implies, initstate1, e.first),
+                      e.second);
   }
 
   ts.assign_next(initstate1, ts.make_term(false));
+
+  // adding the constraints above might have put constraints in init
+  // overwrite that now
+  ts.set_init(initstate1);
   ts.constrain_init(new_prop);
 
   // add initial state constraints for initstate1
@@ -66,6 +65,17 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
   }
 
   return new_prop;
+}
+
+// optimization to assume the property in the pre-state
+// although confusing, this is sound as long as you always check
+// for a property violation over the next-state variables
+void prop_in_trans(TransitionSystem & ts, const smt::Term & prop)
+{
+  // NOTE: CRUCIAL that we pass false here
+  // cannot add to init or the next states
+  // passing false prevents that
+  ts.add_constraint(prop, false);
 }
 
 }  // namespace pono
