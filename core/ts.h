@@ -127,15 +127,13 @@ class TransitionSystem
    * if there are only current states and inputs, equivalent to
    *   constrain_inputs
    *  @param constraint the constraint to add
-   *  @param to_init whether it should be added to init as well
-   *         (if it only contains state variables)
-   *  @param to_next whether the next version should be added as well
+   *  @param to_init_and_next whether it should be added to init and
+   *         over next state variables as well
    *         (if it only contains state variables)
    * throws an exception if it has next states (should go in trans)
    */
   void add_constraint(const smt::Term & constraint,
-                      bool to_init = true,
-                      bool to_next = true);
+                      bool to_init_and_next = true);
 
   /* Gives a term a name
    *   This can be used to track particular values in a witness
@@ -253,8 +251,16 @@ class TransitionSystem
   /** @return the constraints of the system
    *  Note: these do not include next-state variable updates or initial state
    * constraints
+   *  Returned as a vector of pairs where for each element:
+   *    first: is the constraint
+   *    second: is a boolean saying whether it can be added over init / next
+   * states This allows you to re-add the constraints by unpacking them and
+   * passing to add_constraint, e.g. add_constraint(e.first, e.second)
    */
-  const smt::TermVec & constraints() const { return constraints_; };
+  const std::vector<std::pair<smt::Term, bool>> & constraints() const
+  {
+    return constraints_;
+  };
 
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
@@ -500,8 +506,16 @@ class TransitionSystem
   // For a functional system, you could now rebuild trans by AND-ing
   // together all the equalities from state_updates_
   // and these constraints
-  smt::TermVec constraints_;  ///< constraints added via
-                              ///< add_invar/constrain_inputs/add_constraint
+  // the boolean tells you whether it _can_ be added to next states
+  // (the TransitionSystem will still check if it makes sense to add to
+  // next states)
+  // but this is crucial for some use cases: e.g. assuming the property
+  // in the pre-state. It is very unsound to assume the property over
+  // the init or next state variables, so the associated boolean for
+  // that constraint would be false
+  std::vector<std::pair<smt::Term, bool>> constraints_;
+  ///< constraints added via
+  ///< add_invar/constrain_inputs/add_constraint
 
   typedef std::vector<const smt::UnorderedTermSet *> UnorderedTermSetPtrVec;
 
