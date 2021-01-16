@@ -83,11 +83,13 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
 {
   FunctionalTransitionSystem fts(s);
-  Term max_val = s->make_term(10, bvsort8);
-  counter_system(fts, max_val);
-  Term x = fts.named_terms().at("x");
+  Term x = fts.make_statevar("x", bvsort8);
+  Term in = fts.make_inputvar("in", s->make_sort(BV, 1));
+  Term ext_in = fts.make_term(Op(Zero_Extend, 7), in);
+  fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
+  fts.assign_next(x, fts.make_term(BVAdd, x, ext_in));
 
-  Term prop_term = s->make_term(BVUlt, x, s->make_term(9, bvsort8));
+  Term prop_term = s->make_term(BVUlt, x, s->make_term(10, bvsort8));
   Property p(s, prop_term);
 
   IC3IA ic3ia(p, fts, s);
