@@ -23,6 +23,14 @@ using namespace smt;
 
 namespace pono {
 
+#ifdef DEBUG
+  #define D(...) logger.log( __VA_ARGS__ )
+  #define INFO(...) D(0, __VA_ARGS__)
+#else
+  #define D(...) do {} while (0)
+  #define INFO(...) logger.log(3, __VA_ARGS__)
+#endif
+
 void CustomFunctionalTransitionSystem::make_nextvar_for_inputs() {
   // make next variables for the input variables
   for (const auto & i : inputvars_) {
@@ -99,16 +107,37 @@ void SygusPdr::initialize()
   
   if (initialized_)
     return;
-  {
-    TermTranslator tmp_translator( orig_ts_.solver());
-    custom_ts_ = 
-      new CustomFunctionalTransitionSystem(orig_ts_, tmp_translator );
-  }
 
-  ts_ = *custom_ts_;
-  custom_ts_->make_nextvar_for_inputs();
+  ts_ = orig_ts_;
+
   // I really need the prime variable for inputs
   // otherwise the corner cases are hard to handle...
+
+
+  super::initialize();
+  bad_next_ = ts_.next(bad_); // bad is only available after parent's init
+  { // add P to F[1]
+    auto prop = smart_not(bad_);
+    constrain_frame(1, IC3Formula(prop, {prop}, true), true);
+  }
+
+
+  if (options_.sygus_use_operator_abstraction_) {
+    op_abstractor_ = std::make_unique<OpUfAbstractor>(
+      orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}));
+    // op_abstractor_ = std::make_unique<OpUfAbstractor>(
+    //   orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}), bad_, 4);
+    
+    reset_solver(); // reset trans and etc...
+  }
+
+
+  { // create custom_ts_
+    TermTranslator tmp_translator( ts_.solver());
+    custom_ts_ = 
+      new CustomFunctionalTransitionSystem(ts_, tmp_translator );
+    custom_ts_->make_nextvar_for_inputs();
+  }
 
   // has_assumption
   has_assumptions = ! (custom_ts_->constraints().empty());
@@ -122,13 +151,6 @@ void SygusPdr::initialize()
           solver_->substitute(c,
             custom_ts_->input_var_to_next_map())));
     } // else skip
-  }
-
-  super::initialize();
-  bad_next_ = custom_ts_->next(bad_); // bad is only available after parent's init
-  { // add P to F[1]
-    auto prop = smart_not(bad_);
-    constrain_frame(1, IC3Formula(prop, {prop}, true), true);
   }
   
   // initialize the caches  
@@ -295,7 +317,9 @@ IC3Formula SygusPdr::inductive_generalization(
         // pre_model will be put into the map and free at class destructor
 
         insufficient_pred = true;
-        failed_at_init = solver_->get_value(Init_prime)->to_int() != 0;
+        failed_at_init = // if model(init_prime) == 1
+          !( syntax_analysis::eval_val( solver_->get_value(Init_prime)->to_string() ) < syntax_analysis::eval_val("#b1") );
+        
         if (!failed_at_init) {
           // here the problem is the model used for 
           if (pre_full_model) {
@@ -305,12 +329,12 @@ IC3Formula SygusPdr::inductive_generalization(
 
           std::tie(pre_formula, pre_model, pre_full_model) =
             ExtractPartialAndFullModel( post_model );
-          logger.log(3, "Generated MAY-block model {}", pre_model->to_string());
+          D(3, "Generated MAY-block model {}", pre_model->to_string());
         } else {
           // only pre_model and failed_at_init are used in later
           std::tie(pre_formula, pre_model) =
             ExtractInitPrimeModel( Init_prime ); // this can be only the prime vars
-          logger.log(3, "Generated MAY-block model (init) {}", pre_model->to_string());
+          D(3, "Generated MAY-block model (init) {}", pre_model->to_string());
         }
         // note Here you must give a formula with current variables
       } else
@@ -321,13 +345,13 @@ IC3Formula SygusPdr::inductive_generalization(
     if (insufficient_pred) {
       // extract Proof goal from partial_model
       if (!failed_at_init) {
-        logger.log(3, "Try recursive block the above model.");
+        D(3, "Try recursive block the above model.");
         if(try_recursive_block_goal(pre_formula, i-1))
           continue; // see if we have next that we may need to block
       } // if we failed at init, then we will anyway need to 
       // propose new terms
-      logger.log(3, "Cannot block MAY-block model {}", pre_model->to_string());
-      logger.log(3, "Back to F[{}]->[{}], get new terms.", i-1,i);
+      D(3, "Cannot block MAY-block model {}", pre_model->to_string());
+      D(3, "Back to F[{}]->[{}], get new terms.", i-1,i);
 
       assert(pre_full_model);
       bool succ = 
@@ -356,14 +380,14 @@ IC3Formula SygusPdr::inductive_generalization(
 IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_nxt) {
   TermVec unsatcore;
   TermVec sorted_unsatcore;
-  logger.log(3,"[IterativeReduction] Initial core size {}", preds_nxt.size());
+  D(3,"[IterativeReduction] Initial core size {}", preds_nxt.size());
 
   UnorderedTermSet pred_set(preds_nxt.begin(), preds_nxt.end());
   TermVec deduplicate_preds_nxt(pred_set.begin(), pred_set.end());
   
   reducer_.reduce_assump_unsatcore(base, deduplicate_preds_nxt, unsatcore, NULL, 0, options_.random_seed_);
 
-  logger.log(3,"[IterativeReduction] End core size {}", unsatcore.size());
+  D(3,"[IterativeReduction] End core size {}", unsatcore.size());
   std::vector<std::pair<unsigned, Term>> score_vec;
   for (const auto & t : unsatcore) {
     auto score = GetScore(t);
@@ -374,7 +398,7 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
   unsigned pidx = 0;
   for (auto pos = score_vec.rbegin(); pos != score_vec.rend(); ++ pos) {
     sorted_unsatcore.push_back(pos->second);
-    logger.log(4, "{}: Score: {} expr: {}", pidx, pos->first, pos->second->to_string());
+    D(4, "{}: Score: {} expr: {}", pidx, pos->first, pos->second->to_string());
     term_id_map.emplace(pos->second, pidx ++);
   }
   unsatcore.clear(); // reuse this
@@ -406,7 +430,7 @@ bool SygusPdr::propose_new_terms(
         pre_model, post_model, *(term_learner_.get()),
         ts_.trans(),
         failed_at_init, options_.sygus_term_mode_);
-    logger.log(3, "[propose-new-term] Round {}. Get {} new terms.", proposing_new_terms_round, n_new_terms);
+    D(3, "[propose-new-term] Round {}. Get {} new terms.", proposing_new_terms_round, n_new_terms);
     if (n_new_terms != 0) {
       syntax_analysis::PredConstructor pred_collector_(
         to_next_func_, solver_,
@@ -640,12 +664,12 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     solver_->substitute(p, custom_ts_->input_var_to_next_map()));
   // we need to make sure input vars are mapped to next input vars
 
-  logger.log(4, "[PartialModel] prime state : {}", bad_state_no_nxt->to_string());
+  D(4, "[PartialModel] prime state : {}", bad_state_no_nxt->to_string());
   if (has_assumptions) {
-    logger.log(4, "[PartialModel] assumptions (mapped): {}",constraints_curr_var_.size());
+    D(4, "[PartialModel] assumptions (mapped): {}",constraints_curr_var_.size());
     unsigned idx = 0;
     for (const auto & c : constraints_curr_var_)
-      logger.log(4, "[PartialModel] assumption #{} : {}", idx ++, c->to_string());
+      D(4, "[PartialModel] assumption #{} : {}", idx ++, c->to_string());
     constraints_curr_var_.push_back(bad_state_no_nxt);
     partial_model_getter.GetVarListForAsts(constraints_curr_var_, varlist);
     constraints_curr_var_.pop_back();
@@ -654,10 +678,10 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
   }
 
   {
-    logger.log(4, "[PartialModel] before cutting vars: ");
+    D(4, "[PartialModel] before cutting vars: ");
     for (const auto & v : varlist)
-      logger.log(4, "[PartialModel] {} := {} ", v->to_string(), solver_->get_value(v)->to_string());
-    logger.log(4, "[PartialModel] ------------------- ");
+      D(4, "[PartialModel] {} := {} ", v->to_string(), solver_->get_value(v)->to_string());
+    D(4, "[PartialModel] ------------------- ");
   }
 
   Term conj_partial;
@@ -708,6 +732,13 @@ void SygusPdr::predecessor_generalization(size_t i, const IC3Formula & c, IC3For
 
 
 bool SygusPdr::keep_var_in_partial_model(const Term & v) const {
+  if (options_.sygus_use_operator_abstraction_) {
+    assert (op_abstractor_ != nullptr);
+    const auto & dummy_inputs = op_abstractor_->dummy_inputs();
+    if (dummy_inputs.find(v) != dummy_inputs.end())
+      return true;
+  }
+
   if (has_assumptions) { // must keep input vars
     if(custom_ts_->is_curr_var(v) || custom_ts_->inputvars().find(v) != custom_ts_->inputvars().end() )
       return true;
@@ -724,6 +755,39 @@ void SygusPdr::abstract() {
 
 
 RefineResult SygusPdr::refine() {
+  if (!options_.sygus_use_operator_abstraction_)
+    return REFINE_NONE;
+
+  assert(cex_pg_);
+
+  TermVec new_constraints;
+  bool succ = op_abstractor_->refine_with_constraints(
+    cex_pg_, bad_, new_constraints);
+  assert(succ == (!new_constraints.empty()));
+  if (succ) {
+    for (const auto & c : new_constraints) {
+      ts_.add_constraint(c, true);
+      custom_ts_->add_constraint(c, true);
+      D(4, "[Refine] : {} ", c->to_string());
+
+      // rework the constraints buffers
+      if (custom_ts_->no_next(c)) {
+        constraints_curr_var_.push_back(c);
+        // translate input_var to next input_var
+        // but the state var ...
+        constraints_curr_var_.push_back(
+          custom_ts_->to_next_func(
+            solver_->substitute(c,
+              custom_ts_->input_var_to_next_map())));
+      } // else skip
+    }
+    reset_solver(); // because tr/init could be different now
+
+    // rework the constraints
+    has_assumptions = ! (custom_ts_->constraints().empty());
+
+    return REFINE_SUCCESS;
+  } // else
   return REFINE_NONE;
 } // SygusPdr::refine()
 
@@ -811,7 +875,6 @@ bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block, unsigned fi
       assert(collateral.term);
       assert(collateral.children.size());
       constrain_frame(idx, collateral);
-
     } else {
       // could not block this proof goal
       assert(collateral.term);
@@ -980,7 +1043,7 @@ ProverResult SygusPdr::step(int i)
       // which is the frame that just had all terms
       // from the previous frames propagated
       invar_ = get_frame_term(j + 1);
-      logger.log(3, "INV: {}", invar_);
+      D(3, "INV: {}", invar_);
       return ProverResult::TRUE;
     }
   }
@@ -1197,7 +1260,6 @@ bool SygusPdr::block_all()
         assert(collateral.term);
         assert(collateral.children.size());
         constrain_frame(idx, collateral);
-
         // re-add the proof goal at a higher frame if not blocked
         // up to the frontier
         if (idx < frontier_idx()) {

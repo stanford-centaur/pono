@@ -26,6 +26,7 @@
 
 #include "engines/ic3base.h"
 #include "core/fts.h"
+#include "modifiers/op_abstractor.h"
 #include "utils/sygus_ic3formula_helper.h"
 #include "utils/partial_model.h"
 #include "utils/syntax_analysis_common.h"
@@ -181,7 +182,8 @@ class SygusPdr : public IC3Base
 
   syntax_analysis::PerCexInfo & setup_cex_info (syntax_analysis::IC3FormulaModel * post_model);
   IC3Formula select_predicates(const smt::Term & base, const smt::TermVec & preds_nxt);
- 
+  
+  std::unique_ptr<OpAbstractor> op_abstractor_;
 }; // class SygusPdr
 
 }  // namespace pono

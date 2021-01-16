@@ -18,7 +18,7 @@
 #include "modifiers/op_abstractor.h"
 #include "modifiers/static_coi.h"
 #include "utils/term_walkers.h"
-#include "core/unroller.h"
+#include "utils/logger.h"
 #include "smt/available_solvers.h"
 
 #include <cassert>
@@ -27,21 +27,32 @@ using namespace smt;
 
 namespace pono {
 
-OpAbstractor::OpAbstractor(
+OpInpAbstractor::OpInpAbstractor(
     const TransitionSystem & conc_ts,
     TransitionSystem & abs_ts,
     const OpSet & op_to_abstract,
     const smt::Term & prop, // it is okay to use bad
     int verbosity
-    ) : Abstractor(conc_ts, abs_ts)
-{ // copy if not done outside
-  if (abs_ts.inputvars().empty() && abs_ts.statevars().empty())
-    abs_ts = conc_ts;
+    ) : OpAbstractor(conc_ts, abs_ts)
+{ 
+  abstract_ts(conc_ts, abs_ts, op_to_abstract, prop, verbosity);
+  unroller_ = std::make_unique<Unroller>(abs_ts);
+} // OpAbstractor
 
-  TermOpCollector op_collector(abs_ts.solver());
+
+TransitionSystem & OpInpAbstractor::abstract_ts(const TransitionSystem & in_ts,
+  TransitionSystem & out_ts, const OpSet & op_to_abstract,
+    const smt::Term & prop, // it is okay to use bad
+    int verbosity) {
+  
+  // copy if not done outside
+  if (out_ts.inputvars().empty() && out_ts.statevars().empty())
+    out_ts = in_ts;
+
+  TermOpCollector op_collector(out_ts.solver());
 
   UnorderedTermSet term_op_out;
-  for (const auto & s_update : abs_ts.state_updates()) {
+  for (const auto & s_update : out_ts.state_updates()) {
     op_collector.find_matching_terms(s_update.second, op_to_abstract, term_op_out);
   } // walk state update functions
 
@@ -58,10 +69,11 @@ OpAbstractor::OpAbstractor(
     do{
       try {
         op_abstracted.back().result =
-          abs_ts.make_inputvar(
+          out_ts.make_inputvar(
             "_dummy_input_cnt_" + std::to_string(dummy_input_cnt++),
             t->get_sort());
         succ = true;
+        dummy_inputs_.insert(op_abstracted.back().result);
       } catch (PonoException & e) {
       }
     } while(!succ);
@@ -69,17 +81,18 @@ OpAbstractor::OpAbstractor(
     replacement.emplace(t, op_abstracted.back().result);
   } // for each term
 
-  abs_ts.replace_terms(replacement);
+  out_ts.replace_terms(replacement);
   {
-    StaticConeOfInfluence coi(abs_ts, { prop }, verbosity);
+    StaticConeOfInfluence coi(out_ts, { prop }, verbosity);
   } 
-} // OpAbstractor
 
-bool check_possible(const Term & res, const TermVec & arg, Op op, Term & rhs_val,
+  return out_ts;
+}
+
+bool check_possible(const Term & res, const TermVec & arg, Op op,
     const SmtSolver & orig_solver) {
   SmtSolver s = create_solver(BTOR, false, false ,false);
   TermTranslator tr(s);
-  TermTranslator tr_back(orig_solver);
   TermVec tr_arg;
 
   assert(res->is_value());
@@ -95,21 +108,22 @@ bool check_possible(const Term & res, const TermVec & arg, Op op, Term & rhs_val
       tr.transfer_term(res))
   );
   auto eq_sat = s->check_sat();
-  if (eq_sat.is_unsat()) {
-    rhs_val = tr_back.transfer_term(s->get_value(rhs));
-  }
   return eq_sat.is_sat();
 }
 
-bool OpAbstractor::refine_with_constraints(
+bool OpInpAbstractor::refine_with_constraints(
     // TODO: how to put the trace in here?
     const ProofGoal * goal_at_init,
+    const Term & bad,
     smt::TermVec & out) {
   
+  // short-cut
+  if (op_abstracted.empty())
+    return false;
+
   assert(goal_at_init);
   assert(goal_at_init->idx == 0);
 
-  Unroller unroller(abs_ts_);
   // unroll from 0 --> ...
   const ProofGoal * ptr = goal_at_init;
   const ProofGoal * prev_ptr = NULL;
@@ -117,15 +131,21 @@ bool OpAbstractor::refine_with_constraints(
 
   const auto & solver_ = abs_ts_.solver();
   solver_->push();
-  while(ptr) {
-    bool refined = false;
+  bool refined = false;
+  ProofGoal last_proof_goal(IC3Formula(bad, {bad}, false), 0, NULL);
+
+  while(true) {
+    refined = false;
+    logger.log(3, "Refine cex t{} : {}", time, ptr->target.term->to_string());
+    assert(time == ptr->idx);
+
     if (time == 0) {
-      solver_->assert_formula( unroller.at_time(abs_ts_.init(), 0) );
-      solver_->assert_formula( unroller.at_time(ptr->target.term, 0));
+      solver_->assert_formula( unroller_->at_time(abs_ts_.init(), 0) );
+      solver_->assert_formula( unroller_->at_time(ptr->target.term, 0));
     } else {
       // trans will include constraints
-      solver_->assert_formula( unroller.at_time(abs_ts_.trans(), time-1) );
-      solver_->assert_formula( unroller.at_time(ptr->target.term, time));
+      solver_->assert_formula( unroller_->at_time(abs_ts_.trans(), time-1) );
+      solver_->assert_formula( unroller_->at_time(ptr->target.term, time));
       auto res = solver_->check_sat();
       assert (res.is_sat());
 
@@ -138,17 +158,24 @@ bool OpAbstractor::refine_with_constraints(
           // now eval the result (time-1) and the args (time-1)
           // and see if violated
           auto res_val = solver_->get_value(
-            unroller.at_time(abs_term.result, time-1));
+            unroller_->at_time(abs_term.result, time-1));
           TermVec arg_val;
           for (const auto & arg : abs_term.args) {
             arg_val.push_back(
               solver_->get_value(
-                unroller.at_time(arg, time-1)));
+                unroller_->at_time(arg, time-1)));
           }
-          Term res_val;
-          if (!check_possible(res_val, arg_val, abs_term.op, res_val, solver_)) {
+          if (!check_possible(res_val, arg_val, abs_term.op, solver_)) {
             // create an assumption
-            auto refine_res = solver_->make_term(Equal, abs_term.result , res_val);
+            Term expected_res_val = solver_->make_term(abs_term.op, arg_val);
+            logger.log(3, "Refine {} ({} {} {}) = {} =/= {}",
+              abs_term.op.to_string(), 
+                arg_val.size() > 0 ? arg_val.at(0)->to_string() : "",
+                arg_val.size() > 1 ? arg_val.at(1)->to_string() : "",
+                arg_val.size() > 2 ? "..." : "",
+              expected_res_val->to_string(),
+              res_val->to_string() );
+            auto refine_res = solver_->make_term(Equal, abs_term.result , expected_res_val);
 
             unsigned arg_idx = 0;
             Term func_arg;
@@ -165,6 +192,13 @@ bool OpAbstractor::refine_with_constraints(
             abs_term.refine_count ++;
             refined = true;
             // you may want to break here
+          } else {
+            logger.log(3, "NO Refine {} ({} {} {}) = {}",
+              abs_term.op.to_string(), 
+                arg_val.size() > 0 ? arg_val.at(0)->to_string() : "",
+                arg_val.size() > 1 ? arg_val.at(1)->to_string() : "",
+                arg_val.size() > 2 ? "..." : "",
+              res_val->to_string() );
           }
           // check if this is possible
         } // end if find this abs_term exists
@@ -176,13 +210,241 @@ bool OpAbstractor::refine_with_constraints(
 
     ++ time;
     prev_ptr = ptr;
-    ptr = ptr->next;
+    if (ptr->next)
+      ptr = ptr->next;
+    else {
+      last_proof_goal.idx = time;
+      ptr = & last_proof_goal;
+    }
+    if (prev_ptr == ptr) // when both points to last_proof_goal
+      break;
   } // end of while
 
   assert(time > 0);
 
   solver_->pop();
+  return refined;
 } // end of OpAbstractor::refine_with_constraints
 
+// ----------------------------------------------------------------
+
+
+OpUfAbstractor::OpUfAbstractor(
+    const TransitionSystem & conc_ts,
+    TransitionSystem & abs_ts,
+    const OpSet & op_to_abstract
+    ) : OpAbstractor(conc_ts, abs_ts),
+    uf_extractor_(abs_ts.solver())
+{ 
+  abstract_ts(conc_ts, abs_ts, op_to_abstract);
+  unroller_ = std::make_unique<Unroller>(abs_ts);
+} // OpAbstractor
+
+TransitionSystem & OpUfAbstractor::abstract_ts(
+    const TransitionSystem & in_ts,
+    TransitionSystem & out_ts, const OpSet & op_to_abstract)
+{
+  // copy if not done outside
+  if (out_ts.inputvars().empty() && out_ts.statevars().empty())
+    out_ts = in_ts;
+  const auto & solver_ = out_ts.solver();
+
+  TermOpCollector op_collector(out_ts.solver());
+
+  UnorderedTermSet term_op_out;
+  for (const auto & s_update : out_ts.state_updates()) {
+    op_collector.find_matching_terms(s_update.second, op_to_abstract, term_op_out);
+  } // walk state update functions
+
+  unsigned dummy_uf_cnt = 0;
+  UnorderedTermMap replacement;
+  for (const auto & t : term_op_out) {
+    // compute a signature of function
+    op_abstracted.push_back(OpUfAbstract());
+    auto & abitem = op_abstracted.back();
+    abitem.op = t->get_op();
+    abitem.args = TermVec(t->begin(), t->end());
+    abitem.original = t;
+
+    std::string func_signature = t->get_op().to_string();
+    for (const auto & a : abitem.args) {
+      func_signature += "_" + a->get_sort()->to_string();
+    }
+
+    auto pos = uf_set_.find(func_signature);
+    if (pos == uf_set_.end()) {
+      SortVec func_sort;
+      for (const auto & a : abitem.args)
+        func_sort.push_back( a->get_sort() );
+      func_sort.push_back(t->get_sort()); // the last one is the result sort
+
+      // now make function
+      Sort funsort = solver_->make_sort(FUNCTION, func_sort);
+
+      bool new_uf_succ = false;
+      Term f;
+      while(!new_uf_succ) {
+        try{
+          std::string new_name = "__uf" + std::to_string(dummy_uf_cnt++);
+          f = solver_->make_symbol(new_name, funsort);
+          new_uf_succ = true;
+        } catch(...) {  }
+      }
+      assert(f != nullptr);
+
+      pos = uf_set_.emplace(func_signature, f).first;
+    } // end if not found
+    abitem.uf = pos->second;
+
+    TermVec arg; // f arg1 arg2 ...
+    arg.push_back(pos->second);
+    arg.insert(arg.end(), abitem.args.begin(), abitem.args.end());
+
+    abitem.result = out_ts.make_term(Apply, arg);
+    replacement.emplace(t, abitem.result);
+  } // end for each found op term
+
+  out_ts.replace_terms(replacement);
+} // end of OpUfAbstractor::abstract_ts
+
+
+bool OpUfAbstractor::refine_with_constraints(
+    // TODO: how to put the trace in here?
+    const ProofGoal * goal_at_init,
+    const Term & bad,
+    smt::TermVec & out) {
+  
+  // short-cut
+  if (op_abstracted.empty())
+    return false;
+
+  assert(goal_at_init);
+  assert(goal_at_init->idx == 0);
+
+  // unroll from 0 --> ...
+  const ProofGoal * ptr = goal_at_init;
+  const ProofGoal * prev_ptr = NULL;
+  unsigned time = 0;
+
+  const auto & solver_ = abs_ts_.solver();
+  solver_->push();
+  bool refined = false;
+  ProofGoal last_proof_goal(IC3Formula(bad, {bad}, false), 0, NULL);
+
+  while(true) {
+    refined = false;
+    logger.log(3, "Refine cex t{} : {}", time, ptr->target.term->to_string());
+    assert(time == ptr->idx);
+
+    if (time == 0) {
+      solver_->assert_formula( unroller_->at_time(abs_ts_.init(), 0) );
+      solver_->assert_formula( unroller_->at_time(ptr->target.term, 0));
+    } else {
+      // trans will include constraints
+      solver_->assert_formula( unroller_->at_time(abs_ts_.trans(), time-1) );
+      solver_->assert_formula( unroller_->at_time(ptr->target.term, time));
+      auto res = solver_->check_sat();
+      assert (res.is_sat());
+
+      // find term (result) in the model
+      UnorderedTermSet ufs;
+      assert(prev_ptr);
+      // get_free_symbols( prev_ptr->target.term, vars);
+      // here we need ptr->target.term 's prev expression
+      // extract all f,  find the existence of some f?
+      uf_extractor_.extract_uf_in_term( 
+        solver_->substitute( prev_ptr->target.term,
+        abs_ts_.state_updates()) , ufs);
+
+      for (auto & abs_term : op_abstracted) {
+        if (ufs.find(abs_term.uf) != ufs.end()) {
+          // now eval the result (time-1) and the args (time-1)
+          // and see if violated
+          auto res_val = solver_->get_value(
+            unroller_->at_time(abs_term.result, time-1));
+          TermVec arg_val;
+          for (const auto & arg : abs_term.args) {
+            arg_val.push_back(
+              solver_->get_value(
+                unroller_->at_time(arg, time-1)));
+          }
+          if (!check_possible(res_val, arg_val, abs_term.op, solver_)) {
+            // create an assumption
+            Term expected_res_val = solver_->make_term(abs_term.op, arg_val);
+            TermVec apply_farg;
+            apply_farg.push_back(abs_term.uf);
+            apply_farg.insert(apply_farg.end(), arg_val.begin(), arg_val.end());
+
+            Term uf_expr = solver_->make_term(Apply, apply_farg );
+            logger.log(3, "Refine {} ({} {} {}) = {} =/= {}",
+              abs_term.op.to_string(), 
+                arg_val.size() > 0 ? arg_val.at(0)->to_string() : "",
+                arg_val.size() > 1 ? arg_val.at(1)->to_string() : "",
+                arg_val.size() > 2 ? "..." : "",
+              expected_res_val->to_string(),
+              res_val->to_string() );
+            auto refine_res = solver_->make_term(Equal, uf_expr , expected_res_val);
+            out.push_back(refine_res);
+            
+            abs_term.refine_count ++;
+            refined = true;
+            break;
+            // you may want to break here
+          } else {
+            logger.log(3, "NO Refine {} ({} {} {}) = {}",
+              abs_term.op.to_string(), 
+                arg_val.size() > 0 ? arg_val.at(0)->to_string() : "",
+                arg_val.size() > 1 ? arg_val.at(1)->to_string() : "",
+                arg_val.size() > 2 ? "..." : "",
+              res_val->to_string() );
+          }
+          // check if this is possible
+        } // end if find this abs_term exists
+      }
+    } // else (time > 0)
+
+    if (refined)
+      break;
+
+    ++ time;
+    prev_ptr = ptr;
+    if (ptr->next)
+      ptr = ptr->next;
+    else {
+      last_proof_goal.idx = time;
+      ptr = & last_proof_goal;
+    }
+    if (prev_ptr == ptr) // when both points to last_proof_goal
+      break;
+  } // end of while
+
+  assert(time > 0);
+
+  solver_->pop();
+  return refined;
+} // end of OpUfAbstractor::refine_with_constraints
+
+// ------------------------------------------
+
+void UfExtractor::extract_uf_in_term(const smt::Term & t, smt::UnorderedTermSet & uf_out) {
+  out_ = &uf_out;
+  Term tmp(t);
+  visit(tmp);
+  out_ = NULL;
+}
+ 
+WalkerStepResult UfExtractor::visit_term(smt::Term & term) {
+  assert (out_);
+
+  if (preorder_) {
+    Op op = term->get_op();
+    if (op.prim_op == Apply) {
+      assert(term->begin() != term->end());
+      out_->insert(*(term->begin()));
+    }
+  }
+
+  return Walker_Continue;
+}
 
 } // namespace pono

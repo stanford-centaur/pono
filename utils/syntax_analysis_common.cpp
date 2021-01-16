@@ -26,6 +26,8 @@ namespace pono {
 
 namespace syntax_analysis {
 
+
+
 /* Internal Function */
 bool static extract_decimal_width(const std::string & s,
   std::string & decimal, std::string & width)
@@ -44,44 +46,80 @@ bool static extract_decimal_width(const std::string & s,
   return true;
 }
 
+void mul2(std::vector<char> &  v) {
+  char carry = 0;
+  for (auto pos = v.begin(); pos != v.end(); ++pos) {
+    *pos = (*pos) * 2 + carry;
+    if (*pos >= 10) {
+      carry = *pos / 10;
+      *pos = *pos % 10;
+    } else
+      carry = 0;
+  }
+  if (carry)
+    v.push_back(carry);
+}
+
+void add1(std::vector<char> &  v) {
+  char carry = 1;
+  for (auto pos = v.begin(); pos != v.end(); ++pos) {
+    *pos = *pos + carry;
+    if (*pos >= 10) {
+      carry = *pos / 10;
+      *pos = *pos % 10;
+    } else
+      carry = 0;
+  }
+  if (carry)
+    v.push_back(carry);
+}
+
+std::string convert_bin_str_to_decimal(const std::string & in) {
+  std::vector<char> out = {0};
+  for (auto pos = in.begin(); pos != in.end(); ++pos) {
+    mul2(out); // initially it is 0 so okay
+    if (*pos == '1')
+      add1(out);
+  }
+  std::string ret;
+  for (auto pos = out.rbegin(); pos != out.rend(); ++pos) {
+    ret += *pos + '0';
+  }
+  return ret;
+}
+
+
 // --------------------  eval_val ----------------
 
 eval_val::eval_val(const std::string & val) {
+  if (val == "true" || val == "false") {
+    sv= (val == "true") ? "1" : "0";
+    return;
+  }
+
   if(val.find("#b") != 0) { // then it is (_ bvX width)
-    type = type_t::STR;
     std::string width; // width is no use
     assert(extract_decimal_width(val, sv, width));
     return;
   }
-
+  
   // #b something here
   size_t pos = 2;
   for(; pos < val.length() ; ++ pos) {
     if ( val.at(pos) != '0' )
       break;
   }
-  if (pos == val.length()) {
-    // result 0
-    type = type_t::NUM;
-    nv = 0;
-  } else {
-    try {
-      nv = ::pono::syntax_analysis::StrToULongLong(val.substr(pos), 2);
-      type = type_t::NUM;      
-    } catch (...) {
-      type = type_t::STR;
-      sv = val.substr(pos);
-    }
+  if (pos == val.length())  {
+    sv = "0";
+    return;
   }
+  // convert 101 --> 5
+  sv = convert_bin_str_to_decimal(val.substr(pos));
 } // eval_val::eval_val
 
+
+
 bool eval_val::operator<(const eval_val &r) const {
-  if (type == type_t::NUM && r.type == type_t::STR)
-    return true;
-  if (type == type_t::STR && r.type == type_t::NUM)
-    return false;
-  if (type == type_t::NUM)
-    return nv < r.nv;
   // both str
   if (sv.length() < r.sv.length())
     return true;
@@ -97,13 +135,6 @@ bool eval_val::operator<(const eval_val &r) const {
   }
   return false; // equal both string, same length and save val
 } // eval_val::operator<
-
-
-std::string eval_val::to_string() const {
-  if (type == type_t::NUM)
-    return "(bv" + std::to_string(nv)+" X)";
-  return "#b"+sv;
-} // to_string
 
 
 // --------------------  PerVarsetInfo ----------------

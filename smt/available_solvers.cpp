@@ -119,6 +119,11 @@ SmtSolver create_solver_for(SolverEnum se, Engine e, bool logging)
     SmtSolver s = create_solver(se, logging);
     s->set_opt("base-context-1", "true");
     return s;
+  } else if (se == BTOR && e == SYGUS_PDR) {
+    // SYGUS_PDR would want to reset solvers
+    SmtSolver s = create_solver(se, logging);
+    s->set_opt("base-context-1", "true");
+    return s;
   }
 #ifdef WITH_MSAT
   else if (se == MSAT && ic3_engine) {
