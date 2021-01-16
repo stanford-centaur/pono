@@ -359,11 +359,12 @@ bool IC3Base::reaches_bad(IC3Formula & out)
   push_solver_context();
   // assert the last frame (conjunction over clauses)
   assert_frame_labels(frontier_idx());
-  // see if it intersects with bad in next states
-  solver_->assert_formula(ts_.next(bad_));
-  // don't need transition relation for this check
-  // can deactivate it
-  solver_->assert_formula(trans_label_);
+  solver_->assert_formula(bad_label_);
+  // // see if it intersects with bad in next states
+  // solver_->assert_formula(ts_.next(bad_));
+  // // don't need transition relation for this check
+  // // can deactivate it
+  // solver_->assert_formula(trans_label_);
   Result r = check_sat();
 
   if (r.is_sat()) {
@@ -372,14 +373,24 @@ bool IC3Base::reaches_bad(IC3Formula & out)
     assert(out.children.size());
     assert(ic3formula_check_valid(out));
 
-    if (options_.ic3_pregen_) {
-      // try to generalize if predecessor generalization enabled
-      predecessor_generalization(frames_.size(), bad_, out);
+    TermVec red;
+    bool ok =
+        reducer_.reduce_assump_unsatcore(smart_not(bad_), out.children, red);
+    if (ok) {
+      assert(red.size());
+      logger.log(
+          1, "generalized bad to {}/{}", red.size(), out.children.size());
+      out = ic3formula_conjunction(red);
     }
 
-    assert(out.term);
-    assert(out.children.size());
-    assert(ic3formula_check_valid(out));
+    // if (options_.ic3_pregen_) {
+    //   // try to generalize if predecessor generalization enabled
+    //   predecessor_generalization(frames_.size(), bad_, out);
+    // }
+
+    // assert(out.term);
+    // assert(out.children.size());
+    // assert(ic3formula_check_valid(out));
   }
 
   pop_solver_context();
@@ -394,14 +405,14 @@ ProverResult IC3Base::step(int i)
     return ProverResult::UNKNOWN;
   }
 
-  if (reached_k_ < 1) {
+  if (reached_k_ < 0) {
     return step_01();
   }
 
   // reached_k_ is the number of transitions that have been checked
   // at this point there are reached_k_ + 1 frames that don't
   // intersect bad, and reached_k_ + 2 frames overall
-  assert(reached_k_ == frontier_idx());
+  assert(reached_k_ + 1 == frontier_idx());
   logger.log(1, "Blocking phase at frame {}", i);
   if (!block_all()) {
     // counter-example
@@ -437,7 +448,7 @@ ProverResult IC3Base::step(int i)
 
 ProverResult IC3Base::step_01()
 {
-  assert(reached_k_ < 1);
+  assert(reached_k_ < 0);
   if (reached_k_ < 0) {
     logger.log(1, "Checking if initial states satisfy property");
 
@@ -458,26 +469,26 @@ ProverResult IC3Base::step_01()
     pop_solver_context();
   }
 
-  assert(reached_k_ == 0);
-  logger.log(1, "Checking if property can be violated in one-step");
+  // assert(reached_k_ == 0);
+  // logger.log(1, "Checking if property can be violated in one-step");
 
-  push_solver_context();
-  solver_->assert_formula(init_label_);
-  solver_->assert_formula(trans_label_);
-  solver_->assert_formula(ts_.next(bad_));
-  Result r = check_sat();
-  if (r.is_sat()) {
-    const IC3Formula &c = get_model_ic3formula();
-    pop_solver_context();
-    ProofGoal * pg = new ProofGoal(c, 0, nullptr);
-    reconstruct_trace(pg, cex_);
-    delete pg;
-    return ProverResult::FALSE;
-  } else {
-    assert(r.is_unsat());
-    reached_k_ = 1;  // keep reached_k_ aligned with number of frames
-  }
-  pop_solver_context();
+  // push_solver_context();
+  // solver_->assert_formula(init_label_);
+  // solver_->assert_formula(trans_label_);
+  // solver_->assert_formula(ts_.next(bad_));
+  // Result r = check_sat();
+  // if (r.is_sat()) {
+  //   const IC3Formula &c = get_model_ic3formula();
+  //   pop_solver_context();
+  //   ProofGoal * pg = new ProofGoal(c, 0, nullptr);
+  //   reconstruct_trace(pg, cex_);
+  //   delete pg;
+  //   return ProverResult::FALSE;
+  // } else {
+  //   assert(r.is_unsat());
+  //   reached_k_ = 1;  // keep reached_k_ aligned with number of frames
+  // }
+  // pop_solver_context();
 
   return ProverResult::UNKNOWN;
 }
@@ -926,7 +937,7 @@ void IC3Base::reconstruct_trace(const ProofGoal * pg, TermVec & out)
 
   // always add bad as last state so it's a full trace
   // NOTE this is because the reaches_bad implementation
-  out.push_back(bad_);
+  // out.push_back(bad_);
 }
 
 Term IC3Base::make_and(TermVec vec, SmtSolver slv) const
