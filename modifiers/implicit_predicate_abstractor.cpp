@@ -119,13 +119,21 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
   abstracted_ = true;
 
   UnorderedTermSet conc_predicates;
-  // assume abstract transition starts empty
+  
   // need to add all state variables and set behavior
-  for (auto v : conc_ts_.statevars()) {
-    abs_rts_.add_statevar(v, conc_ts_.next(v));
+  // due to incrementality, most of the variables will be already present
+  // so make sure to check that
+  const UnorderedTermSet & abs_statevars = abs_rts_.statevars();
+  for (const auto &v : conc_ts_.statevars()) {
+    if (abs_statevars.find(v) == abs_statevars.end()) {
+      abs_rts_.add_statevar(v, conc_ts_.next(v));
+    }
   }
-  for (auto v : conc_ts_.inputvars()) {
-    abs_rts_.add_inputvar(v);
+  const UnorderedTermSet & abs_inputs = abs_rts_.inputvars();
+  for (const auto &v : conc_ts_.inputvars()) {
+    if (abs_inputs.find(v) == abs_inputs.end()) {
+      abs_rts_.add_inputvar(v);
+    }
   }
   // should start with the exact same behavior
   abs_rts_.set_behavior(conc_ts_.init(), conc_ts_.trans());
@@ -138,7 +146,8 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
   assert(abs_rts_.init() == conc_ts_.init());
   assert(abs_rts_.trans() == conc_ts_.trans());
   assert(abs_rts_.statevars().size() == conc_ts_.statevars().size());
-  assert(abs_rts_.inputvars().size() == conc_ts_.inputvars().size());
+  // due to incrementality, there are more input variables in abs_rts
+  assert(abs_rts_.inputvars().size() >= conc_ts_.inputvars().size());
 
   Sort boolsort_ = solver_->make_sort(BOOL);
 
@@ -155,12 +164,19 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
       conc_predicates.insert(sv);
       continue;
     }
+
     Term nv = conc_ts_.next(sv);
     // note: this is not a state variable -- using input variable so there's no
     // next
-    Term abs_nv = abs_rts_.make_inputvar(nv->to_string() + "^", nv->get_sort());
-    // map next var to this abstracted next var
-    update_term_cache(nv, abs_nv);
+
+    // for incrementality
+    // only create new variables if not present in cache
+    if (abstraction_cache_.find(nv) == abstraction_cache_.end()) {
+      Term abs_nv = abs_rts_.make_inputvar(nv->to_string() + "^",
+                                           nv->get_sort());
+      // map next var to this abstracted next var
+      update_term_cache(nv, abs_nv);
+    }
   }
 
   // TODO: fix the population.

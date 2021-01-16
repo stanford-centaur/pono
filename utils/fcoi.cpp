@@ -160,7 +160,7 @@ void FunctionalConeOfInfluence::print_coi_info(const TermVec & terms)
   for (auto statevar : ts_.statevars()) cout << "  " << statevar << "\n";
 
   cout << "constraints: \n";
-  for (auto constr : ts_.constraints()) cout << "  " << constr << "\n";
+  for (auto constr : ts_.constraints()) cout << "  " << constr.first << "\n";
 }
 
 /* Add 'term' to 'set' if it does not already appear there. */
@@ -261,9 +261,9 @@ void FunctionalConeOfInfluence::compute_coi_trans_constraints()
   UnorderedTermSet new_coi_state_vars;
   UnorderedTermSet new_coi_input_vars;
 
-  for (auto constr : ts_.constraints()) {
-    logger.log(3, "  trans constraints--constr: {}", constr);
-    compute_term_coi(constr, new_coi_state_vars, new_coi_input_vars);
+  for (const auto & e : ts_.constraints()) {
+    logger.log(3, "  trans constraints--constr: {}", e.first);
+    compute_term_coi(e.first, new_coi_state_vars, new_coi_input_vars);
   }
 
   /* Add newly collected variables to global collections. */

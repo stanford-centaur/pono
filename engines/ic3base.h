@@ -38,7 +38,14 @@
 **             flavor of IC3
 **           - override reset_solver if you need to add back in constraints
 **             to the reset solver that aren't handled by the default
-*8             implementation
+**             implementation
+**           - if you decide to use additional labels, make sure to add
+**             them to solver_ in both initialize and reset_solver
+**           - if your implementation tends to use the same labels often
+**             you can add the semantics (e.g. equality / implication)
+**             at the base context level, and just make sure that
+**             is_global_label returns true for those labels by overriding
+**             just don't forget to re-add those assertions in reset_solver
 **
 **        Important Notes:
 **           - be sure to use [push/pop]_solver_context instead of using
@@ -140,6 +147,8 @@ class IC3Base : public Prover
 
   bool witness(std::vector<smt::UnorderedTermMap> & out) override;
 
+  size_t witness_length() const;
+
  protected:
 
   smt::UnsatCoreReducer reducer_;
@@ -155,11 +164,8 @@ class IC3Base : public Prover
   bool failed_to_reset_solver_;  ///< some solvers don't support reset
                                  ///< assertions. Stop trying for those solvers.
 
-  const ProofGoal * cex_pg_;  ///< if a proof goal is traced back to init
-                              ///< this gets set to the first proof goal
-                              ///< in the trace
-                              ///< otherwise starts null, can check that
-                              ///< cex_pg_.target.term is a nullptr
+  smt::TermVec cex_;  ///< a vector of terms over state variables describing
+                      ///< a (possibly abstract) counterexample trace
 
   ///< the frames data structure.
   ///< a vector of the given Unit template
@@ -170,11 +176,14 @@ class IC3Base : public Prover
   // labels for activating assertions
   smt::Term init_label_;       ///< label to activate init
   smt::Term trans_label_;      ///< label to activate trans
+  smt::Term bad_label_;        ///< label to activate bad
   smt::TermVec frame_labels_;  ///< labels to activate frames
   smt::UnorderedTermMap labels_;  //< labels for unsat cores
 
   // useful terms
   smt::Term solver_true_;
+
+  smt::Sort boolsort_;
 
   // re-usable data structures
   // NOTE: be sure not to overwrite these in nested function calls
@@ -258,7 +267,8 @@ class IC3Base : public Prover
    *  @requires rel_ind_check(i, c)
    *  @requires the solver_ context is currently satisfiable
    *  @param i the frame number
-   *  @param c the IC3Formula conjunction to find a general predecessor for
+   *  @param c the term that failed to be blocked at i
+   *         (over current state vars)
    *  @param pred the predecessor. originally passed as full assignment
    *         and then is updated in to be a generalized predecessor
    *  @ensures pred -> F[i-1] /\
@@ -267,7 +277,7 @@ class IC3Base : public Prover
    *           other assertions
    */
   virtual void predecessor_generalization(size_t i,
-                                          const IC3Formula & c,
+                                          const smt::Term & c,
                                           IC3Formula & pred);
 
   /** Generates an abstract transition system
@@ -290,10 +300,8 @@ class IC3Base : public Prover
    * CEX
    *          - REFINE_SUCCESS if successfully refined / ruled out abstract CEX
    *          - REFINE_FAIL if failed during refinement
-   *  NOTE the counterexample trace is accessible through cex_pg_ which is
+   *  NOTE the counterexample trace is accessible through cex_ which is
    *  set by block_all when a trace is found
-   *  can reconstruct the trace (without input variable values) by following
-   *  the ProofGoal next field iteratively
    */
   virtual RefineResult refine()
   {
@@ -302,14 +310,12 @@ class IC3Base : public Prover
     return REFINE_NONE;
   }
 
-  /** Check if a transition from the second to last frame can result in a bad
-   * state
-   *  @return true iff the last frame intersects with bad
-   *  post-condition: if true is returned, a bad IC3Formula is added to proof
-   * goals This method can be overriden if you want to add more than a single
-   *  IC3Formula that intersects bad to the proof goals
+  /** Check if a transition from the frontier can result in a bad state
+   *  @param out an IC3Formula to populate with a state in the frontier
+   *         that can reach bad in one step
+   *  @return true iff bad is reachable from a state in the frontier
    */
-  virtual bool intersects_bad(IC3Formula & out);
+  virtual bool reaches_bad(IC3Formula & out);
 
   // ********************************** Common Methods
   // These methods are common to all flavors of IC3 currently implemented
@@ -321,7 +327,7 @@ class IC3Base : public Prover
 
   /** Perform the base IC3 step (zero case)
    */
-  ProverResult step_0();
+  ProverResult step_01();
 
   /** Do a relative inductiveness check at frame i-1
    *  aka see if c at frame i is reachable from frame i-1
@@ -358,9 +364,7 @@ class IC3Base : public Prover
    *  to ensure termination, always choose proof goal with
    *  smallest time
    *  @return true iff all proof goals were blocked
-   *  if returns false, sets cex_pg_ to the first ProofGoal
-   *  of a trace, e.g. the trace can be recovered by following
-   *  pg.next iteratively
+   *  if returns false, sets cex_ to the trace
    */
   bool block_all();
 
@@ -453,6 +457,17 @@ class IC3Base : public Prover
    */
   smt::TermVec get_next_state_values() const;
 
+  /** Constructs a counterexample trace by following the
+   *  next pointers of pg until the end of the trace
+   *  @param pg the proof goal that starts at the initial states
+   *  @param out the vector to populate
+   *  NOTE: because of the reaches_bad implementation, the last goal
+   *  in the pg chain is not a bad state, but rather a state that
+   *  can reach bad in one step.
+   *  thus this method always adds bad_ to the end of the vector
+   */
+  void reconstruct_trace(const ProofGoal * pg, smt::TermVec & out);
+
   /** Creates a reduce and of the vector of boolean terms
    *  It also sorts the vector by the hash
    *  Note: this will fail for empty vectors
@@ -508,6 +523,11 @@ class IC3Base : public Prover
    *  @return the indicator variable label for this term
    */
   smt::Term label(const smt::Term & t);
+
+  /** Returns true iff this label
+   *  already has semantics assigned at the base context level
+   */
+  virtual bool is_global_label(const smt::Term & l) const;
 
   /** Negates a term by stripping the leading Not if it's there,
    ** or applying Not if the term is not already negated.
