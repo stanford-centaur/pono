@@ -22,6 +22,7 @@
 #include "assert.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -101,24 +102,21 @@ static bool subsumes(const IC3Formula &a, const IC3Formula &b)
 
 /** IC3Base */
 
-IC3Base::IC3Base(const Property & p, const TransitionSystem & ts,
-                 const SmtSolver & s, PonoOptions opt)
+IC3Base::IC3Base(const Property & p,
+                 const TransitionSystem & ts,
+                 const SmtSolver & s,
+                 PonoOptions opt)
     : super(p, ts, s, opt),
-      reducer_(create_solver(s->get_solver_enum())),
+      reducer_(create_reducer_for(
+          s->get_solver_enum(), Engine::IC3IA_ENGINE, false)),
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),
-      cex_pg_(nullptr)
+      boolsort_(solver_->make_sort(BOOL))
 {
 }
 
-IC3Base::~IC3Base()
-{
-  if (cex_pg_) {
-    delete cex_pg_;
-    cex_pg_ = nullptr;
-  }
-}
+IC3Base::~IC3Base() {}
 
 void IC3Base::initialize()
 {
@@ -149,14 +147,22 @@ void IC3Base::initialize()
   push_frame();
 
   // set semantics of TS labels
-  Sort boolsort = solver_->make_sort(BOOL);
   assert(!init_label_);
   assert(!trans_label_);
+  assert(!bad_label_);
   // frame 0 label is identical to init label
   init_label_ = frame_labels_[0];
-  trans_label_ = solver_->make_symbol("__trans_label", boolsort);
+
+  trans_label_ = solver_->make_symbol("__trans_label", boolsort_);
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
+
+  // assume property in pre-state
+  Term prop = smart_not(bad_);
+  solver_->assert_formula(solver_->make_term(Implies, trans_label_, prop));
+
+  bad_label_ = solver_->make_symbol("__bad_label", boolsort_);
+  solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 }
 
 ProverResult IC3Base::check_until(int k)
@@ -172,16 +178,26 @@ ProverResult IC3Base::check_until(int k)
   RefineResult ref_res;
   int i = reached_k_ + 1;
   assert(reached_k_ + 1 >= 0);
-  for (size_t i = reached_k_ + 1; i <= k; ++i) {
-    // reset cex_pg_ to null
-    // there might be multiple abstract traces if there's a derived class
-    // doing abstraction refinement
-    if (cex_pg_) {
-      delete cex_pg_;
-      cex_pg_ = nullptr;
+  while (i <= k) {
+    res = step(i);
+
+    if (res == ProverResult::FALSE) {
+      assert(cex_.size());
+      RefineResult s = refine();
+      if (s == REFINE_SUCCESS) {
+        continue;
+      } else if (s == REFINE_NONE) {
+        // this is a real counterexample
+        assert(cex_.size());
+        return ProverResult::FALSE;
+      } else {
+        assert(s == REFINE_FAIL);
+        throw PonoException("Refinement failed");
+      }
+    } else {
+      ++i;
     }
 
-    res = step(i);
     if (res != ProverResult::UNKNOWN) {
       return res;
     }
@@ -193,6 +209,13 @@ ProverResult IC3Base::check_until(int k)
 bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
 {
   throw PonoException("IC3 witness NYI");
+}
+
+size_t IC3Base::witness_length() const
+{
+  // expecting there to have been a witness computed
+  assert(cex_.size());
+  return cex_.size();
 }
 
 // Protected Methods
@@ -322,29 +345,39 @@ IC3Formula IC3Base::inductive_generalization(size_t i, const IC3Formula & c)
 }
 
 void IC3Base::predecessor_generalization(size_t i,
-                                         const IC3Formula & c,
+                                         const Term & c,
                                          IC3Formula & pred)
 {
   // by default does no generalization
   return;
 }
 
-bool IC3Base::intersects_bad(IC3Formula & out)
+bool IC3Base::reaches_bad(IC3Formula & out)
 {
   push_solver_context();
   // assert the last frame (conjunction over clauses)
-  assert_frame_labels(reached_k_ + 1);
-  // see if it intersects with bad
-  solver_->assert_formula(bad_);
+  assert_frame_labels(frontier_idx());
+  // see if it intersects with bad in next states
+  solver_->assert_formula(ts_.next(bad_));
+  // don't need transition relation for this check
+  // can deactivate it
+  solver_->assert_formula(trans_label_);
   Result r = check_sat();
 
   if (r.is_sat()) {
-    const IC3Formula &c = get_model_ic3formula();
-    // reduce c
-    TermVec red_c;
-    reducer_.reduce_assump_unsatcore(smart_not(bad_), c.children, red_c);
+    out = get_model_ic3formula();
+    assert(out.term);
+    assert(out.children.size());
+    assert(ic3formula_check_valid(out));
 
-    out = ic3formula_conjunction(red_c);
+    if (options_.ic3_pregen_) {
+      // try to generalize if predecessor generalization enabled
+      predecessor_generalization(frames_.size(), bad_, out);
+    }
+
+    assert(out.term);
+    assert(out.children.size());
+    assert(ic3formula_check_valid(out));
   }
 
   pop_solver_context();
@@ -359,14 +392,14 @@ ProverResult IC3Base::step(int i)
     return ProverResult::UNKNOWN;
   }
 
-  if (reached_k_ < 0) {
-    return step_0();
+  if (reached_k_ < 1) {
+    return step_01();
   }
 
   // reached_k_ is the number of transitions that have been checked
   // at this point there are reached_k_ + 1 frames that don't
   // intersect bad, and reached_k_ + 2 frames overall
-  assert(reached_k_ + 2 == frames_.size());
+  assert(reached_k_ == frontier_idx());
   logger.log(1, "Blocking phase at frame {}", i);
   if (!block_all()) {
     // counter-example
@@ -394,25 +427,50 @@ ProverResult IC3Base::step(int i)
   return ProverResult::UNKNOWN;
 }
 
-ProverResult IC3Base::step_0()
+ProverResult IC3Base::step_01()
 {
-  logger.log(1, "Checking if initial states satisfy property");
-  assert(reached_k_ < 0);
+  assert(reached_k_ < 1);
+  if (reached_k_ < 0) {
+    logger.log(1, "Checking if initial states satisfy property");
+
+    push_solver_context();
+    solver_->assert_formula(init_label_);
+    solver_->assert_formula(bad_);
+    Result r = check_sat();
+    if (r.is_sat()) {
+      pop_solver_context();
+      // trace is only one bad state that intersects with initial
+      cex_.clear();
+      cex_.push_back(bad_);
+      return ProverResult::FALSE;
+    } else {
+      assert(r.is_unsat());
+      reached_k_ = 0;  // keep reached_k_ aligned with number of frames
+    }
+    pop_solver_context();
+  }
+
+  assert(reached_k_ == 0);
+  logger.log(1, "Checking if property can be violated in one-step");
 
   push_solver_context();
   solver_->assert_formula(init_label_);
-  solver_->assert_formula(bad_);
+  solver_->assert_formula(trans_label_);
+  solver_->assert_formula(ts_.next(bad_));
   Result r = check_sat();
   if (r.is_sat()) {
     const IC3Formula &c = get_model_ic3formula();
-    cex_pg_ = new ProofGoal(c, 0, nullptr);
     pop_solver_context();
+    ProofGoal * pg = new ProofGoal(c, 0, nullptr);
+    reconstruct_trace(pg, cex_);
+    delete pg;
     return ProverResult::FALSE;
   } else {
     assert(r.is_unsat());
-    reached_k_ = 0;  // keep reached_k_ aligned with number of frames
+    reached_k_ = 1;  // keep reached_k_ aligned with number of frames
   }
   pop_solver_context();
+
   return ProverResult::UNKNOWN;
 }
 
@@ -449,7 +507,12 @@ bool IC3Base::rel_ind_check(size_t i,
     for (const auto & cc : c.children) {
       ccnext = ts_.next(cc);
       lbl = label(ccnext);
-      solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
+      if (lbl != ccnext && !is_global_label(lbl)) {
+        // only need to add assertion if the label is not the same as ccnext
+        // could be the same if ccnext is already a literal
+        // and is not already in a global assumption
+        solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
+      }
       assumps_.push_back(lbl);
     }
   }
@@ -459,7 +522,7 @@ bool IC3Base::rel_ind_check(size_t i,
     if (get_pred) {
       out = get_model_ic3formula();
       if (options_.ic3_pregen_) {
-        predecessor_generalization(i, c, out);
+        predecessor_generalization(i, c.term, out);
         assert(out.term);
         assert(out.children.size());
         assert(!out.disjunction);  // expecting a conjunction
@@ -521,45 +584,27 @@ bool IC3Base::block_all()
 {
   assert(!solver_context_);
   ProofGoalQueue proof_goals;
-  IC3Formula bad_goal;
-  while (intersects_bad(bad_goal)) {
-    assert(bad_goal.term);  // expecting non-null
+  IC3Formula goal;
+  while (reaches_bad(goal)) {
+    assert(goal.term);            // expecting non-null
     assert(proof_goals.empty());  // bad should be the first goal each iteration
-    proof_goals.new_proof_goal(bad_goal, frontier_idx(), nullptr);
+    proof_goals.new_proof_goal(goal, frontier_idx(), nullptr);
 
     while (!proof_goals.empty()) {
       const ProofGoal * pg = proof_goals.top();
 
       if (!pg->idx) {
         // went all the way back to initial
-        // TODO refactor refinement to not use cex_pg_
         // need to create a new proof goal that's not managed by the queue
-        cex_pg_ = new ProofGoal(pg->target, pg->idx, pg->next);
-        RefineResult s = refine();
-        if (s == REFINE_SUCCESS) {
-          // on successful refinement, clear the queue of proof goals
-          // which might not have been precise
-          // TODO might have to change this if there's an algorithm
-          // that refines but can keep proof goals around
-          proof_goals.clear();
+        reconstruct_trace(pg, cex_);
 
-          // and reset cex_pg_
-          if (cex_pg_) {
-            delete cex_pg_;
-            cex_pg_ = nullptr;
-          }
-          continue;
-        } else if (s == REFINE_NONE) {
-          // this is a real counterexample
-          // TODO refactor this
-          assert(cex_pg_);
-          assert(cex_pg_->target.term == pg->target.term);
-          assert(cex_pg_->idx == pg->idx);
-          return false;
-        } else {
-          assert(s == REFINE_FAIL);
-          throw PonoException("Refinement failed");
-        }
+        // in case this is spurious, clear the queue of proof goals
+        // which might not have been precise
+        // TODO might have to change this if there's an algorithm
+        // that refines but can keep proof goals around
+        proof_goals.clear();
+
+        return false;
       }
 
       if (is_blocked(pg)) {
@@ -614,8 +659,8 @@ bool IC3Base::block_all()
       }
     }  // end while(!proof_goals.empty())
 
-    assert(!(bad_goal = IC3Formula()).term);  // in debug mode, reset it
-  }                                           // end while(intersects_bad())
+    assert(!(goal = IC3Formula()).term);  // in debug mode, reset it
+  }                                       // end while(reaches_bad(goal))
 
   assert(proof_goals.empty());
   return true;
@@ -758,6 +803,9 @@ Term IC3Base::get_frame_term(size_t i) const
       res = solver_->make_term(And, res, u.term);
     }
   }
+
+  // the property is implicitly part of the frame
+  res = solver_->make_term(And, res, smart_not(bad_));
   return res;
 }
 
@@ -789,17 +837,20 @@ bool IC3Base::check_intersects_initial(const Term & t)
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
+  assert(!solver_context_);
+  // TODO: there's a tricky issue here. The reducer doesn't have the label
+  // assumptions so we can't use init_label_ here. need to come up with a
+  // better interface. Should we add label assumptions to reducer?
   if (rem.size() != 0) {
-    // TODO: there's a tricky issue here. The reducer doesn't have the label
-    // assumptions so we can't use init_label_ here. need to come up with a
-    // better interface. Should we add label assumptions to reducer?
-    const Term &formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
-    reducer_.reduce_assump_unsatcore(formula,
-                                     rem,
-                                     to_keep,
-                                     NULL,
-                                     options_.ic3_gen_max_iter_,
-                                     options_.random_seed_);
+    Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
+
+    bool success = reducer_.reduce_assump_unsatcore(formula,
+                                                    rem,
+                                                    to_keep,
+                                                    NULL,
+                                                    options_.ic3_gen_max_iter_,
+                                                    options_.random_seed_);
+    assert(success);
   }
 }
 
@@ -854,6 +905,25 @@ TermVec IC3Base::get_next_state_values() const
   return out_nexts;
 }
 
+void IC3Base::reconstruct_trace(const ProofGoal * pg, TermVec & out)
+{
+  assert(!solver_context_);
+  assert(pg);
+  assert(pg->target.term);
+  assert(check_intersects_initial(pg->target.term));
+
+  out.clear();
+  while (pg) {
+    out.push_back(pg->target.term);
+    assert(ts_.only_curr(out.back()));
+    pg = pg->next;
+  }
+
+  // always add bad as last state so it's a full trace
+  // NOTE this is because the reaches_bad implementation
+  out.push_back(bad_);
+}
+
 Term IC3Base::make_and(TermVec vec, SmtSolver slv) const
 {
   if (!slv) {
@@ -889,12 +959,19 @@ void IC3Base::reset_solver()
     // Now need to add back in constraints at context level 0
     logger.log(2, "IC3Base: Reset solver and now re-adding constraints.");
 
-    // define init and trans label
+    // define init, trans, and bad labels
     assert(init_label_ == frame_labels_.at(0));
     solver_->assert_formula(
         solver_->make_term(Implies, init_label_, ts_.init()));
+
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, ts_.trans()));
+
+    // assume property in pre-state
+    Term prop = smart_not(bad_);
+    solver_->assert_formula(solver_->make_term(Implies, trans_label_, prop));
+
+    solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 
     for (size_t i = 0; i < frames_.size(); ++i) {
       for (const auto & constraint : frames_.at(i)) {
@@ -919,25 +996,37 @@ Term IC3Base::label(const Term & t)
     return labels_.at(t);
   }
 
-  unsigned i = 0;
   Term l;
-  while (true) {
-    try {
-      l = solver_->make_symbol(
-          "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
-          solver_->make_sort(BOOL));
-      break;
-    }
-    catch (IncorrectUsageException & e) {
-      ++i;
-    }
-    catch (SmtException & e) {
-      throw e;
+  if (is_lit(t, boolsort_)) {
+    // this can be the label itself
+    l = t;
+  } else {
+    unsigned i = 0;
+    while (true) {
+      try {
+        l = solver_->make_symbol(
+            "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
+            solver_->make_sort(BOOL));
+        break;
+      }
+      catch (IncorrectUsageException & e) {
+        ++i;
+      }
+      catch (SmtException & e) {
+        throw e;
+      }
     }
   }
+  assert(l);
 
   labels_[t] = l;
   return l;
+}
+
+bool IC3Base::is_global_label(const Term & l) const
+{
+  return (l == trans_label_ || l == bad_label_
+          || std::count(frame_labels_.begin(), frame_labels_.end(), l));
 }
 
 smt::Term IC3Base::smart_not(const Term & t) const

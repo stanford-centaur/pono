@@ -49,6 +49,12 @@ class CegProphecyArrays : public CEGAR<Prover_T>
 
   void initialize() override;
 
+  size_t witness_length() const override
+  {
+    // regardless of super class want this to be the witness length
+    return reached_k_+1;
+  }
+
  protected:
   TransitionSystem conc_ts_;
   TransitionSystem & abs_ts_;
@@ -56,6 +62,8 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;
+
+  int reached_k_; ///< local variable to check the length of BMC refinement run
 
   size_t num_added_axioms_;  ///< set by refine to the number of added axioms
 
@@ -94,6 +102,10 @@ class CegProphecyArrays : public CEGAR<Prover_T>
    *  @return the label
    */
   smt::Term label(const smt::Term & t);
+
+  void refine_ts(const smt::UnorderedTermSet & consecutive_axioms);
+
+  void refine_subprover_ts(const smt::UnorderedTermSet & consecutive_axioms);
 };
 
 }  // namespace pono

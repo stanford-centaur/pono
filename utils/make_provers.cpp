@@ -19,6 +19,7 @@
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ceg_prophecy_arrays.h"
+#include "engines/cegar_values.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
 #include "engines/interpolantmc.h"
@@ -114,6 +115,20 @@ shared_ptr<Prover> make_ceg_proph_prover(Engine e,
   else {
     throw PonoException("Unhandled engine");
   }
+}
+
+shared_ptr<Prover> make_cegar_values_prover(Engine e,
+                                            const Property & p,
+                                            const TransitionSystem & ts,
+                                            const SmtSolver & slv,
+                                            PonoOptions opts)
+{
+  if (e != IC3IA_ENGINE || !opts.ceg_prophecy_arrays_) {
+    throw PonoException(
+        "CegarValues currently only supports IC3IA with CegProphecyArrays");
+  }
+
+  return make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(p, ts, slv, opts);
 }
 
 }  // namespace pono

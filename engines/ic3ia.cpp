@@ -61,15 +61,16 @@ IC3IA::IC3IA(const Property & p,
 
 IC3Formula IC3IA::get_model_ic3formula() const
 {
-  const TermVec & preds = ia_.predicates();
   TermVec conjuncts;
-  conjuncts.reserve(preds.size());
-  for (const auto &p : preds) {
-    if (solver_->get_value(p) == solver_true_) {
-      conjuncts.push_back(p);
+  conjuncts.reserve(predlbls_.size());
+  Term val;
+  for (const auto & p : predlbls_) {
+    if ((val = solver_->get_value(p)) == solver_true_) {
+      conjuncts.push_back(lbl2pred_.at(p));
     } else {
-      conjuncts.push_back(solver_->make_term(Not, p));
+      conjuncts.push_back(solver_->make_term(Not, lbl2pred_.at(p)));
     }
+    assert(val->is_value());
   }
 
   return ic3formula_conjunction(conjuncts);
@@ -77,12 +78,11 @@ IC3Formula IC3IA::get_model_ic3formula() const
 
 bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
 {
-  const Sort &boolsort = solver_->make_sort(BOOL);
   // check that children are literals
   Term pred;
   Op op;
   for (const auto &c : u.children) {
-    if (c->get_sort() != boolsort) {
+    if (c->get_sort() != boolsort_) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
     }
@@ -120,16 +120,6 @@ void IC3IA::initialize()
   }
 
   super::initialize();
-
-  Sort boolsort = solver_->make_sort(BOOL);
-  // add predicates automatically added by ia_
-  // to our predset_
-  // needed to prevent adding duplicate predicates later
-  for (const auto & p : ia_.predicates()) {
-    // ia_ automatically includes all boolean variables
-    assert(p->is_symbolic_const() && p->get_sort() == boolsort);
-    predset_.insert(p);
-  }
 
   // add all the predicates from init and property to the abstraction
   // NOTE: abstract is called automatically in IC3Base initialize
@@ -191,7 +181,13 @@ void IC3IA::initialize()
 
 void IC3IA::abstract()
 {
-  ia_.do_abstraction();
+  const UnorderedTermSet &bool_symbols = ia_.do_abstraction();
+  // add predicates automatically added by ia_
+  // to our predset_
+  // needed to prevent adding duplicate predicates later
+  for (const auto & sym : bool_symbols) {
+    add_predicate(sym);
+  }
 
   assert(ts_.init());  // should be non-null
   assert(ts_.trans());
@@ -199,22 +195,14 @@ void IC3IA::abstract()
 
 RefineResult IC3IA::refine()
 {
-  // recover the counterexample trace
-  assert(check_intersects_initial(cex_pg_->target.term));
-  TermVec cex;
-  const ProofGoal * tmp = cex_pg_;
-  while (tmp) {
-    cex.push_back(tmp->target.term);
-    assert(ts_.only_curr(tmp->target.term));
-    tmp = tmp->next;
-  }
-
-  if (cex.size() == 1) {
+  // counterexample trace should have been populated
+  assert(cex_.size());
+  if (cex_.size() == 1) {
     // if there are no transitions, then this is a concrete CEX
     return REFINE_NONE;
   }
 
-  size_t cex_length = cex.size();
+  size_t cex_length = cex_.size();
 
   // use interpolator to get predicates
   // remember -- need to transfer between solvers
@@ -225,7 +213,7 @@ RefineResult IC3IA::refine()
     // make sure to_solver_ cache is populated with unrolled symbols
     register_symbol_mappings(i);
 
-    Term t = unroller_.at_time(cex[i], i);
+    Term t = unroller_.at_time(cex_[i], i);
     if (i + 1 < cex_length) {
       t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
     }
@@ -245,7 +233,7 @@ RefineResult IC3IA::refine()
   // important to set it here because it's used in register_symbol_mapping
   // to determine if state variables unrolled to a certain length
   // have already been cached in to_solver_
-  longest_cex_length_ = cex.size();
+  longest_cex_length_ = cex_length;
 
   UnorderedTermSet preds;
   for (auto const&I : out_interpolants) {
@@ -283,7 +271,7 @@ RefineResult IC3IA::refine()
 
   // reduce new predicates
   TermVec red_preds;
-  if (ia_.reduce_predicates(cex, fresh_preds, red_preds)) {
+  if (ia_.reduce_predicates(cex_, fresh_preds, red_preds)) {
     // reduction successful
     logger.log(2,
                "reduce predicates successful {}/{}",
@@ -317,6 +305,27 @@ RefineResult IC3IA::refine()
   return RefineResult::REFINE_SUCCESS;
 }
 
+void IC3IA::reset_solver()
+{
+  super::reset_solver();
+
+  for (const auto & elem : lbl2pred_) {
+    solver_->assert_formula(solver_->make_term(Equal, elem.first, elem.second));
+
+    Term npred = ts_.next(elem.second);
+    Term nlbl = label(npred);
+    solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+  }
+}
+
+bool IC3IA::is_global_label(const Term & l) const
+{
+  // all labels used by IC3IA should be globally assumed
+  // the assertion will check that this assumption holds though
+  assert(super::is_global_label(l) || all_lbls_.find(l) != all_lbls_.end());
+  return true;
+}
+
 bool IC3IA::add_predicate(const Term & pred)
 {
   if (predset_.find(pred) != predset_.end()) {
@@ -327,15 +336,45 @@ bool IC3IA::add_predicate(const Term & pred)
   assert(ts_.only_curr(pred));
   logger.log(2, "adding predicate {}", pred);
   predset_.insert(pred);
-  // add predicate to abstraction and get the new constraint
-  Term predabs_rel = ia_.add_predicate(pred);
-  // refine the transition relation incrementally
-  // by adding a new constraint
-  assert(!solver_context_);  // should be at context 0
-  solver_->assert_formula(
-      solver_->make_term(Implies, trans_label_, predabs_rel));
+  assert(pred->get_sort() == boolsort_);
+  assert(pred->is_symbolic_const() || is_predicate(pred, boolsort_));
 
-  assert(predset_.size() == ia_.predicates().size());
+  Term lbl = label(pred);
+  // set the negated label as well
+  // can use in either polarity because we add a bi-implication
+  labels_[solver_->make_term(Not, pred)] = solver_->make_term(Not, lbl);
+
+  predlbls_.insert(lbl);
+  lbl2pred_[lbl] = pred;
+
+  Term npred = ts_.next(pred);
+  Term nlbl = label(npred);
+  labels_[solver_->make_term(Not, npred)] = solver_->make_term(Not, nlbl);
+
+  if (!pred->is_symbolic_const()) {
+    // only need to assert equalities for labels that are distinct
+    assert(lbl != pred);
+    solver_->assert_formula(solver_->make_term(Equal, lbl, pred));
+    solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+
+    // only need to modify transition relation for non constants
+    // boolean constants will be precise
+
+    // add predicate to abstraction and get the new constraint
+    Term predabs_rel = ia_.predicate_refinement(pred);
+    static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(predabs_rel);
+    // refine the transition relation incrementally
+    // by adding a new constraint
+    assert(!solver_context_);  // should be at context 0
+    solver_->assert_formula(
+        solver_->make_term(Implies, trans_label_, predabs_rel));
+  }
+
+  // keep track of the labels and different polarities for debugging assertions
+  all_lbls_.insert(lbl);
+  all_lbls_.insert(solver_->make_term(Not, lbl));
+  all_lbls_.insert(nlbl);
+  all_lbls_.insert(solver_->make_term(Not, nlbl));
 
   return true;
 }

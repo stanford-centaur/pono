@@ -53,7 +53,9 @@ enum optionIndex
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
-  MOD_INIT_PROP
+  MOD_INIT_PROP,
+  NO_ASSUME_PROP,
+  CEGP_ABS_VALS
 };
 
 struct Arg : public option::Arg
@@ -263,6 +265,20 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --mod-init-prop \tReplace init and prop with state variables -- can "
     "extend trace by up to two steps. Recommended for use with ic3ia." },
+  { NO_ASSUME_PROP,
+    0,
+    "",
+    "no-assume-prop",
+    Arg::None,
+    "  --no-assume-prop \tdisable assuming property in pre-state (default "
+    "enabled)" },
+  { CEGP_ABS_VALS,
+    0,
+    "",
+    "cegp-abs-vals",
+    Arg::None,
+    "  --cegp-abs-vals \tabstract values in ceg-prophecy-arrays (only "
+    "supported for IC3IA)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -382,7 +398,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           profiling_log_filename_ = opt.arg;
 #endif
           break;
-        case MOD_INIT_PROP: mod_init_prop_ = true;
+        case MOD_INIT_PROP: mod_init_prop_ = true; break;
+        case NO_ASSUME_PROP: assume_prop_ = false; break;
+        case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
