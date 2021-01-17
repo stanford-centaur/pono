@@ -41,6 +41,7 @@ public:
     smt::TermVec & out) = 0;
     
   virtual const smt::UnorderedTermSet & dummy_inputs() = 0;
+  virtual bool has_abstracted() const = 0;
 }; // class OpAbstractor
 
 class OpInpAbstractor : public OpAbstractor
@@ -73,6 +74,8 @@ public:
     smt::TermVec & out) override;
 
   virtual const smt::UnorderedTermSet & dummy_inputs() override {return dummy_inputs_;}
+
+  virtual bool has_abstracted() const override { return !(op_abstracted.empty()); }
 
 protected:
   // find mul/div and replace them with input/output
@@ -136,6 +139,8 @@ public:
 
   virtual const smt::UnorderedTermSet & dummy_inputs() override {return dummy_inputs_;}
   
+  virtual bool has_abstracted() const override { return !(op_abstracted.empty()); }
+
 protected:
   smt::UnorderedTermSet dummy_inputs_; // empty set
   

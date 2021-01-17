@@ -57,6 +57,11 @@ class IC3FormulaModel {
   
 }; // IC3FormulaModel
 
+// will be used in replacement of unsatcore reducer
+void reduce_unsat_core_to_fixedpoint(const smt::Term & formula, const smt::TermVec & assumptions, smt::TermVec & out, const smt::SmtSolver & solver_);
+
+void reduce_unsat_core_linear(const smt::Term & formula, const smt::TermVec & assumptions, smt::TermVec & out, const smt::SmtSolver & solver_);
+
 
 }  // namespace syntax_analysis
 }  // namespace pono

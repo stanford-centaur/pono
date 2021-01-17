@@ -57,7 +57,8 @@ enum SyGuSTermMode{
   FROM_DESIGN_LEARN_EXT = 0,
   VAR_C_EXT = 1,
   SPLIT_FROM_DESIGN = 2,
-  VAR_C_EQ_LT = 3
+  VAR_C_EQ_LT = 3,
+  TERM_MODE_AUTO = 4
 }; 
 
 /*************************************** Options class
@@ -173,7 +174,7 @@ class PonoOptions
   static const bool default_mod_init_prop_ = false;
   static const bool default_assume_prop_ = true;
   static const bool default_cegp_abs_vals_ = false;
-  static const SyGuSTermMode default_sygus_term_mode_ = FROM_DESIGN_LEARN_EXT;
+  static const SyGuSTermMode default_sygus_term_mode_ = TERM_MODE_AUTO;
   static const unsigned default_sygus_term_extract_depth_ = 0;
   static const unsigned default_sygus_initial_term_width_ = 8;
   static const unsigned default_sygus_initial_term_inc_ = 8;

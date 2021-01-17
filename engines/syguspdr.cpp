@@ -23,6 +23,7 @@ using namespace smt;
 
 namespace pono {
 
+#define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)
@@ -134,7 +135,9 @@ void SygusPdr::initialize()
       orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}));
     // op_abstractor_ = std::make_unique<OpUfAbstractor>(
     //   orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}), bad_, 4);
-    
+    if (options_.sygus_term_mode_ == SyGuSTermMode::TERM_MODE_AUTO)
+      options_.sygus_term_mode_ = op_abstractor_->has_abstracted() ? 
+        (SyGuSTermMode::SPLIT_FROM_DESIGN) : (SyGuSTermMode::FROM_DESIGN_LEARN_EXT);
   }
   SygusPdr::reset_solver(); // reset trans if abstracted
   // and even if not, I don't need the trans->prop thing
@@ -406,8 +409,14 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
 
   UnorderedTermSet pred_set(preds_nxt.begin(), preds_nxt.end());
   TermVec deduplicate_preds_nxt(pred_set.begin(), pred_set.end());
-  
-  reducer_.reduce_assump_unsatcore(base, deduplicate_preds_nxt, unsatcore, NULL, 0, options_.random_seed_);
+
+  if(solver_->get_solver_enum() == SolverEnum::BTOR) {
+    push_solver_context();
+    disable_all_labels();
+    syntax_analysis::reduce_unsat_core_to_fixedpoint(base, deduplicate_preds_nxt, unsatcore, solver_);
+    pop_solver_context();
+  } else
+    reducer_.reduce_assump_unsatcore(base, deduplicate_preds_nxt, unsatcore, NULL, 0, options_.random_seed_);
 
   D(3,"[IterativeReduction] End core size {}", unsatcore.size());
   std::vector<std::pair<unsigned, Term>> score_vec;
@@ -424,7 +433,22 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
     term_id_map.emplace(pos->second, pidx ++);
   }
   unsatcore.clear(); // reuse this
-  reducer_.linear_reduce_assump_unsatcore(base, sorted_unsatcore, unsatcore, NULL, 0);
+  if(solver_->get_solver_enum() == SolverEnum::BTOR) {
+    push_solver_context();
+    disable_all_labels();
+    syntax_analysis::reduce_unsat_core_linear(base, sorted_unsatcore, unsatcore, solver_);
+    pop_solver_context();
+    #ifdef DEBUG
+      std::cout << "{";
+      for (const auto & p : unsatcore) {
+        auto pos = term_id_map.find(p); assert(pos != term_id_map.end());
+        std::cout << pos->second << ",";
+      }
+      std::cout << "}" << std::endl;
+    #endif
+  } else 
+    reducer_.linear_reduce_assump_unsatcore(base, sorted_unsatcore, unsatcore, NULL, 0);
+  
   assert(!unsatcore.empty());
 
   TermVec curr_lits;
@@ -963,6 +987,7 @@ void SygusPdr::disable_all_labels() {
   #define NOT(x) (solver_->make_term(Not, (x)))
   solver_->assert_formula(NOT(init_label_));
   solver_->assert_formula(NOT(trans_label_));
+  solver_->assert_formula(NOT(bad_label_));
   for(const auto & fl : frame_labels_)
     solver_->assert_formula(NOT(fl));
   #undef NOT
