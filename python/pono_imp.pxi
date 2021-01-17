@@ -1,5 +1,7 @@
 from cython.operator cimport dereference as dref, preincrement as inc
 from libc.stdint cimport uintptr_t
+from libcpp cimport bool as cbool
+from libcpp.pair cimport pair
 from libcpp.string cimport string
 from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
@@ -77,8 +79,8 @@ cdef class __AbstractTransitionSystem:
     def constrain_inputs(self, Term constraint):
         dref(self.cts).constrain_inputs(constraint.ct)
 
-    def add_constraint(self, Term constraint):
-        dref(self.cts).add_constraint(constraint.ct)
+    def add_constraint(self, Term constraint, bint to_init_and_next=True):
+        dref(self.cts).add_constraint(constraint.ct, to_init_and_next)
 
     def name_term(self, str name, Term t):
         dref(self.cts).name_term(name.encode(), t.ct)
@@ -187,11 +189,11 @@ cdef class __AbstractTransitionSystem:
     @property
     def constraints(self):
         convec = []
-        cdef c_TermVec c_cons = dref(self.cts).constraints()
-        for t in c_cons:
+        cdef vector[pair[c_Term, cbool]] c_cons = dref(self.cts).constraints()
+        for e in c_cons:
             python_term = Term(self._solver)
-            python_term.ct = t
-            convec.append(python_term)
+            python_term.ct = e.first
+            convec.append((python_term, e.second))
         return convec
 
     @property

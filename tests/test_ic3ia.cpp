@@ -23,7 +23,7 @@ class IC3IAUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    s = create_solver_for(GetParam(), IC3IA_ENGINE, false);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
     intsort = s->make_sort(INT);
@@ -74,6 +74,23 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
   fts.assign_next(s2, s2);
 
   Property p(s, s->make_term(Not, s1));
+
+  IC3IA ic3ia(p, fts, s);
+  ProverResult r = ic3ia.prove();
+  ASSERT_EQ(r, FALSE);
+}
+
+TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
+{
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("x", bvsort8);
+  Term in = fts.make_inputvar("in", s->make_sort(BV, 1));
+  Term ext_in = fts.make_term(Op(Zero_Extend, 7), in);
+  fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
+  fts.assign_next(x, fts.make_term(BVAdd, x, ext_in));
+
+  Term prop_term = s->make_term(BVUlt, x, s->make_term(10, bvsort8));
+  Property p(s, prop_term);
 
   IC3IA ic3ia(p, fts, s);
   ProverResult r = ic3ia.prove();

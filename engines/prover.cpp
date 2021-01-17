@@ -30,8 +30,10 @@ using namespace std;
 
 namespace pono {
 
-Prover::Prover(const Property & p, const TransitionSystem & ts,
-               const smt::SmtSolver & s, PonoOptions opt)
+Prover::Prover(const Property & p,
+               const TransitionSystem & ts,
+               const smt::SmtSolver & s,
+               PonoOptions opt)
     : initialized_(false),
       solver_(s),
       to_prover_solver_(s),
@@ -39,6 +41,11 @@ Prover::Prover(const Property & p, const TransitionSystem & ts,
       orig_ts_(ts),
       ts_(ts, to_prover_solver_),
       unroller_(ts_),
+      bad_(solver_->make_term(
+          smt::PrimOp::Not,
+          ts_.solver() == orig_property_.solver()
+              ? orig_property_.prop()
+              : to_prover_solver_.transfer_term(orig_property_.prop(), BOOL))),
       options_(opt),
       engine_(Engine::NONE)
 {
@@ -53,16 +60,6 @@ void Prover::initialize()
   }
 
   reached_k_ = -1;
-
-  if (!bad_) {
-    // initialize bad_ if it is not set already
-    const Term & prop_term =
-        (ts_.solver() == orig_property_.solver())
-            ? orig_property_.prop()
-            : to_prover_solver_.transfer_term(orig_property_.prop(), BOOL);
-    bad_ = solver_->make_term(smt::PrimOp::Not, prop_term);
-    assert(ts_.only_curr(bad_));
-  }
 
   if (!ts_.only_curr(bad_)) {
     throw PonoException("Property should not contain inputs or next state variables");
@@ -160,6 +157,8 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
   return success;
 }
 
+size_t Prover::witness_length() const { return reached_k_ + 1; }
+
 Term Prover::invar()
 {
   if (!invar_)
@@ -193,6 +192,7 @@ Term Prover::to_orig_ts(Term t, SortKind sk)
     for (const auto &v : orig_ts_.inputvars()) {
       cache[to_prover_solver_.transfer_term(v)] = v;
     }
+    // TODO: need a to add UFs to the cache also
     return to_orig_ts_solver.transfer_term(t, sk);
   }
 }

@@ -48,6 +48,13 @@ protected:
   
   void TermsDumping() const;
 
+  smt::Term zero,one;
+
+  smt::Term smart_EQ(const smt::Term &l, const  smt::Term & r);
+  smt::Term smart_NEQ(const smt::Term &l, const  smt::Term & r);
+  smt::Term smart_LT(const smt::Term &l, const  smt::Term & r);
+  smt::Term smart_LE(const smt::Term &l, const  smt::Term & r);
+
 public:
   // constraints are included in the T part
   PredConstructor(

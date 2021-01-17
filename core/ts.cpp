@@ -120,8 +120,8 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   /* Constraints collected in vector 'constraints_' were part of init_
      and/or trans_ and were transferred already above. Hence these
      terms should be in the term translator cache. */
-  for (const auto & constr : other_ts.constraints_) {
-    constraints_.push_back(transfer_as(constr, BOOL));
+  for (const auto & e : other_ts.constraints_) {
+    constraints_.push_back({ transfer_as(e.first, BOOL), e.second });
   }
   functional_ = other_ts.functional_;
   deterministic_ = other_ts.deterministic_;
@@ -216,8 +216,7 @@ void TransitionSystem::add_invar(const Term & constraint)
     Term next_constraint = solver_->substitute(constraint, next_map_);
     // add the next-state version
     trans_ = solver_->make_term(And, trans_, next_constraint);
-    constraints_.push_back(constraint);
-    constraints_.push_back(next_constraint);
+    constraints_.push_back({ constraint, true });
   } else {
     throw PonoException("Invariants should be over current states only.");
   }
@@ -231,31 +230,31 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
 
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
-    constraints_.push_back(constraint);
+    constraints_.push_back({ constraint, false });
   } else {
     throw PonoException("Cannot have next-states in an input constraint.");
   }
 }
 
-void TransitionSystem::add_constraint(const Term & constraint, bool to_init)
+void TransitionSystem::add_constraint(const Term & constraint,
+                                      bool to_init_and_next)
 {
   // constraints can make it so not every state has a next state
   // TODO: revisit this and possibly rename functional/deterministic
   deterministic_ = false;
 
   if (only_curr(constraint)) {
-    if (to_init) {
-      init_ = solver_->make_term(And, init_, constraint);
-    }
     trans_ = solver_->make_term(And, trans_, constraint);
-    // add over next states
-    Term next_constraint = solver_->substitute(constraint, next_map_);
-    trans_ = solver_->make_term(And, trans_, next_constraint);
-    constraints_.push_back(constraint);
-    constraints_.push_back(next_constraint);
+
+    if (to_init_and_next) {
+      init_ = solver_->make_term(And, init_, constraint);
+      Term next_constraint = solver_->substitute(constraint, next_map_);
+      trans_ = solver_->make_term(And, trans_, next_constraint);
+    }
+    constraints_.push_back({ constraint, to_init_and_next });
   } else if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
-    constraints_.push_back(constraint);
+    constraints_.push_back({ constraint, false });
   } else {
     throw PonoException("Constraint cannot have next states");
   }
@@ -492,8 +491,8 @@ void TransitionSystem::rebuild_trans_based_on_coi(
 
   /* Add global constraints added to previous 'trans_'. */
   // TODO: check potential optimizations in removing global constraints
-  for (const auto & constr : constraints_) {
-    trans_ = solver_->make_term(And, trans_, constr);
+  for (const auto & e : constraints_) {
+    add_constraint(e.first, e.second);
   }
 
   statevars_.clear();
@@ -636,8 +635,8 @@ void TransitionSystem::drop_state_updates(const TermVec & svs)
   }
 
   /* Add global constraints added to previous 'trans_'. */
-  for (const auto & constr : constraints_) {
-    trans_ = solver_->make_term(And, trans_, constr);
+  for (const auto & e : constraints_) {
+    add_constraint(e.first, e.second);
   }
 }
 
@@ -709,10 +708,10 @@ void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
   next_map_ = new_next_map_;
   curr_map_ = new_curr_map_;
 
-  TermVec new_constraints;
+  vector<pair<Term, bool>> new_constraints;
   new_constraints.reserve(constraints_.size());
-  for (auto c : constraints_) {
-    new_constraints.push_back(sw.visit(c));
+  for (const auto & e : constraints_) {
+    new_constraints.push_back(e);
   }
   constraints_ = new_constraints;
 }

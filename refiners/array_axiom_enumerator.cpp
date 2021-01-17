@@ -504,7 +504,11 @@ void ArrayAxiomEnumerator::clear_state()
 bool ArrayAxiomEnumerator::is_violated(const Term & ax) const
 {
   assert(ax->get_sort()->get_sort_kind() == BOOL);
-  return solver_->get_value(ax) == false_;
+  Term val = solver_->get_value(ax);
+  // expecting to have solver options such that
+  // we can get the value of arbitrary axioms
+  assert(val->is_value());
+  return val == false_;
 }
 
 UnorderedTermSet ArrayAxiomEnumerator::non_index_axioms(AxiomClass ac)

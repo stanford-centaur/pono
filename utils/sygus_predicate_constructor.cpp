@@ -27,6 +27,7 @@ namespace syntax_analysis {
 #define LT(x, y)     (solver_->make_term(smt::BVUlt, (x), (y)))
 #define LE(x, y)     (solver_->make_term(smt::BVUle, (x), (y)))
 #define NEQ(x, y)     (NOT(EQ( (x) , (y) )))
+#define TO_BV(x)     (solver_->make_term(smt::Ite, (x), one, zero))
 
 
 
@@ -43,11 +44,61 @@ PredConstructor::PredConstructor(
   to_next_(to_next_func),
   solver_(solver),
   cex_(cex), 
-  per_cex_info_(per_cex_info)
+  per_cex_info_(per_cex_info),
+  zero(solver_->make_term(0, solver_->make_sort(smt::SortKind::BV,1))),
+  one(solver->make_term(1, solver_->make_sort(smt::SortKind::BV,1)))
 {
   TermsDumping();
   terms_to_predicates();
 }
+
+smt::Term PredConstructor::smart_EQ(const smt::Term &l, const  smt::Term & r) {
+  if(l->get_sort()->get_sort_kind() == smt::SortKind::BOOL
+    && r->get_sort()->get_sort_kind() == smt::SortKind::BV
+    && r->get_sort()->get_width() == 1) {
+      return EQ(TO_BV(l), r);
+  }
+  if(r->get_sort()->get_sort_kind() == smt::SortKind::BOOL
+    && l->get_sort()->get_sort_kind() == smt::SortKind::BV
+    && l->get_sort()->get_width() == 1) {
+      return EQ(l, TO_BV(r));
+  }
+  return EQ(l,r);
+}
+
+smt::Term PredConstructor::smart_NEQ(const smt::Term &l, const  smt::Term & r) {
+  return NOT(smart_EQ(l,r));
+}
+
+smt::Term PredConstructor::smart_LT(const smt::Term &l, const  smt::Term & r) {
+  if(l->get_sort()->get_sort_kind() == smt::SortKind::BOOL
+    && r->get_sort()->get_sort_kind() == smt::SortKind::BV
+    && r->get_sort()->get_width() == 1) {
+      return LT(TO_BV(l), r);
+  }
+  if(r->get_sort()->get_sort_kind() == smt::SortKind::BOOL
+    && l->get_sort()->get_sort_kind() == smt::SortKind::BV
+    && l->get_sort()->get_width() == 1) {
+      return LT(l, TO_BV(r));
+  }
+  return LT(l,r);
+}
+
+
+smt::Term PredConstructor::smart_LE(const smt::Term &l, const  smt::Term & r) {
+  if(l->get_sort()->get_sort_kind() == smt::SortKind::BOOL
+    && r->get_sort()->get_sort_kind() == smt::SortKind::BV
+    && r->get_sort()->get_width() == 1) {
+      return LE(TO_BV(l), r);
+  }
+  if(r->get_sort()->get_sort_kind() == smt::SortKind::BOOL
+    && l->get_sort()->get_sort_kind() == smt::SortKind::BV
+    && l->get_sort()->get_width() == 1) {
+      return LE(l, TO_BV(r));
+  }
+  return LE(l,r);  
+}
+
 
 #define TERM_TABLE_DEBUG_LVL 0
 void PredConstructor::TermsDumping() const {
@@ -139,22 +190,22 @@ void PredConstructor::terms_to_predicates() {
         const auto & t = terms.at(tidx);
         const auto & tval = value_map.at(t);
         
-        auto pred_curr = (cval == tval) ? EQ(c, t) : NEQ(c, t);
+        auto pred_curr = (cval == tval) ? smart_EQ(c, t) : smart_NEQ(c, t);
         ADD_PRED(pred_curr)
 
         // use_lt
         if (use_lt && width > 1 && !(cval == tval)) {
-          auto pred_curr = (cval < tval) ? LT(c, t) : LT(t, c);
+          auto pred_curr = (cval < tval) ? smart_LT(c, t) : smart_LT(t, c);
           ADD_PRED(pred_curr)
         }
 
         if (use_lte && width > 1) {
           if(cval == tval || cval < tval) {
-            auto pred = LE(c,t);
+            auto pred = smart_LE(c,t);
             ADD_PRED(pred)
           } 
           if (tval == cval || tval < cval) {
-            auto pred = LE(t,c);
+            auto pred = smart_LE(t,c);
             ADD_PRED(pred)
           }
         } // use le
@@ -170,22 +221,22 @@ void PredConstructor::terms_to_predicates() {
 
         const auto & t2 = terms.at(idx2);
         const auto & tval2 = value_map.at( t2 );
-        auto pred_curr = (tval1 == tval2) ? EQ(t1, t2) : NEQ(t1, t2);
+        auto pred_curr = (tval1 == tval2) ? smart_EQ(t1, t2) : smart_NEQ(t1, t2);
         ADD_PRED(pred_curr)
 
         // use_lt
         if (use_lt && width > 1 && !(tval1 == tval2)) {
-          auto pred_curr = (tval1 < tval2) ? LT(t1, t2) : LT(t2, t1);
+          auto pred_curr = (tval1 < tval2) ? smart_LT(t1, t2) : smart_LT(t2, t1);
           ADD_PRED(pred_curr)
         }
 
         if (use_lte && width > 1) {
           if(tval1 == tval2 || tval1 < tval2) {
-            auto pred = LE(t1,t2);
+            auto pred = smart_LE(t1,t2);
             ADD_PRED(pred)
           } 
           if (tval2 == tval1 || tval2 < tval1) {
-            auto pred = LE(t2,t1);
+            auto pred = smart_LE(t2,t1);
             ADD_PRED(pred)
           }
         } // use le

@@ -17,6 +17,7 @@
 #include "utils/sygus_ic3formula_helper.h"
 #include "utils/str_util.h"
 
+#include <cassert>
 
 namespace pono {
 namespace syntax_analysis {
@@ -71,6 +72,86 @@ void IC3FormulaModel::get_varset(std::unordered_set<smt::Term> & varset) const {
   }
 }
 
+
+void reduce_unsat_core_to_fixedpoint(
+  const smt::Term & formula, 
+  const smt::TermVec & assumptions,
+  smt::TermVec & out, const smt::SmtSolver & reducer_) {
+  // already pushed outside (because we want to disable all labels)
+  reducer_->assert_formula(formula);
+
+  // exit if the formula is unsat without assumptions.
+  smt::Result r = reducer_->check_sat();
+  if (r.is_unsat())
+    return;
+
+  out = (assumptions);
+  while(true) {
+    r = reducer_->check_sat_assuming(out);
+    assert(r.is_unsat());
+
+    smt::UnorderedTermSet core_set;
+    reducer_->get_unsat_core(core_set);
+    if (core_set.size() == out.size()) {
+      break; // fixed point is reached
+    }
+    assert(core_set.size() < out.size());
+    out.clear();
+    out.insert(out.end(), core_set.begin(), core_set.end());    
+  }
+}
+
+void reduce_unsat_core_linear(
+    const smt::Term & formula,
+    const smt::TermVec & assumptions,
+    smt::TermVec & out,
+    const smt::SmtSolver & reducer_) {
+
+  // already pushed outside (because we want to disable all labels)
+  reducer_->assert_formula(formula);
+
+  // exit if the formula is unsat without assumptions.
+  smt::Result r = reducer_->check_sat();
+  if (r.is_unsat())
+    return;
+
+  r = reducer_->check_sat_assuming(assumptions);
+  assert(r.is_unsat());
+  size_t assump_pos_for_removal = 0;
+
+  out = assumptions;
+  while(assump_pos_for_removal < out.size()) {
+    smt::TermVec assump_for_query;
+    assump_for_query.reserve(out.size()-1);
+    for (size_t idx = 0; idx < out.size(); ++ idx) {
+      if (idx != assump_pos_for_removal)
+        assump_for_query.push_back(out.at(idx));
+    }
+
+    r = reducer_->check_sat_assuming(assump_for_query);
+    if (r.is_sat()) {
+      ++ assump_pos_for_removal;
+    } else {
+      smt::UnorderedTermSet core_set;
+      reducer_->get_unsat_core(core_set);
+      { // remove those not in core_set from out
+        // and we want to keep the previous order
+        smt::TermVec new_assump;
+        new_assump.reserve(core_set.size());
+        for (const auto & l : out) {
+          if (core_set.find(l) != core_set.end())
+            new_assump.push_back(l);
+        }
+        out.swap(new_assump); // do "out = new_assump" w.o. copy
+      }
+      assert(!out.empty());
+      assert(out.size() <= assump_for_query.size());
+      // we don't need to change assump_pos_for_removal, because the size of
+      // out is reduced by at least one, so in the next round
+      // it is another element sitting at this location
+    }
+  } // end of while
+} // end of reduce_unsat_core_linear
 
 
 }  // namespace syntax_analysis

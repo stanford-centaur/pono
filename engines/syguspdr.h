@@ -26,6 +26,7 @@
 
 #include "engines/ic3base.h"
 #include "core/fts.h"
+#include "modifiers/op_abstractor.h"
 #include "utils/sygus_ic3formula_helper.h"
 #include "utils/partial_model.h"
 #include "utils/syntax_analysis_common.h"
@@ -86,7 +87,7 @@ class SygusPdr : public IC3Base
 
   /** Perform the base IC3 step (zero case)
    */
-  ProverResult step_0();  // will be called in the parent version of check_until
+  ProverResult step_01();  // will be called in the parent version of check_until
 
   // -----------------------------------------------------------------
   // Below are for May-Block
@@ -110,6 +111,26 @@ class SygusPdr : public IC3Base
   bool block_all();
 
   // -----------------------------------------------------------------
+  // allow input in the constraint (when there are additional constraints)
+  // -----------------------------------------------------------------
+
+  void constrain_frame(size_t i, const IC3Formula & constraint,
+                       bool new_constraint=true);
+
+  // -----------------------------------------------------------------
+  // Require the capability to reset solver
+  // -----------------------------------------------------------------
+
+  void reset_solver();
+
+  // I don't need to conjuct with property, 
+  // because it is already added as a lemma/constraint
+  smt::Term get_frame_term(size_t i) const;
+
+  // Difference: I need it to call the new constrain_frame
+  bool propagate(size_t i);
+
+  // -----------------------------------------------------------------
   // pure virtual method implementations
   // -----------------------------------------------------------------
 
@@ -121,12 +142,12 @@ class SygusPdr : public IC3Base
   virtual IC3Formula inductive_generalization(size_t i, const IC3Formula & c) override;
 
   virtual void predecessor_generalization(size_t i,
-                                          const IC3Formula & c,
+                                          const smt::Term & c,
                                           IC3Formula & pred) override;
 
   void check_ts() const override;
 
-  bool intersects_bad(IC3Formula & out) override;
+  virtual bool reaches_bad(IC3Formula & out) override;
 
   void initialize() override;
 
@@ -164,6 +185,7 @@ class SygusPdr : public IC3Base
   syntax_analysis::VarTermManager sygus_term_manager_;
   std::unique_ptr<syntax_analysis::TermLearner> term_learner_;
   syntax_analysis::to_next_t to_next_func_;
+  syntax_analysis::score_t score_func_;
   CustomFunctionalTransitionSystem * custom_ts_;
   
   smt::Term bad_next_;
@@ -181,7 +203,8 @@ class SygusPdr : public IC3Base
 
   syntax_analysis::PerCexInfo & setup_cex_info (syntax_analysis::IC3FormulaModel * post_model);
   IC3Formula select_predicates(const smt::Term & base, const smt::TermVec & preds_nxt);
- 
+  
+  std::unique_ptr<OpAbstractor> op_abstractor_;
 }; // class SygusPdr
 
 }  // namespace pono
