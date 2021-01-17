@@ -140,6 +140,7 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   }
 
   SmtSolver s = create_solver(se);
+  s->set_opt("produce-unsat-cores", "true");
   std::shared_ptr<Prover> prover = make_prover(eng, prop, fts, s);
   ProverResult r = prover->check_until(9);
 

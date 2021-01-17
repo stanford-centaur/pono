@@ -264,7 +264,7 @@ void FunctionalConeOfInfluence::compute_coi_trans_constraints()
   UnorderedTermSet new_coi_input_vars;
 
   for (const auto & e : ts_.constraints()) {
-    local_logger.log(3, "  trans constraints--constr: {}", e.first);
+    local_logger_.log(3, "  trans constraints--constr: {}", e.first);
     compute_term_coi(e.first, new_coi_state_vars, new_coi_input_vars);
   }
 

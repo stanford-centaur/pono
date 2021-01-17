@@ -67,22 +67,6 @@ bool is_eq_lit(const Term & t, const Sort & boolsort)
   return (op == Equal || op == BVComp || op == Distinct);
 }
 
-// helper function for an assertion
-// returns true iff all the variables in t are next-state vars
-bool all_next(const TransitionSystem & ts, const Term & t)
-{
-  UnorderedTermSet vars;
-  get_free_symbolic_consts(t, vars);
-  bool all_next = true;
-  for (const auto & v : vars) {
-    if (!ts.is_next_var(v)) {
-      all_next = false;
-      break;
-    }
-  }
-  return all_next;
-}
-
 // main IC3SA implementation
 
 IC3SA::IC3SA(const Property & p,
@@ -161,12 +145,12 @@ bool IC3SA::ic3formula_check_valid(const IC3Formula & u) const
 }
 
 void IC3SA::predecessor_generalization(size_t i,
-                                       const IC3Formula & c,
+                                       const Term & c,
                                        IC3Formula & pred)
 {
   UnorderedTermSet coi_symbols = projection_set_;
 
-  justify_coi(ts_.next(c.term), coi_symbols);
+  justify_coi(ts_.next(c), coi_symbols);
   assert(coi_symbols.size() <= ts_.statevars().size());
 
   logger.log(
@@ -232,25 +216,18 @@ RefineResult IC3SA::refine()
   //      with (cnt + 1 + 1) instead of just cnt = 1 for example
   // TODO add option for using interpolants
   assert(solver_context_ == 0);
+  // counterexample trace should have been populated
+  assert(cex_.size());
 
-  // recover the counterexample trace
-  assert(check_intersects_initial(cex_pg_->target.term));
-  vector<IC3Formula> cex;
-  const ProofGoal * tmp = cex_pg_;
-  while (tmp) {
-    cex.push_back(tmp->target);
-    assert(!tmp->target.disjunction);  // expecting a conjunction
-    assert(ts_.only_curr(tmp->target.term));
-    tmp = tmp->next;
-  }
-
-  size_t cex_length = cex.size();
+  size_t cex_length = cex_.size();
   logger.log(1, "IC3SA::refine cex of length {}", cex_length);
   assert(cex_length);
   if (cex_length == 1) {
     // TODO make sure that this is indeed a concrete CEX
     return REFINE_NONE;
   }
+
+  assert(check_intersects_initial(cex_[0]));
 
   const UnorderedTermMap & state_updates = ts_.state_updates();
 
@@ -262,8 +239,7 @@ RefineResult IC3SA::refine()
   UnorderedTermMap subst;
 
   // assumps is for p_{i-1} /\ c_{i-1} /\ c_i' from paper
-  TermVec assumps(cex[0].children.begin(), cex[0].children.end());
-  assumps.push_back(ts_.init());
+  TermVec assumps({ ts_.init(), cex_[0] });
   Term trans = ts_.trans();
   Result r;
   bool refined = false;
@@ -271,9 +247,12 @@ RefineResult IC3SA::refine()
   for (size_t i = 1; i < cex_length; ++i) {
     // add ci'
     // TODO use substitute_terms to save time when copying map
-    for (const auto & c : cex[i].children) {
-      assumps.push_back(ts_.next(c));
-    }
+    // TODO check if this is right (used to add children individually
+    //      from the IC3Formula in the cex)
+    //      I think I had them split up so that we could reduce
+    //      the path constraint to get the unsat core
+    // TODO can just do conjunctive partition
+    assumps.push_back(ts_.next(cex_[i]));
 
     assert(solver_context_ == 0);
     push_solver_context();
@@ -288,8 +267,7 @@ RefineResult IC3SA::refine()
     if (r.is_sat()) {
       assumps = symbolic_post_image(i, subst, last_model_vals);
       // add cube to it
-      assumps.insert(
-          assumps.end(), cex[i].children.begin(), cex[i].children.end());
+      assumps.push_back(cex_[i]);
     } else {
       refined = true;
 
@@ -377,56 +355,6 @@ RefineResult IC3SA::refine()
   return REFINE_SUCCESS;
 }
 
-bool IC3SA::intersects_bad(IC3Formula & out)
-{
-  push_solver_context();
-  // assert the last frame (conjunction over clauses)
-  assert_frame_labels(reached_k_ + 1);
-  // see if it intersects with bad
-  solver_->assert_formula(bad_);
-  Result r = check_sat();
-
-  if (r.is_sat()) {
-    // start with a structural COI for reduction
-
-    UnorderedTermSet cube_lits;
-
-    // first populate with predicates
-    for (const auto & p : predset_) {
-      if (!in_projection(p, vars_in_bad_)) {
-        continue;
-      }
-
-      if (solver_->get_value(p) == solver_true_) {
-        cube_lits.insert(p);
-      } else {
-        cube_lits.insert(solver_->make_term(Not, p));
-      }
-    }
-
-    // TODO make sure that projecting on variables in bad here makes sense
-    EquivalenceClasses ec = get_equivalence_classes_from_model(vars_in_bad_);
-    construct_partition(ec, cube_lits);
-    assert(cube_lits.size());
-    // reduce cube_lits
-    TermVec cube_vec(cube_lits.begin(), cube_lits.end());
-    TermVec red_c;
-    bool is_unsat =
-        reducer_.reduce_assump_unsatcore(smart_not(bad_), cube_vec, red_c);
-    if (is_unsat) {
-      assert(red_c.size());
-      out = ic3formula_conjunction(red_c);
-    } else {
-      out = ic3formula_conjunction(cube_vec);
-    }
-  }
-
-  pop_solver_context();
-
-  assert(!r.is_unknown());
-  return r.is_sat();
-}
-
 void IC3SA::initialize()
 {
   super::initialize();
@@ -473,17 +401,11 @@ void IC3SA::initialize()
   // populate the map used in justify_coi to take constraints into account
   assert(ts_.is_functional());
   UnorderedTermSet tmp_vars;
-  for (const auto & constraint : ts_.constraints()) {
-    if (ts_.no_next(constraint)) {
-      tmp_vars.clear();
-      get_free_symbolic_consts(constraint, tmp_vars);
-      constraint_vars_[constraint] = tmp_vars;
-    } else {
-      // functional system should not have constraints
-      // that mention both current state and next state variables
-      // compiler should optimize away this lambda if not using it in the assert
-      assert(all_next(ts_, constraint));
-    }
+  for (const auto & elem : ts_.constraints()) {
+    assert(ts_.no_next(elem.first));
+    tmp_vars.clear();
+    get_free_symbolic_consts(elem.first, tmp_vars);
+    constraint_vars_[elem.first] = tmp_vars;
   }
 }
 

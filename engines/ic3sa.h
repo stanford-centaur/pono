@@ -83,12 +83,14 @@ class IC3SA : public IC3
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 
   void predecessor_generalization(size_t i,
-                                  const IC3Formula & c,
+                                  const smt::Term & c,
                                   IC3Formula & pred) override;
 
   void check_ts() const override;
 
-  bool intersects_bad(IC3Formula & out) override;
+  // TODO consider overriding reaches_bad
+  // previous version was overriding intersects_bad for generalization
+  // bool intersects_bad(IC3Formula & out) override;
 
   void initialize() override;
 

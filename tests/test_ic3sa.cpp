@@ -46,7 +46,11 @@ class IC3SAUnitTests : public ::testing::Test,
                        public ::testing::WithParamInterface<SolverEnum>
 {
  protected:
-  void SetUp() override { s = create_solver(GetParam()); }
+  void SetUp() override
+  {
+    s = create_solver(GetParam());
+    s->set_opt("produce-unsat-cores", "true");
+  }
   SmtSolver s;
 };
 

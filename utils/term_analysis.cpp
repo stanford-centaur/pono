@@ -126,7 +126,7 @@ vector<TermVec> get_combinations(const vector<TermVec> & options)
 
 // end helper functions
 
-bool is_predicate(const Term & t, const Sort & boolsort)
+bool is_predicate(const Term & t, const Sort & boolsort, bool include_symbols)
 {
   if (t->get_sort() != boolsort) {
     return false;
