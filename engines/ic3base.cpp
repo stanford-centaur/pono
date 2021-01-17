@@ -178,8 +178,26 @@ ProverResult IC3Base::check_until(int k)
   RefineResult ref_res;
   int i = reached_k_ + 1;
   assert(reached_k_ + 1 >= 0);
-  for (size_t i = reached_k_ + 1; i <= k; ++i) {
+  while (i <= k) {
     res = step(i);
+
+    if (res == ProverResult::FALSE) {
+      assert(cex_.size());
+      RefineResult s = refine();
+      if (s == REFINE_SUCCESS) {
+        continue;
+      } else if (s == REFINE_NONE) {
+        // this is a real counterexample
+        assert(cex_.size());
+        return ProverResult::FALSE;
+      } else {
+        assert(s == REFINE_FAIL);
+        throw PonoException("Refinement failed");
+      }
+    } else {
+      ++i;
+    }
+
     if (res != ProverResult::UNKNOWN) {
       return res;
     }
@@ -191,6 +209,13 @@ ProverResult IC3Base::check_until(int k)
 bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
 {
   throw PonoException("IC3 witness NYI");
+}
+
+size_t IC3Base::witness_length() const
+{
+  // expecting there to have been a witness computed
+  assert(cex_.size());
+  return cex_.size();
 }
 
 // Protected Methods
@@ -391,7 +416,6 @@ ProverResult IC3Base::step(int i)
       // which is the frame that just had all terms
       // from the previous frames propagated
       invar_ = get_frame_term(j + 1);
-      invar_ = solver_->make_term(And, invar_, smart_not(bad_));
       return ProverResult::TRUE;
     }
   }
@@ -573,23 +597,14 @@ bool IC3Base::block_all()
         // went all the way back to initial
         // need to create a new proof goal that's not managed by the queue
         reconstruct_trace(pg, cex_);
-        RefineResult s = refine();
-        if (s == REFINE_SUCCESS) {
-          // on successful refinement, clear the queue of proof goals
-          // which might not have been precise
-          // TODO might have to change this if there's an algorithm
-          // that refines but can keep proof goals around
-          proof_goals.clear();
 
-          continue;
-        } else if (s == REFINE_NONE) {
-          // this is a real counterexample
-          assert(cex_.size());
-          return false;
-        } else {
-          assert(s == REFINE_FAIL);
-          throw PonoException("Refinement failed");
-        }
+        // in case this is spurious, clear the queue of proof goals
+        // which might not have been precise
+        // TODO might have to change this if there's an algorithm
+        // that refines but can keep proof goals around
+        proof_goals.clear();
+
+        return false;
       }
 
       if (is_blocked(pg)) {
@@ -788,6 +803,9 @@ Term IC3Base::get_frame_term(size_t i) const
       res = solver_->make_term(And, res, u.term);
     }
   }
+
+  // the property is implicitly part of the frame
+  res = solver_->make_term(And, res, smart_not(bad_));
   return res;
 }
 

@@ -81,7 +81,8 @@ class PonoOptions
         cegp_axiom_red_(default_cegp_axiom_red_),
         profiling_log_filename_(default_profiling_log_filename_),
         mod_init_prop_(default_mod_init_prop_),
-        assume_prop_(default_assume_prop_)
+        assume_prop_(default_assume_prop_),
+        cegp_abs_vals_(default_cegp_abs_vals_)
   {
   }
 
@@ -121,6 +122,7 @@ class PonoOptions
   std::string profiling_log_filename_;
   bool mod_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;    ///< assume property in pre-state
+  bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
 
  private:
   // Default options
@@ -147,6 +149,7 @@ class PonoOptions
   static const std::string default_profiling_log_filename_;
   static const bool default_mod_init_prop_ = false;
   static const bool default_assume_prop_ = true;
+  static const bool default_cegp_abs_vals_ = false;
 };
 
 }  // namespace pono

@@ -49,6 +49,12 @@ class CegProphecyArrays : public CEGAR<Prover_T>
 
   void initialize() override;
 
+  size_t witness_length() const override
+  {
+    // regardless of super class want this to be the witness length
+    return reached_k_+1;
+  }
+
  protected:
   TransitionSystem conc_ts_;
   TransitionSystem & abs_ts_;

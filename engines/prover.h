@@ -52,6 +52,14 @@ class Prover
 
   virtual bool witness(std::vector<smt::UnorderedTermMap> & out);
 
+  /** Returns length of the witness
+   *  this can be cheaper than actually computing the witness
+   *  by default returns reached_k_+1, because reached_k_ was the
+   *  last step that completed without finding a bug
+   *  but some algorithms such as IC3 might need to follow the trace
+   */
+  virtual size_t witness_length() const;
+
   /** Gives a term representing an inductive invariant over current state
    * variables. Only valid if the property has been proven true. Only supported
    * by some engines
@@ -112,7 +120,7 @@ class Prover
 
   Engine engine_;
 
-  // NOTE: both witness_ and invar_ are use terms from the engine's solver
+  // NOTE: both witness_ and invar_ use terms from the engine's solver
 
   std::vector<smt::UnorderedTermMap> witness_; ///< populated by a witness if a CEX is found
 
