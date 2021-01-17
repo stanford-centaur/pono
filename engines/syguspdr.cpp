@@ -23,7 +23,7 @@ using namespace smt;
 
 namespace pono {
 
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)

@@ -483,7 +483,6 @@ unsigned TermLearner::learn_terms_from_cex(
   unsigned delta_term_num = 0;
   D(0, "[TermLearner] Pre model : {}", pre_full_model->to_string() );
   D(0, "[TermLearner] Post model (will be negated) : {}", post->to_string() );
-  D(0, "[TermLearner] trans : {}", trans->to_string() );
   solver_->push();
     solver_->assert_formula(pre_prop);
     if (!pre_is_init_prime)
