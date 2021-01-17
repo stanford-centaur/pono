@@ -23,7 +23,7 @@ using namespace smt;
 
 namespace pono {
 
-// #define DEBUG
+//#define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)
@@ -131,14 +131,22 @@ void SygusPdr::initialize()
 
 
   if (options_.sygus_use_operator_abstraction_) {
-    op_abstractor_ = std::make_unique<OpUfAbstractor>(
-      orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}));
+    if ( options_.sygus_use_operator_abstraction_ == 2 )
+      op_abstractor_ = std::make_unique<OpUfAbstractor>(
+        orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}));
+    else
+      op_abstractor_ = std::make_unique<OpInpAbstractor>(
+        orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}),
+        bad_, 0);
     // op_abstractor_ = std::make_unique<OpUfAbstractor>(
     //   orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}), bad_, 4);
     if (options_.sygus_term_mode_ == SyGuSTermMode::TERM_MODE_AUTO)
       options_.sygus_term_mode_ = op_abstractor_->has_abstracted() ? 
         (SyGuSTermMode::SPLIT_FROM_DESIGN) : (SyGuSTermMode::FROM_DESIGN_LEARN_EXT);
   }
+  if (options_.sygus_term_mode_ == SyGuSTermMode::TERM_MODE_AUTO)
+    options_.sygus_term_mode_ = SyGuSTermMode::FROM_DESIGN_LEARN_EXT;
+
   SygusPdr::reset_solver(); // reset trans if abstracted
   // and even if not, I don't need the trans->prop thing
 
@@ -290,7 +298,6 @@ IC3Formula SygusPdr::inductive_generalization(
   assert(model_pos != model2cube_.end());
   syntax_analysis::IC3FormulaModel * post_model = model_pos->second;
 
-
   syntax_analysis::PredConstructor pred_collector_(
     to_next_func_, solver_,
     post_model, // IC3FormulaModel * cex 
@@ -344,14 +351,13 @@ IC3Formula SygusPdr::inductive_generalization(
         insufficient_pred = true;
         failed_at_init = // if model(init_prime) == 1
           !( syntax_analysis::eval_val( solver_->get_value(Init_prime)->to_string() ) < syntax_analysis::eval_val("#b1") );
-        
+        if (pre_full_model) {
+          delete pre_full_model;
+          pre_full_model = NULL;
+        }
         if (!failed_at_init) {
-          // here the problem is the model used for 
-          if (pre_full_model) {
-            delete pre_full_model;
-            pre_full_model = NULL;
-          }
-
+          // the idea of full model is we want to keep the assignment to
+          // some inputs that could be thrown away
           std::tie(pre_formula, pre_model, pre_full_model) =
             ExtractPartialAndFullModel( post_model );
           D(3, "Generated MAY-block model {}", pre_model->to_string());
@@ -378,9 +384,14 @@ IC3Formula SygusPdr::inductive_generalization(
       D(3, "Cannot block MAY-block model {}", pre_model->to_string());
       D(3, "Back to F[{}]->[{}], get new terms.", i-1,i);
 
-      assert(pre_full_model);
+      if (!failed_at_init)
+        assert(pre_full_model);
+      else
+        assert(!pre_full_model);
+
       bool succ = 
-        propose_new_terms(pre_full_model, post_model,
+        propose_new_terms(failed_at_init ? pre_model : pre_full_model, 
+          post_model,
           F_T_not_cex, Init_prime, failed_at_init);
       assert(succ);
       delete pre_full_model;
@@ -600,8 +611,9 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
   
   for (const auto & v : varlist) {
     Term val = solver_->get_value(v);
-    auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
-    cube_partial.emplace(v,val);
+    Term curr_v = custom_ts_->curr(v);
+    auto eq = solver_->make_term(Op(PrimOp::Equal), curr_v ,val );
+    cube_partial.emplace(curr_v,val);
     conjvec_partial.push_back( eq );
     if (conj_partial) {
       conj_partial = solver_->make_term(Op(PrimOp::And), conj_partial, eq);
@@ -925,6 +937,8 @@ bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block, unsigned fi
       logger.log(
           3, "Blocking term at frame {}: {} , \n --- with {}", pg->idx, pg->target.term, collateral.term->to_string());
     } else {
+      if (collateral.term == solver_true_)
+        return false; // when we intersect with 0
       // could not block this proof goal
       assert(collateral.term);
       proof_goals.new_proof_goal(collateral, pg->idx - 1, pg);
@@ -968,12 +982,26 @@ bool SygusPdr::rel_ind_check_may_block(size_t i,
     assert(out.children.size());
     assert(!out.disjunction);  // expecting a conjunction
     assert(ic3formula_check_valid(out));
-  } else {
-    // no need to get lemma here
-    // inductive_generalization is called outside 
-    out = c;
-    assert(!out.disjunction); // we need it to be a model
+
+    pop_solver_context();
+    return r.is_unsat();
+  } 
+  pop_solver_context();
+  push_solver_context();
+    solver_->assert_formula(init_label_);
+    solver_->assert_formula(c.term);
+    r = check_sat();
+  if (r.is_sat()) {
+    // get model at 0
+    out.term = solver_true_;
+    out.children = {solver_true_};
+    out.disjunction = false;
+    pop_solver_context();
+    return r.is_unsat();
   }
+  
+  out = c;
+  assert(!out.disjunction); // we need it to be a model
   pop_solver_context();
   assert(!r.is_unknown());
   return r.is_unsat();
@@ -1053,7 +1081,7 @@ ProverResult SygusPdr::step_01()
     IC3Formula c = get_initial_bad_model();
     pop_solver_context();
     ProofGoal * pg = new ProofGoal(c, 0, nullptr);
-    reconstruct_trace(pg, cex_);
+    SygusPdr::reconstruct_trace(pg, cex_);
     delete pg;
     return ProverResult::FALSE;
   } else {
@@ -1162,6 +1190,7 @@ ProverResult SygusPdr::check_until(int k)
 
 // The difference is (1) not to create a new model when unsat
 // (2) use custom_ts->next (which also has next var for input)
+// (3) also check intersection with init
 bool SygusPdr::rel_ind_check(size_t i,
                             const IC3Formula & c,
                             IC3Formula & out,
@@ -1185,27 +1214,8 @@ bool SygusPdr::rel_ind_check(size_t i,
 
   // use assumptions for c' so we can get cheap initial
   // generalization if the check is unsat
-
-  // NOTE: relying on same order between assumps_ and c.children
-  assumps_.clear();
-  {
-    // TODO shuffle assumps and (a copy of) c.children
-    //      if random seed is set
-    Term lbl, ccnext;
-    for (const auto & cc : c.children) {
-      ccnext = custom_ts_->next(cc);
-      lbl = label(ccnext);
-      if (lbl != ccnext && !is_global_label(lbl)) {
-        // only need to add assertion if the label is not the same as ccnext
-        // could be the same if ccnext is already a literal
-        // and is not already in a global assumption
-        solver_->assert_formula(solver_->make_term(Implies, lbl, ccnext));
-      }
-      assumps_.push_back(lbl);
-    }
-  }
-
-  Result r = check_sat_assuming(assumps_);
+  solver_->assert_formula(custom_ts_->next(c.term));
+  Result r = check_sat();
   if (r.is_sat()) {
     if (get_pred) {
       out = get_model_ic3formula();
@@ -1218,28 +1228,45 @@ bool SygusPdr::rel_ind_check(size_t i,
     }
     assert(ic3formula_check_valid(out));
     pop_solver_context();
-  } else {
-    // Use unsat core to get cheap generalization
-    pop_solver_context();
+    if (get_pred) {
+      assert(out.term);
+      assert(out.children.size());
 
-    out = c;
-  }
+      // in case of abstraction, maybe not
+      if (!options_.sygus_use_operator_abstraction_) {
+        // this check needs to be here after the solver context has been popped
+        // if i == 1 and there's a predecessor, then it should be an initial state
+        assert(i != 1 || check_intersects_initial(out.term));
+
+        // should never intersect with a frame before F[i-1]
+        // otherwise, this predecessor should have been found
+        // in a previous step (before a new frame was pushed)
+        assert(i < 2 || !check_intersects(out.term, get_frame_term(i - 2)));
+      }
+
+    }
+    return r.is_unsat();
+  } // else
+  pop_solver_context();
+  push_solver_context();
+  
+    solver_->assert_formula(init_label_);
+    solver_->assert_formula(c.term);
+    r = check_sat();
+    if (r.is_sat()) {
+      // get model at 0
+      out.term = solver_true_;
+      out.children = {solver_true_};
+      out.disjunction = false;
+      pop_solver_context();
+      return r.is_unsat();
+    }
+
+  pop_solver_context();
+  // unsat
+  out = c;
+  
   assert(!solver_context_);
-
-  if (r.is_sat() && get_pred) {
-    assert(out.term);
-    assert(out.children.size());
-
-    // this check needs to be here after the solver context has been popped
-    // if i == 1 and there's a predecessor, then it should be an initial state
-    assert(i != 1 || check_intersects_initial(out.term));
-
-    // should never intersect with a frame before F[i-1]
-    // otherwise, this predecessor should have been found
-    // in a previous step (before a new frame was pushed)
-    assert(i < 2 || !check_intersects(out.term, get_frame_term(i - 2)));
-  }
-
   assert(!r.is_unknown());
   return r.is_unsat();
 } // rel_ind_check
@@ -1263,7 +1290,7 @@ bool SygusPdr::block_all()
       if (!pg->idx) {
         // went all the way back to initial
         // need to create a new proof goal that's not managed by the queue
-        reconstruct_trace(pg, cex_);
+        SygusPdr::reconstruct_trace(pg, cex_);
 
         // in case this is spurious, clear the queue of proof goals
         // which might not have been precise
@@ -1322,6 +1349,8 @@ bool SygusPdr::block_all()
       } else {
         // could not block this proof goal
         assert(collateral.term);
+        if (collateral.term == solver_true_)
+          ; // do nothing // because we need to extend it to 0 to 
         proof_goals.new_proof_goal(collateral, pg->idx - 1, pg);
       }
     }  // end while(!proof_goals.empty())
@@ -1357,7 +1386,9 @@ void SygusPdr::constrain_frame(size_t i, const IC3Formula & constraint,
   assert(solver_context_ == 0);
   assert(i < frame_labels_.size());
   assert(constraint.disjunction);
-  if (has_assumptions) {
+  if (has_assumptions || options_.sygus_use_operator_abstraction_ == 1) {
+    // options_.sygus_use_operator_abstraction_ == 2 will not introduce new inputs
+    // that must be kept
     assert(ts_.no_next(constraint.term));
   } else
     assert(ts_.only_curr(constraint.term));
@@ -1482,6 +1513,29 @@ bool SygusPdr::propagate(size_t i)
 
   return Fi.empty();
 } // propagate
+
+// difference: lift the restriction on only_curr vars
+void SygusPdr::reconstruct_trace(const ProofGoal * pg, TermVec & out)
+{
+  assert(!solver_context_);
+  assert(pg);
+  assert(pg->target.term);
+  assert(check_intersects_initial(pg->target.term));
+
+  out.clear();
+  while (pg) {
+    out.push_back(pg->target.term);
+    if (!has_assumptions && !options_.sygus_use_operator_abstraction_)
+      assert(ts_.only_curr(out.back()));
+    else
+      assert(ts_.no_next(out.back()));
+    pg = pg->next;
+  }
+
+  // always add bad as last state so it's a full trace
+  // NOTE this is because the reaches_bad implementation
+  out.push_back(bad_);
+}
 
 }  // namespace pono
 

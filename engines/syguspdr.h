@@ -129,6 +129,8 @@ class SygusPdr : public IC3Base
 
   // Difference: I need it to call the new constrain_frame
   bool propagate(size_t i);
+  // Difference: only_curr -> no_next
+  void reconstruct_trace(const ProofGoal * pg, smt::TermVec & out);
 
   // -----------------------------------------------------------------
   // pure virtual method implementations

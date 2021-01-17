@@ -474,7 +474,6 @@ unsigned TermLearner::vars_extract_bit_level(IC3FormulaModel * post,  /*OUTPUT*/
 unsigned TermLearner::learn_terms_from_cex(
     IC3FormulaModel * pre_full_model, IC3FormulaModel * post,
     const smt::Term & trans,
-    bool pre_is_init_prime,
     /*OUTPUT*/  PerVarsetInfo & varset_info ) {
 
   auto pre_prop = pre_full_model->to_expr();
@@ -485,14 +484,41 @@ unsigned TermLearner::learn_terms_from_cex(
   D(0, "[TermLearner] Post model (will be negated) : {}", post->to_string() );
   solver_->push();
     solver_->assert_formula(pre_prop);
-    if (!pre_is_init_prime)
-      solver_->assert_formula(trans);
+    solver_->assert_formula(trans);
     solver_->assert_formula(post_prop);
     auto res = solver_->check_sat();
     assert(res.is_sat());
     // okay now we need to find the right model on terms
     delta_term_num += concat_to_extract(varset_info);
     delta_term_num += same_val_replace_ast(varset_info); // only this use the model
+    delta_term_num += extract_complement(varset_info);
+
+  solver_->pop();
+  D(0, "  [TermLearner] Learn new terms #{}", delta_term_num);
+  return delta_term_num;  
+} // learn_terms_from_cex
+
+
+// return learned new terms
+unsigned TermLearner::learn_terms_from_cex_same_frame(
+    IC3FormulaModel * pre_full_model, IC3FormulaModel * post,
+    const smt::Term & trans,
+    /*OUTPUT*/  PerVarsetInfo & varset_info ) {
+
+  auto pre_prop = pre_full_model->to_expr();
+
+  auto not_post_prop = solver_->make_term(smt::Not,(post->to_expr()));
+  unsigned delta_term_num = 0;
+  D(0, "[TermLearner] Pre model : {}", pre_full_model->to_string() );
+  D(0, "[TermLearner] Post model (will be negated) : {}", post->to_string() );
+  solver_->push();
+    solver_->assert_formula(pre_prop);
+    solver_->assert_formula(not_post_prop);
+    auto res = solver_->check_sat();
+    assert(res.is_sat());
+    // okay now we need to find the right model on terms
+    delta_term_num += concat_to_extract(varset_info);
+    delta_term_num += same_val_replace_ast_same_frame(varset_info); // only this use the model
     delta_term_num += extract_complement(varset_info);
 
   solver_->pop();
@@ -656,6 +682,54 @@ unsigned TermLearner::same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_in
   return n_new_terms;
 } // same_val_replace_ast
 
+
+
+unsigned TermLearner::same_val_replace_ast_same_frame( /*INOUT*/  PerVarsetInfo & varset_info ) {
+  unsigned n_new_terms = 0;
+  for(auto & width_info_pair : varset_info.terms){
+    auto width = width_info_pair.first;
+    if (width <= 1)
+      continue;
+    std::unordered_map<eval_val, old_new_terms, eval_val_hash> eq_class; // equivalent classes
+
+    for (const auto & t : width_info_pair.second.terms) {
+      auto v_old = eval_val(solver_->get_value(t)->to_string());
+      eq_class[v_old].old.push_back(t);
+    } // finish saparate into eq classes
+
+    // also check for constants of the same width and insert
+    for (auto const & c : width_info_pair.second.constants) {
+      auto v = eval_val(c->to_string());
+      eq_class[v].old.push_back(c);
+    }
+
+    // for each pair, do a replacement and see if new terms can be added
+    for( const auto & val_tvec_pair : eq_class) {
+      const auto & tvec_old = val_tvec_pair.second.old;
+
+#if REPLACE_DEBUG_LVL >= 1
+      std::cout << "EQ class, val: " << val_tvec_pair.first.to_string() <<" w" << width
+        << " #old:" << tvec_old.size() <<" | replaced internally \n  * ";
+      for(const auto & t : tvec_old)
+        std::cout <<t->to_string() << " |end| ";
+      std::cout << std::endl;
+#endif
+
+      // old -> old replacement
+      for( unsigned idx1 = 0; idx1 < tvec_old.size(); ++ idx1) {
+        for (unsigned idx2 = idx1 + 1; idx2 < tvec_old.size(); ++ idx2) {
+          const auto & t1 = tvec_old.at(idx1);
+          const auto & t2 = tvec_old.at(idx2);
+          
+          n_new_terms += replace_hierachically(t1, t2, varset_info);
+          n_new_terms += replace_hierachically(t2, t1, varset_info);
+        }
+      } // old -> old replacement
+      
+    } // for each eq class
+  } // on each width
+  return n_new_terms;
+} // same_val_replace_ast
 
 unsigned TermLearner::replace_hierachically(
   const smt::Term & orig, const smt::Term & repl, PerVarsetInfo & varset_info ) {

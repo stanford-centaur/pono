@@ -62,8 +62,13 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * p
     case PerVarsetInfo::state_t::FROMCEX:
       // stay FROMCEX, just try if we can do anything more
       {
-        auto nterms = term_learner.learn_terms_from_cex(pre, post,
-          trans, failed_at_init, /*output*/ varset_info);
+        auto nterms = 
+        failed_at_init?
+          term_learner.learn_terms_from_cex_same_frame(pre, post,
+          trans, /*output*/ varset_info)
+          :
+          term_learner.learn_terms_from_cex(pre, post,
+          trans, /*output*/ varset_info);
         if (nterms != 0)
           return nterms;
         // else

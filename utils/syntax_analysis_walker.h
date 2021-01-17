@@ -228,8 +228,12 @@ public:
     
   unsigned learn_terms_from_cex(IC3FormulaModel * pre, IC3FormulaModel * post, 
     const smt::Term & trans,
-    bool pre_is_init_prime,
     /*OUTPUT*/  PerVarsetInfo & varset_info );
+
+  unsigned learn_terms_from_cex_same_frame(IC3FormulaModel * pre, IC3FormulaModel * post, 
+    const smt::Term & trans,
+    /*OUTPUT*/  PerVarsetInfo & varset_info );
+
   unsigned vars_extract_bit_level(IC3FormulaModel * post,  /*OUTPUT*/  PerVarsetInfo & varset_info) ;
   
 protected:
@@ -245,6 +249,7 @@ protected:
   
 protected:
   unsigned same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_info );
+  unsigned same_val_replace_ast_same_frame( /*INOUT*/  PerVarsetInfo & varset_info );
   unsigned replace_hierachically(
     const smt::Term & orig, const smt::Term & repl, /*INOUT*/  PerVarsetInfo & varset_info );
   
