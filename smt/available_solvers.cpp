@@ -155,7 +155,13 @@ SmtSolver create_solver_for(SolverEnum se,
 SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
 {
   SmtSolver s;
-  if (se == MSAT) {
+  if (se != MSAT) {
+    s = create_solver_base(se, logging);
+    s->set_opt("incremental", "true");
+    s->set_opt("produce-unsat-cores", "true");
+  }
+#ifdef WITH_MSAT
+  else {
     // no models needed for a reducer
     unordered_map<string, string> opts({ { "model_generation", "false" } });
     msat_config cfg = get_msat_config_for_ic3(false, opts);
@@ -164,11 +170,8 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
     if (logging) {
       s = make_shared<LoggingSolver>(s);
     }
-  } else {
-    s = create_solver_base(se, logging);
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-unsat-cores", "true");
   }
+#endif
 
   assert(s);
   return s;
