@@ -217,9 +217,11 @@ class TermLearner {
 
 public:
   TermLearner( to_next_t to_next_func, 
+      score_t score_func,
       //cex_term_map_t & cex_pred_map, 
       smt::SmtSolver & btor, ParentExtract & parent_extractor) : 
     to_next_(to_next_func),
+    score_(score_func),
     // cex_pred_map_ref_(cex_pred_map),
     solver_(btor),
     parent_extractor_(parent_extractor) {}
@@ -233,9 +235,13 @@ public:
 protected:
   // smt::Term trans_; // you need to give the full constraints and etc...
   to_next_t to_next_;
+  score_t score_;
   //cex_term_map_t & cex_pred_map_ref_; // from unsat enum
   smt::SmtSolver & solver_;
   ParentExtract & parent_extractor_; // ParentExtract
+
+  unsigned syntactic_score_factor = 2;
+  unsigned syntactic_score_delta = 0;
   
 protected:
   unsigned same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_info );

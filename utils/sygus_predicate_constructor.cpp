@@ -100,7 +100,7 @@ smt::Term PredConstructor::smart_LE(const smt::Term &l, const  smt::Term & r) {
 }
 
 
-#define TERM_TABLE_DEBUG_LVL 2
+#define TERM_TABLE_DEBUG_LVL 0
 void PredConstructor::TermsDumping() const {
 #if TERM_TABLE_DEBUG_LVL >= 1
   

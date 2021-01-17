@@ -19,7 +19,7 @@
 #include "utils/container_shortcut.h"
 #include "utils/term_analysis.h"
  
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)
@@ -307,9 +307,9 @@ void TermScore::PostChild(const smt::Term & ast) {
     width = ast->get_sort()->get_width();
 
   if (ast->is_symbolic_const()) {
-    scores_.emplace(ast,term_score_t(width*2)); // width*2
+    scores_.emplace(ast,term_score_t(width)); // width*2
   } else if ( ast->is_value() ) { 
-    scores_.emplace(ast,term_score_t(width)); // width
+    scores_.emplace(ast,term_score_t(width*2)); // width
   } else { // we will hope it is op
     auto ret = scores_.emplace(ast,term_score_t(width));   // width  
     for(auto && c : *ast) { // for each of its child node
@@ -482,7 +482,8 @@ unsigned TermLearner::learn_terms_from_cex(
   auto post_prop = solver_->make_term(smt::Not,(to_next_(post->to_expr())));
   unsigned delta_term_num = 0;
   D(0, "[TermLearner] Pre model : {}", pre_full_model->to_string() );
-  D(0, "[TermLearner] Post model : {}", post->to_string() );
+  D(0, "[TermLearner] Post model (will be negated) : {}", post->to_string() );
+  D(0, "[TermLearner] trans : {}", trans->to_string() );
   solver_->push();
     solver_->assert_formula(pre_prop);
     if (!pre_is_init_prime)
@@ -571,6 +572,19 @@ struct old_new_terms {
   smt::TermVec noval;
 };
 
+#define REPLACE_DEBUG_LVL 0
+
+#if REPLACE_DEBUG_LVL == 1
+  #define RD1(...) D(__VA_ARGS__)
+  #define RD2(...) do {} while(0)
+#elif REPLACE_DEBUG_LVL == 2
+  #define RD1(...) D(__VA_ARGS__)
+  #define RD2(...) do {} while(0)
+#else
+  #define RD1(...) do {} while(0)  
+  #define RD2(...) do {} while(0)  
+#endif
+
 unsigned TermLearner::same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_info ) {
   unsigned n_new_terms = 0;
   for(auto & width_info_pair : varset_info.terms){
@@ -597,7 +611,7 @@ unsigned TermLearner::same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_in
       const auto & tvec_old = val_tvec_pair.second.old;
       const auto & tvec_new = val_tvec_pair.second.noval;
 
-#ifdef DEBUG
+#if REPLACE_DEBUG_LVL >= 1
       std::cout << "EQ class, val: " << val_tvec_pair.first.to_string() <<" w" << width
         << " #old:" << tvec_old.size() <<" |-> #new:" << tvec_new.size() << "\n  * ";
       for(const auto & t : tvec_old)
@@ -651,10 +665,18 @@ unsigned TermLearner::replace_hierachically(
     return 0;
 
   smt::TermVec new_terms;
+  RD1(3, "  [ReplaceInHierarchy] {} --> {} ", orig->to_string(), repl->to_string());
+  unsigned orig_score = score_(orig), repl_score = score_(repl);
+  RD1(3, "  [ReplaceInHierarchy] score {} --> {} ", orig_score, repl_score);
+  if (repl_score >= orig_score * syntactic_score_factor + syntactic_score_delta) {
+    RD1(3, "  [ReplaceInHierarchy] skipped. ");
+    return 0;
+  }
+
   unsigned ret = replace_hierachically_w_parent(orig, repl, varset_info, new_terms);
   for (const auto & nt : new_terms)
-    D(3, "{}", nt->to_string() );
-  D(3, "ret = {}", ret);
+    RD1(3, "{}", nt->to_string() );
+  RD1(3, "ret = {}", ret);
   assert(ret == new_terms.size());
   if (ret != 0) {
     for (const auto & t : new_terms) {
@@ -669,7 +691,7 @@ unsigned TermLearner::replace_hierachically_w_parent(
   const smt::Term & orig, const smt::Term & repl, PerVarsetInfo & varset_info,
   smt::TermVec & output_new_terms ) {
   
-  D(3, "  [ReplaceParent] {} --> {} ", orig->to_string(), repl->to_string());
+  RD2(3, "  [ReplaceParent] {} --> {} ", orig->to_string(), repl->to_string());
   const auto & parent_map_ = parent_extractor_.GetParentRelation();
   assert(! parent_map_.empty() );
   auto parent_termvec_pos = parent_map_.find(orig);
@@ -682,7 +704,7 @@ unsigned TermLearner::replace_hierachically_w_parent(
 
   for(const auto & p : parentvec ) {
     if (varset_info.TermLearnerIsOut(p)) {
-      D(3, "  [ReplaceParent]    not in parent: {} , out", p->to_string() );
+      RD2(3, "  [ReplaceParent]    not in parent: {} , out", p->to_string() );
       continue;
     }
 
@@ -703,17 +725,17 @@ unsigned TermLearner::replace_hierachically_w_parent(
 
        bool is_new_term = varset_info.TermLearnerInsertTerm(new_parent);
         if (is_new_term) {
-          D(3, "  [ReplaceParent]    in parent (new): {} ==> {}", p->to_string(), new_parent->to_string() );
+          RD2(3, "  [ReplaceParent]    in parent (new): {} ==> {}", p->to_string(), new_parent->to_string() );
           output_new_terms.push_back(new_parent);
           new_terms.push_back(new_parent);
         } else {
-          D(3, "  [ReplaceParent]    in parent (exists): {} ==> {}", p->to_string(), new_parent->to_string() );
+          RD2(3, "  [ReplaceParent]    in parent (exists): {} ==> {}", p->to_string(), new_parent->to_string() );
         }
         old_children[idx] = orig;
       }
     } // replace_child_in_parent
     for (const auto & nt : new_terms) {
-        D(1,"  [TermLearner Replace] {} ==> {}", p->to_string(), nt->to_string());
+        RD2(1,"  [TermLearner Replace] {} ==> {}", p->to_string(), nt->to_string());
         nterm += 1 + replace_hierachically_w_parent(p, nt, varset_info,output_new_terms );
           //ParentExtract::RegisterNewParentRelation(c, out.back());
     }

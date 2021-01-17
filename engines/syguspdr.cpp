@@ -206,9 +206,14 @@ void SygusPdr::initialize()
     return custom_ts_->next(v);
   };
 
+  score_func_ = [this] (const Term & v) -> unsigned {
+    return this->GetScore(v);
+  };
+
   { // now create TermLearner
     term_learner_.reset(new syntax_analysis::TermLearner(
-      to_next_func_, solver_,  // you need to make trans dynamic
+      to_next_func_, score_func_,
+      solver_,  // you need to make trans dynamic
       parent_of_terms_
     ));
   }
@@ -289,10 +294,10 @@ IC3Formula SygusPdr::inductive_generalization(
     setup_cex_info(post_model)
   );
 
-  Term Init_prime = ts_.next(ts_.init());
+  Term Init_prime = custom_ts_->next(ts_.init());
   const Term & cex = c.term;
   //Term not_cex = smart_not(cex);
-  Term cex_prime = ts_.next(cex);
+  Term cex_prime = custom_ts_->next(cex);
   Term Fprev = get_frame_term(i - 1);
   // since we add the property as a lemma, so we should be okay here
   Term T = ts_.trans();
@@ -425,7 +430,7 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
   TermVec curr_lits;
   curr_lits.reserve(unsatcore.size());
   for (const auto &l : unsatcore)  {
-    curr_lits.push_back(ts_.curr(l));
+    curr_lits.push_back(custom_ts_->curr(l)); // make sure we also convert input back
   }
   return ic3formula_negate(ic3formula_conjunction(curr_lits));
 } // select_predicates
@@ -872,7 +877,7 @@ bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block, unsigned fi
     }
 
     //  try and see if it is blockable
-    IC3Formula collateral;  // populated by rel_ind_check
+    IC3Formula collateral;  // populated by rel_ind_check: if unsat collateral:=target  if sat collateral:=partial model
     if (rel_ind_check_may_block(pg->idx, pg->target, collateral)) {
       // this proof goal can be blocked
       assert(!solver_context_);
@@ -883,7 +888,7 @@ bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block, unsigned fi
       // remove the proof goal now that it has been blocked
       assert(pg == proof_goals.top());
       proof_goals.pop();
-
+      assert(collateral.term == pg->target.term);
       collateral = inductive_generalization(pg->idx, collateral);
 
       size_t idx = find_highest_frame(pg->idx, collateral);
@@ -893,6 +898,8 @@ bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block, unsigned fi
       assert(collateral.term);
       assert(collateral.children.size());
       SygusPdr::constrain_frame(idx, collateral);
+      logger.log(
+          3, "Blocking term at frame {}: {} , \n --- with {}", pg->idx, pg->target.term, collateral.term->to_string());
     } else {
       // could not block this proof goal
       assert(collateral.term);
@@ -927,7 +934,7 @@ bool SygusPdr::rel_ind_check_may_block(size_t i,
   // Trans
   assert_trans_label();
 
-  solver_->assert_formula(ts_.next(c.term));
+  solver_->assert_formula(custom_ts_->next(c.term));
 
   Result r = check_sat();
   if (r.is_sat()) {
@@ -1015,7 +1022,7 @@ ProverResult SygusPdr::step_01()
   push_solver_context();
   solver_->assert_formula(init_label_);
   solver_->assert_formula(trans_label_);
-  solver_->assert_formula(ts_.next(bad_));
+  solver_->assert_formula(custom_ts_->next(bad_));
   Result r = check_sat();
   if (r.is_sat()) {
     IC3Formula c = get_initial_bad_model();
@@ -1059,7 +1066,7 @@ ProverResult SygusPdr::step(int i)
   // propagation phase
   push_frame();
   for (size_t j = 1; j < frontier_idx(); ++j) {
-    if (propagate(j)) {
+    if (SygusPdr::propagate(j)) {
       assert(j + 1 < frames_.size());
       // save the invariant
       // which is the frame that just had all terms
@@ -1126,7 +1133,8 @@ ProverResult SygusPdr::check_until(int k)
 //   otherwise the lemma generation will not get the ic3model
 // ---------------------------------------------------------------------
 
-// The only difference is not to create a new model when unsat
+// The difference is (1) not to create a new model when unsat
+// (2) use custom_ts->next (which also has next var for input)
 bool SygusPdr::rel_ind_check(size_t i,
                             const IC3Formula & c,
                             IC3Formula & out,
@@ -1158,7 +1166,7 @@ bool SygusPdr::rel_ind_check(size_t i,
     //      if random seed is set
     Term lbl, ccnext;
     for (const auto & cc : c.children) {
-      ccnext = ts_.next(cc);
+      ccnext = custom_ts_->next(cc);
       lbl = label(ccnext);
       if (lbl != ccnext && !is_global_label(lbl)) {
         // only need to add assertion if the label is not the same as ccnext
@@ -1322,9 +1330,9 @@ void SygusPdr::constrain_frame(size_t i, const IC3Formula & constraint,
   assert(solver_context_ == 0);
   assert(i < frame_labels_.size());
   assert(constraint.disjunction);
-  if (has_assumptions)
+  if (has_assumptions) {
     assert(ts_.no_next(constraint.term));
-  else
+  } else
     assert(ts_.only_curr(constraint.term));
 
   if (new_constraint) {
@@ -1410,6 +1418,43 @@ Term SygusPdr::get_frame_term(size_t i) const
   }
   return res;
 }
+
+// Difference : I need it to call the new constrain_frame
+// which allow input in the constraints
+bool SygusPdr::propagate(size_t i)
+{
+  assert(!solver_context_);
+  assert(i < frontier_idx());
+
+  std::vector<IC3Formula> & Fi = frames_.at(i);
+
+  size_t k = 0;
+  IC3Formula gen;
+  for (size_t j = 0; j < Fi.size(); ++j) {
+    const IC3Formula & c = Fi.at(j);
+    assert(c.disjunction);
+    assert(c.term);
+    assert(c.children.size());
+
+    // NOTE: rel_ind_check works on conjunctions
+    //       need to negate
+    if (rel_ind_check(i + 1, ic3formula_negate(c), gen, false)) {
+      // can push to next frame
+      // got unsat-core based generalization
+      assert(gen.term);
+      assert(gen.children.size());
+      SygusPdr::constrain_frame(i + 1, ic3formula_negate(gen), false);
+    } else {
+      // have to keep this one at this frame
+      Fi[k++] = c;
+    }
+  }
+
+  // get rid of garbage at end of frame
+  Fi.resize(k);
+
+  return Fi.empty();
+} // propagate
 
 }  // namespace pono
 

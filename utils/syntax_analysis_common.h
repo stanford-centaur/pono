@@ -270,6 +270,7 @@ typedef std::unordered_map<IC3FormulaModel *, PerCexInfo>   cex_term_map_t; // t
   typedef std::unordered_map<uint64_t, BvConstructs> SyntaxStructureT;
 
   typedef std::function<smt::Term(const smt::Term &)> to_next_t; 
+  typedef std::function<unsigned(const smt::Term &)> score_t; 
   // function signature that can convert convert ast to next
 
 } // namespace syntax_analysis

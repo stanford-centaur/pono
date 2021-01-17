@@ -127,6 +127,9 @@ class SygusPdr : public IC3Base
   // because it is already added as a lemma/constraint
   smt::Term get_frame_term(size_t i) const;
 
+  // Difference: I need it to call the new constrain_frame
+  bool propagate(size_t i);
+
   // -----------------------------------------------------------------
   // pure virtual method implementations
   // -----------------------------------------------------------------
@@ -182,6 +185,7 @@ class SygusPdr : public IC3Base
   syntax_analysis::VarTermManager sygus_term_manager_;
   std::unique_ptr<syntax_analysis::TermLearner> term_learner_;
   syntax_analysis::to_next_t to_next_func_;
+  syntax_analysis::score_t score_func_;
   CustomFunctionalTransitionSystem * custom_ts_;
   
   smt::Term bad_next_;
