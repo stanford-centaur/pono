@@ -178,7 +178,7 @@ ProverResult IC3Base::check_until(int k)
   RefineResult ref_res;
   int i = reached_k_ + 1;
   assert(reached_k_ + 1 >= 0);
-  for (size_t i = reached_k_ + 1; i <= k; ++i) {
+  while (i <= k) {
     res = step(i);
 
     if (res == ProverResult::FALSE) {
@@ -194,6 +194,8 @@ ProverResult IC3Base::check_until(int k)
         assert(s == REFINE_FAIL);
         throw PonoException("Refinement failed");
       }
+    } else {
+      ++i;
     }
 
     if (res != ProverResult::UNKNOWN) {
@@ -414,7 +416,6 @@ ProverResult IC3Base::step(int i)
       // which is the frame that just had all terms
       // from the previous frames propagated
       invar_ = get_frame_term(j + 1);
-      invar_ = solver_->make_term(And, invar_, smart_not(bad_));
       return ProverResult::TRUE;
     }
   }
@@ -802,6 +803,9 @@ Term IC3Base::get_frame_term(size_t i) const
       res = solver_->make_term(And, res, u.term);
     }
   }
+
+  // the property is implicitly part of the frame
+  res = solver_->make_term(And, res, smart_not(bad_));
   return res;
 }
 

@@ -24,29 +24,32 @@ namespace pono {
 
 class ArrayAbstractor;  // forward declaration for AbstractionWalker
 
-// Helper classes for walking formulas
-class AbstractionWalker : public smt::IdentityWalker
-{
- public:
-  AbstractionWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
-
- protected:
-  smt::WalkerStepResult visit_term(smt::Term & term);
-  ArrayAbstractor & aa_;
-};
-
-class ConcretizationWalker : public smt::IdentityWalker
-{
- public:
-  ConcretizationWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
-
- protected:
-  smt::WalkerStepResult visit_term(smt::Term & term);
-  ArrayAbstractor & aa_;
-};
-
 class ArrayAbstractor : public Abstractor
 {
+  // Helper classes for walking formulas
+  class AbstractionWalker : public smt::IdentityWalker
+  {
+  public:
+    AbstractionWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
+    smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
+
+  protected:
+    smt::WalkerStepResult visit_term(smt::Term & term);
+    ArrayAbstractor & aa_;
+  };
+
+  class ConcretizationWalker : public smt::IdentityWalker
+  {
+  public:
+    ConcretizationWalker(ArrayAbstractor & aa,
+                         smt::UnorderedTermMap * ext_cache);
+    smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
+
+  protected:
+    smt::WalkerStepResult visit_term(smt::Term & term);
+    ArrayAbstractor & aa_;
+  };
+
   friend class AbstractionWalker;
   friend class ConcretizationWalker;
 
