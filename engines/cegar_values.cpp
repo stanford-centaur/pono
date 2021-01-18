@@ -53,7 +53,9 @@ static unordered_set<PrimOp> nl_ops({ Mult,
 class ValueAbstractor : public smt::IdentityWalker
 {
  public:
-  ValueAbstractor(TransitionSystem & ts, UnorderedTermMap & abstracted_values)
+  ValueAbstractor(TransitionSystem & ts,
+                  UnorderedTermMap & abstracted_values,
+                  size_t cutoff)
       : smt::IdentityWalker(ts.solver(), false),
         ts_(ts),
         abstracted_values_(abstracted_values),
@@ -61,7 +63,7 @@ class ValueAbstractor : public smt::IdentityWalker
         fresh_solver_(create_solver(ts_.solver()->get_solver_enum())),
         to_fresh_solver_(fresh_solver_),
         // hardcoding a value now
-        cutoff_(100)
+        cutoff_(cutoff)
   {
   }
 
@@ -231,7 +233,8 @@ template <class Prover_T>
 void CegarValues<Prover_T>::cegar_abstract()
 {
   UnorderedTermMap prover_to_vals;
-  ValueAbstractor va(prover_ts_, prover_to_vals);
+  ValueAbstractor va(
+      prover_ts_, prover_to_vals, super::options_.cegp_abs_vals_cutoff_);
 
   // add variables
   for (const auto & sv : conc_ts_.statevars()) {
