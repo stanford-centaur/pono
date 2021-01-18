@@ -58,6 +58,8 @@ class ValueAbstractor : public smt::IdentityWalker
         ts_(ts),
         abstracted_values_(abstracted_values),
         boolsort_(ts_.solver()->make_sort(BOOL)),
+        fresh_solver_(create_solver(ts_.solver()->get_solver_enum())),
+        to_fresh_solver_(fresh_solver_),
         // hardcoding a value now
         cutoff_(100)
   {
@@ -76,25 +78,26 @@ class ValueAbstractor : public smt::IdentityWalker
           return Walker_Continue;
         }
 
-        // do a quick check with the solver
-        // assuming it's at base context
-        const SmtSolver & solver = ts_.solver();
+        Term fresh_solver_term = to_fresh_solver_.transfer_term(term);
 
-        Term zero = solver->make_term(0, sort);
+        Term zero = fresh_solver_->make_term(0, sort);
         Op minus = (sk == BV) ? BVSub : Minus;
         Op lt = (sk == BV) ? BVUlt : Lt;
         Op gt = (sk == BV) ? BVUgt : Gt;
 
-        Term cutoff_term = solver->make_term(cutoff_, sort);
-        Term neg_cutoff_term = solver->make_term(minus, zero, cutoff_term);
+        Term cutoff_term = fresh_solver_->make_term(cutoff_, sort);
+        Term neg_cutoff_term =
+            fresh_solver_->make_term(minus, zero, cutoff_term);
 
-        solver->push();
+        fresh_solver_->push();
 
-        solver->assert_formula(solver->make_term(lt, term, cutoff_term));
-        solver->assert_formula(solver->make_term(gt, term, neg_cutoff_term));
-        Result r = solver->check_sat();
+        fresh_solver_->assert_formula(
+            fresh_solver_->make_term(lt, fresh_solver_term, cutoff_term));
+        fresh_solver_->assert_formula(
+            fresh_solver_->make_term(gt, fresh_solver_term, neg_cutoff_term));
+        Result r = fresh_solver_->check_sat();
 
-        solver->pop();
+        fresh_solver_->pop();
 
         if (r.is_sat()) {
           save_in_cache(term, term);
@@ -133,6 +136,9 @@ class ValueAbstractor : public smt::IdentityWalker
   TransitionSystem & ts_;
   UnorderedTermMap & abstracted_values_;
   Sort boolsort_;
+
+  SmtSolver fresh_solver_;  ///< solver just for the range check
+  TermTranslator to_fresh_solver_;
   size_t cutoff_;
 };
 
