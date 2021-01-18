@@ -53,7 +53,7 @@ void OpsAbstractor::do_abstraction()
   Term abs_init = abstract(init);
   Term abs_trans = abstract(trans);
 
-  // need a relational system
+  // for now, supporting a relational system
   // but generic abstractor does not require a relational system
   // do a cast
   assert(!abs_ts_.is_functional());
