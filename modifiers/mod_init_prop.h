@@ -32,41 +32,37 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
 
   // replace prop if it's not already a literal
   smt::Sort boolsort = ts.make_sort(smt::BOOL);
-  smt::Term new_prop = prop;
-  if (!is_lit(prop, boolsort)) {
-    new_prop = ts.make_statevar("__propvar", boolsort);
-    ts.assign_next(new_prop, prop);
-  }
+  // NOTE: have to make a new property even if the previous one
+  //       was a symbol as well
+  //       since we're modifying init, we can't check the property
+  //       in init, we have to take a transition first
+  smt::Term new_prop = ts.make_statevar("__propvar", boolsort);
+  ts.assign_next(new_prop, prop);
 
-  // replace initial states
-  smt::Term initstate1 = ts.make_statevar("__initstate1",
-                                          ts.make_sort(smt::BOOL));
+  // replace initial states with a single symbol
+  smt::Term initstate =
+      ts.make_statevar("__initstate", ts.make_sort(smt::BOOL));
 
   smt::Term init = ts.init();
   smt::TermVec init_constraints;
   conjunctive_partition(init, init_constraints, true);
 
-  // NOTE: relies on feature of ts to not add constraint to init
-  for (const auto & e : constraints) {
-    ts.add_constraint(ts.make_term(smt::Implies, initstate1, e.first),
-                      e.second);
+  // add initial state constraints for initstate
+  for (const auto & ic : init_constraints) {
+    ts.add_constraint(ts.make_term(smt::Implies, initstate, ic), true);
   }
 
-  ts.assign_next(initstate1, ts.make_term(false));
+  for (const auto & e : constraints) {
+    ts.add_constraint(ts.make_term(smt::Implies, initstate, e.first), e.second);
+  }
+
+  ts.assign_next(initstate, ts.make_term(false));
 
   // adding the constraints above might have put constraints in init
   // overwrite that now
-  ts.set_init(initstate1);
-  if (new_prop != prop)
-  {
-    // if created a delayed prop, need to assume it in the initial state
-    ts.constrain_init(new_prop);
-  }
-
-  // add initial state constraints for initstate1
-  for (const auto & ic : init_constraints) {
-    ts.add_constraint(ts.make_term(smt::Implies, initstate1, ic), false);
-  }
+  ts.set_init(initstate);
+  // new_prop is delayed, need to assume it in the initial state
+  ts.constrain_init(new_prop);
 
   return new_prop;
 }
