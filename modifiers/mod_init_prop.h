@@ -39,39 +39,34 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
   }
 
   // replace initial states
-  // will become the new initial state, by itself
-  smt::Term fake_init =
-      ts.make_statevar("__fake_init", ts.make_sort(smt::BOOL));
-
-  // indicator for the actual initial state constraints
-  // which will be true in the second state of the execution
-  smt::Term initstate =
-      ts.make_statevar("__initstate", ts.make_sort(smt::BOOL));
+  smt::Term initstate1 = ts.make_statevar("__initstate1",
+                                          ts.make_sort(smt::BOOL));
 
   smt::Term init = ts.init();
   smt::TermVec init_constraints;
   conjunctive_partition(init, init_constraints, true);
 
-  // add initial state constraints for initstate1
-  for (const auto & ic : init_constraints) {
-    assert(ts.only_curr(ic));
-    ts.add_constraint(ts.make_term(smt::Implies, initstate, ic), true);
-  }
-
   // NOTE: relies on feature of ts to not add constraint to init
   for (const auto & e : constraints) {
-    ts.add_constraint(ts.make_term(smt::Implies, initstate, e.first), e.second);
+    ts.add_constraint(ts.make_term(smt::Implies, initstate1, e.first),
+                      e.second);
   }
 
-  ts.assign_next(fake_init, ts.make_term(false));
-  ts.assign_next(initstate,
-                 fake_init);  // becomes true one state after fake_init
+  ts.assign_next(initstate1, ts.make_term(false));
 
   // adding the constraints above might have put constraints in init
   // overwrite that now
-  ts.set_init(fake_init);
-  ts.constrain_init(ts.make_term(smt::Not, initstate));
-  ts.constrain_init(new_prop);
+  ts.set_init(initstate1);
+  if (new_prop != prop)
+  {
+    // if created a delayed prop, need to assume it in the initial state
+    ts.constrain_init(new_prop);
+  }
+
+  // add initial state constraints for initstate1
+  for (const auto & ic : init_constraints) {
+    ts.add_constraint(ts.make_term(smt::Implies, initstate1, ic), false);
+  }
 
   return new_prop;
 }
