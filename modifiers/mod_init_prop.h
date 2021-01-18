@@ -57,7 +57,11 @@ smt::Term modify_init_and_prop(TransitionSystem & ts, const smt::Term & prop)
   // adding the constraints above might have put constraints in init
   // overwrite that now
   ts.set_init(initstate1);
-  ts.constrain_init(new_prop);
+  if (new_prop != prop)
+  {
+    // if created a delayed prop, need to assume it in the initial state
+    ts.constrain_init(new_prop);
+  }
 
   // add initial state constraints for initstate1
   for (const auto & ic : init_constraints) {
