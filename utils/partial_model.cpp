@@ -111,20 +111,70 @@ bool static extract_decimal_width(const std::string & s,
   return true;
 }
 
+
+static void mul2(std::vector<char> &  v) {
+  char carry = 0;
+  for (auto pos = v.begin(); pos != v.end(); ++pos) {
+    *pos = (*pos) * 2 + carry;
+    if (*pos >= 10) {
+      carry = *pos / 10;
+      *pos = *pos % 10;
+    } else
+      carry = 0;
+  }
+  if (carry)
+    v.push_back(carry);
+}
+
+static void add1(std::vector<char> &  v) {
+  char carry = 1;
+  for (auto pos = v.begin(); pos != v.end(); ++pos) {
+    *pos = *pos + carry;
+    if (*pos >= 10) {
+      carry = *pos / 10;
+      *pos = *pos % 10;
+    } else
+      carry = 0;
+  }
+  if (carry)
+    v.push_back(carry);
+}
+
+static std::string get_all_one(unsigned width) {
+  std::vector<char> out = {1};
+
+  for (unsigned idx = 1; idx < width; ++idx) {
+    mul2(out);
+    add1(out);
+  }
+
+  std::string ret;
+  for (auto pos = out.rbegin(); pos != out.rend(); ++pos) {
+    ret += *pos + '0';
+  }
+  return ret;
+}
+
 bool static convert_to_boolean_and_check(
   const std::string & decimal, const std::string & width, bool _0or1) {
+
+  static std::unordered_map<unsigned, std::string> width2fullones;
+
   auto s = syntax_analysis::IntToStrCustomBase(syntax_analysis::StrToULongLong(decimal,10), 2, false);
+  if (!_0or1) {
+    for (auto c : decimal)
+      if (c != '0')
+        return false;
+    return true;
+  } // if 0, requires 0,00,000
+
   auto width_i = syntax_analysis::StrToULongLong(width,10);
-  if (_0or1 && s.length() < width_i) // want 1 but not wide
-    return false;
-  for (auto pos = s.begin(); pos != s.end(); ++ pos) {
-    assert (*pos == '0' || *pos == '1');
-    if (*pos == '0' && _0or1) 
-      return false;
-    if (*pos == '1' && !_0or1)
-      return false;
+  assert(width_i != 0);
+  auto fullone_pos = width2fullones.find(width_i);
+  if (fullone_pos == width2fullones.end()) {
+    fullone_pos = width2fullones.emplace( width_i , get_all_one(width_i) ).first;
   }
-  return true;
+  return decimal == fullone_pos->second;
 }
 
 /* Internal Function */
