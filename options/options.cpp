@@ -277,8 +277,8 @@ const option::Descriptor usage[] = {
     "",
     "cegp-abs-vals-cutoff",
     Arg::Numeric,
-    "  --cegp-abs-vals-cutoff \tcutoff value for what to abstract (must be "
-    "positive)" },
+    "  --cegp-abs-vals-cutoff \tcutoff value for what to abstract - must be "
+    "positive (default: 100)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
