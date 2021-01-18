@@ -357,6 +357,7 @@ int main(int argc, char ** argv)
           0, "Property {} is {}", pono_options.prop_idx_, to_string(res));
 
       if (res == FALSE) {
+        cout << "sat" << endl;
         assert(!pono_options.no_witness_ || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
