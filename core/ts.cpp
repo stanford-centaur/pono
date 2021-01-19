@@ -394,8 +394,6 @@ Term TransitionSystem::promote_inputvar(Term iv)
     throw PonoException("Cannot promote non-inputvars: " + iv->to_string());
   }
 
-  assert(iv);
-
   Term nv = solver_->make_symbol(iv->to_string() + ".next", iv->get_sort());
   add_statevar(iv, nv);
   return nv;
