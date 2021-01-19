@@ -357,10 +357,8 @@ bool IC3Base::reaches_bad(IC3Formula & out)
   push_solver_context();
   // assert the last frame (conjunction over clauses)
   assert_frame_labels(frontier_idx());
-  // see if it intersects with bad in next states
+  // see if it can reach bad in one step
   solver_->assert_formula(ts_.next(bad_));
-  // don't need transition relation for this check
-  // can deactivate it
   solver_->assert_formula(trans_label_);
   Result r = check_sat();
 
