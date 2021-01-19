@@ -82,7 +82,8 @@ class PonoOptions
         profiling_log_filename_(default_profiling_log_filename_),
         mod_init_prop_(default_mod_init_prop_),
         assume_prop_(default_assume_prop_),
-        cegp_abs_vals_(default_cegp_abs_vals_)
+        cegp_abs_vals_(default_cegp_abs_vals_),
+        cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_)
   {
   }
 

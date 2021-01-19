@@ -62,7 +62,6 @@ class ValueAbstractor : public smt::IdentityWalker
         boolsort_(ts_.solver()->make_sort(BOOL)),
         fresh_solver_(create_solver(ts_.solver()->get_solver_enum())),
         to_fresh_solver_(fresh_solver_),
-        // hardcoding a value now
         cutoff_(cutoff)
   {
   }
