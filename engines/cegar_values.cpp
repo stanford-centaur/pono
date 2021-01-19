@@ -270,8 +270,6 @@ void CegarValues<Prover_T>::cegar_abstract()
   super::bad_ = va.visit(super::bad_);
   cegval_bad_ = to_cegval_solver_.transfer_term(super::bad_, BOOL);
 
-  // expecting to have had values to abstract
-  assert(prover_to_vals.size());
   // copy over to the other solver
   for (const auto & elem : prover_to_vals) {
     // also make sure the abstract variables are frozen
