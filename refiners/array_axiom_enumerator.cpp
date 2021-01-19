@@ -233,6 +233,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 
     if (!found_lemmas) {
       // there appears to be a concrete counterexample
+      solver_->pop();
       return false;
     }
 
