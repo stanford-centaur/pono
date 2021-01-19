@@ -123,7 +123,7 @@ class PonoOptions
   bool mod_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;    ///< assume property in pre-state
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
-  bool cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
+  size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
 
  private:
   // Default options
