@@ -93,6 +93,16 @@ ProverResult check_prop(PonoOptions pono_options,
     StaticConeOfInfluence coi(ts, { prop }, pono_options.verbosity_);
   }
 
+  if (pono_options.promote_inputvars_) {
+    // this is a bit tricky. because promote_inputvar
+    // modifies inputvars_, should copy the set first
+    UnorderedTermSet inputvars = ts.inputvars();
+    for (auto iv : inputvars) {
+      ts.promote_inputvar(iv);
+    }
+    assert(!ts.inputvars().size());
+  }
+
   if (!ts.only_curr(prop)) {
     logger.log(1,
                "Got next state or input variables in property. "

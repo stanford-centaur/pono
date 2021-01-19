@@ -262,7 +262,8 @@ void TransitionSystem::add_constraint(const Term & constraint,
 
 void TransitionSystem::name_term(const string name, const Term & t)
 {
-  if (named_terms_.find(name) != named_terms_.end()) {
+  auto it = named_terms_.find(name);
+  if (it != named_terms_.end() && t != it->second) {
     throw PonoException("Name " + name + " has already been used.");
   }
   named_terms_[name] = t;
@@ -392,6 +393,8 @@ Term TransitionSystem::promote_inputvar(Term iv)
   if (!num_erased) {
     throw PonoException("Cannot promote non-inputvars: " + iv->to_string());
   }
+
+  assert(iv);
 
   Term nv = solver_->make_symbol(iv->to_string() + ".next", iv->get_sort());
   add_statevar(iv, nv);

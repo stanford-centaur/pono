@@ -55,7 +55,8 @@ enum optionIndex
   MOD_INIT_PROP,
   NO_ASSUME_PROP,
   CEGP_ABS_VALS,
-  CEGP_ABS_VALS_CUTOFF
+  CEGP_ABS_VALS_CUTOFF,
+  PROMOTE_INPUTVARS
 };
 
 struct Arg : public option::Arg
@@ -279,6 +280,12 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --cegp-abs-vals-cutoff \tcutoff value for what to abstract - must be "
     "positive (default: 100)" },
+  { PROMOTE_INPUTVARS,
+    0,
+    "",
+    "promote-inputvars",
+    Arg::None,
+    "  --promote-inputvars \tpromote all input variables to state variables" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -401,6 +408,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case NO_ASSUME_PROP: assume_prop_ = false; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
+        case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

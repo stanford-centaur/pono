@@ -223,6 +223,9 @@ class TransitionSystem
    *  @return the newly created next state variable
    *  NOTE takes by value because if taken by reference,
    *  there could be only one reference to that variable
+   *  TRICKY: additionally, since it modifies inputvars_
+   *  should not directly iterate over ts_.inputvars()
+   *  better to copy the set first
    *  (e.g. an unused input)
    *  and once that's removed from the input set, it's gone
    */
