@@ -215,7 +215,9 @@ int main(int argc, char ** argv)
 #endif
   }
 
+#ifdef NDEBUG
   try {
+#endif
     // no logging by default
     // could create an option for logging solvers in the future
 
@@ -342,6 +344,7 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
+#ifdef NDEBUG
   }
   catch (PonoException & ce) {
     cout << ce.what() << endl;
@@ -362,6 +365,7 @@ int main(int argc, char ** argv)
     cout << "b" << pono_options.prop_idx_ << endl;
     res = ProverResult::ERROR;
   }
+#endif
 
   if (!pono_options.profiling_log_filename_.empty()) {
 #ifdef WITH_PROFILING
