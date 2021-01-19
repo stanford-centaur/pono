@@ -36,7 +36,7 @@ enum optionIndex
   VERBOSITY,
   RANDOM_SEED,
   VCDNAME,
-  NOWITNESS,
+  WITNESS,
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
   STATICCOI,
@@ -143,12 +143,12 @@ const option::Descriptor usage[] = {
     "smt-solver",
     Arg::NonEmpty,
     "  --smt-solver \tSMT Solver to use: btor or msat or cvc4." },
-  { NOWITNESS,
+  { WITNESS,
     0,
     "",
-    "no-witness",
+    "witness",
     Arg::None,
-    "  --no-witness \tDisable printing of witness." },
+    "  --witness \tPrint witness if the property is false." },
   { CEGPROPHARR,
     0,
     "",
@@ -354,9 +354,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case RANDOM_SEED: random_seed_ = atoi(opt.arg); break;
         case VCDNAME:
           vcd_name_ = opt.arg;
-          if (no_witness_)
-            throw PonoException(
-                "Options '--vcd' and '--no-witness' are incompatible.");
+          witness_ = true;  // implicitly enabling witness
           break;
         case SMT_SOLVER: {
           if (opt.arg == std::string("btor")) {
@@ -371,12 +369,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           }
           break;
         }
-        case NOWITNESS:
-          no_witness_ = true;
-          if (!vcd_name_.empty())
-            throw PonoException(
-                "Options '--vcd' and '--no-witness' are incompatible.");
-          break;
+        case WITNESS: witness_ = true; break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case STATICCOI: static_coi_ = true; break;

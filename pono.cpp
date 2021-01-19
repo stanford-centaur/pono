@@ -148,7 +148,7 @@ ProverResult check_prop(PonoOptions pono_options,
     r = prover->check_until(pono_options.bound_);
   }
 
-  if (r == FALSE && !pono_options.no_witness_) {
+  if (r == FALSE && pono_options.witness_) {
     bool success = prover->witness(cex);
     if (!success) {
       logger.log(
@@ -240,12 +240,12 @@ int main(int argc, char ** argv)
 
     // limitations with COI
     if (pono_options.static_coi_) {
-      if (!pono_options.no_witness_) {
+      if (pono_options.witness_) {
         logger.log(
             0,
             "Warning: disabling witness production. Temporary restriction -- "
             "Cannot produce witness with option --static-coi");
-        pono_options.no_witness_ = true;
+        pono_options.witness_ = false;
       }
       if (pono_options.mod_init_prop_) {
         // Issue explained here:
@@ -287,7 +287,7 @@ int main(int argc, char ** argv)
       if (res == FALSE) {
         cout << "sat" << endl;
         cout << "b" << pono_options.prop_idx_ << endl;
-        assert(!pono_options.no_witness_ || !cex.size());
+        assert(pono_options.witness_ || !cex.size());
         if (cex.size()) {
           print_witness_btor(btor_enc, cex);
           if (!pono_options.vcd_name_.empty()) {
@@ -330,14 +330,14 @@ int main(int argc, char ** argv)
 
       if (res == FALSE) {
         cout << "sat" << endl;
-        assert(!pono_options.no_witness_ || cex.size() == 0);
+        assert(pono_options.witness_ || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
           for (auto elem : cex[t]) {
             cout << "\t" << elem.first << " : " << elem.second << endl;
           }
         }
-        assert(!pono_options.no_witness_ || pono_options.vcd_name_.empty());
+        assert(pono_options.witness_ || pono_options.vcd_name_.empty());
         if (!pono_options.vcd_name_.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
           vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
