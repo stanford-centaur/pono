@@ -59,18 +59,8 @@ TEST_P(PseudoInitPropUnitTests, TrivialUnsafe)
   assert(!ts.is_functional());
   Property p(s, prop_term);
 
-  // debugging
-  cout << "INIT" << endl;
-  cout << ts.init() << endl;
-  cout << "TRANS" << endl;
-  cout << ts.trans() << endl;
-  cout << "PROP" << endl;
-  cout << prop_term << endl;
-  // end debugging
-
   KInduction kind(p, ts, s);
   ProverResult r = kind.check_until(3);
-  cout << "result is " << (r == ProverResult::TRUE) << endl;
   ASSERT_EQ(r, FALSE);
 }
 

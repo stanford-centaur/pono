@@ -84,7 +84,12 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
 
   // now create a property monitor
   Term new_prop = rts.make_statevar("__prop_monitor", boolsort);
-  rts.assign_next(new_prop, prop);
+  if (rts.only_curr(prop)) {
+    rts.add_invar(rts.make_term(Equal, new_prop, prop));
+  } else {
+    // property monitor
+    rts.assign_next(new_prop, prop);
+  }
   // need to assume in the pseudo initial state
   // or else there's a trivial counterexample
   rts.constrain_init(new_prop);
