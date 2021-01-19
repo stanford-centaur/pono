@@ -57,8 +57,6 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
   // create a pseudo initial state
   Term pseudo_init = rts.make_statevar("__pseudo_init", boolsort);
   Term not_pseudo_init = rts.make_term(Not, pseudo_init);
-  rts.set_init(pseudo_init);
-  rts.assign_next(pseudo_init, rts.make_term(false));
 
   // guard property with it
   prop = rts.make_term(Implies, not_pseudo_init, prop);
@@ -80,6 +78,9 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
   for (const auto & tc : trans_conjuncts) {
     rts.constrain_trans(rts.make_term(Implies, not_pseudo_init, tc));
   }
+
+  rts.set_init(pseudo_init);
+  rts.assign_next(pseudo_init, rts.make_term(false));
 
   // now create a property monitor
   Term new_prop = rts.make_statevar("__prop_monitor", boolsort);
