@@ -92,8 +92,18 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
       shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
                                               abs_ts_, s, super::options_);
       res = prover->prove();
+
+      if (res == ProverResult::FALSE) {
+        // use witness length
+        reached_k_ = prover->witness_length() - 1;
+      }
+
     } else {
       res = super::prove();
+      if (res == ProverResult::FALSE) {
+        // use witness length
+        reached_k_ = super::reached_k_;
+      }
     }
   }
 
@@ -129,7 +139,11 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
                                               abs_ts_, s, super::options_);
       res = prover->check_until(k);
-      if (res == ProverResult::TRUE) {
+
+      if (res == ProverResult::FALSE) {
+        // use witness length
+        reached_k_ = prover->witness_length() - 1;
+      } else if (res == ProverResult::TRUE) {
         try {
           // set the invariant
           super::invar_ = prover->invar();
@@ -141,6 +155,10 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       }
     } else {
       res = super::check_until(k);
+      if (res == ProverResult::FALSE) {
+        // use witness length
+        reached_k_ = super::reached_k_;
+      }
     }
   }
 

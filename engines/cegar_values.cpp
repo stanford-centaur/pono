@@ -62,7 +62,6 @@ class ValueAbstractor : public smt::IdentityWalker
         boolsort_(ts_.solver()->make_sort(BOOL)),
         fresh_solver_(create_solver(ts_.solver()->get_solver_enum())),
         to_fresh_solver_(fresh_solver_),
-        // hardcoding a value now
         cutoff_(cutoff)
   {
   }
@@ -270,8 +269,6 @@ void CegarValues<Prover_T>::cegar_abstract()
   super::bad_ = va.visit(super::bad_);
   cegval_bad_ = to_cegval_solver_.transfer_term(super::bad_, BOOL);
 
-  // expecting to have had values to abstract
-  assert(prover_to_vals.size());
   // copy over to the other solver
   for (const auto & elem : prover_to_vals) {
     // also make sure the abstract variables are frozen
