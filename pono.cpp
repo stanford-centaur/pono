@@ -31,7 +31,7 @@
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "modifiers/control_signals.h"
-#include "modifiers/mod_init_prop.h"
+#include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
 #include "modifiers/static_coi.h"
 #include "options/options.h"
@@ -82,8 +82,8 @@ ProverResult check_prop(PonoOptions pono_options,
     prop = ts.solver()->make_term(Implies, reset_done, prop);
   }
 
-  if (pono_options.mod_init_prop_) {
-    prop = modify_init_and_prop(ts, prop);
+  if (pono_options.pseudo_init_prop_) {
+    pseudo_init_and_prop(ts, prop);
   }
 
   if (pono_options.static_coi_) {
@@ -101,7 +101,7 @@ ProverResult check_prop(PonoOptions pono_options,
   }
 
   if (pono_options.assume_prop_) {
-    // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
+    // NOTE: crucial that pseudo_init_prop and add_prop_monitor passes are
     // before this pass can't assume the non-delayed prop and also
     // delay it
     prop_in_trans(ts, prop);
@@ -237,7 +237,7 @@ int main(int argc, char ** argv)
             "Cannot produce witness with option --static-coi");
         pono_options.no_witness_ = true;
       }
-      if (pono_options.mod_init_prop_) {
+      if (pono_options.pseudo_init_prop_) {
         // Issue explained here:
         // https://github.com/upscale-project/pono/pull/160 will be resolved
         // once state variables removed by COI are removed from init then should
