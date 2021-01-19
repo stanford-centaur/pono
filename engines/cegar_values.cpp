@@ -22,6 +22,7 @@
 #include "core/rts.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
+#include "math.h"
 #include "smt-switch/identity_walker.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
@@ -52,11 +53,17 @@ static unordered_set<PrimOp> nl_ops({ Mult,
 class ValueAbstractor : public smt::IdentityWalker
 {
  public:
-  ValueAbstractor(TransitionSystem & ts, UnorderedTermMap & abstracted_values)
+  ValueAbstractor(TransitionSystem & ts,
+                  UnorderedTermMap & abstracted_values,
+                  size_t cutoff)
       : smt::IdentityWalker(ts.solver(), false),
         ts_(ts),
         abstracted_values_(abstracted_values),
-        boolsort_(ts_.solver()->make_sort(BOOL))
+        boolsort_(ts_.solver()->make_sort(BOOL)),
+        fresh_solver_(create_solver(ts_.solver()->get_solver_enum())),
+        to_fresh_solver_(fresh_solver_),
+        // hardcoding a value now
+        cutoff_(cutoff)
   {
   }
 
@@ -65,8 +72,40 @@ class ValueAbstractor : public smt::IdentityWalker
   {
     if (!preorder_) {
       Sort sort = term->get_sort();
-      if (term->is_value() && sort != boolsort_
-          && sort->get_sort_kind() != ARRAY) {
+      SortKind sk = sort->get_sort_kind();
+      if (term->is_value() && (sk == REAL || sk == INT || sk == BV)) {
+        // don't even consider bitwidths that are too small
+        if (sk == BV && sort->get_width() < ceil(log2(cutoff_))) {
+          save_in_cache(term, term);
+          return Walker_Continue;
+        }
+
+        Term fresh_solver_term = to_fresh_solver_.transfer_term(term);
+
+        Term zero = fresh_solver_->make_term(0, sort);
+        Op minus = (sk == BV) ? BVSub : Minus;
+        Op lt = (sk == BV) ? BVUlt : Lt;
+        Op gt = (sk == BV) ? BVUgt : Gt;
+
+        Term cutoff_term = fresh_solver_->make_term(cutoff_, sort);
+        Term neg_cutoff_term =
+            fresh_solver_->make_term(minus, zero, cutoff_term);
+
+        fresh_solver_->push();
+
+        fresh_solver_->assert_formula(
+            fresh_solver_->make_term(lt, fresh_solver_term, cutoff_term));
+        fresh_solver_->assert_formula(
+            fresh_solver_->make_term(gt, fresh_solver_term, neg_cutoff_term));
+        Result r = fresh_solver_->check_sat();
+
+        fresh_solver_->pop();
+
+        if (r.is_sat()) {
+          save_in_cache(term, term);
+          return Walker_Continue;
+        }
+
         // create a frozen variable
         Term frozen_var =
             ts_.make_statevar("__abs_" + term->to_string(), term->get_sort());
@@ -99,6 +138,10 @@ class ValueAbstractor : public smt::IdentityWalker
   TransitionSystem & ts_;
   UnorderedTermMap & abstracted_values_;
   Sort boolsort_;
+
+  SmtSolver fresh_solver_;  ///< solver just for the range check
+  TermTranslator to_fresh_solver_;
+  size_t cutoff_;
 };
 
 template <class Prover_T>
@@ -190,7 +233,8 @@ template <class Prover_T>
 void CegarValues<Prover_T>::cegar_abstract()
 {
   UnorderedTermMap prover_to_vals;
-  ValueAbstractor va(prover_ts_, prover_to_vals);
+  ValueAbstractor va(
+      prover_ts_, prover_to_vals, super::options_.cegp_abs_vals_cutoff_);
 
   // add variables
   for (const auto & sv : conc_ts_.statevars()) {
