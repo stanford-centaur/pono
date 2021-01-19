@@ -46,17 +46,70 @@ using namespace pono;
 using namespace smt;
 using namespace std;
 
-
 ProverResult check_prop(PonoOptions pono_options,
-                        Property & p,
-                        const TransitionSystem & ts,
+                        Term & prop,
+                        TransitionSystem & ts,
                         const SmtSolver & s,
                         std::vector<UnorderedTermMap> & cex)
 {
-  logger.log(1, "Solving property: {}", p.name());
+  // get property name before it is rewritten
+  const string prop_name = ts.get_name(prop);
 
+  logger.log(1, "Solving property: {}", prop_name);
   logger.log(3, "INIT:\n{}", ts.init());
   logger.log(3, "TRANS:\n{}", ts.trans());
+
+  // modify the transition system and property based on options
+  if (!pono_options.clock_name_.empty()) {
+    Term clock_symbol = ts.lookup(pono_options.clock_name_);
+    toggle_clock(ts, clock_symbol);
+  }
+  if (!pono_options.reset_name_.empty()) {
+    std::string reset_name = pono_options.reset_name_;
+    bool negative_reset = false;
+    if (reset_name.at(0) == '~') {
+      reset_name = reset_name.substr(1, reset_name.length() - 1);
+      negative_reset = true;
+    }
+    Term reset_symbol = ts.lookup(reset_name);
+    if (negative_reset) {
+      SortKind sk = reset_symbol->get_sort()->get_sort_kind();
+      reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
+                                : s->make_term(Not, reset_symbol);
+    }
+    Term reset_done = add_reset_seq(ts, reset_symbol, pono_options.reset_bnd_);
+    // guard the property with reset_done
+    prop = ts.solver()->make_term(Implies, reset_done, prop);
+  }
+
+  if (pono_options.mod_init_prop_) {
+    prop = modify_init_and_prop(ts, prop);
+  }
+
+  if (pono_options.static_coi_) {
+    /* Compute the set of state/input variables related to the
+       bad-state property. Based on that information, rebuild the
+       transition relation of the transition system. */
+    StaticConeOfInfluence coi(ts, { prop }, pono_options.verbosity_);
+  }
+
+  if (!ts.only_curr(prop)) {
+    logger.log(1,
+               "Got next state or input variables in property. "
+               "Generating a monitor state.");
+    prop = add_prop_monitor(ts, prop);
+  }
+
+  if (pono_options.assume_prop_) {
+    // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
+    // before this pass can't assume the non-delayed prop and also
+    // delay it
+    prop_in_trans(ts, prop);
+  }
+
+  Property p(s, prop, prop_name);
+
+  // end modification of the transition system and property
 
   Engine eng = pono_options.engine_;
 
@@ -214,59 +267,9 @@ int main(int argc, char ** argv)
       }
 
       Term prop = propvec[pono_options.prop_idx_];
-      // get property name before it is rewritten
-      const string prop_name = fts.get_name(prop);
-
-      if (!pono_options.clock_name_.empty()) {
-        Term clock_symbol = fts.lookup(pono_options.clock_name_);
-        toggle_clock(fts, clock_symbol);
-      }
-      if (!pono_options.reset_name_.empty()) {
-        std::string reset_name = pono_options.reset_name_;
-        bool negative_reset = false;
-        if (reset_name.at(0) == '~') {
-          reset_name = reset_name.substr(1, reset_name.length() - 1);
-          negative_reset = true;
-        }
-        Term reset_symbol = fts.lookup(reset_name);
-        if (negative_reset) {
-          SortKind sk = reset_symbol->get_sort()->get_sort_kind();
-          reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
-                                    : s->make_term(Not, reset_symbol);
-        }
-        Term reset_done =
-            add_reset_seq(fts, reset_symbol, pono_options.reset_bnd_);
-        // guard the property with reset_done
-        prop = fts.solver()->make_term(Implies, reset_done, prop);
-      }
-
-      if (pono_options.mod_init_prop_) {
-        prop = modify_init_and_prop(fts, prop);
-      }
-
-      if (pono_options.static_coi_) {
-        /* Compute the set of state/input variables related to the
-           bad-state property. Based on that information, rebuild the
-           transition relation of the transition system. */
-        StaticConeOfInfluence coi(fts, { prop }, pono_options.verbosity_);
-      }
-
-      if (!fts.only_curr(prop)) {
-        logger.log(1, "Got next state or input variables in property. "
-                   "Generating a monitor state.");
-        prop = add_prop_monitor(fts, prop);
-      }
-
-      if (pono_options.assume_prop_) {
-        // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
-        // before this pass can't assume the non-delayed prop and also
-        // delay it
-        prop_in_trans(fts, prop);
-      }
 
       vector<UnorderedTermMap> cex;
-      Property p(s, prop, prop_name);
-      res = check_prop(pono_options, p, fts, s, cex);
+      res = check_prop(pono_options, prop, fts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -306,50 +309,9 @@ int main(int argc, char ** argv)
 
       Term prop = propvec[pono_options.prop_idx_];
       // get property name before it is rewritten
-      const string prop_name = rts.get_name(prop);
 
-      if (!pono_options.clock_name_.empty()) {
-        Term clock_symbol = rts.lookup(pono_options.clock_name_);
-        toggle_clock(rts, clock_symbol);
-      }
-      if (!pono_options.reset_name_.empty()) {
-        Term reset_symbol = rts.lookup(pono_options.reset_name_);
-        Term reset_done =
-            add_reset_seq(rts, reset_symbol, pono_options.reset_bnd_);
-        // guard the property with reset_done
-        prop = rts.solver()->make_term(Implies, reset_done, prop);
-      }
-
-      if (pono_options.mod_init_prop_) {
-        prop = modify_init_and_prop(rts, prop);
-      }
-
-      if (pono_options.static_coi_) {
-        // NOTE: currently only supports FunctionalTransitionSystem
-        // but let StaticConeOfInfluence throw the exception
-        // and this will change in the future
-        /* Compute the set of state/input variables related to the
-           bad-state property. Based on that information, rebuild the
-           transition relation of the transition system. */
-        StaticConeOfInfluence coi(rts, { prop }, pono_options.verbosity_);
-      }
-
-      if (!rts.only_curr(prop)) {
-        logger.log(1, "Got next state or input variables in property. "
-                   "Generating a monitor state.");
-        prop = add_prop_monitor(rts, prop);
-      }
-
-      if (pono_options.assume_prop_) {
-        // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
-        // before this pass can't assume the non-delayed prop and also
-        // delay it
-        prop_in_trans(rts, prop);
-      }
-
-      Property p(s, prop, prop_name);
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, p, rts, s, cex);
+      res = check_prop(pono_options, prop, rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
