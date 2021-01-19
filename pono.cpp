@@ -83,7 +83,7 @@ ProverResult check_prop(PonoOptions pono_options,
   }
 
   if (pono_options.pseudo_init_prop_) {
-    pseudo_init_and_prop(ts, prop);
+    ts = pseudo_init_and_prop(ts, prop);
   }
 
   if (pono_options.static_coi_) {

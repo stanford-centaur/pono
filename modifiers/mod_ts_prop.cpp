@@ -26,14 +26,16 @@ using namespace std;
 
 namespace pono {
 
-void pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
+TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
 {
   logger.log(1, "Modifying init and prop");
 
-  // copy over to a relational transition system
-  // if it's not already relational
+  RelationalTransitionSystem rts =
+      ts.is_functional() ? RelationalTransitionSystem(ts.solver())
+                         : static_cast<RelationalTransitionSystem &>(ts);
+
+  // make it relational if it wasn't already
   if (ts.is_functional()) {
-    TransitionSystem rts = RelationalTransitionSystem(ts.solver());
     for (const auto & sv : ts.statevars()) {
       rts.add_statevar(sv, ts.next(sv));
     }
@@ -41,13 +43,10 @@ void pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
       rts.add_inputvar(iv);
     }
     rts.set_init(ts.init());
-    static_cast<RelationalTransitionSystem &>(rts).set_trans(ts.trans());
-    std::swap(rts, ts);
+    rts.set_trans(ts.trans());
   }
 
-  assert(!ts.is_functional());
-  RelationalTransitionSystem & rts =
-      static_cast<RelationalTransitionSystem &>(ts);
+  assert(!rts.is_functional());
 
   Sort boolsort = rts.make_sort(BOOL);
 
@@ -85,9 +84,14 @@ void pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
   // now create a property monitor
   Term new_prop = rts.make_statevar("__prop_monitor", boolsort);
   rts.assign_next(new_prop, prop);
+  // need to assume in the pseudo initial state
+  // or else there's a trivial counterexample
+  rts.constrain_init(new_prop);
 
   // update the property in-place
   std::swap(prop, new_prop);
+
+  return rts;
 }
 
 }  // namespace pono
