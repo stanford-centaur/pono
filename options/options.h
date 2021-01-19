@@ -82,7 +82,8 @@ class PonoOptions
         profiling_log_filename_(default_profiling_log_filename_),
         mod_init_prop_(default_mod_init_prop_),
         assume_prop_(default_assume_prop_),
-        cegp_abs_vals_(default_cegp_abs_vals_)
+        cegp_abs_vals_(default_cegp_abs_vals_),
+        cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_)
   {
   }
 
@@ -123,7 +124,7 @@ class PonoOptions
   bool mod_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;    ///< assume property in pre-state
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
-  bool cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
+  size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
 
  private:
   // Default options
