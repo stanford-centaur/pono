@@ -530,10 +530,24 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   predset_.clear();
   predlbls_.clear();
 
+  // don't add boolean symbols that are never used in the system
+  // this is an optimization and a fix for some options
+  // if using mathsat with bool_model_generation
+  // it will fail to get the value of symbols that don't
+  // appear in the query
+  // thus we don't include those symbols in our cubes
+  UnorderedTermSet used_symbols;
+  get_free_symbolic_consts(ts_.init(), used_symbols);
+  get_free_symbolic_consts(ts_.trans(), used_symbols);
+  get_free_symbolic_consts(bad_, used_symbols);
+
   // reset init and trans -- done with calling ia_.do_abstraction
   // then add all boolean constants as (precise) predicates
   for (const auto & p : ia_.do_abstraction()) {
-    preds.insert(p);
+    assert(p->is_symbolic_const());
+    if (used_symbols.find(p) != used_symbols.end()) {
+      preds.insert(p);
+    }
   }
 
   // reset the solver
@@ -548,7 +562,7 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
 // ceg-prophecy is incremental for ic3ia
 template class CegProphecyArrays<IC3IA>;
 
-// the below engines work when ceg-prophecy is non-incremental. 
+// the below engines work when ceg-prophecy is non-incremental.
 template class CegProphecyArrays<Bmc>;
 template class CegProphecyArrays<BmcSimplePath>;
 template class CegProphecyArrays<KInduction>;
