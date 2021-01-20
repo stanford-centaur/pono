@@ -2,7 +2,7 @@
 /*! \file ops_abstractor.cpp
 ** \verbatim
 ** Top contributors (to current version):
-**   Ahmed Irfan
+**   Ahmed Irfan, Makai Mann
 ** This file is part of the pono project.
 ** Copyright (c) 2019 by the authors listed in the file AUTHORS
 ** in the top-level source directory) and their institutional affiliations.
@@ -118,6 +118,9 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
     TermVec args = {abs_op};
     args.insert(args.end(), cached_children.begin(), cached_children.end());
     res = solver_->make_term(Apply, args);
+
+    assert(oa_.abs_terms_.find(res) == oa_.abs_terms_.end());
+    oa_.abs_terms_[res] = solver_->make_term(op, cached_children);
     break;
   }
     // BV operators
@@ -165,6 +168,9 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
     TermVec args = {abs_op};
     args.insert(args.end(), cached_children.begin(), cached_children.end());
     res = solver_->make_term(Apply, args);
+
+    assert(oa_.abs_terms_.find(res) == oa_.abs_terms_.end());
+    oa_.abs_terms_[res] = solver_->make_term(op, cached_children);
     break;
   }
     // other operators

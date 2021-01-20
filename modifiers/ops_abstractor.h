@@ -33,6 +33,8 @@ class OpsAbstractor : public Abstractor
   smt::Term abstract(smt::Term & t) override;
   smt::Term concrete(smt::Term & t) override;
 
+  const smt::UnorderedTermMap & abstract_terms() const { return abs_terms_; }
+
   void do_abstraction();
 
  protected:
@@ -67,6 +69,9 @@ class OpsAbstractor : public Abstractor
 
   std::unordered_map<std::string, smt::Term> abs_op_symbols_;
   std::unordered_map<smt::Term, smt::Op> abs_symbols_to_op_;
+
+  smt::UnorderedTermMap abs_terms_; //abs uf to concrete operator -- only
+                                    //replace the top-level uf 
 };
 
 
