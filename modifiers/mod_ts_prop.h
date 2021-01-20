@@ -37,12 +37,6 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, smt::Term & prop);
 // optimization to assume the property in the pre-state
 // although confusing, this is sound as long as you always check
 // for a property violation over the next-state variables
-void prop_in_trans(TransitionSystem & ts, const smt::Term & prop)
-{
-  // NOTE: CRUCIAL that we pass false here
-  // cannot add to init or the next states
-  // passing false prevents that
-  ts.add_constraint(prop, false);
-}
+void prop_in_trans(TransitionSystem & ts, const smt::Term & prop);
 
 }  // namespace pono
