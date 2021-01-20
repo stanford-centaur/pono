@@ -35,26 +35,6 @@
 
 namespace pono {
 
-// this class is added simply because SygusPdr would like to see such a transition system
-class CustomFunctionalTransitionSystem : public FunctionalTransitionSystem {
- public:
-  CustomFunctionalTransitionSystem() : FunctionalTransitionSystem() { }
-  CustomFunctionalTransitionSystem(const smt::SmtSolver & s) : FunctionalTransitionSystem(s) { }
-  CustomFunctionalTransitionSystem(const TransitionSystem & other_ts,
-                             smt::TermTranslator & tt) : FunctionalTransitionSystem(other_ts, tt) {  }
-  void make_nextvar_for_inputs();
-  void convert_free_state_to_input();
-
-  // curr_var -> replace by var
-  smt::Term to_next_func(const smt::Term & term) { 
-      return FunctionalTransitionSystem::to_next_func(term); }
-  const smt::UnorderedTermMap & input_var_to_next_map() const {return next_inputvars_;}
-
- protected:
-  // next variables for the system inputs 
-  smt::UnorderedTermMap next_inputvars_;
-
-}; // class CustomFunctionalTransitionSystem
 
 class SygusPdr : public IC3Base
 {
@@ -70,69 +50,6 @@ class SygusPdr : public IC3Base
 
   typedef IC3Base super;
  
-
-  // -----------------------------------------------------------------
-  // override existing facilities to achieve bad = model(F /\ T -> P')
-  // -----------------------------------------------------------------
-
- public:
-  // some override that were unnecessary but I found that I need to do
-  // inorder to adjust the style
-  virtual ProverResult check_until(int k) override;
-
- protected:
-  /** Perform a IC3 step
-   *  @param i
-   */
-  ProverResult step(int i); // will be called in the parent version of check_until
-
-  /** Perform the base IC3 step (zero case)
-   */
-  ProverResult step_01();  // will be called in the parent version of check_until
-
-  // -----------------------------------------------------------------
-  // Below are for May-Block
-  // -----------------------------------------------------------------
-  
-  bool rel_ind_check_may_block(size_t i,
-                              const IC3Formula & c,
-                              IC3Formula & out);
-
-  bool try_recursive_block_goal(const IC3Formula & to_block, unsigned fidx);
-
-  // -----------------------------------------------------------------
-  // Not to make a new model if blockable
-  // -----------------------------------------------------------------
-
-  bool rel_ind_check(size_t i,
-                     const IC3Formula & c,
-                     IC3Formula & out,
-                     bool get_pred);
-  
-  bool block_all();
-
-  // -----------------------------------------------------------------
-  // allow input in the constraint (when there are additional constraints)
-  // -----------------------------------------------------------------
-
-  void constrain_frame(size_t i, const IC3Formula & constraint,
-                       bool new_constraint=true);
-
-  // -----------------------------------------------------------------
-  // Require the capability to reset solver
-  // -----------------------------------------------------------------
-
-  void reset_solver();
-
-  // I don't need to conjuct with property, 
-  // because it is already added as a lemma/constraint
-  smt::Term get_frame_term(size_t i) const;
-
-  // Difference: I need it to call the new constrain_frame
-  bool propagate(size_t i);
-  // Difference: only_curr -> no_next
-  void reconstruct_trace(const ProofGoal * pg, smt::TermVec & out);
-
   // -----------------------------------------------------------------
   // pure virtual method implementations
   // -----------------------------------------------------------------
@@ -159,6 +76,16 @@ class SygusPdr : public IC3Base
 
   virtual RefineResult refine() override;
 
+  // -----------------------------------------------------------------
+  // Below are for May-Block
+  // -----------------------------------------------------------------
+  
+  bool rel_ind_check_may_block(size_t i,
+                              const IC3Formula & c,
+                              IC3Formula & out);
+
+  bool try_recursive_block_goal(const IC3Formula & to_block, unsigned fidx);
+  
   // -----------------------------------------------------------------
   // SyGuS related functions
   // -----------------------------------------------------------------
@@ -189,8 +116,10 @@ class SygusPdr : public IC3Base
   std::unique_ptr<syntax_analysis::TermLearner> term_learner_;
   syntax_analysis::to_next_t to_next_func_;
   syntax_analysis::score_t score_func_;
-  CustomFunctionalTransitionSystem * custom_ts_;
   
+
+  smt::UnorderedTermMap nxt_state_updates_; // a map from prime var -> next
+  smt::UnorderedTermSet no_next_vars_; //  the inputs
   smt::Term bad_next_;
   smt::TermVec constraints_curr_var_;
 
@@ -207,7 +136,10 @@ class SygusPdr : public IC3Base
   syntax_analysis::PerCexInfo & setup_cex_info (syntax_analysis::IC3FormulaModel * post_model);
   IC3Formula select_predicates(const smt::Term & base, const smt::TermVec & preds_nxt);
   
+  // promote again after op_abstractor_ is needed
   std::unique_ptr<OpAbstractor> op_abstractor_;
+  void SygusPdr::build_ts_related_info();
+  smt::Term next_curr_replace(const smt::Term & in) const;
 }; // class SygusPdr
 
 }  // namespace pono
