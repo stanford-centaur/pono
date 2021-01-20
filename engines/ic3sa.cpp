@@ -74,6 +74,7 @@ IC3SA::IC3SA(const Property & p,
              const smt::SmtSolver & solver,
              PonoOptions opt)
     : super(p, ts, solver, opt),
+      f_unroller_(ts_),
       boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;

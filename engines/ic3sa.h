@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include "core/functional_unroller.h"
 #include "engines/ic3.h"
 
 namespace pono {
@@ -47,6 +48,8 @@ class IC3SA : public IC3
   typedef IC3 super;
 
  protected:
+  FunctionalUnroller f_unroller_;
+
   smt::UnorderedTermSet predset_;  ///< stores all predicates in abstraction
 
   // TODO remove this and generate it on the fly
