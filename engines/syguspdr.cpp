@@ -112,7 +112,8 @@ void SygusPdr::initialize()
     throw PonoException("SyGuS PDR requires IC3 inductive generalization");
   if (!options_.promote_inputvars_)
     throw PonoException("SyGuS PDR requires promoting input variables to state variables");
-
+  if (options_.assume_prop_)
+    throw PonoException("SyGuS PDR requires not to assume property in the transition relations");
   options_.ic3_unsatcore_gen_ = false;
 
   if (initialized_)
@@ -794,50 +795,9 @@ RefineResult SygusPdr::refine() {
 // ------------------------------------------------------------------
 //  May Block 
 
-/**
- * Priority queue of proof obligations inspired by open-source ic3ia
- * implementation
- */
-class MayProofGoalQueue
-{
- public:
-  ~MayProofGoalQueue() { clear(); }
-
-  void clear()
-  {
-    for (auto p : store_) {
-      delete p;
-    }
-    store_.clear();
-    while (!queue_.empty()) {
-      queue_.pop();
-    }
-  }
-
-  void new_proof_goal(const IC3Formula & c,
-                      unsigned int t,
-                      const ProofGoal * n = NULL)
-  {
-    ProofGoal * pg = new ProofGoal(c, t, n);
-    queue_.push(pg);
-    store_.push_back(pg);
-  }
-
-  ProofGoal * top() { return queue_.top(); }
-  void pop() { queue_.pop(); }
-  bool empty() const { return queue_.empty(); }
-
- private:
-  typedef std::
-      priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
-          Queue;
-  Queue queue_;
-  std::vector<ProofGoal *> store_;
-};
-
 bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block, unsigned fidx) {
   assert(!solver_context_);
-  MayProofGoalQueue proof_goals;
+  ProofGoalQueue proof_goals;
   proof_goals.new_proof_goal(to_block, fidx, nullptr);
   while(!proof_goals.empty()) {
     const ProofGoal * pg = proof_goals.top();
