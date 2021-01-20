@@ -23,7 +23,7 @@ using namespace smt;
 
 namespace pono {
 
-//#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)
@@ -46,6 +46,32 @@ void CustomFunctionalTransitionSystem::make_nextvar_for_inputs() {
     name_term(next_inputvar->to_string(), next_inputvar);
   }
 }
+
+void CustomFunctionalTransitionSystem::convert_free_state_to_input() {
+  // this is what happened in make_statevar
+  /*
+  statevars_.insert(cv);
+  next_statevars_.insert(nv);
+  next_map_[cv] = nv;
+  curr_map_[nv] = cv;
+  // automatically include in named_terms
+  name_term(cv->to_string(), cv);
+  name_term(nv->to_string(), nv);
+  */
+  auto pos = statevars_.begin();
+  while(pos != statevars_.end()) {
+    if (state_updates_.find(*pos) != state_updates_.end()) {
+      ++pos;
+      continue;
+    } // else
+    inputvars_.insert(*pos);
+    auto nv_pos = next_map_.find(*pos);
+    assert(nv_pos != next_map_.end());
+    next_inputvars_.emplace(*pos,nv_pos->second);
+    pos = statevars_.erase(pos); // and we don't need to ++pos
+    next_statevars_.erase(nv_pos->second);
+  } // end while
+} // end convert_free_state_to_input
 
 // ----------------------------------------------------------------
 // Helper functions
@@ -123,9 +149,11 @@ void SygusPdr::initialize()
   super::initialize(); // I don't need the trans->prop thing
 
   bad_next_ = ts_.next(bad_); // bad is only available after parent's init
+  // custom_ts_ is not ready at this point
   { // add P to F[1]
     auto prop = smart_not(bad_);
-    SygusPdr::constrain_frame(1, IC3Formula(prop, {prop}, true), true);
+    // custom_ts_ is not ready yet
+    IC3Base::constrain_frame(1, IC3Formula(prop, {prop}, true), true);
     // this may be redundant given the base ic3 use trans_label-> prop
   }
 
@@ -156,6 +184,7 @@ void SygusPdr::initialize()
     custom_ts_ = 
       new CustomFunctionalTransitionSystem(ts_, tmp_translator );
     custom_ts_->make_nextvar_for_inputs();
+    custom_ts_->convert_free_state_to_input();
   }
 
   // has_assumption
@@ -232,7 +261,7 @@ void SygusPdr::initialize()
 } // initialize
 
 
-void SygusPdr::check_ts() const
+void SygusPdr::check_ts() const // custom_ts_ is not ready at this point
 {
   // check if there are arrays or uninterpreted sorts and fail if so
   if (!ts_.is_functional())
@@ -249,13 +278,6 @@ void SygusPdr::check_ts() const
             "SyGuS PDR does not support uninterpreted sorts yet.");
       }
     }
-  }
-  //check each state has a next function
-  for (const auto & sv : ts_.statevars() ) {
-    const auto & update = ts_.state_updates();
-    if (update.find(sv) == update.end())
-      throw PonoException("State var `" + sv->to_string() +"` has no next function assigned."
-        " Will mess up SyGuS PDR's internal logic." );
   }
 } // check_ts
 
@@ -298,11 +320,6 @@ IC3Formula SygusPdr::inductive_generalization(
   assert(model_pos != model2cube_.end());
   syntax_analysis::IC3FormulaModel * post_model = model_pos->second;
 
-  syntax_analysis::PredConstructor pred_collector_(
-    to_next_func_, solver_,
-    post_model, // IC3FormulaModel * cex 
-    setup_cex_info(post_model)
-  );
 
   Term Init_prime = custom_ts_->next(ts_.init());
   const Term & cex = c.term;
@@ -333,6 +350,13 @@ IC3Formula SygusPdr::inductive_generalization(
         F_T_not_cex,
         Init_prime);
 
+    syntax_analysis::PredConstructor pred_collector_(
+      to_next_func_, solver_,
+      post_model, // IC3FormulaModel * cex 
+      setup_cex_info(post_model)
+    );
+
+    uint64_t old_term_count = pred_collector_.term_summary();
     { // step 1 - check if the pred are good if not construct the model
       const auto & pred_nxt_ = pred_collector_.GetAllPredNext();
       push_solver_context();
@@ -379,6 +403,10 @@ IC3Formula SygusPdr::inductive_generalization(
         D(3, "Try recursive block the above model.");
         if(try_recursive_block_goal(pre_formula, i-1))
           continue; // see if we have next that we may need to block
+        if(pred_collector_.term_summary() > old_term_count) {
+          D(3, "though not blocked, we got {} > {} terms", pred_collector_.term_summary(), old_term_count);
+          continue;
+        }
       } // if we failed at init, then we will anyway need to 
       // propose new terms
       D(3, "Cannot block MAY-block model {}", pre_model->to_string());
@@ -399,18 +427,19 @@ IC3Formula SygusPdr::inductive_generalization(
 
       // it has loop inside
       // and it must succeed because eventually we will end with bit-level things
+    } else { // if sufficient
+      if (pre_full_model)
+        delete pre_full_model;
+
+      // at this point we have enough preds
+      // reduce the preds
+      return {select_predicates(
+          base,
+          pred_collector_.GetAllPredNext()
+        )};
     }
   }while(insufficient_pred);
-
-  if (pre_full_model)
-    delete pre_full_model;
-
-  // at this point we have enough preds
-  // reduce the preds
-  return {select_predicates(
-      base,
-      pred_collector_.GetAllPredNext()
-    )};
+  assert(false); // should not be reachable
 } // inductive_generalization
 
 IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_nxt) {
@@ -571,7 +600,7 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info (syntax_analysis::IC3Form
 IC3Formula SygusPdr::get_initial_bad_model() {
   Term conj_full;
   TermVec conjvec;
-  for (const auto & v : ts_.statevars()) {
+  for (const auto & v : custom_ts_->statevars()) {
     Term val = solver_->get_value(v);
     auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
     conjvec.push_back(eq);
@@ -582,7 +611,7 @@ IC3Formula SygusPdr::get_initial_bad_model() {
       conj_full = eq;
   }
 
-  for (const auto & v : ts_.inputvars()) {
+  for (const auto & v : custom_ts_->inputvars()) {
     Term val = solver_->get_value(v);
     auto eq = solver_->make_term(Op(PrimOp::Equal), v,val );
     conjvec.push_back(eq);
@@ -646,9 +675,9 @@ std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3F
   post_model->get_varset(varset);
   TermVec pre_var;
   for (const auto & v : varset) {
-    if (IN(v,ts_.statevars())) {
-      auto update_pos = ts_.state_updates().find(v);
-      assert( update_pos != ts_.state_updates().end() );
+    if (IN(v,custom_ts_->statevars())) {
+      auto update_pos = custom_ts_->state_updates().find(v);
+      assert( update_pos != custom_ts_->state_updates().end() );
       pre_var.push_back(update_pos->second);
     } // if it is input then we should not need
   }
@@ -1252,7 +1281,9 @@ bool SygusPdr::rel_ind_check(size_t i,
   
     solver_->assert_formula(init_label_);
     solver_->assert_formula(c.term);
+    solver_->dump_smt2("/home/hongce/debug.smt2");
     r = check_sat();
+    std::cout << "Blocking : " << c.term->to_string() <<std::endl;
     if (r.is_sat()) {
       // get model at 0
       out.term = solver_true_;
@@ -1389,9 +1420,9 @@ void SygusPdr::constrain_frame(size_t i, const IC3Formula & constraint,
   if (has_assumptions || options_.sygus_use_operator_abstraction_ == 1) {
     // options_.sygus_use_operator_abstraction_ == 2 will not introduce new inputs
     // that must be kept
-    assert(ts_.no_next(constraint.term));
+    assert(custom_ts_->no_next(constraint.term));
   } else
-    assert(ts_.only_curr(constraint.term));
+    assert(custom_ts_->only_curr(constraint.term));
 
   if (new_constraint) {
     for (size_t j = 1; j <= i; ++j) {
@@ -1416,7 +1447,7 @@ void SygusPdr::constrain_frame(size_t i, const IC3Formula & constraint,
 // Require the capability to reset solver
 // -----------------------------------------------------------------
 
-void SygusPdr::reset_solver()
+void SygusPdr::reset_solver() // okay to use ts_.init/trans
 {
   assert(solver_context_ == 0);
 
@@ -1526,9 +1557,9 @@ void SygusPdr::reconstruct_trace(const ProofGoal * pg, TermVec & out)
   while (pg) {
     out.push_back(pg->target.term);
     if (!has_assumptions && !options_.sygus_use_operator_abstraction_)
-      assert(ts_.only_curr(out.back()));
+      assert(custom_ts_->only_curr(out.back()));
     else
-      assert(ts_.no_next(out.back()));
+      assert(custom_ts_->no_next(out.back()));
     pg = pg->next;
   }
 

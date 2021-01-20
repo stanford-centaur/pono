@@ -73,6 +73,7 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre, IC3FormulaModel * p
           return nterms;
         // else
         varset_info.state.stage = PerVarsetInfo::state_t::EXTRACTBITS;
+        // and will continue to the next stage
       }
     case PerVarsetInfo::state_t::EXTRACTBITS:
       return term_learner.vars_extract_bit_level(post, varset_info);

@@ -108,44 +108,17 @@ bool static extract_decimal_width(const std::string & s,
 
   decimal = s.substr(5,space_idx-5);
   width = s.substr(space_idx+1,rpara_idx-(space_idx+1));
+  assert(!width.empty());
   return true;
 }
 
-
-static void mul2(std::vector<char> &  v) {
-  char carry = 0;
-  for (auto pos = v.begin(); pos != v.end(); ++pos) {
-    *pos = (*pos) * 2 + carry;
-    if (*pos >= 10) {
-      carry = *pos / 10;
-      *pos = *pos % 10;
-    } else
-      carry = 0;
-  }
-  if (carry)
-    v.push_back(carry);
-}
-
-static void add1(std::vector<char> &  v) {
-  char carry = 1;
-  for (auto pos = v.begin(); pos != v.end(); ++pos) {
-    *pos = *pos + carry;
-    if (*pos >= 10) {
-      carry = *pos / 10;
-      *pos = *pos % 10;
-    } else
-      carry = 0;
-  }
-  if (carry)
-    v.push_back(carry);
-}
 
 static std::string get_all_one(unsigned width) {
   std::vector<char> out = {1};
 
   for (unsigned idx = 1; idx < width; ++idx) {
-    mul2(out);
-    add1(out);
+    syntax_analysis::mul2(out);
+    syntax_analysis::add1(out);
   }
 
   std::string ret;
@@ -160,7 +133,6 @@ bool static convert_to_boolean_and_check(
 
   static std::unordered_map<unsigned, std::string> width2fullones;
 
-  auto s = syntax_analysis::IntToStrCustomBase(syntax_analysis::StrToULongLong(decimal,10), 2, false);
   if (!_0or1) {
     for (auto c : decimal)
       if (c != '0')
@@ -191,8 +163,10 @@ static inline bool is_all_zero(const std::string & s)  {
     return true;
   } // else
   std::string decimal, width;
-  assert(extract_decimal_width(s, decimal, width));
-  return convert_to_boolean_and_check(decimal, width, false);  
+  bool conv_succ = extract_decimal_width(s, decimal, width);
+  assert(conv_succ);
+
+  return convert_to_boolean_and_check(decimal, width, false);
 }
 
 /* Internal Function */
@@ -213,7 +187,9 @@ static inline bool is_all_one(const std::string & s, uint64_t w)  {
     return true;  
   }
   std::string decimal, width;
-  assert(extract_decimal_width(s, decimal, width));
+  bool conv_succ = extract_decimal_width(s, decimal, width);
+  assert(conv_succ);
+
   return convert_to_boolean_and_check(decimal, width, true);
 }
 

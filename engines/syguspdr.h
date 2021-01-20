@@ -43,6 +43,7 @@ class CustomFunctionalTransitionSystem : public FunctionalTransitionSystem {
   CustomFunctionalTransitionSystem(const TransitionSystem & other_ts,
                              smt::TermTranslator & tt) : FunctionalTransitionSystem(other_ts, tt) {  }
   void make_nextvar_for_inputs();
+  void convert_free_state_to_input();
 
   // curr_var -> replace by var
   smt::Term to_next_func(const smt::Term & term) { 

@@ -629,6 +629,7 @@ unsigned TermLearner::same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_in
     for (auto const & c : width_info_pair.second.constants) {
       auto v = eval_val(c->to_string());
       eq_class[v].old.push_back(c);
+      eq_class[v].noval.push_back(c);
     }
 
     // for each pair, do a replacement and see if new terms can be added
@@ -654,7 +655,6 @@ unsigned TermLearner::same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_in
       } // old -> new replacement
 
       // new -> new replacement
-
 #if 0
       for( unsigned idx1 = 0; idx1 < tvec_new.size(); ++ idx1) {
         for (unsigned idx2 = idx1 + 1; idx2 < tvec_new.size(); ++ idx2) {
@@ -741,7 +741,7 @@ unsigned TermLearner::replace_hierachically(
   RD1(3, "  [ReplaceInHierarchy] {} --> {} ", orig->to_string(), repl->to_string());
   unsigned orig_score = score_(orig), repl_score = score_(repl);
   RD1(3, "  [ReplaceInHierarchy] score {} --> {} ", orig_score, repl_score);
-  if (repl_score >= orig_score * syntactic_score_factor + syntactic_score_delta) {
+  if (repl_score > orig_score * syntactic_score_factor + syntactic_score_delta) {
     RD1(3, "  [ReplaceInHierarchy] skipped. ");
     return 0;
   }

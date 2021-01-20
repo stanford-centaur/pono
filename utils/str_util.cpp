@@ -16,6 +16,7 @@
 
 #include "str_util.h" 
 
+#include <iostream>
 #include <assert.h>
 #include <sstream>
 
@@ -137,6 +138,35 @@ bool StrStartsWith(const std::string& str, const std::string& prefix) {
   return str.size() >= prefix.size() &&
          0 == str.compare(0, prefix.size(), prefix);
 }
+
+void mul2(std::vector<char> &  v) {
+  char carry = 0;
+  for (auto pos = v.begin(); pos != v.end(); ++pos) {
+    *pos = (*pos) * 2 + carry;
+    if (*pos >= 10) {
+      carry = *pos / 10;
+      *pos = *pos % 10;
+    } else
+      carry = 0;
+  }
+  if (carry)
+    v.push_back(carry);
+}
+
+void add1(std::vector<char> &  v) {
+  char carry = 1;
+  for (auto pos = v.begin(); pos != v.end(); ++pos) {
+    *pos = *pos + carry;
+    if (*pos >= 10) {
+      carry = *pos / 10;
+      *pos = *pos % 10;
+    } else
+      carry = 0;
+  }
+  if (carry)
+    v.push_back(carry);
+}
+
 
 
 } // namespace syntax_analysis

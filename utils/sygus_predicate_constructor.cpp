@@ -100,6 +100,11 @@ smt::Term PredConstructor::smart_LE(const smt::Term &l, const  smt::Term & r) {
 }
 
 
+uint64_t PredConstructor::term_summary() const {
+  return per_cex_info_.varset_info.terms_strings.size();
+}
+
+
 #define TERM_TABLE_DEBUG_LVL 0
 void PredConstructor::TermsDumping() const {
 #if TERM_TABLE_DEBUG_LVL >= 1

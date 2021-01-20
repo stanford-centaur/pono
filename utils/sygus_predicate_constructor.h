@@ -70,6 +70,8 @@ public:
   
   const smt::TermVec & GetAllPredNext() const { return per_cex_info_.predicates_nxt; }
 
+  uint64_t term_summary() const;
+
 }; // PredConstructor
 
 } // namespace syntax_analysis

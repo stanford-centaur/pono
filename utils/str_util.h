@@ -66,7 +66,13 @@ bool StrEndsWith(const std::string& str, const std::string& suffix);
 
 /// Finds out if str starts with prefix
 bool StrStartsWith(const std::string& str, const std::string& prefix);
- 
+
+/// multi-precision number : multiply by 2
+void mul2(std::vector<char> &  v); 
+
+/// multi-precision number : add by 1
+void add1(std::vector<char> &  v);
+
 } // namespace syntax_analysis
 
 } // namespace pono

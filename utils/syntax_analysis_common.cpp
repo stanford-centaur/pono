@@ -46,40 +46,13 @@ bool static extract_decimal_width(const std::string & s,
   return true;
 }
 
-void mul2(std::vector<char> &  v) {
-  char carry = 0;
-  for (auto pos = v.begin(); pos != v.end(); ++pos) {
-    *pos = (*pos) * 2 + carry;
-    if (*pos >= 10) {
-      carry = *pos / 10;
-      *pos = *pos % 10;
-    } else
-      carry = 0;
-  }
-  if (carry)
-    v.push_back(carry);
-}
-
-void add1(std::vector<char> &  v) {
-  char carry = 1;
-  for (auto pos = v.begin(); pos != v.end(); ++pos) {
-    *pos = *pos + carry;
-    if (*pos >= 10) {
-      carry = *pos / 10;
-      *pos = *pos % 10;
-    } else
-      carry = 0;
-  }
-  if (carry)
-    v.push_back(carry);
-}
 
 std::string convert_bin_str_to_decimal(const std::string & in) {
   std::vector<char> out = {0};
   for (auto pos = in.begin(); pos != in.end(); ++pos) {
-    mul2(out); // initially it is 0 so okay
+    syntax_analysis::mul2(out); // initially it is 0 so okay
     if (*pos == '1')
-      add1(out);
+      syntax_analysis::add1(out);
   }
   std::string ret;
   for (auto pos = out.rbegin(); pos != out.rend(); ++pos) {
@@ -99,7 +72,8 @@ eval_val::eval_val(const std::string & val) {
 
   if(val.find("#b") != 0) { // then it is (_ bvX width)
     std::string width; // width is no use
-    assert(extract_decimal_width(val, sv, width));
+    bool succ = extract_decimal_width(val, sv, width);
+    assert(succ);
     return;
   }
   
