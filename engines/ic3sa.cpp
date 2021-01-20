@@ -684,7 +684,7 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
     } else if (ts_.is_next_var(t)
                && state_updates.find(ts_.curr(t)) != state_updates.end()) {
       to_visit_.push_back(state_updates.at(ts_.curr(t)));
-    } else if (ts_.is_curr_var(t)) {
+    } else if (t->is_symbolic_const()) {
       free_vars.insert(t);
 
       // need to add any constraints that this variable is involved in
@@ -705,9 +705,9 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
   }
 
   for (const auto & fv : free_vars) {
-    // not expecting any next state vars or inputs
-    assert(ts_.is_curr_var(fv));
-    projection.insert(fv);
+    if (ts_.is_curr_var(fv)) {
+      projection.insert(fv);
+    }
   }
 }
 
