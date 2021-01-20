@@ -296,8 +296,11 @@ RefineResult IC3SA::refine()
       m = solver_->substitute(m, next_updates);
 
       axiom = solver_->make_term(Not, m);
-      assert(ts_.no_next(axiom));
-      ts_.add_constraint(axiom);
+      // NOTE can't be certain that there's no next in the axiom
+      // TODO figure out how to handle this correctly
+      //      for now just removing assertion but still adding the terms
+      // assert(ts_.no_next(axiom));
+      // ts_.add_constraint(axiom);
       logger.log(2, "IC3SA::refine learning axiom: {}", axiom);
 
       // add all state variables to projection set
