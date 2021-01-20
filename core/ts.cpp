@@ -262,7 +262,8 @@ void TransitionSystem::add_constraint(const Term & constraint,
 
 void TransitionSystem::name_term(const string name, const Term & t)
 {
-  if (named_terms_.find(name) != named_terms_.end()) {
+  auto it = named_terms_.find(name);
+  if (it != named_terms_.end() && t != it->second) {
     throw PonoException("Name " + name + " has already been used.");
   }
   named_terms_[name] = t;
@@ -383,6 +384,19 @@ void TransitionSystem::add_inputvar(const Term & v)
   inputvars_.insert(v);
   // automatically include in named_terms
   name_term(v->to_string(), v);
+}
+
+Term TransitionSystem::promote_inputvar(Term iv)
+{
+  assert(iv);
+  size_t num_erased = inputvars_.erase(iv);
+  if (!num_erased) {
+    throw PonoException("Cannot promote non-inputvars: " + iv->to_string());
+  }
+
+  Term nv = solver_->make_symbol(iv->to_string() + ".next", iv->get_sort());
+  add_statevar(iv, nv);
+  return nv;
 }
 
 // term building methods -- forwards to SmtSolver solver_
