@@ -839,7 +839,6 @@ bool IC3Base::check_intersects_initial(const Term & t)
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
-  assert(!solver_context_);
   // TODO: there's a tricky issue here. The reducer doesn't have the label
   // assumptions so we can't use init_label_ here. need to come up with a
   // better interface. Should we add label assumptions to reducer?
