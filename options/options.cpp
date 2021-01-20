@@ -243,12 +243,11 @@ const option::Descriptor usage[] = {
     "",
     "no-ic3-unsatcore-gen",
     Arg::None,
-    "  --no-ic3-unsatcore-gen \tDisable unsat core generalization during "
-    "relative "
-    " induction check. That extra generalization helps several IC3 variants "
-    " but also runs the risk of myopic over-generalization. Some IC3 variants "
-    " have better inductive generalization and do better with this "
-    "disabled. " },
+    "  --no-ic3-unsatcore-gen \tDisable unsat core generalization during"
+    " relative induction check. That extra generalization helps several IC3"
+    " variants but also runs the risk of myopic over-generalization. Some IC3"
+    " variants have better inductive generalization and do better with this"
+    " option." },
   { MBIC3_INDGEN_MODE,
     0,
     "",
