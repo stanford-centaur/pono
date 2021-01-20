@@ -31,7 +31,7 @@
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "modifiers/control_signals.h"
-#include "modifiers/mod_init_prop.h"
+#include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
 #include "modifiers/static_coi.h"
 #include "options/options.h"
@@ -46,17 +46,80 @@ using namespace pono;
 using namespace smt;
 using namespace std;
 
-
 ProverResult check_prop(PonoOptions pono_options,
-                        Property & p,
-                        const TransitionSystem & ts,
+                        Term & prop,
+                        TransitionSystem & ts,
                         const SmtSolver & s,
                         std::vector<UnorderedTermMap> & cex)
 {
-  logger.log(1, "Solving property: {}", p.name());
+  // get property name before it is rewritten
+  const string prop_name = ts.get_name(prop);
 
+  logger.log(1, "Solving property: {}", prop_name);
   logger.log(3, "INIT:\n{}", ts.init());
   logger.log(3, "TRANS:\n{}", ts.trans());
+
+  // modify the transition system and property based on options
+  if (!pono_options.clock_name_.empty()) {
+    Term clock_symbol = ts.lookup(pono_options.clock_name_);
+    toggle_clock(ts, clock_symbol);
+  }
+  if (!pono_options.reset_name_.empty()) {
+    std::string reset_name = pono_options.reset_name_;
+    bool negative_reset = false;
+    if (reset_name.at(0) == '~') {
+      reset_name = reset_name.substr(1, reset_name.length() - 1);
+      negative_reset = true;
+    }
+    Term reset_symbol = ts.lookup(reset_name);
+    if (negative_reset) {
+      SortKind sk = reset_symbol->get_sort()->get_sort_kind();
+      reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
+                                : s->make_term(Not, reset_symbol);
+    }
+    Term reset_done = add_reset_seq(ts, reset_symbol, pono_options.reset_bnd_);
+    // guard the property with reset_done
+    prop = ts.solver()->make_term(Implies, reset_done, prop);
+  }
+
+  if (pono_options.pseudo_init_prop_) {
+    ts = pseudo_init_and_prop(ts, prop);
+  }
+
+  if (pono_options.static_coi_) {
+    /* Compute the set of state/input variables related to the
+       bad-state property. Based on that information, rebuild the
+       transition relation of the transition system. */
+    StaticConeOfInfluence coi(ts, { prop }, pono_options.verbosity_);
+  }
+
+  if (pono_options.promote_inputvars_) {
+    // this is a bit tricky. because promote_inputvar
+    // modifies inputvars_, should copy the set first
+    UnorderedTermSet inputvars = ts.inputvars();
+    for (const auto & iv : inputvars) {
+      ts.promote_inputvar(iv);
+    }
+    assert(!ts.inputvars().size());
+  }
+
+  if (!ts.only_curr(prop)) {
+    logger.log(1,
+               "Got next state or input variables in property. "
+               "Generating a monitor state.");
+    prop = add_prop_monitor(ts, prop);
+  }
+
+  if (pono_options.assume_prop_) {
+    // NOTE: crucial that pseudo_init_prop and add_prop_monitor passes are
+    // before this pass. Can't assume the non-delayed prop and also
+    // delay it
+    prop_in_trans(ts, prop);
+  }
+
+  Property p(s, prop, prop_name);
+
+  // end modification of the transition system and property
 
   Engine eng = pono_options.engine_;
 
@@ -85,7 +148,7 @@ ProverResult check_prop(PonoOptions pono_options,
     r = prover->check_until(pono_options.bound_);
   }
 
-  if (r == FALSE && !pono_options.no_witness_) {
+  if (r == FALSE && pono_options.witness_) {
     bool success = prover->witness(cex);
     if (!success) {
       logger.log(
@@ -162,7 +225,9 @@ int main(int argc, char ** argv)
 #endif
   }
 
+#ifdef NDEBUG
   try {
+#endif
     // no logging by default
     // could create an option for logging solvers in the future
 
@@ -177,14 +242,14 @@ int main(int argc, char ** argv)
 
     // limitations with COI
     if (pono_options.static_coi_) {
-      if (!pono_options.no_witness_) {
+      if (pono_options.witness_) {
         logger.log(
             0,
             "Warning: disabling witness production. Temporary restriction -- "
             "Cannot produce witness with option --static-coi");
-        pono_options.no_witness_ = true;
+        pono_options.witness_ = false;
       }
-      if (pono_options.mod_init_prop_) {
+      if (pono_options.pseudo_init_prop_) {
         // Issue explained here:
         // https://github.com/upscale-project/pono/pull/160 will be resolved
         // once state variables removed by COI are removed from init then should
@@ -214,59 +279,9 @@ int main(int argc, char ** argv)
       }
 
       Term prop = propvec[pono_options.prop_idx_];
-      // get property name before it is rewritten
-      const string prop_name = fts.get_name(prop);
-
-      if (!pono_options.clock_name_.empty()) {
-        Term clock_symbol = fts.lookup(pono_options.clock_name_);
-        toggle_clock(fts, clock_symbol);
-      }
-      if (!pono_options.reset_name_.empty()) {
-        std::string reset_name = pono_options.reset_name_;
-        bool negative_reset = false;
-        if (reset_name.at(0) == '~') {
-          reset_name = reset_name.substr(1, reset_name.length() - 1);
-          negative_reset = true;
-        }
-        Term reset_symbol = fts.lookup(reset_name);
-        if (negative_reset) {
-          SortKind sk = reset_symbol->get_sort()->get_sort_kind();
-          reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
-                                    : s->make_term(Not, reset_symbol);
-        }
-        Term reset_done =
-            add_reset_seq(fts, reset_symbol, pono_options.reset_bnd_);
-        // guard the property with reset_done
-        prop = fts.solver()->make_term(Implies, reset_done, prop);
-      }
-
-      if (pono_options.mod_init_prop_) {
-        prop = modify_init_and_prop(fts, prop);
-      }
-
-      if (pono_options.static_coi_) {
-        /* Compute the set of state/input variables related to the
-           bad-state property. Based on that information, rebuild the
-           transition relation of the transition system. */
-        StaticConeOfInfluence coi(fts, { prop }, pono_options.verbosity_);
-      }
-
-      if (!fts.only_curr(prop)) {
-        logger.log(1, "Got next state or input variables in property. "
-                   "Generating a monitor state.");
-        prop = add_prop_monitor(fts, prop);
-      }
-
-      if (pono_options.assume_prop_) {
-        // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
-        // before this pass can't assume the non-delayed prop and also
-        // delay it
-        prop_in_trans(fts, prop);
-      }
 
       vector<UnorderedTermMap> cex;
-      Property p(s, prop, prop_name);
-      res = check_prop(pono_options, p, fts, s, cex);
+      res = check_prop(pono_options, prop, fts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -274,7 +289,7 @@ int main(int argc, char ** argv)
       if (res == FALSE) {
         cout << "sat" << endl;
         cout << "b" << pono_options.prop_idx_ << endl;
-        assert(!pono_options.no_witness_ || !cex.size());
+        assert(pono_options.witness_ || !cex.size());
         if (cex.size()) {
           print_witness_btor(btor_enc, cex);
           if (!pono_options.vcd_name_.empty()) {
@@ -306,50 +321,9 @@ int main(int argc, char ** argv)
 
       Term prop = propvec[pono_options.prop_idx_];
       // get property name before it is rewritten
-      const string prop_name = rts.get_name(prop);
 
-      if (!pono_options.clock_name_.empty()) {
-        Term clock_symbol = rts.lookup(pono_options.clock_name_);
-        toggle_clock(rts, clock_symbol);
-      }
-      if (!pono_options.reset_name_.empty()) {
-        Term reset_symbol = rts.lookup(pono_options.reset_name_);
-        Term reset_done =
-            add_reset_seq(rts, reset_symbol, pono_options.reset_bnd_);
-        // guard the property with reset_done
-        prop = rts.solver()->make_term(Implies, reset_done, prop);
-      }
-
-      if (pono_options.mod_init_prop_) {
-        prop = modify_init_and_prop(rts, prop);
-      }
-
-      if (pono_options.static_coi_) {
-        // NOTE: currently only supports FunctionalTransitionSystem
-        // but let StaticConeOfInfluence throw the exception
-        // and this will change in the future
-        /* Compute the set of state/input variables related to the
-           bad-state property. Based on that information, rebuild the
-           transition relation of the transition system. */
-        StaticConeOfInfluence coi(rts, { prop }, pono_options.verbosity_);
-      }
-
-      if (!rts.only_curr(prop)) {
-        logger.log(1, "Got next state or input variables in property. "
-                   "Generating a monitor state.");
-        prop = add_prop_monitor(rts, prop);
-      }
-
-      if (pono_options.assume_prop_) {
-        // NOTE: crucial that mod_init_prop and add_prop_monitor passes are
-        // before this pass can't assume the non-delayed prop and also
-        // delay it
-        prop_in_trans(rts, prop);
-      }
-
-      Property p(s, prop, prop_name);
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, p, rts, s, cex);
+      res = check_prop(pono_options, prop, rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -357,14 +331,15 @@ int main(int argc, char ** argv)
           0, "Property {} is {}", pono_options.prop_idx_, to_string(res));
 
       if (res == FALSE) {
-        assert(!pono_options.no_witness_ || cex.size() == 0);
+        cout << "sat" << endl;
+        assert(pono_options.witness_ || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
           for (auto elem : cex[t]) {
             cout << "\t" << elem.first << " : " << elem.second << endl;
           }
         }
-        assert(!pono_options.no_witness_ || pono_options.vcd_name_.empty());
+        assert(pono_options.witness_ || pono_options.vcd_name_.empty());
         if (!pono_options.vcd_name_.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
           vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
@@ -379,6 +354,7 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
+#ifdef NDEBUG
   }
   catch (PonoException & ce) {
     cout << ce.what() << endl;
@@ -399,6 +375,7 @@ int main(int argc, char ** argv)
     cout << "b" << pono_options.prop_idx_ << endl;
     res = ProverResult::ERROR;
   }
+#endif
 
   if (!pono_options.profiling_log_filename_.empty()) {
 #ifdef WITH_PROFILING

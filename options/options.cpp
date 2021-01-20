@@ -36,7 +36,7 @@ enum optionIndex
   VERBOSITY,
   RANDOM_SEED,
   VCDNAME,
-  NOWITNESS,
+  WITNESS,
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
   STATICCOI,
@@ -52,9 +52,11 @@ enum optionIndex
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
-  MOD_INIT_PROP,
+  PSEUDO_INIT_PROP,
   NO_ASSUME_PROP,
   CEGP_ABS_VALS,
+  CEGP_ABS_VALS_CUTOFF,
+  PROMOTE_INPUTVARS,
   SYGUS_OP_LVL
 };
 
@@ -142,12 +144,12 @@ const option::Descriptor usage[] = {
     "smt-solver",
     Arg::NonEmpty,
     "  --smt-solver \tSMT Solver to use: btor or msat or cvc4." },
-  { NOWITNESS,
+  { WITNESS,
     0,
     "",
-    "no-witness",
+    "witness",
     Arg::None,
-    "  --no-witness \tDisable printing of witness." },
+    "  --witness \tPrint witness if the property is false." },
   { CEGPROPHARR,
     0,
     "",
@@ -251,13 +253,14 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --profiling-log \tName of logfile for profiling output"
     " (requires build with linked profiling library 'gperftools')." },
-  { MOD_INIT_PROP,
+  { PSEUDO_INIT_PROP,
     0,
     "",
-    "mod-init-prop",
+    "pseudo-init-prop",
     Arg::None,
-    "  --mod-init-prop \tReplace init and prop with state variables -- can "
-    "extend trace by up to two steps. Recommended for use with ic3ia." },
+    "  --pseudo-init-prop \tReplace init and prop with state variables -- can "
+    "extend trace by up to two steps. Recommended for use with ic3ia. "
+    "Important note: will promote system to be relational" },
   { NO_ASSUME_PROP,
     0,
     "",
@@ -272,6 +275,19 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --cegp-abs-vals \tabstract values in ceg-prophecy-arrays (only "
     "supported for IC3IA)" },
+  { CEGP_ABS_VALS_CUTOFF,
+    0,
+    "",
+    "cegp-abs-vals-cutoff",
+    Arg::Numeric,
+    "  --cegp-abs-vals-cutoff \tcutoff value for what to abstract - must be "
+    "positive (default: 100)" },
+  { PROMOTE_INPUTVARS,
+    0,
+    "",
+    "promote-inputvars",
+    Arg::None,
+    "  --promote-inputvars \tpromote all input variables to state variables" },
   { SYGUS_OP_LVL,
       0,
       "",
@@ -347,9 +363,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case RANDOM_SEED: random_seed_ = atoi(opt.arg); break;
         case VCDNAME:
           vcd_name_ = opt.arg;
-          if (no_witness_)
-            throw PonoException(
-                "Options '--vcd' and '--no-witness' are incompatible.");
+          witness_ = true;  // implicitly enabling witness
           break;
         case SMT_SOLVER: {
           if (opt.arg == std::string("btor")) {
@@ -364,12 +378,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           }
           break;
         }
-        case NOWITNESS:
-          no_witness_ = true;
-          if (!vcd_name_.empty())
-            throw PonoException(
-                "Options '--vcd' and '--no-witness' are incompatible.");
-          break;
+        case WITNESS: witness_ = true; break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case STATICCOI: static_coi_ = true; break;
@@ -397,9 +406,11 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           profiling_log_filename_ = opt.arg;
 #endif
           break;
-        case MOD_INIT_PROP: mod_init_prop_ = true; break;
+        case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
         case NO_ASSUME_PROP: assume_prop_ = false; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
+        case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
+        case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case SYGUS_OP_LVL: sygus_use_operator_abstraction_ = atoi(opt.arg); break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
