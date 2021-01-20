@@ -83,7 +83,8 @@ class PonoOptions
         pseudo_init_prop_(default_pseudo_init_prop_),
         assume_prop_(default_assume_prop_),
         cegp_abs_vals_(default_cegp_abs_vals_),
-        cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_)
+        cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
+        promote_inputvars_(default_promote_inputvars_)
   {
   }
 
@@ -125,6 +126,7 @@ class PonoOptions
   bool assume_prop_;    ///< assume property in pre-state
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
   size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
+  bool promote_inputvars_;
 
  private:
   // Default options
@@ -153,6 +155,7 @@ class PonoOptions
   static const bool default_assume_prop_ = true;
   static const bool default_cegp_abs_vals_ = false;
   static const size_t default_cegp_abs_vals_cutoff_ = 100;
+  static const bool default_promote_inputvars_ = false;
 };
 
 }  // namespace pono
