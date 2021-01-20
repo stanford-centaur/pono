@@ -52,7 +52,7 @@ enum optionIndex
   IC3_FUNCTIONAL_PREIMAGE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
-  MOD_INIT_PROP,
+  PSEUDO_INIT_PROP,
   NO_ASSUME_PROP,
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
@@ -252,13 +252,14 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --profiling-log \tName of logfile for profiling output"
     " (requires build with linked profiling library 'gperftools')." },
-  { MOD_INIT_PROP,
+  { PSEUDO_INIT_PROP,
     0,
     "",
-    "mod-init-prop",
+    "pseudo-init-prop",
     Arg::None,
-    "  --mod-init-prop \tReplace init and prop with state variables -- can "
-    "extend trace by up to two steps. Recommended for use with ic3ia." },
+    "  --pseudo-init-prop \tReplace init and prop with state variables -- can "
+    "extend trace by up to two steps. Recommended for use with ic3ia. "
+    "Important note: will promote system to be relational" },
   { NO_ASSUME_PROP,
     0,
     "",
@@ -397,7 +398,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           profiling_log_filename_ = opt.arg;
 #endif
           break;
-        case MOD_INIT_PROP: mod_init_prop_ = true; break;
+        case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
         case NO_ASSUME_PROP: assume_prop_ = false; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;

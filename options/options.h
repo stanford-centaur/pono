@@ -80,7 +80,7 @@ class PonoOptions
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
         cegp_axiom_red_(default_cegp_axiom_red_),
         profiling_log_filename_(default_profiling_log_filename_),
-        mod_init_prop_(default_mod_init_prop_),
+        pseudo_init_prop_(default_pseudo_init_prop_),
         assume_prop_(default_assume_prop_),
         cegp_abs_vals_(default_cegp_abs_vals_),
         cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
@@ -122,7 +122,7 @@ class PonoOptions
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
   std::string profiling_log_filename_;
-  bool mod_init_prop_;  ///< replace init and prop with boolean state vars
+  bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;    ///< assume property in pre-state
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
   size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
@@ -151,7 +151,7 @@ class PonoOptions
   static const bool default_ic3_functional_preimage_ = false;
   static const bool default_cegp_axiom_red_ = true;
   static const std::string default_profiling_log_filename_;
-  static const bool default_mod_init_prop_ = false;
+  static const bool default_pseudo_init_prop_ = false;
   static const bool default_assume_prop_ = true;
   static const bool default_cegp_abs_vals_ = false;
   static const size_t default_cegp_abs_vals_cutoff_ = 100;
