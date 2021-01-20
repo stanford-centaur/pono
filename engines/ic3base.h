@@ -404,7 +404,10 @@ class IC3Base : public Prover
    */
   bool propagate(size_t i);
 
-  /** Add a new frame */
+  /** Add a new frame
+   *  If not F[0] then starts the frame with the property (implicitly)
+   *  by assuming frame_label -> prop
+   */
   void push_frame();
 
   /** Adds a constraint to frame i and (implicitly) all frames below it
