@@ -119,7 +119,7 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
   abstracted_ = true;
 
   UnorderedTermSet conc_predicates;
-  
+
   // need to add all state variables and set behavior
   // due to incrementality, most of the variables will be already present
   // so make sure to check that
