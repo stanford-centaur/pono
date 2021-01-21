@@ -125,6 +125,29 @@ struct ProofGoalOrder
   }
 };
 
+/**
+ * Priority queue of proof obligations inspired by open-source ic3ia
+ * implementation
+ */
+class ProofGoalQueue
+{
+ public:
+  ~ProofGoalQueue();
+
+  void clear();
+  void new_proof_goal(const IC3Formula & c,
+                      unsigned int t,
+                      const ProofGoal * n = NULL);
+  ProofGoal * top();
+  void pop();
+  bool empty() const;
+
+ private:
+  std::priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
+      queue_;
+  std::vector<ProofGoal *> store_;
+};
+
 class IC3Base : public Prover
 {
  public:
