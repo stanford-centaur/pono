@@ -110,8 +110,6 @@ void SygusPdr::initialize()
     throw PonoException("SyGuS PDR requires IC3 predecessor generalization");
   if (!options_.ic3_indgen_)
     throw PonoException("SyGuS PDR requires IC3 inductive generalization");
-  if (!options_.promote_inputvars_)
-    throw PonoException("SyGuS PDR requires promoting input variables to state variables");
   if (options_.assume_prop_)
     throw PonoException("SyGuS PDR requires not to assume property in the transition relations");
   options_.ic3_unsatcore_gen_ = false;
@@ -241,6 +239,10 @@ void SygusPdr::check_ts() const // custom_ts_ is not ready at this point
             "SyGuS PDR does not support uninterpreted sorts yet.");
       }
     }
+  }
+  
+  if (!ts_.inputvars().empty()) {
+    throw PonoException("SyGuS PDR requries promoting input variables to state variables.");
   }
 } // check_ts
 
@@ -584,6 +586,47 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info (syntax_analysis::IC3Form
   return per_cex_info;
 } // setup_cex_info
 
+
+std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
+  SygusPdr::ExtractInitPrimeModel(const Term & p_prime) {
+
+  UnorderedTermSet varlist;
+  partial_model_getter.GetVarList(p_prime, varlist);
+
+  Term conj_partial;
+  TermVec conjvec_partial;
+  syntax_analysis::IC3FormulaModel::cube_t cube_partial;
+
+  
+  for (const auto & v : varlist) {
+    Term val = solver_->get_value(v);
+    Term curr_v = ts_.curr(v);
+    auto eq = solver_->make_term(Op(PrimOp::Equal), curr_v ,val );
+    cube_partial.emplace(curr_v,val);
+    conjvec_partial.push_back( eq );
+    if (conj_partial) {
+      conj_partial = solver_->make_term(Op(PrimOp::And), conj_partial, eq);
+    } else {
+      conj_partial = eq;
+    }
+  }
+  if (conj_partial == nullptr) {
+    conj_partial = solver_true_;
+    assert(conjvec_partial.empty());
+    conjvec_partial.push_back(solver_true_);
+  }
+
+  syntax_analysis::IC3FormulaModel * partial_model = 
+    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
+
+  assert(partial_model);
+  model2cube_.emplace(conj_partial, partial_model);  
+
+  return std::make_pair(
+    IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
+    partial_model
+  );
+} // ExtractInitPrimeModel 
 
 std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
     SygusPdr::ExtractPartialAndFullModel(syntax_analysis::IC3FormulaModel * post_model) {

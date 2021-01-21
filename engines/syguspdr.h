@@ -67,8 +67,6 @@ class SygusPdr : public IC3Base
 
   void check_ts() const override;
 
-  virtual bool reaches_bad(IC3Formula & out) override;
-
   void initialize() override;
 
 
@@ -138,7 +136,7 @@ class SygusPdr : public IC3Base
   
   // promote again after op_abstractor_ is needed
   std::unique_ptr<OpAbstractor> op_abstractor_;
-  void SygusPdr::build_ts_related_info();
+  void build_ts_related_info();
   smt::Term next_curr_replace(const smt::Term & in) const;
 }; // class SygusPdr
 
