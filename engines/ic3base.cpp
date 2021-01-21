@@ -144,10 +144,6 @@ void IC3Base::initialize()
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
 
-  // assume property in pre-state
-  Term prop = smart_not(bad_);
-  solver_->assert_formula(solver_->make_term(Implies, trans_label_, prop));
-
   bad_label_ = solver_->make_symbol("__bad_label", boolsort_);
   solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 }
@@ -722,6 +718,15 @@ void IC3Base::push_frame()
       solver_->make_symbol("__frame_label_" + std::to_string(frames_.size()),
                            solver_->make_sort(BOOL)));
   frames_.push_back({});
+
+  if (frames_.size() > 1) {
+    // always start (non-initial) frame with property
+    // not actually adding to frames_ because might not be a valid IC3Formula
+    // plus we don't need to do extra work to propagate it
+    Term prop = smart_not(bad_);
+    solver_->assert_formula(
+        solver_->make_term(Implies, frame_labels_.back(), prop));
+  }
 }
 
 void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
@@ -955,13 +960,20 @@ void IC3Base::reset_solver()
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, ts_.trans()));
 
-    // assume property in pre-state
-    Term prop = smart_not(bad_);
-    solver_->assert_formula(solver_->make_term(Implies, trans_label_, prop));
-
     solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 
+    Term prop = smart_not(bad_);
     for (size_t i = 0; i < frames_.size(); ++i) {
+      assert(i < frame_labels_.size());
+      // all frames except for F[0] include the property
+      // but it's not stored in frames_ because it's not guaranteed to
+      // be a valid IC3Formula
+      if (i) {
+        solver_->assert_formula(
+            solver_->make_term(Implies, frame_labels_.at(i), prop));
+      }
+
+      // add all other constraints from the frame
       for (const auto & constraint : frames_.at(i)) {
         constrain_frame_label(i, constraint);
       }
