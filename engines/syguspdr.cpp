@@ -144,7 +144,10 @@ void SygusPdr::initialize()
     if (options_.sygus_term_mode_ == SyGuSTermMode::TERM_MODE_AUTO)
       options_.sygus_term_mode_ = op_abstractor_->has_abstracted() ? 
         (SyGuSTermMode::SPLIT_FROM_DESIGN) : (SyGuSTermMode::FROM_DESIGN_LEARN_EXT);
+    // we need to reset trans function in the base class
+    reset_solver();
   }
+
   if (options_.sygus_term_mode_ == SyGuSTermMode::TERM_MODE_AUTO)
     options_.sygus_term_mode_ = SyGuSTermMode::FROM_DESIGN_LEARN_EXT;
 
@@ -635,7 +638,7 @@ std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3F
   post_model->get_varset(varset);
   TermVec pre_var;
   for (const auto & v : varset) {
-    if (IN(v,ts_.statevars())) {
+    if (IN(v,ts_.statevars()) && !IN(v,no_next_vars_)) {
       auto update_pos = ts_.state_updates().find(v);
       assert( update_pos != ts_.state_updates().end() );
       pre_var.push_back(update_pos->second);
