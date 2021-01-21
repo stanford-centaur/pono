@@ -230,7 +230,7 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
 
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
-    constraints_.push_back({ constraint, false });
+    constraints_.push_back({ constraint, true });
   } else {
     throw PonoException("Cannot have next-states in an input constraint.");
   }
@@ -254,7 +254,7 @@ void TransitionSystem::add_constraint(const Term & constraint,
     constraints_.push_back({ constraint, to_init_and_next });
   } else if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
-    constraints_.push_back({ constraint, false });
+    constraints_.push_back({ constraint, to_init_and_next });
   } else {
     throw PonoException("Constraint cannot have next states");
   }
