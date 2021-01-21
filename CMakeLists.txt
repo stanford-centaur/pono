@@ -144,7 +144,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
   "${PROJECT_SOURCE_DIR}/engines/cegar_values.cpp"
-  "${PROJECT_SOURCE_DIR}/engines/cegar_prophecy_arrays.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3base.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3ia.cpp"
