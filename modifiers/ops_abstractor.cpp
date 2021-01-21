@@ -50,9 +50,14 @@ void OpsAbstractor::do_abstraction()
 {
   Term init = conc_ts_.init();
   Term trans = conc_ts_.trans();
+  cout << "INIT : " << init << endl;
+  cout << "TRANS : " << trans << endl;
   Term abs_init = abstract(init);
   Term abs_trans = abstract(trans);
+  cout << "ABS-INIT : " << abs_init << endl;
+  cout << "ABS-TRANS : " << abs_trans << endl;
 
+  abs_ts_ = conc_ts_;
   // for now, supporting a relational system
   // but generic abstractor does not require a relational system
   // do a cast

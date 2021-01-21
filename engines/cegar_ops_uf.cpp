@@ -18,12 +18,16 @@
 
 #include "core/fts.h"
 #include "core/rts.h"
+
 #include "engines/ic3ia.h"
+
 #include "smt/available_solvers.h"
+
 #include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 #include "utils/ts_manipulation.h"
+#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -35,7 +39,7 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
                                  const TransitionSystem & ts,
                                  const SmtSolver & solver,
                                  PonoOptions opt)
-  : super(p, create_fresh_ts(ts.is_functional(), solver), solver, opt),
+  : super(p, create_fresh_ts(false, solver), solver, opt),
     conc_ts_(ts, super::to_prover_solver_),
     prover_ts_(super::prover_interface_ts()),
     oa_(conc_ts_, prover_ts_),
@@ -45,7 +49,7 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
     cegopsuf_ts_(cegopsuf_solver_),
     cegopsuf_un_(cegopsuf_ts_)
 {
-  cegopsuf_solver_->set_opt("prove-unsat-cores", "true");
+  cegopsuf_solver_->set_opt("produce-unsat-cores", "true");
 }
 
 template <class Prover_T>
@@ -106,9 +110,11 @@ void CegarOpsUf<Prover_T>::initialize()
   Sort boolsort = cegopsuf_solver_->make_sort(BOOL);
   Term lbl;
   for (const auto & elem : abs_terms) {
-    lbl = cegopsuf_solver_->make_symbol("__cegopsuf_assump_" + elem.second->to_string(),
+    lbl = cegopsuf_solver_->make_symbol("cegopsuf_assump_" + std::to_string(elem.second->get_id()),
                                         boolsort);
-    cegopsuf_labels_[elem.first] = lbl;
+    cegopsuf_labels_[to_cegopsuf_solver_.transfer_term(elem.first)] = lbl;
+    cache[to_cegopsuf_solver_.transfer_term(elem.first)] = elem.first;
+    cache[to_cegopsuf_solver_.transfer_term(elem.second)] = elem.second;
   }
 }
 
@@ -138,15 +144,20 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 
   cegopsuf_solver_->push();
   cegopsuf_solver_->assert_formula(bmcform);
-
+  cout << "BMC: " << bmcform << endl;
 
   const UnorderedTermMap & abs_terms = oa_.abstract_terms();
   TermVec assumps;
   TermVec equalities;
   for (const auto & elem : abs_terms) {
-    Term lbl = cegopsuf_labels_.at(elem.first);
-    assumps.push_back(lbl);
-    Term uf_eq = cegopsuf_solver_->make_term(Equal, elem.first, elem.second);
+    Term l = to_cegopsuf_solver_.transfer_term(elem.first);
+    Term r = to_cegopsuf_solver_.transfer_term(elem.second);
+    assert(cegopsuf_labels_.find(l) != cegopsuf_labels_.end());
+    Term lbl = cegopsuf_labels_.at(l);
+
+    cout << "------------ " << l << " , " << r << endl;
+    cout << l->get_sort() << ", " << r->get_sort() << endl;
+    Term uf_eq = cegopsuf_solver_->make_term(Equal, l, r);
 
     Term unrolled_uf_eq = cegopsuf_un_.at_time(uf_eq, 0);
     for (size_t i = 1; i < cex_length; ++i) {
@@ -160,7 +171,9 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 
     equalities.push_back(uf_eq);
     Term imp = cegopsuf_solver_->make_term(Implies, lbl, unrolled_uf_eq);
+    cout << "->" << imp << endl; 
     cegopsuf_solver_->assert_formula(imp);
+    assumps.push_back(lbl);
   }
   assert(assumps.size() == equalities.size());
 
@@ -170,11 +183,22 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
   if (r.is_unsat()) {
     UnorderedTermSet core;
     cegopsuf_solver_->get_unsat_core(core);
+    cout << "CORE size : "  << core.size() << endl;
+    RelationalTransitionSystem & ts =
+      static_cast<RelationalTransitionSystem &>(cegopsuf_ts_);
     for (size_t i = 0; i < assumps.size(); ++i) {
       if (core.find(assumps[i]) != core.end()) {
-        logger.log(2, "CegarValues adding refinement axiom {}", equalities[i]);
+        Term eq = equalities[i];
+        logger.log(2, "CegarOpsUf adding refinement axiom {}", eq);
         // need to refine both systems
-        cegopsuf_ts_.add_constraint(equalities[i]);
+        ts.constrain_trans(eq);
+        if (ts.no_next(eq)) {
+          ts.constrain_trans(ts.next(eq));
+        }
+        if (cex_length == 0 && ts.only_curr(eq)) {
+          ts.constrain_init(eq);
+        }
+        cout << equalities[i] << endl;
         // TODO this should be more modular
         //      can't assume super::abs_ts_ is the right one to constrain
         refine_subprover_ts(equalities[i], cex_length > 0);
@@ -190,7 +214,7 @@ template <class Prover_T>
 void CegarOpsUf<Prover_T>::refine_subprover_ts(const Term & constraint,
                                                bool skip_init)
 {
-  throw PonoException("CegarValues::refine_subprover_ts NYI for generic case");
+  throw PonoException("CegarOpsUf::refine_subprover_ts NYI for generic case");
 }
 
 template <>
@@ -202,7 +226,7 @@ void CegarOpsUf<IC3IA>::refine_subprover_ts(const Term & constraint,
 
   assert(!ts_.is_functional());
   RelationalTransitionSystem & rts =
-    static_cast<RelationalTransitionSystem &>(ts_);
+    static_cast<RelationalTransitionSystem &>(super::ts_);
 
   rts.constrain_trans(transferred_constraint);
   if (rts.no_next(transferred_constraint)) {
@@ -211,6 +235,26 @@ void CegarOpsUf<IC3IA>::refine_subprover_ts(const Term & constraint,
 
   if (rts.only_curr(transferred_constraint) && !skip_init) {
     rts.constrain_init(transferred_constraint);
+  }
+
+  // add predicates from init and bad
+  UnorderedTermSet preds;
+  get_predicates(super::solver_, super::ts_.init(), preds, false, false, true);
+  get_predicates(super::solver_, super::bad_, preds, false, false, true);
+  get_predicates(solver_, get_frame_term(1), preds, false, false, true);
+
+  // reset init and trans -- done with calling ia_.do_abstraction
+  // then add all boolean constants as (precise) predicates
+  for (const auto & p : super::ia_.do_abstraction()) {
+    preds.insert(p);
+  }
+
+  // reset the solver
+  super::reset_solver();
+
+  // add predicates
+  for (const auto &p : preds) {
+    super::add_predicate(p);
   }
 }
 
