@@ -100,4 +100,12 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
   return rts;
 }
 
+void prop_in_trans(TransitionSystem & ts, const Term & prop)
+{
+  // NOTE: CRUCIAL that we pass false here
+  // cannot add to init or the next states
+  // passing false prevents that
+  ts.add_constraint(prop, false);
+}
+
 }  // namespace pono
