@@ -462,8 +462,7 @@ TermVec IC3SA::symbolic_post_image(size_t i,
     }
   }
 
-  TermVec replaced_ites = remove_ites_under_model(solver_, subst_updates);
-  assert(replaced_ites.size() == svs.size());
+  assert(subst_updates.size() == svs.size());
 
   TermVec res;
   // getting sv' = syntactic evaluation of update function
@@ -471,7 +470,7 @@ TermVec IC3SA::symbolic_post_image(size_t i,
   for (size_t i = 0; i < svs.size(); ++i) {
     // TODO: use substitute_terms to save time when copying maps back and forth
     res.push_back(solver_->make_term(
-        Equal, svs[i], solver_->substitute(replaced_ites[i], subst)));
+        Equal, svs[i], solver_->substitute(subst_updates[i], subst)));
   }
 
   return res;
