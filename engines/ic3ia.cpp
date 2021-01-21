@@ -182,11 +182,26 @@ void IC3IA::initialize()
 void IC3IA::abstract()
 {
   const UnorderedTermSet &bool_symbols = ia_.do_abstraction();
+
+  // don't add boolean symbols that are never used in the system
+  // this is an optimization and a fix for some options
+  // if using mathsat with bool_model_generation
+  // it will fail to get the value of symbols that don't
+  // appear in the query
+  // thus we don't include those symbols in our cubes
+  UnorderedTermSet used_symbols;
+  get_free_symbolic_consts(ts_.init(), used_symbols);
+  get_free_symbolic_consts(ts_.trans(), used_symbols);
+  get_free_symbolic_consts(bad_, used_symbols);
+
   // add predicates automatically added by ia_
   // to our predset_
   // needed to prevent adding duplicate predicates later
   for (const auto & sym : bool_symbols) {
-    add_predicate(sym);
+    assert(sym->is_symbolic_const());
+    if (used_symbols.find(sym) != used_symbols.end()) {
+      add_predicate(sym);
+    }
   }
 
   assert(ts_.init());  // should be non-null
