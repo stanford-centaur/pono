@@ -84,7 +84,7 @@ set {return pono::smvparser::make_tok_set(_encoder.loc);}
 clock {return pono::smvparser::make_time_type(_encoder.loc);}
 in {return pono::smvparser::make_OP_IN(_encoder.loc);}
 
-[fF] {return pono::smvparser::make_fraction_prefix(yytext,_encoder.loc);}
+[fF]' {return pono::smvparser::make_fraction_prefix(yytext,_encoder.loc);}
 [0-9]+           {return pono::smvparser::make_integer_val(yytext,_encoder.loc);}
 -[0-9]+           {return pono::smvparser::make_neg_integer_val(yytext,_encoder.loc);}
 "->"  {return pono::smvparser::make_OP_IMPLY(_encoder.loc);}
