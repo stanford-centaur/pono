@@ -317,17 +317,20 @@ bool CegarValues<Prover_T>::cegar_refine()
   // do refinement if needed
   if (r.is_unsat()) {
     UnorderedTermSet core;
+    UnorderedTermSet axioms;
     cegval_solver_->get_unsat_core(core);
     for (size_t i = 0; i < assumps.size(); ++i) {
       if (core.find(assumps[i]) != core.end()) {
-        logger.log(2, "CegarValues adding refinement axiom {}", equalities[i]);
+        Term eq = equalities[i];
+        logger.log(2, "CegarValues adding refinement axiom {}", eq);
         // need to refine both systems
-        cegval_ts_.add_constraint(equalities[i]);
+        cegval_ts_.add_constraint(eq);
+        axioms.insert(from_cegval_solver_.transfer_term(eq));
         // TODO this should be more modular
         //      can't assume super::abs_ts_ is the right one to constrain
-        refine_subprover_ts(equalities[i]);
       }
     }
+    refine_subprover_ts(axioms);
   }
   cegval_solver_->pop();
 
@@ -335,19 +338,16 @@ bool CegarValues<Prover_T>::cegar_refine()
 }
 
 template <class Prover_T>
-void CegarValues<Prover_T>::refine_subprover_ts(const Term & constraint)
+void CegarValues<Prover_T>::refine_subprover_ts(const UnorderedTermSet & axioms)
 {
   throw PonoException("CegarValues::refine_subprover_ts NYI for generic case");
 }
 
 template <>
 void CegarValues<CegProphecyArrays<IC3IA>>::refine_subprover_ts(
-    const Term & constraint)
+    const UnorderedTermSet & axioms)
 {
-  Term transferred_constraint =
-      from_cegval_solver_.transfer_term(constraint, BOOL);
-  assert(super::abs_ts_.only_curr(transferred_constraint));
-  super::abs_ts_.add_constraint(transferred_constraint);
+  super::refine_ts(axioms);
 }
 
 // TODO add other template classes

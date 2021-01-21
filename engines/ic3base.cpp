@@ -144,10 +144,6 @@ void IC3Base::initialize()
   solver_->assert_formula(
       solver_->make_term(Implies, trans_label_, ts_.trans()));
 
-  // assume property in pre-state
-  Term prop = smart_not(bad_);
-  solver_->assert_formula(solver_->make_term(Implies, trans_label_, prop));
-
   bad_label_ = solver_->make_symbol("__bad_label", boolsort_);
   solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 }
@@ -514,18 +510,18 @@ bool IC3Base::rel_ind_check(size_t i,
       }
     }
     assert(ic3formula_check_valid(out));
-    pop_solver_context();
-  } else {
-    // Use unsat core to get cheap generalization
+  } else if (options_.ic3_unsatcore_gen_) {
+    assert(r.is_unsat());  // not expecting to get unknown
 
+    // Use unsat core to get cheap generalization
     UnorderedTermSet core;
     solver_->get_unsat_core(core);
     assert(core.size());
 
     TermVec gen;  // cheap unsat-core generalization of c
     TermVec rem;  // conjuncts removed by unsat core
-                  // might need to be re-added if it
-                  // ends up intersecting with initial
+    // might need to be re-added if it
+    // ends up intersecting with initial
     assert(assumps_.size() == c.children.size());
     for (size_t i = 0; i < assumps_.size(); ++i) {
       if (core.find(assumps_.at(i)) == core.end()) {
@@ -535,14 +531,18 @@ bool IC3Base::rel_ind_check(size_t i,
       }
     }
 
-    pop_solver_context();
-
     fix_if_intersects_initial(gen, rem);
     assert(gen.size() >= core.size());
 
     // keep it as a conjunction for now
     out = ic3formula_conjunction(gen);
+  } else {
+    assert(r.is_unsat());  // not expecting to get unknown
+    // don't generalize with an unsat core, just keep c
+    out = c;
   }
+
+  pop_solver_context();
   assert(!solver_context_);
 
   if (r.is_sat() && get_pred) {
@@ -718,6 +718,15 @@ void IC3Base::push_frame()
       solver_->make_symbol("__frame_label_" + std::to_string(frames_.size()),
                            solver_->make_sort(BOOL)));
   frames_.push_back({});
+
+  if (frames_.size() > 1) {
+    // always start (non-initial) frame with property
+    // not actually adding to frames_ because might not be a valid IC3Formula
+    // plus we don't need to do extra work to propagate it
+    Term prop = smart_not(bad_);
+    solver_->assert_formula(
+        solver_->make_term(Implies, frame_labels_.back(), prop));
+  }
 }
 
 void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
@@ -822,7 +831,6 @@ bool IC3Base::check_intersects_initial(const Term & t)
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
-  assert(!solver_context_);
   // TODO: there's a tricky issue here. The reducer doesn't have the label
   // assumptions so we can't use init_label_ here. need to come up with a
   // better interface. Should we add label assumptions to reducer?
@@ -952,13 +960,20 @@ void IC3Base::reset_solver()
     solver_->assert_formula(
         solver_->make_term(Implies, trans_label_, ts_.trans()));
 
-    // assume property in pre-state
-    Term prop = smart_not(bad_);
-    solver_->assert_formula(solver_->make_term(Implies, trans_label_, prop));
-
     solver_->assert_formula(solver_->make_term(Implies, bad_label_, bad_));
 
+    Term prop = smart_not(bad_);
     for (size_t i = 0; i < frames_.size(); ++i) {
+      assert(i < frame_labels_.size());
+      // all frames except for F[0] include the property
+      // but it's not stored in frames_ because it's not guaranteed to
+      // be a valid IC3Formula
+      if (i) {
+        solver_->assert_formula(
+            solver_->make_term(Implies, frame_labels_.at(i), prop));
+      }
+
+      // add all other constraints from the frame
       for (const auto & constraint : frames_.at(i)) {
         constrain_frame_label(i, constraint);
       }
