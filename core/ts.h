@@ -228,6 +228,10 @@ class TransitionSystem
    *  better to copy the set first
    *  (e.g. an unused input)
    *  and once that's removed from the input set, it's gone
+   *  NOTE another issues is that constraints over input
+   *  variables might not appear in the right places anymore
+   *  better to use the promote_inputvars pass in
+   *  modifiers/mod_ts_prop.h
    */
   smt::Term promote_inputvar(smt::Term iv);
 

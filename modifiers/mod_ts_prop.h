@@ -39,4 +39,6 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, smt::Term & prop);
 // for a property violation over the next-state variables
 void prop_in_trans(TransitionSystem & ts, const smt::Term & prop);
 
+void promote_inputvars(TransitionSystem & ts);
+
 }  // namespace pono

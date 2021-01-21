@@ -94,13 +94,7 @@ ProverResult check_prop(PonoOptions pono_options,
   }
 
   if (pono_options.promote_inputvars_) {
-    // this is a bit tricky. because promote_inputvar
-    // modifies inputvars_, should copy the set first
-    UnorderedTermSet inputvars = ts.inputvars();
-    for (const auto & iv : inputvars) {
-      ts.promote_inputvar(iv);
-    }
-    assert(!ts.inputvars().size());
+    promote_inputvars(ts);
   }
 
   if (!ts.only_curr(prop)) {

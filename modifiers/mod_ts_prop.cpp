@@ -108,4 +108,19 @@ void prop_in_trans(TransitionSystem & ts, const Term & prop)
   ts.add_constraint(prop, false);
 }
 
+void promote_inputvars(TransitionSystem & ts)
+{
+  // this is a bit tricky. because promote_inputvar
+  // modifies inputvars_, should copy the set first
+  UnorderedTermSet inputvars = ts.inputvars();
+  for (const auto & iv : inputvars) {
+    ts.promote_inputvar(iv);
+  }
+  // need to re-evaluate all constraints that used to be over inputs
+  for (const auto & elem : ts.constraints()) {
+    ts.add_constraint(elem.first, elem.second);
+  }
+  assert(!ts.inputvars().size());
+}
+
 }  // namespace pono
