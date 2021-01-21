@@ -32,12 +32,11 @@ TEST(CegOpsUf, SimpleSafe)
   rts.set_init(rts.make_term(Equal, x, zero));
 
 
-  Term prop_term = rts.make_term(BVUlt, x, max_val);
+  Term prop_term = rts.make_term(BVUlt, x, rts.make_term(11, sort));
   Property prop(s, prop_term);
 
   // TODO create a make_ command for this
-  shared_ptr<Prover> ceg =
-      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  shared_ptr<Prover> ceg = make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);

@@ -144,7 +144,6 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 
   cegopsuf_solver_->push();
   cegopsuf_solver_->assert_formula(bmcform);
-  cout << "BMC: " << bmcform << endl;
 
   const UnorderedTermMap & abs_terms = oa_.abstract_terms();
   TermVec assumps;
@@ -152,11 +151,9 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
   for (const auto & elem : abs_terms) {
     Term l = to_cegopsuf_solver_.transfer_term(elem.first);
     Term r = to_cegopsuf_solver_.transfer_term(elem.second);
+
     assert(cegopsuf_labels_.find(l) != cegopsuf_labels_.end());
     Term lbl = cegopsuf_labels_.at(l);
-
-    cout << "------------ " << l << " , " << r << endl;
-    cout << l->get_sort() << ", " << r->get_sort() << endl;
     Term uf_eq = cegopsuf_solver_->make_term(Equal, l, r);
 
     Term unrolled_uf_eq = cegopsuf_un_.at_time(uf_eq, 0);
@@ -171,7 +168,6 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 
     equalities.push_back(uf_eq);
     Term imp = cegopsuf_solver_->make_term(Implies, lbl, unrolled_uf_eq);
-    cout << "->" << imp << endl; 
     cegopsuf_solver_->assert_formula(imp);
     assumps.push_back(lbl);
   }
@@ -181,14 +177,17 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 
   // do refinement if needed
   if (r.is_unsat()) {
+    UnorderedTermSet axioms;
     UnorderedTermSet core;
     cegopsuf_solver_->get_unsat_core(core);
-    cout << "CORE size : "  << core.size() << endl;
+
+    assert(!cegopsuf_ts_.is_functional());
     RelationalTransitionSystem & ts =
       static_cast<RelationalTransitionSystem &>(cegopsuf_ts_);
     for (size_t i = 0; i < assumps.size(); ++i) {
       if (core.find(assumps[i]) != core.end()) {
         Term eq = equalities[i];
+        axioms.insert(eq);
         logger.log(2, "CegarOpsUf adding refinement axiom {}", eq);
         // need to refine both systems
         ts.constrain_trans(eq);
@@ -198,12 +197,9 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
         if (cex_length == 0 && ts.only_curr(eq)) {
           ts.constrain_init(eq);
         }
-        cout << equalities[i] << endl;
-        // TODO this should be more modular
-        //      can't assume super::abs_ts_ is the right one to constrain
-        refine_subprover_ts(equalities[i], cex_length > 0);
       }
     }
+    refine_subprover_ts(axioms, cex_length > 0);
   }
   cegopsuf_solver_->pop();
 
@@ -211,37 +207,51 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 }
 
 template <class Prover_T>
-void CegarOpsUf<Prover_T>::refine_subprover_ts(const Term & constraint,
+void CegarOpsUf<Prover_T>::refine_subprover_ts(const UnorderedTermSet & axioms,
                                                bool skip_init)
 {
   throw PonoException("CegarOpsUf::refine_subprover_ts NYI for generic case");
 }
 
 template <>
-void CegarOpsUf<IC3IA>::refine_subprover_ts(const Term & constraint,
+void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
                                             bool skip_init)
 {
-  Term transferred_constraint =
-    from_cegopsuf_solver_.transfer_term(constraint, BOOL);
-
-  assert(!ts_.is_functional());
+  assert(!prover_ts_.is_functional());
   RelationalTransitionSystem & rts =
-    static_cast<RelationalTransitionSystem &>(super::ts_);
+    static_cast<RelationalTransitionSystem &>(prover_ts_);
 
-  rts.constrain_trans(transferred_constraint);
-  if (rts.no_next(transferred_constraint)) {
-    rts.constrain_trans(rts.next(transferred_constraint));
-  }
+  for (const auto & a : axioms) {
+    Term ta = from_cegopsuf_solver_.transfer_term(a, BOOL);
 
-  if (rts.only_curr(transferred_constraint) && !skip_init) {
-    rts.constrain_init(transferred_constraint);
+    rts.constrain_trans(ta);
+    if (rts.no_next(ta)) {
+      rts.constrain_trans(rts.next(ta));
+    }
+
+    if (rts.only_curr(ta) && !skip_init) {
+      rts.constrain_init(ta);
+    }
   }
 
   // add predicates from init and bad
   UnorderedTermSet preds;
   get_predicates(super::solver_, super::ts_.init(), preds, false, false, true);
   get_predicates(super::solver_, super::bad_, preds, false, false, true);
-  get_predicates(solver_, get_frame_term(1), preds, false, false, true);
+  get_predicates(super::solver_, super::get_frame_term(1), preds, false, false, true);
+  super::predset_.clear();
+  super::predlbls_.clear();
+
+  // don't add boolean symbols that are never used in the system
+  // this is an optimization and a fix for some options
+  // if using mathsat with bool_model_generation
+  // it will fail to get the value of symbols that don't
+  // appear in the query
+  // thus we don't include those symbols in our cubes
+  UnorderedTermSet used_symbols;
+  get_free_symbolic_consts(super::ts_.init(), used_symbols);
+  get_free_symbolic_consts(super::ts_.trans(), used_symbols);
+  get_free_symbolic_consts(super::bad_, used_symbols);
 
   // reset init and trans -- done with calling ia_.do_abstraction
   // then add all boolean constants as (precise) predicates
