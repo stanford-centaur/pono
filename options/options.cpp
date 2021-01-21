@@ -50,6 +50,7 @@ enum optionIndex
   IC3_RESET_INTERVAL,
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
+  NO_IC3_UNSATCORE_GEN,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
   PSEUDO_INIT_PROP,
@@ -237,6 +238,16 @@ const option::Descriptor usage[] = {
     "ic3-functional-preimage",
     Arg::None,
     "  --ic3-functional-preimage \tUse functional preimage in ic3." },
+  { NO_IC3_UNSATCORE_GEN,
+    0,
+    "",
+    "no-ic3-unsatcore-gen",
+    Arg::None,
+    "  --no-ic3-unsatcore-gen \tDisable unsat core generalization during"
+    " relative induction check. That extra generalization helps several IC3"
+    " variants but also runs the risk of myopic over-generalization. Some IC3"
+    " variants have better inductive generalization and do better with this"
+    " option." },
   { MBIC3_INDGEN_MODE,
     0,
     "",
@@ -389,6 +400,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
                 "--ic3-indgen-mode value must be between 0 and 2.");
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
+        case NO_IC3_UNSATCORE_GEN: ic3_unsatcore_gen_ = false; break;
         case PROFILING_LOG_FILENAME:
 #ifndef WITH_PROFILING
           throw PonoException(

@@ -514,18 +514,18 @@ bool IC3Base::rel_ind_check(size_t i,
       }
     }
     assert(ic3formula_check_valid(out));
-    pop_solver_context();
-  } else {
-    // Use unsat core to get cheap generalization
+  } else if (options_.ic3_unsatcore_gen_) {
+    assert(r.is_unsat());  // not expecting to get unknown
 
+    // Use unsat core to get cheap generalization
     UnorderedTermSet core;
     solver_->get_unsat_core(core);
     assert(core.size());
 
     TermVec gen;  // cheap unsat-core generalization of c
     TermVec rem;  // conjuncts removed by unsat core
-                  // might need to be re-added if it
-                  // ends up intersecting with initial
+    // might need to be re-added if it
+    // ends up intersecting with initial
     assert(assumps_.size() == c.children.size());
     for (size_t i = 0; i < assumps_.size(); ++i) {
       if (core.find(assumps_.at(i)) == core.end()) {
@@ -535,14 +535,18 @@ bool IC3Base::rel_ind_check(size_t i,
       }
     }
 
-    pop_solver_context();
-
     fix_if_intersects_initial(gen, rem);
     assert(gen.size() >= core.size());
 
     // keep it as a conjunction for now
     out = ic3formula_conjunction(gen);
+  } else {
+    assert(r.is_unsat());  // not expecting to get unknown
+    // don't generalize with an unsat core, just keep c
+    out = c;
   }
+
+  pop_solver_context();
   assert(!solver_context_);
 
   if (r.is_sat() && get_pred) {
@@ -822,7 +826,6 @@ bool IC3Base::check_intersects_initial(const Term & t)
 
 void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
 {
-  assert(!solver_context_);
   // TODO: there's a tricky issue here. The reducer doesn't have the label
   // assumptions so we can't use init_label_ here. need to come up with a
   // better interface. Should we add label assumptions to reducer?
