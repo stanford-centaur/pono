@@ -275,6 +275,11 @@ int main(int argc, char ** argv)
                    "well together currently.");
       }
     }
+    // default options for IC3SA
+    if (pono_options.engine_ == IC3SA_ENGINE) {
+      // IC3SA expects all state variables
+      pono_options.promote_inputvars_ = true;
+    }
 
     // TODO: make this less ugly, just need to keep it in scope if using
     //       it would be better to have a generic encoder

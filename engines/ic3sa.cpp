@@ -183,10 +183,11 @@ void IC3SA::predecessor_generalization(size_t i,
 
 void IC3SA::check_ts() const
 {
-  // TODO: everything in ic3sa should be a state variable (at least according to
-  // paper)
-  //       might work if we just remove input variables from the subterms
-  // TODO: add option to promote all inputs to be state vars
+  if (ts_.inputvars().size()) {
+    throw PonoException(
+        "IC3SA requires all statevariables. Try option --promote-inputvars");
+  }
+
   // TODO: add support for arrays
 
   if (!ts_.is_functional()) {
