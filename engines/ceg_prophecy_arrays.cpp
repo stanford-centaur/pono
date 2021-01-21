@@ -93,8 +93,18 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
       shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
                                               abs_ts_, s, super::options_);
       res = prover->prove();
+
+      if (res == ProverResult::FALSE) {
+        // use witness length
+        reached_k_ = prover->witness_length() - 1;
+      }
+
     } else {
       res = super::prove();
+      if (res == ProverResult::FALSE) {
+        // use witness length
+        reached_k_ = super::reached_k_;
+      }
     }
   }
 
@@ -130,7 +140,11 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
                                               abs_ts_, s, super::options_);
       res = prover->check_until(k);
-      if (res == ProverResult::TRUE) {
+
+      if (res == ProverResult::FALSE) {
+        // use witness length
+        reached_k_ = prover->witness_length() - 1;
+      } else if (res == ProverResult::TRUE) {
         try {
           // set the invariant
           super::invar_ = prover->invar();
@@ -142,6 +156,10 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       }
     } else {
       res = super::check_until(k);
+      if (res == ProverResult::FALSE) {
+        // use witness length
+        reached_k_ = super::reached_k_;
+      }
     }
   }
 
@@ -531,10 +549,24 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   predset_.clear();
   predlbls_.clear();
 
+  // don't add boolean symbols that are never used in the system
+  // this is an optimization and a fix for some options
+  // if using mathsat with bool_model_generation
+  // it will fail to get the value of symbols that don't
+  // appear in the query
+  // thus we don't include those symbols in our cubes
+  UnorderedTermSet used_symbols;
+  get_free_symbolic_consts(ts_.init(), used_symbols);
+  get_free_symbolic_consts(ts_.trans(), used_symbols);
+  get_free_symbolic_consts(bad_, used_symbols);
+
   // reset init and trans -- done with calling ia_.do_abstraction
   // then add all boolean constants as (precise) predicates
   for (const auto & p : ia_.do_abstraction()) {
-    preds.insert(p);
+    assert(p->is_symbolic_const());
+    if (used_symbols.find(p) != used_symbols.end()) {
+      preds.insert(p);
+    }
   }
 
   // reset the solver

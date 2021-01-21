@@ -17,8 +17,6 @@
 
 #include "engines/ic3base.h"
 
-#include <algorithm>
-
 #include "assert.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
@@ -28,47 +26,6 @@ using namespace smt;
 using namespace std;
 
 namespace pono {
-
-/**
- * Priority queue of proof obligations inspired by open-source ic3ia
- * implementation
- */
-class ProofGoalQueue
-{
- public:
-  ~ProofGoalQueue() { clear(); }
-
-  void clear()
-  {
-    for (auto p : store_) {
-      delete p;
-    }
-    store_.clear();
-    while (!queue_.empty()) {
-      queue_.pop();
-    }
-  }
-
-  void new_proof_goal(const IC3Formula & c,
-                      unsigned int t,
-                      const ProofGoal * n = NULL)
-  {
-    ProofGoal * pg = new ProofGoal(c, t, n);
-    queue_.push(pg);
-    store_.push_back(pg);
-  }
-
-  ProofGoal * top() { return queue_.top(); }
-  void pop() { queue_.pop(); }
-  bool empty() const { return queue_.empty(); }
-
- private:
-  typedef std::
-      priority_queue<ProofGoal *, std::vector<ProofGoal *>, ProofGoalOrder>
-          Queue;
-  Queue queue_;
-  std::vector<ProofGoal *> store_;
-};
 
 // helper functions
 
@@ -99,6 +56,36 @@ static bool subsumes(const IC3Formula &a, const IC3Formula &b)
   return ac.size() <= bc.size()
          && std::includes(bc.begin(), bc.end(), ac.begin(), ac.end());
 }
+
+/** ProofGoalQueue */
+
+ProofGoalQueue::~ProofGoalQueue() { clear(); }
+
+void ProofGoalQueue::clear()
+{
+  for (auto p : store_) {
+    delete p;
+  }
+  store_.clear();
+  while (!queue_.empty()) {
+    queue_.pop();
+  }
+}
+
+void ProofGoalQueue::new_proof_goal(const IC3Formula & c,
+                                    unsigned int t,
+                                    const ProofGoal * n)
+{
+  ProofGoal * pg = new ProofGoal(c, t, n);
+  queue_.push(pg);
+  store_.push_back(pg);
+}
+
+ProofGoal * ProofGoalQueue::top() { return queue_.top(); }
+
+void ProofGoalQueue::pop() { queue_.pop(); }
+
+bool ProofGoalQueue::empty() const { return queue_.empty(); }
 
 /** IC3Base */
 
@@ -357,10 +344,8 @@ bool IC3Base::reaches_bad(IC3Formula & out)
   push_solver_context();
   // assert the last frame (conjunction over clauses)
   assert_frame_labels(frontier_idx());
-  // see if it intersects with bad in next states
+  // see if it can reach bad in one step
   solver_->assert_formula(ts_.next(bad_));
-  // don't need transition relation for this check
-  // can deactivate it
   solver_->assert_formula(trans_label_);
   Result r = check_sat();
 
