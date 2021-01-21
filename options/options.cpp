@@ -53,7 +53,7 @@ enum optionIndex
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
   PSEUDO_INIT_PROP,
-  NO_ASSUME_PROP,
+  ASSUME_PROP,
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
   PROMOTE_INPUTVARS
@@ -260,13 +260,13 @@ const option::Descriptor usage[] = {
     "  --pseudo-init-prop \tReplace init and prop with state variables -- can "
     "extend trace by up to two steps. Recommended for use with ic3ia. "
     "Important note: will promote system to be relational" },
-  { NO_ASSUME_PROP,
+  { ASSUME_PROP,
     0,
     "",
-    "no-assume-prop",
+    "assume-prop",
     Arg::None,
-    "  --no-assume-prop \tdisable assuming property in pre-state (default "
-    "enabled)" },
+    "  --assume-prop \tenable assuming property in pre-state (default "
+    "disabled)" },
   { CEGP_ABS_VALS,
     0,
     "",
@@ -399,7 +399,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
 #endif
           break;
         case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
-        case NO_ASSUME_PROP: assume_prop_ = false; break;
+        case ASSUME_PROP: assume_prop_ = true; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
