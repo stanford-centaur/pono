@@ -222,18 +222,51 @@ RefineResult IC3SA::refine()
   // a time it will introduce fresh symbols for input variables it will keep
   // track of old model values to plug into inputs if an axiom is learned
   Result r;
+  UnorderedTermMap last_model_vals;
+
+  UnorderedTermSet inputvars = ts_.inputvars();
+  // add implicit input variables
+  const UnorderedTermMap & state_updates = ts_.state_updates();
+  for (const auto & sv : ts_.statevars()) {
+    if (state_updates.find(sv) == state_updates.end()) {
+      inputvars.insert(sv);
+    }
+  }
 
   push_solver_context();
+
+  // TODO also use conjunctive partitions to split up constraints
+  // as much as possible
+
   solver_->assert_formula(f_unroller_.at_time(ts_.init(), 0));
 
+  TermVec lbls, assumps;
+  Term lbl, unrolled;
   for (size_t i = 0; i < cex_.size(); ++i) {
-    solver_->assert_formula(f_unroller_.at_time(cex_[i], i));
-    r = check_sat();
+    unrolled = f_unroller_.at_time(cex_[i], i);
+    lbl = label(unrolled);
+    lbls.push_back(lbl);
+    assumps.push_back(unrolled);
+
+    solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+
+    r = check_sat_assuming(lbls);
     // TODO keep track of model values
     if (r.is_unsat()) {
       break;
+    } else {
+      assert(r.is_sat());  // not expecting unknown
+      // save model values
+      Term iv_j;
+      for (const auto & iv : inputvars) {
+        for (size_t j = 0; j <= i; ++j) {
+          iv_j = f_unroller_.at_time(iv, j);
+          last_model_vals[iv_j] = solver_->get_value(iv_j);
+        }
+      }
     }
   }
+  assert(lbls.size() == assumps.size());
 
   // TODO check that this correctly handles counterexample case
   if (r.is_sat()) {
@@ -241,11 +274,48 @@ RefineResult IC3SA::refine()
     return REFINE_NONE;
   }
 
-  throw PonoException("Got here!");
+  assert(r.is_unsat());  // not expecting unknown
+  UnorderedTermSet core;
+  solver_->get_unsat_core(core);
+  assert(core.size());
+
+  TermVec reduced_constraints;
+  reduced_constraints.reserve(core.size());
+  for (size_t i = 0; i < lbls.size(); ++i) {
+    if (core.find(lbls[i]) != core.end()) {
+      reduced_constraints.push_back(assumps[i]);
+    }
+  }
+  assert(reduced_constraints.size() == core.size());
+
+  Term m = smart_not(make_and(reduced_constraints));
+
+  // substitute all the model values
+  // TODO consider having a more complex substitution here
+  // e.g. allow replacing with other variables possibly?
+  // based on the equivalences in the last model
+  m = solver_->substitute(m, last_model_vals);
+  m = f_unroller_.untime(
+      m);  // replaces the @0 variables with current state vars
+
+  logger.log(3, "IC3SA::refine learned axiom {}", m);
+
+  // it was functionally unrolled, the inputs were replaced with values
+  // and it was untimed
+  // thus there should only be current state variables left
+  assert(ts_.only_curr(m));
+
+  // add to the projection set permanently
+  get_free_symbolic_consts(m, projection_set_);
+
+  // TODO do we have to add m to the transition relation?
+  //      or can we just mine for new terms?
+
+  // mine for new terms
+  bool new_terms_added = add_to_term_abstraction(m);
+  assert(new_terms_added);
 
   // TODO handle refinement failure case if any
-
-  // TODO add an axiom and mine for new terms
 
   pop_solver_context();
   assert(!solver_context_);
