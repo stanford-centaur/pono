@@ -302,7 +302,7 @@ RefineResult IC3SA::refine()
       //      for now just removing assertion but still adding the terms
       // assert(ts_.no_next(axiom));
       // ts_.add_constraint(axiom);
-      logger.log(2, "IC3SA::refine learning axiom: {}", axiom);
+      logger.log(3, "IC3SA::refine learning axiom: {}", axiom);
 
       // add all state variables to projection set
       UnorderedTermSet free_vars;
