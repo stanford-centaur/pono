@@ -65,7 +65,7 @@ class PonoOptions
         prop_idx_(default_prop_idx_),
         bound_(default_bound_),
         verbosity_(default_verbosity_),
-        no_witness_(default_no_witness_),
+        witness_(default_witness_),
         reset_bnd_(default_reset_bnd_),
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
@@ -80,9 +80,11 @@ class PonoOptions
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
         cegp_axiom_red_(default_cegp_axiom_red_),
         profiling_log_filename_(default_profiling_log_filename_),
-        mod_init_prop_(default_mod_init_prop_),
+        pseudo_init_prop_(default_pseudo_init_prop_),
         assume_prop_(default_assume_prop_),
-        cegp_abs_vals_(default_cegp_abs_vals_)
+        cegp_abs_vals_(default_cegp_abs_vals_),
+        cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
+        promote_inputvars_(default_promote_inputvars_)
   {
   }
 
@@ -98,7 +100,7 @@ class PonoOptions
   unsigned int bound_;
   unsigned int verbosity_;
   unsigned int random_seed_;
-  bool no_witness_;
+  bool witness_;
   std::string vcd_name_;
   std::string reset_name_;
   size_t reset_bnd_;
@@ -120,9 +122,11 @@ class PonoOptions
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
   std::string profiling_log_filename_;
-  bool mod_init_prop_;  ///< replace init and prop with boolean state vars
+  bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;    ///< assume property in pre-state
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
+  size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
+  bool promote_inputvars_;
 
  private:
   // Default options
@@ -131,7 +135,7 @@ class PonoOptions
   static const unsigned int default_bound_ = 10;
   static const unsigned int default_verbosity_ = 0;
   static const unsigned int default_random_seed = 0;
-  static const bool default_no_witness_ = false;
+  static const bool default_witness_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
   static const bool default_static_coi_ = false;
   static const bool default_check_invar_ = false;
@@ -147,9 +151,11 @@ class PonoOptions
   static const bool default_ic3_functional_preimage_ = false;
   static const bool default_cegp_axiom_red_ = true;
   static const std::string default_profiling_log_filename_;
-  static const bool default_mod_init_prop_ = false;
+  static const bool default_pseudo_init_prop_ = false;
   static const bool default_assume_prop_ = true;
   static const bool default_cegp_abs_vals_ = false;
+  static const size_t default_cegp_abs_vals_cutoff_ = 100;
+  static const bool default_promote_inputvars_ = false;
 };
 
 }  // namespace pono
