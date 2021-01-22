@@ -51,10 +51,11 @@ enum optionIndex
   IC3_RESET_INTERVAL,
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
+  NO_IC3_UNSATCORE_GEN,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
   PSEUDO_INIT_PROP,
-  NO_ASSUME_PROP,
+  ASSUME_PROP,
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
   PROMOTE_INPUTVARS
@@ -245,6 +246,16 @@ const option::Descriptor usage[] = {
     "ic3-functional-preimage",
     Arg::None,
     "  --ic3-functional-preimage \tUse functional preimage in ic3." },
+  { NO_IC3_UNSATCORE_GEN,
+    0,
+    "",
+    "no-ic3-unsatcore-gen",
+    Arg::None,
+    "  --no-ic3-unsatcore-gen \tDisable unsat core generalization during"
+    " relative induction check. That extra generalization helps several IC3"
+    " variants but also runs the risk of myopic over-generalization. Some IC3"
+    " variants have better inductive generalization and do better with this"
+    " option." },
   { MBIC3_INDGEN_MODE,
     0,
     "",
@@ -268,13 +279,13 @@ const option::Descriptor usage[] = {
     "  --pseudo-init-prop \tReplace init and prop with state variables -- can "
     "extend trace by up to two steps. Recommended for use with ic3ia. "
     "Important note: will promote system to be relational" },
-  { NO_ASSUME_PROP,
+  { ASSUME_PROP,
     0,
     "",
-    "no-assume-prop",
+    "assume-prop",
     Arg::None,
-    "  --no-assume-prop \tdisable assuming property in pre-state (default "
-    "enabled)" },
+    "  --assume-prop \tenable assuming property in pre-state (default "
+    "disabled)" },
   { CEGP_ABS_VALS,
     0,
     "",
@@ -398,6 +409,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
                 "--ic3-indgen-mode value must be between 0 and 2.");
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
+        case NO_IC3_UNSATCORE_GEN: ic3_unsatcore_gen_ = false; break;
         case PROFILING_LOG_FILENAME:
 #ifndef WITH_PROFILING
           throw PonoException(
@@ -408,7 +420,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
 #endif
           break;
         case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
-        case NO_ASSUME_PROP: assume_prop_ = false; break;
+        case ASSUME_PROP: assume_prop_ = true; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;

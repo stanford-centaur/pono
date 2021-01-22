@@ -20,6 +20,7 @@
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
+#include "utils/ts_manipulation.h"
 
 using namespace smt;
 using namespace std;
@@ -98,6 +99,56 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
   std::swap(prop, new_prop);
 
   return rts;
+}
+
+void prop_in_trans(TransitionSystem & ts, const Term & prop)
+{
+  // NOTE: CRUCIAL that we pass false here
+  // cannot add to init or the next states
+  // passing false prevents that
+  ts.add_constraint(prop, false);
+}
+
+TransitionSystem promote_inputvars(const TransitionSystem & ts)
+{
+  SmtSolver solver = ts.solver();
+  TransitionSystem new_ts = create_fresh_ts(ts.is_functional(), solver);
+  assert(new_ts.is_functional() == ts.is_functional());
+
+  // copy over all state variables
+  for (const auto & sv : ts.statevars()) {
+    new_ts.add_statevar(sv, ts.next(sv));
+  }
+
+  // copy over inputs but make them statevars
+  for (const auto & iv : ts.inputvars()) {
+    Term iv_next =
+        solver->make_symbol(iv->to_string() + ".next", iv->get_sort());
+    new_ts.add_statevar(iv, iv_next);
+  }
+
+  // set init
+  new_ts.set_init(ts.init());
+
+  // copy over state updates
+  for (const auto & elem : ts.state_updates()) {
+    new_ts.assign_next(elem.first, elem.second);
+  }
+
+  // need to re-evaluate all constraints that used to be over inputs
+  for (const auto & elem : ts.constraints()) {
+    new_ts.add_constraint(elem.first, elem.second);
+  }
+
+  // relational systems could have things added by constrain_trans
+  if (!new_ts.is_functional()) {
+    RelationalTransitionSystem & rts_view =
+        static_cast<RelationalTransitionSystem &>(new_ts);
+    rts_view.set_trans(ts.trans());
+  }
+
+  assert(!new_ts.inputvars().size());
+  return new_ts;
 }
 
 }  // namespace pono
