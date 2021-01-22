@@ -13,12 +13,14 @@
  **
  ** 
  **/
- 
+
 #include "utils/syntax_analysis_walker.h"
 #include "utils/logger.h"
 #include "utils/container_shortcut.h"
 #include "utils/term_analysis.h"
  
+#include "smt-switch/utils.h"
+
 // #define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
@@ -414,7 +416,8 @@ void SliceExtractor::PostChild(const smt::Term & ast) {
     assert (op.num_idx == 2);
 
     // get its varset
-    smt::UnorderedTermSet varset = get_free_symbols(ast);
+    smt::UnorderedTermSet varset;
+    smt::get_free_symbolic_consts(ast, varset);
     unsigned l = op.idx0, r = op.idx1;
 
     bool has_related_vars = false;

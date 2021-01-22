@@ -117,9 +117,26 @@ void SygusPdr::initialize()
   if (initialized_)
     return;
 
-  ts_ = orig_ts_;
+  ts_ = orig_ts_; // maybe call promote inputvars implicitly here
   // I really need the prime variable for inputs
   // otherwise the corner cases are hard to handle...
+
+  // has_assumption -- on the original one
+  has_assumptions = false;
+  for (const auto & c_initnext : ts_.constraints()) {
+    if (!c_initnext.second)
+      continue;
+    has_assumptions = true;
+    assert(ts_.no_next(c_initnext.first));
+    // if (no_next) {
+    constraints_curr_var_.push_back(c_initnext.first);
+    // translate input_var to next input_var
+    // but the state var ...
+    // we will get to next anyway
+    constraints_curr_var_.push_back(
+      next_curr_replace(ts_.next(c_initnext.first)));
+    // } // else skip
+  }
 
   super::initialize(); // I don't need the trans->prop thing
 
@@ -152,23 +169,6 @@ void SygusPdr::initialize()
     options_.sygus_term_mode_ = SyGuSTermMode::FROM_DESIGN_LEARN_EXT;
 
   build_ts_related_info();
-
-  // has_assumption
-  has_assumptions = false;
-  for (const auto & c_initnext : ts_.constraints()) {
-    if (!c_initnext.second)
-      continue;
-    has_assumptions = true;
-    assert(ts_.no_next(c_initnext.first));
-    // if (no_next) {
-    constraints_curr_var_.push_back(c_initnext.first);
-    // translate input_var to next input_var
-    // but the state var ...
-    // we will get to next anyway
-    constraints_curr_var_.push_back(
-      next_curr_replace(ts_.next(c_initnext.first)));
-    // } // else skip
-  }
   
   // initialize the caches  
   // extract the operators
@@ -816,21 +816,22 @@ RefineResult SygusPdr::refine() {
   if (succ) {
     for (const auto & c : new_constraints) {
       ts_.add_constraint(c, true);
-      ts_.add_constraint(c, true);
       D(4, "[Refine] : {} ", c->to_string());
 
       // rework the constraints buffers
       assert (ts_.no_next(c));
-      constraints_curr_var_.push_back(c);
-      // translate input_var to next input_var
-      // but the state var ...
-      constraints_curr_var_.push_back(
-        next_curr_replace( ts_.next(c) ));              
+      smt::UnorderedTermSet vars;
+      get_free_symbolic_consts(c,vars);
+      if (!vars.empty())  {
+        constraints_curr_var_.push_back(c);
+        // translate input_var to next input_var
+        // but the state var ...
+        constraints_curr_var_.push_back(
+          next_curr_replace( ts_.next(c) ));    
+        has_assumptions = true; // previously it can also be true   
+      }       
     }
     reset_solver(); // because tr/init could be different now
-
-    // rework the constraints
-    has_assumptions = ! (ts_.constraints().empty());
 
     return REFINE_SUCCESS;
   } // else

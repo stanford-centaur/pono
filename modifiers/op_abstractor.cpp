@@ -148,7 +148,7 @@ bool OpInpAbstractor::refine_with_constraints(
       // find term (result) in the model
       UnorderedTermSet vars;
       const auto & prev_term = cexs.at(trace_pos-1);
-      get_free_symbols( prev_term, vars);
+      get_free_symbolic_consts( prev_term, vars);
       for (auto & abs_term : op_abstracted) {
         if (vars.find(abs_term.result) != vars.end()) {
           // now eval the result (trace_pos-1) and the args (trace_pos-1)
