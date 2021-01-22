@@ -20,11 +20,14 @@
 #include "utils/logger.h"
 #include "utils/sygus_predicate_constructor.h"
 
+#include <fstream>
+#include "smt-switch/printing_solver.h"
+
 using namespace smt;
 
 namespace pono {
 
-// #define DEBUG
+#define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)
@@ -67,6 +70,8 @@ void SygusPdr::build_ts_related_info() {
 smt::Term SygusPdr::next_curr_replace(const smt::Term & in) const {
   return ts_.solver()->substitute(in, nxt_state_updates_);
 }
+
+std::ofstream outf("/home/hongce/new-smt");
 
 // ----------------------------------------------------------------
 // Constructor & Destructor
@@ -121,9 +126,11 @@ void SygusPdr::initialize()
   ts_ = orig_ts_; // maybe call promote inputvars implicitly here
   // I really need the prime variable for inputs
   // otherwise the corner cases are hard to handle...
-
+  outf<<ts_.init()->to_string() << std::endl;
+  outf<<ts_.trans()->to_string() << std::endl;
+  solver_  = std::make_shared<PrintingSolver>(solver_, &outf, PrintingStyleEnum::DEFAULT_STYLE);
   // has_assumption -- on the original one
-  has_assumptions = false;
+  has_assumptions = true;
   for (const auto & c_initnext : ts_.constraints()) {
     if (!c_initnext.second)
       continue;
@@ -162,6 +169,9 @@ void SygusPdr::initialize()
     // we need to reset trans function in the base class
     reset_solver();
   }
+
+  outf.close();
+  outf.open("/home/hongce/new-smt");
 
   if (options_.sygus_term_mode_ == SyGuSTermMode::TERM_MODE_AUTO)
     options_.sygus_term_mode_ = SyGuSTermMode::FROM_DESIGN_LEARN_EXT;
@@ -268,6 +278,8 @@ bool SygusPdr::ic3formula_check_valid(const IC3Formula & u) const
 
 
 IC3Formula SygusPdr::get_model_ic3formula() const {
+  return IC3Formula(solver_true_, {solver_true_}, false);
+
   // generalize_predecessor does not use its output at all
   Term conj_full;
   TermVec conjvec;
@@ -423,10 +435,13 @@ IC3Formula SygusPdr::inductive_generalization(
 
       // at this point we have enough preds
       // reduce the preds
-      return {select_predicates(
+      auto ret= select_predicates(
           base,
           pred_collector_.GetAllPredNext()
-        )};
+        );
+      std::cout << "@@@@@ Block: "  << post_model->to_string() << std::endl;
+      std::cout << "By : " << ret.term->to_string() << std::endl;
+      return ret;
     }
   }while(insufficient_pred);
   assert(false); // should not be reachable
@@ -468,17 +483,16 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
     disable_all_labels();
     syntax_analysis::reduce_unsat_core_linear(base, sorted_unsatcore, unsatcore, solver_);
     pop_solver_context();
-    #ifdef DEBUG
-      std::cout << "{";
-      for (const auto & p : unsatcore) {
-        auto pos = term_id_map.find(p); assert(pos != term_id_map.end());
-        std::cout << pos->second << ",";
-      }
-      std::cout << "}" << std::endl;
-    #endif
   } else 
     reducer_.linear_reduce_assump_unsatcore(base, sorted_unsatcore, unsatcore, NULL, 0);
-  
+  #ifdef DEBUG
+    std::cout << "Total : " << preds_nxt.size() << " {";
+    for (const auto & p : unsatcore) {
+      auto pos = term_id_map.find(p); assert(pos != term_id_map.end());
+      std::cout << pos->second << ",";
+    }
+    std::cout << "}" << std::endl;
+  #endif  
   assert(!unsatcore.empty());
 
   TermVec curr_lits;
@@ -774,6 +788,7 @@ void SygusPdr::predecessor_generalization(size_t i, const Term & cterm, IC3Formu
 
   // no need to pop (pop in rel_ind_check)
   // return the model and build IC3FormulaModel
+  std::cout << cterm->to_string() << std::endl;
   auto partial_full_model = ExtractPartialModel(cterm);
   pred = partial_full_model.first;
 } // generalize_predecessor
