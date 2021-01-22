@@ -230,7 +230,7 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
 
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
-    constraints_.push_back({ constraint, false });
+    constraints_.push_back({ constraint, true });
   } else {
     throw PonoException("Cannot have next-states in an input constraint.");
   }
@@ -254,7 +254,7 @@ void TransitionSystem::add_constraint(const Term & constraint,
     constraints_.push_back({ constraint, to_init_and_next });
   } else if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
-    constraints_.push_back({ constraint, false });
+    constraints_.push_back({ constraint, to_init_and_next });
   } else {
     throw PonoException("Constraint cannot have next states");
   }
@@ -384,19 +384,6 @@ void TransitionSystem::add_inputvar(const Term & v)
   inputvars_.insert(v);
   // automatically include in named_terms
   name_term(v->to_string(), v);
-}
-
-Term TransitionSystem::promote_inputvar(Term iv)
-{
-  assert(iv);
-  size_t num_erased = inputvars_.erase(iv);
-  if (!num_erased) {
-    throw PonoException("Cannot promote non-inputvars: " + iv->to_string());
-  }
-
-  Term nv = solver_->make_symbol(iv->to_string() + ".next", iv->get_sort());
-  add_statevar(iv, nv);
-  return nv;
 }
 
 // term building methods -- forwards to SmtSolver solver_

@@ -39,4 +39,15 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, smt::Term & prop);
 // for a property violation over the next-state variables
 void prop_in_trans(TransitionSystem & ts, const smt::Term & prop);
 
+/** Returns a new transition system with all input variables
+ *  promoted to state variables with no update (e.g. implicit inputs)
+ *  This pass automatically re-evaluates constraints
+ *  which might need to be added differently over state variables
+ *  vs input variables
+ *  @param ts the transition system to promote input variables in
+ *  @return a transition system that is semantically the same but
+ *          with no input variables (only implicit inputs)
+ */
+TransitionSystem promote_inputvars(const TransitionSystem & ts);
+
 }  // namespace pono
