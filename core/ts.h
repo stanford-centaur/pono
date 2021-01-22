@@ -217,20 +217,6 @@ class TransitionSystem
    */
   void add_inputvar(const smt::Term & v);
 
-  /** EXPERTS ONLY
-   *  Promote an input variable to a state variable
-   *  @param iv the input variable to promote
-   *  @return the newly created next state variable
-   *  NOTE takes by value because if taken by reference,
-   *  there could be only one reference to that variable
-   *  TRICKY: additionally, since it modifies inputvars_
-   *  should not directly iterate over ts_.inputvars()
-   *  better to copy the set first
-   *  (e.g. an unused input)
-   *  and once that's removed from the input set, it's gone
-   */
-  smt::Term promote_inputvar(smt::Term iv);
-
   // getters
   const smt::SmtSolver & solver() const { return solver_; };
 

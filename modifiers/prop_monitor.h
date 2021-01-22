@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "core/rts.h"
 #include "core/ts.h"
 #include "utils/logger.h"
 

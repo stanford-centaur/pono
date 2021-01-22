@@ -358,9 +358,12 @@ class IC3Base : public Prover
    *  @param i the frame number
    *  @param c the IC3Formula to check
    *  @param out the output collateral:
-   *         if query is UNSAT, it will do a cheap unsat-core based
-   *           generalization of c and set out to a subset
-   *           (as a conjunction still)
+   *         if query is UNSAT and ic3_unsatcore_gen is true it will
+   *           do a cheap unsat-core based generalization of c and set
+   *           out to a subset (as a conjunction still)
+   *           NOTE: depending on the IC3 variant and particular problem
+   *           this can either be helpful or over-generalize
+   *           it's worth experimenting with this option
    *         if query is SAT and get_pred is TRUE, will set out to
    *           the predecessor CTI after generalizing the predecessor
    *           (if that option is enabled)
@@ -404,7 +407,10 @@ class IC3Base : public Prover
    */
   bool propagate(size_t i);
 
-  /** Add a new frame */
+  /** Add a new frame
+   *  If not F[0] then starts the frame with the property (implicitly)
+   *  by assuming frame_label -> prop
+   */
   void push_frame();
 
   /** Adds a constraint to frame i and (implicitly) all frames below it
