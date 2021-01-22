@@ -15,6 +15,7 @@
 **/
 
 #include "engines/syguspdr.h"
+#include "modifiers/mod_ts_prop.h"
 #include "utils/container_shortcut.h"
 #include "utils/logger.h"
 #include "utils/sygus_predicate_constructor.h"
@@ -151,10 +152,7 @@ void SygusPdr::initialize()
         orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}),
         bad_, 0);
 
-      UnorderedTermSet inputvars = ts_.inputvars();
-      for (const auto & iv : inputvars) {
-        ts_.promote_inputvar(iv);
-      }
+      ts_ = promote_inputvars(ts_);
     }
     // op_abstractor_ = std::make_unique<OpUfAbstractor>(
     //   orig_ts_, ts_, std::unordered_set<PrimOp>({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}), bad_, 4);
