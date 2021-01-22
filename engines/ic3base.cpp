@@ -480,6 +480,7 @@ bool IC3Base::rel_ind_check(size_t i,
   // generalization if the check is unsat
 
   // NOTE: relying on same order between assumps_ and c.children
+  if (options_.ic3_unsatcore_gen_) {
   assumps_.clear();
   {
     // TODO shuffle assumps and (a copy of) c.children
@@ -497,8 +498,10 @@ bool IC3Base::rel_ind_check(size_t i,
       assumps_.push_back(lbl);
     }
   }
+  } else
+    solver_->assert_formula(ts_.next(c.term));
 
-  Result r = check_sat_assuming(assumps_);
+  Result r = options_.ic3_unsatcore_gen_?check_sat_assuming(assumps_):check_sat();
   if (r.is_sat()) {
     if (get_pred) {
       out = get_model_ic3formula();
@@ -968,7 +971,7 @@ void IC3Base::reset_solver()
       // all frames except for F[0] include the property
       // but it's not stored in frames_ because it's not guaranteed to
       // be a valid IC3Formula
-      if (i) {
+      if (i == frames_.size()-1) {
         solver_->assert_formula(
             solver_->make_term(Implies, frame_labels_.at(i), prop));
       }
