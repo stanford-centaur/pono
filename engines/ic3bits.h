@@ -43,6 +43,8 @@ class IC3Bits : public IC3
 
   IC3Formula get_model_ic3formula() const override;
 
+  bool ic3formula_check_valid(const IC3Formula & u) const override;
+
   void check_ts() const override;
 };
 

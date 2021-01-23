@@ -72,6 +72,24 @@ IC3Formula IC3Bits::get_model_ic3formula() const
   return ic3formula_conjunction(children);
 }
 
+bool IC3Bits::ic3formula_check_valid(const IC3Formula & u) const
+{
+  // check that children are booleans
+  // with only a single variable
+  UnorderedTermSet free_vars;
+  Op op;
+  for (const auto & c : u.children) {
+    free_vars.clear();
+    get_free_symbolic_consts(c, free_vars);
+    if (c->get_sort() != boolsort_ || free_vars.size() > 1) {
+      return false;
+    }
+  }
+
+  // got through all checks without failing
+  return true;
+}
+
 void IC3Bits::check_ts() const
 {
   for (const auto & sv : ts_.statevars()) {
