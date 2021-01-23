@@ -50,7 +50,7 @@
 %token ENDL
 
 %token <std::string> integer_val neg_integer_val real_val fraction_prefix exponential_prefix
-%token bool_type integer_type real_type set_tok array_tok
+%token bool_type integer_type real_type array_tok
 %token <std::string> word_index1 word_index2
 %token <std::string> tok_name
 %token <bool> TOK_TRUE TOK_FALSE
@@ -1225,7 +1225,7 @@ simple_expr: constant {
                throw PonoException("No union");
             }
             |"{" set_body_expr "}" {
-               throw PonoException("No set");
+               throw PonoException("No enumerated types or sets");
             }
             | basic_expr OP_IN basic_expr {
                throw PonoException("No array");

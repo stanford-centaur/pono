@@ -80,7 +80,6 @@ boolean   {return pono::smvparser::make_bool_type(_encoder.loc);}
 real  {return pono::smvparser::make_real_type(_encoder.loc);}
 integer   {return pono::smvparser::make_integer_type(_encoder.loc);}
 word   {return pono::smvparser::make_tok_word(_encoder.loc);}
-set {return pono::smvparser::make_tok_set(_encoder.loc);}
 clock {return pono::smvparser::make_time_type(_encoder.loc);}
 in {return pono::smvparser::make_OP_IN(_encoder.loc);}
 
