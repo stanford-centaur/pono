@@ -48,6 +48,7 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "ind", KIND },
       { "interp", INTERP },
       { "mbic3", MBIC3 },
+      { "ic3bits", IC3_BITS },
       { "ic3ia", IC3IA_ENGINE },
       { "msat-ic3ia", MSAT_IC3IA } });
 
