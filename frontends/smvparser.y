@@ -580,7 +580,7 @@ real_constant: real_val{
 float_number: integer_val "." integer_val{ $$ = $1 + "." + $3; }
             | neg_integer_val "." integer_val { $$ = $1 + "." + $3; }
 
-fractional_number: fraction_prefix "'" integer_val "/" integer_val{ $$ = $1 + "'" + $3 + "/" + $5; }
+fractional_number: fraction_prefix integer_val "/" integer_val{ $$ = $1 + $2 + "/" + $4; }
 
 exponential_number: integer_val exponential_prefix "-" integer_val{  $$ =  $1 + $2 + "-" + $4; }
 | integer_val exponential_prefix integer_val{  $$ =  $1 + $2 + $3; }
