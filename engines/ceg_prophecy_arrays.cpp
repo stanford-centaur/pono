@@ -95,7 +95,8 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
 
       if (res == ProverResult::FALSE) {
         // use witness length
-        reached_k_ = prover->witness_length();
+        // reached_k_ is the last k without a counterexample trace
+        reached_k_ = prover->witness_length() - 1;
       }
 
     } else {
@@ -142,7 +143,8 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
 
       if (res == ProverResult::FALSE) {
         // use witness length
-        reached_k_ = prover->witness_length();
+        // reached_k_ is the last k without a counterexample trace
+        reached_k_ = prover->witness_length() - 1;
       } else if (res == ProverResult::TRUE) {
         try {
           // set the invariant
