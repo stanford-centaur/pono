@@ -20,6 +20,7 @@
 #include "engines/bmc_simplepath.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/cegar_values.h"
+#include "engines/ic3bits.h"
 #include "engines/ic3ia.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
@@ -58,6 +59,8 @@ shared_ptr<Prover> make_prover(Engine e,
 #endif
   } else if (e == MBIC3) {
     return make_shared<ModelBasedIC3>(p, ts, slv, opts);
+  } else if (e == IC3_BITS) {
+    return make_shared<IC3Bits>(p, ts, slv, opts);
   } else if (e == IC3IA_ENGINE) {
 #ifdef WITH_MSAT
     return make_shared<IC3IA>(p, ts, slv, opts);

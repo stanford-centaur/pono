@@ -33,6 +33,7 @@ enum Engine
   KIND,
   INTERP,
   IC3_BOOL,
+  IC3_BITS,
   MBIC3,
   IC3IA_ENGINE,
   MSAT_IC3IA
