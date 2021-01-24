@@ -76,6 +76,9 @@ class IC3SA : public IC3
   smt::TermVec to_visit_;          ///< temporary var for justify_coi
   smt::UnorderedTermSet visited_;  ///< temporary var for justify_coi
 
+  // temporary data structure for conjunctive_assumptions
+  smt::TermVec tmp_;
+
   // useful sort
   smt::Sort boolsort_;
 
@@ -100,6 +103,18 @@ class IC3SA : public IC3
   RefineResult refine() override;
 
   // IC3SA specific methods
+
+  /** Helper function to create labels for conjuncts of a constraint
+   *  and assume the implication
+   *  @param term the term to break into conjuncts and assume labels for
+   *  @param used_lbls a set to keep track of used labels
+   *  @param lbls the vector of labels to add to
+   *  @param assumps the vector of assumptions to add to
+   */
+  void conjunctive_assumptions(const smt::Term & term,
+                               smt::UnorderedTermSet & used_lbls,
+                               smt::TermVec & lbls,
+                               smt::TermVec & assumps);
 
   /** Get equivalence classes over all current terms in term_abstraction_
    *  from the current model

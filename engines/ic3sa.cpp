@@ -238,29 +238,21 @@ RefineResult IC3SA::refine()
   // TODO also use conjunctive partitions to split up constraints
   // as much as possible
 
+  UnorderedTermSet used_lbls;
   TermVec lbls, assumps;
-  Term lbl, unrolled;
+  Term unrolled;
 
   unrolled = f_unroller_.at_time(ts_.init(), 0);
-  lbl = label(unrolled);
-  lbls.push_back(lbl);
-  assumps.push_back(unrolled);
-  solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+  conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
 
   for (size_t i = 0; i < cex_.size(); ++i) {
     unrolled = f_unroller_.at_time(cex_[i], i);
-    lbl = label(unrolled);
-    lbls.push_back(lbl);
-    assumps.push_back(unrolled);
-    solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+    conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
 
     // add constraints
     for (const auto & elem : ts_.constraints()) {
       unrolled = f_unroller_.at_time(elem.first, i);
-      lbl = label(unrolled);
-      lbls.push_back(lbl);
-      assumps.push_back(unrolled);
-      solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+      conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
     }
 
     r = check_sat_assuming(lbls);
@@ -334,6 +326,27 @@ RefineResult IC3SA::refine()
   assert(!solver_context_);
   assert(r.is_unsat());
   return REFINE_SUCCESS;
+}
+
+void IC3SA::conjunctive_assumptions(const Term & term,
+                                    UnorderedTermSet & used_lbls,
+                                    TermVec & lbls,
+                                    TermVec & assumps)
+{
+  assert(solver_context_);  // should only add assumptions at non-zero context
+  tmp_.clear();
+  conjunctive_partition(term, tmp_, true);
+  Term lbl;
+  for (const auto & tt : tmp_) {
+    assert(tt->get_sort() == boolsort_);
+    lbl = label(tt);
+    if (used_lbls.find(lbl) == used_lbls.end()) {
+      used_lbls.insert(lbl);
+      lbls.push_back(lbl);
+      assumps.push_back(tt);
+      solver_->assert_formula(solver_->make_term(Implies, lbl, tt));
+    }
+  }
 }
 
 void IC3SA::initialize()
