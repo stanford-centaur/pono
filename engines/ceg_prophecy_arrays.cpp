@@ -334,6 +334,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
 
   if (consecutive_axioms.size() > 0) {
     refine_ts(consecutive_axioms);
+    num_added_axioms_ += consecutive_axioms.size();
+    logger.log(1, "CEGP: refine added {} axiom(s)", num_added_axioms_);
   }
 
   // able to successfully refine
@@ -506,7 +508,6 @@ void CegProphecyArrays<Prover_T>::refine_ts(const UnorderedTermSet & consecutive
   RelationalTransitionSystem & rts =
     static_cast<RelationalTransitionSystem &>(abs_ts_);
   for (const auto & ax : consecutive_axioms) {
-    num_added_axioms_++;
     if (reached_k_ == -1) {
       // if only checking initial state
       // need to add to init
@@ -519,8 +520,6 @@ void CegProphecyArrays<Prover_T>::refine_ts(const UnorderedTermSet & consecutive
       rts.constrain_trans(abs_ts_.next(ax));
     }
   }
-
-  logger.log(1, "CEGP: refine added {} axiom(s)", num_added_axioms_);
 
   refine_subprover_ts(consecutive_axioms);
 }

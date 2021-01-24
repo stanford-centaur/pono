@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include "core/functional_unroller.h"
 #include "engines/ic3.h"
 
 namespace pono {
@@ -47,6 +48,8 @@ class IC3SA : public IC3
   typedef IC3 super;
 
  protected:
+  FunctionalUnroller f_unroller_;
+
   smt::UnorderedTermSet predset_;  ///< stores all predicates in abstraction
 
   // TODO remove this and generate it on the fly
@@ -97,28 +100,6 @@ class IC3SA : public IC3
   RefineResult refine() override;
 
   // IC3SA specific methods
-
-  /** Computes the symbolic post-image of
-   *  pi /\ ci under the current model
-   *  @requires current solver_ state is SAT
-   *  @param i the current step
-   *  @param subst the substitution map to use and update
-   *  @param last_model_vals map to keep track of model assignments for inputs
-   *         in current model (for convenience maps latest unrolling -- which
-   *         didn't exist for this model to the "untimed" input variables)
-   *  @return the symbolic post image given the current model at step i+1
-   */
-  smt::TermVec symbolic_post_image(size_t i,
-                                   smt::UnorderedTermMap & subst,
-                                   smt::UnorderedTermMap & last_model_vals);
-
-  /** Create fresh symbolic constants for input variables
-   *  and state variables with no next state at time i
-   *  functions like the unroller, but only unrolls
-   *  unconstrained variables
-   *  @param i the time-step
-   */
-  void gen_inputvars_at_time(size_t i);
 
   /** Get equivalence classes over all current terms in term_abstraction_
    *  from the current model

@@ -80,6 +80,7 @@ class PonoOptions
         ic3_reset_interval_(default_ic3_reset_interval_),
         mbic3_indgen_mode(default_mbic3_indgen_mode),
         ic3_functional_preimage_(default_ic3_functional_preimage_),
+        ic3_unsatcore_gen_(default_ic3_unsatcore_gen_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
         cegp_axiom_red_(default_cegp_axiom_red_),
         profiling_log_filename_(default_profiling_log_filename_),
@@ -122,6 +123,8 @@ class PonoOptions
                                   ///means unbounded
   unsigned int mbic3_indgen_mode;  ///< inductive generalization mode [0,2]
   bool ic3_functional_preimage_; ///< functional preimage in IC3
+  bool ic3_unsatcore_gen_;  ///< generalize a cube during relative inductiveness
+                            ///< check with unsatcore
   // ceg-prophecy-arrays options
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
@@ -154,10 +157,11 @@ class PonoOptions
   static const unsigned int default_ic3_gen_max_iter_ = 2;
   static const unsigned int default_mbic3_indgen_mode = 0;
   static const bool default_ic3_functional_preimage_ = false;
+  static const bool default_ic3_unsatcore_gen_ = true;
   static const bool default_cegp_axiom_red_ = true;
   static const std::string default_profiling_log_filename_;
   static const bool default_pseudo_init_prop_ = false;
-  static const bool default_assume_prop_ = true;
+  static const bool default_assume_prop_ = false;
   static const bool default_cegp_abs_vals_ = false;
   static const size_t default_cegp_abs_vals_cutoff_ = 100;
   static const bool default_promote_inputvars_ = false;

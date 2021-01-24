@@ -74,6 +74,7 @@ IC3SA::IC3SA(const Property & p,
              const smt::SmtSolver & solver,
              PonoOptions opt)
     : super(p, ts, solver, opt),
+      f_unroller_(ts_, 0),  // zero means pure-functional unrolling
       boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;
@@ -212,150 +213,126 @@ void IC3SA::check_ts() const
 
 RefineResult IC3SA::refine()
 {
-  // TODO try substituting in trans vs symbolic post-image
-  //      trans substitution idea is hand-wavey, but want to end up
-  //      with (cnt + 1 + 1) instead of just cnt = 1 for example
-  // TODO add option for using interpolants
-  assert(solver_context_ == 0);
-  // counterexample trace should have been populated
+  assert(!solver_context_);
   assert(cex_.size());
 
-  size_t cex_length = cex_.size();
-  logger.log(1, "IC3SA::refine cex of length {}", cex_length);
-  assert(cex_length);
-  if (cex_length == 1) {
-    // TODO make sure that this is indeed a concrete CEX
-    return REFINE_NONE;
-  }
+  logger.log(1, "IC3SA: refining a counterexample of length {}", cex_.size());
 
-  assert(check_intersects_initial(cex_[0]));
-
-  const UnorderedTermMap & state_updates = ts_.state_updates();
-
-  // used to get rid of "unrolled" variables
-  // after successfully refining
+  // This function will unroll the counterexample trace functionally one step at
+  // a time it will introduce fresh symbols for input variables it will keep
+  // track of old model values to plug into inputs if an axiom is learned
+  Result r;
   UnorderedTermMap last_model_vals;
 
-  // set up initial substitution map
-  UnorderedTermMap subst;
-
-  // assumps is for p_{i-1} /\ c_{i-1} /\ c_i' from paper
-  TermVec assumps({ ts_.init(), cex_[0] });
-  Term trans = ts_.trans();
-  Result r;
-  bool refined = false;
-  Term axiom;
-  for (size_t i = 1; i < cex_length; ++i) {
-    // add ci'
-    // TODO use substitute_terms to save time when copying map
-    // TODO check if this is right (used to add children individually
-    //      from the IC3Formula in the cex)
-    //      I think I had them split up so that we could reduce
-    //      the path constraint to get the unsat core
-    // TODO can just do conjunctive partition
-    assumps.push_back(ts_.next(cex_[i]));
-
-    assert(solver_context_ == 0);
-    push_solver_context();
-
-    solver_->assert_formula(trans);
-
-    for (const auto & a : assumps) {
-      solver_->assert_formula(a);
-    }
-
-    r = solver_->check_sat();
-    if (r.is_sat()) {
-      assumps = symbolic_post_image(i, subst, last_model_vals);
-      // add cube to it
-      assumps.push_back(cex_[i]);
-    } else {
-      refined = true;
-
-      // get MUS
-      // TODO check we're reducing over the correct vector
-      //      should we include the cex cubes?
-      TermVec unsatcore;
-      reducer_.reduce_assump_unsatcore(trans, assumps, unsatcore);
-      assert(unsatcore.size());
-      // TODO consider removing ITEs at this step also
-      Term m = make_and(unsatcore);
-
-      // get rid of fresh symbolic constants for unconstrained variables
-      // e.g. inputs and state variables with no state update
-      // TODO consider trying to replace input variables by substitution
-      //      I guess that means other terms that had the same value in
-      //      the last satisfiable solver call? Not totally clear on that.
-      m = solver_->substitute(m, last_model_vals);
-
-      // instead of sv -> state_update, maps sv' -> state_update
-      UnorderedTermMap next_updates;
-      for (const auto & elem : state_updates) {
-        next_updates[ts_.next(elem.first)] = elem.second;
-      }
-      // replace next-state variables with functional substitution
-      m = solver_->substitute(m, next_updates);
-
-      axiom = solver_->make_term(Not, m);
-      // NOTE can't be certain that there's no next in the axiom
-      // TODO figure out how to handle this correctly
-      //      for now just removing assertion but still adding the terms
-      // assert(ts_.no_next(axiom));
-      // ts_.add_constraint(axiom);
-      logger.log(3, "IC3SA::refine learning axiom: {}", axiom);
-
-      // add all state variables to projection set
-      UnorderedTermSet free_vars;
-      get_free_symbolic_consts(axiom, free_vars);
-      for (const auto & fv : free_vars) {
-        if (ts_.is_curr_var(fv)) {
-          projection_set_.insert(fv);
-        }
-      }
-
-      bool new_terms_added = add_to_term_abstraction(axiom);
-      assert(new_terms_added);
-    }
-
-    pop_solver_context();
-
-    if (refined) {
-      // expecting only one axioms
-      // needs to be changed if we don't break from the loop upon finding an
-      // axiom add semantics for trans_label_
-      assert(axiom);
-      assert(solver_context_ == 0);
-      solver_->assert_formula(solver_->make_term(Implies, trans_label_, axiom));
-      if (ts_.only_curr(axiom)) {
-        solver_->assert_formula(
-            solver_->make_term(Implies, trans_label_, ts_.next(axiom)));
-      }
-      break;
+  UnorderedTermSet inputvars = ts_.inputvars();
+  // add implicit input variables
+  const UnorderedTermMap & state_updates = ts_.state_updates();
+  for (const auto & sv : ts_.statevars()) {
+    if (state_updates.find(sv) == state_updates.end()) {
+      inputvars.insert(sv);
     }
   }
 
-  if (!refined) {
-    // concrete counterexample
+  push_solver_context();
+
+  // TODO also use conjunctive partitions to split up constraints
+  // as much as possible
+
+  TermVec lbls, assumps;
+  Term lbl, unrolled;
+
+  unrolled = f_unroller_.at_time(ts_.init(), 0);
+  lbl = label(unrolled);
+  lbls.push_back(lbl);
+  assumps.push_back(unrolled);
+  solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+
+  for (size_t i = 0; i < cex_.size(); ++i) {
+    unrolled = f_unroller_.at_time(cex_[i], i);
+    lbl = label(unrolled);
+    lbls.push_back(lbl);
+    assumps.push_back(unrolled);
+    solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+
+    // add constraints
+    for (const auto & elem : ts_.constraints()) {
+      unrolled = f_unroller_.at_time(elem.first, i);
+      lbl = label(unrolled);
+      lbls.push_back(lbl);
+      assumps.push_back(unrolled);
+      solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+    }
+
+    r = check_sat_assuming(lbls);
+    // TODO keep track of model values
+    if (r.is_unsat()) {
+      break;
+    } else {
+      assert(r.is_sat());  // not expecting unknown
+      // save model values
+      Term iv_j;
+      for (const auto & iv : inputvars) {
+        for (size_t j = 0; j < i; ++j) {
+          iv_j = f_unroller_.at_time(iv, j);
+          last_model_vals[iv_j] = solver_->get_value(iv_j);
+        }
+      }
+    }
+  }
+  assert(lbls.size() == assumps.size());
+
+  // TODO check that this correctly handles counterexample case
+  if (r.is_sat()) {
+    // this is a concrete counterexample
     return REFINE_NONE;
   }
 
-  // TODO loop up to cex_length
-  //      with implicit unrolling
-  //      need to understand how T is being used
-  //      with a functional unrolling in algorithm
+  assert(r.is_unsat());  // not expecting unknown
+  UnorderedTermSet core;
+  solver_->get_unsat_core(core);
+  assert(core.size());
 
-  // TODO use symbolic_post_image
-  // until the query becomes unsat
-  // then add terms to term abstraction
-  // (after substituting for inputs) and untiming
-  // NOTE: seems easier to not use functional unroller
-  //       need symbolic post-image *under current model*
-  // TODO maybe have option for functional unroller
-  // to not use @0 if never using other state variables
-  // TODO figure out if we should project
-  //      / how we limit the number of added terms
-  // TODO get minimal unsat core
-  // TODO add symbols from the MUS to the projection set permanently
+  TermVec reduced_constraints;
+  reduced_constraints.reserve(core.size());
+  for (size_t i = 0; i < lbls.size(); ++i) {
+    if (core.find(lbls[i]) != core.end()) {
+      reduced_constraints.push_back(assumps[i]);
+    }
+  }
+  assert(reduced_constraints.size() == core.size());
+
+  Term m = smart_not(make_and(reduced_constraints));
+
+  // substitute all the model values
+  // TODO consider having a more complex substitution here
+  // e.g. allow replacing with other variables possibly?
+  // based on the equivalences in the last model
+  m = solver_->substitute(m, last_model_vals);
+  m = f_unroller_.untime(
+      m);  // replaces the @0 variables with current state vars
+
+  logger.log(3, "IC3SA::refine learned axiom {}", m);
+
+  // it was functionally unrolled, the inputs were replaced with values
+  // and it was untimed
+  // thus there should only be current state variables left
+  assert(ts_.only_curr(m));
+
+  // add to the projection set permanently
+  get_free_symbolic_consts(m, projection_set_);
+
+  // TODO do we have to add m to the transition relation?
+  //      or can we just mine for new terms?
+
+  // mine for new terms
+  bool new_terms_added = add_to_term_abstraction(m);
+  assert(new_terms_added);
+
+  // TODO handle refinement failure case if any
+
+  pop_solver_context();
+  assert(!solver_context_);
+  assert(r.is_unsat());
   return REFINE_SUCCESS;
 }
 
@@ -414,88 +391,6 @@ void IC3SA::initialize()
 }
 
 // IC3SA specific methods
-
-TermVec IC3SA::symbolic_post_image(size_t i,
-                                   UnorderedTermMap & subst,
-                                   UnorderedTermMap & last_model_vals)
-{
-  // TODO use partial_model to handle boolean structure
-  //      for now just keeping full boolean structure
-  // TODO cache which state updates contain ITEs
-  //      and don't even run on the ones which don't
-
-  assert(i >= 1);
-
-  // update last model values
-  for (const auto & m : inputvars_at_time_) {
-    for (const auto & elem : m) {
-      last_model_vals[elem.second] = solver_->get_value(elem.second);
-    }
-  }
-
-  gen_inputvars_at_time(i - 1);
-  const UnorderedTermMap & unconstrained_i_vars = inputvars_at_time_.at(i - 1);
-  // update input variables with latest time
-  for (const auto & elem : unconstrained_i_vars) {
-    subst[elem.first] = elem.second;
-    // get the value from the input variable before replacement
-    Term val = solver_->get_value(elem.first);
-    last_model_vals[elem.second] = val;
-  }
-
-  const UnorderedTermMap & state_updates = ts_.state_updates();
-  // update state variables value
-  for (const auto & sv : ts_.statevars()) {
-    if (state_updates.find(sv) != state_updates.end()) {
-      subst[sv] = solver_->get_value(sv);
-    } else {
-      subst[sv] = unconstrained_i_vars.at(sv);
-    }
-  }
-
-  // TODO: can probably combine this with one of the other loops
-  TermVec svs;
-  TermVec subst_updates;
-  for (const auto & sv : ts_.statevars()) {
-    if (state_updates.find(sv) != state_updates.end()) {
-      svs.push_back(sv);
-      subst_updates.push_back(state_updates.at(sv));
-    }
-  }
-
-  assert(subst_updates.size() == svs.size());
-
-  TermVec res;
-  // getting sv' = syntactic evaluation of update function
-  // and then switching back to sv
-  for (size_t i = 0; i < svs.size(); ++i) {
-    // TODO: use substitute_terms to save time when copying maps back and forth
-    res.push_back(solver_->make_term(
-        Equal, svs[i], solver_->substitute(subst_updates[i], subst)));
-  }
-
-  return res;
-}
-
-void IC3SA::gen_inputvars_at_time(size_t i)
-{
-  const UnorderedTermMap & state_updates = ts_.state_updates();
-  while (inputvars_at_time_.size() <= i) {
-    inputvars_at_time_.push_back(UnorderedTermMap());
-    UnorderedTermMap & subst = inputvars_at_time_.back();
-    for (const auto & v : ts_.inputvars()) {
-      subst[v] = solver_->make_symbol(v->to_string() + "@" + std::to_string(i),
-                                      v->get_sort());
-    }
-
-    for (const auto & v : ts_.statevars()) {
-      if (state_updates.find(v) == state_updates.end()) {
-        subst[v] = solver_->make_symbol(
-            v->to_string() + "@" + std::to_string(i), v->get_sort());
-      }
-    }
-  }
-}
 
 EquivalenceClasses IC3SA::get_equivalence_classes_from_model(
     const UnorderedTermSet & to_keep) const
