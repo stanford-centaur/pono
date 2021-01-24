@@ -245,13 +245,14 @@ RefineResult IC3SA::refine()
   unrolled = f_unroller_.at_time(ts_.init(), 0);
   conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
 
-  for (size_t i = 0; i < cex_.size(); ++i) {
-    unrolled = f_unroller_.at_time(cex_[i], i);
+  size_t refined_length = 0;
+  for (; refined_length < cex_.size(); ++refined_length) {
+    unrolled = f_unroller_.at_time(cex_[refined_length], refined_length);
     conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
 
     // add constraints
     for (const auto & elem : ts_.constraints()) {
-      unrolled = f_unroller_.at_time(elem.first, i);
+      unrolled = f_unroller_.at_time(elem.first, refined_length);
       conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
     }
 
@@ -264,7 +265,7 @@ RefineResult IC3SA::refine()
       // save model values
       Term iv_j;
       for (const auto & iv : inputvars) {
-        for (size_t j = 0; j < i; ++j) {
+        for (size_t j = 0; j < refined_length; ++j) {
           iv_j = f_unroller_.at_time(iv, j);
           last_model_vals[iv_j] = solver_->get_value(iv_j);
         }
@@ -309,7 +310,6 @@ RefineResult IC3SA::refine()
   // and it was untimed
   // thus there should only be current state variables left
   assert(ts_.only_curr(m));
-  assert(!m->is_value());
 
   // add to the projection set permanently
   get_free_symbolic_consts(m, projection_set_);
@@ -319,6 +319,48 @@ RefineResult IC3SA::refine()
 
   // mine for new terms
   bool new_terms_added = add_to_term_abstraction(m);
+  if (!new_terms_added) {
+    logger.log(
+        2, "IC3SA::refine fallback for term refinement at {}", refined_length);
+    // HACK this is a somewhat hacky fallback procedure
+    // since some solvers do simplification, you can
+    // end up with an unsat core that's just false
+    // which negated becomes true
+    // for example, something like
+    // x + 1 + 1 + 1 != 3
+    // we would want to get x+3 != 3 for refinement
+    // but it might also know that
+    // x = 0
+    // so then it simplifies
+    // x+3 != 3 to x != 0 and then the unsat core is
+    // x = 0 /\ x != 0 which is not useful
+    // if we get to that point, just find relevant variables
+    // and learn the functionally unrolled terms
+
+    UnorderedTermSet free_vars;
+    Term res;
+    for (const auto & rc : reduced_constraints) {
+      // TODO: look into using substitute_terms to save time copying the map
+      // over
+      UnorderedTermSet local_free_vars;
+      get_free_symbolic_consts(rc, local_free_vars);
+      for (const auto & lfv : local_free_vars) {
+        if (last_model_vals.find(lfv) == last_model_vals.end()) {
+          free_vars.insert(f_unroller_.untime(lfv));
+        }
+      }
+    }
+    assert(free_vars.size());
+    for (const auto & fv : free_vars) {
+      if (state_updates.find(fv) != state_updates.end()) {
+        unrolled = f_unroller_.at_time(fv, refined_length);
+        unrolled = solver_->substitute(unrolled, last_model_vals);
+        unrolled = f_unroller_.untime(unrolled);
+        assert(ts_.only_curr(unrolled));
+        new_terms_added |= add_to_term_abstraction(unrolled);
+      }
+    }
+  }
   assert(new_terms_added);
 
   // TODO handle refinement failure case if any
