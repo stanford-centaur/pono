@@ -25,6 +25,7 @@
 #include "engines/ic3sa.h"
 
 #include "assert.h"
+#include "core/rts.h"
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
@@ -73,8 +74,9 @@ IC3SA::IC3SA(const Property & p,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
              PonoOptions opt)
-    : super(p, ts, solver, opt),
-      f_unroller_(ts_, 0),  // zero means pure-functional unrolling
+    : super(p, RelationalTransitionSystem(solver), solver, opt),
+      conc_ts_(ts),
+      f_unroller_(conc_ts_, 0),  // zero means pure-functional unrolling
       boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;
@@ -186,12 +188,12 @@ void IC3SA::check_ts() const
 {
   if (ts_.inputvars().size()) {
     throw PonoException(
-        "IC3SA requires all statevariables. Try option --promote-inputvars");
+        "IC3SA requires all state variables. Try option --promote-inputvars");
   }
 
   // TODO: add support for arrays
 
-  if (!ts_.is_functional()) {
+  if (!conc_ts_.is_functional()) {
     throw PonoException("IC3SA requires a functional transition system.");
   }
 
@@ -208,6 +210,28 @@ void IC3SA::check_ts() const
     {
       throw PonoException("IC3SA currently only supports bit-vectors");
     }
+  }
+}
+
+void IC3SA::abstract()
+{
+  // need to be able to add path axioms
+  assert(!ts_.is_functional());
+
+  // give this system the same semantics as the functional system
+  for (const auto & sv : conc_ts_.statevars()) {
+    ts_.add_statevar(sv, conc_ts_.next(sv));
+  }
+  assert(conc_ts_.inputvars().size() == 0);  // expecting no inputs
+
+  ts_.set_init(conc_ts_.init());
+
+  for (const auto & elem : conc_ts_.state_updates()) {
+    ts_.assign_next(elem.first, elem.second);
+  }
+
+  for (const auto & elem : conc_ts_.constraints()) {
+    ts_.add_constraint(elem.first, elem.second);
   }
 }
 
@@ -411,7 +435,6 @@ void IC3SA::initialize()
   get_free_symbolic_consts(bad_, vars_in_bad_);
 
   // populate the map used in justify_coi to take constraints into account
-  assert(ts_.is_functional());
   UnorderedTermSet tmp_vars;
   for (const auto & elem : ts_.constraints()) {
     assert(ts_.no_next(elem.first));

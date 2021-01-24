@@ -48,6 +48,8 @@ class IC3SA : public IC3
   typedef IC3 super;
 
  protected:
+  TransitionSystem conc_ts_;
+
   FunctionalUnroller f_unroller_;
 
   smt::UnorderedTermSet predset_;  ///< stores all predicates in abstraction
@@ -99,6 +101,8 @@ class IC3SA : public IC3
   // bool intersects_bad(IC3Formula & out) override;
 
   void initialize() override;
+
+  void abstract() override;
 
   RefineResult refine() override;
 
