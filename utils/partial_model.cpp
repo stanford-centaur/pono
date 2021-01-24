@@ -209,7 +209,6 @@ static inline bool is_all_one(const std::string & s, uint64_t w)  {
 
 
 void PartialModelGen::dfs_walk(const smt::Term & input_ast ) {
-  // std::cout << "[DEBUG] expr : " << ast->to_string() << std::endl;
   smt::TermVec node_stack_;
   node_stack_.push_back(input_ast);
   while(!node_stack_.empty()) {
@@ -219,7 +218,7 @@ void PartialModelGen::dfs_walk(const smt::Term & input_ast ) {
       continue;
     }
     dfs_walked_.insert(ast);
-
+    
     smt::Op op = ast->get_op();
     if (op.is_null()) { // this is the root node
       if (ast->is_symbolic_const()) {
@@ -320,7 +319,7 @@ void PartialModelGen::dfs_walk(const smt::Term & input_ast ) {
         std::string left_val = cond_left->to_string();
         std::string right_val = cond_right->to_string();
 
-        if (is_all_zero(left_val)) // if all ones
+        if (is_all_zero(left_val)) // if all zeros
           node_stack_.push_back(left);
         else if (is_all_zero(right_val)) {
           node_stack_.push_back(right);
