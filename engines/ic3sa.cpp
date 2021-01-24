@@ -238,17 +238,30 @@ RefineResult IC3SA::refine()
   // TODO also use conjunctive partitions to split up constraints
   // as much as possible
 
-  solver_->assert_formula(f_unroller_.at_time(ts_.init(), 0));
-
   TermVec lbls, assumps;
   Term lbl, unrolled;
+
+  unrolled = f_unroller_.at_time(ts_.init(), 0);
+  lbl = label(unrolled);
+  lbls.push_back(lbl);
+  assumps.push_back(unrolled);
+  solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+
   for (size_t i = 0; i < cex_.size(); ++i) {
     unrolled = f_unroller_.at_time(cex_[i], i);
     lbl = label(unrolled);
     lbls.push_back(lbl);
     assumps.push_back(unrolled);
-
     solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+
+    // add constraints
+    for (const auto & elem : ts_.constraints()) {
+      unrolled = f_unroller_.at_time(elem.first, i);
+      lbl = label(unrolled);
+      lbls.push_back(lbl);
+      assumps.push_back(unrolled);
+      solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+    }
 
     r = check_sat_assuming(lbls);
     // TODO keep track of model values
