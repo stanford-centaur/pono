@@ -284,6 +284,8 @@ RefineResult IC3SA::refine()
   // TODO check that this correctly handles counterexample case
   if (r.is_sat()) {
     // this is a concrete counterexample
+    pop_solver_context();
+    assert(!solver_context_);
     return REFINE_NONE;
   }
 
