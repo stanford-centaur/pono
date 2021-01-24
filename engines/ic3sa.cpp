@@ -272,7 +272,7 @@ RefineResult IC3SA::refine()
       // save model values
       Term iv_j;
       for (const auto & iv : inputvars) {
-        for (size_t j = 0; j <= i; ++j) {
+        for (size_t j = 0; j < i; ++j) {
           iv_j = f_unroller_.at_time(iv, j);
           last_model_vals[iv_j] = solver_->get_value(iv_j);
         }
