@@ -309,6 +309,7 @@ RefineResult IC3SA::refine()
   // and it was untimed
   // thus there should only be current state variables left
   assert(ts_.only_curr(m));
+  assert(!m->is_value());
 
   // add to the projection set permanently
   get_free_symbolic_consts(m, projection_set_);

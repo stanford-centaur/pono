@@ -87,6 +87,26 @@ TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
+TEST_P(IC3SAUnitTests, Simple)
+{
+  FunctionalTransitionSystem fts(s);
+  Sort bvsort8 = fts.make_sort(BV, 8);
+  Sort boolsort = fts.make_sort(BOOL);
+  Term one = fts.make_term(1, bvsort8);
+  Term eight = fts.make_term(8, bvsort8);
+  Term x = fts.make_statevar("x", bvsort8);
+
+  fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
+  fts.assign_next(x, fts.make_term(BVAdd, x, one));
+
+  Term prop_term = fts.make_term(BVUlt, x, eight);
+  Property prop(fts.solver(), prop_term);
+
+  IC3SA ic3sa(prop, fts, s);
+  ProverResult r = ic3sa.check_until(10);
+  ASSERT_EQ(r, ProverResult::FALSE);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3SAUnitTests,
                          IC3SAUnitTests,
                          testing::ValuesIn(available_solver_enums()));
