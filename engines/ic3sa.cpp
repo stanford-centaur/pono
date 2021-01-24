@@ -444,9 +444,8 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
       Term last = *it;
       it++;
 
-      Term repr = last;
-      bool found_repr = false;
-      bool repr_val = repr->is_value();
+      // save as a representative for this partition
+      representatives.push_back(last);
 
       while (it != end) {
         const Term & term = *(it++);
@@ -458,23 +457,8 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
           assert(solver_->get_value(lit) == solver_true_);
         }
         last = term;
-
-        // TODO: see if a DisjointSet would make this easier
-        // update representative for this class
-        if (!found_repr) {
-          if (term->is_symbolic_const()) {
-            repr = term;
-            repr_val = false;
-            found_repr = true;
-          } else if (!term->is_value() && repr_val) {
-            repr = term;
-            repr_val = false;
-          }
-        }
       }
 
-      // save the representative for this partition
-      representatives.push_back(repr);
     }
 
     assert(representatives.size() == sortelem.second.size());
