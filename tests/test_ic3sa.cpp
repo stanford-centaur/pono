@@ -37,7 +37,7 @@ TransitionSystem simple_uvw_system(const SmtSolver & solver)
 
   fts.assign_next(u, fts.make_term(Ite, cond, ifb, elseb));
   fts.assign_next(v, fts.make_term(BVAdd, v, one));
-  fts.assign_next(w, fts.make_term(BVAdd, v, one));
+  fts.assign_next(w, fts.make_term(BVAdd, w, one));
 
   return fts;
 }
