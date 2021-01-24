@@ -222,7 +222,7 @@ RefineResult IC3SA::refine()
   // a time it will introduce fresh symbols for input variables it will keep
   // track of old model values to plug into inputs if an axiom is learned
   Result r;
-  UnorderedTermMap last_model_vals;
+  // UnorderedTermMap last_model_vals;
 
   UnorderedTermSet inputvars = ts_.inputvars();
   // add implicit input variables
@@ -242,19 +242,22 @@ RefineResult IC3SA::refine()
   TermVec lbls, assumps;
   Term unrolled;
 
-  unrolled = f_unroller_.at_time(ts_.init(), 0);
-  conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
+  Term p = ts_.init();
 
   size_t refined_length = 0;
-  for (; refined_length < cex_.size(); ++refined_length) {
-    unrolled = f_unroller_.at_time(cex_[refined_length], refined_length);
+  for (; refined_length + 1 < cex_.size(); ++refined_length) {
+    push_solver_context();
+    used_lbls.clear();
+    lbls.clear();
+    assumps.clear();
+
+    conjunctive_assumptions(p, used_lbls, lbls, assumps);
+    unrolled = cex_[refined_length];
     conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
 
-    // add constraints
-    for (const auto & elem : ts_.constraints()) {
-      unrolled = f_unroller_.at_time(elem.first, refined_length);
-      conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
-    }
+    // if we start with less terms, then need to include this in the assumptions
+    solver_->assert_formula(ts_.trans());
+    solver_->assert_formula(ts_.next(cex_[refined_length + 1]));
 
     r = check_sat_assuming(lbls);
     // TODO keep track of model values
@@ -262,14 +265,23 @@ RefineResult IC3SA::refine()
       break;
     } else {
       assert(r.is_sat());  // not expecting unknown
-      // save model values
-      Term iv_j;
-      for (const auto & iv : inputvars) {
-        for (size_t j = 0; j < refined_length; ++j) {
-          iv_j = f_unroller_.at_time(iv, j);
-          last_model_vals[iv_j] = solver_->get_value(iv_j);
-        }
+      // make p the post-state
+      p = solver_->make_term(true);
+      for (const auto & sv : ts_.statevars()) {
+        p = solver_->make_term(
+            And,
+            p,
+            solver_->make_term(Equal, sv, solver_->get_value(ts_.next(sv))));
       }
+      pop_solver_context();
+      // save model values
+      // Term iv_j;
+      // for (const auto & iv : inputvars) {
+      //   for (size_t j = 0; j < refined_length; ++j) {
+      //     iv_j = f_unroller_.at_time(iv, j);
+      //     last_model_vals[iv_j] = solver_->get_value(iv_j);
+      //   }
+      // }
     }
   }
   assert(lbls.size() == assumps.size());
@@ -277,6 +289,8 @@ RefineResult IC3SA::refine()
   // TODO check that this correctly handles counterexample case
   if (r.is_sat()) {
     // this is a concrete counterexample
+    pop_solver_context();
+    assert(!solver_context_);
     return REFINE_NONE;
   }
 
@@ -284,6 +298,10 @@ RefineResult IC3SA::refine()
   UnorderedTermSet core;
   solver_->get_unsat_core(core);
   assert(core.size());
+
+  pop_solver_context();
+  pop_solver_context();
+  assert(!solver_context_);
 
   TermVec reduced_constraints;
   reduced_constraints.reserve(core.size());
@@ -300,9 +318,9 @@ RefineResult IC3SA::refine()
   // TODO consider having a more complex substitution here
   // e.g. allow replacing with other variables possibly?
   // based on the equivalences in the last model
-  m = solver_->substitute(m, last_model_vals);
-  m = f_unroller_.untime(
-      m);  // replaces the @0 variables with current state vars
+  // m = solver_->substitute(m, last_model_vals);
+  // m = f_unroller_.untime(
+  //     m);  // replaces the @0 variables with current state vars
 
   logger.log(3, "IC3SA::refine learned axiom {}", m);
 
@@ -319,53 +337,10 @@ RefineResult IC3SA::refine()
 
   // mine for new terms
   bool new_terms_added = add_to_term_abstraction(m);
-  if (!new_terms_added) {
-    logger.log(
-        2, "IC3SA::refine fallback for term refinement at {}", refined_length);
-    // HACK this is a somewhat hacky fallback procedure
-    // since some solvers do simplification, you can
-    // end up with an unsat core that's just false
-    // which negated becomes true
-    // for example, something like
-    // x + 1 + 1 + 1 != 3
-    // we would want to get x+3 != 3 for refinement
-    // but it might also know that
-    // x = 0
-    // so then it simplifies
-    // x+3 != 3 to x != 0 and then the unsat core is
-    // x = 0 /\ x != 0 which is not useful
-    // if we get to that point, just find relevant variables
-    // and learn the functionally unrolled terms
-
-    UnorderedTermSet free_vars;
-    Term res;
-    for (const auto & rc : reduced_constraints) {
-      // TODO: look into using substitute_terms to save time copying the map
-      // over
-      UnorderedTermSet local_free_vars;
-      get_free_symbolic_consts(rc, local_free_vars);
-      for (const auto & lfv : local_free_vars) {
-        if (last_model_vals.find(lfv) == last_model_vals.end()) {
-          free_vars.insert(f_unroller_.untime(lfv));
-        }
-      }
-    }
-    assert(free_vars.size());
-    for (const auto & fv : free_vars) {
-      if (state_updates.find(fv) != state_updates.end()) {
-        unrolled = f_unroller_.at_time(fv, refined_length);
-        unrolled = solver_->substitute(unrolled, last_model_vals);
-        unrolled = f_unroller_.untime(unrolled);
-        assert(ts_.only_curr(unrolled));
-        new_terms_added |= add_to_term_abstraction(unrolled);
-      }
-    }
-  }
   assert(new_terms_added);
 
   // TODO handle refinement failure case if any
 
-  pop_solver_context();
   assert(!solver_context_);
   assert(r.is_unsat());
   return REFINE_SUCCESS;
