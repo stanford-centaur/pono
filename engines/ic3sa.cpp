@@ -235,9 +235,9 @@ RefineResult IC3SA::refine()
 
   push_solver_context();
 
-  // TODO also use conjunctive partitions to split up constraints
-  // as much as possible
-
+  // due to simplifications can end up with the same terms
+  // for the constraints, avoid duplicating labels by keeping
+  // track with a set
   UnorderedTermSet used_lbls;
   TermVec lbls, assumps;
   Term unrolled;
