@@ -100,11 +100,11 @@ class IC3SA : public IC3
   // previous version was overriding intersects_bad for generalization
   // bool intersects_bad(IC3Formula & out) override;
 
-  void initialize() override;
-
   void abstract() override;
 
   RefineResult refine() override;
+
+  void initialize() override;
 
   // IC3SA specific methods
 
