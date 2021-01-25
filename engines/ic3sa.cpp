@@ -241,6 +241,12 @@ RefineResult IC3SA::refine()
   assert(!solver_context_);
   assert(cex_.size());
 
+  if (cex_.size() == 1)
+  {
+    // NOTE: if don't add all terms in init, need to refine these
+    return REFINE_NONE;
+  }
+
   logger.log(1, "IC3SA: refining a counterexample of length {}", cex_.size());
 
   // This function will unroll the counterexample trace functionally one step at
