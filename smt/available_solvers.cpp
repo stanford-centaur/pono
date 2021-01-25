@@ -62,7 +62,7 @@ const std::vector<SolverEnum> solver_enums({
 // IC3 uses the solver in a different way, so different
 // options are appropriate than for other engines
 std::unordered_set<Engine> ic3_variants(
-    { IC3_BOOL, MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
+                                        { IC3_BOOL, MBIC3, IC3IA_ENGINE, MSAT_IC3IA, IC3SA_ENGINE });
 
 // internal method for creating a particular solver
 // doesn't set any options
