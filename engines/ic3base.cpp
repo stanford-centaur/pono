@@ -198,7 +198,7 @@ size_t IC3Base::witness_length() const
 {
   // expecting there to have been a witness computed
   assert(cex_.size());
-  return cex_.size();
+  return cex_.size() - 1;
 }
 
 // Protected Methods
