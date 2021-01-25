@@ -189,7 +189,7 @@ class PonoOptions
   static const unsigned default_sygus_initial_term_width_ = 8;
   static const unsigned default_sygus_initial_term_inc_ = 8;
   static const unsigned default_sygus_accumulated_term_bound_ = 0;
-  static const unsigned default_sygus_use_operator_abstraction_ = 2;
+  static const unsigned default_sygus_use_operator_abstraction_ = 0;
 };
 
 }  // namespace pono
