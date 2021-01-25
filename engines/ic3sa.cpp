@@ -75,7 +75,7 @@ IC3SA::IC3SA(const Property & p,
              const smt::SmtSolver & solver,
              PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
-      conc_ts_(ts),
+      conc_ts_(ts, to_prover_solver_),
       f_unroller_(conc_ts_, 0),  // zero means pure-functional unrolling
       boolsort_(solver_->make_sort(BOOL))
 {
@@ -217,6 +217,7 @@ void IC3SA::abstract()
 {
   // need to be able to add path axioms
   assert(!ts_.is_functional());
+  assert(ts_.solver() == conc_ts_.solver());
 
   // give this system the same semantics as the functional system
   for (const auto & sv : conc_ts_.statevars()) {
@@ -264,7 +265,6 @@ RefineResult IC3SA::refine()
   // track with a set
   UnorderedTermSet used_lbls;
   TermVec lbls, assumps;
-  Term unrolled;
 
   Term p = ts_.init();
 
@@ -276,12 +276,12 @@ RefineResult IC3SA::refine()
     assumps.clear();
 
     conjunctive_assumptions(p, used_lbls, lbls, assumps);
-    unrolled = cex_[refined_length];
-    conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
-
-    // if we start with less terms, then need to include this in the assumptions
-    solver_->assert_formula(ts_.trans());
-    solver_->assert_formula(ts_.next(cex_[refined_length + 1]));
+    conjunctive_assumptions(cex_[refined_length], used_lbls, lbls, assumps);
+    conjunctive_assumptions(
+        ts_.next(cex_[refined_length + 1]), used_lbls, lbls, assumps);
+    // if we start with less terms, then need to include trans in the
+    // assumptions
+    assert_trans_label();
 
     r = check_sat_assuming(lbls);
     // TODO keep track of model values
@@ -337,31 +337,26 @@ RefineResult IC3SA::refine()
   assert(reduced_constraints.size() == core.size());
 
   Term m = smart_not(make_and(reduced_constraints));
+  assert(!m->is_value());  // hopefully not simplified to true
 
-  // substitute all the model values
-  // TODO consider having a more complex substitution here
-  // e.g. allow replacing with other variables possibly?
-  // based on the equivalences in the last model
-  // m = solver_->substitute(m, last_model_vals);
-  // m = f_unroller_.untime(
-  //     m);  // replaces the @0 variables with current state vars
+  assert(!ts_.is_functional());
+  static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(m);
 
   logger.log(3, "IC3SA::refine learned axiom {}", m);
 
-  // it was functionally unrolled, the inputs were replaced with values
-  // and it was untimed
-  // thus there should only be current state variables left
-  assert(ts_.only_curr(m));
-
   // add to the projection set permanently
-  get_free_symbolic_consts(m, projection_set_);
-
-  // TODO do we have to add m to the transition relation?
-  //      or can we just mine for new terms?
+  UnorderedTermSet free_vars;
+  get_free_symbolic_consts(m, free_vars);
+  for (const auto & fv : free_vars) {
+    if (ts_.is_curr_var(fv)) {
+      projection_set_.insert(fv);
+    }
+  }
 
   // mine for new terms
+  // NOTE: can proceed even if there are no new terms because of learned
+  // path axiom m
   bool new_terms_added = add_to_term_abstraction(m);
-  assert(new_terms_added);
 
   // TODO handle refinement failure case if any
 
