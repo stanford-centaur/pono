@@ -57,6 +57,7 @@ enum optionIndex
   ASSUME_PROP,
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
+  CEG_OPS_UF,
   PROMOTE_INPUTVARS
 };
 
@@ -292,6 +293,13 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --cegp-abs-vals-cutoff \tcutoff value for what to abstract - must be "
     "positive (default: 100)" },
+  { CEG_OPS_UF,
+    0,
+    "",
+    "ceg-ops-uf",
+    Arg::None,
+    "  --ceg-ops-uf \tabstraction-refinement for the theory operators (only "
+    "supported for IC3IA)" },
   { PROMOTE_INPUTVARS,
     0,
     "",
@@ -414,6 +422,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case ASSUME_PROP: assume_prop_ = true; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
+        case CEG_OPS_UF: ceg_ops_uf_ = true; break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
