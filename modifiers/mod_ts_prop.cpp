@@ -131,12 +131,9 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
   new_ts.set_init(ts.init());
 
   // copy over state updates
-  for (const auto & v_ : ts.assign_nxt_seq) {
-    new_ts.assign_next(v_, ts.state_updates().at(v_));
+  for (const auto & elem : ts.state_updates()) {
+    new_ts.assign_next(elem.first, elem.second);
   }
-  //for (const auto & elem : ts.state_updates()) {
-  //  new_ts.assign_next(elem.first, elem.second);
-  //}
 
   // need to re-evaluate all constraints that used to be over inputs
   for (const auto & elem : ts.constraints()) {

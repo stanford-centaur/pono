@@ -387,17 +387,14 @@ void BTOR2Encoder::parse(const std::string filename)
       Sort s1 = t1->get_sort();
       SortKind sk0 = s0->get_sort_kind();
       SortKind sk1 = s1->get_sort_kind();
-      ts_.assign_nxt_seq.push_back(t0);
+
       if (s0 == s1) {
         ts_.assign_next(t0, t1);
         terms_[l_->id] = t1;
       } else if (((sk0 == BV) && (sk1 == BOOL))
                  || ((sk0 == BOOL) && (sk1 == BV))) {
         // need to cast
-        auto t0_tmp = bool_to_bv(t0); 
-        
-        ts_.assign_next(t0_tmp, bool_to_bv(t1));
-        ts_.assign_nxt_seq.push_back(t0_tmp);
+        ts_.assign_next(bool_to_bv(t0), bool_to_bv(t1));
         terms_[l_->id] = bool_to_bv(t1);
       } else {
         throw PonoException("Got two different sorts in next update.");

@@ -108,7 +108,7 @@ class TransitionSystem
    *  3) state has already been assigned a next state update
    */
   void assign_next(const smt::Term & state, const smt::Term & val);
-smt::TermVec assign_nxt_seq;
+
   /* Add an invariant constraint to the system
    * This is enforced over all time
    * Specifically, it adds the constraint over both current and next variables
