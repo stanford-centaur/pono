@@ -156,7 +156,7 @@ class SygusPdr : public IC3Base
   void build_ts_related_info();
   smt::Term next_curr_replace(const smt::Term & in) const;
   
-  bool test_ts_has_op(const std::unordered_set<PrimOp> & prim_ops) const;
+  bool test_ts_has_op(const std::unordered_set<smt::PrimOp> & prim_ops) const;
 }; // class SygusPdr
 
 }  // namespace pono
