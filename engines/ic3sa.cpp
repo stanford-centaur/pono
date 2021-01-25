@@ -247,7 +247,7 @@ RefineResult IC3SA::refine()
   // a time it will introduce fresh symbols for input variables it will keep
   // track of old model values to plug into inputs if an axiom is learned
   Result r;
-  // UnorderedTermMap last_model_vals;
+  UnorderedTermMap last_model_vals;
 
   UnorderedTermSet inputvars = ts_.inputvars();
   // add implicit input variables
@@ -289,23 +289,45 @@ RefineResult IC3SA::refine()
       break;
     } else {
       assert(r.is_sat());  // not expecting unknown
+
+      UnorderedTermMap subst;
+
+      // save model values
+      Term iv_j;
+      Term val;
+      for (const auto & iv : inputvars) {
+        for (size_t j = 0; j <= refined_length; ++j) {
+          iv_j = f_unroller_.at_time(iv, j);
+          if (j < refined_length) {
+            val = solver_->get_value(iv_j);
+          } else {
+            // wasn't unrolled yet
+            val = solver_->get_value(iv);
+          }
+          last_model_vals[iv_j] = val;
+        }
+        // unroll inputs
+        subst[iv] = f_unroller_.at_time(iv, refined_length);
+      }
+
+      // now get the value of the state variables
+      for (const auto & elem : state_updates) {
+        assert(subst.find(elem.first) == subst.end());
+        subst[elem.first] = solver_->get_value(elem.first);
+      }
+
+      pop_solver_context();
+
       // make p the post-state
       p = solver_->make_term(true);
-      for (const auto & sv : ts_.statevars()) {
-        p = solver_->make_term(
-            And,
-            p,
-            solver_->make_term(Equal, sv, solver_->get_value(ts_.next(sv))));
+      Term eq;
+      for (const auto & elem : state_updates) {
+        // TODO look into substitute terms to save time copying over the subst
+        // map
+        eq = solver_->make_term(
+            Equal, elem.first, solver_->substitute(elem.second, subst));
+        p = solver_->make_term(And, p, eq);
       }
-      pop_solver_context();
-      // save model values
-      // Term iv_j;
-      // for (const auto & iv : inputvars) {
-      //   for (size_t j = 0; j < refined_length; ++j) {
-      //     iv_j = f_unroller_.at_time(iv, j);
-      //     last_model_vals[iv_j] = solver_->get_value(iv_j);
-      //   }
-      // }
     }
   }
   assert(lbls.size() == assumps.size());
@@ -337,6 +359,7 @@ RefineResult IC3SA::refine()
   assert(reduced_constraints.size() == core.size());
 
   Term m = smart_not(make_and(reduced_constraints));
+  m = solver_->substitute(m, last_model_vals);
   assert(!m->is_value());  // hopefully not simplified to true
 
   assert(!ts_.is_functional());
