@@ -108,6 +108,10 @@ class IC3SA : public IC3
 
   // IC3SA specific methods
 
+  RefineResult ic3sa_refine_functional(smt::Term & learned_lemma);
+
+  RefineResult ic3sa_refine_value(smt::Term & learned_lemma);
+
   /** Helper function to create labels for conjuncts of a constraint
    *  and assume the implication
    *  @param term the term to break into conjuncts and assume labels for

@@ -239,13 +239,154 @@ void IC3SA::abstract()
 RefineResult IC3SA::refine()
 {
   assert(!solver_context_);
-  assert(cex_.size());
-
   logger.log(1, "IC3SA: refining a counterexample of length {}", cex_.size());
 
+  Term learned_lemma;
+
+  // try functional refinement
+  RefineResult r = ic3sa_refine_functional(learned_lemma);
+
+  if (r == REFINE_NONE) {
+    assert(!solver_context_);
+    return r;
+  }
+  assert(r == REFINE_SUCCESS);
+
+  assert(learned_lemma);
+  if (learned_lemma->is_value()) {
+    // possible that simplification reduces the axiom to true
+    // it should definitely not be false
+    assert(learned_lemma == solver_true_);
+    logger.log(2, "IC3SA::refine falling back on value refinement");
+    r = ic3sa_refine_value(learned_lemma);
+    assert(learned_lemma);
+    assert(!learned_lemma->is_value());
+    assert(r == REFINE_SUCCESS);
+  }
+
+  assert(!ts_.is_functional());
+  if (ts_.only_curr(learned_lemma)) {
+    static_cast<RelationalTransitionSystem &>(ts_).add_constraint(
+        learned_lemma);
+  } else {
+    static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(
+        learned_lemma);
+  }
+
+  logger.log(3, "IC3SA::refine learned axiom {}", learned_lemma);
+
+  // add to the projection set permanently
+  UnorderedTermSet free_vars;
+  get_free_symbolic_consts(learned_lemma, free_vars);
+  for (const auto & fv : free_vars) {
+    if (ts_.is_curr_var(fv)) {
+      projection_set_.insert(fv);
+    }
+  }
+
+  // mine for new terms
+  // NOTE: can proceed even if there are no new terms because of learned
+  // path axiom m
+  bool new_terms_added = add_to_term_abstraction(learned_lemma);
+
+  // TODO handle refinement failure case if any
+
+  assert(!solver_context_);
+  return r;
+}
+
+RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
+{
+  assert(!solver_context_);
   // This function will unroll the counterexample trace functionally one step at
   // a time it will introduce fresh symbols for input variables it will keep
   // track of old model values to plug into inputs if an axiom is learned
+  Result r;
+  UnorderedTermMap last_model_vals;
+
+  UnorderedTermSet inputvars = ts_.inputvars();
+  // add implicit input variables
+  const UnorderedTermMap & state_updates = ts_.state_updates();
+  for (const auto & sv : ts_.statevars()) {
+    if (state_updates.find(sv) == state_updates.end()) {
+      inputvars.insert(sv);
+    }
+  }
+
+  push_solver_context();
+
+  UnorderedTermSet used_lbls;
+  TermVec lbls, assumps;
+  Term lbl, unrolled;
+
+  unrolled = f_unroller_.at_time(ts_.init(), 0);
+  conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
+
+  for (size_t i = 0; i < cex_.size(); ++i) {
+    unrolled = f_unroller_.at_time(cex_[i], i);
+    conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
+
+    // add constraints
+    for (const auto & elem : ts_.constraints()) {
+      unrolled = f_unroller_.at_time(elem.first, i);
+      conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
+    }
+
+    r = check_sat_assuming(lbls);
+    // TODO keep track of model values
+    if (r.is_unsat()) {
+      break;
+    } else {
+      assert(r.is_sat());  // not expecting unknown
+      // save model values
+      Term iv_j;
+      for (const auto & iv : inputvars) {
+        for (size_t j = 0; j < i; ++j) {
+          iv_j = f_unroller_.at_time(iv, j);
+          last_model_vals[iv_j] = solver_->get_value(iv_j);
+        }
+      }
+    }
+  }
+  assert(lbls.size() == assumps.size());
+
+  // TODO check that this correctly handles counterexample case
+  if (r.is_sat()) {
+    // this is a concrete counterexample
+    pop_solver_context();
+    assert(!solver_context_);
+    return REFINE_NONE;
+  }
+
+  assert(r.is_unsat());  // not expecting unknown
+  UnorderedTermSet core;
+  solver_->get_unsat_core(core);
+  assert(core.size());
+
+  TermVec reduced_constraints;
+  reduced_constraints.reserve(core.size());
+  for (size_t i = 0; i < lbls.size(); ++i) {
+    if (core.find(lbls[i]) != core.end()) {
+      reduced_constraints.push_back(assumps[i]);
+    }
+  }
+  assert(reduced_constraints.size() == core.size());
+  learned_lemma = smart_not(make_and(reduced_constraints));
+  learned_lemma = solver_->substitute(learned_lemma, last_model_vals);
+  learned_lemma = f_unroller_.untime(learned_lemma);
+  assert(ts_.only_curr(learned_lemma));
+
+  pop_solver_context();
+  assert(!solver_context_);
+  assert(r.is_unsat());
+  return REFINE_SUCCESS;
+}
+
+RefineResult IC3SA::ic3sa_refine_value(Term & learned_lemma)
+{
+  assert(!solver_context_);
+  assert(cex_.size());
+
   Result r;
   UnorderedTermMap last_model_vals;
 
@@ -358,32 +499,9 @@ RefineResult IC3SA::refine()
   }
   assert(reduced_constraints.size() == core.size());
 
-  Term m = smart_not(make_and(reduced_constraints));
-  m = solver_->substitute(m, last_model_vals);
-  assert(!m->is_value());  // hopefully not simplified to true
+  learned_lemma = smart_not(make_and(reduced_constraints));
+  learned_lemma = solver_->substitute(learned_lemma, last_model_vals);
 
-  assert(!ts_.is_functional());
-  static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(m);
-
-  logger.log(3, "IC3SA::refine learned axiom {}", m);
-
-  // add to the projection set permanently
-  UnorderedTermSet free_vars;
-  get_free_symbolic_consts(m, free_vars);
-  for (const auto & fv : free_vars) {
-    if (ts_.is_curr_var(fv)) {
-      projection_set_.insert(fv);
-    }
-  }
-
-  // mine for new terms
-  // NOTE: can proceed even if there are no new terms because of learned
-  // path axiom m
-  bool new_terms_added = add_to_term_abstraction(m);
-
-  // TODO handle refinement failure case if any
-
-  assert(!solver_context_);
   assert(r.is_unsat());
   return REFINE_SUCCESS;
 }
