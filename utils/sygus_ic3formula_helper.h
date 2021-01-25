@@ -35,7 +35,8 @@ class IC3FormulaModel {
   // I intentionally make this a rvalue reference
   // because very often we need to construct the map
   // first and want to avoid a copy
-  IC3FormulaModel(cube_t && cube, const smt::Term & expr) : cube_(cube), expr_(expr) {}
+  IC3FormulaModel(cube_t && cube, const smt::Term & expr, bool must_block) : 
+    cube_(cube), expr_(expr), must_block_(must_block) {}
   
   // here we really do the extraction
   // IC3FormulaModel(const IC3Formula & f);
@@ -48,12 +49,15 @@ class IC3FormulaModel {
  protected:
   cube_t cube_;
   smt::Term expr_;
+  bool must_block_;
   
  public:
   std::string vars_to_canonical_string() const;
+  std::string vars_val_to_canonical_string() const;
   std::string to_string() const;
   void get_varset(std::unordered_set<smt::Term> & varset) const;
   smt::Term to_expr() const { return expr_; }
+  bool is_must_block() const { return must_block_; }
   
 }; // IC3FormulaModel
 

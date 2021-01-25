@@ -33,7 +33,7 @@ namespace syntax_analysis {
 // }
 
 IC3FormulaModel::IC3FormulaModel(IC3FormulaModel && f) :
-  cube_(std::move(f.cube_)), expr_(std::move(f.expr_)) {
+  cube_(std::move(f.cube_)), expr_(std::move(f.expr_)), must_block_(f.must_block_) {
 }
   
 IC3FormulaModel & IC3FormulaModel::operator=(IC3FormulaModel && other) {
@@ -41,6 +41,7 @@ IC3FormulaModel & IC3FormulaModel::operator=(IC3FormulaModel && other) {
     cube_ = std::move(other.cube_);
     expr_ = std::move(other.expr_);
   }
+  must_block_ = other.must_block_;
   return *this;
 }
 
@@ -51,6 +52,18 @@ std::string IC3FormulaModel::vars_to_canonical_string() const {
   }
   std::sort(vars.begin(), vars.end());
   return Join(vars, "?<*>?"); // hope it won't appear in the the var names
+}
+
+std::string IC3FormulaModel::vars_val_to_canonical_string() const {
+  std::vector<std::pair<std::string,std::string>> vars_vals;
+  for (auto && v_val : cube_) {
+    vars_vals.push_back(std::make_pair(v_val.first->to_string(), v_val.second->to_string()));
+  }
+  std::sort(vars_vals.begin(), vars_vals.end());
+  std::string ret;
+  for (const auto & v_val_pair :  vars_vals)
+    ret += v_val_pair.first + "?<*>?" + v_val_pair.second;
+  return ret; // hope it won't appear in the the var names
 }
 
 std::string IC3FormulaModel::to_string() const {

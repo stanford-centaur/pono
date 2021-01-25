@@ -125,9 +125,12 @@ struct PerCexInfo {
   std::unordered_set<std::string> predicates_str;
   // std::unordered_map<smt::Term, smt::Term> pred_next_to_pred_curr;
   const PerVarsetInfo & varset_info; // reference from VarTermManager
-
+  unsigned prev_refine_constraint_count;
   std::map<unsigned, term_const_num> prev_per_width_term_num;
-  PerCexInfo(const PerVarsetInfo & info) : varset_info(info) {}
+
+  PerCexInfo(const PerVarsetInfo & info,
+    unsigned constraint_count) : varset_info(info), prev_refine_constraint_count(constraint_count) {}
+  void ResetPredicates() { predicates_nxt.clear(); predicates_str.clear(); }
 };
 
 // cex -> related information

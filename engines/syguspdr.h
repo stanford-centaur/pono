@@ -51,8 +51,18 @@ class SygusPdr : public IC3Base
   typedef IC3Base super;
  
   // -----------------------------------------------------------------
-  // pure virtual method implementations
+  // virtual method implementations
   // -----------------------------------------------------------------
+
+  /** The difference from the base class is that it adds a layer of caching.
+   *  The reason is that I want to reuse those goals of unpushed lemmas 
+   *  The SyGuS part prefers to using the same goal as much as possible
+   *  Otherwise the related information about the goals will have to be 
+   *  regenerated. A canonical string may be possible to deduplicate goals
+   *  but there is no guarantee that the smt solving will always return the
+   *  same goal upon checking.
+   */
+  virtual bool reaches_bad(IC3Formula & out) override;
 
   virtual IC3Formula get_model_ic3formula() const override;
 
@@ -90,6 +100,12 @@ class SygusPdr : public IC3Base
 
   // store the relation between IC3Formula to IC3Models
   std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> model2cube_;
+  // store the relation between lemmas and IC3Models
+  std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> lemma2cube_;
+  // the following is used for caching the proof goal
+  unsigned prev_frontier;
+  std::unordered_set<syntax_analysis::IC3FormulaModel *> cached_proof_goals;
+
   //std::unordered_map<syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
   //  to_full_model_map_;
   syntax_analysis::cex_term_map_t cex_term_map_;
@@ -120,6 +136,7 @@ class SygusPdr : public IC3Base
   smt::UnorderedTermSet no_next_vars_; //  the inputs
   smt::Term bad_next_;
   smt::TermVec constraints_curr_var_;
+  smt::TermVec op_uf_assumptions_;
 
   bool has_assumptions;
   bool keep_var_in_partial_model(const smt::Term & v) const;
@@ -138,6 +155,8 @@ class SygusPdr : public IC3Base
   std::unique_ptr<OpAbstractor> op_abstractor_;
   void build_ts_related_info();
   smt::Term next_curr_replace(const smt::Term & in) const;
+  
+  bool test_ts_has_op(const std::unordered_set<PrimOp> & prim_ops) const;
 }; // class SygusPdr
 
 }  // namespace pono

@@ -42,7 +42,7 @@ IC3Formula PartialModelGen::GetPartialModel(const smt::Term & ast) {
 
 
 std::pair<IC3Formula,syntax_analysis::IC3FormulaModel> 
-    PartialModelGen::GetPartialModelInCube(const smt::Term & ast) {
+    PartialModelGen::GetPartialModelInCube(const smt::Term & ast, bool must_block) {
   
   GetVarList(ast);
 
@@ -64,7 +64,7 @@ std::pair<IC3Formula,syntax_analysis::IC3FormulaModel>
 
   return std::make_pair(IC3Formula(conj, conjvec,
       false /*not a disjunction*/ ), 
-    syntax_analysis::IC3FormulaModel(std::move(cube), conj));
+    syntax_analysis::IC3FormulaModel(std::move(cube), conj, must_block));
 }
 
 void PartialModelGen::GetVarList(const smt::Term & ast ) {
@@ -218,7 +218,7 @@ void PartialModelGen::dfs_walk(const smt::Term & input_ast ) {
       continue;
     }
     dfs_walked_.insert(ast);
-    
+
     smt::Op op = ast->get_op();
     if (op.is_null()) { // this is the root node
       if (ast->is_symbolic_const()) {

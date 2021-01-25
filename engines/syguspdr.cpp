@@ -18,16 +18,14 @@
 #include "modifiers/mod_ts_prop.h"
 #include "utils/container_shortcut.h"
 #include "utils/logger.h"
+#include "utils/term_walkers.h"
 #include "utils/sygus_predicate_constructor.h"
-
-#include <fstream>
-#include "smt-switch/printing_solver.h"
 
 using namespace smt;
 
 namespace pono {
 
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
   #define D(...) logger.log( __VA_ARGS__ )
   #define INFO(...) D(0, __VA_ARGS__)
@@ -71,7 +69,14 @@ smt::Term SygusPdr::next_curr_replace(const smt::Term & in) const {
   return ts_.solver()->substitute(in, nxt_state_updates_);
 }
 
-std::ofstream outf("/home/hongce/new-smt");
+bool SygusPdr::test_ts_has_op(const std::unordered_set<PrimOp> & prim_ops) const {
+  UnorderedTermSet term_op_out;
+  TermOpCollector op_collector(ts_.solver());
+  for (const auto & s_update : ts_.state_updates()) {
+    op_collector.find_matching_terms(s_update.second, prim_ops, term_op_out);
+  }
+  return !term_op_out.empty();
+}
 
 // ----------------------------------------------------------------
 // Constructor & Destructor
@@ -126,14 +131,12 @@ void SygusPdr::initialize()
   ts_ = orig_ts_; // maybe call promote inputvars implicitly here
   // I really need the prime variable for inputs
   // otherwise the corner cases are hard to handle...
-  outf<<ts_.init()->to_string() << std::endl;
-  outf<<ts_.trans()->to_string() << std::endl;
-  solver_  = std::make_shared<PrintingSolver>(solver_, &outf, PrintingStyleEnum::DEFAULT_STYLE);
-  // has_assumption -- on the original one
-  has_assumptions = true;
+ 
+ // has_assumption -- on the original one
+  has_assumptions = false;
   for (const auto & c_initnext : ts_.constraints()) {
-    if (!c_initnext.second)
-      continue;
+    // if (!c_initnext.second)
+    //  continue; // should not matter
     has_assumptions = true;
     assert(ts_.no_next(c_initnext.first));
     // if (no_next) {
@@ -168,10 +171,15 @@ void SygusPdr::initialize()
         (SyGuSTermMode::SPLIT_FROM_DESIGN) : (SyGuSTermMode::FROM_DESIGN_LEARN_EXT);
     // we need to reset trans function in the base class
     reset_solver();
+  } else {
+    if (options_.sygus_term_mode_ == SyGuSTermMode::TERM_MODE_AUTO) {
+      options_.sygus_term_mode_  = 
+        (test_ts_has_op({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}) ? SyGuSTermMode::SPLIT_FROM_DESIGN : 
+        (test_ts_has_op({BVAdd, BVSub}) ? SyGuSTermMode::FROM_DESIGN_LEARN_EXT :
+        (test_ts_has_op({BVUle, BVUlt}) ? SyGuSTermMode::VAR_C_EQ_LT :
+                                          SyGuSTermMode::VAR_C_EXT)));
+    }
   }
-
-  outf.close();
-  outf.open("/home/hongce/new-smt");
 
   if (options_.sygus_term_mode_ == SyGuSTermMode::TERM_MODE_AUTO)
     options_.sygus_term_mode_ = SyGuSTermMode::FROM_DESIGN_LEARN_EXT;
@@ -278,8 +286,6 @@ bool SygusPdr::ic3formula_check_valid(const IC3Formula & u) const
 
 
 IC3Formula SygusPdr::get_model_ic3formula() const {
-  return IC3Formula(solver_true_, {solver_true_}, false);
-
   // generalize_predecessor does not use its output at all
   Term conj_full;
   TermVec conjvec;
@@ -307,7 +313,7 @@ IC3Formula SygusPdr::get_model_ic3formula() const {
   assert(conj_full);
   assert(!conjvec.empty());
 
-  return IC3Formula(conj_full, conjvec, false /*not a disjunction*/ );
+  return IC3Formula(conj_full, {conj_full}, false /*not a disjunction*/ );
 } // SygusPdr::get_model_ic3formula
 
 
@@ -439,8 +445,8 @@ IC3Formula SygusPdr::inductive_generalization(
           base,
           pred_collector_.GetAllPredNext()
         );
-      std::cout << "@@@@@ Block: "  << post_model->to_string() << std::endl;
-      std::cout << "By : " << ret.term->to_string() << std::endl;
+      lemma2cube_.emplace(ret.term, post_model);
+
       return ret;
     }
   }while(insufficient_pred);
@@ -563,24 +569,33 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info (syntax_analysis::IC3Form
               options_.sygus_term_extract_depth_,
               options_.sygus_initial_term_width_,
               options_.sygus_initial_term_inc_,
-              options_.sygus_accumulated_term_bound_ ) ) );
+              options_.sygus_accumulated_term_bound_ ),
+          op_uf_assumptions_.size() /*constraint_count*/ ) );
   } // if no terms, set up them first
 
   syntax_analysis::PerCexInfo & per_cex_info = cex_term_map_pos->second;
-  unsigned nterm = 0;
 
   // then evalute the terms on the cex
   push_solver_context();
   disable_all_labels();
-
+  for(const auto & c : op_uf_assumptions_)
+    solver_->assert_formula(c);
   solver_->assert_formula( post_model->to_expr() );
   auto res = check_sat();
   assert (res.is_sat());
+
+  bool reset_due_to_more_refinement = per_cex_info.prev_refine_constraint_count < op_uf_assumptions_.size();
+  per_cex_info.prev_refine_constraint_count = op_uf_assumptions_.size();
+
   // for each witdh
   for (const auto & width_term_const_pair : per_cex_info.varset_info.terms) {
     auto width = width_term_const_pair.first;
-    unsigned nc = per_cex_info.prev_per_width_term_num[width].const_num; // when to update this
+    if (reset_due_to_more_refinement)
+      per_cex_info.prev_per_width_term_num[width].term_num = 0;
+    // when to update this ? after predicates are generated 
+    unsigned nc = per_cex_info.prev_per_width_term_num[width].const_num;
     unsigned nt = per_cex_info.prev_per_width_term_num[width].term_num;
+    
     auto nt_end = width_term_const_pair.second.terms.size();
     auto nc_end = width_term_const_pair.second.constants.size();
     // cache the terms and constants value under the cex
@@ -588,16 +603,18 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info (syntax_analysis::IC3Form
       const auto & t = width_term_const_pair.second.terms.at(tidx);
       per_cex_info.terms_val_under_cex.emplace(
         t, syntax_analysis::eval_val( solver_->get_value(t)->to_string() ));
-      ++ nterm;
     }
     for (unsigned cidx = nc ; cidx <  nc_end; ++cidx) {
       const auto & c = width_term_const_pair.second.constants.at(cidx);
       per_cex_info.terms_val_under_cex.emplace(
         c, c->to_string() );
-      ++ nterm;
     }
   } // eval terms on cex
   pop_solver_context();
+
+  if (reset_due_to_more_refinement)
+    per_cex_info.ResetPredicates();
+
   return per_cex_info;
 } // setup_cex_info
 
@@ -611,7 +628,6 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
   Term conj_partial;
   TermVec conjvec_partial;
   syntax_analysis::IC3FormulaModel::cube_t cube_partial;
-
   
   for (const auto & v : varlist) {
     Term val = solver_->get_value(v);
@@ -632,13 +648,13 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
   }
 
   syntax_analysis::IC3FormulaModel * partial_model = 
-    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
+    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial, false);
 
   assert(partial_model);
   model2cube_.emplace(conj_partial, partial_model);  
 
   return std::make_pair(
-    IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
+    IC3Formula(conj_partial, {conj_partial}, false /*not a disjunction*/ ),
     partial_model
   );
 } // ExtractInitPrimeModel 
@@ -699,17 +715,18 @@ std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3F
       assert(conjvec_partial.empty());
       conjvec_partial.push_back(solver_true_);
     }
+    // this is called from inductive_gen which should not create must block goal
     syntax_analysis::IC3FormulaModel * partial_model = 
-      new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
+      new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial, false);
 
     syntax_analysis::IC3FormulaModel * full_model = 
-      new syntax_analysis::IC3FormulaModel(std::move(cube_full), conj_full);
+      new syntax_analysis::IC3FormulaModel(std::move(cube_full), conj_full, false);
 
     assert(partial_model && full_model);
     model2cube_.emplace(conj_partial, partial_model);
 
     return std::make_tuple(
-      IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
+      IC3Formula(conj_partial, {conj_partial}, false /*not a disjunction*/ ),
       partial_model,
       full_model
     );
@@ -769,13 +786,13 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     conjvec_partial.push_back(solver_true_);
   }
   syntax_analysis::IC3FormulaModel * partial_model = 
-    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
+    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial, true);
 
   assert(partial_model);
   model2cube_.emplace(conj_partial, partial_model);
 
   return std::make_pair(
-    IC3Formula(conj_partial, conjvec_partial, false /*not a disjunction*/ ),
+    IC3Formula(conj_partial, {conj_partial}, false /*not a disjunction*/ ),
     partial_model
   );
 } // SygusPdr::ExtractPartialAndFullModel
@@ -788,7 +805,6 @@ void SygusPdr::predecessor_generalization(size_t i, const Term & cterm, IC3Formu
 
   // no need to pop (pop in rel_ind_check)
   // return the model and build IC3FormulaModel
-  std::cout << cterm->to_string() << std::endl;
   auto partial_full_model = ExtractPartialModel(cterm);
   pred = partial_full_model.first;
 } // generalize_predecessor
@@ -828,6 +844,7 @@ RefineResult SygusPdr::refine() {
   assert(succ == (!new_constraints.empty()));
   if (succ) {
     for (const auto & c : new_constraints) {
+      op_uf_assumptions_.push_back(c);
       ts_.add_constraint(c, true);
       D(4, "[Refine] : {} ", c->to_string());
 
@@ -981,6 +998,46 @@ void SygusPdr::disable_all_labels() {
   #undef NOT
 }
 
+
+bool SygusPdr::reaches_bad(IC3Formula & out) {
+  // let's look at frontier and frontier - 1
+  if (frontier_idx() <= 1)
+    return IC3Base::reaches_bad(out);
+  if (frontier_idx() > prev_frontier) {
+    assert(cached_proof_goals.empty());
+    prev_frontier = frontier_idx();
+
+    auto prev_fidx = frontier_idx()-1;
+    auto curr_fidx = frontier_idx();
+
+    for (const auto & f : frames_.at(prev_fidx)) {
+      assert(IN(f.term, lemma2cube_));
+      syntax_analysis::IC3FormulaModel * m = lemma2cube_.at(f.term);
+      if(m->is_must_block()) {
+        cached_proof_goals.insert(m);
+      }
+    }
+
+    for (const auto & f : frames_.at(curr_fidx)) {
+      assert(IN(f.term, lemma2cube_));
+      syntax_analysis::IC3FormulaModel * m = lemma2cube_.at(f.term);
+      if(m->is_must_block())
+        cached_proof_goals.erase(m);
+    }
+
+    logger.log(3, "Update proof goal cache @ F{} : get {} goals" , 
+      prev_frontier, cached_proof_goals.size() );
+  }
+
+  if (!cached_proof_goals.empty()) {
+    auto pos = cached_proof_goals.begin();
+    syntax_analysis::IC3FormulaModel * m = *(pos);
+    cached_proof_goals.erase(pos);
+    out = IC3Formula(m->to_expr() , {m->to_expr()}, false);
+    return true;
+  } // else
+  return IC3Base::reaches_bad(out);
+} // reaches_bad
 
 }  // namespace pono
 
