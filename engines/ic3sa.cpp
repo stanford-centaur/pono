@@ -266,19 +266,39 @@ RefineResult IC3SA::refine()
   UnorderedTermSet used_lbls;
   TermVec lbls, assumps;
 
-  Term p = ts_.init();
+  // TODO: would be more efficient to put in lbls / assumps directly
+  //       need to refactor if this works
+  Term p = f_unroller_.at_time(ts_.init(), 0);
+  p = solver_->make_term(And, p, f_unroller_.at_time(cex_[0], 0));
+  // always need to add constraints for functional unrolling
+  // TODO figure out if these are handled by trans though
+  // might only need it for previous
+  for (const auto & elem : ts_.constraints()) {
+    if (elem.second) {
+      p = solver_->make_term(And, p, f_unroller_.at_time(elem.first, 0));
+    }
+  }
 
-  size_t refined_length = 0;
-  for (; refined_length + 1 < cex_.size(); ++refined_length) {
+  for (const auto & elem : state_updates) {
+    p = solver_->make_term(
+        And,
+        p,
+        solver_->make_term(
+            Equal, elem.first, f_unroller_.at_time(elem.first, 0)));
+  }
+
+  // TODO: think about length 1 counterexamples if we don't make init precise
+  //       e.g. don't include all terms from init
+  for (size_t refined_length = 1; refined_length < cex_.size();
+       ++refined_length) {
     push_solver_context();
     used_lbls.clear();
     lbls.clear();
     assumps.clear();
 
     conjunctive_assumptions(p, used_lbls, lbls, assumps);
-    conjunctive_assumptions(cex_[refined_length], used_lbls, lbls, assumps);
     conjunctive_assumptions(
-        ts_.next(cex_[refined_length + 1]), used_lbls, lbls, assumps);
+        ts_.next(cex_[refined_length]), used_lbls, lbls, assumps);
     // if we start with less terms, then need to include trans in the
     // assumptions
     assert_trans_label();
@@ -290,13 +310,11 @@ RefineResult IC3SA::refine()
     } else {
       assert(r.is_sat());  // not expecting unknown
 
-      UnorderedTermMap subst;
-
       // save model values
       Term iv_j;
       Term val;
       for (const auto & iv : inputvars) {
-        for (size_t j = 0; j <= refined_length; ++j) {
+        for (size_t j = 0; j < refined_length; ++j) {
           iv_j = f_unroller_.at_time(iv, j);
           if (j < refined_length) {
             val = solver_->get_value(iv_j);
@@ -306,26 +324,44 @@ RefineResult IC3SA::refine()
           }
           last_model_vals[iv_j] = val;
         }
-        // unroll inputs
-        subst[iv] = f_unroller_.at_time(iv, refined_length);
       }
 
-      // now get the value of the state variables
+      // now get the value of the state variables in the initial state
+      Term sv0;
       for (const auto & elem : state_updates) {
-        assert(subst.find(elem.first) == subst.end());
-        subst[elem.first] = solver_->get_value(elem.first);
+        sv0 = f_unroller_.at_time(elem.first, 0);
+        last_model_vals[sv0] = solver_->get_value(sv0);
       }
 
       pop_solver_context();
 
       // make p the post-state
       p = solver_->make_term(true);
+      // add constraints for previous step
+      for (const auto & elem : ts_.constraints()) {
+        p = solver_->make_term(
+            And, p, f_unroller_.at_time(elem.first, refined_length));
+      }
+      // assume previous step from counterexample
+      p = solver_->make_term(
+          And, p, f_unroller_.at_time(cex_[refined_length], refined_length));
+      // make the update by setting current state equal to a
+      // functional evaluation of the transition relation
       Term eq;
       for (const auto & elem : state_updates) {
         // TODO look into substitute terms to save time copying over the subst
         // map
+        // could create a single term first but worred it would simplify if
+        // we don't do the functional unrolling first
+        // substitute for sv in the state update, but keep these inputs for now
+        // (e.g. don't unroll them yet)
         eq = solver_->make_term(
-            Equal, elem.first, solver_->substitute(elem.second, subst));
+            Equal,
+            elem.first,
+            solver_->substitute(
+                elem.second,
+                { { elem.first,
+                    f_unroller_.at_time(elem.first, refined_length) } }));
         p = solver_->make_term(And, p, eq);
       }
     }
