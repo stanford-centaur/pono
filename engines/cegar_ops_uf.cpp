@@ -39,7 +39,7 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
                                  const TransitionSystem & ts,
                                  const SmtSolver & solver,
                                  PonoOptions opt)
-  : super(p, create_fresh_ts(false, solver), solver, opt),
+  : super(p, create_fresh_ts(ts.is_functional(), solver), solver, opt),
     conc_ts_(ts, super::to_prover_solver_),
     prover_ts_(super::prover_interface_ts()),
     oa_(conc_ts_, prover_ts_),
@@ -181,22 +181,13 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
     UnorderedTermSet core;
     cegopsuf_solver_->get_unsat_core(core);
 
-    assert(!cegopsuf_ts_.is_functional());
-    RelationalTransitionSystem & ts =
-      static_cast<RelationalTransitionSystem &>(cegopsuf_ts_);
     for (size_t i = 0; i < assumps.size(); ++i) {
       if (core.find(assumps[i]) != core.end()) {
         Term eq = equalities[i];
         axioms.insert(eq);
         logger.log(2, "CegarOpsUf adding refinement axiom {}", eq);
         // need to refine both systems
-        ts.constrain_trans(eq);
-        if (ts.no_next(eq)) {
-          ts.constrain_trans(ts.next(eq));
-        }
-        if (cex_length == 0 && ts.only_curr(eq)) {
-          ts.constrain_init(eq);
-        }
+        cegopsuf_ts_.add_constraint(eq);
       }
     }
     refine_subprover_ts(axioms, cex_length > 0);
@@ -217,21 +208,24 @@ template <>
 void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
                                             bool skip_init)
 {
-  assert(!prover_ts_.is_functional());
-  RelationalTransitionSystem & rts =
-    static_cast<RelationalTransitionSystem &>(prover_ts_);
-
   for (const auto & a : axioms) {
     Term ta = from_cegopsuf_solver_.transfer_term(a, BOOL);
 
-    rts.constrain_trans(ta);
-    if (rts.no_next(ta)) {
-      rts.constrain_trans(rts.next(ta));
+    if (prover_ts_.is_functional()) {
+      prover_ts_.add_constraint(ta);
+    } else {
+      RelationalTransitionSystem & ts = 
+        static_cast<RelationalTransitionSystem &>(prover_ts_);
+      if (ts.only_curr(ta) && !skip_init) {
+        ts.constrain_init(ta);
+      }
+
+      ts.constrain_trans(ta);
+      if (ts.no_next(ta)) {
+        ts.constrain_trans(ts.next(ta));
+      }
     }
 
-    if (rts.only_curr(ta) && !skip_init) {
-      rts.constrain_init(ta);
-    }
   }
 
   // add predicates from init and bad

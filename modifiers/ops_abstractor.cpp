@@ -63,7 +63,26 @@ void OpsAbstractor::do_abstraction()
   } else {
     FunctionalTransitionSystem & abs_fts =
       static_cast<FunctionalTransitionSystem &>(abs_ts_);
-    assert(false);
+
+    for (const auto & v : conc_ts_.inputvars()) {
+      abs_fts.add_inputvar(v);
+    }
+    for (const auto & e : conc_ts_.state_updates()) {
+      abs_fts.add_statevar(e.first, conc_ts_.next(e.first));
+      Term val = e.second;
+      abs_fts.assign_next(e.first, abstract(val));
+    }
+
+    Term init = conc_ts_.init();
+    abs_fts.set_init(abstract(init));
+
+    for (const auto & e : conc_ts_.named_terms()) {
+      abs_fts.name_term(e.first, e.second);
+    }
+    for (const auto &c : conc_ts_.constraints()) {
+      Term cc = c.first;
+      abs_fts.add_constraint(abstract(cc), c.second);
+    }
   }
 }
 
