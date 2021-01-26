@@ -62,5 +62,6 @@ pono_add_test(test_term_analysis)
 pono_add_test(test_walkers)
 pono_add_test(test_pseudo_init_and_prop)
 pono_add_test(test_promote_inputvars)
+pono_add_test(test_partial_model)
 
 add_subdirectory(encoders)
