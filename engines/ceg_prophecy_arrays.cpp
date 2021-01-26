@@ -132,34 +132,58 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       reached_k_++;
     } while (num_added_axioms_ && reached_k_ <= k);
 
-    if (super::engine_ != IC3IA_ENGINE) {
-      Property latest_prop(super::solver_,
-                           super::solver_->make_term(Not, super::bad_));
-      SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
-                                      super::engine_, false);
-      shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
-                                              abs_ts_, s, super::options_);
-      res = prover->check_until(k);
+    Property latest_prop(super::solver_,
+                         super::solver_->make_term(Not, super::bad_));
+    SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
+                                    super::engine_, false);
+    shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
+                                            abs_ts_, s, super::options_);
+    res = prover->check_until(k);
 
-      if (res == ProverResult::FALSE) {
-        // use witness length
-        // reached_k_ is the last k without a counterexample trace
-        reached_k_ = prover->witness_length() - 1;
-      } else if (res == ProverResult::TRUE) {
-        try {
-          // set the invariant
-          super::invar_ = prover->invar();
-        }
-        catch (std::exception & e) {
-          logger.log(3, "Failed to set invariant because {}", e.what());
-          continue;
-        }
+    if (res == ProverResult::FALSE) {
+      // use witness length
+      // reached_k_ is the last k without a counterexample trace
+      reached_k_ = prover->witness_length() - 1;
+    } else if (res == ProverResult::TRUE) {
+      try {
+        // set the invariant
+        super::invar_ = prover->invar();
       }
-    } else {
-      res = super::check_until(k);
-      if (res == ProverResult::FALSE) {
-        // use witness length
-        reached_k_ = super::reached_k_;
+      catch (std::exception & e) {
+        logger.log(3, "Failed to set invariant because {}", e.what());
+        continue;
+      }
+    }
+  }
+
+  if (res == ProverResult::FALSE) {
+    // can't count on false result over abstraction when only checking up until
+    // a bound
+    return ProverResult::UNKNOWN;
+  }
+
+  if (res == ProverResult::TRUE && super::invar_) {
+    // update the invariant
+    super::invar_ = aa_.concrete(super::invar_);
+  }
+
+  return res;
+}
+
+template <>
+ProverResult CegProphecyArrays<IC3IA>::check_until(int k)
+{
+  initialize();
+
+  ProverResult res = ProverResult::FALSE;
+  while (res == ProverResult::FALSE && reached_k_ <= k) {
+    res = super::check_until(k);
+    if (res == ProverResult::FALSE) {
+      // use witness length
+      reached_k_ = super::reached_k_;
+
+      if (!CegProphecyArrays::cegar_refine()) {
+        return ProverResult::FALSE;
       }
     }
   }
@@ -234,10 +258,10 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
   num_added_axioms_ = 0;
   // TODO use ArrayAxiomEnumerator and modifiers to refine the system
   // create BMC formula
-  Term abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
+  Term abs_refine_formula = get_refinement_formula(reached_k_ + 1);
 
   // check array axioms over the abstract system
-  if (!aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1)) {
+  if (!aae_.enumerate_axioms(abs_refine_formula, reached_k_ + 1)) {
     // concrete CEX
     return false;
   }
@@ -260,13 +284,13 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
         size_t max_k = abs_ts_.only_curr(ax) ? reached_k_ + 1
                                                 : reached_k_;
         for (size_t k = 0; k <= max_k; ++k) {
-          abs_bmc_formula = super::solver_->make_term(
-              And, abs_bmc_formula, abs_unroller_.at_time(ax, k));
+          abs_refine_formula = super::solver_->make_term(
+              And, abs_refine_formula, abs_unroller_.at_time(ax, k));
         }
       }
 
       nonconsecutive_axioms =
-          reduce_nonconsecutive_axioms(abs_bmc_formula, nonconsecutive_axioms);
+          reduce_nonconsecutive_axioms(abs_refine_formula, nonconsecutive_axioms);
     }
 
     // First collect all the indices used in nonconsecutive axioms
@@ -318,11 +342,11 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
 
     // need to update the bmc formula with the transformations
     // to abs_ts_
-    abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
+    abs_refine_formula = get_refinement_formula(reached_k_ + 1);
 
     // search for axioms again but don't include nonconsecutive ones
     bool ok =
-        aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
+        aae_.enumerate_axioms(abs_refine_formula, reached_k_ + 1, false);
     // should be guaranteed to rule out counterexamples at this bound
     assert(ok);
     consecutive_axioms = aae_.get_consecutive_axioms();
@@ -330,7 +354,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
   }
 
   if (super::options_.cegp_axiom_red_ && consecutive_axioms.size()) {
-    reduce_consecutive_axioms(abs_bmc_formula, consecutive_axioms);
+    reduce_consecutive_axioms(abs_refine_formula, consecutive_axioms);
   }
 
   if (consecutive_axioms.size() > 0) {
@@ -345,26 +369,47 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
 
 // helpers
 template <class Prover_T>
-Term CegProphecyArrays<Prover_T>::get_bmc_formula(size_t b)
+Term CegProphecyArrays<Prover_T>::get_refinement_formula(size_t b)
 {
-  Term abs_bmc_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
+  Term abs_refine_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
   for (int k = 0; k < b; ++k) {
-    abs_bmc_formula = super::solver_->make_term(
-        And, abs_bmc_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
+    abs_refine_formula = super::solver_->make_term(
+                                                   And, abs_refine_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
   }
 
-  return super::solver_->make_term(
-      And, abs_bmc_formula, abs_unroller_.at_time(super::bad_, b));
+  return super::solver_->make_term(And, abs_refine_formula,
+                                   abs_unroller_.at_time(super::bad_, b));
+}
+
+template <>
+Term CegProphecyArrays<IC3IA>::get_refinement_formula(size_t b)
+{
+  Term abs_refine_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
+  for (int k = 0; k < b; ++k) {
+    abs_refine_formula = super::solver_->make_term(
+        And, abs_refine_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
+  }
+
+  assert(b + 1 == super::cex_.size());
+  // adding abstract ic3ia trace
+  for (size_t i = 0; i < super::cex_.size(); ++i) {
+    abs_refine_formula =
+      super::solver_->make_term(And, abs_refine_formula,
+                                abs_unroller_.at_time(super::cex_[i], i));
+  }
+
+  return super::solver_->make_term(And, abs_refine_formula,
+                                   abs_unroller_.at_time(super::bad_, b));
 }
 
 template <class Prover_T>
 void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
-    const Term & abs_bmc_formula, UnorderedTermSet & consec_ax)
+    const Term & abs_refine_formula, UnorderedTermSet & consec_ax)
 {
   UnorderedTermSet reduced_ax;
   super::solver_->push();
 
-  super::solver_->assert_formula(abs_bmc_formula);
+  super::solver_->assert_formula(abs_refine_formula);
 
   TermVec assumps;
   UnorderedTermMap label2ax;
@@ -405,7 +450,7 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
 
 template <class Prover_T>
 AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
-    const Term & abs_bmc_formula, const AxiomVec & nonconsec_ax)
+    const Term & abs_refine_formula, const AxiomVec & nonconsec_ax)
 {
   // map from delay to the target (over ts vars) and a vector of axioms using
   // that target using to sort: rely on sortedness of map to put in ascending
