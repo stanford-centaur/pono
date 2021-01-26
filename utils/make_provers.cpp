@@ -25,6 +25,7 @@
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
+#include "engines/syguspdr.h"
 #ifdef WITH_MSAT_IC3IA
 #include "engines/msat_ic3ia.h"
 #endif
@@ -70,6 +71,8 @@ shared_ptr<Prover> make_prover(Engine e,
   } else if (e == MSAT_IC3IA) {
     return make_shared<MsatIC3IA>(p, ts, slv, opts);
 #endif
+  } else if (e == SYGUS_PDR) {
+    return make_shared<SygusPdr>(p, ts, slv, opts);
   } else {
     throw PonoException("Unhandled engine");
   }
