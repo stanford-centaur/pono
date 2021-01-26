@@ -70,6 +70,13 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
 template <class Prover_T>
 ProverResult CegProphecyArrays<Prover_T>::prove()
 {
+  return check_until(INT_MAX);
+}
+
+#ifdef WITH_MSAT_IC3IA
+template <>
+ProverResult CegProphecyArrays<MsatIC3IA>::prove()
+{
   initialize();
 
   ProverResult res = ProverResult::FALSE;
@@ -84,27 +91,18 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
       reached_k_++;
     } while (num_added_axioms_);
 
-    if (super::engine_ != IC3IA_ENGINE) {
-      Property latest_prop(super::solver_,
-                           super::solver_->make_term(Not, super::bad_));
-      SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
-                                      super::engine_, false);
-      shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
-                                              abs_ts_, s, super::options_);
-      res = prover->prove();
+    Property latest_prop(super::solver_,
+                         super::solver_->make_term(Not, super::bad_));
+    SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
+                                    super::engine_, false);
+    shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
+                                            abs_ts_, s, super::options_);
+    res = prover->prove();
 
-      if (res == ProverResult::FALSE) {
-        // use witness length
-        // reached_k_ is the last k without a counterexample trace
-        reached_k_ = prover->witness_length() - 1;
-      }
-
-    } else {
-      res = super::prove();
-      if (res == ProverResult::FALSE) {
-        // use witness length
-        reached_k_ = super::reached_k_;
-      }
+    if (res == ProverResult::FALSE) {
+      // use witness length
+      // reached_k_ is the last k without a counterexample trace
+      reached_k_ = prover->witness_length() - 1;
     }
   }
 
@@ -115,6 +113,7 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
 
   return res;
 }
+#endif
 
 template <class Prover_T>
 ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
