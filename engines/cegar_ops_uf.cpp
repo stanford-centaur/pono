@@ -228,38 +228,7 @@ void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
 
   }
 
-  // add predicates from init and bad
-  UnorderedTermSet preds;
-  get_predicates(super::solver_, super::ts_.init(), preds, false, false, true);
-  get_predicates(super::solver_, super::bad_, preds, false, false, true);
-  get_predicates(super::solver_, super::get_frame_term(1), preds, false, false, true);
-  super::predset_.clear();
-  super::predlbls_.clear();
-
-  // don't add boolean symbols that are never used in the system
-  // this is an optimization and a fix for some options
-  // if using mathsat with bool_model_generation
-  // it will fail to get the value of symbols that don't
-  // appear in the query
-  // thus we don't include those symbols in our cubes
-  UnorderedTermSet used_symbols;
-  get_free_symbolic_consts(super::ts_.init(), used_symbols);
-  get_free_symbolic_consts(super::ts_.trans(), used_symbols);
-  get_free_symbolic_consts(super::bad_, used_symbols);
-
-  // reset init and trans -- done with calling ia_.do_abstraction
-  // then add all boolean constants as (precise) predicates
-  for (const auto & p : super::ia_.do_abstraction()) {
-    preds.insert(p);
-  }
-
-  // reset the solver
-  super::reset_solver();
-
-  // add predicates
-  for (const auto &p : preds) {
-    super::add_predicate(p);
-  }
+  super::reabstract();
 }
 
 // TODO add other template classes
