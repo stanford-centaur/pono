@@ -187,7 +187,20 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
         axioms.insert(eq);
         logger.log(2, "CegarOpsUf adding refinement axiom {}", eq);
         // need to refine both systems
-        cegopsuf_ts_.add_constraint(eq);
+        if (cegopsuf_ts_.is_functional()) {
+          cegopsuf_ts_.add_constraint(eq);
+        } else {
+          RelationalTransitionSystem & ts = 
+            static_cast<RelationalTransitionSystem &>(cegopsuf_ts_);
+          if (ts.only_curr(eq) && cex_length == 0) {
+            ts.constrain_init(eq);
+          }
+
+          ts.constrain_trans(eq);
+          if (ts.no_next(eq)) {
+            ts.constrain_trans(ts.next(eq));
+          }
+        }
       }
     }
     refine_subprover_ts(axioms, cex_length > 0);
