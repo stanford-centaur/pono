@@ -372,8 +372,9 @@ Term CegProphecyArrays<Prover_T>::get_refinement_formula(size_t b)
 {
   Term abs_refine_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
   for (int k = 0; k < b; ++k) {
-    abs_refine_formula = super::solver_->make_term(
-                                                   And, abs_refine_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
+    abs_refine_formula =
+      super::solver_->make_term(And, abs_refine_formula,
+                                abs_unroller_.at_time(abs_ts_.trans(), k));
   }
 
   return super::solver_->make_term(And, abs_refine_formula,
