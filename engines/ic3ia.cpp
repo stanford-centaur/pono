@@ -342,15 +342,6 @@ bool IC3IA::is_global_label(const Term & l) const
 
 void IC3IA::reabstract()
 {
-  // predicates from init and bad
-  UnorderedTermSet preds;
-  get_predicates(solver_, ts_.init(), preds, false, false, true);
-  get_predicates(solver_, bad_, preds, false, false, true);
-  // instead of add previously found predicates, we add all the predicates in frame 1
-  get_predicates(solver_, get_frame_term(1), preds, false, false, true);
-  predset_.clear();
-  predlbls_.clear();
-
   // don't add boolean symbols that are never used in the system
   // this is an optimization and a fix for some options
   // if using mathsat with bool_model_generation
@@ -362,6 +353,7 @@ void IC3IA::reabstract()
   get_free_symbolic_consts(ts_.trans(), used_symbols);
   get_free_symbolic_consts(bad_, used_symbols);
 
+  UnorderedTermSet preds;
   // reset init and trans -- done with calling ia_.do_abstraction
   // then add all boolean constants as (precise) predicates
   for (const auto & p : ia_.do_abstraction()) {
@@ -371,7 +363,15 @@ void IC3IA::reabstract()
     }
   }
 
+  // predicates from init and bad
+  get_predicates(solver_, ts_.init(), preds, false, false, true);
+  get_predicates(solver_, bad_, preds, false, false, true);
+  // instead of add previously found predicates, we add all the predicates in frame 1
+  get_predicates(solver_, get_frame_term(1), preds, false, false, true);
+
   super::reset_solver();
+  predset_.clear();
+  predlbls_.clear();
 
   // add predicates
   for (const auto &p : preds) {
