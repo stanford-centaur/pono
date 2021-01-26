@@ -151,10 +151,19 @@ void IC3SA::predecessor_generalization(size_t i,
                                        const Term & c,
                                        IC3Formula & pred)
 {
-  UnorderedTermSet coi_symbols = projection_set_;
+  UnorderedTermSet all_coi_symbols = projection_set_;
+  justify_coi(ts_.next(c), all_coi_symbols);
+  assert(all_coi_symbols.size());
 
-  justify_coi(ts_.next(c), coi_symbols);
+  // get rid of next-state variables
+  UnorderedTermSet coi_symbols;
+  for (const auto & tt : all_coi_symbols) {
+    if (!ts_.is_next_var(tt)) {
+      coi_symbols.insert(tt);
+    }
+  }
   assert(coi_symbols.size() <= ts_.statevars().size());
+  assert(coi_symbols.size());
 
   logger.log(
       2,
@@ -162,7 +171,6 @@ void IC3SA::predecessor_generalization(size_t i,
       coi_symbols.size(),
       ts_.statevars().size());
 
-  assert(coi_symbols.size());
 
   UnorderedTermSet cube_lits;
   // first populate with predicates
@@ -732,70 +740,39 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
   // expecting to have a satisfiable context
   // and IC3Base only solves at context levels > 0
   assert(solver_context_);
-  to_visit_.clear();
-  visited_.clear();
-  to_visit_.push_back(c);
 
-  TermVec children;
-  UnorderedTermSet free_vars;
-  const UnorderedTermMap & state_updates = ts_.state_updates();
-
-  Term t;
-  while (!to_visit_.empty()) {
-    t = to_visit_.back();
-    to_visit_.pop_back();
-
-    if (visited_.find(t) != visited_.end()) {
-      continue;
-    }
-    visited_.insert(t);
-
-    if (t->get_op() == Ite) {
-      children.clear();
-      children.insert(children.end(), t->begin(), t->end());
-      assert(children.size() == 3);
-      // always visit the condition
-      to_visit_.push_back(children[0]);
-      if (solver_->get_value(children[0]) == solver_true_)
-      {
-        // the if branch is active
-        to_visit_.push_back(children[1]);
-      }
-      else
-      {
-        // the else branch is active
-        to_visit_.push_back(children[2]);
-      }
-    } else if (t->get_sort() == boolsort_
-               && is_controlled(t->get_op().prim_op, solver_->get_value(t))) {
-      for (const auto & cc : get_controlling(t)) {
-        to_visit_.push_back(cc);
-      }
-    } else if (ts_.is_next_var(t)
-               && state_updates.find(ts_.curr(t)) != state_updates.end()) {
-      to_visit_.push_back(state_updates.at(ts_.curr(t)));
-    } else if (t->is_symbolic_const()) {
-      free_vars.insert(t);
-
-      // need to add any constraints that this variable is involved in
-      // to the visit stack
-      for (const auto & elem : constraint_vars_) {
-        if (elem.second.find(t) != elem.second.end()) {
-          // this variable occurs in this constraint
-          // add the constraint
-          to_visit_.push_back(elem.first);
-        }
-      }
-
+  Op op = c->get_op();
+  Sort sort = c->get_sort();
+  if (op == Ite) {
+    TermVec children(c->begin(), c->end());
+    assert(children.size() == 3);
+    justify_coi(children[0], projection);
+    if (solver_->get_value(children[0]) == solver_true_) {
+      justify_coi(children[1], projection);
     } else {
-      for (const auto & tt : t) {
-        to_visit_.push_back(tt);
+      justify_coi(children[2], projection);
+    }
+  } else if (sort == boolsort_
+             && is_controlled(op.prim_op, solver_->get_value(c))) {
+    for (const auto & cc : get_controlling(c)) {
+      justify_coi(cc, projection);
+    }
+  } else {
+    for (const auto & cc : c) {
+      justify_coi(cc, projection);
+    }
+
+    if (ts_.is_next_var(c)) {
+      const UnorderedTermMap & state_updates = ts_.state_updates();
+      Term curr_c = ts_.curr(c);
+      if (state_updates.find(curr_c) != state_updates.end()) {
+        justify_coi(state_updates.at(curr_c), projection);
       }
     }
-  }
 
-  for (const auto & fv : free_vars) {
-    if (ts_.is_curr_var(fv)) {
+    UnorderedTermSet free_vars;
+    get_free_symbolic_consts(c, free_vars);
+    for (const auto & fv : free_vars) {
       projection.insert(fv);
     }
   }
