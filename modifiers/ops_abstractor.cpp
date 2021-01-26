@@ -64,11 +64,16 @@ void OpsAbstractor::do_abstraction()
     FunctionalTransitionSystem & abs_fts =
       static_cast<FunctionalTransitionSystem &>(abs_ts_);
 
+    // add inputs and statevars
     for (const auto & v : conc_ts_.inputvars()) {
       abs_fts.add_inputvar(v);
     }
     for (const auto & e : conc_ts_.state_updates()) {
       abs_fts.add_statevar(e.first, conc_ts_.next(e.first));
+    }
+
+    // state updates
+    for (const auto & e : conc_ts_.state_updates()) {
       Term val = e.second;
       abs_fts.assign_next(e.first, abstract(val));
     }
