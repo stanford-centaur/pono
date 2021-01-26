@@ -48,23 +48,23 @@ OpsAbstractor::AbstractionWalker::AbstractionWalker(OpsAbstractor &oa,
 
 void OpsAbstractor::do_abstraction()
 {
-  Term init = conc_ts_.init();
-  Term trans = conc_ts_.trans();
-  Term abs_init = abstract(init);
-  Term abs_trans = abstract(trans);
+  if (!abs_ts_.is_functional()) {
+    abs_ts_ = conc_ts_;
+    RelationalTransitionSystem & abs_rts =
+      static_cast<RelationalTransitionSystem &>(abs_ts_);
 
-  abs_ts_ = conc_ts_;
-  // for now, supporting a relational system
-  // but generic abstractor does not require a relational system
-  // do a cast
-  assert(!abs_ts_.is_functional());
-  RelationalTransitionSystem & abs_rts =
-    static_cast<RelationalTransitionSystem &>(abs_ts_);
-  // the calls to abstract have already added the
-  // (possibly abstracted) variables
-  // now we just need to set the initial states and trans
-  abs_rts.set_init(abs_init);
-  abs_rts.set_trans(abs_trans);
+    Term init = conc_ts_.init();
+    Term trans = conc_ts_.trans();
+    Term abs_init = abstract(init);
+    Term abs_trans = abstract(trans);
+
+    abs_rts.set_init(abs_init);
+    abs_rts.set_trans(abs_trans);
+  } else {
+    FunctionalTransitionSystem & abs_fts =
+      static_cast<FunctionalTransitionSystem &>(abs_ts_);
+    assert(false);
+  }
 }
 
 WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
