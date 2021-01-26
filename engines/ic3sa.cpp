@@ -580,7 +580,9 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
       }
     } else if (t->get_sort() == boolsort_
                && is_controlled(t->get_op().prim_op, solver_->get_value(t))) {
-      to_visit_.push_back(get_controlling(t));
+      for (const auto & cc : get_controlling(t)) {
+        to_visit_.push_back(cc);
+      }
     } else if (ts_.is_next_var(t)
                && state_updates.find(ts_.curr(t)) != state_updates.end()) {
       to_visit_.push_back(state_updates.at(ts_.curr(t)));
@@ -626,9 +628,10 @@ bool IC3SA::is_controlled(PrimOp po, const Term & val) const
   }
 }
 
-Term IC3SA::get_controlling(Term t) const
+TermVec IC3SA::get_controlling(Term t) const
 {
   assert(solver_context_);
+
   Op op = t->get_op();
   assert(is_controlled(op.prim_op, solver_->get_value(t)));
   assert(!op.is_null());
@@ -649,15 +652,14 @@ Term IC3SA::get_controlling(Term t) const
     controlling_val = solver_->make_term(false);
   }
 
-  Term controlling_term;
+  TermVec controlling_terms;
   for (const auto & tt : t) {
     if (solver_->get_value(tt) == controlling_val) {
-      controlling_term = tt;
-      break;
+      controlling_terms.push_back(tt);
     }
   }
-  assert(controlling_term);
-  return controlling_term;
+  assert(controlling_terms.size());
+  return controlling_terms;
 }
 
 void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const
