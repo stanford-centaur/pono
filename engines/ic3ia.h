@@ -111,6 +111,8 @@ class IC3IA : public IC3
 
   // specific to IC3IA
 
+  void reabstract();
+
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)
    *  and declares a new predicate state var (in pred_statevars_)

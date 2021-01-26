@@ -534,8 +534,7 @@ void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & c
 template <>
 void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
 {
-  // reset the solver
-  super::reset_solver();
+  super::reabstract();
 }
 
 // ceg-prophecy is incremental for ic3ia

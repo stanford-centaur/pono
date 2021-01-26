@@ -322,6 +322,26 @@ RefineResult IC3IA::refine()
 
 void IC3IA::reset_solver()
 {
+  super::reset_solver();
+
+  for (const auto & elem : lbl2pred_) {
+    solver_->assert_formula(solver_->make_term(Equal, elem.first, elem.second));
+    Term npred = ts_.next(elem.second);
+    Term nlbl = label(npred);
+    solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+  }
+}
+
+bool IC3IA::is_global_label(const Term & l) const
+{
+  // all labels used by IC3IA should be globally assumed
+  // the assertion will check that this assumption holds though
+  assert(super::is_global_label(l) || all_lbls_.find(l) != all_lbls_.end());
+  return true;
+}
+
+void IC3IA::reabstract()
+{
   // predicates from init and bad
   UnorderedTermSet preds;
   get_predicates(solver_, ts_.init(), preds, false, false, true);
@@ -357,14 +377,6 @@ void IC3IA::reset_solver()
   for (const auto &p : preds) {
     add_predicate(p);
   }
-}
-
-bool IC3IA::is_global_label(const Term & l) const
-{
-  // all labels used by IC3IA should be globally assumed
-  // the assertion will check that this assumption holds though
-  assert(super::is_global_label(l) || all_lbls_.find(l) != all_lbls_.end());
-  return true;
 }
 
 bool IC3IA::add_predicate(const Term & pred)
