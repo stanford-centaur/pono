@@ -47,6 +47,8 @@ class CegarOpsUf : public CEGAR<Prover_T>
   void refine_subprover_ts(const smt::UnorderedTermSet & axioms,
                            bool skip_init);
 
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; }
+
   TransitionSystem conc_ts_;
   TransitionSystem & prover_ts_;
 
