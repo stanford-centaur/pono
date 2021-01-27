@@ -285,9 +285,14 @@ RefineResult IC3SA::refine()
   }
 
   assert(!ts_.is_functional());
+  assert(!solver_context_);
+  solver_->assert_formula(solver_->make_term(Implies, trans_label_, learned_lemma));
   if (ts_.only_curr(learned_lemma)) {
     static_cast<RelationalTransitionSystem &>(ts_).add_constraint(
         learned_lemma);
+    solver_->assert_formula(solver_->make_term(Implies,
+                                               trans_label_,
+                                               ts_.next(learned_lemma)));
   } else {
     static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(
         learned_lemma);
