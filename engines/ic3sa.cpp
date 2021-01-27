@@ -171,7 +171,7 @@ void IC3SA::predecessor_generalization(size_t i,
   for (const auto & tt : all_coi_symbols) {
     // never include input variables
     // might need to project elsewhere also
-    if (ts_.is_curr_var(tt) && (inputvars_.find(tt) == inputvars_.end())) {
+    if (ts_.is_curr_var(tt)) {
       coi_symbols.insert(tt);
     }
   }
@@ -207,16 +207,12 @@ void IC3SA::predecessor_generalization(size_t i,
 
 void IC3SA::check_ts() const
 {
-  if (ts_.inputvars().size()) {
-    throw PonoException(
-        "IC3SA requires all state variables. Try option --promote-inputvars");
-  }
-
-  // TODO: add support for arrays
-
   if (!conc_ts_.is_functional()) {
     throw PonoException("IC3SA requires a functional transition system.");
   }
+
+  // expecting no implicit inputs
+  assert(conc_ts_.state_updates().size() == ts_.statevars().size());
 
   for (const auto & sv : ts_.statevars()) {
     SortKind sk = sv->get_sort()->get_sort_kind();
@@ -244,7 +240,10 @@ void IC3SA::abstract()
   for (const auto & sv : conc_ts_.statevars()) {
     ts_.add_statevar(sv, conc_ts_.next(sv));
   }
-  assert(conc_ts_.inputvars().size() == 0);  // expecting no inputs
+  for (const auto & iv : conc_ts_.inputvars()) {
+    ts_.add_inputvar(iv);
+  }
+  // assert(conc_ts_.inputvars().size() == 0);  // expecting no inputs
 
   ts_.set_init(conc_ts_.init());
 
@@ -396,7 +395,6 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
   learned_lemma = smart_not(make_and(reduced_constraints));
   learned_lemma = solver_->substitute(learned_lemma, last_model_vals);
   learned_lemma = f_unroller_.untime(learned_lemma);
-  assert(ts_.only_curr(learned_lemma));
 
   pop_solver_context();
   assert(!solver_context_);
@@ -609,23 +607,6 @@ void IC3SA::initialize()
       constraint_vars_[next_constraint] = tmp_vars;
     }
   }
-
-  assert(inputvars_.size() == 0);
-  assert(ts_.inputvars().size() == 0);
-  const UnorderedTermMap & state_updates = ts_.state_updates();
-  const UnorderedTermMap & conc_state_updates = conc_ts_.state_updates();
-  for (const auto & sv : ts_.statevars()) {
-    bool in_state_updates = (state_updates.find(sv) != state_updates.end());
-    bool in_conc_state_updates =
-        (conc_state_updates.find(sv) != conc_state_updates.end());
-    assert(in_state_updates == in_conc_state_updates);
-    if (in_state_updates) {
-      assert(state_updates.at(sv) == conc_state_updates.at(sv));
-    } else {
-      inputvars_.insert(sv);
-    }
-  }
-  assert(inputvars_.size() == (ts_.statevars().size() - state_updates.size()));
 }
 
 // IC3SA specific methods

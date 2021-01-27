@@ -116,7 +116,7 @@ TEST_P(IC3SAUnitTests, SimpleCounterVar)
   Term one = fts.make_term(1, bvsort8);
   Term eight = fts.make_term(8, bvsort8);
   Term x = fts.make_statevar("x", bvsort8);
-  Term in = fts.make_statevar("in", bvsort1);
+  Term in = fts.make_inputvar("in", bvsort1);
   Term ext_in = fts.make_term(Op(Zero_Extend, 7), in);
 
   fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
