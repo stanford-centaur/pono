@@ -611,13 +611,10 @@ void IC3SA::initialize()
       get_free_symbolic_consts(next_constraint, tmp_vars);
       for (const auto & ntv : tmp_vars) {
         assert(ts_.is_next_var(ntv));
-        auto it = state_updates.find(ntv);
+        Term cv = ts_.curr(ntv);
+        auto it = state_updates.find(cv);
         if (it != state_updates.end()) {
-          UnorderedTermSet free_vars;
-          get_free_symbolic_consts(it->second, free_vars);
-          for (const auto & fv : free_vars) {
-            projection_set_.insert(fv);
-          }
+          get_free_symbolic_consts(it->second, projection_set_);
         }
       }
     }
