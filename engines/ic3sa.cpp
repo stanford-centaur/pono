@@ -591,11 +591,20 @@ void IC3SA::initialize()
 
   // populate the map used in justify_coi to take constraints into account
   UnorderedTermSet tmp_vars;
+  Term next_constraint;
   for (const auto & elem : ts_.constraints()) {
     assert(ts_.no_next(elem.first));
     tmp_vars.clear();
     get_free_symbolic_consts(elem.first, tmp_vars);
     constraint_vars_[elem.first] = tmp_vars;
+
+    if (elem.second) {
+      // need to add next state version also
+      next_constraint = ts_.next(elem.first);
+      tmp_vars.clear();
+      get_free_symbolic_consts(next_constraint, tmp_vars);
+      constraint_vars_[next_constraint] = tmp_vars;
+    }
   }
 }
 
