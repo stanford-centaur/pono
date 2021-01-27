@@ -384,13 +384,15 @@ Term CegProphecyArrays<Prover_T>::get_refinement_formula(size_t b)
 template <>
 Term CegProphecyArrays<IC3IA>::get_refinement_formula(size_t b)
 {
+  // we are refining the ic3ia abstract trace, so update the bound accordingly
+  b = super::witness_length();
+
   Term abs_refine_formula = abs_unroller_.at_time(abs_ts_.init(), 0);
   for (int k = 0; k < b; ++k) {
     abs_refine_formula = super::solver_->make_term(
         And, abs_refine_formula, abs_unroller_.at_time(abs_ts_.trans(), k));
   }
 
-  assert(b + 1 == super::cex_.size());
   // adding abstract ic3ia trace
   for (size_t i = 0; i < super::cex_.size(); ++i) {
     abs_refine_formula =
@@ -398,6 +400,7 @@ Term CegProphecyArrays<IC3IA>::get_refinement_formula(size_t b)
                                 abs_unroller_.at_time(super::cex_[i], i));
   }
 
+  // we need to add the bad because it can be rewritten by prophecy refinement
   return super::solver_->make_term(And, abs_refine_formula,
                                    abs_unroller_.at_time(super::bad_, b));
 }
