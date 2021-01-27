@@ -155,16 +155,28 @@ void IC3SA::predecessor_generalization(size_t i,
 
   all_visits_.clear();
   justify_coi(ts_.next(c), all_coi_symbols);
+  UnorderedTermSet constraints_to_process;
   for (const auto & fv : all_coi_symbols) {
-    // need to process any constraints that this variable is involved in
     for (const auto & elem : constraint_vars_) {
-      if (elem.second.find(fv) != elem.second.end()) {
-        // this variable occurs in this constraint
-        // add the constraint
-        justify_coi(elem.first, all_coi_symbols);
+      const auto & s = elem.second;
+      if (s.find(fv) != s.end()) {
+        constraints_to_process.insert(elem.first);
       }
     }
   }
+  for (const auto & fv : constraints_to_process) {
+    justify_coi(fv, all_coi_symbols);
+  }
+  // for (const auto & fv : all_coi_symbols) {
+  //   // need to process any constraints that this variable is involved in
+  //   for (const auto & elem : constraint_vars_) {
+  //     if (elem.second.find(fv) != elem.second.end()) {
+  //       // this variable occurs in this constraint
+  //       // add the constraint
+  //       justify_coi(elem.first, all_coi_symbols);
+  //     }
+  //   }
+  // }
 
   UnorderedTermSet justify_all_visits = all_visits_;
   all_visits_.clear();
@@ -181,28 +193,35 @@ void IC3SA::predecessor_generalization(size_t i,
   {
     UnorderedTermSet all_debug_coi = projection_set_;
     recursive_justify_coi(ts_.next(c), all_debug_coi);
+    UnorderedTermSet debug_constraints_to_process;
     for (const auto & fv : all_debug_coi) {
-      // need to process any constraints that this variable is involved in
       for (const auto & elem : constraint_vars_) {
-        if (elem.second.find(fv) != elem.second.end()) {
-          // this variable occurs in this constraint
-          // add the constraint
-          recursive_justify_coi(elem.first, all_debug_coi);
+        const auto & s = elem.second;
+        if (s.find(fv) != s.end()) {
+          debug_constraints_to_process.insert(elem.first);
         }
       }
     }
+    for (const auto & fv : debug_constraints_to_process) {
+      recursive_justify_coi(fv, all_debug_coi);
+    }
+    // for (const auto & fv : all_debug_coi) {
+    //   // need to process any constraints that this variable is involved in
+    //   for (const auto & elem : constraint_vars_) {
+    //     if (elem.second.find(fv) != elem.second.end()) {
+    //       // this variable occurs in this constraint
+    //       // add the constraint
+    //       recursive_justify_coi(elem.first, all_debug_coi);
+    //     }
+    //   }
+    // }
 
     UnorderedTermSet recursive_justify_all_visits = all_visits_;
 
-    cout << "justify_all_visits " << justify_all_visits.size() << endl;
-    cout << "recursive_justify_all_visits "
-         << recursive_justify_all_visits.size() << endl;
-    cout << "recursive didn't visit" << endl;
+    assert(justify_all_visits.size() == recursive_justify_all_visits.size());
     for (const auto & fv : justify_all_visits) {
-      if (recursive_justify_all_visits.find(fv)
-          == recursive_justify_all_visits.end()) {
-        cout << "\t" << fv << endl;
-      }
+      assert(recursive_justify_all_visits.find(fv)
+             != recursive_justify_all_visits.end());
     }
 
     UnorderedTermSet debug_coi;
