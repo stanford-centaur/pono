@@ -151,6 +151,8 @@ class IC3SA : public IC3
 
   void justify_coi(smt::Term c, smt::UnorderedTermSet & projection);
 
+  void recursive_justify_coi(smt::Term c, smt::UnorderedTermSet & projection);
+
   bool is_controlled(smt::PrimOp po, const smt::Term & val) const;
 
   // helper function for justify_coi

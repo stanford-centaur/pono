@@ -156,6 +156,45 @@ void IC3SA::predecessor_generalization(size_t i,
   justify_coi(ts_.next(c), coi_symbols);
   assert(coi_symbols.size() <= ts_.statevars().size());
 
+  // debugging
+  {
+    UnorderedTermSet all_debug_coi = projection_set_;
+    recursive_justify_coi(ts_.next(c), all_debug_coi);
+    for (const auto & fv : all_debug_coi) {
+      // need to process any constraints that this variable is involved in
+      for (const auto & elem : constraint_vars_) {
+        if (elem.second.find(fv) != elem.second.end()) {
+          // this variable occurs in this constraint
+          // add the constraint
+          recursive_justify_coi(elem.first, all_debug_coi);
+        }
+      }
+    }
+    UnorderedTermSet debug_coi;
+    for (const auto & v : all_debug_coi) {
+      if (!ts_.is_next_var(v)) {
+        debug_coi.insert(v);
+      }
+    }
+
+    if (debug_coi.size() != coi_symbols.size()) {
+      cout << "Failed assertion" << endl;
+      cout << "regular: " << coi_symbols.size() << endl;
+      cout << "recursive: " << debug_coi.size() << endl;
+      cout << "regular is missing" << endl;
+      for (const auto & d : debug_coi) {
+        if (coi_symbols.find(d) == coi_symbols.end()) {
+          cout << "\t" << d << endl;
+        }
+      }
+    }
+    assert(debug_coi.size() == coi_symbols.size());
+    for (const auto & v : debug_coi) {
+      assert(coi_symbols.find(v) != coi_symbols.end());
+    }
+  }
+  // end debugging
+
   logger.log(
       2,
       "IC3SA::generalize_predecessor projecting on {}/{} state variables",
@@ -796,6 +835,49 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
 
   for (const auto & fv : free_vars) {
     if (ts_.is_curr_var(fv)) {
+      projection.insert(fv);
+    }
+  }
+}
+
+void IC3SA::recursive_justify_coi(Term c, UnorderedTermSet & projection)
+{
+  // expecting to have a satisfiable context
+  // and IC3Base only solves at context levels > 0
+  assert(solver_context_);
+
+  Op op = c->get_op();
+  Sort sort = c->get_sort();
+  if (op == Ite) {
+    TermVec children(c->begin(), c->end());
+    assert(children.size() == 3);
+    recursive_justify_coi(children[0], projection);
+    if (solver_->get_value(children[0]) == solver_true_) {
+      recursive_justify_coi(children[1], projection);
+    } else {
+      recursive_justify_coi(children[2], projection);
+    }
+  } else if (sort == boolsort_
+             && is_controlled(op.prim_op, solver_->get_value(c))) {
+    for (const auto & cc : get_controlling(c)) {
+      recursive_justify_coi(cc, projection);
+    }
+  } else {
+    for (const auto & cc : c) {
+      recursive_justify_coi(cc, projection);
+    }
+
+    if (ts_.is_next_var(c)) {
+      const UnorderedTermMap & state_updates = ts_.state_updates();
+      Term curr_c = ts_.curr(c);
+      if (state_updates.find(curr_c) != state_updates.end()) {
+        recursive_justify_coi(state_updates.at(curr_c), projection);
+      }
+    }
+
+    UnorderedTermSet free_vars;
+    get_free_symbolic_consts(c, free_vars);
+    for (const auto & fv : free_vars) {
       projection.insert(fv);
     }
   }
