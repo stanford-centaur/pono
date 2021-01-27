@@ -75,7 +75,6 @@ void OpsAbstractor::do_abstraction()
     // state updates
     for (const auto & e : conc_ts_.state_updates()) {
       Term val = e.second;
-      cout << val << endl;
       abs_fts.assign_next(e.first, abstract(val));
     }
 
@@ -124,11 +123,13 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
     assert(cached_children.size() <= 2);
     string op_str = "abs_" + op.to_string() + to_string(sk) + "_"
       + to_string(cached_children[0]->get_sort()->get_sort_kind());
-    SortVec sv({sort, cached_children[0]->get_sort()});
+
+    SortVec sv({cached_children[0]->get_sort()});
     if (cached_children.size() == 2) {
       op_str += "_" + to_string(cached_children[1]->get_sort()->get_sort_kind());
       sv.push_back(cached_children[1]->get_sort());
     }
+    sv.push_back(sort);
 
     Term abs_op;
     auto it = oa_.abs_op_symbols_.find(op_str);
@@ -174,11 +175,13 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
     assert(cached_children.size() <= 2);
     string op_str = "abs_" + op.to_string() + "_" + to_string(sort->get_width()) + "_"
       + to_string(cached_children[0]->get_sort()->get_width());
-    SortVec sv({sort, cached_children[0]->get_sort()});
+
+    SortVec sv({cached_children[0]->get_sort()});
     if (cached_children.size() == 2) {
       op_str += "_" + to_string(cached_children[1]->get_sort()->get_width());
       sv.push_back(cached_children[1]->get_sort());
     }
+    sv.push_back(sort);
 
     Term abs_op;
     auto it = oa_.abs_op_symbols_.find(op_str);
