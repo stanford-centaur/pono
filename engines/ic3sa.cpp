@@ -167,10 +167,15 @@ void IC3SA::predecessor_generalization(size_t i,
   }
 
   // get rid of next-state variables
+  const UnorderedTermMap & state_updates = ts_.state_updates();
   UnorderedTermSet coi_symbols;
   for (const auto & tt : all_coi_symbols) {
-    if (!ts_.is_next_var(tt)) {
+    if (ts_.is_curr_var(tt)) {
       coi_symbols.insert(tt);
+    } else if (ts_.is_next_var(tt)
+               && (state_updates.find(ts_.curr(tt)) == state_updates.end())) {
+      // include current state version of implicit inputs
+      coi_symbols.insert(ts_.curr(tt));
     }
   }
   assert(coi_symbols.size() <= ts_.statevars().size());
