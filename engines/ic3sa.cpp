@@ -151,11 +151,28 @@ void IC3SA::predecessor_generalization(size_t i,
                                        const Term & c,
                                        IC3Formula & pred)
 {
-  UnorderedTermSet coi_symbols = projection_set_;
+  UnorderedTermSet all_coi_symbols = projection_set_;
 
-  justify_coi(ts_.next(c), coi_symbols);
+  justify_coi(ts_.next(c), all_coi_symbols);
+  for (const auto & fv : all_coi_symbols) {
+    // need to process any constraints that this variable is involved in
+    for (const auto & elem : constraint_vars_) {
+      if (elem.second.find(fv) != elem.second.end()) {
+        // this variable occurs in this constraint
+        // add the constraint
+        justify_coi(elem.first, all_coi_symbols);
+      }
+    }
+  }
+
+  UnorderedTermSet coi_symbols;
+  for (const auto & v : all_coi_symbols) {
+    if (!ts_.is_next_var(v)) {
+      coi_symbols.insert(v);
+    }
+  }
+
   assert(coi_symbols.size() <= ts_.statevars().size());
-
   // debugging
   {
     UnorderedTermSet all_debug_coi = projection_set_;
@@ -810,33 +827,25 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
       for (const auto & cc : get_controlling(t)) {
         to_visit_.push_back(cc);
       }
-    } else if (ts_.is_next_var(t)
-               && state_updates.find(ts_.curr(t)) != state_updates.end()) {
-      to_visit_.push_back(state_updates.at(ts_.curr(t)));
-    } else if (t->is_symbolic_const()) {
-      free_vars.insert(t);
-
-      // need to add any constraints that this variable is involved in
-      // to the visit stack
-      for (const auto & elem : constraint_vars_) {
-        if (elem.second.find(t) != elem.second.end()) {
-          // this variable occurs in this constraint
-          // add the constraint
-          to_visit_.push_back(elem.first);
-        }
-      }
-
     } else {
       for (const auto & tt : t) {
         to_visit_.push_back(tt);
       }
+
+      if (ts_.is_next_var(t)) {
+        Term curr_t = ts_.curr(t);
+        if (state_updates.find(curr_t) != state_updates.end()) {
+          to_visit_.push_back(state_updates.at(curr_t));
+        }
+      }
+
+      // add all symbols
+      get_free_symbolic_consts(t, free_vars);
     }
   }
 
   for (const auto & fv : free_vars) {
-    if (ts_.is_curr_var(fv)) {
-      projection.insert(fv);
-    }
+    projection.insert(fv);
   }
 }
 
