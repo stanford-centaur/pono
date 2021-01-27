@@ -158,7 +158,8 @@ void IC3SA::predecessor_generalization(size_t i,
   for (const auto & fv : all_coi_symbols) {
     // need to process any constraints that this variable is involved in
     for (const auto & elem : constraint_vars_) {
-      if (elem.second.find(fv) != elem.second.end()) {
+      const auto & s = elem.second;
+      if (s.find(fv) != s.end()) {
         // this variable occurs in this constraint
         // add the constraint
         justify_coi(elem.first, all_coi_symbols);
