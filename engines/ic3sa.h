@@ -142,10 +142,10 @@ class IC3SA : public IC3
 
   /** Add all subterms from term to the term abstraction
    *  @param axiom the term to mine for subterms
-   *  @return true iff new terms were added
+   *  @return a set of new terms
    *  @modifies term_abstraction_ and predset_
    */
-  bool add_to_term_abstraction(const smt::Term & term);
+  smt::UnorderedTermSet add_to_term_abstraction(const smt::Term & term);
 
   void justify_coi(smt::Term c, smt::UnorderedTermSet & projection);
 

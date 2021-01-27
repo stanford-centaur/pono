@@ -299,19 +299,15 @@ RefineResult IC3SA::refine()
 
   logger.log(3, "IC3SA::refine learned axiom {}", learned_lemma);
 
-  // add to the projection set permanently
-  UnorderedTermSet free_vars;
-  get_free_symbolic_consts(learned_lemma, free_vars);
-  for (const auto & fv : free_vars) {
-    if (ts_.is_curr_var(fv)) {
-      projection_set_.insert(fv);
-    }
-  }
-
   // mine for new terms
   // NOTE: can proceed even if there are no new terms because of learned
   // path axiom m
-  bool new_terms_added = add_to_term_abstraction(learned_lemma);
+  UnorderedTermSet new_terms = add_to_term_abstraction(learned_lemma);
+
+  // add to the projection set permanently
+  for (const auto & nt : new_terms) {
+    get_free_symbolic_consts(nt, projection_set_);
+  }
 
   // TODO handle refinement failure case if any
 
@@ -725,13 +721,13 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
   }
 }
 
-bool IC3SA::add_to_term_abstraction(const Term & term)
+UnorderedTermSet IC3SA::add_to_term_abstraction(const Term & term)
 {
+  UnorderedTermSet new_terms;
+
   Sort boolsort = solver_->make_sort(BOOL);
   SubTermCollector stc(solver_);
   stc.collect_subterms(term);
-
-  bool new_terms = false;
 
   for (const auto & p : stc.get_predicates()) {
     // TODO : figure out if we need to promote all input vars
@@ -742,7 +738,9 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
     //      values have to be included and currently we're not adding
     //      all possible equalities / disequalities
     if (ts_.only_curr(p)) {
-      new_terms |= predset_.insert(p).second;
+      if (predset_.insert(p).second) {
+        new_terms.insert(p);
+      }
     }
   }
 
@@ -752,7 +750,9 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
       //        for this algorithm to work
       //        not sure it's okay to just drop terms containing inputs
       if (ts_.only_curr(term)) {
-        new_terms |= term_abstraction_[elem.first].insert(term).second;
+        if (term_abstraction_[elem.first].insert(term).second) {
+          new_terms.insert(term);
+        }
       }
     }
   }
