@@ -135,9 +135,51 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
     new_ts.assign_next(elem.first, elem.second);
   }
 
+  // relational systems could have things added by constrain_trans
+  if (!new_ts.is_functional()) {
+    RelationalTransitionSystem & rts_view =
+        static_cast<RelationalTransitionSystem &>(new_ts);
+    rts_view.set_trans(ts.trans());
+  }
+
   // need to re-evaluate all constraints that used to be over inputs
   for (const auto & elem : ts.constraints()) {
     new_ts.add_constraint(elem.first, elem.second);
+  }
+
+  assert(!new_ts.inputvars().size());
+  return new_ts;
+}
+
+TransitionSystem remove_implicit_inputs(const TransitionSystem & ts)
+{
+  SmtSolver solver = ts.solver();
+  TransitionSystem new_ts = create_fresh_ts(ts.is_functional(), solver);
+  assert(new_ts.is_functional() == ts.is_functional());
+
+  // copy over all inputs
+  for (const auto & iv : ts.inputvars()) {
+    new_ts.add_inputvar(iv);
+  }
+
+  const UnorderedTermMap & state_updates = ts.state_updates();
+
+  // copy over all state variables
+  // but turn into input variable if they're implicitly an input
+  for (const auto & sv : ts.statevars()) {
+    if (state_updates.find(sv) == state_updates.end()) {
+      new_ts.add_inputvar(sv);
+    } else {
+      new_ts.add_statevar(sv, ts.next(sv));
+    }
+  }
+
+  // set init
+  new_ts.set_init(ts.init());
+
+  // copy over state updates
+  for (const auto & elem : ts.state_updates()) {
+    new_ts.assign_next(elem.first, elem.second);
   }
 
   // relational systems could have things added by constrain_trans
@@ -147,7 +189,12 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
     rts_view.set_trans(ts.trans());
   }
 
-  assert(!new_ts.inputvars().size());
+  // add all constraints
+  for (const auto & elem : ts.constraints()) {
+    new_ts.add_constraint(elem.first, elem.second);
+  }
+
+  assert(new_ts.state_updates().size() == new_ts.statevars().size());
   return new_ts;
 }
 

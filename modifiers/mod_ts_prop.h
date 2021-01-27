@@ -50,4 +50,10 @@ void prop_in_trans(TransitionSystem & ts, const smt::Term & prop);
  */
 TransitionSystem promote_inputvars(const TransitionSystem & ts);
 
+/** Changes any state variables without a state update into input variables
+ *  @param ts the transition system to modify
+ *  @return the modified transition system
+ */
+TransitionSystem remove_implicit_inputs(const TransitionSystem & ts);
+
 }  // namespace pono
