@@ -53,6 +53,13 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
 }
 
 template <class Prover_T>
+void CegarOpsUf<Prover_T>::set_ops_to_abstract(
+    const UnorderedOpSet & ops_to_abstract)
+{
+  oa_.set_ops_to_abstract(ops_to_abstract);
+}
+
+template <class Prover_T>
 ProverResult CegarOpsUf<Prover_T>::check_until(int k)
 {
   initialize();

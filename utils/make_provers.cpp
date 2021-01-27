@@ -126,17 +126,21 @@ shared_ptr<Prover> make_cegar_values_prover(Engine e,
   return make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(p, ts, slv, opts);
 }
 
-shared_ptr<Prover> make_cegar_ops_uf_prover(Engine e,
-                                            const Property & p,
-                                            const TransitionSystem & ts,
-                                            const SmtSolver & slv,
-                                            PonoOptions opts)
+shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
+                                              const Property & p,
+                                              const TransitionSystem & ts,
+                                              const SmtSolver & slv,
+                                              PonoOptions opts)
 {
   if (e != IC3IA_ENGINE) {
     throw PonoException("CegarOpsUf currently only supports IC3IA");
   }
 
-  return make_shared<CegarOpsUf<IC3IA>>(p, ts, slv, opts);
+  shared_ptr<CegarOpsUf<IC3IA>> prover =
+      make_shared<CegarOpsUf<IC3IA>>(p, ts, slv, opts);
+  prover->set_ops_to_abstract(
+      { BVAdd, BVSub, BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+  return prover;
 }
 
 }  // namespace pono

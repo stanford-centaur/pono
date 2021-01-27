@@ -35,9 +35,11 @@ class CegarOpsUf : public CEGAR<Prover_T>
              const smt::SmtSolver & solver,
              PonoOptions opt = PonoOptions());
 
-  ProverResult check_until(int k) override;
+  void set_ops_to_abstract(const smt::UnorderedOpSet & ops_to_abstract);
 
   void initialize() override;
+
+  ProverResult check_until(int k) override;
 
  protected:
   void cegar_abstract() override;

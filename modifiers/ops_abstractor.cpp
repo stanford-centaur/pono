@@ -21,11 +21,12 @@ using namespace std;
 
 namespace pono {
 
-OpsAbstractor::OpsAbstractor(const TransitionSystem & conc_ts, TransitionSystem & abs_ts)
-  : super(conc_ts, abs_ts),
-    solver_(abs_ts_.solver()),
-    abs_walker_(*this, &abstraction_cache_),
-    conc_walker_(*this, &concretization_cache_)
+OpsAbstractor::OpsAbstractor(const TransitionSystem & conc_ts,
+                             TransitionSystem & abs_ts)
+    : super(conc_ts, abs_ts),
+      solver_(abs_ts_.solver()),
+      abs_walker_(*this, &abstraction_cache_),
+      conc_walker_(*this, &concretization_cache_)
 {
 }
 
@@ -34,20 +35,28 @@ Term OpsAbstractor::abstract(Term & t)
   return abs_walker_.visit(t);
 }
 
-Term  OpsAbstractor::concrete(Term & t)
-{
-  return conc_walker_.visit(t);
-}
+Term OpsAbstractor::concrete(Term & t) { return conc_walker_.visit(t); }
 
-OpsAbstractor::AbstractionWalker::AbstractionWalker(OpsAbstractor &oa,
-                                                    UnorderedTermMap *ext_cache)
-  : IdentityWalker(oa.solver_, false, ext_cache),
-    oa_(oa)
+void OpsAbstractor::set_ops_to_abstract(const UnorderedOpSet & ops_to_abstract)
 {
+  if (ops_to_abstract_.size() > 0) {
+    throw PonoException(
+        "OpsAbstractor::set_ops_to_abstract "
+        "Cannot reset the set of operators to abstract");
+  }
+
+  ops_to_abstract_.insert(ops_to_abstract.begin(), ops_to_abstract.end());
 }
 
 void OpsAbstractor::do_abstraction()
 {
+  if (ops_to_abstract_.size() == 0) {
+    throw PonoException(
+        "OpsAbstractor::do_abstraction "
+        "No operators to abstract."
+        "Set them by calling set_ops_to_abstract");
+  }
+
   if (!abs_ts_.is_functional()) {
     abs_ts_ = conc_ts_;
     RelationalTransitionSystem & abs_rts =
@@ -91,6 +100,12 @@ void OpsAbstractor::do_abstraction()
   }
 }
 
+OpsAbstractor::AbstractionWalker::AbstractionWalker(
+    OpsAbstractor & oa, UnorderedTermMap * ext_cache)
+    : IdentityWalker(oa.solver_, false, ext_cache), oa_(oa)
+{
+}
+
 WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
 {
   if (preorder_ || in_cache(term)) {
@@ -110,107 +125,114 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
   }
 
   Term res;
-  switch (op.prim_op) {
-    // arithmetic operators
-  case Plus:
-  case Minus:
-  case Mult:
-  case Div:
-  case Mod:
-  case Pow:
-  case IntDiv:
-  case Abs: {
-    assert(cached_children.size() <= 2);
-    string op_str = "abs_" + op.to_string() + to_string(sk) + "_"
-      + to_string(cached_children[0]->get_sort()->get_sort_kind());
+  // check if we do not need to abstract the operator
+  if (op.is_null()
+      || oa_.ops_to_abstract_.find(op) == oa_.ops_to_abstract_.end()) {
+    res = op.is_null() ? term : solver_->make_term(op, cached_children);
+  } else {
+    switch (op.prim_op) {
+        // arithmetic operators
+      case Plus:
+      case Minus:
+      case Mult:
+      case Div:
+      case Mod:
+      case Pow:
+      case IntDiv:
+      case Abs: {
+        assert(cached_children.size() <= 2);
+        string op_str =
+            "abs_" + op.to_string() + to_string(sk) + "_"
+            + to_string(cached_children[0]->get_sort()->get_sort_kind());
 
-    SortVec sv({cached_children[0]->get_sort()});
-    if (cached_children.size() == 2) {
-      op_str += "_" + to_string(cached_children[1]->get_sort()->get_sort_kind());
-      sv.push_back(cached_children[1]->get_sort());
-    }
-    sv.push_back(sort);
+        SortVec sv({ cached_children[0]->get_sort() });
+        if (cached_children.size() == 2) {
+          op_str +=
+              "_" + to_string(cached_children[1]->get_sort()->get_sort_kind());
+          sv.push_back(cached_children[1]->get_sort());
+        }
+        sv.push_back(sort);
 
-    Term abs_op;
-    auto it = oa_.abs_op_symbols_.find(op_str);
-    if (it == oa_.abs_op_symbols_.end()) {
-      Sort func_sort = solver_->make_sort(FUNCTION, sv);
-      abs_op = solver_->make_symbol(op_str, func_sort);
-      oa_.abs_op_symbols_[op_str] = abs_op;
-      oa_.abs_symbols_to_op_[abs_op] = op;
-    } else {
-      abs_op = it->second;
-    }
+        Term abs_op;
+        auto it = oa_.abs_op_symbols_.find(op_str);
+        if (it == oa_.abs_op_symbols_.end()) {
+          Sort func_sort = solver_->make_sort(FUNCTION, sv);
+          abs_op = solver_->make_symbol(op_str, func_sort);
+          oa_.abs_op_symbols_[op_str] = abs_op;
+          oa_.abs_symbols_to_op_[abs_op] = op;
+        } else {
+          abs_op = it->second;
+        }
 
-    TermVec args = {abs_op};
-    args.insert(args.end(), cached_children.begin(), cached_children.end());
-    res = solver_->make_term(Apply, args);
+        TermVec args = { abs_op };
+        args.insert(args.end(), cached_children.begin(), cached_children.end());
+        res = solver_->make_term(Apply, args);
 
-    assert(oa_.abs_terms_.find(res) == oa_.abs_terms_.end());
-    oa_.abs_terms_[res] = solver_->make_term(op, cached_children);
-    break;
+        assert(oa_.abs_terms_.find(res) == oa_.abs_terms_.end());
+        oa_.abs_terms_[res] = solver_->make_term(op, cached_children);
+        break;
+      }
+        // BV operators
+      case Concat:
+      case Extract:
+      case BVAnd:
+      case BVOr:
+      case BVXor:
+      case BVNand:
+      case BVNor:
+      case BVXnor:
+      case BVAdd:
+      case BVSub:
+      case BVMul:
+      case BVUdiv:
+      case BVSdiv:
+      case BVUrem:
+      case BVSrem:
+      case BVSmod:
+      case BVShl:
+      case BVAshr:
+      case BVLshr:
+      case BVNot:
+      case BVNeg: {
+        assert(cached_children.size() <= 2);
+        string op_str =
+            "abs_" + op.to_string() + "_" + to_string(sort->get_width()) + "_"
+            + to_string(cached_children[0]->get_sort()->get_width());
+
+        SortVec sv({ cached_children[0]->get_sort() });
+        if (cached_children.size() == 2) {
+          op_str +=
+              "_" + to_string(cached_children[1]->get_sort()->get_width());
+          sv.push_back(cached_children[1]->get_sort());
+        }
+        sv.push_back(sort);
+
+        Term abs_op;
+        auto it = oa_.abs_op_symbols_.find(op_str);
+        if (it == oa_.abs_op_symbols_.end()) {
+          Sort func_sort = solver_->make_sort(FUNCTION, sv);
+          abs_op = solver_->make_symbol(op_str, func_sort);
+          oa_.abs_op_symbols_[op_str] = abs_op;
+          oa_.abs_symbols_to_op_[abs_op] = op;
+        } else {
+          abs_op = it->second;
+        }
+
+        TermVec args = { abs_op };
+        args.insert(args.end(), cached_children.begin(), cached_children.end());
+        res = solver_->make_term(Apply, args);
+
+        assert(oa_.abs_terms_.find(res) == oa_.abs_terms_.end());
+        oa_.abs_terms_[res] = solver_->make_term(op, cached_children);
+        break;
+      }
+        // other operators
+      default:
+        // should not reach
+        assert(false);
+        break;
+    };
   }
-    // BV operators
-  case Concat:
-  case Extract:
-  case BVAnd:
-  case BVOr:
-  case BVXor:
-  case BVNand:
-  case BVNor:
-  case BVXnor:
-  case BVAdd:
-  case BVSub:
-  case BVMul:
-  case BVUdiv:
-  case BVSdiv:
-  case BVUrem:
-  case BVSrem:
-  case BVSmod:
-  case BVShl:
-  case BVAshr:
-  case BVLshr:
-  case BVNot:
-  case BVNeg: {
-    assert(cached_children.size() <= 2);
-    string op_str = "abs_" + op.to_string() + "_" + to_string(sort->get_width()) + "_"
-      + to_string(cached_children[0]->get_sort()->get_width());
-
-    SortVec sv({cached_children[0]->get_sort()});
-    if (cached_children.size() == 2) {
-      op_str += "_" + to_string(cached_children[1]->get_sort()->get_width());
-      sv.push_back(cached_children[1]->get_sort());
-    }
-    sv.push_back(sort);
-
-    Term abs_op;
-    auto it = oa_.abs_op_symbols_.find(op_str);
-    if (it == oa_.abs_op_symbols_.end()) {
-      Sort func_sort = solver_->make_sort(FUNCTION, sv);
-      abs_op = solver_->make_symbol(op_str, func_sort);
-      oa_.abs_op_symbols_[op_str] = abs_op;
-      oa_.abs_symbols_to_op_[abs_op] = op;
-    } else {
-      abs_op = it->second;
-    }
-
-    TermVec args = {abs_op};
-    args.insert(args.end(), cached_children.begin(), cached_children.end());
-    res = solver_->make_term(Apply, args);
-
-    assert(oa_.abs_terms_.find(res) == oa_.abs_terms_.end());
-    oa_.abs_terms_[res] = solver_->make_term(op, cached_children);
-    break;
-  }
-    // other operators
-  default:
-    if (op.is_null()) {
-      res = term;
-    } else {
-      res = solver_->make_term(op, cached_children);
-    }
-    break;
-  };
 
   assert(res);
   oa_.update_term_cache(term, res);

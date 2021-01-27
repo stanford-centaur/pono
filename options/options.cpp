@@ -57,7 +57,7 @@ enum optionIndex
   ASSUME_PROP,
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
-  CEG_OPS_UF,
+  CEG_BV_ARITH,
   PROMOTE_INPUTVARS,
   SYGUS_OP_LVL
 };
@@ -294,12 +294,13 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --cegp-abs-vals-cutoff \tcutoff value for what to abstract - must be "
     "positive (default: 100)" },
-  { CEG_OPS_UF,
+  { CEG_BV_ARITH,
     0,
     "",
-    "ceg-ops-uf",
+    "ceg-bv-arith",
     Arg::None,
-    "  --ceg-ops-uf \tabstraction-refinement for the theory operators (only "
+    "  --ceg-bv-arith \tabstraction-refinement for the BV arithmetic operators "
+    "(only "
     "supported for IC3IA)" },
   { PROMOTE_INPUTVARS,
     0,
@@ -308,12 +309,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --promote-inputvars \tpromote all input variables to state variables" },
   { SYGUS_OP_LVL,
-      0,
-      "",
-      "op-lv",
-      Arg::Numeric,
-      "  --op-lv \toperator abstraction level (0-2, default:2) (only "
-      "supported for SYGUS PDR)" },
+    0,
+    "",
+    "op-lv",
+    Arg::Numeric,
+    "  --op-lv \toperator abstraction level (0-2, default:2) (only "
+    "supported for SYGUS PDR)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -430,7 +431,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case ASSUME_PROP: assume_prop_ = true; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
-        case CEG_OPS_UF: ceg_ops_uf_ = true; break;
+        case CEG_BV_ARITH: ceg_bv_arith_ = true; break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case SYGUS_OP_LVL: sygus_use_operator_abstraction_ = atoi(opt.arg); break;
         case UNKNOWN_OPTION:

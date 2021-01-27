@@ -30,7 +30,7 @@ RelationalTransitionSystem counter_ts(SmtSolver s, const Term & x)
   Term zero = rts.make_term(0, sort);
 
   rts.assign_next(
-                  x, rts.make_term(Ite, rts.make_term(lt_op, x, max_val), inc_term, zero));
+      x, rts.make_term(Ite, rts.make_term(lt_op, x, max_val), inc_term, zero));
   rts.set_init(rts.make_term(Equal, x, zero));
 
   return rts;
@@ -46,8 +46,9 @@ TEST(CegOpsUf, BVSimpleSafe)
   Term prop_term = rts.make_term(BVUlt, x, rts.make_term(11, sort));
   Property prop(s, prop_term);
 
-  // TODO create a make_ command for this
-  shared_ptr<Prover> ceg = make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  shared_ptr<CegarOpsUf<IC3IA>> ceg =
+      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  ceg->set_ops_to_abstract({ BVAdd });
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
@@ -65,8 +66,9 @@ TEST(CegOpsUf, BVSimpleUnsafe)
   Term prop_term = rts.make_term(BVUlt, x, s->make_term(10, sort));
   Property prop(s, prop_term);
 
-  // TODO create a make_ command for this
-  shared_ptr<Prover> ceg = make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  shared_ptr<CegarOpsUf<IC3IA>> ceg =
+      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  ceg->set_ops_to_abstract({ BVAdd });
 
   ProverResult r = ceg->check_until(11);
   ASSERT_EQ(r, ProverResult::FALSE);
@@ -83,8 +85,9 @@ TEST(CegOpsUf, IntSimpleSafe)
   Term prop_term = rts.make_term(Lt, x, rts.make_term(11, sort));
   Property prop(s, prop_term);
 
-  // TODO create a make_ command for this
-  shared_ptr<Prover> ceg = make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  shared_ptr<CegarOpsUf<IC3IA>> ceg =
+      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  ceg->set_ops_to_abstract({ Plus });
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
@@ -102,8 +105,9 @@ TEST(CegOpsUf, IntSimpleUnsafe)
   Term prop_term = rts.make_term(Lt, x, s->make_term(10, sort));
   Property prop(s, prop_term);
 
-  // TODO create a make_ command for this
-  shared_ptr<Prover> ceg = make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  shared_ptr<CegarOpsUf<IC3IA>> ceg =
+      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
+  ceg->set_ops_to_abstract({ Plus });
 
   ProverResult r = ceg->check_until(11);
   ASSERT_EQ(r, ProverResult::FALSE);

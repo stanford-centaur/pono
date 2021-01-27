@@ -35,6 +35,8 @@ class OpsAbstractor : public Abstractor
 
   const smt::UnorderedTermMap & abstract_terms() const { return abs_terms_; }
 
+  void set_ops_to_abstract(const smt::UnorderedOpSet & ops_to_abstract);
+
   void do_abstraction();
 
  protected:
@@ -66,6 +68,8 @@ class OpsAbstractor : public Abstractor
 
   AbstractionWalker abs_walker_;
   ConcretizationWalker conc_walker_;
+
+  smt::UnorderedOpSet ops_to_abstract_;
 
   std::unordered_map<std::string, smt::Term> abs_op_symbols_;
   std::unordered_map<smt::Term, smt::Op> abs_symbols_to_op_;
