@@ -156,7 +156,14 @@ void IC3SA::predecessor_generalization(size_t i,
   assert(all_coi_symbols.size());
 
   for (const auto & elem : ts_.constraints()) {
+    // TODO look into optimizing this
+    // might be able to only consider
+    // current state version that has common symbols
     justify_coi(elem.first, all_coi_symbols);
+    if (elem.second)
+    {
+      justify_coi(ts_.next(elem.first), all_coi_symbols);
+    }
   }
 
   // get rid of next-state variables
