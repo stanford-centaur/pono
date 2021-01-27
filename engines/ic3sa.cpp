@@ -169,7 +169,9 @@ void IC3SA::predecessor_generalization(size_t i,
   // get rid of next-state variables
   UnorderedTermSet coi_symbols;
   for (const auto & tt : all_coi_symbols) {
-    if (!ts_.is_next_var(tt)) {
+    // never include input variables
+    // might need to project elsewhere also
+    if (ts_.is_curr_var(tt) && (inputvars_.find(tt) == inputvars_.end())) {
       coi_symbols.insert(tt);
     }
   }
@@ -607,6 +609,23 @@ void IC3SA::initialize()
       constraint_vars_[next_constraint] = tmp_vars;
     }
   }
+
+  assert(inputvars_.size() == 0);
+  assert(ts_.inputvars().size() == 0);
+  const UnorderedTermMap & state_updates = ts_.state_updates();
+  const UnorderedTermMap & conc_state_updates = conc_ts_.state_updates();
+  for (const auto & sv : ts_.statevars()) {
+    bool in_state_updates = (state_updates.find(sv) != state_updates.end());
+    bool in_conc_state_updates =
+        (conc_state_updates.find(sv) != conc_state_updates.end());
+    assert(in_state_updates == in_conc_state_updates);
+    if (in_state_updates) {
+      assert(state_updates.at(sv) == conc_state_updates.at(sv));
+    } else {
+      inputvars_.insert(sv);
+    }
+  }
+  assert(inputvars_.size() == (ts_.statevars().size() - state_updates.size()));
 }
 
 // IC3SA specific methods

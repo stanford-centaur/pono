@@ -75,6 +75,8 @@ class IC3SA : public IC3
   ///< that are related by a constraint
   ///< this is needed for soundness in justify_coi
 
+  smt::UnorderedTermSet inputvars_;  ///< all (implicit) input variables
+
   smt::TermVec to_visit_;          ///< temporary var for justify_coi
   smt::UnorderedTermSet visited_;  ///< temporary var for justify_coi
 
