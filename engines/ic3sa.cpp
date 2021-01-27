@@ -166,16 +166,6 @@ void IC3SA::predecessor_generalization(size_t i,
   for (const auto & fv : constraints_to_process) {
     justify_coi(fv, all_coi_symbols);
   }
-  // for (const auto & fv : all_coi_symbols) {
-  //   // need to process any constraints that this variable is involved in
-  //   for (const auto & elem : constraint_vars_) {
-  //     if (elem.second.find(fv) != elem.second.end()) {
-  //       // this variable occurs in this constraint
-  //       // add the constraint
-  //       justify_coi(elem.first, all_coi_symbols);
-  //     }
-  //   }
-  // }
 
   UnorderedTermSet coi_symbols;
   for (const auto & v : all_coi_symbols) {
@@ -201,16 +191,6 @@ void IC3SA::predecessor_generalization(size_t i,
     for (const auto & fv : debug_constraints_to_process) {
       recursive_justify_coi(fv, all_debug_coi);
     }
-    // for (const auto & fv : all_debug_coi) {
-    //   // need to process any constraints that this variable is involved in
-    //   for (const auto & elem : constraint_vars_) {
-    //     if (elem.second.find(fv) != elem.second.end()) {
-    //       // this variable occurs in this constraint
-    //       // add the constraint
-    //       recursive_justify_coi(elem.first, all_debug_coi);
-    //     }
-    //   }
-    // }
 
     UnorderedTermSet debug_coi;
     for (const auto & v : all_debug_coi) {
