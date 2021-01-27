@@ -153,7 +153,6 @@ void IC3SA::predecessor_generalization(size_t i,
 {
   UnorderedTermSet all_coi_symbols = projection_set_;
 
-  all_visits_.clear();
   justify_coi(ts_.next(c), all_coi_symbols);
   UnorderedTermSet constraints_to_process;
   for (const auto & fv : all_coi_symbols) {
@@ -177,9 +176,6 @@ void IC3SA::predecessor_generalization(size_t i,
   //     }
   //   }
   // }
-
-  UnorderedTermSet justify_all_visits = all_visits_;
-  all_visits_.clear();
 
   UnorderedTermSet coi_symbols;
   for (const auto & v : all_coi_symbols) {
@@ -215,14 +211,6 @@ void IC3SA::predecessor_generalization(size_t i,
     //     }
     //   }
     // }
-
-    UnorderedTermSet recursive_justify_all_visits = all_visits_;
-
-    assert(justify_all_visits.size() == recursive_justify_all_visits.size());
-    for (const auto & fv : justify_all_visits) {
-      assert(recursive_justify_all_visits.find(fv)
-             != recursive_justify_all_visits.end());
-    }
 
     UnorderedTermSet debug_coi;
     for (const auto & v : all_debug_coi) {
@@ -834,7 +822,6 @@ void IC3SA::justify_coi(Term top, UnorderedTermSet & projection)
   while (!to_visit_.empty()) {
     c = to_visit_.back();
     to_visit_.pop_back();
-    all_visits_.insert(c);
 
     Op op = c->get_op();
     Sort sort = c->get_sort();
@@ -872,7 +859,6 @@ void IC3SA::justify_coi(Term top, UnorderedTermSet & projection)
 
 void IC3SA::recursive_justify_coi(Term c, UnorderedTermSet & projection)
 {
-  all_visits_.insert(c);
   // expecting to have a satisfiable context
   // and IC3Base only solves at context levels > 0
   assert(solver_context_);
