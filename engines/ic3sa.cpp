@@ -153,6 +153,17 @@ void IC3SA::predecessor_generalization(size_t i,
   justify_coi(ts_.next(c), all_coi_symbols);
   assert(all_coi_symbols.size());
 
+  for (const auto & fv : all_coi_symbols) {
+    // need to process any constraints that this variable is involved in
+    for (const auto & elem : constraint_vars_) {
+      if (elem.second.find(fv) != elem.second.end()) {
+        // this variable occurs in this constraint
+        // add the constraint
+        justify_coi(elem.first, all_coi_symbols);
+      }
+    }
+  }
+
   // get rid of next-state variables
   UnorderedTermSet coi_symbols;
   for (const auto & tt : all_coi_symbols) {
