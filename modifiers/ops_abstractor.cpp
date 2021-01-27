@@ -68,13 +68,14 @@ void OpsAbstractor::do_abstraction()
     for (const auto & v : conc_ts_.inputvars()) {
       abs_fts.add_inputvar(v);
     }
-    for (const auto & e : conc_ts_.state_updates()) {
-      abs_fts.add_statevar(e.first, conc_ts_.next(e.first));
+    for (const auto &v : conc_ts_.statevars()) {
+      abs_fts.add_statevar(v, conc_ts_.next(v));
     }
 
     // state updates
     for (const auto & e : conc_ts_.state_updates()) {
       Term val = e.second;
+      cout << val << endl;
       abs_fts.assign_next(e.first, abstract(val));
     }
 
