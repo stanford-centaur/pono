@@ -84,6 +84,8 @@ class IC3SA : public IC3
   // useful sort
   smt::Sort boolsort_;
 
+  smt::UnorderedTermSet all_visits_;
+
   TransitionSystem & prover_interface_ts() override { return conc_ts_; };
 
   // virtual method implementations

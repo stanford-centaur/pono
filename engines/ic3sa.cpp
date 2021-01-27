@@ -153,6 +153,7 @@ void IC3SA::predecessor_generalization(size_t i,
 {
   UnorderedTermSet all_coi_symbols = projection_set_;
 
+  all_visits_.clear();
   justify_coi(ts_.next(c), all_coi_symbols);
   for (const auto & fv : all_coi_symbols) {
     // need to process any constraints that this variable is involved in
@@ -164,6 +165,9 @@ void IC3SA::predecessor_generalization(size_t i,
       }
     }
   }
+
+  UnorderedTermSet justify_all_visits = all_visits_;
+  all_visits_.clear();
 
   UnorderedTermSet coi_symbols;
   for (const auto & v : all_coi_symbols) {
@@ -187,6 +191,20 @@ void IC3SA::predecessor_generalization(size_t i,
         }
       }
     }
+
+    UnorderedTermSet recursive_justify_all_visits = all_visits_;
+
+    cout << "justify_all_visits " << justify_all_visits.size() << endl;
+    cout << "recursive_justify_all_visits "
+         << recursive_justify_all_visits.size() << endl;
+    cout << "recursive didn't visit" << endl;
+    for (const auto & fv : justify_all_visits) {
+      if (recursive_justify_all_visits.find(fv)
+          == recursive_justify_all_visits.end()) {
+        cout << "\t" << fv << endl;
+      }
+    }
+
     UnorderedTermSet debug_coi;
     for (const auto & v : all_debug_coi) {
       if (!ts_.is_next_var(v)) {
@@ -783,74 +801,59 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
   return new_terms;
 }
 
-void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
+void IC3SA::justify_coi(Term top, UnorderedTermSet & projection)
 {
   // expecting to have a satisfiable context
   // and IC3Base only solves at context levels > 0
   assert(solver_context_);
   to_visit_.clear();
-  visited_.clear();
-  to_visit_.push_back(c);
+  to_visit_.push_back(top);
 
-  TermVec children;
-  UnorderedTermSet free_vars;
   const UnorderedTermMap & state_updates = ts_.state_updates();
 
-  Term t;
+  Term c;
   while (!to_visit_.empty()) {
-    t = to_visit_.back();
+    c = to_visit_.back();
     to_visit_.pop_back();
+    all_visits_.insert(c);
 
-    if (visited_.find(t) != visited_.end()) {
-      continue;
-    }
-    visited_.insert(t);
-
-    if (t->get_op() == Ite) {
-      children.clear();
-      children.insert(children.end(), t->begin(), t->end());
+    Op op = c->get_op();
+    Sort sort = c->get_sort();
+    if (op == Ite) {
+      TermVec children(c->begin(), c->end());
       assert(children.size() == 3);
-      // always visit the condition
       to_visit_.push_back(children[0]);
-      if (solver_->get_value(children[0]) == solver_true_)
-      {
-        // the if branch is active
+      if (solver_->get_value(children[0]) == solver_true_) {
         to_visit_.push_back(children[1]);
-      }
-      else
-      {
-        // the else branch is active
+      } else {
         to_visit_.push_back(children[2]);
       }
-    } else if (t->get_sort() == boolsort_
-               && is_controlled(t->get_op().prim_op, solver_->get_value(t))) {
-      for (const auto & cc : get_controlling(t)) {
+    } else if (sort == boolsort_
+               && is_controlled(op.prim_op, solver_->get_value(c))) {
+      for (const auto & cc : get_controlling(c)) {
         to_visit_.push_back(cc);
       }
     } else {
-      for (const auto & tt : t) {
-        to_visit_.push_back(tt);
+      for (const auto & cc : c) {
+        to_visit_.push_back(cc);
       }
 
-      if (ts_.is_next_var(t)) {
-        Term curr_t = ts_.curr(t);
-        if (state_updates.find(curr_t) != state_updates.end()) {
-          to_visit_.push_back(state_updates.at(curr_t));
+      if (ts_.is_next_var(c)) {
+        const UnorderedTermMap & state_updates = ts_.state_updates();
+        Term curr_c = ts_.curr(c);
+        if (state_updates.find(curr_c) != state_updates.end()) {
+          to_visit_.push_back(state_updates.at(curr_c));
         }
       }
 
-      // add all symbols
-      get_free_symbolic_consts(t, free_vars);
+      get_free_symbolic_consts(c, projection);
     }
-  }
-
-  for (const auto & fv : free_vars) {
-    projection.insert(fv);
   }
 }
 
 void IC3SA::recursive_justify_coi(Term c, UnorderedTermSet & projection)
 {
+  all_visits_.insert(c);
   // expecting to have a satisfiable context
   // and IC3Base only solves at context levels > 0
   assert(solver_context_);
@@ -884,11 +887,7 @@ void IC3SA::recursive_justify_coi(Term c, UnorderedTermSet & projection)
       }
     }
 
-    UnorderedTermSet free_vars;
-    get_free_symbolic_consts(c, free_vars);
-    for (const auto & fv : free_vars) {
-      projection.insert(fv);
-    }
+    get_free_symbolic_consts(c, projection);
   }
 }
 
