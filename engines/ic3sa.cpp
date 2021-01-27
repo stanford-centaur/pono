@@ -155,16 +155,17 @@ void IC3SA::predecessor_generalization(size_t i,
   justify_coi(ts_.next(c), all_coi_symbols);
   assert(all_coi_symbols.size());
 
-  for (const auto & elem : ts_.constraints()) {
-    // TODO look into optimizing this
-    // might be able to only consider
-    // current state version that has common symbols
-    justify_coi(elem.first, all_coi_symbols);
-    if (elem.second)
-    {
-      justify_coi(ts_.next(elem.first), all_coi_symbols);
-    }
-  }
+  // just adding them all up front in this branch
+  // for (const auto & elem : ts_.constraints()) {
+  //   // TODO look into optimizing this
+  //   // might be able to only consider
+  //   // current state version that has common symbols
+  //   justify_coi(elem.first, all_coi_symbols);
+  //   if (elem.second)
+  //   {
+  //     justify_coi(ts_.next(elem.first), all_coi_symbols);
+  //   }
+  // }
 
   // get rid of next-state variables
   UnorderedTermSet coi_symbols;
@@ -590,21 +591,35 @@ void IC3SA::initialize()
   // collect variables in bad_
   get_free_symbolic_consts(bad_, vars_in_bad_);
 
-  // populate the map used in justify_coi to take constraints into account
+  // start projection set with all variables in constraints
+  // and in COI of constraints
+  const UnorderedTermMap & state_updates = ts_.state_updates();
   UnorderedTermSet tmp_vars;
   Term next_constraint;
   for (const auto & elem : ts_.constraints()) {
     assert(ts_.no_next(elem.first));
     tmp_vars.clear();
     get_free_symbolic_consts(elem.first, tmp_vars);
-    constraint_vars_[elem.first] = tmp_vars;
+    for (const auto & tv : tmp_vars) {
+      projection_set_.insert(tv);
+    }
 
     if (elem.second) {
       // need to add next state version also
       next_constraint = ts_.next(elem.first);
       tmp_vars.clear();
       get_free_symbolic_consts(next_constraint, tmp_vars);
-      constraint_vars_[next_constraint] = tmp_vars;
+      for (const auto & ntv : tmp_vars) {
+        assert(ts_.is_next_var(ntv));
+        auto it = state_updates.find(ntv);
+        if (it != state_updates.end()) {
+          UnorderedTermSet free_vars;
+          get_free_symbolic_consts(it->second, free_vars);
+          for (const auto & fv : free_vars) {
+            projection_set_.insert(fv);
+          }
+        }
+      }
     }
   }
 }
