@@ -228,28 +228,44 @@ RefineResult IC3SA::refine()
   assert(!solver_context_);
   logger.log(1, "IC3SA: refining a counterexample of length {}", cex_.size());
 
+  if (cex_.size() == 1) {
+    // TODO if we don't add all terms from init
+    // will need to adjust this
+    // refine_value doesn't handle it currently, only functional
+    // and that could be turned off
+    return REFINE_NONE;
+  }
+
   Term learned_lemma;
 
-  // try functional refinement
-  RefineResult r = ic3sa_refine_functional(learned_lemma);
+  RefineResult r;
+  bool run_value_refinement = !options_.ic3sa_func_refine_;
+  if (options_.ic3sa_func_refine_) {
+    // try functional refinement
+    logger.log(2, "IC3SA::refine running functional refinement");
+    r = ic3sa_refine_functional(learned_lemma);
+    // if learned_lemma was simplified to a value, then run value refinement
+    if (r == REFINE_SUCCESS) {
+      assert(learned_lemma);
+      run_value_refinement = learned_lemma->is_value();
+    }
+  }
+
+  if (run_value_refinement) {
+    // possible that simplification reduces the axiom to true
+    // it should definitely not be false
+    logger.log(2, "IC3SA::refine running value refinement");
+    r = ic3sa_refine_value(learned_lemma);
+  }
 
   if (r == REFINE_NONE) {
     assert(!solver_context_);
     return r;
   }
-  assert(r == REFINE_SUCCESS);
 
+  assert(r == REFINE_SUCCESS);
   assert(learned_lemma);
-  if (learned_lemma->is_value()) {
-    // possible that simplification reduces the axiom to true
-    // it should definitely not be false
-    assert(learned_lemma == solver_true_);
-    logger.log(2, "IC3SA::refine falling back on value refinement");
-    r = ic3sa_refine_value(learned_lemma);
-    assert(learned_lemma);
-    assert(!learned_lemma->is_value());
-    assert(r == REFINE_SUCCESS);
-  }
+  assert(!learned_lemma->is_value());
 
   assert(!ts_.is_functional());
   assert(!solver_context_);
