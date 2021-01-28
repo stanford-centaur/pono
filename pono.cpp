@@ -245,10 +245,18 @@ int main(int argc, char ** argv)
     // longer term fix will use a different solver in CegProphecyArrays,
     // but for now just force full model generation in that case
 
-    SmtSolver s = create_solver_for(pono_options.smt_solver_,
-                                    pono_options.engine_,
-                                    false,
-                                    pono_options.ceg_prophecy_arrays_);
+    SmtSolver s =
+        create_solver_for(pono_options.smt_solver_,
+                          pono_options.engine_,
+                          // TODO: refactor this
+                          // can't access options from create_solver_for
+                          // use logging solver for btor in this situation
+                          // otherwise functional refinement might fail
+                          // due to simplification
+                          (pono_options.engine_ == IC3SA_ENGINE)
+                              && (pono_options.smt_solver_ == BTOR)
+                              && pono_options.ic3sa_func_refine_,
+                          pono_options.ceg_prophecy_arrays_);
 
     // limitations with COI
     if (pono_options.static_coi_) {

@@ -49,7 +49,10 @@ class IC3SAUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    // use a logging solver for btor
+    // otherwise functional refinement can fail due to
+    // simplifications
+    s = create_solver(GetParam(), GetParam() == BTOR);
     s->set_opt("produce-unsat-cores", "true");
   }
   SmtSolver s;
