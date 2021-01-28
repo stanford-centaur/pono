@@ -290,7 +290,10 @@ void CegarValues<Prover_T>::cegar_abstract()
 
   // add polarity axioms from abstraction
   for (const auto & ax : va.polarity_axioms()) {
-    prover_ts_.add_constraint(ax);
+    // only add polarity axioms to trans
+    // this only adds over current state variables in trans
+    // but the variable is frozen so that's okay
+    prover_ts_.add_constraint(ax, false);
   }
 
   // copy over to the other solver
