@@ -52,6 +52,8 @@ class IC3SA : public IC3
 
   FunctionalUnroller f_unroller_;
 
+  smt::SmtSolver interpolator_;
+
   smt::UnorderedTermSet predset_;  ///< stores all predicates in abstraction
 
   // TODO remove this and generate it on the fly

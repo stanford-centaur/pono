@@ -105,7 +105,9 @@ class PonoOptions
         sygus_initial_term_width_(default_sygus_initial_term_width_),
         sygus_initial_term_inc_(default_sygus_initial_term_inc_),
         sygus_accumulated_term_bound_(default_sygus_accumulated_term_bound_),
-        sygus_use_operator_abstraction_(default_sygus_use_operator_abstraction_)
+        sygus_use_operator_abstraction_(
+            default_sygus_use_operator_abstraction_),
+        ic3sa_interp_(default_ic3sa_interp_)
   {
   }
 
@@ -158,6 +160,7 @@ class PonoOptions
   unsigned sygus_initial_term_inc_; ///< SyGuS Control and data width seperator increment bound
   unsigned sygus_accumulated_term_bound_; ///< SyGuS Term accumulation bound count
   unsigned sygus_use_operator_abstraction_; ///< SyGuS abstract and avoid use some operators
+  bool ic3sa_interp_;
 
  private:
   // Default options
@@ -195,6 +198,7 @@ class PonoOptions
   static const unsigned default_sygus_initial_term_inc_ = 8;
   static const unsigned default_sygus_accumulated_term_bound_ = 0;
   static const unsigned default_sygus_use_operator_abstraction_ = 0;
+  static const bool default_ic3sa_interp_ = false;
 };
 
 }  // namespace pono

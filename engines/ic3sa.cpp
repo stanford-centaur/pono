@@ -27,6 +27,7 @@
 #include "assert.h"
 #include "core/rts.h"
 #include "smt-switch/utils.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
@@ -56,7 +57,7 @@ IC3SA::IC3SA(const Property & p,
              PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
       conc_ts_(ts, to_prover_solver_),
-      f_unroller_(conc_ts_, 0),  // zero means pure-functional unrolling
+      f_unroller_(conc_ts_, 0, "_AT"),  // zero means pure-functional unrolling
       boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;
@@ -527,6 +528,14 @@ void IC3SA::conjunctive_assumptions(const Term & term,
 void IC3SA::initialize()
 {
   super::initialize();
+
+  if (options_.ic3sa_interp_) {
+#ifdef WITH_MSAT
+    interpolator_ = create_interpolating_solver_for(MSAT, engine_);
+#else
+    throw PonoException("Running IC3SA with interpolation requires MathSAT.");
+#endif
+  }
 
   // IC3SA assumes input variables are modeled as state variables
   // with no update function

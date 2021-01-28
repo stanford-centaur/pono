@@ -59,7 +59,8 @@ enum optionIndex
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
   PROMOTE_INPUTVARS,
-  SYGUS_OP_LVL
+  SYGUS_OP_LVL,
+  IC3SA_INTERP
 };
 
 struct Arg : public option::Arg
@@ -308,12 +309,19 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --promote-inputvars \tpromote all input variables to state variables" },
   { SYGUS_OP_LVL,
-      0,
-      "",
-      "op-lv",
-      Arg::Numeric,
-      "  --op-lv \toperator abstraction level (0-2, default:2) (only "
-      "supported for SYGUS PDR)" },
+    0,
+    "",
+    "op-lv",
+    Arg::Numeric,
+    "  --op-lv \toperator abstraction level (0-2, default:2) (only "
+    "supported for SYGUS PDR)" },
+  { IC3SA_INTERP,
+    0,
+    "",
+    "ic3sa-interp",
+    Arg::None,
+    "  --ic3sa-interp \tuse interpolants to find more terms during refinement "
+    "(default: off)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -433,6 +441,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case SYGUS_OP_LVL: sygus_use_operator_abstraction_ = atoi(opt.arg); break;
+        case IC3SA_INTERP: ic3sa_interp_ = true;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
