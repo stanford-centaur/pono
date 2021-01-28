@@ -37,7 +37,7 @@ TransitionSystem simple_uvw_system(const SmtSolver & solver)
 
   fts.assign_next(u, fts.make_term(Ite, cond, ifb, elseb));
   fts.assign_next(v, fts.make_term(BVAdd, v, one));
-  fts.assign_next(w, fts.make_term(BVAdd, v, one));
+  fts.assign_next(w, fts.make_term(BVAdd, w, one));
 
   return fts;
 }
@@ -83,6 +83,49 @@ TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)
           Distinct, ts.make_term(BVAdd, u, v), ts.make_term(10, bvsort8)));
 
   IC3SA ic3sa(p, ts, s);
+  ProverResult r = ic3sa.check_until(10);
+  ASSERT_EQ(r, ProverResult::FALSE);
+}
+
+TEST_P(IC3SAUnitTests, SimpleCounter)
+{
+  FunctionalTransitionSystem fts(s);
+  Sort bvsort8 = fts.make_sort(BV, 8);
+  Sort boolsort = fts.make_sort(BOOL);
+  Term one = fts.make_term(1, bvsort8);
+  Term eight = fts.make_term(8, bvsort8);
+  Term x = fts.make_statevar("x", bvsort8);
+
+  fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
+  fts.assign_next(x, fts.make_term(BVAdd, x, one));
+
+  Term prop_term = fts.make_term(BVUlt, x, eight);
+  Property prop(fts.solver(), prop_term);
+
+  IC3SA ic3sa(prop, fts, s);
+  ProverResult r = ic3sa.check_until(10);
+  ASSERT_EQ(r, ProverResult::FALSE);
+}
+
+TEST_P(IC3SAUnitTests, SimpleCounterVar)
+{
+  FunctionalTransitionSystem fts(s);
+  Sort bvsort1 = fts.make_sort(BV, 1);
+  Sort bvsort8 = fts.make_sort(BV, 8);
+  Sort boolsort = fts.make_sort(BOOL);
+  Term one = fts.make_term(1, bvsort8);
+  Term eight = fts.make_term(8, bvsort8);
+  Term x = fts.make_statevar("x", bvsort8);
+  Term in = fts.make_statevar("in", bvsort1);
+  Term ext_in = fts.make_term(Op(Zero_Extend, 7), in);
+
+  fts.set_init(fts.make_term(Equal, x, fts.make_term(0, bvsort8)));
+  fts.assign_next(x, fts.make_term(BVAdd, x, ext_in));
+
+  Term prop_term = fts.make_term(BVUlt, x, eight);
+  Property prop(fts.solver(), prop_term);
+
+  IC3SA ic3sa(prop, fts, s);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
 }

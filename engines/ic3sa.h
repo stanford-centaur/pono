@@ -48,6 +48,8 @@ class IC3SA : public IC3
   typedef IC3 super;
 
  protected:
+  TransitionSystem conc_ts_;
+
   FunctionalUnroller f_unroller_;
 
   smt::UnorderedTermSet predset_;  ///< stores all predicates in abstraction
@@ -68,13 +70,17 @@ class IC3SA : public IC3
                            ///< e.g. input variables and state vars
                            ///< with no next state update
 
-  std::unordered_map<smt::Term, smt::UnorderedTermSet> constraint_vars_;
+  // just adding all the symbols to projection_set_ up front
+  // std::unordered_map<smt::Term, smt::UnorderedTermSet> constraint_vars_;
   ///< this data structure is used to find (current state) variables
   ///< that are related by a constraint
   ///< this is needed for soundness in justify_coi
 
   smt::TermVec to_visit_;          ///< temporary var for justify_coi
   smt::UnorderedTermSet visited_;  ///< temporary var for justify_coi
+
+  // temporary data structure for conjunctive_assumptions
+  smt::TermVec tmp_;
 
   // useful sort
   smt::Sort boolsort_;
@@ -95,11 +101,29 @@ class IC3SA : public IC3
   // previous version was overriding intersects_bad for generalization
   // bool intersects_bad(IC3Formula & out) override;
 
-  void initialize() override;
+  void abstract() override;
 
   RefineResult refine() override;
 
+  void initialize() override;
+
   // IC3SA specific methods
+
+  RefineResult ic3sa_refine_functional(smt::Term & learned_lemma);
+
+  RefineResult ic3sa_refine_value(smt::Term & learned_lemma);
+
+  /** Helper function to create labels for conjuncts of a constraint
+   *  and assume the implication
+   *  @param term the term to break into conjuncts and assume labels for
+   *  @param used_lbls a set to keep track of used labels
+   *  @param lbls the vector of labels to add to
+   *  @param assumps the vector of assumptions to add to
+   */
+  void conjunctive_assumptions(const smt::Term & term,
+                               smt::UnorderedTermSet & used_lbls,
+                               smt::TermVec & lbls,
+                               smt::TermVec & assumps);
 
   /** Get equivalence classes over all current terms in term_abstraction_
    *  from the current model
@@ -119,10 +143,10 @@ class IC3SA : public IC3
 
   /** Add all subterms from term to the term abstraction
    *  @param axiom the term to mine for subterms
-   *  @return true iff new terms were added
+   *  @return a set of new terms
    *  @modifies term_abstraction_ and predset_
    */
-  bool add_to_term_abstraction(const smt::Term & term);
+  smt::UnorderedTermSet add_to_term_abstraction(const smt::Term & term);
 
   void justify_coi(smt::Term c, smt::UnorderedTermSet & projection);
 

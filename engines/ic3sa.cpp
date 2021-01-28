@@ -25,6 +25,7 @@
 #include "engines/ic3sa.h"
 
 #include "assert.h"
+#include "core/rts.h"
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
@@ -73,8 +74,9 @@ IC3SA::IC3SA(const Property & p,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
              PonoOptions opt)
-    : super(p, ts, solver, opt),
-      f_unroller_(ts_, 0),  // zero means pure-functional unrolling
+    : super(p, RelationalTransitionSystem(solver), solver, opt),
+      conc_ts_(ts, to_prover_solver_),
+      f_unroller_(conc_ts_, 0),  // zero means pure-functional unrolling
       boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;
@@ -153,16 +155,17 @@ void IC3SA::predecessor_generalization(size_t i,
   justify_coi(ts_.next(c), all_coi_symbols);
   assert(all_coi_symbols.size());
 
-  for (const auto & fv : all_coi_symbols) {
-    // need to process any constraints that this variable is involved in
-    for (const auto & elem : constraint_vars_) {
-      if (elem.second.find(fv) != elem.second.end()) {
-        // this variable occurs in this constraint
-        // add the constraint
-        justify_coi(elem.first, all_coi_symbols);
-      }
-    }
-  }
+  // just adding them all up front in this branch
+  // for (const auto & elem : ts_.constraints()) {
+  //   // TODO look into optimizing this
+  //   // might be able to only consider
+  //   // current state version that has common symbols
+  //   justify_coi(elem.first, all_coi_symbols);
+  //   if (elem.second)
+  //   {
+  //     justify_coi(ts_.next(elem.first), all_coi_symbols);
+  //   }
+  // }
 
   // get rid of next-state variables
   UnorderedTermSet coi_symbols;
@@ -205,12 +208,12 @@ void IC3SA::check_ts() const
 {
   if (ts_.inputvars().size()) {
     throw PonoException(
-        "IC3SA requires all statevariables. Try option --promote-inputvars");
+        "IC3SA requires all state variables. Try option --promote-inputvars");
   }
 
   // TODO: add support for arrays
 
-  if (!ts_.is_functional()) {
+  if (!conc_ts_.is_functional()) {
     throw PonoException("IC3SA requires a functional transition system.");
   }
 
@@ -230,13 +233,92 @@ void IC3SA::check_ts() const
   }
 }
 
+void IC3SA::abstract()
+{
+  // need to be able to add path axioms
+  assert(!ts_.is_functional());
+  assert(ts_.solver() == conc_ts_.solver());
+
+  // give this system the same semantics as the functional system
+  for (const auto & sv : conc_ts_.statevars()) {
+    ts_.add_statevar(sv, conc_ts_.next(sv));
+  }
+  assert(conc_ts_.inputvars().size() == 0);  // expecting no inputs
+
+  ts_.set_init(conc_ts_.init());
+
+  for (const auto & elem : conc_ts_.state_updates()) {
+    ts_.assign_next(elem.first, elem.second);
+  }
+
+  for (const auto & elem : conc_ts_.constraints()) {
+    ts_.add_constraint(elem.first, elem.second);
+  }
+}
+
 RefineResult IC3SA::refine()
 {
   assert(!solver_context_);
-  assert(cex_.size());
-
   logger.log(1, "IC3SA: refining a counterexample of length {}", cex_.size());
 
+  Term learned_lemma;
+
+  // try functional refinement
+  RefineResult r = ic3sa_refine_functional(learned_lemma);
+
+  if (r == REFINE_NONE) {
+    assert(!solver_context_);
+    return r;
+  }
+  assert(r == REFINE_SUCCESS);
+
+  assert(learned_lemma);
+  if (learned_lemma->is_value()) {
+    // possible that simplification reduces the axiom to true
+    // it should definitely not be false
+    assert(learned_lemma == solver_true_);
+    logger.log(2, "IC3SA::refine falling back on value refinement");
+    r = ic3sa_refine_value(learned_lemma);
+    assert(learned_lemma);
+    assert(!learned_lemma->is_value());
+    assert(r == REFINE_SUCCESS);
+  }
+
+  assert(!ts_.is_functional());
+  assert(!solver_context_);
+  solver_->assert_formula(solver_->make_term(Implies, trans_label_, learned_lemma));
+  if (ts_.only_curr(learned_lemma)) {
+    static_cast<RelationalTransitionSystem &>(ts_).add_constraint(
+        learned_lemma);
+    solver_->assert_formula(solver_->make_term(Implies,
+                                               trans_label_,
+                                               ts_.next(learned_lemma)));
+  } else {
+    static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(
+        learned_lemma);
+  }
+
+  logger.log(3, "IC3SA::refine learned axiom {}", learned_lemma);
+
+  // mine for new terms
+  // NOTE: can proceed even if there are no new terms because of learned
+  // path axiom m
+  UnorderedTermSet new_terms = add_to_term_abstraction(learned_lemma);
+
+  // add to the projection set permanently
+  for (const auto & nt : new_terms) {
+    get_free_symbolic_consts(nt, projection_set_);
+  }
+
+  // TODO handle refinement failure case if any
+
+  assert(!solver_context_);
+  return r;
+}
+
+RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
+{
+  assert(!solver_context_);
   // This function will unroll the counterexample trace functionally one step at
   // a time it will introduce fresh symbols for input variables it will keep
   // track of old model values to plug into inputs if an axiom is learned
@@ -254,32 +336,21 @@ RefineResult IC3SA::refine()
 
   push_solver_context();
 
-  // TODO also use conjunctive partitions to split up constraints
-  // as much as possible
-
+  UnorderedTermSet used_lbls;
   TermVec lbls, assumps;
   Term lbl, unrolled;
 
   unrolled = f_unroller_.at_time(ts_.init(), 0);
-  lbl = label(unrolled);
-  lbls.push_back(lbl);
-  assumps.push_back(unrolled);
-  solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+  conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
 
   for (size_t i = 0; i < cex_.size(); ++i) {
     unrolled = f_unroller_.at_time(cex_[i], i);
-    lbl = label(unrolled);
-    lbls.push_back(lbl);
-    assumps.push_back(unrolled);
-    solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+    conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
 
     // add constraints
     for (const auto & elem : ts_.constraints()) {
       unrolled = f_unroller_.at_time(elem.first, i);
-      lbl = label(unrolled);
-      lbls.push_back(lbl);
-      assumps.push_back(unrolled);
-      solver_->assert_formula(solver_->make_term(Implies, lbl, unrolled));
+      conjunctive_assumptions(unrolled, used_lbls, lbls, assumps);
     }
 
     r = check_sat_assuming(lbls);
@@ -321,40 +392,160 @@ RefineResult IC3SA::refine()
     }
   }
   assert(reduced_constraints.size() == core.size());
-
-  Term m = smart_not(make_and(reduced_constraints));
-
-  // substitute all the model values
-  // TODO consider having a more complex substitution here
-  // e.g. allow replacing with other variables possibly?
-  // based on the equivalences in the last model
-  m = solver_->substitute(m, last_model_vals);
-  m = f_unroller_.untime(
-      m);  // replaces the @0 variables with current state vars
-
-  logger.log(3, "IC3SA::refine learned axiom {}", m);
-
-  // it was functionally unrolled, the inputs were replaced with values
-  // and it was untimed
-  // thus there should only be current state variables left
-  assert(ts_.only_curr(m));
-
-  // add to the projection set permanently
-  get_free_symbolic_consts(m, projection_set_);
-
-  // TODO do we have to add m to the transition relation?
-  //      or can we just mine for new terms?
-
-  // mine for new terms
-  bool new_terms_added = add_to_term_abstraction(m);
-  assert(new_terms_added);
-
-  // TODO handle refinement failure case if any
+  learned_lemma = smart_not(make_and(reduced_constraints));
+  learned_lemma = solver_->substitute(learned_lemma, last_model_vals);
+  learned_lemma = f_unroller_.untime(learned_lemma);
+  assert(ts_.only_curr(learned_lemma));
 
   pop_solver_context();
   assert(!solver_context_);
   assert(r.is_unsat());
   return REFINE_SUCCESS;
+}
+
+RefineResult IC3SA::ic3sa_refine_value(Term & learned_lemma)
+{
+  assert(!solver_context_);
+  assert(cex_.size());
+
+  Result r;
+  UnorderedTermMap last_model_vals;
+
+  UnorderedTermSet inputvars = ts_.inputvars();
+  // add implicit input variables
+  const UnorderedTermMap & state_updates = ts_.state_updates();
+  for (const auto & sv : ts_.statevars()) {
+    if (state_updates.find(sv) == state_updates.end()) {
+      inputvars.insert(sv);
+    }
+  }
+
+  push_solver_context();
+
+  // due to simplifications can end up with the same terms
+  // for the constraints, avoid duplicating labels by keeping
+  // track with a set
+  UnorderedTermSet used_lbls;
+  TermVec lbls, assumps;
+
+  Term p = ts_.init();
+
+  size_t refined_length = 0;
+  for (; refined_length + 1 < cex_.size(); ++refined_length) {
+    push_solver_context();
+    used_lbls.clear();
+    lbls.clear();
+    assumps.clear();
+
+    conjunctive_assumptions(p, used_lbls, lbls, assumps);
+    conjunctive_assumptions(cex_[refined_length], used_lbls, lbls, assumps);
+    conjunctive_assumptions(
+        ts_.next(cex_[refined_length + 1]), used_lbls, lbls, assumps);
+    // if we start with less terms, then need to include trans in the
+    // assumptions
+    assert_trans_label();
+
+    r = check_sat_assuming(lbls);
+    // TODO keep track of model values
+    if (r.is_unsat()) {
+      break;
+    } else {
+      assert(r.is_sat());  // not expecting unknown
+
+      UnorderedTermMap subst;
+
+      // save model values
+      Term iv_j;
+      Term val;
+      for (const auto & iv : inputvars) {
+        for (size_t j = 0; j <= refined_length; ++j) {
+          iv_j = f_unroller_.at_time(iv, j);
+          if (j < refined_length) {
+            val = solver_->get_value(iv_j);
+          } else {
+            // wasn't unrolled yet
+            val = solver_->get_value(iv);
+          }
+          last_model_vals[iv_j] = val;
+        }
+        // unroll inputs
+        subst[iv] = f_unroller_.at_time(iv, refined_length);
+      }
+
+      // now get the value of the state variables
+      for (const auto & elem : state_updates) {
+        assert(subst.find(elem.first) == subst.end());
+        subst[elem.first] = solver_->get_value(elem.first);
+      }
+
+      pop_solver_context();
+
+      // make p the post-state
+      p = solver_->make_term(true);
+      Term eq;
+      for (const auto & elem : state_updates) {
+        // TODO look into substitute terms to save time copying over the subst
+        // map
+        eq = solver_->make_term(
+            Equal, elem.first, solver_->substitute(elem.second, subst));
+        p = solver_->make_term(And, p, eq);
+      }
+    }
+  }
+  assert(lbls.size() == assumps.size());
+
+  // TODO check that this correctly handles counterexample case
+  if (r.is_sat()) {
+    // this is a concrete counterexample
+    pop_solver_context();
+    assert(!solver_context_);
+    return REFINE_NONE;
+  }
+
+  assert(r.is_unsat());  // not expecting unknown
+  UnorderedTermSet core;
+  solver_->get_unsat_core(core);
+  assert(core.size());
+
+  pop_solver_context();
+  pop_solver_context();
+  assert(!solver_context_);
+
+  TermVec reduced_constraints;
+  reduced_constraints.reserve(core.size());
+  for (size_t i = 0; i < lbls.size(); ++i) {
+    if (core.find(lbls[i]) != core.end()) {
+      reduced_constraints.push_back(assumps[i]);
+    }
+  }
+  assert(reduced_constraints.size() == core.size());
+
+  learned_lemma = smart_not(make_and(reduced_constraints));
+  learned_lemma = solver_->substitute(learned_lemma, last_model_vals);
+
+  assert(r.is_unsat());
+  return REFINE_SUCCESS;
+}
+
+void IC3SA::conjunctive_assumptions(const Term & term,
+                                    UnorderedTermSet & used_lbls,
+                                    TermVec & lbls,
+                                    TermVec & assumps)
+{
+  assert(solver_context_);  // should only add assumptions at non-zero context
+  tmp_.clear();
+  conjunctive_partition(term, tmp_, true);
+  Term lbl;
+  for (const auto & tt : tmp_) {
+    assert(tt->get_sort() == boolsort_);
+    lbl = label(tt);
+    if (used_lbls.find(lbl) == used_lbls.end()) {
+      used_lbls.insert(lbl);
+      lbls.push_back(lbl);
+      assumps.push_back(tt);
+      solver_->assert_formula(solver_->make_term(Implies, lbl, tt));
+    }
+  }
 }
 
 void IC3SA::initialize()
@@ -400,14 +591,33 @@ void IC3SA::initialize()
   // collect variables in bad_
   get_free_symbolic_consts(bad_, vars_in_bad_);
 
-  // populate the map used in justify_coi to take constraints into account
-  assert(ts_.is_functional());
+  // start projection set with all variables in constraints
+  // and in COI of constraints
+  const UnorderedTermMap & state_updates = ts_.state_updates();
   UnorderedTermSet tmp_vars;
+  Term next_constraint;
   for (const auto & elem : ts_.constraints()) {
     assert(ts_.no_next(elem.first));
     tmp_vars.clear();
     get_free_symbolic_consts(elem.first, tmp_vars);
-    constraint_vars_[elem.first] = tmp_vars;
+    for (const auto & tv : tmp_vars) {
+      projection_set_.insert(tv);
+    }
+
+    if (elem.second) {
+      // need to add next state version also
+      next_constraint = ts_.next(elem.first);
+      tmp_vars.clear();
+      get_free_symbolic_consts(next_constraint, tmp_vars);
+      for (const auto & ntv : tmp_vars) {
+        assert(ts_.is_next_var(ntv));
+        Term cv = ts_.curr(ntv);
+        auto it = state_updates.find(cv);
+        if (it != state_updates.end()) {
+          get_free_symbolic_consts(it->second, projection_set_);
+        }
+      }
+    }
   }
 }
 
@@ -523,13 +733,13 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
   }
 }
 
-bool IC3SA::add_to_term_abstraction(const Term & term)
+UnorderedTermSet IC3SA::add_to_term_abstraction(const Term & term)
 {
+  UnorderedTermSet new_terms;
+
   Sort boolsort = solver_->make_sort(BOOL);
   SubTermCollector stc(solver_);
   stc.collect_subterms(term);
-
-  bool new_terms = false;
 
   for (const auto & p : stc.get_predicates()) {
     // TODO : figure out if we need to promote all input vars
@@ -540,7 +750,9 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
     //      values have to be included and currently we're not adding
     //      all possible equalities / disequalities
     if (ts_.only_curr(p)) {
-      new_terms |= predset_.insert(p).second;
+      if (predset_.insert(p).second) {
+        new_terms.insert(p);
+      }
     }
   }
 
@@ -550,7 +762,9 @@ bool IC3SA::add_to_term_abstraction(const Term & term)
       //        for this algorithm to work
       //        not sure it's okay to just drop terms containing inputs
       if (ts_.only_curr(term)) {
-        new_terms |= term_abstraction_[elem.first].insert(term).second;
+        if (term_abstraction_[elem.first].insert(term).second) {
+          new_terms.insert(term);
+        }
       }
     }
   }
