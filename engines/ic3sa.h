@@ -62,23 +62,6 @@ class IC3SA : public IC3
 
   smt::UnorderedTermSet projection_set_;  ///< variables always in projection
 
-  smt::UnorderedTermSet vars_in_bad_;  ///< variables occurring in bad
-
-  std::vector<smt::UnorderedTermMap>
-      inputvars_at_time_;  ///< unrolled variables
-                           ///< only the unconstrained variables
-                           ///< e.g. input variables and state vars
-                           ///< with no next state update
-
-  // just adding all the symbols to projection_set_ up front
-  // std::unordered_map<smt::Term, smt::UnorderedTermSet> constraint_vars_;
-  ///< this data structure is used to find (current state) variables
-  ///< that are related by a constraint
-  ///< this is needed for soundness in justify_coi
-
-  smt::TermVec to_visit_;          ///< temporary var for justify_coi
-  smt::UnorderedTermSet visited_;  ///< temporary var for justify_coi
-
   // temporary data structure for conjunctive_assumptions
   smt::TermVec tmp_;
 
@@ -96,10 +79,6 @@ class IC3SA : public IC3
                                   IC3Formula & pred) override;
 
   void check_ts() const override;
-
-  // TODO consider overriding reaches_bad
-  // previous version was overriding intersects_bad for generalization
-  // bool intersects_bad(IC3Formula & out) override;
 
   void abstract() override;
 

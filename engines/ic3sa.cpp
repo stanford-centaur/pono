@@ -1,5 +1,5 @@
 /*********************                                                  */
-/*! \file ic3sa.h
+/*! \file ic3sa.cpp
 ** \verbatim
 ** Top contributors (to current version):
 **   Makai Mann
@@ -12,7 +12,7 @@
 ** \brief IC3 with Syntax-Guided Abstraction based on
 **
 **        Model Checking of Verilog RTL Using IC3 with Syntax-Guided
-*Abstraction.
+**        Abstraction.
 **            -- Aman Goel, Karem Sakallah
 **
 **
@@ -48,26 +48,6 @@ unordered_set<PrimOp> controllable_ops(
       BVOr,
       BVAnd });
 
-// checks if t is an equality literal
-// includes BV operators for boolector
-// but checks for boolean sort first
-bool is_eq_lit(const Term & t, const Sort & boolsort)
-{
-  const Sort & sort = t->get_sort();
-  if (sort != boolsort) {
-    return false;
-  }
-
-  Op op = t->get_op();
-  if (op.is_null()) {
-    return false;
-  } else if (op == Not || op == BVNot) {
-    op = (*(t->begin()))->get_op();
-  }
-
-  return (op == Equal || op == BVComp || op == Distinct);
-}
-
 // main IC3SA implementation
 
 IC3SA::IC3SA(const Property & p,
@@ -94,7 +74,6 @@ IC3Formula IC3SA::get_model_ic3formula() const
     }
   }
 
-  // TODO make sure that projecting on state variables here makes sense
   EquivalenceClasses ec = get_equivalence_classes_from_model(ts_.statevars());
   construct_partition(ec, cube_lits);
   IC3Formula cube =
@@ -224,6 +203,8 @@ void IC3SA::check_ts() const
 void IC3SA::abstract()
 {
   // need to be able to add path axioms
+  // which might require constrain_trans from a relational system
+  // ts_ is a relational view of conc_ts_
   assert(!ts_.is_functional());
   assert(ts_.solver() == conc_ts_.solver());
 
@@ -276,8 +257,7 @@ RefineResult IC3SA::refine()
   assert(!solver_context_);
   solver_->assert_formula(solver_->make_term(Implies, trans_label_, learned_lemma));
   if (ts_.only_curr(learned_lemma)) {
-    static_cast<RelationalTransitionSystem &>(ts_).add_constraint(
-        learned_lemma);
+    ts_.add_constraint(learned_lemma);
     solver_->assert_formula(solver_->make_term(Implies,
                                                trans_label_,
                                                ts_.next(learned_lemma)));
@@ -290,10 +270,10 @@ RefineResult IC3SA::refine()
 
   // mine for new terms
   // NOTE: can proceed even if there are no new terms because of learned
-  // path axiom m
+  // path axiom (learned_lemma)
   UnorderedTermSet new_terms = add_to_term_abstraction(learned_lemma);
 
-  // add to the projection set permanently
+  // add symbols from axiom to the projection set permanently
   for (const auto & nt : new_terms) {
     get_free_symbolic_consts(nt, projection_set_);
   }
@@ -309,7 +289,8 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
   assert(!solver_context_);
   assert(cex_.size());
   // This function will unroll the counterexample trace functionally one step at
-  // a time it will introduce fresh symbols for input variables it will keep
+  // a time
+  // it will introduce fresh symbols for input variables and will keep
   // track of old model values to plug into inputs if an axiom is learned
   Result r;
   UnorderedTermMap last_model_vals;
@@ -325,6 +306,9 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
 
   push_solver_context();
 
+  // due to simplifications can end up with the same terms
+  // for the constraints, avoid duplicating labels by keeping
+  // track with a set
   UnorderedTermSet used_lbls;
   TermVec lbls, assumps;
   Term lbl, unrolled;
@@ -343,7 +327,6 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
     }
 
     r = check_sat_assuming(lbls);
-    // TODO keep track of model values
     if (r.is_unsat()) {
       break;
     } else {
@@ -360,7 +343,6 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
   }
   assert(lbls.size() == assumps.size());
 
-  // TODO check that this correctly handles counterexample case
   if (r.is_sat()) {
     // this is a concrete counterexample
     pop_solver_context();
@@ -396,6 +378,13 @@ RefineResult IC3SA::ic3sa_refine_value(Term & learned_lemma)
 {
   assert(!solver_context_);
   assert(cex_.size());
+
+  // This function evaluates each step of the trace using
+  // the current state variable values
+  // it only keeps one unrolling of the inputs at a time
+  // e.g. old unrolled inputs are replaced at the next
+  // step by substituting the actual current state variable
+  // value and evaluating one transition
 
   Result r;
   UnorderedTermMap last_model_vals;
@@ -435,7 +424,6 @@ RefineResult IC3SA::ic3sa_refine_value(Term & learned_lemma)
     assert_trans_label();
 
     r = check_sat_assuming(lbls);
-    // TODO keep track of model values
     if (r.is_unsat()) {
       break;
     } else {
@@ -483,7 +471,6 @@ RefineResult IC3SA::ic3sa_refine_value(Term & learned_lemma)
   }
   assert(lbls.size() == assumps.size());
 
-  // TODO check that this correctly handles counterexample case
   if (r.is_sat()) {
     // this is a concrete counterexample
     pop_solver_context();
@@ -545,15 +532,14 @@ void IC3SA::initialize()
   // with no update function
   // This seems important because otherwise we need to drop terms
   // containing input variables from IC3Formulas
-  // because of destructive update, get copy of input variables first
-  // TODO: decide whether to include this or not
-  // UnorderedTermSet inputvars = ts_.inputvars();
-  // for (const auto & iv : inputvars) {
-  //   ts_.promote_inputvar(iv);
-  // }
-  // TODO with change above, don't need to check only_curr everywhere
-  // technically should remove those checks (or at least guard with an assert)
-  // assert(!ts_.inputvars().size());
+  // It's definitely possible to avoid this (because frames don't
+  // need inputs) but in initial tests that doesn't seem to help.
+  // It also makes refinement more tricky. There are issues with
+  // functional unrolling when the underlying SMT solver simplifies
+  // because it might just simplify to an already learned lemma or
+  // even true. This happens much more when we don't promote inputs
+  // to be state variables and don't allow them in the path axioms
+  assert(!ts_.inputvars().size());
 
   // set up initial term abstraction by getting all subterms
   // TODO consider starting with only a subset -- e.g. variables
@@ -561,11 +547,8 @@ void IC3SA::initialize()
   //      for use in COI
 
   // TODO make it an option to add ts_.trans()
-  // TODO make sure projecting on state variables is right
-  // I think we'll always project models onto at least state variables
-  // so, we should prune those terms now
-  // otherwise we'll do unnecessary iteration over them every time we get a
-  // model
+  // add_to_term_abstraction only keeps terms that only contain
+  // current state variables
   add_to_term_abstraction(ts_.init());
   add_to_term_abstraction(ts_.trans());
   add_to_term_abstraction(bad_);
@@ -577,23 +560,20 @@ void IC3SA::initialize()
   assert(solver_->get_solver_enum() == BTOR
          || term_abstraction_.find(boolsort) == term_abstraction_.end());
 
-  // collect variables in bad_
-  get_free_symbolic_consts(bad_, vars_in_bad_);
-
   // start projection set with all variables in constraints
   // and in COI of constraints
+  // without this, IC3SA would (rarely) violate the invariant
+  // of ic3 that a predecessor at i (e.g. for F[i-1]) does
+  // not intersect with F[i-2]
+  // TODO understand why
   const UnorderedTermMap & state_updates = ts_.state_updates();
   UnorderedTermSet tmp_vars;
   Term next_constraint;
   for (const auto & elem : ts_.constraints()) {
     assert(ts_.no_next(elem.first));
-    tmp_vars.clear();
-    get_free_symbolic_consts(elem.first, tmp_vars);
-    for (const auto & tv : tmp_vars) {
-      projection_set_.insert(tv);
-    }
+    get_free_symbolic_consts(elem.first, projection_set_);
 
-    if (elem.second) {
+    if (elem.second && ts_.only_curr(elem.first)) {
       // need to add next state version also
       next_constraint = ts_.next(elem.first);
       tmp_vars.clear();
@@ -603,6 +583,7 @@ void IC3SA::initialize()
         Term cv = ts_.curr(ntv);
         auto it = state_updates.find(cv);
         if (it != state_updates.end()) {
+          assert(ts_.only_curr(it->second));
           get_free_symbolic_consts(it->second, projection_set_);
         }
       }
@@ -649,7 +630,7 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
     //       just choosing a representative from each equivalence
     //       class and adding a disequality to encode the distinctness
 
-    //       currently preferring symbol > generic term > value
+    //       current priority is: symbol > generic term > value
 
     // representatives of the different classes of this sort
     TermVec representatives;
@@ -731,13 +712,11 @@ UnorderedTermSet IC3SA::add_to_term_abstraction(const Term & term)
   stc.collect_subterms(term);
 
   for (const auto & p : stc.get_predicates()) {
-    // TODO : figure out if we need to promote all input vars
-    //        for this algorithm to work
-    //        not sure it's okay to just drop terms containing inputs
     // NOTE might have duplicated predicates wrt equivalences
     //      but ran into issues when I removed it because predicate
     //      values have to be included and currently we're not adding
     //      all possible equalities / disequalities
+    //      these are de-duplicated with a set elsewhere
     if (ts_.only_curr(p)) {
       if (predset_.insert(p).second) {
         new_terms.insert(p);
