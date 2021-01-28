@@ -155,18 +155,6 @@ void IC3SA::predecessor_generalization(size_t i,
   justify_coi(ts_.next(c), all_coi_symbols);
   assert(all_coi_symbols.size());
 
-  // just adding them all up front in this branch
-  // for (const auto & elem : ts_.constraints()) {
-  //   // TODO look into optimizing this
-  //   // might be able to only consider
-  //   // current state version that has common symbols
-  //   justify_coi(elem.first, all_coi_symbols);
-  //   if (elem.second)
-  //   {
-  //     justify_coi(ts_.next(elem.first), all_coi_symbols);
-  //   }
-  // }
-
   // get rid of next-state variables
   UnorderedTermSet coi_symbols;
   for (const auto & tt : all_coi_symbols) {
@@ -319,6 +307,7 @@ RefineResult IC3SA::refine()
 RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
 {
   assert(!solver_context_);
+  assert(cex_.size());
   // This function will unroll the counterexample trace functionally one step at
   // a time it will introduce fresh symbols for input variables it will keep
   // track of old model values to plug into inputs if an axiom is learned
