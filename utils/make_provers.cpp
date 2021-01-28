@@ -139,7 +139,7 @@ shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
   shared_ptr<CegarOpsUf<IC3IA>> prover =
       make_shared<CegarOpsUf<IC3IA>>(p, ts, slv, opts);
   prover->set_ops_to_abstract(
-      { BVAdd, BVSub, BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+      { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
   return prover;
 }
 

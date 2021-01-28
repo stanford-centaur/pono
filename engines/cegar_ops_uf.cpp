@@ -79,7 +79,11 @@ ProverResult CegarOpsUf<Prover_T>::check_until(int k)
 
   if (res == ProverResult::TRUE && super::invar_) {
     // update the invariant
-    super::invar_ = oa_.concrete(super::invar_);
+
+    // TODO currently getting some errors in the concretization phase.
+    // Commenting for now.
+
+    //super::invar_ = oa_.concrete(super::invar_);
   }
 
   return res;

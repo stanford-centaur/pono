@@ -300,8 +300,7 @@ const option::Descriptor usage[] = {
     "ceg-bv-arith",
     Arg::None,
     "  --ceg-bv-arith \tabstraction-refinement for the BV arithmetic operators "
-    "(only "
-    "supported for IC3IA)" },
+    "(mul, div, rem, mod). (only supported for IC3IA)" },
   { PROMOTE_INPUTVARS,
     0,
     "",
