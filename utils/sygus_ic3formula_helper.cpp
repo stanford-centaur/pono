@@ -85,11 +85,10 @@ void IC3FormulaModel::get_varset(std::unordered_set<smt::Term> & varset) const {
   }
 }
 
-
 void reduce_unsat_core_to_fixedpoint(
   const smt::Term & formula, 
-  const smt::TermVec & assumptions,
-  smt::TermVec & out, const smt::SmtSolver & reducer_) {
+  smt::UnorderedTermSet & core_inout,
+  const smt::SmtSolver & reducer_) {
   // already pushed outside (because we want to disable all labels)
   reducer_->assert_formula(formula);
 
@@ -98,28 +97,63 @@ void reduce_unsat_core_to_fixedpoint(
   if (r.is_unsat())
     return;
 
-  out = (assumptions);
   while(true) {
-    r = reducer_->check_sat_assuming(out);
+    r = reducer_->check_sat_assuming_set(core_inout);
     assert(r.is_unsat());
 
-    smt::UnorderedTermSet core_set;
-    reducer_->get_unsat_core(core_set);
-    if (core_set.size() == out.size()) {
+    smt::UnorderedTermSet core_out;
+    reducer_->get_unsat_core(core_out);
+    if (core_inout.size() == core_out.size()) {
       break; // fixed point is reached
     }
-    assert(core_set.size() < out.size());
-    out.clear();
-    out.insert(out.end(), core_set.begin(), core_set.end());    
+    assert(core_out.size() < core_inout.size());
+    core_inout.swap(core_out);  // namely, core_inout = core_out,  but no need to copy
   }
-}
+} // reduce_unsat_core_to_fixedpoint
+
+// a helper function
+
+void remove_and_move_to_next(smt::TermList & pred_set, smt::TermList::iterator & pred_pos,
+  const smt::UnorderedTermSet & unsatcore) {
+
+  auto pred_iter = pred_set.begin(); // pred_pos;
+  auto pred_pos_new = pred_set.begin();
+
+  bool reached = false;
+  bool next_pos_found = false;
+
+  while( pred_iter != pred_set.end() ) {
+
+    if (pred_iter == pred_pos) {
+      assert (!reached);
+      reached = true;
+    }
+    
+    if (unsatcore.find(*pred_iter) == unsatcore.end()) {
+      assert (reached);
+      pred_iter = pred_set.erase(pred_iter);
+    } else {
+      if (reached && ! next_pos_found) {
+        pred_pos_new = pred_iter;
+        next_pos_found = true;
+      }
+      ++ pred_iter;
+    }
+  } // end of while
+
+  assert(reached);
+  if (! next_pos_found) {
+    assert (pred_iter == pred_set.end());
+    pred_pos_new = pred_iter;
+  }
+  pred_pos = pred_pos_new;
+} // remove_and_move_to_next
 
 void reduce_unsat_core_linear(
     const smt::Term & formula,
-    const smt::TermVec & assumptions,
-    smt::TermVec & out,
+    smt::TermList & assumption_list,
     const smt::SmtSolver & reducer_) {
-
+  
   // already pushed outside (because we want to disable all labels)
   reducer_->assert_formula(formula);
 
@@ -128,40 +162,23 @@ void reduce_unsat_core_linear(
   if (r.is_unsat())
     return;
 
-  r = reducer_->check_sat_assuming(assumptions);
+  r = reducer_->check_sat_assuming_list(assumption_list);
   assert(r.is_unsat());
-  size_t assump_pos_for_removal = 0;
+  auto to_remove_pos = assumption_list.begin();
 
-  out = assumptions;
-  while(assump_pos_for_removal < out.size()) {
-    smt::TermVec assump_for_query;
-    assump_for_query.reserve(out.size()-1);
-    for (size_t idx = 0; idx < out.size(); ++ idx) {
-      if (idx != assump_pos_for_removal)
-        assump_for_query.push_back(out.at(idx));
-    }
-
-    r = reducer_->check_sat_assuming(assump_for_query);
+  while(to_remove_pos != assumption_list.end()) {
+    smt::Term term_to_remove = *to_remove_pos;
+    auto pos_after = assumption_list.erase(to_remove_pos);
+    r = reducer_->check_sat_assuming_list(assumption_list);
+    to_remove_pos = assumption_list.insert(pos_after, term_to_remove);
+    
     if (r.is_sat()) {
-      ++ assump_pos_for_removal;
-    } else {
+      ++ to_remove_pos;
+    } else { // if unsat, we can remove
       smt::UnorderedTermSet core_set;
       reducer_->get_unsat_core(core_set);
-      { // remove those not in core_set from out
-        // and we want to keep the previous order
-        smt::TermVec new_assump;
-        new_assump.reserve(core_set.size());
-        for (const auto & l : out) {
-          if (core_set.find(l) != core_set.end())
-            new_assump.push_back(l);
-        }
-        out.swap(new_assump); // do "out = new_assump" w.o. copy
-      }
-      assert(!out.empty());
-      assert(out.size() <= assump_for_query.size());
-      // we don't need to change assump_pos_for_removal, because the size of
-      // out is reduced by at least one, so in the next round
-      // it is another element sitting at this location
+      // below function will update assumption_list and to_remove_pos
+      remove_and_move_to_next(assumption_list, to_remove_pos, core_set);
     }
   } // end of while
 } // end of reduce_unsat_core_linear

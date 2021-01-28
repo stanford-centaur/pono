@@ -441,10 +441,15 @@ IC3Formula SygusPdr::inductive_generalization(
 
       // at this point we have enough preds
       // reduce the preds
-      auto ret= select_predicates(
-          base,
-          pred_collector_.GetAllPredNext()
-        );
+      IC3Formula ret = options_.smt_solver_ == SolverEnum::BTOR ?
+        select_predicates_btor(
+              base,
+              pred_collector_.GetAllPredNext()
+            ) :
+          select_predicates_generic(
+              base,
+              pred_collector_.GetAllPredNext()
+            );
       lemma2cube_.emplace(ret.term, post_model);
 
       return ret;
@@ -453,7 +458,57 @@ IC3Formula SygusPdr::inductive_generalization(
   assert(false); // should not be reachable
 } // inductive_generalization
 
-IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_nxt) {
+// special optimization for btor
+IC3Formula SygusPdr::select_predicates_btor(const Term & base, const TermVec & preds_nxt) {
+
+  D(3,"[IterativeReduction] Initial core size {}", preds_nxt.size());
+  UnorderedTermSet unsatcore(preds_nxt.begin(), preds_nxt.end());
+
+  push_solver_context();
+    disable_all_labels();
+    syntax_analysis::reduce_unsat_core_to_fixedpoint(base, unsatcore, solver_);
+  pop_solver_context();
+
+  D(3,"[IterativeReduction] End core size {}", unsatcore.size());
+  
+  std::vector<std::pair<unsigned, Term>> score_vec;
+  for (const auto & t : unsatcore) {
+    auto score = GetScore(t);
+    score_vec.push_back(std::make_pair(score, t));
+  }
+  std::sort(score_vec.begin(),score_vec.end());
+  std::unordered_map<Term, unsigned> term_id_map;
+  TermList sorted_unsatcore;
+  unsigned pidx = 0;
+  for (auto pos = score_vec.rbegin(); pos != score_vec.rend(); ++ pos) {
+    sorted_unsatcore.push_back(pos->second);
+    D(4, "{}: Score: {} expr: {}", pidx, pos->first, pos->second->to_string());
+    term_id_map.emplace(pos->second, pidx ++);
+  }
+  push_solver_context();
+    disable_all_labels();
+    syntax_analysis::reduce_unsat_core_linear(base, sorted_unsatcore, solver_);
+  pop_solver_context();
+
+  #ifdef DEBUG
+    std::cout << "Total : " << preds_nxt.size() << " {";
+    for (const auto & p : sorted_unsatcore) {
+      auto pos = term_id_map.find(p); assert(pos != term_id_map.end());
+      std::cout << pos->second << ",";
+    }
+    std::cout << "}" << std::endl;
+  #endif  
+  assert(!sorted_unsatcore.empty());
+
+  TermVec curr_lits;
+  curr_lits.reserve(sorted_unsatcore.size());
+  for (const auto &l : sorted_unsatcore)  {
+    curr_lits.push_back(ts_.curr(l)); // make sure we also convert input back
+  }
+  return ic3formula_negate(ic3formula_conjunction(curr_lits));
+} // select_predicates_btor
+
+IC3Formula SygusPdr::select_predicates_generic(const Term & base, const TermVec & preds_nxt) {
   TermVec unsatcore;
   TermVec sorted_unsatcore;
   D(3,"[IterativeReduction] Initial core size {}", preds_nxt.size());
@@ -461,13 +516,7 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
   UnorderedTermSet pred_set(preds_nxt.begin(), preds_nxt.end());
   TermVec deduplicate_preds_nxt(pred_set.begin(), pred_set.end());
 
-  if(solver_->get_solver_enum() == SolverEnum::BTOR) {
-    push_solver_context();
-    disable_all_labels();
-    syntax_analysis::reduce_unsat_core_to_fixedpoint(base, deduplicate_preds_nxt, unsatcore, solver_);
-    pop_solver_context();
-  } else
-    reducer_.reduce_assump_unsatcore(base, deduplicate_preds_nxt, unsatcore, NULL, 0, options_.random_seed_);
+  reducer_.reduce_assump_unsatcore(base, deduplicate_preds_nxt, unsatcore, NULL, 0, options_.random_seed_);
 
   D(3,"[IterativeReduction] End core size {}", unsatcore.size());
   std::vector<std::pair<unsigned, Term>> score_vec;
@@ -484,13 +533,7 @@ IC3Formula SygusPdr::select_predicates(const Term & base, const TermVec & preds_
     term_id_map.emplace(pos->second, pidx ++);
   }
   unsatcore.clear(); // reuse this
-  if(solver_->get_solver_enum() == SolverEnum::BTOR) {
-    push_solver_context();
-    disable_all_labels();
-    syntax_analysis::reduce_unsat_core_linear(base, sorted_unsatcore, unsatcore, solver_);
-    pop_solver_context();
-  } else 
-    reducer_.linear_reduce_assump_unsatcore(base, sorted_unsatcore, unsatcore, NULL, 0);
+  reducer_.linear_reduce_assump_unsatcore(base, sorted_unsatcore, unsatcore, NULL, 0);
   #ifdef DEBUG
     std::cout << "Total : " << preds_nxt.size() << " {";
     for (const auto & p : unsatcore) {
