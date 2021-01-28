@@ -366,6 +366,9 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
           iv_j = f_unroller_.at_time(iv, j);
           last_model_vals[iv_j] = solver_->get_value(iv_j);
         }
+        // last one was not unrolled
+        iv_j = f_unroller_.at_time(iv, i);
+        last_model_vals[iv_j] = solver_->get_value(iv);
       }
     }
   }
@@ -395,6 +398,7 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
   learned_lemma = smart_not(make_and(reduced_constraints));
   learned_lemma = solver_->substitute(learned_lemma, last_model_vals);
   learned_lemma = f_unroller_.untime(learned_lemma);
+  assert(ts_.only_curr(learned_lemma));
 
   pop_solver_context();
   assert(!solver_context_);
