@@ -94,8 +94,7 @@ ProverResult check_prop(PonoOptions pono_options,
   }
 
   if (pono_options.promote_inputvars_) {
-    ts = promote_inputvars(ts);
-    assert(!ts.inputvars().size());
+    ts = remove_implicit_inputs(ts);
   }
 
   if (!ts.only_curr(prop)) {
