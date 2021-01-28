@@ -549,9 +549,20 @@ void IC3SA::initialize()
   // TODO make it an option to add ts_.trans()
   // add_to_term_abstraction only keeps terms that only contain
   // current state variables
-  add_to_term_abstraction(ts_.init());
-  add_to_term_abstraction(ts_.trans());
-  add_to_term_abstraction(bad_);
+
+  // TODO make it an option to start with more terms
+
+  // add_to_term_abstraction(ts_.init());
+  // add_to_term_abstraction(ts_.trans());
+  // add_to_term_abstraction(bad_);
+
+  UnorderedTermSet leaves;
+  get_leaves(ts_.init(), leaves);
+  get_leaves(ts_.trans(), leaves);
+  get_leaves(bad_, leaves);
+  for (const auto & leaf : leaves) {
+    add_to_term_abstraction(leaf);
+  }
 
   Sort boolsort = solver_->make_sort(BOOL);
   // not expecting boolean sorts in term abstraction
