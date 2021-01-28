@@ -370,6 +370,11 @@ void IC3IA::reabstract()
   get_predicates(solver_, get_frame_term(1), preds, false, false, true);
 
   super::reset_solver();
+  if (failed_to_reset_solver_) {
+    throw PonoException("IC3IA::reabstract Cannot reabstract because "
+                        "the underlying SMT solver doesn't support "
+                        "the reset-solver method");
+  }
   predset_.clear();
   predlbls_.clear();
 
