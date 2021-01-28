@@ -70,6 +70,13 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
 template <class Prover_T>
 ProverResult CegProphecyArrays<Prover_T>::prove()
 {
+  return check_until(INT_MAX);
+}
+
+#ifdef WITH_MSAT_IC3IA
+template <>
+ProverResult CegProphecyArrays<MsatIC3IA>::prove()
+{
   initialize();
 
   ProverResult res = ProverResult::FALSE;
@@ -84,27 +91,18 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
       reached_k_++;
     } while (num_added_axioms_);
 
-    if (super::engine_ != IC3IA_ENGINE) {
-      Property latest_prop(super::solver_,
-                           super::solver_->make_term(Not, super::bad_));
-      SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
-                                      super::engine_, false);
-      shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
-                                              abs_ts_, s, super::options_);
-      res = prover->prove();
+    Property latest_prop(super::solver_,
+                         super::solver_->make_term(Not, super::bad_));
+    SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
+                                    super::engine_, false);
+    shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
+                                            abs_ts_, s, super::options_);
+    res = prover->prove();
 
-      if (res == ProverResult::FALSE) {
-        // use witness length
-        // reached_k_ is the last k without a counterexample trace
-        reached_k_ = prover->witness_length() - 1;
-      }
-
-    } else {
-      res = super::prove();
-      if (res == ProverResult::FALSE) {
-        // use witness length
-        reached_k_ = super::reached_k_;
-      }
+    if (res == ProverResult::FALSE) {
+      // use witness length
+      // reached_k_ is the last k without a counterexample trace
+      reached_k_ = prover->witness_length() - 1;
     }
   }
 
@@ -115,6 +113,7 @@ ProverResult CegProphecyArrays<Prover_T>::prove()
 
   return res;
 }
+#endif
 
 template <class Prover_T>
 ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
@@ -534,48 +533,7 @@ void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & c
 template <>
 void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
 {
-  const RelationalTransitionSystem & rts =
-    static_cast<const RelationalTransitionSystem &>(abs_ts_);
-  RelationalTransitionSystem & sub_rts =
-    static_cast<RelationalTransitionSystem &>(ts_);
-
-  // add predicates from init and bad
-  UnorderedTermSet preds;
-  get_predicates(solver_, abs_ts_.init(), preds, false, false, true);
-  get_predicates(solver_, bad_, preds, false, false, true);
-  // instead of add previously found predicates, we add all the predicates in frame 1
-  // preds.insert(predset_.begin(), predset_.end());
-  get_predicates(solver_, get_frame_term(1), preds, false, false, true);
-  predset_.clear();
-  predlbls_.clear();
-
-  // don't add boolean symbols that are never used in the system
-  // this is an optimization and a fix for some options
-  // if using mathsat with bool_model_generation
-  // it will fail to get the value of symbols that don't
-  // appear in the query
-  // thus we don't include those symbols in our cubes
-  UnorderedTermSet used_symbols;
-  get_free_symbolic_consts(ts_.init(), used_symbols);
-  get_free_symbolic_consts(ts_.trans(), used_symbols);
-  get_free_symbolic_consts(bad_, used_symbols);
-
-  // reset init and trans -- done with calling ia_.do_abstraction
-  // then add all boolean constants as (precise) predicates
-  for (const auto & p : ia_.do_abstraction()) {
-    assert(p->is_symbolic_const());
-    if (used_symbols.find(p) != used_symbols.end()) {
-      preds.insert(p);
-    }
-  }
-
-  // reset the solver
-  reset_solver();
-
-  // add predicates
-  for (const auto &p : preds) {
-    add_predicate(p);
-  }
+  super::reabstract();
 }
 
 // ceg-prophecy is incremental for ic3ia

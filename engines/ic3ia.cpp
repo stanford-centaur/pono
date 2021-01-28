@@ -326,7 +326,6 @@ void IC3IA::reset_solver()
 
   for (const auto & elem : lbl2pred_) {
     solver_->assert_formula(solver_->make_term(Equal, elem.first, elem.second));
-
     Term npred = ts_.next(elem.second);
     Term nlbl = label(npred);
     solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
@@ -339,6 +338,45 @@ bool IC3IA::is_global_label(const Term & l) const
   // the assertion will check that this assumption holds though
   assert(super::is_global_label(l) || all_lbls_.find(l) != all_lbls_.end());
   return true;
+}
+
+void IC3IA::reabstract()
+{
+  // don't add boolean symbols that are never used in the system
+  // this is an optimization and a fix for some options
+  // if using mathsat with bool_model_generation
+  // it will fail to get the value of symbols that don't
+  // appear in the query
+  // thus we don't include those symbols in our cubes
+  UnorderedTermSet used_symbols;
+  get_free_symbolic_consts(ts_.init(), used_symbols);
+  get_free_symbolic_consts(ts_.trans(), used_symbols);
+  get_free_symbolic_consts(bad_, used_symbols);
+
+  UnorderedTermSet preds;
+  // reset init and trans -- done with calling ia_.do_abstraction
+  // then add all boolean constants as (precise) predicates
+  for (const auto & p : ia_.do_abstraction()) {
+    assert(p->is_symbolic_const());
+    if (used_symbols.find(p) != used_symbols.end()) {
+      preds.insert(p);
+    }
+  }
+
+  // predicates from init and bad
+  get_predicates(solver_, ts_.init(), preds, false, false, true);
+  get_predicates(solver_, bad_, preds, false, false, true);
+  // instead of add previously found predicates, we add all the predicates in frame 1
+  get_predicates(solver_, get_frame_term(1), preds, false, false, true);
+
+  super::reset_solver();
+  predset_.clear();
+  predlbls_.clear();
+
+  // add predicates
+  for (const auto &p : preds) {
+    add_predicate(p);
+  }
 }
 
 bool IC3IA::add_predicate(const Term & pred)
