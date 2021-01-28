@@ -81,6 +81,9 @@ class ValueAbstractor : public smt::IdentityWalker
           return Walker_Continue;
         }
 
+        // TODO determine if value is within cutoff and whether
+        // it's positive or negative without using a solver call
+
         Term fresh_solver_term = to_fresh_solver_.transfer_term(term);
 
         Term zero = fresh_solver_->make_term(0, sort);
