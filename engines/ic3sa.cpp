@@ -264,7 +264,7 @@ RefineResult IC3SA::refine()
   Term learned_lemma;
 
   // try functional refinement
-  RefineResult r = ic3sa_refine_value(learned_lemma);
+  RefineResult r = ic3sa_refine_functional(learned_lemma);
 
   if (r == REFINE_NONE) {
     assert(!solver_context_);
@@ -273,7 +273,16 @@ RefineResult IC3SA::refine()
   assert(r == REFINE_SUCCESS);
 
   assert(learned_lemma);
-  assert(!learned_lemma->is_value());
+  if (learned_lemma->is_value()) {
+    // possible that simplification reduces the axiom to true
+    // it should definitely not be false
+    assert(learned_lemma == solver_true_);
+    logger.log(2, "IC3SA::refine falling back on value refinement");
+    r = ic3sa_refine_value(learned_lemma);
+    assert(learned_lemma);
+    assert(!learned_lemma->is_value());
+    assert(r == REFINE_SUCCESS);
+  }
 
   assert(!ts_.is_functional());
   assert(!solver_context_);
