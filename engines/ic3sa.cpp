@@ -58,7 +58,8 @@ IC3SA::IC3SA(const Property & p,
     : super(p, RelationalTransitionSystem(solver), solver, opt),
       conc_ts_(ts, to_prover_solver_),
       f_unroller_(conc_ts_, 0, "_AT"),  // zero means pure-functional unrolling
-      boolsort_(solver_->make_sort(BOOL))
+      boolsort_(solver_->make_sort(BOOL)),
+      longest_unroll_(0)
 {
   engine_ = Engine::IC3SA_ENGINE;
 }
@@ -277,6 +278,49 @@ RefineResult IC3SA::refine()
   // add symbols from axiom to the projection set permanently
   for (const auto & nt : new_terms) {
     get_free_symbolic_consts(nt, projection_set_);
+  }
+
+  if (options_.ic3sa_interp_) {
+    assert(interpolator_);
+    // TODO: consider only going up until the refined length
+    //       currently no way to get it from the refinement functions
+
+    size_t cex_length = cex_.size();
+    TermVec formulae;
+    for (size_t i = 0; i < cex_length; ++i) {
+      // make sure from_interpolator_ cache is populated with unrolled symbols
+      register_symbol_mappings(i);
+
+      Term t = unroller_.at_time(cex_[i], i);
+      if (i + 1 < cex_length) {
+        t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
+      }
+      formulae.push_back(to_interpolator_->transfer_term(t, BOOL));
+    }
+
+    TermVec out_interpolants;
+    Result interp_res =
+        interpolator_->get_sequence_interpolants(formulae, out_interpolants);
+    assert(!interp_res.is_sat());
+
+    for (auto const & I : out_interpolants) {
+      if (!I) {
+        // should only have null terms if got unknown result
+        assert(interp_res.is_unknown());
+        continue;
+      }
+
+      Term solver_I =
+          unroller_.untime(from_interpolator_->transfer_term(I, BOOL));
+      assert(conc_ts_.only_curr(solver_I));
+      // TODO look into whether we should add symbols from these terms
+      // probably don't need to add symbols from these terms since this is
+      // optional
+      add_to_term_abstraction(solver_I);
+      logger.log(0, "IC3SA::refine interpolant {}", solver_I);
+    }
+
+    longest_unroll_ = cex_length;
   }
 
   // TODO handle refinement failure case if any
@@ -531,7 +575,9 @@ void IC3SA::initialize()
 
   if (options_.ic3sa_interp_) {
 #ifdef WITH_MSAT
-    interpolator_ = create_interpolating_solver_for(MSAT, engine_);
+    interpolator_ = create_interpolating_solver_for(MSAT_INTERPOLATOR, engine_);
+    to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
+    from_interpolator_ = std::make_unique<TermTranslator>(solver_);
 #else
     throw PonoException("Running IC3SA with interpolation requires MathSAT.");
 #endif
@@ -839,6 +885,24 @@ TermVec IC3SA::get_controlling(Term t) const
   }
   assert(controlling_terms.size());
   return controlling_terms;
+}
+
+void IC3SA::register_symbol_mappings(size_t i)
+{
+  if (i < longest_unroll_) {
+    // these symbols should have already been handled
+  }
+
+  assert(interpolator_);
+  assert(to_interpolator_);
+  assert(from_interpolator_);
+
+  UnorderedTermMap & cache = from_interpolator_->get_cache();
+  Term unrolled_sv;
+  for (const auto & sv : ts_.statevars()) {
+    unrolled_sv = unroller_.at_time(sv, i);
+    cache[to_interpolator_->transfer_term(unrolled_sv)] = unrolled_sv;
+  }
 }
 
 void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const

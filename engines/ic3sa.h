@@ -52,8 +52,6 @@ class IC3SA : public IC3
 
   FunctionalUnroller f_unroller_;
 
-  smt::SmtSolver interpolator_;
-
   smt::UnorderedTermSet predset_;  ///< stores all predicates in abstraction
 
   // TODO remove this and generate it on the fly
@@ -63,6 +61,12 @@ class IC3SA : public IC3
   ///< stores all the current terms in the abstraction organized by sort
 
   smt::UnorderedTermSet projection_set_;  ///< variables always in projection
+
+  smt::SmtSolver interpolator_;
+  std::unique_ptr<smt::TermTranslator> to_interpolator_;
+  std::unique_ptr<smt::TermTranslator> from_interpolator_;
+
+  size_t longest_unroll_;
 
   // temporary data structure for conjunctive_assumptions
   smt::TermVec tmp_;
@@ -161,6 +165,16 @@ class IC3SA : public IC3
     }
     return in_projection;
   }
+
+  /** Register a state variable mapping in to_solver_
+   *  This is a bit ugly but it's needed because symbols aren't created in
+   * to_solver_ so it needs the mapping from interpolator_ symbols to solver_
+   * symbols
+   *  TODO look into a cleaner solution
+   *  @param i the unrolling for state variables
+   *         makes sure not to repeat work
+   */
+  void register_symbol_mappings(size_t i);
 
   // debug methods
   void debug_print_equivalence_classes(EquivalenceClasses ec) const;
