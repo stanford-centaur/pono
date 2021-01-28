@@ -11,6 +11,7 @@
 **
 ** \brief Bit-level IC3 implementation that splits bitvector variables
 **        into the individual bits for bit-level cubes/clauses
+**        However, the transition system itself still uses bitvectors
 **/
 
 #pragma once
