@@ -211,9 +211,6 @@ void IC3SA::check_ts() const
     throw PonoException("IC3SA requires a functional transition system.");
   }
 
-  // expecting no implicit inputs
-  assert(conc_ts_.state_updates().size() == ts_.statevars().size());
-
   for (const auto & sv : ts_.statevars()) {
     SortKind sk = sv->get_sort()->get_sort_kind();
     if (sk != BOOL && sk != BV)

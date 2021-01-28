@@ -164,10 +164,15 @@ TransitionSystem remove_implicit_inputs(const TransitionSystem & ts)
 
   const UnorderedTermMap & state_updates = ts.state_updates();
 
+  UnorderedTermSet init_vars;
+  get_free_symbolic_consts(ts.init(), init_vars);
+
   // copy over all state variables
   // but turn into input variable if they're implicitly an input
+  // (but if they're in init they must stay a state variable)
   for (const auto & sv : ts.statevars()) {
-    if (state_updates.find(sv) == state_updates.end()) {
+    if (state_updates.find(sv) == state_updates.end()
+        && init_vars.find(sv) == init_vars.end()) {
       new_ts.add_inputvar(sv);
     } else {
       new_ts.add_statevar(sv, ts.next(sv));
@@ -194,7 +199,6 @@ TransitionSystem remove_implicit_inputs(const TransitionSystem & ts)
     new_ts.add_constraint(elem.first, elem.second);
   }
 
-  assert(new_ts.state_updates().size() == new_ts.statevars().size());
   return new_ts;
 }
 
