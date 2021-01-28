@@ -84,6 +84,7 @@ ProverResult CegarOpsUf<Prover_T>::check_until(int k)
     // Commenting for now.
 
     //super::invar_ = oa_.concrete(super::invar_);
+    super::invar_ = NULL;
   }
 
   return res;
