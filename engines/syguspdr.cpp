@@ -176,7 +176,7 @@ void SygusPdr::initialize()
       options_.sygus_term_mode_  = 
         (test_ts_has_op({BVMul, BVUdiv, BVSdiv, BVSmod, BVSrem, BVUrem}) ? SyGuSTermMode::SPLIT_FROM_DESIGN : 
         (test_ts_has_op({BVAdd, BVSub}) ? SyGuSTermMode::FROM_DESIGN_LEARN_EXT :
-        (test_ts_has_op({BVUle, BVUlt}) ? SyGuSTermMode::VAR_C_EQ_LT :
+        (test_ts_has_op({BVUle, BVUlt}) ? SyGuSTermMode::VAR_C_EXT :
                                           SyGuSTermMode::VAR_C_EXT)));
     }
   }
