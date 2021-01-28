@@ -263,6 +263,11 @@ RefineResult IC3SA::refine()
 
   Term learned_lemma;
 
+  if (cex_.size() == 1) {
+    // NOTE if don't include terms in init then need to change this
+    return REFINE_NONE;
+  }
+
   // try functional refinement
   RefineResult r = ic3sa_refine_value(learned_lemma);
 
