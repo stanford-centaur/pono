@@ -36,7 +36,8 @@ enum Engine
   IC3_BITS,
   MBIC3,
   IC3IA_ENGINE,
-  MSAT_IC3IA
+  MSAT_IC3IA,
+  SYGUS_PDR
   // NOTE: if adding an IC3 variant,
   // make sure to update ic3_variants in smt/available_solvers.cpp
   // used for setting solver options appropriately
@@ -50,7 +51,17 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "mbic3", MBIC3 },
       { "ic3bits", IC3_BITS },
       { "ic3ia", IC3IA_ENGINE },
-      { "msat-ic3ia", MSAT_IC3IA } });
+      { "msat-ic3ia", MSAT_IC3IA },
+      { "sygus-pdr", SYGUS_PDR } });
+
+// SyGuS mode option
+enum SyGuSTermMode{ 
+  FROM_DESIGN_LEARN_EXT = 0,
+  VAR_C_EXT = 1,
+  SPLIT_FROM_DESIGN = 2,
+  VAR_C_EQ_LT = 3,
+  TERM_MODE_AUTO = 4
+}; 
 
 /*************************************** Options class
  * ************************************************/
@@ -87,7 +98,13 @@ class PonoOptions
         assume_prop_(default_assume_prop_),
         cegp_abs_vals_(default_cegp_abs_vals_),
         cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
-        promote_inputvars_(default_promote_inputvars_)
+        promote_inputvars_(default_promote_inputvars_),
+        sygus_term_mode_(default_sygus_term_mode_),
+        sygus_term_extract_depth_(default_sygus_term_extract_depth_),
+        sygus_initial_term_width_(default_sygus_initial_term_width_),
+        sygus_initial_term_inc_(default_sygus_initial_term_inc_),
+        sygus_accumulated_term_bound_(default_sygus_accumulated_term_bound_),
+        sygus_use_operator_abstraction_(default_sygus_use_operator_abstraction_)
   {
   }
 
@@ -132,6 +149,13 @@ class PonoOptions
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
   size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
   bool promote_inputvars_;
+  // sygus-pdr options
+  SyGuSTermMode sygus_term_mode_; ///< SyGuS term production mode
+  unsigned sygus_term_extract_depth_; ///< SyGuS Term extraction depth for existing terms
+  unsigned sygus_initial_term_width_; ///< SyGuS Control and data width seperator
+  unsigned sygus_initial_term_inc_; ///< SyGuS Control and data width seperator increment bound
+  unsigned sygus_accumulated_term_bound_; ///< SyGuS Term accumulation bound count
+  unsigned sygus_use_operator_abstraction_; ///< SyGuS abstract and avoid use some operators
 
  private:
   // Default options
@@ -162,6 +186,12 @@ class PonoOptions
   static const bool default_cegp_abs_vals_ = false;
   static const size_t default_cegp_abs_vals_cutoff_ = 100;
   static const bool default_promote_inputvars_ = false;
+  static const SyGuSTermMode default_sygus_term_mode_ = TERM_MODE_AUTO;
+  static const unsigned default_sygus_term_extract_depth_ = 0;
+  static const unsigned default_sygus_initial_term_width_ = 8;
+  static const unsigned default_sygus_initial_term_inc_ = 8;
+  static const unsigned default_sygus_accumulated_term_bound_ = 0;
+  static const unsigned default_sygus_use_operator_abstraction_ = 0;
 };
 
 }  // namespace pono
