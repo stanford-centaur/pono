@@ -58,6 +58,7 @@ enum optionIndex
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
   CEG_BV_ARITH,
+  CEG_BV_ARITH_MIN_BW,
   PROMOTE_INPUTVARS,
   SYGUS_OP_LVL
 };
@@ -301,6 +302,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --ceg-bv-arith \tabstraction-refinement for the BV arithmetic operators "
     "(mul, div, rem, mod). (only supported for IC3IA)" },
+  { CEG_BV_ARITH_MIN_BW,
+    0,
+    "",
+    "ceg-bv-arith-min-bw",
+    Arg::Numeric,
+    "  --ceg-bv-arith-min-bw \tminimum bitwidth of operators to abstract - must be positive (default: 16) " },
   { PROMOTE_INPUTVARS,
     0,
     "",
@@ -431,6 +438,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
         case CEG_BV_ARITH: ceg_bv_arith_ = true; break;
+        case CEG_BV_ARITH_MIN_BW: ceg_bv_arith_min_bw_ = atoi(opt.arg); break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case SYGUS_OP_LVL: sygus_use_operator_abstraction_ = atoi(opt.arg); break;
         case UNKNOWN_OPTION:
