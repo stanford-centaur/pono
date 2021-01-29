@@ -308,12 +308,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --promote-inputvars \tpromote all input variables to state variables" },
   { SYGUS_OP_LVL,
-    0,
-    "",
-    "op-lv",
-    Arg::Numeric,
-    "  --op-lv \toperator abstraction level (0-2, default:2) (only "
-    "supported for SYGUS PDR)" },
+      0,
+      "",
+      "op-lv",
+      Arg::Numeric,
+      "  --op-lv \toperator abstraction level (0-2, default:0) (only "
+      "supported for SYGUS PDR)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
