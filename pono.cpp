@@ -153,19 +153,22 @@ ProverResult check_prop(PonoOptions pono_options,
           "Only got a partial witness from engine. Not suitable for printing.");
     }
   } else if (r == TRUE && pono_options.check_invar_) {
+    Term invar = nullptr;
     try {
-      Term invar = prover->invar();
+      invar = prover->invar();
+    }
+    catch (PonoException & e) {
+      std::cout << "Engine " << pono_options.engine_
+                << " does not support getting the invariant." << std::endl;
+    }
+    if (invar) {
       bool invar_passes = check_invar(ts, p.prop(), invar);
       std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
                 << std::endl;
       if (!invar_passes) {
         // shouldn't return true if invariant is incorrect
-        r = ProverResult::UNKNOWN;
+        throw PonoException("Invariant Check FAILED");
       }
-    }
-    catch (PonoException & e) {
-      std::cout << "Engine " << pono_options.engine_
-                << " does not support getting the invariant." << std::endl;
     }
   }
   return r;
