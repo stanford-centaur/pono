@@ -322,8 +322,8 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --ic3sa-initial-terms-lvl \tConfigures where to find terms for "
     "the initial abstraction. Higher numbers means more terms and "
-    "predicates will be included in the inital abstraction [0-3] (default: "
-    "3)." },
+    "predicates will be included in the inital abstraction [0-4] (default: "
+    "4)." },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -445,9 +445,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case SYGUS_OP_LVL: sygus_use_operator_abstraction_ = atoi(opt.arg); break;
         case IC3SA_INITIAL_TERMS_LVL: {
           ic3sa_initial_terms_lvl_ = atoi(opt.arg);
-          if (ic3sa_initial_terms_lvl_ > 3) {
+          if (ic3sa_initial_terms_lvl_ > 4) {
             throw PonoException(
-                "--ic3sa-initial-terms-lvl must be an integer in [0, 3]");
+                "--ic3sa-initial-terms-lvl must be an integer in [0, 4]");
           }
           break;
         }

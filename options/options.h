@@ -200,7 +200,7 @@ class PonoOptions
   static const unsigned default_sygus_accumulated_term_bound_ = 0;
   static const unsigned default_sygus_use_operator_abstraction_ = 0;
   static const size_t default_ic3sa_initial_terms_lvl_ =
-      3;  ///< the highest level
+      4;  ///< the highest level
 };
 
 }  // namespace pono
