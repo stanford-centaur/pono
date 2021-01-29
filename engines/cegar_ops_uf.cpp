@@ -264,22 +264,36 @@ void CegarOpsUf<IC3SA>::refine_subprover_ts(const UnorderedTermSet & axioms,
   for (const auto & a : axioms) {
     Term ta = from_cegopsuf_solver_.transfer_term(a, BOOL);
 
+    // mine for new terms for the term abstraction
+    super::add_to_term_abstraction(ta);
+
+    assert(prover_ts_.is_functional());
+    prover_ts_.add_constraint(ta);
+
     // main ts_ in IC3SA is a relational view of the original
     // (functional) ts
-    assert(!prover_ts_.is_functional());
+    // for now, easiest to just add it directly to that system
+    // as well
+    // TODO clean this up later
     RelationalTransitionSystem & ts =
-        static_cast<RelationalTransitionSystem &>(prover_ts_);
+        static_cast<RelationalTransitionSystem &>(super::ts_);
     if (ts.only_curr(ta) && !skip_init) {
       ts.constrain_init(ta);
+      super::solver_->assert_formula(
+          solver_->make_term(Implies, super::init_label_, ta));
     }
 
     ts.constrain_trans(ta);
-    super::add_to_term_abstraction(ta);
+    super::solver_->assert_formula(
+        solver_->make_term(Implies, super::trans_label_, ta));
 
     if (ts.no_next(ta)) {
       // NOTE: don't need to add next version to term abstraction
       // because only keeps current state vars anyway
-      ts.constrain_trans(ts.next(ta));
+      Term next_ta = ts.next(ta);
+      ts.constrain_trans(next_ta);
+      super::solver_->assert_formula(
+          solver_->make_term(Implies, super::trans_label_, next_ta));
     }
   }
 }

@@ -68,6 +68,15 @@ class IC3SA : public IC3
   // useful sort
   smt::Sort boolsort_;
 
+  /** Overriding the method. This will return the concrete_ts_ because ts_ is an
+   *  different (i.e., relational) view of the concrete_ts_.
+   *  TODO this can probably be simplified later
+   *       for CegarOpsUf, it has to be this way because otherwise
+   *       initialization doesn't work correctly, and ts_ is replaced by
+   *       a functional system when it should be relational
+   */
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; };
+
   // virtual method implementations
 
   IC3Formula get_model_ic3formula() const override;
