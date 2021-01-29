@@ -41,4 +41,11 @@ std::shared_ptr<Prover> make_cegar_values_prover(
     const smt::SmtSolver & slv,
     PonoOptions opts = PonoOptions());
 
+std::shared_ptr<Prover> make_cegar_bv_arith_prover(
+    Engine e,
+    const Property & p,
+    const TransitionSystem & ts,
+    const smt::SmtSolver & slv,
+    PonoOptions opts = PonoOptions());
+
 }  // namespace pono

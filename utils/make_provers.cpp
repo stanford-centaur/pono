@@ -19,7 +19,9 @@
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ceg_prophecy_arrays.h"
+#include "engines/cegar_ops_uf.h"
 #include "engines/cegar_values.h"
+#include "engines/ic3bits.h"
 #include "engines/ic3ia.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
@@ -59,6 +61,8 @@ shared_ptr<Prover> make_prover(Engine e,
 #endif
   } else if (e == MBIC3) {
     return make_shared<ModelBasedIC3>(p, ts, slv, opts);
+  } else if (e == IC3_BITS) {
+    return make_shared<IC3Bits>(p, ts, slv, opts);
   } else if (e == IC3IA_ENGINE) {
 #ifdef WITH_MSAT
     return make_shared<IC3IA>(p, ts, slv, opts);
@@ -123,6 +127,23 @@ shared_ptr<Prover> make_cegar_values_prover(Engine e,
   }
 
   return make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(p, ts, slv, opts);
+}
+
+shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
+                                              const Property & p,
+                                              const TransitionSystem & ts,
+                                              const SmtSolver & slv,
+                                              PonoOptions opts)
+{
+  if (e != IC3IA_ENGINE) {
+    throw PonoException("CegarOpsUf currently only supports IC3IA");
+  }
+
+  shared_ptr<CegarOpsUf<IC3IA>> prover =
+      make_shared<CegarOpsUf<IC3IA>>(p, ts, slv, opts);
+  prover->set_ops_to_abstract(
+      { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+  return prover;
 }
 
 }  // namespace pono

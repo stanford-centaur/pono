@@ -33,6 +33,7 @@ enum Engine
   KIND,
   INTERP,
   IC3_BOOL,
+  IC3_BITS,
   MBIC3,
   IC3IA_ENGINE,
   MSAT_IC3IA,
@@ -48,6 +49,7 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "ind", KIND },
       { "interp", INTERP },
       { "mbic3", MBIC3 },
+      { "ic3bits", IC3_BITS },
       { "ic3ia", IC3IA_ENGINE },
       { "msat-ic3ia", MSAT_IC3IA },
       { "sygus-pdr", SYGUS_PDR } });
@@ -96,6 +98,7 @@ class PonoOptions
         assume_prop_(default_assume_prop_),
         cegp_abs_vals_(default_cegp_abs_vals_),
         cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
+        ceg_bv_arith_(default_ceg_bv_arith_),
         promote_inputvars_(default_promote_inputvars_),
         sygus_term_mode_(default_sygus_term_mode_),
         sygus_term_extract_depth_(default_sygus_term_extract_depth_),
@@ -146,6 +149,7 @@ class PonoOptions
   bool assume_prop_;    ///< assume property in pre-state
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
   size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
+  bool ceg_bv_arith_;            ///< CEGAR -- Abstract BV arithmetic operators
   bool promote_inputvars_;
   // sygus-pdr options
   SyGuSTermMode sygus_term_mode_; ///< SyGuS term production mode
@@ -183,6 +187,7 @@ class PonoOptions
   static const bool default_assume_prop_ = false;
   static const bool default_cegp_abs_vals_ = false;
   static const size_t default_cegp_abs_vals_cutoff_ = 100;
+  static const bool default_ceg_bv_arith_ = false;
   static const bool default_promote_inputvars_ = false;
   static const SyGuSTermMode default_sygus_term_mode_ = TERM_MODE_AUTO;
   static const unsigned default_sygus_term_extract_depth_ = 0;

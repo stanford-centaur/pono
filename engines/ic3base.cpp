@@ -175,7 +175,8 @@ ProverResult IC3Base::check_until(int k)
         return ProverResult::FALSE;
       } else {
         assert(s == REFINE_FAIL);
-        throw PonoException("Refinement failed");
+        logger.log(1, "IC3Base: refinement failure, returning unknown");
+        return ProverResult::UNKNOWN;
       }
     } else {
       ++i;

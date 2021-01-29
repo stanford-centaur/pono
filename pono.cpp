@@ -121,6 +121,8 @@ ProverResult check_prop(PonoOptions pono_options,
   std::shared_ptr<Prover> prover;
   if (pono_options.cegp_abs_vals_) {
     prover = make_cegar_values_prover(eng, p, ts, s, pono_options);
+  } else if (pono_options.ceg_bv_arith_) {
+    prover = make_cegar_bv_arith_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_prophecy_arrays_) {
     prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
   } else {
@@ -151,19 +153,22 @@ ProverResult check_prop(PonoOptions pono_options,
           "Only got a partial witness from engine. Not suitable for printing.");
     }
   } else if (r == TRUE && pono_options.check_invar_) {
+    Term invar = nullptr;
     try {
-      Term invar = prover->invar();
+      invar = prover->invar();
+    }
+    catch (PonoException & e) {
+      std::cout << "Engine " << pono_options.engine_
+                << " does not support getting the invariant." << std::endl;
+    }
+    if (invar) {
       bool invar_passes = check_invar(ts, p.prop(), invar);
       std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
                 << std::endl;
       if (!invar_passes) {
         // shouldn't return true if invariant is incorrect
-        r = ProverResult::UNKNOWN;
+        throw PonoException("Invariant Check FAILED");
       }
-    }
-    catch (PonoException & e) {
-      std::cout << "Engine " << pono_options.engine_
-                << " does not support getting the invariant." << std::endl;
     }
   }
   return r;
