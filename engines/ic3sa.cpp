@@ -295,8 +295,9 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
   Result r;
   UnorderedTermMap last_model_vals;
 
-  UnorderedTermSet inputvars = ts_.inputvars();
-  // add implicit input variables
+  assert(!ts_.inputvars().size());
+  UnorderedTermSet inputvars;
+  // add implicit input variables (states with no update)
   const UnorderedTermMap & state_updates = ts_.state_updates();
   for (const auto & sv : ts_.statevars()) {
     if (state_updates.find(sv) == state_updates.end()) {
@@ -389,8 +390,9 @@ RefineResult IC3SA::ic3sa_refine_value(Term & learned_lemma)
   Result r;
   UnorderedTermMap last_model_vals;
 
-  UnorderedTermSet inputvars = ts_.inputvars();
-  // add implicit input variables
+  assert(!ts_.inputvars().size());
+  UnorderedTermSet inputvars;
+  // add implicit input variables (state variables with no update)
   const UnorderedTermMap & state_updates = ts_.state_updates();
   for (const auto & sv : ts_.statevars()) {
     if (state_updates.find(sv) == state_updates.end()) {
