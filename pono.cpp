@@ -121,6 +121,8 @@ ProverResult check_prop(PonoOptions pono_options,
   std::shared_ptr<Prover> prover;
   if (pono_options.cegp_abs_vals_) {
     prover = make_cegar_values_prover(eng, p, ts, s, pono_options);
+  } else if (pono_options.ceg_bv_arith_) {
+    prover = make_cegar_bv_arith_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_prophecy_arrays_) {
     prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
   } else {
