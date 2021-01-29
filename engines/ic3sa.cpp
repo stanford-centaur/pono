@@ -549,9 +549,53 @@ void IC3SA::initialize()
   // TODO make it an option to add ts_.trans()
   // add_to_term_abstraction only keeps terms that only contain
   // current state variables
-  add_to_term_abstraction(ts_.init());
-  add_to_term_abstraction(ts_.trans());
-  add_to_term_abstraction(bad_);
+
+  // TODO make it an option to start with more terms
+
+  // TODO could optimize this more because there's redundant work
+  //      if the level is higher
+  //      but this is simpler to read
+
+  // always get leaves for the initial abstraction
+  // configuration with least number of terms
+  // just get the leaves
+  UnorderedTermSet leaves;
+  get_leaves(ts_.init(), leaves);
+  get_leaves(ts_.trans(), leaves);
+  get_leaves(bad_, leaves);
+  for (const auto & leaf : leaves) {
+    add_to_term_abstraction(leaf);
+  }
+
+  if (options_.ic3sa_initial_terms_lvl_ == 1) {
+    // also add predicates from bad
+    UnorderedTermSet preds;
+    get_predicates(solver_, bad_, preds, false, false, true);
+    for (const auto & p : preds) {
+      add_to_term_abstraction(p);
+    }
+  } else if (options_.ic3sa_initial_terms_lvl_ == 2) {
+    // add predicates from init, trans, and bad
+    UnorderedTermSet preds;
+    get_predicates(solver_, ts_.init(), preds, false, false, true);
+    get_predicates(solver_, ts_.trans(), preds, false, false, true);
+    get_predicates(solver_, bad_, preds, false, false, true);
+    for (const auto & p : preds) {
+      add_to_term_abstraction(p);
+    }
+  } else if (options_.ic3sa_initial_terms_lvl_ == 3) {
+    // only add terms from init and bad
+    add_to_term_abstraction(ts_.init());
+    add_to_term_abstraction(bad_);
+  } else if (options_.ic3sa_initial_terms_lvl_ == 4) {
+    // add all terms and predicates
+    add_to_term_abstraction(ts_.init());
+    add_to_term_abstraction(ts_.trans());
+    add_to_term_abstraction(bad_);
+  } else {
+    // only supports 0-4
+    assert(!options_.ic3sa_initial_terms_lvl_);
+  }
 
   Sort boolsort = solver_->make_sort(BOOL);
   // not expecting boolean sorts in term abstraction
