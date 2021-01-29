@@ -149,7 +149,9 @@ class SygusPdr : public IC3Base
     bool failed_at_init);
 
   syntax_analysis::PerCexInfo & setup_cex_info (syntax_analysis::IC3FormulaModel * post_model);
-  IC3Formula select_predicates(const smt::Term & base, const smt::TermVec & preds_nxt);
+  IC3Formula select_predicates_generic(const smt::Term & base, const smt::TermVec & preds_nxt);
+  // below is an specialization for btor optimization
+  IC3Formula select_predicates_btor(const smt::Term & base, const smt::TermVec & preds_nxt);
   
   // promote again after op_abstractor_ is needed
   std::unique_ptr<OpAbstractor> op_abstractor_;
