@@ -37,15 +37,16 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
                                  const TransitionSystem & ts,
                                  const SmtSolver & solver,
                                  PonoOptions opt)
-  : super(p, create_fresh_ts(ts.is_functional(), solver), solver, opt),
-    conc_ts_(ts, super::to_prover_solver_),
-    prover_ts_(super::prover_interface_ts()),
-    oa_(conc_ts_, prover_ts_),
-    cegopsuf_solver_(create_solver(solver->get_solver_enum())),
-    to_cegopsuf_solver_(cegopsuf_solver_),
-    from_cegopsuf_solver_(super::prover_interface_ts().solver()),
-    cegopsuf_ts_(cegopsuf_solver_),
-    cegopsuf_un_(cegopsuf_ts_)
+    : super(p, create_fresh_ts(ts.is_functional(), solver), solver, opt),
+      conc_ts_(ts, super::to_prover_solver_),
+      prover_ts_(super::prover_interface_ts()),
+      oa_(conc_ts_, prover_ts_),
+      cegopsuf_solver_(
+          create_solver(solver->get_solver_enum(), opt.logging_smt_solver_)),
+      to_cegopsuf_solver_(cegopsuf_solver_),
+      from_cegopsuf_solver_(super::prover_interface_ts().solver()),
+      cegopsuf_ts_(cegopsuf_solver_),
+      cegopsuf_un_(cegopsuf_ts_)
 {
   cegopsuf_solver_->set_opt("produce-unsat-cores", "true");
 }

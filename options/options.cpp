@@ -46,6 +46,7 @@ enum optionIndex
   RESET_BND,
   CLK,
   SMT_SOLVER,
+  LOGGING_SMT_SOLVER,
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
   IC3_RESET_INTERVAL,
@@ -146,7 +147,16 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT Solver to use: btor or msat or cvc4." },
+    "  --smt-solver \tSMT Solver to use: btor, msat, or cvc4." },
+  { LOGGING_SMT_SOLVER,
+    0,
+    "",
+    "logging-smt-solver",
+    Arg::None,
+    "  --logging-smt-solver \tUse Smt-Switch logging solver which "
+    "guarantees the exact term structure that was created. Good "
+    "for avoiding term rewriting at the API level or sort aliasing. "
+    "(default: false)" },
   { WITNESS,
     0,
     "",
@@ -316,12 +326,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --promote-inputvars \tpromote all input variables to state variables" },
   { SYGUS_OP_LVL,
-      0,
-      "",
-      "op-lv",
-      Arg::Numeric,
-      "  --op-lv \toperator abstraction level (0-2, default:0) (only "
-      "supported for SYGUS PDR)" },
+    0,
+    "",
+    "op-lv",
+    Arg::Numeric,
+    "  --op-lv \toperator abstraction level (0-2, default:0) (only "
+    "supported for SYGUS PDR)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -405,6 +415,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           }
           break;
         }
+        case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
         case WITNESS: witness_ = true; break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
