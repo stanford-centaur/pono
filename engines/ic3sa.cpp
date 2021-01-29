@@ -564,6 +564,14 @@ void IC3SA::initialize()
     add_to_term_abstraction(leaf);
   }
 
+  UnorderedTermSet preds;
+  get_predicates(solver_, ts_.init(), preds, false, false, true);
+  get_predicates(solver_, ts_.trans(), preds, false, false, true);
+  get_predicates(solver_, bad_, preds, false, false, true);
+  for (const auto & p : preds) {
+    add_to_term_abstraction(p);
+  }
+
   Sort boolsort = solver_->make_sort(BOOL);
   // not expecting boolean sorts in term abstraction
   // except for boolector which doesn't distinguish between
