@@ -18,16 +18,14 @@
 
 #include "core/fts.h"
 #include "core/rts.h"
-
 #include "engines/ic3ia.h"
-
+#include "engines/ic3sa.h"
 #include "smt/available_solvers.h"
-
 #include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
-#include "utils/ts_manipulation.h"
 #include "utils/term_analysis.h"
+#include "utils/ts_manipulation.h"
 
 using namespace smt;
 using namespace std;
@@ -39,15 +37,16 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
                                  const TransitionSystem & ts,
                                  const SmtSolver & solver,
                                  PonoOptions opt)
-  : super(p, create_fresh_ts(ts.is_functional(), solver), solver, opt),
-    conc_ts_(ts, super::to_prover_solver_),
-    prover_ts_(super::prover_interface_ts()),
-    oa_(conc_ts_, prover_ts_),
-    cegopsuf_solver_(create_solver(solver->get_solver_enum())),
-    to_cegopsuf_solver_(cegopsuf_solver_),
-    from_cegopsuf_solver_(super::prover_interface_ts().solver()),
-    cegopsuf_ts_(cegopsuf_solver_),
-    cegopsuf_un_(cegopsuf_ts_)
+    : super(p, create_fresh_ts(ts.is_functional(), solver), solver, opt),
+      conc_ts_(ts, super::to_prover_solver_),
+      prover_ts_(super::prover_interface_ts()),
+      oa_(conc_ts_, prover_ts_),
+      cegopsuf_solver_(
+          create_solver(solver->get_solver_enum(), opt.logging_smt_solver_)),
+      to_cegopsuf_solver_(cegopsuf_solver_),
+      from_cegopsuf_solver_(super::prover_interface_ts().solver()),
+      cegopsuf_ts_(cegopsuf_solver_),
+      cegopsuf_un_(cegopsuf_ts_)
 {
   cegopsuf_solver_->set_opt("produce-unsat-cores", "true");
 }
@@ -205,8 +204,8 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
         if (cegopsuf_ts_.is_functional()) {
           cegopsuf_ts_.add_constraint(eq);
         } else {
-          RelationalTransitionSystem & ts = 
-            static_cast<RelationalTransitionSystem &>(cegopsuf_ts_);
+          RelationalTransitionSystem & ts =
+              static_cast<RelationalTransitionSystem &>(cegopsuf_ts_);
           if (ts.only_curr(eq) && cex_length == 0) {
             ts.constrain_init(eq);
           }
@@ -242,8 +241,8 @@ void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
     if (prover_ts_.is_functional()) {
       prover_ts_.add_constraint(ta);
     } else {
-      RelationalTransitionSystem & ts = 
-        static_cast<RelationalTransitionSystem &>(prover_ts_);
+      RelationalTransitionSystem & ts =
+          static_cast<RelationalTransitionSystem &>(prover_ts_);
       if (ts.only_curr(ta) && !skip_init) {
         ts.constrain_init(ta);
       }
@@ -259,7 +258,49 @@ void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
   super::reabstract();
 }
 
+template <>
+void CegarOpsUf<IC3SA>::refine_subprover_ts(const UnorderedTermSet & axioms,
+                                            bool skip_init)
+{
+  for (const auto & a : axioms) {
+    Term ta = from_cegopsuf_solver_.transfer_term(a, BOOL);
+
+    // mine for new terms for the term abstraction
+    super::add_to_term_abstraction(ta);
+
+    assert(prover_ts_.is_functional());
+    prover_ts_.add_constraint(ta);
+
+    // main ts_ in IC3SA is a relational view of the original
+    // (functional) ts
+    // for now, easiest to just add it directly to that system
+    // as well
+    // TODO clean this up later
+    RelationalTransitionSystem & ts =
+        static_cast<RelationalTransitionSystem &>(super::ts_);
+    if (ts.only_curr(ta) && !skip_init) {
+      ts.constrain_init(ta);
+      super::solver_->assert_formula(
+          solver_->make_term(Implies, super::init_label_, ta));
+    }
+
+    ts.constrain_trans(ta);
+    super::solver_->assert_formula(
+        solver_->make_term(Implies, super::trans_label_, ta));
+
+    if (ts.no_next(ta)) {
+      // NOTE: don't need to add next version to term abstraction
+      // because only keeps current state vars anyway
+      Term next_ta = ts.next(ta);
+      ts.constrain_trans(next_ta);
+      super::solver_->assert_formula(
+          solver_->make_term(Implies, super::trans_label_, next_ta));
+    }
+  }
+}
+
 // TODO add other template classes
 template class CegarOpsUf<IC3IA>;
+template class CegarOpsUf<IC3SA>;
 
 } // namespace pono
