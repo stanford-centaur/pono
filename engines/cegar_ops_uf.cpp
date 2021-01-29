@@ -142,6 +142,11 @@ void CegarOpsUf<Prover_T>::cegar_abstract()
 template <class Prover_T>
 bool CegarOpsUf<Prover_T>::cegar_refine()
 {
+  const UnorderedTermMap & abs_terms = oa_.abstract_terms();
+  if (abs_terms.size() == 0) {
+    return false;
+  }
+
   size_t cex_length = super::witness_length();
 
   // create bmc formula for abstract system
@@ -156,7 +161,6 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
   cegopsuf_solver_->push();
   cegopsuf_solver_->assert_formula(bmcform);
 
-  const UnorderedTermMap & abs_terms = oa_.abstract_terms();
   TermVec assumps;
   TermVec equalities;
   for (const auto & elem : abs_terms) {
