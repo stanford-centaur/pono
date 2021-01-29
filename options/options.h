@@ -111,7 +111,8 @@ class PonoOptions
         sygus_accumulated_term_bound_(default_sygus_accumulated_term_bound_),
         sygus_use_operator_abstraction_(
             default_sygus_use_operator_abstraction_),
-        ic3sa_initial_terms_lvl_(default_ic3sa_initial_terms_lvl_)
+        ic3sa_initial_terms_lvl_(default_ic3sa_initial_terms_lvl_),
+        ic3sa_interp_(default_ic3sa_interp_)
   {
   }
 
@@ -168,6 +169,7 @@ class PonoOptions
   unsigned sygus_use_operator_abstraction_; ///< SyGuS abstract and avoid use some operators
   size_t ic3sa_initial_terms_lvl_;  ///< configures where to find terms for
                                     ///< initial abstraction
+  bool ic3sa_interp_;
 
  private:
   // Default options
@@ -207,8 +209,9 @@ class PonoOptions
   static const unsigned default_sygus_initial_term_inc_ = 8;
   static const unsigned default_sygus_accumulated_term_bound_ = 0;
   static const unsigned default_sygus_use_operator_abstraction_ = 0;
-  static const size_t default_ic3sa_initial_terms_lvl_ =
-      4;  ///< the highest level
+  // default is the highest level
+  static const size_t default_ic3sa_initial_terms_lvl_ = 4;
+  static const bool default_ic3sa_interp_ = false;
 };
 
 }  // namespace pono

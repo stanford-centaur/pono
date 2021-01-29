@@ -62,7 +62,8 @@ enum optionIndex
   CEG_BV_ARITH,
   PROMOTE_INPUTVARS,
   SYGUS_OP_LVL,
-  IC3SA_INITIAL_TERMS_LVL
+  IC3SA_INITIAL_TERMS_LVL,
+  IC3SA_INTERP
 };
 
 struct Arg : public option::Arg
@@ -342,6 +343,13 @@ const option::Descriptor usage[] = {
     "the initial abstraction. Higher numbers means more terms and "
     "predicates will be included in the inital abstraction [0-4] (default: "
     "4)." },
+  { IC3SA_INTERP,
+    0,
+    "",
+    "ic3sa-interp",
+    Arg::None,
+    "  --ic3sa-interp \tuse interpolants to find more terms during refinement "
+    "(default: off)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -471,6 +479,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           }
           break;
         }
+        case IC3SA_INTERP: ic3sa_interp_ = true;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
