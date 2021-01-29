@@ -66,6 +66,8 @@ class ValueAbstractor : public smt::IdentityWalker
   {
   }
 
+  const TermVec & polarity_axioms() const { return polarity_axioms_; }
+
  protected:
   smt::WalkerStepResult visit_term(smt::Term & term) override
   {
@@ -78,6 +80,9 @@ class ValueAbstractor : public smt::IdentityWalker
           save_in_cache(term, term);
           return Walker_Continue;
         }
+
+        // TODO determine if value is within cutoff and whether
+        // it's positive or negative without using a solver call
 
         Term fresh_solver_term = to_fresh_solver_.transfer_term(term);
 
@@ -105,6 +110,13 @@ class ValueAbstractor : public smt::IdentityWalker
           return Walker_Continue;
         }
 
+        fresh_solver_->push();
+        fresh_solver_->assert_formula(
+            fresh_solver_->make_term(lt, fresh_solver_term, zero));
+        r = fresh_solver_->check_sat();
+        bool nonneg = r.is_unsat();
+        fresh_solver_->pop();
+
         // create a frozen variable
         Term frozen_var =
             ts_.make_statevar("__abs_" + term->to_string(), term->get_sort());
@@ -112,6 +124,15 @@ class ValueAbstractor : public smt::IdentityWalker
         // since the transition system will be modified after this
         save_in_cache(term, frozen_var);
         abstracted_values_[frozen_var] = term;
+
+        // save a polarity axiom over ts terms
+        Term ts_zero = ts_.make_term(0, frozen_var->get_sort());
+        Term polarity_axiom = ts_.make_term(lt, frozen_var, ts_zero);
+        if (nonneg) {
+          polarity_axiom = ts_.make_term(Not, polarity_axiom);
+        }
+        polarity_axioms_.push_back(polarity_axiom);
+
         return Walker_Continue;
       }
 
@@ -137,6 +158,7 @@ class ValueAbstractor : public smt::IdentityWalker
   TransitionSystem & ts_;
   UnorderedTermMap & abstracted_values_;
   Sort boolsort_;
+  TermVec polarity_axioms_;
 
   SmtSolver fresh_solver_;  ///< solver just for the range check
   TermTranslator to_fresh_solver_;
@@ -268,6 +290,14 @@ void CegarValues<Prover_T>::cegar_abstract()
   assert(super::bad_);
   super::bad_ = va.visit(super::bad_);
   cegval_bad_ = to_cegval_solver_.transfer_term(super::bad_, BOOL);
+
+  // add polarity axioms from abstraction
+  for (const auto & ax : va.polarity_axioms()) {
+    // only add polarity axioms to trans
+    // this only adds over current state variables in trans
+    // but the variable is frozen so that's okay
+    prover_ts_.add_constraint(ax, false);
+  }
 
   // copy over to the other solver
   for (const auto & elem : prover_to_vals) {
