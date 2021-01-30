@@ -724,7 +724,7 @@ void IC3Base::predecessor_generalization_and_fix(size_t i,
     assert(orig_pred_children.size());
   }
 
-  predecessor_generalization(i, c.term, pred);
+  predecessor_generalization(i, c, pred);
 
   if (approx_pregen_) {
     TermVec dropped;
