@@ -728,6 +728,7 @@ void IC3Base::predecessor_generalization_and_fix(size_t i,
 
   if (approx_pregen_) {
     TermVec dropped;
+    assert(orig_pred_children.size());
     TermVec pred_children = pred.children;
     UnorderedTermSet reduced_pred_children(pred_children.begin(),
                                            pred_children.end());
@@ -738,8 +739,10 @@ void IC3Base::predecessor_generalization_and_fix(size_t i,
     }
     // if predecessor generalization is approximate
     // need to make sure it does not intersect with F[i-2]
-    bool unsat = reducer_.reduce_assump_unsatcore(
-        get_frame_term(i - 2), dropped, pred_children);
+    Term formula = get_frame_term(i - 2);
+    formula = solver_->make_term(And, formula, pred.term);
+    bool unsat =
+        reducer_.reduce_assump_unsatcore(formula, dropped, pred_children);
     assert(unsat);
     pred = ic3formula_conjunction(pred_children);
   }
