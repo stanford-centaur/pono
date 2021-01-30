@@ -679,8 +679,8 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
     // add disequalities between each pair of representatives from
     // different equivalent classes
     for (size_t i = 0; i < representatives.size(); ++i) {
+      const Term & ti = representatives.at(i);
       for (size_t j = i + 1; j < representatives.size(); ++j) {
-        const Term & ti = representatives.at(i);
         const Term & tj = representatives.at(j);
         // should never get the same representative term from different classes
         assert(ti != tj);
