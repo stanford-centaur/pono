@@ -103,6 +103,7 @@ class PonoOptions
         cegp_abs_vals_(default_cegp_abs_vals_),
         cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
         ceg_bv_arith_(default_ceg_bv_arith_),
+        ceg_bv_arith_min_bw_(default_ceg_bv_arith_min_bw_),
         promote_inputvars_(default_promote_inputvars_),
         sygus_term_mode_(default_sygus_term_mode_),
         sygus_term_extract_depth_(default_sygus_term_extract_depth_),
@@ -159,6 +160,8 @@ class PonoOptions
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
   size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
   bool ceg_bv_arith_;            ///< CEGAR -- Abstract BV arithmetic operators
+  size_t ceg_bv_arith_min_bw_;   ///< Only abstract operators having bitwidth
+                                 ///< strictly greater than this number
   bool promote_inputvars_;
   // sygus-pdr options
   SyGuSTermMode sygus_term_mode_; ///< SyGuS term production mode
@@ -202,6 +205,7 @@ class PonoOptions
   static const bool default_cegp_abs_vals_ = false;
   static const size_t default_cegp_abs_vals_cutoff_ = 100;
   static const bool default_ceg_bv_arith_ = false;
+  static const size_t default_ceg_bv_arith_min_bw_ = 16;
   static const bool default_promote_inputvars_ = false;
   static const SyGuSTermMode default_sygus_term_mode_ = TERM_MODE_AUTO;
   static const unsigned default_sygus_term_extract_depth_ = 0;

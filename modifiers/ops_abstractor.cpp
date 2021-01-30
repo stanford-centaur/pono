@@ -26,7 +26,8 @@ OpsAbstractor::OpsAbstractor(const TransitionSystem & conc_ts,
     : super(conc_ts, abs_ts),
       solver_(abs_ts_.solver()),
       abs_walker_(*this, &abstraction_cache_),
-      conc_walker_(*this, &concretization_cache_)
+      conc_walker_(*this, &concretization_cache_),
+      min_bw_(0)
 {
 }
 
@@ -126,8 +127,9 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
 
   Term res;
   // check if we do not need to abstract the operator
-  if (op.is_null()
-      || oa_.ops_to_abstract_.find(op) == oa_.ops_to_abstract_.end()) {
+  if (op.is_null() ||
+      oa_.ops_to_abstract_.find(op) == oa_.ops_to_abstract_.end() ||
+      (sk == BV && sort->get_width() <= oa_.min_bw_)) {
     res = op.is_null() ? term : solver_->make_term(op, cached_children);
   } else {
     switch (op.prim_op) {
