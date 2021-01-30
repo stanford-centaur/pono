@@ -62,6 +62,7 @@ IC3SA::IC3SA(const Property & p,
       longest_unroll_(0)
 {
   engine_ = Engine::IC3SA_ENGINE;
+  approx_pregen_ = true;
 }
 
 IC3Formula IC3SA::get_model_ic3formula() const
@@ -317,8 +318,6 @@ RefineResult IC3SA::refine()
 
     longest_unroll_ = cex_length;
   }
-
-  // TODO handle refinement failure case if any
 
   assert(!solver_context_);
   return r;

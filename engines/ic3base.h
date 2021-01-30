@@ -46,6 +46,11 @@
 **             at the base context level, and just make sure that
 **             is_global_label returns true for those labels by overriding
 **             just don't forget to re-add those assertions in reset_solver
+**           - if your algorithm has approximate predecessor generalization
+**             meaning it is not guaranteed to keep the predecessor in F[i-1]
+**             without intersecting with a lower frame (e.g. F[i-2]), then
+**             set approx_pregen_ to true and the base class will handle
+**             maintaining that invariant of IC3
 **
 **        Important Notes:
 **           - be sure to use [push/pop]_solver_context instead of using
@@ -190,6 +195,15 @@ class IC3Base : public Prover
   smt::TermVec cex_;  ///< a vector of terms over state variables describing
                       ///< a (possibly abstract) counterexample trace
 
+  bool approx_pregen_;  ///< if set to true then predecessor generalization
+                        ///< might over-generalize leading to intersection
+                        ///< with F[i-2]
+                        ///< in this case, it will do an extra call to fix
+                        ///< this to maintain the invariant that the predecessor
+                        ///< is within F[i-1] but not F[i-2]
+                        ///< default is false and should be set in algorithms
+                        ///< with approximate predecessor generalization
+
   ///< the frames data structure.
   ///< a vector of the given Unit template
   ///< which changes depending on the implementation
@@ -295,7 +309,9 @@ class IC3Base : public Prover
    *  @param pred the predecessor. originally passed as full assignment
    *         and then is updated in to be a generalized predecessor
    *  @ensures pred -> F[i-1] /\
-               forall s \in [pred] exists s' \in [c]. (pred ,c) \in [T]
+   *           if !approx_pregen_ then (F[i-2] /\ pred) is unsat
+   *           Most algorithms also ensure:
+   *           forall s \in [pred] exists s' \in [c]. (pred ,c) \in [T]
    *  @ensures no calls to the solver_ because the context is polluted with
    *           other assertions
    */
@@ -406,6 +422,24 @@ class IC3Base : public Prover
    * proven)
    */
   bool propagate(size_t i);
+
+  /** Calls predecessor_generalization to generalize the current
+   *  model (assumes the current context is satisfiable)
+   *  Then if approx_pregen_ is true will do a solver call
+   *  to fix the predecessor if it was overgeneralized
+   *  @requires rel_ind_check(i, c)
+   *  @requires the solver_ context is currently satisfiable
+   *  @param i the frame number
+   *  @param c the term that failed to be blocked at i
+   *         (over current state vars)
+   *  @param pred the predecessor. originally passed as full assignment
+   *         and then is updated in to be a generalized predecessor
+   *  @ensures no calls to the solver_ because the context is polluted with
+   *           other assertions
+   */
+  void predecessor_generalization_and_fix(size_t i,
+                                          const smt::Term & c,
+                                          IC3Formula & pred);
 
   /** Add a new frame
    *  If not F[0] then starts the frame with the property (implicitly)
