@@ -60,6 +60,7 @@ IC3SA::IC3SA(const Property & p,
       boolsort_(solver_->make_sort(BOOL))
 {
   engine_ = Engine::IC3SA_ENGINE;
+  approx_pregen_ = true;
 }
 
 IC3Formula IC3SA::get_model_ic3formula() const

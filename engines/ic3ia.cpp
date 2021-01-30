@@ -55,6 +55,7 @@ IC3IA::IC3IA(const Property & p,
       longest_cex_length_(0)
 {
   engine_ = Engine::IC3IA_ENGINE;
+  approx_pregen_ = true;
 }
 
 // pure virtual method implementations
