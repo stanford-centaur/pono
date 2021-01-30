@@ -27,6 +27,7 @@
 #include "assert.h"
 #include "core/rts.h"
 #include "smt-switch/utils.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
@@ -56,8 +57,9 @@ IC3SA::IC3SA(const Property & p,
              PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
       conc_ts_(ts, to_prover_solver_),
-      f_unroller_(conc_ts_, 0),  // zero means pure-functional unrolling
-      boolsort_(solver_->make_sort(BOOL))
+      f_unroller_(conc_ts_, 0, "_AT"),  // zero means pure-functional unrolling
+      boolsort_(solver_->make_sort(BOOL)),
+      longest_unroll_(0)
 {
   engine_ = Engine::IC3SA_ENGINE;
   approx_pregen_ = true;
@@ -135,6 +137,14 @@ void IC3SA::predecessor_generalization(size_t i,
   UnorderedTermSet all_coi_symbols = projection_set_;
   justify_coi(ts_.next(c), all_coi_symbols);
   assert(all_coi_symbols.size());
+
+  // justify the constraints
+  for (const auto & elem : ts_.constraints()) {
+    justify_coi(elem.first, all_coi_symbols);
+    if (elem.second && ts_.only_curr(elem.first)) {
+      justify_coi(ts_.next(elem.first), all_coi_symbols);
+    }
+  }
 
   // get rid of next-state variables
   UnorderedTermSet coi_symbols;
@@ -226,28 +236,44 @@ RefineResult IC3SA::refine()
   assert(!solver_context_);
   logger.log(1, "IC3SA: refining a counterexample of length {}", cex_.size());
 
+  if (cex_.size() == 1) {
+    // TODO if we don't add all terms from init
+    // will need to adjust this
+    // refine_value doesn't handle it currently, only functional
+    // and that could be turned off
+    return REFINE_NONE;
+  }
+
   Term learned_lemma;
 
-  // try functional refinement
-  RefineResult r = ic3sa_refine_functional(learned_lemma);
+  RefineResult r;
+  bool run_value_refinement = !options_.ic3sa_func_refine_;
+  if (options_.ic3sa_func_refine_) {
+    // try functional refinement
+    logger.log(2, "IC3SA::refine running functional refinement");
+    r = ic3sa_refine_functional(learned_lemma);
+    // if learned_lemma was simplified to a value, then run value refinement
+    if (r == REFINE_SUCCESS) {
+      assert(learned_lemma);
+      run_value_refinement = learned_lemma->is_value();
+    }
+  }
+
+  if (run_value_refinement) {
+    // possible that simplification reduces the axiom to true
+    // it should definitely not be false
+    logger.log(2, "IC3SA::refine running value refinement");
+    r = ic3sa_refine_value(learned_lemma);
+  }
 
   if (r == REFINE_NONE) {
     assert(!solver_context_);
     return r;
   }
-  assert(r == REFINE_SUCCESS);
 
+  assert(r == REFINE_SUCCESS);
   assert(learned_lemma);
-  if (learned_lemma->is_value()) {
-    // possible that simplification reduces the axiom to true
-    // it should definitely not be false
-    assert(learned_lemma == solver_true_);
-    logger.log(2, "IC3SA::refine falling back on value refinement");
-    r = ic3sa_refine_value(learned_lemma);
-    assert(learned_lemma);
-    assert(!learned_lemma->is_value());
-    assert(r == REFINE_SUCCESS);
-  }
+  assert(!learned_lemma->is_value());
 
   assert(!ts_.is_functional());
   assert(!solver_context_);
@@ -274,7 +300,48 @@ RefineResult IC3SA::refine()
     get_free_symbolic_consts(nt, projection_set_);
   }
 
-  // TODO handle refinement failure case if any
+  if (options_.ic3sa_interp_) {
+    assert(interpolator_);
+    // TODO: consider only going up until the refined length
+    //       currently no way to get it from the refinement functions
+
+    size_t cex_length = cex_.size();
+    TermVec formulae;
+    for (size_t i = 0; i < cex_length; ++i) {
+      // make sure from_interpolator_ cache is populated with unrolled symbols
+      register_symbol_mappings(i);
+
+      Term t = unroller_.at_time(cex_[i], i);
+      if (i + 1 < cex_length) {
+        t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
+      }
+      formulae.push_back(to_interpolator_->transfer_term(t, BOOL));
+    }
+
+    TermVec out_interpolants;
+    Result interp_res =
+        interpolator_->get_sequence_interpolants(formulae, out_interpolants);
+    assert(!interp_res.is_sat());
+
+    for (auto const & I : out_interpolants) {
+      if (!I) {
+        // should only have null terms if got unknown result
+        assert(interp_res.is_unknown());
+        continue;
+      }
+
+      Term solver_I =
+          unroller_.untime(from_interpolator_->transfer_term(I, BOOL));
+      assert(conc_ts_.only_curr(solver_I));
+      // TODO look into whether we should add symbols from these terms
+      // probably don't need to add symbols from these terms since this is
+      // optional
+      add_to_term_abstraction(solver_I);
+      logger.log(0, "IC3SA::refine interpolant {}", solver_I);
+    }
+
+    longest_unroll_ = cex_length;
+  }
 
   assert(!solver_context_);
   return r;
@@ -526,6 +593,16 @@ void IC3SA::initialize()
 {
   super::initialize();
 
+  if (options_.ic3sa_interp_) {
+#ifdef WITH_MSAT
+    interpolator_ = create_interpolating_solver_for(MSAT_INTERPOLATOR, engine_);
+    to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
+    from_interpolator_ = std::make_unique<TermTranslator>(solver_);
+#else
+    throw PonoException("Running IC3SA with interpolation requires MathSAT.");
+#endif
+  }
+
   // IC3SA assumes input variables are modeled as state variables
   // with no update function
   // This seems important because otherwise we need to drop terms
@@ -540,16 +617,48 @@ void IC3SA::initialize()
   assert(!ts_.inputvars().size());
 
   // set up initial term abstraction by getting all subterms
-  // TODO consider starting with only a subset -- e.g. variables
-  // TODO consider keeping a cache from terms to their free variables
-  //      for use in COI
 
-  // TODO make it an option to add ts_.trans()
-  // add_to_term_abstraction only keeps terms that only contain
-  // current state variables
-  add_to_term_abstraction(ts_.init());
-  add_to_term_abstraction(ts_.trans());
-  add_to_term_abstraction(bad_);
+  if (options_.ic3sa_initial_terms_lvl_ <= 2)
+  {
+    // for lower options, just add the leaves
+    UnorderedTermSet leaves;
+    get_leaves(ts_.init(), leaves);
+    get_leaves(ts_.trans(), leaves);
+    get_leaves(bad_, leaves);
+    for (const auto & leaf : leaves) {
+      add_to_term_abstraction(leaf);
+    }
+  }
+
+  if (options_.ic3sa_initial_terms_lvl_ == 1) {
+    // also add predicates from bad
+    UnorderedTermSet preds;
+    get_predicates(solver_, bad_, preds, false, false, true);
+    for (const auto & p : preds) {
+      add_to_term_abstraction(p);
+    }
+  } else if (options_.ic3sa_initial_terms_lvl_ == 2) {
+    // add predicates from init, trans, and bad
+    UnorderedTermSet preds;
+    get_predicates(solver_, ts_.init(), preds, false, false, true);
+    get_predicates(solver_, ts_.trans(), preds, false, false, true);
+    get_predicates(solver_, bad_, preds, false, false, true);
+    for (const auto & p : preds) {
+      add_to_term_abstraction(p);
+    }
+  } else if (options_.ic3sa_initial_terms_lvl_ == 3) {
+    // only add terms from init and bad
+    add_to_term_abstraction(ts_.init());
+    add_to_term_abstraction(bad_);
+  } else if (options_.ic3sa_initial_terms_lvl_ == 4) {
+    // add all terms and predicates
+    add_to_term_abstraction(ts_.init());
+    add_to_term_abstraction(ts_.trans());
+    add_to_term_abstraction(bad_);
+  } else {
+    // only supports 0-4
+    assert(!options_.ic3sa_initial_terms_lvl_);
+  }
 
   Sort boolsort = solver_->make_sort(BOOL);
   // not expecting boolean sorts in term abstraction
@@ -557,36 +666,6 @@ void IC3SA::initialize()
   // bit-vectors of size one and booleans
   assert(solver_->get_solver_enum() == BTOR
          || term_abstraction_.find(boolsort) == term_abstraction_.end());
-
-  // start projection set with all variables in constraints
-  // and in COI of constraints
-  // without this, IC3SA would (rarely) violate the invariant
-  // of ic3 that a predecessor at i (e.g. for F[i-1]) does
-  // not intersect with F[i-2]
-  // TODO understand why
-  const UnorderedTermMap & state_updates = ts_.state_updates();
-  UnorderedTermSet tmp_vars;
-  Term next_constraint;
-  for (const auto & elem : ts_.constraints()) {
-    assert(ts_.no_next(elem.first));
-    get_free_symbolic_consts(elem.first, projection_set_);
-
-    if (elem.second && ts_.only_curr(elem.first)) {
-      // need to add next state version also
-      next_constraint = ts_.next(elem.first);
-      tmp_vars.clear();
-      get_free_symbolic_consts(next_constraint, tmp_vars);
-      for (const auto & ntv : tmp_vars) {
-        assert(ts_.is_next_var(ntv));
-        Term cv = ts_.curr(ntv);
-        auto it = state_updates.find(cv);
-        if (it != state_updates.end()) {
-          assert(ts_.only_curr(it->second));
-          get_free_symbolic_consts(it->second, projection_set_);
-        }
-      }
-    }
-  }
 }
 
 // IC3SA specific methods
@@ -756,9 +835,7 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
     }
   } else if (sort == boolsort_
              && is_controlled(op.prim_op, solver_->get_value(c))) {
-    for (const auto & cc : get_controlling(c)) {
-      justify_coi(cc, projection);
-    }
+    justify_coi(get_controlling(c), projection);
   } else {
     for (const auto & cc : c) {
       justify_coi(cc, projection);
@@ -795,7 +872,7 @@ bool IC3SA::is_controlled(PrimOp po, const Term & val) const
   }
 }
 
-TermVec IC3SA::get_controlling(Term t) const
+Term IC3SA::get_controlling(Term t) const
 {
   assert(solver_context_);
 
@@ -819,14 +896,33 @@ TermVec IC3SA::get_controlling(Term t) const
     controlling_val = solver_->make_term(false);
   }
 
-  TermVec controlling_terms;
+  Term controlling_term;
   for (const auto & tt : t) {
     if (solver_->get_value(tt) == controlling_val) {
-      controlling_terms.push_back(tt);
+      controlling_term = tt;
+      break;
     }
   }
-  assert(controlling_terms.size());
-  return controlling_terms;
+  assert(controlling_term);
+  return controlling_term;
+}
+
+void IC3SA::register_symbol_mappings(size_t i)
+{
+  if (i < longest_unroll_) {
+    // these symbols should have already been handled
+  }
+
+  assert(interpolator_);
+  assert(to_interpolator_);
+  assert(from_interpolator_);
+
+  UnorderedTermMap & cache = from_interpolator_->get_cache();
+  Term unrolled_sv;
+  for (const auto & sv : ts_.statevars()) {
+    unrolled_sv = unroller_.at_time(sv, i);
+    cache[to_interpolator_->transfer_term(unrolled_sv)] = unrolled_sv;
+  }
 }
 
 void IC3SA::debug_print_equivalence_classes(EquivalenceClasses ec) const

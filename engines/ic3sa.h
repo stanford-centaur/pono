@@ -62,11 +62,26 @@ class IC3SA : public IC3
 
   smt::UnorderedTermSet projection_set_;  ///< variables always in projection
 
+  smt::SmtSolver interpolator_;
+  std::unique_ptr<smt::TermTranslator> to_interpolator_;
+  std::unique_ptr<smt::TermTranslator> from_interpolator_;
+
+  size_t longest_unroll_;
+
   // temporary data structure for conjunctive_assumptions
   smt::TermVec tmp_;
 
   // useful sort
   smt::Sort boolsort_;
+
+  /** Overriding the method. This will return the concrete_ts_ because ts_ is an
+   *  different (i.e., relational) view of the concrete_ts_.
+   *  TODO this can probably be simplified later
+   *       for CegarOpsUf, it has to be this way because otherwise
+   *       initialization doesn't work correctly, and ts_ is replaced by
+   *       a functional system when it should be relational
+   */
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; };
 
   // virtual method implementations
 
@@ -133,7 +148,7 @@ class IC3SA : public IC3
   bool is_controlled(smt::PrimOp po, const smt::Term & val) const;
 
   // helper function for justify_coi
-  smt::TermVec get_controlling(smt::Term t) const;
+  smt::Term get_controlling(smt::Term t) const;
 
   /** Check if a term is in the projection
    *  @param t the term to check
@@ -160,6 +175,16 @@ class IC3SA : public IC3
     }
     return in_projection;
   }
+
+  /** Register a state variable mapping in to_solver_
+   *  This is a bit ugly but it's needed because symbols aren't created in
+   * to_solver_ so it needs the mapping from interpolator_ symbols to solver_
+   * symbols
+   *  TODO look into a cleaner solution
+   *  @param i the unrolling for state variables
+   *         makes sure not to repeat work
+   */
+  void register_symbol_mappings(size_t i);
 
   // debug methods
   void debug_print_equivalence_classes(EquivalenceClasses ec) const;

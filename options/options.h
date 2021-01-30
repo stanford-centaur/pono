@@ -84,6 +84,7 @@ class PonoOptions
         reset_bnd_(default_reset_bnd_),
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
+        logging_smt_solver_(default_logging_smt_solver_),
         static_coi_(default_static_coi_),
         show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
@@ -94,6 +95,7 @@ class PonoOptions
         mbic3_indgen_mode(default_mbic3_indgen_mode),
         ic3_functional_preimage_(default_ic3_functional_preimage_),
         ic3_unsatcore_gen_(default_ic3_unsatcore_gen_),
+        ic3sa_func_refine_(default_ic3sa_func_refine_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
         cegp_axiom_red_(default_cegp_axiom_red_),
         profiling_log_filename_(default_profiling_log_filename_),
@@ -109,7 +111,10 @@ class PonoOptions
         sygus_initial_term_width_(default_sygus_initial_term_width_),
         sygus_initial_term_inc_(default_sygus_initial_term_inc_),
         sygus_accumulated_term_bound_(default_sygus_accumulated_term_bound_),
-        sygus_use_operator_abstraction_(default_sygus_use_operator_abstraction_)
+        sygus_use_operator_abstraction_(
+            default_sygus_use_operator_abstraction_),
+        ic3sa_initial_terms_lvl_(default_ic3sa_initial_terms_lvl_),
+        ic3sa_interp_(default_ic3sa_interp_)
   {
   }
 
@@ -132,6 +137,7 @@ class PonoOptions
   std::string clock_name_;
   std::string filename_;
   smt::SolverEnum smt_solver_;  ///< underlying smt solver
+  bool logging_smt_solver_;
   bool static_coi_;
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
@@ -146,6 +152,7 @@ class PonoOptions
   bool ic3_functional_preimage_; ///< functional preimage in IC3
   bool ic3_unsatcore_gen_;  ///< generalize a cube during relative inductiveness
                             ///< check with unsatcore
+  bool ic3sa_func_refine_;  ///< try functional unrolling in refinement
   // ceg-prophecy-arrays options
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
@@ -165,6 +172,9 @@ class PonoOptions
   unsigned sygus_initial_term_inc_; ///< SyGuS Control and data width seperator increment bound
   unsigned sygus_accumulated_term_bound_; ///< SyGuS Term accumulation bound count
   unsigned sygus_use_operator_abstraction_; ///< SyGuS abstract and avoid use some operators
+  size_t ic3sa_initial_terms_lvl_;  ///< configures where to find terms for
+                                    ///< initial abstraction
+  bool ic3sa_interp_;
 
  private:
   // Default options
@@ -182,6 +192,7 @@ class PonoOptions
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
   static const smt::SolverEnum default_smt_solver_ = smt::BTOR;
+  static const bool default_logging_smt_solver_ = false;
   static const bool default_ic3_pregen_ = true;
   static const bool default_ic3_indgen_ = true;
   static const unsigned int default_ic3_reset_interval_ = 5000;
@@ -189,6 +200,7 @@ class PonoOptions
   static const unsigned int default_mbic3_indgen_mode = 0;
   static const bool default_ic3_functional_preimage_ = false;
   static const bool default_ic3_unsatcore_gen_ = true;
+  static const bool default_ic3sa_func_refine_ = true;
   static const bool default_cegp_axiom_red_ = true;
   static const std::string default_profiling_log_filename_;
   static const bool default_pseudo_init_prop_ = false;
@@ -204,6 +216,9 @@ class PonoOptions
   static const unsigned default_sygus_initial_term_inc_ = 8;
   static const unsigned default_sygus_accumulated_term_bound_ = 0;
   static const unsigned default_sygus_use_operator_abstraction_ = 0;
+  // default is the highest level
+  static const size_t default_ic3sa_initial_terms_lvl_ = 4;
+  static const bool default_ic3sa_interp_ = false;
 };
 
 }  // namespace pono

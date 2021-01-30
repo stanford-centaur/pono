@@ -170,6 +170,33 @@ UnorderedTermSet get_free_symbols(const Term & term)
   return free_symbols;
 }
 
+void get_leaves(const Term & term, UnorderedTermSet & leaves)
+{
+  TermVec to_visit({ term });
+  UnorderedTermSet visited;
+
+  Term t;
+  while (!to_visit.empty()) {
+    t = to_visit.back();
+    to_visit.pop_back();
+
+    if (visited.find(t) != visited.end()) {
+      // cache hit
+      continue;
+    }
+    visited.insert(t);
+
+    for (const auto & tt : t) {
+      to_visit.push_back(tt);
+    }
+
+    if (t->get_op().is_null()) {
+      assert(t->is_symbol() || t->is_value());
+      leaves.insert(t);
+    }
+  }
+}
+
 void get_predicates(const SmtSolver & solver,
                     const Term & term,
                     UnorderedTermSet & out,

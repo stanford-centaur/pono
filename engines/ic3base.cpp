@@ -95,7 +95,7 @@ IC3Base::IC3Base(const Property & p,
                  PonoOptions opt)
     : super(p, ts, s, opt),
       reducer_(create_reducer_for(
-          s->get_solver_enum(), Engine::IC3IA_ENGINE, false)),
+          s->get_solver_enum(), Engine::IC3IA_ENGINE, opt.logging_smt_solver_)),
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),
