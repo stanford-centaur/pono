@@ -729,7 +729,7 @@ void IC3Base::predecessor_generalization_and_fix(size_t i,
   if (approx_pregen_ && i >= 2) {
     TermVec dropped;
     assert(orig_pred_children.size());
-    TermVec pred_children = pred.children;
+    const TermVec & pred_children = pred.children;
     UnorderedTermSet reduced_pred_children(pred_children.begin(),
                                            pred_children.end());
     for (const auto & cc : orig_pred_children) {
