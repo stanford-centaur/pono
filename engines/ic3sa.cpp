@@ -854,9 +854,7 @@ void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
     }
   } else if (sort == boolsort_
              && is_controlled(op.prim_op, solver_->get_value(c))) {
-    for (const auto & cc : get_controlling(c)) {
-      justify_coi(cc, projection);
-    }
+    justify_coi(get_controlling(c), projection);
   } else {
     for (const auto & cc : c) {
       justify_coi(cc, projection);
@@ -893,7 +891,7 @@ bool IC3SA::is_controlled(PrimOp po, const Term & val) const
   }
 }
 
-TermVec IC3SA::get_controlling(Term t) const
+Term IC3SA::get_controlling(Term t) const
 {
   assert(solver_context_);
 
@@ -917,14 +915,15 @@ TermVec IC3SA::get_controlling(Term t) const
     controlling_val = solver_->make_term(false);
   }
 
-  TermVec controlling_terms;
+  Term controlling_term;
   for (const auto & tt : t) {
     if (solver_->get_value(tt) == controlling_val) {
-      controlling_terms.push_back(tt);
+      controlling_term = tt;
+      break;
     }
   }
-  assert(controlling_terms.size());
-  return controlling_terms;
+  assert(controlling_term);
+  return controlling_term;
 }
 
 void IC3SA::register_symbol_mappings(size_t i)

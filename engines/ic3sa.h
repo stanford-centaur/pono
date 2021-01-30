@@ -148,7 +148,7 @@ class IC3SA : public IC3
   bool is_controlled(smt::PrimOp po, const smt::Term & val) const;
 
   // helper function for justify_coi
-  smt::TermVec get_controlling(smt::Term t) const;
+  smt::Term get_controlling(smt::Term t) const;
 
   /** Check if a term is in the projection
    *  @param t the term to check
