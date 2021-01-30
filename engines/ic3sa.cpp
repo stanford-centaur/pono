@@ -593,29 +593,17 @@ void IC3SA::initialize()
   assert(!ts_.inputvars().size());
 
   // set up initial term abstraction by getting all subterms
-  // TODO consider starting with only a subset -- e.g. variables
-  // TODO consider keeping a cache from terms to their free variables
-  //      for use in COI
 
-  // TODO make it an option to add ts_.trans()
-  // add_to_term_abstraction only keeps terms that only contain
-  // current state variables
-
-  // TODO make it an option to start with more terms
-
-  // TODO could optimize this more because there's redundant work
-  //      if the level is higher
-  //      but this is simpler to read
-
-  // always get leaves for the initial abstraction
-  // configuration with least number of terms
-  // just get the leaves
-  UnorderedTermSet leaves;
-  get_leaves(ts_.init(), leaves);
-  get_leaves(ts_.trans(), leaves);
-  get_leaves(bad_, leaves);
-  for (const auto & leaf : leaves) {
-    add_to_term_abstraction(leaf);
+  if (options_.ic3sa_initial_terms_lvl_ <= 2)
+  {
+    // for lower options, just add the leaves
+    UnorderedTermSet leaves;
+    get_leaves(ts_.init(), leaves);
+    get_leaves(ts_.trans(), leaves);
+    get_leaves(bad_, leaves);
+    for (const auto & leaf : leaves) {
+      add_to_term_abstraction(leaf);
+    }
   }
 
   if (options_.ic3sa_initial_terms_lvl_ == 1) {
