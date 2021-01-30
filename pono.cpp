@@ -37,7 +37,6 @@
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
-#include "smt-switch/logging_solver.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
@@ -247,15 +246,6 @@ int main(int argc, char ** argv)
                                     pono_options.engine_,
                                     false,
                                     pono_options.ceg_prophecy_arrays_);
-
-    if (pono_options.logging_smt_solver_) {
-      s = make_shared<LoggingSolver>(s);
-      if (pono_options.smt_solver_ == BTOR) {
-        // if using logging solver, makes sense to be able to
-        // reset assertions (which requires this option in BTOR)
-        s->set_opt("base-context-1", "true");
-      }
-    }
 
     // limitations with COI
     if (pono_options.static_coi_) {

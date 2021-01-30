@@ -37,14 +37,6 @@ bool is_predicate(const smt::Term & t,
  */
 smt::UnorderedTermSet get_free_symbols(const smt::Term & term);
 
-/** Returns all terms with no operator in the term
- *  e.g. symbols and values
- *  Note: includes uninterpreted functions
- *  @param term the term to traverse
- *  @param leaves the set to add to
- */
-void get_leaves(const smt::Term & term, smt::UnorderedTermSet & leaves);
-
 /** Extract all predicates from a term
  *  Traverses all the subterms of term and adds any predicates to out
  *  @param the solver to use (needed for building new terms when processing
