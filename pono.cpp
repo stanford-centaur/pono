@@ -250,11 +250,8 @@ int main(int argc, char ** argv)
 
     if (pono_options.logging_smt_solver_) {
       s = make_shared<LoggingSolver>(s);
-      if (pono_options.smt_solver_ == BTOR) {
-        // if using logging solver, makes sense to be able to
-        // reset assertions (which requires this option in BTOR)
-        s->set_opt("base-context-1", "true");
-      }
+      // TODO consider setting base-context-1 for BTOR here
+      //      to allow resetting assertions
     }
 
     // limitations with COI
