@@ -24,24 +24,29 @@ using namespace std;
 
 namespace pono {
 
-// set of boolean operators
+// set of operators which cannot be predicates
+// mostly boolean operators plus some special cases
+// and the bit-vector versions for boolector
 // boolean terms with these operators are not predicates
-unordered_set<PrimOp> boolops(
-    { And,
-      Or,
-      Xor,
-      Not,
-      Implies,
-      // Note: also including bit-vector operators for solvers that
-      //       alias bool and bv of size 1
-      //       should not make a difference for solvers that don't
-      //       alias, because it will check if it's a boolean first.
-      //       so this is just to make this method work for all solvers
-      BVAnd,
-      BVOr,
-      BVXor,
-      BVNand,
-      BVNot });
+unordered_set<PrimOp> nonpred_ops({
+    And,
+    Or,
+    Xor,
+    Not,
+    Implies,
+    Ite,
+    // Note: also including bit-vector operators for solvers that
+    //       alias bool and bv of size 1
+    //       should not make a difference for solvers that don't
+    //       alias, because it will check if it's a boolean first.
+    //       so this is just to make this method work for all solvers
+    BVAnd,
+    BVOr,
+    BVXor,
+    BVNand,
+    BVNot,
+    Extract  // otherwise boolector will count single-bit extracts
+});
 
 // helper functions
 
@@ -121,7 +126,7 @@ vector<TermVec> get_combinations(const vector<TermVec> & options)
 
 // end helper functions
 
-bool is_predicate(const Term & t, const Sort & boolsort)
+bool is_predicate(const Term & t, const Sort & boolsort, bool include_symbols)
 {
   if (t->get_sort() != boolsort) {
     return false;
@@ -129,15 +134,22 @@ bool is_predicate(const Term & t, const Sort & boolsort)
 
   const Op & op = t->get_op();
 
-  // no term with a null operator can be a predicate
-  if (op.is_null()) {
+  if (include_symbols && t->is_symbolic_const()) {
+    return true;
+  } else if (op.is_null()) {
+    // cannot be a predicate with a null op unless including symbols
     return false;
   }
 
-  if (boolops.find(op.prim_op) != boolops.end()) {
+  assert(!op.is_null());
+  if (nonpred_ops.find(op.prim_op) != nonpred_ops.end()) {
     // boolean operators cannot make predicates
+    // also included extract because otherwise boolector
+    // would include single-bit extracts
     return false;
   }
+
+  TermVec children(t->begin(), t->end());
 
   // boolean terms that do not use a boolean combination operator are
   // predicates
@@ -204,12 +216,8 @@ void get_predicates(const SmtSolver & solver,
         continue;
       }
 
-      if (t->is_symbol()) {
-        if (include_symbols) {
-          out.insert(t);
-        }
-        continue;
-      } else if (t->is_value()) {
+      if (t->is_value()) {
+        // values are not predicates
         continue;
       }
 
@@ -246,7 +254,7 @@ void get_predicates(const SmtSolver & solver,
           // add this term to the stack of terms to check for predicates
           to_visit.push_back(res);
         }
-      } else if (is_predicate(t, boolsort)) {
+      } else if (is_predicate(t, boolsort, include_symbols)) {
         out.insert(t);
         is_pred = true;
       }
@@ -256,6 +264,68 @@ void get_predicates(const SmtSolver & solver,
       }
     }
   }
+}
+
+TermVec remove_ites_under_model(const SmtSolver & solver, const TermVec & terms)
+{
+  UnorderedTermSet visited;
+  UnorderedTermMap cache;
+
+  TermVec to_visit = terms;
+  Term solver_true = solver->make_term(true);
+  Term t;
+  while (to_visit.size()) {
+    t = to_visit.back();
+    to_visit.pop_back();
+
+    if (visited.find(t) == visited.end()) {
+      to_visit.push_back(t);
+      visited.insert(t);
+      for (const auto & tt : t) {
+        to_visit.push_back(tt);
+      }
+    } else {
+      // post-order case
+
+      TermVec cached_children;
+      for (const auto & tt : t) {
+        cached_children.push_back(tt);
+      }
+      Op op = t->get_op();
+
+      if (op == Ite) {
+        if (solver->get_value(cached_children[0]) == solver_true) {
+          // if case
+          cache[t] = cached_children[1];
+        } else {
+          // else case
+          cache[t] = cached_children[2];
+        }
+      } else if (cached_children.size()) {
+        // rebuild to take into account any changes
+        if (!op.is_null()) {
+          cache[t] = solver->make_term(op, cached_children);
+        } else {
+          assert(cached_children.size() == 1);  // must be a constant array
+          assert(t->get_sort()->get_sort_kind() == ARRAY);
+          cache[t] = solver->make_term(cached_children[0], t->get_sort());
+        }
+      } else {
+        // just map to itself in the cache
+        // when there's no children
+        cache[t] = t;
+      }
+
+      assert(cache.find(t) != cache.end());
+    }
+  }
+
+  TermVec res;
+  res.reserve(terms.size());
+  for (const auto & tt : terms) {
+    res.push_back(cache.at(tt));
+  }
+  return res;
 }
 
 }  // namespace pono

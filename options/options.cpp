@@ -40,6 +40,7 @@ enum optionIndex
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
   STATICCOI,
+  SHOW_INVAR,
   CHECK_INVAR,
   RESET,
   RESET_BND,
@@ -110,7 +111,7 @@ const option::Descriptor usage[] = {
     "engine",
     Arg::NonEmpty,
     "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, "
-    "interp, mbic3, ic3bits, ic3ia, msat-ic3ia, sygus-pdr]." },
+    "interp, mbic3, ic3bits, ic3ia, msat-ic3ia, ic3sa, sygus-pdr]." },
   { BOUND,
     0,
     "k",
@@ -174,6 +175,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --static-coi \tApply static (i.e., one-time before solving) "
     "cone-of-influence analysis." },
+  { SHOW_INVAR,
+    0,
+    "",
+    "show-invar",
+    Arg::None,
+    "  --show-invar \tFor engines that produce invariants, show the "
+    "invariant" },
   { CHECK_INVAR,
     0,
     "",
@@ -408,6 +416,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case STATICCOI: static_coi_ = true; break;
+        case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;

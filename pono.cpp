@@ -152,8 +152,10 @@ ProverResult check_prop(PonoOptions pono_options,
           0,
           "Only got a partial witness from engine. Not suitable for printing.");
     }
-  } else if (r == TRUE && pono_options.check_invar_) {
-    Term invar = nullptr;
+  }
+
+  Term invar;
+  if (r == TRUE && (pono_options.show_invar_ || pono_options.check_invar_)) {
     try {
       invar = prover->invar();
     }
@@ -161,14 +163,19 @@ ProverResult check_prop(PonoOptions pono_options,
       std::cout << "Engine " << pono_options.engine_
                 << " does not support getting the invariant." << std::endl;
     }
-    if (invar) {
-      bool invar_passes = check_invar(ts, p.prop(), invar);
-      std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
-                << std::endl;
-      if (!invar_passes) {
-        // shouldn't return true if invariant is incorrect
-        throw PonoException("Invariant Check FAILED");
-      }
+  }
+
+  if (r == TRUE && pono_options.show_invar_ && invar) {
+    logger.log(0, "INVAR: {}", invar);
+  }
+
+  if (r == TRUE && pono_options.check_invar_ && invar) {
+    bool invar_passes = check_invar(ts, p.prop(), invar);
+    std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
+              << std::endl;
+    if (!invar_passes) {
+      // shouldn't return true if invariant is incorrect
+      throw PonoException("Invariant Check FAILED");
     }
   }
   return r;
@@ -258,6 +265,11 @@ int main(int argc, char ** argv)
                    "Warning: --mod-init-prop and --static-coi don't work "
                    "well together currently.");
       }
+    }
+    // default options for IC3SA
+    if (pono_options.engine_ == IC3SA_ENGINE) {
+      // IC3SA expects all state variables
+      pono_options.promote_inputvars_ = true;
     }
 
     // TODO: make this less ugly, just need to keep it in scope if using

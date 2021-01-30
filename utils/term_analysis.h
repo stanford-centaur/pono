@@ -24,9 +24,12 @@ namespace pono {
  *  @param t the term to check
  *  @param boolsort a boolean sort from the corresponding solver
  *         this way sort aliasing solvers are still supported
+ *  @param include_symbols if true then counts literals as predicates
  *  @return true iff t is a predicate
  */
-bool is_predicate(const smt::Term & t, const smt::Sort & boolsort);
+bool is_predicate(const smt::Term & t,
+                  const smt::Sort & boolsort,
+                  bool include_symbols = false);
 
 /** returns all the free (not bound to a quantifier) symbols
  *  in a Term
@@ -58,5 +61,18 @@ void get_predicates(const smt::SmtSolver & solver,
                     bool include_symbols = false,
                     bool search_subterms = false,
                     bool split_ites = false);
+
+/** Traverses the terms and replaces any ITEs with
+ *  their return value under the current model
+ *  @requires state of solver is SAT (no push/pop since last SAT call)
+ *  @param solver the solver associated with this term
+ *         where the last call to check_sat was SAT
+ *  @param terms the terms to replace ITEs in
+ *  @return the terms in the same order with ITEs replaced by
+ *          their symbolic return value under the model
+ *
+ */
+smt::TermVec remove_ites_under_model(const smt::SmtSolver & solver,
+                                     const smt::TermVec & terms);
 
 }  // namespace pono

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "core/ts.h"
+#include "utils/logger.h"
 
 namespace pono {
 class FunctionalConeOfInfluence
@@ -78,6 +79,9 @@ class FunctionalConeOfInfluence
 
   const TransitionSystem & ts_;
   int verbosity_;
+
+  Log local_logger_;  ///< local instance of a logger to respect this verbosity
+
   /* TermSets containing those state and input variables that appear
      in the term 'bad_' that represents the bad-state property. This
      information is used to rebuild the transition relation of the

@@ -37,6 +37,7 @@ enum Engine
   MBIC3,
   IC3IA_ENGINE,
   MSAT_IC3IA,
+  IC3SA_ENGINE,
   SYGUS_PDR
   // NOTE: if adding an IC3 variant,
   // make sure to update ic3_variants in smt/available_solvers.cpp
@@ -52,16 +53,17 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "ic3bits", IC3_BITS },
       { "ic3ia", IC3IA_ENGINE },
       { "msat-ic3ia", MSAT_IC3IA },
+      { "ic3sa", IC3SA_ENGINE },
       { "sygus-pdr", SYGUS_PDR } });
 
 // SyGuS mode option
-enum SyGuSTermMode{ 
+enum SyGuSTermMode{
   FROM_DESIGN_LEARN_EXT = 0,
   VAR_C_EXT = 1,
   SPLIT_FROM_DESIGN = 2,
   VAR_C_EQ_LT = 3,
   TERM_MODE_AUTO = 4
-}; 
+};
 
 /*************************************** Options class
  * ************************************************/
@@ -83,6 +85,7 @@ class PonoOptions
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
         static_coi_(default_static_coi_),
+        show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
         ic3_pregen_(default_ic3_pregen_),
         ic3_indgen_(default_ic3_indgen_),
@@ -130,6 +133,7 @@ class PonoOptions
   std::string filename_;
   smt::SolverEnum smt_solver_;  ///< underlying smt solver
   bool static_coi_;
+  bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
   // ic3 options
   bool ic3_pregen_;  ///< generalize counterexamples in IC3
@@ -172,6 +176,7 @@ class PonoOptions
   static const bool default_witness_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
   static const bool default_static_coi_ = false;
+  static const bool default_show_invar_ = false;
   static const bool default_check_invar_ = false;
   static const size_t default_reset_bnd_ = 1;
   // TODO distinguish when solver is not set and choose a
