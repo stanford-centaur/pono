@@ -138,6 +138,14 @@ void IC3SA::predecessor_generalization(size_t i,
   justify_coi(ts_.next(c), all_coi_symbols);
   assert(all_coi_symbols.size());
 
+  // justify the constraints
+  for (const auto & elem : ts_.constraints()) {
+    justify_coi(elem.first, all_coi_symbols);
+    if (elem.second && ts_.only_curr(elem.first)) {
+      justify_coi(ts_.next(elem.first), all_coi_symbols);
+    }
+  }
+
   // get rid of next-state variables
   UnorderedTermSet coi_symbols;
   for (const auto & tt : all_coi_symbols) {
@@ -658,36 +666,6 @@ void IC3SA::initialize()
   // bit-vectors of size one and booleans
   assert(solver_->get_solver_enum() == BTOR
          || term_abstraction_.find(boolsort) == term_abstraction_.end());
-
-  // start projection set with all variables in constraints
-  // and in COI of constraints
-  // without this, IC3SA would (rarely) violate the invariant
-  // of ic3 that a predecessor at i (e.g. for F[i-1]) does
-  // not intersect with F[i-2]
-  // TODO understand why
-  const UnorderedTermMap & state_updates = ts_.state_updates();
-  UnorderedTermSet tmp_vars;
-  Term next_constraint;
-  for (const auto & elem : ts_.constraints()) {
-    assert(ts_.no_next(elem.first));
-    get_free_symbolic_consts(elem.first, projection_set_);
-
-    if (elem.second && ts_.only_curr(elem.first)) {
-      // need to add next state version also
-      next_constraint = ts_.next(elem.first);
-      tmp_vars.clear();
-      get_free_symbolic_consts(next_constraint, tmp_vars);
-      for (const auto & ntv : tmp_vars) {
-        assert(ts_.is_next_var(ntv));
-        Term cv = ts_.curr(ntv);
-        auto it = state_updates.find(cv);
-        if (it != state_updates.end()) {
-          assert(ts_.only_curr(it->second));
-          get_free_symbolic_consts(it->second, projection_set_);
-        }
-      }
-    }
-  }
 }
 
 // IC3SA specific methods
