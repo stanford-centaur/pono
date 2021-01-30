@@ -158,6 +158,7 @@ shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
       make_shared<CegarOpsUf<IC3IA>>(p, ts, slv, opts);
   prover->set_ops_to_abstract(
       { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+  prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
   return prover;
 }
 
