@@ -74,7 +74,8 @@ IC3Formula IC3SA::get_model_ic3formula() const
     }
   }
 
-  EquivalenceClasses ec = get_equivalence_classes_from_model(ts_.statevars());
+  EquivalenceClasses ec;
+  get_equivalence_classes_from_model(ts_.statevars(), ec);
   construct_partition(ec, cube_lits);
   IC3Formula cube =
       ic3formula_conjunction(TermVec(cube_lits.begin(), cube_lits.end()));
@@ -165,7 +166,8 @@ void IC3SA::predecessor_generalization(size_t i,
     }
   }
 
-  EquivalenceClasses ec = get_equivalence_classes_from_model(coi_symbols);
+  EquivalenceClasses ec;
+  get_equivalence_classes_from_model(coi_symbols, ec);
   construct_partition(ec, cube_lits);
   pred = ic3formula_conjunction(TermVec(cube_lits.begin(), cube_lits.end()));
   assert(ic3formula_check_valid(pred));
@@ -588,11 +590,11 @@ void IC3SA::initialize()
 
 // IC3SA specific methods
 
-EquivalenceClasses IC3SA::get_equivalence_classes_from_model(
-    const UnorderedTermSet & to_keep) const
+void IC3SA::get_equivalence_classes_from_model(const UnorderedTermSet & to_keep,
+                                               EquivalenceClasses & ec) const
 {
+  assert(!ec.size());
   // assumes the solver state is sat
-  EquivalenceClasses ec;
   for (const auto & elem : term_abstraction_) {
     const Sort & sort = elem.first;
     const UnorderedTermSet & terms = elem.second;
@@ -609,7 +611,6 @@ EquivalenceClasses IC3SA::get_equivalence_classes_from_model(
       }
     }
   }
-  return ec;
 }
 
 void IC3SA::construct_partition(const EquivalenceClasses & ec,

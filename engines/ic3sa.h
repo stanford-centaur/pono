@@ -108,10 +108,11 @@ class IC3SA : public IC3
    *  from the current model
    *  @requires solver_ state is sat
    *  @param to_keep - set of symbols to include in the partition
+   *  @param ec EquivalenceClasses to populate
    *  @return EquivalenceClass partition of the current term abstraction
    */
-  EquivalenceClasses get_equivalence_classes_from_model(
-      const smt::UnorderedTermSet & to_keep) const;
+  void get_equivalence_classes_from_model(const smt::UnorderedTermSet & to_keep,
+                                          EquivalenceClasses & ec) const;
 
   /** Generate the literals for the partition given by ec and add to cube
    *  @param ec the equivalence classes partition
