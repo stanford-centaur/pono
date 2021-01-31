@@ -108,8 +108,13 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
   }
 
   if (res == ProverResult::TRUE && super::invar_) {
-    // update the invariant
-    super::invar_ = aa_.concrete(super::invar_);
+    // TODO process the invariant
+    // currently disabling because the history / prophecy variables
+    // will make an invariant check fail
+    // need to replace with existential / universal variables
+    // // update the invariant
+    // super::invar_ = aa_.concrete(super::invar_);
+    super::invar_ = nullptr;
   }
 
   return res;
@@ -171,8 +176,13 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
   }
 
   if (res == ProverResult::TRUE && super::invar_) {
-    // update the invariant
-    super::invar_ = aa_.concrete(super::invar_);
+    // TODO process the invariant
+    // currently disabling because the history / prophecy variables
+    // will make an invariant check fail
+    // need to replace with existential / universal variables
+    // // update the invariant
+    // super::invar_ = aa_.concrete(super::invar_);
+    super::invar_ = nullptr;
   }
 
   return res;
