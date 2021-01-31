@@ -522,7 +522,7 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   }
 
   smt::UnorderedTermMap reduced_state_updates;
-  for (const auto & var : statevars_) {
+  for (const auto & var : state_vars_in_coi) {
     const auto & elem = state_updates_.find(var);
     if (elem != state_updates_.end()) {
       Term next_func = elem->second;
