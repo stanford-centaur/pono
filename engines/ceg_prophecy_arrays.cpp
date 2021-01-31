@@ -30,10 +30,10 @@
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
 #include "smt/available_solvers.h"
-
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 #include "utils/term_analysis.h"
+#include "utils/ts_analysis.h"
 
 #ifdef WITH_MSAT_IC3IA
 #include "engines/msat_ic3ia.h"
@@ -108,6 +108,12 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
   }
 
   if (res == ProverResult::TRUE && super::invar_) {
+    // check invariant on abstract system
+    bool pass = check_invar(
+        super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
+    if (!pass) {
+      throw PonoException("Invariant FAILURE in CegProphecyArrays");
+    }
     // TODO process the invariant
     // currently disabling because the history / prophecy variables
     // will make an invariant check fail
@@ -176,6 +182,12 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
   }
 
   if (res == ProverResult::TRUE && super::invar_) {
+    // check invariant on abstract system
+    bool pass = check_invar(
+        super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
+    if (!pass) {
+      throw PonoException("Invariant FAILURE in CegProphecyArrays");
+    }
     // TODO process the invariant
     // currently disabling because the history / prophecy variables
     // will make an invariant check fail
