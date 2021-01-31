@@ -497,7 +497,9 @@ void TransitionSystem::rebuild_trans_based_on_coi(
 
   /* Add global constraints added to previous 'trans_'. */
   // TODO: check potential optimizations in removing global constraints
-  for (const auto & e : constraints_) {
+  std::vector<std::pair<smt::Term, bool>> prev_constraints = constraints_;
+  constraints_.clear();
+  for (const auto & e : prev_constraints) {
     add_constraint(e.first, e.second);
   }
 
