@@ -51,12 +51,6 @@ msat_config get_msat_config_for_ic3(bool interp, const StringMap & options)
   // formula, so assigning it to true can't cause any Boolean conflict)
   msat_set_option(cfg, "theory.la.pure_equality_filtering", "true");
 
-  // Turn off propagation of toplevel information. This is just overhead in
-  // an IC3 context (where the solver is called hundreds of thousands of
-  // times). Moreover, using it makes "lightweight" model generation (see
-  // below) not effective
-  msat_set_option(cfg, "preprocessor.toplevel_propagation", "false");
-
   // Avoid splitting negated equalities !(t = 0) if t is of rational
   // type. Over the rationals, it is often cheaper to handle negated
   // equalities in a special way rather than relying on the general
