@@ -125,7 +125,10 @@ TEST_P(IC3SAUnitTests, SimpleCounterVar)
   Term prop_term = fts.make_term(BVUlt, x, eight);
   Property prop(fts.solver(), prop_term);
 
-  IC3SA ic3sa(prop, fts, s);
+  PonoOptions opts;
+  opts.ic3sa_func_refine_ = false;
+
+  IC3SA ic3sa(prop, fts, s, opts);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
