@@ -78,7 +78,7 @@ public:
    *  @return the partial model and the var/val cube
    */
   std::pair<IC3Formula,syntax_analysis::IC3FormulaModel> 
-    GetPartialModelInCube(const smt::Term & ast, bool must_block);
+    GetPartialModelInCube(const smt::Term & ast);
 
 
   // add an API to use buffers 

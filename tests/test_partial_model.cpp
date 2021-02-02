@@ -43,7 +43,7 @@ class DynamicCoiUnitTests :
       auto ast = EQ(p, u);        \
       s->assert_formula(ast);            \
       if ( s->check_sat().is_sat() ) {   \
-        auto m_cube = pt.GetPartialModelInCube(ast, true);   \
+        auto m_cube = pt.GetPartialModelInCube(ast);   \
         std::cout << "expr: " << ast << std::endl; \
         std::cout << m_cube.first.term << std::endl;     \
         std::cout << m_cube.second.to_string() << std::endl; \
