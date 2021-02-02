@@ -40,17 +40,20 @@ enum optionIndex
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
   STATICCOI,
+  SHOW_INVAR,
   CHECK_INVAR,
   RESET,
   RESET_BND,
   CLK,
   SMT_SOLVER,
+  LOGGING_SMT_SOLVER,
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
   IC3_RESET_INTERVAL,
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
   NO_IC3_UNSATCORE_GEN,
+  NO_IC3SA_FUNC_REFINE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
   PSEUDO_INIT_PROP,
@@ -58,8 +61,11 @@ enum optionIndex
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
   CEG_BV_ARITH,
+  CEG_BV_ARITH_MIN_BW,
   PROMOTE_INPUTVARS,
-  SYGUS_OP_LVL
+  SYGUS_OP_LVL,
+  IC3SA_INITIAL_TERMS_LVL,
+  IC3SA_INTERP
 };
 
 struct Arg : public option::Arg
@@ -109,7 +115,7 @@ const option::Descriptor usage[] = {
     "engine",
     Arg::NonEmpty,
     "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, "
-    "interp, mbic3, ic3bits, ic3ia, msat-ic3ia, sygus-pdr]." },
+    "interp, mbic3, ic3bits, ic3ia, msat-ic3ia, ic3sa, sygus-pdr]." },
   { BOUND,
     0,
     "k",
@@ -145,7 +151,16 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT Solver to use: btor or msat or cvc4." },
+    "  --smt-solver \tSMT Solver to use: btor, msat, or cvc4." },
+  { LOGGING_SMT_SOLVER,
+    0,
+    "",
+    "logging-smt-solver",
+    Arg::None,
+    "  --logging-smt-solver \tUse Smt-Switch logging solver which "
+    "guarantees the exact term structure that was created. Good "
+    "for avoiding term rewriting at the API level or sort aliasing. "
+    "(default: false)" },
   { WITNESS,
     0,
     "",
@@ -173,6 +188,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --static-coi \tApply static (i.e., one-time before solving) "
     "cone-of-influence analysis." },
+  { SHOW_INVAR,
+    0,
+    "",
+    "show-invar",
+    Arg::None,
+    "  --show-invar \tFor engines that produce invariants, show the "
+    "invariant" },
   { CHECK_INVAR,
     0,
     "",
@@ -250,6 +272,13 @@ const option::Descriptor usage[] = {
     " variants but also runs the risk of myopic over-generalization. Some IC3"
     " variants have better inductive generalization and do better with this"
     " option." },
+  { NO_IC3SA_FUNC_REFINE,
+    0,
+    "",
+    "no-ic3sa-func-refine",
+    Arg::None,
+    "  --no-ic3sa-func-refine \tDisable functional unrolling attempt "
+    " in IC3SA." },
   { MBIC3_INDGEN_MODE,
     0,
     "",
@@ -301,6 +330,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --ceg-bv-arith \tabstraction-refinement for the BV arithmetic operators "
     "(mul, div, rem, mod). (only supported for IC3IA)" },
+  { CEG_BV_ARITH_MIN_BW,
+    0,
+    "",
+    "ceg-bv-arith-min-bw",
+    Arg::Numeric,
+    "  --ceg-bv-arith-min-bw \tminimum bitwidth of operators to abstract - must be positive (default: 16) " },
   { PROMOTE_INPUTVARS,
     0,
     "",
@@ -308,12 +343,28 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --promote-inputvars \tpromote all input variables to state variables" },
   { SYGUS_OP_LVL,
-      0,
-      "",
-      "op-lv",
-      Arg::Numeric,
-      "  --op-lv \toperator abstraction level (0-2, default:0) (only "
-      "supported for SYGUS PDR)" },
+    0,
+    "",
+    "op-lv",
+    Arg::Numeric,
+    "  --op-lv \toperator abstraction level (0-2, default:2) (only "
+    "supported for SYGUS PDR)" },
+  { IC3SA_INITIAL_TERMS_LVL,
+    0,
+    "",
+    "ic3sa-initial-terms-lvl",
+    Arg::Numeric,
+    "  --ic3sa-initial-terms-lvl \tConfigures where to find terms for "
+    "the initial abstraction. Higher numbers means more terms and "
+    "predicates will be included in the inital abstraction [0-4] (default: "
+    "4)." },
+  { IC3SA_INTERP,
+    0,
+    "",
+    "ic3sa-interp",
+    Arg::None,
+    "  --ic3sa-interp \tuse interpolants to find more terms during refinement "
+    "(default: off)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -397,10 +448,12 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           }
           break;
         }
+        case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
         case WITNESS: witness_ = true; break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case STATICCOI: static_coi_ = true; break;
+        case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
@@ -417,6 +470,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
         case NO_IC3_UNSATCORE_GEN: ic3_unsatcore_gen_ = false; break;
+        case NO_IC3SA_FUNC_REFINE: ic3sa_func_refine_ = false; break;
         case PROFILING_LOG_FILENAME:
 #ifndef WITH_PROFILING
           throw PonoException(
@@ -431,8 +485,18 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
         case CEG_BV_ARITH: ceg_bv_arith_ = true; break;
+        case CEG_BV_ARITH_MIN_BW: ceg_bv_arith_min_bw_ = atoi(opt.arg); break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case SYGUS_OP_LVL: sygus_use_operator_abstraction_ = atoi(opt.arg); break;
+        case IC3SA_INITIAL_TERMS_LVL: {
+          ic3sa_initial_terms_lvl_ = atoi(opt.arg);
+          if (ic3sa_initial_terms_lvl_ > 4) {
+            throw PonoException(
+                "--ic3sa-initial-terms-lvl must be an integer in [0, 4]");
+          }
+          break;
+        }
+        case IC3SA_INTERP: ic3sa_interp_ = true;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

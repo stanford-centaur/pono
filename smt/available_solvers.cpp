@@ -62,7 +62,7 @@ const std::vector<SolverEnum> solver_enums({
 // IC3 uses the solver in a different way, so different
 // options are appropriate than for other engines
 std::unordered_set<Engine> ic3_variants(
-    { IC3_BOOL, IC3_BITS, MBIC3, IC3IA_ENGINE, MSAT_IC3IA });
+  { IC3_BOOL, IC3_BITS, MBIC3, IC3IA_ENGINE, MSAT_IC3IA, IC3SA_ENGINE, SYGUS_PDR });
 
 // internal method for creating a particular solver
 // doesn't set any options
@@ -118,6 +118,11 @@ SmtSolver create_solver_for(SolverEnum se,
 {
   SmtSolver s;
   bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
+  if (e == IC3SA_ENGINE) {
+    // IC3SA requires a full model
+    full_model = true;
+  }
+
   if (se != MSAT) {
     // no special options yet for solvers other than mathsat
     s = create_solver(se, logging);
@@ -131,6 +136,12 @@ SmtSolver create_solver_for(SolverEnum se,
       // only need boolean model
       opts["bool_model_generation"] = "true";
       opts["model_generation"] = "false";
+      // Reasoning from open-source IC3IA code (by Alberto Griggio):
+      // Turn off propagation of toplevel information. This is just overhead in
+      // an IC3 context (where the solver is called hundreds of thousands of
+      // times). Moreover, using it makes "lightweight" model generation (see
+      // below) not effective
+      opts["preprocessor.toplevel_propagation"] = "false";
     }
     msat_config cfg = get_msat_config_for_ic3(false, opts);
     msat_env env = msat_create_env(cfg);

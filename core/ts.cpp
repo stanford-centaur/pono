@@ -312,6 +312,11 @@ bool TransitionSystem::is_next_var(const Term & sv) const
   return (next_statevars_.find(sv) != next_statevars_.end());
 }
 
+bool TransitionSystem::is_input_var(const Term & sv) const
+{
+  return (inputvars_.find(sv) != inputvars_.end());
+}
+
 std::string TransitionSystem::get_name(const Term & t) const
 {
   const auto & it = term_to_name_.find(t);
@@ -492,7 +497,9 @@ void TransitionSystem::rebuild_trans_based_on_coi(
 
   /* Add global constraints added to previous 'trans_'. */
   // TODO: check potential optimizations in removing global constraints
-  for (const auto & e : constraints_) {
+  std::vector<std::pair<smt::Term, bool>> prev_constraints = constraints_;
+  constraints_.clear();
+  for (const auto & e : prev_constraints) {
     add_constraint(e.first, e.second);
   }
 
@@ -515,7 +522,7 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   }
 
   smt::UnorderedTermMap reduced_state_updates;
-  for (const auto & var : statevars_) {
+  for (const auto & var : state_vars_in_coi) {
     const auto & elem = state_updates_.find(var);
     if (elem != state_updates_.end()) {
       Term next_func = elem->second;

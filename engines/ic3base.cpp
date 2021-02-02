@@ -95,10 +95,11 @@ IC3Base::IC3Base(const Property & p,
                  PonoOptions opt)
     : super(p, ts, s, opt),
       reducer_(create_reducer_for(
-          s->get_solver_enum(), Engine::IC3IA_ENGINE, false)),
+          s->get_solver_enum(), Engine::IC3IA_ENGINE, opt.logging_smt_solver_)),
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),
+      approx_pregen_(false),
       boolsort_(solver_->make_sort(BOOL))
 {
 }
@@ -354,7 +355,7 @@ bool IC3Base::reaches_bad(IC3Formula & out)
 
     if (options_.ic3_pregen_) {
       // try to generalize if predecessor generalization enabled
-      predecessor_generalization(frames_.size(), bad_, out);
+      predecessor_generalization_and_fix(frames_.size(), bad_, out);
     }
 
     assert(out.term);
@@ -504,7 +505,7 @@ bool IC3Base::rel_ind_check(size_t i,
     if (get_pred) {
       out = get_model_ic3formula();
       if (options_.ic3_pregen_) {
-        predecessor_generalization(i, c.term, out);
+        predecessor_generalization_and_fix(i, c.term, out);
         assert(out.term);
         assert(out.children.size());
         assert(!out.disjunction);  // expecting a conjunction
@@ -709,6 +710,46 @@ bool IC3Base::propagate(size_t i)
   Fi.resize(k);
 
   return Fi.empty();
+}
+
+void IC3Base::predecessor_generalization_and_fix(size_t i,
+                                                 const Term & c,
+                                                 IC3Formula & pred)
+{
+  TermVec orig_pred_children;
+  if (approx_pregen_) {
+    assert(!pred.disjunction);
+    // save original predecessor conjuncts
+    orig_pred_children = pred.children;
+    assert(orig_pred_children.size());
+  }
+
+  predecessor_generalization(i, c, pred);
+
+  if (approx_pregen_ && i >= 2) {
+    TermVec dropped;
+    assert(orig_pred_children.size());
+    TermVec pred_children = pred.children;
+    UnorderedTermSet reduced_pred_children(pred_children.begin(),
+                                           pred_children.end());
+    for (const auto & cc : orig_pred_children) {
+      if (reduced_pred_children.find(cc) == reduced_pred_children.end()) {
+        dropped.push_back(cc);
+      }
+    }
+    // if predecessor generalization is approximate
+    // need to make sure it does not intersect with F[i-2]
+    Term formula = get_frame_term(i - 2);
+    formula = solver_->make_term(And, formula, pred.term);
+    bool unsat =
+        reducer_.reduce_assump_unsatcore(formula, dropped, pred_children);
+    assert(unsat);
+    pred = ic3formula_conjunction(pred_children);
+  }
+
+  assert(pred.term);
+  assert(pred.children.size());
+  assert(!pred.disjunction);  // expecting a conjunction
 }
 
 void IC3Base::push_frame()

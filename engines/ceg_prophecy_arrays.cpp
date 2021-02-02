@@ -25,14 +25,15 @@
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ic3ia.h"
+#include "engines/ic3sa.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
 #include "smt/available_solvers.h"
-
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 #include "utils/term_analysis.h"
+#include "utils/ts_analysis.h"
 
 #ifdef WITH_MSAT_IC3IA
 #include "engines/msat_ic3ia.h"
@@ -107,8 +108,19 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
   }
 
   if (res == ProverResult::TRUE && super::invar_) {
-    // update the invariant
-    super::invar_ = aa_.concrete(super::invar_);
+    // check invariant on abstract system
+    bool pass = check_invar(
+        super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
+    if (!pass) {
+      throw PonoException("Invariant FAILURE in CegProphecyArrays");
+    }
+    // TODO process the invariant
+    // currently disabling because the history / prophecy variables
+    // will make an invariant check fail
+    // need to replace with existential / universal variables
+    // // update the invariant
+    // super::invar_ = aa_.concrete(super::invar_);
+    super::invar_ = nullptr;
   }
 
   return res;
@@ -170,8 +182,19 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
   }
 
   if (res == ProverResult::TRUE && super::invar_) {
-    // update the invariant
-    super::invar_ = aa_.concrete(super::invar_);
+    // check invariant on abstract system
+    bool pass = check_invar(
+        super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
+    if (!pass) {
+      throw PonoException("Invariant FAILURE in CegProphecyArrays");
+    }
+    // TODO process the invariant
+    // currently disabling because the history / prophecy variables
+    // will make an invariant check fail
+    // need to replace with existential / universal variables
+    // // update the invariant
+    // super::invar_ = aa_.concrete(super::invar_);
+    super::invar_ = nullptr;
   }
 
   return res;
@@ -545,6 +568,7 @@ template class CegProphecyArrays<BmcSimplePath>;
 template class CegProphecyArrays<KInduction>;
 template class CegProphecyArrays<InterpolantMC>;
 template class CegProphecyArrays<ModelBasedIC3>;
+template class CegProphecyArrays<IC3SA>;
 
 #ifdef WITH_MSAT_IC3IA
 template class CegProphecyArrays<MsatIC3IA>;

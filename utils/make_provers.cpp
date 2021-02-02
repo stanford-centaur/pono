@@ -23,6 +23,7 @@
 #include "engines/cegar_values.h"
 #include "engines/ic3bits.h"
 #include "engines/ic3ia.h"
+#include "engines/ic3sa.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
@@ -38,7 +39,16 @@ using namespace std;
 
 namespace pono {
 
-vector<Engine> all_engines() { return { BMC, BMC_SP, KIND, INTERP, MBIC3 }; }
+vector<Engine> all_engines()
+{
+  return { BMC, BMC_SP, KIND, MBIC3,
+           #ifdef WITH_MSAT
+           INTERP,
+           IC3IA_ENGINE,
+           #endif
+           IC3SA_ENGINE
+  };
+}
 
 shared_ptr<Prover> make_prover(Engine e,
                                const Property & p,
@@ -74,6 +84,8 @@ shared_ptr<Prover> make_prover(Engine e,
   } else if (e == MSAT_IC3IA) {
     return make_shared<MsatIC3IA>(p, ts, slv, opts);
 #endif
+  } else if (e == IC3SA_ENGINE) {
+    return make_shared<IC3SA>(p, ts, slv, opts);
   } else if (e == SYGUS_PDR) {
     return make_shared<SygusPdr>(p, ts, slv, opts);
   } else {
@@ -110,6 +122,9 @@ shared_ptr<Prover> make_ceg_proph_prover(Engine e,
     return std::make_shared<CegProphecyArrays<MsatIC3IA>>(p, ts, slv, opts);
   }
 #endif
+  else if (e == IC3SA_ENGINE) {
+    return std::make_shared<CegProphecyArrays<IC3SA>>(p, ts, slv, opts);
+  }
   else {
     throw PonoException("Unhandled engine");
   }
@@ -135,15 +150,23 @@ shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
                                               const SmtSolver & slv,
                                               PonoOptions opts)
 {
-  if (e != IC3IA_ENGINE) {
-    throw PonoException("CegarOpsUf currently only supports IC3IA");
+  if (e == IC3IA_ENGINE) {
+    shared_ptr<CegarOpsUf<IC3IA>> prover =
+        make_shared<CegarOpsUf<IC3IA>>(p, ts, slv, opts);
+    prover->set_ops_to_abstract(
+        { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+    prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
+    return prover;
+  } else if (e == IC3SA_ENGINE) {
+    shared_ptr<CegarOpsUf<IC3SA>> prover =
+        make_shared<CegarOpsUf<IC3SA>>(p, ts, slv, opts);
+    prover->set_ops_to_abstract(
+        { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+    prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
+    return prover;
+  } else {
+    throw PonoException("CegarOpsUf currently only supports IC3IA and IC3SA");
   }
-
-  shared_ptr<CegarOpsUf<IC3IA>> prover =
-      make_shared<CegarOpsUf<IC3IA>>(p, ts, slv, opts);
-  prover->set_ops_to_abstract(
-      { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
-  return prover;
 }
 
 }  // namespace pono

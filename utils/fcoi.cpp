@@ -27,7 +27,7 @@ namespace pono {
 
 FunctionalConeOfInfluence::FunctionalConeOfInfluence(
     const TransitionSystem & ts, int verbosity)
-    : ts_(ts), verbosity_(verbosity)
+    : ts_(ts), verbosity_(verbosity), local_logger_(verbosity_)
 {
   if (!ts_.is_functional()) {
     throw PonoException(
@@ -49,7 +49,7 @@ void FunctionalConeOfInfluence::compute_coi(const TermVec & terms)
   UnorderedTermSet new_coi_input_vars;
 
   /* Traverse terms and collect all state/input variables. */
-  logger.log(1, "COI analysis");
+  local_logger_.log(1, "COI analysis");
 
   for (auto t : terms) {
     compute_term_coi(t, new_coi_state_vars, new_coi_input_vars);
@@ -63,7 +63,7 @@ void FunctionalConeOfInfluence::compute_coi(const TermVec & terms)
   for (auto sv : new_coi_input_vars) inputvars_in_coi_.insert(sv);
 
   /* Traverse constraints and collect all state/input variables. */
-  logger.log(1, "COI analysis: constraints");
+  local_logger_.log(1, "COI analysis: constraints");
   compute_coi_trans_constraints();
 
   /* Traverse next-state functions of state-variables that were
@@ -78,7 +78,7 @@ void FunctionalConeOfInfluence::compute_coi(const TermVec & terms)
     num_statevars = statevars_in_coi_.size();
     num_inputvars = inputvars_in_coi_.size();
 
-    logger.log(
+    local_logger_.log(
         1, "COI analysis: next-state functions, iteration {}", iterations);
     compute_coi_next_state_funcs();
 
@@ -91,15 +91,17 @@ void FunctionalConeOfInfluence::compute_coi(const TermVec & terms)
      precisely. */
 
   if (verbosity_ >= 3) {
-    logger.log(3, "COI analysis completed");
+    local_logger_.log(3, "COI analysis completed");
     for (auto var : statevars_in_coi_)
-      logger.log(3, "  - found COI statevar {}", var);
+      local_logger_.log(3, "  - found COI statevar {}", var);
     for (auto var : inputvars_in_coi_)
-      logger.log(3, "  - found COI inputvar {}", var);
+      local_logger_.log(3, "  - found COI inputvar {}", var);
 
-    logger.log(3, "Original system had:");
-    for (auto var : ts_.statevars()) logger.log(3, "  - statevar {}", var);
-    for (auto var : ts_.inputvars()) logger.log(3, "  - inputvar {}", var);
+    local_logger_.log(3, "Original system had:");
+    for (auto var : ts_.statevars())
+      local_logger_.log(3, "  - statevar {}", var);
+    for (auto var : ts_.inputvars())
+      local_logger_.log(3, "  - inputvar {}", var);
   }
 }
 
@@ -186,24 +188,24 @@ void FunctionalConeOfInfluence::compute_term_coi(
     if (coi_visited_terms_.find(cur) == coi_visited_terms_.end()) {
       /* Cache 'cur' and push its children. */
       coi_visited_terms_.insert(cur);
-      logger.log(3, "  visiting COI term: {}", cur);
+      local_logger_.log(3, "  visiting COI term: {}", cur);
       if (cur->is_symbol()) {
-        logger.log(3, "    ..is symbol");
+        local_logger_.log(3, "    ..is symbol");
         if (ts_.statevars().find(cur) != ts_.statevars().end()) {
           assert(ts_.inputvars().find(cur) == ts_.inputvars().end());
           assert(!ts_.is_next_var(cur));
-          logger.log(3, "collect COI statevar {}", cur);
+          local_logger_.log(3, "collect COI statevar {}", cur);
           new_coi_state_vars.insert(cur);
         } else if (ts_.inputvars().find(cur) != ts_.inputvars().end()) {
           assert(!ts_.is_curr_var(cur));
           assert(!ts_.is_next_var(cur));
-          logger.log(3, "collect COI inputvar {}", cur);
+          local_logger_.log(3, "collect COI inputvar {}", cur);
           new_coi_input_vars.insert(cur);
         }
       }
 
       for (auto child : cur) {
-        logger.log(3, "    pushing child: {}", child);
+        local_logger_.log(3, "    pushing child: {}", child);
         open_terms.push_back(child);
       }
     }
@@ -262,7 +264,7 @@ void FunctionalConeOfInfluence::compute_coi_trans_constraints()
   UnorderedTermSet new_coi_input_vars;
 
   for (const auto & e : ts_.constraints()) {
-    logger.log(3, "  trans constraints--constr: {}", e.first);
+    local_logger_.log(3, "  trans constraints--constr: {}", e.first);
     compute_term_coi(e.first, new_coi_state_vars, new_coi_input_vars);
   }
 
