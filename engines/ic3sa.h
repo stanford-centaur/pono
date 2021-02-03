@@ -145,7 +145,15 @@ class IC3SA : public IC3
 
   /** Identifies a set of variables to project an abstract state onto
    *  based on justification (controlling arguments) and COI
+   *  given the current model
    *  NOTE: will include next state symbols
+   *  @requires solver_ context to be satisfiable
+   *  @param term the term to traverse for relevant variables
+   *  @param projection the projection set of variables to add to
+   *  @ensures no calls to solver_
+   *  @ensures assignments to the variables added to projection are
+   *           sufficient for a satisfying assignment (e.g., they
+   *           constitute a partial model)
    */
   void justify_coi(smt::Term term, smt::UnorderedTermSet & projection);
 
