@@ -863,11 +863,7 @@ void IC3SA::justify_coi(Term term, UnorderedTermSet & projection)
         }
       }
 
-      UnorderedTermSet free_vars;
-      get_free_symbolic_consts(c, free_vars);
-      for (const auto & fv : free_vars) {
-        projection.insert(fv);
-      }
+      get_free_symbolic_consts(c, projection);
     }
   }
 }
