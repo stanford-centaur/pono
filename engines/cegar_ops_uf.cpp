@@ -20,6 +20,7 @@
 #include "core/rts.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
+#include "engines/ceg_prophecy_arrays.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -299,8 +300,16 @@ void CegarOpsUf<IC3SA>::refine_subprover_ts(const UnorderedTermSet & axioms,
   }
 }
 
+template <>
+void CegarOpsUf<CegProphecyArrays<IC3IA>>::refine_subprover_ts(const UnorderedTermSet & axioms,
+                                                               bool skip_init)
+{
+  super::refine_ts(axioms);
+}
+
 // TODO add other template classes
 template class CegarOpsUf<IC3IA>;
 template class CegarOpsUf<IC3SA>;
+template class CegarOpsUf<CegProphecyArrays<IC3IA>>;
 
 } // namespace pono
