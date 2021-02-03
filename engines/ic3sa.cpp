@@ -337,7 +337,7 @@ RefineResult IC3SA::refine()
       // probably don't need to add symbols from these terms since this is
       // optional
       add_to_term_abstraction(solver_I);
-      logger.log(0, "IC3SA::refine interpolant {}", solver_I);
+      logger.log(2, "IC3SA::refine interpolant {}", solver_I);
     }
 
     longest_unroll_ = cex_length;
