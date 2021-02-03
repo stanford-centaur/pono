@@ -151,12 +151,22 @@ shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
                                               PonoOptions opts)
 {
   if (e == IC3IA_ENGINE) {
-    shared_ptr<CegarOpsUf<IC3IA>> prover =
+    if (opts.ceg_prophecy_arrays_) {
+      // TODO: refactor
+      shared_ptr<CegarOpsUf<CegProphecyArrays<IC3IA>>> prover =
+        make_shared<CegarOpsUf<CegProphecyArrays<IC3IA>>>(p, ts, slv, opts);
+      prover->set_ops_to_abstract(
+          { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+      prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
+      return prover;
+    } else {
+      shared_ptr<CegarOpsUf<IC3IA>> prover =
         make_shared<CegarOpsUf<IC3IA>>(p, ts, slv, opts);
-    prover->set_ops_to_abstract(
-        { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
-    prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
-    return prover;
+      prover->set_ops_to_abstract(
+          { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+      prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
+      return prover;
+    }
   } else if (e == IC3SA_ENGINE) {
     shared_ptr<CegarOpsUf<IC3SA>> prover =
         make_shared<CegarOpsUf<IC3SA>>(p, ts, slv, opts);
