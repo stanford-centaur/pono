@@ -132,23 +132,6 @@ void SygusPdr::initialize()
   // I really need the prime variable for inputs
   // otherwise the corner cases are hard to handle...
  
- // has_assumption -- on the original one
-  has_assumptions = false;
-  for (const auto & c_initnext : ts_.constraints()) {
-    // if (!c_initnext.second)
-    //  continue; // should not matter
-    has_assumptions = true;
-    assert(ts_.no_next(c_initnext.first));
-    // if (no_next) {
-    constraints_curr_var_.push_back(c_initnext.first);
-    // translate input_var to next input_var
-    // but the state var ...
-    // we will get to next anyway
-    constraints_curr_var_.push_back(
-      next_curr_replace(ts_.next(c_initnext.first)));
-    // } // else skip
-  }
-
   super::initialize(); // I don't need the trans->prop thing
 
   bad_next_ = ts_.next(bad_); // bad is only available after parent's init
@@ -186,6 +169,24 @@ void SygusPdr::initialize()
 
   build_ts_related_info();
   
+
+ // has_assumption -- on the original one
+  has_assumptions = false;
+  assert(!nxt_state_updates_.empty());
+  for (const auto & c_initnext : ts_.constraints()) {
+    // if (!c_initnext.second)
+    //  continue; // should not matter
+    has_assumptions = true;
+    assert(ts_.no_next(c_initnext.first));
+    // if (no_next) {
+    constraints_curr_var_.push_back(c_initnext.first);
+    // translate input_var to next input_var
+    // but the state var ...
+    // we will get to next anyway
+    constraints_curr_var_.push_back(
+      next_curr_replace(ts_.next(c_initnext.first)));
+    // } // else skip
+  }
   // initialize the caches  
   // extract the operators
   op_extract_ = std::make_unique<syntax_analysis::OpExtractor>();
