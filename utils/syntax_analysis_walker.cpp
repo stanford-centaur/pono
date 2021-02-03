@@ -654,7 +654,11 @@ unsigned TermLearner::same_val_replace_ast( /*INOUT*/  PerVarsetInfo & varset_in
       for (const auto & oldterm : tvec_old) {
         for(const auto & newterm : tvec_new) {
           n_new_terms += replace_hierachically(oldterm, newterm, varset_info);
+          if (n_new_terms > 1024)
+            break;
         }
+        if (n_new_terms > 1024)
+          break;
       } // old -> new replacement
 
       // new -> new replacement
@@ -810,10 +814,20 @@ unsigned TermLearner::replace_hierachically_w_parent(
         old_children[idx] = orig;
       }
     } // replace_child_in_parent
+    // avoid replace 1-0
+    nterm += new_terms.size();
+    if (nterm > 0xff)
+      continue;
+    if ( p->get_sort()->get_sort_kind() == smt::SortKind::BOOL ||
+        (p->get_sort()->get_sort_kind() == smt::SortKind::BV &&
+         p->get_sort()->get_width() == 1))
+      continue;
     for (const auto & nt : new_terms) {
-        RD2(1,"  [TermLearner Replace] {} ==> {}", p->to_string(), nt->to_string());
-        nterm += 1 + replace_hierachically_w_parent(p, nt, varset_info,output_new_terms );
-          //ParentExtract::RegisterNewParentRelation(c, out.back());
+      RD2(1,"  [TermLearner Replace] {} ==> {}", p->to_string(), nt->to_string());
+      nterm += replace_hierachically_w_parent(p, nt, varset_info,output_new_terms );
+        //ParentExtract::RegisterNewParentRelation(c, out.back());
+      if (nterm > 0xff)
+        break;
     }
   }
   return nterm;
