@@ -348,7 +348,7 @@ const option::Descriptor usage[] = {
     "",
     "sygus-op-lv",
     Arg::Numeric,
-    "  --sygus-op-lv \toperator abstraction level (0-2, default:2) (only "
+    "  --sygus-op-lv \toperator abstraction level (0-2, default:0) (only "
     "for SYGUS PDR)" },
   { SYGUS_TERM_MODE,
     0,
