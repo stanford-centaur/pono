@@ -143,7 +143,11 @@ class IC3SA : public IC3
    */
   smt::UnorderedTermSet add_to_term_abstraction(const smt::Term & term);
 
-  void justify_coi(smt::Term c, smt::UnorderedTermSet & projection);
+  /** Identifies a set of variables to project an abstract state onto
+   *  based on justification (controlling arguments) and COI
+   *  NOTE: will include next state symbols
+   */
+  void justify_coi(smt::Term term, smt::UnorderedTermSet & projection);
 
   bool is_controlled(smt::PrimOp po, const smt::Term & val) const;
 

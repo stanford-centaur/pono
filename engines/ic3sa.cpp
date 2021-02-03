@@ -816,43 +816,58 @@ UnorderedTermSet IC3SA::add_to_term_abstraction(const Term & term)
   return new_terms;
 }
 
-void IC3SA::justify_coi(Term c, UnorderedTermSet & projection)
+void IC3SA::justify_coi(Term term, UnorderedTermSet & projection)
 {
   // expecting to have a satisfiable context
   // and IC3Base only solves at context levels > 0
   assert(solver_context_);
 
-  Op op = c->get_op();
-  Sort sort = c->get_sort();
-  if (op == Ite) {
-    TermVec children(c->begin(), c->end());
-    assert(children.size() == 3);
-    justify_coi(children[0], projection);
-    if (solver_->get_value(children[0]) == solver_true_) {
-      justify_coi(children[1], projection);
-    } else {
-      justify_coi(children[2], projection);
-    }
-  } else if (sort == boolsort_
-             && is_controlled(op.prim_op, solver_->get_value(c))) {
-    justify_coi(get_controlling(c), projection);
-  } else {
-    for (const auto & cc : c) {
-      justify_coi(cc, projection);
-    }
+  TermVec to_visit({ term });
+  UnorderedTermSet visited;
 
-    if (ts_.is_next_var(c)) {
-      const UnorderedTermMap & state_updates = ts_.state_updates();
-      Term curr_c = ts_.curr(c);
-      if (state_updates.find(curr_c) != state_updates.end()) {
-        justify_coi(state_updates.at(curr_c), projection);
+  Term c;
+  while (!to_visit.empty()) {
+    c = to_visit.back();
+    to_visit.pop_back();
+
+    if (visited.find(c) != visited.end()) {
+      // already visited
+      continue;
+    }
+    visited.insert(c);
+
+    Op op = c->get_op();
+    Sort sort = c->get_sort();
+    if (op == Ite) {
+      TermVec children(c->begin(), c->end());
+      assert(children.size() == 3);
+      to_visit.push_back(children[0]);
+      if (solver_->get_value(children[0]) == solver_true_) {
+        to_visit.push_back(children[1]);
+      } else {
+        to_visit.push_back(children[2]);
       }
-    }
+    } else if (sort == boolsort_
+               && is_controlled(op.prim_op, solver_->get_value(c))) {
+      to_visit.push_back(get_controlling(c));
+    } else {
+      for (const auto & cc : c) {
+        to_visit.push_back(cc);
+      }
 
-    UnorderedTermSet free_vars;
-    get_free_symbolic_consts(c, free_vars);
-    for (const auto & fv : free_vars) {
-      projection.insert(fv);
+      if (ts_.is_next_var(c)) {
+        const UnorderedTermMap & state_updates = ts_.state_updates();
+        Term curr_c = ts_.curr(c);
+        if (state_updates.find(curr_c) != state_updates.end()) {
+          to_visit.push_back(state_updates.at(curr_c));
+        }
+      }
+
+      UnorderedTermSet free_vars;
+      get_free_symbolic_consts(c, free_vars);
+      for (const auto & fv : free_vars) {
+        projection.insert(fv);
+      }
     }
   }
 }
