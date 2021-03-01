@@ -54,16 +54,6 @@ class SygusPdr : public IC3Base
   // virtual method implementations
   // -----------------------------------------------------------------
 
-  /** The difference from the base class is that it adds a layer of caching.
-   *  The reason is that I want to reuse those goals of unpushed lemmas 
-   *  The SyGuS part prefers to using the same goal as much as possible
-   *  Otherwise the related information about the goals will have to be 
-   *  regenerated. A canonical string may be possible to deduplicate goals
-   *  but there is no guarantee that the smt solving will always return the
-   *  same goal upon checking.
-   */
-  virtual bool reaches_bad(IC3Formula & out) override;
-
   virtual IC3Formula get_model_ic3formula() const override;
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;
@@ -100,11 +90,6 @@ class SygusPdr : public IC3Base
 
   // store the relation between IC3Formula to IC3Models
   std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> model2cube_;
-  // store the relation between lemmas and IC3Models
-  std::unordered_map<smt::Term, syntax_analysis::IC3FormulaModel *> lemma2cube_;
-  // the following is used for caching the proof goal
-  unsigned prev_frontier;
-  std::unordered_set<syntax_analysis::IC3FormulaModel *> cached_proof_goals;
 
   //std::unordered_map<syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3FormulaModel *>
   //  to_full_model_map_;

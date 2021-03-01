@@ -33,7 +33,7 @@ namespace syntax_analysis {
 // }
 
 IC3FormulaModel::IC3FormulaModel(IC3FormulaModel && f) :
-  cube_(std::move(f.cube_)), expr_(std::move(f.expr_)), must_block_(f.must_block_) {
+  cube_(std::move(f.cube_)), expr_(std::move(f.expr_)) {
 }
   
 IC3FormulaModel & IC3FormulaModel::operator=(IC3FormulaModel && other) {
@@ -41,7 +41,6 @@ IC3FormulaModel & IC3FormulaModel::operator=(IC3FormulaModel && other) {
     cube_ = std::move(other.cube_);
     expr_ = std::move(other.expr_);
   }
-  must_block_ = other.must_block_;
   return *this;
 }
 

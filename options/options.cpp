@@ -64,6 +64,7 @@ enum optionIndex
   CEG_BV_ARITH_MIN_BW,
   PROMOTE_INPUTVARS,
   SYGUS_OP_LVL,
+  SYGUS_TERM_MODE,
   IC3SA_INITIAL_TERMS_LVL,
   IC3SA_INTERP
 };
@@ -345,10 +346,17 @@ const option::Descriptor usage[] = {
   { SYGUS_OP_LVL,
     0,
     "",
-    "op-lv",
+    "sygus-op-lv",
     Arg::Numeric,
-    "  --op-lv \toperator abstraction level (0-2, default:2) (only "
-    "supported for SYGUS PDR)" },
+    "  --sygus-op-lv \toperator abstraction level (0-2, default:0) (only "
+    "for SYGUS PDR)" },
+  { SYGUS_TERM_MODE,
+    0,
+    "",
+    "sygus-term-mode",
+    Arg::Numeric,
+    "  --sygus-term-mode \tterm generation mode (0-4, default: 4 AUTO) "
+    "(0: more replace, 1: v/c ext 2: v/c split 3: v/c lt/le )" },
   { IC3SA_INITIAL_TERMS_LVL,
     0,
     "",
@@ -488,6 +496,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case CEG_BV_ARITH_MIN_BW: ceg_bv_arith_min_bw_ = atoi(opt.arg); break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case SYGUS_OP_LVL: sygus_use_operator_abstraction_ = atoi(opt.arg); break;
+        case SYGUS_TERM_MODE: sygus_term_mode_ = SyGuSTermMode(atoi(opt.arg)); break;
         case IC3SA_INITIAL_TERMS_LVL: {
           ic3sa_initial_terms_lvl_ = atoi(opt.arg);
           if (ic3sa_initial_terms_lvl_ > 4) {

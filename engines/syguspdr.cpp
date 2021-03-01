@@ -132,23 +132,6 @@ void SygusPdr::initialize()
   // I really need the prime variable for inputs
   // otherwise the corner cases are hard to handle...
  
- // has_assumption -- on the original one
-  has_assumptions = false;
-  for (const auto & c_initnext : ts_.constraints()) {
-    // if (!c_initnext.second)
-    //  continue; // should not matter
-    has_assumptions = true;
-    assert(ts_.no_next(c_initnext.first));
-    // if (no_next) {
-    constraints_curr_var_.push_back(c_initnext.first);
-    // translate input_var to next input_var
-    // but the state var ...
-    // we will get to next anyway
-    constraints_curr_var_.push_back(
-      next_curr_replace(ts_.next(c_initnext.first)));
-    // } // else skip
-  }
-
   super::initialize(); // I don't need the trans->prop thing
 
   bad_next_ = ts_.next(bad_); // bad is only available after parent's init
@@ -186,6 +169,24 @@ void SygusPdr::initialize()
 
   build_ts_related_info();
   
+
+ // has_assumption -- on the original one
+  has_assumptions = false;
+  assert(!nxt_state_updates_.empty());
+  for (const auto & c_initnext : ts_.constraints()) {
+    // if (!c_initnext.second)
+    //  continue; // should not matter
+    has_assumptions = true;
+    assert(ts_.no_next(c_initnext.first));
+    // if (no_next) {
+    constraints_curr_var_.push_back(c_initnext.first);
+    // translate input_var to next input_var
+    // but the state var ...
+    // we will get to next anyway
+    constraints_curr_var_.push_back(
+      next_curr_replace(ts_.next(c_initnext.first)));
+    // } // else skip
+  }
   // initialize the caches  
   // extract the operators
   op_extract_ = std::make_unique<syntax_analysis::OpExtractor>();
@@ -450,7 +451,6 @@ IC3Formula SygusPdr::inductive_generalization(
               base,
               pred_collector_.GetAllPredNext()
             );
-      lemma2cube_.emplace(ret.term, post_model);
 
       return ret;
     }
@@ -691,7 +691,7 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
   }
 
   syntax_analysis::IC3FormulaModel * partial_model = 
-    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial, false);
+    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
 
   assert(partial_model);
   model2cube_.emplace(conj_partial, partial_model);  
@@ -760,10 +760,10 @@ std::tuple<IC3Formula, syntax_analysis::IC3FormulaModel *, syntax_analysis::IC3F
     }
     // this is called from inductive_gen which should not create must block goal
     syntax_analysis::IC3FormulaModel * partial_model = 
-      new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial, false);
+      new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
 
     syntax_analysis::IC3FormulaModel * full_model = 
-      new syntax_analysis::IC3FormulaModel(std::move(cube_full), conj_full, false);
+      new syntax_analysis::IC3FormulaModel(std::move(cube_full), conj_full);
 
     assert(partial_model && full_model);
     model2cube_.emplace(conj_partial, partial_model);
@@ -829,7 +829,7 @@ std::pair<IC3Formula, syntax_analysis::IC3FormulaModel *>
     conjvec_partial.push_back(solver_true_);
   }
   syntax_analysis::IC3FormulaModel * partial_model = 
-    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial, true);
+    new syntax_analysis::IC3FormulaModel(std::move(cube_partial), conj_partial);
 
   assert(partial_model);
   model2cube_.emplace(conj_partial, partial_model);
@@ -1041,46 +1041,6 @@ void SygusPdr::disable_all_labels() {
   #undef NOT
 }
 
-
-bool SygusPdr::reaches_bad(IC3Formula & out) {
-  // let's look at frontier and frontier - 1
-  if (frontier_idx() <= 1)
-    return IC3Base::reaches_bad(out);
-  if (frontier_idx() > prev_frontier) {
-    assert(cached_proof_goals.empty());
-    prev_frontier = frontier_idx();
-
-    auto prev_fidx = frontier_idx()-1;
-    auto curr_fidx = frontier_idx();
-
-    for (const auto & f : frames_.at(prev_fidx)) {
-      assert(IN(f.term, lemma2cube_));
-      syntax_analysis::IC3FormulaModel * m = lemma2cube_.at(f.term);
-      if(m->is_must_block()) {
-        cached_proof_goals.insert(m);
-      }
-    }
-
-    for (const auto & f : frames_.at(curr_fidx)) {
-      assert(IN(f.term, lemma2cube_));
-      syntax_analysis::IC3FormulaModel * m = lemma2cube_.at(f.term);
-      if(m->is_must_block())
-        cached_proof_goals.erase(m);
-    }
-
-    logger.log(3, "Update proof goal cache @ F{} : get {} goals" , 
-      prev_frontier, cached_proof_goals.size() );
-  }
-
-  if (!cached_proof_goals.empty()) {
-    auto pos = cached_proof_goals.begin();
-    syntax_analysis::IC3FormulaModel * m = *(pos);
-    cached_proof_goals.erase(pos);
-    out = IC3Formula(m->to_expr() , {m->to_expr()}, false);
-    return true;
-  } // else
-  return IC3Base::reaches_bad(out);
-} // reaches_bad
 
 }  // namespace pono
 
