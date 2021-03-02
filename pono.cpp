@@ -28,51 +28,106 @@
 #endif
 
 #include "core/fts.h"
-#include "engines/ceg_prophecy_arrays.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
-#include "modifiers/coi.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/mod_ts_prop.h"
+#include "modifiers/prop_monitor.h"
+#include "modifiers/static_coi.h"
 #include "options/options.h"
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
-#include "prop.h"
+#include "smt-switch/logging_solver.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 #include "utils/ts_analysis.h"
-
-// TEMP do array abstraction directly here
-#include "modifiers/array_abstractor.h"
 
 using namespace pono;
 using namespace smt;
 using namespace std;
 
-
 ProverResult check_prop(PonoOptions pono_options,
-                        Property & p,
-                        SmtSolver & s,
-                        SmtSolver & second_solver,
+                        Term & prop,
+                        TransitionSystem & ts,
+                        const SmtSolver & s,
                         std::vector<UnorderedTermMap> & cex)
 {
-  logger.log(1, "Solving property: {}", p.name());
+  // get property name before it is rewritten
+  const string prop_name = ts.get_name(prop);
 
-  logger.log(3, "INIT:\n{}", p.transition_system().init());
-  logger.log(3, "TRANS:\n{}", p.transition_system().trans());
+  logger.log(1, "Solving property: {}", prop_name);
+  logger.log(3, "INIT:\n{}", ts.init());
+  logger.log(3, "TRANS:\n{}", ts.trans());
+
+  // modify the transition system and property based on options
+  if (!pono_options.clock_name_.empty()) {
+    Term clock_symbol = ts.lookup(pono_options.clock_name_);
+    toggle_clock(ts, clock_symbol);
+  }
+  if (!pono_options.reset_name_.empty()) {
+    std::string reset_name = pono_options.reset_name_;
+    bool negative_reset = false;
+    if (reset_name.at(0) == '~') {
+      reset_name = reset_name.substr(1, reset_name.length() - 1);
+      negative_reset = true;
+    }
+    Term reset_symbol = ts.lookup(reset_name);
+    if (negative_reset) {
+      SortKind sk = reset_symbol->get_sort()->get_sort_kind();
+      reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
+                                : s->make_term(Not, reset_symbol);
+    }
+    Term reset_done = add_reset_seq(ts, reset_symbol, pono_options.reset_bnd_);
+    // guard the property with reset_done
+    prop = ts.solver()->make_term(Implies, reset_done, prop);
+  }
+
+  if (pono_options.pseudo_init_prop_) {
+    ts = pseudo_init_and_prop(ts, prop);
+  }
+
+  if (pono_options.static_coi_) {
+    /* Compute the set of state/input variables related to the
+       bad-state property. Based on that information, rebuild the
+       transition relation of the transition system. */
+    StaticConeOfInfluence coi(ts, { prop }, pono_options.verbosity_);
+  }
+
+  if (pono_options.promote_inputvars_) {
+    ts = promote_inputvars(ts);
+    assert(!ts.inputvars().size());
+  }
+
+  if (!ts.only_curr(prop)) {
+    logger.log(1,
+               "Got next state or input variables in property. "
+               "Generating a monitor state.");
+    prop = add_prop_monitor(ts, prop);
+  }
+
+  if (pono_options.assume_prop_) {
+    // NOTE: crucial that pseudo_init_prop and add_prop_monitor passes are
+    // before this pass. Can't assume the non-delayed prop and also
+    // delay it
+    prop_in_trans(ts, prop);
+  }
+
+  Property p(s, prop, prop_name);
+
+  // end modification of the transition system and property
 
   Engine eng = pono_options.engine_;
 
   std::shared_ptr<Prover> prover;
-  if (pono_options.ceg_prophecy_arrays_) {
-    // don't instantiate the sub-prover directly
-    // just pass the engine to CegProphecyArrays
-    prover = std::make_shared<CegProphecyArrays>(pono_options, p, eng, s);
-  } else if (eng != INTERP) {
-    assert(!second_solver);
-    prover = make_prover(eng, p, s, pono_options);
+  if (pono_options.cegp_abs_vals_) {
+    prover = make_cegar_values_prover(eng, p, ts, s, pono_options);
+  } else if (pono_options.ceg_bv_arith_) {
+    prover = make_cegar_bv_arith_prover(eng, p, ts, s, pono_options);
+  } else if (pono_options.ceg_prophecy_arrays_) {
+    prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
   } else {
-    assert(second_solver);
-    prover = make_prover(eng, p, s, second_solver, pono_options);
+    prover = make_prover(eng, p, ts, s, pono_options);
   }
   assert(prover);
 
@@ -91,27 +146,37 @@ ProverResult check_prop(PonoOptions pono_options,
     r = prover->check_until(pono_options.bound_);
   }
 
-  if (r == FALSE && !pono_options.no_witness_) {
+  if (r == FALSE && pono_options.witness_) {
     bool success = prover->witness(cex);
     if (!success) {
       logger.log(
           0,
           "Only got a partial witness from engine. Not suitable for printing.");
     }
-  } else if (r == TRUE && pono_options.check_invar_) {
+  }
+
+  Term invar;
+  if (r == TRUE && (pono_options.show_invar_ || pono_options.check_invar_)) {
     try {
-      Term invar = prover->invar();
-      bool invar_passes = check_invar(p.transition_system(), p.prop(), invar);
-      std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
-                << std::endl;
-      if (!invar_passes) {
-        // shouldn't return true if invariant is incorrect
-        r = ProverResult::UNKNOWN;
-      }
+      invar = prover->invar();
     }
     catch (PonoException & e) {
       std::cout << "Engine " << pono_options.engine_
                 << " does not support getting the invariant." << std::endl;
+    }
+  }
+
+  if (r == TRUE && pono_options.show_invar_ && invar) {
+    logger.log(0, "INVAR: {}", invar);
+  }
+
+  if (r == TRUE && pono_options.check_invar_ && invar) {
+    bool invar_passes = check_invar(ts, p.prop(), invar);
+    std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
+              << std::endl;
+    if (!invar_passes) {
+      // shouldn't return true if invariant is incorrect
+      throw PonoException("Invariant Check FAILED");
     }
   }
   return r;
@@ -168,59 +233,50 @@ int main(int argc, char ** argv)
 #endif
   }
 
-  // TEMP comment out error catching now for debugging
-  // try {
-  SmtSolver s;
-  SmtSolver second_solver;
-  if (pono_options.engine_ == INTERP) {
-#ifdef WITH_MSAT
-      // need mathsat for interpolant based model checking
-      s = MsatSolverFactory::create(false);
-      second_solver = MsatSolverFactory::create_interpolating_solver();
-#else
-      throw PonoException(
-          "Interpolation-based model checking requires MathSAT and "
-          "this version of pono is built without MathSAT.\nPlease "
-          "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-          "Note: MathSAT has a custom license and you must assume all "
-          "responsibility for meeting the license requirements.");
+#ifdef NDEBUG
+  try {
 #endif
-    } else if (pono_options.ceg_prophecy_arrays_) {
-#ifdef WITH_MSAT
-      // need mathsat for integer solving
-      s = MsatSolverFactory::create(false);
-#else
-      throw PonoException("ProphIC3 only supported with MathSAT so far");
-#endif
-    } else {
-      if (pono_options.smt_solver_ == "msat") {
-#ifdef WITH_MSAT
-        s = MsatSolverFactory::create(false);
-#else
-        throw PonoException(
-            "This version of pono is built without MathSAT.\nPlease "
-            "setup smt-switch with MathSAT and reconfigure using --with-msat.\n"
-            "Note: MathSAT has a custom license and you must assume all "
-            "responsibility for meeting the license requirements.");
-#endif
-      } else if (pono_options.smt_solver_ == "btor") {
-        s = BoolectorSolverFactory::create(false);
-      } else if (pono_options.smt_solver_ == "cvc4") {
-        s = CVC4SolverFactory::create(false);
-      } else {
-        assert(false);
-      }
+    // no logging by default
+    // could create an option for logging solvers in the future
 
-      s->set_opt("produce-models", "true");
-      s->set_opt("incremental", "true");
+    // HACK bool_model_generation for IC3IA breaks CegProphecyArrays
+    // longer term fix will use a different solver in CegProphecyArrays,
+    // but for now just force full model generation in that case
+
+    SmtSolver s = create_solver_for(pono_options.smt_solver_,
+                                    pono_options.engine_,
+                                    false,
+                                    pono_options.ceg_prophecy_arrays_);
+
+    if (pono_options.logging_smt_solver_) {
+      s = make_shared<LoggingSolver>(s);
+      // TODO consider setting base-context-1 for BTOR here
+      //      to allow resetting assertions
     }
 
-    if (pono_options.static_coi_ && !pono_options.no_witness_) {
-      logger.log(
-          0,
-          "Warning: disabling witness production. Temporary restriction -- "
-          "Cannot produce witness with option --static-coi");
-      pono_options.no_witness_ = true;
+    // limitations with COI
+    if (pono_options.static_coi_) {
+      if (pono_options.witness_) {
+        logger.log(
+            0,
+            "Warning: disabling witness production. Temporary restriction -- "
+            "Cannot produce witness with option --static-coi");
+        pono_options.witness_ = false;
+      }
+      if (pono_options.pseudo_init_prop_) {
+        // Issue explained here:
+        // https://github.com/upscale-project/pono/pull/160 will be resolved
+        // once state variables removed by COI are removed from init then should
+        // do static-coi BEFORE mod-init-prop
+        logger.log(0,
+                   "Warning: --mod-init-prop and --static-coi don't work "
+                   "well together currently.");
+      }
+    }
+    // default options for IC3SA
+    if (pono_options.engine_ == IC3SA_ENGINE) {
+      // IC3SA expects all state variables
+      pono_options.promote_inputvars_ = true;
     }
 
     // TODO: make this less ugly, just need to keep it in scope if using
@@ -240,40 +296,11 @@ int main(int argc, char ** argv)
             + " is greater than the number of properties in file "
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
-      Term prop = propvec[pono_options.prop_idx_];
-      if (!pono_options.clock_name_.empty()) {
-        Term clock_symbol = fts.lookup(pono_options.clock_name_);
-        toggle_clock(fts, clock_symbol);
-      }
-      if (!pono_options.reset_name_.empty()) {
-        std::string reset_name = pono_options.reset_name_;
-        bool negative_reset = false;
-        if (reset_name.at(0) == '~') {
-          reset_name = reset_name.substr(1, reset_name.length() - 1);
-          negative_reset = true;
-        }
-        Term reset_symbol = fts.lookup(reset_name);
-        if (negative_reset) {
-          SortKind sk = reset_symbol->get_sort()->get_sort_kind();
-          reset_symbol = (sk == BV) ? s->make_term(BVNot, reset_symbol)
-                                    : s->make_term(Not, reset_symbol);
-        }
-        Term reset_done =
-            add_reset_seq(fts, reset_symbol, pono_options.reset_bnd_);
-        // guard the property with reset_done
-        prop = fts.solver()->make_term(Implies, reset_done, prop);
-      }
 
-      if (pono_options.static_coi_) {
-        /* Compute the set of state/input variables related to the
-           bad-state property. Based on that information, rebuild the
-           transition relation of the transition system. */
-        ConeOfInfluence coi(fts, { prop }, {}, pono_options.verbosity_);
-      }
+      Term prop = propvec[pono_options.prop_idx_];
 
       vector<UnorderedTermMap> cex;
-      Property p(fts, prop);
-      res = check_prop(pono_options, p, s, second_solver, cex);
+      res = check_prop(pono_options, prop, fts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -281,7 +308,7 @@ int main(int argc, char ** argv)
       if (res == FALSE) {
         cout << "sat" << endl;
         cout << "b" << pono_options.prop_idx_ << endl;
-        assert(!pono_options.no_witness_ || !cex.size());
+        assert(pono_options.witness_ || !cex.size());
         if (cex.size()) {
           print_witness_btor(btor_enc, cex);
           if (!pono_options.vcd_name_.empty()) {
@@ -310,32 +337,12 @@ int main(int argc, char ** argv)
             + " is greater than the number of properties in file "
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
+
       Term prop = propvec[pono_options.prop_idx_];
-      if (!pono_options.clock_name_.empty()) {
-        Term clock_symbol = rts.lookup(pono_options.clock_name_);
-        toggle_clock(rts, clock_symbol);
-      }
-      if (!pono_options.reset_name_.empty()) {
-        Term reset_symbol = rts.lookup(pono_options.reset_name_);
-        Term reset_done =
-            add_reset_seq(rts, reset_symbol, pono_options.reset_bnd_);
-        // guard the property with reset_done
-        prop = rts.solver()->make_term(Implies, reset_done, prop);
-      }
+      // get property name before it is rewritten
 
-      if (pono_options.static_coi_) {
-        // NOTE: currently only supports FunctionalTransitionSystem
-        // but let ConeOfInfluence throw the exception
-        // and this will change in the future
-        /* Compute the set of state/input variables related to the
-           bad-state property. Based on that information, rebuild the
-           transition relation of the transition system. */
-        ConeOfInfluence coi(rts, { prop }, {}, pono_options.verbosity_);
-      }
-
-      Property p(rts, prop);
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, p, s, second_solver, cex);
+      res = check_prop(pono_options, prop, rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -343,14 +350,15 @@ int main(int argc, char ** argv)
           0, "Property {} is {}", pono_options.prop_idx_, to_string(res));
 
       if (res == FALSE) {
-        assert(!pono_options.no_witness_ || cex.size() == 0);
+        cout << "sat" << endl;
+        assert(pono_options.witness_ || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
           for (auto elem : cex[t]) {
             cout << "\t" << elem.first << " : " << elem.second << endl;
           }
         }
-        assert(!pono_options.no_witness_ || pono_options.vcd_name_.empty());
+        assert(pono_options.witness_ || pono_options.vcd_name_.empty());
         if (!pono_options.vcd_name_.empty()) {
           VCDWitnessPrinter vcdprinter(rts, cex);
           vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
@@ -365,26 +373,28 @@ int main(int argc, char ** argv)
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }
-    // }
-    // catch (PonoException & ce) {
-    //   cout << ce.what() << endl;
-    //   cout << "error" << endl;
-    //   cout << "b" << pono_options.prop_idx_ << endl;
-    //   res = ProverResult::ERROR;
-    // }
-    // catch (SmtException & se) {
-    //   cout << se.what() << endl;
-    //   cout << "error" << endl;
-    //   cout << "b" << pono_options.prop_idx_ << endl;
-    //   res = ProverResult::ERROR;
-    // }
-    // catch (std::exception & e) {
-    //   cout << "Caught generic exception..." << endl;
-    //   cout << e.what() << endl;
-    //   cout << "error" << endl;
-    //   cout << "b" << pono_options.prop_idx_ << endl;
-    //   res = ProverResult::ERROR;
-    // }
+#ifdef NDEBUG
+  }
+  catch (PonoException & ce) {
+    cout << ce.what() << endl;
+    cout << "error" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
+  }
+  catch (SmtException & se) {
+    cout << se.what() << endl;
+    cout << "error" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
+  }
+  catch (std::exception & e) {
+    cout << "Caught generic exception..." << endl;
+    cout << e.what() << endl;
+    cout << "error" << endl;
+    cout << "b" << pono_options.prop_idx_ << endl;
+    res = ProverResult::ERROR;
+  }
+#endif
 
     if (!pono_options.profiling_log_filename_.empty()) {
 #ifdef WITH_PROFILING

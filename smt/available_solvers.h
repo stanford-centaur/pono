@@ -17,23 +17,9 @@
 #pragma once
 
 #include <iostream>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 
+#include "options/options.h"
 #include "smt-switch/smt.h"
-
-// these two always included
-#include "smt-switch/boolector_factory.h"
-#include "smt-switch/cvc4_factory.h"
-
-#if WITH_MSAT
-#include "smt-switch/msat_factory.h"
-#endif
-
-#if WITH_YICES2
-#include "smt-switch/yices2_factory.h"
-#endif
 
 namespace pono {
 
@@ -41,12 +27,37 @@ namespace pono {
  *  @param se the SolverEnum to identify which type of solver
  *  @param logging whether or not to keep track of term DAG at smt-switch level
  *         defaults to false because generally slower
+ *  @param set the incremental option for the solver
+ *  @param set the procude-model option for the solver
  *  @return an SmtSolver
  */
-smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false);
+smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false,
+                             bool incremental=true, bool produce_model=true);
+
+// same as create_solver but will set reasonable options
+// for particular engines (mostly IC3-variants)
+// the full_model parameter forces a solver configuration that supports full
+// model generation if it is false, it can still enable model generation
+// depending on the engine
+// TODO that is a hack fix for CegProphecyArrays. Remove it once
+// CegProphecyArrays uses it's own solver
+smt::SmtSolver create_solver_for(smt::SolverEnum se,
+                                 Engine e,
+                                 bool logging,
+                                 bool full_model = false);
+
+// same as create_solver but will set reasonable options
+// for a reducing solver (e.g. produce-models off)
+// unsat cores on
+// and other solver-specific options where appropriate
+smt::SmtSolver create_reducer_for(smt::SolverEnum se, Engine e, bool logging);
 
 /** Creates an interpolating SmtSolver of the provided type */
 smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);
+
+// same as create_interpolating_solver but will set reasonable options
+// for particular engines (mostly IC3-variants)
+smt::SmtSolver create_interpolating_solver_for(smt::SolverEnum se, Engine e);
 
 // collect all the available solvers
 std::vector<smt::SolverEnum> available_solver_enums();

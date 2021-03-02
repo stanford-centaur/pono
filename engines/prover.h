@@ -21,7 +21,6 @@
 #include "core/ts.h"
 #include "core/unroller.h"
 #include "options/options.h"
-
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -39,10 +38,9 @@ enum RefineResult
 class Prover
 {
  public:
-  Prover(Property & p, smt::SolverEnum se);
-  Prover(Property & p, const smt::SmtSolver & s);
-  Prover(const PonoOptions & opt, Property & p, smt::SolverEnum se);
-  Prover(const PonoOptions & opt, Property & p, const smt::SmtSolver & s);
+  Prover(const Property & p, const TransitionSystem & ts,
+         const smt::SmtSolver & s,
+         PonoOptions opt = PonoOptions());
 
   virtual ~Prover();
 
@@ -53,6 +51,14 @@ class Prover
   virtual ProverResult check_until(int k) = 0;
 
   virtual bool witness(std::vector<smt::UnorderedTermMap> & out);
+
+  /** Returns length of the witness
+   *  this can be cheaper than actually computing the witness
+   *  by default returns reached_k_+1, because reached_k_ was the
+   *  last step that completed without finding a bug
+   *  but some algorithms such as IC3 might need to follow the trace
+   */
+  virtual size_t witness_length() const;
 
   /** Gives a term representing an inductive invariant over current state
    * variables. Only valid if the property has been proven true. Only supported
@@ -87,24 +93,22 @@ class Prover
    */
   bool compute_witness();
 
+  /** Returns the reference of the interface ts, which is a copy of orig_ts but
+   *  built using solver_. By default, the method returns a reference to ts_.
+   *  The derived classes may be based on abstraction-refinement methods (e.g.
+   *  IC3IA). In that case, the method would return the concrete ts.
+   */
+  virtual TransitionSystem & prover_interface_ts() { return ts_; };
+
   bool initialized_;
 
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
-  Property property_;
-  TransitionSystem *
-      ts_;  ///< pointer to main transition system
-            ///< by default this is the one in property_
-            ///< however, this can change depending on the engine
-            ///< for example, a CEGAR technique will usually
-            ///< set the main ts_ to be the abstraction, and
-            ///< and keep a reference to the concrete transition system
-            ///< Additionally, the pointed-to transition system is NOT
-            ///< guaranteed to be fully initialized in the constructor
-            ///< of the engine
-            ///< this is because abstraction might not happen until later
-  TransitionSystem &
-      orig_ts_;  ///< reference to original TS before copied to new solver
+
+  Property orig_property_; ///< original property before copied to new solver
+  TransitionSystem orig_ts_;  ///< original TS before copied to new solver
+
+  TransitionSystem ts_;
 
   Unroller unroller_;
 
@@ -114,7 +118,9 @@ class Prover
 
   PonoOptions options_;
 
-  // NOTE: both witness_ and invar_ are use terms from the engine's solver
+  Engine engine_;
+
+  // NOTE: both witness_ and invar_ use terms from the engine's solver
 
   std::vector<smt::UnorderedTermMap> witness_; ///< populated by a witness if a CEX is found
 

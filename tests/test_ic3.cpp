@@ -20,10 +20,7 @@ class IC3UnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
-    s->set_opt("produce-unsat-cores", "true");
+    s = create_solver_for(GetParam(), IC3_BOOL, false);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
   }
@@ -46,9 +43,9 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
   rts.assign_next(s1, s->make_term(Or, s1, s2));
   rts.assign_next(s2, s2);
 
-  Property p(rts, s->make_term(Not, s1));
+  Property p(s, s->make_term(Not, s1));
 
-  IC3 ic3(p, s);
+  IC3 ic3(p, rts, s);
   ProverResult r = ic3.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -72,9 +69,9 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
   fts.assign_next(s1, s->make_term(Or, s1, s2));
   fts.assign_next(s2, s2);
 
-  Property p(fts, s->make_term(Not, s1));
+  Property p(s, s->make_term(Not, s1));
 
-  IC3 ic3(p, s);
+  IC3 ic3(p, fts, s);
   ProverResult r = ic3.prove();
   ASSERT_EQ(r, FALSE);
 }

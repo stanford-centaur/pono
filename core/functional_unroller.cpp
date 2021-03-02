@@ -25,9 +25,10 @@ using namespace std;
 namespace pono {
 
 FunctionalUnroller::FunctionalUnroller(const TransitionSystem & ts,
-                                       const SmtSolver & solver,
-                                       size_t interval)
-    : super(ts, solver), interval_(interval), true_(solver_->make_term(true))
+                                       size_t interval,
+                                       const string & time_identifier)
+  : super(ts, time_identifier), interval_(interval),
+    true_(solver_->make_term(true))
 {
   if (!ts.is_functional()) {
     throw PonoException(
@@ -61,7 +62,8 @@ UnorderedTermMap & FunctionalUnroller::var_cache_at_time(unsigned int k)
     create_new |= !t;
 
     for (auto v : ts_.statevars()) {
-      if (create_new || state_updates.find(v) == state_updates.end()) {
+      bool no_update = state_updates.find(v) == state_updates.end();
+      if (create_new || no_update) {
         Term new_v = var_at_time(v, t);
         subst[v] = new_v;
       }
@@ -70,8 +72,12 @@ UnorderedTermMap & FunctionalUnroller::var_cache_at_time(unsigned int k)
         assert(create_new);  // should be creating new symbols at 0
         // no extra constraints at 0
         continue;
+      } else if (no_update) {
+        // nothing more to be done for implicit inputs
+        continue;
       }
 
+      assert(!no_update);
       Term fun_subst =
           solver_->substitute(state_updates.at(v), time_cache_.at(t - 1));
 
@@ -84,6 +90,7 @@ UnorderedTermMap & FunctionalUnroller::var_cache_at_time(unsigned int k)
       } else {
         assert(!subst[v]);  // expecting to not have been set already (e.g. be
                             // null)
+
         subst[v] = fun_subst;
       }
     }

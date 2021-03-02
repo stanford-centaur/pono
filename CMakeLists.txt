@@ -141,38 +141,53 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
-  "${PROJECT_SOURCE_DIR}/core/prop.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
-  "${PROJECT_SOURCE_DIR}/core/adaptive_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/functional_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/proverresult.cpp"
   "${PROJECT_SOURCE_DIR}/engines/prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/bmc_simplepath.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/cegar_ops_uf.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/cegar_values.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3base.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3bits.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3ia.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/ic3sa.cpp"
   "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/engines/mbic3.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/syguspdr.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_node.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
-  "${PROJECT_SOURCE_DIR}/modifiers/coi.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/implicit_predicate_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/history_modifier.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/mod_ts_prop.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/ops_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/prophecy_modifier.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/static_coi.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/op_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/printers/vcd_witness_printer.cpp"
   "${PROJECT_SOURCE_DIR}/refiners/array_axiom_enumerator.cpp"
   "${PROJECT_SOURCE_DIR}/smt/available_solvers.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/fcoi.cpp"
   "${PROJECT_SOURCE_DIR}/utils/logger.cpp"
   "${PROJECT_SOURCE_DIR}/utils/make_provers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_analysis.cpp"
   "${PROJECT_SOURCE_DIR}/utils/term_walkers.cpp"
   "${PROJECT_SOURCE_DIR}/utils/ts_analysis.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/ts_manipulation.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/sygus_ic3formula_helper.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/sygus_predicate_constructor.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/str_util.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/partial_model.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/syntax_analysis_common.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/syntax_analysis_walker.cpp"
+  "${PROJECT_SOURCE_DIR}/utils/syntax_analysis.cpp"
   "${PROJECT_SOURCE_DIR}/options/options.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
@@ -181,6 +196,11 @@ set(SOURCES
 if (WITH_COREIR OR WITH_COREIR_EXTERN)
   add_definitions(-DWITH_COREIR)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
+endif()
+
+if (WITH_MSAT)
+  # need direct access to mathsat for setting options
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
 endif()
 
 if (WITH_MSAT_IC3IA)

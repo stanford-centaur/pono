@@ -1,7 +1,6 @@
 #include <utility>
 #include <vector>
 
-#include "core/adaptive_unroller.h"
 #include "core/fts.h"
 #include "core/functional_unroller.h"
 #include "core/rts.h"
@@ -37,7 +36,7 @@ TEST_P(UnrollerUnitTests, FTS_Unroll)
   counter_system(fts, fts.make_term(10, bvsort));
   Term x = fts.named_terms().at("x");
 
-  Unroller u(fts, s);
+  Unroller u(fts);
   Term x0 = u.at_time(x, 0);
   ASSERT_EQ(x0, u.at_time(x, 0));
 }
@@ -48,7 +47,7 @@ TEST_P(UnrollerUnitTests, RTS_Unroll)
   counter_system(rts, rts.make_term(10, bvsort));
   Term x = rts.named_terms().at("x");
 
-  Unroller u(rts, s);
+  Unroller u(rts);
   Term x0 = u.at_time(x, 0);
   ASSERT_EQ(x0, u.at_time(x, 0));
   Term x1 = u.at_time(x, 1);
@@ -62,7 +61,7 @@ TEST_P(UnrollerUnitTests, GetTime)
   counter_system(rts, rts.make_term(10, bvsort));
   Term x = rts.named_terms().at("x");
 
-  Unroller u(rts, s);
+  Unroller u(rts);
   Term x0 = u.at_time(x, 0);
   EXPECT_EQ(0, u.get_var_time(x0));
 
@@ -99,7 +98,7 @@ TEST_P(UnrollerUnitTests, StagedUnrolling)
   Term x = rts.make_statevar("x", bvsort);
   Term y = rts.make_statevar("y", bvsort);
 
-  Unroller u(rts, s);
+  Unroller u(rts);
   Term xpy = rts.make_term(BVAdd, x, y);
   Term x4py4 = u.at_time(xpy, 4);
 
@@ -125,15 +124,15 @@ TEST_P(UnrollerUnitTests, StagedUnrolling)
   EXPECT_EQ(x4py4_2, x4py4);
 }
 
-TEST_P(UnrollerUnitTests, AdaptiveUnroller)
+TEST_P(UnrollerUnitTests, Unroller)
 {
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", bvsort);
 
-  AdaptiveUnroller au(rts, s);
+  Unroller au(rts);
   Term x4 = au.at_time(x, 4);
 
-  // add a new variable after declaring the AdaptiveUnroller
+  // add a new variable after declaring the Unroller
   // this kind of unroller allows this
   Term y = rts.make_statevar("y", bvsort);
   Term xpy = rts.make_term(BVAdd, x, y);
@@ -160,7 +159,7 @@ TEST_P(UnrollerUnitTests, FunctionalUnroller)
   Term y = fts.make_statevar("y", bvsort);
   fts.assign_next(y, fts.make_term(BVAdd, y, inp));
 
-  FunctionalUnroller funroller(fts, s, 0);
+  FunctionalUnroller funroller(fts, 0);
 
   Term x0 = funroller.at_time(x, 0);
   EXPECT_TRUE(x0->is_symbolic_const());
@@ -203,6 +202,28 @@ TEST_P(UnrollerUnitTests, FunctionalUnroller)
   }
 
   EXPECT_THROW(funroller.at_time(fts.next(x), 4), PonoException) << "FunctionalUnroller can't handle next state variables" << endl;
+
+  // check untiming
+  // doesn't make tons of sense to untime a functional unrolling
+  // nevertheless there are certain times where it's needed
+  // just make sure you know what you're doing
+  // e.g. in real applications, probably need to substitute
+  // in values for input variables BEFORE untiming or you will
+  // get a nonsense formula
+  Term untimed_y = funroller.untime(unrolled_y);
+
+  free_vars.clear();
+  get_free_symbolic_consts(untimed_y, free_vars);
+  expected_free_vars.clear();
+  expected_free_vars.insert(y);
+  expected_free_vars.insert(inp);
+
+  EXPECT_EQ(free_vars.size(), expected_free_vars.size());
+
+  for (auto fv : expected_free_vars) {
+    EXPECT_TRUE(free_vars.find(fv) != free_vars.end())
+        << "Expected free variable " << fv << " not in untimed term" << endl;
+  }
 }
 
 TEST_P(UnrollerUnitTests, IntermittentFunctionalUnrolling)
@@ -212,7 +233,7 @@ TEST_P(UnrollerUnitTests, IntermittentFunctionalUnrolling)
   Term x = fts.named_terms().at("x");
 
   size_t interval = 4;
-  FunctionalUnroller funroller(fts, s, interval);
+  FunctionalUnroller funroller(fts, interval);
 
   Term x0 = funroller.at_time(x, 0);
   EXPECT_TRUE(x0->is_symbolic_const());

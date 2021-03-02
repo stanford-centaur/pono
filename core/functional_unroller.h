@@ -43,8 +43,8 @@ class FunctionalUnroller : public Unroller
    *
    */
   FunctionalUnroller(const TransitionSystem & ts,
-                     const smt::SmtSolver & solver,
-                     size_t interval = 0);
+                     size_t interval = 0,
+                     const std::string & time_identifier = "@");
 
   ~FunctionalUnroller() {}
 
@@ -59,7 +59,7 @@ class FunctionalUnroller : public Unroller
    *  @param k the time to unroll the term at
    *  @return the unrolled term
    */
-  smt::Term at_time(const smt::Term & t, unsigned int k);
+  smt::Term at_time(const smt::Term & t, unsigned int k) override;
 
   /** Provides extra constraints for a functional unrolling
    *  with intermittent fresh symbols

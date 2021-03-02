@@ -31,7 +31,6 @@ def test_cons_fts(create_solver):
 
     pono.coi_reduction(fts, [ out ])
 
-    assert len(fts.statevars) == 1
     assert regres in fts.statevars
     assert len(fts.inputvars) == 3
     assert a in fts.inputvars

@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include "core/adaptive_unroller.h"
+#include "core/unroller.h"
 #include "engines/ic3.h"
 #include "modifiers/implicit_predicate_abstractor.h"
 #include "smt-switch/term_translator.h"
@@ -41,26 +41,10 @@ class IC3IA : public IC3
  public:
   // itp_se is the SolverEnum for the interpolator
 
-  IC3IA(Property & p, smt::SolverEnum se, smt::SolverEnum itp_se);
-
-  IC3IA(Property & p, const smt::SmtSolver & s, smt::SolverEnum itp_se);
-
-  IC3IA(Property & p, const smt::SmtSolver & s, smt::SmtSolver itp);
-
-  IC3IA(const PonoOptions & opt,
-        Property & p,
-        smt::SolverEnum se,
-        smt::SolverEnum itp_se);
-
-  IC3IA(const PonoOptions & opt,
-        Property & p,
+  IC3IA(const Property & p,
+        const TransitionSystem & ts,
         const smt::SmtSolver & s,
-        smt::SolverEnum itp_se);
-
-  IC3IA(const PonoOptions & opt,
-        Property & p,
-        const smt::SmtSolver & s,
-        smt::SmtSolver itp);
+        PonoOptions opt = PonoOptions());
 
   virtual ~IC3IA() {}
 
@@ -71,12 +55,7 @@ class IC3IA : public IC3
   //       because we will pass them to ia_ and they must be
   //       be initialized first
 
-  TransitionSystem & conc_ts_;  ///< convenient reference to the concrete ts
-
-  RelationalTransitionSystem abs_ts_;  ///< the abstract ts
-                                       ///< after initialize, ts_ will point to
-                                       ///< this because the methods from IC3
-                                       ///< should operate on the abstraction
+  TransitionSystem conc_ts_;
 
   ImplicitPredicateAbstractor ia_;
 
@@ -96,13 +75,29 @@ class IC3IA : public IC3
   // hacked in for ic3ia-cvc4-pred
   // need to be able to unroll abstract ts (regular ic3ia doesn't)
   // and currently the unroller_ is over the conc_ts_
-  AdaptiveUnroller abs_unroller_;
+  Unroller abs_unroller_;
 
+  // Since MathSAT is the best solver for IC3IA it helps to use
+  // its bool_model_generation option which doesn't enable
+  // model generation for theories
+  // instead, we assign indicator labels to check the value of
+  // predicates. This should still work fine with other solvers
+  smt::UnorderedTermMap lbl2pred_;
+  smt::UnorderedTermSet predlbls_;
+  smt::UnorderedTermSet all_lbls_;  ///< for debugging assertions only
+                                    ///< keeps track of both polarities
+                                    ///< mostly needed because some solvers
+                                    ///< do automatic top-level propagation
+                                    ///< which means you can't count on a symbol
+                                    ///< staying a symbol
+
+  /** Overriding the method. This will return the concrete_ts_ because ts_ is an
+   *  abstraction of concrete_ts_.
+   */
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; };
   // pure virtual method implementations
 
-  IC3Formula get_model_ic3formula(
-      smt::TermVec * out_inputs = nullptr,
-      smt::TermVec * out_nexts = nullptr) const override;
+  IC3Formula get_model_ic3formula() const override;
 
   bool ic3formula_check_valid(const IC3Formula & u) const override;
 
@@ -116,11 +111,16 @@ class IC3IA : public IC3
 
   RefineResult refine() override;
 
+  void reset_solver() override;
+
+  bool is_global_label(const smt::Term & l) const override;
+
   // specific to IC3IA
+
+  void reabstract();
 
   /** Adds predicate to abstraction
    *  (calls ia_.add_predicate)
-   *  and also incrementally updates the local transition relation
    *  and declares a new predicate state var (in pred_statevars_)
    *  @param pred the predicate over current state variables
    *  @return true iff the predicate was new (not seen before)

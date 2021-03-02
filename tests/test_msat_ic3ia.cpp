@@ -22,9 +22,6 @@ class MsatIC3IAUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
-    s->set_opt("produce-unsat-cores", "true");
     boolsort = s->make_sort(BOOL);
     intsort = s->make_sort(INT);
   }
@@ -40,9 +37,9 @@ TEST_P(MsatIC3IAUnitTests, IntCounterSafe)
   rts.constrain_init(rts.make_term(Equal, c, rts.make_term(0, intsort)));
   rts.assign_next(c, rts.make_term(Plus, c, rts.make_term(1, intsort)));
 
-  Property p(rts, rts.make_term(Ge, c, rts.make_term(0, intsort)));
+  Property p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
 
-  MsatIC3IA msat_ic3ia(p, s);
+  MsatIC3IA msat_ic3ia(p, rts, s);
   ProverResult res = msat_ic3ia.prove();
   EXPECT_EQ(res, ProverResult::TRUE);
 
@@ -64,9 +61,9 @@ TEST_P(MsatIC3IAUnitTests, IntCounterUnsafe)
                     rts.next(c),
                     rts.make_term(Plus, c, rts.make_term(1, intsort)))));
 
-  Property p(rts, rts.make_term(Ge, c, rts.make_term(0, intsort)));
+  Property p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
 
-  MsatIC3IA msat_ic3ia(p, s);
+  MsatIC3IA msat_ic3ia(p, rts, s);
   ProverResult res = msat_ic3ia.prove();
   EXPECT_EQ(res, ProverResult::FALSE);
 

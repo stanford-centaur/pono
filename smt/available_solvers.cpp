@@ -14,9 +14,34 @@
 **
 **/
 
-#include "available_solvers.h"
+#include "smt/available_solvers.h"
+
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "assert.h"
+
+// these two always included
+#include "smt-switch/boolector_factory.h"
+#include "smt-switch/cvc4_factory.h"
+
+#if WITH_MSAT
+#include "smt-switch/msat_factory.h"
+// these are for setting specific options
+// e.g. in create_solver_for
+#include "smt-switch/logging_solver.h"
+#include "smt-switch/msat_solver.h"
+#include "smt/msat_options.h"
+
+#endif
+
+#if WITH_YICES2
+#include "smt-switch/yices2_factory.h"
+#endif
 
 using namespace smt;
+using namespace std;
 
 namespace pono {
 
@@ -33,37 +58,134 @@ const std::vector<SolverEnum> solver_enums({
 #endif
 });
 
-SmtSolver create_solver(SolverEnum se, bool logging)
+// keep this up-to-date for setting solver options
+// IC3 uses the solver in a different way, so different
+// options are appropriate than for other engines
+std::unordered_set<Engine> ic3_variants(
+  { IC3_BOOL, IC3_BITS, MBIC3, IC3IA_ENGINE, MSAT_IC3IA, IC3SA_ENGINE, SYGUS_PDR });
+
+// internal method for creating a particular solver
+// doesn't set any options
+SmtSolver create_solver_base(SolverEnum se, bool logging)
 {
+  SmtSolver s;
   switch (se) {
     case BTOR: {
-      return BoolectorSolverFactory::create(logging);
+      s = BoolectorSolverFactory::create(logging);
       break;
-      ;
     }
     case CVC4: {
-      return CVC4SolverFactory::create(logging);
+      s = CVC4SolverFactory::create(logging);
       break;
-      ;
     }
 #if WITH_MSAT
     case MSAT: {
-      return MsatSolverFactory::create(logging);
+      s = MsatSolverFactory::create(logging);
       break;
-      ;
     }
 #endif
 #if WITH_YICES2
     case YICES2: {
-      return Yices2SolverFactory::create(logging);
+      s = Yices2SolverFactory::create(logging);
       break;
-      ;
     }
 #endif
     default: {
       throw SmtException("Unhandled solver enum");
     }
   }
+
+  return s;
+}
+
+SmtSolver create_solver(SolverEnum se,
+                        bool logging,
+                        bool incremental,
+                        bool produce_model)
+{
+  SmtSolver s = create_solver_base(se, logging);
+
+  s->set_opt("incremental", incremental ? "true" : "false");
+  s->set_opt("produce-models", produce_model ? "true" : "false");
+
+  return s;
+}
+
+SmtSolver create_solver_for(SolverEnum se,
+                            Engine e,
+                            bool logging,
+                            bool full_model)
+{
+  SmtSolver s;
+  bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
+  if (e == IC3SA_ENGINE) {
+    // IC3SA requires a full model
+    full_model = true;
+  }
+
+  if (se != MSAT) {
+    // no special options yet for solvers other than mathsat
+    s = create_solver(se, logging);
+  }
+#ifdef WITH_MSAT
+  else if (se == MSAT && ic3_engine) {
+    // These will be managed by the solver object
+    // don't need to destroy
+    unordered_map<string, string> opts({ { "model_generation", "true" } });
+    if (!full_model && e == IC3IA_ENGINE) {
+      // only need boolean model
+      opts["bool_model_generation"] = "true";
+      opts["model_generation"] = "false";
+      // Reasoning from open-source IC3IA code (by Alberto Griggio):
+      // Turn off propagation of toplevel information. This is just overhead in
+      // an IC3 context (where the solver is called hundreds of thousands of
+      // times). Moreover, using it makes "lightweight" model generation (see
+      // below) not effective
+      opts["preprocessor.toplevel_propagation"] = "false";
+    }
+    msat_config cfg = get_msat_config_for_ic3(false, opts);
+    msat_env env = msat_create_env(cfg);
+    s = std::make_shared<MsatSolver>(cfg, env);
+    if (logging) {
+      s = make_shared<LoggingSolver>(s);
+    }
+    return s;
+  }
+#endif
+  else {
+    s = create_solver(se, logging);
+  }
+
+  assert(s);
+  if (ic3_engine) {
+    s->set_opt("produce-unsat-cores", "true");
+  }
+  return s;
+}
+
+SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
+{
+  SmtSolver s;
+  if (se != MSAT) {
+    s = create_solver_base(se, logging);
+    s->set_opt("incremental", "true");
+    s->set_opt("produce-unsat-cores", "true");
+  }
+#ifdef WITH_MSAT
+  else {
+    // no models needed for a reducer
+    unordered_map<string, string> opts({ { "model_generation", "false" } });
+    msat_config cfg = get_msat_config_for_ic3(false, opts);
+    msat_env env = msat_create_env(cfg);
+    s = std::make_shared<MsatSolver>(cfg, env);
+    if (logging) {
+      s = make_shared<LoggingSolver>(s);
+    }
+  }
+#endif
+
+  assert(s);
+  return s;
 }
 
 SmtSolver create_interpolating_solver(SolverEnum se)
@@ -74,6 +196,33 @@ SmtSolver create_interpolating_solver(SolverEnum se)
     case MSAT:
     case MSAT_INTERPOLATOR: {
       return MsatSolverFactory::create_interpolating_solver();
+      break;
+      ;
+    }
+#endif
+    default: {
+      throw SmtException("Unhandled solver enum");
+    }
+  }
+}
+
+SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
+{
+  if (ic3_variants.find(e) == ic3_variants.end()) {
+    return create_interpolating_solver(se);
+  }
+
+  switch (se) {
+#if WITH_MSAT
+      // for convenience -- accept any MSAT SolverEnum
+    case MSAT:
+    case MSAT_INTERPOLATOR: {
+      // These will be managed by the solver object
+      // don't need to destroy
+      msat_config cfg =
+          get_msat_config_for_ic3(true, { { "model_generation", "false" } });
+      msat_env env = msat_create_env(cfg);
+      return std::make_shared<MsatInterpolatingSolver>(cfg, env);
       break;
       ;
     }

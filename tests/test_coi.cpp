@@ -1,6 +1,6 @@
 #include "core/fts.h"
 #include "gtest/gtest.h"
-#include "modifiers/coi.h"
+#include "modifiers/static_coi.h"
 #include "smt/available_solvers.h"
 
 using namespace pono;
@@ -16,8 +16,6 @@ class CoiUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("produce-models", "true");
-    s->set_opt("incremental", "true");
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
   }
@@ -47,13 +45,11 @@ TEST_P(CoiUnitTests, SimpleCoiTest)
   Term out = fts.make_term(BVSub, regres, one);
   fts.name_term("out", out);
 
-  ConeOfInfluence coi(fts, { out });
+  StaticConeOfInfluence coi(fts, { out });
 
   const UnorderedTermSet & statevars = fts.statevars();
   const UnorderedTermSet & inputvars = fts.inputvars();
   const unordered_map<string, Term> & named_terms = fts.named_terms();
-  EXPECT_EQ(statevars.size(), 1);
-  EXPECT_TRUE(statevars.find(regres) != statevars.end());
   EXPECT_EQ(inputvars.size(), 3);
   EXPECT_TRUE(inputvars.find(a) != inputvars.end());
   EXPECT_TRUE(inputvars.find(b) != inputvars.end());

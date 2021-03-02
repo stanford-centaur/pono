@@ -1,10 +1,8 @@
-#include "gtest/gtest.h"
-
 #include "engines/ceg_prophecy_arrays.h"
-#include "engines/kinduction.h"
-#include "utils/logger.h"
-
+#include "gtest/gtest.h"
 #include "smt/available_solvers.h"
+#include "utils/logger.h"
+#include "utils/make_provers.h"
 
 #ifdef WITH_MSAT
 
@@ -19,6 +17,7 @@ TEST(CegProphecyArraysTest, Simple)
   set_global_logger_verbosity(1);
 
   SmtSolver s = create_solver(MSAT);
+  s->set_opt("produce-unsat-cores", "true");
   RelationalTransitionSystem rts(s);
   Sort bvsort8 = rts.make_sort(BV, 8);
   Sort bvsort32 = rts.make_sort(BV, 32);
@@ -39,9 +38,9 @@ TEST(CegProphecyArraysTest, Simple)
 
   Term prop_term = rts.make_term(
       BVUlt, rts.make_term(Select, a, j), rts.make_term(200, bvsort32));
-  Property prop(rts, prop_term);
-  CegProphecyArrays cegp(prop, INTERP, s);
-  ProverResult r = cegp.check_until(5);
+  Property prop(s, prop_term);
+  std::shared_ptr<Prover> cegp = make_ceg_proph_prover(INTERP, prop, rts, s);
+  ProverResult r = cegp->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 

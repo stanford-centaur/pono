@@ -36,25 +36,40 @@ enum optionIndex
   VERBOSITY,
   RANDOM_SEED,
   VCDNAME,
-  NOWITNESS,
+  WITNESS,
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
   STATICCOI,
+  SHOW_INVAR,
   CHECK_INVAR,
   RESET,
   RESET_BND,
   CLK,
   SMT_SOLVER,
+  LOGGING_SMT_SOLVER,
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
   IC3_RESET_INTERVAL,
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
+  NO_IC3_UNSATCORE_GEN,
+  NO_IC3SA_FUNC_REFINE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
   IC3IA_CVC4_PRED,
   IC3IA_CVC4_PRED_SIZE,
-  IC3IA_CVC4_PRED_ALL_CONSTS
+  IC3IA_CVC4_PRED_ALL_CONSTS,
+  PSEUDO_INIT_PROP,
+  ASSUME_PROP,
+  CEGP_ABS_VALS,
+  CEGP_ABS_VALS_CUTOFF,
+  CEG_BV_ARITH,
+  CEG_BV_ARITH_MIN_BW,
+  PROMOTE_INPUTVARS,
+  SYGUS_OP_LVL,
+  SYGUS_TERM_MODE,
+  IC3SA_INITIAL_TERMS_LVL,
+  IC3SA_INTERP
 };
 
 struct Arg : public option::Arg
@@ -104,7 +119,7 @@ const option::Descriptor usage[] = {
     "engine",
     Arg::NonEmpty,
     "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, "
-    "interp, mbic3, ic3ia, msat-ic3ia]." },
+    "interp, mbic3, ic3bits, ic3ia, msat-ic3ia, ic3sa, sygus-pdr]." },
   { BOUND,
     0,
     "k",
@@ -140,13 +155,22 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT Solver to use: btor or msat." },
-  { NOWITNESS,
+    "  --smt-solver \tSMT Solver to use: btor, msat, or cvc4." },
+  { LOGGING_SMT_SOLVER,
     0,
     "",
-    "no-witness",
+    "logging-smt-solver",
     Arg::None,
-    "  --no-witness \tDisable printing of witness." },
+    "  --logging-smt-solver \tUse Smt-Switch logging solver which "
+    "guarantees the exact term structure that was created. Good "
+    "for avoiding term rewriting at the API level or sort aliasing. "
+    "(default: false)" },
+  { WITNESS,
+    0,
+    "",
+    "witness",
+    Arg::None,
+    "  --witness \tPrint witness if the property is false." },
   { CEGPROPHARR,
     0,
     "",
@@ -168,6 +192,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --static-coi \tApply static (i.e., one-time before solving) "
     "cone-of-influence analysis." },
+  { SHOW_INVAR,
+    0,
+    "",
+    "show-invar",
+    Arg::None,
+    "  --show-invar \tFor engines that produce invariants, show the "
+    "invariant" },
   { CHECK_INVAR,
     0,
     "",
@@ -235,6 +266,23 @@ const option::Descriptor usage[] = {
     "ic3-functional-preimage",
     Arg::None,
     "  --ic3-functional-preimage \tUse functional preimage in ic3." },
+  { NO_IC3_UNSATCORE_GEN,
+    0,
+    "",
+    "no-ic3-unsatcore-gen",
+    Arg::None,
+    "  --no-ic3-unsatcore-gen \tDisable unsat core generalization during"
+    " relative induction check. That extra generalization helps several IC3"
+    " variants but also runs the risk of myopic over-generalization. Some IC3"
+    " variants have better inductive generalization and do better with this"
+    " option." },
+  { NO_IC3SA_FUNC_REFINE,
+    0,
+    "",
+    "no-ic3sa-func-refine",
+    Arg::None,
+    "  --no-ic3sa-func-refine \tDisable functional unrolling attempt "
+    " in IC3SA." },
   { MBIC3_INDGEN_MODE,
     0,
     "",
@@ -268,6 +316,84 @@ const option::Descriptor usage[] = {
     "ic3ia-cvc4-pred-all-consts",
     Arg::None,
     "  --ic3ia-cvc4-pred-all-consts \tuse all constants in the grammar."},
+  { PSEUDO_INIT_PROP,
+    0,
+    "",
+    "pseudo-init-prop",
+    Arg::None,
+    "  --pseudo-init-prop \tReplace init and prop with state variables -- can "
+    "extend trace by up to two steps. Recommended for use with ic3ia. "
+    "Important note: will promote system to be relational" },
+  { ASSUME_PROP,
+    0,
+    "",
+    "assume-prop",
+    Arg::None,
+    "  --assume-prop \tenable assuming property in pre-state (default "
+    "disabled)" },
+  { CEGP_ABS_VALS,
+    0,
+    "",
+    "cegp-abs-vals",
+    Arg::None,
+    "  --cegp-abs-vals \tabstract values in ceg-prophecy-arrays (only "
+    "supported for IC3IA)" },
+  { CEGP_ABS_VALS_CUTOFF,
+    0,
+    "",
+    "cegp-abs-vals-cutoff",
+    Arg::Numeric,
+    "  --cegp-abs-vals-cutoff \tcutoff value for what to abstract - must be "
+    "positive (default: 100)" },
+  { CEG_BV_ARITH,
+    0,
+    "",
+    "ceg-bv-arith",
+    Arg::None,
+    "  --ceg-bv-arith \tabstraction-refinement for the BV arithmetic operators "
+    "(mul, div, rem, mod). (only supported for IC3IA)" },
+  { CEG_BV_ARITH_MIN_BW,
+    0,
+    "",
+    "ceg-bv-arith-min-bw",
+    Arg::Numeric,
+    "  --ceg-bv-arith-min-bw \tminimum bitwidth of operators to abstract - must be positive (default: 16) " },
+  { PROMOTE_INPUTVARS,
+    0,
+    "",
+    "promote-inputvars",
+    Arg::None,
+    "  --promote-inputvars \tpromote all input variables to state variables" },
+  { SYGUS_OP_LVL,
+    0,
+    "",
+    "sygus-op-lv",
+    Arg::Numeric,
+    "  --sygus-op-lv \toperator abstraction level (0-2, default:0) (only "
+    "for SYGUS PDR)" },
+  { SYGUS_TERM_MODE,
+    0,
+    "",
+    "sygus-term-mode",
+    Arg::Numeric,
+    "  --sygus-term-mode \tterm generation mode (0-4, default: 4 AUTO) "
+    "(0: more replace, 1: v/c ext 2: v/c split 3: v/c lt/le )" },
+  { IC3SA_INITIAL_TERMS_LVL,
+    0,
+    "",
+    "ic3sa-initial-terms-lvl",
+    Arg::Numeric,
+    "  --ic3sa-initial-terms-lvl \tConfigures where to find terms for "
+    "the initial abstraction. Higher numbers means more terms and "
+    "predicates will be included in the inital abstraction [0-4] (default: "
+    "4)." },
+  { IC3SA_INTERP,
+    0,
+    "",
+    "ic3sa-interp",
+    Arg::None,
+    "  --ic3sa-interp \tuse interpolants to find more terms during refinement "
+    "(default: off)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -275,7 +401,6 @@ const option::Descriptor usage[] = {
 
 namespace pono {
 
-const std::string PonoOptions::default_smt_solver_ = "btor";
 const std::string PonoOptions::default_profiling_log_filename_ = "";
 
 Engine PonoOptions::to_engine(std::string s)
@@ -337,28 +462,27 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case RANDOM_SEED: random_seed_ = atoi(opt.arg); break;
         case VCDNAME:
           vcd_name_ = opt.arg;
-          if (no_witness_)
-            throw PonoException(
-                "Options '--vcd' and '--no-witness' are incompatible.");
+          witness_ = true;  // implicitly enabling witness
           break;
-      case SMT_SOLVER:
-          smt_solver_ = opt.arg;
-          if (smt_solver_ != "btor" && smt_solver_ != "cvc4"
-              && smt_solver_ != "msat") {
-            throw PonoException(
-                "Option '--smt-solver' can be either 'btor', 'cvc4', or "
-                "'msat'.");
+        case SMT_SOLVER: {
+          if (opt.arg == std::string("btor")) {
+            smt_solver_ = smt::BTOR;
+          } else if (opt.arg == std::string("cvc4")) {
+            smt_solver_ = smt::CVC4;
+          } else if (opt.arg == std::string("msat")) {
+            smt_solver_ = smt::MSAT;
+          } else {
+            throw PonoException("Unknown solver: " + std::string(opt.arg));
+            break;
           }
           break;
-        case NOWITNESS:
-          no_witness_ = true;
-          if (!vcd_name_.empty())
-            throw PonoException(
-                "Options '--vcd' and '--no-witness' are incompatible.");
-          break;
+        }
+        case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
+        case WITNESS: witness_ = true; break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
         case STATICCOI: static_coi_ = true; break;
+        case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
@@ -374,6 +498,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
                 "--ic3-indgen-mode value must be between 0 and 2.");
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
+        case NO_IC3_UNSATCORE_GEN: ic3_unsatcore_gen_ = false; break;
+        case NO_IC3SA_FUNC_REFINE: ic3sa_func_refine_ = false; break;
         case PROFILING_LOG_FILENAME:
 #ifndef WITH_PROFILING
           throw PonoException(
@@ -386,6 +512,24 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case IC3IA_CVC4_PRED: ic3ia_cvc4_pred_ = true; break;
         case IC3IA_CVC4_PRED_SIZE: ic3ia_cvc4_pred_size_ = atoi(opt.arg); break;
         case IC3IA_CVC4_PRED_ALL_CONSTS: ic3ia_cvc4_pred_all_consts_ = true; break;
+        case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
+        case ASSUME_PROP: assume_prop_ = true; break;
+        case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
+        case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
+        case CEG_BV_ARITH: ceg_bv_arith_ = true; break;
+        case CEG_BV_ARITH_MIN_BW: ceg_bv_arith_min_bw_ = atoi(opt.arg); break;
+        case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
+        case SYGUS_OP_LVL: sygus_use_operator_abstraction_ = atoi(opt.arg); break;
+        case SYGUS_TERM_MODE: sygus_term_mode_ = SyGuSTermMode(atoi(opt.arg)); break;
+        case IC3SA_INITIAL_TERMS_LVL: {
+          ic3sa_initial_terms_lvl_ = atoi(opt.arg);
+          if (ic3sa_initial_terms_lvl_ > 4) {
+            throw PonoException(
+                "--ic3sa-initial-terms-lvl must be an integer in [0, 4]");
+          }
+          break;
+        }
+        case IC3SA_INTERP: ic3sa_interp_ = true;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
@@ -393,9 +537,14 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
       }
     }
 
-    if (smt_solver_ != "msat" && engine_ == Engine::INTERP) {
+    if (smt_solver_ != smt::MSAT && engine_ == Engine::INTERP) {
       throw PonoException(
           "Interpolation engine can be only used with '--smt-solver msat'.");
+    }
+
+    if (ceg_prophecy_arrays_ && smt_solver_ != smt::MSAT) {
+      throw PonoException(
+          "Counterexample-guided prophecy only supported with MathSAT so far");
     }
   }
   catch (PonoException & ce) {

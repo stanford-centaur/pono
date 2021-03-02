@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "core/adaptive_unroller.h"
+#include "core/unroller.h"
 #include "engines/cegar.h"
 #include "modifiers/array_abstractor.h"
 #include "modifiers/prophecy_modifier.h"
@@ -28,23 +28,16 @@
 
 namespace pono {
 
-class CegProphecyArrays : public CEGAR
+template <class Prover_T>
+class CegProphecyArrays : public CEGAR<Prover_T>
 {
-  typedef CEGAR super;
+  typedef CEGAR<Prover_T> super;
 
  public:
-  CegProphecyArrays(Property & p, Engine e, smt::SolverEnum se);
-  CegProphecyArrays(Property & p,
-                    Engine e,
-                    const smt::SmtSolver & solver);
-  CegProphecyArrays(const PonoOptions & opt,
-                    Property & p,
-                    Engine e,
-                    smt::SolverEnum se);
-  CegProphecyArrays(const PonoOptions & opt,
-                    Property & p,
-                    Engine e,
-                    const smt::SmtSolver & solver);
+  CegProphecyArrays(const Property & p,
+                    const TransitionSystem & ts,
+                    const smt::SmtSolver & solver,
+                    PonoOptions opt = PonoOptions());
 
   // HACK override prove so that it calls prove
   // in the underlying model checker instead of check_until
@@ -56,28 +49,30 @@ class CegProphecyArrays : public CEGAR
 
   void initialize() override;
 
- protected:
-  const TransitionSystem & conc_ts_;
-  const smt::SmtSolver & solver_;
-  RelationalTransitionSystem abs_ts_;
-  Engine e_;
+  size_t witness_length() const override
+  {
+    // regardless of super class want this to be the witness length
+    return reached_k_+1;
+  }
 
-  // TODO: see if there's a better organization where we can re-use the same
-  // unroller currently this is very important, or it won't unroll the
-  // abstracted variables correctly and this will fail SILENTLY
-  // It is CRUCIAL that we use an AdaptiveUnroller here
-  // otherwise, it will not unroll added auxiliary variables correctly
-  AdaptiveUnroller abs_unroller_;  ///< unroller for abs_ts_
+ protected:
+  TransitionSystem conc_ts_;
+  TransitionSystem & abs_ts_;
+  Unroller abs_unroller_;
   ArrayAbstractor aa_;
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;
+
+  int reached_k_; ///< local variable to check the length of BMC refinement run
 
   size_t num_added_axioms_;  ///< set by refine to the number of added axioms
 
   smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
 
-  void abstract() override;
-  bool refine() override;
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; }
+
+  void cegar_abstract() override;
+  bool cegar_refine() override;
 
   // helpers
   smt::Term get_bmc_formula(size_t b);
@@ -107,6 +102,10 @@ class CegProphecyArrays : public CEGAR
    *  @return the label
    */
   smt::Term label(const smt::Term & t);
+
+  void refine_ts(const smt::UnorderedTermSet & consecutive_axioms);
+
+  void refine_subprover_ts(const smt::UnorderedTermSet & consecutive_axioms);
 };
 
 }  // namespace pono

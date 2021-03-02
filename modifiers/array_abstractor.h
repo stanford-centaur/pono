@@ -24,29 +24,32 @@ namespace pono {
 
 class ArrayAbstractor;  // forward declaration for AbstractionWalker
 
-// Helper classes for walking formulas
-class AbstractionWalker : public smt::IdentityWalker
-{
- public:
-  AbstractionWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
-
- protected:
-  smt::WalkerStepResult visit_term(smt::Term & term);
-  ArrayAbstractor & aa_;
-};
-
-class ConcretizationWalker : public smt::IdentityWalker
-{
- public:
-  ConcretizationWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
-
- protected:
-  smt::WalkerStepResult visit_term(smt::Term & term);
-  ArrayAbstractor & aa_;
-};
-
 class ArrayAbstractor : public Abstractor
 {
+  // Helper classes for walking formulas
+  class AbstractionWalker : public smt::IdentityWalker
+  {
+  public:
+    AbstractionWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
+    smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
+
+  protected:
+    smt::WalkerStepResult visit_term(smt::Term & term);
+    ArrayAbstractor & aa_;
+  };
+
+  class ConcretizationWalker : public smt::IdentityWalker
+  {
+  public:
+    ConcretizationWalker(ArrayAbstractor & aa,
+                         smt::UnorderedTermMap * ext_cache);
+    smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
+
+  protected:
+    smt::WalkerStepResult visit_term(smt::Term & term);
+    ArrayAbstractor & aa_;
+  };
+
   friend class AbstractionWalker;
   friend class ConcretizationWalker;
 
@@ -96,9 +99,9 @@ class ArrayAbstractor : public Abstractor
   // if true, then array equality is abstracted with a UF
   bool abstract_array_equality() const { return abstract_array_equality_; };
 
- protected:
-  void do_abstraction() override;
+  void do_abstraction();
 
+ protected:
   /** Populates abs_walker_'s cache and sort maps (abstract_sorts_,
    *  and concrete_sorts_) with array abstractions.
    *  Adds all the variables to the abs_ts_ --

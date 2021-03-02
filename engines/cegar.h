@@ -21,37 +21,32 @@
 
 namespace pono {
 
-class CEGAR : public Prover
+template <class Prover_T>
+class CEGAR : public Prover_T
 {
-  typedef Prover super;
+  typedef Prover_T super;
 
  public:
-  CEGAR(Property & p, smt::SolverEnum se) : super(p, se) { initialize(); }
-  CEGAR(Property & p, const smt::SmtSolver & solver) : super(p, solver)
+  CEGAR(const Property & p,
+        const TransitionSystem & ts,
+        const smt::SmtSolver & solver,
+        PonoOptions opt = PonoOptions())
+      : super(p, ts, solver, opt)
   {
   }
-  CEGAR(const PonoOptions & opt, Property & p, smt::SolverEnum se)
-      : super(opt, p, se)
-  {
-  }
-  CEGAR(const PonoOptions & opt,
-        Property & p,
-        const smt::SmtSolver & solver)
-      : super(opt, p, solver)
-  {
-  }
+
   virtual ~CEGAR(){};
 
  protected:
   /** Abstract the transition system -- usually only performed once
    *  (in initialize)
    */
-  virtual void abstract() = 0;
+  virtual void cegar_abstract() = 0;
   /** Refine the abstracted transition system
    *  Typically performed in a refinement loop
    *  @return true iff it was successfully refined
    */
-  virtual bool refine() = 0;
+  virtual bool cegar_refine() = 0;
 };
 
 }  // namespace pono

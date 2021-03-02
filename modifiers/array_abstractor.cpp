@@ -24,7 +24,7 @@ using namespace std;
 
 namespace pono {
 
-AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa,
+ArrayAbstractor::AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa,
                                      UnorderedTermMap * ext_cache)
     : IdentityWalker(
         aa.solver_, false, ext_cache),  // false means don't clear cache
@@ -32,7 +32,7 @@ AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa,
 {
 }
 
-WalkerStepResult AbstractionWalker::visit_term(Term & term)
+WalkerStepResult ArrayAbstractor::AbstractionWalker::visit_term(Term & term)
 {
   if (preorder_ || in_cache(term)) {
     return Walker_Continue;
@@ -99,15 +99,15 @@ WalkerStepResult AbstractionWalker::visit_term(Term & term)
   return Walker_Continue;
 }
 
-ConcretizationWalker::ConcretizationWalker(ArrayAbstractor & aa,
-                                           UnorderedTermMap * ext_cache)
+ArrayAbstractor::ConcretizationWalker::ConcretizationWalker(ArrayAbstractor & aa,
+                                                            UnorderedTermMap * ext_cache)
     : IdentityWalker(
         aa.solver_, false, ext_cache),  // false means don't clear cache
       aa_(aa)
 {
 }
 
-WalkerStepResult ConcretizationWalker::visit_term(Term & term)
+WalkerStepResult ArrayAbstractor::ConcretizationWalker::visit_term(Term & term)
 {
   if (preorder_ || in_cache(term)) {
     return Walker_Continue;
@@ -194,7 +194,6 @@ ArrayAbstractor::ArrayAbstractor(const TransitionSystem & conc_ts,
       abs_walker_(*this, &abstraction_cache_),
       conc_walker_(*this, &concretization_cache_)
 {
-  do_abstraction();
 }
 
 Term ArrayAbstractor::abstract(Term & t) { return abs_walker_.visit(t); }

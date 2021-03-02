@@ -51,10 +51,10 @@ class EngineUnitTests
     Term x = ts->named_terms().at("x");
 
     Term true_prop = ts->make_term(BVUle, x, ts->make_term(7, bvsort8));
-    true_p = new Property(*ts, true_prop);
+    true_p = new Property(ts->solver(), true_prop);
 
     Term false_prop = ts->make_term(BVUle, x, ts->make_term(6, bvsort8));
-    false_p = new Property(*ts, false_prop);
+    false_p = new Property(ts->solver(), false_prop);
   }
   SolverEnum se;
   Sort bvsort8;
@@ -66,42 +66,48 @@ class EngineUnitTests
 
 TEST_P(EngineUnitTests, BmcTrue)
 {
-  Bmc b(*true_p, se);
+  SmtSolver s = create_solver(se);
+  Bmc b(*true_p, *ts, s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(EngineUnitTests, BmcFalse)
 {
-  Bmc b(*false_p, se);
+  SmtSolver s = create_solver(se);
+  Bmc b(*false_p, *ts, s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
 TEST_P(EngineUnitTests, BmcSimplePathTrue)
 {
-  BmcSimplePath bsp(*true_p, se);
+  SmtSolver s = create_solver(se);
+  BmcSimplePath bsp(*true_p, *ts, s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
 TEST_P(EngineUnitTests, BmcSimplePathFalse)
 {
-  BmcSimplePath bsp(*false_p, se);
+  SmtSolver s = create_solver(se);
+  BmcSimplePath bsp(*false_p, *ts, s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
 TEST_P(EngineUnitTests, KInductionTrue)
 {
-  KInduction kind(*true_p, se);
+  SmtSolver s = create_solver(se);
+  KInduction kind(*true_p, *ts, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
 TEST_P(EngineUnitTests, KInductionFalse)
 {
-  KInduction kind(*false_p, se);
+  SmtSolver s = create_solver(se);
+  KInduction kind(*false_p, *ts, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
@@ -121,26 +127,24 @@ class InterpUnitTest : public EngineUnitTests
   void SetUp() override
   {
     EngineUnitTests::SetUp();
-    s = ::smt::MsatSolverFactory::create(false);
-    itp = ::smt::MsatSolverFactory::create_interpolating_solver();
+    s = create_solver(MSAT);
   }
   SmtSolver s;
-  SmtSolver itp;
 };
 
 TEST_P(InterpUnitTest, InterpTrue)
 {
-  InterpolantMC itpmc(*true_p, s, itp);
+  InterpolantMC itpmc(*true_p, *ts, s);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 
   Term invar = itpmc.invar();
-  ASSERT_TRUE(check_invar(true_p->transition_system(), true_p->prop(), invar));
+  ASSERT_TRUE(check_invar(*ts, true_p->prop(), invar));
 }
 
 TEST_P(InterpUnitTest, InterpFalse)
 {
-  InterpolantMC itpmc(*false_p, s, itp);
+  InterpolantMC itpmc(*false_p, *ts, s);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
@@ -157,10 +161,7 @@ class InterpWinTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = ::smt::MsatSolverFactory::create(false);
-    s->set_opt("incremental", "true");
-    s->set_opt("produce-models", "true");
-    itp = ::smt::MsatSolverFactory::create_interpolating_solver();
+    s = create_solver(MSAT);
 
     TSEnum ts_type = GetParam();
     if (ts_type == Functional) {
@@ -196,7 +197,7 @@ class InterpWinTests : public ::testing::Test,
     Term witness = ts->make_statevar("witness", boolsort);
     ts->constrain_init(witness);
     ts->assign_next(witness, prop);
-    true_p = new Property(*ts, witness);
+    true_p = new Property(ts->solver(), witness);
 
     // debugging
     std::cout << "INIT" << std::endl;
@@ -215,28 +216,28 @@ class InterpWinTests : public ::testing::Test,
 
 TEST_P(InterpWinTests, BmcFail)
 {
-  Bmc b(*true_p, s);
+  Bmc b(*true_p, *ts, s);
   ProverResult r = b.check_until(10);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(InterpWinTests, BmcSimplePathFail)
 {
-  BmcSimplePath bsp(*true_p, s);
+  BmcSimplePath bsp(*true_p, *ts, s);
   ProverResult r = bsp.check_until(10);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(InterpWinTests, KInductionFail)
 {
-  KInduction kind(*true_p, s);
+  KInduction kind(*true_p, *ts, s);
   ProverResult r = kind.check_until(10);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
 TEST_P(InterpWinTests, InterpWin)
 {
-  InterpolantMC itpmc(*true_p, s, itp);
+  InterpolantMC itpmc(*true_p, *ts, s);
   ProverResult r = itpmc.check_until(10);
   ASSERT_EQ(r, ProverResult::TRUE);
 }

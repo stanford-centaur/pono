@@ -1,4 +1,6 @@
 from libc.stdint cimport uint64_t
+from libcpp cimport bool
+from libcpp.pair cimport pair
 from libcpp.string cimport string
 from libcpp.unordered_map cimport unordered_map
 from libcpp.unordered_set cimport unordered_set
@@ -19,7 +21,7 @@ cdef extern from "core/ts.h" namespace "pono":
         void assign_next(const c_Term & state, const c_Term & val) except +
         void add_invar(const c_Term & constraint) except +
         void constrain_inputs(const c_Term & constraint) except +
-        void add_constraint(const c_Term & constraint) except +
+        void add_constraint(const c_Term & constraint, bint to_init_and_next) except +
         void name_term(const string name, const c_Term & t) except +
         c_Term make_inputvar(const string name, const c_Sort & sort) except +
         c_Term make_statevar(const string name, const c_Sort & sort) except +
@@ -34,7 +36,7 @@ cdef extern from "core/ts.h" namespace "pono":
         c_Term trans() except +
         const c_UnorderedTermMap & state_updates() except +
         unordered_map[string, c_Term] & named_terms() except +
-        const c_TermVec & constraints() except +
+        const vector[pair[c_Term, bool]] & constraints() except +
         bint is_functional() except +
         bint is_deterministic() except +
         void drop_state_updates(const c_TermVec & svs) except +
@@ -68,14 +70,14 @@ cdef extern from "core/fts.h" namespace "pono":
 
 cdef extern from "core/prop.h" namespace "pono":
     cdef cppclass Property:
-        Property(const TransitionSystem& ts, c_Term p) except +
+        Property(const c_SmtSolver& ts, c_Term p) except +
         const c_Term prop() except +
-        const TransitionSystem & transition_system() except +
-
+        const c_SmtSolver & solver() except +
+        string name()
 
 cdef extern from "core/unroller.h" namespace "pono":
     cdef cppclass Unroller:
-        Unroller(const TransitionSystem & ts, c_SmtSolver & solver) except +
+        Unroller(const TransitionSystem & ts) except +
         c_Term at_time(const c_Term & t, unsigned int k) except +
         c_Term untime(const c_Term & t) except +
         size_t get_var_time(const c_Term & v) except +
@@ -92,7 +94,8 @@ cdef extern from "core/proverresult.h" namespace "pono":
 
 cdef extern from "engines/prover.h" namespace "pono":
     cdef cppclass Prover:
-        Prover(const Property & p, c_SmtSolver & s) except +
+        Prover(const Property & p, const TransitionSystem & ts,
+               c_SmtSolver & s) except +
         void initialize() except +
         ProverResult check_until(int k) except +
         bint witness(vector[c_UnorderedTermMap] & out) except +
@@ -101,34 +104,52 @@ cdef extern from "engines/prover.h" namespace "pono":
 
 cdef extern from "engines/bmc.h" namespace "pono":
     cdef cppclass Bmc(Prover):
-        Bmc(const Property & p, c_SmtSolver & solver) except +
+        Bmc(const Property & p, const TransitionSystem & ts,
+            c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/kinduction.h" namespace "pono":
     cdef cppclass KInduction(Prover):
-        KInduction(const Property & p, c_SmtSolver & solver) except +
+        KInduction(const Property & p, const TransitionSystem & ts,
+                   c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/bmc_simplepath.h" namespace "pono":
     cdef cppclass BmcSimplePath(KInduction):
-        BmcSimplePath(const Property & p, c_SmtSolver & solver) except +
+        BmcSimplePath(const Property & p, const TransitionSystem & ts,
+                      c_SmtSolver & solver) except +
+
+
+cdef extern from "engines/ic3.h" namespace "pono":
+    cdef cppclass IC3(Prover):
+        IC3(const Property & p, const TransitionSystem & ts,
+            c_SmtSolver & solver) except +
+
+
+cdef extern from "engines/ic3ia.h" namespace "pono":
+    cdef cppclass IC3IA(Prover):
+        IC3IA(const Property & p, const TransitionSystem & ts,
+              c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/interpolantmc.h" namespace "pono":
     cdef cppclass InterpolantMC(Prover):
-        InterpolantMC(const Property & p, c_SmtSolver & s, c_SmtSolver & interpolator) except +
+        InterpolantMC(const Property & p, const TransitionSystem & ts,
+                      c_SmtSolver & s) except +
 
 
 cdef extern from "engines/mbic3.h" namespace "pono":
     cdef cppclass ModelBasedIC3(Prover):
-        ModelBasedIC3(const Property & p, c_SmtSolver & solver) except +
+        ModelBasedIC3(const Property & p, const TransitionSystem & ts,
+                      c_SmtSolver & solver) except +
 
 
 # WITH_MSAT_IC3IA is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
 IF WITH_MSAT_IC3IA == "ON":
     cdef extern from "engines/msat_ic3ia.h" namespace "pono":
         cdef cppclass MsatIC3IA(Prover):
-            MsatIC3IA(const Property & p, c_SmtSolver & s) except +
+            MsatIC3IA(const Property & p, const TransitionSystem & ts,
+                      c_SmtSolver & s) except +
 
 
 cdef extern from "frontends/btor2_encoder.h" namespace "pono":
@@ -148,13 +169,15 @@ IF WITH_COREIR == "ON":
             CoreIREncoder(Module * top_mod, RelationalTransitionSystem & ts) except +
 
 
-cdef extern from "modifiers/coi.h" namespace "pono":
-    cdef cppclass ConeOfInfluence:
-        ConeOfInfluence(TransitionSystem & ts,
+cdef extern from "modifiers/static_coi.h" namespace "pono":
+    cdef cppclass StaticConeOfInfluence:
+        StaticConeOfInfluence(TransitionSystem & ts,
                         const c_TermVec & to_keep,
-                        const c_TermVec & to_remove,
                         int verbosity) except +
 
+cdef extern from "modifiers/prop_monitor.h" namespace "pono":
+    c_Term add_prop_monitor(TransitionSystem & ts,
+                            const c_Term & prop) except +
 
 cdef extern from "modifiers/history_modifier.h" namespace "pono":
     cdef cppclass HistoryModifier:

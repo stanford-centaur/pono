@@ -123,7 +123,7 @@ TEST_P(TSUnitTests, RTS_Copy)
 TEST_P(TSUnitTests, Prop_Copy)
 {
   RelationalTransitionSystem rts(s);
-  Property p(rts, s->make_term(true));
+  Property p(s, s->make_term(true));
 
   Property p2 = p;
 }
