@@ -885,7 +885,6 @@ bool IC3IA::cvc4_synthesize_preds(
       pred_solution_children[1].substitute(cvc4_boundvars, cvc4_statevars);
 
     Term cvc4_learned_pred = make_shared<CVC4Term>(pred_solution_statevars);
-
     // Makai: put this back in if it starts failing on term translation
     //        not all backend solvers support n-ary arguments
     // Binarizer binarizer(cvc4_);
@@ -895,7 +894,8 @@ bool IC3IA::cvc4_synthesize_preds(
     assert(learned_pred);
 
     // NOTE in future might look for more than one predicate at a time
-    out_preds.insert(learned_pred);
+    //out_preds.insert(learned_pred);
+    get_predicates(solver_, learned_pred, out_preds, false, false, true);
   }
 
   return res;
