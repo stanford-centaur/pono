@@ -86,7 +86,7 @@ cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
   for (auto s : start_bvs) {
     cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
     cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
-    g.addRules(start_bool, { equals, bvugt });
+    g.addRules(start_bool, { bvugt, equals });
   }
 
   // include bv operations in the grammar
@@ -107,7 +107,7 @@ cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
       }
     }
     vector<cvc4a::Term> constructs = {bvadd, bvmul,
-                                       bvand, bvor, bvnot, bvneg };
+                                      bvand, bvor, bvnot, bvneg };
     if (!all_consts) {
       constructs.push_back(zero);
       constructs.push_back(one);
@@ -361,8 +361,6 @@ RefineResult IC3IA::refine()
     return REFINE_NONE;
   }
 
-  size_t cex_length = cex_.size();
-
   UnorderedTermSet preds;
   TermVec fresh_preds;
 
@@ -381,19 +379,31 @@ RefineResult IC3IA::refine()
     // TODO: revisit the above assumption
     Term bmc_unrolling = abs_unroller_.at_time(conc_ts_.init(), 0);
     Term t;
-    for (size_t i = 0; i < cex_length; ++i) {
+    bool is_spurious = false;
+    Result r;
+    for (size_t i = 0; i < cex_.size(); ++i) {
       t = abs_unroller_.at_time(cex_[i], i);
-      if (i + 1 < cex_length) {
+      if (i + 1 < cex_.size()) {
         t = solver_->make_term(And, abs_unroller_.at_time(conc_ts_.trans(), i),
                                t);
       }
-      bmc_unrolling = solver_->make_term(And, bmc_unrolling, t);
+      solver_->assert_formula(t);
+      r = solver_->check_sat();
+      if (r.is_unsat()) {
+        is_spurious = true;
+        cout << "Shrinking CEX: " << cex_.size() << " -> " << i + 1 << endl;
+        cex_.resize(i+1);
+        break;
+      }
     }
-    bmc_unrolling = solver_->make_term(And, bmc_unrolling,
-                                       abs_unroller_.at_time(bad_,
-                                                             cex_length - 1));
-    solver_->assert_formula(bmc_unrolling);
-    Result r = solver_->check_sat();
+
+    if (!is_spurious) {
+      bmc_unrolling = solver_->make_term(And, bmc_unrolling,
+                                         abs_unroller_.at_time(bad_,
+                                                               cex_.size() - 1));
+      solver_->assert_formula(bmc_unrolling);
+      r = solver_->check_sat();
+    }
 
     pop_solver_context();
 
@@ -643,16 +653,13 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   // is over conc_ts_
   Term abs_trace = abs_unroller_.at_time(ts_.init(), 0);
   Term t;
-  for (size_t i = 0; i < cex_length; ++i) {
+  for (size_t i = 0; i < cex.size(); ++i) {
     t = cex[i];
-    if (i + 1 < cex_length) {
+    if (i + 1 < cex.size()) {
       t = solver_->make_term(And, t, ts_.trans());
     }
     abs_trace = solver_->make_term(And, abs_trace, abs_unroller_.at_time(t, i));
   }
-  // redundant but might as well add bad cube
-  abs_trace = solver_->make_term(
-      And, abs_trace, abs_unroller_.at_time(bad_, cex_length - 1));
 
   // create unrolled state variables
   // this vector holds pairs where first is next vars
