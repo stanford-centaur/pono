@@ -384,12 +384,14 @@ RefineResult IC3IA::refine()
     for (size_t i = 0; i < cex_length; ++i) {
       t = abs_unroller_.at_time(cex_[i], i);
       if (i + 1 < cex_length) {
-        t = abs_unroller_.at_time(conc_ts_.trans(), i);
+        t = solver_->make_term(And, abs_unroller_.at_time(conc_ts_.trans(), i),
+                               t);
       }
       bmc_unrolling = solver_->make_term(And, bmc_unrolling, t);
     }
-    bmc_unrolling = solver_->make_term(
-                                       And, bmc_unrolling, abs_unroller_.at_time(bad_, cex_length - 1));
+    bmc_unrolling = solver_->make_term(And, bmc_unrolling,
+                                       abs_unroller_.at_time(bad_,
+                                                             cex_length - 1));
     solver_->assert_formula(bmc_unrolling);
     Result r = solver_->check_sat();
 
