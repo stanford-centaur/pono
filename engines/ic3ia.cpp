@@ -51,14 +51,124 @@ namespace cvc4a = ::CVC4::api;
 using CVC4SortSet = std::unordered_set<cvc4a::Sort, cvc4a::SortHashFunction>;
 using CVC4TermVec = std::vector<cvc4a::Term>;
 
+const unordered_set<PrimOp> bv_ops(
+    { Equal, Concat, Extract, BVNot, BVNeg, BVAnd, BVOr, BVXor, BVNand, BVNor,
+      BVXnor, BVComp, BVAdd, BVSub, BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem,
+      BVSmod, BVShl, BVAshr, BVLshr, BVUlt, BVUle, BVUgt, BVUge, BVSlt, BVSle,
+      BVSgt, BVSge, Zero_Extend, Sign_Extend, Repeat, Rotate_Left } );
+
+const unordered_set<PrimOp> relational_ops(
+    { And, Or, Xor, Not, Implies, Equal, Distinct, Lt, Le, Gt, Ge,
+      BVUlt, BVUle, BVUgt, BVUge, BVSlt, BVSle, BVSgt, BVSge} );
+
+const unordered_map<PrimOp, cvc4a::Kind> to_cvc4_ops(
+    { { And, cvc4a::AND },
+      { Or, cvc4a::OR },
+      { Xor, cvc4a::XOR },
+      { Not, cvc4a::NOT },
+      { Implies, cvc4a::IMPLIES },
+      { Ite, cvc4a::ITE },
+      { Equal, cvc4a::EQUAL },
+      { Distinct, cvc4a::DISTINCT },
+      /* Uninterpreted Functions */
+      { Apply, cvc4a::APPLY_UF },
+      /* Arithmetic Theories */
+      { Plus, cvc4a::PLUS },
+      { Minus, cvc4a::MINUS },
+      { Negate, cvc4a::UMINUS },
+      { Mult, cvc4a::MULT },
+      { Div, cvc4a::DIVISION },
+      { Lt, cvc4a::LT },
+      { Le, cvc4a::LEQ },
+      { Gt, cvc4a::GT },
+      { Ge, cvc4a::GEQ },
+      { Mod, cvc4a::INTS_MODULUS },
+      { Abs, cvc4a::ABS },
+      { Pow, cvc4a::POW },
+      { To_Real, cvc4a::TO_REAL },
+      { To_Int, cvc4a::TO_INTEGER },
+      { Is_Int, cvc4a::IS_INTEGER },
+      /* Fixed Size BitVector Theory */
+      { Concat, cvc4a::BITVECTOR_CONCAT },
+      // Indexed Op
+      { Extract, cvc4a::BITVECTOR_EXTRACT },
+      { BVNot, cvc4a::BITVECTOR_NOT },
+      { BVNeg, cvc4a::BITVECTOR_NEG },
+      { BVAnd, cvc4a::BITVECTOR_AND },
+      { BVOr, cvc4a::BITVECTOR_OR },
+      { BVXor, cvc4a::BITVECTOR_XOR },
+      { BVNand, cvc4a::BITVECTOR_NAND },
+      { BVNor, cvc4a::BITVECTOR_NOR },
+      { BVXnor, cvc4a::BITVECTOR_XNOR },
+      { BVComp, cvc4a::BITVECTOR_COMP },
+      { BVAdd, cvc4a::BITVECTOR_PLUS },
+      { BVSub, cvc4a::BITVECTOR_SUB },
+      { BVMul, cvc4a::BITVECTOR_MULT },
+      { BVUdiv, cvc4a::BITVECTOR_UDIV },
+      { BVSdiv, cvc4a::BITVECTOR_SDIV },
+      { BVUrem, cvc4a::BITVECTOR_UREM },
+      { BVSrem, cvc4a::BITVECTOR_SREM },
+      { BVSmod, cvc4a::BITVECTOR_SMOD },
+      { BVShl, cvc4a::BITVECTOR_SHL },
+      { BVAshr, cvc4a::BITVECTOR_ASHR },
+      { BVLshr, cvc4a::BITVECTOR_LSHR },
+      { BVUlt, cvc4a::BITVECTOR_ULT },
+      { BVUle, cvc4a::BITVECTOR_ULE },
+      { BVUgt, cvc4a::BITVECTOR_UGT },
+      { BVUge, cvc4a::BITVECTOR_UGE },
+      { BVSlt, cvc4a::BITVECTOR_SLT },
+      { BVSle, cvc4a::BITVECTOR_SLE },
+      { BVSgt, cvc4a::BITVECTOR_SGT },
+      { BVSge, cvc4a::BITVECTOR_SGE },
+      // Indexed Op
+      { Zero_Extend, cvc4a::BITVECTOR_ZERO_EXTEND },
+      // Indexed Op
+      { Sign_Extend, cvc4a::BITVECTOR_SIGN_EXTEND },
+      // Indexed Op
+      { Repeat, cvc4a::BITVECTOR_REPEAT },
+      // Indexed Op
+      { Rotate_Left, cvc4a::BITVECTOR_ROTATE_LEFT },
+      // Indexed Op
+      { Rotate_Right, cvc4a::BITVECTOR_ROTATE_RIGHT },
+      // Conversion
+      { BV_To_Nat, cvc4a::BITVECTOR_TO_NAT },
+      // Indexed Op
+      { Int_To_BV, cvc4a::INT_TO_BITVECTOR },
+      { Select, cvc4a::SELECT },
+      { Store, cvc4a::STORE },
+      { Forall, cvc4a::FORALL },
+      { Exists, cvc4a::EXISTS },
+      // Datatype
+      { Apply_Constructor, cvc4a::APPLY_CONSTRUCTOR },
+      { Apply_Tester, cvc4a::APPLY_TESTER },
+      { Apply_Selector, cvc4a::APPLY_SELECTOR } });
+
+void get_bv_ops_subset(const UnorderedOpSet &in, UnorderedOpSet &out)
+{
+  for (const auto & o : in) {
+    if (bv_ops.find(o.prim_op) != bv_ops.end()) {
+      out.insert(o);
+    }
+  }
+}
+
+void collect_values(const Term term, UnorderedTermSet & out)
+{
+  auto f = [](const smt::Term & t) { return t->is_value(); };
+  get_matching_terms(term, out, f);
+}
+
 // helper class for generating grammar for CVC4 SyGuS
-cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
-                                 const CVC4TermVec & cvc4_boundvars, bool all_consts)
+cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
+                                 const CVC4TermVec & cvc4_boundvars,
+                                 const UnorderedOpSet & ops_set,
+                                 const vector<cvc4a::Term> & values,
+                                 bool all_consts)
 {
   // sorts and their terminal constructors (start constructors)
   cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
   cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
-  std::vector<cvc4a::Term> start_bvs;
+  vector<cvc4a::Term> start_bvs;
 
   CVC4SortSet bv_sorts;
   // collect all required sorts
@@ -83,41 +193,109 @@ cvc4a::Grammar cvc4_make_grammar(::CVC4::api::Solver & cvc4_solver,
   // construct the grammar
   cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
 
-  for (auto s : start_bvs) {
-    cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
-    cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
-    g.addRules(start_bool, { bvugt, equals });
+  // add values that are already present
+  for (const auto & v : values) {
+    // TODO
+    //g.addRules(v.getSort(), {v});
   }
 
-  // include bv operations in the grammar
-  for (auto s : start_bvs) {
-    cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
-    cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
-    cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
-    cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
-    cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
-    cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
-    cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
-    cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
-    cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
+  if (!ops_set.empty()) {
     vector<cvc4a::Term> g_bound_vars;
-    for (auto bound_var : cvc4_boundvars) {
-      if (bound_var.getSort() == s.getSort()) {
-        g_bound_vars.push_back(bound_var);
+    vector<cvc4a::Term> constructs;
+    vector<cvc4a::Term> bool_constructs;
+    UnorderedOpSet bv_ops_subset;
+    get_bv_ops_subset(ops_set, bv_ops_subset);
+
+    for (auto s : start_bvs) {
+      g_bound_vars.clear();
+      for (auto bound_var : cvc4_boundvars) {
+        if (bound_var.getSort() == s.getSort()) {
+          g_bound_vars.push_back(bound_var);
+        }
+      }
+
+      constructs.clear();
+      bool_constructs.clear();
+      for (auto o : bv_ops_subset) {
+        if (get_arity(o.prim_op).first == 1) {
+          cout << "UNARY : " << o << endl;
+          constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op), s));
+        } else if (get_arity(o.prim_op).first == 2) {
+          if (o.prim_op != BVComp) {
+            cout << "BINARY : " << o << endl;
+            if (relational_ops.find(o.prim_op) != relational_ops.end()) {
+              bool_constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op), s, s));
+            } else {
+              constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op), s, s));
+            }
+          } else {
+            // TODO: fixme
+            continue;
+          }
+        } else {
+          cout << "Unhandled Op : " << o << endl;
+          assert(false);
+        }
+      }
+
+      if (!all_consts) {
+        cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
+        cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
+        cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
+        constructs.push_back(zero);
+        constructs.push_back(one);
+        constructs.push_back(min_signed);
+      } else {
+        g.addAnyConstant(s);
+      }
+
+      constructs.insert(constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
+      g.addRules(s, constructs);
+      if (!bool_constructs.empty()) {
+        g.addRules(start_bool, bool_constructs);
       }
     }
-    vector<cvc4a::Term> constructs = {bvadd, bvmul,
-                                      bvand, bvor, bvnot, bvneg };
-    if (!all_consts) {
-      constructs.push_back(zero);
-      constructs.push_back(one);
-      constructs.push_back(min_signed);
-    } else {
-      g.addAnyConstant(s);
+
+    // TODO: handle non-bv ops
+
+  } else {
+    for (auto s : start_bvs) {
+      cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
+      cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
+      g.addRules(start_bool, { bvugt, equals });
     }
-    constructs.insert(
-        constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
-    g.addRules(s, constructs);
+
+    // include bv operations in the grammar
+    for (auto s : start_bvs) {
+      cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
+      cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
+      cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
+      cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
+      cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
+      cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
+      cvc4a::Term bvcomp = cvc4_solver.mkTerm(cvc4a::BITVECTOR_COMP, s, s);
+      cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
+      cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
+      cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
+      vector<cvc4a::Term> g_bound_vars;
+      for (auto bound_var : cvc4_boundvars) {
+        if (bound_var.getSort() == s.getSort()) {
+          g_bound_vars.push_back(bound_var);
+        }
+      }
+      vector<cvc4a::Term> constructs = {bvadd, bvmul,
+                                        bvand, bvor, bvnot, bvneg };
+      if (!all_consts) {
+        constructs.push_back(zero);
+        constructs.push_back(one);
+        constructs.push_back(min_signed);
+      } else {
+        g.addAnyConstant(s);
+      }
+      constructs.insert(
+                        constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
+      g.addRules(s, constructs);
+    }
   }
 
   return g;
@@ -740,7 +918,6 @@ bool IC3IA::cvc4_synthesize_preds(
   logger.log(1, "Looking for {} predicates with CVC4 SyGuS", num_preds);
 
   bool res = false;
-  namespace cvc4a = ::CVC4::api;
 
   assert(unrolled_var_args.size());
 
@@ -794,8 +971,23 @@ bool IC3IA::cvc4_synthesize_preds(
     cvc4_boundvars.push_back(cvc4_bv);
   }
 
+  // ops used in the abs_trace
+  UnorderedOpSet abs_trace_ops;
+  get_ops(abs_trace, abs_trace_ops);
+  // constants in the abs_trace
+  UnorderedTermSet abs_trace_values;
+  collect_values(abs_trace, abs_trace_values);
+  vector<cvc4a::Term> abs_trace_values_cvc4;
+  for (auto v : abs_trace_values) {
+    cvc4a::Term cvc4_val =
+      static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(v))->get_cvc4_term();
+    abs_trace_values_cvc4.push_back(cvc4_val);
+  }
+
   // Grammar construction
-  cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars, options_.ic3ia_cvc4_pred_all_consts_);
+  cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars,
+                                       abs_trace_ops, abs_trace_values_cvc4,
+                                       options_.ic3ia_cvc4_pred_all_consts_);
 
   vector<cvc4a::Term> pred_vec;
   for (size_t n = 0; n < num_preds; ++n) {
