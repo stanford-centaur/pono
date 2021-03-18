@@ -998,6 +998,8 @@ bool IC3IA::cvc4_synthesize_preds(
     abs_trace_values_cvc4.push_back(cvc4_val);
   }
 
+  cout << "Number of Values : " << abs_trace_values_cvc4.size() << endl;
+
   // Grammar construction
   cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars,
                                        abs_trace_ops, NULL,
@@ -1011,8 +1013,11 @@ bool IC3IA::cvc4_synthesize_preds(
   for (size_t n = 0; n < num_preds; ++n) {
     // Create the predicate to search for. Use the grammar
     string pred_name = "P_" + std::to_string(n);
-    cvc4a::Term pred =
-      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
+    // cvc4a::Term pred = 
+    //   cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
+    cvc4a::Term pred = n % 2 == 0 ? // zig-zag between the two grammars
+      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g) :
+      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g_with_values);
     pred_vec.push_back(pred);
 
     // add the implicit predicate abstraction constraints
@@ -1050,8 +1055,7 @@ bool IC3IA::cvc4_synthesize_preds(
       cvc4a::Term pred_app_abs_vars =
           cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_abs_var_args);
 
-      cvc4_formula = cvc4_solver.mkTerm(
-                                        cvc4a::AND,
+      cvc4_formula = cvc4_solver.mkTerm(cvc4a::AND,
                                         cvc4_formula,
                                         cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
     }
