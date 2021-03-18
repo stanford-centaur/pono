@@ -227,9 +227,14 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       for (auto o : bv_ops_subset) {
         if (get_arity(o.prim_op).first == 1) {
           cout << "UNARY : " << o << endl;
-          constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op), s));
+          if (o.prim_op != Extract &&
+              o.prim_op != Zero_Extend) {
+            constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op),
+                                                    s));
+          }
         } else if (get_arity(o.prim_op).first == 2) {
-          if (o.prim_op != BVComp) {
+          if (o.prim_op != BVComp &&
+              o.prim_op != Concat) {
             cout << "BINARY : " << o << endl;
             if (relational_ops.find(o.prim_op) != relational_ops.end()) {
               bool_constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op), s, s));
