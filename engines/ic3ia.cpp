@@ -162,7 +162,7 @@ void collect_values(const Term term, UnorderedTermSet & out)
 cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
                                  const CVC4TermVec & cvc4_boundvars,
                                  const UnorderedOpSet & ops_set,
-                                 const vector<cvc4a::Term> & values,
+                                 const vector<cvc4a::Term> * values,
                                  bool all_consts)
 {
   // sorts and their terminal constructors (start constructors)
@@ -193,10 +193,18 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
   // construct the grammar
   cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
 
-  // add values that are already present
-  for (const auto & v : values) {
-    // TODO
-    //g.addRules(v.getSort(), {v});
+  // group interesting values according to sorts
+  map<cvc4a::Sort, vector<cvc4a::Term>> values_sort_map;
+  if (values) {
+    for (const auto & v : *values) {
+      cvc4a::Sort s = v.getSort();
+      auto it = values_sort_map.find(s);
+      if (it != values_sort_map.end()) {
+        it->second.push_back(v);
+      } else {
+        values_sort_map[s] = {v};
+      }
+    }
   }
 
   if (!ops_set.empty()) {
@@ -245,6 +253,12 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
         constructs.push_back(zero);
         constructs.push_back(one);
         constructs.push_back(min_signed);
+        auto it = values_sort_map.find(s.getSort());
+        if (it != values_sort_map.end()) {
+          for (auto v : it->second) {
+            constructs.push_back(v);
+          }
+        }
       } else {
         g.addAnyConstant(s);
       }
@@ -986,8 +1000,12 @@ bool IC3IA::cvc4_synthesize_preds(
 
   // Grammar construction
   cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars,
-                                       abs_trace_ops, abs_trace_values_cvc4,
+                                       abs_trace_ops, NULL,
                                        options_.ic3ia_cvc4_pred_all_consts_);
+  cvc4a::Grammar g_with_values =
+    cvc4_make_grammar(cvc4_solver, cvc4_boundvars,
+                      abs_trace_ops, &abs_trace_values_cvc4,
+                      options_.ic3ia_cvc4_pred_all_consts_);
 
   vector<cvc4a::Term> pred_vec;
   for (size_t n = 0; n < num_preds; ++n) {
