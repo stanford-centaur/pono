@@ -252,12 +252,12 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       }
 
       if (!all_consts) {
-        cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
-        cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
-        cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
-        constructs.push_back(zero);
-        constructs.push_back(one);
-        constructs.push_back(min_signed);
+        //cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
+        //cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
+        //cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
+        //constructs.push_back(zero);
+        //constructs.push_back(one);
+        //constructs.push_back(min_signed);
         auto it = values_sort_map.find(s.getSort());
         if (it != values_sort_map.end()) {
           for (auto v : it->second) {
