@@ -1020,9 +1020,21 @@ bool IC3IA::cvc4_synthesize_preds(
     string pred_name = "P_" + std::to_string(n);
     // cvc4a::Term pred = 
     //   cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
-    cvc4a::Term pred = n % 2 == 0 ? // zig-zag between the two grammars
-      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g) :
-      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g_with_values);
+    cvc4a::Term pred;
+    switch (n % 3) {
+    case 0:
+      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort(), g);
+      break;
+    case 1:
+      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort(), g_with_values);
+      break;
+    default:
+      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort());
+      break;
+    };
     pred_vec.push_back(pred);
 
     // add the implicit predicate abstraction constraints
