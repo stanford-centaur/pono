@@ -315,6 +315,8 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
                         constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
       g.addRules(s, constructs);
     }
+
+    // TODO: non-bv ops
   }
 
   return g;
