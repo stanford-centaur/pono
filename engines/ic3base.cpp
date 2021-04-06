@@ -978,14 +978,14 @@ Term IC3Base::make_and(TermVec vec, SmtSolver slv) const
   return res;
 }
 
-void IC3Base::reset_solver()
+bool IC3Base::reset_solver()
 {
   assert(solver_context_ == 0);
 
   if (failed_to_reset_solver_) {
     // don't even bother trying
     // this solver doesn't support reset_assertions
-    return;
+    return false;
   }
 
   try {
@@ -1029,6 +1029,7 @@ void IC3Base::reset_solver()
   }
 
   num_check_sat_since_reset_ = 0;
+  return !failed_to_reset_solver_;
 }
 
 Term IC3Base::label(const Term & t)

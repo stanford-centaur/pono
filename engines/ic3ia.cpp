@@ -321,16 +321,19 @@ RefineResult IC3IA::refine()
   return RefineResult::REFINE_SUCCESS;
 }
 
-void IC3IA::reset_solver()
+bool IC3IA::reset_solver()
 {
-  super::reset_solver();
-
-  for (const auto & elem : lbl2pred_) {
-    solver_->assert_formula(solver_->make_term(Equal, elem.first, elem.second));
-    Term npred = ts_.next(elem.second);
-    Term nlbl = label(npred);
-    solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+  bool reset_success = super::reset_solver();
+  if (reset_success) {
+    for (const auto & elem : lbl2pred_) {
+      solver_->assert_formula(
+          solver_->make_term(Equal, elem.first, elem.second));
+      Term npred = ts_.next(elem.second);
+      Term nlbl = label(npred);
+      solver_->assert_formula(solver_->make_term(Equal, nlbl, npred));
+    }
   }
+  return reset_success;
 }
 
 bool IC3IA::is_global_label(const Term & l) const

@@ -572,9 +572,10 @@ class IC3Base : public Prover
 
   /** Attempts to reset the solver and re-add constraints
    *  NOTE: not all solvers support reset_assertions, in which case the
-   * exception is just caught and things continue on as normal
+   *  exception is just caught and things continue on as normal
+   *  @return true iff the solver was successfully reset
    */
-  virtual void reset_solver();
+  virtual bool reset_solver();
 
   inline size_t frontier_idx() const { return frames_.size() - 1; }
 

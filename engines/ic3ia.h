@@ -105,7 +105,7 @@ class IC3IA : public IC3
 
   RefineResult refine() override;
 
-  void reset_solver() override;
+  bool reset_solver() override;
 
   bool is_global_label(const smt::Term & l) const override;
 
