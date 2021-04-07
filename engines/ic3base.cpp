@@ -158,6 +158,8 @@ ProverResult IC3Base::check_until(int k)
   // ever initializing base classes
   assert(initialized_);
 
+  cout << "Number of State Vars: " << ts_.statevars().size() << endl;
+
   ProverResult res;
   RefineResult ref_res;
   int i = reached_k_ + 1;

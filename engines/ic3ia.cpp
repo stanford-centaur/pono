@@ -252,12 +252,12 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       }
 
       if (!all_consts) {
-        cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
-        cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
-        cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
-        constructs.push_back(zero);
-        constructs.push_back(one);
-        constructs.push_back(min_signed);
+        //cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
+        //cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
+        //cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
+        //constructs.push_back(zero);
+        //constructs.push_back(one);
+        //constructs.push_back(min_signed);
         auto it = values_sort_map.find(s.getSort());
         if (it != values_sort_map.end()) {
           for (auto v : it->second) {
@@ -315,6 +315,8 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
                         constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
       g.addRules(s, constructs);
     }
+
+    // TODO: non-bv ops
   }
 
   return g;
@@ -972,7 +974,9 @@ bool IC3IA::cvc4_synthesize_preds(
   // set necessary options for sygus
   cvc4_solver.setOption("lang", "sygus2");
   cvc4_solver.setOption("incremental", "false");
-  cvc4_solver.setOption("sygus-abort-size", std::to_string(options_.ic3ia_cvc4_pred_size_));
+  int pred_size = options_.ic3ia_cvc4_pred_size_;
+  pred_size += (num_preds-1)/3; // increase the size periodically
+  cvc4_solver.setOption("sygus-abort-size", std::to_string(pred_size));
 
   // create bound variables to use in the synthesized function
   vector<cvc4a::Term> cvc4_statevars;
@@ -1020,9 +1024,21 @@ bool IC3IA::cvc4_synthesize_preds(
     string pred_name = "P_" + std::to_string(n);
     // cvc4a::Term pred = 
     //   cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
-    cvc4a::Term pred = n % 2 == 0 ? // zig-zag between the two grammars
-      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g) :
-      cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g_with_values);
+    cvc4a::Term pred;
+    switch (n % 3) {
+    case 0:
+      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort(), g);
+      break;
+    case 1:
+      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort(), g_with_values);
+      break;
+    default:
+      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort());
+      break;
+    };
     pred_vec.push_back(pred);
 
     // add the implicit predicate abstraction constraints
