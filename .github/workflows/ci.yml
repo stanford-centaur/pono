@@ -48,7 +48,7 @@ jobs:
 
       - name: Setup Smt-Switch
         run: |
-          ./contrib/setup-smt-switch --with-msat --cvc4-home=./deps/CVC4 --python
+          ./contrib/setup-smt-switch.sh --with-msat --cvc4-home=./deps/CVC4 --python
           python3 -m pip install -e ./deps/smt-switch/build/python
 
       - name: Configure
