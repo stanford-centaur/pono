@@ -29,9 +29,7 @@ jobs:
             gmp
 
       - name: Python Dependencies
-        run: |
-          python3 -m pip install Cython pytest toml
-          ./contrib/setup-skbuild.sh
+        run: python3 -m pip install Cython pytest toml
 
       - name: Download MathSAT
         run: ./travis-scripts/setup-msat.sh --auto-yes
