@@ -520,6 +520,14 @@ void IC3IA::initialize()
                "not supported in IC3IA yet.");
     options_.ic3_pregen_ = false;
   }
+
+  // collect all sort kinds
+  auto varsets = { ts_.statevars(), ts_.inputvars() };
+  for (const auto & vs : varsets) {
+    for (const auto & v : vs) {
+      all_sort_kinds_.insert(v->get_sort()->get_sort_kind());
+    }
+  }
 }
 
 void IC3IA::abstract()

@@ -139,6 +139,10 @@ class IC3IA : public IC3
 
   // Hacked in to experiment with CVC4
 
+  // extra members for this hacked in stuff
+  std::unordered_set<smt::SortKind>
+      all_sort_kinds_;  ///< all sort kinds appearing in TS
+
   /** Given a counterexample trace (over state vars)
    *  Unroll the trace and ask CVC4 SyGuS for predicate(s)
    *  That makes the abstract trace unsat
