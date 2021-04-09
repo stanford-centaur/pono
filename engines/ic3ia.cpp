@@ -168,27 +168,27 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
   // sorts and their terminal constructors (start constructors)
   cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
   cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
-  vector<cvc4a::Term> start_bvs;
+  vector<cvc4a::Term> start_terms;
 
-  CVC4SortSet bv_sorts;
+  CVC4SortSet grammar_sorts;
   // collect all required sorts
   for (auto cvc4_boundvar : cvc4_boundvars) {
     cvc4a::Sort s = cvc4_boundvar.getSort();
     if (s.isBitVector()) {
-      bv_sorts.insert(s);
+      grammar_sorts.insert(s);
     }
   }
 
   // for each sort, introduce a new constructor for the grammar
-  for (auto s : bv_sorts) {
-    cvc4a::Term start_bv = cvc4_solver.mkVar(s, s.toString() + "_start");
-    start_bvs.push_back(start_bv);
+  for (auto s : grammar_sorts) {
+    cvc4a::Term start_term = cvc4_solver.mkVar(s, s.toString() + "_start");
+    start_terms.push_back(start_term);
   }
 
   // merge the Boolean start and the BV start
   vector<cvc4a::Term> starts;
   starts.push_back(start_bool);
-  starts.insert(starts.end(), start_bvs.begin(), start_bvs.end());
+  starts.insert(starts.end(), start_terms.begin(), start_terms.end());
 
   // construct the grammar
   cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
@@ -214,7 +214,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     UnorderedOpSet bv_ops_subset;
     get_bv_ops_subset(ops_set, bv_ops_subset);
 
-    for (auto s : start_bvs) {
+    for (auto s : start_terms) {
       g_bound_vars.clear();
       for (auto bound_var : cvc4_boundvars) {
         if (bound_var.getSort() == s.getSort()) {
@@ -272,14 +272,14 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     // TODO: handle non-bv ops
 
   } else {
-    for (auto s : start_bvs) {
+    for (auto s : start_terms) {
       cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
       cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
       g.addRules(start_bool, { bvugt, equals });
     }
 
     // include bv operations in the grammar
-    for (auto s : start_bvs) {
+    for (auto s : start_terms) {
       cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
       cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
       cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
