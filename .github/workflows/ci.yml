@@ -1,0 +1,71 @@
+on: [push, pull_request]
+name: CI
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os}}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Packages (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            libgmp-dev \
+            openjdk-8-jdk
+
+      - name: Install Packages (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install \
+            gmp
+
+      - name: Python Dependencies
+        run: python3 -m pip install Cython pytest toml
+
+      - name: Download MathSAT
+        run: ./travis-scripts/setup-msat.sh --auto-yes
+
+      - name: Download CVC4
+        run: ./travis-scripts/download-cvc4.sh
+
+      - name: Setup Flex
+        run: ./contrib/setup-flex.sh
+
+      - name: Setup Bison
+        run: ./contrib/setup-bison.sh
+
+      - name: Setup Btor2Tools
+        run: ./contrib/setup-btor2tools.sh
+
+      - name: Setup Smt-Switch
+        run: |
+          ./contrib/setup-smt-switch.sh --with-msat --cvc4-home=./deps/CVC4 --python
+          python3 -m pip install -e ./deps/smt-switch/build/python
+
+      - name: Configure
+        run: ./configure.sh --with-msat --debug --python
+
+      - name: Build
+        run: |
+          cd build
+          make -j
+
+      - name: Test C++
+        run: |
+          cd build
+          make test
+
+      - name: Install Python Bindings
+        run: python3 -m pip install -e ./build/python[test,pysmt]
+
+      - name: Test Python Bindings
+        run: pytest ./tests
