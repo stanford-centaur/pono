@@ -226,7 +226,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       bool_constructs.clear();
       for (auto o : bv_ops_subset) {
         if (get_arity(o.prim_op).first == 1) {
-          cout << "UNARY : " << o << endl;
+          logger.log(1, "UNARY : {}", o);
           if (o.prim_op != Extract &&
               o.prim_op != Zero_Extend) {
             constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op),
@@ -235,7 +235,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
         } else if (get_arity(o.prim_op).first == 2) {
           if (o.prim_op != BVComp &&
               o.prim_op != Concat) {
-            cout << "BINARY : " << o << endl;
+            logger.log(1, "BINARY : {}", o);
             if (relational_ops.find(o.prim_op) != relational_ops.end()) {
               bool_constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op), s, s));
             } else {
@@ -592,7 +592,7 @@ RefineResult IC3IA::refine()
       r = solver_->check_sat();
       if (r.is_unsat()) {
         is_spurious = true;
-        cout << "Shrinking CEX: " << cex_.size() << " -> " << i + 1 << endl;
+        logger.log(1, "Shrinking CEX: {} -> {}", cex_.size(), i + 1);
         cex_.resize(i+1);
         break;
       }
@@ -1015,7 +1015,7 @@ bool IC3IA::cvc4_synthesize_preds(
     abs_trace_values_cvc4.push_back(cvc4_val);
   }
 
-  cout << "Number of Values : " << abs_trace_values_cvc4.size() << endl;
+  logger.log(1, "Number of Values : {}", abs_trace_values_cvc4.size());
 
   // Grammar construction
   cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars,
@@ -1118,7 +1118,9 @@ bool IC3IA::cvc4_synthesize_preds(
   }
 
   // for debugging:
-  cvc4_solver.printSynthSolution(std::cout);
+  if (options_.verbosity_ > 0) {
+    cvc4_solver.printSynthSolution(std::cout);
+  }
 
   for (auto pred : pred_vec) {
     cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
