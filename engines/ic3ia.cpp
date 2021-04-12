@@ -61,6 +61,10 @@ const unordered_set<PrimOp> relational_ops(
     { And, Or, Xor, Not, Implies, Equal, Distinct, Lt, Le, Gt, Ge,
       BVUlt, BVUle, BVUgt, BVUge, BVSlt, BVSle, BVSgt, BVSge} );
 
+// these operations are not relational but also operate on multiple sorts
+const unordered_set<PrimOp> multisort_ops(
+    { Extract, Zero_Extend, BVComp, Concat });
+
 const unordered_map<PrimOp, cvc4a::Kind> to_cvc4_ops(
     { { And, cvc4a::AND },
       { Or, cvc4a::OR },
@@ -208,69 +212,95 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
   }
 
   if (!ops_set.empty()) {
-    vector<cvc4a::Term> g_bound_vars;
-    vector<cvc4a::Term> constructs;
-    vector<cvc4a::Term> bool_constructs;
-    UnorderedOpSet bv_ops_subset;
-    get_bv_ops_subset(ops_set, bv_ops_subset);
+    // separate operators
+    unordered_map<SortKind, unordered_set<PrimOp>> reg_ops;
+    unordered_map<SortKind, unordered_set<PrimOp>> rel_ops;
+    unordered_map<SortKind, unordered_set<Op>> ms_ops;
 
-    for (auto s : start_terms) {
-      g_bound_vars.clear();
-      for (auto bound_var : cvc4_boundvars) {
+    for (const auto & op : ops_set) {
+      PrimOp po = op.prim_op;
+      // for now, just bv or arithmetic (using REAL for both real and integer)
+      SortKind sk = bv_ops.find(po) == bv_ops.end() ? REAL : BV;
+      if (multisort_ops.find(po) != multisort_ops.end()) {
+        ms_ops[sk].insert(op);
+      } else if (relational_ops.find(po) != relational_ops.end()) {
+        rel_ops[sk].insert(po);
+      } else {
+        reg_ops[sk].insert(po);
+      }
+    }
+
+    unordered_map<cvc4a::Term, vector<cvc4a::Term>, cvc4a::TermHashFunction>
+        constructs;
+    // regular and relational operators
+    for (const auto & s : start_terms) {
+      cvc4a::Sort sort = s.getSort();
+      SortKind sk;
+      if (sort.isBitVector()) {
+        sk = BV;
+      } else if (sort.isBoolean()) {
+        // only looking for predicates
+        // nothing to do with a boolean
+        // shouldn't be included in start terms
+        assert(false);
+      } else {
+        // TODO handle INT/REAL (note using REAL for both)
+        logger.log(0,
+                   "WARNING IC3IA CVC4 predicates unhandled sort: {}",
+                   s.getSort().toString());
+      }
+
+      // add variables
+      // TODO: make this more efficient, shouldn't have to search every time
+      for (const auto & bound_var : cvc4_boundvars) {
         if (bound_var.getSort() == s.getSort()) {
-          g_bound_vars.push_back(bound_var);
+          constructs[s].push_back(bound_var);
         }
       }
 
-      constructs.clear();
-      bool_constructs.clear();
-      for (auto o : bv_ops_subset) {
-        if (get_arity(o.prim_op).first == 1) {
-          logger.log(1, "UNARY : {}", o);
-          if (o.prim_op != Extract &&
-              o.prim_op != Zero_Extend) {
-            constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op),
-                                                    s));
-          }
-        } else if (get_arity(o.prim_op).first == 2) {
-          if (o.prim_op != BVComp &&
-              o.prim_op != Concat) {
-            logger.log(1, "BINARY : {}", o);
-            if (relational_ops.find(o.prim_op) != relational_ops.end()) {
-              bool_constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op), s, s));
-            } else {
-              constructs.push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(o.prim_op), s, s));
-            }
-          } else {
-            // TODO: fixme
-            continue;
-          }
+      // regular
+      for (const auto & po : reg_ops.at(sk)) {
+        size_t arity_min = get_arity(po).first;
+        if (arity_min == 1) {
+          logger.log(1, "UNARY: {}", po);
+          constructs[s].push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(po), s));
+        } else if (arity_min == 2) {
+          logger.log(1, "BINARY: {}", po);
+          constructs[s].push_back(cvc4_solver.mkTerm(to_cvc4_ops.at(po), s, s));
         } else {
-          cout << "Unhandled Op : " << o << endl;
+          cout << "Unhandled Op: " << po << endl;
           assert(false);
         }
       }
 
+      // relational
+      for (const auto & po : rel_ops.at(sk)) {
+        constructs[start_bool].push_back(
+            cvc4_solver.mkTerm(to_cvc4_ops.at(po), s, s));
+      }
+
+      // add values
       if (!all_consts) {
         auto it = values_sort_map.find(s.getSort());
         if (it != values_sort_map.end()) {
-          for (auto v : it->second) {
-            constructs.push_back(v);
+          for (const auto & val : it->second) {
+            constructs[s].push_back(val);
           }
         }
-      } else {
-        g.addAnyConstant(s);
-      }
-
-      constructs.insert(constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
-      g.addRules(s, constructs);
-      if (!bool_constructs.empty()) {
-        g.addRules(start_bool, bool_constructs);
       }
     }
 
-    // TODO: handle non-bv ops
+    for (const auto & elem : constructs) {
+      const cvc4a::Term & start_term = elem.first;
+      const vector<cvc4a::Term> & rules = elem.second;
 
+      // add rules for this nonterminal start term
+      g.addRules(start_term, rules);
+
+      if (all_consts) {
+        g.addAnyConstant(start_term);
+      }
+    }
   } else {
     for (auto s : start_terms) {
       cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
