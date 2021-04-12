@@ -614,7 +614,13 @@ RefineResult IC3IA::refine()
       return REFINE_NONE;
     }
     cvc4_find_preds(cex_, preds);
-    fresh_preds.insert(fresh_preds.end(), preds.begin(), preds.end());
+
+    for (auto const & p : preds) {
+      if (predset_.find(p) == predset_.end()) {
+        // unseen predicate
+        fresh_preds.push_back(p);
+      }
+    }
   } else {
 
     size_t cex_length = cex_.size();
