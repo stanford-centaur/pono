@@ -17,19 +17,22 @@ using namespace std;
 
 namespace pono_tests {
 
-class IC3IAUnitTests : public ::testing::Test,
-                       public ::testing::WithParamInterface<SolverEnum>
+class IC3IAUnitTests
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<tuple<SolverEnum, bool>>
 {
  protected:
   void SetUp() override
   {
-    s = create_solver_for(GetParam(), IC3IA_ENGINE, false);
+    s = create_solver_for(get<0>(GetParam()), IC3IA_ENGINE, false);
+    opts.ic3ia_cvc4_pred_ = get<1>(GetParam());
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
     intsort = s->make_sort(INT);
   }
   SmtSolver s;
   Sort boolsort, bvsort8, intsort;
+  PonoOptions opts;
 };
 
 TEST_P(IC3IAUnitTests, SimpleSystemSafe)
@@ -49,7 +52,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 
   Property p(s, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, fts, s);
+  IC3IA ic3ia(p, fts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -75,7 +78,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 
   Property p(s, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, fts, s);
+  IC3IA ic3ia(p, fts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
 }
@@ -92,13 +95,19 @@ TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
   Term prop_term = s->make_term(BVUlt, x, s->make_term(10, bvsort8));
   Property p(s, prop_term);
 
-  IC3IA ic3ia(p, fts, s);
+  IC3IA ic3ia(p, fts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
 }
 
 TEST_P(IC3IAUnitTests, InductiveIntSafe)
 {
+  if (opts.ic3ia_cvc4_pred_) {
+    // Temporarily not supporting arithmetic
+    cout << "Skipping unsupported INT theory" << endl;
+    return;
+  }
+
   FunctionalTransitionSystem fts(s);
   Term max_val = fts.make_term(10, intsort);
 
@@ -108,7 +117,7 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
 
   Property p(fts.solver(), fts.make_term(Le, x, fts.make_term(10, intsort)));
 
-  IC3IA ic3ia(p, fts, s);
+  IC3IA ic3ia(p, fts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -118,6 +127,12 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
 
 TEST_P(IC3IAUnitTests, SimpleIntSafe)
 {
+  if (opts.ic3ia_cvc4_pred_) {
+    // Temporarily not supporting arithmetic
+    cout << "Skipping unsupported INT theory" << endl;
+    return;
+  }
+
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", intsort);
   Term y = rts.make_statevar("y", intsort);
@@ -138,7 +153,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 
   Property p(rts.solver(), wit);
 
-  IC3IA ic3ia(p, rts, s);
+  IC3IA ic3ia(p, rts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -150,7 +165,8 @@ INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverIC3IAUnitTests,
     IC3IAUnitTests,
     // only using MathSAT for now, but could be more general in the future
-    testing::ValuesIn({ MSAT }));
+    testing::Combine(testing::ValuesIn({ MSAT }),
+                     testing::ValuesIn({ true, false })));
 }  // namespace pono_tests
 
 #endif
