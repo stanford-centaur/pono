@@ -367,6 +367,9 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
   // construct the grammar
   cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
 
+  unordered_map<cvc4a::Term, vector<cvc4a::Term>, cvc4a::TermHashFunction>
+      constructs;
+
   if (gs) {
     const CVC4OpSignatures & ops_map = gs->get_op_map();
     const CVC4ValueMap & values_map = gs->get_value_map();
@@ -393,8 +396,6 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       }
     }
 
-    unordered_map<cvc4a::Term, vector<cvc4a::Term>, cvc4a::TermHashFunction>
-        constructs;
     // regular and relational operators
     for (const auto & s : start_terms) {
       cvc4a::Sort sort = s.getSort();
@@ -449,6 +450,11 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     }
 
     // handle multi-sort operators
+    // TODO enable this (need to populate sortkinds)
+    // TEMP warning
+    for (const auto & op : ms_ops[BV]) {
+      cout << "Unhandled op: " << op << endl;
+    }
     // TODO add arithmetic operators
     vector<SortKind> sortkinds;
     for (SortKind sk : sortkinds) {
@@ -469,17 +475,6 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       }
     }
 
-    for (const auto & elem : constructs) {
-      const cvc4a::Term & start_term = elem.first;
-      const vector<cvc4a::Term> & rules = elem.second;
-
-      // add rules for this nonterminal start term
-      g.addRules(start_term, rules);
-
-      if (values == 2) {
-        g.addAnyConstant(start_term);
-      }
-    }
   } else {
     for (auto s : start_terms) {
       cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
@@ -505,25 +500,35 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
           g_bound_vars.push_back(bound_var);
         }
       }
-      vector<cvc4a::Term> constructs = {bvadd, bvmul,
-                                        bvand, bvor, bvnot, bvneg };
+      constructs[s] = { bvadd, bvmul, bvand, bvor, bvnot, bvneg };
       if (values == 0) {
         // no constants in this case
         ;
       } else if (values == 1) {
-        constructs.push_back(zero);
-        constructs.push_back(one);
-        constructs.push_back(min_signed);
+        constructs[s].push_back(zero);
+        constructs[s].push_back(one);
+        constructs[s].push_back(min_signed);
       } else {
         assert(values == 2);
-        g.addAnyConstant(s);
       }
-      constructs.insert(
-                        constructs.end(), g_bound_vars.begin(), g_bound_vars.end());
-      g.addRules(s, constructs);
+      // add variables
+      constructs[s].insert(
+          constructs[s].end(), g_bound_vars.begin(), g_bound_vars.end());
     }
 
     // TODO: non-bv ops
+  }
+
+  for (const auto & elem : constructs) {
+    const cvc4a::Term & start_term = elem.first;
+    const vector<cvc4a::Term> & rules = elem.second;
+
+    // add rules for this nonterminal start term
+    g.addRules(start_term, rules);
+
+    if (values == 2) {
+      g.addAnyConstant(start_term);
+    }
   }
 
   return g;
