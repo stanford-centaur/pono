@@ -165,6 +165,8 @@ void collect_values(const Term term, UnorderedTermSet & out)
 // Helpers for CVC4 SyGuS Predicate Search
 // should eventually be moved elsewhere
 
+using OpSignatures = unordered_map<Op, unordered_set<Sort>>;
+
 /** \class GrammarSeed
  *  \brief A class for seeding a SyGuS grammar with terms
  *
@@ -217,10 +219,7 @@ class GrammarSeed
    *  e.g. bvadd might have been applied to (_ BitVec 8) x (_ BitVec 8) -> (_
    * BitVec 8) and (_ BitVec 6) x (_ BitVec 6) -> (_ BitVec 6)
    */
-  const unordered_map<Op, unordered_set<Sort>> & get_op_map() const
-  {
-    return op_map_;
-  }
+  const OpSignatures & get_op_map() const { return op_map_; }
 
   /** Getter for value map
    *  @return map from sorts to a set of values used of that sort
@@ -232,14 +231,14 @@ class GrammarSeed
 
  protected:
   SmtSolver solver_;
-  unordered_map<Op, unordered_set<Sort>> op_map_;
+  OpSignatures op_map_;
   unordered_map<Sort, UnorderedTermSet> value_map_;
 };
 
 // helper class for generating grammar for CVC4 SyGuS
 cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
                                  const CVC4TermVec & cvc4_boundvars,
-                                 const UnorderedOpSet & ops_set,
+                                 const OpSignatures & ops_map,
                                  const vector<cvc4a::Term> * values,
                                  bool all_consts)
 {
@@ -285,21 +284,24 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     }
   }
 
-  if (!ops_set.empty()) {
+  if (!ops_map.empty()) {
     // separate operators
     unordered_map<SortKind, unordered_set<PrimOp>> reg_ops;
     unordered_map<SortKind, unordered_set<PrimOp>> rel_ops;
     unordered_map<SortKind, unordered_set<Op>> ms_ops;
 
-    for (const auto & op : ops_set) {
+    for (const auto & opelem : ops_map) {
+      Op op = opelem.first;
       PrimOp po = op.prim_op;
       // for now, just bv or arithmetic (using REAL for both real and integer)
       SortKind sk = bv_ops.find(po) == bv_ops.end() ? REAL : BV;
       if (multisort_ops.find(po) != multisort_ops.end()) {
         ms_ops[sk].insert(op);
       } else if (relational_ops.find(po) != relational_ops.end()) {
+        assert(!op.num_idx);
         rel_ops[sk].insert(po);
       } else {
+        assert(!op.num_idx);
         reg_ops[sk].insert(po);
       }
     }
@@ -1109,10 +1111,6 @@ bool IC3IA::cvc4_synthesize_preds(
   GrammarSeed gs(solver_);
   gs.scan(abs_trace);
 
-  UnorderedOpSet abs_trace_ops;
-  for (const auto & opelem : gs.get_op_map()) {
-    abs_trace_ops.insert(opelem.first);
-  }
   vector<cvc4a::Term> abs_trace_values_cvc4;
   for (const auto & valelem : gs.get_value_map()) {
     for (const auto & v : valelem.second) {
@@ -1126,13 +1124,17 @@ bool IC3IA::cvc4_synthesize_preds(
   logger.log(1, "Number of Values : {}", abs_trace_values_cvc4.size());
 
   // Grammar construction
-  cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver, cvc4_boundvars,
-                                       abs_trace_ops, NULL,
+  cvc4a::Grammar g = cvc4_make_grammar(cvc4_solver,
+                                       cvc4_boundvars,
+                                       gs.get_op_map(),
+                                       NULL,
                                        options_.ic3ia_cvc4_pred_all_consts_);
   cvc4a::Grammar g_with_values =
-    cvc4_make_grammar(cvc4_solver, cvc4_boundvars,
-                      abs_trace_ops, &abs_trace_values_cvc4,
-                      options_.ic3ia_cvc4_pred_all_consts_);
+      cvc4_make_grammar(cvc4_solver,
+                        cvc4_boundvars,
+                        gs.get_op_map(),
+                        &abs_trace_values_cvc4,
+                        options_.ic3ia_cvc4_pred_all_consts_);
 
   vector<cvc4a::Term> pred_vec;
   for (size_t n = 0; n < num_preds; ++n) {
