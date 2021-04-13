@@ -370,6 +370,49 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       }
     }
 
+    // handle multi-sort operators
+    // TODO add arithmetic operators
+    vector<SortKind> sortkinds;
+    for (SortKind sk : sortkinds) {
+      for (const auto & op : ms_ops[sk]) {
+        // look up signature and get corresponding start terms
+        vector<cvc4a::Sort> signature;
+        for (const auto & sort : ops_map.at(op)) {
+          // TODO fix this needs to be translated to cvc4 solver as well
+          // need access to to_cvc4 which we don't have
+          cvc4a::Sort cvc4_sort =
+              static_pointer_cast<CVC4Sort>(sort)->get_cvc4_sort();
+          signature.push_back(cvc4_sort);
+        }
+
+        cvc4a::Sort return_sort = signature.back();
+        signature.pop_back();
+
+        vector<cvc4a::Term> args;
+        args.reserve(signature.size());
+        // TODO might not have start terms for all sorts
+        // need to collect all relevant sorts in GrammarSeed
+        for (const auto & sort : signature) {
+          args.push_back(sort2start.at(sort));
+        }
+
+        PrimOp po = op.prim_op;
+        cvc4a::Term return_start_term = sort2start.at(return_sort);
+        cvc4a::Op cvc4_op;
+        cvc4a::Kind kind = to_cvc4_ops.at(po);
+        if (op.num_idx == 0) {
+          cvc4_op = cvc4_solver.mkOp(kind);
+        } else if (op.num_idx == 1) {
+          cvc4_op = cvc4_solver.mkOp(kind, op.idx0);
+        } else {
+          assert(op.num_idx == 2);
+          cvc4_op = cvc4_solver.mkOp(kind, op.idx0, op.idx1);
+        }
+        constructs[return_start_term].push_back(
+            cvc4_solver.mkTerm(cvc4_op, args));
+      }
+    }
+
     for (const auto & elem : constructs) {
       const cvc4a::Term & start_term = elem.first;
       const vector<cvc4a::Term> & rules = elem.second;
