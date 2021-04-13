@@ -359,14 +359,6 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     }
   }
 
-  // merge the Boolean start and the BV start
-  vector<cvc4a::Term> starts;
-  starts.push_back(start_bool);
-  starts.insert(starts.end(), start_terms.begin(), start_terms.end());
-
-  // construct the grammar
-  cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
-
   unordered_map<cvc4a::Term, vector<cvc4a::Term>, cvc4a::TermHashFunction>
       constructs;
 
@@ -479,7 +471,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     for (auto s : start_terms) {
       cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
       cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
-      g.addRules(start_bool, { bvugt, equals });
+      constructs[start_bool] = { bvugt, equals };
     }
 
     // include bv operations in the grammar
@@ -519,9 +511,21 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     // TODO: non-bv ops
   }
 
+  // merge the Boolean start and the BV start
+  vector<cvc4a::Term> starts;
   for (const auto & elem : constructs) {
     const cvc4a::Term & start_term = elem.first;
     const vector<cvc4a::Term> & rules = elem.second;
+    if (rules.size()) {
+      starts.push_back(start_term);
+    }
+  }
+
+  // construct the grammar
+  cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
+
+  for (const auto & start_term : starts) {
+    const vector<cvc4a::Term> & rules = constructs.at(start_term);
 
     // add rules for this nonterminal start term
     g.addRules(start_term, rules);
