@@ -247,19 +247,23 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
   cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
   vector<cvc4a::Term> start_terms;
 
-  CVC4SortSet grammar_sorts;
-  // collect all required sorts
-  for (auto cvc4_boundvar : cvc4_boundvars) {
-    cvc4a::Sort s = cvc4_boundvar.getSort();
-    if (s.isBitVector()) {
-      grammar_sorts.insert(s);
+  unordered_map<cvc4a::Sort, cvc4a::Term, cvc4a::SortHashFunction> sort2start;
+  for (const auto & cvc4_bv : cvc4_boundvars)
+  {
+    cvc4a::Sort sort = cvc4_bv.getSort();
+    // TODO: remove this limitation
+    if (!sort.isBitVector())
+    {
+      cout << "Skipping unsupported sort " << sort << endl;
+      continue;
     }
-  }
 
-  // for each sort, introduce a new constructor for the grammar
-  for (auto s : grammar_sorts) {
-    cvc4a::Term start_term = cvc4_solver.mkVar(s, s.toString() + "_start");
-    start_terms.push_back(start_term);
+    if (sort2start.find(sort) == sort2start.end())
+    {
+      cvc4a::Term start_term = cvc4_solver.mkVar(sort, sort.toString() + "_start");
+      sort2start[sort] = start_term;
+      start_terms.push_back(start_term);
+    }
   }
 
   // merge the Boolean start and the BV start
