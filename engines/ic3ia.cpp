@@ -162,6 +162,80 @@ void collect_values(const Term term, UnorderedTermSet & out)
   get_matching_terms(term, out, f);
 }
 
+// Helpers for CVC4 SyGuS Predicate Search
+// should eventually be moved elsewhere
+
+/** \class GrammarSeed
+ *  \brief A class for seeding a SyGuS grammar with terms
+ *
+ *  Used to store ops and values used in an abstract trace
+ *  More specifically, it keeps track not only of the operators,
+ *  but also which sorts they're applied to
+ */
+class GrammarSeed
+{
+ public:
+  GrammarSeed(SmtSolver & solver) : solver_(solver) {}
+
+  void scan(Term term)
+  {
+    TermVec to_visit({ term });
+    UnorderedTermSet visited;
+    Term t;
+    while (!to_visit.empty()) {
+      t = to_visit.back();
+      to_visit.pop_back();
+      if (visited.find(t) != visited.end()) {
+        // cache hit -- nothing to do
+        continue;
+      } else {
+        visited.insert(t);
+        to_visit.insert(to_visit.end(), t->begin(), t->end());
+
+        Sort sort = t->get_sort();
+        Op op;
+        if (t->is_value()) {
+          value_map_[sort].insert(t);
+        } else if (!(op = t->get_op()).is_null()) {
+          // easiest way to store signature is as a function sort
+          vector<Sort> sort_vec;
+          for (const auto & tt : t) {
+            sort_vec.push_back(tt->get_sort());
+          }
+          sort_vec.push_back(sort);
+
+          Sort ufsort = solver_->make_sort(FUNCTION, sort_vec);
+          assert(!op.is_null());
+          op_map_[op].insert(ufsort);
+        }
+      }
+    }
+  }
+
+  /** Getter for operator map
+   *  @return a map from Ops to signatures (stored as function sorts)
+   *  e.g. bvadd might have been applied to (_ BitVec 8) x (_ BitVec 8) -> (_
+   * BitVec 8) and (_ BitVec 6) x (_ BitVec 6) -> (_ BitVec 6)
+   */
+  const unordered_map<Op, unordered_set<Sort>> & get_op_map() const
+  {
+    return op_map_;
+  }
+
+  /** Getter for value map
+   *  @return map from sorts to a set of values used of that sort
+   */
+  const unordered_map<Sort, UnorderedTermSet> & get_value_map() const
+  {
+    return value_map_;
+  }
+
+ protected:
+  SmtSolver solver_;
+  unordered_map<Op, unordered_set<Sort>> op_map_;
+  unordered_map<Sort, UnorderedTermSet> value_map_;
+};
+
 // helper class for generating grammar for CVC4 SyGuS
 cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
                                  const CVC4TermVec & cvc4_boundvars,
@@ -1032,17 +1106,21 @@ bool IC3IA::cvc4_synthesize_preds(
     cvc4_boundvars.push_back(cvc4_bv);
   }
 
-  // ops used in the abs_trace
+  GrammarSeed gs(solver_);
+  gs.scan(abs_trace);
+
   UnorderedOpSet abs_trace_ops;
-  get_ops(abs_trace, abs_trace_ops);
-  // constants in the abs_trace
-  UnorderedTermSet abs_trace_values;
-  collect_values(abs_trace, abs_trace_values);
+  for (const auto & opelem : gs.get_op_map()) {
+    abs_trace_ops.insert(opelem.first);
+  }
   vector<cvc4a::Term> abs_trace_values_cvc4;
-  for (auto v : abs_trace_values) {
-    cvc4a::Term cvc4_val =
-      static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(v))->get_cvc4_term();
-    abs_trace_values_cvc4.push_back(cvc4_val);
+  for (const auto & valelem : gs.get_value_map()) {
+    for (const auto & v : valelem.second) {
+      cvc4a::Term cvc4_val =
+          static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(v))
+              ->get_cvc4_term();
+      abs_trace_values_cvc4.push_back(cvc4_val);
+    }
   }
 
   logger.log(1, "Number of Values : {}", abs_trace_values_cvc4.size());
