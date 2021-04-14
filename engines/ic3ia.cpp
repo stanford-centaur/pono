@@ -223,7 +223,8 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
   cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
   vector<cvc4a::Term> start_terms;
 
-  unordered_map<cvc4a::Sort, cvc4a::Term, cvc4a::SortHashFunction> sort2start;
+  unordered_map<cvc4a::Sort, cvc4a::Term, cvc4a::SortHashFunction> sort2start(
+      { { boolean, start_bool } });
   for (const auto & cvc4_bv : cvc4_boundvars)
   {
     cvc4a::Sort sort = cvc4_bv.getSort();
