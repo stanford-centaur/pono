@@ -245,9 +245,30 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
   unordered_map<cvc4a::Term, vector<cvc4a::Term>, cvc4a::TermHashFunction>
       constructs;
 
+  // collect variables by sort and add to constructs
+  unordered_map<cvc4a::Sort, vector<cvc4a::Term>, cvc4a::SortHashFunction>
+      sort2boundvars;
+  for (const auto & bvar : cvc4_boundvars) {
+    cvc4a::Sort sort = bvar.getSort();
+    sort2boundvars[sort].push_back(bvar);
+    constructs[sort2start.at(sort)].push_back(bvar);
+  }
+
   if (gs) {
     const CVC4OpSignatures & ops_map = gs->get_op_map();
     const CVC4ValueMap & values_map = gs->get_value_map();
+
+    // add all sorts to start terms
+    for (const auto & sort : gs->get_all_sorts()) {
+      // treat booleans specially, only included as result of relational
+      // operations
+      if (sort2start.find(sort) == sort2start.end() && !sort.isBoolean()) {
+        cvc4a::Term start_term =
+            cvc4_solver.mkVar(sort, sort.toString() + "_start");
+        sort2start[sort] = start_term;
+        start_terms.push_back(start_term);
+      }
+    }
 
     // separate operators
     unordered_map<SortKind, unordered_set<cvc4a::Kind>> reg_ops;
@@ -289,14 +310,6 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
                    s.getSort().toString());
       }
 
-      // add variables
-      // TODO: make this more efficient, shouldn't have to search every time
-      for (const auto & bound_var : cvc4_boundvars) {
-        if (bound_var.getSort() == s.getSort()) {
-          constructs[s].push_back(bound_var);
-        }
-      }
-
       // regular
       for (const auto & po : reg_ops.at(sk)) {
         if (unary_ops.find(po) == unary_ops.end()) {
@@ -325,14 +338,9 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     }
 
     // handle multi-sort operators
-    // TODO enable this (need to populate sortkinds)
-    // TEMP warning
-    for (const auto & op : ms_ops[BV]) {
-      cout << "Unhandled op: " << op << endl;
-    }
     // TODO add arithmetic operators
     vector<SortKind> sortkinds;
-    for (SortKind sk : sortkinds) {
+    for (SortKind sk : { BV }) {
       for (const auto & op : ms_ops[sk]) {
         for (const auto & signature : ops_map.at(op)) {
           assert(signature.isFunction());
@@ -369,12 +377,6 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
       cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
       cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
-      vector<cvc4a::Term> g_bound_vars;
-      for (auto bound_var : cvc4_boundvars) {
-        if (bound_var.getSort() == s.getSort()) {
-          g_bound_vars.push_back(bound_var);
-        }
-      }
       constructs[s] = { bvadd, bvmul, bvand, bvor, bvnot, bvneg };
       if (values == 0) {
         // no constants in this case
@@ -386,29 +388,40 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       } else {
         assert(values == 2);
       }
-      // add variables
-      constructs[s].insert(
-          constructs[s].end(), g_bound_vars.begin(), g_bound_vars.end());
     }
 
     // TODO: non-bv ops
   }
 
-  // merge the Boolean start and the BV start
-  vector<cvc4a::Term> starts;
-  for (const auto & elem : constructs) {
-    const cvc4a::Term & start_term = elem.first;
-    const vector<cvc4a::Term> & rules = elem.second;
-    if (rules.size()) {
-      starts.push_back(start_term);
+  for (const auto & start_term : start_terms) {
+    cvc4a::Sort sort = start_term.getSort();
+    if (sort2boundvars.find(sort) == sort2boundvars.end()) {
+      // there should be some kind of start (e.g. value or constant)
+      // for every start term
+      // it's possible there will be no constants if the only terms
+      // of a given sort contain input variables
+      if (!sort.isBitVector()) {
+        throw PonoException("Unhandled empty start term of sort: "
+                            + sort.toString());
+      }
+
+      cvc4a::Term zero = cvc4_solver.mkBitVector(sort.getBVSize(), 0);
+      cvc4a::Term one = cvc4_solver.mkBitVector(sort.getBVSize(), 1);
+      constructs[start_term].push_back(zero);
+      constructs[start_term].push_back(one);
     }
   }
 
   // construct the grammar
+  vector<cvc4a::Term> starts({ start_bool });
+  starts.reserve(start_terms.size() + 1);
+  starts.insert(starts.end(), start_terms.begin(), start_terms.end());
   cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
 
-  for (const auto & start_term : starts) {
-    const vector<cvc4a::Term> & rules = constructs.at(start_term);
+  for (const auto & elem : constructs) {
+    const cvc4a::Term & start_term = elem.first;
+    const vector<cvc4a::Term> & rules = elem.second;
+    assert(rules.size());
 
     // add rules for this nonterminal start term
     g.addRules(start_term, rules);
