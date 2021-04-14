@@ -102,12 +102,6 @@ TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
 
 TEST_P(IC3IAUnitTests, InductiveIntSafe)
 {
-  if (opts.ic3ia_cvc4_pred_) {
-    // Temporarily not supporting arithmetic
-    cout << "Skipping unsupported INT theory" << endl;
-    return;
-  }
-
   FunctionalTransitionSystem fts(s);
   Term max_val = fts.make_term(10, intsort);
 
@@ -127,12 +121,6 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
 
 TEST_P(IC3IAUnitTests, SimpleIntSafe)
 {
-  if (opts.ic3ia_cvc4_pred_) {
-    // Temporarily not supporting arithmetic
-    cout << "Skipping unsupported INT theory" << endl;
-    return;
-  }
-
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", intsort);
   Term y = rts.make_statevar("y", intsort);

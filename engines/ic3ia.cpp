@@ -89,15 +89,19 @@ const unordered_set<cvc4a::Kind> bv_ops({ cvc4a::EQUAL,
                                           cvc4a::BITVECTOR_ROTATE_RIGHT });
 
 const unordered_set<cvc4a::Kind> relational_ops({
-    cvc4a::AND,           cvc4a::OR,
-    cvc4a::XOR,           cvc4a::NOT,
-    cvc4a::IMPLIES,       cvc4a::EQUAL,
-    cvc4a::DISTINCT,      cvc4a::LT,
-    cvc4a::LEQ,           cvc4a::GT,
-    cvc4a::GEQ,           cvc4a::BITVECTOR_ULT,
-    cvc4a::BITVECTOR_ULE, cvc4a::BITVECTOR_UGT,
-    cvc4a::BITVECTOR_UGE, cvc4a::BITVECTOR_SLT,
-    cvc4a::BITVECTOR_SLE, cvc4a::BITVECTOR_SGT,
+    cvc4a::EQUAL,
+    cvc4a::DISTINCT,
+    cvc4a::LT,
+    cvc4a::LEQ,
+    cvc4a::GT,
+    cvc4a::GEQ,
+    cvc4a::BITVECTOR_ULT,
+    cvc4a::BITVECTOR_ULE,
+    cvc4a::BITVECTOR_UGT,
+    cvc4a::BITVECTOR_UGE,
+    cvc4a::BITVECTOR_SLT,
+    cvc4a::BITVECTOR_SLE,
+    cvc4a::BITVECTOR_SGT,
     cvc4a::BITVECTOR_SGE,
 });
 
@@ -109,8 +113,11 @@ const unordered_set<cvc4a::Kind> multisort_ops({ cvc4a::BITVECTOR_EXTRACT,
 const unordered_set<cvc4a::Kind> unary_ops({ cvc4a::BITVECTOR_NEG,
                                              cvc4a::BITVECTOR_NOT,
                                              cvc4a::BITVECTOR_EXTRACT,
-                                             cvc4a::BITVECTOR_ZERO_EXTEND });
+                                             cvc4a::BITVECTOR_ZERO_EXTEND,
+                                             cvc4a::UMINUS });
 
+const unordered_set<cvc4a::Kind> bool_ops(
+    { cvc4a::AND, cvc4a::OR, cvc4a::XOR, cvc4a::NOT, cvc4a::IMPLIES });
 
 // Helpers for CVC4 SyGuS Predicate Search
 // should eventually be moved elsewhere
@@ -229,8 +236,8 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
   {
     cvc4a::Sort sort = cvc4_bv.getSort();
     // TODO: remove this limitation
-    if (!sort.isBitVector())
-    {
+    if (!sort.isBitVector() && !sort.isBoolean() && !sort.isReal()
+        && !sort.isInteger()) {
       cout << "Skipping unsupported sort " << sort << endl;
       continue;
     }
@@ -287,6 +294,9 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       } else if (relational_ops.find(po) != relational_ops.end()) {
         assert(!op.isIndexed());
         rel_ops[sk].insert(po);
+      } else if (bool_ops.find(po) != bool_ops.end()) {
+        // skip boolean operators -- looking for predicates
+        assert(!op.isIndexed());
       } else {
         assert(!op.isIndexed());
         reg_ops[sk].insert(po);
@@ -299,6 +309,9 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       SortKind sk;
       if (sort.isBitVector()) {
         sk = BV;
+      } else if (sort.isReal() || sort.isInteger()) {
+        // using real for both integers and reals
+        sk = REAL;
       } else if (sort.isBoolean()) {
         // only looking for predicates
         // nothing to do with a boolean
@@ -339,8 +352,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     }
 
     // handle multi-sort operators
-    // TODO add arithmetic operators
-    vector<SortKind> sortkinds;
+    // currently only for bit-vectors
     for (SortKind sk : { BV }) {
       for (const auto & op : ms_ops[sk]) {
         for (const auto & signature : ops_map.at(op)) {
