@@ -16,6 +16,8 @@
 %option yyclass="SMVscanner"
 %option yylineno
 %option noyywrap
+/** Uncomment to enable debug tracing */
+/** %option debug */
 
 %x COMMENT
 %x WORD_INIT WORD_BASE WORD_VALUE
