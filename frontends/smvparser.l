@@ -135,6 +135,17 @@ in {return pono::smvparser::make_OP_IN(_encoder.loc);}
 <WORD_VALUE>[0-9a-fA-F]+ {BEGIN(INITIAL); return pono::smvparser::make_integer_val(yytext,_encoder.loc);}
 
 [a-zA-Z_][A-Za-z0-9_\$#-]*  {return pono::smvparser::make_tok_name(yytext,_encoder.loc);}
+\"(\\.|[^\"\\])*\"    {
+                        for (const char * c=yytext; *c; ++c)
+                        {
+                          if(*c == '\n')
+                          {
+                            _encoder.loc.lines(1);
+                          }
+                        }
+                        _encoder.loc.step();
+                        return pono::smvparser::make_tok_name(yytext, _encoder.loc);
+                      }
 \n   {_encoder.loc.lines(yyleng);}
 .    {}
 <<EOF>>    return pono::smvparser::make_END(_encoder.loc);
