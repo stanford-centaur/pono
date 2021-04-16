@@ -22,6 +22,8 @@
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 
+#include "utils/ts_analysis.h"
+
 using namespace smt;
 using namespace std;
 
@@ -399,6 +401,12 @@ ProverResult IC3Base::step(int i)
       // which is the frame that just had all terms
       // from the previous frames propagated
       invar_ = get_frame_term(j + 1);
+      bool passes = check_invar(ts_, solver_->make_term(Not, bad_),
+                                invar_);
+      if (!passes)
+      {
+        throw PonoException("Failed invariant check.");
+      }
       return ProverResult::TRUE;
     }
   }

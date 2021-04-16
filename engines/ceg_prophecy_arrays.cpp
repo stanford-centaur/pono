@@ -109,11 +109,11 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
 
   if (res == ProverResult::TRUE && super::invar_) {
     // check invariant on abstract system
-    bool pass = check_invar(
-        super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
-    if (!pass) {
-      throw PonoException("Invariant FAILURE in CegProphecyArrays");
-    }
+    // bool pass = check_invar(
+    //     super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
+    // if (!pass) {
+    //   throw PonoException("Invariant FAILURE in CegProphecyArrays");
+    // }
     // TODO process the invariant
     // currently disabling because the history / prophecy variables
     // will make an invariant check fail
@@ -143,7 +143,8 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       reached_k_++;
     } while (num_added_axioms_ && reached_k_ <= k);
 
-    if (super::engine_ != IC3IA_ENGINE) {
+    // HACK: forcing restart even for IC3IA
+    if (true || super::engine_ != IC3IA_ENGINE) {
       Property latest_prop(super::solver_,
                            super::solver_->make_term(Not, super::bad_));
       SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
@@ -183,11 +184,11 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
 
   if (res == ProverResult::TRUE && super::invar_) {
     // check invariant on abstract system
-    bool pass = check_invar(
-        super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
-    if (!pass) {
-      throw PonoException("Invariant FAILURE in CegProphecyArrays");
-    }
+    // bool pass = check_invar(
+    //     super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
+    // if (!pass) {
+    //   throw PonoException("Invariant FAILURE in CegProphecyArrays");
+    // }
     // TODO process the invariant
     // currently disabling because the history / prophecy variables
     // will make an invariant check fail
@@ -553,11 +554,11 @@ void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & c
   // No-Op
 }
 
-template <>
-void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
-{
-  super::reabstract();
-}
+// template <>
+// void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
+// {
+//   super::reabstract();
+// }
 
 // ceg-prophecy is incremental for ic3ia
 template class CegProphecyArrays<IC3IA>;
