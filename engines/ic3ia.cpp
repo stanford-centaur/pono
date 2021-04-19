@@ -185,6 +185,7 @@ class CVC4GrammarSeed
         continue;
       } else {
         visited.insert(t);
+        to_visit.push_back(t);
         to_visit.insert(to_visit.end(), t.begin(), t.end());
 
         if (cvc4_term_is_value(t)) {
