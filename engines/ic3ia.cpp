@@ -168,7 +168,13 @@ class CVC4GrammarSeed
         to_visit.insert(to_visit.end(), t.begin(), t.end());
 
         cvc4a::Sort sort = t.getSort();
-        all_sorts_.insert(sort);
+
+        // HACK want to avoid adding integer sort
+        // if it's only for values (e.g. 2)
+        // but then all variables are reals
+        if (!sort.isInteger() || !cvc4_term_is_value(t)) {
+          all_sorts_.insert(sort);
+        }
         if (cvc4_term_is_value(t)) {
           value_map_[sort].insert(t);
           num_values_++;
@@ -284,6 +290,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     unordered_map<SortKind, unordered_set<cvc4a::Op, cvc4a::OpHashFunction>>
         ms_ops;
 
+    assert(ops_map.size());
     for (const auto & opelem : ops_map) {
       cvc4a::Op op = opelem.first;
       cvc4a::Kind po = op.getKind();
@@ -302,6 +309,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
         reg_ops[sk].insert(po);
       }
     }
+    assert(ms_ops.size() + rel_ops.size() + reg_ops.size());
 
     // regular and relational operators
     for (const auto & s : start_terms) {
@@ -325,7 +333,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       }
 
       // regular
-      for (const auto & po : reg_ops.at(sk)) {
+      for (const auto & po : reg_ops[sk]) {
         if (unary_ops.find(po) == unary_ops.end()) {
           logger.log(1, "BINARY: {}", po);
           constructs[s].push_back(cvc4_solver.mkTerm(po, s, s));
@@ -336,7 +344,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       }
 
       // relational
-      for (const auto & po : rel_ops.at(sk)) {
+      for (const auto & po : rel_ops[sk]) {
         constructs[start_bool].push_back(cvc4_solver.mkTerm(po, s, s));
       }
 
