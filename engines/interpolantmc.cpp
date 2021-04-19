@@ -167,8 +167,6 @@ bool InterpolantMC::step(int i)
       if (!r.is_sat()) {
         throw PonoException("Internal error: Expecting satisfiable result");
       }
-      // increment reached_k_ so that witness goes up to the bad state
-      ++reached_k_;
       return false;
     }
     else if (r.is_unknown())
