@@ -166,7 +166,9 @@ bool MsatIC3IA::compute_witness(msat_env env,
   assert(ic3ia_wit.size());
 
   // set reached_k_ so that it matches the counterexample length
-  reached_k_ = ic3ia_wit.size() - 1;
+  // reached_k_ was last bound without a counterexample, so
+  // it's size - 2
+  reached_k_ = ic3ia_wit.size() - 2;
 
   // set up a BMC query
   // with state variables constrained at each step

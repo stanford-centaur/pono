@@ -112,7 +112,7 @@ class Prover
 
   Unroller unroller_;
 
-  int reached_k_;
+  int reached_k_;  ///< the last bound reached with no counterexamples
 
   smt::Term bad_;
 

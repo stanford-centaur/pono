@@ -206,7 +206,7 @@ bool Prover::compute_witness()
 {
   // TODO: make sure the solver state is SAT
 
-  for (int i = 0; i <= reached_k_; ++i) {
+  for (int i = 0; i <= reached_k_ + 1; ++i) {
     witness_.push_back(UnorderedTermMap());
     UnorderedTermMap & map = witness_.back();
 
