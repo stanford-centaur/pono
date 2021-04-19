@@ -1207,7 +1207,18 @@ simple_expr: constant {
               throw PonoException("No array size");
             }
             | tok_floor "(" basic_expr ")"{
-              throw PonoException("No floor operation");
+              if (enc.module_flat)
+              {
+                smt::Term t = $3->getTerm();
+                smt::SortKind sk = t->get_sort()->get_sort_kind();
+                assert(sk == smt::REAL || sk == smt::INT);
+                smt::Term res = enc.solver_->make_term(smt::To_Int, t);
+                $$ = new SMVnode(res, SMVnode::Integer);
+              }
+              else
+              {
+                $$ = new floor_expr($3);
+              }
             }
             | extend "(" basic_expr ")"{
               throw PonoException("No extend now");
