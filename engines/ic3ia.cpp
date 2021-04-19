@@ -156,25 +156,37 @@ class CVC4GrammarSeed
   {
     CVC4TermVec to_visit({ term });
     unordered_set<cvc4a::Term, cvc4a::TermHashFunction> visited;
+    unordered_set<cvc4a::Term, cvc4a::TermHashFunction> contains_free_vars;
     cvc4a::Term t;
     while (!to_visit.empty()) {
       t = to_visit.back();
+      cvc4a::Sort sort = t.getSort();
       to_visit.pop_back();
       if (visited.find(t) != visited.end()) {
-        // cache hit -- nothing to do
+        for (const auto & tt : t) {
+          if (contains_free_vars.find(tt) != contains_free_vars.end()) {
+            // mark this term as containing free variables
+            contains_free_vars.insert(t);
+            break;
+          }
+        }
+
+        // HACK want to avoid adding integer sort
+        // if it's only for values (e.g. 2)
+        // but then all variables are reals
+        // NOTE: can't just use the CVC4 equivalent of is_value
+        // because it would return false for (- 1)
+        // since it has an operator
+        if (!sort.isInteger()
+            || contains_free_vars.find(t) != contains_free_vars.end()) {
+          all_sorts_.insert(sort);
+        }
+
         continue;
       } else {
         visited.insert(t);
         to_visit.insert(to_visit.end(), t.begin(), t.end());
 
-        cvc4a::Sort sort = t.getSort();
-
-        // HACK want to avoid adding integer sort
-        // if it's only for values (e.g. 2)
-        // but then all variables are reals
-        if (!sort.isInteger() || !cvc4_term_is_value(t)) {
-          all_sorts_.insert(sort);
-        }
         if (cvc4_term_is_value(t)) {
           value_map_[sort].insert(t);
           num_values_++;
@@ -189,6 +201,8 @@ class CVC4GrammarSeed
           cvc4a::Sort ufsort = solver_.mkFunctionSort(sort_vec, sort);
           assert(!op.isNull());
           op_map_[op].insert(ufsort);
+        } else if (t.getKind() == cvc4a::CONSTANT) {
+          contains_free_vars.insert(t);
         }
       }
     }
