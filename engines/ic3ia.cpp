@@ -287,7 +287,7 @@ RefineResult IC3IA::refine()
 
   // reduce new predicates
   TermVec red_preds;
-  if (ia_.reduce_predicates(cex_, fresh_preds, red_preds)) {
+  if (false && ia_.reduce_predicates(cex_, fresh_preds, red_preds)) {
     // reduction successful
     logger.log(2,
                "reduce predicates successful {}/{}",
@@ -303,7 +303,7 @@ RefineResult IC3IA::refine()
     // the unrolling can force incompatible UF interpretations
     // but IC3 (which doesn't unroll) still needs the predicates
     // in this case, just use all the fresh predicates
-    assert(red_preds.size() == 0);
+    // assert(red_preds.size() == 0);
     logger.log(2, "reduce predicates FAILED");
   }
 
