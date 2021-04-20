@@ -59,6 +59,7 @@ enum optionIndex
   IC3IA_CVC4_PRED,
   IC3IA_CVC4_PRED_SIZE,
   IC3IA_CVC4_PRED_ALL_CONSTS,
+  IC3IA_CVC4_PRED_ALL_SORTS,
   PSEUDO_INIT_PROP,
   ASSUME_PROP,
   CEGP_ABS_VALS,
@@ -309,13 +310,20 @@ const option::Descriptor usage[] = {
     "",
     "ic3ia-cvc4-pred-size",
     Arg::Numeric,
-    "  --ic3ia-cvc4-pred-size \tlimit size of each predicate."},
-{ IC3IA_CVC4_PRED_ALL_CONSTS,
+    "  --ic3ia-cvc4-pred-size \tlimit size of each predicate." },
+  { IC3IA_CVC4_PRED_ALL_CONSTS,
     0,
     "",
     "ic3ia-cvc4-pred-all-consts",
     Arg::None,
-    "  --ic3ia-cvc4-pred-all-consts \tuse all constants in the grammar."},
+    "  --ic3ia-cvc4-pred-all-consts \tuse all constants in the grammar." },
+  { IC3IA_CVC4_PRED_ALL_SORTS,
+    0,
+    "",
+    "ic3ia-cvc4-pred-all-sorts",
+    Arg::None,
+    "  --ic3ia-cvc4-pred-all-sorts \tuse all sorts from query in the grammar."
+    " (otherwise just sorts of the variables)" },
   { PSEUDO_INIT_PROP,
     0,
     "",
@@ -357,7 +365,8 @@ const option::Descriptor usage[] = {
     "",
     "ceg-bv-arith-min-bw",
     Arg::Numeric,
-    "  --ceg-bv-arith-min-bw \tminimum bitwidth of operators to abstract - must be positive (default: 16) " },
+    "  --ceg-bv-arith-min-bw \tminimum bitwidth of operators to abstract - "
+    "must be positive (default: 16) " },
   { PROMOTE_INPUTVARS,
     0,
     "",
@@ -512,6 +521,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case IC3IA_CVC4_PRED: ic3ia_cvc4_pred_ = true; break;
         case IC3IA_CVC4_PRED_SIZE: ic3ia_cvc4_pred_size_ = atoi(opt.arg); break;
         case IC3IA_CVC4_PRED_ALL_CONSTS: ic3ia_cvc4_pred_all_consts_ = true; break;
+        case IC3IA_CVC4_PRED_ALL_SORTS:
+          ic3ia_cvc4_pred_all_sorts_ = true;
+          break;
         case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
         case ASSUME_PROP: assume_prop_ = true; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;

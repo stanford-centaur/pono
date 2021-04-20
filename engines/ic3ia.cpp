@@ -244,7 +244,8 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
                                  // 0 - no values
                                  // 1 - values from CVC4GrammarSeed
                                  // 2 - all values
-                                 size_t values)
+                                 size_t values,
+                                 bool all_sorts)
 {
   // sorts and their terminal constructors (start constructors)
   cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
@@ -287,15 +288,17 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     const CVC4OpSignatures & ops_map = gs->get_op_map();
     const CVC4ValueMap & values_map = gs->get_value_map();
 
-    // add all sorts to start terms
-    for (const auto & sort : gs->get_all_sorts()) {
-      // treat booleans specially, only included as result of relational
-      // operations
-      if (sort2start.find(sort) == sort2start.end() && !sort.isBoolean()) {
-        cvc4a::Term start_term =
-            cvc4_solver.mkVar(sort, sort.toString() + "_start");
-        sort2start[sort] = start_term;
-        start_terms.push_back(start_term);
+    if (all_sorts) {
+      // add all sorts to start terms
+      for (const auto & sort : gs->get_all_sorts()) {
+        // treat booleans specially, only included as result of relational
+        // operations
+        if (sort2start.find(sort) == sort2start.end() && !sort.isBoolean()) {
+          cvc4a::Term start_term =
+              cvc4_solver.mkVar(sort, sort.toString() + "_start");
+          sort2start[sort] = start_term;
+          start_terms.push_back(start_term);
+        }
       }
     }
 
@@ -381,10 +384,20 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
         for (const auto & signature : ops_map.at(op)) {
           assert(signature.isFunction());
           vector<cvc4a::Term> args;
+          bool failed = false;
           for (const auto & sort : signature.getFunctionDomainSorts()) {
             // TODO might not have start terms for all sorts
             //      need to create a start term for each sort in the problem
+            if (sort2start.find(sort) == sort2start.end()) {
+              // no start term for this sort
+              failed = true;
+              assert(!all_sorts_);  // should never happen if adding all sorts
+              break;
+            }
             args.push_back(sort2start.at(sort));
+          }
+          if (failed) {
+            break;
           }
 
           cvc4a::Term return_start_term =
@@ -1167,12 +1180,14 @@ bool IC3IA::cvc4_synthesize_preds(
       cvc4_make_grammar(cvc4_solver,
                         cvc4_boundvars,
                         &gs,
-                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 0);
+                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 0,
+                        options_.ic3ia_cvc4_pred_all_sorts_);
   cvc4a::Grammar g_with_values =
       cvc4_make_grammar(cvc4_solver,
                         cvc4_boundvars,
                         &gs,
-                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 1);
+                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 1,
+                        options_.ic3ia_cvc4_pred_all_sorts_);
 
   vector<cvc4a::Term> pred_vec;
   for (size_t n = 0; n < num_preds; ++n) {

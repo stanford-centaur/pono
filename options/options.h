@@ -183,6 +183,7 @@ class PonoOptions
   bool ic3ia_cvc4_pred_;
   unsigned int ic3ia_cvc4_pred_size_;
   bool ic3ia_cvc4_pred_all_consts_;
+  bool ic3ia_cvc4_pred_all_sorts_;
 
  private:
   // Default options
@@ -213,6 +214,7 @@ class PonoOptions
   static const std::string default_profiling_log_filename_;
   static const bool default_ic3ia_cvc4_pred_ = false;
   static const bool default_ic3ia_cvc4_pred_all_consts_ = false;
+  static const bool default_ic3ia_cvc4_pred_all_sorts_ = false;
   static const unsigned int default_ic3ia_cvc4_pred_size_ = 2;
   static const bool default_pseudo_init_prop_ = false;
   static const bool default_assume_prop_ = false;
