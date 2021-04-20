@@ -51,25 +51,6 @@ namespace cvc4a = ::CVC4::api;
 using CVC4SortSet = std::unordered_set<cvc4a::Sort, cvc4a::SortHashFunction>;
 using CVC4TermVec = std::vector<cvc4a::Term>;
 
-// TODO remove these
-// const unordered_set<PrimOp> bv_ops(
-//     { Equal, Concat, Extract, BVNot, BVNeg, BVAnd, BVOr, BVXor, BVNand,
-//     BVNor,
-//       BVXnor, BVComp, BVAdd, BVSub, BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem,
-//       BVSmod, BVShl, BVAshr, BVLshr, BVUlt, BVUle, BVUgt, BVUge, BVSlt,
-//       BVSle, BVSgt, BVSge, Zero_Extend, Sign_Extend, Repeat, Rotate_Left } );
-
-// const unordered_set<PrimOp> relational_ops(
-//                                            { And, Or, Xor, Not, Implies,
-//                                            Equal, Distinct, Lt, Le, Gt, Ge,
-//                                              BVUlt, BVUle, BVUgt, BVUge,
-//                                              BVSlt, BVSle, BVSgt, BVSge} );
-
-// // these operations are not relational but also operate on multiple sorts
-// const unordered_set<PrimOp> multisort_ops(
-//                                           { Extract, Zero_Extend, BVComp,
-//                                           Concat });
-
 const unordered_set<cvc4a::Kind> bv_ops({ cvc4a::EQUAL,
                                           cvc4a::BITVECTOR_CONCAT,
                                           cvc4a::BITVECTOR_EXTRACT,
@@ -129,105 +110,6 @@ const unordered_set<cvc4a::Kind> unary_ops({ cvc4a::BITVECTOR_NEG,
                                              cvc4a::BITVECTOR_NOT,
                                              cvc4a::BITVECTOR_EXTRACT,
                                              cvc4a::BITVECTOR_ZERO_EXTEND });
-
-// TODO: get rid of this if not needed
-const unordered_map<PrimOp, cvc4a::Kind> to_cvc4_ops(
-    { { And, cvc4a::AND },
-      { Or, cvc4a::OR },
-      { Xor, cvc4a::XOR },
-      { Not, cvc4a::NOT },
-      { Implies, cvc4a::IMPLIES },
-      { Ite, cvc4a::ITE },
-      { Equal, cvc4a::EQUAL },
-      { Distinct, cvc4a::DISTINCT },
-      /* Uninterpreted Functions */
-      { Apply, cvc4a::APPLY_UF },
-      /* Arithmetic Theories */
-      { Plus, cvc4a::PLUS },
-      { Minus, cvc4a::MINUS },
-      { Negate, cvc4a::UMINUS },
-      { Mult, cvc4a::MULT },
-      { Div, cvc4a::DIVISION },
-      { Lt, cvc4a::LT },
-      { Le, cvc4a::LEQ },
-      { Gt, cvc4a::GT },
-      { Ge, cvc4a::GEQ },
-      { Mod, cvc4a::INTS_MODULUS },
-      { Abs, cvc4a::ABS },
-      { Pow, cvc4a::POW },
-      { To_Real, cvc4a::TO_REAL },
-      { To_Int, cvc4a::TO_INTEGER },
-      { Is_Int, cvc4a::IS_INTEGER },
-      /* Fixed Size BitVector Theory */
-      { Concat, cvc4a::BITVECTOR_CONCAT },
-      // Indexed Op
-      { Extract, cvc4a::BITVECTOR_EXTRACT },
-      { BVNot, cvc4a::BITVECTOR_NOT },
-      { BVNeg, cvc4a::BITVECTOR_NEG },
-      { BVAnd, cvc4a::BITVECTOR_AND },
-      { BVOr, cvc4a::BITVECTOR_OR },
-      { BVXor, cvc4a::BITVECTOR_XOR },
-      { BVNand, cvc4a::BITVECTOR_NAND },
-      { BVNor, cvc4a::BITVECTOR_NOR },
-      { BVXnor, cvc4a::BITVECTOR_XNOR },
-      { BVComp, cvc4a::BITVECTOR_COMP },
-      { BVAdd, cvc4a::BITVECTOR_PLUS },
-      { BVSub, cvc4a::BITVECTOR_SUB },
-      { BVMul, cvc4a::BITVECTOR_MULT },
-      { BVUdiv, cvc4a::BITVECTOR_UDIV },
-      { BVSdiv, cvc4a::BITVECTOR_SDIV },
-      { BVUrem, cvc4a::BITVECTOR_UREM },
-      { BVSrem, cvc4a::BITVECTOR_SREM },
-      { BVSmod, cvc4a::BITVECTOR_SMOD },
-      { BVShl, cvc4a::BITVECTOR_SHL },
-      { BVAshr, cvc4a::BITVECTOR_ASHR },
-      { BVLshr, cvc4a::BITVECTOR_LSHR },
-      { BVUlt, cvc4a::BITVECTOR_ULT },
-      { BVUle, cvc4a::BITVECTOR_ULE },
-      { BVUgt, cvc4a::BITVECTOR_UGT },
-      { BVUge, cvc4a::BITVECTOR_UGE },
-      { BVSlt, cvc4a::BITVECTOR_SLT },
-      { BVSle, cvc4a::BITVECTOR_SLE },
-      { BVSgt, cvc4a::BITVECTOR_SGT },
-      { BVSge, cvc4a::BITVECTOR_SGE },
-      // Indexed Op
-      { Zero_Extend, cvc4a::BITVECTOR_ZERO_EXTEND },
-      // Indexed Op
-      { Sign_Extend, cvc4a::BITVECTOR_SIGN_EXTEND },
-      // Indexed Op
-      { Repeat, cvc4a::BITVECTOR_REPEAT },
-      // Indexed Op
-      { Rotate_Left, cvc4a::BITVECTOR_ROTATE_LEFT },
-      // Indexed Op
-      { Rotate_Right, cvc4a::BITVECTOR_ROTATE_RIGHT },
-      // Conversion
-      { BV_To_Nat, cvc4a::BITVECTOR_TO_NAT },
-      // Indexed Op
-      { Int_To_BV, cvc4a::INT_TO_BITVECTOR },
-      { Select, cvc4a::SELECT },
-      { Store, cvc4a::STORE },
-      { Forall, cvc4a::FORALL },
-      { Exists, cvc4a::EXISTS },
-      // Datatype
-      { Apply_Constructor, cvc4a::APPLY_CONSTRUCTOR },
-      { Apply_Tester, cvc4a::APPLY_TESTER },
-      { Apply_Selector, cvc4a::APPLY_SELECTOR } });
-
-// TODO remove this
-// void get_bv_ops_subset(const UnorderedOpSet &in, UnorderedOpSet &out)
-// {
-//   for (const auto & o : in) {
-//     if (bv_ops.find(o.prim_op) != bv_ops.end()) {
-//       out.insert(o);
-//     }
-//   }
-// }
-
-void collect_values(const Term term, UnorderedTermSet & out)
-{
-  auto f = [](const smt::Term & t) { return t->is_value(); };
-  get_matching_terms(term, out, f);
-}
 
 // Helpers for CVC4 SyGuS Predicate Search
 // should eventually be moved elsewhere
