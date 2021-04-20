@@ -89,15 +89,19 @@ const unordered_set<cvc4a::Kind> bv_ops({ cvc4a::EQUAL,
                                           cvc4a::BITVECTOR_ROTATE_RIGHT });
 
 const unordered_set<cvc4a::Kind> relational_ops({
-    cvc4a::AND,           cvc4a::OR,
-    cvc4a::XOR,           cvc4a::NOT,
-    cvc4a::IMPLIES,       cvc4a::EQUAL,
-    cvc4a::DISTINCT,      cvc4a::LT,
-    cvc4a::LEQ,           cvc4a::GT,
-    cvc4a::GEQ,           cvc4a::BITVECTOR_ULT,
-    cvc4a::BITVECTOR_ULE, cvc4a::BITVECTOR_UGT,
-    cvc4a::BITVECTOR_UGE, cvc4a::BITVECTOR_SLT,
-    cvc4a::BITVECTOR_SLE, cvc4a::BITVECTOR_SGT,
+    cvc4a::EQUAL,
+    cvc4a::DISTINCT,
+    cvc4a::LT,
+    cvc4a::LEQ,
+    cvc4a::GT,
+    cvc4a::GEQ,
+    cvc4a::BITVECTOR_ULT,
+    cvc4a::BITVECTOR_ULE,
+    cvc4a::BITVECTOR_UGT,
+    cvc4a::BITVECTOR_UGE,
+    cvc4a::BITVECTOR_SLT,
+    cvc4a::BITVECTOR_SLE,
+    cvc4a::BITVECTOR_SGT,
     cvc4a::BITVECTOR_SGE,
 });
 
@@ -109,7 +113,11 @@ const unordered_set<cvc4a::Kind> multisort_ops({ cvc4a::BITVECTOR_EXTRACT,
 const unordered_set<cvc4a::Kind> unary_ops({ cvc4a::BITVECTOR_NEG,
                                              cvc4a::BITVECTOR_NOT,
                                              cvc4a::BITVECTOR_EXTRACT,
-                                             cvc4a::BITVECTOR_ZERO_EXTEND });
+                                             cvc4a::BITVECTOR_ZERO_EXTEND,
+                                             cvc4a::UMINUS });
+
+const unordered_set<cvc4a::Kind> bool_ops(
+    { cvc4a::AND, cvc4a::OR, cvc4a::XOR, cvc4a::NOT, cvc4a::IMPLIES, cvc4a::ITE });
 
 // Helpers for CVC4 SyGuS Predicate Search
 // should eventually be moved elsewhere
