@@ -117,7 +117,7 @@ const unordered_set<cvc4a::Kind> unary_ops({ cvc4a::BITVECTOR_NEG,
                                              cvc4a::UMINUS });
 
 const unordered_set<cvc4a::Kind> bool_ops(
-    { cvc4a::AND, cvc4a::OR, cvc4a::XOR, cvc4a::NOT, cvc4a::IMPLIES });
+    { cvc4a::AND, cvc4a::OR, cvc4a::XOR, cvc4a::NOT, cvc4a::IMPLIES, cvc4a::ITE });
 
 // Helpers for CVC4 SyGuS Predicate Search
 // should eventually be moved elsewhere
