@@ -270,6 +270,7 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     unordered_map<SortKind, unordered_set<cvc4a::Op, cvc4a::OpHashFunction>>
         ms_ops;
 
+    assert(ops_map.size());
     for (const auto & opelem : ops_map) {
       cvc4a::Op op = opelem.first;
       cvc4a::Kind po = op.getKind();
@@ -280,11 +281,16 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
       } else if (relational_ops.find(po) != relational_ops.end()) {
         assert(!op.isIndexed());
         rel_ops[sk].insert(po);
+      } else if (bool_ops.find(po) != bool_ops.end()) {
+        // skip boolean operators -- looking for predicates
+        assert(!op.isIndexed());
+        continue;
       } else {
         assert(!op.isIndexed());
         reg_ops[sk].insert(po);
       }
     }
+    assert(ms_ops.size() + rel_ops.size() + reg_ops.size());
 
     // regular and relational operators
     for (const auto & s : start_terms) {
