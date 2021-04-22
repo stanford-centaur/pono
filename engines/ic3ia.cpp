@@ -54,6 +54,9 @@ IC3IA::IC3IA(const Property & p,
       to_solver_(solver_),
       longest_cex_length_(0)
 {
+  // since we passed a fresh RelationalTransitionSystem as the main TS
+  // need to point orig_ts_ to the right place
+  orig_ts_ = ts;
   engine_ = Engine::IC3IA_ENGINE;
   approx_pregen_ = true;
 }
