@@ -193,3 +193,8 @@ cdef extern from "printers/vcd_witness_printer.h" namespace "pono":
 cdef extern from "utils/logger.h" namespace "pono":
     void set_global_logger_verbosity(unsigned int v) except +
 
+cdef extern from "utils/ts_analysis.h" namespace "pono":
+    bint check_invar(const TransitionSystem & ts,
+                     const c_Term & prop,
+                     const c_Term & invar) except +
+

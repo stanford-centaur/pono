@@ -35,6 +35,7 @@ from pono_imp cimport StaticConeOfInfluence as c_StaticConeOfInfluence
 from pono_imp cimport add_prop_monitor as c_add_prop_monitor
 from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
+from pono_imp cimport check_invar as c_check_invar
 
 from smt_switch cimport SmtSolver, PrimOp, Op, c_SortKind, SortKind, \
     c_Sort, c_SortVec, Sort, Term, c_Term, c_TermVec, c_UnorderedTermMap
@@ -611,6 +612,9 @@ cdef class VCDWitnessPrinter:
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)
+
+def check_invar(__AbstractTransitionSystem ts, Term prop, Term invar):
+    return c_check_invar(dref(ts.cts), prop.ct, invar.ct)
 
 def coi_reduction(__AbstractTransitionSystem ts, to_keep, verbosity=1):
     '''
