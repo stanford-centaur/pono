@@ -441,6 +441,11 @@ cdef class __AbstractProver:
 
         return w
 
+    def invar(self):
+        cdef Term inv = Term(self._solver)
+        inv.ct = dref(self.cp).invar()
+        return inv
+
     def prove(self):
         '''
         Tries to prove property unboundedly, returns True, False or None (if unknown)

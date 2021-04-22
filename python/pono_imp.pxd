@@ -99,6 +99,7 @@ cdef extern from "engines/prover.h" namespace "pono":
         void initialize() except +
         ProverResult check_until(int k) except +
         bint witness(vector[c_UnorderedTermMap] & out) except +
+        c_Term invar() except +
         ProverResult prove() except +
 
 
