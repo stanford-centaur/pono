@@ -304,10 +304,6 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/core/"
         DESTINATION include/pono/core
         FILES_MATCHING PATTERN "*.h")
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
-        DESTINATION include/pono/utils
-        FILES_MATCHING PATTERN "*.h")
-
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/engines/"
         DESTINATION include/pono/engines
         FILES_MATCHING PATTERN "*.h")
@@ -316,14 +312,22 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/frontends/"
         DESTINATION include/pono/frontends
         FILES_MATCHING PATTERN "*.h")
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/smvparser.h"
-        DESTINATION include/pono/)
-
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/location.hh"
         DESTINATION include/pono/)
 
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/modifiers/"
+        DESTINATION include/pono/modifiers
+        FILES_MATCHING PATTERN "*.h")
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/options/"
         DESTINATION include/pono/options
+        FILES_MATCHING PATTERN "*.h")
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/smvparser.h"
+        DESTINATION include/pono/)
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
+        DESTINATION include/pono/utils
         FILES_MATCHING PATTERN "*.h")
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/contrib/fmt/"
