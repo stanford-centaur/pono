@@ -391,7 +391,11 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
             if (sort2start.find(sort) == sort2start.end()) {
               // no start term for this sort
               failed = true;
-              assert(!all_sorts_);  // should never happen if adding all sorts
+              logger.log(
+                  3,
+                  "IC3IA SyGuS pred: skipping op {} because missing sort {}",
+                  op.toString(),
+                  sort.toString());
               break;
             }
             args.push_back(sort2start.at(sort));
@@ -400,9 +404,17 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
             break;
           }
 
-          cvc4a::Term return_start_term =
-              sort2start.at(signature.getFunctionCodomainSort());
-          constructs[return_start_term].push_back(cvc4_solver.mkTerm(op, args));
+          cvc4a::Sort codomain_sort = signature.getFunctionCodomainSort();
+          if (sort2start.find(codomain_sort) != sort2start.end()) {
+            cvc4a::Term return_start_term = sort2start.at(codomain_sort);
+            constructs[return_start_term].push_back(
+                cvc4_solver.mkTerm(op, args));
+          } else {
+            logger.log(3,
+                       "Skipping op {} because missing return sort {}",
+                       op.toString(),
+                       codomain_sort.toString());
+          }
         }
       }
     }
