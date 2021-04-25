@@ -1164,6 +1164,7 @@ bool IC3IA::cvc4_synthesize_preds(
   int pred_size = options_.ic3ia_cvc4_pred_size_;
   pred_size += (num_preds-1)/3; // increase the size periodically
   cvc4_solver.setOption("sygus-abort-size", std::to_string(pred_size));
+  cvc4_solver.setOption("sygus-active-gen", "enum");
 
   // create bound variables to use in the synthesized function
   vector<cvc4a::Term> cvc4_statevars;
