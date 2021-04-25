@@ -220,7 +220,9 @@ SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
       // These will be managed by the solver object
       // don't need to destroy
       msat_config cfg =
-          get_msat_config_for_ic3(true, { { "model_generation", "false" } });
+          get_msat_config_for_ic3(true,
+                                  { { "bool_model_generation", "false" },
+                                    { "model_generation", "true" } });
       msat_env env = msat_create_env(cfg);
       return std::make_shared<MsatInterpolatingSolver>(cfg, env);
       break;

@@ -292,7 +292,7 @@ void ArrayAbstractor::abstract_vars()
   for (auto iv : conc_ts_.inputvars()) {
     sort = iv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
-      abs_var = abs_ts_.make_statevar("abs_" + iv->to_string(),
+      abs_var = abs_ts_.make_inputvar("abs_" + iv->to_string(),
                                       abstract_array_sort(sort));
       update_term_cache(iv, abs_var);
     } else {

@@ -78,9 +78,8 @@ bool Bmc::step(int i)
     res = false;
   } else {
     solver_->pop();
+    ++reached_k_;
   }
-
-  ++reached_k_;
 
   return res;
 }

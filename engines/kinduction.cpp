@@ -78,7 +78,6 @@ bool KInduction::base_step(int i)
   solver_->assert_formula(unroller_.at_time(bad_, i));
   Result r = solver_->check_sat();
   if (r.is_sat()) {
-    ++reached_k_;
     return false;
   }
   solver_->pop();
