@@ -238,14 +238,18 @@ class CVC4GrammarSeed
 };
 
 // helper class for generating grammar for CVC4 SyGuS
-cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
-                                 const CVC4TermVec & cvc4_boundvars,
-                                 const CVC4GrammarSeed * gs,
-                                 // 0 - no values
-                                 // 1 - values from CVC4GrammarSeed
-                                 // 2 - all values
-                                 size_t values,
-                                 bool all_sorts)
+cvc4a::Grammar cvc4_make_grammar(
+    cvc4a::Solver & cvc4_solver,
+    const CVC4TermVec & cvc4_boundvars,
+    const CVC4GrammarSeed * gs,
+    unordered_map<cvc4a::Sort,
+                  unordered_set<cvc4a::Term, cvc4a::TermHashFunction>,
+                  cvc4a::SortHashFunction> & cvc4_max_terms,
+    // 0 - no values
+    // 1 - values from CVC4GrammarSeed
+    // 2 - all values
+    size_t values,
+    bool all_sorts)
 {
   // sorts and their terminal constructors (start constructors)
   cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
@@ -452,6 +456,14 @@ cvc4a::Grammar cvc4_make_grammar(cvc4a::Solver & cvc4_solver,
     }
 
     // TODO: non-bv ops
+  }
+
+  // add max terms
+  for (const auto & start_term : start_terms) {
+    cvc4a::Sort sort = start_term.getSort();
+    for (const auto & t : cvc4_max_terms[sort]) {
+      constructs[start_term].push_back(t);
+    }
   }
 
   for (const auto & start_term : start_terms) {
@@ -708,8 +720,10 @@ void IC3IA::initialize()
   if (conc_ts_.is_functional()) {
     for (const auto & elem : conc_ts_.state_updates()) {
       Sort esort = elem.second->get_sort();
-      if (esort != boolsort_ && conc_ts_.only_curr(elem.second)) {
-        max_terms_[esort].insert(elem.second);
+      // constants and values get added anyway, don't count as max term
+      if (esort != boolsort_ && conc_ts_.only_curr(elem.second)
+          && !elem.second->is_value() && !elem.second->is_symbol()) {
+        max_terms_.insert(elem.second);
       }
     }
     for (const auto & elem : conc_ts_.constraints()) {
@@ -725,9 +739,10 @@ void IC3IA::initialize()
       for (Term tt : p) {
         tt_sort = tt->get_sort();
         assert(solver_enum == BTOR || tt_sort != boolsort_);
-        if (conc_ts_.only_curr(tt)) {
+        // constants and values get added anyway, don't count as max term
+        if (conc_ts_.only_curr(tt) && !tt->is_value() && !tt->is_symbol()) {
           // TODO: consider calling promote-inputvars always to avoid this issue
-          max_terms_[tt_sort].insert(tt);
+          max_terms_.insert(tt);
         }
       }
     }
@@ -744,12 +759,13 @@ void IC3IA::initialize()
       while (to_process.size()) {
         Term tt = to_process.back();
         to_process.pop_back();
-        if (conc_ts_.only_curr(tt)) {
+        // constants and values get added anyway, don't count as max term
+        if (conc_ts_.only_curr(tt) && !tt->is_value() && !tt->is_symbol()) {
           Sort s = tt->get_sort();
           if (s == boolsort_) {
             continue;
           }
-          max_terms_[s].insert(tt);
+          max_terms_.insert(tt);
         } else {
           for (Term c : tt) {
             to_process.push_back(c);
@@ -1239,6 +1255,19 @@ bool IC3IA::cvc4_synthesize_preds(
     cvc4_boundvars.push_back(cvc4_bv);
   }
 
+  unordered_map<cvc4a::Sort,
+                unordered_set<cvc4a::Term, cvc4a::TermHashFunction>,
+                cvc4a::SortHashFunction>
+      cvc4_max_terms;
+  for (const auto & t : max_terms_) {
+    cvc4a::Term cvc4_t =
+        static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(t))
+            ->get_cvc4_term();
+    // need to substitute with bound vars
+    cvc4_max_terms[cvc4_t.getSort()].insert(
+        cvc4_t.substitute(cvc4_statevars, cvc4_boundvars));
+  }
+
   CVC4GrammarSeed gs(cvc4_solver);
   Term transferred_trace = to_cvc4_.transfer_term(abs_trace, BOOL);
   gs.scan(static_pointer_cast<CVC4Term>(transferred_trace)->get_cvc4_term());
@@ -1250,12 +1279,14 @@ bool IC3IA::cvc4_synthesize_preds(
       cvc4_make_grammar(cvc4_solver,
                         cvc4_boundvars,
                         &gs,
+                        cvc4_max_terms,
                         options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 0,
                         options_.ic3ia_cvc4_pred_all_sorts_);
   cvc4a::Grammar g_with_values =
       cvc4_make_grammar(cvc4_solver,
                         cvc4_boundvars,
                         &gs,
+                        cvc4_max_terms,
                         options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 1,
                         options_.ic3ia_cvc4_pred_all_sorts_);
 
