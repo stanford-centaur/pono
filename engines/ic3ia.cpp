@@ -701,6 +701,63 @@ void IC3IA::initialize()
       all_sort_kinds_.insert(v->get_sort()->get_sort_kind());
     }
   }
+
+  // gather max-terms (for ic3ia-cvc4-pred)
+  UnorderedTermSet all_preds = preds;
+  SolverEnum solver_enum = solver_->get_solver_enum();
+  if (conc_ts_.is_functional()) {
+    for (const auto & elem : conc_ts_.state_updates()) {
+      Sort esort = elem.second->get_sort();
+      if (esort != boolsort_ && conc_ts_.only_curr(elem.second)) {
+        max_terms_[esort].insert(elem.second);
+      }
+    }
+    for (const auto & elem : conc_ts_.constraints()) {
+      get_predicates(solver_, elem.first, all_preds, false, false, false);
+    }
+
+    for (Term p : all_preds) {
+      if (p->is_symbolic_const()) {
+        continue;
+      }
+
+      Sort tt_sort;
+      for (Term tt : p) {
+        tt_sort = tt->get_sort();
+        assert(solver_enum == BTOR || tt_sort != boolsort_);
+        if (conc_ts_.only_curr(tt)) {
+          // TODO: consider calling promote-inputvars always to avoid this issue
+          max_terms_[tt_sort].insert(tt);
+        }
+      }
+    }
+  } else {
+    get_predicates(solver_, conc_ts_.trans(), all_preds, false, false, false);
+
+    for (Term p : all_preds) {
+      if (p->is_symbolic_const()) {
+        continue;
+      }
+
+      // recurse until hit largest only_curr term
+      TermVec to_process(p->begin(), p->end());
+      while (to_process.size()) {
+        Term tt = to_process.back();
+        to_process.pop_back();
+        if (conc_ts_.only_curr(tt)) {
+          Sort s = tt->get_sort();
+          if (s == boolsort_) {
+            continue;
+          }
+          max_terms_[s].insert(tt);
+        } else {
+          for (Term c : tt) {
+            to_process.push_back(c);
+          }
+        }
+      }
+    }
+  }
 }
 
 void IC3IA::abstract()
