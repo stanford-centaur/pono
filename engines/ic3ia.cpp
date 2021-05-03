@@ -773,6 +773,7 @@ void IC3IA::initialize()
       }
     }
   }
+  logger.log(1, "IC3IA: Got {} max terms", max_terms_.size());
 }
 
 void IC3IA::abstract()
@@ -1195,8 +1196,6 @@ bool IC3IA::cvc4_synthesize_preds(
     size_t num_preds,
     smt::UnorderedTermSet & out_preds)
 {
-  logger.log(1, "Looking for {} predicates with CVC4 SyGuS", num_preds);
-
   bool res = false;
 
   assert(unrolled_var_args.size());
@@ -1372,8 +1371,11 @@ bool IC3IA::cvc4_synthesize_preds(
 
   cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
   cvc4_solver.addSygusConstraint(sygus_constraint);
+
+  logger.log(1, "Looking for {} predicate(s) with CVC4 SyGuS", num_preds);
   try {
     res = cvc4_solver.checkSynth().isUnsat();
+    logger.log(1, "Successfully found {} predicate(s)", num_preds);
   }
   catch (cvc4a::CVC4ApiException & e) {
     logger.log(1, "Caught exception from CVC4: {}", e.what());
