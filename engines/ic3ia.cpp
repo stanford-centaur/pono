@@ -114,6 +114,7 @@ const unordered_set<cvc4a::Kind> unary_ops({ cvc4a::BITVECTOR_NEG,
                                              cvc4a::BITVECTOR_NOT,
                                              cvc4a::BITVECTOR_EXTRACT,
                                              cvc4a::BITVECTOR_ZERO_EXTEND,
+                                             cvc4a::BITVECTOR_SIGN_EXTEND,
                                              cvc4a::UMINUS });
 
 const unordered_set<cvc4a::Kind> bool_ops(
