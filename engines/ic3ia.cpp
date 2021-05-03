@@ -713,6 +713,33 @@ void IC3IA::initialize()
     }
   }
 
+  // find candidate predicates from trans
+  UnorderedTermSet pred_cand_set;
+  if (conc_ts_.is_functional()) {
+    for (const auto & elem : conc_ts_.state_updates()) {
+      get_predicates(solver_, elem.second, pred_cand_set, false, true, true);
+    }
+    for (const auto & elem : conc_ts_.constraints()) {
+      get_predicates(solver_, elem.first, pred_cand_set, false, true, true);
+    }
+  } else {
+    get_predicates(solver_, conc_ts_.trans(), pred_cand_set, false, true, true);
+  }
+
+  for (const auto & p : predset_) {
+    pred_cand_set.erase(p);
+  }
+
+  assert(!pred_candidates_.size());
+  for (const auto & p : pred_cand_set) {
+    if (conc_ts_.only_curr(p)) {
+      pred_candidates_.push_back(p);
+    }
+  }
+  logger.log(1,
+             "Found {} predicate candidate(s) in transition relation",
+             pred_candidates_.size());
+
   // gather max-terms (for ic3ia-cvc4-pred)
   if (options_.ic3ia_cvc4_pred_maxterms_) {
     UnorderedTermSet all_preds = preds;
@@ -869,7 +896,18 @@ RefineResult IC3IA::refine()
       // this is a real counterexample
       return REFINE_NONE;
     }
-    cvc4_find_preds(cex_, preds);
+
+    // try identifying a predicate from known predicate candidates first
+    // (found in the trans of the concrete system)
+    TermVec pred_vec;
+    if (pred_candidates_.size()
+        && ia_.reduce_predicates(cex_, pred_candidates_, pred_vec)) {
+      preds.insert(pred_vec.begin(), pred_vec.end());
+    } else {
+      assert(!preds.size());
+      // otherwise fall back on SyGuS
+      cvc4_find_preds(cex_, preds);
+    }
 
     for (auto const & p : preds) {
       if (predset_.find(p) == predset_.end()) {
