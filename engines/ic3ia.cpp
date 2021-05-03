@@ -358,10 +358,8 @@ cvc4a::Grammar cvc4_make_grammar(
       // regular
       for (const auto & po : reg_ops[sk]) {
         if (unary_ops.find(po) == unary_ops.end()) {
-          logger.log(1, "BINARY: {}", po);
           constructs[s].push_back(cvc4_solver.mkTerm(po, s, s));
         } else {
-          logger.log(1, "UNARY: {}", po);
           constructs[s].push_back(cvc4_solver.mkTerm(po, s));
         }
       }
