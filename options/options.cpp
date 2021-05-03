@@ -60,6 +60,7 @@ enum optionIndex
   IC3IA_CVC4_PRED_SIZE,
   IC3IA_CVC4_PRED_ALL_CONSTS,
   IC3IA_CVC4_PRED_ALL_SORTS,
+  IC3IA_CVC4_PRED_NO_MAXTERMS,
   PSEUDO_INIT_PROP,
   ASSUME_PROP,
   CEGP_ABS_VALS,
@@ -324,6 +325,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --ic3ia-cvc4-pred-all-sorts \tuse all sorts from query in the grammar."
     " (otherwise just sorts of the variables)" },
+  { IC3IA_CVC4_PRED_NO_MAXTERMS,
+    0,
+    "",
+    "ic3ia-cvc4-pred-no-maxterms",
+    Arg::None,
+    "  --ic3ia-cvc4-pred-no-maxterms \tDo not automatically add maxterms to "
+    "grammar." },
   { PSEUDO_INIT_PROP,
     0,
     "",
@@ -523,6 +531,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case IC3IA_CVC4_PRED_ALL_CONSTS: ic3ia_cvc4_pred_all_consts_ = true; break;
         case IC3IA_CVC4_PRED_ALL_SORTS:
           ic3ia_cvc4_pred_all_sorts_ = true;
+          break;
+        case IC3IA_CVC4_PRED_NO_MAXTERMS:
+          ic3ia_cvc4_pred_maxterms_ = false;
           break;
         case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
         case ASSUME_PROP: assume_prop_ = true; break;

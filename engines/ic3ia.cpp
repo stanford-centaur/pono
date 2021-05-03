@@ -714,65 +714,69 @@ void IC3IA::initialize()
   }
 
   // gather max-terms (for ic3ia-cvc4-pred)
-  UnorderedTermSet all_preds = preds;
-  SolverEnum solver_enum = solver_->get_solver_enum();
-  if (conc_ts_.is_functional()) {
-    for (const auto & elem : conc_ts_.state_updates()) {
-      Sort esort = elem.second->get_sort();
-      // constants and values get added anyway, don't count as max term
-      if (esort != boolsort_ && conc_ts_.only_curr(elem.second)
-          && !elem.second->is_value() && !elem.second->is_symbol()) {
-        max_terms_.insert(elem.second);
-      }
-    }
-    for (const auto & elem : conc_ts_.constraints()) {
-      get_predicates(solver_, elem.first, all_preds, false, false, false);
-    }
-
-    for (Term p : all_preds) {
-      if (p->is_symbolic_const()) {
-        continue;
-      }
-
-      Sort tt_sort;
-      for (Term tt : p) {
-        tt_sort = tt->get_sort();
-        assert(solver_enum == BTOR || tt_sort != boolsort_);
+  if (options_.ic3ia_cvc4_pred_maxterms_) {
+    UnorderedTermSet all_preds = preds;
+    SolverEnum solver_enum = solver_->get_solver_enum();
+    if (conc_ts_.is_functional()) {
+      for (const auto & elem : conc_ts_.state_updates()) {
+        Sort esort = elem.second->get_sort();
         // constants and values get added anyway, don't count as max term
-        if (conc_ts_.only_curr(tt) && !tt->is_value() && !tt->is_symbol()) {
-          // TODO: consider calling promote-inputvars always to avoid this issue
-          max_terms_.insert(tt);
+        if (esort != boolsort_ && conc_ts_.only_curr(elem.second)
+            && !elem.second->is_value() && !elem.second->is_symbol()) {
+          max_terms_.insert(elem.second);
         }
       }
-    }
-  } else {
-    get_predicates(solver_, conc_ts_.trans(), all_preds, false, false, false);
-
-    for (Term p : all_preds) {
-      if (p->is_symbolic_const()) {
-        continue;
+      for (const auto & elem : conc_ts_.constraints()) {
+        get_predicates(solver_, elem.first, all_preds, false, false, false);
       }
 
-      // recurse until hit largest only_curr term
-      TermVec to_process(p->begin(), p->end());
-      while (to_process.size()) {
-        Term tt = to_process.back();
-        to_process.pop_back();
-        // constants and values get added anyway, don't count as max term
-        if (conc_ts_.only_curr(tt) && !tt->is_value() && !tt->is_symbol()) {
-          Sort s = tt->get_sort();
-          if (s == boolsort_) {
-            continue;
+      for (Term p : all_preds) {
+        if (p->is_symbolic_const()) {
+          continue;
+        }
+
+        Sort tt_sort;
+        for (Term tt : p) {
+          tt_sort = tt->get_sort();
+          assert(solver_enum == BTOR || tt_sort != boolsort_);
+          // constants and values get added anyway, don't count as max term
+          if (conc_ts_.only_curr(tt) && !tt->is_value() && !tt->is_symbol()) {
+            // TODO: consider calling promote-inputvars always to avoid this
+            // issue
+            max_terms_.insert(tt);
           }
-          max_terms_.insert(tt);
-        } else {
-          for (Term c : tt) {
-            to_process.push_back(c);
+        }
+      }
+    } else {
+      get_predicates(solver_, conc_ts_.trans(), all_preds, false, false, false);
+
+      for (Term p : all_preds) {
+        if (p->is_symbolic_const()) {
+          continue;
+        }
+
+        // recurse until hit largest only_curr term
+        TermVec to_process(p->begin(), p->end());
+        while (to_process.size()) {
+          Term tt = to_process.back();
+          to_process.pop_back();
+          // constants and values get added anyway, don't count as max term
+          if (conc_ts_.only_curr(tt) && !tt->is_value() && !tt->is_symbol()) {
+            Sort s = tt->get_sort();
+            if (s == boolsort_) {
+              continue;
+            }
+            max_terms_.insert(tt);
+          } else {
+            for (Term c : tt) {
+              to_process.push_back(c);
+            }
           }
         }
       }
     }
   }
+
   logger.log(1, "IC3IA: Got {} max terms", max_terms_.size());
 }
 
