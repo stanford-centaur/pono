@@ -77,6 +77,8 @@ class IC3IA : public IC3
   // and currently the unroller_ is over the conc_ts_
   Unroller abs_unroller_;
 
+  smt::UnorderedTermSet max_terms_;  ///< largest non-Boolean terms in TS
+
   // Since MathSAT is the best solver for IC3IA it helps to use
   // its bool_model_generation option which doesn't enable
   // model generation for theories
