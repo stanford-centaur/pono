@@ -571,7 +571,8 @@ IC3IA::IC3IA(const Property & p,
              PonoOptions opt)
     : super(p, RelationalTransitionSystem(s), s, opt),
       conc_ts_(ts, to_prover_solver_),
-      ia_(conc_ts_, ts_, unroller_),
+      // TODO: when cleaning this up, should have only one unroller
+      ia_(conc_ts_, ts_, opt.ic3ia_cvc4_pred_ ? abs_unroller_ : unroller_),
       // only mathsat interpolator supported
       interpolator_(create_interpolating_solver_for(
           SolverEnum::MSAT_INTERPOLATOR, Engine::IC3IA_ENGINE)),
@@ -902,6 +903,8 @@ RefineResult IC3IA::refine()
     TermVec pred_vec;
     if (pred_candidates_.size()
         && ia_.reduce_predicates(cex_, pred_candidates_, pred_vec)) {
+      logger.log(
+          1, "Found {} sufficient predicates from candidates", pred_vec.size());
       preds.insert(pred_vec.begin(), pred_vec.end());
     } else {
       assert(!preds.size());
