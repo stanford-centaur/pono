@@ -370,7 +370,7 @@ cvc4a::Grammar cvc4_make_grammar(
       }
 
       // add values
-      if (values < 2) {
+      if (values == 1) {
         auto it = values_map.find(s.getSort());
         if (it != values_map.end()) {
           for (const auto & val : it->second) {
