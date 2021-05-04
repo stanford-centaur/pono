@@ -238,7 +238,7 @@ void get_predicates(const SmtSolver & solver,
         }
       }
 
-      if (t->get_sort() != boolsort) {
+      if (!search_subterms && t->get_sort() != boolsort) {
         // not a candidate for predicates
         continue;
       }
