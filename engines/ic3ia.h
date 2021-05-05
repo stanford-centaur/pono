@@ -92,6 +92,7 @@ class IC3IA : public IC3
   // and currently the unroller_ is over the conc_ts_
   Unroller abs_unroller_;
 
+  smt::UnorderedTermSet ts_values_;  ///< all the values appearing in TS
   smt::UnorderedTermSet max_terms_;  ///< largest non-Boolean terms in TS
 
   // extra members for this hacked in stuff

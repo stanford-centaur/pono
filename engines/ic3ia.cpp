@@ -222,6 +222,12 @@ class CVC4GrammarSeed
    */
   const CVC4ValueMap & get_value_map() const { return value_map_; }
 
+  /** Setter for value map
+   *  Allows manually setting values in the GrammarSeed
+   *  @param value_map the new value map
+   */
+  void set_value_map(const CVC4ValueMap & value_map) { value_map_ = value_map; }
+
   const unordered_set<cvc4a::Sort, cvc4a::SortHashFunction> & get_all_sorts()
       const
   {
@@ -740,6 +746,20 @@ void IC3IA::initialize()
   logger.log(1,
              "Found {} predicate candidate(s) in transition relation",
              pred_candidates_.size());
+
+  // gather values
+  get_leaves(conc_ts_.init(), ts_values_);
+  get_leaves(conc_ts_.trans(), ts_values_);
+  get_leaves(bad_, ts_values_);
+  // remove all non-ts_values_ (leaves include symbols)
+  // TODO create helper function for this
+  for (auto it = ts_values_.begin(); it != ts_values_.end();) {
+    if (!(*it)->is_value()) {
+      it = ts_values_.erase(it);
+    } else {
+      it++;
+    }
+  }
 
   // gather max-terms (for ic3ia-cvc4-pred)
   if (options_.ic3ia_cvc4_pred_maxterms_) {
@@ -1315,17 +1335,28 @@ bool IC3IA::cvc4_synthesize_preds(
   Term transferred_trace = to_cvc4_.transfer_term(abs_trace, BOOL);
   gs.scan(static_pointer_cast<CVC4Term>(transferred_trace)->get_cvc4_term());
 
-  logger.log(1, "Number of Values : {}", gs.num_values());
+  logger.log(1, "Number of Values in Trace: {}", gs.num_values());
 
   // Grammar construction
-  cvc4a::Grammar g =
+  cvc4a::Grammar g_with_trace_values =
       cvc4_make_grammar(cvc4_solver,
                         cvc4_boundvars,
                         &gs,
                         cvc4_max_terms,
-                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 0,
+                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 1,
                         options_.ic3ia_cvc4_pred_all_sorts_);
-  cvc4a::Grammar g_with_values =
+
+  // going prioritize using only values in ts first (not the trace
+  // which could have new values due to top-level substitution)
+  CVC4ValueMap cvc4_value_map;
+  for (const auto & val : ts_values_) {
+    cvc4a::Term cvc4_val =
+        static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(val))
+            ->get_cvc4_term();
+    cvc4_value_map[cvc4_val.getSort()].insert(cvc4_val);
+  }
+  gs.set_value_map(cvc4_value_map);
+  cvc4a::Grammar g =
       cvc4_make_grammar(cvc4_solver,
                         cvc4_boundvars,
                         &gs,
@@ -1346,8 +1377,10 @@ bool IC3IA::cvc4_synthesize_preds(
                                   cvc4_solver.getBooleanSort(), g);
       break;
     case 1:
-      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
-                                  cvc4_solver.getBooleanSort(), g_with_values);
+      pred = cvc4_solver.synthFun(pred_name,
+                                  cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort(),
+                                  g_with_trace_values);
       break;
     default:
       pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
