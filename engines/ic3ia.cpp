@@ -1346,7 +1346,7 @@ bool IC3IA::cvc4_synthesize_preds(
                         options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 1,
                         options_.ic3ia_cvc4_pred_all_sorts_);
 
-  // going prioritize using only values in ts first (not the trace
+  // prioritize using only values in ts first (not the trace
   // which could have new values due to top-level substitution)
   CVC4ValueMap cvc4_value_map;
   for (const auto & val : ts_values_) {
