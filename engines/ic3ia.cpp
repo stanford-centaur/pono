@@ -1318,13 +1318,15 @@ bool IC3IA::cvc4_synthesize_preds(
   logger.log(1, "Number of Values : {}", gs.num_values());
 
   // Grammar construction
-  cvc4a::Grammar g =
-      cvc4_make_grammar(cvc4_solver,
-                        cvc4_boundvars,
-                        &gs,
-                        cvc4_max_terms,
-                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 0,
-                        options_.ic3ia_cvc4_pred_all_sorts_);
+  // no values doesn't seem like a good idea (at least for hwmcc20_bv)
+  // see experiments 4 may 2021 with commit hash ending in bd207
+  // cvc4a::Grammar g =
+  //     cvc4_make_grammar(cvc4_solver,
+  //                       cvc4_boundvars,
+  //                       &gs,
+  //                       cvc4_max_terms,
+  //                       options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 0,
+  //                       options_.ic3ia_cvc4_pred_all_sorts_);
   cvc4a::Grammar g_with_values =
       cvc4_make_grammar(cvc4_solver,
                         cvc4_boundvars,
@@ -1332,6 +1334,8 @@ bool IC3IA::cvc4_synthesize_preds(
                         cvc4_max_terms,
                         options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 1,
                         options_.ic3ia_cvc4_pred_all_sorts_);
+  cvc4a::Grammar g_handwritten = cvc4_make_grammar(
+      cvc4_solver, cvc4_boundvars, nullptr, cvc4_max_terms, 1, false);
 
   vector<cvc4a::Term> pred_vec;
   for (size_t n = 0; n < num_preds; ++n) {
@@ -1342,12 +1346,16 @@ bool IC3IA::cvc4_synthesize_preds(
     cvc4a::Term pred;
     switch (n % 3) {
     case 0:
-      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
-                                  cvc4_solver.getBooleanSort(), g);
+      pred = cvc4_solver.synthFun(pred_name,
+                                  cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort(),
+                                  g_with_values);
       break;
     case 1:
-      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
-                                  cvc4_solver.getBooleanSort(), g_with_values);
+      pred = cvc4_solver.synthFun(pred_name,
+                                  cvc4_boundvars,
+                                  cvc4_solver.getBooleanSort(),
+                                  g_handwritten);
       break;
     default:
       pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
