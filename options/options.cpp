@@ -311,7 +311,7 @@ const option::Descriptor usage[] = {
     "",
     "ic3ia-cvc4-pred-size",
     Arg::Numeric,
-    "  --ic3ia-cvc4-pred-size \tlimit size of each predicate." },
+    "  --ic3ia-cvc4-pred-size \tlimit size of each predicate - 0 means unbounded (default: 2)." },
   { IC3IA_CVC4_PRED_ALL_CONSTS,
     0,
     "",

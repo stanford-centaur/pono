@@ -1298,9 +1298,12 @@ bool IC3IA::cvc4_synthesize_preds(
   // set necessary options for sygus
   cvc4_solver.setOption("lang", "sygus2");
   cvc4_solver.setOption("incremental", "false");
-  int pred_size = options_.ic3ia_cvc4_pred_size_;
-  pred_size += (num_preds-1)/3; // increase the size periodically
-  cvc4_solver.setOption("sygus-abort-size", std::to_string(pred_size));
+  if (options_.ic3ia_cvc4_pred_size_)
+  {
+    int pred_size = options_.ic3ia_cvc4_pred_size_;
+    pred_size += (num_preds-1)/3; // increase the size periodically
+    cvc4_solver.setOption("sygus-abort-size", std::to_string(pred_size));
+  }
   cvc4_solver.setOption("sygus-active-gen", "enum");
 
   // create bound variables to use in the synthesized function
