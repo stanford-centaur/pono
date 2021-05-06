@@ -108,6 +108,7 @@ const unordered_set<cvc4a::Kind> relational_ops({
 const unordered_set<cvc4a::Kind> multisort_ops({ cvc4a::BITVECTOR_EXTRACT,
                                                  cvc4a::BITVECTOR_CONCAT,
                                                  cvc4a::BITVECTOR_ZERO_EXTEND,
+                                                 cvc4a::BITVECTOR_SIGN_EXTEND,
                                                  cvc4a::BITVECTOR_COMP });
 
 const unordered_set<cvc4a::Kind> unary_ops({ cvc4a::BITVECTOR_NEG,
