@@ -180,8 +180,7 @@ class IC3IA : public IC3
   bool cvc4_synthesize_preds(
       const smt::Term & abs_trace,
       const smt::TermVec & statevars,
-      const std::vector<std::pair<smt::TermVec, smt::TermVec>> &
-          unrolled_var_args,
+      const std::pair<smt::TermVec, smt::TermVec> & unrolled_var_args,
       const smt::UnorderedTermSet & free_vars,
       size_t num_preds,
       smt::UnorderedTermSet & out_preds);
