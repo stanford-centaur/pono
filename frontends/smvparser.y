@@ -375,7 +375,8 @@ fun_decl:
   {
     if (enc.module_flat)
     {
-      enc.rts_.solver()->make_symbol($1, $3->getSort());
+      smt::Term fun = enc.rts_.solver()->make_symbol($1, $3->getSort());
+      enc.ufs_[$1] = {fun, $3->getType()};
     }
     else
     {
@@ -1364,7 +1365,25 @@ simple_expr: constant {
           | case_expr {
             SMVnode *a = $1;
             $$ = $1;
-          };
+          }
+          | complex_identifier "(" parameter_list ")"
+          {
+            if (enc.ufs_.find($1) == enc.ufs_.end())
+            {
+              throw PonoException("Function application with unknown function: " + $1);
+            }
+            auto fun_info = enc.ufs_.at($1);
+            smt::Term fun = fun_info.first;
+            SMVnode::Type return_type = fun_info.second;
+            smt::TermVec args({fun});
+            for (auto arg : $3)
+            {
+              args.push_back(arg->getTerm());
+            }
+            $$ = new SMVnode(enc.solver_->make_term(smt::Apply, args),
+                             return_type);
+          }
+;
 
 next_expr: TOK_NEXT "(" basic_expr ")"{
   if(enc.module_flat){
@@ -1543,7 +1562,12 @@ fun_type:
        }
        sorts.push_back($3->getSort());
        smt::Sort funsort = enc.solver_->make_sort(smt::FUNCTION, sorts);
-       $$ = new type_node(funsort);
+       // TODO: properly handle function sorts
+       //       for now just storing return type because that's all we
+       //       need to propagate signed / unsigned type checking
+       //       at the SMV level (no notion of signed / unsigned values
+       //       in SMT-LIB, instead only the operators)
+       $$ = new type_node(funsort, $3->getType());
      }
      else
      {
