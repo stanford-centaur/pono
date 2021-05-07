@@ -648,6 +648,23 @@ void TransitionSystem::drop_state_updates(const TermVec & svs)
   }
 }
 
+void TransitionSystem::promote_inputvar(const Term & iv)
+{
+  size_t num_erased = inputvars_.erase(iv);
+  if (!num_erased) {
+    throw PonoException("Tried to promote non-input to state variable: "
+                        + iv->to_string());
+  }
+
+  // now turn into a state variable
+
+  // set to false until there is a next state update for this statevar
+  deterministic_ = false;
+  Term next_state_var =
+      solver_->make_symbol(iv->to_string() + ".next", iv->get_sort());
+  add_statevar(iv, next_state_var);
+}
+
 void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
 {
   // first check that all the replacements contain known symbols
