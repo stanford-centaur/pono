@@ -1599,6 +1599,7 @@ domain_list:
    | domain_list OP_MUL type_identifier
    {
      $1.push_back($3);
+     $$ = $1;
    }
 ;
 
