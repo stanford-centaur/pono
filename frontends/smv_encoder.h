@@ -78,6 +78,7 @@ class SMVEncoder
   std::vector<pono::SMVnode*> ivar_list_;
   std::vector<pono::var_node_c*> var_list_;
   std::vector<pono::SMVnode*> frozenvar_list_;
+  std::vector<pono::SMVnode *> fun_list_;
   std::vector<pono::SMVnode*> init_list_;
   std::vector<pono::SMVnode*> trans_list_;
   std::vector<pono::SMVnode*> invar_list_;

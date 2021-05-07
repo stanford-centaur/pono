@@ -12,6 +12,7 @@ void pono::module_node::process_main(
   ivar_li->generate_ostream(module_name, prefix, module_list, new_prefix, s);
   frozenvar_li->generate_ostream(
       module_name, prefix, module_list, new_prefix, s);
+  fun_li->generate_ostream(module_name, prefix, module_list, new_prefix, s);
   define_li->generate_ostream(module_name, prefix, module_list, new_prefix, s);
   assign_li->generate_ostream(module_name, prefix, module_list, new_prefix, s);
   init_li->generate_ostream(module_name, prefix, module_list, new_prefix, s);
@@ -44,6 +45,7 @@ void pono::module_node::preprocess(
   ivar_li->generate_ostream(module_name, prefix, module_list, prefix_li, s);
   frozenvar_li->generate_ostream(
       module_name, prefix, module_list, prefix_li, s);
+  fun_li->generate_ostream(module_name, prefix, module_list, prefix_li, s);
   define_li->generate_ostream(module_name, prefix, module_list, prefix_li, s);
   assign_li->generate_ostream(module_name, prefix, module_list, prefix_li, s);
   init_li->generate_ostream(module_name, prefix, module_list, prefix_li, s);
@@ -93,6 +95,19 @@ void pono::ivar_node_c::generate_ostream(
 }
 
 void pono::frozenvar_node_c::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  unordered_map<string, SMVnode *> new_par = module_list[name]->get_namelist();
+  if (new_par.find(id) != new_par.end())
+    throw PonoException("duplicately defined");
+  s << new_prefix[name] << id << " : " << type << " ; " << endl;
+}
+
+void pono::fun_node_c::generate_ostream(
     std::string name,
     std::string prefix,
     std::unordered_map<string, module_node *> module_list,
@@ -246,6 +261,21 @@ void pono::frozenvar_node::generate_ostream(
 {
   if (!ex_li.empty()) {
     s << "FROZENVAR" << endl;
+    for (int i = ex_li.size() - 1; i > -1; i--) {
+      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+    }
+  }
+}
+
+void pono::fun_node::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  if (!ex_li.empty()) {
+    s << "FUN" << endl;
     for (int i = ex_li.size() - 1; i > -1; i--) {
       ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
     }

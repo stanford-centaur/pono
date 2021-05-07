@@ -89,7 +89,7 @@ DOT ".";
 %left "[" ":" "]"
 
 %nterm <SMVnode*> word_value basic_expr next_expr case_expr constant simple_expr
-%nterm <type_node*> type_identifier word_type array_type
+%nterm <type_node*> type_identifier word_type array_type fun_type
 %nterm <int> sizev
 %nterm <bool> boolean_constant
 %nterm <std::string> integer_constant real_constant float_number fractional_number exponential_number
@@ -99,6 +99,9 @@ DOT ".";
 %nterm <std::vector<string> > module_parameters
 %nterm <std::unordered_map<SMVnode::NodeMtype,element_node*> > module_body
 %nterm <std::vector<SMVnode*> > parameter_list case_body
+%nterm fun_list fun_decl
+%nterm < std::vector<type_node*> > domain_list
+
 %%
 
 header:
@@ -123,6 +126,7 @@ module_decl:
       enc.var_list_.clear();
       enc.init_list_.clear();
       enc.frozenvar_list_.clear();
+      enc.fun_list_.clear();
       enc.trans_list_.clear();
       enc.invar_list_.clear();
       enc.invarspec_list_.clear();
@@ -142,6 +146,7 @@ module_decl:
       enc.var_list_.clear();
       enc.init_list_.clear();
       enc.frozenvar_list_.clear();
+      enc.fun_list_.clear();
       enc.trans_list_.clear();
       enc.invar_list_.clear();
       enc.invarspec_list_.clear();
@@ -206,6 +211,12 @@ module_element:
     | frozenvar_test {
       if(!enc.module_flat){
       $$ = new frozenvar_node(enc.frozenvar_list_,SMVnode::FROZENVAR);
+      }
+    }
+    | fun_list {
+      if (!enc.module_flat)
+      {
+        $$ = new fun_node(enc.fun_list_, SMVnode::FUN);
       }
     }
     | init_constraint{
@@ -356,25 +367,43 @@ var_list:
     }
     ;
 
-  module_type_identifier:
-    complex_identifier{
-      $$ = new type_node($1);
-    }
-    | complex_identifier "(" parameter_list ")" {
-      $$ = new type_node($1,$3);
-    }
+fun_list: FUN fun_decl
+          | fun_list fun_decl;
 
-  parameter_list:
-    simple_expr {
-      std::vector<SMVnode*> s;
-      s.push_back($1);
-      $$ = s;
+fun_decl:
+  complex_identifier ":" fun_type SEMICOLON
+  {
+    if (enc.module_flat)
+    {
+      enc.rts_.solver()->make_symbol($1, $3->getSort());
     }
-    | parameter_list "," simple_expr {
-      std::vector<SMVnode*> s= $1;
-      s.push_back($3);
-      $$ = s;
+    else
+    {
+      SMVnode * f = new fun_node_c($1, $3);
+      enc.fun_list_.push_back(f);
     }
+  }
+;
+
+module_type_identifier:
+  complex_identifier{
+    $$ = new type_node($1);
+  }
+  | complex_identifier "(" parameter_list ")" {
+    $$ = new type_node($1,$3);
+  }
+
+parameter_list:
+  simple_expr {
+    std::vector<SMVnode*> s;
+    s.push_back($1);
+    $$ = s;
+  }
+  | parameter_list "," simple_expr {
+    std::vector<SMVnode*> s= $1;
+    s.push_back($3);
+    $$ = s;
+  }
 
 frozenvar_test:
   FROZENVAR frozenvar_list
@@ -1502,12 +1531,52 @@ array_type: arrayword sizev of type_identifier{
             throw PonoException("No other array now");
           };
 
+fun_type:
+   domain_list OP_IMPLY type_identifier
+   {
+     if (enc.module_flat)
+     {
+       smt::SortVec sorts;
+       for (auto tn : $1)
+       {
+         sorts.push_back(tn->getSort());
+       }
+       sorts.push_back($3->getSort());
+       smt::Sort funsort = enc.solver_->make_sort(smt::FUNCTION, sorts);
+       $$ = new type_node(funsort);
+     }
+     else
+     {
+       assert($1.size());
+       std::string n = $1[0]->getName();
+       for (size_t i = 1; i < $1.size(); ++i)
+       {
+         n += " * " + $1[i]->getName();
+       }
+       n += " -> " + $3->getName();
+       $$ = new type_node(n);
+     }
+   }
+;
+
+domain_list:
+   type_identifier
+   {
+     std::vector<type_node *> vec({$1});
+     $$ = vec;
+   }
+   | domain_list OP_MUL type_identifier
+   {
+     $1.push_back($3);
+   }
+;
+
 sizev:
     "[" integer_val "]"{
         $$  = stoi($2);
     };
 
-semioption     : | SEMICOLON;
+semioption     : %empty | SEMICOLON;
 %%
 
 void pono::smvparser::error (const location &loc, const std::string& m)
