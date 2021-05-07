@@ -307,6 +307,19 @@ class TransitionSystem
   void drop_state_updates(const smt::TermVec & svs);
 
   /** EXPERTS ONLY
+   *  Turns an input variable into a state variable
+   *  IMPORTANT: this does not retroactively change constraints
+   *  e.g. if a constraint was not added to init because it
+   *  contains an input variable
+   *
+   *  @param iv the input variable to promote
+   *
+   *  The input variable iv stays the same, but it will now
+   *  be registered as a state variable.
+   */
+  void promote_inputvar(const smt::Term & iv);
+
+  /** EXPERTS ONLY
    * Replace terms in the transition system with other terms
    *  Traverses all the data structures and updates them with
    *  the replacements

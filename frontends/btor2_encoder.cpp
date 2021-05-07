@@ -347,6 +347,17 @@ void BTOR2Encoder::parse(const std::string filename)
       }
     } else if (l_->tag == BTOR2_TAG_constraint) {
       Term constraint = bv_to_bool(termargs_[0]);
+
+      // BTOR2 allows constraints over inputs
+      // in Pono these need to be promoted to state variables
+      UnorderedTermSet free_vars;
+      get_free_symbolic_consts(constraint, free_vars);
+      for (const auto & v : free_vars) {
+        if (ts_.is_input_var(v)) {
+          ts_.promote_inputvar(v);
+        }
+      }
+
       ts_.add_constraint(constraint);
       terms_[l_->id] = constraint;
     } else if (l_->tag == BTOR2_TAG_init) {
