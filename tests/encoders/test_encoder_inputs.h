@@ -19,7 +19,8 @@ const vector<string> btor2_inputs({ "counter.btor",
                                     "mem.btor",
                                     "array_neq.btor2",
                                     "ridecore.btor",
-                                    "state2input.btor" });
+                                    "state2input.btor",
+                                    "WRITE_COUNTER.btor2" });
 
 const vector<string> coreir_inputs({ "counters.json",
                                      "WrappedPE_nofloats.json",

@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "core/fts.h"
+#include "engines/bmc.h"
 #include "engines/kinduction.h"
 #include "frontends/btor2_encoder.h"
 #include "gtest/gtest.h"
@@ -52,6 +53,23 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
   KInduction kind(p, fts, s);
   ProverResult r = kind.check_until(2);
   EXPECT_EQ(r, ProverResult::TRUE);
+}
+
+TEST_P(Btor2UnitTests, InputConstraints)
+{
+  // test BTOR2 file with constraint containing input variables
+  SmtSolver s = create_solver(GetParam());
+  s->set_opt("incremental", "true");
+  FunctionalTransitionSystem fts(s);
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  string filename = STRFY(PONO_SRC_DIR);
+  filename += "/tests/encoders/inputs/btor2/mulo-test.btor2";
+  BTOR2Encoder be(filename, fts);
+  EXPECT_EQ(be.propvec().size(), 1);
+  Property p(fts.solver(), be.propvec()[0]);
+  Bmc bmc(p, fts, s);
+  ProverResult r = bmc.check_until(6);
+  ASSERT_NE(r, ProverResult::FALSE);
 }
 
 INSTANTIATE_TEST_SUITE_P(
