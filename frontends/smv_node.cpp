@@ -733,6 +733,23 @@ void pono::write_expr::generate_ostream(
   s << " ) ";
 }
 
+void pono::apply_expr::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  s << fun << "(";
+  size_t argsize = args.size();
+  for (size_t i = 0; i + 1 < argsize; ++i) {
+    args[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+    s << ", ";
+  }
+  args[argsize - 1]->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << ")";
+}
+
 void pono::word1_expr::generate_ostream(
     std::string name,
     std::string prefix,

@@ -1368,20 +1368,27 @@ simple_expr: constant {
           }
           | complex_identifier "(" parameter_list ")"
           {
-            if (enc.ufs_.find($1) == enc.ufs_.end())
+            if (enc.module_flat)
             {
-              throw PonoException("Function application with unknown function: " + $1);
+              if (enc.ufs_.find($1) == enc.ufs_.end())
+              {
+                throw PonoException("Function application with unknown function: " + $1);
+              }
+              auto fun_info = enc.ufs_.at($1);
+              smt::Term fun = fun_info.first;
+              SMVnode::Type return_type = fun_info.second;
+              smt::TermVec args({fun});
+              for (auto arg : $3)
+              {
+                args.push_back(arg->getTerm());
+              }
+              $$ = new SMVnode(enc.solver_->make_term(smt::Apply, args),
+                               return_type);
             }
-            auto fun_info = enc.ufs_.at($1);
-            smt::Term fun = fun_info.first;
-            SMVnode::Type return_type = fun_info.second;
-            smt::TermVec args({fun});
-            for (auto arg : $3)
+            else
             {
-              args.push_back(arg->getTerm());
+              $$ = new apply_expr($1, $3);
             }
-            $$ = new SMVnode(enc.solver_->make_term(smt::Apply, args),
-                             return_type);
           }
 ;
 

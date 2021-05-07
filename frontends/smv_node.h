@@ -1129,6 +1129,25 @@ class write_expr : public SMVnode
                         std::unordered_map<string, string> new_prefix,
                         ostream & s);
 };
+
+class apply_expr : public SMVnode
+{
+  std::string fun;
+  std::vector<pono::SMVnode *> args;
+
+ public:
+  apply_expr(const std::string & f, std::vector<pono::SMVnode *> a)
+  {
+    fun = f;
+    args = a;
+  }
+  void generate_ostream(std::string name,
+                        std::string prefix,
+                        std::unordered_map<string, module_node *> module_list,
+                        std::unordered_map<string, string> new_prefix,
+                        ostream & s);
+};
+
 class word1_expr : public SMVnode
 {
   pono::SMVnode * ex;
