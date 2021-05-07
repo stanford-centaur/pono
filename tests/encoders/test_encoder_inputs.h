@@ -28,6 +28,7 @@ const vector<string> coreir_inputs({ "counters.json",
 const unordered_map<string, pono::ProverResult> smv_inputs(
     { { "simple_counter.smv", pono::ProverResult::TRUE },
       { "simple_counter_integer.smv", pono::ProverResult::TRUE },
+      { "simple_counter_integer_uf.smv", pono::ProverResult::FALSE },
       { "combined-false.smv", pono::ProverResult::FALSE },
       { "combined-true.smv", pono::ProverResult::TRUE } });
 
