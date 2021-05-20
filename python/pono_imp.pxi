@@ -112,6 +112,12 @@ cdef class __AbstractTransitionSystem:
     def is_next_var(self, Term sv):
         return dref(self.cts).is_next_var(sv.ct)
 
+    def is_input_var(self, Term iv):
+        return dref(self.cts).is_curr_var(iv.ct)
+
+    def get_name(self, Term t):
+        return dref(self.cts).get_name(t.ct).decode()
+
     @property
     def solver(self):
         return self._solver
@@ -559,6 +565,16 @@ cdef class BTOR2Encoder:
 
     def __dealloc__(self):
         del self.cbe
+
+    def propvec(self):
+        res = []
+        cdef vector[c_Term] props = dref(self.cbe).propvec()
+        for p in props:
+            term = Term(self._ts._solver)
+            term.ct = p
+            res.append(term)
+        return res
+
 
 IF WITH_COREIR == "ON":
     cdef class CoreIREncoder:

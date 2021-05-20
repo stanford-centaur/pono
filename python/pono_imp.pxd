@@ -29,6 +29,8 @@ cdef extern from "core/ts.h" namespace "pono":
         c_Term next(const c_Term & term) except +
         bint is_curr_var(const c_Term & sv) except +
         bint is_next_var(const c_Term & sv) except +
+        bint is_input_var(const c_Term & sv) except +
+        string get_name(const c_Term & t) except +
         c_SmtSolver & solver() except +
         const c_UnorderedTermSet & statevars() except +
         const c_UnorderedTermSet & inputvars() except +
@@ -156,6 +158,7 @@ IF WITH_MSAT_IC3IA == "ON":
 cdef extern from "frontends/btor2_encoder.h" namespace "pono":
     cdef cppclass BTOR2Encoder:
         BTOR2Encoder(string filename, TransitionSystem & ts) except +
+        const c_TermVec & propvec() except +
 
 
 # WITH_COREIR is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
