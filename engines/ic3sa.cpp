@@ -416,7 +416,7 @@ RefineResult IC3SA::ic3sa_refine_functional(Term & learned_lemma)
 
   assert(r.is_unsat());  // not expecting unknown
   UnorderedTermSet core;
-  solver_->get_unsat_core(core);
+  solver_->get_unsat_assumptions(core);
   assert(core.size());
 
   TermVec reduced_constraints;
@@ -545,7 +545,7 @@ RefineResult IC3SA::ic3sa_refine_value(Term & learned_lemma)
 
   assert(r.is_unsat());  // not expecting unknown
   UnorderedTermSet core;
-  solver_->get_unsat_core(core);
+  solver_->get_unsat_assumptions(core);
   assert(core.size());
 
   pop_solver_context();

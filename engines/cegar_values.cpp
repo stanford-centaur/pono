@@ -179,7 +179,7 @@ CegarValues<Prover_T>::CegarValues(const Property & p,
       cegval_ts_(cegval_solver_),
       cegval_un_(cegval_ts_)
 {
-  cegval_solver_->set_opt("produce-unsat-cores", "true");
+  cegval_solver_->set_opt("produce-unsat-assumptions", "true");
 }
 
 template <class Prover_T>
@@ -348,7 +348,7 @@ bool CegarValues<Prover_T>::cegar_refine()
   if (r.is_unsat()) {
     UnorderedTermSet core;
     UnorderedTermSet axioms;
-    cegval_solver_->get_unsat_core(core);
+    cegval_solver_->get_unsat_assumptions(core);
     for (size_t i = 0; i < assumps.size(); ++i) {
       if (core.find(assumps[i]) != core.end()) {
         Term eq = equalities[i];

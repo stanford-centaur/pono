@@ -158,7 +158,7 @@ SmtSolver create_solver_for(SolverEnum se,
 
   assert(s);
   if (ic3_engine) {
-    s->set_opt("produce-unsat-cores", "true");
+    s->set_opt("produce-unsat-assumptions", "true");
   }
   return s;
 }
@@ -169,7 +169,7 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
   if (se != MSAT) {
     s = create_solver_base(se, logging);
     s->set_opt("incremental", "true");
-    s->set_opt("produce-unsat-cores", "true");
+    s->set_opt("produce-unsat-assumptions", "true");
   }
 #ifdef WITH_MSAT
   else {

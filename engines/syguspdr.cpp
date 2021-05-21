@@ -88,7 +88,7 @@ SygusPdr::SygusPdr(const Property & p, const TransitionSystem & ts,
     partial_model_getter(solver_),
     has_assumptions(true) // most conservative way
 {
-  solver_->set_opt("produce-unsat-cores", "true");
+  solver_->set_opt("produce-unsat-assumptions", "true");
 
   // we need to have the reset-assertion capability 
   if(solver_->get_solver_enum() == SolverEnum::BTOR)

@@ -101,7 +101,7 @@ void reduce_unsat_core_to_fixedpoint(
     assert(r.is_unsat());
 
     smt::UnorderedTermSet core_out;
-    reducer_->get_unsat_core(core_out);
+    reducer_->get_unsat_assumptions(core_out);
     if (core_inout.size() == core_out.size()) {
       break; // fixed point is reached
     }
@@ -175,7 +175,7 @@ void reduce_unsat_core_linear(
       ++ to_remove_pos;
     } else { // if unsat, we can remove
       smt::UnorderedTermSet core_set;
-      reducer_->get_unsat_core(core_set);
+      reducer_->get_unsat_assumptions(core_set);
       // below function will update assumption_list and to_remove_pos
       remove_and_move_to_next(assumption_list, to_remove_pos, core_set);
     }

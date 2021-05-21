@@ -99,8 +99,7 @@ IC3Base::IC3Base(const Property & p,
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),
-      approx_pregen_(false),
-      boolsort_(solver_->make_sort(BOOL))
+      approx_pregen_(false)
 {
 }
 
@@ -112,6 +111,9 @@ void IC3Base::initialize()
     return;
   }
 
+  boolsort_ = solver_->make_sort(BOOL);
+  solver_true_ = solver_->make_term(true);
+
   // abstract the transition relation if this is a CEGAR implementation
   // otherwise it is a No-Op
   abstract();
@@ -122,7 +124,6 @@ void IC3Base::initialize()
   check_ts();
 
   assert(solver_context_ == 0);  // expecting to be at base context level
-  solver_true_ = solver_->make_term(true);
 
   frames_.clear();
   frame_labels_.clear();
@@ -517,7 +518,7 @@ bool IC3Base::rel_ind_check(size_t i,
 
     // Use unsat core to get cheap generalization
     UnorderedTermSet core;
-    solver_->get_unsat_core(core);
+    solver_->get_unsat_assumptions(core);
     assert(core.size());
 
     TermVec gen;  // cheap unsat-core generalization of c

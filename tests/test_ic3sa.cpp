@@ -49,7 +49,7 @@ class IC3SAUnitTests : public ::testing::Test,
   void SetUp() override
   {
     s = create_solver(GetParam());
-    s->set_opt("produce-unsat-cores", "true");
+    s->set_opt("produce-unsat-assumptions", "true");
   }
   SmtSolver s;
 };
