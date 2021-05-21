@@ -552,8 +552,10 @@ IF WITH_MSAT_IC3IA == "ON":
 
 cdef class BTOR2Encoder:
     cdef c_BTOR2Encoder * cbe
+    cdef __AbstractTransitionSystem _ts
     def __cinit__(self, str filename, __AbstractTransitionSystem ts):
         self.cbe = new c_BTOR2Encoder(filename.encode(), dref(ts.cts))
+        self._ts = ts
 
     def __dealloc__(self):
         del self.cbe
@@ -561,7 +563,9 @@ cdef class BTOR2Encoder:
 IF WITH_COREIR == "ON":
     cdef class CoreIREncoder:
         cdef c_CoreIREncoder * cbe
+        cdef RelationalTransitionSystem _ts
         def __cinit__(self, mod, RelationalTransitionSystem ts):
+            self._ts = ts
             cdef uintptr_t adr
             if isinstance(mod, str):
                 self.cbe = new c_CoreIREncoder((<string?> (mod.encode())), dref((<c_RelationalTransitionSystem *> ts.cts)))
