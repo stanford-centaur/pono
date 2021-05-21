@@ -83,15 +83,16 @@ ProverResult check_prop(PonoOptions pono_options,
     prop = ts.solver()->make_term(Implies, reset_done, prop);
   }
 
-  if (pono_options.pseudo_init_prop_) {
-    ts = pseudo_init_and_prop(ts, prop);
-  }
 
   if (pono_options.static_coi_) {
     /* Compute the set of state/input variables related to the
        bad-state property. Based on that information, rebuild the
        transition relation of the transition system. */
     StaticConeOfInfluence coi(ts, { prop }, pono_options.verbosity_);
+  }
+
+  if (pono_options.pseudo_init_prop_) {
+    ts = pseudo_init_and_prop(ts, prop);
   }
 
   if (pono_options.promote_inputvars_) {
