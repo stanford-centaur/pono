@@ -348,6 +348,13 @@ cdef class RelationalTransitionSystem(__AbstractTransitionSystem):
     def constrain_trans(self, Term constraint):
         dref(<c_RelationalTransitionSystem * ?> self.cts).constrain_trans(constraint.ct)
 
+    def __deepcopy__(self, memo):
+        cdef c_RelationalTransitionSystem * c_res = new c_RelationalTransitionSystem(dref(self.cts))
+        res = RelationalTransitionSystem(self._solver)
+        del res.cts
+        res.cts = c_res
+        return res
+
 
 cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
     def __cinit__(self, SmtSolver s):
@@ -356,6 +363,13 @@ cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
 
     def __dealloc__(self):
         del self.cts
+
+    def __deepcopy__(self, memo):
+        cdef c_FunctionalTransitionSystem * c_res = new c_FunctionalTransitionSystem(dref(self.cts))
+        res = FunctionalTransitionSystem(self._solver)
+        del res.cts
+        res.cts = c_res
+        return res
 
 
 cdef class Property:

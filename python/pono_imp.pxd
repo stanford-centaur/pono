@@ -60,6 +60,7 @@ cdef extern from "core/ts.h" namespace "pono":
 cdef extern from "core/rts.h" namespace "pono":
     cdef cppclass RelationalTransitionSystem(TransitionSystem):
         RelationalTransitionSystem(c_SmtSolver & s) except +
+        RelationalTransitionSystem(const TransitionSystem & rts) except +
         void set_behavior(const c_Term & init, const c_Term & trans) except +
         void set_trans(const c_Term & trans) except +
         void constrain_trans(const c_Term & constraint) except +
@@ -68,6 +69,7 @@ cdef extern from "core/rts.h" namespace "pono":
 cdef extern from "core/fts.h" namespace "pono":
     cdef cppclass FunctionalTransitionSystem(TransitionSystem):
         FunctionalTransitionSystem(c_SmtSolver & s) except +
+        FunctionalTransitionSystem(const TransitionSystem & fts) except +
 
 
 cdef extern from "core/prop.h" namespace "pono":
