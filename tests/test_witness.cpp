@@ -89,8 +89,14 @@ TEST_P(WitnessUnitTests, ArraysDefaultSolver)
   ASSERT_EQ(witness[6][x], fts.make_term(10, bvsort4));
 }
 
-INSTANTIATE_TEST_SUITE_P(ParameterizedWitnessUnitTests,
-                         WitnessUnitTests,
-                         testing::ValuesIn(available_solver_enums()));
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedWitnessUnitTests,
+    WitnessUnitTests,
+    // TEMP excluding CVC4 because these tests use two solvers
+    // (default and created one)
+    // and this causes strange behavior for CVC4 until its fixed
+    // (note: updated to cvc5 now)
+    // see https://github.com/cvc5/cvc5/issues/5893
+    testing::ValuesIn(available_solver_enums_except({ smt::CVC4 })));
 
 }  // namespace pono_tests
