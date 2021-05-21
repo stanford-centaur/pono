@@ -383,7 +383,9 @@ Engine PonoOptions::to_engine(std::string s)
 // respective options in the 'pono_options' object.
 // Returns 'ERROR' if there is something wrong with the given options
 // or 'UNKNOWN' instead.
-ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
+ProverResult PonoOptions::parse_and_set_options(int argc,
+                                                char ** argv,
+                                                bool expect_file)
 {
   argc -= (argc > 0);
   argv += (argc > 0);  // skip program name argv[0] if present
@@ -400,7 +402,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
     return ERROR;
   }
 
-  if (parse.nonOptionsCount() != 1) {
+  if (expect_file && parse.nonOptionsCount() != 1
+      || parse.nonOptionsCount() > 1) {
     option::printUsage(cout, usage);
     return ERROR;
   }
@@ -515,9 +518,24 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
     return ERROR;
   }
 
-  filename_ = parse.nonOption(0);
+  if (expect_file) {
+    filename_ = parse.nonOption(0);
+  }
 
   return UNKNOWN;
+}
+
+ProverResult PonoOptions::parse_and_set_options(std::vector<std::string> & opts,
+                                                bool expect_file)
+{
+  // add one for dummy program name
+  int size = opts.size() + 1;
+  std::vector<char *> cstrings({ std::string("pono").data() });
+  cstrings.reserve(size);
+  for (auto & o : opts) {
+    cstrings.push_back(o.data());
+  }
+  return parse_and_set_options(size, cstrings.data(), expect_file);
 }
 
 }  // namespace pono

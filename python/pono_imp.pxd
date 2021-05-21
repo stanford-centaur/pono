@@ -190,6 +190,11 @@ cdef extern from "modifiers/history_modifier.h" namespace "pono":
         HistoryModifier(TransitionSystem & ts) except +
         c_Term get_hist(const c_Term & target, size_t delay) except +
 
+cdef extern from "options/options.h" namespace "pono":
+    cdef cppclass PonoOptions:
+        PonoOptions() except +
+        ProverResult parse_and_set_options(vector[string] & opts, bint expect_file) except +
+
 cdef extern from "printers/vcd_witness_printer.h" namespace "pono":
     cdef cppclass VCDWitnessPrinter:
         VCDWitnessPrinter(const TransitionSystem & ts,

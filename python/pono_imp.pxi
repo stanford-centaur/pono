@@ -30,6 +30,7 @@ from pono_imp cimport BTOR2Encoder as c_BTOR2Encoder
 IF WITH_COREIR == "ON":
     from pono_imp cimport Module as c_Module
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
+from pono_imp cimport PonoOptions as c_PonoOptions
 from pono_imp cimport HistoryModifier as c_HistoryModifier
 from pono_imp cimport StaticConeOfInfluence as c_StaticConeOfInfluence
 from pono_imp cimport add_prop_monitor as c_add_prop_monitor
@@ -610,6 +611,22 @@ IF WITH_COREIR == "ON":
 
 def add_prop_monitor(__AbstractTransitionSystem ts, Term prop):
     c_add_prop_monitor(dref(ts.cts), prop.ct)
+
+cdef class PonoOptions:
+    cdef c_PonoOptions cpo
+    def __cinit__(self):
+        pass
+
+def parse_options(list opts):
+    cdef vector[string] vec
+    for o in opts:
+        vec.push_back((<str?> o).encode())
+    cdef c_PonoOptions c_pono_opts;
+    c_pono_opts.parse_and_set_options(vec, False)
+    pono_opts = PonoOptions()
+    pono_opts.cpo = c_pono_opts
+
+    return pono_opts
 
 cdef class HistoryModifier:
     cdef c_HistoryModifier * chm
