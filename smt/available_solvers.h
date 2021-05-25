@@ -62,6 +62,9 @@ smt::SmtSolver create_interpolating_solver_for(smt::SolverEnum se, Engine e);
 // collect all the available solvers
 std::vector<smt::SolverEnum> available_solver_enums();
 
+std::vector<smt::SolverEnum> available_solver_enums_except(
+    const std::unordered_set<smt::SolverEnum> & exclude);
+
 // collect all the available interpolating solvers
 std::vector<smt::SolverEnum> available_interpolator_enums();
 

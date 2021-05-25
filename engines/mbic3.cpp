@@ -73,7 +73,6 @@ ModelBasedIC3::ModelBasedIC3(const Property & p, const TransitionSystem & ts,
   : super(p, ts, slv, opt)
 {
   engine_ = Engine::MBIC3;
-  solver_->set_opt("produce-unsat-cores", "true");
 }
 
 IC3Formula ModelBasedIC3::get_model_ic3formula() const

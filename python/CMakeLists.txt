@@ -79,7 +79,7 @@ else()
       CACHE STRING "Extra flags to the cython compiler." FORCE)
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python")
+include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python/smt_switch")
 
 include(FindPythonExtensions)
 

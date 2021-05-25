@@ -158,7 +158,7 @@ SmtSolver create_solver_for(SolverEnum se,
 
   assert(s);
   if (ic3_engine) {
-    s->set_opt("produce-unsat-cores", "true");
+    s->set_opt("produce-unsat-assumptions", "true");
   }
   return s;
 }
@@ -169,7 +169,7 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
   if (se != MSAT) {
     s = create_solver_base(se, logging);
     s->set_opt("incremental", "true");
-    s->set_opt("produce-unsat-cores", "true");
+    s->set_opt("produce-unsat-assumptions", "true");
   }
 #ifdef WITH_MSAT
   else {
@@ -242,6 +242,18 @@ const std::vector<SolverEnum> itp_enums({
 });
 
 std::vector<SolverEnum> available_solver_enums() { return solver_enums; }
+
+std::vector<SolverEnum> available_solver_enums_except(
+    const std::unordered_set<SolverEnum> & exclude)
+{
+  std::vector<SolverEnum> res;
+  for (const auto & se : solver_enums) {
+    if (exclude.find(se) == exclude.end()) {
+      res.push_back(se);
+    }
+  }
+  return res;
+}
 
 std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; };
 

@@ -266,7 +266,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   UnorderedTermSet core_set;
   if (reduce_axioms_unsatcore_) {
     try {
-      solver_->get_unsat_core(core_set);
+      solver_->get_unsat_assumptions(core_set);
     }
     catch (SmtException & e) {
       // if core is empty, that's fine -- continue

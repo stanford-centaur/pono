@@ -49,7 +49,7 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
       cegopsuf_ts_(cegopsuf_solver_),
       cegopsuf_un_(cegopsuf_ts_)
 {
-  cegopsuf_solver_->set_opt("produce-unsat-cores", "true");
+  cegopsuf_solver_->set_opt("produce-unsat-assumptions", "true");
 }
 
 template <class Prover_T>
@@ -194,7 +194,7 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
   if (r.is_unsat()) {
     UnorderedTermSet axioms;
     UnorderedTermSet core;
-    cegopsuf_solver_->get_unsat_core(core);
+    cegopsuf_solver_->get_unsat_assumptions(core);
 
     for (size_t i = 0; i < assumps.size(); ++i) {
       if (core.find(assumps[i]) != core.end()) {

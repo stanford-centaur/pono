@@ -412,7 +412,7 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
   assert(res.is_unsat());
 
   UnorderedTermSet core;
-  super::solver_->get_unsat_core(core);
+  super::solver_->get_unsat_assumptions(core);
 
   for (auto l : assumps) {
     if (core.find(l) == core.end()) {

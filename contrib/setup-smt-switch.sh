@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=c3957b2e7fec8af4fab24df089230c88e523c0e6
+SMT_SWITCH_VERSION=a2af6ea75b994d666c9c175793a70c8945208ba5
 
 usage () {
     cat <<EOF
