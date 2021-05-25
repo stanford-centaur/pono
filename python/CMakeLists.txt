@@ -11,10 +11,11 @@ if(POLICY CMP0057)
   cmake_policy(SET CMP0057 NEW)
 endif()
 
-# Need to make sure libraries match the interpreter
-# Our CMake files use the latest Python finding cmake modules (as of 2020)
-# https://cmake.org/cmake/help/v3.12/module/FindPython.html (specifically the versioned one
-#  FindPython3
+# We currently use FindPythonInterp even though it is deprecated since 3.12
+# This is because the scikit-build files still use this version and it will
+# not interact well with the latest Python finding cmake modules
+# https://cmake.org/cmake/help/v3.12/module/FindPython.html
+# in the future, we can switch to FindPython3 once it has become more standard
 find_package(PythonInterp 3.5 REQUIRED)
 
 # WITH_COREIR is a macro in the Cython files
