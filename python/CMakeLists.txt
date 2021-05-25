@@ -11,6 +11,15 @@ if(POLICY CMP0057)
   cmake_policy(SET CMP0057 NEW)
 endif()
 
+# We currently use FindPythonInterp even though it is deprecated since 3.12
+# This is because the scikit-build files still use this version and it will
+# not interact well with the latest Python finding cmake modules
+# https://cmake.org/cmake/help/v3.12/module/FindPython.html
+# in the future, we can switch to FindPython3 once it has become more standard
+# i.e. when the following issue is resolved:
+# https://github.com/scikit-build/scikit-build/issues/506
+find_package(PythonInterp 3.5 REQUIRED)
+
 # WITH_COREIR is a macro in the Cython files
 # Needs to be set either way
 if (WITH_COREIR OR WITH_COREIR_EXTERN)
