@@ -97,6 +97,7 @@ class PonoOptions
         ic3sa_func_refine_(default_ic3sa_func_refine_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
         cegp_axiom_red_(default_cegp_axiom_red_),
+        cegp_force_restart_(default_cegp_force_restart_),
         profiling_log_filename_(default_profiling_log_filename_),
         pseudo_init_prop_(default_pseudo_init_prop_),
         assume_prop_(default_assume_prop_),
@@ -153,6 +154,8 @@ class PonoOptions
   // ceg-prophecy-arrays options
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
+  bool cegp_force_restart_;  ///< force underlying engine to restart after
+                             ///< refinement
   std::string profiling_log_filename_;
   bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;    ///< assume property in pre-state
@@ -198,6 +201,7 @@ class PonoOptions
   static const bool default_ic3_unsatcore_gen_ = true;
   static const bool default_ic3sa_func_refine_ = true;
   static const bool default_cegp_axiom_red_ = true;
+  static const bool default_cegp_force_restart_ = false;
   static const std::string default_profiling_log_filename_;
   static const bool default_pseudo_init_prop_ = false;
   static const bool default_assume_prop_ = false;
