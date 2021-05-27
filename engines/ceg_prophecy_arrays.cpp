@@ -162,7 +162,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
           super::invar_ = prover->invar();
         }
         catch (std::exception & e) {
-          logger.log(3, "Failed to set invariant because {}", e.what());
+          logger.log(1, "Failed to set invariant because {}", e.what());
           continue;
         }
       }
