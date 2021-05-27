@@ -12,12 +12,13 @@
 
 using namespace std;
 /* node to help construct syntax tree in the parser */
-/* SMV node is the basic node type in ast 
- *  To flatten modular SMV: iterate twice before building system 
- *  Two types of state variable (Vartype): basic type and module type are assigned when 
- *  element_node stores a vector of SMVNode * that contain the corresponding type NodeMType
- *  NodeMType includes VAR, IVAR, FROZENVAR, DEFINE, INIT, INVAR, TRANS, ASSIGN 
-*/
+/* SMV node is the basic node type in ast
+ *  To flatten modular SMV: iterate twice before building system
+ *  Two types of state variable (Vartype): basic type and module type are
+ * assigned when element_node stores a vector of SMVNode * that contain the
+ * corresponding type NodeMType NodeMType includes VAR, IVAR, FROZENVAR, FUN
+ * DEFINE, INIT, INVAR, TRANS, ASSIGN
+ */
 
 namespace pono {
 class module_node;
@@ -42,6 +43,7 @@ struct SMVnode
     IVAR,
     VAR,
     FROZENVAR,
+    FUN,
     INIT,
     TRANS,
     INVAR,
@@ -58,6 +60,7 @@ struct SMVnode
     // should just be Array ideally
     WordArray,
     IntArray,
+    Function,
     Default
   };
   smt::Term tm;
@@ -148,9 +151,10 @@ class module_node
   unordered_map<string, SMVnode *> new_par;
   element_node * var_li;
   element_node * ivar_li;
-  element_node * frozenvar_li;
   element_node * assign_li;
   element_node * define_li;
+  element_node * frozenvar_li;
+  element_node * fun_li;
   element_node * init_li;
   element_node * trans_li;
   element_node * invar_li;
@@ -171,9 +175,10 @@ class module_node
     par_li = id_list;
     var_li = new element_node();
     ivar_li = new element_node();
-    frozenvar_li = new element_node();
     define_li = new element_node();
     assign_li = new element_node();
+    frozenvar_li = new element_node();
+    fun_li = new element_node();
     init_li = new element_node();
     trans_li = new element_node();
     invar_li = new element_node();
@@ -187,6 +192,7 @@ class module_node
       if (it->first == SMVnode::IVAR) ivar_li = it->second;
       if (it->first == SMVnode::VAR) var_li = it->second;
       if (it->first == SMVnode::FROZENVAR) frozenvar_li = it->second;
+      if (it->first == SMVnode::FUN) fun_li = it->second;
       if (it->first == SMVnode::INIT) init_li = it->second;
       if (it->first == SMVnode::TRANS) trans_li = it->second;
       if (it->first == SMVnode::INVAR) invar_li = it->second;
@@ -200,9 +206,10 @@ class module_node
     module_name = name;
     var_li = new element_node();
     ivar_li = new element_node();
-    frozenvar_li = new element_node();
     define_li = new element_node();
     assign_li = new element_node();
+    frozenvar_li = new element_node();
+    fun_li = new element_node();
     init_li = new element_node();
     trans_li = new element_node();
     invar_li = new element_node();
@@ -216,6 +223,7 @@ class module_node
       if (it->first == SMVnode::IVAR) ivar_li = it->second;
       if (it->first == SMVnode::VAR) var_li = it->second;
       if (it->first == SMVnode::FROZENVAR) frozenvar_li = it->second;
+      if (it->first == SMVnode::FUN) fun_li = it->second;
       if (it->first == SMVnode::INIT) init_li = it->second;
       if (it->first == SMVnode::TRANS) trans_li = it->second;
       if (it->first == SMVnode::INVAR) invar_li = it->second;
@@ -323,6 +331,7 @@ class ivar_node_c : public SMVnode
                         std::unordered_map<string, string> new_prefix,
                         ostream & s);
 };
+
 class frozenvar_node_c : public SMVnode
 {
   std::string id;
@@ -330,6 +339,24 @@ class frozenvar_node_c : public SMVnode
 
  public:
   frozenvar_node_c(std::string n, SMVnode * t)
+  {
+    type = t->getName();
+    id = n;
+  }
+  void generate_ostream(std::string name,
+                        std::string prefix,
+                        std::unordered_map<string, module_node *> module_list,
+                        std::unordered_map<string, string> new_prefix,
+                        ostream & s);
+};
+
+class fun_node_c : public SMVnode
+{
+  std::string id;
+  std::string type;
+
+ public:
+  fun_node_c(std::string n, SMVnode * t)
   {
     type = t->getName();
     id = n;
@@ -474,6 +501,25 @@ class frozenvar_node : public element_node
 
  public:
   frozenvar_node(std::vector<SMVnode *> li, NodeMtype t)
+  {
+    mt = t;
+    ex_li = li;
+  }
+  void generate_ostream(std::string name,
+                        std::string prefix,
+                        std::unordered_map<string, module_node *> module_list,
+                        std::unordered_map<string, string> new_prefix,
+                        ostream & s);
+
+  std::vector<SMVnode *> get_list() { return ex_li; }
+};
+
+class fun_node : public element_node
+{
+  std::vector<SMVnode *> ex_li;
+
+ public:
+  fun_node(std::vector<SMVnode *> li, NodeMtype t)
   {
     mt = t;
     ex_li = li;
@@ -1083,6 +1129,25 @@ class write_expr : public SMVnode
                         std::unordered_map<string, string> new_prefix,
                         ostream & s);
 };
+
+class apply_expr : public SMVnode
+{
+  std::string fun;
+  std::vector<pono::SMVnode *> args;
+
+ public:
+  apply_expr(const std::string & f, std::vector<pono::SMVnode *> a)
+  {
+    fun = f;
+    args = a;
+  }
+  void generate_ostream(std::string name,
+                        std::string prefix,
+                        std::unordered_map<string, module_node *> module_list,
+                        std::unordered_map<string, string> new_prefix,
+                        ostream & s);
+};
+
 class word1_expr : public SMVnode
 {
   pono::SMVnode * ex;

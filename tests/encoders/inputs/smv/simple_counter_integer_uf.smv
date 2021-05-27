@@ -1,0 +1,14 @@
+MODULE main
+
+FUN
+  f : integer * integer -> integer;
+
+VAR
+  counter:  integer;
+
+INIT counter = 0;
+
+TRANS (counter > 5) -> (next(counter) = 0) ;
+TRANS  (counter <= 5) -> (next(counter) = f(counter, 1));
+
+INVARSPEC counter <= 6;
