@@ -44,6 +44,15 @@ enum Engine
   // used for setting solver options appropriately
 };
 
+// NOTE keep this up to date so that setting
+//      solver options based on the engine works
+//      as expected.
+//      IC3 uses the solver differently than other
+//      techniques and thus different options are
+//      appropriate
+/** Returns the set of all IC3 variant engines */
+const std::unordered_set<Engine> & ic3_variants();
+
 const std::unordered_map<std::string, Engine> str2engine(
     { { "bmc", BMC },
       { "bmc-sp", BMC_SP },

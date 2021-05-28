@@ -58,12 +58,6 @@ const std::vector<SolverEnum> solver_enums({
 #endif
 });
 
-// keep this up-to-date for setting solver options
-// IC3 uses the solver in a different way, so different
-// options are appropriate than for other engines
-std::unordered_set<Engine> ic3_variants(
-  { IC3_BOOL, IC3_BITS, MBIC3, IC3IA_ENGINE, MSAT_IC3IA, IC3SA_ENGINE, SYGUS_PDR });
-
 // internal method for creating a particular solver
 // doesn't set any options
 SmtSolver create_solver_base(SolverEnum se, bool logging)
@@ -117,7 +111,7 @@ SmtSolver create_solver_for(SolverEnum se,
                             bool full_model)
 {
   SmtSolver s;
-  bool ic3_engine = ic3_variants.find(e) != ic3_variants.end();
+  bool ic3_engine = ic3_variants().find(e) != ic3_variants().end();
   if (e == IC3SA_ENGINE) {
     // IC3SA requires a full model
     full_model = true;
@@ -208,7 +202,7 @@ SmtSolver create_interpolating_solver(SolverEnum se)
 
 SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
 {
-  if (ic3_variants.find(e) == ic3_variants.end()) {
+  if (ic3_variants().find(e) == ic3_variants().end()) {
     return create_interpolating_solver(se);
   }
 
