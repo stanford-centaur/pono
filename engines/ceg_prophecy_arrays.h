@@ -75,7 +75,7 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   bool cegar_refine() override;
 
   // helpers
-  smt::Term get_bmc_formula(size_t b);
+  smt::Term get_refinement_formula(size_t b);
 
   /** Unsat core based axiom reduction
    *  @param abs_bmc_formula the trace formula
