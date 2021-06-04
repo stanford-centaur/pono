@@ -377,6 +377,16 @@ const option::Descriptor usage[] = {
 
 namespace pono {
 
+const std::unordered_set<Engine> ic3_variants_set({ IC3_BOOL,
+                                                    IC3_BITS,
+                                                    MBIC3,
+                                                    IC3IA_ENGINE,
+                                                    MSAT_IC3IA,
+                                                    IC3SA_ENGINE,
+                                                    SYGUS_PDR });
+
+const std::unordered_set<Engine> & ic3_variants() { return ic3_variants_set; }
+
 const std::string PonoOptions::default_profiling_log_filename_ = "";
 
 Engine PonoOptions::to_engine(std::string s)
@@ -518,6 +528,13 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
     if (ceg_prophecy_arrays_ && smt_solver_ != smt::MSAT) {
       throw PonoException(
           "Counterexample-guided prophecy only supported with MathSAT so far");
+    }
+
+    if (smt_solver_ == smt::CVC4
+        && ic3_variants().find(engine_) != ic3_variants().end()) {
+      throw PonoException(
+          "CVC4 cannot handle multiple solver instances, and thus does not "
+          "currently support IC3 variants.");
     }
   }
   catch (PonoException & ce) {
