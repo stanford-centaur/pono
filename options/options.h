@@ -40,7 +40,7 @@ enum Engine
   IC3SA_ENGINE,
   SYGUS_PDR
   // NOTE: if adding an IC3 variant,
-  // make sure to update ic3_variants in smt/available_solvers.cpp
+  // make sure to update ic3_variants_set in options/options.cpp
   // used for setting solver options appropriately
 };
 
