@@ -214,17 +214,32 @@ void CegProphecyArrays<Prover_T>::initialize()
   super::initialize();
 
   bool contains_arrays = false;
+  Sort boolsort = super::solver_->make_sort(BOOL);
+  Sort sort;
   for (const auto &sv : conc_ts_.statevars()) {
-    if (sv->get_sort()->get_sort_kind() == ARRAY) {
+    sort = sv->get_sort();
+    if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
-      break;
+      SortKind sk = sort->get_indexsort()->get_sort_kind();
+      if (sk != REAL && sk != INT) {
+        throw PonoException(
+            "CEGP currently only supports infinite domain indices in arrays "
+            "due to an edge case for constant arrays, but got "
+            + sort->to_string());
+      }
     }
   }
 
   for (const auto &iv : conc_ts_.inputvars()) {
     if (iv->get_sort()->get_sort_kind() == ARRAY) {
       contains_arrays = true;
-      break;
+      SortKind sk = sort->get_indexsort()->get_sort_kind();
+      if (sk != REAL && sk != INT) {
+        throw PonoException(
+            "CEGP currently only supports infinite domain indices in arrays "
+            "due to an edge case for constant arrays, but got "
+            + sort->to_string());
+      }
     }
   }
 

@@ -19,25 +19,24 @@ TEST(CegProphecyArraysTest, Simple)
   SmtSolver s = create_solver(MSAT);
   s->set_opt("produce-unsat-assumptions", "true");
   RelationalTransitionSystem rts(s);
-  Sort bvsort8 = rts.make_sort(BV, 8);
-  Sort bvsort32 = rts.make_sort(BV, 32);
-  Sort arrsort = rts.make_sort(ARRAY, bvsort8, bvsort32);
-  Term i = rts.make_statevar("i", bvsort8);
-  Term j = rts.make_statevar("j", bvsort8);
-  Term d = rts.make_statevar("d", bvsort32);
+  Sort intsort = rts.make_sort(INT);
+  Sort arrsort = rts.make_sort(ARRAY, intsort, intsort);
+  Term i = rts.make_statevar("i", intsort);
+  Term j = rts.make_statevar("j", intsort);
+  Term d = rts.make_statevar("d", intsort);
   Term a = rts.make_statevar("a", arrsort);
 
-  Term constarr0 = rts.make_term(rts.make_term(0, bvsort32), arrsort);
+  Term constarr0 = rts.make_term(rts.make_term(0, intsort), arrsort);
   rts.set_init(rts.make_term(Equal, a, constarr0));
   rts.assign_next(
       a,
       rts.make_term(Ite,
-                    rts.make_term(BVUlt, d, rts.make_term(200, bvsort32)),
+                    rts.make_term(Lt, d, rts.make_term(200, intsort)),
                     rts.make_term(Store, a, i, d),
                     a));
 
   Term prop_term = rts.make_term(
-      BVUlt, rts.make_term(Select, a, j), rts.make_term(200, bvsort32));
+      Lt, rts.make_term(Select, a, j), rts.make_term(200, intsort));
   Property prop(s, prop_term);
   std::shared_ptr<Prover> cegp = make_ceg_proph_prover(INTERP, prop, rts, s);
   ProverResult r = cegp->check_until(5);
