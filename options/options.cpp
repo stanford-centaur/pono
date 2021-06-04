@@ -39,6 +39,7 @@ enum optionIndex
   WITNESS,
   CEGPROPHARR,
   NO_CEGP_AXIOM_RED,
+  CEGP_FORCE_RESTART,
   STATICCOI,
   SHOW_INVAR,
   CHECK_INVAR,
@@ -181,6 +182,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --no-cegp-axiom-red \tDon't reduce axioms in CEG-Prophecy with unsat "
     "cores." },
+  { CEGP_FORCE_RESTART,
+    0,
+    "",
+    "cegp-force-restart",
+    Arg::None,
+    "  --cegp-force-restart \tForce underlying engine to restart after "
+    "refinement." },
   { STATICCOI,
     0,
     "",
@@ -324,7 +332,8 @@ const option::Descriptor usage[] = {
     "",
     "ceg-bv-arith-min-bw",
     Arg::Numeric,
-    "  --ceg-bv-arith-min-bw \tminimum bitwidth of operators to abstract - must be positive (default: 16) " },
+    "  --ceg-bv-arith-min-bw \tminimum bitwidth of operators to abstract - "
+    "must be positive (default: 16) " },
   { PROMOTE_INPUTVARS,
     0,
     "",
@@ -448,6 +457,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc, char ** argv)
         case WITNESS: witness_ = true; break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
         case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
+        case CEGP_FORCE_RESTART: cegp_force_restart_ = true; break;
         case STATICCOI: static_coi_ = true; break;
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;

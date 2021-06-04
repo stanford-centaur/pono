@@ -143,7 +143,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
       reached_k_++;
     } while (num_added_axioms_ && reached_k_ <= k);
 
-    if (super::engine_ != IC3IA_ENGINE) {
+    if (super::options_.cegp_force_restart_ || super::engine_ != IC3IA_ENGINE) {
       Property latest_prop(super::solver_,
                            super::solver_->make_term(Not, super::bad_));
       SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
@@ -162,7 +162,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
           super::invar_ = prover->invar();
         }
         catch (std::exception & e) {
-          logger.log(3, "Failed to set invariant because {}", e.what());
+          logger.log(1, "Failed to set invariant because {}", e.what());
           continue;
         }
       }
@@ -178,13 +178,17 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
   if (res == ProverResult::FALSE) {
     // can't count on false result over abstraction when only checking up until
     // a bound
+    // NOTE if cegar_refine finds a concrete counterexample, FALSE is returned
+    // above
     return ProverResult::UNKNOWN;
   }
 
-  if (res == ProverResult::TRUE && super::invar_) {
+  if (super::options_.check_invar_ && res == ProverResult::TRUE
+      && super::invar_) {
+    logger.log(0, "Checking invariant over abstract system in CEGP");
     // check invariant on abstract system
     bool pass = check_invar(
-        super::ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
+        abs_ts_, super::solver_->make_term(Not, super::bad_), super::invar_);
     if (!pass) {
       throw PonoException("Invariant FAILURE in CegProphecyArrays");
     }
@@ -571,7 +575,9 @@ void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & c
 template <>
 void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
 {
-  super::reabstract();
+  if (!options_.cegp_force_restart_) {
+    super::reabstract();
+  }
 }
 
 // ceg-prophecy is incremental for ic3ia
