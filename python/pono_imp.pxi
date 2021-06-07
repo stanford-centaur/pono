@@ -252,7 +252,7 @@ cdef class __AbstractTransitionSystem:
         dref(self.cts).replace_terms(utm)
 
     def make_sort(self, arg0, arg1=None, arg2=None, arg3=None):
-        cdef Sort s = Sort(self)
+        cdef Sort s = Sort(self._solver)
         cdef c_SortKind sk
         cdef c_SortVec csv
 
