@@ -114,7 +114,7 @@ cdef class __AbstractTransitionSystem:
         return dref(self.cts).is_next_var(sv.ct)
 
     def is_input_var(self, Term iv):
-        return dref(self.cts).is_curr_var(iv.ct)
+        return dref(self.cts).is_input_var(iv.ct)
 
     def get_name(self, Term t):
         return dref(self.cts).get_name(t.ct).decode()
@@ -233,6 +233,21 @@ cdef class __AbstractTransitionSystem:
             c_svs.push_back((<Term?> sv).ct)
 
         dref(self.cts).drop_state_updates(c_svs)
+
+    def promote_inputvar(self, Term iv):
+        '''
+        EXPERTS ONLY
+        Turns an input variable into a state variable
+          IMPORTANT: this does not retroactively change constraints
+          e.g. if a constraint was not added to init because it
+          contains an input variable
+
+        @param iv the input variable to promote
+
+        The input variable iv stays the same, but it will now
+          be registered as a state variable.
+        '''
+        dref(self.cts).promote_inputvar(iv.ct)
 
     def replace_terms(self, dict to_replace):
         '''
