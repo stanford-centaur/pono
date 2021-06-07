@@ -35,6 +35,8 @@ from pono_imp cimport HistoryModifier as c_HistoryModifier
 from pono_imp cimport StaticConeOfInfluence as c_StaticConeOfInfluence
 from pono_imp cimport add_prop_monitor as c_add_prop_monitor
 from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
+from pono_imp cimport pseudo_init_and_prop as c_pseudo_init_and_prop
+from pono_imp cimport prop_in_trans as c_prop_in_trans
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from pono_imp cimport check_invar as c_check_invar
 
@@ -691,6 +693,19 @@ cdef class VCDWitnessPrinter:
 
     def dump_trace_to_file(self, str vcd_file_name):
         dref(self.cvwp).dump_trace_to_file(vcd_file_name.encode())
+
+# standalone functions
+
+def pseudo_init_and_prop(__AbstractTransitionSystem ts, Term prop):
+    rts = RelationalTransitionSystem(ts._solver)
+    # need to delete old pointer
+    del rts.cts
+    rts.cts = new c_RelationalTransitionSystem(
+        c_pseudo_init_and_prop(dref(ts.cts), prop.ct))
+    return rts
+
+def prop_in_trans(__AbstractTransitionSystem ts, Term prop):
+    c_prop_in_trans(dref(ts.cts), prop.ct)
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)

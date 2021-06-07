@@ -194,6 +194,10 @@ cdef extern from "modifiers/history_modifier.h" namespace "pono":
         HistoryModifier(TransitionSystem & ts) except +
         c_Term get_hist(const c_Term & target, size_t delay) except +
 
+cdef extern from "modifiers/mod_ts_prop.h" namespace "pono":
+    TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, c_Term & prop) except +
+    void prop_in_trans(TransitionSystem & ts, const c_Term & prop) except +
+
 cdef extern from "options/options.h" namespace "pono":
     cdef cppclass PonoOptions:
         PonoOptions() except +
