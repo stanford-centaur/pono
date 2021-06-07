@@ -29,6 +29,11 @@ cdef extern from "core/ts.h" namespace "pono":
         c_Term next(const c_Term & term) except +
         bint is_curr_var(const c_Term & sv) except +
         bint is_next_var(const c_Term & sv) except +
+        bint is_input_var(const c_Term & sv) except +
+        string get_name(const c_Term & t) except +
+        c_Term lookup(string name) except +
+        void add_statevar(const c_Term & cv, const c_Term & nv) except +
+        void add_inputvar(const c_Term & v) except +
         c_SmtSolver & solver() except +
         const c_UnorderedTermSet & statevars() except +
         const c_UnorderedTermSet & inputvars() except +
@@ -40,6 +45,7 @@ cdef extern from "core/ts.h" namespace "pono":
         bint is_functional() except +
         bint is_deterministic() except +
         void drop_state_updates(const c_TermVec & svs) except +
+        void promote_inputvar(const c_Term & iv) except +
         void replace_terms(const c_UnorderedTermMap & to_replace) except +
         c_Sort make_sort(const string name, uint64_t arity) except +
         c_Sort make_sort(const c_SortKind sk) except +
@@ -58,6 +64,7 @@ cdef extern from "core/ts.h" namespace "pono":
 cdef extern from "core/rts.h" namespace "pono":
     cdef cppclass RelationalTransitionSystem(TransitionSystem):
         RelationalTransitionSystem(c_SmtSolver & s) except +
+        RelationalTransitionSystem(const TransitionSystem & rts) except +
         void set_behavior(const c_Term & init, const c_Term & trans) except +
         void set_trans(const c_Term & trans) except +
         void constrain_trans(const c_Term & constraint) except +
@@ -66,6 +73,7 @@ cdef extern from "core/rts.h" namespace "pono":
 cdef extern from "core/fts.h" namespace "pono":
     cdef cppclass FunctionalTransitionSystem(TransitionSystem):
         FunctionalTransitionSystem(c_SmtSolver & s) except +
+        FunctionalTransitionSystem(const TransitionSystem & fts) except +
 
 
 cdef extern from "core/prop.h" namespace "pono":
@@ -156,6 +164,7 @@ IF WITH_MSAT_IC3IA == "ON":
 cdef extern from "frontends/btor2_encoder.h" namespace "pono":
     cdef cppclass BTOR2Encoder:
         BTOR2Encoder(string filename, TransitionSystem & ts) except +
+        const c_TermVec & propvec() except +
 
 
 # WITH_COREIR is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
@@ -184,6 +193,15 @@ cdef extern from "modifiers/history_modifier.h" namespace "pono":
     cdef cppclass HistoryModifier:
         HistoryModifier(TransitionSystem & ts) except +
         c_Term get_hist(const c_Term & target, size_t delay) except +
+
+cdef extern from "modifiers/mod_ts_prop.h" namespace "pono":
+    TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, c_Term & prop) except +
+    void prop_in_trans(TransitionSystem & ts, const c_Term & prop) except +
+
+cdef extern from "options/options.h" namespace "pono":
+    cdef cppclass PonoOptions:
+        PonoOptions() except +
+        ProverResult parse_and_set_options(vector[string] & opts, bint expect_file) except +
 
 cdef extern from "printers/vcd_witness_printer.h" namespace "pono":
     cdef cppclass VCDWitnessPrinter:

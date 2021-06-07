@@ -129,7 +129,21 @@ class PonoOptions
 
   ~PonoOptions(){};
 
-  ProverResult parse_and_set_options(int argc, char ** argv);
+  /** Parse and set options given argc and argv from main
+   *  @param argc
+   *  @param argv
+   *  @param expect_file if true expects a filename to read
+   */
+  ProverResult parse_and_set_options(int argc,
+                                     char ** argv,
+                                     bool expect_file = true);
+
+  /** Parse and set options given vector of options
+   *  @param opts vector of command line options
+   *  @param expect_file if true expects a filename to read
+   */
+  ProverResult parse_and_set_options(std::vector<std::string> & opts,
+                                     bool expect_file = true);
 
   Engine to_engine(std::string s);
 

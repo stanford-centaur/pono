@@ -30,10 +30,13 @@ from pono_imp cimport BTOR2Encoder as c_BTOR2Encoder
 IF WITH_COREIR == "ON":
     from pono_imp cimport Module as c_Module
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
+from pono_imp cimport PonoOptions as c_PonoOptions
 from pono_imp cimport HistoryModifier as c_HistoryModifier
 from pono_imp cimport StaticConeOfInfluence as c_StaticConeOfInfluence
 from pono_imp cimport add_prop_monitor as c_add_prop_monitor
 from pono_imp cimport VCDWitnessPrinter as c_VCDWitnessPrinter
+from pono_imp cimport pseudo_init_and_prop as c_pseudo_init_and_prop
+from pono_imp cimport prop_in_trans as c_prop_in_trans
 from pono_imp cimport set_global_logger_verbosity as c_set_global_logger_verbosity
 from pono_imp cimport check_invar as c_check_invar
 
@@ -111,6 +114,23 @@ cdef class __AbstractTransitionSystem:
 
     def is_next_var(self, Term sv):
         return dref(self.cts).is_next_var(sv.ct)
+
+    def is_input_var(self, Term iv):
+        return dref(self.cts).is_input_var(iv.ct)
+
+    def get_name(self, Term t):
+        return dref(self.cts).get_name(t.ct).decode()
+
+    def lookup(self, str name):
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cts).lookup(name.encode())
+        return term
+
+    def add_statevar(self, Term cv, Term nv):
+        dref(self.cts).add_statevar(cv.ct, nv.ct)
+
+    def add_inputvar(self, Term v):
+        dref(self.cts).add_inputvar(v.ct)
 
     @property
     def solver(self):
@@ -227,6 +247,21 @@ cdef class __AbstractTransitionSystem:
 
         dref(self.cts).drop_state_updates(c_svs)
 
+    def promote_inputvar(self, Term iv):
+        '''
+        EXPERTS ONLY
+        Turns an input variable into a state variable
+          IMPORTANT: this does not retroactively change constraints
+          e.g. if a constraint was not added to init because it
+          contains an input variable
+
+        @param iv the input variable to promote
+
+        The input variable iv stays the same, but it will now
+          be registered as a state variable.
+        '''
+        dref(self.cts).promote_inputvar(iv.ct)
+
     def replace_terms(self, dict to_replace):
         '''
         EXPERTS ONLY
@@ -245,7 +280,7 @@ cdef class __AbstractTransitionSystem:
         dref(self.cts).replace_terms(utm)
 
     def make_sort(self, arg0, arg1=None, arg2=None, arg3=None):
-        cdef Sort s = Sort(self)
+        cdef Sort s = Sort(self._solver)
         cdef c_SortKind sk
         cdef c_SortVec csv
 
@@ -342,6 +377,13 @@ cdef class RelationalTransitionSystem(__AbstractTransitionSystem):
     def constrain_trans(self, Term constraint):
         dref(<c_RelationalTransitionSystem * ?> self.cts).constrain_trans(constraint.ct)
 
+    def __deepcopy__(self, memo):
+        cdef c_RelationalTransitionSystem * c_res = new c_RelationalTransitionSystem(dref(self.cts))
+        res = RelationalTransitionSystem(self._solver)
+        del res.cts
+        res.cts = c_res
+        return res
+
 
 cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
     def __cinit__(self, SmtSolver s):
@@ -350,6 +392,13 @@ cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
 
     def __dealloc__(self):
         del self.cts
+
+    def __deepcopy__(self, memo):
+        cdef c_FunctionalTransitionSystem * c_res = new c_FunctionalTransitionSystem(dref(self.cts))
+        res = FunctionalTransitionSystem(self._solver)
+        del res.cts
+        res.cts = c_res
+        return res
 
 
 cdef class Property:
@@ -560,6 +609,16 @@ cdef class BTOR2Encoder:
     def __dealloc__(self):
         del self.cbe
 
+    def propvec(self):
+        res = []
+        cdef vector[c_Term] props = dref(self.cbe).propvec()
+        for p in props:
+            term = Term(self._ts._solver)
+            term.ct = p
+            res.append(term)
+        return res
+
+
 IF WITH_COREIR == "ON":
     cdef class CoreIREncoder:
         cdef c_CoreIREncoder * cbe
@@ -580,6 +639,22 @@ IF WITH_COREIR == "ON":
 
 def add_prop_monitor(__AbstractTransitionSystem ts, Term prop):
     c_add_prop_monitor(dref(ts.cts), prop.ct)
+
+cdef class PonoOptions:
+    cdef c_PonoOptions cpo
+    def __cinit__(self):
+        pass
+
+def parse_options(list opts):
+    cdef vector[string] vec
+    for o in opts:
+        vec.push_back((<str?> o).encode())
+    cdef c_PonoOptions c_pono_opts;
+    c_pono_opts.parse_and_set_options(vec, False)
+    pono_opts = PonoOptions()
+    pono_opts.cpo = c_pono_opts
+
+    return pono_opts
 
 cdef class HistoryModifier:
     cdef c_HistoryModifier * chm
@@ -618,6 +693,19 @@ cdef class VCDWitnessPrinter:
 
     def dump_trace_to_file(self, str vcd_file_name):
         dref(self.cvwp).dump_trace_to_file(vcd_file_name.encode())
+
+# standalone functions
+
+def pseudo_init_and_prop(__AbstractTransitionSystem ts, Term prop):
+    rts = RelationalTransitionSystem(ts._solver)
+    # need to delete old pointer
+    del rts.cts
+    rts.cts = new c_RelationalTransitionSystem(
+        c_pseudo_init_and_prop(dref(ts.cts), prop.ct))
+    return rts
+
+def prop_in_trans(__AbstractTransitionSystem ts, Term prop):
+    c_prop_in_trans(dref(ts.cts), prop.ct)
 
 def set_global_logger_verbosity(int v):
     c_set_global_logger_verbosity(v)

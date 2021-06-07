@@ -42,6 +42,14 @@ class FunctionalTransitionSystem : public TransitionSystem
     functional_ = true;
   }
 
+  FunctionalTransitionSystem(const TransitionSystem & other_ts)
+      : TransitionSystem(other_ts)
+  {
+    if (!functional_) {
+      throw PonoException("Copied relational system to functional one");
+    }
+  }
+
  protected:
 
   // helpers and checkers

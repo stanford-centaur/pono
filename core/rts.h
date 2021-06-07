@@ -33,6 +33,13 @@ class RelationalTransitionSystem : public TransitionSystem
   {
   }
 
+  RelationalTransitionSystem(const TransitionSystem & other_ts)
+      : TransitionSystem(other_ts)
+  {
+    functional_ = false;
+    deterministic_ = false;
+  }
+
   /* Sets init and trans to the provided values
    * @param init the new initial state constraints (boolean sort)
    * @param trans the new transition relation constraints (boolean sort)
