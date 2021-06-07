@@ -31,6 +31,9 @@ cdef extern from "core/ts.h" namespace "pono":
         bint is_next_var(const c_Term & sv) except +
         bint is_input_var(const c_Term & sv) except +
         string get_name(const c_Term & t) except +
+        c_Term lookup(string name) except +
+        void add_statevar(const c_Term & cv, const c_Term & nv) except +
+        void add_inputvar(const c_Term & v) except +
         c_SmtSolver & solver() except +
         const c_UnorderedTermSet & statevars() except +
         const c_UnorderedTermSet & inputvars() except +

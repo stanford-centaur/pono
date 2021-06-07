@@ -119,6 +119,17 @@ cdef class __AbstractTransitionSystem:
     def get_name(self, Term t):
         return dref(self.cts).get_name(t.ct).decode()
 
+    def lookup(self, str name):
+        cdef Term term = Term(self._solver)
+        term.ct = dref(self.cts).lookup(name.encode())
+        return term
+
+    def add_statevar(self, Term cv, Term nv):
+        dref(self.cts).add_statevar(cv.ct, nv.ct)
+
+    def add_inputvar(self, Term v):
+        dref(self.cts).add_inputvar(v.ct)
+
     @property
     def solver(self):
         return self._solver
