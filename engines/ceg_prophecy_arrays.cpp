@@ -235,7 +235,8 @@ void CegProphecyArrays<Prover_T>::initialize()
   }
 
   for (const auto &iv : conc_ts_.inputvars()) {
-    if (iv->get_sort()->get_sort_kind() == ARRAY) {
+    sort = iv->get_sort();
+    if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
       SortKind sk = sort->get_indexsort()->get_sort_kind();
       if (sk != REAL && sk != INT) {
