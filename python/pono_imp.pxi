@@ -425,8 +425,8 @@ cdef class Property:
 cdef class Unroller:
     cdef c_Unroller* cu
     cdef SmtSolver _solver
-    def __cinit__(self, __AbstractTransitionSystem ts):
-        self.cu = new c_Unroller(ts.cts[0])
+    def __cinit__(self, __AbstractTransitionSystem ts, str time_id='@'):
+        self.cu = new c_Unroller(ts.cts[0], time_id.encode())
         self._solver = ts._solver
 
     def __dealloc__(self):
