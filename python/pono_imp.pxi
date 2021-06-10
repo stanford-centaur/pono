@@ -21,7 +21,9 @@ from pono_imp cimport Bmc as c_Bmc
 from pono_imp cimport KInduction as c_KInduction
 from pono_imp cimport BmcSimplePath as c_BmcSimplePath
 from pono_imp cimport IC3 as c_IC3
+from pono_imp cimport IC3Bits as c_IC3Bits
 from pono_imp cimport IC3IA as c_IC3IA
+from pono_imp cimport IC3SA as c_IC3SA
 from pono_imp cimport InterpolantMC as c_InterpolantMC
 from pono_imp cimport ModelBasedIC3 as c_ModelBasedIC3
 IF WITH_MSAT_IC3IA == "ON":
@@ -545,10 +547,22 @@ cdef class BmcSimplePath(__AbstractProver):
 
 cdef class IC3(__AbstractProver):
     '''
-    Bit-level IC3 variant
+    Boolean IC3 variant
     '''
     def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
         self.cp = new c_IC3(p.cp[0], ts.cts[0], s.css)
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
+
+
+cdef class IC3Bits(__AbstractProver):
+    '''
+    IC3 variant that splits bit-vectors into individual booleans.
+    '''
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_IC3Bits(p.cp[0], ts.cts[0], s.css)
         self._solver = s
 
     def __dealloc__(self):
@@ -561,6 +575,21 @@ cdef class IC3IA(__AbstractProver):
     '''
     def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
         self.cp = new c_IC3IA(p.cp[0], ts.cts[0], s.css)
+        self._ts = ts
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.cp
+
+
+cdef class IC3SA(__AbstractProver):
+    '''
+    Syntax-Guided Abstraction IC3
+    See "Model Checking of Verilog RTL using IC3 with Syntax-Guided Abstraction"
+         by Aman Goel and Karem Sakallah in Nasa Formal Methods 2019
+    '''
+    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.cp = new c_IC3SA(p.cp[0], ts.cts[0], s.css)
         self._ts = ts
         self._solver = s
 
