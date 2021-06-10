@@ -138,7 +138,7 @@ cdef extern from "engines/ic3.h" namespace "pono":
 cdef extern from "engines/ic3bits.h" namespace "pono":
     cdef cppclass IC3Bits(Prover):
         IC3Bits(const Property & p, const TransitionSystem & ts,
-            c_SmtSolver & solver) except +
+                c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/ic3ia.h" namespace "pono":
