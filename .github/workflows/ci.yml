@@ -32,10 +32,10 @@ jobs:
         run: python3 -m pip install Cython pytest toml
 
       - name: Download MathSAT
-        run: ./travis-scripts/setup-msat.sh --auto-yes
+        run: ./ci-scripts/setup-msat.sh --auto-yes
 
       - name: Download CVC4
-        run: ./travis-scripts/download-cvc4.sh
+        run: ./ci-scripts/download-cvc4.sh
 
       - name: Setup Flex
         run: ./contrib/setup-flex.sh
