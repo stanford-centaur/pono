@@ -290,7 +290,8 @@ RefineResult IC3IA::refine()
 
   // reduce new predicates
   TermVec red_preds;
-  if (ia_.reduce_predicates(cex_, fresh_preds, red_preds)) {
+  if (options_.ic3ia_reduce_preds_
+      && ia_.reduce_predicates(cex_, fresh_preds, red_preds)) {
     // reduction successful
     logger.log(2,
                "reduce predicates successful {}/{}",
@@ -301,12 +302,12 @@ RefineResult IC3IA::refine()
       fresh_preds.insert(fresh_preds.end(), red_preds.begin(), red_preds.end());
     }
   } else {
-    // should only fail if removed all predicates
+    // if enabled should only fail if removed all predicates
     // this can happen when there are uninterpreted functions
     // the unrolling can force incompatible UF interpretations
     // but IC3 (which doesn't unroll) still needs the predicates
     // in this case, just use all the fresh predicates
-    assert(red_preds.size() == 0);
+    assert(!options_.ic3ia_reduce_preds_ || red_preds.size() == 0);
     logger.log(2, "reduce predicates FAILED");
   }
 
