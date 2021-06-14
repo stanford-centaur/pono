@@ -53,6 +53,7 @@ enum optionIndex
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
   NO_IC3_UNSATCORE_GEN,
+  NO_IC3IA_REDUCE_PREDS,
   NO_IC3SA_FUNC_REFINE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
@@ -269,6 +270,13 @@ const option::Descriptor usage[] = {
     " variants but also runs the risk of myopic over-generalization. Some IC3"
     " variants have better inductive generalization and do better with this"
     " option." },
+  { NO_IC3IA_REDUCE_PREDS,
+    0,
+    "",
+    "no-ic3ia-reduce-preds",
+    Arg::None,
+    "  --no-ic3ia-reduce-preds \tDisable unsat core based predicate "
+    "minimization" },
   { NO_IC3SA_FUNC_REFINE,
     0,
     "",
@@ -488,6 +496,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
         case NO_IC3_UNSATCORE_GEN: ic3_unsatcore_gen_ = false; break;
+        case NO_IC3IA_REDUCE_PREDS: ic3ia_reduce_preds_ = false;
         case NO_IC3SA_FUNC_REFINE: ic3sa_func_refine_ = false; break;
         case PROFILING_LOG_FILENAME:
 #ifndef WITH_PROFILING
