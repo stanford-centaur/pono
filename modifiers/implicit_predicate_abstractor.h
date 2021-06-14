@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "smt-switch/utils.h"
-
 #include "abstractor.h"
 #include "core/unroller.h"
+#include "smt-switch/term_translator.h"
+#include "smt-switch/utils.h"
 
 namespace pono {
 
@@ -60,7 +60,8 @@ class ImplicitPredicateAbstractor : public Abstractor
 
   Unroller & unroller_;
 
-  smt::UnsatCoreReducer reducer_;
+  smt::SmtSolver reducer_;
+  smt::TermTranslator to_reducer_;
 
   RelationalTransitionSystem & abs_rts_;
   ///< relational version of abs_ts_
