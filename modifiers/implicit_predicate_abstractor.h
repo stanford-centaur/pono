@@ -68,6 +68,24 @@ class ImplicitPredicateAbstractor : public Abstractor
   ///< this abstraction requires a relational system
 
   bool abstracted_; ///< true iff do_abstraction has been called
+
+  bool red_can_reset_;  ///< true iff reset_assertions workedo n reducer_
+
+  bool reset_reducer()
+  {
+    if (!red_can_reset_) {
+      return false;
+    }
+
+    try {
+      reducer_->reset_assertions();
+      red_can_reset_ = true;
+    }
+    catch (SmtException & e) {
+      red_can_reset_ = false;
+    }
+    return red_can_reset_;
+  }
 };
 
 }  // namespace pono
