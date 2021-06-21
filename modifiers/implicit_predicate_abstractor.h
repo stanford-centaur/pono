@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "smt-switch/utils.h"
-
 #include "abstractor.h"
 #include "core/unroller.h"
+#include "smt-switch/term_translator.h"
+#include "smt-switch/utils.h"
 
 namespace pono {
 
@@ -60,13 +60,32 @@ class ImplicitPredicateAbstractor : public Abstractor
 
   Unroller & unroller_;
 
-  smt::UnsatCoreReducer reducer_;
+  smt::SmtSolver reducer_;
+  smt::TermTranslator to_reducer_;
 
   RelationalTransitionSystem & abs_rts_;
   ///< relational version of abs_ts_
   ///< this abstraction requires a relational system
 
   bool abstracted_; ///< true iff do_abstraction has been called
+
+  bool red_can_reset_;  ///< true iff reset_assertions workedo n reducer_
+
+  bool reset_reducer()
+  {
+    if (!red_can_reset_) {
+      return false;
+    }
+
+    try {
+      reducer_->reset_assertions();
+      red_can_reset_ = true;
+    }
+    catch (SmtException & e) {
+      red_can_reset_ = false;
+    }
+    return red_can_reset_;
+  }
 };
 
 }  // namespace pono

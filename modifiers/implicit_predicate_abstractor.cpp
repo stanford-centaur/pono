@@ -32,7 +32,9 @@ ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
       solver_(abs_ts.solver()),
       unroller_(un),
       reducer_(create_solver(solver_->get_solver_enum(), false, true, false)),
-      abs_rts_(static_cast<RelationalTransitionSystem &>(abs_ts_))
+      to_reducer_(reducer_),
+      abs_rts_(static_cast<RelationalTransitionSystem &>(abs_ts_)),
+      red_can_reset_(true)  // start by assuming it can reset
 {
   if (conc_ts_.solver() != abs_ts_.solver()) {
     throw PonoException(
@@ -87,8 +89,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
     }
   }
 
-  TermVec assumps, red_assumps;
-  UnorderedTermMap assumps_to_pred;
+  TermVec assumps;
   for (const auto &p : new_preds) {
     Term pred_ref = predicate_refinement(p);
 
@@ -98,14 +99,34 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
       a = i==0 ? p_i : solver_->make_term(And, a, p_i);
     }
 
-    assumps.push_back(a);
-    assumps_to_pred[a] = p;
+    assumps.push_back(to_reducer_.transfer_term(a, BOOL));
   }
+  assert(assumps.size() == new_preds.size());
 
   size_t n = out.size();
-  reducer_.reduce_assump_unsatcore(formula, assumps, red_assumps, nullptr, 1);
-  for (const auto &a : red_assumps) {
-    out.push_back(assumps_to_pred.at(a));
+  bool reset = reset_reducer();
+  if (!reset) {
+    reducer_->push();
+  }
+  reducer_->assert_formula(to_reducer_.transfer_term(formula));
+  Result res = reducer_->check_sat_assuming(assumps);
+  assert(res.is_unsat());
+
+  UnorderedTermSet core;
+  try {
+    reducer_->get_unsat_assumptions(core);
+    for (size_t i = 0; i < assumps.size(); ++i) {
+      if (core.find(assumps[i]) != core.end()) {
+        out.push_back(new_preds[i]);
+      }
+    }
+  }
+  catch (SmtException & e) {
+    logger.log(2, "Failed to reduce predicates");
+  }
+
+  if (!reset) {
+    reducer_->pop();
   }
 
   return out.size() > n;
