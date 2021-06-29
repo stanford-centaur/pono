@@ -489,7 +489,9 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
         continue;
       }
       for (auto ax_inst : sorted_nonconsec_ax[j]) {
-        for (size_t i = 0; i <= reached_k_ + 1; ++i) {
+        size_t max_k = abs_ts_.only_curr(ax_inst.ax) ? reached_k_ + 1
+          : reached_k_;
+        for (size_t i = 0; i <= max_k; ++i) {
           super::solver_->assert_formula(abs_unroller_.at_time(ax_inst.ax, i));
         }
       }
