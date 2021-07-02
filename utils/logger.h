@@ -29,6 +29,14 @@
 /****************************** Support for printing smt-switch objects
  * *********************************/
 
+/** Takes a string and removes the curly brackets
+ *  Since fmt/format.h uses {} to denote an argument
+ *  it breaks if there are curly brackets in the string
+ *  @param s the string to start with
+ *  @return the same string but without curly brackets
+ */
+std::string remove_curly_brackets(std::string s);
+
 // Term
 template <>
 struct fmt::formatter<smt::Term>
@@ -42,7 +50,7 @@ struct fmt::formatter<smt::Term>
   template <typename FormatContext>
   auto format(const smt::Term & t, FormatContext & ctx)
   {
-    return format_to(ctx.out(), t->to_string());
+    return format_to(ctx.out(), remove_curly_brackets(t->to_string()));
   }
 };
 
@@ -59,7 +67,7 @@ struct fmt::formatter<smt::Sort>
   template <typename FormatContext>
   auto format(const smt::Sort & s, FormatContext & ctx)
   {
-    return format_to(ctx.out(), s->to_string());
+    return format_to(ctx.out(), remove_curly_brackets(s->to_string()));
   }
 };
 
