@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -246,5 +247,11 @@ class PonoOptions
   static const size_t default_ic3sa_initial_terms_lvl_ = 4;
   static const bool default_ic3sa_interp_ = false;
 };
+
+// Useful functions for printing etc...
+
+std::string to_string(Engine e);
+
+std::ostream & operator<<(std::ostream & o, Engine e);
 
 }  // namespace pono

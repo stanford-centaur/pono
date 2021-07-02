@@ -17,4 +17,10 @@ std::string to_string(ProverResult r)
   }
 }
 
+std::ostream & operator<<(std::ostream & o, ProverResult r)
+{
+  o << to_string(r);
+  return o;
+}
+
 }  // namespace pono
