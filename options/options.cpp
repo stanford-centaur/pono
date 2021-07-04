@@ -601,7 +601,7 @@ string to_string(Engine e)
     case IC3_BOOL:
     {
       res = "ic3bool";
-      break
+      break;
     }
     case IC3_BITS: {
       res = "ic3bits";
