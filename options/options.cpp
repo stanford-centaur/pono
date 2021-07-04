@@ -598,6 +598,11 @@ string to_string(Engine e)
       res = "mbic3";
       break;
     }
+    case IC3_BOOL:
+    {
+      res = "ic3bool";
+      break
+    }
     case IC3_BITS: {
       res = "ic3bits";
       break;
