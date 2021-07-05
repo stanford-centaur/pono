@@ -574,4 +574,66 @@ ProverResult PonoOptions::parse_and_set_options(std::vector<std::string> & opts,
   return parse_and_set_options(size, cstrings.data(), expect_file);
 }
 
+string to_string(Engine e)
+{
+  string res;
+  switch (e) {
+    case BMC: {
+      res = "bmc";
+      break;
+    }
+    case BMC_SP: {
+      res = "bmc-sp";
+      break;
+    }
+    case KIND: {
+      res = "ind";
+      break;
+    }
+    case INTERP: {
+      res = "interp";
+      break;
+    }
+    case MBIC3: {
+      res = "mbic3";
+      break;
+    }
+    case IC3_BOOL:
+    {
+      res = "ic3bool";
+      break;
+    }
+    case IC3_BITS: {
+      res = "ic3bits";
+      break;
+    }
+    case IC3IA_ENGINE: {
+      res = "ic3ia";
+      break;
+    }
+    case MSAT_IC3IA: {
+      res = "msat-ic3ia";
+      break;
+    }
+    case IC3SA_ENGINE: {
+      res = "ic3sa";
+      break;
+    }
+    case SYGUS_PDR: {
+      res = "sygus-pdr";
+      break;
+    }
+    default: {
+      throw PonoException("Unhandled engine: " + std::to_string(e));
+    }
+  }
+  return res;
+}
+
+ostream & operator<<(ostream & o, Engine e)
+{
+  o << to_string(e);
+  return o;
+}
+
 }  // namespace pono

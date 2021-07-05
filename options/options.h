@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -59,6 +60,7 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "ind", KIND },
       { "interp", INTERP },
       { "mbic3", MBIC3 },
+      { "ic3bool", IC3_BOOL},
       { "ic3bits", IC3_BITS },
       { "ic3ia", IC3IA_ENGINE },
       { "msat-ic3ia", MSAT_IC3IA },
@@ -246,5 +248,11 @@ class PonoOptions
   static const size_t default_ic3sa_initial_terms_lvl_ = 4;
   static const bool default_ic3sa_interp_ = false;
 };
+
+// Useful functions for printing etc...
+
+std::string to_string(Engine e);
+
+std::ostream & operator<<(std::ostream & o, Engine e);
 
 }  // namespace pono

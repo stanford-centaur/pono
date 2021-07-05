@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <string>
 
 namespace pono {
@@ -29,5 +30,7 @@ typedef enum
 } ProverResult;
 
 std::string to_string(ProverResult r);
+
+std::ostream & operator<<(std::ostream & o, ProverResult r);
 
 }  // namespace pono
