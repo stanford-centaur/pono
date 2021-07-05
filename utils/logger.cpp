@@ -16,6 +16,18 @@
 
 #include "utils/logger.h"
 
+std::string remove_curly_brackets(std::string s)
+{
+  std::size_t pos;
+  while ((pos = s.find("{")) != std::string::npos) {
+    s.replace(pos, 1, "");
+  }
+  while ((pos = s.find("}")) != std::string::npos) {
+    s.replace(pos, 1, "");
+  }
+  return s;
+}
+
 // declare a global logger
 namespace pono {
 Log logger;
