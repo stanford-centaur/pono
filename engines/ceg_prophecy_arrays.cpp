@@ -53,7 +53,7 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
       conc_ts_(ts),
       abs_ts_(super::prover_interface_ts()),
       abs_unroller_(abs_ts_, "{@}"),
-      aa_(conc_ts_, abs_ts_, true),
+      aa_(conc_ts_, abs_ts_, !opt.cegp_strong_abstraction_),
       aae_(aa_,
            abs_unroller_,
            ts.solver() == super::solver_

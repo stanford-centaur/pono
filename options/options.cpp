@@ -37,9 +37,6 @@ enum optionIndex
   RANDOM_SEED,
   VCDNAME,
   WITNESS,
-  CEGPROPHARR,
-  NO_CEGP_AXIOM_RED,
-  CEGP_FORCE_RESTART,
   STATICCOI,
   SHOW_INVAR,
   CHECK_INVAR,
@@ -59,8 +56,12 @@ enum optionIndex
   PROFILING_LOG_FILENAME,
   PSEUDO_INIT_PROP,
   ASSUME_PROP,
+  CEGPROPHARR,
+  NO_CEGP_AXIOM_RED,
+  CEGP_FORCE_RESTART,
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
+  CEGP_STRONG_ABSTRACTION,
   CEG_BV_ARITH,
   CEG_BV_ARITH_MIN_BW,
   PROMOTE_INPUTVARS,
@@ -169,27 +170,6 @@ const option::Descriptor usage[] = {
     "witness",
     Arg::None,
     "  --witness \tPrint witness if the property is false." },
-  { CEGPROPHARR,
-    0,
-    "",
-    "ceg-prophecy-arrays",
-    Arg::None,
-    "  --ceg-prophecy-arrays \tUse counter-example guided prophecy for "
-    "arrays." },
-  { NO_CEGP_AXIOM_RED,
-    0,
-    "",
-    "no-cegp-axiom-red",
-    Arg::None,
-    "  --no-cegp-axiom-red \tDon't reduce axioms in CEG-Prophecy with unsat "
-    "cores." },
-  { CEGP_FORCE_RESTART,
-    0,
-    "",
-    "cegp-force-restart",
-    Arg::None,
-    "  --cegp-force-restart \tForce underlying engine to restart after "
-    "refinement." },
   { STATICCOI,
     0,
     "",
@@ -314,6 +294,27 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --assume-prop \tenable assuming property in pre-state (default "
     "disabled)" },
+  { CEGPROPHARR,
+    0,
+    "",
+    "ceg-prophecy-arrays",
+    Arg::None,
+    "  --ceg-prophecy-arrays \tUse counter-example guided prophecy for "
+    "arrays." },
+  { NO_CEGP_AXIOM_RED,
+    0,
+    "",
+    "no-cegp-axiom-red",
+    Arg::None,
+    "  --no-cegp-axiom-red \tDon't reduce axioms in CEG-Prophecy with unsat "
+    "cores." },
+  { CEGP_FORCE_RESTART,
+    0,
+    "",
+    "cegp-force-restart",
+    Arg::None,
+    "  --cegp-force-restart \tForce underlying engine to restart after "
+    "refinement." },
   { CEGP_ABS_VALS,
     0,
     "",
@@ -328,6 +329,13 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --cegp-abs-vals-cutoff \tcutoff value for what to abstract - must be "
     "positive (default: 100)" },
+  { CEGP_STRONG_ABSTRACTION,
+    0,
+    "",
+    "cegp-strong-abs",
+    Arg::None,
+    "  --cegp-strong-abs \tUse strong abstraction in CEGP -- no equality UFs "
+    "(default: false)" },
   { CEG_BV_ARITH,
     0,
     "",
@@ -476,9 +484,6 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         }
         case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
         case WITNESS: witness_ = true; break;
-        case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
-        case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
-        case CEGP_FORCE_RESTART: cegp_force_restart_ = true; break;
         case STATICCOI: static_coi_ = true; break;
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
@@ -509,8 +514,12 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
         case ASSUME_PROP: assume_prop_ = true; break;
+        case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
+        case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
+        case CEGP_FORCE_RESTART: cegp_force_restart_ = true; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;
+        case CEGP_STRONG_ABSTRACTION: cegp_strong_abstraction_ = true; break;
         case CEG_BV_ARITH: ceg_bv_arith_ = true; break;
         case CEG_BV_ARITH_MIN_BW: ceg_bv_arith_min_bw_ = atoi(opt.arg); break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
