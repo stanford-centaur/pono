@@ -107,14 +107,15 @@ class PonoOptions
         ic3_unsatcore_gen_(default_ic3_unsatcore_gen_),
         ic3ia_reduce_preds_(default_ic3ia_reduce_preds_),
         ic3sa_func_refine_(default_ic3sa_func_refine_),
-        ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
-        cegp_axiom_red_(default_cegp_axiom_red_),
-        cegp_force_restart_(default_cegp_force_restart_),
         profiling_log_filename_(default_profiling_log_filename_),
         pseudo_init_prop_(default_pseudo_init_prop_),
         assume_prop_(default_assume_prop_),
+        ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
+        cegp_axiom_red_(default_cegp_axiom_red_),
+        cegp_force_restart_(default_cegp_force_restart_),
         cegp_abs_vals_(default_cegp_abs_vals_),
         cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
+        cegp_strong_abstraction_(default_cegp_strong_abstraction_),
         ceg_bv_arith_(default_ceg_bv_arith_),
         ceg_bv_arith_min_bw_(default_ceg_bv_arith_min_bw_),
         promote_inputvars_(default_promote_inputvars_),
@@ -178,16 +179,17 @@ class PonoOptions
                             ///< check with unsatcore
   bool ic3ia_reduce_preds_;  ///< reduce predicates with unsatcore in IC3IA
   bool ic3sa_func_refine_;  ///< try functional unrolling in refinement
+  std::string profiling_log_filename_;
+  bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
+  bool assume_prop_;       ///< assume property in pre-state
   // ceg-prophecy-arrays options
   bool ceg_prophecy_arrays_;
   bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
   bool cegp_force_restart_;  ///< force underlying engine to restart after
                              ///< refinement
-  std::string profiling_log_filename_;
-  bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
-  bool assume_prop_;    ///< assume property in pre-state
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
   size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
+  bool cegp_strong_abstraction_;  ///< use strong abstraction (no equality UFs)
   bool ceg_bv_arith_;            ///< CEGAR -- Abstract BV arithmetic operators
   size_t ceg_bv_arith_min_bw_;   ///< Only abstract operators having bitwidth
                                  ///< strictly greater than this number
@@ -211,7 +213,6 @@ class PonoOptions
   static const unsigned int default_verbosity_ = 0;
   static const unsigned int default_random_seed = 0;
   static const bool default_witness_ = false;
-  static const bool default_ceg_prophecy_arrays_ = false;
   static const bool default_static_coi_ = false;
   static const bool default_show_invar_ = false;
   static const bool default_check_invar_ = false;
@@ -228,13 +229,15 @@ class PonoOptions
   static const bool default_ic3_unsatcore_gen_ = true;
   static const bool default_ic3ia_reduce_preds_ = true;
   static const bool default_ic3sa_func_refine_ = true;
-  static const bool default_cegp_axiom_red_ = true;
-  static const bool default_cegp_force_restart_ = false;
   static const std::string default_profiling_log_filename_;
   static const bool default_pseudo_init_prop_ = false;
   static const bool default_assume_prop_ = false;
+  static const bool default_ceg_prophecy_arrays_ = false;
+  static const bool default_cegp_axiom_red_ = true;
+  static const bool default_cegp_force_restart_ = false;
   static const bool default_cegp_abs_vals_ = false;
   static const size_t default_cegp_abs_vals_cutoff_ = 100;
+  static const bool default_cegp_strong_abstraction_ = false;
   static const bool default_ceg_bv_arith_ = false;
   static const size_t default_ceg_bv_arith_min_bw_ = 16;
   static const bool default_promote_inputvars_ = false;
