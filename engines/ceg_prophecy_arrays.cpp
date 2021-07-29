@@ -356,6 +356,9 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
           And,
           super::solver_->make_term(Equal, proph_var, target),
           super::bad_);
+
+      // record prophecy variable as an important variable
+      super::ia_.add_important_var(p);
     }
 
     // need to update the bmc formula with the transformations
