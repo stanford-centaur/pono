@@ -136,6 +136,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
       }
       else if (contains_var(new_preds[i], important_vars_))
       {
+        logger.log(1, "IA Keeping ImpVar Pred: {}", new_preds[i]);
         out.push_back(new_preds[i]);
       }
     }
