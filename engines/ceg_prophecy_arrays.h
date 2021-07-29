@@ -106,6 +106,8 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   void refine_ts(const smt::UnorderedTermSet & consecutive_axioms);
 
   void refine_subprover_ts(const smt::UnorderedTermSet & consecutive_axioms);
+
+  void add_important_var(const smt::Term & v);
 };
 
 }  // namespace pono

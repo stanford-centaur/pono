@@ -358,7 +358,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
           super::bad_);
 
       // record prophecy variable as an important variable
-      super::ia_.add_important_var(p);
+      add_important_var(proph_var);
     }
 
     // need to update the bmc formula with the transformations
@@ -587,6 +587,19 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   if (!options_.cegp_force_restart_) {
     super::reabstract();
   }
+}
+
+template <class Prover_T>
+void CegProphecyArrays<Prover_T>::add_important_var(const Term & v)
+{
+  // No-Op
+  ;
+}
+
+template <>
+void CegProphecyArrays<IC3IA>::add_important_var(const Term & v)
+{
+  super::ia_.add_important_var(v);
 }
 
 // ceg-prophecy is incremental for ic3ia

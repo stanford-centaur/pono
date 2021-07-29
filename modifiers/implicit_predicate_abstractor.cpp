@@ -134,7 +134,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
       if (core.find(assumps[i]) != core.end()) {
         out.push_back(new_preds[i]);
       }
-      else if (contains_var(assumps[i], important_vars_))
+      else if (contains_var(new_preds[i], important_vars_))
       {
         out.push_back(new_preds[i]);
       }
