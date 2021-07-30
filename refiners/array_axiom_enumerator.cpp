@@ -259,6 +259,8 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   UnorderedTermSet core_set;
   if (reduce_axioms_unsatcore_) {
     try {
+      // TODO: get core incrementally as opposed to getting core for all axioms simultaneously
+      // That's how it was done in prophic3 and could be why it performs better
       solver_->get_unsat_assumptions(core_set);
       assert(all_label_assumps.size() == all_violated_axioms.size());
       logger.log(1,
