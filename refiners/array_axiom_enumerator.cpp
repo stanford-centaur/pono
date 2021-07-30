@@ -260,6 +260,11 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   if (reduce_axioms_unsatcore_) {
     try {
       solver_->get_unsat_assumptions(core_set);
+      assert(all_label_assumps.size() == all_violated_axioms.size());
+      logger.log(1,
+                 "Reduced bmc axioms: {}/{}",
+                 core_set.size(),
+                 all_label_assumps.size());
     }
     catch (SmtException & e) {
       // if core is empty, that's fine -- continue

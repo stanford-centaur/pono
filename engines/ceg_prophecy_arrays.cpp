@@ -299,8 +299,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
       // needed for it to be unsat with all the nonconsecutive axioms
       // it will be updated again later anyway
       for (auto ax : consecutive_axioms) {
-        size_t max_k = abs_ts_.only_curr(ax) ? reached_k_ + 1
-                                                : reached_k_;
+        size_t max_k = abs_ts_.no_next(ax) ? reached_k_ + 1 : reached_k_;
         for (size_t k = 0; k <= max_k; ++k) {
           abs_bmc_formula = super::solver_->make_term(
               And, abs_bmc_formula, abs_unroller_.at_time(ax, k));
@@ -417,8 +416,7 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
   Term lbl;
   for (auto ax : consec_ax) {
     unrolled_ax = super::solver_->make_term(true);
-    size_t max_k =
-        abs_ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
+    size_t max_k = abs_ts_.no_next(ax) ? reached_k_ + 1 : reached_k_;
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = super::solver_->make_term(
           And, unrolled_ax, abs_unroller_.at_time(ax, k));
@@ -495,8 +493,8 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
         continue;
       }
       for (auto ax_inst : sorted_nonconsec_ax[j]) {
-        size_t max_k = abs_ts_.only_curr(ax_inst.ax) ? reached_k_ + 1
-          : reached_k_;
+        size_t max_k =
+            abs_ts_.no_next(ax_inst.ax) ? reached_k_ + 1 : reached_k_;
         for (size_t i = 0; i <= max_k; ++i) {
           super::solver_->assert_formula(abs_unroller_.at_time(ax_inst.ax, i));
         }
