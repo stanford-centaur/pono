@@ -437,6 +437,9 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
   UnorderedTermSet core;
   super::solver_->get_unsat_assumptions(core);
 
+  logger.log(
+      1, "Reduced consecutive axioms: {}/{}", core.size(), assumps.size());
+
   for (auto l : assumps) {
     if (core.find(l) == core.end()) {
       // if not in core, then remove from axioms
@@ -519,6 +522,10 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
     }
   }
 
+  logger.log(1,
+             "Reduced nonconsecutive axioms: {}/{}",
+             red_nonconsec_ax.size(),
+             nonconsec_ax.size());
   return red_nonconsec_ax;
 }
 

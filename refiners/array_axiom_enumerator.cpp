@@ -191,22 +191,24 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     // preferring axioms that don't enumerate indices first
     // except not lambda axioms -- those are fairly rare
 
+    // experimenting with new heuristic order
+    found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ, only_curr);
+    found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ_LAMBDA, only_curr);
     found_lemmas |= check_consecutive_axioms(STORE_WRITE, only_curr);
+    found_lemmas |= check_consecutive_axioms(STORE_READ, only_curr);
+    found_lemmas |= check_consecutive_axioms(STORE_READ_LAMBDA, only_curr);
+    found_lemmas |= check_consecutive_axioms(CONSTARR, only_curr);
+    found_lemmas |= check_consecutive_axioms(CONSTARR_LAMBDA, only_curr);
     found_lemmas |= check_consecutive_axioms(ARRAYEQ_WITNESS, only_curr);
 
-    // heuristic: continue outer loop and see if the axioms so far are
-    // sufficient
     if (!found_lemmas) {
-      found_lemmas |= check_consecutive_axioms(CONSTARR, only_curr);
-      found_lemmas |= check_consecutive_axioms(STORE_READ, only_curr);
-      found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ, only_curr);
+      // NOTE: don't need non-consecutive version of these axioms
+      //       all different over current and next is sufficient to be all
+      //       different for all time
+      found_lemmas |= check_consecutive_axioms(LAMBDA_ALLDIFF, only_curr);
     }
 
-    if (!found_lemmas) {
-      found_lemmas |= check_consecutive_axioms(CONSTARR_LAMBDA, only_curr);
-      found_lemmas |= check_consecutive_axioms(STORE_READ_LAMBDA, only_curr);
-      found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ_LAMBDA, only_curr);
-    }
+    // END EXP
 
     // check non-consecutive axioms now if no other lemmas have been found
     // need to check at unrolled indices
@@ -216,19 +218,10 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     // consecutive
     int k = bound_;
     while (include_nonconsecutive && !found_lemmas && k >= 0) {
-      found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
-      found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(ARRAYEQ_READ, only_curr, k);
+      found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
+      found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
       k--;
-    }
-
-    if (!found_lemmas) {
-      // lambda all different axioms should only rarely be needed -- last
-      // priority
-      // NOTE: don't need non-consecutive version of these axioms
-      //       all different over current and next is sufficient to be all
-      //       different for all time
-      found_lemmas |= check_consecutive_axioms(LAMBDA_ALLDIFF, only_curr);
     }
 
     if (!found_lemmas) {
@@ -276,7 +269,6 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   }
 
   // populate axioms
-  Term lbl;
   for (auto ax : all_violated_axioms) {
     if (reduce_axioms_unsatcore_
         && core_set.find(label(ax)) == core_set.end()) {
