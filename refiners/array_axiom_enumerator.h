@@ -358,13 +358,6 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   smt::Term cast_lambda(const smt::Sort & sort, const smt::Term & lam) const;
 
-  /** Lookup or create a label for t
-   *  Uses and modifies labels_
-   *  @param t a boolean term to create a label for
-   *  @return the label
-   */
-  smt::Term label(const smt::Term & t);
-
   // members
   // for abstracting/concretizing terms
   smt::Term conc_bad_;
@@ -410,8 +403,6 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
                                     ///< transition system variables
   AxiomVec nonconsecutive_axioms_;  ///< populated with nonconsecutive axiom
                                     ///< instantiations
-
-  smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
 
   // useful terms
   smt::Term false_;
