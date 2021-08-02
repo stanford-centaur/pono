@@ -703,7 +703,9 @@ Term ArrayAxiomEnumerator::arrayeq_read_axiom(const Term & arrayeq,
       solver_->make_term(Equal,
                          solver_->make_term(Apply, read_uf, a, index),
                          solver_->make_term(Apply, read_uf, b, index));
-  return solver_->make_term(Implies, arrayeq, eq_at_index);
+  return solver_->make_term(Implies,
+                            solver_->make_term(Not, eq_at_index),
+                            solver_->make_term(Not, arrayeq));
 }
 
 Term ArrayAxiomEnumerator::arrayeq_read_lambda_axiom(const Term & arrayeq) const
