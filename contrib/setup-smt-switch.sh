@@ -69,7 +69,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     if [ $WITH_PYTHON = YES ]; then
         ./contrib/setup-skbuild.sh
     fi
-    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static
+    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static --smtlib-reader
     cd build
     make -j$(nproc)
     # TODO put this back
