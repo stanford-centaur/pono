@@ -59,9 +59,9 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    git clone -b smt-lib-attributes https://github.com/makaimann/smt-switch
     cd smt-switch
-    git checkout -f $SMT_SWITCH_VERSION
+    # git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
     if [ $cvc4_home = default ]; then
         ./contrib/setup-cvc4.sh
@@ -69,6 +69,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     if [ $WITH_PYTHON = YES ]; then
         ./contrib/setup-skbuild.sh
     fi
+    ./contrib/setup-bison.sh
     ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static --smtlib-reader
     cd build
     make -j$(nproc)
