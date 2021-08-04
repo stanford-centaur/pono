@@ -30,6 +30,7 @@
 #include "core/fts.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
+#include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
@@ -326,11 +327,18 @@ int main(int argc, char ** argv)
         cout << "b" << pono_options.prop_idx_ << endl;
       }
 
-    } else if (file_ext == "smv") {
+    } else if (file_ext == "smv" || file_ext == "vmt") {
       logger.log(2, "Parsing SMV file: {}", pono_options.filename_);
       RelationalTransitionSystem rts(s);
-      SMVEncoder smv_enc(pono_options.filename_, rts);
-      const TermVec & propvec = smv_enc.propvec();
+      TermVec propvec;
+      if (file_ext == "smv") {
+        SMVEncoder smv_enc(pono_options.filename_, rts);
+        propvec = smv_enc.propvec();
+      } else {
+        assert(file_ext == "vmt");
+        VMTEncoder vmt_enc(pono_options.filename_, rts);
+        propvec = vmt_enc.propvec();
+      }
       unsigned int num_props = propvec.size();
       if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(

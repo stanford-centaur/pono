@@ -43,8 +43,6 @@ class VMTEncoder : public smt::SmtLibReader
 
   RelationalTransitionSystem & rts_;
 
-  smt::SmtSolver solver_;
-
   smt::TermVec propvec_;
 };
 

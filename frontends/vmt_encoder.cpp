@@ -22,9 +22,11 @@ using namespace std;
 namespace pono {
 
 VMTEncoder::VMTEncoder(std::string filename, RelationalTransitionSystem & rts)
-    : super(solver_), filename_(filename), rts_(rts)
+    : super(rts.get_solver()), filename_(filename), rts_(rts)
 {
-  solver_ = rts_.solver();
+  set_logic_all();
+  int res = parse(filename_);
+  assert(!res);  // 0 means success
 }
 
 void VMTEncoder::term_attribute(const Term & term,
