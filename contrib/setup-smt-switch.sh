@@ -69,6 +69,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     if [ $WITH_PYTHON = YES ]; then
         ./contrib/setup-skbuild.sh
     fi
+    ./contrib/setup-flex.sh
     ./contrib/setup-bison.sh
     ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static --smtlib-reader
     cd build
