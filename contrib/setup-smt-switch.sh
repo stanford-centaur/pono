@@ -3,7 +3,8 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=ed05b58d109642f440e6311c632131cdeb20991a
+# hash of branch
+SMT_SWITCH_VERSION=90bf1b75b1b150e2d7e14ed8b3ccbc7a7392d709
 
 usage () {
     cat <<EOF
@@ -59,7 +60,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    git clone -b smt-lib-attributes https://github.com/makaimann/smt-switch
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
@@ -69,9 +70,12 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     if [ $WITH_PYTHON = YES ]; then
         ./contrib/setup-skbuild.sh
     fi
-    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static
+    ./contrib/setup-flex.sh
+    ./contrib/setup-bison.sh
+    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static --smtlib-reader
     cd build
-    make -j$(nproc)
+    # make -j$(nproc)
+    make -j2
     # TODO put this back
     # temporarily disable due to test-disjointset issue
     # make test

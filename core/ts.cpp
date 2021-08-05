@@ -359,10 +359,14 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
         "Cannot use an existing state variable as a next state var");
   }
 
-  if (inputvars_.find(cv) != inputvars_.end()
-      || inputvars_.find(nv) != inputvars_.end()) {
-    throw PonoException(
-        "Cannot re-use an input variable as a current or next state var");
+  if (inputvars_.find(cv) != inputvars_.end()) {
+    bool success = inputvars_.erase(cv);
+    assert(success);
+  }
+
+  if (inputvars_.find(nv) != inputvars_.end()) {
+    bool success = inputvars_.erase(nv);
+    assert(success);
   }
 
   statevars_.insert(cv);
