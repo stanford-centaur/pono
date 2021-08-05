@@ -327,7 +327,7 @@ int main(int argc, char ** argv)
         cout << "b" << pono_options.prop_idx_ << endl;
       }
 
-    } else if (file_ext == "smv" || file_ext == "vmt") {
+    } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2") {
       logger.log(2, "Parsing SMV file: {}", pono_options.filename_);
       RelationalTransitionSystem rts(s);
       TermVec propvec;
@@ -335,7 +335,7 @@ int main(int argc, char ** argv)
         SMVEncoder smv_enc(pono_options.filename_, rts);
         propvec = smv_enc.propvec();
       } else {
-        assert(file_ext == "vmt");
+        assert(file_ext == "vmt" || file_ext == "smt2");
         VMTEncoder vmt_enc(pono_options.filename_, rts);
         propvec = vmt_enc.propvec();
       }

@@ -29,6 +29,15 @@ VMTEncoder::VMTEncoder(std::string filename, RelationalTransitionSystem & rts)
   assert(!res);  // 0 means success
 }
 
+void VMTEncoder::new_symbol(const std::string & name, const smt::Sort & sort)
+{
+  super::new_symbol(name, sort);
+  if (sort->get_sort_kind() != FUNCTION) {
+    // treat as an input variable until given :next
+    rts_.add_inputvar(lookup_symbol(name));
+  }
+}
+
 void VMTEncoder::term_attribute(const Term & term,
                                 const string & keyword,
                                 const string & value)
