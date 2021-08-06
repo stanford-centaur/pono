@@ -69,7 +69,8 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     if [ $WITH_PYTHON = YES ]; then
         ./contrib/setup-skbuild.sh
     fi
-    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=./deps/bison/bison-install --flex-dir=./deps/flex/flex-install
+    # pass bison/flex directories from smt-switch perspective
+    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
     cd build
     make -j$(nproc)
     # TODO put this back
