@@ -50,7 +50,17 @@ ProverResult Bmc::check_until(int k)
 {
   initialize();
 
-  for (int i = reached_k_ + 1; i <= k; ++i) {
+  int start_bound = 0;
+  if (start_bound > 0)
+    reached_k_ = start_bound - 1;
+  
+  for (int j = 1; j < start_bound; ++j)
+  {
+    std::cout << "adding trans for j-1 == " << j - 1 << std::endl;
+    solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
+  }
+  
+  for (int i = start_bound; i <= k; i+=1/*i = i == 0 ? 1 : i << 1*/) {
     if (!step(i)) {
       compute_witness();
       return ProverResult::FALSE;
@@ -67,7 +77,15 @@ bool Bmc::step(int i)
 
   bool res = true;
   if (i > 0) {
-    solver_->assert_formula(unroller_.at_time(ts_.trans(), i - 1));
+//
+    std::cout << "DEBUG reached k " << reached_k_ << ", i " << i << std::endl;
+    for (int j = reached_k_ + 1; j <= i; j++)
+    {
+      std::cout << "adding trans for j-1 == " << j - 1 << std::endl;
+      solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
+    }
+    //OLD
+//    solver_->assert_formula(unroller_.at_time(ts_.trans(), i - 1));
   }
 
   solver_->push();
@@ -78,7 +96,7 @@ bool Bmc::step(int i)
     res = false;
   } else {
     solver_->pop();
-    ++reached_k_;
+    reached_k_ = i;
   }
 
   return res;
