@@ -150,6 +150,13 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
                                       super::engine_, false);
       shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
                                               abs_ts_, s, super::options_);
+      if (super::engine_ == IC3IA_ENGINE) {
+        shared_ptr<IC3IA> ic3ia_prover =
+            std::static_pointer_cast<IC3IA>(prover);
+        for (const auto & v : important_vars_) {
+          ic3ia_prover->add_important_var(v);
+        }
+      }
       res = prover->check_until(k);
 
       if (res == ProverResult::FALSE) {
@@ -604,7 +611,8 @@ void CegProphecyArrays<Prover_T>::add_important_var(const Term & v)
 template <>
 void CegProphecyArrays<IC3IA>::add_important_var(const Term & v)
 {
-  super::ia_.add_important_var(v);
+  super::add_important_var(v);
+  important_vars_.insert(v);
 }
 
 // ceg-prophecy is incremental for ic3ia

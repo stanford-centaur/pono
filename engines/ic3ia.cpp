@@ -61,6 +61,17 @@ IC3IA::IC3IA(const Property & p,
   approx_pregen_ = true;
 }
 
+void IC3IA::add_important_var(Term v)
+{
+  // have to consider that original solver
+  // might not be the same as the prover solver
+  if (solver_ != orig_ts_.solver()) {
+    v = to_prover_solver_.transfer_term(v);
+  }
+  logger.log(1, "Adding important variable: {}", v);
+  ia_.add_important_var(v);
+}
+
 // pure virtual method implementations
 
 IC3Formula IC3IA::get_model_ic3formula() const
