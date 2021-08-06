@@ -74,8 +74,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     ./contrib/setup-bison.sh
     ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static --smtlib-reader
     cd build
-    # make -j$(nproc)
-    make -j2
+    make -j$(nproc)
     # TODO put this back
     # temporarily disable due to test-disjointset issue
     # make test
