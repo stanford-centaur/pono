@@ -10,6 +10,7 @@
 ** directory for licensing information.\endverbatim
 **
 ** \brief Frontend for the Verification Modulo Theories (VMT) format.
+**        See https://vmt-lib.fbk.eu/ for more information.
 **
 **
 **/
