@@ -11,17 +11,17 @@ if [ -d "$DEPS/bison" ]; then
     exit 1
 fi
 
-curl http://ftp.gnu.org/gnu/bison/bison-3.5.tar.gz --output $DEPS/bison-3.5.tar.gz
+curl http://ftp.gnu.org/gnu/bison/bison-3.7.tar.gz --output $DEPS/bison-3.7.tar.gz
 
-if [ ! -f "$DEPS/bison-3.5.tar.gz" ]; then
-    echo "It seems like downloading bison to $DEPS/bison-3.5.tar.gz failed"
+if [ ! -f "$DEPS/bison-3.7.tar.gz" ]; then
+    echo "It seems like downloading bison to $DEPS/bison-3.7.tar.gz failed"
     exit 1
 fi
 
 cd $DEPS
-tar -xzf bison-3.5.tar.gz
-rm bison-3.5.tar.gz
-mv ./bison-3.5 ./bison
+tar -xzf bison-3.7.tar.gz
+rm bison-3.7.tar.gz
+mv ./bison-3.7 ./bison
 cd bison
 mkdir bison-install
 ./configure --prefix $DEPS/bison/bison-install --exec-prefix $DEPS/bison/bison-install

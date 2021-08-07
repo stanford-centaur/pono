@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=ed05b58d109642f440e6311c632131cdeb20991a
+SMT_SWITCH_VERSION=cb19886f9cb042bf87dd37b2f634a8d8ed636f0d
 
 usage () {
     cat <<EOF
@@ -69,7 +69,8 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     if [ $WITH_PYTHON = YES ]; then
         ./contrib/setup-skbuild.sh
     fi
-    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static
+    # pass bison/flex directories from smt-switch perspective
+    ./configure.sh --btor --cvc4 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
     cd build
     make -j$(nproc)
     # TODO put this back

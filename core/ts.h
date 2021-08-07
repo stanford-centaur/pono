@@ -227,6 +227,8 @@ class TransitionSystem
   // getters
   const smt::SmtSolver & solver() const { return solver_; };
 
+  smt::SmtSolver & get_solver() { return solver_; };
+
   const smt::UnorderedTermSet & statevars() const { return statevars_; };
 
   const smt::UnorderedTermSet & inputvars() const { return inputvars_; };
