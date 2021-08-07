@@ -106,6 +106,7 @@ bool Bmc::step(int i)
       clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
     }
   } else {
+    std::cout << "DEBUG adding bad state literal for i == " << i << std::endl;
     clause = unroller_.at_time(bad_, i);
   }
   
