@@ -83,8 +83,7 @@ bool Bmc::step(int i)
   if (i > 0) {
 //
     std::cout << "DEBUG reached k " << reached_k_ << ", i " << i << std::endl;
-    for (int j = reached_k_ == -1 ? 1 : reached_k_ + 1; j <= i; j++)
-    {
+    for (int j = reached_k_ == -1 ? 1 : reached_k_ + 1; j <= i; j++) {
       std::cout << "DEBUG adding trans for j-1 == " << j - 1 << std::endl;
       solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
     }
@@ -94,7 +93,29 @@ bool Bmc::step(int i)
 
   solver_->push();
   logger.log(1, "Checking bmc at bound: {}", i);
-  solver_->assert_formula(unroller_.at_time(bad_, i));
+
+  const int cex_guarantee = 1;
+
+  Term clause;
+  if (cex_guarantee) {
+    // make sure we cover *all* states
+  // TODO (not critical): can make 'solver_->make_term(false)' a constant in the object
+    clause = solver_->make_term(false);
+    for (int j = reached_k_ + 1; j <= i; j++) {
+      std::cout << "DEBUG adding bad state literal for j == " << j << std::endl;
+      clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
+    }
+  } else {
+    clause = unroller_.at_time(bad_, i);
+  }
+  
+  solver_->assert_formula(clause);
+  
+  //TODO: add bad state clause here
+    // OLD
+    // solver_->assert_formula(unroller_.at_time(bad_, i));
+
+
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     res = false;
