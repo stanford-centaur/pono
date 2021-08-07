@@ -50,17 +50,21 @@ ProverResult Bmc::check_until(int k)
 {
   initialize();
 
-  int start_bound = 0;
-  if (start_bound > 0)
-    reached_k_ = start_bound - 1;
+  const int step_bound = 1;
+  const int start_bound = 0;
+
+  // reached_k == -1 initially
   
-  for (int j = 1; j < start_bound; ++j)
-  {
-    std::cout << "adding trans for j-1 == " << j - 1 << std::endl;
-    solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
-  }
+  //  if (start_bound > 0)
+  //  reached_k_ = start_bound - 1;
   
-  for (int i = start_bound; i <= k; i+=1/*i = i == 0 ? 1 : i << 1*/) {
+//  for (int j = 1; j < start_bound; ++j)
+  // {
+  //   std::cout << "DEBUG (check-until) adding trans for j-1 == " << j - 1 << std::endl;
+  //   solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
+//  }
+  
+  for (int i = start_bound; i <= k; i+=step_bound /*i = i == 0 ? 1 : i << 1*/) {
     if (!step(i)) {
       compute_witness();
       return ProverResult::FALSE;
@@ -79,9 +83,9 @@ bool Bmc::step(int i)
   if (i > 0) {
 //
     std::cout << "DEBUG reached k " << reached_k_ << ", i " << i << std::endl;
-    for (int j = reached_k_ + 1; j <= i; j++)
+    for (int j = reached_k_ == -1 ? 1 : reached_k_ + 1; j <= i; j++)
     {
-      std::cout << "adding trans for j-1 == " << j - 1 << std::endl;
+      std::cout << "DEBUG adding trans for j-1 == " << j - 1 << std::endl;
       solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
     }
     //OLD
