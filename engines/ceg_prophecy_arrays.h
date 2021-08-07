@@ -69,6 +69,10 @@ class CegProphecyArrays : public CEGAR<Prover_T>
 
   smt::UnorderedTermMap labels_;  ///< labels for unsat core minimization
 
+  smt::UnorderedTermSet
+      important_vars_;  ///< important variables
+                        ///< useful for IC3IA to prioritize predicates
+
   TransitionSystem & prover_interface_ts() override { return conc_ts_; }
 
   void cegar_abstract() override;
@@ -106,6 +110,8 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   void refine_ts(const smt::UnorderedTermSet & consecutive_axioms);
 
   void refine_subprover_ts(const smt::UnorderedTermSet & consecutive_axioms);
+
+  void add_important_var(const smt::Term & v);
 };
 
 }  // namespace pono

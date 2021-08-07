@@ -24,7 +24,22 @@
 using namespace smt;
 using namespace std;
 
+
 namespace pono {
+
+bool contains_var(const Term & p, const UnorderedTermSet & vars)
+{
+  UnorderedTermSet free_vars;
+  get_free_symbolic_consts(p, free_vars);
+  for (const auto & v : free_vars)
+  {
+    if (vars.find(v) != vars.end())
+    {
+      return true;
+    }
+  }
+  return false;
+}
 
 ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
     const TransitionSystem & conc_ts, TransitionSystem & abs_ts, Unroller & un)
@@ -117,6 +132,11 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
     reducer_->get_unsat_assumptions(core);
     for (size_t i = 0; i < assumps.size(); ++i) {
       if (core.find(assumps[i]) != core.end()) {
+        out.push_back(new_preds[i]);
+      }
+      else if (contains_var(new_preds[i], important_vars_))
+      {
+        logger.log(1, "IA Keeping ImpVar Pred: {}", new_preds[i]);
         out.push_back(new_preds[i]);
       }
     }

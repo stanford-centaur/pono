@@ -150,6 +150,13 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
                                       super::engine_, false);
       shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
                                               abs_ts_, s, super::options_);
+      if (super::engine_ == IC3IA_ENGINE) {
+        shared_ptr<IC3IA> ic3ia_prover =
+            std::static_pointer_cast<IC3IA>(prover);
+        for (const auto & v : important_vars_) {
+          ic3ia_prover->add_important_var(v);
+        }
+      }
       res = prover->check_until(k);
 
       if (res == ProverResult::FALSE) {
@@ -299,8 +306,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
       // needed for it to be unsat with all the nonconsecutive axioms
       // it will be updated again later anyway
       for (auto ax : consecutive_axioms) {
-        size_t max_k = abs_ts_.only_curr(ax) ? reached_k_ + 1
-                                                : reached_k_;
+        size_t max_k = abs_ts_.no_next(ax) ? reached_k_ + 1 : reached_k_;
         for (size_t k = 0; k <= max_k; ++k) {
           abs_bmc_formula = super::solver_->make_term(
               And, abs_bmc_formula, abs_unroller_.at_time(ax, k));
@@ -356,6 +362,9 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
           And,
           super::solver_->make_term(Equal, proph_var, target),
           super::bad_);
+
+      // record prophecy variable as an important variable
+      add_important_var(proph_var);
     }
 
     // need to update the bmc formula with the transformations
@@ -414,8 +423,7 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
   Term lbl;
   for (auto ax : consec_ax) {
     unrolled_ax = super::solver_->make_term(true);
-    size_t max_k =
-        abs_ts_.only_curr(ax) ? reached_k_ + 1 : reached_k_;
+    size_t max_k = abs_ts_.no_next(ax) ? reached_k_ + 1 : reached_k_;
     for (size_t k = 0; k <= max_k; ++k) {
       unrolled_ax = super::solver_->make_term(
           And, unrolled_ax, abs_unroller_.at_time(ax, k));
@@ -433,6 +441,9 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
 
   UnorderedTermSet core;
   super::solver_->get_unsat_assumptions(core);
+
+  logger.log(
+      1, "Reduced consecutive axioms: {}/{}", core.size(), assumps.size());
 
   for (auto l : assumps) {
     if (core.find(l) == core.end()) {
@@ -489,8 +500,8 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
         continue;
       }
       for (auto ax_inst : sorted_nonconsec_ax[j]) {
-        size_t max_k = abs_ts_.only_curr(ax_inst.ax) ? reached_k_ + 1
-          : reached_k_;
+        size_t max_k =
+            abs_ts_.no_next(ax_inst.ax) ? reached_k_ + 1 : reached_k_;
         for (size_t i = 0; i <= max_k; ++i) {
           super::solver_->assert_formula(abs_unroller_.at_time(ax_inst.ax, i));
         }
@@ -516,6 +527,10 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
     }
   }
 
+  logger.log(1,
+             "Reduced nonconsecutive axioms: {}/{}",
+             red_nonconsec_ax.size(),
+             nonconsec_ax.size());
   return red_nonconsec_ax;
 }
 
@@ -584,6 +599,20 @@ void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & cons
   if (!options_.cegp_force_restart_) {
     super::reabstract();
   }
+}
+
+template <class Prover_T>
+void CegProphecyArrays<Prover_T>::add_important_var(const Term & v)
+{
+  // No-Op
+  ;
+}
+
+template <>
+void CegProphecyArrays<IC3IA>::add_important_var(const Term & v)
+{
+  super::add_important_var(v);
+  important_vars_.insert(v);
 }
 
 // ceg-prophecy is incremental for ic3ia

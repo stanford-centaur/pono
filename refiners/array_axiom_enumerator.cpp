@@ -174,8 +174,7 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 
   solver_->assert_formula(abs_trace_formula);
   Result res = solver_->check_sat();
-  UnorderedTermSet all_violated_axioms;
-  TermVec all_label_assumps;
+  TermVec all_violated_axioms;
 
   // use only current axioms if the bound is zero
   // e.g. only the initial state
@@ -191,22 +190,24 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     // preferring axioms that don't enumerate indices first
     // except not lambda axioms -- those are fairly rare
 
+    // experimenting with new heuristic order
+    found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ, only_curr);
+    found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ_LAMBDA, only_curr);
     found_lemmas |= check_consecutive_axioms(STORE_WRITE, only_curr);
+    found_lemmas |= check_consecutive_axioms(STORE_READ, only_curr);
+    found_lemmas |= check_consecutive_axioms(STORE_READ_LAMBDA, only_curr);
+    found_lemmas |= check_consecutive_axioms(CONSTARR, only_curr);
+    found_lemmas |= check_consecutive_axioms(CONSTARR_LAMBDA, only_curr);
     found_lemmas |= check_consecutive_axioms(ARRAYEQ_WITNESS, only_curr);
 
-    // heuristic: continue outer loop and see if the axioms so far are
-    // sufficient
     if (!found_lemmas) {
-      found_lemmas |= check_consecutive_axioms(CONSTARR, only_curr);
-      found_lemmas |= check_consecutive_axioms(STORE_READ, only_curr);
-      found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ, only_curr);
+      // NOTE: don't need non-consecutive version of these axioms
+      //       all different over current and next is sufficient to be all
+      //       different for all time
+      found_lemmas |= check_consecutive_axioms(LAMBDA_ALLDIFF, only_curr);
     }
 
-    if (!found_lemmas) {
-      found_lemmas |= check_consecutive_axioms(CONSTARR_LAMBDA, only_curr);
-      found_lemmas |= check_consecutive_axioms(STORE_READ_LAMBDA, only_curr);
-      found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ_LAMBDA, only_curr);
-    }
+    // END EXP
 
     // check non-consecutive axioms now if no other lemmas have been found
     // need to check at unrolled indices
@@ -216,19 +217,10 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     // consecutive
     int k = bound_;
     while (include_nonconsecutive && !found_lemmas && k >= 0) {
-      found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
-      found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(ARRAYEQ_READ, only_curr, k);
+      found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
+      found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
       k--;
-    }
-
-    if (!found_lemmas) {
-      // lambda all different axioms should only rarely be needed -- last
-      // priority
-      // NOTE: don't need non-consecutive version of these axioms
-      //       all different over current and next is sufficient to be all
-      //       different for all time
-      found_lemmas |= check_consecutive_axioms(LAMBDA_ALLDIFF, only_curr);
     }
 
     if (!found_lemmas) {
@@ -238,23 +230,18 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     }
 
     assert(violated_axioms_.size());
-    Term lbl;
     for (auto ax : violated_axioms_) {
-      if (reduce_axioms_unsatcore_) {
-        lbl = label(ax);
-        all_label_assumps.push_back(lbl);
-        solver_->assert_formula(solver_->make_term(Implies, lbl, ax));
-      } else {
+      // save the axiom
+      all_violated_axioms.push_back(ax);
+      if (!reduce_axioms_unsatcore_) {
         solver_->assert_formula(ax);
       }
-      // save the axiom
-      all_violated_axioms.insert(ax);
     }
     // reset violated_axioms_ so we don't add the same axioms again
     violated_axioms_.clear();
 
     if (reduce_axioms_unsatcore_) {
-      res = solver_->check_sat_assuming(all_label_assumps);
+      res = solver_->check_sat_assuming(all_violated_axioms);
     } else {
       res = solver_->check_sat();
     }
@@ -267,6 +254,10 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   if (reduce_axioms_unsatcore_) {
     try {
       solver_->get_unsat_assumptions(core_set);
+      logger.log(1,
+                 "Reduced bmc axioms: {}/{}",
+                 core_set.size(),
+                 all_violated_axioms.size());
     }
     catch (SmtException & e) {
       // if core is empty, that's fine -- continue
@@ -276,10 +267,8 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
   }
 
   // populate axioms
-  Term lbl;
   for (auto ax : all_violated_axioms) {
-    if (reduce_axioms_unsatcore_
-        && core_set.find(label(ax)) == core_set.end()) {
+    if (reduce_axioms_unsatcore_ && core_set.find(ax) == core_set.end()) {
       // if not in unsat core
       // then don't keep this axiom
       continue;
@@ -714,7 +703,9 @@ Term ArrayAxiomEnumerator::arrayeq_read_axiom(const Term & arrayeq,
       solver_->make_term(Equal,
                          solver_->make_term(Apply, read_uf, a, index),
                          solver_->make_term(Apply, read_uf, b, index));
-  return solver_->make_term(Implies, arrayeq, eq_at_index);
+  return solver_->make_term(Implies,
+                            solver_->make_term(Not, eq_at_index),
+                            solver_->make_term(Not, arrayeq));
 }
 
 Term ArrayAxiomEnumerator::arrayeq_read_lambda_axiom(const Term & arrayeq) const
@@ -795,34 +786,6 @@ Term ArrayAxiomEnumerator::cast_lambda(const Sort & sort,
     }
   }
   return lam;
-}
-
-Term ArrayAxiomEnumerator::label(const Term & t)
-{
-  auto it = labels_.find(t);
-  if (it != labels_.end()) {
-    return labels_.at(t);
-  }
-
-  unsigned i = 0;
-  Term l;
-  while (true) {
-    try {
-      l = solver_->make_symbol(
-          "assump_" + std::to_string(t->hash()) + "_" + std::to_string(i),
-          solver_->make_sort(BOOL));
-      break;
-    }
-    catch (IncorrectUsageException & e) {
-      ++i;
-    }
-    catch (SmtException & e) {
-      throw e;
-    }
-  }
-
-  labels_[t] = l;
-  return l;
 }
 
 }  // namespace pono
