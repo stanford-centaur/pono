@@ -45,6 +45,13 @@ void VMTEncoder::term_attribute(const Term & term,
 {
   if (keyword == "next") {
     Term next_var = lookup_symbol(value);
+    if (!next_var) {
+      // undeclared next var
+      // make a new one
+      Sort sort = term->get_sort();
+      new_symbol(value, sort);
+      next_var = lookup_symbol(value);
+    }
     assert(next_var);
     rts_.add_statevar(term, next_var);
   } else if (keyword == "init") {
