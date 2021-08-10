@@ -38,6 +38,8 @@ public:
  protected:
   bool step(int i);
 
+ private:
+  void bmc_interval_find_shortest_cex(const int upper_bound); 
 };  // class Bmc
 
 }  // namespace pono

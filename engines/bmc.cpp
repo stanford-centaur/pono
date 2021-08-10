@@ -120,6 +120,8 @@ bool Bmc::step(int i)
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     res = false;
+    // find shortest cex within tested interval given by bad state clause
+    bmc_interval_find_shortest_cex(i);
   } else {
     solver_->pop();
     reached_k_ = i;
@@ -128,4 +130,47 @@ bool Bmc::step(int i)
   return res;
 }
 
+void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
+{
+  assert (reached_k_ < upper_bound);
+  std::cout << "DEBUG cex in interval found: lower bound = reached k = "
+	    << reached_k_ << " upper bound = " << upper_bound << std::endl;
+
+//TODO: immediately return for length-1 intervals
+
+  if (upper_bound - reached_k_ == 1) {
+    std::cout << "DEBUG interval has length 1, skipping search for shortest cex" << std::endl;
+    return;
+  }
+  
+  //TODO CHECK: for
+//witness printing, must set reached_k_ to last unsat call in below
+//loop
+
+//TODO: below loop searches iteratively; could do exponential
+//steps also, like in "check_until"; BMC with exponential steps could
+//be useful if there is a very deep bug at a large bound and the costs
+//of the SAT calls does not increase very much with the increased
+//bound, but still the cumulative time for the SAT calls at all bounds
+//is higher
+  
+//  return;
+  int j;
+  for (j = reached_k_ + 1; j <= upper_bound; j++) {
+    solver_->pop();
+    solver_->push();
+    std::cout << "DEBUG finding shortest cex---adding bad state literal for j == " << j << std::endl;
+    solver_->assert_formula(unroller_.at_time(bad_, j));
+    if (solver_->check_sat().is_sat()) {
+      break;
+    }
+    else
+      reached_k_ = j;
+  }
+  // must have found cex in the interval
+  assert (j <= upper_bound);
+  std::cout << "DEBUG finding shortest cex---found at bound j == " << j << std::endl;
+
+}
+  
 }  // namespace pono
