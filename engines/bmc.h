@@ -39,7 +39,8 @@ public:
   bool step(int i);
 
  private:
-  void bmc_interval_find_shortest_cex(const int upper_bound); 
+  void bmc_interval_find_shortest_cex(const int upper_bound);
+  void bmc_interval_find_shortest_cex_binary_search(const int upper_bound); 
 };  // class Bmc
 
 }  // namespace pono
