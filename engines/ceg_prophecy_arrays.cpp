@@ -256,7 +256,7 @@ void CegProphecyArrays<Prover_T>::initialize()
   }
 
   if (!contains_arrays) {
-    throw PonoException("Ran CegProphecyArrays on system without arrays.");
+    logger.log(1, "Warning: running on counterexample-guided prophecy for arrays on system without arrays.")
   }
 }
 
