@@ -359,6 +359,8 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
         "Cannot use an existing state variable as a next state var");
   }
 
+  // if using an input variable, remove from set
+  // will be a state variable now
   if (inputvars_.find(cv) != inputvars_.end()) {
     bool success = inputvars_.erase(cv);
     assert(success);
