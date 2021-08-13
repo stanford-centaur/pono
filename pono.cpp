@@ -328,7 +328,7 @@ int main(int argc, char ** argv)
       }
 
     } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2") {
-      logger.log(2, "Parsing SMV file: {}", pono_options.filename_);
+      logger.log(2, "Parsing SMV/VMT file: {}", pono_options.filename_);
       RelationalTransitionSystem rts(s);
       TermVec propvec;
       if (file_ext == "smv") {
