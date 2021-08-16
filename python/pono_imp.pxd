@@ -179,6 +179,18 @@ cdef extern from "frontends/btor2_encoder.h" namespace "pono":
         const c_TermVec & propvec() except +
 
 
+cdef extern from "frontends/smv_encoder.h" namespace "pono":
+    cdef cppclass SMVEncoder:
+        SMVEncoder(string filename, RelationalTransitionSystem & ts) except +
+        const c_TermVec & propvec() except +
+
+
+cdef extern from "frontends/vmt_encoder.h" namespace "pono":
+    cdef cppclass VMTEncoder:
+        VMTEncoder(string filename, RelationalTransitionSystem & ts) except +
+        const c_TermVec & propvec() except +
+
+
 # WITH_COREIR is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
 IF WITH_COREIR == "ON":
     cdef extern from "coreir.h" namespace "CoreIR":

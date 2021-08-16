@@ -29,6 +29,8 @@ from pono_imp cimport ModelBasedIC3 as c_ModelBasedIC3
 IF WITH_MSAT_IC3IA == "ON":
     from pono_imp cimport MsatIC3IA as c_MsatIC3IA
 from pono_imp cimport BTOR2Encoder as c_BTOR2Encoder
+from pono_imp cimport SMVEncoder as c_SMVEncoder
+from pono_imp cimport VMTEncoder as c_VMTEncoder
 IF WITH_COREIR == "ON":
     from pono_imp cimport Module as c_Module
     from pono_imp cimport CoreIREncoder as c_CoreIREncoder
@@ -643,6 +645,48 @@ cdef class BTOR2Encoder:
         cdef vector[c_Term] props = dref(self.cbe).propvec()
         for p in props:
             term = Term(self._ts._solver)
+            term.ct = p
+            res.append(term)
+        return res
+
+
+cdef class SMVEncoder:
+    cdef c_SMVEncoder * cbe
+    cdef RelationalTransitionSystem _rts
+    def __cinit__(self, str filename, RelationalTransitionSystem rts):
+        self.cbe = new c_SMVEncoder(filename.encode(), \
+                                    dref(<c_RelationalTransitionSystem * ?> rts.cts))
+        self._rts = rts
+
+    def __dealloc__(self):
+        del self.cbe
+
+    def propvec(self):
+        res = []
+        cdef vector[c_Term] props = dref(self.cbe).propvec()
+        for p in props:
+            term = Term(self._rts._solver)
+            term.ct = p
+            res.append(term)
+        return res
+
+
+cdef class VMTEncoder:
+    cdef c_VMTEncoder * cbe
+    cdef RelationalTransitionSystem _rts
+    def __cinit__(self, str filename, RelationalTransitionSystem rts):
+        self.cbe = new c_VMTEncoder(filename.encode(), \
+                                    dref(<c_RelationalTransitionSystem * ?> rts.cts))
+        self._rts = rts
+
+    def __dealloc__(self):
+        del self.cbe
+
+    def propvec(self):
+        res = []
+        cdef vector[c_Term] props = dref(self.cbe).propvec()
+        for p in props:
+            term = Term(self._rts._solver)
             term.ct = p
             res.append(term)
         return res
