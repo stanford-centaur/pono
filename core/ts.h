@@ -225,8 +225,10 @@ class TransitionSystem
   void add_inputvar(const smt::Term & v);
 
   // getters
+  /* Returns const reference to solver */
   const smt::SmtSolver & solver() const { return solver_; };
 
+  /* Gets a non-const reference to the solver */
   smt::SmtSolver & get_solver() { return solver_; };
 
   const smt::UnorderedTermSet & statevars() const { return statevars_; };
