@@ -120,9 +120,10 @@ bool Bmc::step(int i)
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     res = false;
+    int cex_upper_bound = bmc_interval_get_cex_ub(i, clause);
     // find shortest cex within tested interval given by bad state clause
-//    bmc_interval_find_shortest_cex(i);
-    bmc_interval_find_shortest_cex_binary_search(i);
+//    bmc_interval_find_shortest_cex(cex_upper_bound);
+    bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
   } else {
     solver_->pop();
     reached_k_ = i;
@@ -130,7 +131,40 @@ bool Bmc::step(int i)
 
   return res;
 }
+  
+int Bmc::bmc_interval_get_cex_ub(const int cur_ub, const Term bad_state_cl)
+{
+  const Term true_term = solver_->make_term(true);
+  assert(reached_k_ < cur_ub);
+  assert(solver_->get_value(bad_state_cl) == true_term);
+  
+  std::cout << "DEBUG get cex upper bound, cex in interval found: lower bound = reached k = "
+	    << reached_k_ << " current upper bound = " << cur_ub << std::endl;
 
+//NOTE: could call (modified version of) this function inside binary
+//search to potentially set 'high' to lower value than 'mid' of
+//sat-call on lower half is satisfiable
+  
+  //TODO: for brevity, could omit that check; loop below for length-1-interval will terminate in first iteration
+  if (cur_ub - reached_k_ == 1) {
+    std::cout << "DEBUG get cex upper bound, interval has length 1, trivial upper bound = " << cur_ub << std::endl;
+    return cur_ub;
+  }
+
+  int j;
+  for (j = reached_k_ + 1; j <= cur_ub; j++) {
+    Term bad_state_at_j = unroller_.at_time(bad_, j);
+    std::cout << "DEBUG get cex upper bound, checking value of bad state literal j = " << j << std::endl;
+    if (solver_->get_value(bad_state_at_j) == true_term) {
+      std::cout << "DEBUG get cex upper bound, found at j = " << j << std::endl;
+      break;
+    }
+  }
+  assert(j <= cur_ub);
+
+  return j;
+}
+  
 void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 {
   assert (reached_k_ < upper_bound);

@@ -39,6 +39,7 @@ public:
   bool step(int i);
 
  private:
+  int bmc_interval_get_cex_ub(const int cur_ub, const smt::Term bad_state_cl);
   void bmc_interval_find_shortest_cex(const int upper_bound);
   void bmc_interval_find_shortest_cex_binary_search(const int upper_bound); 
 };  // class Bmc
