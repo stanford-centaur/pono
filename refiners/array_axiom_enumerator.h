@@ -97,6 +97,17 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
    */
   void add_index(const smt::Term & idx);
 
+  /** Untimes an index, taking into account current and next
+   *  e.g. the Unroller::untime(x@4 + y@5) would give x + y
+   *  instead of x + y.next
+   *  @param timed_index an unrolled index
+   *  @return the untimed version
+   */
+  smt::Term untime_index(const smt::Term & timed_idx)
+  {
+    return untime_index_cache_.at(timed_idx);
+  }
+
   smt::UnorderedTermSet & get_consecutive_axioms() override
   {
     return consecutive_axioms_;
@@ -403,6 +414,8 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
                                     ///< transition system variables
   AxiomVec nonconsecutive_axioms_;  ///< populated with nonconsecutive axiom
                                     ///< instantiations
+
+  smt::UnorderedTermMap untime_index_cache_;
 
   // useful terms
   smt::Term false_;
