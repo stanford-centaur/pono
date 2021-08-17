@@ -51,13 +51,16 @@ enum optionIndex
   IC3_FUNCTIONAL_PREIMAGE,
   NO_IC3_UNSATCORE_GEN,
   NO_IC3IA_REDUCE_PREDS,
+  NO_IC3IA_TRACK_IMPORTANT_VARS,
   NO_IC3SA_FUNC_REFINE,
   MBIC3_INDGEN_MODE,
   PROFILING_LOG_FILENAME,
   PSEUDO_INIT_PROP,
   ASSUME_PROP,
   CEGPROPHARR,
-  NO_CEGP_AXIOM_RED,
+  NO_CEGP_TIMED_AXIOM_RED,
+  NO_CEGP_CONSEC_AXIOM_RED,
+  NO_CEGP_NONCONSEC_AXIOM_RED,
   CEGP_FORCE_RESTART,
   CEGP_ABS_VALS,
   CEGP_ABS_VALS_CUTOFF,
@@ -257,6 +260,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --no-ic3ia-reduce-preds \tDisable unsat core based predicate "
     "minimization" },
+  { NO_IC3IA_TRACK_IMPORTANT_VARS,
+    0,
+    "",
+    "no-ic3ia-track-important-vars",
+    Arg::None,
+    "  --no-ic3ia-track-important-vars \tIgnore tracked important variables "
+    "when picking predicates." },
   { NO_IC3SA_FUNC_REFINE,
     0,
     "",
@@ -301,13 +311,28 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --ceg-prophecy-arrays \tUse counter-example guided prophecy for "
     "arrays." },
-  { NO_CEGP_AXIOM_RED,
+  { NO_CEGP_TIMED_AXIOM_RED,
     0,
     "",
-    "no-cegp-axiom-red",
+    "no-cegp-timed-axiom-red",
     Arg::None,
-    "  --no-cegp-axiom-red \tDon't reduce axioms in CEG-Prophecy with unsat "
+    "  --no-cegp-timed-axiom-red \tDon't reduce enumerated axioms in "
+    "CEG-Prophecy with unsat "
     "cores." },
+  { NO_CEGP_CONSEC_AXIOM_RED,
+    0,
+    "",
+    "no-cegp-consec-axiom-red",
+    Arg::None,
+    "  --no-cegp-consec-axiom-red \tDon't reduce consecutive axioms in "
+    "CEG-Prophecy before adding to transition system." },
+  { NO_CEGP_NONCONSEC_AXIOM_RED,
+    0,
+    "",
+    "no-cegp-nonconsec-axiom-red",
+    Arg::None,
+    "  --no-cegp-nonconsec-axiom-red \tDon't reduce non-consecutive axioms in "
+    "CEG-Prophecy before creating prophecy variables." },
   { CEGP_FORCE_RESTART,
     0,
     "",
@@ -502,6 +527,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
         case NO_IC3_UNSATCORE_GEN: ic3_unsatcore_gen_ = false; break;
         case NO_IC3IA_REDUCE_PREDS: ic3ia_reduce_preds_ = false;
+        case NO_IC3IA_TRACK_IMPORTANT_VARS: ic3ia_track_important_vars_ = false;
         case NO_IC3SA_FUNC_REFINE: ic3sa_func_refine_ = false; break;
         case PROFILING_LOG_FILENAME:
 #ifndef WITH_PROFILING
@@ -515,7 +541,11 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case PSEUDO_INIT_PROP: pseudo_init_prop_ = true; break;
         case ASSUME_PROP: assume_prop_ = true; break;
         case CEGPROPHARR: ceg_prophecy_arrays_ = true; break;
-        case NO_CEGP_AXIOM_RED: cegp_axiom_red_ = false; break;
+        case NO_CEGP_TIMED_AXIOM_RED: cegp_timed_axiom_red_ = false; break;
+        case NO_CEGP_CONSEC_AXIOM_RED: cegp_consec_axiom_red_ = false; break;
+        case NO_CEGP_NONCONSEC_AXIOM_RED:
+          cegp_nonconsec_axiom_red_ = false;
+          break;
         case CEGP_FORCE_RESTART: cegp_force_restart_ = true; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF: cegp_abs_vals_cutoff_ = atoi(opt.arg); break;

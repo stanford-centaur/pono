@@ -59,7 +59,7 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
            ts.solver() == super::solver_
                ? p.prop()
                : super::to_prover_solver_.transfer_term(p.prop(), BOOL),
-           super::options_.cegp_axiom_red_),
+           super::options_.cegp_timed_axiom_red_),
       pm_(abs_ts_),
       reached_k_(-1),
       num_added_axioms_(0)
@@ -301,7 +301,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     //       variables at the correct time
     //       for now, easier to just search for consecutive axioms
 
-    if (super::options_.cegp_axiom_red_) {
+    if (super::options_.cegp_nonconsec_axiom_red_) {
       // update the trace formula with the consecutive axioms
       // needed for it to be unsat with all the nonconsecutive axioms
       // it will be updated again later anyway
@@ -380,7 +380,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     assert(!aae_.get_nonconsecutive_axioms().size());
   }
 
-  if (super::options_.cegp_axiom_red_ && consecutive_axioms.size()) {
+  if (super::options_.cegp_consec_axiom_red_ && consecutive_axioms.size()) {
     reduce_consecutive_axioms(abs_bmc_formula, consecutive_axioms);
   }
 

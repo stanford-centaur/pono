@@ -63,6 +63,10 @@ IC3IA::IC3IA(const Property & p,
 
 void IC3IA::add_important_var(Term v)
 {
+  if (!options_.ic3ia_track_important_vars_) {
+    return;
+  }
+
   // have to consider that original solver
   // might not be the same as the prover solver
   if (solver_ != orig_ts_.solver()) {

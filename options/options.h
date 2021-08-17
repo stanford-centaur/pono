@@ -106,12 +106,15 @@ class PonoOptions
         ic3_functional_preimage_(default_ic3_functional_preimage_),
         ic3_unsatcore_gen_(default_ic3_unsatcore_gen_),
         ic3ia_reduce_preds_(default_ic3ia_reduce_preds_),
+        ic3ia_track_important_vars_(default_ic3ia_track_important_vars_),
         ic3sa_func_refine_(default_ic3sa_func_refine_),
         profiling_log_filename_(default_profiling_log_filename_),
         pseudo_init_prop_(default_pseudo_init_prop_),
         assume_prop_(default_assume_prop_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
-        cegp_axiom_red_(default_cegp_axiom_red_),
+        cegp_timed_axiom_red_(default_cegp_timed_axiom_red_),
+        cegp_consec_axiom_red_(default_cegp_consec_axiom_red_),
+        cegp_nonconsec_axiom_red_(default_cegp_nonconsec_axiom_red_),
         cegp_force_restart_(default_cegp_force_restart_),
         cegp_abs_vals_(default_cegp_abs_vals_),
         cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
@@ -178,13 +181,19 @@ class PonoOptions
   bool ic3_unsatcore_gen_;  ///< generalize a cube during relative inductiveness
                             ///< check with unsatcore
   bool ic3ia_reduce_preds_;  ///< reduce predicates with unsatcore in IC3IA
+  bool ic3ia_track_important_vars_;  ///< prioritize predicates with marked
+                                     ///< important variables
   bool ic3sa_func_refine_;  ///< try functional unrolling in refinement
   std::string profiling_log_filename_;
   bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;       ///< assume property in pre-state
   // ceg-prophecy-arrays options
   bool ceg_prophecy_arrays_;
-  bool cegp_axiom_red_;  ///< reduce axioms with an unsat core in ceg prophecy
+  bool cegp_timed_axiom_red_;      ///< reduce axioms with an unsat core when
+                                   ///< enumerating
+  bool cegp_consec_axiom_red_;     ///< reduce consecutive axioms before lifting
+  bool cegp_nonconsec_axiom_red_;  ///< reduce nonconsecutive axioms before
+                                   ///< prophecizing
   bool cegp_force_restart_;  ///< force underlying engine to restart after
                              ///< refinement
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
@@ -228,12 +237,15 @@ class PonoOptions
   static const bool default_ic3_functional_preimage_ = false;
   static const bool default_ic3_unsatcore_gen_ = true;
   static const bool default_ic3ia_reduce_preds_ = true;
+  static const bool default_ic3ia_track_important_vars_ = true;
   static const bool default_ic3sa_func_refine_ = true;
   static const std::string default_profiling_log_filename_;
   static const bool default_pseudo_init_prop_ = false;
   static const bool default_assume_prop_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
-  static const bool default_cegp_axiom_red_ = true;
+  static const bool default_cegp_timed_axiom_red_ = true;
+  static const bool default_cegp_consec_axiom_red_ = true;
+  static const bool default_cegp_nonconsec_axiom_red_ = true;
   static const bool default_cegp_force_restart_ = false;
   static const bool default_cegp_abs_vals_ = false;
   static const size_t default_cegp_abs_vals_cutoff_ = 100;
