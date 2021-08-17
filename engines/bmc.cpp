@@ -82,9 +82,9 @@ bool Bmc::step(int i)
   bool res = true;
   if (i > 0) {
 //
-    std::cout << "DEBUG reached k " << reached_k_ << ", i " << i << std::endl;
+    logger.log(2, "DEBUG reached k {}, i {} ", reached_k_, i);
     for (int j = reached_k_ == -1 ? 1 : reached_k_ + 1; j <= i; j++) {
-      std::cout << "DEBUG adding trans for j-1 == " << j - 1 << std::endl;
+      logger.log(2, "DEBUG adding trans for j-1 == {}", j - 1);
       solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
     }
     //OLD
@@ -102,11 +102,11 @@ bool Bmc::step(int i)
   // TODO (not critical): can make 'solver_->make_term(false)' a constant in the object
     clause = solver_->make_term(false);
     for (int j = reached_k_ + 1; j <= i; j++) {
-      std::cout << "DEBUG adding bad state literal for j == " << j << std::endl;
+      logger.log(2, "DEBUG adding bad state literal for j == {}", j);
       clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
     }
   } else {
-    std::cout << "DEBUG adding bad state literal for i == " << i << std::endl;
+    logger.log(2, "DEBUG adding bad state literal for i == {}", i);
     clause = unroller_.at_time(bad_, i);
   }
   
@@ -138,8 +138,7 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub, const Term bad_cl)
   assert(lb <= ub);
   assert(solver_->get_value(bad_cl) == true_term);
   
-  std::cout << "DEBUG get cex upper bound: lower bound = "
-	    << lb << " upper bound = " << ub << std::endl;
+  logger.log(2, "DEBUG get cex upper bound: lower bound = {}, upper bound = {} ", lb, ub);
 
 //NOTE: could call (modified version of) this function inside binary
 //search to potentially set 'high' to lower value than 'mid' of
@@ -148,9 +147,9 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub, const Term bad_cl)
   int j;
   for (j = lb; j <= ub; j++) {
     Term bad_state_at_j = unroller_.at_time(bad_, j);
-    std::cout << "DEBUG get cex upper bound, checking value of bad state literal j = " << j << std::endl;
+    logger.log(2, "DEBUG get cex upper bound, checking value of bad state literal j = {}", j);
     if (solver_->get_value(bad_state_at_j) == true_term) {
-      std::cout << "DEBUG get cex upper bound, found at j = " << j << std::endl;
+      logger.log(2, "DEBUG get cex upper bound, found at j = {}", j);
       break;
     }
   }
@@ -162,11 +161,12 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub, const Term bad_cl)
 void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 {
   assert (reached_k_ < upper_bound);
-  std::cout << "DEBUG binary search, cex in interval found: lower bound = reached k = "
-	    << reached_k_ << " upper bound = " << upper_bound << std::endl;
+  logger.log(2, "DEBUG binary search, cex in interval found:"\
+	     " lower bound = reached k = {} upper bound = {}",
+	     reached_k_, upper_bound);
 
   if (upper_bound - reached_k_ == 1) {
-    std::cout << "DEBUG interval has length 1, skipping search for shortest cex" << std::endl;
+    logger.log(2, "DEBUG interval has length 1, skipping search for shortest cex");
     return;
   }
 
@@ -175,19 +175,20 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
   while (low <= high) {
     Term clause = solver_->make_term(false);
     int mid = low + (high - low) / 2;
-    std::cout << "DEBUG binary search, (low, mid, high) = (" << low << ", " << mid << ", "<< high << ")" << std::endl;
+    logger.log(2, "DEBUG binary search, (low, mid, high) = ({}, {}, {})", low, mid, high);
     solver_->pop();
     solver_->push();
     int j;
     for (j = low; j <= mid; j++) {
-      std::cout << "DEBUG binary search, finding shortest cex---adding bad state literal for j == " << j << std::endl;
+      logger.log(2, "DEBUG binary search, finding shortest cex---"\
+		 "adding bad state literal for j == {}", j);
       clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
     }
     solver_->assert_formula(clause);
     Result r = solver_->check_sat();
     assert(r.is_sat() || r.is_unsat());
     if (r.is_sat()) {
-      std::cout << "DEBUG binary search, sat result: " << r << std::endl;
+      logger.log(2, "DEBUG binary search, sat result: {}", r);
       // if low == mid in current iteration, then we have tested a single
       // bad state literal; can exit loop in case of satisfiability
       if (low == mid)
@@ -196,24 +197,24 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 	high = bmc_interval_get_cex_ub(low, mid, clause);
 //OLD: do not exploit model to get upper bound;   high = mid;
     } else {
-      std::cout << "DEBUG binary search, unsat result: " << r << std::endl;
+      logger.log(2, "DEBUG binary search, unsat result: {}", r);
       assert(low < high);
       low = mid + 1;
     }
   }
-  std::cout << "DEBUG binary search, finding shortest cex---found at bound low == " << low << std::endl;
+  logger.log(1, "DEBUG binary search, finding shortest cex---found at bound low == {}", low);
 }
   
 void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
 {
   assert (reached_k_ < upper_bound);
-  std::cout << "DEBUG cex in interval found: lower bound = reached k = "
-	    << reached_k_ << " upper bound = " << upper_bound << std::endl;
+  logger.log(2, "DEBUG cex in interval found: lower bound = reached k = {}"\
+	     " upper bound = {}", reached_k_, upper_bound);
 
 //TODO: immediately return for length-1 intervals
 
   if (upper_bound - reached_k_ == 1) {
-    std::cout << "DEBUG interval has length 1, skipping search for shortest cex" << std::endl;
+    logger.log(2, "DEBUG interval has length 1, skipping search for shortest cex");
     return;
   }
   
@@ -233,7 +234,7 @@ void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
   for (j = reached_k_ + 1; j <= upper_bound; j++) {
     solver_->pop();
     solver_->push();
-    std::cout << "DEBUG finding shortest cex---adding bad state literal for j == " << j << std::endl;
+    logger.log(2, "DEBUG finding shortest cex---adding bad state literal for j == {}", j);
     solver_->assert_formula(unroller_.at_time(bad_, j));
     if (solver_->check_sat().is_sat()) {
       break;
@@ -243,7 +244,7 @@ void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
   }
   // must have found cex in the interval
   assert (j <= upper_bound);
-  std::cout << "DEBUG finding shortest cex---found at bound j == " << j << std::endl;
+  logger.log(1, "DEBUG finding shortest cex---found at bound j == {}", j);
 
 }
   
