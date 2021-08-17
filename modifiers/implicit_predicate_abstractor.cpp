@@ -125,7 +125,12 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
   }
   reducer_->assert_formula(to_reducer_.transfer_term(formula));
   Result res = reducer_->check_sat_assuming(assumps);
-  assert(res.is_unsat());
+  if (!res.is_unsat()) {
+    // TODO: investigate this in more detail
+    // it doesn't seem like this should happen
+    out = new_preds;
+    return false;
+  }
 
   UnorderedTermSet core;
   try {
