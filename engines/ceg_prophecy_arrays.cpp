@@ -336,12 +336,14 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
       // number of steps before the property violation
       size_t delay =
           reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
-      // Prophecy Modifier will add prophecy and history variables
-      // automatically here but it does NOT update the property
-      Term idx = abs_unroller_.untime(timed_idx);
+      // Note: can't rely on Unroller::untime
+      // see documentation for ArrayAxiomEnumerator::untime_index
+      Term idx = aae_.untime_index(timed_idx);
       // can't target a non-current state variable
       // because the target will appear in the updated property
       assert(delay > 0 || abs_ts_.only_curr(idx));
+      // Prophecy Modifier will add prophecy and history variables
+      // automatically here but it does NOT update the property
       proph_vars.push_back(pm_.get_proph(idx, delay));
     }
 

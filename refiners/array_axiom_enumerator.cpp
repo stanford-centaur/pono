@@ -371,6 +371,7 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
 
   UnorderedTermSet & indices = only_curr ? cur_index_set_ : index_set_;
   UnorderedTermSet unrolled_indices;
+  Term unrolled_idx;
   for (auto idx : indices) {
     if (i == bound_ && !ts_.only_curr(idx)) {
       // IMPORTANT: cannot instantiate anything containing
@@ -382,7 +383,9 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
       // and the bound is essentially the last next unrolling
       continue;
     }
-    unrolled_indices.insert(un_.at_time(idx, i));
+    unrolled_idx = un_.at_time(idx, i);
+    unrolled_indices.insert(unrolled_idx);
+    untime_index_cache_[unrolled_idx] = idx;
   }
 
   // check these axioms

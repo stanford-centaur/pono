@@ -12,9 +12,10 @@
 ** \brief Class for adding history variables to a system.
 **
 **/
-#include "assert.h"
-
 #include "modifiers/history_modifier.h"
+
+#include "assert.h"
+#include "core/rts.h"
 
 using namespace smt;
 using namespace std;
@@ -46,8 +47,21 @@ Term HistoryModifier::get_hist(const Term & target, size_t delay)
     var = ts_.make_statevar(name, sort);
 
     if (num_existing_hist_vars == 1) {
-      // hist_x_1' = x
-      ts_.assign_next(var, target);
+      if (ts_.no_next(target)) {
+        // hist_x_1' = x
+        ts_.assign_next(var, target);
+      } else {
+        // target has next variables
+        // only possible if system is relational
+        if (ts_.is_functional()) {
+          throw PonoException(
+              "Cannot create history variable for target containing next in "
+              "functional system");
+        }
+
+        Term eq = solver_->make_term(Equal, ts_.next(var), target);
+        static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(eq);
+      }
     } else {
       // hist_x_n' = hist_x_{n-1}
       assert(hist_vars_.find(target) != hist_vars_.end());
