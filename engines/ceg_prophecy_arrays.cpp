@@ -344,7 +344,6 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
       assert(delay > 0 || abs_ts_.only_curr(idx));
       // Prophecy Modifier will add prophecy and history variables
       // automatically here but it does NOT update the property
-      cout << "creating prophecy variable for " << idx << ":" << delay << endl;
       proph_vars.push_back(pm_.get_proph(idx, delay));
     }
 

@@ -60,7 +60,6 @@ Term HistoryModifier::get_hist(const Term & target, size_t delay)
         }
 
         Term eq = solver_->make_term(Equal, ts_.next(var), target);
-        cout << "HIT RELATIONAL CASE with " << eq << endl;
         static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(eq);
       }
     } else {
