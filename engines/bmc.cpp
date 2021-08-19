@@ -212,6 +212,9 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
   
 void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
 {
+  //FUNCTION TEMPORARILY DEPRECATED
+  abort();
+  
   assert (reached_k_ < upper_bound);
   logger.log(2, "DEBUG cex in interval found: lower bound = reached k = {}"\
 	     " upper bound = {}", reached_k_, upper_bound);
