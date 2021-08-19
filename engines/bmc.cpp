@@ -176,8 +176,10 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
     Term clause = solver_->make_term(false);
     int mid = low + (high - low) / 2;
     logger.log(2, "DEBUG binary search, (low, mid, high) = ({}, {}, {})", low, mid, high);
+
     solver_->pop();
     solver_->push();
+
     int j;
     for (j = low; j <= mid; j++) {
       logger.log(2, "DEBUG binary search, finding shortest cex---"\
@@ -185,6 +187,7 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
       clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
     }
     solver_->assert_formula(clause);
+
     Result r = solver_->check_sat();
     assert(r.is_sat() || r.is_unsat());
     if (r.is_sat()) {
@@ -199,6 +202,8 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
     } else {
       logger.log(2, "DEBUG binary search, unsat result: {}", r);
       assert(low < high);
+      // update reached k; we have shown that no cex exists for bounds 0,...,mid
+      reached_k_ = mid;
       low = mid + 1;
     }
   }
