@@ -64,7 +64,7 @@ ProverResult Bmc::check_until(int k)
   //   solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
 //  }
   
-  for (int i = start_bound; i <= k; i+=step_bound /* i = i == 0 ? 1 : i << 1*/) {
+  for (int i = start_bound; i <= k; i += step_bound /* i = i == 0 ? 1 : i << 1 */) {
     if (!step(i)) {
       compute_witness();
       return ProverResult::FALSE;
@@ -183,7 +183,7 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
   while (low <= high) {
     //Term clause = solver_->make_term(false);
     int mid = low + (high - low) / 2;
-    logger.log(2, "DEBUG binary search, (low, mid, high) = ({}, {}, {})", low, mid, high);
+    logger.log(2, "\nDEBUG binary search, (low, mid, high) = ({}, {}, {})", low, mid, high);
 
     logger.log(3, "DEBUG binary search, solver->push()");
     //solver_->pop();
@@ -238,7 +238,13 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
       low = mid + 1;
     }
   }
-  logger.log(1, "DEBUG binary search, finding shortest cex---found at bound low == {}", low);
+
+  //must find cex inside sat-branch of if-then-else above
+  assert(low <= high);
+  //reached_k_ has been correctly updated to low - 1, i.e., cex bound - 1
+  assert(reached_k_ + 1 == low);
+  logger.log(1, "DEBUG binary search, shortest cex at bound low == {},"\
+	     " reached_k = {}", low, reached_k_);
 }
   
 void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
