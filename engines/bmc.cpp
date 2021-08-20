@@ -120,7 +120,7 @@ bool Bmc::step(int i)
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     res = false;
-    int cex_upper_bound = i;//TODO INSIDE "bmc_interval_get_cex_ub" add unit clauses from cex-upper-bound ... i, i.e., from found 'j' to 'ub'    bmc_interval_get_cex_ub(reached_k_ + 1, i, clause);
+    int cex_upper_bound = bmc_interval_get_cex_ub(reached_k_ + 1, i);
     // find shortest cex within tested interval given by bad state clause
 //    bmc_interval_find_shortest_cex(cex_upper_bound);
     bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
@@ -132,11 +132,10 @@ bool Bmc::step(int i)
   return res;
 }
   
-int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub, const Term bad_cl)
+int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
 {
   const Term true_term = solver_->make_term(true);
   assert(lb <= ub);
-  assert(solver_->get_value(bad_cl) == true_term);
   
   logger.log(2, "DEBUG get cex upper bound: lower bound = {}, upper bound = {} ", lb, ub);
 
@@ -148,6 +147,7 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub, const Term bad_cl)
   for (j = lb; j <= ub; j++) {
     Term bad_state_at_j = unroller_.at_time(bad_, j);
     logger.log(2, "DEBUG get cex upper bound, checking value of bad state literal j = {}", j);
+    //TODO check: proper use of return value of "get_value"?
     if (solver_->get_value(bad_state_at_j) == true_term) {
       logger.log(2, "DEBUG get cex upper bound, found at j = {}", j);
       break;
@@ -155,6 +155,15 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub, const Term bad_cl)
   }
   assert(j <= ub);
 
+  //TODO CHECK that witness printing still works, i.e., we don't add new constraints after a sat-call
+  //for search of shortest cex: block bad state literals in interval [j+1,ub]
+  for (int k = j + 1; k <= ub; k++) {
+    Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, k));
+    logger.log(3, "DEBUG get cex upper bound, "	\
+	       "adding permanent blocking bad state literal for k == {}", k);
+    solver_->assert_formula(not_bad);
+  }
+  
   return j;
 }
   
@@ -205,7 +214,7 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
       if (low == mid)
 	break;
       else
-	high = mid; //TODO EXPLOIT MODEL+SET UNIT LITS:  bmc_interval_get_cex_ub(low, mid, clause);
+	high = bmc_interval_get_cex_ub(low, mid);
 //OLD: do not exploit model to get upper bound;   high = mid;
     } else {
       logger.log(2, "DEBUG binary search, unsat result: {}", r);
