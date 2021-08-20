@@ -157,6 +157,7 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
 
   //TODO CHECK that witness printing still works, i.e., we don't add new constraints after a sat-call
   //for search of shortest cex: block bad state literals in interval [j+1,ub]
+  logger.log(2, "DEBUG get cex upper bound, permanently blocking [j+1,ub] = [{},{}]", j + 1, ub); 
   for (int k = j + 1; k <= ub; k++) {
     Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, k));
     logger.log(3, "DEBUG get cex upper bound, "	\
