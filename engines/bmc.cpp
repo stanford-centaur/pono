@@ -120,7 +120,7 @@ bool Bmc::step(int i)
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     res = false;
-    int cex_upper_bound = bmc_interval_get_cex_ub(reached_k_ + 1, i, clause);
+    int cex_upper_bound = i;//TODO INSIDE "bmc_interval_get_cex_ub" add unit clauses from cex-upper-bound ... i, i.e., from found 'j' to 'ub'    bmc_interval_get_cex_ub(reached_k_ + 1, i, clause);
     // find shortest cex within tested interval given by bad state clause
 //    bmc_interval_find_shortest_cex(cex_upper_bound);
     bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
@@ -161,9 +161,8 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub, const Term bad_cl)
 void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 {
   assert (reached_k_ < upper_bound);
-  logger.log(2, "DEBUG binary search, cex in interval found:"\
-	     " lower bound = reached k = {} upper bound = {}",
-	     reached_k_, upper_bound);
+  logger.log(2, "DEBUG binary search, cex found in interval "\
+	     "[reached_k+1,upper_bound] = [{},{}]", reached_k_ + 1, upper_bound);
 
   if (upper_bound - reached_k_ == 1) {
     logger.log(2, "DEBUG interval has length 1, skipping search for shortest cex");
@@ -173,37 +172,60 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
   int low = reached_k_ + 1;
   int high = upper_bound;
   while (low <= high) {
-    Term clause = solver_->make_term(false);
+    //Term clause = solver_->make_term(false);
     int mid = low + (high - low) / 2;
     logger.log(2, "DEBUG binary search, (low, mid, high) = ({}, {}, {})", low, mid, high);
 
-    solver_->pop();
+    logger.log(3, "DEBUG binary search, solver->push()");
+    //solver_->pop();
     solver_->push();
 
     int j;
-    for (j = low; j <= mid; j++) {
-      logger.log(2, "DEBUG binary search, finding shortest cex---"\
-		 "adding bad state literal for j == {}", j);
-      clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
+//    for (j = low; j <= mid; j++) {
+    //we search for cex in [low,mid] hence block [mid+1,high]
+    logger.log(2, "DEBUG binary search, searching for cex in [low,mid] = [{},{}]", low, mid);
+    logger.log(2, "DEBUG binary search, temporarily blocking [mid+1,high] = [{},{}]", mid + 1, high); 
+    for (j = mid + 1; j <= high; j++) {
+      logger.log(3, "DEBUG binary search, finding shortest cex---"\
+		 "adding blocking bad state literal for j == {}", j);
+      //clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
+      Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
+      solver_->assert_formula(not_bad);
     }
-    solver_->assert_formula(clause);
+//    solver_->assert_formula(clause);
 
     Result r = solver_->check_sat();
     assert(r.is_sat() || r.is_unsat());
     if (r.is_sat()) {
       logger.log(2, "DEBUG binary search, sat result: {}", r);
+      logger.log(2, "DEBUG binary search, cex found in [low,mid] = [{},{}]", low, mid);
+      logger.log(2, "DEBUG binary search, [mid+1,high] = [{},{}] now permanently blocked", mid + 1, high); 
       // if low == mid in current iteration, then we have tested a single
       // bad state literal; can exit loop in case of satisfiability
       if (low == mid)
 	break;
       else
-	high = bmc_interval_get_cex_ub(low, mid, clause);
+	high = mid; //TODO EXPLOIT MODEL+SET UNIT LITS:  bmc_interval_get_cex_ub(low, mid, clause);
 //OLD: do not exploit model to get upper bound;   high = mid;
     } else {
       logger.log(2, "DEBUG binary search, unsat result: {}", r);
+      logger.log(2, "DEBUG binary search, no cex in [low,mid] = [{},{}]", low, mid);
       assert(low < high);
-      // update reached k; we have shown that no cex exists for bounds 0,...,mid
+      logger.log(2, "DEBUG binary search, unblocking [mid+1,high] = [{},{}]", mid + 1, high);
+      //remove previoulsy added blocking literals for [mid+1,high]
+      logger.log(3, "DEBUG binary search, solver->pop()");
+      solver_->pop();
+      // update reached k; we have iteratively shown that no cex exists in [0,mid]
       reached_k_ = mid;
+      logger.log(2, "DEBUG binary search, permanently blocking [low,mid] = [{},{}]", low, mid); 
+      //no cex found in [low,mid] hence block [low,mid]
+      for (j = low; j <= mid; j++) {
+	logger.log(3, "DEBUG binary search, finding shortest cex---"	\
+		   "adding blocking bad state literal for j == {}", j);
+	Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
+	solver_->assert_formula(not_bad);
+      }
+	
       low = mid + 1;
     }
   }
