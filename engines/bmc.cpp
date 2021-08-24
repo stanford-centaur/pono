@@ -38,7 +38,7 @@ void Bmc::initialize()
 
   super::initialize();
 
-  // NOTE: There's an implicit assumption that this solver is only used for
+  // NOTE: for any engine; There's an implicit assumption that this solver is only used for
   // model checking once Otherwise there could be conflicting assertions to
   // the solver or it could just be polluted with redundant assertions in the
   // future we can use solver_->reset_assertions(), but it is not currently
@@ -50,6 +50,12 @@ ProverResult Bmc::check_until(int k)
 {
   initialize();
 
+  //NOTE/TODO: there is a corner case where an instance is trivially
+  //unsatisfiable, i.e., safe, when the conjunction of initial state
+  //predicate and transition (+ any constraints) is already unsat. We
+  //could also check this using unsat core functionality of solver (if
+  //supported), and check if bad state predicate is in core
+  
   const int step_bound = 1;
   const int start_bound = 0;
 
