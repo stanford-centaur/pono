@@ -131,7 +131,9 @@ class PonoOptions
             default_sygus_use_operator_abstraction_),
         ic3sa_initial_terms_lvl_(default_ic3sa_initial_terms_lvl_),
         ic3sa_interp_(default_ic3sa_interp_),
-        print_wall_time_(default_print_wall_time_)
+        print_wall_time_(default_print_wall_time_),
+        bmc_bound_start_(default_bmc_bound_start_),
+        bmc_bound_step_(default_bmc_bound_step_)
   {
   }
 
@@ -217,7 +219,18 @@ class PonoOptions
   // print wall clock time spent in entire execution
   bool print_wall_time_;
 
- private:
+  // BMC interval options
+  // Default bmc_bound_start_ == 0, which starts search for cex at
+  // unrolling depth 0 like traditional BMC.
+  unsigned bmc_bound_start_;
+  // Default: bmc_bound_step_ == 1, which results in traditional BMC
+  // where every bound is checked one by one. bmc_bound_step_ is the
+  // value by which the current unrolling depth is increased. For
+  // bmc_bound_step_ > 1, BMC searches for cex in intervals of size
+  // bmc_bound_step_.
+  unsigned bmc_bound_step_;
+
+private:
   // Default options
   static const Engine default_engine_ = BMC;
   static const unsigned int default_prop_idx_ = 0;
@@ -266,6 +279,8 @@ class PonoOptions
   static const size_t default_ic3sa_initial_terms_lvl_ = 4;
   static const bool default_ic3sa_interp_ = false;
   static const bool default_print_wall_time_ = false;
+  static const unsigned default_bmc_bound_start_ = 0;
+  static const unsigned default_bmc_bound_step_ = 1;
 };
 
 // Useful functions for printing etc...

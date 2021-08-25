@@ -26,6 +26,8 @@ Bmc::Bmc(const Property & p, const TransitionSystem & ts,
   : super(p, ts, solver, opt)
 {
   engine_ = Engine::BMC;
+  bound_step_ = opt.bmc_bound_step_;
+  bound_start_ = opt.bmc_bound_start_;
 }
 
 Bmc::~Bmc() {}
@@ -55,10 +57,10 @@ ProverResult Bmc::check_until(int k)
   //predicate and transition (+ any constraints) is already unsat. We
   //could also check this using unsat core functionality of solver (if
   //supported), and check if bad state predicate is in core
-  
-  const int step_bound = 1;
-  const int start_bound = 0;
 
+  logger.log(1, "DEBUG BMC bound_start_ {} ", bound_start_);  
+  logger.log(1, "DEBUG BMC bound_step_ {} ", bound_step_);  
+  
   // reached_k == -1 initially
   
   //  if (start_bound > 0)
@@ -70,7 +72,7 @@ ProverResult Bmc::check_until(int k)
   //   solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
 //  }
   
-  for (int i = start_bound; i <= k; i += step_bound /* i = i == 0 ? 1 : i << 1 */) {
+  for (int i = bound_start_; i <= k; i += bound_step_ /* i = i == 0 ? 1 : i << 1 */) {
     if (!step(i)) {
       compute_witness();
       return ProverResult::FALSE;
@@ -196,6 +198,10 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
     //solver_->pop();
     solver_->push();
 
+//TODO REMOVE
+    //  assert(solver_->check_sat().is_sat());
+
+    
     int j;
 //    for (j = low; j <= mid; j++) {
     //we search for cex in [low,mid] hence block [mid+1,high]
@@ -241,7 +247,10 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 	Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
 	solver_->assert_formula(not_bad);
       }
-	
+
+//TODO REMOVE
+      //  assert(solver_->check_sat().is_sat());
+      
       low = mid + 1;
     }
   }

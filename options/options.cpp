@@ -72,7 +72,9 @@ enum optionIndex
   SYGUS_TERM_MODE,
   IC3SA_INITIAL_TERMS_LVL,
   IC3SA_INTERP,
-  PRINT_WALL_TIME
+  PRINT_WALL_TIME,
+  BMC_BOUND_START,
+  BMC_BOUND_STEP
 };
 
 struct Arg : public option::Arg
@@ -418,6 +420,23 @@ const option::Descriptor usage[] = {
     "print-wall-time",
     Arg::None,
     "  --print-wall-time \tPrint wall clock time of entire execution" },
+    { BMC_BOUND_START,
+    0,
+    "",
+    "bmc-bound-start",
+    Arg::Numeric,
+    "  --bmc-bound-start \tBound (unrolling depth) to start "
+    "cex search in BMC (default: 0)"
+    },
+    { BMC_BOUND_STEP,
+    0,
+    "",
+    "bmc-bound-step",
+    Arg::Numeric,
+    "  --bmc-bound-step \tAmount by which bound (unrolling depth) for cex search "
+    "is increased in BMC (default: 1). For values greater than 1, BMC searches "
+      "for cex in intervals of size '--bmc-bound-step'."
+    },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -572,6 +591,11 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         }
         case IC3SA_INTERP: ic3sa_interp_ = true; break;
         case PRINT_WALL_TIME: print_wall_time_ = true; break;
+        case BMC_BOUND_START: bmc_bound_start_ = atoi(opt.arg); break;  
+        case BMC_BOUND_STEP: bmc_bound_step_ = atoi(opt.arg);
+	  if (bmc_bound_step_ == 0)
+	    throw PonoException("--bmc-bound-step must be greater than 0");
+	  break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
