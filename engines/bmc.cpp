@@ -232,7 +232,8 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
     } else {
       logger.log(2, "DEBUG binary search, unsat result: {}", r);
       logger.log(2, "DEBUG binary search, no cex in [low,mid] = [{},{}]", low, mid);
-      assert(low < high);
+      if (low >= high)
+	throw PonoException("BMC FAILURE (corner case): formula overconstrained");
       logger.log(2, "DEBUG binary search, unblocking [mid+1,high] = [{},{}]", mid + 1, high);
       //remove previoulsy added blocking literals for [mid+1,high]
       logger.log(3, "DEBUG binary search, solver->pop()");
