@@ -41,9 +41,10 @@ public:
  private:
   unsigned int bound_start_;
   unsigned int bound_step_;
+  unsigned int bin_search_frames_;
   int bmc_interval_get_cex_ub(const int lb, const int ub);
-  void bmc_interval_find_shortest_cex(const int upper_bound);
-  void bmc_interval_find_shortest_cex_binary_search(const int upper_bound); 
+  void bmc_interval_find_shortest_cex_linear_search(const int upper_bound);
+  bool bmc_interval_find_shortest_cex_binary_search(const int upper_bound); 
 };  // class Bmc
 
 }  // namespace pono

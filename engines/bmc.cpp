@@ -26,6 +26,7 @@ Bmc::Bmc(const Property & p, const TransitionSystem & ts,
   : super(p, ts, solver, opt)
 {
   engine_ = Engine::BMC;
+  bin_search_frames_ = 0;
   bound_step_ = opt.bmc_bound_step_;
   bound_start_ = opt.bmc_bound_start_;
 }
@@ -128,10 +129,21 @@ bool Bmc::step(int i)
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     res = false;
+    solver_->push();
+    logger.log(2, "DEBUG saving reached_k_ = {}", reached_k_);
+    int reached_k_saved = reached_k_;
     int cex_upper_bound = bmc_interval_get_cex_ub(reached_k_ + 1, i);
     // find shortest cex within tested interval given by bad state clause
 //    bmc_interval_find_shortest_cex(cex_upper_bound);
-    bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
+    bool success = bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
+    if (!success) {
+      reached_k_ = reached_k_saved;
+      //clear constraints added during upper bound computation and binary search
+      solver_->pop();
+      while(bin_search_frames_-- > 0)
+	solver_->pop();
+      bmc_interval_find_shortest_cex_linear_search(cex_upper_bound);
+    }
   } else {
     solver_->pop();
     reached_k_ = i;
@@ -176,15 +188,16 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
   return j;
 }
   
-void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
+bool Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 {
+  assert (bin_search_frames_ == 0);
   assert (reached_k_ < upper_bound);
   logger.log(2, "DEBUG binary search, cex found in interval "\
 	     "[reached_k+1,upper_bound] = [{},{}]", reached_k_ + 1, upper_bound);
 
   if (upper_bound - reached_k_ == 1) {
     logger.log(2, "DEBUG interval has length 1, skipping search for shortest cex");
-    return;
+    return true;
   }
 
   int low = reached_k_ + 1;
@@ -197,6 +210,7 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
     logger.log(3, "DEBUG binary search, solver->push()");
     //solver_->pop();
     solver_->push();
+    bin_search_frames_++;
 
 //TODO REMOVE
     //  assert(solver_->check_sat().is_sat());
@@ -232,12 +246,18 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
     } else {
       logger.log(2, "DEBUG binary search, unsat result: {}", r);
       logger.log(2, "DEBUG binary search, no cex in [low,mid] = [{},{}]", low, mid);
-      if (low >= high)
-	throw PonoException("BMC FAILURE (corner case): formula overconstrained");
+      if (low >= high) {
+	// handle rare corner case
+	logger.log(1, "BMC FAILURE: formula overconstrained,"\
+		      " falling back to linear search");
+	return false;
+      }
       logger.log(2, "DEBUG binary search, unblocking [mid+1,high] = [{},{}]", mid + 1, high);
       //remove previoulsy added blocking literals for [mid+1,high]
       logger.log(3, "DEBUG binary search, solver->pop()");
       solver_->pop();
+      assert(bin_search_frames_ > 0);
+      bin_search_frames_--;
       // update reached k; we have iteratively shown that no cex exists in [0,mid]
       reached_k_ = mid;
       logger.log(2, "DEBUG binary search, permanently blocking [low,mid] = [{},{}]", low, mid); 
@@ -262,13 +282,11 @@ void Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
   assert(reached_k_ + 1 == low);
   logger.log(1, "DEBUG binary search, shortest cex at bound low == {},"\
 	     " reached_k = {}", low, reached_k_);
+  return true;
 }
   
-void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
-{
-  //FUNCTION TEMPORARILY DEPRECATED
-  abort();
-  
+void Bmc::bmc_interval_find_shortest_cex_linear_search(const int upper_bound)
+{  
   assert (reached_k_ < upper_bound);
   logger.log(2, "DEBUG cex in interval found: lower bound = reached k = {}"\
 	     " upper bound = {}", reached_k_, upper_bound);
@@ -294,6 +312,7 @@ void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
 //  return;
   int j;
   for (j = reached_k_ + 1; j <= upper_bound; j++) {
+    //pop: remove the latest bad state clause
     solver_->pop();
     solver_->push();
     logger.log(2, "DEBUG finding shortest cex---adding bad state literal for j == {}", j);
@@ -305,7 +324,8 @@ void Bmc::bmc_interval_find_shortest_cex(const int upper_bound)
       reached_k_ = j;
   }
   // must have found cex in the interval
-  assert (j <= upper_bound);
+  if (j > upper_bound)
+    throw PonoException("BMC FAILURE in linear search: formula overconstrained");
   logger.log(1, "DEBUG finding shortest cex---found at bound j == {}", j);
 
 }
