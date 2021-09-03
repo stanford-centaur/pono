@@ -132,7 +132,12 @@ bool Bmc::step(int i)
     logger.log(2, "DEBUG saving reached_k_ = {}", reached_k_);
     int reached_k_saved = reached_k_;
     int cex_upper_bound = bmc_interval_get_cex_ub(reached_k_ + 1, i);
-    solver_->push();
+    //FIX for corner case of length-1 interval: some solvers don't
+    //allow 'push' before 'get-value' even when no terms are asserted
+    //before 'get-value'. Hence don't 'push' if we don't add any terms
+    //in function 'bmc_interval_block_cex_ub'.
+    if (cex_upper_bound + 1 <= i)
+      solver_->push();
     bmc_interval_block_cex_ub(cex_upper_bound + 1, i);
     // find shortest cex within tested interval given by bad state clause
 //    bmc_interval_find_shortest_cex(cex_upper_bound);
