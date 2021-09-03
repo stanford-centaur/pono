@@ -43,6 +43,7 @@ public:
   unsigned int bound_step_;
   unsigned int bin_search_frames_;
   int bmc_interval_get_cex_ub(const int lb, const int ub);
+  int bmc_interval_block_cex_ub(const int start, const int end);
   void bmc_interval_find_shortest_cex_linear_search(const int upper_bound);
   bool bmc_interval_find_shortest_cex_binary_search(const int upper_bound); 
 };  // class Bmc
