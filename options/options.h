@@ -133,7 +133,8 @@ class PonoOptions
         ic3sa_interp_(default_ic3sa_interp_),
         print_wall_time_(default_print_wall_time_),
         bmc_bound_start_(default_bmc_bound_start_),
-        bmc_bound_step_(default_bmc_bound_step_)
+        bmc_bound_step_(default_bmc_bound_step_),
+        bmc_neg_init_step_(default_bmc_neg_init_step_)
   {
   }
 
@@ -229,6 +230,8 @@ class PonoOptions
   // bmc_bound_step_ > 1, BMC searches for cex in intervals of size
   // bmc_bound_step_.
   unsigned bmc_bound_step_;
+  // BMC: add negated initial state predicate in steps k > 0 (default: false)
+  bool bmc_neg_init_step_;
 
 private:
   // Default options
@@ -281,6 +284,7 @@ private:
   static const bool default_print_wall_time_ = false;
   static const unsigned default_bmc_bound_start_ = 0;
   static const unsigned default_bmc_bound_step_ = 1;
+  static const bool default_bmc_neg_init_step_ = false;
 };
 
 // Useful functions for printing etc...

@@ -46,6 +46,7 @@ void Bmc::initialize()
   // the solver or it could just be polluted with redundant assertions in the
   // future we can use solver_->reset_assertions(), but it is not currently
   // supported in boolector
+  logger.log(2, "DEBUG adding init constraint for step 0");
   solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
 }
 
@@ -84,6 +85,8 @@ ProverResult Bmc::check_until(int k)
 
 bool Bmc::step(int i)
 {
+  logger.log(1, "Checking bmc at bound: {}", i);
+  
   if (i <= reached_k_) {
     return true;
   }
@@ -95,13 +98,17 @@ bool Bmc::step(int i)
     for (int j = reached_k_ == -1 ? 1 : reached_k_ + 1; j <= i; j++) {
       logger.log(2, "DEBUG adding trans for j-1 == {}", j - 1);
       solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
+      if (options_.bmc_neg_init_step_) {
+	logger.log(2, "DEBUG adding negated init constraint for step {}", j);
+	Term not_init = solver_->make_term(PrimOp::Not, unroller_.at_time(ts_.init(), j));
+	solver_->assert_formula(not_init);
+      }
     }
     //OLD
 //    solver_->assert_formula(unroller_.at_time(ts_.trans(), i - 1));
   }
 
   solver_->push();
-  logger.log(1, "Checking bmc at bound: {}", i);
 
   const int cex_guarantee = 1;
 

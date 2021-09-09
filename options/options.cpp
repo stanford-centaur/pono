@@ -74,7 +74,8 @@ enum optionIndex
   IC3SA_INTERP,
   PRINT_WALL_TIME,
   BMC_BOUND_START,
-  BMC_BOUND_STEP
+  BMC_BOUND_STEP,
+  BMC_NEG_INIT_STEP
 };
 
 struct Arg : public option::Arg
@@ -437,6 +438,13 @@ const option::Descriptor usage[] = {
     "is increased in BMC (default: 1). For values greater than 1, BMC searches "
       "for cex in intervals of size '--bmc-bound-step'."
     },
+  { BMC_NEG_INIT_STEP,
+    0,
+    "",
+    "bmc-neg-init-step",
+    Arg::None,
+    "  --bmc-neg-init-step \tAdd negated initial state constraint in BMC steps k > 0."
+    },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -596,6 +604,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 	  if (bmc_bound_step_ == 0)
 	    throw PonoException("--bmc-bound-step must be greater than 0");
 	  break;
+        case BMC_NEG_INIT_STEP: bmc_neg_init_step_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
