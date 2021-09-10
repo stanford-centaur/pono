@@ -73,8 +73,10 @@ ProverResult Bmc::check_until(int k)
   //   std::cout << "DEBUG (check-until) adding trans for j-1 == " << j - 1 << std::endl;
   //   solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
 //  }
-  
-  for (int i = bound_start_; i <= k; i += bound_step_ /* i = i == 0 ? 1 : i << 1 */) {
+
+  const bool exp_step = options_.bmc_exponential_step_;
+
+  for (int i = bound_start_; i <= k; i = exp_step ? (i == 0 ? 1 : i << 1) : (i + bound_step_)) {
     if (!step(i)) {
       compute_witness();
       return ProverResult::FALSE;

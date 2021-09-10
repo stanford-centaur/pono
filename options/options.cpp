@@ -75,7 +75,8 @@ enum optionIndex
   PRINT_WALL_TIME,
   BMC_BOUND_START,
   BMC_BOUND_STEP,
-  BMC_NEG_INIT_STEP
+  BMC_NEG_INIT_STEP,
+  BMC_EXPONENTIAL_STEP
 };
 
 struct Arg : public option::Arg
@@ -443,7 +444,16 @@ const option::Descriptor usage[] = {
     "",
     "bmc-neg-init-step",
     Arg::None,
-    "  --bmc-neg-init-step \tAdd negated initial state constraint in BMC steps k > 0."
+    "  --bmc-neg-init-step \tAdd negated initial state constraint in " 
+                            "BMC steps k > 0 (default: false)."
+    },
+  { BMC_EXPONENTIAL_STEP,
+    0,
+    "",
+    "bmc-exponential-step",
+    Arg::None,
+    "  --bmc-exponential-step \tDouble BMC bound in each step starting "
+         "at 'bmc-bound-start' (default: false, explores bounds 0, 1, 2, 4,...)."
     },
   { 0, 0, 0, 0, 0, 0 }
 };
@@ -605,6 +615,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 	    throw PonoException("--bmc-bound-step must be greater than 0");
 	  break;
         case BMC_NEG_INIT_STEP: bmc_neg_init_step_ = true; break;
+        case BMC_EXPONENTIAL_STEP: bmc_exponential_step_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
