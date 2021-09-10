@@ -112,7 +112,7 @@ bool Bmc::step(int i)
 
   solver_->push();
 
-  const int cex_guarantee = 1;
+  const int cex_guarantee = !options_.bmc_single_bad_state_;
 
   Term clause;
   if (cex_guarantee) {
@@ -138,26 +138,28 @@ bool Bmc::step(int i)
   Result r = solver_->check_sat();
   if (r.is_sat()) {
     res = false;
-    logger.log(2, "DEBUG saving reached_k_ = {}", reached_k_);
-    int reached_k_saved = reached_k_;
-    int cex_upper_bound = bmc_interval_get_cex_ub(reached_k_ + 1, i);
-    //FIX for corner case of length-1 interval: some solvers don't
-    //allow 'push' before 'get-value' even when no terms are asserted
-    //before 'get-value'. Hence don't 'push' if we don't add any terms
-    //in function 'bmc_interval_block_cex_ub'.
-    if (cex_upper_bound + 1 <= i)
-      solver_->push();
-    bmc_interval_block_cex_ub(cex_upper_bound + 1, i);
-    // find shortest cex within tested interval given by bad state clause
+    if (cex_guarantee) {
+      logger.log(2, "DEBUG saving reached_k_ = {}", reached_k_);
+      int reached_k_saved = reached_k_;
+      int cex_upper_bound = bmc_interval_get_cex_ub(reached_k_ + 1, i);
+      //FIX for corner case of length-1 interval: some solvers don't
+      //allow 'push' before 'get-value' even when no terms are asserted
+      //before 'get-value'. Hence don't 'push' if we don't add any terms
+      //in function 'bmc_interval_block_cex_ub'.
+      if (cex_upper_bound + 1 <= i)
+	solver_->push();
+      bmc_interval_block_cex_ub(cex_upper_bound + 1, i);
+      // find shortest cex within tested interval given by bad state clause
 //    bmc_interval_find_shortest_cex(cex_upper_bound);
-    bool success = bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
-    if (!success) {
-      reached_k_ = reached_k_saved;
-      //clear constraints added during upper bound computation and binary search
-      solver_->pop();
-      while(bin_search_frames_-- > 0)
+      bool success = bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
+      if (!success) {
+	reached_k_ = reached_k_saved;
+	//clear constraints added during upper bound computation and binary search
 	solver_->pop();
-      bmc_interval_find_shortest_cex_linear_search(cex_upper_bound);
+	while(bin_search_frames_-- > 0)
+	  solver_->pop();
+	bmc_interval_find_shortest_cex_linear_search(cex_upper_bound);
+      }
     }
   } else {
     solver_->pop();

@@ -76,7 +76,8 @@ enum optionIndex
   BMC_BOUND_START,
   BMC_BOUND_STEP,
   BMC_NEG_INIT_STEP,
-  BMC_EXPONENTIAL_STEP
+  BMC_EXPONENTIAL_STEP,
+  BMC_SINGLE_BAD_STATE
 };
 
 struct Arg : public option::Arg
@@ -455,6 +456,18 @@ const option::Descriptor usage[] = {
     "  --bmc-exponential-step \tDouble BMC bound in each step starting "
          "at 'bmc-bound-start' (default: false, explores bounds 0, 1, 2, 4,...)."
     },
+
+  { BMC_SINGLE_BAD_STATE,
+    0,
+    "",
+    "bmc-single-bad-state",
+    Arg::None,
+    "  --bmc-single-bad-state \tEXPERT OPTION: add a single bad state literal"
+    " for current bound k rather than a disjunctive term covering the checked"
+    " interval; counterexamples may be missed. (default: false)."
+    },
+
+
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -616,6 +629,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 	  break;
         case BMC_NEG_INIT_STEP: bmc_neg_init_step_ = true; break;
         case BMC_EXPONENTIAL_STEP: bmc_exponential_step_ = true; break;
+	case BMC_SINGLE_BAD_STATE: bmc_single_bad_state_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
