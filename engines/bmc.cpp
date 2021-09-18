@@ -160,6 +160,12 @@ bool Bmc::step(int i)
 	  solver_->pop();
 	bmc_interval_find_shortest_cex_linear_search(cex_upper_bound);
       }
+    } else {
+      // Handle corner case when using single bad state literals and
+      // interval search: for witness printing, which depends on
+      // reached_k_, we must set reached_k_ to the bound that preceeds
+      // the bound 'i' where the cex was found
+      reached_k_ = i - 1;
     }
   } else {
     solver_->pop();
@@ -305,7 +311,7 @@ bool Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 void Bmc::bmc_interval_find_shortest_cex_linear_search(const int upper_bound)
 {  
   assert (reached_k_ < upper_bound);
-  logger.log(2, "DEBUG cex in interval found: lower bound = reached k = {}"\
+  logger.log(2, "DEBUG linear search, cex found in interval: lower bound = reached k = {},"\
 	     " upper bound = {}", reached_k_, upper_bound);
 
 //TODO: immediately return for length-1 intervals
@@ -315,9 +321,6 @@ void Bmc::bmc_interval_find_shortest_cex_linear_search(const int upper_bound)
     return;
   }
   
-  //TODO CHECK: for
-//witness printing, must set reached_k_ to last unsat call in below
-//loop
 
 //TODO: below loop searches iteratively; could do exponential
 //steps also, like in "check_until"; BMC with exponential steps could
@@ -343,8 +346,9 @@ void Bmc::bmc_interval_find_shortest_cex_linear_search(const int upper_bound)
   // must have found cex in the interval
   if (j > upper_bound)
     throw PonoException("BMC FAILURE in linear search: formula overconstrained");
-  logger.log(1, "DEBUG finding shortest cex---found at bound j == {}", j);
 
+  assert(reached_k_ + 1 == j);
+  logger.log(1, "DEBUG linear search found shortest cex at bound j == {}, reached_k {}", j, reached_k_);
 }
   
 }  // namespace pono
