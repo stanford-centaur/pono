@@ -89,12 +89,6 @@ bool Prover::witness(std::vector<UnorderedTermMap> & out)
     transfer_to_prover_as = [](const Term & t, SortKind sk) { return t; };
     transfer_to_orig_ts_as = [](const Term & t, SortKind sk) { return t; };
   } else {
-    /* TODO: double-check that transferring terms still works as
-       intended in this branch when COI is used. */
-    if (options_.static_coi_)
-      throw PonoException(
-          "Temporary restriction: cone-of-influence analysis "
-          "currently incompatible with witness generation.");
     // need to add symbols to cache
     UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
     for (const auto &v : orig_ts_.statevars()) {
@@ -175,12 +169,6 @@ Term Prover::to_orig_ts(Term t, SortKind sk)
     // don't need to transfer terms if the solvers are the same
     return t;
   } else {
-    /* TODO: double-check that transferring terms still works as
-       intended in this branch when COI is used. */
-    if (options_.static_coi_)
-      throw PonoException(
-          "Temporary restriction: cone-of-influence analysis "
-          "currently incompatible with witness generation.");
     // need to add symbols to cache
     TermTranslator to_orig_ts_solver(orig_ts_.solver());
     UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
