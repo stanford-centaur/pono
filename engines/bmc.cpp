@@ -94,6 +94,7 @@ bool Bmc::step(int i)
   }
 
   bool res = true;
+//CHECK code simplification: if-statement needed? seems not needed
   if (i > 0) {
 //
     logger.log(2, "DEBUG reached k {}, i {} ", reached_k_, i);
@@ -120,11 +121,11 @@ bool Bmc::step(int i)
   // TODO (not critical): can make 'solver_->make_term(false)' a constant in the object
     clause = solver_->make_term(false);
     for (int j = reached_k_ + 1; j <= i; j++) {
-      logger.log(2, "DEBUG adding bad state literal for j == {}", j);
+      logger.log(2, "DEBUG adding bad state constraint for j == {}", j);
       clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
     }
   } else {
-    logger.log(2, "DEBUG adding bad state literal for i == {}", i);
+    logger.log(2, "DEBUG adding bad state constraint for i == {}", i);
     clause = unroller_.at_time(bad_, i);
   }
   
@@ -137,6 +138,7 @@ bool Bmc::step(int i)
 
   Result r = solver_->check_sat();
   if (r.is_sat()) {
+    logger.log(1, "  bmc check at bound {} satisfiable", i);
     res = false;
     if (cex_guarantee) {
       logger.log(2, "DEBUG saving reached_k_ = {}", reached_k_);
@@ -161,14 +163,31 @@ bool Bmc::step(int i)
 	bmc_interval_find_shortest_cex_linear_search(cex_upper_bound);
       }
     } else {
-      // Handle corner case when using single bad state literals and
+      // Handle corner case when using single bad state constraints and
       // interval search: for witness printing, which depends on
       // reached_k_, we must set reached_k_ to the bound that preceeds
       // the bound 'i' where the cex was found
       reached_k_ = i - 1;
     }
   } else {
+    logger.log(1, "  bmc check at bound {} unsatisfiable", i);
     solver_->pop();
+    // TODO: could add expert option to add *all* since last reached_k,
+    // whether being tested above or not
+    if (options_.bmc_neg_bad_step_) {
+      Term not_bad;
+      if (cex_guarantee) {
+	for (int j = reached_k_ + 1; j <= i; j++) {
+	  logger.log(2, "DEBUG adding negated bad state constraint for j == {}", j);
+	  not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
+	  solver_->assert_formula(not_bad);
+	}
+      } else {
+	logger.log(2, "DEBUG adding negated bad state constraint for i == {}", i);
+	not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, i));
+	solver_->assert_formula(not_bad);
+      }
+    }
     reached_k_ = i;
   }
 
@@ -185,7 +204,7 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
   int j;
   for (j = lb; j <= ub; j++) {
     Term bad_state_at_j = unroller_.at_time(bad_, j);
-    logger.log(2, "DEBUG get cex upper bound, checking value of bad state literal j = {}", j);
+    logger.log(2, "DEBUG get cex upper bound, checking value of bad state constraint j = {}", j);
     //TODO check: proper use of return value of "get_value"?
     if (solver_->get_value(bad_state_at_j) == true_term) {
       logger.log(2, "DEBUG get cex upper bound, found at j = {}", j);
@@ -200,12 +219,12 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
 int Bmc::bmc_interval_block_cex_ub(const int start, const int end)
 {
   //TODO CHECK that witness printing still works, i.e., we don't add new constraints after a sat-call
-  //for search of shortest cex: block bad state literals in interval [start,end]
+  //for search of shortest cex: block bad state constraints in interval [start,end]
   logger.log(2, "DEBUG get cex upper bound, permanently blocking [start,end] = [{},{}]", start, end); 
   for (int k = start; k <= end; k++) {
     Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, k));
     logger.log(3, "DEBUG get cex upper bound, "	\
-	       "adding permanent blocking bad state literal for k == {}", k);
+	       "adding permanent blocking bad state constraint for k == {}", k);
     solver_->assert_formula(not_bad);
   }
 }
@@ -245,7 +264,7 @@ bool Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
     logger.log(2, "DEBUG binary search, temporarily blocking [mid+1,high] = [{},{}]", mid + 1, high); 
     for (j = mid + 1; j <= high; j++) {
       logger.log(3, "DEBUG binary search, finding shortest cex---"\
-		 "adding blocking bad state literal for j == {}", j);
+		 "adding blocking bad state constraint for j == {}", j);
       //clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
       Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
       solver_->assert_formula(not_bad);
@@ -259,7 +278,7 @@ bool Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
       logger.log(2, "DEBUG binary search, cex found in [low,mid] = [{},{}]", low, mid);
       logger.log(2, "DEBUG binary search, [mid+1,high] = [{},{}] now permanently blocked", mid + 1, high); 
       // if low == mid in current iteration, then we have tested a single
-      // bad state literal; can exit loop in case of satisfiability
+      // bad state constraint; can exit loop in case of satisfiability
       if (low == mid)
 	break;
       else {
@@ -276,7 +295,7 @@ bool Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 	return false;
       }
       logger.log(2, "DEBUG binary search, unblocking [mid+1,high] = [{},{}]", mid + 1, high);
-      //remove previoulsy added blocking literals for [mid+1,high]
+      //remove previoulsy added blocking constraints for [mid+1,high]
       logger.log(3, "DEBUG binary search, solver->pop()");
       solver_->pop();
       assert(bin_search_frames_ > 0);
@@ -287,7 +306,7 @@ bool Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
       //no cex found in [low,mid] hence block [low,mid]
       for (j = low; j <= mid; j++) {
 	logger.log(3, "DEBUG binary search, finding shortest cex---"	\
-		   "adding blocking bad state literal for j == {}", j);
+		   "adding blocking bad state constraint for j == {}", j);
 	Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
 	solver_->assert_formula(not_bad);
       }
@@ -335,7 +354,7 @@ void Bmc::bmc_interval_find_shortest_cex_linear_search(const int upper_bound)
     //pop: remove the latest bad state clause
     solver_->pop();
     solver_->push();
-    logger.log(2, "DEBUG finding shortest cex---adding bad state literal for j == {}", j);
+    logger.log(2, "DEBUG finding shortest cex---adding bad state constraint for j == {}", j);
     solver_->assert_formula(unroller_.at_time(bad_, j));
     if (solver_->check_sat().is_sat()) {
       break;

@@ -136,7 +136,8 @@ class PonoOptions
         bmc_bound_step_(default_bmc_bound_step_),
         bmc_neg_init_step_(default_bmc_neg_init_step_),
         bmc_exponential_step_(default_bmc_exponential_step_),
-        bmc_single_bad_state_(default_bmc_single_bad_state_)
+        bmc_single_bad_state_(default_bmc_single_bad_state_),
+        bmc_neg_bad_step_(default_bmc_neg_bad_step_)
   {
   }
 
@@ -241,7 +242,9 @@ class PonoOptions
   // BMC EXPERT OPTION: do not add a disjunctive bad state property
   // representing an interval, but a single bad state literal at bound k;
   bool bmc_single_bad_state_;
-
+  // BMC: add negated bad state predicate depending on reached_k_ (default: false)
+  bool bmc_neg_bad_step_;
+  
 private:
   // Default options
   static const Engine default_engine_ = BMC;
@@ -296,6 +299,7 @@ private:
   static const bool default_bmc_neg_init_step_ = false;
   static const bool default_bmc_exponential_step_ = false;
   static const bool default_bmc_single_bad_state_ = false;
+  static const bool default_bmc_neg_bad_step_ = false;
 };
 
 // Useful functions for printing etc...
