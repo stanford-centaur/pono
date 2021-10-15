@@ -157,7 +157,8 @@ bool Bmc::step(int i)
       if (!success) {
 	reached_k_ = reached_k_saved;
 	//clear constraints added during upper bound computation and binary search
-	solver_->pop();
+	if (cex_upper_bound + 1 <= i)
+	  solver_->pop();
 	while(bin_search_frames_-- > 0)
 	  solver_->pop();
 	bmc_interval_find_shortest_cex_linear_search(cex_upper_bound);
