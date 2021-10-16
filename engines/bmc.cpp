@@ -152,8 +152,9 @@ bool Bmc::step(int i)
 	solver_->push();
       bmc_interval_block_cex_ub(cex_upper_bound + 1, i);
       // find shortest cex within tested interval given by bad state clause
-//    bmc_interval_find_shortest_cex(cex_upper_bound);
-      bool success = bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
+      // 'success' will be false if binary search fails or linear search is enabled
+      bool success = options_.bmc_min_cex_linear_search_ ? false :
+	bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
       if (!success) {
 	reached_k_ = reached_k_saved;
 	//clear constraints added during upper bound computation and binary search
