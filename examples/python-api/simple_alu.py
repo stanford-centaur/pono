@@ -46,10 +46,10 @@ def build_simple_alu_fts(s:ss.SmtSolver)->pono.Property:
                                      s.make_term(BVSub, a, b)))
 
     # Create a property: spec_res == imp_res
-    prop = pono.Property(fts, s.make_term(Equal,
-                                           spec_res,
-                                           imp_res))
-    return prop
+    prop = pono.Property(s, s.make_term(Equal,
+                                        spec_res,
+                                        imp_res))
+    return prop, fts
 
 
 def k_induction_attempt():
@@ -58,8 +58,7 @@ def k_induction_attempt():
     s = ss.create_btor_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
-    prop = build_simple_alu_fts(s)
-    fts = prop.transition_system
+    prop, fts = build_simple_alu_fts(s)
 
     print('\n============== Running k-induction ==============')
     print('INIT\n\t{}'.format(fts.init))
@@ -67,7 +66,7 @@ def k_induction_attempt():
     print('PROP\n\t{}'.format(prop.prop))
 
     # Create KInduction engine -- using same solver (in future can change the solver)
-    kind = pono.KInduction(prop, s)
+    kind = pono.KInduction(prop, fts, s)
     res = kind.check_until(20)
 
     print(res)
@@ -80,11 +79,9 @@ def interpolant_attempt():
     # Create solver and interpolator using MathSAT
     # and no logging for the solver
     s = ss.create_msat_solver(False)
-    itp = ss.create_msat_interpolator()
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
-    prop = build_simple_alu_fts(s)
-    fts = prop.transition_system
+    prop, fts = build_simple_alu_fts(s)
 
     print('\n============== Running Interpolant-based Model Checking ==============')
     print('INIT\n\t{}'.format(fts.init))
@@ -92,7 +89,7 @@ def interpolant_attempt():
     print('PROP\n\t{}'.format(prop.prop))
 
     # Create InterpolantMC engine
-    itpmc = pono.InterpolantMC(prop, s, itp)
+    itpmc = pono.InterpolantMC(prop, fts, s)
     res = itpmc.check_until(20)
 
     print(res)
@@ -106,14 +103,13 @@ def k_induction_attempt_inductive():
     s = ss.create_btor_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
-    prop = build_simple_alu_fts(s)
-    fts = prop.transition_system
+    prop, fts = build_simple_alu_fts(s)
 
     # store sets of states in a dictionary for accessing below
     states = {str(sv):sv for sv in fts.statevars}
 
     # make the property inductive manually
-    prop = pono.Property(fts,
+    prop = pono.Property(s,
                           s.make_term(And,
                                       s.make_term(Equal,
                                                   states['cfg'],
@@ -126,7 +122,7 @@ def k_induction_attempt_inductive():
     print('PROP\n\t{}'.format(prop.prop))
 
     # Create KInduction engine -- using same solver (in future can change the solver)
-    kind = pono.KInduction(prop, s)
+    kind = pono.KInduction(prop, fts, s)
     res = kind.check_until(20)
 
     print(res)
