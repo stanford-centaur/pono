@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Syntax and structure borrowed from CVC4's configure.sh script
+# Syntax and structure borrowed from cvc5's configure.sh script
 
 CONF_FILE=Makefile.conf
 
