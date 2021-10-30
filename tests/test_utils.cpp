@@ -139,11 +139,11 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
     return;
   }
 
-  // TEMP excluding CVC4 because IC3 variants use two solvers
-  // and this causes strange behavior for CVC4 until its fixed
+  // TEMP excluding cvc5 because IC3 variants use two solvers
+  // and this causes strange behavior for cvc5 until its fixed
   // (note: updated to cvc5 now)
   // see https://github.com/cvc5/cvc5/issues/5893
-  if (se == smt::CVC4) {
+  if (se == smt::CVC5) {
     return;
   }
 

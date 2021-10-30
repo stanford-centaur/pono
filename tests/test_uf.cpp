@@ -88,8 +88,8 @@ TEST_P(UFUnitTests, FalseProp)
   }
 
   // TODO: update this when the bug is fixed
-  if (s->get_solver_enum() == CVC4) {
-    std::cout << "Warning: not running with CVC4 because it segfaults "
+  if (s->get_solver_enum() == CVC5) {
+    std::cout << "Warning: not running with cvc5 because it segfaults "
               << "in the TsatProof part of its modded minisat for "
               << "an unknown reason." << std::endl;
     return;
