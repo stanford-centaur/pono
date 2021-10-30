@@ -19,9 +19,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "smt-switch/cvc4_factory.h"
+#include "smt-switch/cvc5_factory.h"
 #include "smt-switch/smt.h"
-
 #include "utils/exceptions.h"
 
 namespace pono {
@@ -29,12 +28,12 @@ namespace pono {
 class TransitionSystem
 {
  public:
-  /** use CVC4 by default (doesn't require logging so pass false)
+  /** use cvc5 by default (doesn't require logging so pass false)
    *  it supports the most theories and doesn't rewrite-on-the-fly or alias
    * sorts
    *  this makes it a great candidate for representing the TransitionSystem */
   TransitionSystem()
-      : solver_(smt::CVC4SolverFactory::create(false)),
+      : solver_(smt::Cvc5SolverFactory::create(false)),
         init_(solver_->make_term(true)),
         trans_(solver_->make_term(true)),
         functional_(false),

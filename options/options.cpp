@@ -498,7 +498,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           if (opt.arg == std::string("btor")) {
             smt_solver_ = smt::BTOR;
           } else if (opt.arg == std::string("cvc4")) {
-            smt_solver_ = smt::CVC4;
+            smt_solver_ = smt::CVC5;
           } else if (opt.arg == std::string("msat")) {
             smt_solver_ = smt::MSAT;
           } else {
@@ -581,10 +581,10 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           "Counterexample-guided prophecy only supported with MathSAT so far");
     }
 
-    if (smt_solver_ == smt::CVC4
+    if (smt_solver_ == smt::CVC5
         && ic3_variants().find(engine_) != ic3_variants().end()) {
       throw PonoException(
-          "CVC4 cannot handle multiple solver instances, and thus does not "
+          "cvc5 cannot handle multiple solver instances, and thus does not "
           "currently support IC3 variants.");
     }
   }
