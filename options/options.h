@@ -130,7 +130,8 @@ class PonoOptions
         sygus_use_operator_abstraction_(
             default_sygus_use_operator_abstraction_),
         ic3sa_initial_terms_lvl_(default_ic3sa_initial_terms_lvl_),
-        ic3sa_interp_(default_ic3sa_interp_)
+        ic3sa_interp_(default_ic3sa_interp_),
+        print_wall_time_(default_print_wall_time_)
   {
   }
 
@@ -213,6 +214,8 @@ class PonoOptions
   size_t ic3sa_initial_terms_lvl_;  ///< configures where to find terms for
                                     ///< initial abstraction
   bool ic3sa_interp_;
+  // print wall clock time spent in entire execution
+  bool print_wall_time_;
 
  private:
   // Default options
@@ -262,6 +265,7 @@ class PonoOptions
   // default is the highest level
   static const size_t default_ic3sa_initial_terms_lvl_ = 4;
   static const bool default_ic3sa_interp_ = false;
+  static const bool default_print_wall_time_ = false;
 };
 
 // Useful functions for printing etc...
