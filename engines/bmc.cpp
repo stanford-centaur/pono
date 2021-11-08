@@ -154,7 +154,7 @@ bool Bmc::step(int i)
       // find shortest cex within tested interval given by bad state clause
       // 'success' will be false if binary search fails or linear search is enabled
       bool success = options_.bmc_min_cex_linear_search_ ? false :
-	bmc_interval_find_shortest_cex_binary_search(cex_upper_bound);
+	find_shortest_cex_binary_search(cex_upper_bound);
       if (!success) {
 	reached_k_ = reached_k_saved;
 	//clear constraints added during upper bound computation and binary search
@@ -162,7 +162,7 @@ bool Bmc::step(int i)
 	  solver_->pop();
 	while(bin_search_frames_-- > 0)
 	  solver_->pop();
-	bmc_interval_find_shortest_cex_linear_search(cex_upper_bound);
+	find_shortest_cex_linear_search(cex_upper_bound);
       }
     } else {
       // Handle corner case when using single bad state constraints and
@@ -231,7 +231,7 @@ int Bmc::bmc_interval_block_cex_ub(const int start, const int end)
   }
 }
   
-bool Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
+bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
 {
   assert (bin_search_frames_ == 0);
   assert (reached_k_ < upper_bound);
@@ -328,8 +328,76 @@ bool Bmc::bmc_interval_find_shortest_cex_binary_search(const int upper_bound)
 	     " reached_k = {}", low, reached_k_);
   return true;
 }
+
+/* Like 'find_shortest_cex_binary_search' but use new clause and new
+   frame in each solver call to search for shortest
+   counterexample. This has the effect that we potentially benefit less
+   from incremental solving. */
+bool Bmc::find_shortest_cex_binary_search_non_inc(const int upper_bound)
+{
+  assert (reached_k_ < upper_bound);
+  logger.log(2, "DEBUG binary search, cex found in interval "\
+	     "[reached_k+1,upper_bound] = [{},{}]", reached_k_ + 1, upper_bound);
+
+  if (upper_bound - reached_k_ == 1) {
+    logger.log(2, "DEBUG interval has length 1, skipping search for shortest cex");
+    return true;
+  }
+
+  int low = reached_k_ + 1;
+  int high = upper_bound;
+  while (low <= high) {
+    int mid = low + (high - low) / 2;
+    logger.log(2, "\nDEBUG binary search, (low, mid, high) = ({}, {}, {})", low, mid, high);
+
+    logger.log(3, "DEBUG binary search, solver->pop()");
+    //discard most recent bad state clause
+    solver_->pop();
+    logger.log(3, "DEBUG binary search, solver->push()");
+    solver_->push();
+
+    int j;
+    //we search for cex in [low,mid]
+    logger.log(2, "DEBUG binary search, searching for cex in [low,mid] = [{},{}]", low, mid);
+    Term clause = solver_->make_term(false);
+    for (j = low; j <= mid; j++) {
+      logger.log(3, "DEBUG binary search, finding shortest cex---"\
+		 "adding bad state constraint for j == {}", j);
+      clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
+    }
+    solver_->assert_formula(clause);
+
+    Result r = solver_->check_sat();
+    assert(r.is_sat() || r.is_unsat());
+    if (r.is_sat()) {
+      logger.log(2, "DEBUG binary search, sat result: {}", r);
+      logger.log(2, "DEBUG binary search, cex found in [low,mid] = [{},{}]", low, mid);
+      // if low == mid in current iteration, then we have tested a single
+      // bad state constraint; can exit loop in case of satisfiability
+      if (low == mid)
+	break;
+      else {
+	high = bmc_interval_get_cex_ub(low, mid);
+      }
+    } else {
+      logger.log(2, "DEBUG binary search, unsat result: {}", r);
+      logger.log(2, "DEBUG binary search, no cex in [low,mid] = [{},{}]", low, mid);
+      // update reached k; we have iteratively shown that no cex exists in [0,mid]
+      reached_k_ = mid;
+      low = mid + 1;
+    }
+  }
+
+  //must find cex inside sat-branch of if-then-else above
+  assert(low <= high);
+  //reached_k_ has been correctly updated to low - 1, i.e., cex bound - 1
+  assert(reached_k_ + 1 == low);
+  logger.log(1, "DEBUG binary search, shortest cex at bound low == {},"\
+	     " reached_k = {}", low, reached_k_);
+  return true;
+}
   
-void Bmc::bmc_interval_find_shortest_cex_linear_search(const int upper_bound)
+void Bmc::find_shortest_cex_linear_search(const int upper_bound)
 {  
   assert (reached_k_ < upper_bound);
   logger.log(2, "DEBUG linear search, cex found in interval: lower bound = reached k = {},"\
