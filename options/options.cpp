@@ -79,7 +79,8 @@ enum optionIndex
   BMC_EXPONENTIAL_STEP,
   BMC_SINGLE_BAD_STATE,
   BMC_NEG_BAD_STEP,
-  BMC_MIN_CEX_LIN_SEARCH
+  BMC_MIN_CEX_LIN_SEARCH,
+  BMC_MIN_CEX_LESS_INC_BIN_SEARCH
 };
 
 struct Arg : public option::Arg
@@ -484,7 +485,16 @@ const option::Descriptor usage[] = {
     "  --bmc-min-cex-linear-search \tApply linear instead of binary search for "
                         "minimal cex after a cex was found in current interval"
     },
+  { BMC_MIN_CEX_LESS_INC_BIN_SEARCH,
+    0,
+    "",
+    "bmc-min-cex-less-inc-bin-search",
+    Arg::None,
+    "  --bmc-min-cex-less-inc-bin-search \tApply less incremental variant of binary search for "
+                        "minimal cex after a cex was found in current interval"
+    },
 
+  
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -649,6 +659,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 	case BMC_SINGLE_BAD_STATE: bmc_single_bad_state_ = true; break;
         case BMC_NEG_BAD_STEP: bmc_neg_bad_step_ = true; break;
         case BMC_MIN_CEX_LIN_SEARCH: bmc_min_cex_linear_search_ = true; break;
+        case BMC_MIN_CEX_LESS_INC_BIN_SEARCH:
+	  bmc_min_cex_less_inc_bin_search_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

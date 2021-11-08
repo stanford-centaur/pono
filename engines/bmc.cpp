@@ -154,8 +154,12 @@ bool Bmc::step(int i)
       // find shortest cex within tested interval given by bad state clause
       // 'success' will be false if binary search fails or linear search is enabled
       bool success = options_.bmc_min_cex_linear_search_ ? false :
-	find_shortest_cex_binary_search(cex_upper_bound);
+	( !options_.bmc_min_cex_less_inc_bin_search_ ?
+	  find_shortest_cex_binary_search(cex_upper_bound) :
+	  find_shortest_cex_binary_search_less_inc(cex_upper_bound)
+	);
       if (!success) {
+	assert(!options_.bmc_min_cex_less_inc_bin_search_);
 	reached_k_ = reached_k_saved;
 	//clear constraints added during upper bound computation and binary search
 	if (cex_upper_bound + 1 <= i)
@@ -333,10 +337,10 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
    frame in each solver call to search for shortest
    counterexample. This has the effect that we potentially benefit less
    from incremental solving. */
-bool Bmc::find_shortest_cex_binary_search_non_inc(const int upper_bound)
+bool Bmc::find_shortest_cex_binary_search_less_inc(const int upper_bound)
 {
   assert (reached_k_ < upper_bound);
-  logger.log(2, "DEBUG binary search, cex found in interval "\
+  logger.log(2, "DEBUG less incremental binary search, cex found in interval "\
 	     "[reached_k+1,upper_bound] = [{},{}]", reached_k_ + 1, upper_bound);
 
   if (upper_bound - reached_k_ == 1) {

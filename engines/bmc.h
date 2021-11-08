@@ -46,7 +46,7 @@ public:
   int bmc_interval_block_cex_ub(const int start, const int end);
   void find_shortest_cex_linear_search(const int upper_bound);
   bool find_shortest_cex_binary_search(const int upper_bound);
-  bool find_shortest_cex_binary_search_non_inc(const int upper_bound);
+  bool find_shortest_cex_binary_search_less_inc(const int upper_bound);
 };  // class Bmc
 
 }  // namespace pono
