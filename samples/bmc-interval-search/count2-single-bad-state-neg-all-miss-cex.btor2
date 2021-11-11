@@ -1,0 +1,20 @@
+; 2-bit counter with state 1 as bad state, wrap around after state 3
+; I.e., bad states due to cycle length of 4: 1, 5, 9, 13, ... 
+; When using single bad state approach with an interval length of 3
+; (flags '--bmc-bound-step 3 --bmc-single-bad-state') then we will
+; miss the counterexample at states 1 and 5, but will find it at state 9.
+;
+; Command line: ./pono -v 3 -e bmc -k 1000 --bmc-bound-step 3 --bmc-single-bad-state --bmc-neg-bad-step --bmc-neg-bad-step-all
+;
+; With the above configuration, the counterexample will be missed because the problem is overconstrained.
+; When omitting the flag '--bmc-neg-bad-step-all', the counterexample is found
+1 sort bitvec 2
+2 zero 1
+3 state 1
+4 init 1 3 2
+5 one 1
+6 add 1 3 5
+7 next 1 3 6
+9 sort bitvec 1
+10 eq 9 3 5
+11 bad 10

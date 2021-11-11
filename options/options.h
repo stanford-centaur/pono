@@ -138,6 +138,7 @@ class PonoOptions
         bmc_exponential_step_(default_bmc_exponential_step_),
         bmc_single_bad_state_(default_bmc_single_bad_state_),
         bmc_neg_bad_step_(default_bmc_neg_bad_step_),
+        bmc_neg_bad_step_all_(default_bmc_neg_bad_step_all_),
         bmc_min_cex_linear_search_(default_bmc_min_cex_linear_search_),
         bmc_min_cex_less_inc_bin_search_(default_bmc_min_cex_less_inc_bin_search_)
   {
@@ -246,6 +247,9 @@ class PonoOptions
   bool bmc_single_bad_state_;
   // BMC: add negated bad state predicate depending on reached_k_ (default: false)
   bool bmc_neg_bad_step_;
+  // BMC: like 'bmc_neg_bad_step_' but adds negated bad state predicate for all
+  // seen bounds (default: false)
+  bool bmc_neg_bad_step_all_;
   // Apply linear instead of binary search for minimal counterexample
   // after a counterexample was found within an interval
   bool bmc_min_cex_linear_search_;
@@ -307,6 +311,7 @@ private:
   static const bool default_bmc_exponential_step_ = false;
   static const bool default_bmc_single_bad_state_ = false;
   static const bool default_bmc_neg_bad_step_ = false;
+  static const bool default_bmc_neg_bad_step_all_ = false;
   static const bool default_bmc_min_cex_linear_search_ = false;
   static const bool default_bmc_min_cex_less_inc_bin_search_ = false;
 };

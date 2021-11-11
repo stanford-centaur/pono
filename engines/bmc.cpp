@@ -178,11 +178,9 @@ bool Bmc::step(int i)
   } else {
     logger.log(1, "  bmc check at bound {} unsatisfiable", i);
     solver_->pop();
-    // TODO: could add expert option to add *all* since last reached_k,
-    // whether being tested above or not
     if (options_.bmc_neg_bad_step_) {
       Term not_bad;
-      if (cex_guarantee) {
+      if (options_.bmc_neg_bad_step_all_ || cex_guarantee) {
 	for (int j = reached_k_ + 1; j <= i; j++) {
 	  logger.log(2, "DEBUG adding negated bad state constraint for j == {}", j);
 	  not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));

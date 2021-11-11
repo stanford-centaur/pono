@@ -80,7 +80,8 @@ enum optionIndex
   BMC_SINGLE_BAD_STATE,
   BMC_NEG_BAD_STEP,
   BMC_MIN_CEX_LIN_SEARCH,
-  BMC_MIN_CEX_LESS_INC_BIN_SEARCH
+  BMC_MIN_CEX_LESS_INC_BIN_SEARCH,
+  BMC_NEG_BAD_STEP_ALL
 };
 
 struct Arg : public option::Arg
@@ -477,6 +478,16 @@ const option::Descriptor usage[] = {
     "  --bmc-neg-bad-step \tAdd negated bad state constraint in " 
                             "BMC steps k > 0 (default: false)."
     },
+  { BMC_NEG_BAD_STEP_ALL,
+    0,
+    "",
+    "bmc-neg-bad-step-all",
+    Arg::None,
+    "  --bmc-neg-bad-step-all \tEXPERT OPTION: like '--bmc-neg-bad-step' but add"
+    " negated bad state constraint in ALL BMC steps k > 0 (default: false). When"
+    " combined with --bmc-single-bad-state, this option may cause overconstraining"
+    " the problem in certain corner cases."
+  },
   { BMC_MIN_CEX_LIN_SEARCH,
     0,
     "",
@@ -658,6 +669,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case BMC_EXPONENTIAL_STEP: bmc_exponential_step_ = true; break;
 	case BMC_SINGLE_BAD_STATE: bmc_single_bad_state_ = true; break;
         case BMC_NEG_BAD_STEP: bmc_neg_bad_step_ = true; break;
+        case BMC_NEG_BAD_STEP_ALL: bmc_neg_bad_step_all_ = true; break;
         case BMC_MIN_CEX_LIN_SEARCH: bmc_min_cex_linear_search_ = true; break;
         case BMC_MIN_CEX_LESS_INC_BIN_SEARCH:
 	  bmc_min_cex_less_inc_bin_search_ = true; break;
