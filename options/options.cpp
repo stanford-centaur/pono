@@ -668,8 +668,16 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case BMC_NEG_INIT_STEP: bmc_neg_init_step_ = true; break;
         case BMC_EXPONENTIAL_STEP: bmc_exponential_step_ = true; break;
 	case BMC_SINGLE_BAD_STATE: bmc_single_bad_state_ = true; break;
-        case BMC_NEG_BAD_STEP: bmc_neg_bad_step_ = true; break;
-        case BMC_NEG_BAD_STEP_ALL: bmc_neg_bad_step_all_ = true; break;
+        case BMC_NEG_BAD_STEP: bmc_neg_bad_step_ = true;
+	  if (bmc_neg_bad_step_all_)
+	    throw PonoException("--bmc-neg-bad-step-all cannot be combined "\
+				"with '--bmc-neg-bad-step'");
+	  break;
+        case BMC_NEG_BAD_STEP_ALL: bmc_neg_bad_step_all_ = true;
+	  if (bmc_neg_bad_step_)
+	    throw PonoException("--bmc-neg-bad-step cannot be combined " \
+				"with '--bmc-neg-bad-step-all'");
+	  break;
         case BMC_MIN_CEX_LIN_SEARCH: bmc_min_cex_linear_search_ = true; break;
         case BMC_MIN_CEX_LESS_INC_BIN_SEARCH:
 	  bmc_min_cex_less_inc_bin_search_ = true; break;
