@@ -71,7 +71,8 @@ enum optionIndex
   SYGUS_OP_LVL,
   SYGUS_TERM_MODE,
   IC3SA_INITIAL_TERMS_LVL,
-  IC3SA_INTERP
+  IC3SA_INTERP,
+  PRINT_WALL_TIME
 };
 
 struct Arg : public option::Arg
@@ -411,6 +412,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --ic3sa-interp \tuse interpolants to find more terms during refinement "
     "(default: off)" },
+    { PRINT_WALL_TIME,
+    0,
+    "",
+    "print-wall-time",
+    Arg::None,
+    "  --print-wall-time \tPrint wall clock time of entire execution" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -563,7 +570,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           }
           break;
         }
-        case IC3SA_INTERP: ic3sa_interp_ = true;
+        case IC3SA_INTERP: ic3sa_interp_ = true; break;
+        case PRINT_WALL_TIME: print_wall_time_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
