@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COREIR_VERSION=9205bb90799b6dc97a1baea9e7b50c86858ee779
+COREIR_VERSION=a589c0d9042700fc661dfeb36314dc9aef134294
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
