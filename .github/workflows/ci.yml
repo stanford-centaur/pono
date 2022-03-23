@@ -34,9 +34,6 @@ jobs:
       - name: Download MathSAT
         run: ./ci-scripts/setup-msat.sh --auto-yes
 
-      - name: Download CVC4
-        run: ./ci-scripts/download-cvc4.sh
-
       - name: Setup Flex
         run: ./contrib/setup-flex.sh
 
@@ -48,7 +45,7 @@ jobs:
 
       - name: Setup Smt-Switch
         run: |
-          ./contrib/setup-smt-switch.sh --with-msat --cvc4-home=./deps/CVC4 --python
+          ./contrib/setup-smt-switch.sh --with-msat --python
           python3 -m pip install -e ./deps/smt-switch/build/python
 
       - name: Configure
