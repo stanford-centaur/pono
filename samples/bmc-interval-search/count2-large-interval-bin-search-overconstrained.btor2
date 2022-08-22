@@ -4,7 +4,7 @@
 ; Command line: ./pono -v 2 -e bmc -k 1000000000 --bmc-bound-start 20 --bmc-bound-step 10
 ;
 ; With the above configuration, fully incremental binary search (default) will encounter
-; an overconstrained problem caused by blocking terms added to dived the interval into subintervals.
+; an overconstrained problem caused by blocking terms added to divide the interval into subintervals.
 ; We will fall back into linear search in that case
 ;
 ; This is not an issue with flags '--bmc-min-cex-less-inc-bin-search' (less incremental binary search) or linear search. 

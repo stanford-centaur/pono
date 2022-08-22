@@ -226,7 +226,8 @@ class PonoOptions
   // print wall clock time spent in entire execution
   bool print_wall_time_;
 
-  // BMC interval options
+  // BMC interval options (these options are modifiers of the 'BMC' engine;
+  //   they do not apply to engine 'BMC-SP')
   // Default bmc_bound_start_ == 0, which starts search for cex at
   // unrolling depth 0 like traditional BMC.
   unsigned bmc_bound_start_;
