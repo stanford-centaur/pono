@@ -131,7 +131,16 @@ class PonoOptions
             default_sygus_use_operator_abstraction_),
         ic3sa_initial_terms_lvl_(default_ic3sa_initial_terms_lvl_),
         ic3sa_interp_(default_ic3sa_interp_),
-        print_wall_time_(default_print_wall_time_)
+        print_wall_time_(default_print_wall_time_),
+        bmc_bound_start_(default_bmc_bound_start_),
+        bmc_bound_step_(default_bmc_bound_step_),
+        bmc_neg_init_step_(default_bmc_neg_init_step_),
+        bmc_exponential_step_(default_bmc_exponential_step_),
+        bmc_single_bad_state_(default_bmc_single_bad_state_),
+        bmc_neg_bad_step_(default_bmc_neg_bad_step_),
+        bmc_neg_bad_step_all_(default_bmc_neg_bad_step_all_),
+        bmc_min_cex_linear_search_(default_bmc_min_cex_linear_search_),
+        bmc_min_cex_less_inc_bin_search_(default_bmc_min_cex_less_inc_bin_search_)
   {
   }
 
@@ -217,7 +226,38 @@ class PonoOptions
   // print wall clock time spent in entire execution
   bool print_wall_time_;
 
- private:
+  // BMC interval options (these options are modifiers of the 'BMC' engine;
+  //   they do not apply to engine 'BMC-SP')
+  // Default bmc_bound_start_ == 0, which starts search for cex at
+  // unrolling depth 0 like traditional BMC.
+  unsigned bmc_bound_start_;
+  // Default: bmc_bound_step_ == 1, which results in traditional BMC
+  // where every bound is checked one by one. bmc_bound_step_ is the
+  // value by which the current unrolling depth is increased. For
+  // bmc_bound_step_ > 1, BMC searches for cex in intervals of size
+  // bmc_bound_step_.
+  unsigned bmc_bound_step_;
+  // BMC: add negated initial state predicate in steps k > 0 (default: false)
+  bool bmc_neg_init_step_;
+  // BMC: double the bound in each step starting from
+  // 'bmc_bound_start_'; if bmc_bound_start_ == 0, this results in
+  // exploration of bounds 0,1,2,4,8,...
+  bool bmc_exponential_step_;
+  // BMC EXPERT OPTION: do not add a disjunctive bad state property
+  // representing an interval, but a single bad state literal at bound k;
+  bool bmc_single_bad_state_;
+  // BMC: add negated bad state predicate depending on reached_k_ (default: false)
+  bool bmc_neg_bad_step_;
+  // BMC: like 'bmc_neg_bad_step_' but adds negated bad state predicate for all
+  // seen bounds (default: false)
+  bool bmc_neg_bad_step_all_;
+  // Apply linear instead of binary search for minimal counterexample
+  // after a counterexample was found within an interval
+  bool bmc_min_cex_linear_search_;
+  // BMC: apply less incremental binary search
+  bool bmc_min_cex_less_inc_bin_search_;
+  
+private:
   // Default options
   static const Engine default_engine_ = BMC;
   static const unsigned int default_prop_idx_ = 0;
@@ -266,6 +306,15 @@ class PonoOptions
   static const size_t default_ic3sa_initial_terms_lvl_ = 4;
   static const bool default_ic3sa_interp_ = false;
   static const bool default_print_wall_time_ = false;
+  static const unsigned default_bmc_bound_start_ = 0;
+  static const unsigned default_bmc_bound_step_ = 1;
+  static const bool default_bmc_neg_init_step_ = false;
+  static const bool default_bmc_exponential_step_ = false;
+  static const bool default_bmc_single_bad_state_ = false;
+  static const bool default_bmc_neg_bad_step_ = false;
+  static const bool default_bmc_neg_bad_step_all_ = false;
+  static const bool default_bmc_min_cex_linear_search_ = false;
+  static const bool default_bmc_min_cex_less_inc_bin_search_ = false;
 };
 
 // Useful functions for printing etc...

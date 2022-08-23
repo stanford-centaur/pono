@@ -1,0 +1,47 @@
+; instance is safe: hard for k-induction with increasing bit-widths
+; - easy for IC3
+; - cfg is constant 0 during unrolling
+;
+10 sort bitvec 3
+20 sort bitvec 1
+30 zero 10
+40 one 10
+45 ones 10
+50 input 10 a
+60 input 10 b
+70 state 10 out
+80 state 10 buf_a
+90 state 10 buf_b
+95 state 10 cfg
+; init out := 0
+110 init 10 70 30
+; init buf_a := 0
+120 init 10 80 30
+; init buf_b := 0
+130 init 10 90 30
+; init cfg := 0
+150 init 10 95 30
+;
+; a + b
+151 add 10 50 60
+; a - b
+155 sub 10 50 50
+; cfg == 0 ? a + b : a - b
+156 eq 20 95 30
+160 ite 10 156 151 155
+;
+; cfg == 0 ? a + b : a - b
+205 next 10 70 160
+; buf_a := a
+210 next 10 80 50
+; buf_b := b
+220 next 10 90 60
+; cfg := cfg
+221 next 10 95 95
+;
+; SPEC
+; buf_a + buf_b
+230 add 10 80 90
+;;;;;
+240 neq 20 70 230
+250 bad 240
