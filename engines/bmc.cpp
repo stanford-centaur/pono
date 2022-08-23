@@ -2,9 +2,9 @@
 /*! \file
  ** \verbatim
  ** Top contributors (to current version):
- **   Ahmed Irfan, Makai Mann
+ **   Ahmed Irfan, Makai Mann, Florian Lonsing
  ** This file is part of the pono project.
- ** Copyright (c) 2019 by the authors listed in the file AUTHORS
+ ** Copyright (c) 2019, 2021, 2022 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
@@ -63,6 +63,7 @@ ProverResult Bmc::check_until(int k)
   logger.log(1, "BMC: bound_start_ {} ", bound_start_);
   logger.log(1, "BMC: bound_step_ {} ", bound_step_);
 
+  // Options 'bmc_exponential_step_' results in doubling the bound in every step
   const bool exp_step = options_.bmc_exponential_step_;
 
   for (int i = bound_start_; i <= k;
@@ -85,6 +86,7 @@ bool Bmc::step(int i)
 
   bool res = true;
   if (i > 0) {
+    // Add transitions depending on current interval '[reached_k_ + 1, i]'
     logger.log(2, "BMC: reached k {}, i {} ", reached_k_, i);
     for (int j = reached_k_ == -1 ? 1 : reached_k_ + 1; j <= i; j++) {
       logger.log(2, "BMC: adding trans for j-1 == {}", j - 1);
@@ -99,18 +101,20 @@ bool Bmc::step(int i)
 
   solver_->push();
 
+  // BMC is guaranteed to find a cex if we make sure to check all bounds (default).
+  // This behavior can be overridden by 'options_.bmc_single_bad_state_'
   const int cex_guarantee = !options_.bmc_single_bad_state_;
 
   Term clause;
   if (cex_guarantee) {
-    // make sure we cover *all* states by adding disjunctive bad state predicate
+    // Make sure we cover *all* states by adding disjunctive bad state predicate
     clause = solver_->make_term(false);
     for (int j = reached_k_ + 1; j <= i; j++) {
       logger.log(2, "BMC: adding bad state constraint for j == {}", j);
       clause = solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
     }
   } else {
-    // add a single bad state predicate (bugs might be missed)
+    // Add a single bad state predicate (bugs might be missed)
     logger.log(2, "BMC: adding bad state constraint for i == {}", i);
     clause = unroller_.at_time(bad_, i);
   }
@@ -132,7 +136,7 @@ bool Bmc::step(int i)
       if (cex_upper_bound + 1 <= i)
 	solver_->push();
       bmc_interval_block_cex_ub(cex_upper_bound + 1, i);
-      // find shortest cex within tested interval given by bad state clause
+      // Find shortest cex within tested interval given by bad state clause
       // 'success' will be false if binary search fails or linear search is enabled
       bool success = options_.bmc_min_cex_linear_search_ ? false :
 	( !options_.bmc_min_cex_less_inc_bin_search_ ?
@@ -142,7 +146,7 @@ bool Bmc::step(int i)
       if (!success) {
 	assert(!options_.bmc_min_cex_less_inc_bin_search_);
 	reached_k_ = reached_k_saved;
-	//clear constraints added during upper bound computation and binary search
+	// Clear constraints added during upper bound computation and binary search
 	if (cex_upper_bound + 1 <= i)
 	  solver_->pop();
 	while(bin_search_frames_-- > 0)
@@ -159,7 +163,7 @@ bool Bmc::step(int i)
   } else {
     logger.log(1, "  BMC: check at bound {} unsatisfiable", i);
     solver_->pop();
-    // optional: add negated bad state predicates to bounds where no cex was found
+    // Optional: add negated bad state predicates to bounds where no cex was found
     if (options_.bmc_neg_bad_step_ || options_.bmc_neg_bad_step_all_) {
       Term not_bad;
       if (options_.bmc_neg_bad_step_all_) {
@@ -179,7 +183,8 @@ bool Bmc::step(int i)
 
   return res;
 }
-  
+
+// Get an upper bound on the cex, which is located in interval '[lb,ub]'
 int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
 {
   const Term true_term = solver_->make_term(true);
@@ -201,6 +206,9 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
   return j;
 }
 
+// Add negated bad state predicate for all bounds in interval '[start,end]'.
+// This way, we restrict the search space of the solver to disregard these
+// bounds when searching for a cex.
 int Bmc::bmc_interval_block_cex_ub(const int start, const int end)
 {
   logger.log(2, "BMC: get cex upper bound, permanently blocking [start,end] = [{},{}]", start, end); 
@@ -211,7 +219,8 @@ int Bmc::bmc_interval_block_cex_ub(const int start, const int end)
     solver_->assert_formula(not_bad);
   }
 }
-  
+
+// Run binary search for cex within interval '[reached_k_ + 1, upper_bound]'.
 bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
 {
   assert (bin_search_frames_ == 0);
@@ -235,7 +244,7 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
     bin_search_frames_++;
 
     int j;
-    //we search for cex in [low,mid] hence block [mid+1,high]
+    // We search for cex in [low,mid] hence block [mid+1,high]
     logger.log(2, "BMC: binary search, searching for cex in [low,mid] = [{},{}]", low, mid);
     logger.log(2, "BMC: binary search, temporarily blocking [mid+1,high] = [{},{}]", mid + 1, high); 
     for (j = mid + 1; j <= high; j++) {
@@ -251,7 +260,7 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
       logger.log(2, "BMC: binary search, sat result: {}", r);
       logger.log(2, "BMC: binary search, cex found in [low,mid] = [{},{}]", low, mid);
       logger.log(2, "BMC: binary search, [mid+1,high] = [{},{}] now permanently blocked", mid + 1, high); 
-      // if low == mid in current iteration, then we have tested a single
+      // If low == mid in current iteration, then we have tested a single
       // bad state constraint and found a cex; can exit loop
       if (low == mid)
 	break;
@@ -263,21 +272,21 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
       logger.log(2, "BMC: binary search, unsat result: {}", r);
       logger.log(2, "BMC: binary search, no cex in [low,mid] = [{},{}]", low, mid);
       if (low >= high) {
-	// handle rare corner case
+	// Handle rare corner case
 	logger.log(1, "BMC binary search failure: formula overconstrained,"\
 		      " falling back to linear search");
 	return false;
       }
       logger.log(2, "BMC: binary search, unblocking [mid+1,high] = [{},{}]", mid + 1, high);
-      //remove previoulsy added blocking constraints for [mid+1,high]
+      // Remove previoulsy added blocking constraints for [mid+1,high]
       logger.log(3, "BMC: binary search, solver->pop()");
       solver_->pop();
       assert(bin_search_frames_ > 0);
       bin_search_frames_--;
-      // update reached k; we have iteratively shown that no cex exists in [0,mid]
+      // Update reached k; we have iteratively shown that no cex exists in [0,mid]
       reached_k_ = mid;
       logger.log(2, "BMC: binary search, permanently blocking [low,mid] = [{},{}]", low, mid); 
-      //no cex found in [low,mid] hence block [low,mid]
+      // No cex found in [low,mid] hence block [low,mid]
       for (j = low; j <= mid; j++) {
 	logger.log(3, "BMC: binary search, finding shortest cex---"	\
 		   "adding blocking bad state constraint for j == {}", j);
@@ -289,9 +298,9 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
     }
   }
 
-  //must find cex inside sat-branch of if-then-else above
+  // Must find cex inside sat-branch of if-then-else above
   assert(low <= high);
-  //reached_k_ has been correctly updated to low - 1, i.e., cex bound - 1
+  // Reached_k_ has been correctly updated to low - 1, i.e., cex bound - 1
   assert(reached_k_ + 1 == low);
   logger.log(1, "BMC: binary search, shortest cex at bound low == {},"\
 	     " reached_k = {}", low, reached_k_);
@@ -320,13 +329,13 @@ bool Bmc::find_shortest_cex_binary_search_less_inc(const int upper_bound)
     logger.log(2, "\nBMC: binary search, (low, mid, high) = ({}, {}, {})", low, mid, high);
 
     logger.log(3, "BMC: binary search, solver->pop()");
-    //discard most recent bad state clause
+    // Discard most recent bad state clause
     solver_->pop();
     logger.log(3, "BMC: binary search, solver->push()");
     solver_->push();
 
     int j;
-    //we search for cex in [low,mid]
+    // We search for cex in [low,mid]
     logger.log(2, "BMC: binary search, searching for cex in [low,mid] = [{},{}]", low, mid);
     Term clause = solver_->make_term(false);
     for (j = low; j <= mid; j++) {
@@ -341,7 +350,7 @@ bool Bmc::find_shortest_cex_binary_search_less_inc(const int upper_bound)
     if (r.is_sat()) {
       logger.log(2, "BMC: binary search, sat result: {}", r);
       logger.log(2, "BMC: binary search, cex found in [low,mid] = [{},{}]", low, mid);
-      // if low == mid in current iteration, then we have tested a single
+      // If low == mid in current iteration, then we have tested a single
       // bad state constraint; can exit loop in case of satisfiability
       if (low == mid)
 	break;
@@ -351,21 +360,22 @@ bool Bmc::find_shortest_cex_binary_search_less_inc(const int upper_bound)
     } else {
       logger.log(2, "BMC: binary search, unsat result: {}", r);
       logger.log(2, "BMC: binary search, no cex in [low,mid] = [{},{}]", low, mid);
-      // update reached k; we have iteratively shown that no cex exists in [0,mid]
+      // Update reached k; we have iteratively shown that no cex exists in [0,mid]
       reached_k_ = mid;
       low = mid + 1;
     }
   }
 
-  //must find cex inside sat-branch of if-then-else above
+  // Must find cex inside sat-branch of if-then-else above
   assert(low <= high);
-  //reached_k_ has been correctly updated to low - 1, i.e., cex bound - 1
+  // 'reached_k_' has been correctly updated to low - 1, i.e., cex bound - 1
   assert(reached_k_ + 1 == low);
   logger.log(1, "BMC: binary search, shortest cex at bound low == {},"\
 	     " reached_k = {}", low, reached_k_);
   return true;
 }
-  
+
+// Run linear search for cex within interval '[reached_k_ + 1, upper_bound]'
 void Bmc::find_shortest_cex_linear_search(const int upper_bound)
 {  
   assert (reached_k_ < upper_bound);
@@ -379,7 +389,7 @@ void Bmc::find_shortest_cex_linear_search(const int upper_bound)
   
   int j;
   for (j = reached_k_ + 1; j <= upper_bound; j++) {
-    //pop: remove the latest bad state clause
+    // pop: remove the latest bad state clause
     solver_->pop();
     solver_->push();
     logger.log(2, "BMC: finding shortest cex---adding bad state constraint for j == {}", j);
@@ -390,7 +400,7 @@ void Bmc::find_shortest_cex_linear_search(const int upper_bound)
     else
       reached_k_ = j;
   }
-  // must have found cex in the interval
+  // Must have found cex in the interval
   if (j > upper_bound)
     throw PonoException("Unexpected BMC failure in linear search: formula overconstrained");
 
