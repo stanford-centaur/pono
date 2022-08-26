@@ -180,11 +180,15 @@ Term KInduction::simple_path_constraint(int i, int j)
 
 bool KInduction::check_simple_path_lazy(int i)
 {
+
+  logger.log(2, "  Checking k-induction simple path at bound: {}", i);
   bool added_to_simple_path = false;
 
   do {
+    logger.log(2, "    Calling solver for simple path check");
     Result r = solver_->check_sat();
     if (r.is_unsat()) {
+      logger.log(2, "      Simple path check UNSAT");
       return true;
     }
 
@@ -199,8 +203,9 @@ bool KInduction::check_simple_path_lazy(int i)
     for (int j = 0; j < i && !added_to_simple_path; ++j) {
       for (int l = j + 1; l <= i; ++l) {
         Term constraint = simple_path_constraint(j, l);
+	logger.log(3, "    Checking constraint for pair j,l = {} , {}", j,l);
         if (solver_->get_value(constraint) == false_) {
-	  logger.log(2, "Adding Simple Path Clause");
+	  logger.log(3, "      Adding constraint for pair j,l = {} , {}", j,l);
           simple_path_ =
               solver_->make_term(PrimOp::And, simple_path_, constraint);
           solver_->assert_formula(constraint);
