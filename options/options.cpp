@@ -84,7 +84,8 @@ enum optionIndex
   BMC_NEG_BAD_STEP_ALL,
   BMC_ALLOW_NON_MINIMAL_CEX,
   KIND_NO_SIMPLE_PATH_CHECK,
-  KIND_EAGER_SIMPLE_PATH_CHECK
+  KIND_EAGER_SIMPLE_PATH_CHECK,
+  KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK
 };
 
 struct Arg : public option::Arg
@@ -531,6 +532,14 @@ const option::Descriptor usage[] = {
     "  --kind-eager-simple-path-check \tEager simple path check in k-induction "
     "  (default: lazy check)"
     },
+  { KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK,
+    0,
+    "",
+    "kind-no-multi-call-simple-path-check",
+    Arg::None,
+    "  --kind-no-multi-call-simple-path-check \tTry to avoid multiple solver calls "
+    "    in lazy simple path check in k-induction"
+    },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -710,6 +719,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 	  bmc_allow_non_minimal_cex_ = true; break;
         case KIND_NO_SIMPLE_PATH_CHECK: kind_no_simple_path_check_ = true; break;
         case KIND_EAGER_SIMPLE_PATH_CHECK: kind_eager_simple_path_check_ = true; break;
+        case KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK: kind_no_multi_call_simple_path_check_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

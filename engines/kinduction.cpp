@@ -217,7 +217,16 @@ bool KInduction::check_simple_path_lazy(int i)
   logger.log(2, "  Lazily checking k-induction simple path at bound: {}", i);
   bool added_to_simple_path = false;
 
+  // If no_multi_call == true, then we add as many simple path
+  // constraints as necessary based on the current model of the
+  // solver. These constraints are collected in vector 'vec' first and
+  // then added in one pass. Otherwise, the solver is called again
+  // after *each* added constraint to get a new model.
+  const bool no_multi_call = options_.kind_no_multi_call_simple_path_check_;
+  smt::TermVec vec;
+  
   do {
+    assert(vec.size() == 0);
     logger.log(2, "    Calling solver for simple path check");
     Result r = solver_->check_sat();
     if (r.is_unsat()) {
@@ -233,7 +242,7 @@ bool KInduction::check_simple_path_lazy(int i)
 
     added_to_simple_path = false;
 
-    for (int j = 0; j < i && !added_to_simple_path; ++j) {
+    for (int j = 0; j < i && (no_multi_call || !added_to_simple_path); ++j) {
       for (int l = j + 1; l <= i; ++l) {
         Term constraint = simple_path_constraint(j, l);
 	logger.log(3, "    Checking constraint for pair j,l = {} , {}", j,l);
@@ -241,11 +250,21 @@ bool KInduction::check_simple_path_lazy(int i)
 	  logger.log(3, "      Adding constraint for pair j,l = {} , {}", j,l);
           simple_path_ =
               solver_->make_term(PrimOp::And, simple_path_, constraint);
-          solver_->assert_formula(constraint);
           added_to_simple_path = true;
-          break;
+          if (!no_multi_call) {
+            solver_->assert_formula(constraint);
+            break;
+          } else
+            vec.push_back(constraint);
         }
       }
+    }
+
+    while (vec.size()) {
+      assert(no_multi_call);
+      Term constraint = vec.back();
+      vec.pop_back();
+      solver_->assert_formula(constraint);
     }
 
   } while (added_to_simple_path);
