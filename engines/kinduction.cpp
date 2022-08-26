@@ -60,13 +60,20 @@ ProverResult KInduction::check_until(int k)
     solver_->push();
 
     // inductive case check
-    //TBA ADD SIMPLE PATH CHECK
+    if (!options_.kind_no_simple_path_check_)
+      solver_->assert_formula(simple_path_);
     solver_->assert_formula(unroller_.at_time(bad_, i));
     logger.log(1, "Checking k-induction inductive step at bound: {}", i);
-    res = solver_->check_sat();
-    if (res.is_unsat()) {
+    // solver call inside 'check_simple_path_lazy'
+    if (ts_.statevars().size() && check_simple_path_lazy(i)) {
       return ProverResult::TRUE;
     }
+
+//DELETE THIS
+//    res = solver_->check_sat();
+//    if (res.is_unsat()) {
+//      return ProverResult::TRUE;
+//    }
 
     // base case check
     solver_->assert_formula(init0_);
