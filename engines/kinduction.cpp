@@ -57,29 +57,30 @@ ProverResult KInduction::check_until(int k)
   Result res;
   for (int i = reached_k_ + 1; i <= k; ++i) {
 
-    solver_->push();
-
-    // inductive case check
-    if (!options_.kind_no_simple_path_check_)
-      solver_->assert_formula(simple_path_);
-    solver_->assert_formula(unroller_.at_time(bad_, i));
-    logger.log(1, "Checking k-induction inductive step at bound: {}", i);
-    // solver call inside 'check_simple_path_lazy/eager'
-    if (!options_.kind_eager_simple_path_check_) {
-      if (ts_.statevars().size() && check_simple_path_lazy(i)) {
-	return ProverResult::TRUE;
-      }
-    } else {
-      if (ts_.statevars().size() && check_simple_path_eager(i)) {
-	return ProverResult::TRUE;
+    // simple path check
+    if (!options_.kind_no_simple_path_check_) {
+      //OBSOLETE  solver_->assert_formula(simple_path_);
+      // solver call inside 'check_simple_path_lazy/eager'
+      if (!options_.kind_eager_simple_path_check_) {
+	if (ts_.statevars().size() && check_simple_path_lazy(i)) {
+	  return ProverResult::TRUE;
+	}
+      } else {
+	if (ts_.statevars().size() && check_simple_path_eager(i)) {
+	  return ProverResult::TRUE;
+	}
       }
     }
 
-//DELETE THIS
-//    res = solver_->check_sat();
-//    if (res.is_unsat()) {
-//      return ProverResult::TRUE;
-//    }
+    solver_->push();
+
+    // inductive case check
+    solver_->assert_formula(unroller_.at_time(bad_, i));
+    logger.log(1, "Checking k-induction inductive step at bound: {}", i);
+    res = solver_->check_sat();
+    if (res.is_unsat()) {
+      return ProverResult::TRUE;
+    }
 
     // base case check
     solver_->assert_formula(init0_);
@@ -197,8 +198,8 @@ bool KInduction::check_simple_path_eager(int i)
   for (int j = 0; (!no_simp_path_check && j < i); j++) {
     Term constraint = simple_path_constraint(j, i);
     logger.log(3, "   Adding simple path clause for pair 'j,i' = {},{}", j,i);
-    simple_path_ =
-      solver_->make_term(PrimOp::And, simple_path_, constraint);
+    //OBSOLETE simple_path_ =
+    //  solver_->make_term(PrimOp::And, simple_path_, constraint);
     solver_->assert_formula(constraint);
   }
 
@@ -248,8 +249,8 @@ bool KInduction::check_simple_path_lazy(int i)
 	logger.log(3, "    Checking constraint for pair j,l = {} , {}", j,l);
         if (solver_->get_value(constraint) == false_) {
 	  logger.log(3, "      Adding constraint for pair j,l = {} , {}", j,l);
-          simple_path_ =
-              solver_->make_term(PrimOp::And, simple_path_, constraint);
+          //OBSOLETE simple_path_ =
+          //OBSOLETE    solver_->make_term(PrimOp::And, simple_path_, constraint);
           added_to_simple_path = true;
           if (!no_multi_call) {
             solver_->assert_formula(constraint);
