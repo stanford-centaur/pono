@@ -142,7 +142,8 @@ class PonoOptions
         bmc_min_cex_linear_search_(default_bmc_min_cex_linear_search_),
         bmc_min_cex_less_inc_bin_search_(default_bmc_min_cex_less_inc_bin_search_),
         bmc_allow_non_minimal_cex_(default_bmc_allow_non_minimal_cex_),
-        kind_no_simple_path_check_(default_kind_no_simple_path_check_)
+        kind_no_simple_path_check_(default_kind_no_simple_path_check_),
+        kind_eager_simple_path_check_(default_kind_eager_simple_path_check_)
   {
   }
 
@@ -265,6 +266,8 @@ class PonoOptions
   bool bmc_allow_non_minimal_cex_;
   // K-induction: omit simple path check (might cause incompleteness)
   bool kind_no_simple_path_check_;
+  // K-induction: eager simple path check (default: lazy check)
+  bool kind_eager_simple_path_check_;
   
 private:
   // Default options
@@ -326,6 +329,7 @@ private:
   static const bool default_bmc_min_cex_less_inc_bin_search_ = false;
   static const bool default_bmc_allow_non_minimal_cex_ = false;
   static const bool default_kind_no_simple_path_check_ = false;
+  static const bool default_kind_eager_simple_path_check_ = false;
 };
 
 // Useful functions for printing etc...

@@ -41,6 +41,7 @@ class KInduction : public Prover
 
   smt::Term simple_path_constraint(int i, int j);
   bool check_simple_path_lazy(int i);
+  bool check_simple_path_eager(int i);
 
   smt::Term init0_;
   smt::Term false_;

@@ -64,9 +64,15 @@ ProverResult KInduction::check_until(int k)
       solver_->assert_formula(simple_path_);
     solver_->assert_formula(unroller_.at_time(bad_, i));
     logger.log(1, "Checking k-induction inductive step at bound: {}", i);
-    // solver call inside 'check_simple_path_lazy'
-    if (ts_.statevars().size() && check_simple_path_lazy(i)) {
-      return ProverResult::TRUE;
+    // solver call inside 'check_simple_path_lazy/eager'
+    if (!options_.kind_eager_simple_path_check_) {
+      if (ts_.statevars().size() && check_simple_path_lazy(i)) {
+	return ProverResult::TRUE;
+      }
+    } else {
+      if (ts_.statevars().size() && check_simple_path_eager(i)) {
+	return ProverResult::TRUE;
+      }
     }
 
 //DELETE THIS
@@ -178,10 +184,37 @@ Term KInduction::simple_path_constraint(int i, int j)
   return disj;
 }
 
+bool KInduction::check_simple_path_eager(int i)
+{
+  assert(options_.kind_eager_simple_path_check_);
+  logger.log(2, "  Eagerly checking k-induction simple path at bound: {}", i);
+
+  const bool no_simp_path_check = options_.kind_no_simple_path_check_;
+
+  //Here we assume that all pairs for values smaller than 'i' have been added
+  //If simple path checking is disabled then we still need the final
+  //solver call below for inductive case check
+  for (int j = 0; (!no_simp_path_check && j < i); j++) {
+    Term constraint = simple_path_constraint(j, i);
+    logger.log(3, "   Adding simple path clause for pair 'j,i' = {},{}", j,i);
+    simple_path_ =
+      solver_->make_term(PrimOp::And, simple_path_, constraint);
+    solver_->assert_formula(constraint);
+  }
+
+  logger.log(2, "    Calling solver for simple path check");
+  Result r = solver_->check_sat();
+  if (r.is_unsat()) {
+    logger.log(2, "      Simple path check UNSAT");
+    return true;
+  }
+
+  return false;
+}
+
 bool KInduction::check_simple_path_lazy(int i)
 {
-
-  logger.log(2, "  Checking k-induction simple path at bound: {}", i);
+  logger.log(2, "  Lazily checking k-induction simple path at bound: {}", i);
   bool added_to_simple_path = false;
 
   do {
