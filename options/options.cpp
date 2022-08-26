@@ -82,7 +82,8 @@ enum optionIndex
   BMC_MIN_CEX_LIN_SEARCH,
   BMC_MIN_CEX_LESS_INC_BIN_SEARCH,
   BMC_NEG_BAD_STEP_ALL,
-  BMC_ALLOW_NON_MINIMAL_CEX
+  BMC_ALLOW_NON_MINIMAL_CEX,
+  KIND_NO_SIMPLE_PATH_CHECK
 };
 
 struct Arg : public option::Arg
@@ -513,7 +514,14 @@ const option::Descriptor usage[] = {
     "  --bmc-allow-non-minimal-cex \tDo not search for minimal cex within an interval;"
     "instead, terminate immediately (reported bound of cex is an upper bound of actual cex)"
     },
-  
+  { KIND_NO_SIMPLE_PATH_CHECK,
+    0,
+    "",
+    "kind-no-simple-path-check",
+    Arg::None,
+    "  --kind-no-simple-path-check \tSkip simple path check in k-induction "
+    "  (WARNING: might cause incompleteness)"
+    },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -691,6 +699,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 	  bmc_min_cex_less_inc_bin_search_ = true; break;
         case BMC_ALLOW_NON_MINIMAL_CEX:
 	  bmc_allow_non_minimal_cex_ = true; break;
+        case KIND_NO_SIMPLE_PATH_CHECK: kind_no_simple_path_check_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

@@ -96,7 +96,8 @@ bool KInduction::inductive_step(int i)
   }
 
   solver_->push();
-  solver_->assert_formula(simple_path_);
+  if (!options_.kind_no_simple_path_check_)
+    solver_->assert_formula(simple_path_);
   solver_->assert_formula(unroller_.at_time(bad_, i + 1));
 
   if (ts_.statevars().size() && check_simple_path_lazy(i + 1)) {
@@ -112,6 +113,7 @@ bool KInduction::inductive_step(int i)
 
 Term KInduction::simple_path_constraint(int i, int j)
 {
+  assert(!options_.kind_no_simple_path_check_);
   assert(ts_.statevars().size());
 
   Term disj = false_;
@@ -135,6 +137,12 @@ bool KInduction::check_simple_path_lazy(int i)
     if (r.is_unsat()) {
       return true;
     }
+
+    // We need the above check_sat call if simple path checks are
+    // disabled because it is part of the inductive step check. Hence
+    // we return immediately here and skip simple path checking.
+    if (options_.kind_no_simple_path_check_)
+      return false;
 
     added_to_simple_path = false;
 
