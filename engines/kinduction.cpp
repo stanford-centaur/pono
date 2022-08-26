@@ -52,8 +52,41 @@ void KInduction::initialize()
 ProverResult KInduction::check_until(int k)
 {
   initialize();
+  assert(reached_k_ == -1);
 
+  Result res;
   for (int i = reached_k_ + 1; i <= k; ++i) {
+
+    solver_->push();
+
+    // inductive case check
+    //TBA ADD SIMPLE PATH CHECK
+    solver_->assert_formula(unroller_.at_time(bad_, i));
+    logger.log(1, "Checking k-induction inductive step at bound: {}", i);
+    res = solver_->check_sat();
+    if (res.is_unsat()) {
+      return ProverResult::TRUE;
+    }
+
+    // base case check
+    solver_->assert_formula(init0_);
+    logger.log(1, "Checking k-induction base case at bound: {}", i);
+    res = solver_->check_sat();
+    if (res.is_sat()) {
+      compute_witness();
+      return ProverResult::FALSE;
+    }
+
+    solver_->pop();
+
+    // add transition and negated bad state property
+    solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
+    solver_->assert_formula(unroller_.at_time(solver_->make_term(Not, bad_), i));
+
+    reached_k_++;
+    
+#if 0    
+    ///////////////////////////////////
     logger.log(1, "Checking k-induction base case at bound: {}", i);
     if (!base_step(i)) {
       compute_witness();
@@ -63,12 +96,19 @@ ProverResult KInduction::check_until(int k)
     if (inductive_step(i)) {
       return ProverResult::TRUE;
     }
-  }
+    /////////////////////////////////// 
+ #endif
+    
+  } //end: for all bounds
+  
   return ProverResult::UNKNOWN;
 }
 
 bool KInduction::base_step(int i)
 {
+  //TODO function deprecated
+  abort();
+
   if (i <= reached_k_) {
     return true;
   }
@@ -91,6 +131,9 @@ bool KInduction::base_step(int i)
 
 bool KInduction::inductive_step(int i)
 {
+  //TODO function deprecated
+  abort();
+
   if (i <= reached_k_) {
     return false;
   }
