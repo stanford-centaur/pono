@@ -188,7 +188,7 @@ Term KInduction::simple_path_constraint(int i, int j)
 bool KInduction::check_simple_path_eager(int i)
 {
   assert(options_.kind_eager_simple_path_check_);
-  logger.log(2, "  Eagerly checking k-induction simple path at bound: {}", i);
+  logger.log(1, "Eagerly checking k-induction simple path at bound: {}", i);
 
   const bool no_simp_path_check = options_.kind_no_simple_path_check_;
 
@@ -215,7 +215,7 @@ bool KInduction::check_simple_path_eager(int i)
 
 bool KInduction::check_simple_path_lazy(int i)
 {
-  logger.log(2, "  Lazily checking k-induction simple path at bound: {}", i);
+  logger.log(1, "Lazily checking k-induction simple path at bound: {}", i);
   bool added_to_simple_path = false;
 
   // If no_multi_call == true, then we add as many simple path
