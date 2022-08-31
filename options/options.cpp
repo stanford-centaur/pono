@@ -85,7 +85,8 @@ enum optionIndex
   BMC_ALLOW_NON_MINIMAL_CEX,
   KIND_NO_SIMPLE_PATH_CHECK,
   KIND_EAGER_SIMPLE_PATH_CHECK,
-  KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK
+  KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK,
+  KIND_IND_CHECK_INIT_STATES
 };
 
 struct Arg : public option::Arg
@@ -540,6 +541,14 @@ const option::Descriptor usage[] = {
     "  --kind-no-multi-call-simple-path-check \tTry to avoid multiple solver calls "
     "    in lazy simple path check in k-induction"
     },
+  { KIND_IND_CHECK_INIT_STATES,
+    0,
+    "",
+    "kind-ind-check-init-states",
+    Arg::None,
+    "  --kind-ind-check-init-states \tK-induction: check inductive case based"
+    "    on initial states in addition to property check"
+    },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -720,6 +729,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case KIND_NO_SIMPLE_PATH_CHECK: kind_no_simple_path_check_ = true; break;
         case KIND_EAGER_SIMPLE_PATH_CHECK: kind_eager_simple_path_check_ = true; break;
         case KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK: kind_no_multi_call_simple_path_check_ = true; break;
+        case KIND_IND_CHECK_INIT_STATES: kind_ind_check_init_states_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

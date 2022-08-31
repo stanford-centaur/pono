@@ -144,7 +144,8 @@ class PonoOptions
         bmc_allow_non_minimal_cex_(default_bmc_allow_non_minimal_cex_),
         kind_no_simple_path_check_(default_kind_no_simple_path_check_),
         kind_eager_simple_path_check_(default_kind_eager_simple_path_check_),
-        kind_no_multi_call_simple_path_check_(default_kind_no_multi_call_simple_path_check_)
+        kind_no_multi_call_simple_path_check_(default_kind_no_multi_call_simple_path_check_),
+        kind_ind_check_init_states_(default_kind_ind_check_init_states_)
   {
   }
 
@@ -271,6 +272,8 @@ class PonoOptions
   bool kind_eager_simple_path_check_;
   // K-induction: no multi-call simple path check
   bool kind_no_multi_call_simple_path_check_;
+  // K-induction: check inductive case based on initial states also
+  bool kind_ind_check_init_states_;
   
 private:
   // Default options
@@ -334,6 +337,7 @@ private:
   static const bool default_kind_no_simple_path_check_ = false;
   static const bool default_kind_eager_simple_path_check_ = false;
   static const bool default_kind_no_multi_call_simple_path_check_ = false;
+  static const bool default_kind_ind_check_init_states_ = false;
 };
 
 // Useful functions for printing etc...

@@ -74,6 +74,29 @@ ProverResult KInduction::check_until(int k)
 
     solver_->push();
 
+    if (options_.kind_ind_check_init_states_) {
+      // inductive case check based on initial state predicates like in
+      // Sheeran et al 2003: assert that s_0 is an initial state and no
+      // other state s_1,...,s_{i} is an initial state + simple path
+      // constraints.
+      // NOTE: we do this check in a new push/pop frame, which does not
+      // benefit from incrementality. At least, we should build a
+      // conjunction of initial state constraints that is added back and
+      // where we append a new conjunct for each time step.
+      solver_->push();
+      solver_->assert_formula(init0_);
+      for (int j = 1; j <= i; j++) {
+	solver_->assert_formula(unroller_.at_time(
+				  solver_->make_term(Not, ts_.init()), j));
+      }
+      logger.log(1, "Checking k-induction inductive step (initial states) at bound: {}", i);
+      res = solver_->check_sat();
+      if (res.is_unsat()) {
+	return ProverResult::TRUE;
+      }
+      solver_->pop();
+    }
+
     // inductive case check
     solver_->assert_formula(unroller_.at_time(bad_, i));
     logger.log(1, "Checking k-induction inductive step at bound: {}", i);
