@@ -47,6 +47,7 @@ void KInduction::initialize()
   init0_ = unroller_.at_time(ts_.init(), 0);
   false_ = solver_->make_term(false);
   simple_path_ = solver_->make_term(true);
+  neg_init_terms_ = solver_->make_term(true);
 }
 
 ProverResult KInduction::check_until(int k)
@@ -74,7 +75,7 @@ ProverResult KInduction::check_until(int k)
 
     solver_->push();
 
-    if (options_.kind_ind_check_init_states_) {
+    if (i >= 1 && options_.kind_ind_check_init_states_) {
       // inductive case check based on initial state predicates like in
       // Sheeran et al 2003: assert that s_0 is an initial state and no
       // other state s_1,...,s_{i} is an initial state + simple path
@@ -85,10 +86,10 @@ ProverResult KInduction::check_until(int k)
       // where we append a new conjunct for each time step.
       solver_->push();
       solver_->assert_formula(init0_);
-      for (int j = 1; j <= i; j++) {
-	solver_->assert_formula(unroller_.at_time(
-				  solver_->make_term(Not, ts_.init()), j));
-      }
+      smt::Term neg_init_at_i = unroller_.at_time(
+	solver_->make_term(Not, ts_.init()), i);
+      neg_init_terms_ = solver_->make_term(And, neg_init_terms_, neg_init_at_i);
+      solver_->assert_formula(neg_init_terms_);
       logger.log(1, "Checking k-induction inductive step (initial states) at bound: {}", i);
       res = solver_->check_sat();
       if (res.is_unsat()) {
