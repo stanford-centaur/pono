@@ -125,6 +125,15 @@ bool Bmc::step(int i)
   if (r.is_sat()) {
     logger.log(1, "  BMC: check at bound {} satisfiable", i);
     res = false;
+    if (options_.bmc_allow_non_minimal_cex_) {
+      // Terminate immediately; the reported bound 'reached_k' of the
+      // cex is an upper bound of the actual cex within the interval
+      // that was tested most recently. Option
+      // 'options_.bmc_allow_non_minimal_cex' makes sense only if
+      // 'options.bmc_bound_step > 1'.
+      reached_k_ = i - 1;
+      return res;
+    }
     if (cex_guarantee) {
       logger.log(2, "BMC: saving reached_k_ = {}", reached_k_);
       int reached_k_saved = reached_k_;

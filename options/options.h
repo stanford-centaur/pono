@@ -140,7 +140,8 @@ class PonoOptions
         bmc_neg_bad_step_(default_bmc_neg_bad_step_),
         bmc_neg_bad_step_all_(default_bmc_neg_bad_step_all_),
         bmc_min_cex_linear_search_(default_bmc_min_cex_linear_search_),
-        bmc_min_cex_less_inc_bin_search_(default_bmc_min_cex_less_inc_bin_search_)
+        bmc_min_cex_less_inc_bin_search_(default_bmc_min_cex_less_inc_bin_search_),
+        bmc_allow_non_minimal_cex_(default_bmc_allow_non_minimal_cex_)
   {
   }
 
@@ -256,6 +257,11 @@ class PonoOptions
   bool bmc_min_cex_linear_search_;
   // BMC: apply less incremental binary search
   bool bmc_min_cex_less_inc_bin_search_;
+  // BMC: when using disjunctive bad state property, skip the
+  // minimization phase after an interval containing a cex was found,
+  // i.e., skip binary or linear search for shortest cex in that
+  // interval
+  bool bmc_allow_non_minimal_cex_;
   
 private:
   // Default options
@@ -315,6 +321,7 @@ private:
   static const bool default_bmc_neg_bad_step_all_ = false;
   static const bool default_bmc_min_cex_linear_search_ = false;
   static const bool default_bmc_min_cex_less_inc_bin_search_ = false;
+  static const bool default_bmc_allow_non_minimal_cex_ = false;
 };
 
 // Useful functions for printing etc...
