@@ -100,7 +100,7 @@ TEST_P(EngineUnitTests, KInductionTrue)
 {
   SmtSolver s = create_solver(se);
   KInduction kind(*true_p, *ts, s);
-  ProverResult r = kind.check_until(21);
+  ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
@@ -108,7 +108,7 @@ TEST_P(EngineUnitTests, KInductionFalse)
 {
   SmtSolver s = create_solver(se);
   KInduction kind(*false_p, *ts, s);
-  ProverResult r = kind.check_until(21);
+  ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
@@ -231,7 +231,7 @@ TEST_P(InterpWinTests, BmcSimplePathFail)
 TEST_P(InterpWinTests, KInductionFail)
 {
   KInduction kind(*true_p, *ts, s);
-  ProverResult r = kind.check_until(11);
+  ProverResult r = kind.check_until(10);
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
