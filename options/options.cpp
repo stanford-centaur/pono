@@ -86,7 +86,8 @@ enum optionIndex
   KIND_NO_SIMPLE_PATH_CHECK,
   KIND_EAGER_SIMPLE_PATH_CHECK,
   KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK,
-  KIND_IND_CHECK_INIT_STATES
+  KIND_IND_CHECK_INIT_STATES,
+  KIND_NO_IND_CHECK
 };
 
 struct Arg : public option::Arg
@@ -549,6 +550,14 @@ const option::Descriptor usage[] = {
     "  --kind-ind-check-init-states \tK-induction: check inductive case based"
     "    on initial states in addition to property check"
     },
+  { KIND_NO_IND_CHECK,
+    0,
+    "",
+    "kind-no-ind-check",
+    Arg::None,
+    "  --kind-no-ind-check \tK-induction: skip inductive case check"
+    " (WARNING: will cause incompleteness on most problem instances)"
+    },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -730,6 +739,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case KIND_EAGER_SIMPLE_PATH_CHECK: kind_eager_simple_path_check_ = true; break;
         case KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK: kind_no_multi_call_simple_path_check_ = true; break;
         case KIND_IND_CHECK_INIT_STATES: kind_ind_check_init_states_ = true; break;
+        case KIND_NO_IND_CHECK: kind_no_ind_check_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

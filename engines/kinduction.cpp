@@ -75,7 +75,8 @@ ProverResult KInduction::check_until(int k)
 
     solver_->push();
 
-    if (i >= 1 && options_.kind_ind_check_init_states_) {
+    if (i >= 1 && options_.kind_ind_check_init_states_ &&
+       !options_.kind_no_ind_check_) {
       // inductive case check based on initial state predicates like in
       // Sheeran et al 2003: assert that s_0 is an initial state and no
       // other state s_1,...,s_{i} is an initial state + simple path
@@ -98,12 +99,16 @@ ProverResult KInduction::check_until(int k)
       solver_->pop();
     }
 
-    // inductive case check
+    // for inductive case and base case: add bad state predicate
     solver_->assert_formula(unroller_.at_time(bad_, i));
-    logger.log(1, "Checking k-induction inductive step at bound: {}", i);
-    res = solver_->check_sat();
-    if (res.is_unsat()) {
-      return ProverResult::TRUE;
+
+    // inductive case check
+    if (!options_.kind_no_ind_check_) {
+      logger.log(1, "Checking k-induction inductive step at bound: {}", i);
+      res = solver_->check_sat();
+      if (res.is_unsat()) {
+	return ProverResult::TRUE;
+      }
     }
 
     // base case check
