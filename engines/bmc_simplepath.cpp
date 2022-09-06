@@ -28,6 +28,9 @@ BmcSimplePath::BmcSimplePath(const Property & p, const TransitionSystem & ts,
   : super(p, ts, solver, opt)
 {
   engine_ = Engine::BMC_SP;
+  // BMC with simple path checking is a special instance of
+  // k-induction; disable inductive case checking
+  options_.kind_no_ind_check_ = true;
 }
 
 BmcSimplePath::~BmcSimplePath() {}
@@ -35,41 +38,7 @@ BmcSimplePath::~BmcSimplePath() {}
 ProverResult BmcSimplePath::check_until(int k)
 {
   initialize();
-
-  for (int i = 0; i <= k; ++i) {
-    logger.log(1, "Checking Bmc at bound: {}", i);
-    if (!base_step(i)) {
-      compute_witness();
-      return ProverResult::FALSE;
-    }
-    logger.log(1, "Checking simple path at bound: {}", i);
-    if (cover_step(i)) {
-      return ProverResult::TRUE;
-    }
-  }
-  return ProverResult::UNKNOWN;
-}
-
-bool BmcSimplePath::cover_step(int i)
-{
-  if (i <= reached_k_) {
-    return false;
-  }
-
-  solver_->push();
-  solver_->assert_formula(init0_);
-  Term not_init = solver_->make_term(PrimOp::Not, ts_.init());
-  for (int j = 1; j <= i; ++j) {
-    solver_->assert_formula(unroller_.at_time(not_init, j));
-  }
-  if (ts_.statevars().size() && check_simple_path_lazy(i)) {
-    return true;
-  }
-  solver_->pop();
-
-  ++reached_k_;
-
-  return false;
+  super::check_until(k);
 }
 
 }  // namespace pono
