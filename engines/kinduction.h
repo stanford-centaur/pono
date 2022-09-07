@@ -42,7 +42,6 @@ class KInduction : public Prover
 
   smt::Term init0_;
   smt::Term false_;
-  smt::Term simple_path_;
   smt::Term neg_init_terms_;
 
   // Engine name used to print progress information used when running

@@ -47,7 +47,6 @@ void KInduction::initialize()
   // supported in boolector
   init0_ = unroller_.at_time(ts_.init(), 0);
   false_ = solver_->make_term(false);
-  simple_path_ = solver_->make_term(true);
   neg_init_terms_ = solver_->make_term(true);
 }
 
@@ -64,7 +63,6 @@ ProverResult KInduction::check_until(int k)
 
     // simple path check
     if (!options_.kind_no_simple_path_check_) {
-      //OBSOLETE  solver_->assert_formula(simple_path_);
       // solver call inside 'check_simple_path_lazy/eager'
       if (!options_.kind_eager_simple_path_check_) {
 	if (ts_.statevars().size() && check_simple_path_lazy(i)) {
@@ -166,8 +164,6 @@ bool KInduction::check_simple_path_eager(int i)
   for (int j = 0; (!no_simp_path_check && j < i); j++) {
     Term constraint = simple_path_constraint(j, i);
     kind_log_msg(3, "   ", "adding simple path clause for pair 'j,i' = {},{}", j,i);
-    //OBSOLETE simple_path_ =
-    //  solver_->make_term(PrimOp::And, simple_path_, constraint);
     solver_->assert_formula(constraint);
   }
 
@@ -217,8 +213,6 @@ bool KInduction::check_simple_path_lazy(int i)
 	kind_log_msg(3, "    ", "checking constraint for pair j,l = {} , {}", j,l);
         if (solver_->get_value(constraint) == false_) {
 	  kind_log_msg(3, "      ", "adding constraint for pair j,l = {} , {}", j,l);
-          //OBSOLETE simple_path_ =
-          //OBSOLETE    solver_->make_term(PrimOp::And, simple_path_, constraint);
           added_to_simple_path = true;
           if (!no_multi_call) {
             solver_->assert_formula(constraint);
