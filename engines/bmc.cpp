@@ -218,7 +218,7 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
 // Add negated bad state predicate for all bounds in interval '[start,end]'.
 // This way, we restrict the search space of the solver to disregard these
 // bounds when searching for a cex.
-int Bmc::bmc_interval_block_cex_ub(const int start, const int end)
+void Bmc::bmc_interval_block_cex_ub(const int start, const int end)
 {
   logger.log(2, "BMC: get cex upper bound, permanently blocking [start,end] = [{},{}]", start, end); 
   for (int k = start; k <= end; k++) {

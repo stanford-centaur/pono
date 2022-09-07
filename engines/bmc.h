@@ -50,7 +50,7 @@ public:
   // Add negated bad state predicate for all bounds in interval '[start,end]'.
   // This way, we restrict the search space of the solver to disregard these
   // bounds when searching for a cex.
-  int bmc_interval_block_cex_ub(const int start, const int end);
+  void bmc_interval_block_cex_ub(const int start, const int end);
   // Run linear search for cex within interval '[reached_k_ + 1, upper_bound]'
   void find_shortest_cex_linear_search(const int upper_bound);
   // Run binary search for cex within interval '[reached_k_ + 1, upper_bound]'.
