@@ -36,9 +36,6 @@ class KInduction : public Prover
   ProverResult check_until(int k) override;
 
  protected:
-  bool base_step(int i);
-  bool inductive_step(int i);
-
   smt::Term simple_path_constraint(int i, int j);
   bool check_simple_path_lazy(int i);
   bool check_simple_path_eager(int i);

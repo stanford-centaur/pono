@@ -136,56 +136,6 @@ ProverResult KInduction::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-bool KInduction::base_step(int i)
-{
-  //TODO function deprecated
-  abort();
-
-  if (i <= reached_k_) {
-    return true;
-  }
-
-  solver_->push();
-  solver_->assert_formula(init0_);
-  solver_->assert_formula(unroller_.at_time(bad_, i));
-  Result r = solver_->check_sat();
-  if (r.is_sat()) {
-    return false;
-  }
-  solver_->pop();
-
-  const Term &prop = solver_->make_term(Not, bad_);
-  solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
-  solver_->assert_formula(unroller_.at_time(prop, i));
-
-  return true;
-}
-
-bool KInduction::inductive_step(int i)
-{
-  //TODO function deprecated
-  abort();
-
-  if (i <= reached_k_) {
-    return false;
-  }
-
-  solver_->push();
-  if (!options_.kind_no_simple_path_check_)
-    solver_->assert_formula(simple_path_);
-  solver_->assert_formula(unroller_.at_time(bad_, i + 1));
-
-  if (ts_.statevars().size() && check_simple_path_lazy(i + 1)) {
-    return true;
-  }
-
-  solver_->pop();
-
-  ++reached_k_;
-
-  return false;
-}
-
 Term KInduction::simple_path_constraint(int i, int j)
 {
   assert(!options_.kind_no_simple_path_check_);
