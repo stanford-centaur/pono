@@ -39,7 +39,7 @@ BmcSimplePath::~BmcSimplePath() {}
 ProverResult BmcSimplePath::check_until(int k)
 {
   initialize();
-  super::check_until(k);
+  return super::check_until(k);
 }
 
 }  // namespace pono
