@@ -28,6 +28,7 @@ BmcSimplePath::BmcSimplePath(const Property & p, const TransitionSystem & ts,
   : super(p, ts, solver, opt)
 {
   engine_ = Engine::BMC_SP;
+  kind_engine_name_ = "BMC-SP";
   // BMC with simple path checking is a special instance of
   // k-induction; disable inductive case checking
   options_.kind_no_ind_check_ = true;

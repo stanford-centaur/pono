@@ -27,6 +27,7 @@ KInduction::KInduction(const Property & p, const TransitionSystem & ts,
   : super(p, ts, solver, opt)
 {
   engine_ = Engine::KIND;
+  kind_engine_name_ = "k-induction";
 }
 
 KInduction::~KInduction() {}
@@ -57,6 +58,9 @@ ProverResult KInduction::check_until(int k)
 
   Result res;
   for (int i = reached_k_ + 1; i <= k; ++i) {
+
+    logger.log(1, "");
+    kind_log_msg(1, "", "current unrolling depth/bound: {}", i);
 
     // simple path check
     if (!options_.kind_no_simple_path_check_) {
@@ -91,7 +95,7 @@ ProverResult KInduction::check_until(int k)
 	solver_->make_term(Not, ts_.init()), i);
       neg_init_terms_ = solver_->make_term(And, neg_init_terms_, neg_init_at_i);
       solver_->assert_formula(neg_init_terms_);
-      logger.log(1, "Checking k-induction inductive step (initial states) at bound: {}", i);
+      kind_log_msg(1, "", "checking inductive step (initial states) at bound: {}", i);
       res = solver_->check_sat();
       if (res.is_unsat()) {
 	return ProverResult::TRUE;
@@ -104,7 +108,7 @@ ProverResult KInduction::check_until(int k)
 
     // inductive case check
     if (!options_.kind_no_ind_check_) {
-      logger.log(1, "Checking k-induction inductive step at bound: {}", i);
+      kind_log_msg(1, "", "checking inductive step at bound: {}", i);
       res = solver_->check_sat();
       if (res.is_unsat()) {
 	return ProverResult::TRUE;
@@ -113,7 +117,7 @@ ProverResult KInduction::check_until(int k)
 
     // base case check
     solver_->assert_formula(init0_);
-    logger.log(1, "Checking k-induction base case at bound: {}", i);
+    kind_log_msg(1, "", "checking base case at bound: {}", i);
     res = solver_->check_sat();
     if (res.is_sat()) {
       compute_witness();
@@ -127,21 +131,6 @@ ProverResult KInduction::check_until(int k)
     solver_->assert_formula(unroller_.at_time(solver_->make_term(Not, bad_), i));
 
     reached_k_++;
-    
-#if 0    
-    ///////////////////////////////////
-    logger.log(1, "Checking k-induction base case at bound: {}", i);
-    if (!base_step(i)) {
-      compute_witness();
-      return ProverResult::FALSE;
-    }
-    logger.log(1, "Checking k-induction inductive step at bound: {}", i);
-    if (inductive_step(i)) {
-      return ProverResult::TRUE;
-    }
-    /////////////////////////////////// 
- #endif
-    
   } //end: for all bounds
   
   return ProverResult::UNKNOWN;
@@ -217,7 +206,7 @@ Term KInduction::simple_path_constraint(int i, int j)
 bool KInduction::check_simple_path_eager(int i)
 {
   assert(options_.kind_eager_simple_path_check_);
-  logger.log(1, "Eagerly checking k-induction simple path at bound: {}", i);
+  kind_log_msg(1, "", "checking simple path (eager) at bound: {}", i);
 
   const bool no_simp_path_check = options_.kind_no_simple_path_check_;
 
@@ -226,16 +215,16 @@ bool KInduction::check_simple_path_eager(int i)
   //solver call below for inductive case check
   for (int j = 0; (!no_simp_path_check && j < i); j++) {
     Term constraint = simple_path_constraint(j, i);
-    logger.log(3, "   Adding simple path clause for pair 'j,i' = {},{}", j,i);
+    kind_log_msg(3, "   ", "adding simple path clause for pair 'j,i' = {},{}", j,i);
     //OBSOLETE simple_path_ =
     //  solver_->make_term(PrimOp::And, simple_path_, constraint);
     solver_->assert_formula(constraint);
   }
 
-  logger.log(2, "    Calling solver for simple path check");
+  kind_log_msg(2, "    ", "calling solver for simple path check");
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
-    logger.log(2, "      Simple path check UNSAT");
+    kind_log_msg(2, "      ", "simple path check UNSAT");
     return true;
   }
 
@@ -244,7 +233,7 @@ bool KInduction::check_simple_path_eager(int i)
 
 bool KInduction::check_simple_path_lazy(int i)
 {
-  logger.log(1, "Lazily checking k-induction simple path at bound: {}", i);
+  kind_log_msg(1, "", "checking simple path (lazy) at bound: {}", i);
   bool added_to_simple_path = false;
 
   // If no_multi_call == true, then we add as many simple path
@@ -257,10 +246,10 @@ bool KInduction::check_simple_path_lazy(int i)
   
   do {
     assert(vec.size() == 0);
-    logger.log(2, "    Calling solver for simple path check");
+    kind_log_msg(2, "    ", "calling solver for simple path check");
     Result r = solver_->check_sat();
     if (r.is_unsat()) {
-      logger.log(2, "      Simple path check UNSAT");
+      kind_log_msg(2, "      ", "simple path check UNSAT");
       return true;
     }
 
@@ -275,9 +264,9 @@ bool KInduction::check_simple_path_lazy(int i)
     for (int j = 0; j < i && (no_multi_call || !added_to_simple_path); ++j) {
       for (int l = j + 1; l <= i; ++l) {
         Term constraint = simple_path_constraint(j, l);
-	logger.log(3, "    Checking constraint for pair j,l = {} , {}", j,l);
+	kind_log_msg(3, "    ", "checking constraint for pair j,l = {} , {}", j,l);
         if (solver_->get_value(constraint) == false_) {
-	  logger.log(3, "      Adding constraint for pair j,l = {} , {}", j,l);
+	  kind_log_msg(3, "      ", "adding constraint for pair j,l = {} , {}", j,l);
           //OBSOLETE simple_path_ =
           //OBSOLETE    solver_->make_term(PrimOp::And, simple_path_, constraint);
           added_to_simple_path = true;
@@ -300,6 +289,13 @@ bool KInduction::check_simple_path_lazy(int i)
   } while (added_to_simple_path);
 
   return false;
+}
+
+template <typename... Args>
+void KInduction::kind_log_msg(size_t level, const std::string & indent,
+			      const std::string & format, const Args &... args)
+{
+  logger.log(level, indent + kind_engine_name_ + " " + format, args...);
 }
 
 }  // namespace pono

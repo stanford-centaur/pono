@@ -48,6 +48,16 @@ class KInduction : public Prover
   smt::Term simple_path_;
   smt::Term neg_init_terms_;
 
+  // Engine name used to print progress information used when running
+  // k-induction and BMC + simple paths (a subclass of KInduction)
+  std::string kind_engine_name_;
+  // Wrapper function for logging feature. It takes the same
+  // parameters as "logger.log(...)" except for string 'indent', which
+  // is a string of space characters. The function calls
+  // "logger.log(...)" and prepends the engine name to the output.
+  template <typename... Args>
+    void kind_log_msg(size_t level, const std::string & indent,
+		      const std::string & format, const Args &... args);
 };  // class KInduction
 
 }  // namespace pono
