@@ -524,7 +524,7 @@ const option::Descriptor usage[] = {
     "kind-no-simple-path-check",
     Arg::None,
     "  --kind-no-simple-path-check \tSkip simple path check in k-induction "
-    "  (WARNING: might cause incompleteness)"
+    "(WARNING: might cause incompleteness)"
     },
   { KIND_EAGER_SIMPLE_PATH_CHECK,
     0,
@@ -532,7 +532,7 @@ const option::Descriptor usage[] = {
     "kind-eager-simple-path-check",
     Arg::None,
     "  --kind-eager-simple-path-check \tEager simple path check in k-induction "
-    "  (default: lazy check)"
+    "(default: lazy check)"
     },
   { KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK,
     0,
@@ -540,23 +540,23 @@ const option::Descriptor usage[] = {
     "kind-no-multi-call-simple-path-check",
     Arg::None,
     "  --kind-no-multi-call-simple-path-check \tTry to avoid multiple solver calls "
-    "    in lazy simple path check in k-induction"
+    "in lazy simple path check in k-induction"
     },
   { KIND_IND_CHECK_INIT_STATES,
     0,
     "",
     "kind-ind-check-init-states",
     Arg::None,
-    "  --kind-ind-check-init-states \tK-induction: check inductive case based"
-    "    on initial states in addition to property check"
+    "  --kind-ind-check-init-states \tK-induction: check inductive case based "
+    "on initial states in addition to property check"
     },
   { KIND_NO_IND_CHECK,
     0,
     "",
     "kind-no-ind-check",
     Arg::None,
-    "  --kind-no-ind-check \tK-induction: skip inductive case check"
-    " (WARNING: will cause incompleteness on most problem instances)"
+    "  --kind-no-ind-check \tK-induction: skip inductive case check "
+    "(WARNING: will cause incompleteness on most problem instances)"
     },
   { 0, 0, 0, 0, 0, 0 }
 };
