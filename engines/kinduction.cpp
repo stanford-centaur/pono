@@ -125,6 +125,10 @@ ProverResult KInduction::check_until(int k)
     solver_->pop();
 
     // add transition and negated bad state property
+    // it is sound to add the negated bad state property for use in
+    // next base case checks and inductive case checks (initial
+    // states) because we proved in base check that it is implied when
+    // assuming initial state predicate
     solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
     solver_->assert_formula(unroller_.at_time(solver_->make_term(Not, bad_), i));
 
