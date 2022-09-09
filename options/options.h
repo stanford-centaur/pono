@@ -145,7 +145,7 @@ class PonoOptions
         kind_no_simple_path_check_(default_kind_no_simple_path_check_),
         kind_eager_simple_path_check_(default_kind_eager_simple_path_check_),
         kind_no_multi_call_simple_path_check_(default_kind_no_multi_call_simple_path_check_),
-        kind_ind_check_init_states_(default_kind_ind_check_init_states_),
+        kind_no_ind_check_init_states_(default_kind_no_ind_check_init_states_),
         kind_no_ind_check_(default_kind_no_ind_check_)
   {
   }
@@ -273,8 +273,8 @@ class PonoOptions
   bool kind_eager_simple_path_check_;
   // K-induction: no multi-call simple path check
   bool kind_no_multi_call_simple_path_check_;
-  // K-induction: check inductive case based on initial states also
-  bool kind_ind_check_init_states_;
+  // K-induction: skip inductive case check based on initial states
+  bool kind_no_ind_check_init_states_;
   // K-induction: skip inductive case check (EXPERT OPTION: will cause
   // incompleteness for most problem instances)
   bool kind_no_ind_check_;
@@ -341,7 +341,7 @@ private:
   static const bool default_kind_no_simple_path_check_ = false;
   static const bool default_kind_eager_simple_path_check_ = false;
   static const bool default_kind_no_multi_call_simple_path_check_ = false;
-  static const bool default_kind_ind_check_init_states_ = false;
+  static const bool default_kind_no_ind_check_init_states_ = false;
   static const bool default_kind_no_ind_check_ = false;
 };
 
