@@ -71,9 +71,12 @@ def test_kind(create_solver):
     prop, ts = build_simple_alu_fts(s)
 
     kind = pono.KInduction(prop, ts, s)
-    res = kind.check_until(10)
+    res = kind.check_until(1)
 
-    assert res is None, "KInduction shouldn't be able to solve this property"
+    # NOTE: k-induction uses a stronger termination criterion based on
+    # initial states by default (newly added), which allows it to prove the
+    # property with only one unrolling.
+    assert res is True, "KInduction should be able to solve this property"
 
 
 @pytest.mark.parametrize("solver_and_interpolator", available_solvers.solver_and_interpolators.values())
