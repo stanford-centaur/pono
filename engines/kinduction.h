@@ -44,6 +44,15 @@ class KInduction : public Prover
   smt::Term false_;
   smt::Term neg_init_terms_;
 
+  // selector variable used to toggle addition of
+  // initial state predicate 'init0_'. We add a term '(sel_init_ OR init0_)'
+  // and then assert either 'sel_init_' to effectively disable 'init0_' or
+  // its negation 'not_sel_init_' to enable it.
+  smt::Term sel_init_;
+  smt::Term not_sel_init_;
+  // 'sel_assumption_' is passed to solver's 'check_sat_assuming(...)' function
+  smt::TermVec sel_assumption_;
+
   // Engine name used to print progress information used when running
   // k-induction and BMC + simple paths (a subclass of KInduction)
   std::string kind_engine_name_;

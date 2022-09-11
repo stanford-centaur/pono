@@ -48,6 +48,12 @@ void KInduction::initialize()
   init0_ = unroller_.at_time(ts_.init(), 0);
   false_ = solver_->make_term(false);
   neg_init_terms_ = solver_->make_term(true);
+  // selector literal to toggle initial state predicate
+  Sort boolsort = solver_->make_sort(smt::BOOL);
+  sel_init_ = solver_->make_symbol("sel_init", boolsort);
+  not_sel_init_ = solver_->make_term(Not, sel_init_);
+  //permanently add term '(sel_init0_ OR init0_)'
+  solver_->assert_formula(solver_->make_term(PrimOp::Or, sel_init_, init0_));
 }
 
 ProverResult KInduction::check_until(int k)
@@ -60,6 +66,12 @@ ProverResult KInduction::check_until(int k)
 
     logger.log(1, "");
     kind_log_msg(1, "", "current unrolling depth/bound: {}", i);
+
+    //disable initial state predicate
+    if (!sel_assumption_.empty())
+      sel_assumption_.pop_back();
+    assert(sel_assumption_.size() == 0);
+    sel_assumption_.push_back(sel_init_);
 
     // simple path check
     if (!options_.kind_no_simple_path_check_) {
@@ -74,8 +86,6 @@ ProverResult KInduction::check_until(int k)
 	}
       }
     }
-
-    solver_->push();
 
     if (i >= 1 && !options_.kind_no_ind_check_init_states_ &&
        !options_.kind_no_ind_check_) {
@@ -94,12 +104,15 @@ ProverResult KInduction::check_until(int k)
       neg_init_terms_ = solver_->make_term(And, neg_init_terms_, neg_init_at_i);
       solver_->assert_formula(neg_init_terms_);
       kind_log_msg(1, "", "checking inductive step (initial states) at bound: {}", i);
-      res = solver_->check_sat();
+      res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
 	return ProverResult::TRUE;
       }
       solver_->pop();
     }
+
+    // open new frame; this is to be able to remove bad state predicate added next
+    solver_->push();
 
     // for inductive case and base case: add bad state predicate
     solver_->assert_formula(unroller_.at_time(bad_, i));
@@ -107,16 +120,21 @@ ProverResult KInduction::check_until(int k)
     // inductive case check
     if (!options_.kind_no_ind_check_) {
       kind_log_msg(1, "", "checking inductive step (property) at bound: {}", i);
-      res = solver_->check_sat();
+      res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
 	return ProverResult::TRUE;
       }
     }
 
     // base case check
-    solver_->assert_formula(init0_);
+
+    //enable initial state predicate
+    assert(sel_assumption_.size() == 1);
+    sel_assumption_.pop_back();
+    sel_assumption_.push_back(not_sel_init_);
+
     kind_log_msg(1, "", "checking base case at bound: {}", i);
-    res = solver_->check_sat();
+    res = solver_->check_sat_assuming(sel_assumption_);
     if (res.is_sat()) {
       compute_witness();
       return ProverResult::FALSE;
@@ -172,7 +190,7 @@ bool KInduction::check_simple_path_eager(int i)
   }
 
   kind_log_msg(2, "    ", "calling solver for simple path check");
-  Result r = solver_->check_sat();
+  Result r = solver_->check_sat_assuming(sel_assumption_);
   if (r.is_unsat()) {
     kind_log_msg(2, "      ", "simple path check UNSAT");
     return true;
@@ -197,7 +215,7 @@ bool KInduction::check_simple_path_lazy(int i)
   do {
     assert(vec.size() == 0);
     kind_log_msg(2, "    ", "calling solver for simple path check");
-    Result r = solver_->check_sat();
+    Result r = solver_->check_sat_assuming(sel_assumption_);
     if (r.is_unsat()) {
       kind_log_msg(2, "      ", "simple path check UNSAT");
       return true;
