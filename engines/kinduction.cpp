@@ -193,15 +193,19 @@ bool KInduction::check_simple_path_eager(int i)
 
   const bool no_simp_path_check = options_.kind_no_simple_path_check_;
 
-  //Here we assume that all pairs for values smaller than 'i' have been added
-  //If simple path checking is disabled then we still need the final
-  //solver call below for inductive case check
+  // Here we assume that all pairs for values smaller than 'i' have been added
+  // If simple path checking is disabled then we still need the final
+  // solver call below for inductive case check
   for (int j = 0; (!no_simp_path_check && j < i); j++) {
     Term constraint = simple_path_constraint(j, i);
     kind_log_msg(3, "   ", "adding simple path clause for pair 'j,i' = {},{}", j,i);
     solver_->assert_formula(constraint);
   }
 
+  // Note: the solver call here is actually not necessary since we add
+  // all possible constraints, and we add them permanently to the
+  // formula. For the lazy approach, we need to call the solver to be
+  // able to add constraints based on models produced by the solver.
   kind_log_msg(2, "    ", "calling solver for simple path check");
   Result r = solver_->check_sat_assuming(sel_assumption_);
   if (r.is_unsat()) {
