@@ -42,7 +42,6 @@ class KInduction : public Prover
 
   smt::Term init0_;
   smt::Term false_;
-  smt::Term neg_init_terms_;
 
   // selector term used to toggle addition of
   // initial state predicate 'init0_'. We add a term '(sel_init_ OR init0_)'
@@ -50,7 +49,7 @@ class KInduction : public Prover
   // its negation 'not_sel_init_' to enable it.
   smt::Term sel_init_;
   smt::Term not_sel_init_;
-  // another selector term to toggle 'neg_init_terms_'
+  // another selector term to toggle negated initial state terms
   smt::Term sel_neg_init_terms_;
   smt::Term not_sel_neg_init_terms_;
   // 'sel_assumption_' is passed to solver's 'check_sat_assuming(...)' function
