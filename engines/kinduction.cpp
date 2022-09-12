@@ -48,12 +48,18 @@ void KInduction::initialize()
   init0_ = unroller_.at_time(ts_.init(), 0);
   false_ = solver_->make_term(false);
   neg_init_terms_ = solver_->make_term(true);
+
   // selector literal to toggle initial state predicate
   Sort boolsort = solver_->make_sort(smt::BOOL);
   sel_init_ = solver_->make_symbol("sel_init", boolsort);
   not_sel_init_ = solver_->make_term(Not, sel_init_);
   //permanently add term '(sel_init0_ OR init0_)'
   solver_->assert_formula(solver_->make_term(PrimOp::Or, sel_init_, init0_));
+
+  // add second selector literal to toggle conjunction of negated
+  // initial state terms
+  sel_neg_init_terms_ = solver_->make_symbol("sel_neg_init_terms_", boolsort);
+  not_sel_neg_init_terms_ = solver_->make_term(Not, sel_neg_init_terms_);
 }
 
 ProverResult KInduction::check_until(int k)
@@ -67,10 +73,11 @@ ProverResult KInduction::check_until(int k)
     logger.log(1, "");
     kind_log_msg(1, "", "current unrolling depth/bound: {}", i);
 
-    //disable initial state predicate
+    //disable initial state predicate and its negated instances
     while (!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(sel_init_);
+    sel_assumption_.push_back(sel_neg_init_terms_);
 
     // simple path check
     if (!options_.kind_no_simple_path_check_) {
@@ -93,32 +100,36 @@ ProverResult KInduction::check_until(int k)
       // other state s_1,...,s_{i} is an initial state + simple path
       // constraints.
 
-      //enable initial state predicate
+      //enable initial state predicate and its negated instances
       while(!sel_assumption_.empty())
         sel_assumption_.pop_back();
       sel_assumption_.push_back(not_sel_init_);
+      sel_assumption_.push_back(not_sel_neg_init_terms_);
 
-      // NOTE: we do this check in a new push/pop frame, which does not
+      // OBSOLETE COMMENT --- NOTE: we do this check in a new push/pop frame, which does not
       // benefit from incrementality. At least, we should build a
       // conjunction of initial state constraints that is added back and
       // where we append a new conjunct for each time step.
-      solver_->push();
+      // OBSOLETE ---solver_->push();
       smt::Term neg_init_at_i = unroller_.at_time(
 	solver_->make_term(Not, ts_.init()), i);
-      neg_init_terms_ = solver_->make_term(And, neg_init_terms_, neg_init_at_i);
-      solver_->assert_formula(neg_init_terms_);
+      smt::Term clause = solver_->make_term(PrimOp::Or, sel_neg_init_terms_, neg_init_at_i);
+      //OBSOLETE      neg_init_terms_ = solver_->make_term(And, neg_init_terms_, neg_init_at_i);
+      //permanently add term '(sel_neg_init_terms_ OR neg_init_at_i)'
+      solver_->assert_formula(clause);
       kind_log_msg(1, "", "checking inductive step (initial states) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
 	return ProverResult::TRUE;
       }
-      solver_->pop();
+      //OBSOLETE ---solver_->pop();
     }
 
-    //disable initial state predicate
+    //disable initial state predicate and its negated instances
     while (!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(sel_init_);
+    sel_assumption_.push_back(sel_neg_init_terms_);
 
     // open new frame; this is to be able to remove bad state predicate added next
     solver_->push();
@@ -137,10 +148,11 @@ ProverResult KInduction::check_until(int k)
 
     // base case check
 
-    //enable initial state predicate
+    //enable initial state predicate but NOT its negated instances
     while(!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(not_sel_init_);
+    sel_assumption_.push_back(sel_neg_init_terms_);
 
     kind_log_msg(1, "", "checking base case at bound: {}", i);
     res = solver_->check_sat_assuming(sel_assumption_);
