@@ -66,6 +66,10 @@ ProverResult KInduction::check_until(int k)
   initialize();
   assert(reached_k_ == -1);
 
+  assert(!options_.kind_no_ind_check_ ||
+	 (options_.kind_no_ind_check_init_states_ &&
+	  options_.kind_no_ind_check_property_));
+
   Result res;
   for (int i = reached_k_ + 1; i <= k; ++i) {
 
@@ -92,8 +96,7 @@ ProverResult KInduction::check_until(int k)
       }
     }
 
-    if (i >= 1 && !options_.kind_no_ind_check_init_states_ &&
-       !options_.kind_no_ind_check_) {
+    if (i >= 1 && !options_.kind_no_ind_check_init_states_) {
       // inductive case check based on initial state predicates like in
       // Sheeran et al 2003: assert that s_0 is an initial state and no
       // other state s_1,...,s_{i} is an initial state + simple path
@@ -130,7 +133,7 @@ ProverResult KInduction::check_until(int k)
     solver_->assert_formula(unroller_.at_time(bad_, i));
 
     // inductive case check
-    if (!options_.kind_no_ind_check_) {
+    if (!options_.kind_no_ind_check_property_) {
       kind_log_msg(1, "", "checking inductive step (property) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
