@@ -141,7 +141,13 @@ class PonoOptions
         bmc_neg_bad_step_all_(default_bmc_neg_bad_step_all_),
         bmc_min_cex_linear_search_(default_bmc_min_cex_linear_search_),
         bmc_min_cex_less_inc_bin_search_(default_bmc_min_cex_less_inc_bin_search_),
-        bmc_allow_non_minimal_cex_(default_bmc_allow_non_minimal_cex_)
+        bmc_allow_non_minimal_cex_(default_bmc_allow_non_minimal_cex_),
+        kind_no_simple_path_check_(default_kind_no_simple_path_check_),
+        kind_eager_simple_path_check_(default_kind_eager_simple_path_check_),
+        kind_no_multi_call_simple_path_check_(default_kind_no_multi_call_simple_path_check_),
+        kind_no_ind_check_init_states_(default_kind_no_ind_check_init_states_),
+        kind_no_ind_check_(default_kind_no_ind_check_),
+        kind_no_ind_check_property_(default_kind_no_ind_check_property_)
   {
   }
 
@@ -262,6 +268,22 @@ class PonoOptions
   // i.e., skip binary or linear search for shortest cex in that
   // interval
   bool bmc_allow_non_minimal_cex_;
+  // K-induction: omit simple path check (might cause incompleteness)
+  bool kind_no_simple_path_check_;
+  // K-induction: eager simple path check (default: lazy check)
+  bool kind_eager_simple_path_check_;
+  // K-induction: no multi-call simple path check
+  bool kind_no_multi_call_simple_path_check_;
+  // K-induction: skip inductive case check based on initial states
+  bool kind_no_ind_check_init_states_;
+  // K-induction: skip inductive case check (EXPERT OPTION: will cause
+  // incompleteness for most problem instances); this option implies
+  // 'kind_no_ind_check_init_states_ == true' and
+  // 'kind_no_ind_check_property_ == true'
+  bool kind_no_ind_check_;
+  // K-induction: skip inductive case check based on property (EXPERT
+  // OPTION: will cause incompleteness for most problem instances)
+  bool kind_no_ind_check_property_;
   
 private:
   // Default options
@@ -322,6 +344,12 @@ private:
   static const bool default_bmc_min_cex_linear_search_ = false;
   static const bool default_bmc_min_cex_less_inc_bin_search_ = false;
   static const bool default_bmc_allow_non_minimal_cex_ = false;
+  static const bool default_kind_no_simple_path_check_ = false;
+  static const bool default_kind_eager_simple_path_check_ = false;
+  static const bool default_kind_no_multi_call_simple_path_check_ = false;
+  static const bool default_kind_no_ind_check_init_states_ = false;
+  static const bool default_kind_no_ind_check_ = false;
+  static const bool default_kind_no_ind_check_property_ = false;
 };
 
 // Useful functions for printing etc...

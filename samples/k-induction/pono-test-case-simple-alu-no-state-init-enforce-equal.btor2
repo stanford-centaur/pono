@@ -1,0 +1,49 @@
+; states 'spec_res' and 'imp_res' are not initialized, which would
+; give a trivial counterexample.  To avoid this, we add an auxiliary
+; counter starting at zero; add constraint: if counter zero then
+; require that spec_res == imp_res
+10 sort bitvec 1
+20 sort bitvec 8
+21 zero 20
+22 zero 10
+25 one 20
+; state vars
+30 state 10 cfg
+40 state 20 spec_res
+50 state 20 imp_res
+; aux cnt initialized to zero
+55 state 20 cnt_aux
+56 init 20 55 21
+; input vars
+60 input 20 a
+70 input 20 b
+; logic for cfg, set to zero and keep it there
+90 init 10 30 22
+100 next 10 30 30
+; logic for results
+; init: spec_res == 0
+;;110 init 20 40 21
+; init: imp_res == 0
+;;120 init 20 50 21
+; add inputs 'a' and 'b'
+130 add 20 60 70
+; next(spec_res) = a + b
+140 next 20 40 130
+; a - b
+150 sub 20 60 70
+; cfg == 0
+160 eq 10 30 22
+170 ite 20 160 130 150
+; next(imp_res)
+180 next 20 50 170
+; property
+190 neq 10 40 50
+200 bad 190
+; aux cnt next function
+210 add 20 55 25
+220 next 20 55 210
+; constaint
+230 eq 10 40 50
+240 eq 10 55 21
+250 implies 10 240 230
+260 constraint 250

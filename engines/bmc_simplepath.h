@@ -33,9 +33,6 @@ class BmcSimplePath : public KInduction
 
   ProverResult check_until(int k) override;
 
- protected:
-  bool cover_step(int i);
-
 };  // BmcSimplePath
 
 }  // namespace pono
