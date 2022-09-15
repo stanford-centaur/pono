@@ -24,7 +24,7 @@ mkdir -p $DEPS
 cd $DEPS
 
 msat_home="$DEPS/mathsat"
-ic3ia_version=ic3ia-20.04.1
+ic3ia_version=ic3ia-22.07
 
 while [ $# -gt 0 ]
 do
