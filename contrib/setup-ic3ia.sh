@@ -24,7 +24,7 @@ mkdir -p $DEPS
 cd $DEPS
 
 msat_home="$DEPS/mathsat"
-ic3ia_version=ic3ia-20.04.1
+ic3ia_version=ic3ia-22.07
 
 while [ $# -gt 0 ]
 do
@@ -70,6 +70,6 @@ mv $ic3ia_version ic3ia
 cd ic3ia
 mkdir build
 cd build
-cmake .. -DMATHSAT_DIR=$msat_home -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=Yes
+cmake .. -DMATHSAT_DIR=$msat_home -DCMAKE_BUILD_TYPE=Release
 make -j
 cd $DEPS/..
