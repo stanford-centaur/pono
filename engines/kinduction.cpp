@@ -130,7 +130,9 @@ ProverResult KInduction::check_until(int k)
     solver_->push();
 
     // for inductive case and base case: add bad state predicate
-    solver_->assert_formula(unroller_.at_time(bad_, i));
+    if (!options_.kind_no_ind_check_ || !options_.kind_no_ind_check_property_ ||
+	!options_.kind_no_base_check_)
+      solver_->assert_formula(unroller_.at_time(bad_, i));
 
     // inductive case check
     if (!options_.kind_no_ind_check_property_) {
@@ -149,11 +151,13 @@ ProverResult KInduction::check_until(int k)
     sel_assumption_.push_back(not_sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
 
-    kind_log_msg(1, "", "checking base case at bound: {}", i);
-    res = solver_->check_sat_assuming(sel_assumption_);
-    if (res.is_sat()) {
-      compute_witness();
-      return ProverResult::FALSE;
+    if (!options_.kind_no_base_check_) {
+      kind_log_msg(1, "", "checking base case at bound: {}", i);
+      res = solver_->check_sat_assuming(sel_assumption_);
+      if (res.is_sat()) {
+	compute_witness();
+	return ProverResult::FALSE;
+      }
     }
 
     solver_->pop();
