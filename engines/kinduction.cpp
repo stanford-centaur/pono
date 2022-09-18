@@ -59,6 +59,10 @@ void KInduction::initialize()
   // initial state terms
   sel_neg_init_terms_ = solver_->make_symbol("sel_neg_init_terms_", boolsort);
   not_sel_neg_init_terms_ = solver_->make_term(Not, sel_neg_init_terms_);
+
+  // add selector term to toggle negated bad state constraints
+  sel_neg_bad_state_terms_ = solver_->make_symbol("sel_neg_bad_state_terms_", boolsort);
+  not_sel_neg_bad_state_terms_ = solver_->make_term(Not, sel_neg_bad_state_terms_);
 }
 
 ProverResult KInduction::check_until(int k)
@@ -70,6 +74,12 @@ ProverResult KInduction::check_until(int k)
 	 (options_.kind_no_ind_check_init_states_ &&
 	  options_.kind_no_ind_check_property_));
 
+  //TEMPORARY: we do skipping of base check only with property ind check
+  if (!options_.kind_no_simple_path_check_ ||
+      !options_.kind_no_ind_check_init_states_ ||
+      !options_.kind_no_base_check_)
+    throw PonoException("TEMPORARY restriction: must disable simple path check, inductive check (initial states), and base check");
+
   Result res;
   for (int i = reached_k_ + 1; i <= k; ++i) {
 
@@ -77,10 +87,12 @@ ProverResult KInduction::check_until(int k)
     kind_log_msg(1, "", "current unrolling depth/bound: {}", i);
 
     // disable initial state predicate and its negated instances
+    // enable negated bad state terms
     while (!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
+    sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
 
     // simple path check
     if (!options_.kind_no_simple_path_check_) {
@@ -103,10 +115,12 @@ ProverResult KInduction::check_until(int k)
       // constraints.
 
       // enable initial state predicate and its negated instances
+      // enable negated bad state terms
       while(!sel_assumption_.empty())
         sel_assumption_.pop_back();
       sel_assumption_.push_back(not_sel_init_);
       sel_assumption_.push_back(not_sel_neg_init_terms_);
+      sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
 
       smt::Term neg_init_at_i = unroller_.at_time(
 	solver_->make_term(Not, ts_.init()), i);
@@ -121,10 +135,12 @@ ProverResult KInduction::check_until(int k)
     }
 
     // disable initial state predicate and its negated instances
+    // enable negated bad state terms
     while (!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
+    sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
 
     // open new frame; this is to be able to remove bad state predicate added next
     solver_->push();
@@ -139,17 +155,47 @@ ProverResult KInduction::check_until(int k)
       kind_log_msg(1, "", "checking inductive step (property) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
-	return ProverResult::TRUE;
+	//TEMPORARY ///
+	// remove bad state at current time 'i'
+	solver_->pop();
+	// enable initial state predicate but NOT its negated instances
+	// disable negated bad state terms
+	while(!sel_assumption_.empty())
+	  sel_assumption_.pop_back();
+	sel_assumption_.push_back(not_sel_init_);
+	sel_assumption_.push_back(sel_neg_init_terms_);
+	sel_assumption_.push_back(sel_neg_bad_state_terms_);
+        // build a disjunctive bad state property ranging over bounds 0,...,i
+        // TODO/CHECK: do we have to include the bad state property for
+        // bound 'i' or can we omit it as the respective BMC problem for bound
+        // 'i' is unsat when the inductive check is unsat at bound 'i'?
+	Term disj = false_;
+	int frame;
+	for (frame = 0; frame <= i; frame++) {
+	  disj = solver_->make_term(PrimOp::Or, disj, unroller_.at_time(bad_, frame));
+	}
+	solver_->assert_formula(disj);
+	kind_log_msg(1, "", "checking base case A POSTERIORI at bound: {}", i);
+	res = solver_->check_sat_assuming(sel_assumption_);
+	if (res.is_sat()) {
+	  compute_witness();
+	  return ProverResult::FALSE;
+	}
+	else
+	  return ProverResult::TRUE;
+	///////////////
       }
     }
 
     // base case check
 
     // enable initial state predicate but NOT its negated instances
+    // enable negated bad state terms
     while(!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(not_sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
+    sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
 
     if (!options_.kind_no_base_check_) {
       kind_log_msg(1, "", "checking base case at bound: {}", i);
@@ -168,7 +214,10 @@ ProverResult KInduction::check_until(int k)
     // states) because we proved in base check that it is implied when
     // assuming initial state predicate
     solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
-    solver_->assert_formula(unroller_.at_time(solver_->make_term(Not, bad_), i));
+    // add negated bad state term using selector term as part of disjunction
+    Term disj = solver_->make_term(PrimOp::Or, sel_neg_bad_state_terms_,
+				   unroller_.at_time(solver_->make_term(Not, bad_), i));
+    solver_->assert_formula(disj);
 
     reached_k_++;
   } //end: for all bounds

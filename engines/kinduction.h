@@ -52,6 +52,9 @@ class KInduction : public Prover
   // another selector term to toggle negated initial state terms
   smt::Term sel_neg_init_terms_;
   smt::Term not_sel_neg_init_terms_;
+  // selector term to toggle negated bad state constraints
+  smt::Term sel_neg_bad_state_terms_;
+  smt::Term not_sel_neg_bad_state_terms_;
   // 'sel_assumption_' is passed to solver's 'check_sat_assuming(...)' function
   smt::TermVec sel_assumption_;
 
