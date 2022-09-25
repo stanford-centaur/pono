@@ -63,6 +63,10 @@ void KInduction::initialize()
   // add selector term to toggle negated bad state constraints
   sel_neg_bad_state_terms_ = solver_->make_symbol("sel_neg_bad_state_terms_", boolsort);
   not_sel_neg_bad_state_terms_ = solver_->make_term(Not, sel_neg_bad_state_terms_);
+
+  // add selector term to toggle simple path constraints
+  sel_simple_path_terms_ = solver_->make_symbol("sel_simple_path_terms_", boolsort);
+  not_sel_simple_path_terms_ = solver_->make_term(Not, sel_simple_path_terms_);
 }
 
 ProverResult KInduction::check_until(int k)
@@ -74,11 +78,9 @@ ProverResult KInduction::check_until(int k)
 	 (options_.kind_no_ind_check_init_states_ &&
 	  options_.kind_no_ind_check_property_));
 
-  //TEMPORARY: we do skipping of base check only with property ind check
-  if (!options_.kind_no_simple_path_check_ ||
-      !options_.kind_no_ind_check_init_states_ ||
-      !options_.kind_no_base_check_)
-    throw PonoException("TEMPORARY restriction: must disable simple path check, inductive check (initial states), and base check");
+  //TEMPORARY: must skip base check
+  if (!options_.kind_no_base_check_)
+    throw PonoException("TEMPORARY restriction: must disable base check");
 
   Result res;
   for (int i = reached_k_ + 1; i <= k; ++i) {
@@ -88,11 +90,13 @@ ProverResult KInduction::check_until(int k)
 
     // disable initial state predicate and its negated instances
     // enable negated bad state terms
+    // enable simple path
     while (!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
+    sel_assumption_.push_back(not_sel_simple_path_terms_);
 
     // simple path check
     if (!options_.kind_no_simple_path_check_) {
@@ -116,11 +120,13 @@ ProverResult KInduction::check_until(int k)
 
       // enable initial state predicate and its negated instances
       // enable negated bad state terms
+      // enable simple path terms
       while(!sel_assumption_.empty())
         sel_assumption_.pop_back();
       sel_assumption_.push_back(not_sel_init_);
       sel_assumption_.push_back(not_sel_neg_init_terms_);
       sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
+      sel_assumption_.push_back(not_sel_simple_path_terms_);
 
       smt::Term neg_init_at_i = unroller_.at_time(
 	solver_->make_term(Not, ts_.init()), i);
@@ -130,17 +136,21 @@ ProverResult KInduction::check_until(int k)
       kind_log_msg(1, "", "checking inductive step (initial states) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
-	return ProverResult::TRUE;
+	//return ProverResult::TRUE;
+	// TODO: put code where we check base case into a function
+	goto check_base_case_after_ind_init_state_check;
       }
     }
 
     // disable initial state predicate and its negated instances
     // enable negated bad state terms
+    // enable simple path
     while (!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
+    sel_assumption_.push_back(not_sel_simple_path_terms_);
 
     // open new frame; this is to be able to remove bad state predicate added next
     solver_->push();
@@ -158,13 +168,18 @@ ProverResult KInduction::check_until(int k)
 	//TEMPORARY ///
 	// remove bad state at current time 'i'
 	solver_->pop();
+      check_base_case_after_ind_init_state_check:
 	// enable initial state predicate but NOT its negated instances
 	// disable negated bad state terms
+	// DISABLE simple path --- TODO/CHECK: could keep it if UNSAT
+	// result in inductive check was not due to simple path
+	// constraints
 	while(!sel_assumption_.empty())
 	  sel_assumption_.pop_back();
 	sel_assumption_.push_back(not_sel_init_);
 	sel_assumption_.push_back(sel_neg_init_terms_);
 	sel_assumption_.push_back(sel_neg_bad_state_terms_);
+	sel_assumption_.push_back(sel_simple_path_terms_);
         // build a disjunctive bad state property ranging over bounds 0,...,i
         // TODO/CHECK: do we have to include the bad state property for
         // bound 'i' or can we omit it as the respective BMC problem for bound
@@ -191,11 +206,13 @@ ProverResult KInduction::check_until(int k)
 
     // enable initial state predicate but NOT its negated instances
     // enable negated bad state terms
+    // enable simple path
     while(!sel_assumption_.empty())
       sel_assumption_.pop_back();
     sel_assumption_.push_back(not_sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
+    sel_assumption_.push_back(not_sel_simple_path_terms_);
 
     if (!options_.kind_no_base_check_) {
       kind_log_msg(1, "", "checking base case at bound: {}", i);
@@ -238,6 +255,8 @@ Term KInduction::simple_path_constraint(int i, int j)
     Term neq = solver_->make_term(PrimOp::Not, eq);
     disj = solver_->make_term(PrimOp::Or, disj, neq);
   }
+  // add selector term
+  disj = solver_->make_term(PrimOp::Or, disj, sel_simple_path_terms_);
 
   return disj;
 }
