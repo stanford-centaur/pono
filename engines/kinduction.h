@@ -71,6 +71,10 @@ class KInduction : public Prover
   template <typename... Args>
     void kind_log_msg(size_t level, const std::string & indent,
 		      const std::string & format, const Args &... args);
+  // If base case checking is skipped: run one final base check
+  // covering all bounds from 0 to current one to make sure that no
+  // counterexamples were missed
+  bool final_base_case_check(int cur_bound);
 };  // class KInduction
 
 }  // namespace pono

@@ -78,10 +78,6 @@ ProverResult KInduction::check_until(int k)
 	 (options_.kind_no_ind_check_init_states_ &&
 	  options_.kind_no_ind_check_property_));
 
-  //TEMPORARY: must skip base check
-  if (!options_.kind_no_base_check_)
-    throw PonoException("TEMPORARY restriction: must disable base check");
-
   Result res;
   for (int i = reached_k_ + 1; i <= k; ++i) {
 
@@ -136,9 +132,13 @@ ProverResult KInduction::check_until(int k)
       kind_log_msg(1, "", "checking inductive step (initial states) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
-	//return ProverResult::TRUE;
-	// TODO: put code where we check base case into a function
-	goto check_base_case_after_ind_init_state_check;
+	if (options_.kind_no_base_check_) {
+	  if (final_base_case_check(i))
+	    return ProverResult::TRUE;
+	  else
+	    return ProverResult::FALSE;
+	} else
+	  return ProverResult::TRUE;
       }
     }
 
@@ -165,40 +165,16 @@ ProverResult KInduction::check_until(int k)
       kind_log_msg(1, "", "checking inductive step (property) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
-	//TEMPORARY ///
-	// remove bad state at current time 'i'
-	solver_->pop();
-      check_base_case_after_ind_init_state_check:
-	// enable initial state predicate but NOT its negated instances
-	// disable negated bad state terms
-	// DISABLE simple path --- TODO/CHECK: could keep it if UNSAT
-	// result in inductive check was not due to simple path
-	// constraints
-	while(!sel_assumption_.empty())
-	  sel_assumption_.pop_back();
-	sel_assumption_.push_back(not_sel_init_);
-	sel_assumption_.push_back(sel_neg_init_terms_);
-	sel_assumption_.push_back(sel_neg_bad_state_terms_);
-	sel_assumption_.push_back(sel_simple_path_terms_);
-        // build a disjunctive bad state property ranging over bounds 0,...,i
-        // TODO/CHECK: do we have to include the bad state property for
-        // bound 'i' or can we omit it as the respective BMC problem for bound
-        // 'i' is unsat when the inductive check is unsat at bound 'i'?
-	Term disj = false_;
-	int frame;
-	for (frame = 0; frame <= i; frame++) {
-	  disj = solver_->make_term(PrimOp::Or, disj, unroller_.at_time(bad_, frame));
-	}
-	solver_->assert_formula(disj);
-	kind_log_msg(1, "", "checking base case A POSTERIORI at bound: {}", i);
-	res = solver_->check_sat_assuming(sel_assumption_);
-	if (res.is_sat()) {
-	  compute_witness();
-	  return ProverResult::FALSE;
-	}
-	else
+	if (options_.kind_no_base_check_) {
+	  // remove bad state at current time 'i'
+	  solver_->pop();
+	  if (final_base_case_check(i))
+	    return ProverResult::TRUE;
+	  else
+	    return ProverResult::FALSE;
+
+	} else
 	  return ProverResult::TRUE;
-	///////////////
       }
     }
 
@@ -354,6 +330,40 @@ void KInduction::kind_log_msg(size_t level, const std::string & indent,
 			      const std::string & format, const Args &... args)
 {
   logger.log(level, indent + kind_engine_name_ + " " + format, args...);
+}
+
+bool
+KInduction::final_base_case_check(int cur_bound) {
+  assert(options_.kind_no_base_check_);
+  // enable initial state predicate but NOT its negated instances
+  // disable negated bad state terms
+  // DISABLE simple path --- TODO/CHECK: could keep it if UNSAT
+  // result in inductive check was not due to simple path
+  // constraints
+  while(!sel_assumption_.empty())
+    sel_assumption_.pop_back();
+  sel_assumption_.push_back(not_sel_init_);
+  sel_assumption_.push_back(sel_neg_init_terms_);
+  sel_assumption_.push_back(sel_neg_bad_state_terms_);
+  sel_assumption_.push_back(sel_simple_path_terms_);
+  // build a disjunctive bad state property ranging over bounds 0,...,i
+  // TODO/CHECK: do we have to include the bad state property for
+  // bound 'i' or can we omit it as the respective BMC problem for bound
+  // 'i' is unsat when the inductive check is unsat at bound 'i'?
+  Term disj = false_;
+  int frame;
+  for (frame = 0; frame <= cur_bound; frame++) {
+    disj = solver_->make_term(PrimOp::Or, disj, unroller_.at_time(bad_, frame));
+  }
+  solver_->assert_formula(disj);
+  kind_log_msg(1, "", "checking base case a posteriori at bound: {}", cur_bound);
+  Result res = solver_->check_sat_assuming(sel_assumption_);
+  if (res.is_sat()) {
+    compute_witness();
+    return false;
+  }
+  else
+    return true;
 }
 
 }  // namespace pono
