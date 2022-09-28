@@ -78,8 +78,24 @@ ProverResult KInduction::check_until(int k)
 	 (options_.kind_no_ind_check_init_states_ &&
 	  options_.kind_no_ind_check_property_));
 
+  // number of steps by which current bound is increased; default bound_step_ == 1
+  const int bound_step_ = 4;
+
+  if (bound_step_ != 1 && options_.kind_eager_simple_path_check_)
+    throw PonoException("Temporary restriction: must combine eager simple "\
+			"paths with 'bound_step == 1'");
+
+  // TODO: when unrolling in intervals of length > 1, we must add a
+  // disjunctive bad state property covering all bounds, unless we
+  // skip base checks. In that case, a disjunctive bad case property
+  // will be checked in the final, a posteriori base case check to
+  // make sure no counterexamples are missed;
+  // This restriction means that we only support interval unrolling combined with base case skipping
+  if (bound_step_ != 1 && !options_.kind_no_base_check_)
+    throw PonoException("Temporary restriction: must disable base checks when using 'bound_step != 1'");
+  
   Result res;
-  for (int i = reached_k_ + 1; i <= k; ++i) {
+  for (int i = reached_k_ + 1; i <= k; i += bound_step_) {
 
     logger.log(1, "");
     kind_log_msg(1, "", "current unrolling depth/bound: {}", i);
@@ -124,11 +140,15 @@ ProverResult KInduction::check_until(int k)
       sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
       sel_assumption_.push_back(not_sel_simple_path_terms_);
 
-      smt::Term neg_init_at_i = unroller_.at_time(
-	solver_->make_term(Not, ts_.init()), i);
-      smt::Term clause = solver_->make_term(PrimOp::Or, sel_neg_init_terms_, neg_init_at_i);
-      //permanently add term '(sel_neg_init_terms_ OR neg_init_at_i)'
-      solver_->assert_formula(clause);
+      for (int j = reached_k_ + 1; j <= i; j++) {
+	kind_log_msg(1, "  ", "DEBUG: ind init states, j = {}", j);
+	smt::Term neg_init_at_j = unroller_.at_time(
+	  solver_->make_term(Not, ts_.init()), j);
+	smt::Term clause = solver_->make_term(PrimOp::Or, sel_neg_init_terms_, neg_init_at_j);
+	//permanently add term '(sel_neg_init_terms_ OR neg_init_at_j)'
+	solver_->assert_formula(clause);
+      }
+
       kind_log_msg(1, "", "checking inductive step (initial states) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
@@ -201,18 +221,21 @@ ProverResult KInduction::check_until(int k)
 
     solver_->pop();
 
-    // add transition and negated bad state property
-    // it is sound to add the negated bad state property for use in
-    // next base case checks and inductive case checks (initial
-    // states) because we proved in base check that it is implied when
-    // assuming initial state predicate
-    solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
-    // add negated bad state term using selector term as part of disjunction
-    Term disj = solver_->make_term(PrimOp::Or, sel_neg_bad_state_terms_,
-				   unroller_.at_time(solver_->make_term(Not, bad_), i));
-    solver_->assert_formula(disj);
+    for (int j = reached_k_ + 1; j <= i; j++) {
+      kind_log_msg(1, "  ", "DEBUG adding transitions, j = {}", j);
+      // add transition and negated bad state property
+      // it is sound to add the negated bad state property for use in
+      // next base case checks and inductive case checks (initial
+      // states) because we proved in base check that it is implied when
+      // assuming initial state predicate
+      solver_->assert_formula(unroller_.at_time(ts_.trans(), j));
+      // add negated bad state term using selector term as part of disjunction
+      Term disj = solver_->make_term(PrimOp::Or, sel_neg_bad_state_terms_,
+				     unroller_.at_time(solver_->make_term(Not, bad_), j));
+      solver_->assert_formula(disj);
+    }
 
-    reached_k_++;
+    reached_k_ = i;
   } //end: for all bounds
   
   return ProverResult::UNKNOWN;
