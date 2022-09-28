@@ -221,7 +221,7 @@ ProverResult KInduction::check_until(int k)
 
     solver_->pop();
 
-    for (int j = reached_k_ + 1; j <= i; j++) {
+    for (int j = i; j < i + bound_step_; j++) {
       kind_log_msg(1, "  ", "DEBUG adding transitions, j = {}", j);
       // add transition and negated bad state property
       // it is sound to add the negated bad state property for use in
@@ -229,6 +229,7 @@ ProverResult KInduction::check_until(int k)
       // states) because we proved in base check that it is implied when
       // assuming initial state predicate
       solver_->assert_formula(unroller_.at_time(ts_.trans(), j));
+      kind_log_msg(1, "  ", "DEBUG adding negated bad state terms, j = {}", j);
       // add negated bad state term using selector term as part of disjunction
       Term disj = solver_->make_term(PrimOp::Or, sel_neg_bad_state_terms_,
 				     unroller_.at_time(solver_->make_term(Not, bad_), j));
