@@ -89,7 +89,8 @@ enum optionIndex
   KIND_NO_IND_CHECK_INIT_STATES,
   KIND_NO_IND_CHECK,
   KIND_NO_IND_CHECK_PROPERTY,
-  KIND_NO_BASE_CHECK
+  KIND_NO_BASE_CHECK,
+  KIND_BOUND_STEP
 };
 
 struct Arg : public option::Arg
@@ -577,6 +578,14 @@ const option::Descriptor usage[] = {
     "  --kind-no-base-check \tK-induction: skip base case check "
     "(EXPERIMENTAL OPTION: may cause unsoundness)"
     },
+  { KIND_BOUND_STEP,
+    0,
+    "",
+    "kind-bound-step",
+    Arg::Numeric,
+    "  --kind-bound-step \tAmount by which bound (unrolling depth) "
+    "is increased in k-induction (default: 1)"
+    },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -762,6 +771,10 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 	  kind_no_ind_check_init_states_ = true; kind_no_ind_check_property_ = true; break;
         case KIND_NO_IND_CHECK_PROPERTY: kind_no_ind_check_property_ = true; break;
         case KIND_NO_BASE_CHECK: kind_no_base_check_ = true; break;
+        case KIND_BOUND_STEP: kind_bound_step_ = atoi(opt.arg);
+	  if (kind_bound_step_ == 0)
+	    throw PonoException("--kind-bound-step must be greater than 0");
+	  break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

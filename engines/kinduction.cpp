@@ -79,7 +79,7 @@ ProverResult KInduction::check_until(int k)
 	  options_.kind_no_ind_check_property_));
 
   // number of steps by which current bound is increased; default bound_step_ == 1
-  const int bound_step_ = 4;
+  const int bound_step_ = options_.kind_bound_step_;
 
   if (bound_step_ != 1 && options_.kind_eager_simple_path_check_)
     throw PonoException("Temporary restriction: must combine eager simple "\
@@ -141,7 +141,7 @@ ProverResult KInduction::check_until(int k)
       sel_assumption_.push_back(not_sel_simple_path_terms_);
 
       for (int j = reached_k_ + 1; j <= i; j++) {
-	kind_log_msg(1, "  ", "DEBUG: ind init states, j = {}", j);
+	// TODO REMOVE: kind_log_msg(1, "  ", "DEBUG: ind init states, j = {}", j);
 	smt::Term neg_init_at_j = unroller_.at_time(
 	  solver_->make_term(Not, ts_.init()), j);
 	smt::Term clause = solver_->make_term(PrimOp::Or, sel_neg_init_terms_, neg_init_at_j);
@@ -222,14 +222,14 @@ ProverResult KInduction::check_until(int k)
     solver_->pop();
 
     for (int j = i; j < i + bound_step_; j++) {
-      kind_log_msg(1, "  ", "DEBUG adding transitions, j = {}", j);
+      // TODO REMOVE: kind_log_msg(1, "  ", "DEBUG adding transitions, j = {}", j);
       // add transition and negated bad state property
       // it is sound to add the negated bad state property for use in
       // next base case checks and inductive case checks (initial
       // states) because we proved in base check that it is implied when
       // assuming initial state predicate
       solver_->assert_formula(unroller_.at_time(ts_.trans(), j));
-      kind_log_msg(1, "  ", "DEBUG adding negated bad state terms, j = {}", j);
+      // TODO REMOVE: kind_log_msg(1, "  ", "DEBUG adding negated bad state terms, j = {}", j);
       // add negated bad state term using selector term as part of disjunction
       Term disj = solver_->make_term(PrimOp::Or, sel_neg_bad_state_terms_,
 				     unroller_.at_time(solver_->make_term(Not, bad_), j));
