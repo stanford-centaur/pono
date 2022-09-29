@@ -89,7 +89,7 @@ enum optionIndex
   KIND_NO_IND_CHECK_INIT_STATES,
   KIND_NO_IND_CHECK,
   KIND_NO_IND_CHECK_PROPERTY,
-  KIND_NO_BASE_CHECK,
+  KIND_ONE_TIME_BASE_CHECK,
   KIND_BOUND_STEP
 };
 
@@ -570,13 +570,13 @@ const option::Descriptor usage[] = {
     "  --kind-no-ind-check-property \tK-induction: skip checking inductive case based "
     "on property (WARNING: will cause incompleteness on most problem instances)"
     },
-  { KIND_NO_BASE_CHECK,
+  { KIND_ONE_TIME_BASE_CHECK,
     0,
     "",
-    "kind-no-base-check",
+    "kind-one-time-base-check",
     Arg::None,
-    "  --kind-no-base-check \tK-induction: skip base case check "
-    "(EXPERIMENTAL OPTION: may cause unsoundness)"
+    "  --kind-one-time-base-check \tK-induction: check base case only once after"
+    " inductive check was unsatisfiable (WARNING: counterexamples might be missed)"
     },
   { KIND_BOUND_STEP,
     0,
@@ -770,7 +770,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case KIND_NO_IND_CHECK: kind_no_ind_check_ = true;
 	  kind_no_ind_check_init_states_ = true; kind_no_ind_check_property_ = true; break;
         case KIND_NO_IND_CHECK_PROPERTY: kind_no_ind_check_property_ = true; break;
-        case KIND_NO_BASE_CHECK: kind_no_base_check_ = true; break;
+        case KIND_ONE_TIME_BASE_CHECK: kind_one_time_base_check_ = true; break;
         case KIND_BOUND_STEP: kind_bound_step_ = atoi(opt.arg);
 	  if (kind_bound_step_ == 0)
 	    throw PonoException("--kind-bound-step must be greater than 0");

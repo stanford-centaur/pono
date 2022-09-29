@@ -91,8 +91,8 @@ ProverResult KInduction::check_until(int k)
   // will be checked in the final, a posteriori base case check to
   // make sure no counterexamples are missed;
   // This restriction means that we only support interval unrolling combined with base case skipping
-  if (bound_step_ != 1 && !options_.kind_no_base_check_)
-    throw PonoException("Temporary restriction: must disable base checks when using 'bound_step != 1'");
+  if (bound_step_ != 1 && !options_.kind_one_time_base_check_)
+    throw PonoException("Temporary restriction: must enable one-time base checks when using 'bound_step != 1'");
   
   Result res;
   for (int i = reached_k_ + 1; i <= k; i += bound_step_) {
@@ -152,7 +152,7 @@ ProverResult KInduction::check_until(int k)
       kind_log_msg(1, "", "checking inductive step (initial states) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
-	if (options_.kind_no_base_check_) {
+	if (options_.kind_one_time_base_check_) {
 	  if (final_base_case_check(i))
 	    return ProverResult::TRUE;
 	  else
@@ -177,7 +177,7 @@ ProverResult KInduction::check_until(int k)
 
     // for inductive case and base case: add bad state predicate
     if (!options_.kind_no_ind_check_ || !options_.kind_no_ind_check_property_ ||
-	!options_.kind_no_base_check_)
+	!options_.kind_one_time_base_check_)
       solver_->assert_formula(unroller_.at_time(bad_, i));
 
     // inductive case check
@@ -185,7 +185,7 @@ ProverResult KInduction::check_until(int k)
       kind_log_msg(1, "", "checking inductive step (property) at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_unsat()) {
-	if (options_.kind_no_base_check_) {
+	if (options_.kind_one_time_base_check_) {
 	  // remove bad state at current time 'i'
 	  solver_->pop();
 	  if (final_base_case_check(i))
@@ -210,7 +210,7 @@ ProverResult KInduction::check_until(int k)
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
     sel_assumption_.push_back(not_sel_simple_path_terms_);
 
-    if (!options_.kind_no_base_check_) {
+    if (!options_.kind_one_time_base_check_) {
       kind_log_msg(1, "", "checking base case at bound: {}", i);
       res = solver_->check_sat_assuming(sel_assumption_);
       if (res.is_sat()) {
@@ -358,7 +358,7 @@ void KInduction::kind_log_msg(size_t level, const std::string & indent,
 
 bool
 KInduction::final_base_case_check(int cur_bound) {
-  assert(options_.kind_no_base_check_);
+  assert(options_.kind_one_time_base_check_);
   // enable initial state predicate but NOT its negated instances
   // disable negated bad state terms
   // DISABLE simple path --- TODO/CHECK: could keep it if UNSAT
