@@ -113,14 +113,16 @@ ProverResult KInduction::check_until(int k)
     // simple path check
     if (!options_.kind_no_simple_path_check_) {
       // solver call inside 'check_simple_path_lazy/eager'
-      if (!options_.kind_eager_simple_path_check_) {
-	if (ts_.statevars().size() && check_simple_path_lazy(i)) {
+      if (ts_.statevars().size() &&
+	  ((!options_.kind_eager_simple_path_check_ && check_simple_path_lazy(i)) ||
+	   (options_.kind_eager_simple_path_check_ && check_simple_path_eager(i)))) {
+	if (options_.kind_one_time_base_check_) {
+	  if (final_base_case_check(i))
+	    return ProverResult::TRUE;
+	  else
+	    return ProverResult::FALSE;
+	} else
 	  return ProverResult::TRUE;
-	}
-      } else {
-	if (ts_.statevars().size() && check_simple_path_eager(i)) {
-	  return ProverResult::TRUE;
-	}
       }
     }
 
