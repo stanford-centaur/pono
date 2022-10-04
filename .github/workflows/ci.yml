@@ -37,6 +37,9 @@ jobs:
       - name: Python Dependencies (all)
         run: python3 -m pip install Cython pytest toml
 
+      - name: Python Dependencies (all)
+        run: python3 -m pip install scikit-build
+
       - name: Download MathSAT
         run: ./ci-scripts/setup-msat.sh --auto-yes
 
