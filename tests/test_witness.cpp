@@ -92,11 +92,6 @@ TEST_P(WitnessUnitTests, ArraysDefaultSolver)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedWitnessUnitTests,
     WitnessUnitTests,
-    // TEMP excluding cvc5 because these tests use two solvers
-    // (default and created one)
-    // and this causes strange behavior for cvc5 until its fixed
-    // (note: updated to cvc5 now)
-    // see https://github.com/cvc5/cvc5/issues/5893
-    testing::ValuesIn(available_solver_enums_except({ smt::CVC5 })));
+    testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests
