@@ -139,14 +139,6 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
     return;
   }
 
-  // TEMP excluding CVC4 because IC3 variants use two solvers
-  // and this causes strange behavior for CVC4 until its fixed
-  // (note: updated to cvc5 now)
-  // see https://github.com/cvc5/cvc5/issues/5893
-  if (se == smt::CVC4) {
-    return;
-  }
-
   SmtSolver s = create_solver(se);
   s->set_opt("produce-unsat-assumptions", "true");
   std::shared_ptr<Prover> prover = make_prover(eng, prop, fts, s);

@@ -87,14 +87,6 @@ TEST_P(UFUnitTests, FalseProp)
     return;
   }
 
-  // TODO: update this when the bug is fixed
-  if (s->get_solver_enum() == CVC4) {
-    std::cout << "Warning: not running with CVC4 because it segfaults "
-              << "in the TsatProof part of its modded minisat for "
-              << "an unknown reason." << std::endl;
-    return;
-  }
-
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", bvsort);
   Term f = s->make_symbol("f", funsort);

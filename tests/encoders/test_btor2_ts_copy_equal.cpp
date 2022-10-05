@@ -183,13 +183,8 @@ TEST_P(CopyUnitTests, CopyToDefault)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverCopyUnitTests,
     CopyUnitTests,
-    // TEMP excluding CVC4 because these tests use two solvers
-    // (default and created one)
-    // and this causes strange behavior for CVC4 until its fixed
-    // (note: updated to cvc5 now)
-    // see https://github.com/cvc5/cvc5/issues/5893
     testing::Combine(
-        testing::ValuesIn(available_solver_enums_except({ smt::CVC4 })),
+        testing::ValuesIn(available_solver_enums()),
         // from test_encoder_inputs.h
         testing::ValuesIn(btor2_inputs)));
 
