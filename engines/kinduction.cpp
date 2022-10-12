@@ -81,18 +81,23 @@ ProverResult KInduction::check_until(int k)
   // number of steps by which current bound is increased; default bound_step_ == 1
   const int bound_step_ = options_.kind_bound_step_;
 
+  // Eager simple path checking not yet implemented for interval unrolling.
   if (bound_step_ != 1 && options_.kind_eager_simple_path_check_)
-    throw PonoException("Temporary restriction: must combine eager simple "\
-			"paths with 'bound_step == 1'");
+    throw PonoException("Must not combine '--kind-bound-step <n>' with 'n > 1' "\
+			"and '--kind-eager-simple-path-check'");
 
-  // TODO: when unrolling in intervals of length > 1, we must add a
-  // disjunctive bad state property covering all bounds, unless we
-  // skip base checks. In that case, a disjunctive bad case property
-  // will be checked in the final, a posteriori base case check to
-  // make sure no counterexamples are missed;
-  // This restriction means that we only support interval unrolling combined with base case skipping
+  // NOTE: When unrolling in intervals of length > 1 ('bound_step_ > 1'), we must add a
+  // disjunctive bad state property covering all bounds in regular base case checks
+  // (not yet implemented), unless we skip regular base checks by option
+  // '--kind-one-time-base-check'.
+  // With '--kind-one-time-base-check' and after an inductive case check was unsatisfiable,
+  // a disjunctive bad state property will be checked in a single base case check
+  // (function 'final_base_case_check(..)') to make sure no counterexamples are missed;
+  // Hence currently option '--kind-bound-step <n>' with 'n > 1' must be combined
+  // with option '--kind-one-time-base-check'.
   if (bound_step_ != 1 && !options_.kind_one_time_base_check_)
-    throw PonoException("Temporary restriction: must enable one-time base checks when using 'bound_step != 1'");
+    throw PonoException("Must combine '--kind-bound-step <n>' with 'n > 1' "\
+			"and '--kind-one-time-base-check'");
   
   Result res;
   for (int i = reached_k_ + 1; i <= k; i += bound_step_) {
@@ -143,7 +148,6 @@ ProverResult KInduction::check_until(int k)
       sel_assumption_.push_back(not_sel_simple_path_terms_);
 
       for (int j = reached_k_ + 1; j <= i; j++) {
-	// TODO REMOVE: kind_log_msg(1, "  ", "DEBUG: ind init states, j = {}", j);
 	smt::Term neg_init_at_j = unroller_.at_time(
 	  solver_->make_term(Not, ts_.init()), j);
 	smt::Term clause = solver_->make_term(PrimOp::Or, sel_neg_init_terms_, neg_init_at_j);
@@ -224,14 +228,12 @@ ProverResult KInduction::check_until(int k)
     solver_->pop();
 
     for (int j = i; j < i + bound_step_; j++) {
-      // TODO REMOVE: kind_log_msg(1, "  ", "DEBUG adding transitions, j = {}", j);
       // add transition and negated bad state property
       // it is sound to add the negated bad state property for use in
       // next base case checks and inductive case checks (initial
       // states) because we proved in base check that it is implied when
       // assuming initial state predicate
       solver_->assert_formula(unroller_.at_time(ts_.trans(), j));
-      // TODO REMOVE: kind_log_msg(1, "  ", "DEBUG adding negated bad state terms, j = {}", j);
       // add negated bad state term using selector term as part of disjunction
       Term disj = solver_->make_term(PrimOp::Or, sel_neg_bad_state_terms_,
 				     unroller_.at_time(solver_->make_term(Not, bad_), j));
@@ -363,9 +365,9 @@ KInduction::final_base_case_check(int cur_bound) {
   assert(options_.kind_one_time_base_check_);
   // enable initial state predicate but NOT its negated instances
   // disable negated bad state terms
-  // DISABLE simple path --- TODO/CHECK: could keep it if UNSAT
+  // DISABLE simple path --- maybe we could keep it if UNSAT
   // result in inductive check was not due to simple path
-  // constraints
+  // constraints(?)
   while(!sel_assumption_.empty())
     sel_assumption_.pop_back();
   sel_assumption_.push_back(not_sel_init_);
@@ -373,7 +375,7 @@ KInduction::final_base_case_check(int cur_bound) {
   sel_assumption_.push_back(sel_neg_bad_state_terms_);
   sel_assumption_.push_back(sel_simple_path_terms_);
   // build a disjunctive bad state property ranging over bounds 0,...,i
-  // TODO/CHECK: do we have to include the bad state property for
+  // Potential optimization(?): do we have to include the bad state property for
   // bound 'i' or can we omit it as the respective BMC problem for bound
   // 'i' is unsat when the inductive check is unsat at bound 'i'?
   Term disj = false_;
