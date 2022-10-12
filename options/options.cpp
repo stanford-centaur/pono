@@ -768,13 +768,6 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
       throw PonoException(
           "Counterexample-guided prophecy only supported with MathSAT so far");
     }
-
-    if (smt_solver_ == smt::CVC5
-        && ic3_variants().find(engine_) != ic3_variants().end()) {
-      throw PonoException(
-          "cvc5 cannot handle multiple solver instances, and thus does not "
-          "currently support IC3 variants.");
-    }
   }
   catch (PonoException & ce) {
     cout << ce.what() << endl;
