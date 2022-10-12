@@ -20,6 +20,10 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 * Run `cd build`.
 * Run `make`.
 
+### Dependencies
+
+* Please see the [README of smt-switch](https://github.com/stanford-centaur/smt-switch#dependencies) for required dependencies.
+* Note to Arch Linux users: building Pono will fail if the static library of [GMP](https://gmplib.org/), which is required by [cvc5](https://github.com/cvc5/cvc5/blob/main/INSTALL.rst), is not installed on your system. You can fix it by installing `libgmp-static` from [AUR](https://aur.archlinux.org/packages/libgmp-static).
 
 ### Profiling
 
