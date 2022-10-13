@@ -51,6 +51,7 @@ gperftools is licensed under a BSD 3-clause license, see
 ## Publications
 
 * Makai Mann, Ahmed Irfan, Florian Lonsing, Yahan Yang, Hongce Zhang, Kristopher Brown, Aarti Gupta, Clark W. Barrett: [Pono: A Flexible and Extensible SMT-Based Model Checker](https://link.springer.com/chapter/10.1007/978-3-030-81688-9_22). CAV 2021.
+  * Evaluated [software artifact](https://figshare.com/articles/software/CAV_2021_Artifact_Pono_Model_Checker/14479542).
 * Makai Mann, Amalee Wilson, Yoni Zohar, Lindsey Stuntz, Ahmed Irfan, Kristopher Brown, Caleb Donovick, Allison Guman, Cesare Tinelli, Clark W. Barrett: [Smt-Switch: A Solver-Agnostic C++ API for SMT Solving](https://link.springer.com/chapter/10.1007/978-3-030-80223-3_26). SAT 2021.
 * Makai Mann: [Augmenting transition systems for scalable symbolic model checking](https://searchworks.stanford.edu/view/13972018). PhD thesis, Stanford University, 2021.
 
