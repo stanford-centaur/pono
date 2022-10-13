@@ -48,6 +48,13 @@ void KInduction::initialize()
   init0_ = unroller_.at_time(ts_.init(), 0);
   false_ = solver_->make_term(false);
 
+  // Note on selector literals: as a potential optimization, we could enforce the
+  // values of selector literals permanently by adding unit clauses rather than
+  // setting the literal via assumptions. E.g., in the default configuration of
+  // k-induction, most constraints like negated bad state terms and simple path
+  // constraints are added permanently and are never removed. So the value of their
+  // respective selective literal is never flipped and can be set permanently.
+
   // selector literal to toggle initial state predicate
   Sort boolsort = solver_->make_sort(smt::BOOL);
   sel_init_ = solver_->make_symbol("sel_init", boolsort);
