@@ -55,6 +55,10 @@ gperftools is licensed under a BSD 3-clause license, see
 * Makai Mann, Amalee Wilson, Yoni Zohar, Lindsey Stuntz, Ahmed Irfan, Kristopher Brown, Caleb Donovick, Allison Guman, Cesare Tinelli, Clark W. Barrett: [Smt-Switch: A Solver-Agnostic C++ API for SMT Solving](https://link.springer.com/chapter/10.1007/978-3-030-80223-3_26). SAT 2021.
 * Makai Mann: [Augmenting transition systems for scalable symbolic model checking](https://searchworks.stanford.edu/view/13972018). PhD thesis, Stanford University, 2021.
 
+## Awards
+
+Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](http://fmv.jku.at/hwmcc19/) for solving the largest number of benchmarks overall.
+
 ## Existing code
 
 ### Transition Systems
