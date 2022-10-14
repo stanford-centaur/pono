@@ -147,7 +147,9 @@ class PonoOptions
         kind_no_multi_call_simple_path_check_(default_kind_no_multi_call_simple_path_check_),
         kind_no_ind_check_init_states_(default_kind_no_ind_check_init_states_),
         kind_no_ind_check_(default_kind_no_ind_check_),
-        kind_no_ind_check_property_(default_kind_no_ind_check_property_)
+        kind_no_ind_check_property_(default_kind_no_ind_check_property_),
+        kind_one_time_base_check_(default_kind_one_time_base_check_),
+        kind_bound_step_(default_kind_bound_step_)
   {
   }
 
@@ -284,7 +286,11 @@ class PonoOptions
   // K-induction: skip inductive case check based on property (EXPERT
   // OPTION: will cause incompleteness for most problem instances)
   bool kind_no_ind_check_property_;
-  
+  // K-induction: check base case only once after inductive case check was unsatisfiable
+  bool kind_one_time_base_check_;
+  // K-induction: amount of steps by which transition relation is unrolled
+  unsigned kind_bound_step_;
+
 private:
   // Default options
   static const Engine default_engine_ = BMC;
@@ -350,6 +356,8 @@ private:
   static const bool default_kind_no_ind_check_init_states_ = false;
   static const bool default_kind_no_ind_check_ = false;
   static const bool default_kind_no_ind_check_property_ = false;
+  static const bool default_kind_one_time_base_check_ = false;
+  static const unsigned default_kind_bound_step_ = 1;
 };
 
 // Useful functions for printing etc...
