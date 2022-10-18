@@ -4,6 +4,17 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 
 [Pono](http://wehewehe.org/gsdl2.85/cgi-bin/hdict?e=q-11000-00---off-0hdict--00-1----0-10-0---0---0direct-10-ED--4--textpukuielbert%2ctextmamaka-----0-1l--11-en-Zz-1---Zz-1-home-pono--00-3-1-00-0--4----0-0-11-10-0utfZz-8-00&a=d&d=D18537) is the Hawaiian word for proper, correct, or goodness. It is often used colloquially in the moral sense of "goodness" or "rightness," but also refers to "proper procedure" or "correctness." We use the word for multiple meanings. Our goal is that Pono can be a useful tool for people to verify the _correctness_ of systems, which is surely the _right_ thing to do.
 
+## Publications
+
+* Makai Mann, Ahmed Irfan, Florian Lonsing, Yahan Yang, Hongce Zhang, Kristopher Brown, Aarti Gupta, Clark W. Barrett: [Pono: A Flexible and Extensible SMT-Based Model Checker](https://link.springer.com/chapter/10.1007/978-3-030-81688-9_22). CAV 2021.
+  * Evaluated [software artifact](https://figshare.com/articles/software/CAV_2021_Artifact_Pono_Model_Checker/14479542).
+* Makai Mann, Amalee Wilson, Yoni Zohar, Lindsey Stuntz, Ahmed Irfan, Kristopher Brown, Caleb Donovick, Allison Guman, Cesare Tinelli, Clark W. Barrett: [Smt-Switch: A Solver-Agnostic C++ API for SMT Solving](https://link.springer.com/chapter/10.1007/978-3-030-80223-3_26). SAT 2021.
+* Makai Mann: [Augmenting transition systems for scalable symbolic model checking](https://searchworks.stanford.edu/view/13972018). PhD thesis, Stanford University, 2021.
+
+## Awards
+
+Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](http://fmv.jku.at/hwmcc19/) for solving the largest number of benchmarks overall.
+
 ## Setup
 
 * Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with boolector
@@ -47,17 +58,6 @@ for further information about gperftools.
 
 gperftools is licensed under a BSD 3-clause license, see
 [https://github.com/gperftools/gperftools/blob/master/COPYING](https://github.com/gperftools/gperftools/blob/master/COPYING).
-
-## Publications
-
-* Makai Mann, Ahmed Irfan, Florian Lonsing, Yahan Yang, Hongce Zhang, Kristopher Brown, Aarti Gupta, Clark W. Barrett: [Pono: A Flexible and Extensible SMT-Based Model Checker](https://link.springer.com/chapter/10.1007/978-3-030-81688-9_22). CAV 2021.
-  * Evaluated [software artifact](https://figshare.com/articles/software/CAV_2021_Artifact_Pono_Model_Checker/14479542).
-* Makai Mann, Amalee Wilson, Yoni Zohar, Lindsey Stuntz, Ahmed Irfan, Kristopher Brown, Caleb Donovick, Allison Guman, Cesare Tinelli, Clark W. Barrett: [Smt-Switch: A Solver-Agnostic C++ API for SMT Solving](https://link.springer.com/chapter/10.1007/978-3-030-80223-3_26). SAT 2021.
-* Makai Mann: [Augmenting transition systems for scalable symbolic model checking](https://searchworks.stanford.edu/view/13972018). PhD thesis, Stanford University, 2021.
-
-## Awards
-
-Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](http://fmv.jku.at/hwmcc19/) for solving the largest number of benchmarks overall.
 
 ## Existing code
 
