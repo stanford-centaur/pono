@@ -1,0 +1,16 @@
+10 sort bitvec 3
+11 sort bitvec 1
+21 zero 10
+25 one 10
+30 state 10 cnt
+40 init 10 30 21
+45 constd 10 3
+50 eq 11 30 45
+55 add 10 30 25
+; cnt == 3 ? 0 : cnt + 1 
+60 ite 10 50 21 55
+70 next 10 30 60
+; bad state property
+80 constd 10 4
+90 eq 11 30 80
+100 bad 90

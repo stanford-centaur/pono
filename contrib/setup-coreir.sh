@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COREIR_VERSION=9205bb90799b6dc97a1baea9e7b50c86858ee779
+COREIR_VERSION=2f5035c6712481346c20c0a9956dc3f880cac1d2
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
@@ -9,7 +9,7 @@ usage () {
     cat <<EOF
 Usage: $0 [<option> ...]
 
-Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
+Sets up CoreIR.
 
 -h, --help              display this message and exit
 --python                build python bindings (default: off)
@@ -44,10 +44,9 @@ if [ ! -d "$DEPS/coreir" ]; then
     git clone https://github.com/rdaly525/coreir.git
     cd coreir
     git checkout -f $COREIR_VERSION
-    mkdir build
     cd build
     cmake .. -DCMAKE_INSTALL_PREFIX=$DEPS/coreir/local
-    make -j2
+    make -j$(nproc)
     make install
     if [[ "$ENABLE_PYTHON" != default ]]; then
         echo "Pip installing coreir Python bindings"

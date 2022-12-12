@@ -130,7 +130,26 @@ class PonoOptions
         sygus_use_operator_abstraction_(
             default_sygus_use_operator_abstraction_),
         ic3sa_initial_terms_lvl_(default_ic3sa_initial_terms_lvl_),
-        ic3sa_interp_(default_ic3sa_interp_)
+        ic3sa_interp_(default_ic3sa_interp_),
+        print_wall_time_(default_print_wall_time_),
+        bmc_bound_start_(default_bmc_bound_start_),
+        bmc_bound_step_(default_bmc_bound_step_),
+        bmc_neg_init_step_(default_bmc_neg_init_step_),
+        bmc_exponential_step_(default_bmc_exponential_step_),
+        bmc_single_bad_state_(default_bmc_single_bad_state_),
+        bmc_neg_bad_step_(default_bmc_neg_bad_step_),
+        bmc_neg_bad_step_all_(default_bmc_neg_bad_step_all_),
+        bmc_min_cex_linear_search_(default_bmc_min_cex_linear_search_),
+        bmc_min_cex_less_inc_bin_search_(default_bmc_min_cex_less_inc_bin_search_),
+        bmc_allow_non_minimal_cex_(default_bmc_allow_non_minimal_cex_),
+        kind_no_simple_path_check_(default_kind_no_simple_path_check_),
+        kind_eager_simple_path_check_(default_kind_eager_simple_path_check_),
+        kind_no_multi_call_simple_path_check_(default_kind_no_multi_call_simple_path_check_),
+        kind_no_ind_check_init_states_(default_kind_no_ind_check_init_states_),
+        kind_no_ind_check_(default_kind_no_ind_check_),
+        kind_no_ind_check_property_(default_kind_no_ind_check_property_),
+        kind_one_time_base_check_(default_kind_one_time_base_check_),
+        kind_bound_step_(default_kind_bound_step_)
   {
   }
 
@@ -213,8 +232,66 @@ class PonoOptions
   size_t ic3sa_initial_terms_lvl_;  ///< configures where to find terms for
                                     ///< initial abstraction
   bool ic3sa_interp_;
+  // print wall clock time spent in entire execution
+  bool print_wall_time_;
 
- private:
+  // BMC interval options (these options are modifiers of the 'BMC' engine;
+  //   they do not apply to engine 'BMC-SP')
+  // Default bmc_bound_start_ == 0, which starts search for cex at
+  // unrolling depth 0 like traditional BMC.
+  unsigned bmc_bound_start_;
+  // Default: bmc_bound_step_ == 1, which results in traditional BMC
+  // where every bound is checked one by one. bmc_bound_step_ is the
+  // value by which the current unrolling depth is increased. For
+  // bmc_bound_step_ > 1, BMC searches for cex in intervals of size
+  // bmc_bound_step_.
+  unsigned bmc_bound_step_;
+  // BMC: add negated initial state predicate in steps k > 0 (default: false)
+  bool bmc_neg_init_step_;
+  // BMC: double the bound in each step starting from
+  // 'bmc_bound_start_'; if bmc_bound_start_ == 0, this results in
+  // exploration of bounds 0,1,2,4,8,...
+  bool bmc_exponential_step_;
+  // BMC EXPERT OPTION: do not add a disjunctive bad state property
+  // representing an interval, but a single bad state literal at bound k;
+  bool bmc_single_bad_state_;
+  // BMC: add negated bad state predicate depending on reached_k_ (default: false)
+  bool bmc_neg_bad_step_;
+  // BMC: like 'bmc_neg_bad_step_' but adds negated bad state predicate for all
+  // seen bounds (default: false)
+  bool bmc_neg_bad_step_all_;
+  // Apply linear instead of binary search for minimal counterexample
+  // after a counterexample was found within an interval
+  bool bmc_min_cex_linear_search_;
+  // BMC: apply less incremental binary search
+  bool bmc_min_cex_less_inc_bin_search_;
+  // BMC: when using disjunctive bad state property, skip the
+  // minimization phase after an interval containing a cex was found,
+  // i.e., skip binary or linear search for shortest cex in that
+  // interval
+  bool bmc_allow_non_minimal_cex_;
+  // K-induction: omit simple path check (might cause incompleteness)
+  bool kind_no_simple_path_check_;
+  // K-induction: eager simple path check (default: lazy check)
+  bool kind_eager_simple_path_check_;
+  // K-induction: no multi-call simple path check
+  bool kind_no_multi_call_simple_path_check_;
+  // K-induction: skip inductive case check based on initial states
+  bool kind_no_ind_check_init_states_;
+  // K-induction: skip inductive case check (EXPERT OPTION: will cause
+  // incompleteness for most problem instances); this option implies
+  // 'kind_no_ind_check_init_states_ == true' and
+  // 'kind_no_ind_check_property_ == true'
+  bool kind_no_ind_check_;
+  // K-induction: skip inductive case check based on property (EXPERT
+  // OPTION: will cause incompleteness for most problem instances)
+  bool kind_no_ind_check_property_;
+  // K-induction: check base case only once after inductive case check was unsatisfiable
+  bool kind_one_time_base_check_;
+  // K-induction: amount of steps by which transition relation is unrolled
+  unsigned kind_bound_step_;
+
+private:
   // Default options
   static const Engine default_engine_ = BMC;
   static const unsigned int default_prop_idx_ = 0;
@@ -262,6 +339,25 @@ class PonoOptions
   // default is the highest level
   static const size_t default_ic3sa_initial_terms_lvl_ = 4;
   static const bool default_ic3sa_interp_ = false;
+  static const bool default_print_wall_time_ = false;
+  static const unsigned default_bmc_bound_start_ = 0;
+  static const unsigned default_bmc_bound_step_ = 1;
+  static const bool default_bmc_neg_init_step_ = false;
+  static const bool default_bmc_exponential_step_ = false;
+  static const bool default_bmc_single_bad_state_ = false;
+  static const bool default_bmc_neg_bad_step_ = false;
+  static const bool default_bmc_neg_bad_step_all_ = false;
+  static const bool default_bmc_min_cex_linear_search_ = false;
+  static const bool default_bmc_min_cex_less_inc_bin_search_ = false;
+  static const bool default_bmc_allow_non_minimal_cex_ = false;
+  static const bool default_kind_no_simple_path_check_ = false;
+  static const bool default_kind_eager_simple_path_check_ = false;
+  static const bool default_kind_no_multi_call_simple_path_check_ = false;
+  static const bool default_kind_no_ind_check_init_states_ = false;
+  static const bool default_kind_no_ind_check_ = false;
+  static const bool default_kind_no_ind_check_property_ = false;
+  static const bool default_kind_one_time_base_check_ = false;
+  static const unsigned default_kind_bound_step_ = 1;
 };
 
 // Useful functions for printing etc...

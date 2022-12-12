@@ -79,9 +79,5 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverIC3UnitTests,
     IC3UnitTests,
-    // TEMP excluding cvc5 because IC3 variants use two solvers
-    // and this causes strange behavior for cvc5 until its fixed
-    // (note: updated to cvc5 now)
-    // see https://github.com/cvc5/cvc5/issues/5893
-    testing::ValuesIn(available_solver_enums_except({ smt::CVC5 })));
+    testing::ValuesIn(available_solver_enums()));
 }  // namespace pono_tests

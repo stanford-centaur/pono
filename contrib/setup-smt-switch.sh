@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=768ed5d05315d0b652a915adcfbbc7f3e7a4896a
+SMT_SWITCH_VERSION=499621b009ca0e86a65339aed59157bfaa874776
 
 usage () {
     cat <<EOF
@@ -65,9 +65,6 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     ./contrib/setup-btor.sh
     if [ $cvc5_home = default ]; then
         ./contrib/setup-cvc5.sh
-    fi
-    if [ $WITH_PYTHON = YES ]; then
-        ./contrib/setup-skbuild.sh
     fi
     # pass bison/flex directories from smt-switch perspective
     ./configure.sh --btor --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install

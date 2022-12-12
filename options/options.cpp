@@ -71,7 +71,26 @@ enum optionIndex
   SYGUS_OP_LVL,
   SYGUS_TERM_MODE,
   IC3SA_INITIAL_TERMS_LVL,
-  IC3SA_INTERP
+  IC3SA_INTERP,
+  PRINT_WALL_TIME,
+  BMC_BOUND_START,
+  BMC_BOUND_STEP,
+  BMC_NEG_INIT_STEP,
+  BMC_EXPONENTIAL_STEP,
+  BMC_SINGLE_BAD_STATE,
+  BMC_NEG_BAD_STEP,
+  BMC_MIN_CEX_LIN_SEARCH,
+  BMC_MIN_CEX_LESS_INC_BIN_SEARCH,
+  BMC_NEG_BAD_STEP_ALL,
+  BMC_ALLOW_NON_MINIMAL_CEX,
+  KIND_NO_SIMPLE_PATH_CHECK,
+  KIND_EAGER_SIMPLE_PATH_CHECK,
+  KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK,
+  KIND_NO_IND_CHECK_INIT_STATES,
+  KIND_NO_IND_CHECK,
+  KIND_NO_IND_CHECK_PROPERTY,
+  KIND_ONE_TIME_BASE_CHECK,
+  KIND_BOUND_STEP
 };
 
 struct Arg : public option::Arg
@@ -411,6 +430,162 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --ic3sa-interp \tuse interpolants to find more terms during refinement "
     "(default: off)" },
+    { PRINT_WALL_TIME,
+    0,
+    "",
+    "print-wall-time",
+    Arg::None,
+    "  --print-wall-time \tPrint wall clock time of entire execution" },
+    { BMC_BOUND_START,
+    0,
+    "",
+    "bmc-bound-start",
+    Arg::Numeric,
+    "  --bmc-bound-start \tBound (unrolling depth) to start "
+    "cex search in BMC (default: 0)"
+    },
+    { BMC_BOUND_STEP,
+    0,
+    "",
+    "bmc-bound-step",
+    Arg::Numeric,
+    "  --bmc-bound-step \tAmount by which bound (unrolling depth) for cex search "
+    "is increased in BMC (default: 1). For values greater than 1, BMC searches "
+      "for cex in intervals of size '--bmc-bound-step'."
+    },
+  { BMC_NEG_INIT_STEP,
+    0,
+    "",
+    "bmc-neg-init-step",
+    Arg::None,
+    "  --bmc-neg-init-step \tAdd negated initial state constraint in " 
+                            "BMC steps k > 0 (default: false)."
+    },
+  { BMC_EXPONENTIAL_STEP,
+    0,
+    "",
+    "bmc-exponential-step",
+    Arg::None,
+    "  --bmc-exponential-step \tDouble BMC bound in each step starting "
+         "at 'bmc-bound-start' (default: false, explores bounds 0, 1, 2, 4,...)."
+    },
+
+  { BMC_SINGLE_BAD_STATE,
+    0,
+    "",
+    "bmc-single-bad-state",
+    Arg::None,
+    "  --bmc-single-bad-state \tEXPERT OPTION: add a single bad state literal"
+    " for current bound k rather than a disjunctive term covering the checked"
+    " interval; counterexamples may be missed. (default: false)."
+    },
+  { BMC_NEG_BAD_STEP,
+    0,
+    "",
+    "bmc-neg-bad-step",
+    Arg::None,
+    "  --bmc-neg-bad-step \tAdd negated bad state constraint in " 
+                            "BMC steps k > 0 (default: false)."
+    },
+  { BMC_NEG_BAD_STEP_ALL,
+    0,
+    "",
+    "bmc-neg-bad-step-all",
+    Arg::None,
+    "  --bmc-neg-bad-step-all \tEXPERT OPTION: like '--bmc-neg-bad-step' but add"
+    " negated bad state constraint in ALL BMC steps k > 0 (default: false). When"
+    " combined with --bmc-single-bad-state, this option may cause overconstraining"
+    " the problem in certain corner cases."
+  },
+  { BMC_MIN_CEX_LIN_SEARCH,
+    0,
+    "",
+    "bmc-min-cex-linear-search",
+    Arg::None,
+    "  --bmc-min-cex-linear-search \tApply linear instead of binary search for "
+                        "minimal cex after a cex was found in current interval"
+    },
+  { BMC_MIN_CEX_LESS_INC_BIN_SEARCH,
+    0,
+    "",
+    "bmc-min-cex-less-inc-bin-search",
+    Arg::None,
+    "  --bmc-min-cex-less-inc-bin-search \tApply less incremental variant of binary search for "
+                        "minimal cex after a cex was found in current interval"
+    },
+  { BMC_ALLOW_NON_MINIMAL_CEX,
+    0,
+    "",
+    "bmc-allow-non-minimal-cex",
+    Arg::None,
+    "  --bmc-allow-non-minimal-cex \tDo not search for minimal cex within an interval;"
+    "instead, terminate immediately (reported bound of cex is an upper bound of actual cex)"
+    },
+  { KIND_NO_SIMPLE_PATH_CHECK,
+    0,
+    "",
+    "kind-no-simple-path-check",
+    Arg::None,
+    "  --kind-no-simple-path-check \tSkip simple path check in k-induction "
+    "(WARNING: might cause incompleteness)"
+    },
+  { KIND_EAGER_SIMPLE_PATH_CHECK,
+    0,
+    "",
+    "kind-eager-simple-path-check",
+    Arg::None,
+    "  --kind-eager-simple-path-check \tEager simple path check in k-induction "
+    "(default: lazy check)"
+    },
+  { KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK,
+    0,
+    "",
+    "kind-no-multi-call-simple-path-check",
+    Arg::None,
+    "  --kind-no-multi-call-simple-path-check \tTry to avoid multiple solver calls "
+    "in lazy simple path check in k-induction"
+    },
+  { KIND_NO_IND_CHECK_INIT_STATES,
+    0,
+    "",
+    "kind-no-ind-check-init-states",
+    Arg::None,
+    "  --kind-no-ind-check-init-states \tK-induction: skip checking inductive case based "
+    "on initial states"
+    },
+  { KIND_NO_IND_CHECK,
+    0,
+    "",
+    "kind-no-ind-check",
+    Arg::None,
+    "  --kind-no-ind-check \tK-induction: skip inductive case checks; "
+    "implies '--kind-no-ind-check-init-states' and '--kind-no-ind-check-property' "
+    "(WARNING: will cause incompleteness on most problem instances)"
+    },
+  { KIND_NO_IND_CHECK_PROPERTY,
+    0,
+    "",
+    "kind-no-ind-check-property",
+    Arg::None,
+    "  --kind-no-ind-check-property \tK-induction: skip checking inductive case based "
+    "on property (WARNING: will cause incompleteness on most problem instances)"
+    },
+  { KIND_ONE_TIME_BASE_CHECK,
+    0,
+    "",
+    "kind-one-time-base-check",
+    Arg::None,
+    "  --kind-one-time-base-check \tK-induction: check base case only once after"
+    " inductive check was unsatisfiable (WARNING: counterexamples might be missed)"
+    },
+  { KIND_BOUND_STEP,
+    0,
+    "",
+    "kind-bound-step",
+    Arg::Numeric,
+    "  --kind-bound-step \tAmount by which bound (unrolling depth) "
+    "is increased in k-induction (default: 1)"
+    },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -563,7 +738,43 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           }
           break;
         }
-        case IC3SA_INTERP: ic3sa_interp_ = true;
+        case IC3SA_INTERP: ic3sa_interp_ = true; break;
+        case PRINT_WALL_TIME: print_wall_time_ = true; break;
+        case BMC_BOUND_START: bmc_bound_start_ = atoi(opt.arg); break;  
+        case BMC_BOUND_STEP: bmc_bound_step_ = atoi(opt.arg);
+	  if (bmc_bound_step_ == 0)
+	    throw PonoException("--bmc-bound-step must be greater than 0");
+	  break;
+        case BMC_NEG_INIT_STEP: bmc_neg_init_step_ = true; break;
+        case BMC_EXPONENTIAL_STEP: bmc_exponential_step_ = true; break;
+	case BMC_SINGLE_BAD_STATE: bmc_single_bad_state_ = true; break;
+        case BMC_NEG_BAD_STEP: bmc_neg_bad_step_ = true;
+	  if (bmc_neg_bad_step_all_)
+	    throw PonoException("--bmc-neg-bad-step-all cannot be combined "\
+				"with '--bmc-neg-bad-step'");
+	  break;
+        case BMC_NEG_BAD_STEP_ALL: bmc_neg_bad_step_all_ = true;
+	  if (bmc_neg_bad_step_)
+	    throw PonoException("--bmc-neg-bad-step cannot be combined " \
+				"with '--bmc-neg-bad-step-all'");
+	  break;
+        case BMC_MIN_CEX_LIN_SEARCH: bmc_min_cex_linear_search_ = true; break;
+        case BMC_MIN_CEX_LESS_INC_BIN_SEARCH:
+	  bmc_min_cex_less_inc_bin_search_ = true; break;
+        case BMC_ALLOW_NON_MINIMAL_CEX:
+	  bmc_allow_non_minimal_cex_ = true; break;
+        case KIND_NO_SIMPLE_PATH_CHECK: kind_no_simple_path_check_ = true; break;
+        case KIND_EAGER_SIMPLE_PATH_CHECK: kind_eager_simple_path_check_ = true; break;
+        case KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK: kind_no_multi_call_simple_path_check_ = true; break;
+        case KIND_NO_IND_CHECK_INIT_STATES: kind_no_ind_check_init_states_ = true; break;
+        case KIND_NO_IND_CHECK: kind_no_ind_check_ = true;
+	  kind_no_ind_check_init_states_ = true; kind_no_ind_check_property_ = true; break;
+        case KIND_NO_IND_CHECK_PROPERTY: kind_no_ind_check_property_ = true; break;
+        case KIND_ONE_TIME_BASE_CHECK: kind_one_time_base_check_ = true; break;
+        case KIND_BOUND_STEP: kind_bound_step_ = atoi(opt.arg);
+	  if (kind_bound_step_ == 0)
+	    throw PonoException("--kind-bound-step must be greater than 0");
+	  break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
@@ -579,13 +790,6 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
     if (ceg_prophecy_arrays_ && smt_solver_ != smt::MSAT) {
       throw PonoException(
           "Counterexample-guided prophecy only supported with MathSAT so far");
-    }
-
-    if (smt_solver_ == smt::CVC5
-        && ic3_variants().find(engine_) != ic3_variants().end()) {
-      throw PonoException(
-          "cvc5 cannot handle multiple solver instances, and thus does not "
-          "currently support IC3 variants.");
     }
   }
   catch (PonoException & ce) {

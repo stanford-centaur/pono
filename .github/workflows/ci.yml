@@ -28,14 +28,20 @@ jobs:
           brew install \
             gmp
 
-      - name: Python Dependencies
+      # install previous version of setuptools as temporary fix
+      # see also recommendations here: https://github.com/pypa/setuptools/issues/3227
+      - name: Python Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: python3 -m pip install 'setuptools<61'
+
+      - name: Python Dependencies (all)
         run: python3 -m pip install Cython pytest toml
+
+      - name: Python Dependencies (all)
+        run: python3 -m pip install scikit-build
 
       - name: Download MathSAT
         run: ./ci-scripts/setup-msat.sh --auto-yes
-
-      - name: Download cvc5
-        run: ./ci-scripts/download-cvc5.sh
 
       - name: Setup Flex
         run: ./contrib/setup-flex.sh
@@ -48,7 +54,7 @@ jobs:
 
       - name: Setup Smt-Switch
         run: |
-          ./contrib/setup-smt-switch.sh --with-msat --cvc5-home=./deps/cvc5 --python
+          ./contrib/setup-smt-switch.sh --with-msat --python
           python3 -m pip install -e ./deps/smt-switch/build/python
 
       - name: Configure
