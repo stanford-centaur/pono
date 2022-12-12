@@ -70,9 +70,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     ./configure.sh --btor --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
     cd build
     make -j$(nproc)
-    # TODO put this back
-    # temporarily disable due to test-disjointset issue
-    # make test
+    make test
     make install
     cd $DIR
 else
