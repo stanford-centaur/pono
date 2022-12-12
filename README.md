@@ -1,3 +1,5 @@
+[![CI](https://github.com/upscale-project/pono/actions/workflows/ci.yml/badge.svg)](https://github.com/upscale-project/pono/actions/workflows/ci.yml)
+
 # Pono: A Flexible and Extensible SMT-Based Model Checker
 Pono is a performant, adaptable, and extensible SMT-based model checker implemented in C++. It leverages [Smt-Switch](https://github.com/makaimann/smt-switch), a generic C++ API for SMT solving. Pono was developed as the next
 generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was originally named _cosa2_.
