@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=499621b009ca0e86a65339aed59157bfaa874776
+SMT_SWITCH_VERSION=445b5bc5172cc4a56db121e5ba4c7a5e14147bd5
 
 usage () {
     cat <<EOF
@@ -70,9 +70,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     ./configure.sh --btor --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
     cd build
     make -j$(nproc)
-    # TODO put this back
-    # temporarily disable due to test-disjointset issue
-    # make test
+    make test
     make install
     cd $DIR
 else
