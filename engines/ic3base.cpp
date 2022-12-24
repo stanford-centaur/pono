@@ -158,7 +158,7 @@ ProverResult IC3Base::check_until(int k)
   // ever initializing base classes
   assert(initialized_);
 
-  cout << "Number of State Vars: " << ts_.statevars().size() << endl;
+  logger.log(1, "IC3Base Number of State Vars : {}", ts_.statevars().size());
 
   ProverResult res;
   RefineResult ref_res;

@@ -72,11 +72,6 @@ class IC3IA : public IC3
   size_t longest_cex_length_;  ///< keeps track of longest (abstract)
                                ///< counterexample
 
-  // hacked in for ic3ia-cvc4-pred
-  // need to be able to unroll abstract ts (regular ic3ia doesn't)
-  // and currently the unroller_ is over the conc_ts_
-  Unroller abs_unroller_;
-
   // Since MathSAT is the best solver for IC3IA it helps to use
   // its bool_model_generation option which doesn't enable
   // model generation for theories
@@ -90,6 +85,23 @@ class IC3IA : public IC3
                                     ///< do automatic top-level propagation
                                     ///< which means you can't count on a symbol
                                     ///< staying a symbol
+
+  // Hacked in for CVC4 SyGuS predicate experimentation
+
+  // need to be able to unroll abstract ts (regular ic3ia doesn't)
+  // and currently the unroller_ is over the conc_ts_
+  Unroller abs_unroller_;
+
+  smt::UnorderedTermSet ts_values_;  ///< all the values appearing in TS
+  smt::UnorderedTermSet max_terms_;  ///< largest non-Boolean terms in TS
+
+  // extra members for this hacked in stuff
+  std::unordered_set<smt::SortKind>
+      all_sort_kinds_;  ///< all sort kinds appearing in TS
+
+  smt::TermVec pred_candidates_;  ///< known predicates not in predset_
+                                  ///< these might be able to rule out
+                                  ///< abstract counterexamples
 
   /** Overriding the method. This will return the concrete_ts_ because ts_ is an
    *  abstraction of concrete_ts_.
