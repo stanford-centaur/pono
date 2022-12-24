@@ -401,7 +401,7 @@ int main(int argc, char ** argv)
   }
 #endif
 
-  if (!pono_options.profiling_log_filename_.empty()) {
+    if (!pono_options.profiling_log_filename_.empty()) {
 #ifdef WITH_PROFILING
     ProfilerFlush();
     ProfilerStop();

@@ -109,6 +109,9 @@ class PonoOptions
         ic3ia_track_important_vars_(default_ic3ia_track_important_vars_),
         ic3sa_func_refine_(default_ic3sa_func_refine_),
         profiling_log_filename_(default_profiling_log_filename_),
+        ic3ia_cvc4_pred_(default_ic3ia_cvc4_pred_),
+        ic3ia_cvc4_pred_size_(default_ic3ia_cvc4_pred_size_),
+        ic3ia_cvc4_pred_all_consts_(default_ic3ia_cvc4_pred_all_consts_),
         pseudo_init_prop_(default_pseudo_init_prop_),
         assume_prop_(default_assume_prop_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
@@ -292,6 +295,13 @@ class PonoOptions
   unsigned kind_bound_step_;
 
 private:
+  // experimental option for finding a predicate with CVC4 SyGuS
+  bool ic3ia_cvc4_pred_;
+  unsigned int ic3ia_cvc4_pred_size_;
+  bool ic3ia_cvc4_pred_all_consts_;
+  bool ic3ia_cvc4_pred_all_sorts_;
+  bool ic3ia_cvc4_pred_maxterms_;
+
   // Default options
   static const Engine default_engine_ = BMC;
   static const unsigned int default_prop_idx_ = 0;
@@ -317,6 +327,11 @@ private:
   static const bool default_ic3ia_track_important_vars_ = true;
   static const bool default_ic3sa_func_refine_ = true;
   static const std::string default_profiling_log_filename_;
+  static const bool default_ic3ia_cvc4_pred_ = false;
+  static const bool default_ic3ia_cvc4_pred_all_consts_ = false;
+  static const bool default_ic3ia_cvc4_pred_all_sorts_ = false;
+  static const bool default_ic3ia_cvc4_maxterms_ = true;
+  static const unsigned int default_ic3ia_cvc4_pred_size_ = 2;
   static const bool default_pseudo_init_prop_ = false;
   static const bool default_assume_prop_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
