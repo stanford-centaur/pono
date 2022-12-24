@@ -31,10 +31,10 @@
 
 #include <random>
 
-// includes for the CVC4 pred experiment
-#include "smt-switch/cvc4_solver.h"
-#include "smt-switch/cvc4_sort.h"
-#include "smt-switch/cvc4_term.h"
+// includes for the CVC5 pred experiment
+#include "smt-switch/cvc5_solver.h"
+#include "smt-switch/cvc5_sort.h"
+#include "smt-switch/cvc5_term.h"
 #include "smt-switch/identity_walker.h"
 #include "smt-switch/utils.h"
 
@@ -47,122 +47,122 @@ using namespace std;
 
 namespace pono {
 
-namespace cvc4a = ::CVC4::api;
-using CVC4SortSet = std::unordered_set<cvc4a::Sort, cvc4a::SortHashFunction>;
-using CVC4TermVec = std::vector<cvc4a::Term>;
+namespace cvc5a = ::CVC5::api;
+using CVC5SortSet = std::unordered_set<cvc5a::Sort, cvc5a::SortHashFunction>;
+using CVC5TermVec = std::vector<cvc5a::Term>;
 
-const unordered_set<cvc4a::Kind> bv_ops({ cvc4a::EQUAL,
-                                          cvc4a::BITVECTOR_CONCAT,
-                                          cvc4a::BITVECTOR_EXTRACT,
-                                          cvc4a::BITVECTOR_NOT,
-                                          cvc4a::BITVECTOR_NEG,
-                                          cvc4a::BITVECTOR_AND,
-                                          cvc4a::BITVECTOR_OR,
-                                          cvc4a::BITVECTOR_XOR,
-                                          cvc4a::BITVECTOR_NAND,
-                                          cvc4a::BITVECTOR_NOR,
-                                          cvc4a::BITVECTOR_XNOR,
-                                          cvc4a::BITVECTOR_COMP,
-                                          cvc4a::BITVECTOR_PLUS,
-                                          cvc4a::BITVECTOR_SUB,
-                                          cvc4a::BITVECTOR_MULT,
-                                          cvc4a::BITVECTOR_UDIV,
-                                          cvc4a::BITVECTOR_SDIV,
-                                          cvc4a::BITVECTOR_UREM,
-                                          cvc4a::BITVECTOR_SREM,
-                                          cvc4a::BITVECTOR_SMOD,
-                                          cvc4a::BITVECTOR_SHL,
-                                          cvc4a::BITVECTOR_ASHR,
-                                          cvc4a::BITVECTOR_LSHR,
-                                          cvc4a::BITVECTOR_ULT,
-                                          cvc4a::BITVECTOR_ULE,
-                                          cvc4a::BITVECTOR_UGT,
-                                          cvc4a::BITVECTOR_UGE,
-                                          cvc4a::BITVECTOR_SLT,
-                                          cvc4a::BITVECTOR_SLE,
-                                          cvc4a::BITVECTOR_SGT,
-                                          cvc4a::BITVECTOR_SGE,
-                                          cvc4a::BITVECTOR_ZERO_EXTEND,
-                                          cvc4a::BITVECTOR_SIGN_EXTEND,
-                                          cvc4a::BITVECTOR_REPEAT,
-                                          cvc4a::BITVECTOR_ROTATE_LEFT,
-                                          cvc4a::BITVECTOR_ROTATE_RIGHT });
+const unordered_set<cvc5a::Kind> bv_ops({ cvc5a::EQUAL,
+                                          cvc5a::BITVECTOR_CONCAT,
+                                          cvc5a::BITVECTOR_EXTRACT,
+                                          cvc5a::BITVECTOR_NOT,
+                                          cvc5a::BITVECTOR_NEG,
+                                          cvc5a::BITVECTOR_AND,
+                                          cvc5a::BITVECTOR_OR,
+                                          cvc5a::BITVECTOR_XOR,
+                                          cvc5a::BITVECTOR_NAND,
+                                          cvc5a::BITVECTOR_NOR,
+                                          cvc5a::BITVECTOR_XNOR,
+                                          cvc5a::BITVECTOR_COMP,
+                                          cvc5a::BITVECTOR_PLUS,
+                                          cvc5a::BITVECTOR_SUB,
+                                          cvc5a::BITVECTOR_MULT,
+                                          cvc5a::BITVECTOR_UDIV,
+                                          cvc5a::BITVECTOR_SDIV,
+                                          cvc5a::BITVECTOR_UREM,
+                                          cvc5a::BITVECTOR_SREM,
+                                          cvc5a::BITVECTOR_SMOD,
+                                          cvc5a::BITVECTOR_SHL,
+                                          cvc5a::BITVECTOR_ASHR,
+                                          cvc5a::BITVECTOR_LSHR,
+                                          cvc5a::BITVECTOR_ULT,
+                                          cvc5a::BITVECTOR_ULE,
+                                          cvc5a::BITVECTOR_UGT,
+                                          cvc5a::BITVECTOR_UGE,
+                                          cvc5a::BITVECTOR_SLT,
+                                          cvc5a::BITVECTOR_SLE,
+                                          cvc5a::BITVECTOR_SGT,
+                                          cvc5a::BITVECTOR_SGE,
+                                          cvc5a::BITVECTOR_ZERO_EXTEND,
+                                          cvc5a::BITVECTOR_SIGN_EXTEND,
+                                          cvc5a::BITVECTOR_REPEAT,
+                                          cvc5a::BITVECTOR_ROTATE_LEFT,
+                                          cvc5a::BITVECTOR_ROTATE_RIGHT });
 
-const unordered_set<cvc4a::Kind> relational_ops({
-    cvc4a::EQUAL,
-    cvc4a::DISTINCT,
-    cvc4a::LT,
-    cvc4a::LEQ,
-    cvc4a::GT,
-    cvc4a::GEQ,
-    cvc4a::BITVECTOR_ULT,
-    cvc4a::BITVECTOR_ULE,
-    cvc4a::BITVECTOR_UGT,
-    cvc4a::BITVECTOR_UGE,
-    cvc4a::BITVECTOR_SLT,
-    cvc4a::BITVECTOR_SLE,
-    cvc4a::BITVECTOR_SGT,
-    cvc4a::BITVECTOR_SGE,
+const unordered_set<cvc5a::Kind> relational_ops({
+    cvc5a::EQUAL,
+    cvc5a::DISTINCT,
+    cvc5a::LT,
+    cvc5a::LEQ,
+    cvc5a::GT,
+    cvc5a::GEQ,
+    cvc5a::BITVECTOR_ULT,
+    cvc5a::BITVECTOR_ULE,
+    cvc5a::BITVECTOR_UGT,
+    cvc5a::BITVECTOR_UGE,
+    cvc5a::BITVECTOR_SLT,
+    cvc5a::BITVECTOR_SLE,
+    cvc5a::BITVECTOR_SGT,
+    cvc5a::BITVECTOR_SGE,
 });
 
-const unordered_set<cvc4a::Kind> multisort_ops({ cvc4a::BITVECTOR_EXTRACT,
-                                                 cvc4a::BITVECTOR_CONCAT,
-                                                 cvc4a::BITVECTOR_ZERO_EXTEND,
-                                                 cvc4a::BITVECTOR_SIGN_EXTEND,
-                                                 cvc4a::BITVECTOR_COMP });
+const unordered_set<cvc5a::Kind> multisort_ops({ cvc5a::BITVECTOR_EXTRACT,
+                                                 cvc5a::BITVECTOR_CONCAT,
+                                                 cvc5a::BITVECTOR_ZERO_EXTEND,
+                                                 cvc5a::BITVECTOR_SIGN_EXTEND,
+                                                 cvc5a::BITVECTOR_COMP });
 
-const unordered_set<cvc4a::Kind> unary_ops({ cvc4a::BITVECTOR_NEG,
-                                             cvc4a::BITVECTOR_NOT,
-                                             cvc4a::BITVECTOR_EXTRACT,
-                                             cvc4a::BITVECTOR_ZERO_EXTEND,
-                                             cvc4a::BITVECTOR_SIGN_EXTEND,
-                                             cvc4a::UMINUS });
+const unordered_set<cvc5a::Kind> unary_ops({ cvc5a::BITVECTOR_NEG,
+                                             cvc5a::BITVECTOR_NOT,
+                                             cvc5a::BITVECTOR_EXTRACT,
+                                             cvc5a::BITVECTOR_ZERO_EXTEND,
+                                             cvc5a::BITVECTOR_SIGN_EXTEND,
+                                             cvc5a::UMINUS });
 
-const unordered_set<cvc4a::Kind> bool_ops(
-    { cvc4a::AND, cvc4a::OR, cvc4a::XOR, cvc4a::NOT, cvc4a::IMPLIES, cvc4a::ITE });
+const unordered_set<cvc5a::Kind> bool_ops(
+    { cvc5a::AND, cvc5a::OR, cvc5a::XOR, cvc5a::NOT, cvc5a::IMPLIES, cvc5a::ITE });
 
-// Helpers for CVC4 SyGuS Predicate Search
+// Helpers for CVC5 SyGuS Predicate Search
 // should eventually be moved elsewhere
 
-bool cvc4_term_is_value(const cvc4a::Term & term)
+bool cvc5_term_is_value(const cvc5a::Term & term)
 {
-  cvc4a::Kind k = term.getKind();
-  return ((k == cvc4a::CONST_BOOLEAN) || (k == cvc4a::CONST_BITVECTOR)
-          || (k == cvc4a::CONST_RATIONAL) || (k == cvc4a::CONST_FLOATINGPOINT)
-          || (k == cvc4a::CONST_ROUNDINGMODE) || (k == cvc4a::CONST_STRING)
-          || (k == cvc4a::CONST_ARRAY));
+  cvc5a::Kind k = term.getKind();
+  return ((k == cvc5a::CONST_BOOLEAN) || (k == cvc5a::CONST_BITVECTOR)
+          || (k == cvc5a::CONST_RATIONAL) || (k == cvc5a::CONST_FLOATINGPOINT)
+          || (k == cvc5a::CONST_ROUNDINGMODE) || (k == cvc5a::CONST_STRING)
+          || (k == cvc5a::CONST_ARRAY));
 }
 
-using CVC4OpSignatures =
-    unordered_map<cvc4a::Op,
-                  unordered_set<cvc4a::Sort, cvc4a::SortHashFunction>,
-                  cvc4a::OpHashFunction>;
-using CVC4ValueMap =
-    unordered_map<cvc4a::Sort,
-                  unordered_set<cvc4a::Term, cvc4a::TermHashFunction>,
-                  cvc4a::SortHashFunction>;
+using CVC5OpSignatures =
+    unordered_map<cvc5a::Op,
+                  unordered_set<cvc5a::Sort, cvc5a::SortHashFunction>,
+                  cvc5a::OpHashFunction>;
+using CVC5ValueMap =
+    unordered_map<cvc5a::Sort,
+                  unordered_set<cvc5a::Term, cvc5a::TermHashFunction>,
+                  cvc5a::SortHashFunction>;
 
-/** \class CVC4GrammarSeed
+/** \class CVC5GrammarSeed
  *  \brief A class for seeding a SyGuS grammar with terms
  *
  *  Used to store ops and values used in an abstract trace
  *  More specifically, it keeps track not only of the operators,
  *  but also which sorts they're applied to
  */
-class CVC4GrammarSeed
+class CVC5GrammarSeed
 {
  public:
-  CVC4GrammarSeed(cvc4a::Solver & solver) : solver_(solver), num_values_(0) {}
+  CVC5GrammarSeed(cvc5a::Solver & solver) : solver_(solver), num_values_(0) {}
 
-  void scan(cvc4a::Term term)
+  void scan(cvc5a::Term term)
   {
-    CVC4TermVec to_visit({ term });
-    unordered_set<cvc4a::Term, cvc4a::TermHashFunction> visited;
-    unordered_set<cvc4a::Term, cvc4a::TermHashFunction> contains_free_vars;
-    cvc4a::Term t;
+    CVC5TermVec to_visit({ term });
+    unordered_set<cvc5a::Term, cvc5a::TermHashFunction> visited;
+    unordered_set<cvc5a::Term, cvc5a::TermHashFunction> contains_free_vars;
+    cvc5a::Term t;
     while (!to_visit.empty()) {
       t = to_visit.back();
-      cvc4a::Sort sort = t.getSort();
+      cvc5a::Sort sort = t.getSort();
       to_visit.pop_back();
       if (visited.find(t) != visited.end()) {
         for (const auto & tt : t) {
@@ -176,7 +176,7 @@ class CVC4GrammarSeed
         // HACK want to avoid adding integer sort
         // if it's only for values (e.g. 2)
         // but then all variables are reals
-        // NOTE: can't just use the CVC4 equivalent of is_value
+        // NOTE: can't just use the CVC5 equivalent of is_value
         // because it would return false for (- 1)
         // since it has an operator
         if (!sort.isInteger()
@@ -190,21 +190,21 @@ class CVC4GrammarSeed
         to_visit.push_back(t);
         to_visit.insert(to_visit.end(), t.begin(), t.end());
 
-        if (cvc4_term_is_value(t)) {
+        if (cvc5_term_is_value(t)) {
           value_map_[sort].insert(t);
           num_values_++;
         } else if (t.hasOp()) {
-          cvc4a::Op op = t.getOp();
+          cvc5a::Op op = t.getOp();
           // easiest way to store signature is as a function sort
-          vector<cvc4a::Sort> sort_vec;
+          vector<cvc5a::Sort> sort_vec;
           for (const auto & tt : t) {
             sort_vec.push_back(tt.getSort());
           }
 
-          cvc4a::Sort ufsort = solver_.mkFunctionSort(sort_vec, sort);
+          cvc5a::Sort ufsort = solver_.mkFunctionSort(sort_vec, sort);
           assert(!op.isNull());
           op_map_[op].insert(ufsort);
-        } else if (t.getKind() == cvc4a::CONSTANT) {
+        } else if (t.getKind() == cvc5a::CONSTANT) {
           contains_free_vars.insert(t);
         }
       }
@@ -216,20 +216,20 @@ class CVC4GrammarSeed
    *  e.g. bvadd might have been applied to (_ BitVec 8) x (_ BitVec 8) -> (_
    * BitVec 8) and (_ BitVec 6) x (_ BitVec 6) -> (_ BitVec 6)
    */
-  const CVC4OpSignatures & get_op_map() const { return op_map_; }
+  const CVC5OpSignatures & get_op_map() const { return op_map_; }
 
   /** Getter for value map
    *  @return map from sorts to a set of values used of that sort
    */
-  const CVC4ValueMap & get_value_map() const { return value_map_; }
+  const CVC5ValueMap & get_value_map() const { return value_map_; }
 
   /** Setter for value map
    *  Allows manually setting values in the GrammarSeed
    *  @param value_map the new value map
    */
-  void set_value_map(const CVC4ValueMap & value_map) { value_map_ = value_map; }
+  void set_value_map(const CVC5ValueMap & value_map) { value_map_ = value_map; }
 
-  const unordered_set<cvc4a::Sort, cvc4a::SortHashFunction> & get_all_sorts()
+  const unordered_set<cvc5a::Sort, cvc5a::SortHashFunction> & get_all_sorts()
       const
   {
     return all_sorts_;
@@ -238,37 +238,37 @@ class CVC4GrammarSeed
   size_t num_values() const { return num_values_; }
 
  protected:
-  cvc4a::Solver & solver_;
-  CVC4OpSignatures op_map_;
-  CVC4ValueMap value_map_;
-  unordered_set<cvc4a::Sort, cvc4a::SortHashFunction> all_sorts_;
+  cvc5a::Solver & solver_;
+  CVC5OpSignatures op_map_;
+  CVC5ValueMap value_map_;
+  unordered_set<cvc5a::Sort, cvc5a::SortHashFunction> all_sorts_;
   size_t num_values_;
 };
 
-// helper class for generating grammar for CVC4 SyGuS
-cvc4a::Grammar cvc4_make_grammar(
-    cvc4a::Solver & cvc4_solver,
-    const CVC4TermVec & cvc4_boundvars,
-    const CVC4GrammarSeed * gs,
-    unordered_map<cvc4a::Sort,
-                  unordered_set<cvc4a::Term, cvc4a::TermHashFunction>,
-                  cvc4a::SortHashFunction> & cvc4_max_terms,
+// helper class for generating grammar for CVC5 SyGuS
+cvc5a::Grammar cvc5_make_grammar(
+    cvc5a::Solver & cvc5_solver,
+    const CVC5TermVec & cvc5_boundvars,
+    const CVC5GrammarSeed * gs,
+    unordered_map<cvc5a::Sort,
+                  unordered_set<cvc5a::Term, cvc5a::TermHashFunction>,
+                  cvc5a::SortHashFunction> & cvc5_max_terms,
     // 0 - no values
-    // 1 - values from CVC4GrammarSeed
+    // 1 - values from CVC5GrammarSeed
     // 2 - all values
     size_t values,
     bool all_sorts)
 {
   // sorts and their terminal constructors (start constructors)
-  cvc4a::Sort boolean = cvc4_solver.getBooleanSort();
-  cvc4a::Term start_bool = cvc4_solver.mkVar(boolean, "Start");
-  vector<cvc4a::Term> start_terms;
+  cvc5a::Sort boolean = cvc5_solver.getBooleanSort();
+  cvc5a::Term start_bool = cvc5_solver.mkVar(boolean, "Start");
+  vector<cvc5a::Term> start_terms;
 
-  unordered_map<cvc4a::Sort, cvc4a::Term, cvc4a::SortHashFunction> sort2start(
+  unordered_map<cvc5a::Sort, cvc5a::Term, cvc5a::SortHashFunction> sort2start(
       { { boolean, start_bool } });
-  for (const auto & cvc4_bv : cvc4_boundvars)
+  for (const auto & cvc5_bv : cvc5_boundvars)
   {
-    cvc4a::Sort sort = cvc4_bv.getSort();
+    cvc5a::Sort sort = cvc5_bv.getSort();
     // TODO: remove this limitation
     if (!sort.isBitVector() && !sort.isBoolean() && !sort.isReal()
         && !sort.isInteger()) {
@@ -278,27 +278,27 @@ cvc4a::Grammar cvc4_make_grammar(
 
     if (sort2start.find(sort) == sort2start.end())
     {
-      cvc4a::Term start_term = cvc4_solver.mkVar(sort, sort.toString() + "_start");
+      cvc5a::Term start_term = cvc5_solver.mkVar(sort, sort.toString() + "_start");
       sort2start[sort] = start_term;
       start_terms.push_back(start_term);
     }
   }
 
-  unordered_map<cvc4a::Term, vector<cvc4a::Term>, cvc4a::TermHashFunction>
+  unordered_map<cvc5a::Term, vector<cvc5a::Term>, cvc5a::TermHashFunction>
       constructs;
 
   // collect variables by sort and add to constructs
-  unordered_map<cvc4a::Sort, vector<cvc4a::Term>, cvc4a::SortHashFunction>
+  unordered_map<cvc5a::Sort, vector<cvc5a::Term>, cvc5a::SortHashFunction>
       sort2boundvars;
-  for (const auto & bvar : cvc4_boundvars) {
-    cvc4a::Sort sort = bvar.getSort();
+  for (const auto & bvar : cvc5_boundvars) {
+    cvc5a::Sort sort = bvar.getSort();
     sort2boundvars[sort].push_back(bvar);
     constructs[sort2start.at(sort)].push_back(bvar);
   }
 
   if (gs) {
-    const CVC4OpSignatures & ops_map = gs->get_op_map();
-    const CVC4ValueMap & values_map = gs->get_value_map();
+    const CVC5OpSignatures & ops_map = gs->get_op_map();
+    const CVC5ValueMap & values_map = gs->get_value_map();
 
     if (all_sorts) {
       // add all sorts to start terms
@@ -306,8 +306,8 @@ cvc4a::Grammar cvc4_make_grammar(
         // treat booleans specially, only included as result of relational
         // operations
         if (sort2start.find(sort) == sort2start.end() && !sort.isBoolean()) {
-          cvc4a::Term start_term =
-              cvc4_solver.mkVar(sort, sort.toString() + "_start");
+          cvc5a::Term start_term =
+              cvc5_solver.mkVar(sort, sort.toString() + "_start");
           sort2start[sort] = start_term;
           start_terms.push_back(start_term);
         }
@@ -315,15 +315,15 @@ cvc4a::Grammar cvc4_make_grammar(
     }
 
     // separate operators
-    unordered_map<SortKind, unordered_set<cvc4a::Kind>> reg_ops;
-    unordered_map<SortKind, unordered_set<cvc4a::Kind>> rel_ops;
-    unordered_map<SortKind, unordered_set<cvc4a::Op, cvc4a::OpHashFunction>>
+    unordered_map<SortKind, unordered_set<cvc5a::Kind>> reg_ops;
+    unordered_map<SortKind, unordered_set<cvc5a::Kind>> rel_ops;
+    unordered_map<SortKind, unordered_set<cvc5a::Op, cvc5a::OpHashFunction>>
         ms_ops;
 
     assert(ops_map.size());
     for (const auto & opelem : ops_map) {
-      cvc4a::Op op = opelem.first;
-      cvc4a::Kind po = op.getKind();
+      cvc5a::Op op = opelem.first;
+      cvc5a::Kind po = op.getKind();
       // for now, just bv or arithmetic (using REAL for both real and integer)
       SortKind sk = bv_ops.find(po) == bv_ops.end() ? REAL : BV;
       if (multisort_ops.find(po) != multisort_ops.end()) {
@@ -343,7 +343,7 @@ cvc4a::Grammar cvc4_make_grammar(
 
     // regular and relational operators
     for (const auto & s : start_terms) {
-      cvc4a::Sort sort = s.getSort();
+      cvc5a::Sort sort = s.getSort();
       SortKind sk;
       if (sort.isBitVector()) {
         sk = BV;
@@ -358,22 +358,22 @@ cvc4a::Grammar cvc4_make_grammar(
       } else {
         // TODO handle INT/REAL (note using REAL for both)
         logger.log(0,
-                   "WARNING IC3IA CVC4 predicates unhandled sort: {}",
+                   "WARNING IC3IA CVC5 predicates unhandled sort: {}",
                    s.getSort().toString());
       }
 
       // regular
       for (const auto & po : reg_ops[sk]) {
         if (unary_ops.find(po) == unary_ops.end()) {
-          constructs[s].push_back(cvc4_solver.mkTerm(po, s, s));
+          constructs[s].push_back(cvc5_solver.mkTerm(po, s, s));
         } else {
-          constructs[s].push_back(cvc4_solver.mkTerm(po, s));
+          constructs[s].push_back(cvc5_solver.mkTerm(po, s));
         }
       }
 
       // relational
       for (const auto & po : rel_ops[sk]) {
-        constructs[start_bool].push_back(cvc4_solver.mkTerm(po, s, s));
+        constructs[start_bool].push_back(cvc5_solver.mkTerm(po, s, s));
       }
 
       // add values
@@ -393,7 +393,7 @@ cvc4a::Grammar cvc4_make_grammar(
       for (const auto & op : ms_ops[sk]) {
         for (const auto & signature : ops_map.at(op)) {
           assert(signature.isFunction());
-          vector<cvc4a::Term> args;
+          vector<cvc5a::Term> args;
           bool failed = false;
           for (const auto & sort : signature.getFunctionDomainSorts()) {
             // TODO might not have start terms for all sorts
@@ -414,11 +414,11 @@ cvc4a::Grammar cvc4_make_grammar(
             break;
           }
 
-          cvc4a::Sort codomain_sort = signature.getFunctionCodomainSort();
+          cvc5a::Sort codomain_sort = signature.getFunctionCodomainSort();
           if (sort2start.find(codomain_sort) != sort2start.end()) {
-            cvc4a::Term return_start_term = sort2start.at(codomain_sort);
+            cvc5a::Term return_start_term = sort2start.at(codomain_sort);
             constructs[return_start_term].push_back(
-                cvc4_solver.mkTerm(op, args));
+                cvc5_solver.mkTerm(op, args));
           } else {
             logger.log(3,
                        "Skipping op {} because missing return sort {}",
@@ -431,23 +431,23 @@ cvc4a::Grammar cvc4_make_grammar(
 
   } else {
     for (auto s : start_terms) {
-      cvc4a::Term equals = cvc4_solver.mkTerm(cvc4a::EQUAL, s, s);
-      cvc4a::Term bvugt = cvc4_solver.mkTerm(cvc4a::BITVECTOR_UGT, s, s);
+      cvc5a::Term equals = cvc5_solver.mkTerm(cvc5a::EQUAL, s, s);
+      cvc5a::Term bvugt = cvc5_solver.mkTerm(cvc5a::BITVECTOR_UGT, s, s);
       constructs[start_bool] = { bvugt, equals };
     }
 
     // include bv operations in the grammar
     for (auto s : start_terms) {
-      cvc4a::Term zero = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 0);
-      cvc4a::Term one = cvc4_solver.mkBitVector(s.getSort().getBVSize(), 1);
-      cvc4a::Term min_signed = cvc4_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
-      cvc4a::Term bvadd = cvc4_solver.mkTerm(cvc4a::BITVECTOR_PLUS, s, s);
-      cvc4a::Term bvmul = cvc4_solver.mkTerm(cvc4a::BITVECTOR_MULT, s, s);
-      cvc4a::Term bvand = cvc4_solver.mkTerm(cvc4a::BITVECTOR_AND, s, s);
-      cvc4a::Term bvcomp = cvc4_solver.mkTerm(cvc4a::BITVECTOR_COMP, s, s);
-      cvc4a::Term bvor = cvc4_solver.mkTerm(cvc4a::BITVECTOR_OR, s, s);
-      cvc4a::Term bvnot = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NOT, s);
-      cvc4a::Term bvneg = cvc4_solver.mkTerm(cvc4a::BITVECTOR_NEG, s);
+      cvc5a::Term zero = cvc5_solver.mkBitVector(s.getSort().getBVSize(), 0);
+      cvc5a::Term one = cvc5_solver.mkBitVector(s.getSort().getBVSize(), 1);
+      cvc5a::Term min_signed = cvc5_solver.mkBitVector(s.getSort().getBVSize(), pow(2,s.getSort().getBVSize() - 1));
+      cvc5a::Term bvadd = cvc5_solver.mkTerm(cvc5a::BITVECTOR_PLUS, s, s);
+      cvc5a::Term bvmul = cvc5_solver.mkTerm(cvc5a::BITVECTOR_MULT, s, s);
+      cvc5a::Term bvand = cvc5_solver.mkTerm(cvc5a::BITVECTOR_AND, s, s);
+      cvc5a::Term bvcomp = cvc5_solver.mkTerm(cvc5a::BITVECTOR_COMP, s, s);
+      cvc5a::Term bvor = cvc5_solver.mkTerm(cvc5a::BITVECTOR_OR, s, s);
+      cvc5a::Term bvnot = cvc5_solver.mkTerm(cvc5a::BITVECTOR_NOT, s);
+      cvc5a::Term bvneg = cvc5_solver.mkTerm(cvc5a::BITVECTOR_NEG, s);
       constructs[s] = { bvadd, bvmul, bvand, bvor, bvnot, bvneg };
       if (values == 0) {
         // no constants in this case
@@ -466,14 +466,14 @@ cvc4a::Grammar cvc4_make_grammar(
 
   // add max terms
   for (const auto & start_term : start_terms) {
-    cvc4a::Sort sort = start_term.getSort();
-    for (const auto & t : cvc4_max_terms[sort]) {
+    cvc5a::Sort sort = start_term.getSort();
+    for (const auto & t : cvc5_max_terms[sort]) {
       constructs[start_term].push_back(t);
     }
   }
 
   for (const auto & start_term : start_terms) {
-    cvc4a::Sort sort = start_term.getSort();
+    cvc5a::Sort sort = start_term.getSort();
     if (sort2boundvars.find(sort) == sort2boundvars.end()) {
       // there should be some kind of start (e.g. value or constant)
       // for every start term
@@ -484,22 +484,22 @@ cvc4a::Grammar cvc4_make_grammar(
                             + sort.toString());
       }
 
-      cvc4a::Term zero = cvc4_solver.mkBitVector(sort.getBVSize(), 0);
-      cvc4a::Term one = cvc4_solver.mkBitVector(sort.getBVSize(), 1);
+      cvc5a::Term zero = cvc5_solver.mkBitVector(sort.getBVSize(), 0);
+      cvc5a::Term one = cvc5_solver.mkBitVector(sort.getBVSize(), 1);
       constructs[start_term].push_back(zero);
       constructs[start_term].push_back(one);
     }
   }
 
   // construct the grammar
-  vector<cvc4a::Term> starts({ start_bool });
+  vector<cvc5a::Term> starts({ start_bool });
   starts.reserve(start_terms.size() + 1);
   starts.insert(starts.end(), start_terms.begin(), start_terms.end());
-  cvc4a::Grammar g = cvc4_solver.mkSygusGrammar(cvc4_boundvars, starts);
+  cvc5a::Grammar g = cvc5_solver.mkSygusGrammar(cvc5_boundvars, starts);
 
   for (const auto & elem : constructs) {
-    const cvc4a::Term & start_term = elem.first;
-    const vector<cvc4a::Term> & rules = elem.second;
+    const cvc5a::Term & start_term = elem.first;
+    const vector<cvc5a::Term> & rules = elem.second;
     assert(rules.size());
 
     // add rules for this nonterminal start term
@@ -515,7 +515,7 @@ cvc4a::Grammar cvc4_make_grammar(
   return g;
 }
 
-// helper class for translating back from CVC4
+// helper class for translating back from CVC5
 // which is not always binarized
 class Binarizer : public smt::IdentityWalker
 {
@@ -581,7 +581,7 @@ IC3IA::IC3IA(const Property & p,
     : super(p, RelationalTransitionSystem(s), s, opt),
       conc_ts_(ts, to_prover_solver_),
       // TODO: when cleaning this up, should have only one unroller
-      ia_(conc_ts_, ts_, opt.ic3ia_cvc4_pred_ ? abs_unroller_ : unroller_),
+      ia_(conc_ts_, ts_, opt.ic3ia_cvc5_pred_ ? abs_unroller_ : unroller_),
       // only mathsat interpolator supported
       interpolator_(create_interpolating_solver_for(
           SolverEnum::MSAT_INTERPOLATOR, Engine::IC3IA_ENGINE)),
@@ -782,8 +782,8 @@ void IC3IA::initialize()
     }
   }
 
-  // gather max-terms (for ic3ia-cvc4-pred)
-  if (options_.ic3ia_cvc4_pred_maxterms_) {
+  // gather max-terms (for ic3ia-cvc5-pred)
+  if (options_.ic3ia_cvc5_pred_maxterms_) {
     UnorderedTermSet all_preds = preds;
     SolverEnum solver_enum = solver_->get_solver_enum();
     if (conc_ts_.is_functional()) {
@@ -890,8 +890,8 @@ RefineResult IC3IA::refine()
   UnorderedTermSet preds;
   TermVec fresh_preds;
 
-  // HACK added to experiment with CVC4 SyGuS for finding predicates
-  if (options_.ic3ia_cvc4_pred_) {
+  // HACK added to experiment with CVC5 SyGuS for finding predicates
+  if (options_.ic3ia_cvc5_pred_) {
     // first check if the cex trace is spurious
     // this is a bit hacky for now -- should refactor later so that
     // the unrolling is shared with the interpolator approach in the else branch
@@ -899,8 +899,8 @@ RefineResult IC3IA::refine()
     assert(solver_context_ == 0);
     push_solver_context();
 
-    // NOTE only use abs_unroller in ic3ia-cvc4-pred mode
-    // need it to unroll the ts_ in cvc4_find_preds
+    // NOTE only use abs_unroller in ic3ia-cvc5-pred mode
+    // need it to unroll the ts_ in cvc5_find_preds
     // and can't have two unrollers using same solver
     // TODO: revisit the above assumption
     Term bmc_unrolling = abs_unroller_.at_time(conc_ts_.init(), 0);
@@ -950,7 +950,7 @@ RefineResult IC3IA::refine()
     } else {
       assert(!preds.size());
       // otherwise fall back on SyGuS
-      cvc4_find_preds(cex_, preds);
+      cvc5_find_preds(cex_, preds);
     }
 
     for (auto const & p : preds) {
@@ -1170,7 +1170,7 @@ void IC3IA::register_symbol_mappings(size_t i)
   }
 }
 
-bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
+bool IC3IA::cvc5_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
 {
   size_t cex_length = cex.size();
   assert(cex_length);
@@ -1227,7 +1227,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
       unrolled_abs_vars.push_back(unrolled_abs_nv);
 
       // most of these were already added above
-      // by traversing cvc4_formula (at smt-switch level)
+      // by traversing cvc5_formula (at smt-switch level)
       // which uses these same variables
       // but this just ensures all variables are in this set
       free_vars.insert(unrolled_nv);
@@ -1248,7 +1248,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   bool found_preds = false;
   size_t num_preds = 1;
   while (!found_preds) {
-    found_preds = cvc4_synthesize_preds(
+    found_preds = cvc5_synthesize_preds(
         abs_trace, statevars, var_args, free_vars, num_preds, out_preds);
     num_preds++;
   }
@@ -1256,7 +1256,7 @@ bool IC3IA::cvc4_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   return found_preds;
 }
 
-bool IC3IA::cvc4_synthesize_preds(
+bool IC3IA::cvc5_synthesize_preds(
     const smt::Term & abs_trace,
     const TermVec & statevars,
     const vector<pair<TermVec, TermVec>> & unrolled_var_args,
@@ -1269,129 +1269,129 @@ bool IC3IA::cvc4_synthesize_preds(
   assert(unrolled_var_args.size());
 
   // HACK
-  // hacked in to evaluate CVC4
+  // hacked in to evaluate CVC5
   // if done for real, should be sure to do this OR the interpolator, not both
-  smt::SmtSolver cvc4_ = create_solver(smt::SolverEnum::CVC4);
-  smt::TermTranslator to_cvc4_(cvc4_);
-  smt::TermTranslator from_cvc4_(solver_);
+  smt::SmtSolver cvc5_ = create_solver(smt::SolverEnum::CVC5);
+  smt::TermTranslator to_cvc5_(cvc5_);
+  smt::TermTranslator from_cvc5_(solver_);
 
-  // populate from_cvc4_ cache
-  UnorderedTermMap & from_cvc4_cache = from_cvc4_.get_cache();
+  // populate from_cvc5_ cache
+  UnorderedTermMap & from_cvc5_cache = from_cvc5_.get_cache();
   for (auto sv : conc_ts_.statevars()) {
-    from_cvc4_cache[to_cvc4_.transfer_term(sv)] = sv;
+    from_cvc5_cache[to_cvc5_.transfer_term(sv)] = sv;
   }
 
-  // get the underlying CVC4 objects
-  cvc4a::Term cvc4_formula =
-      static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(abs_trace, BOOL))
-          ->get_cvc4_term();
+  // get the underlying CVC5 objects
+  cvc5a::Term cvc5_formula =
+      static_pointer_cast<CVC5Term>(to_cvc5_.transfer_term(abs_trace, BOOL))
+          ->get_cvc5_term();
 
-  unordered_set<cvc4a::Term, cvc4a::TermHashFunction> cvc4_free_vars;
+  unordered_set<cvc5a::Term, cvc5a::TermHashFunction> cvc5_free_vars;
   for (auto fv : free_vars) {
-    cvc4_free_vars.insert(
-        static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(fv))
-            ->get_cvc4_term());
+    cvc5_free_vars.insert(
+        static_pointer_cast<CVC5Term>(to_cvc5_.transfer_term(fv))
+            ->get_cvc5_term());
   }
 
-  // Retrieve the underlying fresh cvc4 solver
-  cvc4a::Solver & cvc4_solver =
-      static_pointer_cast<CVC4Solver>(cvc4_)->get_cvc4_solver();
+  // Retrieve the underlying fresh cvc5 solver
+  cvc5a::Solver & cvc5_solver =
+      static_pointer_cast<CVC5Solver>(cvc5_)->get_cvc5_solver();
 
   // set necessary options for sygus
-  cvc4_solver.setOption("lang", "sygus2");
-  cvc4_solver.setOption("incremental", "false");
+  cvc5_solver.setOption("lang", "sygus2");
+  cvc5_solver.setOption("incremental", "false");
 
-  if (options_.ic3ia_cvc4_pred_size_)
+  if (options_.ic3ia_cvc5_pred_size_)
   {
-    int pred_size = options_.ic3ia_cvc4_pred_size_;
+    int pred_size = options_.ic3ia_cvc5_pred_size_;
     pred_size += (num_preds-1)/3; // increase the size periodically
-    cvc4_solver.setOption("sygus-abort-size", std::to_string(pred_size));
+    cvc5_solver.setOption("sygus-abort-size", std::to_string(pred_size));
   }
-  cvc4_solver.setOption("sygus-active-gen", "enum");
+  cvc5_solver.setOption("sygus-active-gen", "enum");
 
   // create bound variables to use in the synthesized function
-  vector<cvc4a::Term> cvc4_statevars;
-  cvc4_statevars.reserve(statevars.size());
-  vector<cvc4a::Term> cvc4_boundvars;
-  cvc4_boundvars.reserve(statevars.size());
+  vector<cvc5a::Term> cvc5_statevars;
+  cvc5_statevars.reserve(statevars.size());
+  vector<cvc5a::Term> cvc5_boundvars;
+  cvc5_boundvars.reserve(statevars.size());
   Term transferred_sv;
   for (auto sv : statevars) {
-    transferred_sv = to_cvc4_.transfer_term(sv);
-    cvc4a::Term cvc4_sv =
-        static_pointer_cast<CVC4Term>(transferred_sv)->get_cvc4_term();
-    cvc4_statevars.push_back(cvc4_sv);
-    cvc4a::Term cvc4_bv =
-        cvc4_solver.mkVar(cvc4_sv.getSort(), cvc4_sv.toString() + "_var");
-    cvc4_boundvars.push_back(cvc4_bv);
+    transferred_sv = to_cvc5_.transfer_term(sv);
+    cvc5a::Term cvc5_sv =
+        static_pointer_cast<CVC5Term>(transferred_sv)->get_cvc5_term();
+    cvc5_statevars.push_back(cvc5_sv);
+    cvc5a::Term cvc5_bv =
+        cvc5_solver.mkVar(cvc5_sv.getSort(), cvc5_sv.toString() + "_var");
+    cvc5_boundvars.push_back(cvc5_bv);
   }
 
-  unordered_map<cvc4a::Sort,
-                unordered_set<cvc4a::Term, cvc4a::TermHashFunction>,
-                cvc4a::SortHashFunction>
-      cvc4_max_terms;
+  unordered_map<cvc5a::Sort,
+                unordered_set<cvc5a::Term, cvc5a::TermHashFunction>,
+                cvc5a::SortHashFunction>
+      cvc5_max_terms;
   for (const auto & t : max_terms_) {
-    cvc4a::Term cvc4_t =
-        static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(t))
-            ->get_cvc4_term();
+    cvc5a::Term cvc5_t =
+        static_pointer_cast<CVC5Term>(to_cvc5_.transfer_term(t))
+            ->get_cvc5_term();
     // need to substitute with bound vars
-    cvc4_max_terms[cvc4_t.getSort()].insert(
-        cvc4_t.substitute(cvc4_statevars, cvc4_boundvars));
+    cvc5_max_terms[cvc5_t.getSort()].insert(
+        cvc5_t.substitute(cvc5_statevars, cvc5_boundvars));
   }
 
-  CVC4GrammarSeed gs(cvc4_solver);
-  Term transferred_trace = to_cvc4_.transfer_term(abs_trace, BOOL);
-  gs.scan(static_pointer_cast<CVC4Term>(transferred_trace)->get_cvc4_term());
+  CVC5GrammarSeed gs(cvc5_solver);
+  Term transferred_trace = to_cvc5_.transfer_term(abs_trace, BOOL);
+  gs.scan(static_pointer_cast<CVC5Term>(transferred_trace)->get_cvc5_term());
 
   logger.log(1, "Number of Values in Trace: {}", gs.num_values());
 
   // Grammar construction
-  cvc4a::Grammar g_with_trace_values =
-      cvc4_make_grammar(cvc4_solver,
-                        cvc4_boundvars,
+  cvc5a::Grammar g_with_trace_values =
+      cvc5_make_grammar(cvc5_solver,
+                        cvc5_boundvars,
                         &gs,
-                        cvc4_max_terms,
-                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 1,
-                        options_.ic3ia_cvc4_pred_all_sorts_);
+                        cvc5_max_terms,
+                        options_.ic3ia_cvc5_pred_all_consts_ ? 2 : 1,
+                        options_.ic3ia_cvc5_pred_all_sorts_);
 
   // prioritize using only values in ts first (not the trace
   // which could have new values due to top-level substitution)
-  CVC4ValueMap cvc4_value_map;
+  CVC5ValueMap cvc5_value_map;
   for (const auto & val : ts_values_) {
-    cvc4a::Term cvc4_val =
-        static_pointer_cast<CVC4Term>(to_cvc4_.transfer_term(val))
-            ->get_cvc4_term();
-    cvc4_value_map[cvc4_val.getSort()].insert(cvc4_val);
+    cvc5a::Term cvc5_val =
+        static_pointer_cast<CVC5Term>(to_cvc5_.transfer_term(val))
+            ->get_cvc5_term();
+    cvc5_value_map[cvc5_val.getSort()].insert(cvc5_val);
   }
-  gs.set_value_map(cvc4_value_map);
-  cvc4a::Grammar g =
-      cvc4_make_grammar(cvc4_solver,
-                        cvc4_boundvars,
+  gs.set_value_map(cvc5_value_map);
+  cvc5a::Grammar g =
+      cvc5_make_grammar(cvc5_solver,
+                        cvc5_boundvars,
                         &gs,
-                        cvc4_max_terms,
-                        options_.ic3ia_cvc4_pred_all_consts_ ? 2 : 1,
-                        options_.ic3ia_cvc4_pred_all_sorts_);
+                        cvc5_max_terms,
+                        options_.ic3ia_cvc5_pred_all_consts_ ? 2 : 1,
+                        options_.ic3ia_cvc5_pred_all_sorts_);
 
-  vector<cvc4a::Term> pred_vec;
+  vector<cvc5a::Term> pred_vec;
   for (size_t n = 0; n < num_preds; ++n) {
     // Create the predicate to search for. Use the grammar
     string pred_name = "P_" + std::to_string(n);
-    // cvc4a::Term pred = 
-    //   cvc4_solver.synthFun(pred_name, cvc4_boundvars, cvc4_solver.getBooleanSort(), g);
-    cvc4a::Term pred;
+    // cvc5a::Term pred = 
+    //   cvc5_solver.synthFun(pred_name, cvc5_boundvars, cvc5_solver.getBooleanSort(), g);
+    cvc5a::Term pred;
     switch (n % 3) {
     case 0:
-      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
-                                  cvc4_solver.getBooleanSort(), g);
+      pred = cvc5_solver.synthFun(pred_name, cvc5_boundvars,
+                                  cvc5_solver.getBooleanSort(), g);
       break;
     case 1:
-      pred = cvc4_solver.synthFun(pred_name,
-                                  cvc4_boundvars,
-                                  cvc4_solver.getBooleanSort(),
+      pred = cvc5_solver.synthFun(pred_name,
+                                  cvc5_boundvars,
+                                  cvc5_solver.getBooleanSort(),
                                   g_with_trace_values);
       break;
     default:
-      pred = cvc4_solver.synthFun(pred_name, cvc4_boundvars,
-                                  cvc4_solver.getBooleanSort());
+      pred = cvc5_solver.synthFun(pred_name, cvc5_boundvars,
+                                  cvc5_solver.getBooleanSort());
       break;
     };
     pred_vec.push_back(pred);
@@ -1399,81 +1399,81 @@ bool IC3IA::cvc4_synthesize_preds(
     // add the implicit predicate abstraction constraints
     // e.g. P(x^@0) <-> P(x@1) /\ P(x^@1) <-> P(x@2) /\ ...
 
-    vector<cvc4a::Term> cvc4_next_var_args;
-    vector<cvc4a::Term> cvc4_abs_var_args;
+    vector<cvc5a::Term> cvc5_next_var_args;
+    vector<cvc5a::Term> cvc5_abs_var_args;
 
     for (const auto & var_pair : unrolled_var_args) {
       const TermVec & unrolled_next_vars = var_pair.first;
       const TermVec & unrolled_abs_vars = var_pair.second;
 
-      // CVC4 takes the function as the first child, so insert the
+      // CVC5 takes the function as the first child, so insert the
       // pred function first
-      cvc4_next_var_args.clear();
-      cvc4_next_var_args.push_back(pred);
+      cvc5_next_var_args.clear();
+      cvc5_next_var_args.push_back(pred);
 
-      cvc4_abs_var_args.clear();
-      cvc4_abs_var_args.push_back(pred);
+      cvc5_abs_var_args.clear();
+      cvc5_abs_var_args.push_back(pred);
 
       assert(unrolled_next_vars.size() == unrolled_abs_vars.size());
       Term nv, abs_nv;
       for (size_t i = 0; i < unrolled_next_vars.size(); ++i) {
-        nv = to_cvc4_.transfer_term(unrolled_next_vars[i]);
-        abs_nv = to_cvc4_.transfer_term(unrolled_abs_vars[i]);
+        nv = to_cvc5_.transfer_term(unrolled_next_vars[i]);
+        abs_nv = to_cvc5_.transfer_term(unrolled_abs_vars[i]);
 
-        cvc4_next_var_args.push_back(
-            static_pointer_cast<CVC4Term>(nv)->get_cvc4_term());
-        cvc4_abs_var_args.push_back(
-            static_pointer_cast<CVC4Term>(abs_nv)->get_cvc4_term());
+        cvc5_next_var_args.push_back(
+            static_pointer_cast<CVC5Term>(nv)->get_cvc5_term());
+        cvc5_abs_var_args.push_back(
+            static_pointer_cast<CVC5Term>(abs_nv)->get_cvc5_term());
       }
 
-      cvc4a::Term pred_app_vars =
-          cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_next_var_args);
-      cvc4a::Term pred_app_abs_vars =
-          cvc4_solver.mkTerm(cvc4a::APPLY_UF, cvc4_abs_var_args);
+      cvc5a::Term pred_app_vars =
+          cvc5_solver.mkTerm(cvc5a::APPLY_UF, cvc5_next_var_args);
+      cvc5a::Term pred_app_abs_vars =
+          cvc5_solver.mkTerm(cvc5a::APPLY_UF, cvc5_abs_var_args);
 
-      cvc4_formula = cvc4_solver.mkTerm(cvc4a::AND,
-                                        cvc4_formula,
-                                        cvc4_solver.mkTerm(cvc4a::EQUAL, pred_app_vars, pred_app_abs_vars));
+      cvc5_formula = cvc5_solver.mkTerm(cvc5a::AND,
+                                        cvc5_formula,
+                                        cvc5_solver.mkTerm(cvc5a::EQUAL, pred_app_vars, pred_app_abs_vars));
     }
   }
 
-  cvc4a::Term constraint = cvc4_solver.mkTerm(cvc4a::NOT, cvc4_formula);
+  cvc5a::Term constraint = cvc5_solver.mkTerm(cvc5a::NOT, cvc5_formula);
 
   // use sygus variables rather than ordinary variables.
-  std::map<cvc4a::Term, cvc4a::Term> old_to_new;
-  std::vector<cvc4a::Term> originals(cvc4_free_vars.begin(),
-                                     cvc4_free_vars.end());
-  for (cvc4a::Term old_var : originals) {
-    cvc4a::Term new_var =
-        cvc4_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
+  std::map<cvc5a::Term, cvc5a::Term> old_to_new;
+  std::vector<cvc5a::Term> originals(cvc5_free_vars.begin(),
+                                     cvc5_free_vars.end());
+  for (cvc5a::Term old_var : originals) {
+    cvc5a::Term new_var =
+        cvc5_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
     old_to_new[old_var] = new_var;
   }
-  std::vector<cvc4a::Term> news;
-  for (cvc4a::Term old_var : originals) {
+  std::vector<cvc5a::Term> news;
+  for (cvc5a::Term old_var : originals) {
     assert(old_to_new.find(old_var) != old_to_new.end());
     news.push_back(old_to_new[old_var]);
   }
 
-  cvc4a::Term sygus_constraint = constraint.substitute(originals, news);
-  cvc4_solver.addSygusConstraint(sygus_constraint);
+  cvc5a::Term sygus_constraint = constraint.substitute(originals, news);
+  cvc5_solver.addSygusConstraint(sygus_constraint);
 
-  logger.log(1, "Looking for {} predicate(s) with CVC4 SyGuS", num_preds);
+  logger.log(1, "Looking for {} predicate(s) with CVC5 SyGuS", num_preds);
   try {
-    res = cvc4_solver.checkSynth().isUnsat();
+    res = cvc5_solver.checkSynth().isUnsat();
     logger.log(1, "Successfully found {} predicate(s)", num_preds);
   }
-  catch (cvc4a::CVC4ApiException & e) {
-    logger.log(1, "Caught exception from CVC4: {}", e.what());
+  catch (cvc5a::CVC5ApiException & e) {
+    logger.log(1, "Caught exception from CVC5: {}", e.what());
     return false;
   }
 
   // for debugging:
   if (options_.verbosity_ > 0) {
-    cvc4_solver.printSynthSolution(std::cout);
+    cvc5_solver.printSynthSolution(std::cout);
   }
 
   for (auto pred : pred_vec) {
-    cvc4a::Term pred_solution = cvc4_solver.getSynthSolution(pred);
+    cvc5a::Term pred_solution = cvc5_solver.getSynthSolution(pred);
 
     // instead of applying predicate and simplifying to get rid of the lambda
     // decided to just do substitution
@@ -1481,20 +1481,20 @@ bool IC3IA::cvc4_synthesize_preds(
     // noticed on one example that arithmetic bv operators were replaced with
     // bitwise operators
 
-    vector<cvc4a::Term> pred_solution_children(pred_solution.begin(),
+    vector<cvc5a::Term> pred_solution_children(pred_solution.begin(),
                                                pred_solution.end());
     assert(pred_solution_children.size()
            == 2);  // expecting a bound_var_list and a term
-    cvc4a::Term pred_solution_statevars =
-      pred_solution_children[1].substitute(cvc4_boundvars, cvc4_statevars);
+    cvc5a::Term pred_solution_statevars =
+      pred_solution_children[1].substitute(cvc5_boundvars, cvc5_statevars);
 
-    Term cvc4_learned_pred = make_shared<CVC4Term>(pred_solution_statevars);
+    Term cvc5_learned_pred = make_shared<CVC5Term>(pred_solution_statevars);
     // Makai: put this back in if it starts failing on term translation
     //        not all backend solvers support n-ary arguments
-    // Binarizer binarizer(cvc4_);
-    // cvc4_learned_pred = binarizer.process(cvc4_learned_pred);
+    // Binarizer binarizer(cvc5_);
+    // cvc5_learned_pred = binarizer.process(cvc5_learned_pred);
 
-    Term learned_pred = from_cvc4_.transfer_term(cvc4_learned_pred, BOOL);
+    Term learned_pred = from_cvc5_.transfer_term(cvc5_learned_pred, BOOL);
     assert(learned_pred);
 
     // NOTE in future might look for more than one predicate at a time
