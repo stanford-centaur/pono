@@ -508,6 +508,8 @@ cvc4a::Grammar cvc4_make_grammar(
     if (values == 2) {
       g.addAnyConstant(start_term);
     }
+
+    // TODO: non-bv ops
   }
 
   return g;
@@ -1298,6 +1300,7 @@ bool IC3IA::cvc4_synthesize_preds(
   // set necessary options for sygus
   cvc4_solver.setOption("lang", "sygus2");
   cvc4_solver.setOption("incremental", "false");
+
   if (options_.ic3ia_cvc4_pred_size_)
   {
     int pred_size = options_.ic3ia_cvc4_pred_size_;
