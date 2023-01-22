@@ -132,9 +132,9 @@ set(INCLUDE_DIRS
   "${GMP_INCLUDE_DIR}"
   "${FLEX_INCLUDE_DIRS}"
   # HACKED in for CVC4 SyGuS support -- assuming in standard location
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/CVC4/src"
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/CVC4/src/include"
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/CVC4/build/src"
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/cvc5/src"
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/cvc5/src/include"
+  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/cvc5/build/src"
   )
 
 set(SOURCES

@@ -88,7 +88,7 @@ class IC3IA : public IC3
                                     ///< which means you can't count on a symbol
                                     ///< staying a symbol
 
-  // Hacked in for CVC4 SyGuS predicate experimentation
+  // Hacked in for CVC5 SyGuS predicate experimentation
 
   // need to be able to unroll abstract ts (regular ic3ia doesn't)
   // and currently the unroller_ is over the conc_ts_
@@ -151,21 +151,21 @@ class IC3IA : public IC3
    */
   void register_symbol_mappings(size_t i);
 
-  // Hacked in to experiment with CVC4
+  // Hacked in to experiment with CVC5
 
   /** Given a counterexample trace (over state vars)
-   *  Unroll the trace and ask CVC4 SyGuS for predicate(s)
+   *  Unroll the trace and ask CVC5 SyGuS for predicate(s)
    *  That makes the abstract trace unsat
    *  @param cex a vector storing the state variable assignments at each step of
    * an abstract trace
    *  @param out_preds the set to add predicates to
    *  @param return true if a predicate was found
    */
-  bool cvc4_find_preds(const smt::TermVec & cex,
+  bool cvc5_find_preds(const smt::TermVec & cex,
                        smt::UnorderedTermSet & out_preds);
 
-  /** Synthesize predicates using CVC4 SyGuS
-   *  used as a helper function for cvc4_find_preds
+  /** Synthesize predicates using CVC5 SyGuS
+   *  used as a helper function for cvc5_find_preds
    *  @param abs_trace the unrolled abstract trace (over solver_ terms)
    *  @param state variables over solver_ terms
    *         will respect this order of state variables (that's why we can't
@@ -179,7 +179,7 @@ class IC3IA : public IC3
    *  @param out_preds - set to add synthesized predicates to
    *  @return true iff predicates were found that rule out this abstract trace
    */
-  bool cvc4_synthesize_preds(
+  bool cvc5_synthesize_preds(
       const smt::Term & abs_trace,
       const smt::TermVec & statevars,
       const std::vector<std::pair<smt::TermVec, smt::TermVec>> &
