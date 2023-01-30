@@ -1315,7 +1315,7 @@ bool IC3IA::cvc5_synthesize_preds(
 
   // Retrieve the underlying fresh cvc5 solver
   cvc5::Solver & cvc5_solver =
-      static_pointer_cast<CVC5Solver>(cvc5_)->get_cvc5_solver();
+      static_pointer_cast<Cvc5Solver>(cvc5_)->get_cvc5_solver();
 
   // set necessary options for sygus
   cvc5_solver.setOption("lang", "sygus2");
@@ -1451,12 +1451,12 @@ bool IC3IA::cvc5_synthesize_preds(
           cvc5_solver.mkTerm(cvc5::APPLY_UF, cvc5_abs_var_args);
 
       cvc5_formula = cvc5_solver.mkTerm(cvc5::AND,
-                                        cvc5_formula,
-                                        cvc5_solver.mkTerm(cvc5::EQUAL, pred_app_vars, pred_app_abs_vars));
+                                        {cvc5_formula,
+                                         cvc5_solver.mkTerm(cvc5::EQUAL, {pred_app_vars, pred_app_abs_vars})});
     }
   }
 
-  cvc5::Term constraint = cvc5_solver.mkTerm(cvc5::NOT, cvc5_formula);
+  cvc5::Term constraint = cvc5_solver.mkTerm(cvc5::NOT, {cvc5_formula});
 
   // use sygus variables rather than ordinary variables.
   std::map<cvc5::Term, cvc5::Term> old_to_new;
@@ -1464,7 +1464,7 @@ bool IC3IA::cvc5_synthesize_preds(
                                      cvc5_free_vars.end());
   for (cvc5::Term old_var : originals) {
     cvc5::Term new_var =
-        cvc5_solver.mkSygusVar(old_var.getSort(), old_var.toString() + "_sy");
+      cvc5_solver.declareSygusVar(old_var.toString() + "_sy", old_var.getSort());
     old_to_new[old_var] = new_var;
   }
   std::vector<cvc5::Term> news;
@@ -1478,7 +1478,7 @@ bool IC3IA::cvc5_synthesize_preds(
 
   logger.log(1, "Looking for {} predicate(s) with CVC5 SyGuS", num_preds);
   try {
-    res = cvc5_solver.checkSynth().isUnsat();
+    res = cvc5_solver.checkSynth().hasSolution();
     logger.log(1, "Successfully found {} predicate(s)", num_preds);
   }
   catch (cvc5::CVC5ApiException & e) {
@@ -1488,7 +1488,8 @@ bool IC3IA::cvc5_synthesize_preds(
 
   // for debugging:
   if (options_.verbosity_ > 0) {
-    cvc5_solver.printSynthSolution(std::cout);
+    // TODO: fix printout on std::cout
+    //cvc5_solver.getSynthSolution();
   }
 
   for (auto pred : pred_vec) {
