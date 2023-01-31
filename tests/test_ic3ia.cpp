@@ -25,7 +25,7 @@ class IC3IAUnitTests
   void SetUp() override
   {
     s = create_solver_for(get<0>(GetParam()), IC3IA_ENGINE, false);
-    opts.ic3ia_cvc4_pred_ = get<1>(GetParam());
+    opts.ic3ia_cvc5_pred_ = get<1>(GetParam());
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
     intsort = s->make_sort(INT);
