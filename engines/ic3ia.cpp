@@ -1318,6 +1318,7 @@ bool IC3IA::cvc5_synthesize_preds(
       static_pointer_cast<Cvc5Solver>(cvc5_)->get_cvc5_solver();
 
   // set necessary options for sygus
+  cvc5_solver.setOption("sygus", "true");
   cvc5_solver.setOption("lang", "sygus2");
   cvc5_solver.setOption("incremental", "false");
 
@@ -1327,7 +1328,8 @@ bool IC3IA::cvc5_synthesize_preds(
     pred_size += (num_preds-1)/3; // increase the size periodically
     cvc5_solver.setOption("sygus-abort-size", std::to_string(pred_size));
   }
-  cvc5_solver.setOption("sygus-active-gen", "enum");
+  // TODO: what is the new option for sygus enum mode?
+  //cvc5_solver.setOption("sygus-active-gen", "enum");
 
   // create bound variables to use in the synthesized function
   vector<cvc5::Term> cvc5_statevars;
