@@ -266,12 +266,14 @@ cvc5::Grammar cvc5_make_grammar(
   {
     cvc5::Sort sort = cvc5_bv.getSort();
     // TODO: remove this limitation
+    // TODO-priority: remove bit-vector
     if (!sort.isBitVector() && !sort.isBoolean() && !sort.isReal()
         && !sort.isInteger()) {
       cout << "Skipping unsupported sort " << sort << endl;
       continue;
     }
 
+    // AI: keep this...
     if (sort2start.find(sort) == sort2start.end())
     {
       cvc5::Term start_term = cvc5_solver.mkVar(sort, sort.toString() + "_start");
@@ -292,7 +294,8 @@ cvc5::Grammar cvc5_make_grammar(
     constructs[sort2start.at(sort)].push_back(bvar);
   }
 
-  if (gs) {
+  // TODO: remove this grammar seed
+  if (false && gs) {
     const CVC5OpSignatures & ops_map = gs->get_op_map();
     const CVC5ValueMap & values_map = gs->get_value_map();
 
@@ -346,6 +349,9 @@ cvc5::Grammar cvc5_make_grammar(
       } else if (sort.isReal() || sort.isInteger()) {
         // using real for both integers and reals
         sk = REAL;
+        logger.log(0, "Adding arithmetic ADD\n");
+        constructs[s].push_back(cvc5_solver.mkTerm(cvc5::ADD, {s, s}));
+        //        constructs[s].push_back(cvc5_solver.mkTerm(cvc5::MULT, {s, s}));
       } else if (sort.isBoolean()) {
         // only looking for predicates
         // nothing to do with a boolean
@@ -427,9 +433,14 @@ cvc5::Grammar cvc5_make_grammar(
 
   } else {
     for (auto s : start_terms) {
+      //if ( s is of sort BV) {
       cvc5::Term equals = cvc5_solver.mkTerm(cvc5::EQUAL, {s, s});
       cvc5::Term bvugt = cvc5_solver.mkTerm(cvc5::BITVECTOR_UGT, {s, s});
       constructs[start_bool] = { bvugt, equals };
+      //} else if (s is of sort int/real) {
+      //cvc5::Term equals = cvc5_solver.mkTerm(cvc5::EQUAL, {s, s});
+      //cvc5::Term bvugt = cvc5_solver.mkTerm(cvc5::BITVECTOR_UGT, {s, s});
+      //}
     }
 
     // include bv operations in the grammar
@@ -458,8 +469,10 @@ cvc5::Grammar cvc5_make_grammar(
     }
 
     // TODO: non-bv ops
+    
   }
 
+  // TODO: remove this
   // add max terms
   for (const auto & start_term : start_terms) {
     cvc5::Sort sort = start_term.getSort();
@@ -485,6 +498,7 @@ cvc5::Grammar cvc5_make_grammar(
       constructs[start_term].push_back(zero);
       constructs[start_term].push_back(one);
     }
+    // add it for int/real
   }
 
   // construct the grammar
@@ -504,8 +518,6 @@ cvc5::Grammar cvc5_make_grammar(
     if (values == 2) {
       g.addAnyConstant(start_term);
     }
-
-    // TODO: non-bv ops
   }
 
   return g;
@@ -1266,7 +1278,7 @@ bool IC3IA::cvc5_find_preds(const TermVec & cex, UnorderedTermSet & out_preds)
   }
 
   bool found_preds = false;
-  size_t num_preds = 1;
+  size_t num_preds = 3;
   while (!found_preds) {
     found_preds = cvc5_synthesize_preds(
         abs_trace, statevars, var_args, free_vars, num_preds, out_preds);
@@ -1320,16 +1332,18 @@ bool IC3IA::cvc5_synthesize_preds(
   // set necessary options for sygus
   cvc5_solver.setOption("sygus", "true");
   cvc5_solver.setOption("lang", "sygus2");
+  // we can set the incremental mode to true
   cvc5_solver.setOption("incremental", "false");
 
   if (options_.ic3ia_cvc5_pred_size_)
   {
     int pred_size = options_.ic3ia_cvc5_pred_size_;
     pred_size += (num_preds-1)/3; // increase the size periodically
+    // sygus-abort-size: number of operators (+-1)
     cvc5_solver.setOption("sygus-abort-size", std::to_string(pred_size));
   }
   // TODO: what is the new option for sygus enum mode?
-  //cvc5_solver.setOption("sygus-active-gen", "enum");
+  cvc5_solver.setOption("sygus-enum", "fast");
 
   // create bound variables to use in the synthesized function
   vector<cvc5::Term> cvc5_statevars;
@@ -1342,11 +1356,13 @@ bool IC3IA::cvc5_synthesize_preds(
     cvc5::Term cvc5_sv =
         static_pointer_cast<Cvc5Term>(transferred_sv)->get_cvc5_term();
     cvc5_statevars.push_back(cvc5_sv);
+    // mkVar is for Sygus
     cvc5::Term cvc5_bv =
         cvc5_solver.mkVar(cvc5_sv.getSort(), cvc5_sv.toString() + "_var");
     cvc5_boundvars.push_back(cvc5_bv);
   }
 
+  // TODO: remove this max-term thing
   unordered_map<cvc5::Sort,
                 unordered_set<cvc5::Term>>
       cvc5_max_terms;
