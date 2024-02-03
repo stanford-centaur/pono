@@ -34,3 +34,4 @@
 build
 deps
 __pycache__
+.cache
