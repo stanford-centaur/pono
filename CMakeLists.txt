@@ -143,9 +143,9 @@ if (WITH_COREIR)
 endif()
 
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
-  message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
-endif()
+# if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
+#   message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
+# endif()
 
 # Generate the SMV parser using Flex/Bison
 BISON_TARGET(SMVParser ${PROJECT_SOURCE_DIR}/frontends/smvparser.y
@@ -307,7 +307,7 @@ if (WITH_COREIR)
 endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
-target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
+target_link_libraries(pono-lib PUBLIC btor2parser)
 target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC pthread)
