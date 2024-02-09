@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 COREIR_VERSION=2f5035c6712481346c20c0a9956dc3f880cac1d2
 
@@ -76,4 +77,3 @@ else
     echo "Please see their github page for installation instructions:https://github.com/rdaly525/coreir"
     exit 1
 fi
-
