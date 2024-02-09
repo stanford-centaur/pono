@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 BTOR2TOOLS_VERSION=9831f9909fb283752a3d6d60d43613173bd8af42
 
@@ -29,4 +30,3 @@ else
     echo "Please see their github page for installation instructions: https://github.com/Boolector/btor2tools.git"
     exit 1
 fi
-
