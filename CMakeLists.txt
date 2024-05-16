@@ -172,7 +172,7 @@ set(INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
+  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src/btor2parser"
   "${SMT_SWITCH_DIR}/local/include"
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
