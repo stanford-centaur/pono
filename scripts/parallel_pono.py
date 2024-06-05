@@ -1,135 +1,138 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import argparse
+import enum
+import os
 import signal
 import subprocess
 import sys
 import time
-import os
 
-## Non-blocking reads for subprocess
-## https://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
 
-import sys
-from subprocess import PIPE, Popen
-from threading  import Thread
+class ReturnCode(enum.Enum):
+    """Return codes corresponding to enum values in pono/core/proverresult.h."""
 
-# magic numbers
-# corresponds to enum values in pono/core/proverresult.h
-UNKNOWN=255
-FALSE=0
-TRUE=1
-ERROR=2
+    SEGFAULT = -signal.SIGSEGV
+    SAT = 0
+    UNSAT = 1
+    ERROR = 2
+    UNKNOWN = 255
 
-if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Run BMC and K-induction in parallel")
-    parser.add_argument('btor_file')
-    parser.add_argument('-k', '--bound', default='1000', help='The maximum bound to unroll to')
-    parser.add_argument('-v', '--verbosity', action="store_true", help="Enable verbose output."
-                        "   Note: this is buffered and only prints when a process finishes"
-                        "         or there is an interrupt")
+SOLVED_RETURN_CODES = {ReturnCode.SAT.value, ReturnCode.UNSAT.value}
 
+
+def main():
+    parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
+    parser.add_argument("btor_file")
+    parser.add_argument(
+        "-k", "--bound", default=1000, type=int, help="The maximum bound to unroll to"
+    )
+    parser.add_argument("-s", "--smt-solver", default="bzla", help="SMT solver to use")
+    parser.add_argument(
+        "-c", "--csv-summary", action="store_true", help="print csv summary to stderr"
+    )
     args = parser.parse_args()
-    btor_file = args.btor_file
-    bound = args.bound
-    verbosity = args.verbosity
-    verbosity_option = '1' if args.verbosity else '0'
-    pono="./pono"
 
-    commands = {
-        "BMC": [pono, '-e', 'bmc', '-v', verbosity_option, '-k', bound, '--witness', btor_file],
-        # "BMC+SimplePath": [pono, '--static-coi', '-e', 'bmc-sp', '-v', verbosity_option, '-k', bound, btor_file],
-        "K-Induction": [pono, '--static-coi', '-e', 'ind', '-v', verbosity_option, '-k', bound, btor_file],
-        "IC3": [pono, '--check-invar', '--static-coi', '-e', 'mbic3', '-v', verbosity_option, '-k', bound, btor_file],
-        "ItpIC3": [pono, '--check-invar', '--static-coi', '-e', 'mbic3', '-v', verbosity_option, '-k', bound, '--ic3-indgen-mode', '2', btor_file],
-        # give interpolant based methods a shorter bound -- impractical to go too large
-        "Interpolant-based": [pono, '--check-invar', '--static-coi', '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', btor_file],
-        # ProphInterp-Arrays uses a relational system -- can't use static-coi
-        "ProphInterp-Arrays": [pono, '--static-coi', '--smt-solver', 'msat', '-e', 'interp', '-v', verbosity_option, '-k', '100', '--ceg-prophecy-arrays', btor_file]
+    def get_command(arguments: list[str]) -> list[str]:
+        command = ["pono", "-k", str(args.bound), *arguments]
+        if "interp" in arguments or "ic3ia" in arguments:
+            # Interpolation requires MathSat
+            command.extend(["--smt-solver", "msat"])
+        else:
+            command.extend(["--smt-solver", args.smt_solver])
+            if args.smt_solver == "btor" and "--ceg-bv-arith" in command:
+                # BV UF abstraction doesn't work with plain Boolector
+                command.append("--logging-smt-solver")
+        command.append(args.btor_file)
+        return command
+
+    pono_arguments = {
+        "BMC": [
+            "-e",
+            "bmc",
+            "--static-coi",
+            "--bmc-bound-start",
+            "0",
+            "--bmc-bound-step",
+            "11",
+            "--bmc-single-bad-state",
+        ],
+        "K-Induction": ["-e", "ind"],
+        "Interpolant-based": ["-e", "interp"],
+        "MBIC3": ["-e", "mbic3", "--static-coi"],
+        "IC3Bits": ["-e", "ic3bits"],
+        "IC3IA": ["-e", "ic3ia", "--pseudo-init-prop"],
+        "IC3IA-UF": ["-e", "ic3ia", "--pseudo-init-prop", "--ceg-bv-arith"],
+        "IC3IA-NoUCG": ["-e", "ic3ia", "--pseudo-init-prop", "--no-ic3-unsatcore-gen"],
+        "IC3IA-FTS": ["-e", "ic3ia", "--static-coi"],
+        "IC3SA": ["-e", "ic3sa", "--static-coi"],
+        "IC3SA-UF": ["-e", "ic3sa", "--static-coi", "--ceg-bv-arith"],
+        "SyGuS-PDR": ["-e", "sygus-pdr", "--promote-inputvars"],
+        "SyGuS-PDR-2": [
+            "-e",
+            "sygus-pdr",
+            "--promote-inputvars",
+            "--sygus-term-mode",
+            "2",
+        ],
     }
 
-    all_processes = []
-    queues = {}
-    name_map = {}
+    processes: dict[str, tuple[subprocess.Popen[str], float]] = {}
 
-    # this one gets updated on the fly as processes end
-    processes = []
+    def terminate_all():
+        for process, _ in processes.values():
+            if process.poll() is None:
+                process.terminate()
 
-    for name, cmd in commands.items():
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        processes.append(proc)
-        all_processes.append(proc)
-        name_map[proc] = name
-
-    def print_process_output(proc):
-        if proc.poll() is None:
-            proc.terminate()
-            proc.kill()
-        out, _ = proc.communicate()
-        print(out.decode('utf-8'))
-        print()
-        sys.stdout.flush()
-
-
-    shutdown = False
     def handle_signal(signum, frame):
-        # send signal recieved to subprocesses
-        global shutdown
-        if not shutdown:
-            shutdown = True
-
-            global verbosity
-            if verbosity:
-                for proc in all_processes:
-                    print("{} output:".format(name_map[proc]))
-                    print_process_output(proc)
-                    print()
-                    sys.stdout.flush()
-            sys.exit(0)
+        # send signal received to subprocesses
+        terminate_all()
+        sys.exit(ReturnCode.UNKNOWN.value)
 
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
+    for name, pono_args in pono_arguments.items():
+        cmd = get_command(pono_args)
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=open(os.devnull, "w"), text=True
+        )
+        processes[name] = proc, time.time()
 
-    while not shutdown:
-        for p in processes:
-            if p.poll() is not None:
-                # return code for unknown is 2
-                # anything higher than that is an error
-                # keep solving unless there are no more running processes
-                if p.returncode >= 2:
-                    processes.remove(p)
-                    # print unknown only if this is the last process
-                    if not processes:
-                        print_process_output(p)
-                        shutdown = True
-                else:
-                    # HACK don't return counter-examples from anything but bmc
-                    #      some others don't produce witnesses
-                    #      wouldn't expect K-Induction to ever win anyway
-                    if p.returncode == FALSE and name_map[p] != "BMC":
-                        processes.remove(p)
-                        # this shouldn't happen but let's handle it just in case
-                        if not processes:
-                            print_process_output(bmc)
-                            shutdown = True
-                            break
-                    else:
-                        print_process_output(p)
-                        shutdown = True
-                        print("Winner was:", name_map[p])
-                        break
+    retcode = ReturnCode.UNKNOWN.value
 
-        # just a double check
-        if not processes:
-            shutdown = True
-            break
+    while processes:
+        for name, (process, start_time) in list(processes.items()):
+            end_time = time.time()
+            if process.poll() is not None:
+                del processes[name]
+                if process.returncode == ReturnCode.UNKNOWN.value:
+                    continue
+                if args.csv_summary:
+                    try:
+                        result = ReturnCode(process.returncode).name.lower()
+                    except ValueError:
+                        result = f"error({process.returncode})"
+                    duration = end_time - start_time
+                    cmd = " ".join(get_command(pono_arguments[name]))
+                    print(
+                        result, f"{duration:.1f}", name, cmd, sep=",", file=sys.stderr
+                    )
+                if process.returncode in SOLVED_RETURN_CODES:
+                    retcode = process.returncode
+                    assert process.stdout
+                    print(process.stdout.read())
+                    break
+        else:
+            time.sleep(0.001)
+            continue
+        terminate_all()
+        break
 
-        if not shutdown:
-            time.sleep(.001)
+    return retcode
 
-    # clean up
-    for p in all_processes:
-        if p.poll() is None:
-            p.terminate()
+
+if __name__ == "__main__":
+    sys.exit(main())
