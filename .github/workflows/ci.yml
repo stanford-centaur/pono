@@ -28,6 +28,11 @@ jobs:
           brew install \
             gmp
 
+      - name: Python Environment Setup
+        run: |
+          python3 -m venv ./.venv
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
       # install previous version of setuptools as temporary fix
       # see also recommendations here: https://github.com/pypa/setuptools/issues/3227
       - name: Python Dependencies (macOS)
