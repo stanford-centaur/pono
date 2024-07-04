@@ -31,7 +31,15 @@
 *.out
 *.app
 
+# Build directories
 build
+install
+local
 deps
+
+# Cache directories
 __pycache__
 .cache
+
+# Generated files
+compile_commands.json
