@@ -52,8 +52,6 @@ if (BISON_FOUND)
   link_directories("${BISON_PARENT_DIR}/../lib/")
 endif()
 
-find_library(LIBRT rt)
-
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
 
@@ -264,10 +262,6 @@ target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
-
-if (LIBRT)
-  target_link_libraries(pono-lib PUBLIC ${LIBRT})
-endif()
 
 if (GOOGLE_PERF)
   target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
