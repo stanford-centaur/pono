@@ -13,6 +13,7 @@ Usage: $0 [<option> ...]
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 
 -h, --help              display this message and exit
+--with-bitwuzla         include Bitwuzla (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 --cvc5-home             use an already downloaded version of cvc5
 --python                build python bindings (default: off)
@@ -25,6 +26,7 @@ die () {
     exit 1
 }
 
+WITH_BITWUZLA=default
 WITH_MSAT=default
 CONF_OPTS=""
 WITH_PYTHON=default
@@ -37,6 +39,9 @@ do
         --with-msat)
             WITH_MSAT=ON
             CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
+        --with-bitwuzla)
+            WITH_BITWUZLA=ON
+            CONF_OPTS="$CONF_OPTS --bitwuzla";;
         --python)
             WITH_PYTHON=YES
             CONF_OPTS="$CONF_OPTS --python";;
@@ -66,6 +71,9 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     ./contrib/setup-btor.sh
     if [ $cvc5_home = default ]; then
         ./contrib/setup-cvc5.sh
+    fi
+    if [ $WITH_BITWUZLA = ON ]; then
+        ./contrib/setup-bitwuzla.sh
     fi
     # pass bison/flex directories from smt-switch perspective
     ./configure.sh --btor --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install

@@ -13,6 +13,7 @@ Configures the CMAKE build environment.
 -h, --help              display this message and exit
 --prefix=STR            install directory       (default: /usr/local/)
 --build-dir=STR         custom build directory  (default: build)
+--with-bitwuzla         build with Bitwuzla  (default: off)
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
                         Required for interpolant based model checking
 --with-msat-ic3ia       build with the open-source IC3IA implementation as a backend. (default: off)
@@ -36,6 +37,7 @@ die () {
 build_dir=build
 install_prefix=default
 build_type=default
+with_bitwuzla=default
 with_msat=default
 with_msat_ic3ia=default
 with_coreir=default
@@ -73,6 +75,7 @@ do
                 *) build_dir=$(pwd)/$build_dir ;; # make absolute path
             esac
             ;;
+        --with-bitwuzla) with_bitwuzla=ON;;
         --with-msat) with_msat=ON;;
         --with-msat-ic3ia) with_msat_ic3ia=ON;;
         --with-coreir) with_coreir=ON;;
@@ -105,6 +108,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $install_prefix != default ] \
     && cmake_opts="$cmake_opts -DCMAKE_INSTALL_PREFIX=$install_prefix"
+
+[ $with_bitwuzla != default ] \
+    && cmake_opts="$cmake_opts -DWITH_BITWUZLA=$with_bitwuzla"
 
 [ $with_msat != default ] \
     && cmake_opts="$cmake_opts -DWITH_MSAT=$with_msat"
