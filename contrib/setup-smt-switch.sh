@@ -60,7 +60,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/makaimann/smt-switch
+    git clone https://github.com/stanford-centaur/smt-switch
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-btor.sh
@@ -84,6 +84,6 @@ if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]
 else
     echo "Building smt-switch failed."
     echo "You might be missing some dependencies."
-    echo "Please see the github page for installation instructions: https://github.com/makaimann/smt-switch"
+    echo "Please see the github page for installation instructions: https://github.com/stanford-centaur/smt-switch"
     exit 1
 fi
