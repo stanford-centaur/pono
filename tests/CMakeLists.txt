@@ -1,27 +1,37 @@
 # Set Up Google Tests
 
 # build testing infrastructure
-# Download and unpack googletest at configure time
-configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
-execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
-if(result)
-  message(FATAL_ERROR "CMake step for googletest failed: ${result}")
-endif()
-execute_process(COMMAND ${CMAKE_COMMAND} --build .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
-if(result)
-  message(FATAL_ERROR "Build step for googletest failed: ${result}")
+option (SYSTEM_GTEST "Should we try to use the system GTest" ON)
+
+if (SYSTEM_GTEST)
+  # try finding a system installation of googletest
+  find_package(GTest 1.14 CONFIG)
+else()
+  set(GTest_FOUND FALSE)
 endif()
 
-# Add googletest directly to our build. This defines
-# the gtest and gtest_main targets.
-add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-                 ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-                 EXCLUDE_FROM_ALL)
-
+if(NOT GTest_FOUND)
+  # Download and unpack googletest at configure time
+  configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for googletest failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
+  if(result)
+    message(FATAL_ERROR "Build step for googletest failed: ${result}")
+  endif()
+    # Add googletest directly to our build. This defines
+    # the gtest and gtest_main targets.
+  add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
+                   ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
+                   EXCLUDE_FROM_ALL)
+else()
+endif()
 if (WITH_MSAT)
   add_definitions(-DWITH_MSAT)
 endif()
@@ -36,7 +46,7 @@ target_link_libraries(pono-test-lib pono-lib)
 
 macro(pono_add_test name)
   add_executable(${name} "${CMAKE_CURRENT_SOURCE_DIR}/${name}.cpp")
-  target_link_libraries(${name} gtest_main)
+  target_link_libraries(${name} gtest gtest_main)
   target_link_libraries(${name} pono-test-lib) # also includes pono-lib because it's linked
   add_test(NAME ${name} COMMAND ${name})
 endmacro()

@@ -23,6 +23,7 @@ Configures the CMAKE build environment.
 --static-lib            build a static library (default: shared)
 --static                build a static executable (default: dynamic); implies --static-lib
 --with-profiling        build with gperftools for profiling (default: off)
+--no-system-gtest       do not use system GTest sources; forces download (default: off)
 EOF
   exit 0
 }
@@ -44,6 +45,7 @@ python=default
 lib_type=SHARED
 static_exec=NO
 with_profiling=default
+system_gtest=default
 
 buildtype=Release
 
@@ -90,6 +92,7 @@ do
             lib_type=STATIC;
             ;;
         --with-profiling) with_profiling=ON;;
+        --no-system-gtest) system_gtest=no;;
         *) die "unexpected argument: $1";;
     esac
     shift
@@ -120,6 +123,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $with_profiling != default ] \
     && cmake_opts="$cmake_opts -DWITH_PROFILING=$with_profiling"
+
+[ $system_gtest != default ] \
+    && cmake_opts="$cmake_opts -DSYSTEM_GTEST=$system_gtest"
 
 root_dir=$(pwd)
 
