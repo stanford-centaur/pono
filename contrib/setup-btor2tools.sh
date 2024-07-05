@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BTOR2TOOLS_VERSION=9831f9909fb283752a3d6d60d43613173bd8af42
+BTOR2TOOLS_VERSION=8775f9ad9caed51d3daa30a416b1a94dfec532b0
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
