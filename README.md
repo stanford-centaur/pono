@@ -1,7 +1,7 @@
 [![CI](https://github.com/upscale-project/pono/actions/workflows/ci.yml/badge.svg)](https://github.com/upscale-project/pono/actions/workflows/ci.yml)
 
 # Pono: A Flexible and Extensible SMT-Based Model Checker
-Pono is a performant, adaptable, and extensible SMT-based model checker implemented in C++. It leverages [Smt-Switch](https://github.com/makaimann/smt-switch), a generic C++ API for SMT solving. Pono was developed as the next
+Pono is a performant, adaptable, and extensible SMT-based model checker implemented in C++. It leverages [Smt-Switch](https://github.com/stanford-centaur/smt-switch), a generic C++ API for SMT solving. Pono was developed as the next
 generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was originally named _cosa2_.
 
 [Pono](http://wehewehe.org/gsdl2.85/cgi-bin/hdict?e=q-11000-00---off-0hdict--00-1----0-10-0---0---0direct-10-ED--4--textpukuielbert%2ctextmamaka-----0-1l--11-en-Zz-1---Zz-1-home-pono--00-3-1-00-0--4----0-0-11-10-0utfZz-8-00&a=d&d=D18537) is the Hawaiian word for proper, correct, or goodness. It is often used colloquially in the moral sense of "goodness" or "rightness," but also refers to "proper procedure" or "correctness." We use the word for multiple meanings. Our goal is that Pono can be a useful tool for people to verify the _correctness_ of systems, which is surely the _right_ thing to do.
@@ -72,7 +72,7 @@ There are two Transition System interfaces:
 ### Smt-Switch
 [Smt-switch](https://github.com/stanford-centaur/smt-switch) is a C++ solver-agnostic API for SMT solvers. The main thing to remember is that everything is a pointer. Objects might be "typedef-ed" with `using` statements, but they're still `shared_ptr`s. Thus, when using a solver or a term, you need to use `->` accesses.
 
-For more information, see the example usage in the [smt-switch tests](https://github.com/makaimann/smt-switch/tree/master/tests/btor).
+For more information, see the example usage in the [smt-switch tests](https://github.com/stanford-centaur/smt-switch/tree/master/tests/btor).
 Other useful files to visit include:
 * `smt-switch/include/solver.h`: this is the main interface you will be using
 * `smt-switch/include/ops.h`: this contains all the ops you might need
