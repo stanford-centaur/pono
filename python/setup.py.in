@@ -14,5 +14,6 @@ setup(name='pono',
       license='BSD',
       install_requires=['smt-switch'],
       test_requires=['pytest'],
+      packages=[],
       package_data={'': ['pono.so']},
       zip_safe=False)
