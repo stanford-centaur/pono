@@ -199,9 +199,9 @@ void IC3SA::check_ts() const
 
   for (const auto & sv : ts_.statevars()) {
     SortKind sk = sv->get_sort()->get_sort_kind();
-    if (sk != BOOL && sk != BV)
-    {
-      throw PonoException("IC3SA currently only supports bit-vectors");
+    if (sk != BOOL && sk != BV && sk != ARRAY) {
+      throw PonoException(
+          "IC3SA currently only supports bit-vectors and arrays");
     }
   }
 }
