@@ -40,6 +40,7 @@ jobs:
         run: python3 -m pip install scikit-build
 
       - name: Download MathSAT
+        if: runner.os != 'macOS'
         run: ./ci-scripts/setup-msat.sh --auto-yes
 
       - name: Setup Flex
@@ -51,12 +52,23 @@ jobs:
       - name: Setup Btor2Tools
         run: ./contrib/setup-btor2tools.sh
 
-      - name: Setup Smt-Switch
-        run: |
-          ./contrib/setup-smt-switch.sh --with-msat --python
-          python3 -m pip install -e ./deps/smt-switch/build/python
+      - name: Setup Smt-Switch (macOS)
+        if: runner.os == 'macOS'
+        run: ./contrib/setup-smt-switch.sh --python
 
-      - name: Configure
+      - name: Setup Smt-Switch (non-macOS)
+        if: runner.os != 'macOS'
+        run: ./contrib/setup-smt-switch.sh --with-msat --python
+
+      - name: Set up Python bindings for smt-switch
+        run: python3 -m pip install -e ./deps/smt-switch/build/python
+
+      - name: Configure (macOS)
+        if: runner.os == 'macOS'
+        run: ./configure.sh --debug --python
+
+      - name: Configure (non-macOS)
+        if: runner.os != 'macOS'
         run: ./configure.sh --with-msat --debug --python
 
       - name: Build
