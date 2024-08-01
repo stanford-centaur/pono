@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BISON_VERSION=3.7
+BISON_VERSION=3.7.4
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
