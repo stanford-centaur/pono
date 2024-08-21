@@ -265,7 +265,7 @@ Term KInduction::simple_path_constraint(int i, int j)
   assert(ts_.statevars().size());
 
   Term disj = false_;
-  const auto no_next_states = ts_.no_next_states();
+  const auto no_next_states = ts_.statevars_with_no_update();
   for (const auto &v : ts_.statevars()) {
     // Skip states without updates, because those cause spurious transitions.
     // k=0 is excluded as they could still have initial values.

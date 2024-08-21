@@ -38,6 +38,7 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.named_terms_, ts2.named_terms_);
   std::swap(ts1.term_to_name_, ts2.term_to_name_);
   std::swap(ts1.state_updates_, ts2.state_updates_);
+  std::swap(ts1.no_state_updates_, ts2.no_state_updates_);
   std::swap(ts1.next_map_, ts2.next_map_);
   std::swap(ts1.curr_map_, ts2.curr_map_);
   std::swap(ts1.functional_, ts2.functional_);
@@ -86,6 +87,10 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
 
   for (const auto & v : other_ts.next_statevars_) {
     next_statevars_.insert(transfer(v));
+  }
+
+  for (const auto & v : other_ts.no_state_updates_) {
+    no_state_updates_.insert(transfer(v));
   }
 
   for (const auto & elem : other_ts.named_terms_) {
@@ -138,6 +143,7 @@ bool TransitionSystem::operator==(const TransitionSystem & other) const
           named_terms_ == other.named_terms_ &&
           term_to_name_ == other.term_to_name_ &&
           state_updates_ == other.state_updates_ &&
+          no_state_updates_ == other.no_state_updates_ &&
           next_map_ == other.next_map_ &&
           curr_map_ == other.curr_map_ &&
           functional_ == other.functional_ &&
@@ -190,6 +196,8 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
   }
 
   state_updates_[state] = val;
+  auto erased = no_state_updates_.erase(state);
+  assert(erased);
   trans_ = solver_->make_term(
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
 
@@ -372,6 +380,7 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
   }
 
   statevars_.insert(cv);
+  no_state_updates_.insert(cv);
   next_statevars_.insert(nv);
   next_map_[cv] = nv;
   curr_map_[nv] = cv;
@@ -528,11 +537,14 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   }
 
   smt::UnorderedTermMap reduced_state_updates;
+  no_state_updates_.clear();
   for (const auto & var : state_vars_in_coi) {
     const auto & elem = state_updates_.find(var);
     if (elem != state_updates_.end()) {
       Term next_func = elem->second;
       reduced_state_updates[var] = next_func;
+    } else {
+      no_state_updates_.insert(var);
     }
   }
   state_updates_ = reduced_state_updates;
@@ -628,17 +640,6 @@ bool TransitionSystem::no_next(const Term & term) const
   return contains(term, UnorderedTermSetPtrVec{ &statevars_, &inputvars_ });
 }
 
-smt::UnorderedTermSet TransitionSystem::no_next_states() const
-{
-  smt::UnorderedTermSet no_next_states;
-  for (const auto & sv : statevars_) {
-    if (state_updates_.find(sv) == state_updates_.end()) {
-      no_next_states.insert(sv);
-    }
-  }
-  return no_next_states;
-}
-
 void TransitionSystem::drop_state_updates(const TermVec & svs)
 {
   for (const auto & sv : svs) {
@@ -646,6 +647,7 @@ void TransitionSystem::drop_state_updates(const TermVec & svs)
       throw PonoException("Got non-state var in drop_state_updates");
     }
     state_updates_.erase(sv);
+    no_state_updates_.insert(sv);
   }
 
   // now rebuild trans
