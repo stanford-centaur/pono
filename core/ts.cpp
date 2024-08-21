@@ -628,6 +628,17 @@ bool TransitionSystem::no_next(const Term & term) const
   return contains(term, UnorderedTermSetPtrVec{ &statevars_, &inputvars_ });
 }
 
+smt::UnorderedTermSet TransitionSystem::no_next_states() const
+{
+  smt::UnorderedTermSet no_next_states;
+  for (const auto & sv : statevars_) {
+    if (state_updates_.find(sv) == state_updates_.end()) {
+      no_next_states.insert(sv);
+    }
+  }
+  return no_next_states;
+}
+
 void TransitionSystem::drop_state_updates(const TermVec & svs)
 {
   for (const auto & sv : svs) {

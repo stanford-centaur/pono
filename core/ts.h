@@ -303,6 +303,9 @@ class TransitionSystem
    * states */
   bool no_next(const smt::Term & term) const;
 
+  /* Returns the set of states with no update function. */
+  smt::UnorderedTermSet no_next_states() const;
+
   /** EXPERTS ONLY
    *  Drop the state update for these variables and rebuild the system
    *  @param svs the state variables to drop updates for
