@@ -252,6 +252,12 @@ class TransitionSystem
     return state_updates_;
   };
 
+  /* Returns the set of state variables with no update function. */
+  const smt::UnorderedTermSet & statevars_with_no_update() const
+  {
+    return no_state_updates_;
+  };
+
   /* @return the named terms mapping */
   const std::unordered_map<std::string, smt::Term> & named_terms() const
   {
@@ -505,6 +511,9 @@ class TransitionSystem
 
   // next state update function
   smt::UnorderedTermMap state_updates_;
+
+  // states with no next state update function
+  smt::UnorderedTermSet no_state_updates_;
 
   // maps states and inputs variables to next versions
   // note: the next state variables are only used

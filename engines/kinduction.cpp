@@ -265,7 +265,13 @@ Term KInduction::simple_path_constraint(int i, int j)
   assert(ts_.statevars().size());
 
   Term disj = false_;
+  const auto no_next_states = ts_.statevars_with_no_update();
   for (const auto &v : ts_.statevars()) {
+    // Skip states without updates, because those cause spurious transitions.
+    // k=0 is excluded as they could still have initial values.
+    if (i > 0 && j > 0 && no_next_states.find(v) != no_next_states.end()) {
+      continue;
+    }
     Term vi = unroller_.at_time(v, i);
     Term vj = unroller_.at_time(v, j);
     Term eq = solver_->make_term(PrimOp::Equal, vi, vj);
