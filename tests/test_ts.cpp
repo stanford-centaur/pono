@@ -38,10 +38,12 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   Term x = fts.make_statevar("x", bvsort);
   EXPECT_FALSE(fts.is_deterministic());
   EXPECT_TRUE(fts.is_functional());
+  EXPECT_EQ(fts.statevars_with_no_update(), UnorderedTermSet({x}));
 
   fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
   EXPECT_TRUE(fts.is_functional());
   EXPECT_TRUE(fts.is_deterministic());
+  EXPECT_EQ(fts.statevars_with_no_update().size(), 0);
 
   fts.add_constraint(fts.make_term(BVUge, x, s->make_term(2, bvsort)));
   // any kind of constrains makes the system non-deterministic
@@ -53,10 +55,15 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   EXPECT_TRUE(fts.is_functional());
   // still can't be deterministic because of the constraint
   EXPECT_FALSE(fts.is_deterministic());
+  EXPECT_EQ(fts.statevars_with_no_update().size(), 0);
+
+  Term z = fts.make_statevar("z", bvsort);
+  EXPECT_EQ(fts.statevars_with_no_update(), UnorderedTermSet({z}));
 
   TransitionSystem ts_copy = fts;
   EXPECT_EQ(fts.is_functional(), ts_copy.is_functional());
   EXPECT_EQ(fts.is_deterministic(), ts_copy.is_deterministic());
+  EXPECT_EQ(fts.statevars_with_no_update(), ts_copy.statevars_with_no_update());
   EXPECT_EQ(ts_copy, fts);
   ts_copy.set_init(ts_copy.make_term(Equal, x, ts_copy.make_term(1, bvsort)));
   EXPECT_NE(ts_copy, fts);
