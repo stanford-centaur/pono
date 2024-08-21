@@ -221,18 +221,18 @@ TEST_P(InterpWinTests, BmcFail)
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
-TEST_P(InterpWinTests, BmcSimplePathFail)
+TEST_P(InterpWinTests, BmcSimplePathWin)
 {
   BmcSimplePath bsp(*true_p, *ts, s);
   ProverResult r = bsp.check_until(10);
-  ASSERT_EQ(r, ProverResult::UNKNOWN);
+  ASSERT_EQ(r, ProverResult::TRUE);
 }
 
-TEST_P(InterpWinTests, KInductionFail)
+TEST_P(InterpWinTests, KInductionWin)
 {
   KInduction kind(*true_p, *ts, s);
   ProverResult r = kind.check_until(10);
-  ASSERT_EQ(r, ProverResult::UNKNOWN);
+  ASSERT_EQ(r, ProverResult::TRUE);
 }
 
 TEST_P(InterpWinTests, InterpWin)
