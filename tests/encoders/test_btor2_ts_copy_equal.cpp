@@ -46,6 +46,8 @@ TEST_P(CopyUnitTests, CopyFromDefault)
   FunctionalTransitionSystem fts_copy(fts, tt);
 
   EXPECT_EQ(fts.statevars().size(), fts_copy.statevars().size());
+  EXPECT_EQ(fts.statevars_with_no_update().size(),
+            fts_copy.statevars_with_no_update().size());
   EXPECT_EQ(fts.inputvars().size(), fts_copy.inputvars().size());
   EXPECT_EQ(fts.named_terms().size(), fts_copy.named_terms().size());
   EXPECT_EQ(fts.state_updates().size(), fts_copy.state_updates().size());
@@ -124,6 +126,8 @@ TEST_P(CopyUnitTests, CopyToDefault)
   fts_copy = FunctionalTransitionSystem(fts, tt);
 
   EXPECT_EQ(fts.statevars().size(), fts_copy.statevars().size());
+  EXPECT_EQ(fts.statevars_with_no_update().size(),
+            fts_copy.statevars_with_no_update().size());
   EXPECT_EQ(fts.inputvars().size(), fts_copy.inputvars().size());
   EXPECT_EQ(fts.named_terms().size(), fts_copy.named_terms().size());
   EXPECT_EQ(fts.state_updates().size(), fts_copy.state_updates().size());
@@ -149,6 +153,10 @@ TEST_P(CopyUnitTests, CopyToDefault)
   // VARS -- these should be exactly the same
   for (auto v : fts.inputvars()) {
     EXPECT_TRUE(fts_2.inputvars().find(v) != fts_2.inputvars().end());
+  }
+  for (auto v : fts.statevars_with_no_update()) {
+    EXPECT_TRUE(fts_2.statevars_with_no_update().find(v)
+                != fts_2.statevars_with_no_update().end());
   }
   for (auto v : fts.statevars()) {
     EXPECT_TRUE(fts_2.statevars().find(v) != fts_2.statevars().end());
