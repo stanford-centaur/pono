@@ -96,6 +96,7 @@ class PonoOptions
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
         logging_smt_solver_(default_logging_smt_solver_),
+        printing_smt_solver_(default_printing_smt_solver_),
         static_coi_(default_static_coi_),
         show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
@@ -187,6 +188,7 @@ class PonoOptions
   std::string filename_;
   smt::SolverEnum smt_solver_;  ///< underlying smt solver
   bool logging_smt_solver_;
+  bool printing_smt_solver_;
   bool static_coi_;
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
@@ -307,6 +309,7 @@ private:
   //      good solver for the provided engine automatically
   static const smt::SolverEnum default_smt_solver_ = smt::BTOR;
   static const bool default_logging_smt_solver_ = false;
+  static const bool default_printing_smt_solver_ = false;
   static const bool default_ic3_pregen_ = true;
   static const bool default_ic3_indgen_ = true;
   static const unsigned int default_ic3_gen_max_iter_ = 2;
