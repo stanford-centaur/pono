@@ -16,11 +16,14 @@
 
 #include "smt/available_solvers.h"
 
+#include <cassert>
+#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-#include "assert.h"
+#include "smt-switch/logging_solver.h"
+#include "smt-switch/printing_solver.h"
 
 // these two always included
 #include "smt-switch/boolector_factory.h"
@@ -34,10 +37,8 @@
 #include "smt-switch/msat_factory.h"
 // these are for setting specific options
 // e.g. in create_solver_for
-#include "smt-switch/logging_solver.h"
 #include "smt-switch/msat_solver.h"
 #include "smt/msat_options.h"
-
 #endif
 
 #if WITH_YICES2
@@ -68,9 +69,10 @@ const std::vector<SolverEnum> solver_enums({
 
 // internal method for creating a particular solver
 // doesn't set any options
-SmtSolver create_solver_base(SolverEnum se, bool logging)
+SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
 {
   SmtSolver s;
+  auto printing_style = smt::PrintingStyleEnum::DEFAULT_STYLE;
   switch (se) {
     case BTOR: {
       s = BoolectorSolverFactory::create(logging);
@@ -78,6 +80,7 @@ SmtSolver create_solver_base(SolverEnum se, bool logging)
     }
     case CVC5: {
       s = Cvc5SolverFactory::create(logging);
+      printing_style = smt::PrintingStyleEnum::CVC5_STYLE;
       break;
     }
 #if WITH_BITWUZLA
@@ -89,6 +92,7 @@ SmtSolver create_solver_base(SolverEnum se, bool logging)
 #if WITH_MSAT
     case MSAT: {
       s = MsatSolverFactory::create(logging);
+      printing_style = smt::PrintingStyleEnum::MSAT_STYLE;
       break;
     }
 #endif
@@ -103,15 +107,20 @@ SmtSolver create_solver_base(SolverEnum se, bool logging)
     }
   }
 
+  if (printing) {
+    s = smt::create_printing_solver(s, &cerr, printing_style);
+  }
+
   return s;
 }
 
 SmtSolver create_solver(SolverEnum se,
                         bool logging,
                         bool incremental,
-                        bool produce_model)
+                        bool produce_model,
+                        bool printing)
 {
-  SmtSolver s = create_solver_base(se, logging);
+  SmtSolver s = create_solver_base(se, logging, printing);
 
   s->set_opt("incremental", incremental ? "true" : "false");
   s->set_opt("produce-models", produce_model ? "true" : "false");
@@ -119,10 +128,8 @@ SmtSolver create_solver(SolverEnum se,
   return s;
 }
 
-SmtSolver create_solver_for(SolverEnum se,
-                            Engine e,
-                            bool logging,
-                            bool full_model)
+SmtSolver create_solver_for(
+    SolverEnum se, Engine e, bool logging, bool full_model, bool printing)
 {
   SmtSolver s;
   bool ic3_engine = ic3_variants().find(e) != ic3_variants().end();
@@ -133,7 +140,7 @@ SmtSolver create_solver_for(SolverEnum se,
 
   if (se != MSAT) {
     // no special options yet for solvers other than mathsat
-    s = create_solver(se, logging);
+    s = create_solver(se, logging, true, true, printing);
   }
 #ifdef WITH_MSAT
   else if (se == MSAT && ic3_engine) {

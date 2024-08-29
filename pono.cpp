@@ -14,17 +14,12 @@
 **
 **/
 
+#include <cassert>
 #include <csignal>
 #include <iostream>
-#include "assert.h"
 
 #ifdef WITH_PROFILING
 #include <gperftools/profiler.h>
-#endif
-
-#include "smt-switch/boolector_factory.h"
-#ifdef WITH_MSAT
-#include "smt-switch/msat_factory.h"
 #endif
 
 #include "core/fts.h"
@@ -41,8 +36,8 @@
 #include "smt-switch/logging_solver.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/timestamp.h"
 #include "utils/make_provers.h"
+#include "utils/timestamp.h"
 #include "utils/ts_analysis.h"
 
 using namespace pono;
@@ -251,7 +246,8 @@ int main(int argc, char ** argv)
     SmtSolver s = create_solver_for(pono_options.smt_solver_,
                                     pono_options.engine_,
                                     false,
-                                    pono_options.ceg_prophecy_arrays_);
+                                    pono_options.ceg_prophecy_arrays_,
+                                    pono_options.printing_smt_solver_);
 
     if (pono_options.logging_smt_solver_) {
       s = make_shared<LoggingSolver>(s);
