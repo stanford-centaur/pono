@@ -129,7 +129,7 @@ SmtSolver create_solver(SolverEnum se,
 }
 
 SmtSolver create_solver_for(
-    SolverEnum se, Engine e, bool logging, bool full_model, bool printing)
+    SolverEnum se, Engine e, bool full_model, bool printing)
 {
   SmtSolver s;
   bool ic3_engine = ic3_variants().find(e) != ic3_variants().end();
@@ -140,7 +140,7 @@ SmtSolver create_solver_for(
 
   if (se != MSAT) {
     // no special options yet for solvers other than mathsat
-    s = create_solver(se, logging, true, true, printing);
+    s = create_solver(se, false, true, true, printing);
   }
 #ifdef WITH_MSAT
   else if (se == MSAT && ic3_engine) {
@@ -161,14 +161,11 @@ SmtSolver create_solver_for(
     msat_config cfg = get_msat_config_for_ic3(false, opts);
     msat_env env = msat_create_env(cfg);
     s = std::make_shared<MsatSolver>(cfg, env);
-    if (logging) {
-      s = make_shared<LoggingSolver>(s);
-    }
     return s;
   }
 #endif
   else {
-    s = create_solver(se, logging);
+    s = create_solver(se);
   }
 
   assert(s);

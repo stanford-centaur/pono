@@ -47,7 +47,7 @@ ProverResult MsatIC3IA::prove()
 
   // move everything over to a fresh solver
   shared_ptr<MsatSolver> msat_solver = static_pointer_cast<MsatSolver>(
-      create_solver_for(MSAT, MSAT_IC3IA, false));
+      create_solver_for(MSAT, MSAT_IC3IA));
   msat_env env = msat_solver->get_msat_env();
   ::ic3ia::TransitionSystem ic3ia_ts(env);
 

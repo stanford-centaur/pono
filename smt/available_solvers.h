@@ -48,7 +48,6 @@ smt::SmtSolver create_solver(smt::SolverEnum se,
 // CegProphecyArrays uses it's own solver
 smt::SmtSolver create_solver_for(smt::SolverEnum se,
                                  Engine e,
-                                 bool logging,
                                  bool full_model = false,
                                  bool printing = false);
 

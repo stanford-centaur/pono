@@ -20,7 +20,7 @@ class IC3UnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver_for(GetParam(), IC3_BOOL, false);
+    s = create_solver_for(GetParam(), IC3_BOOL);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
   }

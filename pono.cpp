@@ -245,7 +245,6 @@ int main(int argc, char ** argv)
 
     SmtSolver s = create_solver_for(pono_options.smt_solver_,
                                     pono_options.engine_,
-                                    false,
                                     pono_options.ceg_prophecy_arrays_,
                                     pono_options.printing_smt_solver_);
 
