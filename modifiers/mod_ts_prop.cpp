@@ -17,9 +17,10 @@
 #include "modifiers/mod_ts_prop.h"
 
 #include "core/rts.h"
+#include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
-#include "utils/term_analysis.h"
+#include "utils/term_walkers.h"
 #include "utils/ts_manipulation.h"
 
 using namespace smt;
@@ -149,6 +150,37 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
 
   assert(!new_ts.inputvars().size());
   return new_ts;
+}
+
+void generalize_property(TransitionSystem & ts, Term & prop)
+{
+  // Universally quantify all free variables (inputs and update-less states).
+  SubTermParametrizer term_parametrizer{
+    ts.solver(), { ts.inputvars(), ts.statevars_with_no_update() }
+  };
+  auto parametrized_prop = term_parametrizer.parametrize_subterms(prop);
+  auto params = term_parametrizer.parameters();
+  if (params.size() == 0) {
+    logger.log(1, "Property cannot be generalized (yet)");
+    // Nothing to generalize.
+    return;
+  }
+  params.emplace_back(parametrized_prop);
+  auto generalized_prop = ts.solver()->make_term(PrimOp::Forall, params);
+
+  // Verify that this still implies the property.
+  ts.solver()->push();
+  ts.solver()->assert_formula(
+      ts.solver()->make_term(PrimOp::And,
+                             generalized_prop,
+                             ts.solver()->make_term(PrimOp::Not, prop)));
+  if (ts.solver()->check_sat().is_sat()) {
+    logger.log(1, "Property generalization failed, using original one");
+  } else {
+    prop = generalized_prop;
+    logger.log(1, "Generalized property to: {}", prop->to_string());
+  }
+  ts.solver()->pop();
 }
 
 }  // namespace pono
