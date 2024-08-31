@@ -307,7 +307,7 @@ private:
   static const size_t default_reset_bnd_ = 1;
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
-  static const smt::SolverEnum default_smt_solver_ = smt::BTOR;
+  static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
   static const bool default_logging_smt_solver_ = false;
   static const bool default_printing_smt_solver_ = false;
   static const bool default_ic3_pregen_ = true;
