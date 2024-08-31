@@ -34,7 +34,7 @@ jobs:
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Python Dependencies (all)
-        run: python3 -m pip install Cython pytest pyparsing toml
+        run: python3 -m pip install Cython pytest pyparsing toml meson
 
       - name: Python Dependencies (all)
         run: python3 -m pip install scikit-build
