@@ -32,12 +32,7 @@ class TransitionSystem
    *  it supports the most theories and doesn't rewrite-on-the-fly or alias
    * sorts
    *  this makes it a great candidate for representing the TransitionSystem */
-  TransitionSystem()
-      : solver_(smt::Cvc5SolverFactory::create(false)),
-        init_(solver_->make_term(true)),
-        trans_(solver_->make_term(true)),
-        functional_(false),
-        deterministic_(false)
+  TransitionSystem() : TransitionSystem(smt::Cvc5SolverFactory::create(false))
   {
   }
 
@@ -69,7 +64,7 @@ class TransitionSystem
    */
   TransitionSystem(const TransitionSystem & other_ts, smt::TermTranslator & tt);
 
-  virtual ~TransitionSystem(){};
+  virtual ~TransitionSystem() {};
 
   /** Equality comparison between TransitionSystems
    *  compares each member variable
