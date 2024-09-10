@@ -79,6 +79,13 @@ jobs:
           cd build
           make -j
 
+      - name: Upload built executable
+        if: matrix.link_type == 'static'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pono_${{ runner.arch }}
+          path: ./build/pono
+
       - name: Test C++
         id: test-cpp
         continue-on-error: true
