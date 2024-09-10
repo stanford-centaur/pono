@@ -57,8 +57,8 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   EXPECT_FALSE(fts.is_deterministic());
   EXPECT_EQ(fts.statevars_with_no_update().size(), 0);
 
-  Term z = fts.make_statevar("z", bvsort);
-  EXPECT_EQ(fts.statevars_with_no_update(), UnorderedTermSet({z}));
+  Term ynext = fts.make_statevar("y.next", bvsort);
+  EXPECT_EQ(fts.statevars_with_no_update(), UnorderedTermSet({ynext}));
 
   TransitionSystem ts_copy = fts;
   EXPECT_EQ(fts.is_functional(), ts_copy.is_functional());
