@@ -67,11 +67,11 @@ jobs:
 
       - name: Configure (macOS)
         if: runner.os == 'macOS'
-        run: ./configure.sh --debug --python
+        run: ./configure.sh --python
 
       - name: Configure (non-macOS)
         if: runner.os != 'macOS'
-        run: ./configure.sh --with-msat --debug --python
+        run: ./configure.sh --with-msat --python --static
 
       - name: Build
         run: |
@@ -88,3 +88,9 @@ jobs:
 
       - name: Test Python Bindings
         run: pytest ./tests
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: pono_${{ runner.arch }}
+          path: ./build/pono
