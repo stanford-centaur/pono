@@ -36,8 +36,9 @@ class TransitionSystem
   {
   }
 
-  TransitionSystem(const smt::SmtSolver & s,
-                   const std::string & next_state_suffix = ".next")
+  TransitionSystem(
+      const smt::SmtSolver & s,
+      const std::string & next_state_suffix = ".pono_generated__next")
       : solver_(s),
         init_(s->make_term(true)),
         trans_(s->make_term(true)),
