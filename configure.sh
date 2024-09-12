@@ -18,6 +18,7 @@ Configures the CMAKE build environment.
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
                         Required for interpolant based model checking
 --with-yices2           build with Yices2 which has a custom non-BSD compliant license (default : off)
+--with-z3               build with Z3 (default: off)
 --with-msat-ic3ia       build with the open-source IC3IA implementation as a backend. (default: off)
 --with-coreir           build the CoreIR frontend (default: off)
 --with-coreir-extern    build the CoreIR frontend using an installation of coreir in /usr/local/lib (default: off)
@@ -44,6 +45,7 @@ build_type=default
 with_boolector=default
 with_msat=default
 with_yices2=default
+with_z3=default
 with_msat_ic3ia=default
 with_coreir=default
 with_coreir_extern=default
@@ -93,6 +95,7 @@ do
         --with-btor) with_boolector=ON;;
         --with-msat) with_msat=ON;;
         --with-yices2) with_yices2=ON;;
+        --with-z3) with_z3=ON;;
         --with-msat-ic3ia) with_msat_ic3ia=ON;;
         --with-coreir) with_coreir=ON;;
         --with-coreir-extern) with_coreir_extern=ON;;
@@ -137,6 +140,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $with_yices2 != default ] \
     && cmake_opts="$cmake_opts -DWITH_YICES2=$with_yices2"
+
+[ $with_z3 != default ] \
+    && cmake_opts="$cmake_opts -DWITH_Z3=$with_z3"
 
 [ $with_msat_ic3ia != default ] \
     && cmake_opts="$cmake_opts -DWITH_MSAT_IC3IA=$with_msat_ic3ia"

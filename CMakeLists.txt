@@ -54,6 +54,10 @@ if (WITH_YICES2)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_YICES2")
 endif()
 
+if (WITH_Z3)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_Z3")
+endif()
+
 if (WITH_PROFILING)
   find_library(GOOGLE_PERF profiler REQUIRED)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
@@ -124,6 +128,13 @@ endif()
 if (WITH_YICES2)
   if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
     message(FATAL_ERROR "Missing smt-switch Yices2 library -- try running ./contrib/setup-smt-switch.sh --with-yices2")
+  endif()
+endif()
+
+if (WITH_Z3)
+  pkg_check_modules(Z3 REQUIRED z3)
+  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
+    message(FATAL_ERROR "Missing smt-switch Z3 library -- try running ./contrib/setup-smt-switch.sh --with-z3")
   endif()
 endif()
 
@@ -278,6 +289,11 @@ endif()
 
 if (WITH_YICES2)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
+endif()
+
+if (WITH_Z3)
+  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
+  target_link_libraries(pono-lib PUBLIC "${Z3_LDFLAGS}")
 endif()
 
 if (WITH_MSAT_IC3IA)
