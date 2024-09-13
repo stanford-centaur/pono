@@ -61,7 +61,6 @@ if [ ! -d "$DEPS/mathsat" ]; then
 
 else
     echo "$DEPS/mathsat already exists. If you want to re-download, please remove it manually."
-    exit 1
 fi
 
 if [ -f $DEPS/mathsat/lib/libmathsat.a ] ; then \
