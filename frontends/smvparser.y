@@ -1253,8 +1253,26 @@ simple_expr: constant {
             | extend "(" basic_expr ")"{
               throw PonoException("No extend now");
             }
-            | resize "(" basic_expr ")" {
-              throw PonoException("No resize");
+            | resize "(" basic_expr "," integer_val ")" {
+              if(enc.module_flat){
+                SMVnode *word = $3;
+                int integer = stoi($5);
+                SMVnode::Type word_type = word->getType();
+                if(word_type == SMVnode::Signed){
+                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Sign_Extend, integer), word->getTerm());
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,SMVnode::Signed);
+                }else if(word_type == SMVnode::Unsigned){
+                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Zero_Extend, integer), word->getTerm());
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,SMVnode::Unsigned);
+                }else{
+                  throw PonoException("Resize word type is uncompatible");
+                }
+                }else{
+                SMVnode *integer = new constant($5);
+                $$ = new extend_expr(integer,$3);
+              }
             }
             | signed_word sizev "(" basic_expr ")"{
                throw PonoException("No resize");
