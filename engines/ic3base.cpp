@@ -17,10 +17,11 @@
 
 #include "engines/ic3base.h"
 
-#include "assert.h"
+#include <cassert>
+
 #include "smt/available_solvers.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
-#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -366,7 +367,10 @@ bool IC3Base::reaches_bad(IC3Formula & out)
 
   pop_solver_context();
 
-  assert(!r.is_unknown());
+  if (r.is_unknown()) {
+    throw PonoException("Bad state check in IC3 returned unknown");
+  }
+
   return r.is_sat();
 }
 
@@ -648,7 +652,7 @@ bool IC3Base::block_all()
     }  // end while(!proof_goals.empty())
 
     assert(!(goal = IC3Formula()).term);  // in debug mode, reset it
-  }                                       // end while(reaches_bad(goal))
+  }  // end while(reaches_bad(goal))
 
   assert(proof_goals.empty());
   return true;
