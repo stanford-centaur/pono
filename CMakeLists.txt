@@ -36,6 +36,10 @@ if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
 endif()
 
+if (WITH_YICES2)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_YICES2")
+endif()
+
 if (WITH_PROFILING)
   find_library(GOOGLE_PERF profiler REQUIRED)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
@@ -101,6 +105,12 @@ endif()
 if (WITH_MSAT)
   if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
     message(FATAL_ERROR "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-msat")
+  endif()
+endif()
+
+if (WITH_YICES2)
+  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
+    message(FATAL_ERROR "Missing smt-switch Yices2 library -- try running ./contrib/setup-smt-switch.sh --with-yices2")
   endif()
 endif()
 
@@ -244,6 +254,10 @@ endif()
 
 if (WITH_MSAT)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+endif()
+
+if (WITH_YICES2)
+  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
 endif()
 
 if (WITH_MSAT_IC3IA)

@@ -15,6 +15,7 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 -h, --help              display this message and exit
 --with-btor             include Boolector (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
+--with-yices2           include Yices2 which is under a custom non-BSD compliant license (default: off)
 --cvc5-home             use an already downloaded version of cvc5
 --python                build python bindings (default: off)
 EOF
@@ -28,6 +29,7 @@ die () {
 
 WITH_BOOLECOR=default
 WITH_MSAT=default
+WITH_YICES2=default
 CONF_OPTS=""
 WITH_PYTHON=default
 cvc5_home=default
@@ -42,6 +44,9 @@ do
         --with-btor)
             WITH_BOOLECTOR=ON
             CONF_OPTS="$CONF_OPTS --btor";;
+        --with-yices2)
+            WITH_YICES2=ON
+            CONF_OPTS="$CONF_OPTS --yices2";;
         --python)
             WITH_PYTHON=YES
             CONF_OPTS="$CONF_OPTS --python";;
