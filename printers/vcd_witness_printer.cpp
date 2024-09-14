@@ -16,7 +16,6 @@
 
 #include "utils/logger.h"
 #include "frontends/btor2_encoder.h"
-#include "smt-switch/boolector_factory.h"
 
 #include "vcd_witness_printer.h"
 
