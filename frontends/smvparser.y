@@ -1256,22 +1256,38 @@ simple_expr: constant {
             | resize "(" basic_expr "," integer_val ")" {
               if(enc.module_flat){
                 SMVnode *word = $3;
-                int integer = stoi($5);
                 SMVnode::Type word_type = word->getType();
-                if(word_type == SMVnode::Signed){
-                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Sign_Extend, integer), word->getTerm());
-                  assert(res); //check res non-null
-                  $$ = new SMVnode(res,SMVnode::Signed);
-                }else if(word_type == SMVnode::Unsigned){
-                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Zero_Extend, integer), word->getTerm());
-                  assert(res); //check res non-null
-                  $$ = new SMVnode(res,SMVnode::Unsigned);
-                }else{
+                
+                if(word_type != SMVnode::Signed && word_type != SMVnode::Unsigned){
                   throw PonoException("Resize word type is uncompatible");
                 }
+                
+                int integer = stoi($5);
+                smt::Sort word_sort = word->getSort();
+                uint64_t word_width = word_sort->get_width();
+
+                if(integer == word_width){
+                  $$ = word;
+                }else if(integer < word_width){
+                  smt::Term res;
+                  if(word_type == SMVnode::Signed){
+                    smt::Term tail = enc.solver_->make_term(smt::Op(smt::Extract, integer - 2, 0), word->getTerm());
+                    smt::Term signBit = enc.solver_->make_term(smt::Op(smt::Extract, word_width - 1, word_width - 1), word->getTerm());
+                    res = enc.solver_->make_term(smt::Concat, signBit, tail);
+                  }else{
+                    res = enc.solver_->make_term(smt::Op(smt::Extract, integer - 1, 0), word->getTerm());
+                  }
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,word_type);
                 }else{
+                  smt::PrimOp extendOp = word_type == SMVnode::Signed ? smt::Sign_Extend : smt::Zero_Extend;
+                  smt::Term res = enc.solver_->make_term(smt::Op(extendOp, integer), word->getTerm());
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,word_type);
+                }
+              }else{
                 SMVnode *integer = new constant($5);
-                $$ = new extend_expr(integer,$3);
+                $$ = new resize_expr($3,integer);
               }
             }
             | signed_word sizev "(" basic_expr ")"{
