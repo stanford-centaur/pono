@@ -100,6 +100,7 @@ class PonoOptions
         static_coi_(default_static_coi_),
         show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
+        generalize_prop_(default_generalize_prop_),
         ic3_pregen_(default_ic3_pregen_),
         ic3_indgen_(default_ic3_indgen_),
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
@@ -192,6 +193,7 @@ class PonoOptions
   bool static_coi_;
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
+  bool generalize_prop_; ///< attempt to strengthen property before proving
   // ic3 options
   bool ic3_pregen_;  ///< generalize counterexamples in IC3
   bool ic3_indgen_;  ///< inductive generalization in IC3
@@ -304,6 +306,7 @@ private:
   static const bool default_static_coi_ = false;
   static const bool default_show_invar_ = false;
   static const bool default_check_invar_ = false;
+  static const bool default_generalize_prop_ = false;
   static const size_t default_reset_bnd_ = 1;
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
