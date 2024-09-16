@@ -154,15 +154,39 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
 
 void generalize_property(TransitionSystem & ts, Term & prop)
 {
+  UnorderedTermSet free_variables;
+
+  // Get sets of all terms in INIT and TRANS.
+  SubTermCollector term_collector{ ts.solver() };
+  term_collector.collect_subterms(ts.init());
+  auto init_terms = term_collector.get_subterms();
+  auto init_predicates = term_collector.get_predicates();
+  term_collector.collect_subterms(ts.trans());
+  auto trans_terms = term_collector.get_subterms();
+  auto trans_predicates = term_collector.get_predicates();
+
+  // Filter out free variables that appear in INIT or TRANS, where they could
+  // have been added by constraints.
+  for (const auto & var_set : { ts.inputvars(), ts.statevars_with_no_update() })
+    for (const auto & var : var_set) {
+      if ((init_terms.count(var->get_sort()) == 0
+           || init_terms.at(var->get_sort()).count(var) == 0)
+          && init_predicates.count(var) == 0
+          && (trans_terms.count(var->get_sort()) == 0
+              || trans_terms.at(var->get_sort()).count(var) == 0)
+          && trans_predicates.count(var) == 0) {
+        free_variables.insert(var);
+      }
+    }
+
   // Universally quantify all free variables (inputs and update-less states).
-  SubTermParametrizer term_parametrizer{
-    ts.solver(), { ts.inputvars(), ts.statevars_with_no_update() }
-  };
+  SubTermParametrizer term_parametrizer{ ts.solver(), { free_variables } };
   auto parametrized_prop = term_parametrizer.parametrize_subterms(prop);
   auto params = term_parametrizer.parameters();
   if (params.size() == 0) {
-    logger.log(1, "Property cannot be generalized (yet)");
     // Nothing to generalize.
+    logger.log(1,
+               "Properties without free variables cannot be generalized yet");
     return;
   }
   params.emplace_back(parametrized_prop);
