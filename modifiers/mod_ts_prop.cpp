@@ -180,7 +180,7 @@ void generalize_property(TransitionSystem & ts, Term & prop)
     }
 
   // Universally quantify all free variables (inputs and update-less states).
-  SubTermParametrizer term_parametrizer{ ts.solver(), { free_variables } };
+  SubTermParametrizer term_parametrizer{ ts.solver(), free_variables };
   auto parametrized_prop = term_parametrizer.parametrize_subterms(prop);
   auto params = term_parametrizer.parameters();
   if (params.size() == 0) {

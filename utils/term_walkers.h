@@ -16,7 +16,6 @@
 #pragma once
 
 #include <unordered_set>
-#include <vector>
 
 #include "smt-switch/identity_walker.h"
 #include "smt-switch/smt.h"
@@ -103,10 +102,10 @@ class SubTermParametrizer : public smt::IdentityWalker
  public:
   /** Constructs a SubTermParametrizer for a given set of terms.
    * @param solver the solver instance that the terms are defined in
-   * @param filters vector of sets which should be searched for terms to replace
+   * @param filter set of variables which should be searched for terms to replace
    */
   SubTermParametrizer(const smt::SmtSolver & solver,
-                      const std::vector<smt::UnorderedTermSet> & filters);
+                      const smt::UnorderedTermSet & filter);
 
   typedef smt::IdentityWalker super;
 
@@ -121,7 +120,7 @@ class SubTermParametrizer : public smt::IdentityWalker
  protected:
   smt::WalkerStepResult visit_term(smt::Term & term) override;
 
-  const std::vector<smt::UnorderedTermSet> filters_;
+  const smt::UnorderedTermSet filter_;
   smt::TermVec parameters_;
 };
 

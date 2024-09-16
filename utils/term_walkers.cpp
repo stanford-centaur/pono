@@ -127,10 +127,9 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
   return Walker_Continue;
 }
 
-SubTermParametrizer::SubTermParametrizer(
-    const smt::SmtSolver & solver,
-    const std::vector<smt::UnorderedTermSet> & filters)
-    : super(solver, true), filters_(filters)
+SubTermParametrizer::SubTermParametrizer(const smt::SmtSolver & solver,
+                                         const smt::UnorderedTermSet & filter)
+    : super(solver, true), filter_(filter)
 {
 }
 
@@ -145,13 +144,10 @@ Term SubTermParametrizer::parametrize_subterms(Term & term)
 WalkerStepResult SubTermParametrizer::visit_term(Term & term)
 {
   if (preorder_) {
-    for (const auto & filter : filters_) {
-      if (filter.find(term) != filter.end()) {
-        auto param = solver_->make_param(term->to_string(), term->get_sort());
-        parameters_.emplace_back(param);
-        save_in_cache(term, param);
-        break;
-      }
+    if (filter_.count(term) > 0) {
+      auto param = solver_->make_param(term->to_string(), term->get_sort());
+      parameters_.emplace_back(param);
+      save_in_cache(term, param);
     }
   }
   return super::visit_term(term);
