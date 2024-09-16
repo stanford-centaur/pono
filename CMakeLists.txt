@@ -324,6 +324,8 @@ if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
   target_link_libraries(pono-bin PUBLIC -static)
 endif()
 
+set(CMAKE_INSTALL_MESSAGE LAZY)
+
 # install smt-switch
 install(TARGETS pono-lib DESTINATION lib)
 install(TARGETS pono-bin DESTINATION bin)
