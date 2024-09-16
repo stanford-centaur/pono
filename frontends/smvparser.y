@@ -1202,7 +1202,21 @@ simple_expr: constant {
               }
             }
             | word1 "(" basic_expr ")" {
-              throw PonoException("No word1");
+              if(enc.module_flat){
+                SMVnode *boolean = $3;
+                if(boolean->getType() != SMVnode::Boolean){
+                  throw PonoException("Word1 word type is uncompatible");
+                }
+                smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                smt::Term res = enc.solver_->make_term(smt::Ite, 
+                                                       boolean->getTerm(), 
+                                                       enc.solver_->make_term(1, bv1sort), 
+                                                       enc.solver_->make_term(0, bv1sort));
+                assert(res); //check res non-null
+                $$ = new SMVnode(res,SMVnode::Unsigned);
+              }else{
+                $$ = new word1_expr($3);
+              }
             }
             | tok_bool "(" basic_expr ")"{
               throw PonoException("No type convert");
