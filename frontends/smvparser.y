@@ -1219,7 +1219,21 @@ simple_expr: constant {
               }
             }
             | tok_bool "(" basic_expr ")"{
-              throw PonoException("No type convert");
+              if(enc.module_flat){
+                SMVnode *a = $3;
+                smt::Sort sort = a->getSort();
+                // TODO: SMV also supports bool conversion from integer
+                if(sort->get_sort_kind() != smt::BV || (sort->get_sort_kind() == smt::BV && sort->get_width() != 1)){
+                  throw PonoException("Can't convert non-width 1 bitvector to bool.");
+                }
+                smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                smt::Term res = enc.solver_->make_term(smt::Equal, 
+                                                       a->getTerm(), 
+                                                       enc.solver_->make_term(1, bv1sort));
+                $$ = new SMVnode(res,SMVnode::Boolean);
+              }else{
+                $$ = new bool_expr($3);
+              }
             }
             | tok_toint "(" basic_expr ")"{
               throw PonoException("No type convert");
