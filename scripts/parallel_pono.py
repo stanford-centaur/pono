@@ -48,7 +48,7 @@ def main():
     def get_command(arguments: list[str]) -> list[str]:
         command = [args.binary, "-k", str(args.bound), *arguments]
         if "interp" in arguments or "ic3ia" in arguments:
-            # Interpolation requires MathSat
+            # Interpolation requires MathSAT
             command.extend(["--smt-solver", "msat"])
         else:
             command.extend(["--smt-solver", args.smt_solver])
