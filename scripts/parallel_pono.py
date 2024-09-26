@@ -25,7 +25,10 @@ SOLVED_RETURN_CODES = {ReturnCode.SAT.value, ReturnCode.UNSAT.value}
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
+    parser = argparse.ArgumentParser(
+        description="Run multiple engines in parallel",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("btor_file")
     parser.add_argument(
         "-b", "--binary", default=shutil.which("pono"), help="path to pono binary"
