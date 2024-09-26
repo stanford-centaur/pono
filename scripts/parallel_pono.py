@@ -38,7 +38,7 @@ def main():
     )
     parser.add_argument("-s", "--smt-solver", default="bzla", help="SMT solver to use")
     parser.add_argument(
-        "-c", "--csv-summary", action="store_true", help="print csv summary to stderr"
+        "-v", "--verbose", action="store_true", help="print csv summary to stderr"
     )
     args = parser.parse_args()
 
@@ -121,7 +121,7 @@ def main():
                 del processes[name]
                 if process.returncode == ReturnCode.UNKNOWN.value:
                     continue
-                if args.csv_summary:
+                if args.verbose:
                     try:
                         result = ReturnCode(process.returncode).name.lower()
                     except ValueError:
