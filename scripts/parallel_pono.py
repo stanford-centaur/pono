@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import enum
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -27,6 +28,9 @@ def main():
     parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
     parser.add_argument("btor_file")
     parser.add_argument(
+        "-b", "--binary", default=shutil.which("pono"), help="path to pono binary"
+    )
+    parser.add_argument(
         "-k", "--bound", default=1000, type=int, help="The maximum bound to unroll to"
     )
     parser.add_argument("-s", "--smt-solver", default="bzla", help="SMT solver to use")
@@ -35,8 +39,11 @@ def main():
     )
     args = parser.parse_args()
 
+    if args.binary is None:
+        raise RuntimeError("pono binary not found")
+
     def get_command(arguments: list[str]) -> list[str]:
-        command = ["pono", "-k", str(args.bound), *arguments]
+        command = [args.binary, "-k", str(args.bound), *arguments]
         if "interp" in arguments or "ic3ia" in arguments:
             # Interpolation requires MathSat
             command.extend(["--smt-solver", "msat"])
