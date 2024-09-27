@@ -44,7 +44,7 @@ if [ ! -d "$DEPS/mathsat" ]; then
     cd $DEPS
     mkdir mathsat
     if [[ "$OSTYPE" == linux* ]]; then
-        wget -O mathsat.tar.gz https://mathsat.fbk.eu/download.php?file=mathsat-5.6.4-linux-x86_64.tar.gz
+        wget -O mathsat.tar.gz https://mathsat.fbk.eu/download.php?file=mathsat-5.6.11-linux-x86_64.tar.gz
     elif [[ "$OSTYPE" == darwin* ]]; then
         wget -O mathsat.tar.gz https://mathsat.fbk.eu/download.php?file=mathsat-5.6.4-darwin-libcxx-x86_64.tar.gz
     elif [[ "$OSTYPE" == msys* ]]; then
