@@ -15,9 +15,11 @@
  **/
 
 #include "options/options.h"
+
 #include <iostream>
 #include <string>
 #include <vector>
+
 #include "optionparser.h"
 #include "utils/exceptions.h"
 
@@ -40,6 +42,7 @@ enum optionIndex
   STATICCOI,
   SHOW_INVAR,
   CHECK_INVAR,
+  GENERALIZE_PROP,
   RESET,
   RESET_BND,
   CLK,
@@ -222,6 +225,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --check-invar \tFor engines that produce invariants, check that they "
     "hold." },
+  { GENERALIZE_PROP,
+    0,
+    "",
+    "generalize-prop",
+    Arg::None,
+    "  --generalize-prop \tattempt to strengthen the property by universally "
+    "quantifying variables (default: false)" },
   { RESET,
     0,
     "r",
@@ -701,6 +711,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case STATICCOI: static_coi_ = true; break;
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
+        case GENERALIZE_PROP: generalize_prop_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;

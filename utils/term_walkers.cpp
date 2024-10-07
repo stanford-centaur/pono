@@ -16,7 +16,11 @@
 
 #include "utils/term_walkers.h"
 
+#include <algorithm>
+
 #include "assert.h"
+#include "smt-switch/identity_walker.h"
+#include "smt-switch/smt.h"
 #include "utils/term_analysis.h"
 
 using namespace smt;
@@ -121,6 +125,32 @@ WalkerStepResult SubTermCollector::visit_term(smt::Term & term)
     }
   }
   return Walker_Continue;
+}
+
+SubTermParametrizer::SubTermParametrizer(const smt::SmtSolver & solver,
+                                         const smt::UnorderedTermSet & filter)
+    : super(solver, true), filter_(filter)
+{
+}
+
+Term SubTermParametrizer::parametrize_subterms(Term & term)
+{
+  parameters_ = {};
+  auto new_term = visit(term);
+  reverse(parameters_.begin(), parameters_.end());
+  return new_term;
+}
+
+WalkerStepResult SubTermParametrizer::visit_term(Term & term)
+{
+  if (preorder_) {
+    if (filter_.count(term) > 0) {
+      auto param = solver_->make_param(term->to_string(), term->get_sort());
+      parameters_.emplace_back(param);
+      save_in_cache(term, param);
+    }
+  }
+  return super::visit_term(term);
 }
 
 }  // namespace pono
