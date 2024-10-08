@@ -124,6 +124,9 @@ SmtSolver create_solver(SolverEnum se,
 
   s->set_opt("incremental", incremental ? "true" : "false");
   s->set_opt("produce-models", produce_model ? "true" : "false");
+  if (se == smt::BZLA) {
+    s->set_opt("abstraction", "true");
+  }
 
   return s;
 }
