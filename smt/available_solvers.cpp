@@ -25,9 +25,7 @@
 #include "smt-switch/logging_solver.h"
 #include "smt-switch/printing_solver.h"
 
-// these two always included
 #include "smt-switch/bitwuzla_factory.h"
-#include "smt-switch/cvc5_factory.h"
 
 #if WITH_BOOLECTOR
 #include "smt-switch/boolector_factory.h"
@@ -52,7 +50,7 @@ namespace pono {
 
 // list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
-  BZLA, CVC5,
+  BZLA,
 
 #if WITH_BOOLECTOR
       BTOR,
@@ -76,11 +74,6 @@ SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
   switch (se) {
     case BZLA: {
       s = BitwuzlaSolverFactory::create(logging);
-      break;
-    }
-    case CVC5: {
-      s = Cvc5SolverFactory::create(logging);
-      printing_style = smt::PrintingStyleEnum::CVC5_STYLE;
       break;
     }
 #if WITH_BOOLECTOR

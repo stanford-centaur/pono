@@ -16,7 +16,6 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 --with-btor             include Boolector (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 --with-yices2           include Yices2 which is under a custom non-BSD compliant license (default: off)
---cvc5-home             use an already downloaded version of cvc5
 --python                build python bindings (default: off)
 EOF
     exit 0
@@ -32,7 +31,6 @@ WITH_MSAT=default
 WITH_YICES2=default
 CONF_OPTS=""
 WITH_PYTHON=default
-cvc5_home=default
 
 while [ $# -gt 0 ]
 do
@@ -50,17 +48,6 @@ do
         --python)
             WITH_PYTHON=YES
             CONF_OPTS="$CONF_OPTS --python";;
-        --cvc5-home) die "missing argument to $1 (see -h)" ;;
-        --cvc5-home=*)
-            cvc5_home=${1##*=}
-            # Check if cvc5_home is an absolute path and if not, make it
-            # absolute.
-            case $cvc5_home in
-                /*) ;;                            # absolute path
-                *) cvc5_home=$(pwd)/$cvc5_home ;; # make absolute path
-            esac
-            CONF_OPTS="$CONF_OPTS --cvc5-home=$cvc5_home"
-            ;;
         *) die "unexpected argument: $1";;
     esac
     shift
@@ -74,14 +61,11 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-bitwuzla.sh
-    if [ $cvc5_home = default ]; then
-        ./contrib/setup-cvc5.sh
-    fi
     if [ $WITH_BOOLECTOR = ON ]; then
         ./contrib/setup-btor.sh
     fi
     # pass bison/flex directories from smt-switch perspective
-    ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
+    ./configure.sh --bitwuzla $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
     cd build
     make -j$(nproc)
     make test
@@ -92,7 +76,7 @@ else
 fi
 
 if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]; then
-    echo "It appears smt-switch with boolector and cvc5 was successfully installed to $DEPS/smt-switch/local."
+    echo "It appears smt-switch with bitwuzla was successfully installed to $DEPS/smt-switch/local."
     echo "You may now build pono with: ./configure.sh && cd build && make"
 else
     echo "Building smt-switch failed."
