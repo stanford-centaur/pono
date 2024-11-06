@@ -50,75 +50,75 @@ namespace pono {
 using CVC5SortSet = std::unordered_set<cvc5::Sort>;
 using CVC5TermVec = std::vector<cvc5::Term>;
 
-const unordered_set<cvc5::Kind> bv_ops({ cvc5::EQUAL,
-                                          cvc5::BITVECTOR_CONCAT,
-                                          cvc5::BITVECTOR_EXTRACT,
-                                          cvc5::BITVECTOR_NOT,
-                                          cvc5::BITVECTOR_NEG,
-                                          cvc5::BITVECTOR_AND,
-                                          cvc5::BITVECTOR_OR,
-                                          cvc5::BITVECTOR_XOR,
-                                          cvc5::BITVECTOR_NAND,
-                                          cvc5::BITVECTOR_NOR,
-                                          cvc5::BITVECTOR_XNOR,
-                                          cvc5::BITVECTOR_COMP,
-                                          cvc5::BITVECTOR_ADD,
-                                          cvc5::BITVECTOR_SUB,
-                                          cvc5::BITVECTOR_MULT,
-                                          cvc5::BITVECTOR_UDIV,
-                                          cvc5::BITVECTOR_SDIV,
-                                          cvc5::BITVECTOR_UREM,
-                                          cvc5::BITVECTOR_SREM,
-                                          cvc5::BITVECTOR_SMOD,
-                                          cvc5::BITVECTOR_SHL,
-                                          cvc5::BITVECTOR_ASHR,
-                                          cvc5::BITVECTOR_LSHR,
-                                          cvc5::BITVECTOR_ULT,
-                                          cvc5::BITVECTOR_ULE,
-                                          cvc5::BITVECTOR_UGT,
-                                          cvc5::BITVECTOR_UGE,
-                                          cvc5::BITVECTOR_SLT,
-                                          cvc5::BITVECTOR_SLE,
-                                          cvc5::BITVECTOR_SGT,
-                                          cvc5::BITVECTOR_SGE,
-                                          cvc5::BITVECTOR_ZERO_EXTEND,
-                                          cvc5::BITVECTOR_SIGN_EXTEND,
-                                          cvc5::BITVECTOR_REPEAT,
-                                          cvc5::BITVECTOR_ROTATE_LEFT,
-                                          cvc5::BITVECTOR_ROTATE_RIGHT });
+const unordered_set<cvc5::Kind> bv_ops({ cvc5::Kind::EQUAL,
+                                          cvc5::Kind::BITVECTOR_CONCAT,
+                                          cvc5::Kind::BITVECTOR_EXTRACT,
+                                          cvc5::Kind::BITVECTOR_NOT,
+                                          cvc5::Kind::BITVECTOR_NEG,
+                                          cvc5::Kind::BITVECTOR_AND,
+                                          cvc5::Kind::BITVECTOR_OR,
+                                          cvc5::Kind::BITVECTOR_XOR,
+                                          cvc5::Kind::BITVECTOR_NAND,
+                                          cvc5::Kind::BITVECTOR_NOR,
+                                          cvc5::Kind::BITVECTOR_XNOR,
+                                          cvc5::Kind::BITVECTOR_COMP,
+                                          cvc5::Kind::BITVECTOR_ADD,
+                                          cvc5::Kind::BITVECTOR_SUB,
+                                          cvc5::Kind::BITVECTOR_MULT,
+                                          cvc5::Kind::BITVECTOR_UDIV,
+                                          cvc5::Kind::BITVECTOR_SDIV,
+                                          cvc5::Kind::BITVECTOR_UREM,
+                                          cvc5::Kind::BITVECTOR_SREM,
+                                          cvc5::Kind::BITVECTOR_SMOD,
+                                          cvc5::Kind::BITVECTOR_SHL,
+                                          cvc5::Kind::BITVECTOR_ASHR,
+                                          cvc5::Kind::BITVECTOR_LSHR,
+                                          cvc5::Kind::BITVECTOR_ULT,
+                                          cvc5::Kind::BITVECTOR_ULE,
+                                          cvc5::Kind::BITVECTOR_UGT,
+                                          cvc5::Kind::BITVECTOR_UGE,
+                                          cvc5::Kind::BITVECTOR_SLT,
+                                          cvc5::Kind::BITVECTOR_SLE,
+                                          cvc5::Kind::BITVECTOR_SGT,
+                                          cvc5::Kind::BITVECTOR_SGE,
+                                          cvc5::Kind::BITVECTOR_ZERO_EXTEND,
+                                          cvc5::Kind::BITVECTOR_SIGN_EXTEND,
+                                          cvc5::Kind::BITVECTOR_REPEAT,
+                                          cvc5::Kind::BITVECTOR_ROTATE_LEFT,
+                                          cvc5::Kind::BITVECTOR_ROTATE_RIGHT });
 
 const unordered_set<cvc5::Kind> relational_ops({
-    cvc5::EQUAL,
-    cvc5::DISTINCT,
-    cvc5::LT,
-    cvc5::LEQ,
-    cvc5::GT,
-    cvc5::GEQ,
-    cvc5::BITVECTOR_ULT,
-    cvc5::BITVECTOR_ULE,
-    cvc5::BITVECTOR_UGT,
-    cvc5::BITVECTOR_UGE,
-    cvc5::BITVECTOR_SLT,
-    cvc5::BITVECTOR_SLE,
-    cvc5::BITVECTOR_SGT,
-    cvc5::BITVECTOR_SGE,
+    cvc5::Kind::EQUAL,
+    cvc5::Kind::DISTINCT,
+    cvc5::Kind::LT,
+    cvc5::Kind::LEQ,
+    cvc5::Kind::GT,
+    cvc5::Kind::GEQ,
+    cvc5::Kind::BITVECTOR_ULT,
+    cvc5::Kind::BITVECTOR_ULE,
+    cvc5::Kind::BITVECTOR_UGT,
+    cvc5::Kind::BITVECTOR_UGE,
+    cvc5::Kind::BITVECTOR_SLT,
+    cvc5::Kind::BITVECTOR_SLE,
+    cvc5::Kind::BITVECTOR_SGT,
+    cvc5::Kind::BITVECTOR_SGE,
 });
 
-const unordered_set<cvc5::Kind> multisort_ops({ cvc5::BITVECTOR_EXTRACT,
-                                                 cvc5::BITVECTOR_CONCAT,
-                                                 cvc5::BITVECTOR_ZERO_EXTEND,
-                                                 cvc5::BITVECTOR_SIGN_EXTEND,
-                                                 cvc5::BITVECTOR_COMP });
+const unordered_set<cvc5::Kind> multisort_ops({ cvc5::Kind::BITVECTOR_EXTRACT,
+                                                 cvc5::Kind::BITVECTOR_CONCAT,
+                                                 cvc5::Kind::BITVECTOR_ZERO_EXTEND,
+                                                 cvc5::Kind::BITVECTOR_SIGN_EXTEND,
+                                                 cvc5::Kind::BITVECTOR_COMP });
 
-const unordered_set<cvc5::Kind> unary_ops({ cvc5::BITVECTOR_NEG,
-                                             cvc5::BITVECTOR_NOT,
-                                             cvc5::BITVECTOR_EXTRACT,
-                                             cvc5::BITVECTOR_ZERO_EXTEND,
-                                             cvc5::BITVECTOR_SIGN_EXTEND,
-                                             cvc5::NEG });
+const unordered_set<cvc5::Kind> unary_ops({ cvc5::Kind::BITVECTOR_NEG,
+                                             cvc5::Kind::BITVECTOR_NOT,
+                                             cvc5::Kind::BITVECTOR_EXTRACT,
+                                             cvc5::Kind::BITVECTOR_ZERO_EXTEND,
+                                             cvc5::Kind::BITVECTOR_SIGN_EXTEND,
+                                             cvc5::Kind::NEG });
 
 const unordered_set<cvc5::Kind> bool_ops(
-    { cvc5::AND, cvc5::OR, cvc5::XOR, cvc5::NOT, cvc5::IMPLIES, cvc5::ITE });
+    { cvc5::Kind::AND, cvc5::Kind::OR, cvc5::Kind::XOR, cvc5::Kind::NOT, cvc5::Kind::IMPLIES, cvc5::Kind::ITE });
 
 // Helpers for CVC5 SyGuS Predicate Search
 // should eventually be moved elsewhere
@@ -126,10 +126,10 @@ const unordered_set<cvc5::Kind> bool_ops(
 bool cvc5_term_is_value(const cvc5::Term & term)
 {
   cvc5::Kind k = term.getKind();
-  return ((k == cvc5::CONST_BOOLEAN) || (k == cvc5::CONST_BITVECTOR)
-          || (k == cvc5::CONST_RATIONAL) || (k == cvc5::CONST_FLOATINGPOINT)
-          || (k == cvc5::CONST_ROUNDINGMODE) || (k == cvc5::CONST_STRING)
-          || (k == cvc5::CONST_ARRAY));
+  return ((k == cvc5::Kind::CONST_BOOLEAN) || (k == cvc5::Kind::CONST_BITVECTOR)
+          || (k == cvc5::Kind::CONST_RATIONAL) || (k == cvc5::Kind::CONST_FLOATINGPOINT)
+          || (k == cvc5::Kind::CONST_ROUNDINGMODE) || (k == cvc5::Kind::CONST_STRING)
+          || (k == cvc5::Kind::CONST_ARRAY));
 }
 
 using CVC5OpSignatures =
@@ -201,7 +201,7 @@ class CVC5GrammarSeed
           cvc5::Sort ufsort = solver_.mkFunctionSort(sort_vec, sort);
           assert(!op.isNull());
           op_map_[op].insert(ufsort);
-        } else if (t.getKind() == cvc5::CONSTANT) {
+        } else if (t.getKind() == cvc5::Kind::CONSTANT) {
           contains_free_vars.insert(t);
         }
       }
@@ -350,7 +350,7 @@ cvc5::Grammar cvc5_make_grammar(
         // using real for both integers and reals
         sk = REAL;
         logger.log(0, "Adding arithmetic ADD\n");
-        constructs[s].push_back(cvc5_solver.mkTerm(cvc5::ADD, {s, s}));
+        constructs[s].push_back(cvc5_solver.mkTerm(cvc5::Kind::ADD, {s, s}));
         //        constructs[s].push_back(cvc5_solver.mkTerm(cvc5::MULT, {s, s}));
       } else if (sort.isBoolean()) {
         // only looking for predicates
@@ -434,8 +434,8 @@ cvc5::Grammar cvc5_make_grammar(
   } else {
     for (auto s : start_terms) {
       //if ( s is of sort BV) {
-      cvc5::Term equals = cvc5_solver.mkTerm(cvc5::EQUAL, {s, s});
-      cvc5::Term bvugt = cvc5_solver.mkTerm(cvc5::BITVECTOR_UGT, {s, s});
+      cvc5::Term equals = cvc5_solver.mkTerm(cvc5::Kind::EQUAL, {s, s});
+      cvc5::Term bvugt = cvc5_solver.mkTerm(cvc5::Kind::BITVECTOR_UGT, {s, s});
       constructs[start_bool] = { bvugt, equals };
       //} else if (s is of sort int/real) {
       //cvc5::Term equals = cvc5_solver.mkTerm(cvc5::EQUAL, {s, s});
@@ -448,13 +448,13 @@ cvc5::Grammar cvc5_make_grammar(
       cvc5::Term zero = cvc5_solver.mkBitVector(s.getSort().getBitVectorSize(), 0);
       cvc5::Term one = cvc5_solver.mkBitVector(s.getSort().getBitVectorSize(), 1);
       cvc5::Term min_signed = cvc5_solver.mkBitVector(s.getSort().getBitVectorSize(), pow(2,s.getSort().getBitVectorSize() - 1));
-      cvc5::Term bvadd = cvc5_solver.mkTerm(cvc5::BITVECTOR_ADD, {s, s});
-      cvc5::Term bvmul = cvc5_solver.mkTerm(cvc5::BITVECTOR_MULT, {s, s});
-      cvc5::Term bvand = cvc5_solver.mkTerm(cvc5::BITVECTOR_AND, {s, s});
-      cvc5::Term bvcomp = cvc5_solver.mkTerm(cvc5::BITVECTOR_COMP, {s, s});
-      cvc5::Term bvor = cvc5_solver.mkTerm(cvc5::BITVECTOR_OR, {s, s});
-      cvc5::Term bvnot = cvc5_solver.mkTerm(cvc5::BITVECTOR_NOT, {s});
-      cvc5::Term bvneg = cvc5_solver.mkTerm(cvc5::BITVECTOR_NEG, {s});
+      cvc5::Term bvadd = cvc5_solver.mkTerm(cvc5::Kind::BITVECTOR_ADD, {s, s});
+      cvc5::Term bvmul = cvc5_solver.mkTerm(cvc5::Kind::BITVECTOR_MULT, {s, s});
+      cvc5::Term bvand = cvc5_solver.mkTerm(cvc5::Kind::BITVECTOR_AND, {s, s});
+      cvc5::Term bvcomp = cvc5_solver.mkTerm(cvc5::Kind::BITVECTOR_COMP, {s, s});
+      cvc5::Term bvor = cvc5_solver.mkTerm(cvc5::Kind::BITVECTOR_OR, {s, s});
+      cvc5::Term bvnot = cvc5_solver.mkTerm(cvc5::Kind::BITVECTOR_NOT, {s});
+      cvc5::Term bvneg = cvc5_solver.mkTerm(cvc5::Kind::BITVECTOR_NEG, {s});
       constructs[s] = { bvadd, bvmul, bvand, bvor, bvnot, bvneg };
       if (values == 0) {
         // no constants in this case
@@ -1464,17 +1464,17 @@ bool IC3IA::cvc5_synthesize_preds(
       }
 
       cvc5::Term pred_app_vars =
-          cvc5_solver.mkTerm(cvc5::APPLY_UF, cvc5_next_var_args);
+          cvc5_solver.mkTerm(cvc5::Kind::APPLY_UF, cvc5_next_var_args);
       cvc5::Term pred_app_abs_vars =
-          cvc5_solver.mkTerm(cvc5::APPLY_UF, cvc5_abs_var_args);
+          cvc5_solver.mkTerm(cvc5::Kind::APPLY_UF, cvc5_abs_var_args);
 
-      cvc5_formula = cvc5_solver.mkTerm(cvc5::AND,
+      cvc5_formula = cvc5_solver.mkTerm(cvc5::Kind::AND,
                                         {cvc5_formula,
-                                         cvc5_solver.mkTerm(cvc5::EQUAL, {pred_app_vars, pred_app_abs_vars})});
+                                         cvc5_solver.mkTerm(cvc5::Kind::EQUAL, {pred_app_vars, pred_app_abs_vars})});
     }
   }
 
-  cvc5::Term constraint = cvc5_solver.mkTerm(cvc5::NOT, {cvc5_formula});
+  cvc5::Term constraint = cvc5_solver.mkTerm(cvc5::Kind::NOT, {cvc5_formula});
 
   // use sygus variables rather than ordinary variables.
   std::map<cvc5::Term, cvc5::Term> old_to_new;
