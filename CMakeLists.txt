@@ -144,6 +144,8 @@ FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
 
 ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
 
+find_path(CVC5_INCLUDE_DIR "cvc5/cvc5.h")
+
 set(INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
   "${PROJECT_SOURCE_DIR}/contrib/"
@@ -154,10 +156,7 @@ set(INCLUDE_DIRS
   "${CMAKE_CURRENT_BINARY_DIR}"
   "${GMP_INCLUDE_DIR}"
   "${FLEX_INCLUDE_DIRS}"
-  # HACKED in for CVC4 SyGuS support -- assuming in standard location
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/cvc5/src"
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/cvc5/src/include"
-  "${PROJECT_SOURCE_DIR}/deps/smt-switch/deps/cvc5/build/src"
+  "${CVC5_INCLUDE_DIR}"
   )
 
 set(SOURCES
