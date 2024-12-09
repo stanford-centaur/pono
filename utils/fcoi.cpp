@@ -43,7 +43,7 @@ void FunctionalConeOfInfluence::compute_coi(const TermVec & terms)
   clear();
 
   assert(coi_visited_terms_.empty());
-  if (verbosity_ >= 3) print_coi_info(terms);
+  if (verbosity_ >= 4) print_coi_info(terms);
 
   UnorderedTermSet new_coi_state_vars;
   UnorderedTermSet new_coi_input_vars;
