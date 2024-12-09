@@ -52,18 +52,16 @@ namespace pono {
 
 // list of regular (non-interpolator) solver enums
 const std::vector<SolverEnum> solver_enums({
-  BZLA, CVC5,
-
+    BZLA,
+    CVC5,
 #if WITH_BOOLECTOR
-      BTOR,
+    BTOR,
 #endif
-
 #if WITH_MSAT
-      MSAT,
+    MSAT,
 #endif
-
 #if WITH_YICES2
-      YICES2,
+    YICES2,
 #endif
 });
 
@@ -252,7 +250,7 @@ SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
 
 const std::vector<SolverEnum> itp_enums({
 #if WITH_MSAT
-  MSAT_INTERPOLATOR
+    MSAT_INTERPOLATOR
 #endif
 });
 
