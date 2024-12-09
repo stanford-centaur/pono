@@ -36,8 +36,8 @@
 #include "smt-switch/cvc5_sort.h"
 #include "smt-switch/cvc5_term.h"
 #include "smt-switch/identity_walker.h"
+#include "smt-switch/printing_solver.h"
 #include "smt-switch/utils.h"
-
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
@@ -1303,7 +1303,14 @@ bool IC3IA::cvc5_synthesize_preds(
   // HACK
   // hacked in to evaluate CVC5
   // if done for real, should be sure to do this OR the interpolator, not both
-  smt::SmtSolver cvc5_ = create_solver(smt::SolverEnum::CVC5);
+  smt::SmtSolver cvc5_;
+  if (options_.printing_smt_solver_) {
+    cvc5_ = create_printing_solver(create_solver(smt::SolverEnum::CVC5),
+                                   &cerr,
+                                   PrintingStyleEnum::CVC5_STYLE);
+  } else {
+    cvc5_ = create_solver(smt::SolverEnum::CVC5);
+  }
   smt::TermTranslator to_cvc5_(cvc5_);
   smt::TermTranslator from_cvc5_(solver_);
 
