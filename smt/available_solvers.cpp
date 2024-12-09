@@ -136,12 +136,8 @@ SmtSolver create_solver_for(
     full_model = true;
   }
 
-  if (se != MSAT) {
-    // no special options yet for solvers other than mathsat
-    s = create_solver(se, logging, true, true, printing);
-  }
 #ifdef WITH_MSAT
-  else if (se == MSAT && ic3_engine) {
+  if (se == MSAT && ic3_engine) {
     // These will be managed by the solver object
     // don't need to destroy
     unordered_map<string, string> opts({ { "model_generation", "true" } });
@@ -162,12 +158,18 @@ SmtSolver create_solver_for(
     if (logging) {
       s = make_shared<LoggingSolver>(s);
     }
+    if (printing) {
+      s = smt::create_printing_solver(
+          s, &cerr, smt::PrintingStyleEnum::MSAT_STYLE);
+    }
     return s;
+  } else {
+#endif
+    // no special options yet for solvers other than mathsat
+    s = create_solver(se, logging, true, true, printing);
+#ifdef WITH_MSAT
   }
 #endif
-  else {
-    s = create_solver(se, logging);
-  }
 
   assert(s);
   if (ic3_engine) {
