@@ -684,7 +684,7 @@ void TransitionSystem::promote_inputvar(const Term & iv)
   // set to false until there is a next state update for this statevar
   deterministic_ = false;
   Term next_state_var =
-      solver_->make_symbol(iv->to_string() + ".next", iv->get_sort());
+      solver_->make_symbol(iv->to_string() + next_suffix_, iv->get_sort());
   add_statevar(iv, next_state_var);
 }
 
