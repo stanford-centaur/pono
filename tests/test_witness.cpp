@@ -93,5 +93,4 @@ INSTANTIATE_TEST_SUITE_P(
     ParameterizedWitnessUnitTests,
     WitnessUnitTests,
     testing::ValuesIn(available_solver_enums()));
-
 }  // namespace pono_tests

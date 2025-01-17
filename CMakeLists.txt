@@ -144,6 +144,8 @@ FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
 
 ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
 
+find_path(CVC5_INCLUDE_DIR "cvc5/cvc5.h")
+
 set(INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
   "${PROJECT_SOURCE_DIR}/contrib/"
@@ -154,6 +156,7 @@ set(INCLUDE_DIRS
   "${CMAKE_CURRENT_BINARY_DIR}"
   "${GMP_INCLUDE_DIR}"
   "${FLEX_INCLUDE_DIRS}"
+  "${CVC5_INCLUDE_DIR}"
   )
 
 set(SOURCES
@@ -323,6 +326,8 @@ target_link_libraries(pono-bin PUBLIC pono-lib)
 if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
   target_link_libraries(pono-bin PUBLIC -static)
 endif()
+
+set(CMAKE_INSTALL_MESSAGE LAZY)
 
 # install smt-switch
 install(TARGETS pono-lib DESTINATION lib)
