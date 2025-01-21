@@ -270,7 +270,7 @@ int main(int argc, char ** argv)
         // once state variables removed by COI are removed from init then should
         // do static-coi BEFORE mod-init-prop
         logger.log(0,
-                   "Warning: --mod-init-prop and --static-coi don't work "
+                   "Warning: --pseudo-init-prop and --static-coi don't work "
                    "well together currently.");
       }
     }
