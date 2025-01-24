@@ -358,11 +358,10 @@ bool IC3Base::reaches_bad(IC3Formula & out)
     if (options_.ic3_pregen_) {
       // try to generalize if predecessor generalization enabled
       predecessor_generalization_and_fix(frames_.size(), bad_, out);
+      assert(out.term);
+      assert(out.children.size());
+      assert(ic3formula_check_valid(out));
     }
-
-    assert(out.term);
-    assert(out.children.size());
-    assert(ic3formula_check_valid(out));
   }
 
   pop_solver_context();
