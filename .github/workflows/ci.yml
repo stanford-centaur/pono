@@ -81,7 +81,7 @@ jobs:
       - name: Test C++
         run: |
           cd build
-          make test
+          make check
 
       - name: Install Python Bindings
         run: python3 -m pip install -e ./build/python[test,pysmt]

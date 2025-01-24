@@ -32,6 +32,7 @@ Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](ht
   * if building with mathsat, also include `--with-msat` as an option to `configure.sh`
 * Run `cd build`.
 * Run `make`.
+* [optional] Run `make check` to build and run the tests.
 
 ### Dependencies
 
