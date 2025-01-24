@@ -42,4 +42,5 @@ __pycache__
 .cache
 
 # Generated files
+.gdb_history
 compile_commands.json
