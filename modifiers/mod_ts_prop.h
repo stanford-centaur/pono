@@ -17,6 +17,7 @@
 #pragma once
 
 #include "core/ts.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 
@@ -49,5 +50,12 @@ void prop_in_trans(TransitionSystem & ts, const smt::Term & prop);
  *          with no input variables (only implicit inputs)
  */
 TransitionSystem promote_inputvars(const TransitionSystem & ts);
+
+/** Generalizes the property by adding quantifiers over variables that don't
+ *  have a next state defined which can help to prove it.
+ *  @param ts the transition system that the property refers to
+ *  @param prop the property to generalize, modified in place
+ */
+void generalize_property(TransitionSystem & ts, smt::Term & prop);
 
 }  // namespace pono

@@ -15,8 +15,11 @@
 **/
 #pragma once
 
+#include <unordered_set>
+
 #include "smt-switch/identity_walker.h"
 #include "smt-switch/smt.h"
+#include "smt-switch/term.h"
 
 namespace pono {
 
@@ -67,7 +70,8 @@ class SubTermCollector : public smt::IdentityWalker
 
   void collect_subterms(smt::Term term);
 
-  const std::unordered_map<smt::Sort, smt::UnorderedTermSet> & get_subterms() const
+  const std::unordered_map<smt::Sort, smt::UnorderedTermSet> & get_subterms()
+      const
   {
     return subterms_;
   };
@@ -90,6 +94,34 @@ class SubTermCollector : public smt::IdentityWalker
   smt::UnorderedTermSet predicates_;
 
   smt::WalkerStepResult visit_term(smt::Term & term) override;
+};
+
+/** Class for transforming a given set of subterms into parameters. */
+class SubTermParametrizer : public smt::IdentityWalker
+{
+ public:
+  /** Constructs a SubTermParametrizer for a given set of terms.
+   * @param solver the solver instance that the terms are defined in
+   * @param filter set of variables which should be searched for terms to replace
+   */
+  SubTermParametrizer(const smt::SmtSolver & solver,
+                      const smt::UnorderedTermSet & filter);
+
+  typedef smt::IdentityWalker super;
+
+  /** Replaces all occurences of the terms in filters with parameters
+   * @param term term to transform
+   * @return transformed term
+   */
+  smt::Term parametrize_subterms(smt::Term & term);
+
+  smt::TermVec parameters() const { return parameters_; };
+
+ protected:
+  smt::WalkerStepResult visit_term(smt::Term & term) override;
+
+  const smt::UnorderedTermSet filter_;
+  smt::TermVec parameters_;
 };
 
 }  // namespace pono
