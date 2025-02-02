@@ -110,6 +110,9 @@ class PonoOptions
         ic3ia_track_important_vars_(default_ic3ia_track_important_vars_),
         ic3sa_func_refine_(default_ic3sa_func_refine_),
         profiling_log_filename_(default_profiling_log_filename_),
+        ic3ia_cvc5_pred_(default_ic3ia_cvc5_pred_),
+        ic3ia_cvc5_pred_size_(default_ic3ia_cvc5_pred_size_),
+        ic3ia_cvc5_pred_all_consts_(default_ic3ia_cvc5_pred_all_consts_),
         pseudo_init_prop_(default_pseudo_init_prop_),
         assume_prop_(default_assume_prop_),
         ceg_prophecy_arrays_(default_ceg_prophecy_arrays_),
@@ -293,6 +296,13 @@ class PonoOptions
   // K-induction: amount of steps by which transition relation is unrolled
   unsigned kind_bound_step_;
 
+  // experimental option for finding a predicate with CVC5 SyGuS
+  bool ic3ia_cvc5_pred_;
+  unsigned int ic3ia_cvc5_pred_size_;
+  bool ic3ia_cvc5_pred_all_consts_;
+  bool ic3ia_cvc5_pred_all_sorts_;
+  bool ic3ia_cvc5_pred_maxterms_;
+
 private:
   // Default options
   static const Engine default_engine_ = BMC;
@@ -320,6 +330,11 @@ private:
   static const bool default_ic3ia_track_important_vars_ = true;
   static const bool default_ic3sa_func_refine_ = true;
   static const std::string default_profiling_log_filename_;
+  static const bool default_ic3ia_cvc5_pred_ = false;
+  static const bool default_ic3ia_cvc5_pred_all_consts_ = false;
+  static const bool default_ic3ia_cvc5_pred_all_sorts_ = false;
+  static const bool default_ic3ia_cvc5_maxterms_ = true;
+  static const unsigned int default_ic3ia_cvc5_pred_size_ = 2;
   static const bool default_pseudo_init_prop_ = false;
   static const bool default_assume_prop_ = false;
   static const bool default_ceg_prophecy_arrays_ = false;
