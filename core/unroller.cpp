@@ -14,12 +14,13 @@
  **
  **/
 
-#include <assert.h>
+#include "unroller.h"
+
 #include <algorithm>
+#include <cassert>
 
 #include "smt-switch/utils.h"
-
-#include "unroller.h"
+#include "utils/syntax_analysis_common.h"
 
 using namespace smt;
 using namespace std;
@@ -95,9 +96,10 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
     return it->second;
   }
 
-  std::string name = v->to_string();
+  std::string name = syntax_analysis::name_desanitize(v->to_string());
   name += time_id_ + std::to_string(k);
-  Term timed_v = solver_->make_symbol(name, v->get_sort());
+  Term timed_v =
+      solver_->make_symbol(syntax_analysis::name_sanitize(name), v->get_sort());
   cache[v] = timed_v;
   untime_cache_[timed_v] = v;
   var_times_[timed_v] = k;
