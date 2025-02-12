@@ -18,12 +18,12 @@
 #include "modifiers/implicit_predicate_abstractor.h"
 
 #include "assert.h"
-#include "utils/logger.h"
 #include "smt/available_solvers.h"
+#include "utils/logger.h"
+#include "utils/syntax_analysis_common.h"
 
 using namespace smt;
 using namespace std;
-
 
 namespace pono {
 
@@ -64,7 +64,6 @@ ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
     throw PonoException(
         "Implicit predicate abstraction needs a relational abstract system");
   }
-
 }
 
 Term ImplicitPredicateAbstractor::abstract(Term & t)
@@ -217,8 +216,9 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
     // for incrementality
     // only create new variables if not present in cache
     if (abstraction_cache_.find(nv) == abstraction_cache_.end()) {
-      Term abs_nv = abs_rts_.make_inputvar(nv->to_string() + "^",
-                                           nv->get_sort());
+      auto abs_var_name = syntax_analysis::name_sanitize(
+          syntax_analysis::name_desanitize(nv->to_string()) + "^");
+      Term abs_nv = abs_rts_.make_inputvar(abs_var_name, nv->get_sort());
       // map next var to this abstracted next var
       update_term_cache(nv, abs_nv);
     }
