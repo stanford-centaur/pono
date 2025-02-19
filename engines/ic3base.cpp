@@ -160,6 +160,8 @@ ProverResult IC3Base::check_until(int k)
   // ever initializing base classes
   assert(initialized_);
 
+  logger.log(1, "IC3Base Number of State Vars : {}", ts_.statevars().size());
+
   ProverResult res;
   RefineResult ref_res;
   int i = reached_k_ + 1;

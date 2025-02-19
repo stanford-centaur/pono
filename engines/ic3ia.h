@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include "core/unroller.h"
 #include "engines/ic3.h"
 #include "modifiers/implicit_predicate_abstractor.h"
 #include "smt-switch/term_translator.h"
@@ -87,6 +88,23 @@ class IC3IA : public IC3
                                     ///< which means you can't count on a symbol
                                     ///< staying a symbol
 
+  // Hacked in for CVC5 SyGuS predicate experimentation
+
+  // need to be able to unroll abstract ts (regular ic3ia doesn't)
+  // and currently the unroller_ is over the conc_ts_
+  Unroller abs_unroller_;
+
+  smt::UnorderedTermSet ts_values_;  ///< all the values appearing in TS
+  smt::UnorderedTermSet max_terms_;  ///< largest non-Boolean terms in TS
+
+  // extra members for this hacked in stuff
+  std::unordered_set<smt::SortKind>
+      all_sort_kinds_;  ///< all sort kinds appearing in TS
+
+  smt::TermVec pred_candidates_;  ///< known predicates not in predset_
+                                  ///< these might be able to rule out
+                                  ///< abstract counterexamples
+
   /** Overriding the method. This will return the concrete_ts_ because ts_ is an
    *  abstraction of concrete_ts_.
    */
@@ -132,6 +150,43 @@ class IC3IA : public IC3
    *         makes sure not to repeat work
    */
   void register_symbol_mappings(size_t i);
+
+  // Hacked in to experiment with CVC5
+
+  /** Given a counterexample trace (over state vars)
+   *  Unroll the trace and ask CVC5 SyGuS for predicate(s)
+   *  That makes the abstract trace unsat
+   *  @param cex a vector storing the state variable assignments at each step of
+   * an abstract trace
+   *  @param out_preds the set to add predicates to
+   *  @param return true if a predicate was found
+   */
+  bool cvc5_find_preds(const smt::TermVec & cex,
+                       smt::UnorderedTermSet & out_preds);
+
+  /** Synthesize predicates using CVC5 SyGuS
+   *  used as a helper function for cvc5_find_preds
+   *  @param abs_trace the unrolled abstract trace (over solver_ terms)
+   *  @param state variables over solver_ terms
+   *         will respect this order of state variables (that's why we can't
+   *         just get the set of state variables from the TS)
+   *  @param unrolled_var_args - vector of pairs where first is unrolled
+   *         next vars and second is unrolled abstract variables
+   *         (over solver_ terms)
+   *  @param free_vars - set of all free variables in abs_trace (over solver_
+   *         terms). Includes unrolled input variables also.
+   *  @param num_preds - how many predicates to look for
+   *  @param out_preds - set to add synthesized predicates to
+   *  @return true iff predicates were found that rule out this abstract trace
+   */
+  bool cvc5_synthesize_preds(
+      const smt::Term & abs_trace,
+      const smt::TermVec & statevars,
+      const std::vector<std::pair<smt::TermVec, smt::TermVec>> &
+          unrolled_var_args,
+      const smt::UnorderedTermSet & free_vars,
+      size_t num_preds,
+      smt::UnorderedTermSet & out_preds);
 };
 
 }  // namespace pono
