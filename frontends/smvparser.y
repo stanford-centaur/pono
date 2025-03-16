@@ -1221,7 +1221,7 @@ simple_expr: constant {
             | tok_bool "(" basic_expr ")"{
               if(enc.module_flat){
                 SMVnode *a = $3;
-                smt::Sort sort = a->getSort();
+                smt::Sort sort = a->getTerm()->get_sort();
                 // TODO: SMV also supports bool conversion from integer
                 if(sort->get_sort_kind() != smt::BV || (sort->get_sort_kind() == smt::BV && sort->get_width() != 1)){
                   throw PonoException("Can't convert non-width 1 bitvector to bool.");
@@ -1291,7 +1291,7 @@ simple_expr: constant {
                 }
                 
                 int integer = stoi($5);
-                smt::Sort word_sort = word->getSort();
+                smt::Sort word_sort = word->getTerm()->get_sort();
                 uint64_t word_width = word_sort->get_width();
 
                 if(integer == word_width){
@@ -1309,7 +1309,7 @@ simple_expr: constant {
                   $$ = new SMVnode(res,word_type);
                 }else{
                   smt::PrimOp extendOp = word_type == SMVnode::Signed ? smt::Sign_Extend : smt::Zero_Extend;
-                  smt::Term res = enc.solver_->make_term(smt::Op(extendOp, integer), word->getTerm());
+                  smt::Term res = enc.solver_->make_term(smt::Op(extendOp, integer - word_width), word->getTerm());
                   assert(res); //check res non-null
                   $$ = new SMVnode(res,word_type);
                 }
