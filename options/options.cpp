@@ -23,6 +23,10 @@
 #include "optionparser.h"
 #include "utils/exceptions.h"
 
+#ifndef PONO_VERSION
+#define PONO_VERSION "unknown"
+#endif
+
 using namespace std;
 
 /************************************* Option Handling setup
@@ -32,6 +36,7 @@ enum optionIndex
 {
   UNKNOWN_OPTION,
   HELP,
+  VERSION,
   ENGINE,
   BOUND,
   PROP,
@@ -137,6 +142,12 @@ const option::Descriptor usage[] = {
     "USAGE: pono [options] <btor file>\n\n"
     "Options:" },
   { HELP, 0, "", "help", Arg::None, "  --help \tPrint usage and exit." },
+  { VERSION,
+    0,
+    "",
+    "version",
+    Arg::None,
+    "  --version \tPrint version and exit." },
   { ENGINE,
     0,
     "e",
@@ -624,6 +635,11 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
   if (options[HELP] || argc == 0) {
     option::printUsage(cout, usage);
     // want to exit main at top-level
+    return ERROR;
+  }
+
+  if (options[VERSION]) {
+    cout << PONO_VERSION << endl;
     return ERROR;
   }
 
