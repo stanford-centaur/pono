@@ -279,7 +279,9 @@ Term KInduction::simple_path_constraint(int i, int j)
     disj = solver_->make_term(PrimOp::Or, disj, neq);
   }
   // add selector term
-  disj = solver_->make_term(PrimOp::Or, disj, sel_simple_path_terms_);
+  if (disj != false_) {
+    disj = solver_->make_term(PrimOp::Or, disj, sel_simple_path_terms_);
+  }
 
   return disj;
 }
@@ -296,8 +298,10 @@ bool KInduction::check_simple_path_eager(int i)
   // solver call below for inductive case check
   for (int j = 0; (!no_simp_path_check && j < i); j++) {
     Term constraint = simple_path_constraint(j, i);
-    kind_log_msg(3, "   ", "adding simple path clause for pair 'j,i' = {},{}", j,i);
-    solver_->assert_formula(constraint);
+    if (constraint != false_) {
+      kind_log_msg(3, "   ", "adding simple path clause for pair 'j,i' = {},{}", j,i);
+      solver_->assert_formula(constraint);
+    }
   }
 
   // Note: the solver call here is actually not necessary since we add
@@ -348,7 +352,7 @@ bool KInduction::check_simple_path_lazy(int i)
       for (int l = j + 1; l <= i; ++l) {
         Term constraint = simple_path_constraint(j, l);
 	kind_log_msg(3, "    ", "checking constraint for pair j,l = {} , {}", j,l);
-        if (solver_->get_value(constraint) == false_) {
+        if (constraint != false_ && solver_->get_value(constraint) == false_) {
 	  kind_log_msg(3, "      ", "adding constraint for pair j,l = {} , {}", j,l);
           added_to_simple_path = true;
           if (!no_multi_call) {
