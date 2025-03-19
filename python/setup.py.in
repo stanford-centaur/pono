@@ -9,7 +9,7 @@ from setuptools import setup
 
 setup(name='pono',
       long_description="Python bindings for the model checker Pono",
-      version='${PONO_VERSION}',
+      version='${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}',
       url='https://github.com/stanford-centaur/pono',
       license='BSD',
       install_requires=['smt-switch'],
