@@ -14,7 +14,7 @@
  **
  **/
 
-#include <assert.h>
+#include <cassert>
 #include <algorithm>
 
 #include "smt-switch/utils.h"

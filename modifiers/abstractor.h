@@ -15,7 +15,7 @@
 **/
 #pragma once
 
-#include "assert.h"
+#include <cassert>
 #include "core/fts.h"
 #include "core/rts.h"
 

@@ -14,7 +14,7 @@
 **
 **/
 
-#include "assert.h"
+#include <cassert>
 
 #include "modifiers/array_abstractor.h"
 #include "utils/exceptions.h"

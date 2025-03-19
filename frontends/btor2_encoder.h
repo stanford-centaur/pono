@@ -21,12 +21,12 @@ extern "C" {
 #include "btor2parser/btor2parser.h"
 }
 
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <map>
 #include <string>
 #include <unordered_map>
-#include "assert.h"
+#include <cassert>
 
 #include "core/ts.h"
 #include "utils/exceptions.h"

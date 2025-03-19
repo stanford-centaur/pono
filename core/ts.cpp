@@ -18,7 +18,7 @@
 
 #include <functional>
 
-#include "assert.h"
+#include <cassert>
 #include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
 

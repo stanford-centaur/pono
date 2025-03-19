@@ -16,7 +16,7 @@
 
 #include "modifiers/static_coi.h"
 
-#include "assert.h"
+#include <cassert>
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
 

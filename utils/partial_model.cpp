@@ -18,7 +18,7 @@
 #include "utils/partial_model.h"
 #include "utils/str_util.h"
 
-#include "assert.h"
+#include <cassert>
 
 namespace pono {
 

@@ -16,7 +16,7 @@
 **/
 #include "core/functional_unroller.h"
 
-#include "assert.h"
+#include <cassert>
 #include "utils/exceptions.h"
 
 using namespace smt;

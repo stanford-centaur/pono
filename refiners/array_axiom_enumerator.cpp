@@ -14,7 +14,7 @@
 **
 **/
 
-#include "assert.h"
+#include <cassert>
 #include "gmpxx.h"
 
 #include "refiners/array_axiom_enumerator.h"

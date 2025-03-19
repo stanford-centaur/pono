@@ -17,7 +17,7 @@
 #include "str_util.h" 
 
 #include <iostream>
-#include <assert.h>
+#include <cassert>
 #include <sstream>
 
 namespace pono {

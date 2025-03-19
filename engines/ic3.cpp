@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <random>
 
-#include "assert.h"
+#include <cassert>
 #include "utils/term_analysis.h"
 
 using namespace smt;

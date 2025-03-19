@@ -21,7 +21,7 @@
 
 #include <map>
 
-#include "assert.h"
+#include <cassert>
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ic3ia.h"

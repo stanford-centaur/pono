@@ -20,7 +20,7 @@
 #include "utils/logger.h"
 
 #include <iostream>
-#include "assert.h"
+#include <cassert>
 
 using namespace smt;
 using namespace std;

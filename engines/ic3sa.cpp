@@ -24,7 +24,7 @@
 
 #include "engines/ic3sa.h"
 
-#include "assert.h"
+#include <cassert>
 #include "core/rts.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"

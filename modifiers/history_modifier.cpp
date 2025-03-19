@@ -14,7 +14,7 @@
 **/
 #include "modifiers/history_modifier.h"
 
-#include "assert.h"
+#include <cassert>
 #include "core/rts.h"
 
 using namespace smt;

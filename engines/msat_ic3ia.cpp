@@ -17,7 +17,7 @@
 
 #include "engines/msat_ic3ia.h"
 
-#include "assert.h"
+#include <cassert>
 #include "smt-switch/msat_factory.h"
 #include "smt-switch/msat_solver.h"
 #include "smt-switch/utils.h"

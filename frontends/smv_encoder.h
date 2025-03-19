@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdio.h>
+#include <cstdio>
 
 #include <chrono>  // std::chrono::milliseconds
 #include <deque>
@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "assert.h"
+#include <cassert>
 #include "core/rts.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"

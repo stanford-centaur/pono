@@ -17,7 +17,7 @@
 
 #include "modifiers/implicit_predicate_abstractor.h"
 
-#include "assert.h"
+#include <cassert>
 #include "utils/logger.h"
 #include "smt/available_solvers.h"
 

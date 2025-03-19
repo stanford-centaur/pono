@@ -19,7 +19,7 @@
 
 #include <iostream>
 
-#include "assert.h"
+#include <cassert>
 #include "core/rts.h"
 #include "smt-switch/smt.h"
 #include "smt-switch/smtlib_reader.h"
