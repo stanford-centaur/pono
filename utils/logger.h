@@ -20,9 +20,9 @@
 #define FMT_HEADER_ONLY
 
 #include <fmt/format.h>
-#include <iostream>
-
 #include <smt-switch/smt.h>
+
+#include <iostream>
 
 #include "utils/exceptions.h"
 
@@ -138,6 +138,23 @@ class Log
 
   Log(size_t v) : verbosity(v), verbosity_set(true) {}
 
+  /* Logs to the output stream using Python-style format string
+   * @param level the verbosity level to print this log (prints for any
+   * verbosity greater than this level)
+   * @param format the format string
+   * @param args comma separated list of inputs for the format string
+   */
+  template <typename... Args>
+  void log_to_stream(size_t level,
+                     std::ostream & output_stream,
+                     const std::string & format,
+                     const Args &... args) const
+  {
+    if (level <= verbosity) {
+      output_stream << fmt::format(format, args...) << std::endl;
+    }
+  }
+
   /* Logs to the terminal using Python-style format string
    * @param level the verbosity level to print this log (prints for any
    * verbosity greater than this level)
@@ -147,10 +164,7 @@ class Log
   template <typename... Args>
   void log(size_t level, const std::string & format, const Args &... args) const
   {
-    if (level <= verbosity)
-    {
-      std::cout << fmt::format(format, args...) << std::endl;
-    }
+    log_to_stream(level, std::cout, format, args...);
   }
 
   /* Logs to the terminal using Python-style format string in a range of
@@ -166,8 +180,7 @@ class Log
            const std::string & format,
            const Args &... args) const
   {
-    if ((lower <= verbosity) && (verbosity <= upper))
-    {
+    if ((lower <= verbosity) && (verbosity <= upper)) {
       std::cout << fmt::format(format, args...) << std::endl;
     }
   }
@@ -177,12 +190,9 @@ class Log
    */
   void set_verbosity(size_t v)
   {
-    if (!verbosity_set)
-    {
+    if (!verbosity_set) {
       verbosity = v;
-    }
-    else
-    {
+    } else {
       throw PonoException("Can only set logger verbosity once.");
     }
   }
