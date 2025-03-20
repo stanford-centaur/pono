@@ -18,12 +18,12 @@
 #include "modifiers/implicit_predicate_abstractor.h"
 
 #include <cassert>
-#include "utils/logger.h"
+
 #include "smt/available_solvers.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
-
 
 namespace pono {
 
@@ -31,10 +31,8 @@ bool contains_var(const Term & p, const UnorderedTermSet & vars)
 {
   UnorderedTermSet free_vars;
   get_free_symbolic_consts(p, free_vars);
-  for (const auto & v : free_vars)
-  {
-    if (vars.find(v) != vars.end())
-    {
+  for (const auto & v : free_vars) {
+    if (vars.find(v) != vars.end()) {
       return true;
     }
   }
@@ -64,7 +62,6 @@ ImplicitPredicateAbstractor::ImplicitPredicateAbstractor(
     throw PonoException(
         "Implicit predicate abstraction needs a relational abstract system");
   }
-
 }
 
 Term ImplicitPredicateAbstractor::abstract(Term & t)
@@ -99,19 +96,19 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
   for (size_t i = 0; i < cex.size(); ++i) {
     formula = solver_->make_term(And, formula, unroller_.at_time(cex[i], i));
     if (i != cex.size() - 1) {
-      formula = solver_->make_term(And, formula,
-                                   unroller_.at_time(abs_ts_.trans(), i));
+      formula = solver_->make_term(
+          And, formula, unroller_.at_time(abs_ts_.trans(), i));
     }
   }
 
   TermVec assumps;
-  for (const auto &p : new_preds) {
+  for (const auto & p : new_preds) {
     Term pred_ref = predicate_refinement(p);
 
     Term a;
-    for (size_t i = 0; i+1 < cex.size(); ++i) {
+    for (size_t i = 0; i + 1 < cex.size(); ++i) {
       Term p_i = unroller_.at_time(pred_ref, i);
-      a = i==0 ? p_i : solver_->make_term(And, a, p_i);
+      a = i == 0 ? p_i : solver_->make_term(And, a, p_i);
     }
 
     assumps.push_back(to_reducer_.transfer_term(a, BOOL));
@@ -138,9 +135,7 @@ bool ImplicitPredicateAbstractor::reduce_predicates(const TermVec & cex,
     for (size_t i = 0; i < assumps.size(); ++i) {
       if (core.find(assumps[i]) != core.end()) {
         out.push_back(new_preds[i]);
-      }
-      else if (contains_var(new_preds[i], important_vars_))
-      {
+      } else if (contains_var(new_preds[i], important_vars_)) {
         logger.log(1, "IA Keeping ImpVar Pred: {}", new_preds[i]);
         out.push_back(new_preds[i]);
       }
@@ -169,13 +164,13 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
   // due to incrementality, most of the variables will be already present
   // so make sure to check that
   const UnorderedTermSet & abs_statevars = abs_rts_.statevars();
-  for (const auto &v : conc_ts_.statevars()) {
+  for (const auto & v : conc_ts_.statevars()) {
     if (abs_statevars.find(v) == abs_statevars.end()) {
       abs_rts_.add_statevar(v, conc_ts_.next(v));
     }
   }
   const UnorderedTermSet & abs_inputs = abs_rts_.inputvars();
-  for (const auto &v : conc_ts_.inputvars()) {
+  for (const auto & v : conc_ts_.inputvars()) {
     if (abs_inputs.find(v) == abs_inputs.end()) {
       abs_rts_.add_inputvar(v);
     }
@@ -198,8 +193,7 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
 
   // create abstract variables for each next state variable
   for (auto sv : conc_ts_.statevars()) {
-    if (sv->get_sort() == boolsort_)
-    {
+    if (sv->get_sort() == boolsort_) {
       // don't abstract boolean variables
       // but they're implicitly considered predicates
       // which are precise instead of being abstracted
@@ -217,8 +211,8 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
     // for incrementality
     // only create new variables if not present in cache
     if (abstraction_cache_.find(nv) == abstraction_cache_.end()) {
-      Term abs_nv = abs_rts_.make_inputvar(nv->to_string() + "^",
-                                           nv->get_sort());
+      Term abs_nv =
+          abs_rts_.make_inputvar(nv->to_string() + "^", nv->get_sort());
       // map next var to this abstracted next var
       update_term_cache(nv, abs_nv);
     }

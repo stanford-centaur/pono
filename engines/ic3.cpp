@@ -15,9 +15,9 @@
 #include "engines/ic3.h"
 
 #include <algorithm>
+#include <cassert>
 #include <random>
 
-#include <cassert>
 #include "utils/term_analysis.h"
 
 using namespace smt;
@@ -27,9 +27,11 @@ namespace pono {
 
 /** IC3 Implementation */
 
-IC3::IC3(const Property & p, const TransitionSystem & ts,
-         const smt::SmtSolver & s, PonoOptions opt)
-  : super(p, ts, s, opt)
+IC3::IC3(const Property & p,
+         const TransitionSystem & ts,
+         const smt::SmtSolver & s,
+         PonoOptions opt)
+    : super(p, ts, s, opt)
 {
   engine_ = Engine::IC3_BOOL;
 }
@@ -43,7 +45,7 @@ IC3Formula IC3::get_model_ic3formula() const
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec children;
   children.reserve(statevars.size());
-  for (const auto &sv : ts_.statevars()) {
+  for (const auto & sv : ts_.statevars()) {
     if (solver_->get_value(sv) == solver_true_) {
       children.push_back(sv);
     } else {
@@ -58,7 +60,7 @@ bool IC3::ic3formula_check_valid(const IC3Formula & u) const
 {
   // check that children are literals
   Op op;
-  for (const auto &c : u.children) {
+  for (const auto & c : u.children) {
     if (!is_lit(c, boolsort_)) {
       return false;
     }
@@ -134,14 +136,14 @@ void IC3::predecessor_generalization(size_t i,
 
 void IC3::check_ts() const
 {
-  for (const auto &sv : ts_.statevars()) {
+  for (const auto & sv : ts_.statevars()) {
     if (sv->get_sort() != boolsort_) {
       throw PonoException("Got non-boolean state variable in bit-level IC3: "
                           + sv->to_string());
     }
   }
 
-  for (const auto &iv : ts_.inputvars()) {
+  for (const auto & iv : ts_.inputvars()) {
     if (iv->get_sort() != boolsort_) {
       throw PonoException("Got non-boolean input variable in bit-level IC3: "
                           + iv->to_string());

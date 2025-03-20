@@ -14,12 +14,12 @@
  **
  **/
 
-#include <cassert>
+#include "unroller.h"
+
 #include <algorithm>
+#include <cassert>
 
 #include "smt-switch/utils.h"
-
-#include "unroller.h"
 
 using namespace smt;
 using namespace std;
@@ -27,7 +27,7 @@ using namespace std;
 namespace pono {
 
 Unroller::Unroller(const TransitionSystem & ts, const string & time_identifier)
-  : ts_(ts), solver_(ts.solver()), time_id_(time_identifier)
+    : ts_(ts), solver_(ts.solver()), time_id_(time_identifier)
 {
   num_vars_ = ts_.statevars().size();
   num_vars_ += ts_.inputvars().size();

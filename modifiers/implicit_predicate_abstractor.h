@@ -45,10 +45,7 @@ class ImplicitPredicateAbstractor : public Abstractor
    */
   smt::Term predicate_refinement(const smt::Term & pred);
 
-  void add_important_var(const smt::Term & v)
-  {
-    important_vars_.insert(v);
-  }
+  void add_important_var(const smt::Term & v) { important_vars_.insert(v); }
 
   bool reduce_predicates(const smt::TermVec & cex,
                          const smt::TermVec & new_preds,
@@ -72,12 +69,13 @@ class ImplicitPredicateAbstractor : public Abstractor
   ///< relational version of abs_ts_
   ///< this abstraction requires a relational system
 
-  bool abstracted_; ///< true iff do_abstraction has been called
+  bool abstracted_;  ///< true iff do_abstraction has been called
 
   bool red_can_reset_;  ///< true iff reset_assertions workedo n reducer_
 
-  smt::UnorderedTermSet important_vars_; ///< important variables
-                                         ///< prioritize predicates containing these
+  smt::UnorderedTermSet
+      important_vars_;  ///< important variables
+                        ///< prioritize predicates containing these
 
   bool reset_reducer()
   {

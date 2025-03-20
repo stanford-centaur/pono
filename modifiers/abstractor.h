@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cassert>
+
 #include "core/fts.h"
 #include "core/rts.h"
 

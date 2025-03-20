@@ -17,6 +17,7 @@
 #include "core/functional_unroller.h"
 
 #include <cassert>
+
 #include "utils/exceptions.h"
 
 using namespace smt;
@@ -27,8 +28,9 @@ namespace pono {
 FunctionalUnroller::FunctionalUnroller(const TransitionSystem & ts,
                                        size_t interval,
                                        const string & time_identifier)
-  : super(ts, time_identifier), interval_(interval),
-    true_(solver_->make_term(true))
+    : super(ts, time_identifier),
+      interval_(interval),
+      true_(solver_->make_term(true))
 {
   if (!ts.is_functional()) {
     throw PonoException(

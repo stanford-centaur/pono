@@ -18,6 +18,7 @@
 #include "engines/msat_ic3ia.h"
 
 #include <cassert>
+
 #include "smt-switch/msat_factory.h"
 #include "smt-switch/msat_solver.h"
 #include "smt-switch/utils.h"
@@ -30,9 +31,11 @@ using namespace std;
 
 namespace pono {
 
-MsatIC3IA::MsatIC3IA(const Property & p, const TransitionSystem & ts,
-                     const SmtSolver & solver, PonoOptions opt)
-  : super(p, ts, solver, opt)
+MsatIC3IA::MsatIC3IA(const Property & p,
+                     const TransitionSystem & ts,
+                     const SmtSolver & solver,
+                     PonoOptions opt)
+    : super(p, ts, solver, opt)
 {
   engine_ = Engine::MSAT_IC3IA;
 }
@@ -73,7 +76,7 @@ ProverResult MsatIC3IA::prove()
   get_matching_terms(ts_.trans(), ufs, is_uf);
   get_matching_terms(bad_, ufs, is_uf);
 
-  for (const auto &uf : ufs) {
+  for (const auto & uf : ufs) {
     assert(uf->get_sort()->get_sort_kind() == smt::FUNCTION);
     ts_solver_cache[to_msat_solver.transfer_term(uf)] = uf;
   }
@@ -124,8 +127,7 @@ ProverResult MsatIC3IA::prove()
     vector<ic3ia::TermList> ic3ia_invar;
     ic3.witness(ic3ia_invar);
 
-    for (const auto &msat_clause : ic3ia_invar)
-    {
+    for (const auto & msat_clause : ic3ia_invar) {
       Term clause = solver_->make_term(false);
       assert(msat_clause.size());
       for (const msat_term & l : msat_clause) {
@@ -182,7 +184,7 @@ bool MsatIC3IA::compute_witness(msat_env env,
       solver_->assert_formula(unroller_.at_time(ts_.trans(), i));
     }
 
-    for (const auto &msat_eq : ic3ia_wit[i]) {
+    for (const auto & msat_eq : ic3ia_wit[i]) {
       // create an smt-switch term for the equality
       Term eq = make_shared<MsatTerm>(env, msat_eq);
       Term solver_eq = to_ts_solver.transfer_term(eq);

@@ -89,9 +89,8 @@ TEST_P(WitnessUnitTests, ArraysDefaultSolver)
   ASSERT_EQ(witness[6][x], fts.make_term(10, bvsort4));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ParameterizedWitnessUnitTests,
-    WitnessUnitTests,
-    testing::ValuesIn(available_solver_enums()));
+INSTANTIATE_TEST_SUITE_P(ParameterizedWitnessUnitTests,
+                         WitnessUnitTests,
+                         testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests

@@ -16,9 +16,9 @@
 
 #include "core/ts.h"
 
+#include <cassert>
 #include <functional>
 
-#include <cassert>
 #include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
 
@@ -137,22 +137,18 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
 
 bool TransitionSystem::operator==(const TransitionSystem & other) const
 {
-  return (solver_ == other.solver_ &&
-          init_ == other.init_ &&
-          trans_ == other.trans_ &&
-          statevars_ == other.statevars_ &&
-          next_statevars_ == other.next_statevars_ &&
-          inputvars_ == other.inputvars_ &&
-          named_terms_ == other.named_terms_ &&
-          term_to_name_ == other.term_to_name_ &&
-          state_updates_ == other.state_updates_ &&
-          no_state_updates_ == other.no_state_updates_ &&
-          next_map_ == other.next_map_ &&
-          curr_map_ == other.curr_map_ &&
-          next_suffix_ == other.next_suffix_ &&
-          functional_ == other.functional_ &&
-          deterministic_ == other.deterministic_ &&
-          constraints_ == other.constraints_);
+  return (
+      solver_ == other.solver_ && init_ == other.init_ && trans_ == other.trans_
+      && statevars_ == other.statevars_
+      && next_statevars_ == other.next_statevars_
+      && inputvars_ == other.inputvars_ && named_terms_ == other.named_terms_
+      && term_to_name_ == other.term_to_name_
+      && state_updates_ == other.state_updates_
+      && no_state_updates_ == other.no_state_updates_
+      && next_map_ == other.next_map_ && curr_map_ == other.curr_map_
+      && next_suffix_ == other.next_suffix_ && functional_ == other.functional_
+      && deterministic_ == other.deterministic_
+      && constraints_ == other.constraints_);
 }
 
 bool TransitionSystem::operator!=(const TransitionSystem & other) const
@@ -505,13 +501,12 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   for (const auto & state_var : state_vars_in_coi) {
     Term next_func = NULL;
     const auto & elem = state_updates_.find(state_var);
-    if (elem != state_updates_.end())
-      next_func = elem->second;
+    if (elem != state_updates_.end()) next_func = elem->second;
     /* May find state variables without next-function. */
     if (next_func != NULL) {
-        Term eq = solver_->make_term(Equal, next_map_.at(state_var), next_func);
-        trans_ = solver_->make_term(And, trans_, eq);
-      }
+      Term eq = solver_->make_term(Equal, next_map_.at(state_var), next_func);
+      trans_ = solver_->make_term(And, trans_, eq);
+    }
   }
 
   /* Add global constraints added to previous 'trans_'. */

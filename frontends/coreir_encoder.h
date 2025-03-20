@@ -1,9 +1,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "coreir.h"
-
 #include "core/rts.h"
+#include "coreir.h"
 #include "smt-switch/smt.h"
 
 namespace pono {

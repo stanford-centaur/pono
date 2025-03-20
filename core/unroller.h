@@ -17,7 +17,6 @@
 #pragma once
 
 #include "core/ts.h"
-
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -32,7 +31,7 @@ class Unroller
 {
  public:
   Unroller(const TransitionSystem & ts,
-           const std::string &time_identifier = "@");
+           const std::string & time_identifier = "@");
 
   virtual ~Unroller();
 

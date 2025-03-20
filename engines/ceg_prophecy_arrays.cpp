@@ -19,9 +19,9 @@
 
 #include "engines/ceg_prophecy_arrays.h"
 
+#include <cassert>
 #include <map>
 
-#include <cassert>
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ic3ia.h"
@@ -94,10 +94,10 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
 
     Property latest_prop(super::solver_,
                          super::solver_->make_term(Not, super::bad_));
-    SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
-                                    super::engine_, false);
-    shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
-                                            abs_ts_, s, super::options_);
+    SmtSolver s = create_solver_for(
+        super::solver_->get_solver_enum(), super::engine_, false);
+    shared_ptr<Prover> prover =
+        make_prover(super::engine_, latest_prop, abs_ts_, s, super::options_);
     res = prover->prove();
 
     if (res == ProverResult::FALSE) {
@@ -146,10 +146,10 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     if (super::options_.cegp_force_restart_ || super::engine_ != IC3IA_ENGINE) {
       Property latest_prop(super::solver_,
                            super::solver_->make_term(Not, super::bad_));
-      SmtSolver s = create_solver_for(super::solver_->get_solver_enum(),
-                                      super::engine_, false);
-      shared_ptr<Prover> prover = make_prover(super::engine_, latest_prop,
-                                              abs_ts_, s, super::options_);
+      SmtSolver s = create_solver_for(
+          super::solver_->get_solver_enum(), super::engine_, false);
+      shared_ptr<Prover> prover =
+          make_prover(super::engine_, latest_prop, abs_ts_, s, super::options_);
       if (super::engine_ == IC3IA_ENGINE) {
         shared_ptr<IC3IA> ic3ia_prover =
             std::static_pointer_cast<IC3IA>(prover);
@@ -227,7 +227,7 @@ void CegProphecyArrays<Prover_T>::initialize()
   bool contains_arrays = false;
   Sort boolsort = super::solver_->make_sort(BOOL);
   Sort sort;
-  for (const auto &sv : conc_ts_.statevars()) {
+  for (const auto & sv : conc_ts_.statevars()) {
     sort = sv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
@@ -241,7 +241,7 @@ void CegProphecyArrays<Prover_T>::initialize()
     }
   }
 
-  for (const auto &iv : conc_ts_.inputvars()) {
+  for (const auto & iv : conc_ts_.inputvars()) {
     sort = iv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
@@ -334,8 +334,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     vector<pair<Term, Term>> proph_vars;
     for (auto timed_idx : instantiations) {
       // number of steps before the property violation
-      size_t delay =
-          reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
+      size_t delay = reached_k_ + 1 - abs_unroller_.get_curr_time(timed_idx);
       // Note: can't rely on Unroller::untime
       // see documentation for ArrayAxiomEnumerator::untime_index
       Term idx = aae_.untime_index(timed_idx);
@@ -374,8 +373,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
     // search for axioms again but don't include nonconsecutive ones
-    bool ok =
-        aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
+    bool ok = aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
     // should be guaranteed to rule out counterexamples at this bound
     assert(ok);
     consecutive_axioms = aae_.get_consecutive_axioms();
@@ -472,8 +470,7 @@ AxiomVec CegProphecyArrays<Prover_T>::reduce_nonconsecutive_axioms(
     // expecting only a single index to be instantiated
     assert(ax_inst.instantiations.size() == 1);
     unrolled_idx = *(ax_inst.instantiations.begin());
-    size_t delay =
-        reached_k_ + 1 - abs_unroller_.get_curr_time(unrolled_idx);
+    size_t delay = reached_k_ + 1 - abs_unroller_.get_curr_time(unrolled_idx);
     idx = abs_unroller_.untime(unrolled_idx);
     map_nonconsec_ax[delay][idx].push_back(ax_inst);
   }
@@ -566,12 +563,13 @@ Term CegProphecyArrays<Prover_T>::label(const Term & t)
 }
 
 template <class Prover_T>
-void CegProphecyArrays<Prover_T>::refine_ts(const UnorderedTermSet & consecutive_axioms)
+void CegProphecyArrays<Prover_T>::refine_ts(
+    const UnorderedTermSet & consecutive_axioms)
 {
   // add consecutive axioms to the system
   // TODO: make sure we're adding current / next correctly
   RelationalTransitionSystem & rts =
-    static_cast<RelationalTransitionSystem &>(abs_ts_);
+      static_cast<RelationalTransitionSystem &>(abs_ts_);
   for (const auto & ax : consecutive_axioms) {
     if (reached_k_ == -1) {
       // if only checking initial state
@@ -590,13 +588,15 @@ void CegProphecyArrays<Prover_T>::refine_ts(const UnorderedTermSet & consecutive
 }
 
 template <class Prover_T>
-void CegProphecyArrays<Prover_T>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
+void CegProphecyArrays<Prover_T>::refine_subprover_ts(
+    const UnorderedTermSet & consecutive_axioms)
 {
   // No-Op
 }
 
 template <>
-void CegProphecyArrays<IC3IA>::refine_subprover_ts(const UnorderedTermSet & consecutive_axioms)
+void CegProphecyArrays<IC3IA>::refine_subprover_ts(
+    const UnorderedTermSet & consecutive_axioms)
 {
   if (!options_.cegp_force_restart_) {
     super::reabstract();

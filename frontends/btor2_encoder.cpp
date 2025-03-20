@@ -14,13 +14,13 @@
  **
  **/
 
-#include "smt-switch/utils.h"
-
 #include "btor2_encoder.h"
-#include "utils/logger.h"
 
-#include <iostream>
 #include <cassert>
+#include <iostream>
+
+#include "smt-switch/utils.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -183,7 +183,6 @@ TermVec BTOR2Encoder::lazy_convert(const TermVec & tvec) const
   return res;
 }
 
-
 // to handle the case where yosys generate sth. like this
 // state (with no name)
 // output (with name)
@@ -191,7 +190,8 @@ TermVec BTOR2Encoder::lazy_convert(const TermVec & tvec) const
 
 // this function go over the file and record this case
 // when we encounter it again we shall replace the state's name
-void BTOR2Encoder::preprocess(const std::string& filename) {
+void BTOR2Encoder::preprocess(const std::string & filename)
+{
   FILE * input_file = fopen(filename.c_str(), "r");
 
   if (!input_file) {
@@ -208,9 +208,8 @@ void BTOR2Encoder::preprocess(const std::string& filename) {
 
   std::unordered_set<uint64_t> unamed_state_ids;
   while ((l_ = btor2parser_iter_next(&it_))) {
-  
     if (l_->tag == BTOR2_TAG_state) {
-      if (!l_->symbol) { // if we see state has no name, record it
+      if (!l_->symbol) {  // if we see state has no name, record it
         unamed_state_ids.insert(l_->id);
       }
     } else if (l_->tag == BTOR2_TAG_output && l_->symbol) {
@@ -218,20 +217,20 @@ void BTOR2Encoder::preprocess(const std::string& filename) {
       if (l_->nargs == 0)
         throw PonoException("Missing term for id " + std::to_string(l_->id));
       // we'd like to know if it refers to a state without name
-      auto pos = unamed_state_ids.find(l_->args[0]); // so, *pos is its btor id
-      if ( pos != unamed_state_ids.end()) {
+      auto pos = unamed_state_ids.find(l_->args[0]);  // so, *pos is its btor id
+      if (pos != unamed_state_ids.end()) {
         // in such case, we record that we can name if with this new name
         auto state_name_pos = state_renaming_table.find(*pos);
-        if ( state_name_pos == state_renaming_table.end() ) {
+        if (state_name_pos == state_renaming_table.end()) {
           state_renaming_table.insert(std::make_pair(*pos, l_->symbol));
-        } // otherwise we already have a name for it, then just ignore this one
+        }  // otherwise we already have a name for it, then just ignore this one
       }
-    } // end of if input
-  } // end of while
+    }  // end of if input
+  }  // end of while
 
   fclose(input_file);
   btor2parser_delete(reader_);
-} // end of preprocess
+}  // end of preprocess
 
 void BTOR2Encoder::parse(const std::string filename)
 {
@@ -291,7 +290,7 @@ void BTOR2Encoder::parse(const std::string filename)
         symbol_ = l_->symbol;
       } else {
         auto renaming_lookup_pos = state_renaming_table.find(l_->id);
-        if (renaming_lookup_pos != state_renaming_table.end() )
+        if (renaming_lookup_pos != state_renaming_table.end())
           symbol_ = renaming_lookup_pos->second;
         else
           symbol_ = "state" + to_string(l_->id);

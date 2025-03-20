@@ -16,17 +16,15 @@
 
 #pragma once
 
-#include "smt-switch/identity_walker.h"
-
 #include "abstractor.h"
+#include "smt-switch/identity_walker.h"
 
 namespace pono {
 
 class OpsAbstractor : public Abstractor
 {
  public:
-  OpsAbstractor(const TransitionSystem & conc_ts,
-                TransitionSystem & abs_ts);
+  OpsAbstractor(const TransitionSystem & conc_ts, TransitionSystem & abs_ts);
 
   typedef Abstractor super;
 
@@ -44,11 +42,11 @@ class OpsAbstractor : public Abstractor
  protected:
   class AbstractionWalker : smt::IdentityWalker
   {
-  public:
-    AbstractionWalker(OpsAbstractor &oa, smt::UnorderedTermMap *ext_cache);
+   public:
+    AbstractionWalker(OpsAbstractor & oa, smt::UnorderedTermMap * ext_cache);
     smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
 
-  protected:
+   protected:
     smt::WalkerStepResult visit_term(smt::Term & t);
     OpsAbstractor & oa_;
   };
@@ -56,11 +54,11 @@ class OpsAbstractor : public Abstractor
 
   class ConcretizationWalker : smt::IdentityWalker
   {
-  public:
-    ConcretizationWalker(OpsAbstractor &oa, smt::UnorderedTermMap *ext_cache);
+   public:
+    ConcretizationWalker(OpsAbstractor & oa, smt::UnorderedTermMap * ext_cache);
     smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
 
-  protected:
+   protected:
     smt::WalkerStepResult visit_term(smt::Term & t);
     OpsAbstractor & oa_;
   };
@@ -78,9 +76,8 @@ class OpsAbstractor : public Abstractor
   std::unordered_map<std::string, smt::Term> abs_op_symbols_;
   std::unordered_map<smt::Term, smt::Op> abs_symbols_to_op_;
 
-  smt::UnorderedTermMap abs_terms_; //abs uf to concrete operator -- only
-                                    //replace the top-level uf 
+  smt::UnorderedTermMap abs_terms_;  // abs uf to concrete operator -- only
+                                     // replace the top-level uf
 };
 
-
-} // namespace pono
+}  // namespace pono

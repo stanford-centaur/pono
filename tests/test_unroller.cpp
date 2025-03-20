@@ -20,7 +20,7 @@ namespace pono_tests {
 class UnrollerUnitTests : public ::testing::Test,
                           public ::testing::WithParamInterface<SolverEnum>
 {
-protected:
+ protected:
   void SetUp() override
   {
     s = create_solver(GetParam());
@@ -201,7 +201,8 @@ TEST_P(UnrollerUnitTests, FunctionalUnroller)
     EXPECT_TRUE(free_vars.find(fv) != free_vars.end()) << "missing " << fv;
   }
 
-  EXPECT_THROW(funroller.at_time(fts.next(x), 4), PonoException) << "FunctionalUnroller can't handle next state variables" << endl;
+  EXPECT_THROW(funroller.at_time(fts.next(x), 4), PonoException)
+      << "FunctionalUnroller can't handle next state variables" << endl;
 
   // check untiming
   // doesn't make tons of sense to untime a functional unrolling

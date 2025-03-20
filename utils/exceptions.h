@@ -16,7 +16,6 @@
 
 #pragma once
 
-
 #include <exception>
 #include <string>
 
@@ -60,4 +59,3 @@ class PonoException : public std::exception
    */
   std::string msg;
 };
-

@@ -79,9 +79,8 @@ INSTANTIATE_TEST_SUITE_P(
                      // from test_encoder_inputs.h
                      testing::ValuesIn(btor2_inputs)));
 
-INSTANTIATE_TEST_SUITE_P(
-    ParameterizedSolverBtor2UnitTests,
-    Btor2UnitTests,
-    testing::ValuesIn(available_solver_enums()));
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverBtor2UnitTests,
+                         Btor2UnitTests,
+                         testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests

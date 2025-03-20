@@ -14,9 +14,10 @@
 **
 **/
 
+#include "modifiers/array_abstractor.h"
+
 #include <cassert>
 
-#include "modifiers/array_abstractor.h"
 #include "utils/exceptions.h"
 
 using namespace smt;
@@ -24,10 +25,10 @@ using namespace std;
 
 namespace pono {
 
-ArrayAbstractor::AbstractionWalker::AbstractionWalker(ArrayAbstractor & aa,
-                                     UnorderedTermMap * ext_cache)
+ArrayAbstractor::AbstractionWalker::AbstractionWalker(
+    ArrayAbstractor & aa, UnorderedTermMap * ext_cache)
     : IdentityWalker(
-        aa.solver_, false, ext_cache),  // false means don't clear cache
+          aa.solver_, false, ext_cache),  // false means don't clear cache
       aa_(aa)
 {
 }
@@ -99,10 +100,10 @@ WalkerStepResult ArrayAbstractor::AbstractionWalker::visit_term(Term & term)
   return Walker_Continue;
 }
 
-ArrayAbstractor::ConcretizationWalker::ConcretizationWalker(ArrayAbstractor & aa,
-                                                            UnorderedTermMap * ext_cache)
+ArrayAbstractor::ConcretizationWalker::ConcretizationWalker(
+    ArrayAbstractor & aa, UnorderedTermMap * ext_cache)
     : IdentityWalker(
-        aa.solver_, false, ext_cache),  // false means don't clear cache
+          aa.solver_, false, ext_cache),  // false means don't clear cache
       aa_(aa)
 {
 }

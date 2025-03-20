@@ -25,6 +25,7 @@
 #include "engines/ic3sa.h"
 
 #include <cassert>
+
 #include "core/rts.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
@@ -162,7 +163,6 @@ void IC3SA::predecessor_generalization(size_t i,
       coi_symbols.size(),
       ts_.statevars().size());
 
-
   UnorderedTermSet cube_lits;
   // first populate with predicates
   for (const auto & p : predset_) {
@@ -277,12 +277,12 @@ RefineResult IC3SA::refine()
 
   assert(!ts_.is_functional());
   assert(!solver_context_);
-  solver_->assert_formula(solver_->make_term(Implies, trans_label_, learned_lemma));
+  solver_->assert_formula(
+      solver_->make_term(Implies, trans_label_, learned_lemma));
   if (ts_.only_curr(learned_lemma)) {
     ts_.add_constraint(learned_lemma);
-    solver_->assert_formula(solver_->make_term(Implies,
-                                               trans_label_,
-                                               ts_.next(learned_lemma)));
+    solver_->assert_formula(
+        solver_->make_term(Implies, trans_label_, ts_.next(learned_lemma)));
   } else {
     static_cast<RelationalTransitionSystem &>(ts_).constrain_trans(
         learned_lemma);
@@ -618,8 +618,7 @@ void IC3SA::initialize()
 
   // set up initial term abstraction by getting all subterms
 
-  if (options_.ic3sa_initial_terms_lvl_ <= 2)
-  {
+  if (options_.ic3sa_initial_terms_lvl_ <= 2) {
     // for lower options, just add the leaves
     UnorderedTermSet leaves;
     get_leaves(ts_.init(), leaves);

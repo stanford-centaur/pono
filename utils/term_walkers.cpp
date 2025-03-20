@@ -17,6 +17,7 @@
 #include "utils/term_walkers.h"
 
 #include <cassert>
+
 #include "utils/term_analysis.h"
 
 using namespace smt;

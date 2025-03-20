@@ -1,4 +1,5 @@
 #include "proverresult.h"
+
 #include <cassert>
 
 namespace pono {

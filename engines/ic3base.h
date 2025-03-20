@@ -163,7 +163,8 @@ class IC3Base : public Prover
    *  Depending on the derived class IC3 implementation, the exact
    *  type of IC3Formula will differ: e.g. Clause, Disjunction
    */
-  IC3Base(const Property & p, const TransitionSystem & ts,
+  IC3Base(const Property & p,
+          const TransitionSystem & ts,
           const smt::SmtSolver & s,
           PonoOptions opt = PonoOptions());
 
@@ -178,7 +179,6 @@ class IC3Base : public Prover
   size_t witness_length() const override;
 
  protected:
-
   smt::UnsatCoreReducer reducer_;
 
   ///< keeps track of the current context-level of the solver
@@ -211,10 +211,10 @@ class IC3Base : public Prover
 
   ///< priority queue of outstanding proof goals
   // labels for activating assertions
-  smt::Term init_label_;       ///< label to activate init
-  smt::Term trans_label_;      ///< label to activate trans
-  smt::Term bad_label_;        ///< label to activate bad
-  smt::TermVec frame_labels_;  ///< labels to activate frames
+  smt::Term init_label_;          ///< label to activate init
+  smt::Term trans_label_;         ///< label to activate trans
+  smt::Term bad_label_;           ///< label to activate bad
+  smt::TermVec frame_labels_;     ///< labels to activate frames
   smt::UnorderedTermMap labels_;  //< labels for unsat cores
 
   // useful terms
@@ -454,8 +454,9 @@ class IC3Base : public Prover
    *         newly learned blocking constraint. In true, then subsumption check
    *         is performed
    */
-  void constrain_frame(size_t i, const IC3Formula & constraint,
-                       bool new_constraint=true);
+  void constrain_frame(size_t i,
+                       const IC3Formula & constraint,
+                       bool new_constraint = true);
 
   /** Adds an implication frame_label_[i] -> constraint
    *  used as a helper in constrain_frame and when resetting solver
