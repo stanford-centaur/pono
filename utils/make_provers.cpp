@@ -41,11 +41,11 @@ namespace pono {
 
 vector<Engine> all_engines()
 {
-  return { BMC,         BMC_SP,       KIND, MBIC3,
 #ifdef WITH_MSAT
-           INTERP,      IC3IA_ENGINE,
+  return { BMC, BMC_SP, KIND, MBIC3, INTERP, IC3IA_ENGINE, IC3SA_ENGINE };
+#else
+  return { BMC, BMC_SP, KIND, MBIC3, IC3SA_ENGINE };
 #endif
-           IC3SA_ENGINE };
 }
 
 shared_ptr<Prover> make_prover(Engine e,
