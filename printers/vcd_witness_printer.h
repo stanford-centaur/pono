@@ -21,6 +21,7 @@
 #include <sstream>
 #include <vector>
 
+#include "core/ts.h"
 #include "gmpxx.h"
 #include "smt-switch/smt.h"
 #include "utils/logger.h"
