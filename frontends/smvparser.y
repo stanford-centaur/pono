@@ -2,7 +2,7 @@
     #include <cstdio>
     #include <iostream>
     #include <string>
-    #include <cstdlib>
+    #include "stdlib.h"
     #include "frontends/smv_encoder.h"
     #include "frontends/smv_node.h"
     using namespace std;
