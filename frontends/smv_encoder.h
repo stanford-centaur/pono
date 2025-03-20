@@ -58,7 +58,7 @@ class SMVEncoder
   std::vector<smt::Term> propvec_;
   ///< signedbv_: to store signed bitvector for type checking
   ///< unsignedbv_: to store unsigned bitvector for type checking
-  ///< arrayty_: used to store word array nad its corresponding name for 
+  ///< arrayty_: used to store word array and its corresponding name for 
   std::unordered_map<std::string, smt::Term>  signedbv_;
   std::unordered_map<std::string, smt::Term>  unsignedbv_;
   std::deque<std::pair<int, smt::Term>> transterm_;

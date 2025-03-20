@@ -235,7 +235,7 @@ class module_node
   /* process modular smv starting from main module */
   void process_main(std::unordered_map<std::string, module_node *> module_list,
            std::ostream & s);
-  /* preprocess method: output to stringstream following falttened smv file format */ 
+  /* preprocess method: output to stringstream following flattened smv file format */ 
   void preprocess(std::string parent,
                   std::string prefix,
                   std::unordered_map<string, string> * new_prefix,
