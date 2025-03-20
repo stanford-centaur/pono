@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <iostream>
 #include <chrono>
+#include <iostream>
 
 /*************************************** time stamp functions
  * ************************************************/
@@ -29,24 +29,24 @@ namespace pono {
 //
 // Note: frequently taking time stamps, e.g. in a loop, may be costly.
 // We measure timestamp in nanoseconds and then convert, e.g., to seconds.
-  
+
 typedef std::chrono::system_clock pono_clock;
 typedef std::chrono::time_point<pono_clock> pono_time_stamp;
 typedef std::chrono::duration<long long int, std::nano> pono_time_duration;
 
 // take current time stamp
-static pono_time_stamp timestamp () {
-  return pono_clock::now();
-}
+static pono_time_stamp timestamp() { return pono_clock::now(); }
 
 // compute duration in nanoseconds between two given time stamps
-static pono_time_duration timestamp_diff (
-  pono_time_stamp begin, pono_time_stamp end) {
+static pono_time_duration timestamp_diff(pono_time_stamp begin,
+                                         pono_time_stamp end)
+{
   return std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 }
 
 // convert duration in nanoseconds computed by 'timestamp_diff' to a string
-static string time_duration_to_sec_string (pono_time_duration d) {
+static string time_duration_to_sec_string(pono_time_duration d)
+{
   ostringstream out;
   out << d.count() * 1e-9;
   return out.str();

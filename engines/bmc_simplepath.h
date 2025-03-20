@@ -23,7 +23,8 @@ namespace pono {
 class BmcSimplePath : public KInduction
 {
  public:
-  BmcSimplePath(const Property & p, const TransitionSystem & ts,
+  BmcSimplePath(const Property & p,
+                const TransitionSystem & ts,
                 const smt::SmtSolver & solver,
                 PonoOptions opt = PonoOptions());
 

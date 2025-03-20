@@ -43,7 +43,7 @@ TEST_P(PseudoInitPropUnitTests, CounterSystemSafe)
 
 TEST_P(PseudoInitPropUnitTests, TrivialUnsafe)
 {
-  // need to be careful when modifying transition systen and property
+  // need to be careful when modifying transition system and property
   // this trivial unsafe system is actually an edge case
   // that can be hard to be sure we avoid with this transformation
 

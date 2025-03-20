@@ -52,7 +52,6 @@ TEST(CegOpsUf, BVSimpleSafe)
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
-
 }
 
 TEST(CegOpsUf, BVSimpleUnsafe)
@@ -72,7 +71,6 @@ TEST(CegOpsUf, BVSimpleUnsafe)
 
   ProverResult r = ceg->check_until(11);
   ASSERT_EQ(r, ProverResult::FALSE);
-
 }
 
 TEST(CegOpsUf, IntSimpleSafe)
@@ -91,7 +89,6 @@ TEST(CegOpsUf, IntSimpleSafe)
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
-
 }
 
 TEST(CegOpsUf, IntSimpleUnsafe)
@@ -111,7 +108,6 @@ TEST(CegOpsUf, IntSimpleUnsafe)
 
   ProverResult r = ceg->check_until(11);
   ASSERT_EQ(r, ProverResult::FALSE);
-
 }
 
 }  // namespace pono_tests

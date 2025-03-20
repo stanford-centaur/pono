@@ -16,7 +16,7 @@
 
 #include "tests/common_ts.h"
 
-#include "assert.h"
+#include <cassert>
 
 using namespace pono;
 using namespace smt;

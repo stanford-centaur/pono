@@ -16,7 +16,8 @@
 
 #include "utils/fcoi.h"
 
-#include "assert.h"
+#include <cassert>
+
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
 

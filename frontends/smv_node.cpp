@@ -148,7 +148,7 @@ void pono::assign_node_c::generate_ostream(
   if (pre == "")
     s << prefix << id << " := ";
   else
-    s << pre << " ( " <<  prefix << id << ") :=";
+    s << pre << " ( " << prefix << id << ") :=";
   ex->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " ;" << endl;
 }
@@ -365,7 +365,6 @@ void pono::invarspec_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    
     for (int i = ex_li.size() - 1; i > -1; i--) {
       s << "INVARSPEC" << endl;
       ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
@@ -930,7 +929,7 @@ void pono::constarray_int_expr::generate_ostream(
     std::unordered_map<string, string> new_prefix,
     ostream & s)
 {
-  s << "CONSTARRAY ( array integer of " ;
+  s << "CONSTARRAY ( array integer of ";
   ex1->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " , ";
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);

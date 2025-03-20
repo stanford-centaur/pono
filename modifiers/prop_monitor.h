@@ -47,7 +47,7 @@ smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
     ts.assign_next(monitor, prop);
   } else if (!ts.is_functional()) {
     RelationalTransitionSystem & rts =
-      static_cast<RelationalTransitionSystem &>(ts);
+        static_cast<RelationalTransitionSystem &>(ts);
     rts.constrain_trans(rts.make_term(smt::Equal, rts.next(monitor), prop));
   } else {
     assert(ts.is_functional());

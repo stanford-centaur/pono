@@ -18,7 +18,6 @@
 #pragma once
 
 #include "engines/prover.h"
-
 #include "smt-switch/smt.h"
 
 namespace pono {

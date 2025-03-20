@@ -21,8 +21,10 @@ namespace pono {
 class IC3 : public IC3Base
 {
  public:
-  IC3(const Property & p, const TransitionSystem & ts,
-      const smt::SmtSolver & s, PonoOptions opt = PonoOptions());
+  IC3(const Property & p,
+      const TransitionSystem & ts,
+      const smt::SmtSolver & s,
+      PonoOptions opt = PonoOptions());
 
   virtual ~IC3() {}
 
@@ -40,7 +42,6 @@ class IC3 : public IC3Base
                                   IC3Formula & pred) override;
 
   void check_ts() const override;
-
 };
 
 }  // namespace pono

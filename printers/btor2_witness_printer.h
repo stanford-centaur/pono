@@ -20,9 +20,7 @@
 #include <vector>
 
 #include "gmpxx.h"
-
 #include "smt-switch/smt.h"
-
 #include "utils/logger.h"
 
 namespace pono {
@@ -78,31 +76,28 @@ std::string as_bits(std::string val)
 // transition system that was parsed by the BTOR encoder.
 // NOTE: we call this check also when COI is not applied, hence some
 // overhead will occur in witness printing.
-bool appears_in_ts_coi (const smt::Term &term,
-                        const TransitionSystem & ts)
+bool appears_in_ts_coi(const smt::Term & term, const TransitionSystem & ts)
 {
   const auto & it_states = ts.statevars().find(term);
-  if (it_states != ts.statevars().end())
-    return true;
+  if (it_states != ts.statevars().end()) return true;
 
   const auto & it_inputs = ts.inputvars().find(term);
-  if (it_inputs != ts.inputvars().end())
-    return true;
+  if (it_inputs != ts.inputvars().end()) return true;
 
   return false;
 }
 
 void print_btor_vals_at_time(const smt::TermVec & vec,
                              const smt::UnorderedTermMap & valmap,
-                             unsigned int time, const TransitionSystem & ts)
+                             unsigned int time,
+                             const TransitionSystem & ts)
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
   for (size_t i = 0, size = vec.size(); i < size; ++i) {
     // Do not print if term 'vec[i]' does not appear in COI. When not
     // using COI, this check always returns true.
-    if (!appears_in_ts_coi(vec[i], ts))
-      continue;
+    if (!appears_in_ts_coi(vec[i], ts)) continue;
     sk = vec[i]->get_sort()->get_sort_kind();
     if (sk == smt::BV) {
       // TODO: this makes assumptions on format of value from boolector
@@ -147,15 +142,15 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
 
 void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
                              const smt::UnorderedTermMap & valmap,
-                             unsigned int time, const TransitionSystem & ts)
+                             unsigned int time,
+                             const TransitionSystem & ts)
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
   for (auto entry : m) {
     // Do not print if term 'entry.second' does not appear in COI. When not
     // using COI, this check always returns true.
-    if (!appears_in_ts_coi(entry.second, ts))
-      continue;
+    if (!appears_in_ts_coi(entry.second, ts)) continue;
     sk = entry.second->get_sort()->get_sort_kind();
     if (sk == smt::BV) {
       // TODO: this makes assumptions on format of value from boolector
@@ -205,7 +200,7 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
 
 void print_witness_btor(const BTOR2Encoder & btor_enc,
                         const std::vector<smt::UnorderedTermMap> & cex,
-			const TransitionSystem & ts)
+                        const TransitionSystem & ts)
 {
   const smt::TermVec inputs = btor_enc.inputsvec();
   const smt::TermVec states = btor_enc.statesvec();

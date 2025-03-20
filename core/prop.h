@@ -16,18 +16,16 @@
 
 #pragma once
 
-#include "smt-switch/smt.h"
 #include "core/ts.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 
 class Property
 {
  public:
-  Property(const smt::SmtSolver & s, const smt::Term & p,
-           std::string name="")
-    : solver_(s), prop_(p), name_(name)
-  {};
+  Property(const smt::SmtSolver & s, const smt::Term & p, std::string name = "")
+      : solver_(s), prop_(p), name_(name) {};
 
   ~Property() {};
 
@@ -42,7 +40,8 @@ class Property
 
   smt::Term prop_;
 
-  std::string name_; ///< a name for the property. If no name is given, just uses the to_string
+  std::string name_;  ///< a name for the property. If no name is given, just
+                      ///< uses the to_string
 
 };  // class Property
 

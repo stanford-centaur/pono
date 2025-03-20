@@ -1,5 +1,5 @@
 /*********************                                                        */
-/*! \file 
+/*! \file
  ** \verbatim
  ** Top contributors (to current version):
  **   Hongce Zhang
@@ -11,7 +11,7 @@
  **
  ** \brief some shortcut for STL containers
  **
- ** 
+ **
  **/
 
 #pragma once
@@ -25,47 +25,58 @@
 // should only be included in .cpp
 namespace cosa {
 
-#define UNION(a, b, r)                                                         \
-  (std::set_union((a).begin(), (a).end(), (b).begin(), (b).end(),              \
+#define UNION(a, b, r)         \
+  (std::set_union((a).begin(), \
+                  (a).end(),   \
+                  (b).begin(), \
+                  (b).end(),   \
                   std::inserter((r), (r).end())))
-#define INTERSECT(a, b, r)                                                     \
-  (std::set_intersection((a).begin(), (a).end(), (b).begin(), (b).end(),       \
+#define INTERSECT(a, b, r)            \
+  (std::set_intersection((a).begin(), \
+                         (a).end(),   \
+                         (b).begin(), \
+                         (b).end(),   \
                          std::inserter((r), (r).end())))
-#define DIFFERENCE(a, b, r)                                                    \
-  (std::set_difference((a).begin(), (a).end(), (b).begin(), (b).end(),         \
+#define DIFFERENCE(a, b, r)         \
+  (std::set_difference((a).begin(), \
+                       (a).end(),   \
+                       (b).begin(), \
+                       (b).end(),   \
                        std::inserter((r), (r).end())))
-#define SYMDIFF(a, b, r)                                                       \
-  (std::set_symmetric_difference((a).begin(), (a).end(), (b).begin(),          \
-                                 (b).end(), std::inserter((r), (r).end())))
+#define SYMDIFF(a, b, r)                      \
+  (std::set_symmetric_difference((a).begin(), \
+                                 (a).end(),   \
+                                 (b).begin(), \
+                                 (b).end(),   \
+                                 std::inserter((r), (r).end())))
 
 #define IN(e, s) ((s).find(e) != (s).end())
 #define IN_p(e, s) ((s)->find(e) != (s)->end())
 
 #define S_IN(sub, s) ((s).find(sub) != (s).npos)
 
-#define FIND_IN(e,s) ((std::find((s).begin(), (s).end(), (e))) != (s).end())
+#define FIND_IN(e, s) ((std::find((s).begin(), (s).end(), (e))) != (s).end())
 
-template<typename MAP>
-const typename MAP::mapped_type& get_with_default(const MAP& m, 
-                                             const typename MAP::key_type& key, 
-                                             const typename MAP::mapped_type& defval)
+template <typename MAP>
+const typename MAP::mapped_type & get_with_default(
+    const MAP & m,
+    const typename MAP::key_type & key,
+    const typename MAP::mapped_type & defval)
 {
-    typename MAP::const_iterator it = m.find(key);
-    if (it == m.end())
-        return defval;
+  typename MAP::const_iterator it = m.find(key);
+  if (it == m.end()) return defval;
 
-    return it->second;
+  return it->second;
 }
 
-template<class T> bool is_union_empty(
-    const std::unordered_set<T> & a, 
-    const std::unordered_set<T> & b) {
-
+template <class T>
+bool is_union_empty(const std::unordered_set<T> & a,
+                    const std::unordered_set<T> & b)
+{
   const std::unordered_set<T> & small = a.size() < b.size() ? a : b;
   const std::unordered_set<T> & big = a.size() < b.size() ? b : a;
-  for(auto && p : small) {
-    if (big.find(p) != big.end())
-      return false;
+  for (auto && p : small) {
+    if (big.find(p) != big.end()) return false;
   }
   return true;
 }

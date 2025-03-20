@@ -18,9 +18,9 @@
 
 #include "core/fts.h"
 #include "core/rts.h"
+#include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
-#include "engines/ceg_prophecy_arrays.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -83,7 +83,7 @@ ProverResult CegarOpsUf<Prover_T>::check_until(int k)
     // TODO currently getting some errors in the concretization phase.
     // Commenting for now.
 
-    //super::invar_ = oa_.concrete(super::invar_);
+    // super::invar_ = oa_.concrete(super::invar_);
     super::invar_ = NULL;
   }
 
@@ -121,8 +121,8 @@ void CegarOpsUf<Prover_T>::initialize()
   Sort boolsort = cegopsuf_solver_->make_sort(BOOL);
   Term lbl;
   for (const auto & elem : abs_terms) {
-    lbl = cegopsuf_solver_->make_symbol("cegopsuf_assump_" + std::to_string(elem.second->get_id()),
-                                        boolsort);
+    lbl = cegopsuf_solver_->make_symbol(
+        "cegopsuf_assump_" + std::to_string(elem.second->get_id()), boolsort);
     cegopsuf_labels_[to_cegopsuf_solver_.transfer_term(elem.first)] = lbl;
     cache[to_cegopsuf_solver_.transfer_term(elem.first)] = elem.first;
     cache[to_cegopsuf_solver_.transfer_term(elem.second)] = elem.second;
@@ -153,10 +153,10 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
   Term bmcform = cegopsuf_un_.at_time(cegopsuf_ts_.init(), 0);
   for (size_t i = 0; i < cex_length; ++i) {
     bmcform = cegopsuf_solver_->make_term(
-      And, bmcform, cegopsuf_un_.at_time(cegopsuf_ts_.trans(), i));
+        And, bmcform, cegopsuf_un_.at_time(cegopsuf_ts_.trans(), i));
   }
   bmcform = cegopsuf_solver_->make_term(
-    And, bmcform, cegopsuf_un_.at_time(cegopsuf_bad_, cex_length));
+      And, bmcform, cegopsuf_un_.at_time(cegopsuf_bad_, cex_length));
 
   cegopsuf_solver_->push();
   cegopsuf_solver_->assert_formula(bmcform);
@@ -173,12 +173,12 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 
     Term unrolled_uf_eq = cegopsuf_un_.at_time(uf_eq, 0);
     for (size_t i = 1; i < cex_length; ++i) {
-      unrolled_uf_eq = cegopsuf_solver_->make_term(And, unrolled_uf_eq,
-                                                   cegopsuf_un_.at_time(uf_eq, i));
+      unrolled_uf_eq = cegopsuf_solver_->make_term(
+          And, unrolled_uf_eq, cegopsuf_un_.at_time(uf_eq, i));
     }
     if (cegopsuf_ts_.only_curr(uf_eq)) {
-      unrolled_uf_eq = cegopsuf_solver_->make_term(And, unrolled_uf_eq,
-                                                   cegopsuf_un_.at_time(uf_eq, cex_length));
+      unrolled_uf_eq = cegopsuf_solver_->make_term(
+          And, unrolled_uf_eq, cegopsuf_un_.at_time(uf_eq, cex_length));
     }
 
     equalities.push_back(uf_eq);
@@ -253,7 +253,6 @@ void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
         ts.constrain_trans(ts.next(ta));
       }
     }
-
   }
 
   super::reabstract();
@@ -301,8 +300,8 @@ void CegarOpsUf<IC3SA>::refine_subprover_ts(const UnorderedTermSet & axioms,
 }
 
 template <>
-void CegarOpsUf<CegProphecyArrays<IC3IA>>::refine_subprover_ts(const UnorderedTermSet & axioms,
-                                                               bool skip_init)
+void CegarOpsUf<CegProphecyArrays<IC3IA>>::refine_subprover_ts(
+    const UnorderedTermSet & axioms, bool skip_init)
 {
   super::refine_ts(axioms);
 }
@@ -312,4 +311,4 @@ template class CegarOpsUf<IC3IA>;
 template class CegarOpsUf<IC3SA>;
 template class CegarOpsUf<CegProphecyArrays<IC3IA>>;
 
-} // namespace pono
+}  // namespace pono

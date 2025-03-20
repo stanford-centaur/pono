@@ -19,11 +19,10 @@
 // use the header only implementation
 #define FMT_HEADER_ONLY
 
-#include <fmt/format.h>
 #include <iostream>
 
-#include <smt-switch/smt.h>
-
+#include "fmt/format.h"
+#include "smt-switch/smt.h"
 #include "utils/exceptions.h"
 
 /****************************** Support for printing smt-switch objects
@@ -147,8 +146,7 @@ class Log
   template <typename... Args>
   void log(size_t level, const std::string & format, const Args &... args) const
   {
-    if (level <= verbosity)
-    {
+    if (level <= verbosity) {
       std::cout << fmt::format(format, args...) << std::endl;
     }
   }
@@ -166,8 +164,7 @@ class Log
            const std::string & format,
            const Args &... args) const
   {
-    if ((lower <= verbosity) && (verbosity <= upper))
-    {
+    if ((lower <= verbosity) && (verbosity <= upper)) {
       std::cout << fmt::format(format, args...) << std::endl;
     }
   }
@@ -177,12 +174,9 @@ class Log
    */
   void set_verbosity(size_t v)
   {
-    if (!verbosity_set)
-    {
+    if (!verbosity_set) {
       verbosity = v;
-    }
-    else
-    {
+    } else {
       throw PonoException("Can only set logger verbosity once.");
     }
   }
@@ -192,7 +186,7 @@ class Log
   bool verbosity_set;
 };
 
-// globally avaiable logger instance
+// globally available logger instance
 extern Log logger;
 
 void set_global_logger_verbosity(size_t v);

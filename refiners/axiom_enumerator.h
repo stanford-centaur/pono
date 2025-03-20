@@ -52,11 +52,11 @@ class AxiomEnumerator
   // TODO: brainstorm the right interface
   //       would it be better for it to add axioms or not?
   AxiomEnumerator(const TransitionSystem & ts)
-    : ts_(ts), solver_(ts.solver()), initialized_(false)
+      : ts_(ts), solver_(ts.solver()), initialized_(false)
   {
   }
 
-  virtual ~AxiomEnumerator(){};
+  virtual ~AxiomEnumerator() {};
 
   virtual void initialize() = 0;
 

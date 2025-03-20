@@ -48,7 +48,7 @@ class MsatIC3IA : public Prover
    * false
    *  @param to_ts_solver a TermTranslator that moves terms from the fresh
    * solver for ic3ia to terms of solver_
-   *  @return true on sucess
+   *  @return true on success
    */
   bool compute_witness(msat_env env,
                        ic3ia::IC3 & ic3,

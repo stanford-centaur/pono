@@ -22,10 +22,11 @@ using namespace smt;
 
 namespace pono {
 
-BmcSimplePath::BmcSimplePath(const Property & p, const TransitionSystem & ts,
+BmcSimplePath::BmcSimplePath(const Property & p,
+                             const TransitionSystem & ts,
                              const SmtSolver & solver,
                              PonoOptions opt)
-  : super(p, ts, solver, opt)
+    : super(p, ts, solver, opt)
 {
   engine_ = Engine::BMC_SP;
   kind_engine_name_ = "BMC-SP";

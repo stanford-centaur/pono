@@ -38,7 +38,8 @@ enum RefineResult
 class Prover
 {
  public:
-  Prover(const Property & p, const TransitionSystem & ts,
+  Prover(const Property & p,
+         const TransitionSystem & ts,
          const smt::SmtSolver & s,
          PonoOptions opt = PonoOptions());
 
@@ -105,7 +106,7 @@ class Prover
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
 
-  Property orig_property_; ///< original property before copied to new solver
+  Property orig_property_;    ///< original property before copied to new solver
   TransitionSystem orig_ts_;  ///< original TS before copied to new solver
 
   TransitionSystem ts_;
@@ -122,9 +123,9 @@ class Prover
 
   // NOTE: both witness_ and invar_ use terms from the engine's solver
 
-  std::vector<smt::UnorderedTermMap> witness_; ///< populated by a witness if a CEX is found
+  std::vector<smt::UnorderedTermMap>
+      witness_;  ///< populated by a witness if a CEX is found
 
-  smt::Term invar_; ///< populated with an invariant if the engine supports it
-
+  smt::Term invar_;  ///< populated with an invariant if the engine supports it
 };
 }  // namespace pono

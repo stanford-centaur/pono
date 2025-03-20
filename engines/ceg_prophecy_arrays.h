@@ -52,7 +52,7 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   size_t witness_length() const override
   {
     // regardless of super class want this to be the witness length
-    return reached_k_+1;
+    return reached_k_ + 1;
   }
 
  protected:
@@ -63,7 +63,7 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   ArrayAxiomEnumerator aae_;
   ProphecyModifier pm_;
 
-  int reached_k_; ///< local variable to check the length of BMC refinement run
+  int reached_k_;  ///< local variable to check the length of BMC refinement run
 
   size_t num_added_axioms_;  ///< set by refine to the number of added axioms
 

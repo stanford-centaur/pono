@@ -31,10 +31,7 @@ OpsAbstractor::OpsAbstractor(const TransitionSystem & conc_ts,
 {
 }
 
-Term OpsAbstractor::abstract(Term & t)
-{
-  return abs_walker_.visit(t);
-}
+Term OpsAbstractor::abstract(Term & t) { return abs_walker_.visit(t); }
 
 Term OpsAbstractor::concrete(Term & t) { return conc_walker_.visit(t); }
 
@@ -61,7 +58,7 @@ void OpsAbstractor::do_abstraction()
   if (!abs_ts_.is_functional()) {
     abs_ts_ = conc_ts_;
     RelationalTransitionSystem & abs_rts =
-      static_cast<RelationalTransitionSystem &>(abs_ts_);
+        static_cast<RelationalTransitionSystem &>(abs_ts_);
 
     Term init = conc_ts_.init();
     Term trans = conc_ts_.trans();
@@ -72,13 +69,13 @@ void OpsAbstractor::do_abstraction()
     abs_rts.set_trans(abs_trans);
   } else {
     FunctionalTransitionSystem & abs_fts =
-      static_cast<FunctionalTransitionSystem &>(abs_ts_);
+        static_cast<FunctionalTransitionSystem &>(abs_ts_);
 
     // add inputs and statevars
     for (const auto & v : conc_ts_.inputvars()) {
       abs_fts.add_inputvar(v);
     }
-    for (const auto &v : conc_ts_.statevars()) {
+    for (const auto & v : conc_ts_.statevars()) {
       abs_fts.add_statevar(v, conc_ts_.next(v));
     }
 
@@ -94,7 +91,7 @@ void OpsAbstractor::do_abstraction()
     for (const auto & e : conc_ts_.named_terms()) {
       abs_fts.name_term(e.first, e.second);
     }
-    for (const auto &c : conc_ts_.constraints()) {
+    for (const auto & c : conc_ts_.constraints()) {
       Term cc = c.first;
       abs_fts.add_constraint(abstract(cc), c.second);
     }
@@ -127,9 +124,9 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
 
   Term res;
   // check if we do not need to abstract the operator
-  if (op.is_null() ||
-      oa_.ops_to_abstract_.find(op) == oa_.ops_to_abstract_.end() ||
-      (sk == BV && sort->get_width() <= oa_.min_bw_)) {
+  if (op.is_null()
+      || oa_.ops_to_abstract_.find(op) == oa_.ops_to_abstract_.end()
+      || (sk == BV && sort->get_width() <= oa_.min_bw_)) {
     res = op.is_null() ? term : solver_->make_term(op, cached_children);
   } else {
     switch (op.prim_op) {
@@ -242,10 +239,9 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
   return Walker_Continue;
 }
 
-OpsAbstractor::ConcretizationWalker::ConcretizationWalker(OpsAbstractor &oa,
-                                                       UnorderedTermMap *ext_cache)
-  : IdentityWalker(oa.solver_, false, ext_cache),
-    oa_(oa)
+OpsAbstractor::ConcretizationWalker::ConcretizationWalker(
+    OpsAbstractor & oa, UnorderedTermMap * ext_cache)
+    : IdentityWalker(oa.solver_, false, ext_cache), oa_(oa)
 {
 }
 
@@ -307,4 +303,4 @@ WalkerStepResult OpsAbstractor::ConcretizationWalker::visit_term(Term & term)
   return Walker_Continue;
 }
 
-} // namespace pono
+}  // namespace pono

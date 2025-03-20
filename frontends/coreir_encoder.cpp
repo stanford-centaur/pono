@@ -1,9 +1,10 @@
 #include "frontends/coreir_encoder.h"
-#include "utils/logger.h"
 
 #include <iostream>
 #include <set>
 #include <sstream>
+
+#include "utils/logger.h"
 
 using namespace CoreIR;
 using namespace smt;

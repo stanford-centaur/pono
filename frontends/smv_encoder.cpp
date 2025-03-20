@@ -45,13 +45,12 @@ void pono::SMVEncoder::processCase()
         },
         solver_);
     std::future_status status;
-    status = fut.wait_for(std::chrono::seconds(5)); //check timeout
+    status = fut.wait_for(std::chrono::seconds(5));  // check timeout
     while (status != std::future_status::timeout) {
       if (status == std::future_status::ready) {
         if (fut.get()) {
           break;
-        }
-        else {
+        } else {
           // TODO would be nice if we could give a line number
           throw PonoException("case error");
         }
@@ -63,7 +62,7 @@ void pono::SMVEncoder::processCase()
     solver_->pop();
   }
 }
-//change the input stream to output stringstream 
+// change the input stream to output stringstream
 int pono::SMVEncoder::parse_flat(std::istream & s)
 {
   pono::SMVscanner smvscanner(*this);
@@ -72,7 +71,7 @@ int pono::SMVEncoder::parse_flat(std::istream & s)
   return parse();
 }
 
-//modular SMV preprocess
+// modular SMV preprocess
 std::stringstream pono::SMVEncoder::preprocess()
 {
   module_node * main_n;

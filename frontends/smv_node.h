@@ -1,14 +1,14 @@
 #pragma once
 
-#include <stdio.h>
-
+#include <cassert>
+#include <cstdio>
 #include <iostream>
 #include <map>
 #include <string>
 #include <unordered_map>
-#include "assert.h"
-#include "utils/exceptions.h"
+
 #include "smt-switch/smt.h"
+#include "utils/exceptions.h"
 
 using namespace std;
 /* node to help construct syntax tree in the parser */
@@ -125,7 +125,7 @@ struct SMVnode
       std::string prefix,
       std::unordered_map<string, module_node *> module_list,
       std::unordered_map<string, string> new_prefix,
-      ostream & s){};
+      ostream & s) {};
 };  // struct SMVNode
 
 class element_node : public SMVnode
@@ -139,7 +139,7 @@ class element_node : public SMVnode
       std::string prefix,
       std::unordered_map<std::string, module_node *> module_list,
       std::unordered_map<string, string> * new_prefix,
-      ostream & s){};
+      ostream & s) {};
   virtual std::vector<SMVnode *> get_list() { return pa_li; }
 };
 
@@ -234,8 +234,9 @@ class module_node
   std::string get_par() { return par_name; }
   /* process modular smv starting from main module */
   void process_main(std::unordered_map<std::string, module_node *> module_list,
-           std::ostream & s);
-  /* preprocess method: output to stringstream following falttened smv file format */ 
+                    std::ostream & s);
+  /* preprocess method: output to stringstream following flattened smv file
+   * format */
   void preprocess(std::string parent,
                   std::string prefix,
                   std::unordered_map<string, string> * new_prefix,
@@ -249,6 +250,7 @@ class type_node : public SMVnode
   std::string type_name;
   std::vector<SMVnode *> ex_li;
   Type ele_type;
+
  public:
   type_node() {}
   type_node(std::string n) { type_name = n; }
@@ -1326,7 +1328,11 @@ class constarray_type_expr : public SMVnode
   string id;
 
  public:
-  constarray_type_expr( string input, pono::SMVnode * e){ id = input; ex = e; }
+  constarray_type_expr(string input, pono::SMVnode * e)
+  {
+    id = input;
+    ex = e;
+  }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1341,7 +1347,12 @@ class constarray_word_expr : public SMVnode
   int size;
 
  public:
-  constarray_word_expr(int sizet, pono::type_node * e1, pono::SMVnode * e2) { size = sizet; ex1 = e1; ex2 = e2; }
+  constarray_word_expr(int sizet, pono::type_node * e1, pono::SMVnode * e2)
+  {
+    size = sizet;
+    ex1 = e1;
+    ex2 = e2;
+  }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
@@ -1355,14 +1366,17 @@ class constarray_int_expr : public SMVnode
   pono::SMVnode * ex2;
 
  public:
-  constarray_int_expr(pono::type_node * e1, pono::SMVnode * e2) { ex1 = e1; ex2 = e2; }
+  constarray_int_expr(pono::type_node * e1, pono::SMVnode * e2)
+  {
+    ex1 = e1;
+    ex2 = e2;
+  }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
                         ostream & s);
 };
-
 
 class case_expr : public SMVnode
 {

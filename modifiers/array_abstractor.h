@@ -16,9 +16,8 @@
 
 #pragma once
 
-#include "smt-switch/identity_walker.h"
-
 #include "abstractor.h"
+#include "smt-switch/identity_walker.h"
 
 namespace pono {
 
@@ -29,23 +28,23 @@ class ArrayAbstractor : public Abstractor
   // Helper classes for walking formulas
   class AbstractionWalker : public smt::IdentityWalker
   {
-  public:
+   public:
     AbstractionWalker(ArrayAbstractor & aa, smt::UnorderedTermMap * ext_cache);
     smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
 
-  protected:
+   protected:
     smt::WalkerStepResult visit_term(smt::Term & term);
     ArrayAbstractor & aa_;
   };
 
   class ConcretizationWalker : public smt::IdentityWalker
   {
-  public:
+   public:
     ConcretizationWalker(ArrayAbstractor & aa,
                          smt::UnorderedTermMap * ext_cache);
     smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
 
-  protected:
+   protected:
     smt::WalkerStepResult visit_term(smt::Term & term);
     ArrayAbstractor & aa_;
   };

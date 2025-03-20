@@ -100,7 +100,7 @@ bool IC3IA::ic3formula_check_valid(const IC3Formula & u) const
   // check that children are literals
   Term pred;
   Op op;
-  for (const auto &c : u.children) {
+  for (const auto & c : u.children) {
     if (c->get_sort() != boolsort_) {
       logger.log(3, "ERROR IC3IA IC3Formula contains non-boolean atom: {}", c);
       return false;
@@ -147,7 +147,7 @@ void IC3IA::initialize()
   size_t num_init_preds = preds.size();
   get_predicates(solver_, bad_, preds, false, false, true);
   size_t num_prop_preds = preds.size() - num_init_preds;
-  for (const auto &p : preds) {
+  for (const auto & p : preds) {
     add_predicate(p);
   }
   logger.log(1, "Number predicates found in init: {}", num_init_preds);
@@ -159,7 +159,7 @@ void IC3IA::initialize()
   // populate cache for existing terms in solver_
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term ns;
-  for (auto const&s : ts_.statevars()) {
+  for (auto const & s : ts_.statevars()) {
     // common variables are next states, unless used for refinement in IC3IA
     // then will refer to current state variables after untiming
     // need to cache both
@@ -177,7 +177,7 @@ void IC3IA::initialize()
   get_free_symbols(ts_.trans(), free_symbols);
   get_free_symbols(bad_, free_symbols);
 
-  for (auto const&s : free_symbols) {
+  for (auto const & s : free_symbols) {
     assert(s->is_symbol());
     if (s->is_symbolic_const()) {
       // ignore constants
@@ -200,7 +200,7 @@ void IC3IA::initialize()
 
 void IC3IA::abstract()
 {
-  const UnorderedTermSet &bool_symbols = ia_.do_abstraction();
+  const UnorderedTermSet & bool_symbols = ia_.do_abstraction();
 
   // don't add boolean symbols that are never used in the system
   // this is an optimization and a fix for some options
@@ -270,7 +270,7 @@ RefineResult IC3IA::refine()
   longest_cex_length_ = cex_length;
 
   UnorderedTermSet preds;
-  for (auto const&I : out_interpolants) {
+  for (auto const & I : out_interpolants) {
     if (!I) {
       assert(
           r.is_unknown());  // should only have null terms if got unknown result
@@ -285,7 +285,7 @@ RefineResult IC3IA::refine()
 
   // new predicates
   TermVec fresh_preds;
-  for (auto const&p : preds) {
+  for (auto const & p : preds) {
     if (predset_.find(p) == predset_.end()) {
       // unseen predicate
       fresh_preds.push_back(p);
@@ -386,20 +386,21 @@ void IC3IA::reabstract()
   // predicates from init and bad
   get_predicates(solver_, ts_.init(), preds, false, false, true);
   get_predicates(solver_, bad_, preds, false, false, true);
-  // instead of add previously found predicates, we add all the predicates in frame 1
+  // instead of add previously found predicates, we add all the predicates in
+  // frame 1
   get_predicates(solver_, get_frame_term(1), preds, false, false, true);
 
   super::reset_solver();
   if (failed_to_reset_solver_) {
-    throw PonoException("IC3IA::reabstract Cannot reabstract because "
-                        "the underlying SMT solver doesn't support "
-                        "the reset-solver method");
+    throw PonoException(
+        "IC3IA::reabstract Cannot reabstract because the underlying SMT solver "
+        "doesn't support the reset-solver method");
   }
   predset_.clear();
   predlbls_.clear();
 
   // add predicates
-  for (const auto &p : preds) {
+  for (const auto & p : preds) {
     add_predicate(p);
   }
 }
@@ -465,7 +466,7 @@ void IC3IA::register_symbol_mappings(size_t i)
 
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term unrolled_sv;
-  for (const auto &sv : ts_.statevars()) {
+  for (const auto & sv : ts_.statevars()) {
     unrolled_sv = unroller_.at_time(sv, i);
     cache[to_interpolator_.transfer_term(unrolled_sv)] = unrolled_sv;
   }
