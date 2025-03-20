@@ -19,10 +19,10 @@
 // use the header only implementation
 #define FMT_HEADER_ONLY
 
-#include <fmt/format.h>
+#include "fmt/format.h"
 #include <iostream>
 
-#include <smt-switch/smt.h>
+#include "smt-switch/smt.h"
 
 #include "utils/exceptions.h"
 
