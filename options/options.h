@@ -232,8 +232,8 @@ class PonoOptions
   unsigned sygus_term_extract_depth_;  ///< SyGuS Term extraction depth for
                                        ///< existing terms
   unsigned
-      sygus_initial_term_width_;     ///< SyGuS Control and data width seperator
-  unsigned sygus_initial_term_inc_;  ///< SyGuS Control and data width seperator
+      sygus_initial_term_width_;     ///< SyGuS Control and data width separator
+  unsigned sygus_initial_term_inc_;  ///< SyGuS Control and data width separator
                                      ///< increment bound
   unsigned
       sygus_accumulated_term_bound_;  ///< SyGuS Term accumulation bound count

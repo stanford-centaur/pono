@@ -33,11 +33,11 @@ void StrRightTrim(std::string & s);
 /// Trim a string from both ends (in place)
 void StrTrim(std::string & s);
 
-/// Python-style split , return a vector of splitted strings
+/// Python-style split, return a vector of split strings
 std::vector<std::string> Split(const std::string & str,
                                const std::string & delim);
 
-///  Python-style split behavior, delim: space tab enter and their combiniations
+/// Python-style split behavior, delim: space tab enter and their combinations
 std::vector<std::string> SplitSpaceTabEnter(const std::string & str);
 
 // (itoa is not part of the standard actually,
@@ -56,7 +56,7 @@ std::string Join(const std::vector<std::string> & in,
 /// Remove whitespace " \n\t\r\f\v" from the input string
 std::string RemoveWhiteSpace(const std::string & in);
 
-/// Replace all occurrance of substring a by substring b
+/// Replace all occurrences of substring a by substring b
 std::string ReplaceAll(const std::string & str,
                        const std::string & a,
                        const std::string & b);

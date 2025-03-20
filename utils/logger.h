@@ -186,7 +186,7 @@ class Log
   bool verbosity_set;
 };
 
-// globally avaiable logger instance
+// globally available logger instance
 extern Log logger;
 
 void set_global_logger_verbosity(size_t v);

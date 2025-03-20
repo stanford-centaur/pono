@@ -45,7 +45,7 @@ class PartialModelGen
   std::unordered_set<smt::Term> dfs_vars_;
   void dfs_walk(const smt::Term & ast);
 
-  // conditon var buffer
+  // condition var buffer
   void GetVarList(const smt::Term & ast);
 
  public:

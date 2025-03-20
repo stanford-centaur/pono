@@ -171,7 +171,7 @@ bool Bmc::step(int i)
     } else {
       // Handle corner case when using single bad state constraints and interval
       // search: for witness printing, which depends on reached_k_, we must set
-      // reached_k_ to the bound that preceeds the bound 'i' where the cex was
+      // reached_k_ to the bound that precedes the bound 'i' where the cex was
       // found
       reached_k_ = i - 1;
     }
@@ -335,7 +335,7 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
                  "  BMC binary search, unblocking [mid+1,high] = [{},{}]",
                  mid + 1,
                  high);
-      // Remove previoulsy added blocking constraints for [mid+1,high]
+      // Remove previously added blocking constraints for [mid+1,high]
       logger.log(3, "  BMC binary search, solver->pop()");
       solver_->pop();
       assert(bin_search_frames_ > 0);

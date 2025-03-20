@@ -215,7 +215,7 @@ class IC3Base : public Prover
   smt::Term trans_label_;         ///< label to activate trans
   smt::Term bad_label_;           ///< label to activate bad
   smt::TermVec frame_labels_;     ///< labels to activate frames
-  smt::UnorderedTermMap labels_;  //< labels for unsat cores
+  smt::UnorderedTermMap labels_;  ///< labels for unsat cores
 
   // useful terms
   smt::Term solver_true_;

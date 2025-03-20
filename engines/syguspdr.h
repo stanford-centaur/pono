@@ -119,7 +119,7 @@ class SygusPdr : public IC3Base
   syntax_analysis::score_t score_func_;
 
   smt::UnorderedTermMap nxt_state_updates_;  // a map from prime var -> next
-  smt::UnorderedTermSet no_next_vars_;       //  the inputs
+  smt::UnorderedTermSet no_next_vars_;       // the inputs
   smt::Term bad_next_;
   smt::TermVec constraints_curr_var_;
   smt::TermVec op_uf_assumptions_;

@@ -122,7 +122,7 @@ std::string RemoveWhiteSpace(const std::string & in)
   return s;
 }
 
-/// Replace all occurrance of substring a by substring b
+/// Replace all occurrences of substring a by substring b
 std::string ReplaceAll(const std::string & str,
                        const std::string & a,
                        const std::string & b)

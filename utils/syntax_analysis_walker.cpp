@@ -510,7 +510,7 @@ unsigned TermLearner::learn_terms_from_cex(
   // okay now we need to find the right model on terms
   delta_term_num += concat_to_extract(varset_info);
   delta_term_num +=
-      same_val_replace_ast(varset_info);  // only this use the model
+      same_val_replace_ast(varset_info);  // only this uses the model
   delta_term_num += extract_complement(varset_info);
 
   solver_->pop();
@@ -539,7 +539,7 @@ unsigned TermLearner::learn_terms_from_cex_same_frame(
   // okay now we need to find the right model on terms
   delta_term_num += concat_to_extract(varset_info);
   delta_term_num +=
-      same_val_replace_ast_same_frame(varset_info);  // only this use the model
+      same_val_replace_ast_same_frame(varset_info);  // only this uses the model
   delta_term_num += extract_complement(varset_info);
 
   solver_->pop();
@@ -603,7 +603,7 @@ unsigned TermLearner::concat_to_extract(/*INOUT*/ PerVarsetInfo & varset_info)
             smt::Op(smt::PrimOp::Extract, pos.first, pos.second), t);
         parent_extractor_.RegisterNewParentRelation(t, new_term);
         nterm += varset_info.TermLearnerInsertTerm(new_term) ? 1 : 0;
-      }  // for each postion
+      }  // for each position
     }  // for each term
   }  // for each width
   return nterm;

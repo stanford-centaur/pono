@@ -427,7 +427,7 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --ic3sa-initial-terms-lvl \tConfigures where to find terms for the "
     "initial abstraction. Higher numbers means more terms and predicates will "
-    "be included in the inital abstraction [0-4] (default: 4)." },
+    "be included in the initial abstraction [0-4] (default: 4)." },
   { IC3SA_INTERP,
     0,
     "",

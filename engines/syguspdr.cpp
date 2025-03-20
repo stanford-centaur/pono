@@ -280,7 +280,7 @@ void SygusPdr::check_ts() const  // custom_ts_ is not ready at this point
 
   if (!ts_.inputvars().empty()) {
     throw PonoException(
-        "SyGuS PDR requries promoting input variables to state variables.");
+        "SyGuS PDR requires promoting input variables to state variables.");
   }
 }  // check_ts
 
@@ -639,7 +639,7 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info(
 
   syntax_analysis::PerCexInfo & per_cex_info = cex_term_map_pos->second;
 
-  // then evalute the terms on the cex
+  // then evaluate the terms on the cex
   push_solver_context();
   disable_all_labels();
   for (const auto & c : op_uf_assumptions_) solver_->assert_formula(c);
@@ -651,7 +651,7 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info(
       per_cex_info.prev_refine_constraint_count < op_uf_assumptions_.size();
   per_cex_info.prev_refine_constraint_count = op_uf_assumptions_.size();
 
-  // for each witdh
+  // for each width
   for (const auto & width_term_const_pair : per_cex_info.varset_info.terms) {
     auto width = width_term_const_pair.first;
     if (reset_due_to_more_refinement)
