@@ -17,8 +17,7 @@
 #include "modifiers/control_signals.h"
 
 #include <cassert>
-
-#include "math.h"
+#include <cmath>
 
 using namespace smt;
 using namespace std;
