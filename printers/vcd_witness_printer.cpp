@@ -260,21 +260,23 @@ void VCDWitnessPrinter::check_insert_scope(std::string full_name,
   if (is_bad_state_pattern(full_name))
     full_name = new_property_id();
 
+  // clang-format off
   // yosys use " ; " as the separator for comment
   // HZ: I'm actually surprised that text after ' ; '
   // is not parsed by Btor2 frontend
   // so the check is mostly unuseful.
   // But it does not hurt to have it.
   // There is just one exception, that is the
-  // name after bad state: 
+  // name after bad state:
   // Yosys will output something like this:
   //
   //   155 bad 154 ./ridecore-src-buggy/topsim.v:101.13-112.8|./ridecore-src-buggy/pipeline.v:2005.11-2006.28
-  // 
+  //
   // and the symbols and dots will overwhelm the later code that
   // tries to sort out the hierarchy of the signal.
   // Actually this is not signal name at all.
   // That's why I use `new_property_id` above to replace it
+  // clang-format on
 
   auto pos = full_name.find(" ; ");
   if(pos != full_name.npos)
