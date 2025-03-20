@@ -321,7 +321,8 @@ void TermScore::PostChild(const smt::Term & ast)
     scores_.emplace(ast, term_score_t(width));  // width*2
   } else if (ast->is_value()) {
     scores_.emplace(ast, term_score_t(width * 2));  // width
-  } else {                                          // we will hope it is op
+  } else {
+    // we will hope it is op
     auto ret = scores_.emplace(ast, term_score_t(width));  // width
     for (auto && c : *ast) {  // for each of its child node
       ret.first->second.score += scores_.at(c).score;
@@ -353,7 +354,8 @@ void ParentExtract::PostChild(const smt::Term & ast)
   walked_nodes_.insert(ast);
   if (ast->is_symbolic_const()) {
   } else if (ast->is_value()) {
-  } else {                    // we will hope it is op
+  } else {
+    // we will hope it is op
     for (auto && p : *ast) {  // for each of its child node
       parent_[p].insert(ast);
     }  // set up its parent to have ast there

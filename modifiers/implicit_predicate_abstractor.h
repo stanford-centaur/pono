@@ -73,9 +73,8 @@ class ImplicitPredicateAbstractor : public Abstractor
 
   bool red_can_reset_;  ///< true iff reset_assertions workedo n reducer_
 
-  smt::UnorderedTermSet
-      important_vars_;  ///< important variables
-                        ///< prioritize predicates containing these
+  smt::UnorderedTermSet important_vars_;  ///< important variables, prioritize
+                                          ///< predicates containing these
 
   bool reset_reducer()
   {

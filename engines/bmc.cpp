@@ -169,10 +169,10 @@ bool Bmc::step(int i)
         find_shortest_cex_linear_search(cex_upper_bound);
       }
     } else {
-      // Handle corner case when using single bad state constraints and
-      // interval search: for witness printing, which depends on
-      // reached_k_, we must set reached_k_ to the bound that preceeds
-      // the bound 'i' where the cex was found
+      // Handle corner case when using single bad state constraints and interval
+      // search: for witness printing, which depends on reached_k_, we must set
+      // reached_k_ to the bound that preceeds the bound 'i' where the cex was
+      // found
       reached_k_ = i - 1;
     }
   } else {
