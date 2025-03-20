@@ -80,12 +80,12 @@ void Walker::WalkBFS(const smt::Term & ast)
 
 bool OpExtractor::Skip(const smt::Term & ast) { return IN(ast, walked_nodes_); }
 
-#define ARG1               \
+#define ARG1()             \
   auto ptr = ast->begin(); \
   auto a1 = *(ptr++);      \
   assert(ptr == ast->end());
 
-#define ARG2               \
+#define ARG2()             \
   auto ptr = ast->begin(); \
   auto a1 = *(ptr++);      \
   auto a2 = *(ptr++);      \
@@ -167,7 +167,8 @@ void OpExtractor::PreChild(const smt::Term & ast)
         constructs.insert_op_comp(width, op.prim_op);
         break;
       case smt::PrimOp::Concat: {
-        ARG2 constructs.insert_concat(
+        ARG2()
+        constructs.insert_concat(
             width,
             concat_t(a1->get_sort()->get_width(), a2->get_sort()->get_width()));
         break;
@@ -175,7 +176,8 @@ void OpExtractor::PreChild(const smt::Term & ast)
       case smt::PrimOp::Extract:
         assert(op.num_idx == 2);
         {
-          ARG1 constructs.insert_extract(
+          ARG1()
+          constructs.insert_extract(
               width, extract_t(a1->get_sort()->get_width(), op.idx0, op.idx1));
         }
         break;
@@ -183,7 +185,8 @@ void OpExtractor::PreChild(const smt::Term & ast)
       case smt::PrimOp::Zero_Extend:
         assert(op.num_idx == 1);
         {
-          ARG1 constructs.insert_extend(
+          ARG1()
+          constructs.insert_extend(
               width,
               extend_t(op.prim_op, op.idx0, a1->get_sort()->get_width()));
         }
@@ -192,7 +195,8 @@ void OpExtractor::PreChild(const smt::Term & ast)
       case smt::PrimOp::Sign_Extend:
         assert(op.num_idx == 1);
         {
-          ARG1 constructs.insert_extend(
+          ARG1()
+          constructs.insert_extend(
               width,
               extend_t(op.prim_op, op.idx0, a1->get_sort()->get_width()));
         }
@@ -560,12 +564,12 @@ static smt::Op get_op(const smt::Term & ast)
 
 #undef ARG1
 #undef ARG2
-#define ARG1             \
+#define ARG1()           \
   auto ptr = t->begin(); \
   auto a1 = *(ptr++);    \
   assert(ptr == t->end());
 
-#define ARG2             \
+#define ARG2()           \
   auto ptr = t->begin(); \
   auto a1 = *(ptr++);    \
   auto a2 = *(ptr++);    \
@@ -584,7 +588,8 @@ unsigned TermLearner::concat_to_extract(/*INOUT*/ PerVarsetInfo & varset_info)
       if (!t->is_symbolic_const() && !t->is_value() && !t->is_param()
           && t->begin() != t->end()
           && (get_op(t).prim_op == smt::PrimOp::Concat)) {
-        ARG2 unsigned sep = a2->get_sort()->get_width();
+        ARG2()
+        unsigned sep = a2->get_sort()->get_width();
         unsigned msb = a1->get_sort()->get_width() + sep;
         // assert(sep>=1);
         extract_positions.push_back(std::make_pair(sep - 1, 0));
