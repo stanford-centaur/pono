@@ -35,7 +35,10 @@ InterpolantMC::InterpolantMC(const Property & p,
       interpolator_(create_interpolating_solver_for(
           SolverEnum::MSAT_INTERPOLATOR, Engine::INTERP)),
       to_interpolator_(interpolator_),
-      to_solver_(solver_)
+      to_solver_(solver_),
+      use_frontier_simpl_(opt.interp_frontier_set_simpl_),
+      interp_only_last_prop_(opt.interp_only_last_prop_),
+      unroll_eagerly_(opt.interp_eager_unroll_)
 {
   engine_ = Engine::INTERP;
 }

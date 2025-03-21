@@ -98,7 +98,10 @@ enum optionIndex
   KIND_NO_IND_CHECK,
   KIND_NO_IND_CHECK_PROPERTY,
   KIND_ONE_TIME_BASE_CHECK,
-  KIND_BOUND_STEP
+  KIND_BOUND_STEP,
+  INTERP_FRONTIER_SET_SIMPL,
+  INTERP_ONLY_LAST_PROP,
+  INTERP_EAGER_UNROLL
 };
 
 struct Arg : public option::Arg
@@ -587,6 +590,28 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --kind-bound-step \tAmount by which bound (unrolling depth) is "
     "increased in k-induction (default: 1)" },
+  { INTERP_FRONTIER_SET_SIMPL,
+    0,
+    "",
+    "interp-frontier-set-simpl",
+    Arg::None,
+    "  --interp-frontier-set-simpl \tApply frontier set simplification in "
+    "interp engine" },
+  { INTERP_ONLY_LAST_PROP,
+    0,
+    "",
+    "interp-only-last-prop",
+    Arg::None,
+    "  --interp-only-last-prop \tConsider only the property at the last time "
+    "frame when computing interpolants (WARNING: might cause incompleteness on "
+    "some problem instances)" },
+  { INTERP_EAGER_UNROLL,
+    0,
+    "",
+    "interp-eager-unroll",
+    Arg::None,
+    "  --interp-eager-unroll \tUnroll the transition system eagerly in interp "
+    "engine" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -811,6 +836,11 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           if (kind_bound_step_ == 0)
             throw PonoException("--kind-bound-step must be greater than 0");
           break;
+        case INTERP_FRONTIER_SET_SIMPL:
+          interp_frontier_set_simpl_ = true;
+          break;
+        case INTERP_ONLY_LAST_PROP: interp_only_last_prop_ = true; break;
+        case INTERP_EAGER_UNROLL: interp_eager_unroll_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

@@ -153,11 +153,14 @@ class PonoOptions
         kind_no_ind_check_(default_kind_no_ind_check_),
         kind_no_ind_check_property_(default_kind_no_ind_check_property_),
         kind_one_time_base_check_(default_kind_one_time_base_check_),
-        kind_bound_step_(default_kind_bound_step_)
+        kind_bound_step_(default_kind_bound_step_),
+        interp_frontier_set_simpl_(default_interp_frontier_set_simpl_),
+        interp_only_last_prop_(default_interp_only_last_prop_),
+        interp_eager_unroll_(default_interp_eager_unroll_)
   {
   }
 
-  ~PonoOptions() {};
+  ~PonoOptions(){};
 
   /** Parse and set options given argc and argv from main
    *  @param argc
@@ -302,6 +305,14 @@ class PonoOptions
   bool kind_one_time_base_check_;
   // K-induction: amount of steps by which transition relation is unrolled
   unsigned kind_bound_step_;
+  // Configuration for interp engine:
+  // - whether to apply frontier set simplification
+  bool interp_frontier_set_simpl_;
+  // - whether to consider only the property at the last time frame
+  //   when computing interpolants
+  bool interp_only_last_prop_;
+  // - whether to unroll the transition system eagerly
+  bool interp_eager_unroll_;
 
  private:
   // Default options
@@ -371,6 +382,9 @@ class PonoOptions
   static const bool default_kind_no_ind_check_property_ = false;
   static const bool default_kind_one_time_base_check_ = false;
   static const unsigned default_kind_bound_step_ = 1;
+  static const bool default_interp_frontier_set_simpl_ = false;
+  static const bool default_interp_only_last_prop_ = false;
+  static const bool default_interp_eager_unroll_ = false;
 };
 
 // Useful functions for printing etc...

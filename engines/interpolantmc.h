@@ -46,6 +46,11 @@ class InterpolantMC : public Prover
 
   bool check_entail(const smt::Term & p, const smt::Term & q);
 
+  // configurable options
+  const bool use_frontier_simpl_;
+  const bool interp_only_last_prop_;
+  const bool unroll_eagerly_;
+
   smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
   smt::TermTranslator to_interpolator_;
