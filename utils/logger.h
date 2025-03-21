@@ -163,7 +163,7 @@ class Log
   template <typename... Args>
   void log(size_t level, const std::string & format, const Args &... args) const
   {
-    log_to_stream(level, std::cout, format, args...);
+    log_to_stream(level, std::cerr, format, args...);
   }
 
   /* Logs to the terminal using Python-style format string in a range of
@@ -180,7 +180,7 @@ class Log
            const Args &... args) const
   {
     if ((lower <= verbosity) && (verbosity <= upper)) {
-      std::cout << fmt::format(format, args...) << std::endl;
+      std::cerr << fmt::format(format, args...) << std::endl;
     }
   }
 
