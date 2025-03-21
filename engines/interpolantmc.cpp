@@ -128,14 +128,14 @@ bool InterpolantMC::step(int i)
   Term int_transA = to_interpolator_.transfer_term(transA_);
   Term int_transB = to_interpolator_.transfer_term(transB_);
   Term R = init0_;
-  Term Ri;
+  Term Ri = init0_;
   bool got_interpolant = true;
 
   while (got_interpolant) {
-    Term int_R = to_interpolator_.transfer_term(R);
+    Term int_RA = to_interpolator_.transfer_term(use_frontier_simpl_ ? Ri : R);
     Term int_Ri;
     Result r = interpolator_->get_interpolant(
-        interpolator_->make_term(And, int_R, int_transA),
+        interpolator_->make_term(And, int_RA, int_transA),
         interpolator_->make_term(And, int_transB, int_bad_disjuncts),
         int_Ri);
 
@@ -152,7 +152,7 @@ bool InterpolantMC::step(int i)
         invar_ = unroller_.untime(R);
         return true;
       } else {
-        logger.log(1, "Extending initial states.");
+        logger.log(1, "Extending reached states.");
         logger.log(3, "Using interpolant: {}", Ri);
         R = solver_->make_term(Or, R, Ri);
       }
