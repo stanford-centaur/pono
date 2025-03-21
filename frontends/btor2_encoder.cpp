@@ -19,6 +19,7 @@
 #include "btor2_encoder.h"
 #include "utils/logger.h"
 
+#include <cstddef>
 #include <iostream>
 #include "assert.h"
 
@@ -289,6 +290,13 @@ void BTOR2Encoder::parse(const std::string filename)
     if (l_->tag == BTOR2_TAG_state) {
       if (l_->symbol) {
         symbol_ = l_->symbol;
+        // The characters | and \ are not allowed in any SMT-LIB symbol.
+        for (auto ch : {'|', '\\'}) {
+          std::size_t pos;
+          while((pos = symbol_.find(ch)) != symbol_.npos) {
+            symbol_.replace(pos, 1, "_");
+          }
+        }
       } else {
         auto renaming_lookup_pos = state_renaming_table.find(l_->id);
         if (renaming_lookup_pos != state_renaming_table.end() )
