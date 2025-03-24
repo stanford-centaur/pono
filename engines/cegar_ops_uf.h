@@ -17,9 +17,7 @@
 #pragma once
 
 #include "core/unroller.h"
-
 #include "engines/cegar.h"
-
 #include "modifiers/ops_abstractor.h"
 
 namespace pono {
@@ -68,7 +66,6 @@ class CegarOpsUf : public CEGAR<Prover_T>
   smt::Term cegopsuf_bad_;
 
   smt::UnorderedTermMap cegopsuf_labels_;  // labels for each abstract uf
-
 };
 
-} // namespace pono
+}  // namespace pono

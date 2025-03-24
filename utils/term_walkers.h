@@ -67,7 +67,8 @@ class SubTermCollector : public smt::IdentityWalker
 
   void collect_subterms(smt::Term term);
 
-  const std::unordered_map<smt::Sort, smt::UnorderedTermSet> & get_subterms() const
+  const std::unordered_map<smt::Sort, smt::UnorderedTermSet> & get_subterms()
+      const
   {
     return subterms_;
   };

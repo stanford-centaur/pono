@@ -15,13 +15,12 @@
 **/
 #pragma once
 
-#include "smt-switch/identity_walker.h"
-
 #include "core/prop.h"
 #include "core/ts.h"
 #include "core/unroller.h"
 #include "modifiers/array_abstractor.h"
 #include "refiners/axiom_enumerator.h"
+#include "smt-switch/identity_walker.h"
 
 namespace pono {
 

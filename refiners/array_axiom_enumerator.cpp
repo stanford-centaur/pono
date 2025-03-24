@@ -14,10 +14,11 @@
 **
 **/
 
-#include "assert.h"
-#include "gmpxx.h"
-
 #include "refiners/array_axiom_enumerator.h"
+
+#include <cassert>
+
+#include "gmpxx.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -425,7 +426,6 @@ bool ArrayAxiomEnumerator::check_nonconsecutive_axioms(AxiomClass ac,
   }
   return num_found_lemmas;
 }
-
 
 // protected methods
 

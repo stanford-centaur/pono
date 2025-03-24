@@ -14,10 +14,10 @@
 **
 **/
 
-#include "assert.h"
-#include "math.h"
-
 #include "modifiers/control_signals.h"
+
+#include <cassert>
+#include <cmath>
 
 using namespace smt;
 using namespace std;

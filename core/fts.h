@@ -51,7 +51,6 @@ class FunctionalTransitionSystem : public TransitionSystem
   }
 
  protected:
-
   // helpers and checkers
 
   // overloaded

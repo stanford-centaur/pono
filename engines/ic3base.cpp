@@ -46,12 +46,12 @@ static bool term_hash_lt(const smt::Term & t0, const smt::Term & t1)
  *  @param IC3Formula b
  *  returns true iff 'a subsumes b'
  */
-static bool subsumes(const IC3Formula &a, const IC3Formula &b)
+static bool subsumes(const IC3Formula & a, const IC3Formula & b)
 {
   assert(a.disjunction);
   assert(a.disjunction == b.disjunction);
-  const TermVec &ac = a.children;
-  const TermVec &bc = b.children;
+  const TermVec & ac = a.children;
+  const TermVec & bc = b.children;
   // NOTE: IC3Formula children are sorted on construction
   //       Uses unique id of term, from term->get_id()
   return ac.size() <= bc.size()
@@ -446,7 +446,7 @@ ProverResult IC3Base::step_01()
   solver_->assert_formula(ts_.next(bad_));
   Result r = check_sat();
   if (r.is_sat()) {
-    const IC3Formula &c = get_model_ic3formula();
+    const IC3Formula & c = get_model_ic3formula();
     pop_solver_context();
     ProofGoal * pg = new ProofGoal(c, 0, nullptr);
     reconstruct_trace(pg, cex_);
@@ -775,7 +775,8 @@ void IC3Base::push_frame()
   }
 }
 
-void IC3Base::constrain_frame(size_t i, const IC3Formula & constraint,
+void IC3Base::constrain_frame(size_t i,
+                              const IC3Formula & constraint,
                               bool new_constraint)
 {
   assert(solver_context_ == 0);
@@ -839,7 +840,7 @@ Term IC3Base::get_frame_term(size_t i) const
 
   Term res = solver_true_;
   for (size_t j = i; j < frames_.size(); ++j) {
-    for (const auto &u : frames_[j]) {
+    for (const auto & u : frames_[j]) {
       res = solver_->make_term(And, res, u.term);
     }
   }
@@ -1077,7 +1078,7 @@ bool IC3Base::is_global_label(const Term & l) const
 
 smt::Term IC3Base::smart_not(const Term & t) const
 {
-  const Op &op = t->get_op();
+  const Op & op = t->get_op();
   if (op == Not) {
     TermVec children(t->begin(), t->end());
     assert(children.size() == 1);
