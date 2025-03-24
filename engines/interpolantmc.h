@@ -39,7 +39,7 @@ class InterpolantMC : public Prover
   ProverResult check_until(int k) override;
 
  protected:
-  bool step(int i);
+  bool step(const int i);
   bool step_0();
 
   void reset_assertions(smt::SmtSolver & s);

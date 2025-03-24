@@ -108,7 +108,7 @@ ProverResult InterpolantMC::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-bool InterpolantMC::step(int i)
+bool InterpolantMC::step(const int i)
 {
   if (i <= reached_k_) {
     return false;
@@ -137,6 +137,7 @@ bool InterpolantMC::step(int i)
   Term R = init0_;
   Term Ri = init0_;
   bool got_interpolant = true;
+  int interp_count = 0;
 
   while (got_interpolant) {
     Term int_RA = to_interpolator_.transfer_term(use_frontier_simpl_ ? Ri : R);
@@ -145,10 +146,10 @@ bool InterpolantMC::step(int i)
         interpolator_->make_term(And, int_RA, int_transA),
         interpolator_->make_term(And, int_transB, int_bad_disjuncts),
         int_Ri);
-
     got_interpolant = r.is_unsat();
 
     if (got_interpolant) {
+      ++interp_count;
       Ri = to_solver_.transfer_term(int_Ri);
       // map Ri to time 0
       Ri = unroller_.at_time(unroller_.untime(Ri), 0);
@@ -159,11 +160,11 @@ bool InterpolantMC::step(int i)
         invar_ = unroller_.untime(R);
         return true;
       } else {
-        logger.log(1, "Extending reached states.");
+        logger.log(1, "Extending reached states (count: {})", interp_count);
         logger.log(3, "Using interpolant: {}", Ri);
         R = solver_->make_term(Or, R, Ri);
       }
-    } else if (R == init0_) {
+    } else if (interp_count == 0) {
       // found a concrete counter example
       // replay it in the solver with model generation
       concrete_cex_ = true;
@@ -188,8 +189,18 @@ bool InterpolantMC::step(int i)
   // transB can't have any symbols from time 0 in it
   assert(i > 0);
   // extend the unrolling
-  transB_ = solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
-  ++reached_k_;
+  if (unroll_eagerly_) {
+    // for each computed interpolant, we can extend the safe bound by one
+    for (int j = 0; j < interp_count; ++j) {
+      transB_ = solver_->make_term(
+          And, transB_, unroller_.at_time(ts_.trans(), i + j));
+    }
+    reached_k_ += interp_count;
+  } else {
+    transB_ =
+        solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
+    ++reached_k_;
+  }
 
   return false;
 }
