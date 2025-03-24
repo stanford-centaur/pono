@@ -155,7 +155,7 @@ class PonoOptions
         kind_one_time_base_check_(default_kind_one_time_base_check_),
         kind_bound_step_(default_kind_bound_step_),
         interp_frontier_set_simpl_(default_interp_frontier_set_simpl_),
-        interp_only_last_prop_(default_interp_only_last_prop_),
+        interp_skip_mid_props_(default_interp_skip_mid_props_),
         interp_eager_unroll_(default_interp_eager_unroll_)
   {
   }
@@ -308,9 +308,9 @@ class PonoOptions
   // Configuration for interp engine:
   // - whether to apply frontier set simplification
   bool interp_frontier_set_simpl_;
-  // - whether to consider only the property at the last time frame
+  // - whether to skip properties at the intermediate time frames
   //   when computing interpolants
-  bool interp_only_last_prop_;
+  bool interp_skip_mid_props_;
   // - whether to unroll the transition system eagerly
   bool interp_eager_unroll_;
 
@@ -383,7 +383,7 @@ class PonoOptions
   static const bool default_kind_one_time_base_check_ = false;
   static const unsigned default_kind_bound_step_ = 1;
   static const bool default_interp_frontier_set_simpl_ = false;
-  static const bool default_interp_only_last_prop_ = false;
+  static const bool default_interp_skip_mid_props_ = false;
   static const bool default_interp_eager_unroll_ = false;
 };
 

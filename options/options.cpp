@@ -100,7 +100,7 @@ enum optionIndex
   KIND_ONE_TIME_BASE_CHECK,
   KIND_BOUND_STEP,
   INTERP_FRONTIER_SET_SIMPL,
-  INTERP_ONLY_LAST_PROP,
+  INTERP_SKIP_MID_PROPS,
   INTERP_EAGER_UNROLL
 };
 
@@ -597,14 +597,15 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --interp-frontier-set-simpl \tApply frontier set simplification in "
     "interp engine" },
-  { INTERP_ONLY_LAST_PROP,
+  { INTERP_SKIP_MID_PROPS,
     0,
     "",
-    "interp-only-last-prop",
+    "interp-skip-mid-props",
     Arg::None,
-    "  --interp-only-last-prop \tConsider only the property at the last time "
-    "frame when computing interpolants (WARNING: might cause incompleteness on "
-    "some problem instances)" },
+    "  --interp-skip-mid-props \tConsider only the properties at the fist and "
+    "last time frames when computing interpolants, i.e., skip the properties "
+    "at the intermediate frames (WARNING: might cause incompleteness on some "
+    "problem instances)" },
   { INTERP_EAGER_UNROLL,
     0,
     "",
@@ -839,7 +840,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case INTERP_FRONTIER_SET_SIMPL:
           interp_frontier_set_simpl_ = true;
           break;
-        case INTERP_ONLY_LAST_PROP: interp_only_last_prop_ = true; break;
+        case INTERP_SKIP_MID_PROPS: interp_skip_mid_props_ = true; break;
         case INTERP_EAGER_UNROLL: interp_eager_unroll_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL

@@ -37,7 +37,7 @@ InterpolantMC::InterpolantMC(const Property & p,
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       use_frontier_simpl_(opt.interp_frontier_set_simpl_),
-      interp_only_last_prop_(opt.interp_only_last_prop_),
+      interp_skip_mid_props_(opt.interp_skip_mid_props_),
       unroll_eagerly_(opt.interp_eager_unroll_)
 {
   engine_ = Engine::INTERP;
@@ -123,7 +123,14 @@ bool InterpolantMC::step(int i)
   }
 
   Term bad_i = unroller_.at_time(bad_, i);
-  bad_disjuncts_ = solver_->make_term(Or, bad_disjuncts_, bad_i);
+  if (interp_skip_mid_props_ && i > 1) {
+    // Only take the first and last properties; the rest are skipped.
+    // The first always has to be considered otherwise the interpolant might
+    // contain bad states.
+    bad_disjuncts_ = solver_->make_term(Or, unroller_.at_time(bad_, 1), bad_i);
+  } else {
+    bad_disjuncts_ = solver_->make_term(Or, bad_disjuncts_, bad_i);
+  }
   Term int_bad_disjuncts = to_interpolator_.transfer_term(bad_disjuncts_);
   Term int_transA = to_interpolator_.transfer_term(transA_);
   Term int_transB = to_interpolator_.transfer_term(transB_);
