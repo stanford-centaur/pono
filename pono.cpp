@@ -418,9 +418,8 @@ int main(int argc, char ** argv)
   if (pono_options.print_wall_time_) {
     auto end_time_stamp = timestamp();
     auto elapsed_time = timestamp_diff(begin_time_stamp, end_time_stamp);
-  std:
-    cout << "Pono wall clock time (s): "
-         << time_duration_to_sec_string(elapsed_time) << std::endl;
+    std::cout << "Pono wall clock time (s): "
+              << time_duration_to_sec_string(elapsed_time) << std::endl;
   }
 
   return res;
