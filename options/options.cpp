@@ -101,7 +101,8 @@ enum optionIndex
   KIND_BOUND_STEP,
   INTERP_FRONTIER_SET_SIMPL,
   INTERP_SKIP_MID_PROPS,
-  INTERP_EAGER_UNROLL
+  INTERP_EAGER_UNROLL,
+  INTERP_BACKWARD
 };
 
 struct Arg : public option::Arg
@@ -613,6 +614,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --interp-eager-unroll \tUnroll the transition system eagerly in interp "
     "engine" },
+  { INTERP_BACKWARD,
+    0,
+    "",
+    "interp-backward",
+    Arg::None,
+    "  --interp-backward \tCompute interpolants in a backward manner in interp "
+    "engine" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -842,6 +850,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case INTERP_SKIP_MID_PROPS: interp_skip_mid_props_ = true; break;
         case INTERP_EAGER_UNROLL: interp_eager_unroll_ = true; break;
+        case INTERP_BACKWARD: interp_backward_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

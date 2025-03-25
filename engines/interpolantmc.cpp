@@ -38,7 +38,8 @@ InterpolantMC::InterpolantMC(const Property & p,
       to_solver_(solver_),
       use_frontier_simpl_(opt.interp_frontier_set_simpl_),
       interp_skip_mid_props_(opt.interp_skip_mid_props_),
-      unroll_eagerly_(opt.interp_eager_unroll_)
+      unroll_eagerly_(opt.interp_eager_unroll_),
+      interp_backward_(opt.interp_backward_)
 {
   engine_ = Engine::INTERP;
 }
@@ -142,15 +143,21 @@ bool InterpolantMC::step(const int i)
   while (got_interpolant) {
     Term int_RA = to_interpolator_.transfer_term(use_frontier_simpl_ ? Ri : R);
     Term int_Ri;
+    Term int_formulaA = interpolator_->make_term(And, int_RA, int_transA);
+    Term int_formulaB =
+        interpolator_->make_term(And, int_transB, int_bad_disjuncts);
     Result r = interpolator_->get_interpolant(
-        interpolator_->make_term(And, int_RA, int_transA),
-        interpolator_->make_term(And, int_transB, int_bad_disjuncts),
+        interp_backward_ ? int_formulaB : int_formulaA,
+        interp_backward_ ? int_formulaA : int_formulaB,
         int_Ri);
     got_interpolant = r.is_unsat();
 
     if (got_interpolant) {
       ++interp_count;
       Ri = to_solver_.transfer_term(int_Ri);
+      if (interp_backward_) {
+        Ri = solver_->make_term(Not, Ri);
+      }
       // map Ri to time 0
       Ri = unroller_.at_time(unroller_.untime(Ri), 0);
 

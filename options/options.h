@@ -156,7 +156,8 @@ class PonoOptions
         kind_bound_step_(default_kind_bound_step_),
         interp_frontier_set_simpl_(default_interp_frontier_set_simpl_),
         interp_skip_mid_props_(default_interp_skip_mid_props_),
-        interp_eager_unroll_(default_interp_eager_unroll_)
+        interp_eager_unroll_(default_interp_eager_unroll_),
+        interp_backward_(default_interp_backward_)
   {
   }
 
@@ -313,6 +314,8 @@ class PonoOptions
   bool interp_skip_mid_props_;
   // - whether to unroll the transition system eagerly
   bool interp_eager_unroll_;
+  // - whether to compute backward interpolants
+  bool interp_backward_;
 
  private:
   // Default options
@@ -385,6 +388,7 @@ class PonoOptions
   static const bool default_interp_frontier_set_simpl_ = false;
   static const bool default_interp_skip_mid_props_ = false;
   static const bool default_interp_eager_unroll_ = false;
+  static const bool default_interp_backward_ = false;
 };
 
 // Useful functions for printing etc...
