@@ -206,6 +206,12 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
 SmtSolver create_interpolating_solver(SolverEnum se)
 {
   switch (se) {
+    case CVC5:
+    case CVC5_INTERPOLATOR: {
+      return Cvc5SolverFactory::create_interpolating_solver();
+      break;
+      ;
+    }
 #if WITH_MSAT
     // for convenience -- accept any MSAT SolverEnum
     case MSAT:
