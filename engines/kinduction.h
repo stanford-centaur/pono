@@ -23,7 +23,8 @@ namespace pono {
 class KInduction : public Prover
 {
  public:
-  KInduction(const Property & p, const TransitionSystem & ts,
+  KInduction(const Property & p,
+             const TransitionSystem & ts,
              const smt::SmtSolver & solver,
              PonoOptions opt = PonoOptions());
 
@@ -69,8 +70,10 @@ class KInduction : public Prover
   // is a string of space characters. The function calls
   // "logger.log(...)" and prepends the engine name to the output.
   template <typename... Args>
-    void kind_log_msg(size_t level, const std::string & indent,
-		      const std::string & format, const Args &... args);
+  void kind_log_msg(size_t level,
+                    const std::string & indent,
+                    const std::string & format,
+                    const Args &... args);
   // If base case checking is skipped: run one final base check
   // covering all bounds from 0 to current one to make sure that no
   // counterexamples were missed

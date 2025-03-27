@@ -16,7 +16,8 @@
 
 #pragma once
 
-#include <iostream>
+#include <unordered_set>
+#include <vector>
 
 #include "options/options.h"
 #include "smt-switch/smt.h"
@@ -27,12 +28,16 @@ namespace pono {
  *  @param se the SolverEnum to identify which type of solver
  *  @param logging whether or not to keep track of term DAG at smt-switch level
  *         defaults to false because generally slower
- *  @param set the incremental option for the solver
- *  @param set the procude-model option for the solver
+ *  @param incremental set the incremental option for the solver
+ *  @param produce_model set the produce-model option for the solver
+ *  @param printing whether or not dump SMT-LIB sent to solver to standard error
  *  @return an SmtSolver
  */
-smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false,
-                             bool incremental=true, bool produce_model=true);
+smt::SmtSolver create_solver(smt::SolverEnum se,
+                             bool logging = false,
+                             bool incremental = true,
+                             bool produce_model = true,
+                             bool printing = false);
 
 // same as create_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
@@ -44,7 +49,8 @@ smt::SmtSolver create_solver(smt::SolverEnum se, bool logging=false,
 smt::SmtSolver create_solver_for(smt::SolverEnum se,
                                  Engine e,
                                  bool logging,
-                                 bool full_model = false);
+                                 bool full_model = false,
+                                 bool printing = false);
 
 // same as create_solver but will set reasonable options
 // for a reducing solver (e.g. produce-models off)

@@ -16,9 +16,9 @@
 
 #include "core/ts.h"
 
+#include <cassert>
 #include <functional>
 
-#include "assert.h"
 #include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
 
@@ -41,6 +41,7 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.no_state_updates_, ts2.no_state_updates_);
   std::swap(ts1.next_map_, ts2.next_map_);
   std::swap(ts1.curr_map_, ts2.curr_map_);
+  std::swap(ts1.next_suffix_, ts2.next_suffix_);
   std::swap(ts1.functional_, ts2.functional_);
   std::swap(ts1.deterministic_, ts2.deterministic_);
   std::swap(ts1.constraints_, ts2.constraints_);
@@ -128,27 +129,26 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
   for (const auto & e : other_ts.constraints_) {
     constraints_.push_back({ transfer_as(e.first, BOOL), e.second });
   }
+
+  next_suffix_ = other_ts.next_suffix_;
   functional_ = other_ts.functional_;
   deterministic_ = other_ts.deterministic_;
 }
 
 bool TransitionSystem::operator==(const TransitionSystem & other) const
 {
-  return (solver_ == other.solver_ &&
-          init_ == other.init_ &&
-          trans_ == other.trans_ &&
-          statevars_ == other.statevars_ &&
-          next_statevars_ == other.next_statevars_ &&
-          inputvars_ == other.inputvars_ &&
-          named_terms_ == other.named_terms_ &&
-          term_to_name_ == other.term_to_name_ &&
-          state_updates_ == other.state_updates_ &&
-          no_state_updates_ == other.no_state_updates_ &&
-          next_map_ == other.next_map_ &&
-          curr_map_ == other.curr_map_ &&
-          functional_ == other.functional_ &&
-          deterministic_ == other.deterministic_ &&
-          constraints_ == other.constraints_);
+  return (
+      solver_ == other.solver_ && init_ == other.init_ && trans_ == other.trans_
+      && statevars_ == other.statevars_
+      && next_statevars_ == other.next_statevars_
+      && inputvars_ == other.inputvars_ && named_terms_ == other.named_terms_
+      && term_to_name_ == other.term_to_name_
+      && state_updates_ == other.state_updates_
+      && no_state_updates_ == other.no_state_updates_
+      && next_map_ == other.next_map_ && curr_map_ == other.curr_map_
+      && next_suffix_ == other.next_suffix_ && functional_ == other.functional_
+      && deterministic_ == other.deterministic_
+      && constraints_ == other.constraints_);
 }
 
 bool TransitionSystem::operator!=(const TransitionSystem & other) const
@@ -292,7 +292,7 @@ Term TransitionSystem::make_statevar(const string name, const Sort & sort)
   deterministic_ = false;
 
   Term state = solver_->make_symbol(name, sort);
-  Term next_state = solver_->make_symbol(name + ".next", sort);
+  Term next_state = solver_->make_symbol(name + next_suffix_, sort);
   add_statevar(state, next_state);
   return state;
 }
@@ -501,13 +501,12 @@ void TransitionSystem::rebuild_trans_based_on_coi(
   for (const auto & state_var : state_vars_in_coi) {
     Term next_func = NULL;
     const auto & elem = state_updates_.find(state_var);
-    if (elem != state_updates_.end())
-      next_func = elem->second;
+    if (elem != state_updates_.end()) next_func = elem->second;
     /* May find state variables without next-function. */
     if (next_func != NULL) {
-        Term eq = solver_->make_term(Equal, next_map_.at(state_var), next_func);
-        trans_ = solver_->make_term(And, trans_, eq);
-      }
+      Term eq = solver_->make_term(Equal, next_map_.at(state_var), next_func);
+      trans_ = solver_->make_term(And, trans_, eq);
+    }
   }
 
   /* Add global constraints added to previous 'trans_'. */
@@ -680,7 +679,7 @@ void TransitionSystem::promote_inputvar(const Term & iv)
   // set to false until there is a next state update for this statevar
   deterministic_ = false;
   Term next_state_var =
-      solver_->make_symbol(iv->to_string() + ".next", iv->get_sort());
+      solver_->make_symbol(iv->to_string() + next_suffix_, iv->get_sort());
   add_statevar(iv, next_state_var);
 }
 

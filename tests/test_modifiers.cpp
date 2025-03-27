@@ -100,8 +100,7 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
 
   RelationalTransitionSystem abs_rts(rts.solver());
   Unroller un(abs_rts);
-  ImplicitPredicateAbstractor
-    ia(rts, abs_rts, un);
+  ImplicitPredicateAbstractor ia(rts, abs_rts, un);
 
   ia.do_abstraction();
 

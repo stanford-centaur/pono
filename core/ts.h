@@ -32,19 +32,17 @@ class TransitionSystem
    *  it supports the most theories and doesn't rewrite-on-the-fly or alias
    * sorts
    *  this makes it a great candidate for representing the TransitionSystem */
-  TransitionSystem()
-      : solver_(smt::Cvc5SolverFactory::create(false)),
-        init_(solver_->make_term(true)),
-        trans_(solver_->make_term(true)),
-        functional_(false),
-        deterministic_(false)
+  TransitionSystem() : TransitionSystem(smt::Cvc5SolverFactory::create(false))
   {
   }
 
-  TransitionSystem(const smt::SmtSolver & s)
+  TransitionSystem(
+      const smt::SmtSolver & s,
+      const std::string & next_state_suffix = ".pono_generated__next")
       : solver_(s),
         init_(s->make_term(true)),
         trans_(s->make_term(true)),
+        next_suffix_(next_state_suffix),
         functional_(false),
         deterministic_(false)
   {
@@ -69,7 +67,7 @@ class TransitionSystem
    */
   TransitionSystem(const TransitionSystem & other_ts, smt::TermTranslator & tt);
 
-  virtual ~TransitionSystem(){};
+  virtual ~TransitionSystem() {};
 
   /** Equality comparison between TransitionSystems
    *  compares each member variable
@@ -523,6 +521,9 @@ class TransitionSystem
 
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
+
+  // Text appended to generate names for next-state variables.
+  std::string next_suffix_;
 
   // whether the TransitionSystem is functional
   bool functional_;

@@ -14,11 +14,11 @@
 **
 **/
 
-#include "smt-switch/term_translator.h"
+#include "utils/ts_analysis.h"
 
+#include "smt-switch/term_translator.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/ts_analysis.h"
 
 using namespace smt;
 

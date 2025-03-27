@@ -14,17 +14,12 @@
 **
 **/
 
+#include <cassert>
 #include <csignal>
 #include <iostream>
-#include "assert.h"
 
 #ifdef WITH_PROFILING
 #include <gperftools/profiler.h>
-#endif
-
-#include "smt-switch/boolector_factory.h"
-#ifdef WITH_MSAT
-#include "smt-switch/msat_factory.h"
 #endif
 
 #include "core/fts.h"
@@ -41,8 +36,8 @@
 #include "smt-switch/logging_solver.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/timestamp.h"
 #include "utils/make_provers.h"
+#include "utils/timestamp.h"
 #include "utils/ts_analysis.h"
 
 using namespace pono;
@@ -102,11 +97,13 @@ ProverResult check_prop(PonoOptions pono_options,
     assert(!ts.inputvars().size());
   }
 
+  bool has_monitor = false;
   if (!ts.only_curr(prop)) {
     logger.log(1,
                "Got next state or input variables in property. "
                "Generating a monitor state.");
     prop = add_prop_monitor(ts, prop);
+    has_monitor = true;
   }
 
   if (pono_options.assume_prop_) {
@@ -146,11 +143,16 @@ ProverResult check_prop(PonoOptions pono_options,
   }
   else
   {
-    r = prover->check_until(pono_options.bound_);
+    r = prover->check_until(pono_options.bound_ + has_monitor);
   }
 
   if (r == FALSE && pono_options.witness_) {
     bool success = prover->witness(cex);
+    if (has_monitor) {
+      // Witness will always have at least one element, because the monitor is constrained
+      // to start true.
+      cex.pop_back();
+    }
     if (!success) {
       logger.log(
           0,
@@ -251,7 +253,8 @@ int main(int argc, char ** argv)
     SmtSolver s = create_solver_for(pono_options.smt_solver_,
                                     pono_options.engine_,
                                     false,
-                                    pono_options.ceg_prophecy_arrays_);
+                                    pono_options.ceg_prophecy_arrays_,
+                                    pono_options.printing_smt_solver_);
 
     if (pono_options.logging_smt_solver_) {
       s = make_shared<LoggingSolver>(s);
@@ -267,7 +270,7 @@ int main(int argc, char ** argv)
         // once state variables removed by COI are removed from init then should
         // do static-coi BEFORE mod-init-prop
         logger.log(0,
-                   "Warning: --mod-init-prop and --static-coi don't work "
+                   "Warning: --pseudo-init-prop and --static-coi don't work "
                    "well together currently.");
       }
     }

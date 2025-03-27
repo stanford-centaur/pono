@@ -16,13 +16,13 @@
 
 #include "engines/cegar_values.h"
 
+#include <cmath>
 #include <unordered_set>
 
 #include "core/fts.h"
 #include "core/rts.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
-#include "math.h"
 #include "smt-switch/identity_walker.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"

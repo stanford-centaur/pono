@@ -60,7 +60,7 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "ind", KIND },
       { "interp", INTERP },
       { "mbic3", MBIC3 },
-      { "ic3bool", IC3_BOOL},
+      { "ic3bool", IC3_BOOL },
       { "ic3bits", IC3_BITS },
       { "ic3ia", IC3IA_ENGINE },
       { "msat-ic3ia", MSAT_IC3IA },
@@ -68,7 +68,8 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "sygus-pdr", SYGUS_PDR } });
 
 // SyGuS mode option
-enum SyGuSTermMode{
+enum SyGuSTermMode
+{
   FROM_DESIGN_LEARN_EXT = 0,
   VAR_C_EXT = 1,
   SPLIT_FROM_DESIGN = 2,
@@ -96,6 +97,7 @@ class PonoOptions
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
         logging_smt_solver_(default_logging_smt_solver_),
+        printing_smt_solver_(default_printing_smt_solver_),
         static_coi_(default_static_coi_),
         show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
@@ -140,11 +142,13 @@ class PonoOptions
         bmc_neg_bad_step_(default_bmc_neg_bad_step_),
         bmc_neg_bad_step_all_(default_bmc_neg_bad_step_all_),
         bmc_min_cex_linear_search_(default_bmc_min_cex_linear_search_),
-        bmc_min_cex_less_inc_bin_search_(default_bmc_min_cex_less_inc_bin_search_),
+        bmc_min_cex_less_inc_bin_search_(
+            default_bmc_min_cex_less_inc_bin_search_),
         bmc_allow_non_minimal_cex_(default_bmc_allow_non_minimal_cex_),
         kind_no_simple_path_check_(default_kind_no_simple_path_check_),
         kind_eager_simple_path_check_(default_kind_eager_simple_path_check_),
-        kind_no_multi_call_simple_path_check_(default_kind_no_multi_call_simple_path_check_),
+        kind_no_multi_call_simple_path_check_(
+            default_kind_no_multi_call_simple_path_check_),
         kind_no_ind_check_init_states_(default_kind_no_ind_check_init_states_),
         kind_no_ind_check_(default_kind_no_ind_check_),
         kind_no_ind_check_property_(default_kind_no_ind_check_property_),
@@ -153,7 +157,7 @@ class PonoOptions
   {
   }
 
-  ~PonoOptions(){};
+  ~PonoOptions() {};
 
   /** Parse and set options given argc and argv from main
    *  @param argc
@@ -187,22 +191,23 @@ class PonoOptions
   std::string filename_;
   smt::SolverEnum smt_solver_;  ///< underlying smt solver
   bool logging_smt_solver_;
+  bool printing_smt_solver_;
   bool static_coi_;
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
   // ic3 options
-  bool ic3_pregen_;  ///< generalize counterexamples in IC3
-  bool ic3_indgen_;  ///< inductive generalization in IC3
-  unsigned int ic3_gen_max_iter_; ///< max iterations in ic3 generalization. 0
-                                  ///means unbounded
+  bool ic3_pregen_;                ///< generalize counterexamples in IC3
+  bool ic3_indgen_;                ///< inductive generalization in IC3
+  unsigned int ic3_gen_max_iter_;  ///< max iterations in ic3 generalization. 0
+                                   ///< means unbounded
   unsigned int mbic3_indgen_mode;  ///< inductive generalization mode [0,2]
-  bool ic3_functional_preimage_; ///< functional preimage in IC3
+  bool ic3_functional_preimage_;   ///< functional preimage in IC3
   bool ic3_unsatcore_gen_;  ///< generalize a cube during relative inductiveness
                             ///< check with unsatcore
   bool ic3ia_reduce_preds_;  ///< reduce predicates with unsatcore in IC3IA
   bool ic3ia_track_important_vars_;  ///< prioritize predicates with marked
                                      ///< important variables
-  bool ic3sa_func_refine_;  ///< try functional unrolling in refinement
+  bool ic3sa_func_refine_;           ///< try functional unrolling in refinement
   std::string profiling_log_filename_;
   bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;       ///< assume property in pre-state
@@ -213,22 +218,27 @@ class PonoOptions
   bool cegp_consec_axiom_red_;     ///< reduce consecutive axioms before lifting
   bool cegp_nonconsec_axiom_red_;  ///< reduce nonconsecutive axioms before
                                    ///< prophecizing
-  bool cegp_force_restart_;  ///< force underlying engine to restart after
-                             ///< refinement
+  bool cegp_force_restart_;        ///< force underlying engine to restart after
+                                   ///< refinement
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
-  size_t cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
+  size_t cegp_abs_vals_cutoff_;   ///< cutoff to abstract a value
   bool cegp_strong_abstraction_;  ///< use strong abstraction (no equality UFs)
-  bool ceg_bv_arith_;            ///< CEGAR -- Abstract BV arithmetic operators
-  size_t ceg_bv_arith_min_bw_;   ///< Only abstract operators having bitwidth
-                                 ///< strictly greater than this number
+  bool ceg_bv_arith_;             ///< CEGAR -- Abstract BV arithmetic operators
+  size_t ceg_bv_arith_min_bw_;    ///< Only abstract operators having bitwidth
+                                  ///< strictly greater than this number
   bool promote_inputvars_;
   // sygus-pdr options
-  SyGuSTermMode sygus_term_mode_; ///< SyGuS term production mode
-  unsigned sygus_term_extract_depth_; ///< SyGuS Term extraction depth for existing terms
-  unsigned sygus_initial_term_width_; ///< SyGuS Control and data width seperator
-  unsigned sygus_initial_term_inc_; ///< SyGuS Control and data width seperator increment bound
-  unsigned sygus_accumulated_term_bound_; ///< SyGuS Term accumulation bound count
-  unsigned sygus_use_operator_abstraction_; ///< SyGuS abstract and avoid use some operators
+  SyGuSTermMode sygus_term_mode_;      ///< SyGuS term production mode
+  unsigned sygus_term_extract_depth_;  ///< SyGuS Term extraction depth for
+                                       ///< existing terms
+  unsigned
+      sygus_initial_term_width_;     ///< SyGuS Control and data width separator
+  unsigned sygus_initial_term_inc_;  ///< SyGuS Control and data width separator
+                                     ///< increment bound
+  unsigned
+      sygus_accumulated_term_bound_;  ///< SyGuS Term accumulation bound count
+  unsigned sygus_use_operator_abstraction_;  ///< SyGuS abstract and avoid use
+                                             ///< some operators
   size_t ic3sa_initial_terms_lvl_;  ///< configures where to find terms for
                                     ///< initial abstraction
   bool ic3sa_interp_;
@@ -255,7 +265,8 @@ class PonoOptions
   // BMC EXPERT OPTION: do not add a disjunctive bad state property
   // representing an interval, but a single bad state literal at bound k;
   bool bmc_single_bad_state_;
-  // BMC: add negated bad state predicate depending on reached_k_ (default: false)
+  // BMC: add negated bad state predicate depending on reached_k_ (default:
+  // false)
   bool bmc_neg_bad_step_;
   // BMC: like 'bmc_neg_bad_step_' but adds negated bad state predicate for all
   // seen bounds (default: false)
@@ -286,12 +297,13 @@ class PonoOptions
   // K-induction: skip inductive case check based on property (EXPERT
   // OPTION: will cause incompleteness for most problem instances)
   bool kind_no_ind_check_property_;
-  // K-induction: check base case only once after inductive case check was unsatisfiable
+  // K-induction: check base case only once after inductive case check was
+  // unsatisfiable
   bool kind_one_time_base_check_;
   // K-induction: amount of steps by which transition relation is unrolled
   unsigned kind_bound_step_;
 
-private:
+ private:
   // Default options
   static const Engine default_engine_ = BMC;
   static const unsigned int default_prop_idx_ = 0;
@@ -305,8 +317,9 @@ private:
   static const size_t default_reset_bnd_ = 1;
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
-  static const smt::SolverEnum default_smt_solver_ = smt::BTOR;
+  static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
   static const bool default_logging_smt_solver_ = false;
+  static const bool default_printing_smt_solver_ = false;
   static const bool default_ic3_pregen_ = true;
   static const bool default_ic3_indgen_ = true;
   static const unsigned int default_ic3_gen_max_iter_ = 2;

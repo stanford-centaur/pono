@@ -34,7 +34,6 @@ class StaticConeOfInfluence
                         int verbosity = 1);
 
  protected:
-
   TransitionSystem & ts_;
   int verbosity_;
 

@@ -76,8 +76,7 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
   ASSERT_EQ(r, FALSE);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ParameterizedSolverIC3UnitTests,
-    IC3UnitTests,
-    testing::ValuesIn(available_solver_enums()));
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3UnitTests,
+                         IC3UnitTests,
+                         testing::ValuesIn(available_solver_enums()));
 }  // namespace pono_tests

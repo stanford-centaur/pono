@@ -17,25 +17,26 @@
 
 #pragma once
 
-#include "utils/sygus_ic3formula_helper.h"
 #include "engines/ic3base.h"
+#include "utils/sygus_ic3formula_helper.h"
 
 namespace pono {
 
-class PartialModelGen {
-public:
+class PartialModelGen
+{
+ public:
   /** This class computes the cone of influence on construction
    *  The current implementation does not have internal cache,
    *  but in the future maybe we can cache some of the results
    *  @param the solver where the assertions were made
    */
-  PartialModelGen(smt::SmtSolver & solver) : solver_(solver) { }
-    
+  PartialModelGen(smt::SmtSolver & solver) : solver_(solver) {}
+
   // disallow copy construct/assign
   PartialModelGen(const PartialModelGen &) = delete;
   PartialModelGen & operator=(const PartialModelGen &) = delete;
-  
-protected:
+
+ protected:
   // let's keep a reference to the solver since we need to add terms
   smt::SmtSolver & solver_;
 
@@ -44,26 +45,25 @@ protected:
   std::unordered_set<smt::Term> dfs_vars_;
   void dfs_walk(const smt::Term & ast);
 
-  // conditon var buffer
+  // condition var buffer
   void GetVarList(const smt::Term & ast);
 
-public:
-
+ public:
   /** This class computes the variables that need to
    *  appear in the partial model of ast
    *  @param the ast to walk
    *  @param (output) the set of variables
    */
-  void GetVarList(const smt::Term & ast, 
-    std::unordered_set<smt::Term> & out_vars);
+  void GetVarList(const smt::Term & ast,
+                  std::unordered_set<smt::Term> & out_vars);
 
   /** This class computes the variables that need to
    *  appear in the partial model of asts in the vector
    *  @param the vector of ast to walk
    *  @param (output) the set of variables
    */
-  void GetVarListForAsts(const smt::TermVec & asts, 
-    smt::UnorderedTermSet & out_vars);
+  void GetVarListForAsts(const smt::TermVec & asts,
+                         smt::UnorderedTermSet & out_vars);
 
   /** This class computes the variables that need to
    *  appear in the partial model of asts in the vector
@@ -77,11 +77,10 @@ public:
    *  @param the ast to walk
    *  @return the partial model and the var/val cube
    */
-  std::pair<IC3Formula,syntax_analysis::IC3FormulaModel> 
-    GetPartialModelInCube(const smt::Term & ast);
+  std::pair<IC3Formula, syntax_analysis::IC3FormulaModel> GetPartialModelInCube(
+      const smt::Term & ast);
 
-
-  // add an API to use buffers 
+  // add an API to use buffers
 };
 
 }  // namespace pono

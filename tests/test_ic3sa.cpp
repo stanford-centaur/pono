@@ -133,9 +133,8 @@ TEST_P(IC3SAUnitTests, SimpleCounterVar)
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ParameterizedSolverIC3SAUnitTests,
-    IC3SAUnitTests,
-    testing::ValuesIn(available_solver_enums()));
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3SAUnitTests,
+                         IC3SAUnitTests,
+                         testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests

@@ -6,6 +6,17 @@ set(PONO_MAJOR 0)   # Major component of Pono version
 set(PONO_MINOR 1)   # Minor component of Pono version
 set(PONO_RELEASE 1) # Release component of Pono version
 
+# Retrieve the current version via Git
+execute_process(
+    COMMAND git describe --always --dirty
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE GIT_DESCRIBE_STATUS
+    OUTPUT_VARIABLE PONO_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(GIT_DESCRIBE_STATUS AND NOT GIT_DESCRIBE_STATUS EQUAL 0)
+    set(PONO_VERSION "v${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}")
+endif()
+
 # handle different versions of CMake
 if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
   set(CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++17")
@@ -28,12 +39,16 @@ else()
   set(SHARED_LIB_EXT "so")
 endif()
 
-if (WITH_BITWUZLA)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_BITWUZLA")
+if (WITH_BOOLECTOR)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_BOOLECTOR")
 endif()
 
 if (WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
+endif()
+
+if (WITH_YICES2)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_YICES2")
 endif()
 
 if (WITH_PROFILING)
@@ -69,9 +84,12 @@ set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
 set(CMAKE_MODULE_PATH ${SMT_SWITCH_DIR}/cmake)
 
 find_package(GMP REQUIRED)
+find_package(PkgConfig REQUIRED)
 
 # Check that dependencies are there
 list(APPEND CMAKE_PREFIX_PATH "${SMT_SWITCH_DIR}/deps/install")
+
+pkg_check_modules(BITWUZLA REQUIRED bitwuzla)
 
 if (NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
   message(FATAL_ERROR "Missing smt-switch headers -- try running ./contrib/setup-smt-switch.sh")
@@ -81,25 +99,29 @@ if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
   message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
-  message(FATAL_ERROR "Missing smt-switch boolector library -- try running ./contrib/setup-smt-switch.sh")
+if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
+  message(FATAL_ERROR "Missing smt-switch Bitwuzla library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
 if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
-  message(FATAL_ERROR "Missing smt-switch cvc5 library -- try running ./contrib/setup-smt-switch.sh --with-cvc5")
+  message(FATAL_ERROR "Missing smt-switch cvc5 library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (WITH_BITWUZLA)
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(BITWUZLA REQUIRED bitwuzla)
-  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
-    message(FATAL_ERROR "Missing smt-switch bitwuzla library -- try running ./contrib/setup-smt-switch.sh --with-bitwuzla")
+if (WITH_BOOLECTOR)
+  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
+    message(FATAL_ERROR "Missing smt-switch Boolector library -- try running ./contrib/setup-smt-switch.sh --with-btor")
   endif()
 endif()
 
 if (WITH_MSAT)
   if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
     message(FATAL_ERROR "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-msat")
+  endif()
+endif()
+
+if (WITH_YICES2)
+  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
+    message(FATAL_ERROR "Missing smt-switch Yices2 library -- try running ./contrib/setup-smt-switch.sh --with-yices2")
   endif()
 endif()
 
@@ -223,6 +245,7 @@ endif()
 
 add_library(pono-lib "${PONO_LIB_TYPE}" ${SOURCES})
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
+target_compile_definitions(pono-lib PRIVATE "-DPONO_VERSION=\"${PONO_VERSION}\"")
 
 target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
@@ -234,16 +257,19 @@ if (BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
 
-target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
+target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
 
-if (WITH_BITWUZLA)
-  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
-  target_link_libraries(pono-lib PUBLIC ${BITWUZLA_LDFLAGS})
+if (WITH_BOOLECTOR)
+  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
 endif()
 
 if (WITH_MSAT)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+endif()
+
+if (WITH_YICES2)
+  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
 endif()
 
 if (WITH_MSAT_IC3IA)
@@ -277,6 +303,7 @@ endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
+target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
 target_link_libraries(pono-lib PUBLIC pthread)
@@ -308,6 +335,8 @@ target_link_libraries(pono-bin PUBLIC pono-lib)
 if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
   target_link_libraries(pono-bin PUBLIC -static)
 endif()
+
+set(CMAKE_INSTALL_MESSAGE LAZY)
 
 # install smt-switch
 install(TARGETS pono-lib DESTINATION lib)

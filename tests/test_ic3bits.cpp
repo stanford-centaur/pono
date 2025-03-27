@@ -62,9 +62,8 @@ TEST_P(IC3BitsUnitTests, CounterSystemSafe)
   ASSERT_TRUE(check_invar(fts, prop_term, invar));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ParameterizedSolverIC3BitsUnitTests,
-    IC3BitsUnitTests,
-    testing::ValuesIn(available_solver_enums()));
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3BitsUnitTests,
+                         IC3BitsUnitTests,
+                         testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests

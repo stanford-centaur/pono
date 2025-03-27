@@ -14,7 +14,8 @@
 **
 **/
 
-#include "assert.h"
+#include <cassert>
+
 #include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "utils/exceptions.h"

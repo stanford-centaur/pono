@@ -15,9 +15,8 @@
 **/
 #pragma once
 
-#include "smt-switch/smt.h"
-
 #include "core/ts.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 
