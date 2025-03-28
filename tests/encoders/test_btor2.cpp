@@ -7,6 +7,7 @@
 #include "engines/kinduction.h"
 #include "frontends/btor2_encoder.h"
 #include "gtest/gtest.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
 
@@ -37,6 +38,19 @@ TEST_P(Btor2FileUnitTests, Encode)
   filename += get<1>(GetParam());
   cout << "Reading file: " << filename << endl;
   BTOR2Encoder be(filename, fts);
+  // make sure that all inputs in bad and constraint have been promoted
+  UnorderedTermSet free_vars;
+  for (const auto & c : fts.constraints()) {
+    get_free_symbolic_consts(c.first, free_vars);
+  }
+  for (const auto & p : be.propvec()) {
+    get_free_symbolic_consts(p, free_vars);
+  }
+  int num_input =
+      count_if(free_vars.begin(), free_vars.end(), [&fts](const Term & v) {
+        return fts.is_input_var(v);
+      });
+  EXPECT_EQ(num_input, 0);
 }
 
 TEST_P(Btor2UnitTests, OverflowEncoding)
