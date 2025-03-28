@@ -86,6 +86,23 @@ TEST_P(Btor2UnitTests, InputConstraints)
   ASSERT_NE(r, ProverResult::FALSE);
 }
 
+TEST_P(Btor2UnitTests, InputProp)
+{
+  // test BTOR2 file with bad containing input variables
+  SmtSolver s = create_solver(GetParam());
+  s->set_opt("incremental", "true");
+  FunctionalTransitionSystem fts(s);
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  string filename = STRFY(PONO_SRC_DIR);
+  filename += "/tests/encoders/inputs/btor2/input-in-bad.btor2";
+  BTOR2Encoder be(filename, fts);
+  EXPECT_EQ(be.propvec().size(), 1);
+  Property p(fts.solver(), be.propvec()[0]);
+  Bmc bmc(p, fts, s);
+  ProverResult r = bmc.check_until(0);
+  EXPECT_EQ(r, ProverResult::FALSE);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverBtor2FileUnitTests,
     Btor2FileUnitTests,
