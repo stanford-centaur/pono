@@ -7,6 +7,7 @@
 #include "engines/kinduction.h"
 #include "frontends/btor2_encoder.h"
 #include "gtest/gtest.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
 
@@ -37,6 +38,19 @@ TEST_P(Btor2FileUnitTests, Encode)
   filename += get<1>(GetParam());
   cout << "Reading file: " << filename << endl;
   BTOR2Encoder be(filename, fts);
+  // make sure that all inputs in bad and constraint have been promoted
+  UnorderedTermSet free_vars;
+  for (const auto & c : fts.constraints()) {
+    get_free_symbolic_consts(c.first, free_vars);
+  }
+  for (const auto & p : be.propvec()) {
+    get_free_symbolic_consts(p, free_vars);
+  }
+  int num_input =
+      count_if(free_vars.begin(), free_vars.end(), [&fts](const Term & v) {
+        return fts.is_input_var(v);
+      });
+  EXPECT_EQ(num_input, 0);
 }
 
 TEST_P(Btor2UnitTests, OverflowEncoding)
@@ -70,6 +84,23 @@ TEST_P(Btor2UnitTests, InputConstraints)
   Bmc bmc(p, fts, s);
   ProverResult r = bmc.check_until(6);
   ASSERT_NE(r, ProverResult::FALSE);
+}
+
+TEST_P(Btor2UnitTests, InputProp)
+{
+  // test BTOR2 file with bad containing input variables
+  SmtSolver s = create_solver(GetParam());
+  s->set_opt("incremental", "true");
+  FunctionalTransitionSystem fts(s);
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  string filename = STRFY(PONO_SRC_DIR);
+  filename += "/tests/encoders/inputs/btor2/input-in-bad.btor2";
+  BTOR2Encoder be(filename, fts);
+  EXPECT_EQ(be.propvec().size(), 1);
+  Property p(fts.solver(), be.propvec()[0]);
+  Bmc bmc(p, fts, s);
+  ProverResult r = bmc.check_until(0);
+  EXPECT_EQ(r, ProverResult::FALSE);
 }
 
 INSTANTIATE_TEST_SUITE_P(

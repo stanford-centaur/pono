@@ -122,9 +122,8 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
 
   // copy over inputs but make them statevars
   for (const auto & iv : ts.inputvars()) {
-    Term iv_next =
-        solver->make_symbol(iv->to_string() + ".next", iv->get_sort());
-    new_ts.add_statevar(iv, iv_next);
+    new_ts.add_inputvar(iv);
+    new_ts.promote_inputvar(iv);
   }
 
   // set init
