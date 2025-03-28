@@ -602,7 +602,7 @@ const option::Descriptor usage[] = {
     0,
     "",
     "interp-props",
-    Arg::None,
+    Arg::NonEmpty,
     "  --interp-props \tSpecifies at which time frames properties are "
     "considered when computing interpolants: all, first-and-last, only-last "
     "(WARNING: choosing not 'all' could cause incompleteness on some "
