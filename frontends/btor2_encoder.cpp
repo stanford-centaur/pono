@@ -413,6 +413,17 @@ void BTOR2Encoder::parse(const std::string filename)
     } else if (l_->tag == BTOR2_TAG_bad) {
       Term bad = bv_to_bool(termargs_[0]);
       Term prop = solver_->make_term(Not, bad);
+
+      // BTOR2 allows properties (negation of bad) over inputs
+      // in Pono these need to be promoted to state variables
+      UnorderedTermSet free_vars;
+      get_free_symbolic_consts(bad, free_vars);
+      for (const auto & v : free_vars) {
+        if (ts_.is_input_var(v)) {
+          ts_.promote_inputvar(v);
+        }
+      }
+
       propvec_.push_back(prop);
       terms_[l_->id] = prop;
     } else if (l_->tag == BTOR2_TAG_justice) {
