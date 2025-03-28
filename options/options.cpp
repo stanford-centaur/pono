@@ -100,7 +100,7 @@ enum optionIndex
   KIND_ONE_TIME_BASE_CHECK,
   KIND_BOUND_STEP,
   INTERP_FRONTIER_SET_SIMPL,
-  INTERP_SKIP_MID_PROPS,
+  INTERP_PROPS,
   INTERP_EAGER_UNROLL,
   INTERP_BACKWARD
 };
@@ -598,15 +598,16 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --interp-frontier-set-simpl \tApply frontier set simplification in "
     "interp engine" },
-  { INTERP_SKIP_MID_PROPS,
+  { INTERP_PROPS,
     0,
     "",
-    "interp-skip-mid-props",
+    "interp-props",
     Arg::None,
-    "  --interp-skip-mid-props \tConsider only the properties at the fist and "
-    "last time frames when computing interpolants, i.e., skip the properties "
-    "at the intermediate frames (WARNING: might cause incompleteness on some "
-    "problem instances)" },
+    "  --interp-props \tSpecifies at which time frames properties are "
+    "considered when computing interpolants: all, first-and-last, only-last "
+    "(WARNING: choosing not 'all' could cause incompleteness on some "
+    "instances; the fixed point derived by 'only-last' might contain "
+    "unreachable bad states)" },
   { INTERP_EAGER_UNROLL,
     0,
     "",
@@ -848,7 +849,18 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case INTERP_FRONTIER_SET_SIMPL:
           interp_frontier_set_simpl_ = true;
           break;
-        case INTERP_SKIP_MID_PROPS: interp_skip_mid_props_ = true; break;
+        case INTERP_PROPS:
+          if (opt.arg == std::string("all")) {
+            interp_props_ = InterpPropsEnum::ALL;
+          } else if (opt.arg == std::string("first-and-last")) {
+            interp_props_ = InterpPropsEnum::FIRST_AND_LAST;
+          } else if (opt.arg == std::string("only-last")) {
+            interp_props_ = InterpPropsEnum::ONLY_LAST;
+          } else {
+            throw PonoException("Unknown --interp-props option: "
+                                + std::string(opt.arg));
+            break;
+          }
         case INTERP_EAGER_UNROLL: interp_eager_unroll_ = true; break;
         case INTERP_BACKWARD: interp_backward_ = true; break;
         case UNKNOWN_OPTION:

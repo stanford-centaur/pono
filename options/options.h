@@ -77,6 +77,14 @@ enum SyGuSTermMode
   TERM_MODE_AUTO = 4
 };
 
+// Interp engine options
+enum InterpPropsEnum
+{
+  ALL,
+  FIRST_AND_LAST,
+  ONLY_LAST
+};
+
 /*************************************** Options class
  * ************************************************/
 
@@ -155,7 +163,7 @@ class PonoOptions
         kind_one_time_base_check_(default_kind_one_time_base_check_),
         kind_bound_step_(default_kind_bound_step_),
         interp_frontier_set_simpl_(default_interp_frontier_set_simpl_),
-        interp_skip_mid_props_(default_interp_skip_mid_props_),
+        interp_props_(default_interp_props_),
         interp_eager_unroll_(default_interp_eager_unroll_),
         interp_backward_(default_interp_backward_)
   {
@@ -309,9 +317,9 @@ class PonoOptions
   // Configuration for interp engine:
   // - whether to apply frontier set simplification
   bool interp_frontier_set_simpl_;
-  // - whether to skip properties at the intermediate time frames
+  // - at which time frames properties are considered
   //   when computing interpolants
-  bool interp_skip_mid_props_;
+  InterpPropsEnum interp_props_;
   // - whether to unroll the transition system eagerly
   bool interp_eager_unroll_;
   // - whether to compute backward interpolants
@@ -386,7 +394,7 @@ class PonoOptions
   static const bool default_kind_one_time_base_check_ = false;
   static const unsigned default_kind_bound_step_ = 1;
   static const bool default_interp_frontier_set_simpl_ = false;
-  static const bool default_interp_skip_mid_props_ = false;
+  static const InterpPropsEnum default_interp_props_ = InterpPropsEnum::ALL;
   static const bool default_interp_eager_unroll_ = false;
   static const bool default_interp_backward_ = false;
 };

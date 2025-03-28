@@ -48,7 +48,7 @@ class InterpolantMC : public Prover
 
   // configurable options
   const bool use_frontier_simpl_;
-  const bool interp_skip_mid_props_;
+  const InterpPropsEnum interp_props_;
   const bool unroll_eagerly_;
   const bool interp_backward_;
 

@@ -36,7 +36,7 @@ InterpolantMC::InterpolantMC(const Property & p,
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       use_frontier_simpl_(opt.interp_frontier_set_simpl_),
-      interp_skip_mid_props_(opt.interp_skip_mid_props_),
+      interp_props_(opt.interp_props_),
       unroll_eagerly_(opt.interp_eager_unroll_),
       interp_backward_(opt.interp_backward_)
 {
@@ -123,12 +123,14 @@ bool InterpolantMC::step(const int i)
   }
 
   Term bad_i = unroller_.at_time(bad_, i);
-  if (interp_skip_mid_props_ && i > 1) {
+  if (interp_props_ == InterpPropsEnum::ONLY_LAST || i == 1) {
+    // Note that by skipping the property at the first time frame,
+    // the computed interpolant might contain bad states
+    bad_disjuncts_ = bad_i;
+  } else if (interp_props_ == InterpPropsEnum::FIRST_AND_LAST) {
     // Only take the first and last properties; the rest are skipped.
-    // The first always has to be considered otherwise the interpolant might
-    // contain bad states.
     bad_disjuncts_ = solver_->make_term(Or, unroller_.at_time(bad_, 1), bad_i);
-  } else {
+  } else {  // interp_props_ == InterpPropsEnum::ALL
     bad_disjuncts_ = solver_->make_term(Or, bad_disjuncts_, bad_i);
   }
   Term int_bad_disjuncts = to_interpolator_.transfer_term(bad_disjuncts_);
