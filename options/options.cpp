@@ -99,7 +99,7 @@ enum optionIndex
   KIND_NO_IND_CHECK_PROPERTY,
   KIND_ONE_TIME_BASE_CHECK,
   KIND_BOUND_STEP,
-  INTERP_FRONTIER_SET_SIMPL,
+  NO_INTERP_FRONTIER_SIMPL,
   INTERP_PROPS,
   INTERP_EAGER_UNROLL,
   INTERP_BACKWARD
@@ -591,12 +591,12 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --kind-bound-step \tAmount by which bound (unrolling depth) is "
     "increased in k-induction (default: 1)" },
-  { INTERP_FRONTIER_SET_SIMPL,
+  { NO_INTERP_FRONTIER_SIMPL,
     0,
     "",
-    "interp-frontier-set-simpl",
+    "no-interp-frontier-simpl",
     Arg::None,
-    "  --interp-frontier-set-simpl \tApply frontier set simplification in "
+    "  --no-interp-frontier-simpl \tDisable frontier-set simplification in "
     "interp engine" },
   { INTERP_PROPS,
     0,
@@ -846,8 +846,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           if (kind_bound_step_ == 0)
             throw PonoException("--kind-bound-step must be greater than 0");
           break;
-        case INTERP_FRONTIER_SET_SIMPL:
-          interp_frontier_set_simpl_ = true;
+        case NO_INTERP_FRONTIER_SIMPL:
+          interp_frontier_set_simpl_ = false;
           break;
         case INTERP_PROPS:
           if (opt.arg == std::string("all")) {

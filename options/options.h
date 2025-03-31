@@ -393,7 +393,7 @@ class PonoOptions
   static const bool default_kind_no_ind_check_property_ = false;
   static const bool default_kind_one_time_base_check_ = false;
   static const unsigned default_kind_bound_step_ = 1;
-  static const bool default_interp_frontier_set_simpl_ = false;
+  static const bool default_interp_frontier_set_simpl_ = true;
   static const InterpPropsEnum default_interp_props_ = InterpPropsEnum::ALL;
   static const bool default_interp_eager_unroll_ = false;
   static const bool default_interp_backward_ = false;
