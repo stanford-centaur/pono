@@ -219,10 +219,10 @@ void BTOR2Encoder::preprocess(const std::string & filename)
       // we'd like to know if it refers to a state without name
       auto pos = unamed_state_ids.find(l_->args[0]);  // so, *pos is its btor id
       if (pos != unamed_state_ids.end()) {
-        // in such case, we record that we can name if with this new name
-        auto state_name_pos = state_renaming_table.find(*pos);
-        if (state_name_pos == state_renaming_table.end()) {
-          state_renaming_table.insert(std::make_pair(*pos, l_->symbol));
+        // in such case, we record that we can name it with this new name
+        auto state_name_pos = state_renaming_table_.find(*pos);
+        if (state_name_pos == state_renaming_table_.end()) {
+          state_renaming_table_.insert(std::make_pair(*pos, l_->symbol));
         }  // otherwise we already have a name for it, then just ignore this one
       }
     }  // end of if input
@@ -286,45 +286,43 @@ void BTOR2Encoder::parse(const std::string filename)
     /******************************** Handle special cases
      * ********************************/
     if (l_->tag == BTOR2_TAG_state) {
+      new_symbol_ = "state" + to_string(l_->id);
       if (l_->symbol) {
-        symbol_ = l_->symbol;
+        orig_symbol_ = l_->symbol;
       } else {
-        auto renaming_lookup_pos = state_renaming_table.find(l_->id);
-        if (renaming_lookup_pos != state_renaming_table.end())
-          symbol_ = renaming_lookup_pos->second;
+        auto renaming_lookup_pos = state_renaming_table_.find(l_->id);
+        if (renaming_lookup_pos != state_renaming_table_.end())
+          orig_symbol_ = renaming_lookup_pos->second;
         else
-          symbol_ = "state" + to_string(l_->id);
+          orig_symbol_ = "";
       }
-
-      Term state = ts_.make_statevar(symbol_, linesort_);
+      Term state = ts_.make_statevar(new_symbol_, linesort_);
       terms_[l_->id] = state;
       statesvec_.push_back(state);
+      symbol_map_[new_symbol_] = orig_symbol_;
       // will be removed from this map if there's a next function for this state
       no_next_states_[num_states] = state;
       id2statenum[l_->id] = num_states;
       num_states++;
     } else if (l_->tag == BTOR2_TAG_input) {
-      if (l_->symbol) {
-        symbol_ = l_->symbol;
-      } else {
-        symbol_ = "input" + to_string(l_->id);
-      }
-      Term input = ts_.make_inputvar(symbol_, linesort_);
+      new_symbol_ = "input" + to_string(l_->id);
+      orig_symbol_ = l_->symbol ? l_->symbol : "";
+      Term input = ts_.make_inputvar(new_symbol_, linesort_);
       terms_[l_->id] = input;
       inputsvec_.push_back(input);
+      symbol_map_[new_symbol_] = orig_symbol_;
     } else if (l_->tag == BTOR2_TAG_output) {
-      if (l_->symbol) {
-        symbol_ = l_->symbol;
-      } else {
-        symbol_ = "output" + to_string(l_->id);
-      }
+      new_symbol_ = "output" + to_string(l_->id);
+      orig_symbol_ = l_->symbol ? l_->symbol : "";
       try {
-        ts_.name_term(symbol_, termargs_[0]);
+        ts_.name_term(new_symbol_, termargs_[0]);
       }
       catch (PonoException & e) {
-        ts_.name_term("_out_" + symbol_, termargs_[0]);
+        new_symbol_ = "_out_" + new_symbol_;
+        ts_.name_term(new_symbol_, termargs_[0]);
       }
       terms_[l_->id] = termargs_[0];
+      symbol_map_[new_symbol_] = orig_symbol_;
     } else if (l_->tag == BTOR2_TAG_sort) {
       switch (l_->sort.tag) {
         case BTOR2_TAG_SORT_bitvec: {
@@ -754,7 +752,10 @@ void BTOR2Encoder::parse(const std::string filename)
     if (l_->symbol && l_->tag != BTOR2_TAG_input && l_->tag != BTOR2_TAG_output
         && l_->tag != BTOR2_TAG_state && terms_.find(l_->id) != terms_.end()) {
       try {
-        ts_.name_term(l_->symbol, terms_.at(l_->id));
+        new_symbol_ = "term" + to_string(l_->id);
+        orig_symbol_ = l_->symbol;
+        ts_.name_term(new_symbol_, terms_.at(l_->id));
+        symbol_map_[new_symbol_] = orig_symbol_;
       }
       catch (PonoException & e) {
         logger.log(1, "BTOR2Encoder Warning: {}", e.what());
