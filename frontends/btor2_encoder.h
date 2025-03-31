@@ -78,6 +78,9 @@ class BTOR2Encoder
   std::map<uint64_t, smt::Term> no_next_states_;
   // record the renaming done by the `preprocess` pass
   std::unordered_map<uint64_t, std::string> state_renaming_table_;
+  // a mapping from the internally-assigned names ("intput/state{btor2_id}")
+  // to the original names in Btor2
+  std::unordered_map<std::string, std::string> symbol_map_;
 
   std::unordered_map<int, smt::Sort> sorts_;
   std::unordered_map<int, smt::Term> terms_;

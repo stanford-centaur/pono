@@ -253,7 +253,8 @@ void BTOR2Encoder::parse(const std::string filename)
   std::unordered_map<int64_t, uint64_t> id2statenum;
   smt::Sort linesort;
   smt::TermVec termargs;
-  std::string symbol;
+  std::string orig_symbol;
+  std::string new_symbol;
 
   Btor2LineIterator bt2_it = btor2parser_iter_init(reader);
   while (Btor2Line * bt2_line = btor2parser_iter_next(&bt2_it)) {
@@ -293,44 +294,43 @@ void BTOR2Encoder::parse(const std::string filename)
     /******************************** Handle special cases
      * ********************************/
     if (bt2_line->tag == BTOR2_TAG_state) {
+      new_symbol = "state" + to_string(bt2_line->id);
       if (bt2_line->symbol) {
-        symbol = bt2_line->symbol;
+        orig_symbol = bt2_line->symbol;
       } else {
         auto renaming_lookup_pos = state_renaming_table_.find(bt2_line->id);
         if (renaming_lookup_pos != state_renaming_table_.end())
-          symbol = renaming_lookup_pos->second;
+          orig_symbol = renaming_lookup_pos->second;
         else
-          symbol = "state" + to_string(bt2_line->id);
+          orig_symbol = "";
       }
-      Term state = ts_.make_statevar(symbol, linesort);
+      Term state = ts_.make_statevar(new_symbol, linesort);
       terms_[bt2_line->id] = state;
       statesvec_.push_back(state);
+      symbol_map_[new_symbol] = orig_symbol;
       // will be removed from this map if there's a next function for this state
       no_next_states_[num_states] = state;
       id2statenum[bt2_line->id] = num_states;
       num_states++;
     } else if (bt2_line->tag == BTOR2_TAG_input) {
-      if (bt2_line->symbol) {
-        symbol = bt2_line->symbol;
-      } else {
-        symbol = "input" + to_string(bt2_line->id);
-      }
-      Term input = ts_.make_inputvar(symbol, linesort);
+      new_symbol = "input" + to_string(bt2_line->id);
+      orig_symbol = bt2_line->symbol ? bt2_line->symbol : "";
+      Term input = ts_.make_inputvar(new_symbol, linesort);
       terms_[bt2_line->id] = input;
       inputsvec_.push_back(input);
+      symbol_map_[new_symbol] = orig_symbol;
     } else if (bt2_line->tag == BTOR2_TAG_output) {
-      if (bt2_line->symbol) {
-        symbol = bt2_line->symbol;
-      } else {
-        symbol = "output" + to_string(bt2_line->id);
-      }
+      new_symbol = "output" + to_string(bt2_line->id);
+      orig_symbol = bt2_line->symbol ? bt2_line->symbol : "";
       try {
-        ts_.name_term(symbol, termargs[0]);
+        ts_.name_term(new_symbol, termargs[0]);
       }
       catch (PonoException & e) {
-        ts_.name_term("_out_" + symbol, termargs[0]);
+        new_symbol = "_out_" + new_symbol;
+        ts_.name_term(new_symbol, termargs[0]);
       }
       terms_[bt2_line->id] = termargs[0];
+      symbol_map_[new_symbol] = orig_symbol;
     } else if (bt2_line->tag == BTOR2_TAG_sort) {
       switch (bt2_line->sort.tag) {
         case BTOR2_TAG_SORT_bitvec: {
@@ -766,7 +766,10 @@ void BTOR2Encoder::parse(const std::string filename)
         && bt2_line->tag != BTOR2_TAG_output && bt2_line->tag != BTOR2_TAG_state
         && terms_.find(bt2_line->id) != terms_.end()) {
       try {
-        ts_.name_term(bt2_line->symbol, terms_.at(bt2_line->id));
+        new_symbol = "term" + to_string(bt2_line->id);
+        orig_symbol = bt2_line->symbol;
+        ts_.name_term(new_symbol, terms_.at(bt2_line->id));
+        symbol_map_[new_symbol] = orig_symbol;
       }
       catch (PonoException & e) {
         logger.log(1, "BTOR2Encoder Warning: {}", e.what());
