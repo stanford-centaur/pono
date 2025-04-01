@@ -51,6 +51,10 @@ class BTOR2Encoder
   {
     return no_next_states_;
   }
+  const std::unordered_map<std::string, std::string> & get_symbol_map() const
+  {
+    return symbol_map_;
+  }
 
  protected:
   // converts booleans to bitvector of size one

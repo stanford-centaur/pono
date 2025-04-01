@@ -22,6 +22,7 @@
 #include "gmpxx.h"
 #include "smt-switch/smt.h"
 #include "utils/logger.h"
+#include "utils/str_util.h"
 
 namespace pono {
 
@@ -87,10 +88,12 @@ bool appears_in_ts_coi(const smt::Term & term, const TransitionSystem & ts)
   return false;
 }
 
-void print_btor_vals_at_time(const smt::TermVec & vec,
-                             const smt::UnorderedTermMap & valmap,
-                             unsigned int time,
-                             const TransitionSystem & ts)
+void print_btor_vals_at_time(
+    const smt::TermVec & vec,
+    const smt::UnorderedTermMap & valmap,
+    unsigned int time,
+    const TransitionSystem & ts,
+    const std::unordered_map<std::string, std::string> & symbol_map)
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
@@ -106,7 +109,7 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
                  "{} {} {}@{}",
                  i,
                  as_bits(valmap.at(vec[i])->to_string()),
-                 vec[i],
+                 lookup_or_key(symbol_map, vec[i]->to_string()),
                  time);
     } else if (sk == smt::ARRAY) {
       smt::Term tmp = valmap.at(vec[i]);
@@ -122,7 +125,7 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
                    i,
                    as_bits(store_children[1]->to_string()),
                    as_bits(store_children[2]->to_string()),
-                   vec[i],
+                   lookup_or_key(symbol_map, vec[i]->to_string()),
                    time);
         tmp = store_children[0];
       }
@@ -130,8 +133,12 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
       if (tmp->get_op().is_null()
           && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
         smt::Term const_val = *(tmp->begin());
-        logger.log(
-            0, "{} {} {}@{}", i, as_bits(const_val->to_string()), vec[i], time);
+        logger.log(0,
+                   "{} {} {}@{}",
+                   i,
+                   as_bits(const_val->to_string()),
+                   lookup_or_key(symbol_map, vec[i]->to_string()),
+                   time);
       }
 
     } else {
@@ -140,10 +147,12 @@ void print_btor_vals_at_time(const smt::TermVec & vec,
   }
 }
 
-void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
-                             const smt::UnorderedTermMap & valmap,
-                             unsigned int time,
-                             const TransitionSystem & ts)
+void print_btor_vals_at_time(
+    const std::map<uint64_t, smt::Term> m,
+    const smt::UnorderedTermMap & valmap,
+    unsigned int time,
+    const TransitionSystem & ts,
+    const std::unordered_map<std::string, std::string> & symbol_map)
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
@@ -160,7 +169,7 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
                  "{} {} {}@{}",
                  entry.first,
                  as_bits(valmap.at(entry.second)->to_string()),
-                 entry.second,
+                 lookup_or_key(symbol_map, entry.second->to_string()),
                  time);
     } else if (sk == smt::ARRAY) {
       smt::Term tmp = valmap.at(entry.second);
@@ -176,7 +185,7 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
                    entry.first,
                    as_bits(store_children[1]->to_string()),
                    as_bits(store_children[2]->to_string()),
-                   entry.second,
+                   lookup_or_key(symbol_map, entry.second->to_string()),
                    time);
         tmp = store_children[0];
       }
@@ -188,7 +197,7 @@ void print_btor_vals_at_time(const std::map<uint64_t, smt::Term> m,
                    "{} {} {}@{}",
                    entry.first,
                    as_bits(const_val->to_string()),
-                   entry.second,
+                   lookup_or_key(symbol_map, entry.second->to_string()),
                    time);
       }
 
@@ -209,19 +218,21 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
   bool has_states_without_next = no_next_states.size();
 
   logger.log(0, "#0");
-  print_btor_vals_at_time(states, cex.at(0), 0, ts);
+  print_btor_vals_at_time(states, cex.at(0), 0, ts, btor_enc.get_symbol_map());
 
   for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
     // states without next
     if (k && has_states_without_next) {
       logger.log(0, "#{}", k);
-      print_btor_vals_at_time(no_next_states, cex.at(k), k, ts);
+      print_btor_vals_at_time(
+          no_next_states, cex.at(k), k, ts, btor_enc.get_symbol_map());
     }
 
     // inputs
     if (k < cex_size) {
       logger.log(0, "@{}", k);
-      print_btor_vals_at_time(inputs, cex.at(k), k, ts);
+      print_btor_vals_at_time(
+          inputs, cex.at(k), k, ts, btor_enc.get_symbol_map());
     }
   }
 
