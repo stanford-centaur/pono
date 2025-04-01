@@ -670,7 +670,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case ENGINE: engine_ = to_engine(opt.arg); break;
         case BOUND:
           bound_ = atoi(opt.arg);
-          if (bound_ >= INT_MAX) {
+          if (bound_ == INT_MAX) {
             throw PonoException("--bound must be less than "
                                 + std::to_string(INT_MAX) + ".");
           }
