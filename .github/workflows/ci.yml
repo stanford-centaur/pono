@@ -2,7 +2,7 @@ on: [push, pull_request]
 name: CI
 
 jobs:
-  check-format:
+  format-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
 
-    name: ${{ matrix.os }}
+    name: ${{ matrix.os }}-build
     runs-on: ${{ matrix.os}}
 
     steps:
