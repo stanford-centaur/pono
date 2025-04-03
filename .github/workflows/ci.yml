@@ -9,8 +9,8 @@ jobs:
 
       - name: Check format using clang-format
         run: |
-          find . -type d -name "contrib" -prune -or -type f \( -name '*.h' -or -name '*.cpp' \) -print | \
-            xargs clang-format --dry-run -Werror --style=file
+          find . -type d -name "contrib" -prune -or -type f \( -name '*.h' -or -name '*.cpp' \) -print \
+          | xargs clang-format --dry-run -Werror --style=file
 
   build:
     strategy:
