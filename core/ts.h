@@ -67,7 +67,7 @@ class TransitionSystem
    */
   TransitionSystem(const TransitionSystem & other_ts, smt::TermTranslator & tt);
 
-  virtual ~TransitionSystem() {};
+  virtual ~TransitionSystem(){};
 
   /** Equality comparison between TransitionSystems
    *  compares each member variable
