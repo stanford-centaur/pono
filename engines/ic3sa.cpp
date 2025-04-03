@@ -594,13 +594,10 @@ void IC3SA::initialize()
   super::initialize();
 
   if (options_.ic3sa_interp_) {
-#ifdef WITH_MSAT
-    interpolator_ = create_interpolating_solver_for(MSAT_INTERPOLATOR, engine_);
+    interpolator_ =
+        create_interpolating_solver_for(options_.smt_interpolator_, engine_);
     to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
     from_interpolator_ = std::make_unique<TermTranslator>(solver_);
-#else
-    throw PonoException("Running IC3SA with interpolation requires MathSAT.");
-#endif
   }
 
   // IC3SA assumes input variables are modeled as state variables

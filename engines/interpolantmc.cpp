@@ -31,9 +31,8 @@ InterpolantMC::InterpolantMC(const Property & p,
                              const SmtSolver & slv,
                              PonoOptions opt)
     : super(p, ts, slv, opt),
-      // only mathsat interpolator supported
-      interpolator_(create_interpolating_solver_for(
-          SolverEnum::MSAT_INTERPOLATOR, Engine::INTERP)),
+      interpolator_(create_interpolating_solver_for(opt.smt_interpolator_,
+                                                    Engine::INTERP)),
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {

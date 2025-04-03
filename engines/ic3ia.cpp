@@ -48,8 +48,8 @@ IC3IA::IC3IA(const Property & p,
       conc_ts_(ts, to_prover_solver_),
       ia_(conc_ts_, ts_, unroller_),
       // only mathsat interpolator supported
-      interpolator_(create_interpolating_solver_for(
-          SolverEnum::MSAT_INTERPOLATOR, Engine::IC3IA_ENGINE)),
+      interpolator_(create_interpolating_solver_for(options_.smt_interpolator_,
+                                                    Engine::IC3IA_ENGINE)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
