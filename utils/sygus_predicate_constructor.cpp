@@ -120,8 +120,8 @@ void PredConstructor::TermsDumping() const
     auto nt_size = terms_consts.terms.size();
     auto nc_size = terms_consts.constants.size();
 
-    std::cout << "[Width = " << width << "] "
-              << "[#Term = " << nt_size << ", #Consts = " << nc_size << "]\n";
+    std::cout << "[Width = " << width << "] " << "[#Term = " << nt_size
+              << ", #Consts = " << nc_size << "]\n";
 
     std::cout << "  C : ";
 #if TERM_TABLE_DEBUG_LVL < 2

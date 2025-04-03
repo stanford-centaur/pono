@@ -157,7 +157,7 @@ class PonoOptions
   {
   }
 
-  ~PonoOptions() {};
+  ~PonoOptions(){};
 
   /** Parse and set options given argc and argv from main
    *  @param argc
