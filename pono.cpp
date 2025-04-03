@@ -80,7 +80,6 @@ ProverResult check_prop(PonoOptions pono_options,
     prop = ts.solver()->make_term(Implies, reset_done, prop);
   }
 
-
   if (pono_options.static_coi_) {
     /* Compute the set of state/input variables related to the
        bad-state property. Based on that information, rebuild the
@@ -136,21 +135,18 @@ ProverResult check_prop(PonoOptions pono_options,
   //       model checker runs prove unbounded) or possibly, have a command line
   //       flag to pick between the two
   ProverResult r;
-  if (pono_options.engine_ == MSAT_IC3IA)
-  {
+  if (pono_options.engine_ == MSAT_IC3IA) {
     // HACK MSAT_IC3IA does not support check_until
     r = prover->prove();
-  }
-  else
-  {
+  } else {
     r = prover->check_until(pono_options.bound_ + has_monitor);
   }
 
   if (r == FALSE && pono_options.witness_) {
     bool success = prover->witness(cex);
     if (has_monitor) {
-      // Witness will always have at least one element, because the monitor is constrained
-      // to start true.
+      // Witness will always have at least one element, because the monitor is
+      // constrained to start true.
       cex.pop_back();
     }
     if (!success) {
@@ -415,8 +411,8 @@ int main(int argc, char ** argv)
   if (pono_options.print_wall_time_) {
     auto end_time_stamp = timestamp();
     auto elapsed_time = timestamp_diff(begin_time_stamp, end_time_stamp);
-    std:cout << "Pono wall clock time (s): " <<
-      time_duration_to_sec_string(elapsed_time) << std::endl;
+    std::cout << "Pono wall clock time (s): "
+              << time_duration_to_sec_string(elapsed_time) << std::endl;
   }
 
   return res;
