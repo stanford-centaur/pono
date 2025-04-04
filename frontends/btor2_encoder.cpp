@@ -226,7 +226,7 @@ void BTOR2Encoder::preprocess(const std::string & filename)
         }  // otherwise we already have a name for it, then just ignore this one
       }
     }  // end of if input
-  }  // end of while
+  }    // end of while
 
   fclose(input_file);
   btor2parser_delete(reader_);
@@ -421,6 +421,8 @@ void BTOR2Encoder::parse(const std::string filename)
       for (const auto & v : free_vars) {
         if (ts_.is_input_var(v)) {
           ts_.promote_inputvar(v);
+          // make it frozen -- treating it as a prophecy
+          ts_.assign_next(v, v);
         }
       }
 
