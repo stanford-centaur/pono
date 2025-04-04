@@ -89,12 +89,11 @@ class OpInpAbstractor : public OpAbstractor
   smt::UnorderedTermSet dummy_inputs_;
   std::vector<OpAbstract> op_abstracted;
 
-  TransitionSystem & abstract_ts(
-      const TransitionSystem & in_ts,
-      TransitionSystem & out_ts,
-      const OpSet & op_to_abstract,
-      const smt::Term & prop,  // it is okay to use bad
-      int verbosity);
+  void abstract_ts(const TransitionSystem & in_ts,
+                   TransitionSystem & out_ts,
+                   const OpSet & op_to_abstract,
+                   const smt::Term & prop,  // it is okay to use bad
+                   int verbosity);
 
   std::unique_ptr<Unroller> unroller_;
 
@@ -162,9 +161,9 @@ class OpUfAbstractor : public OpAbstractor
  protected:
   smt::UnorderedTermSet dummy_inputs_;  // empty set
 
-  TransitionSystem & abstract_ts(const TransitionSystem & in_ts,
-                                 TransitionSystem & out_ts,
-                                 const OpSet & op_to_abstract);
+  void abstract_ts(const TransitionSystem & in_ts,
+                   TransitionSystem & out_ts,
+                   const OpSet & op_to_abstract);
 
   std::unique_ptr<Unroller> unroller_;
   std::vector<OpUfAbstract> op_abstracted;
