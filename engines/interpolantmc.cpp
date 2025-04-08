@@ -35,7 +35,11 @@ InterpolantMC::InterpolantMC(const Property & p,
       interpolator_(create_interpolating_solver_for(
           SolverEnum::MSAT_INTERPOLATOR, Engine::INTERP)),
       to_interpolator_(interpolator_),
-      to_solver_(solver_)
+      to_solver_(solver_),
+      use_frontier_simpl_(opt.interp_frontier_set_simpl_),
+      interp_props_(opt.interp_props_),
+      unroll_eagerly_(opt.interp_eager_unroll_),
+      interp_backward_(opt.interp_backward_)
 {
   engine_ = Engine::INTERP;
 }
@@ -105,7 +109,7 @@ ProverResult InterpolantMC::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-bool InterpolantMC::step(int i)
+bool InterpolantMC::step(const int i)
 {
   if (i <= reached_k_) {
     return false;
@@ -120,26 +124,42 @@ bool InterpolantMC::step(int i)
   }
 
   Term bad_i = unroller_.at_time(bad_, i);
-  bad_disjuncts_ = solver_->make_term(Or, bad_disjuncts_, bad_i);
+  if (interp_props_ == InterpPropsEnum::ONLY_LAST || i == 1) {
+    // Note that by skipping the property at the first time frame,
+    // the computed interpolant might contain bad states
+    bad_disjuncts_ = bad_i;
+  } else if (interp_props_ == InterpPropsEnum::FIRST_AND_LAST) {
+    // Only take the first and last properties; the rest are skipped.
+    bad_disjuncts_ = solver_->make_term(Or, unroller_.at_time(bad_, 1), bad_i);
+  } else {  // interp_props_ == InterpPropsEnum::ALL
+    bad_disjuncts_ = solver_->make_term(Or, bad_disjuncts_, bad_i);
+  }
   Term int_bad_disjuncts = to_interpolator_.transfer_term(bad_disjuncts_);
   Term int_transA = to_interpolator_.transfer_term(transA_);
   Term int_transB = to_interpolator_.transfer_term(transB_);
   Term R = init0_;
-  Term Ri;
+  Term Ri = init0_;
   bool got_interpolant = true;
+  int interp_count = 0;
 
   while (got_interpolant) {
-    Term int_R = to_interpolator_.transfer_term(R);
+    Term int_RA = to_interpolator_.transfer_term(use_frontier_simpl_ ? Ri : R);
     Term int_Ri;
+    Term int_formulaA = interpolator_->make_term(And, int_RA, int_transA);
+    Term int_formulaB =
+        interpolator_->make_term(And, int_transB, int_bad_disjuncts);
     Result r = interpolator_->get_interpolant(
-        interpolator_->make_term(And, int_R, int_transA),
-        interpolator_->make_term(And, int_transB, int_bad_disjuncts),
+        interp_backward_ ? int_formulaB : int_formulaA,
+        interp_backward_ ? int_formulaA : int_formulaB,
         int_Ri);
-
     got_interpolant = r.is_unsat();
 
     if (got_interpolant) {
+      ++interp_count;
       Ri = to_solver_.transfer_term(int_Ri);
+      if (interp_backward_) {
+        Ri = solver_->make_term(Not, Ri);
+      }
       // map Ri to time 0
       Ri = unroller_.at_time(unroller_.untime(Ri), 0);
 
@@ -149,11 +169,11 @@ bool InterpolantMC::step(int i)
         invar_ = unroller_.untime(R);
         return true;
       } else {
-        logger.log(1, "Extending initial states.");
+        logger.log(1, "Extending reached states (count: {})", interp_count);
         logger.log(3, "Using interpolant: {}", Ri);
         R = solver_->make_term(Or, R, Ri);
       }
-    } else if (R == init0_) {
+    } else if (interp_count == 0) {
       // found a concrete counter example
       // replay it in the solver with model generation
       concrete_cex_ = true;
@@ -178,8 +198,18 @@ bool InterpolantMC::step(int i)
   // transB can't have any symbols from time 0 in it
   assert(i > 0);
   // extend the unrolling
-  transB_ = solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
-  ++reached_k_;
+  if (unroll_eagerly_) {
+    // for each computed interpolant, we can extend the safe bound by one
+    for (int j = 0; j < interp_count; ++j) {
+      transB_ = solver_->make_term(
+          And, transB_, unroller_.at_time(ts_.trans(), i + j));
+    }
+    reached_k_ += interp_count;
+  } else {
+    transB_ =
+        solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
+    ++reached_k_;
+  }
 
   return false;
 }
