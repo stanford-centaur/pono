@@ -181,4 +181,12 @@ void add1(std::vector<char> & v)
 
 }  // namespace syntax_analysis
 
+const std::string & lookup_or_key(
+    const std::unordered_map<std::string, std::string> & map,
+    const std::string & key)
+{
+  auto it = map.find(key);
+  return (it != map.end() && !it->second.empty()) ? it->second : key;
+}
+
 }  // namespace pono

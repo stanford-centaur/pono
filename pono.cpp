@@ -309,7 +309,7 @@ int main(int argc, char ** argv)
         if (cex.size()) {
           print_witness_btor(btor_enc, cex, fts);
           if (!pono_options.vcd_name_.empty()) {
-            VCDWitnessPrinter vcdprinter(fts, cex);
+            VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
             vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
           }
         }

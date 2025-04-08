@@ -75,4 +75,11 @@ void add1(std::vector<char> & v);
 
 }  // namespace syntax_analysis
 
+// loop up the key in the map
+// if found and value is non-empty, return the value
+// otherwise, return the key
+const std::string & lookup_or_key(
+    const std::unordered_map<std::string, std::string> & map,
+    const std::string & key);
+
 }  // namespace pono

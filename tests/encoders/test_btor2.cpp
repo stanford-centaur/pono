@@ -103,6 +103,22 @@ TEST_P(Btor2UnitTests, InputProp)
   EXPECT_EQ(r, ProverResult::FALSE);
 }
 
+TEST_P(Btor2UnitTests, InvalidSmtlibSymbol)
+{
+  // test BTOR2 file with invalid SMT-LIB symbol
+  SmtSolver s = create_solver(GetParam());
+  s->set_opt("incremental", "true");
+  FunctionalTransitionSystem fts(s);
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  string filename = STRFY(PONO_SRC_DIR);
+  filename += "/tests/encoders/inputs/btor2/invalid-smtlib-symbol.btor2";
+  BTOR2Encoder be(filename, fts);
+  Property p(fts.solver(), be.propvec()[0]);
+  Bmc bmc(p, fts, s);
+  ProverResult r = bmc.check_until(0);
+  ASSERT_NE(r, ProverResult::ERROR);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverBtor2FileUnitTests,
     Btor2FileUnitTests,
