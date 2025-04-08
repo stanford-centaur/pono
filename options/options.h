@@ -96,6 +96,7 @@ class PonoOptions
         reset_bnd_(default_reset_bnd_),
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
+        smt_interpolator_(default_smt_interpolator_),
         logging_smt_solver_(default_logging_smt_solver_),
         printing_smt_solver_(default_printing_smt_solver_),
         static_coi_(default_static_coi_),
@@ -190,7 +191,8 @@ class PonoOptions
   size_t reset_bnd_;
   std::string clock_name_;
   std::string filename_;
-  smt::SolverEnum smt_solver_;  ///< underlying smt solver
+  smt::SolverEnum smt_solver_;        ///< underlying smt solver
+  smt::SolverEnum smt_interpolator_;  ///< smt solver for interpolation
   bool logging_smt_solver_;
   bool printing_smt_solver_;
   bool static_coi_;
@@ -320,6 +322,12 @@ class PonoOptions
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
+  static const smt::SolverEnum default_smt_interpolator_ =
+#ifdef WITH_MSAT
+      smt::MSAT;
+#else
+      smt::CVC5;
+#endif
   static const bool default_logging_smt_solver_ = false;
   static const bool default_printing_smt_solver_ = false;
   static const bool default_smv_fp_semantics_ = false;
