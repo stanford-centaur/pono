@@ -52,6 +52,7 @@ enum optionIndex
   RESET_BND,
   CLK,
   SMT_SOLVER,
+  SMT_INTERPOLATOR,
   LOGGING_SMT_SOLVER,
   PRINTING_SMT_SOLVER,
   NO_IC3_PREGEN,
@@ -191,7 +192,20 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT Solver to use: btor, bzla, msat, yices2, or cvc5." },
+    "  --smt-solver \tSMT Solver to use: btor, bzla, msat, yices2, or cvc5. "
+    "(default: bzla)" },
+  { SMT_INTERPOLATOR,
+    0,
+    "",
+    "smt-interpolator",
+    Arg::NonEmpty,
+    "  --smt-interpolator \tSMT Solver used for interpolation: msat or cvc5. "
+#ifdef WITH_MSAT
+    "(default: msat)"
+#else
+    "(default: cvc5)"
+#endif
+  },
   { LOGGING_SMT_SOLVER,
     0,
     "",
@@ -699,6 +713,18 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           }
           break;
         }
+        case SMT_INTERPOLATOR: {
+          if (opt.arg == std::string("cvc5")) {
+            smt_interpolator_ = smt::CVC5_INTERPOLATOR;
+          } else if (opt.arg == std::string("msat")) {
+            smt_interpolator_ = smt::MSAT_INTERPOLATOR;
+          } else {
+            throw PonoException("Unknown interpolator: "
+                                + std::string(opt.arg));
+            break;
+          }
+          break;
+        }
         case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
         case PRINTING_SMT_SOLVER: printing_smt_solver_ = true; break;
         case WITNESS: witness_ = true; break;
@@ -823,11 +849,6 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           // which aborts the parse with an error
           break;
       }
-    }
-
-    if (smt_solver_ != smt::MSAT && engine_ == Engine::INTERP) {
-      throw PonoException(
-          "Interpolation engine can be only used with '--smt-solver msat'.");
     }
 
     if (ceg_prophecy_arrays_ && smt_solver_ != smt::MSAT) {
