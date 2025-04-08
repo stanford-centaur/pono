@@ -229,11 +229,8 @@ SmtSolver create_interpolating_solver(SolverEnum se)
 
 SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
 {
-  if (ic3_variants().find(e) == ic3_variants().end()) {
+  if (ic3_variants().find(e) == ic3_variants().end() || se != MSAT) {
     return create_interpolating_solver(se);
-  } else if (se != MSAT) {
-    throw SmtException(
-        "Running IC3-based engine with interpolation requires MathSAT.");
   }
 
   switch (se) {
