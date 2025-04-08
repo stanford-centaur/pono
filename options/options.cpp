@@ -16,6 +16,7 @@
 
 #include "options/options.h"
 
+#include <climits>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -674,7 +675,13 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case HELP:
           // not possible, because handled further above and exits the program
         case ENGINE: engine_ = to_engine(opt.arg); break;
-        case BOUND: bound_ = atoi(opt.arg); break;
+        case BOUND:
+          bound_ = atoi(opt.arg);
+          if (bound_ == INT_MAX) {
+            throw PonoException("--bound must be less than "
+                                + std::to_string(INT_MAX) + ".");
+          }
+          break;
         case PROP: prop_idx_ = atoi(opt.arg); break;
         case VERBOSITY: verbosity_ = atoi(opt.arg); break;
         case RANDOM_SEED: random_seed_ = atoi(opt.arg); break;
