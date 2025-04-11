@@ -27,6 +27,7 @@
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
 #include "modifiers/static_coi.h"
@@ -286,7 +287,9 @@ int main(int argc, char ** argv)
       FunctionalTransitionSystem fts(s);
       BTOR2Encoder btor_enc(pono_options.filename_, fts);
       const TermVec & propvec = btor_enc.propvec();
-      unsigned int num_props = propvec.size();
+      const auto & justicevec = btor_enc.justicevec();
+      unsigned int num_props =
+          pono_options.justice_ ? justicevec.size() : propvec.size();
       if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(
             "Property index " + to_string(pono_options.prop_idx_)
@@ -294,7 +297,11 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
 
-      Term prop = propvec[pono_options.prop_idx_];
+      Term prop = pono_options.justice_
+                      // This will change the transition system in place.
+                      ? LivenessToSafetyTranslator{}.translate(
+                            fts, justicevec[pono_options.prop_idx_])
+                      : propvec[pono_options.prop_idx_];
 
       vector<UnorderedTermMap> cex;
       res = check_prop(pono_options, prop, fts, s, cex);
