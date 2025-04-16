@@ -35,7 +35,7 @@ else()
       CACHE STRING "Extra flags to the cython compiler." FORCE)
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}/deps/smt-switch/python/smt_switch")
+include_directories("${SMT_SWITCH_DIR}/python/smt_switch")
 
 # Everything from here up to line 'include(FindPythonExtensions)' is copied
 # from smt-switch python/CMakefile:
@@ -105,7 +105,7 @@ add_cython_target(pono CXX)
 add_library(pono MODULE ${pono})
 
 target_link_libraries(pono pono-lib)
-target_include_directories(pono PUBLIC "${PROJECT_SOURCE_DIR}/deps/smt-switch/local/include/smt-switch")
+target_include_directories(pono PUBLIC "${SMT_SWITCH_DIR}/local/include/smt-switch")
 
 python_extension_module(pono)
 
