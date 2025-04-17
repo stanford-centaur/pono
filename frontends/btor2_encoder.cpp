@@ -16,8 +16,10 @@
 
 #include "btor2_encoder.h"
 
+#include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <iterator>
 
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
@@ -427,9 +429,12 @@ void BTOR2Encoder::parse(const std::string filename)
       propvec_.push_back(prop);
       terms_[l_->id] = prop;
     } else if (l_->tag == BTOR2_TAG_justice) {
-      std::cout << "Warning: ignoring justice term" << std::endl;
-      justicevec_.push_back(termargs_[0]);
-      terms_[l_->id] = termargs_[0];
+      auto & justice = justicevec_.emplace_back();
+      justice.reserve(termargs_.size());
+      std::transform(termargs_.begin(),
+                     termargs_.end(),
+                     std::back_inserter(justice),
+                     [&](auto t) { return bv_to_bool(t); });
     } else if (l_->tag == BTOR2_TAG_fair) {
       std::cout << "Warning: ignoring fair term" << std::endl;
       fairvec_.push_back(termargs_[0]);

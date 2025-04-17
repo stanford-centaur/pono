@@ -45,6 +45,7 @@ enum optionIndex
   RANDOM_SEED,
   VCDNAME,
   WITNESS,
+  JUSTICE,
   STATICCOI,
   SHOW_INVAR,
   CHECK_INVAR,
@@ -228,6 +229,13 @@ const option::Descriptor usage[] = {
     "witness",
     Arg::None,
     "  --witness \tPrint witness if the property is false." },
+  { JUSTICE,
+    0,
+    "j",
+    "justice",
+    Arg::None,
+    "  --justice, -j \tCheck justice property, instead of safety, at the given "
+    "index. (default: false)" },
   { STATICCOI,
     0,
     "",
@@ -496,7 +504,6 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --bmc-exponential-step \tDouble BMC bound in each step starting at "
     "'bmc-bound-start' (default: false, explores bounds 0, 1, 2, 4,...)." },
-
   { BMC_SINGLE_BAD_STATE,
     0,
     "",
