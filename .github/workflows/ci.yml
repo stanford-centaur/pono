@@ -16,8 +16,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+        link_type: [dynamic, static]
+        include:
+          - link_type: static
+            config_opts: --static
 
-    name: ${{ matrix.os }}-build
+    name: ${{ matrix.os }}-${{ matrix.link_type }}-build
     runs-on: ${{ matrix.os}}
 
     steps:
@@ -77,11 +81,11 @@ jobs:
 
       - name: Configure (macOS)
         if: runner.os == 'macOS'
-        run: ./configure.sh --debug --python
+        run: ./configure.sh --debug --python ${{ matrix.config_opts }}
 
       - name: Configure (non-macOS)
         if: runner.os != 'macOS'
-        run: ./configure.sh --with-msat --debug --python
+        run: ./configure.sh --with-msat --debug --python ${{ matrix.config_opts }}
 
       - name: Build
         run: |

@@ -5,6 +5,11 @@ if(POLICY CMP0057)
   cmake_policy(SET CMP0057 NEW)
 endif()
 
+# The Python library is always linked dynamically.
+if("${PONO_STATIC_EXEC}" STREQUAL "YES")
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_ORIG})
+endif()
+
 # We currently use FindPythonInterp even though it is deprecated since 3.12
 # This is because the scikit-build files still use this version and it will
 # not interact well with the latest Python finding cmake modules
