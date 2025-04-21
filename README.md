@@ -41,6 +41,27 @@ Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](ht
 * Please see the [README of smt-switch](https://github.com/stanford-centaur/smt-switch#dependencies) for required dependencies.
 * Note to Arch Linux users: building Pono will fail if the static library of [GMP](https://gmplib.org/), which is required by [cvc5](https://github.com/cvc5/cvc5/blob/main/INSTALL.rst), is not installed on your system. You can fix it by installing `libgmp-static` from [AUR](https://aur.archlinux.org/packages/libgmp-static).
 
+### Docker
+
+We provide a Dockerfile for building a container image with Pono and all its dependencies.
+To build the image locally, run:
+
+```bash
+docker build -t pono .
+```
+
+(You can replace `docker` with `podman` if you prefer a Docker-compatible alternative.)
+
+Note that the Docker image does not include the MathSAT backend due to licensing restrictions.
+If you need MathSAT support, please modify the Dockerfile manually to include it.
+
+For your convenience, we publish the image built from the latest commit of main branch to GitHub Container Registry.
+You can pull the image with:
+
+```bash
+docker pull ghcr.io/stanford-centaur/pono:latest
+```
+
 ### Profiling
 
 We link against the [gperftools library](https://github.com/gperftools/gperftools)
