@@ -335,7 +335,13 @@ target_include_directories(pono-bin PUBLIC
 target_link_libraries(pono-bin PUBLIC pono-lib)
 
 if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
-  target_link_libraries(pono-bin PUBLIC -static)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # Static libraries cannot be built on Macs.
+    # See: https://developer.apple.com/library/archive/qa/qa1118/_index.html
+    message(WARNING "Static executables are not supported on macOS")
+  else()
+    target_link_libraries(pono-bin PUBLIC -static)
+  endif()
 endif()
 
 set(CMAKE_INSTALL_MESSAGE LAZY)
