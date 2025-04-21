@@ -74,7 +74,7 @@ DOT ".";
 
 %right OP_IMPLY
 %left OP_BI
-%left IF_ELSE
+%right IF_ELSE
 %left OP_OR OP_XOR OP_XNOR
 %left OP_AND
 %left OP_EQ OP_NEQ OP_LT OP_GT OP_LTE OP_GTE
@@ -1333,7 +1333,7 @@ simple_expr: constant {
             | basic_expr OP_IN basic_expr {
                throw PonoException("No array");
             }
-            | basic_expr IF_ELSE basic_expr ":" basic_expr  {
+            | basic_expr IF_ELSE basic_expr ":" basic_expr %prec IF_ELSE {
               if(enc.module_flat){
                  SMVnode *a = $1;
                  SMVnode *b = $3;
