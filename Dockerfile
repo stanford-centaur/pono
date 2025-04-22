@@ -24,7 +24,7 @@ RUN ./contrib/setup-bison.sh
 RUN ./contrib/setup-flex.sh
 RUN ./contrib/setup-smt-switch.sh
 RUN ./contrib/setup-btor2tools.sh
-RUN ./configure.sh
+RUN ./configure.sh --static
 RUN cd build/ && \
     make -j$(nproc)
 
