@@ -735,6 +735,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
         case PRINTING_SMT_SOLVER: printing_smt_solver_ = true; break;
         case WITNESS: witness_ = true; break;
+        case JUSTICE: justice_ = true; break;
         case STATICCOI: static_coi_ = true; break;
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
