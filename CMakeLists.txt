@@ -82,15 +82,12 @@ endif()
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
-# rely on cmake modules from smt-switch (required anyway)
-set(CMAKE_MODULE_PATH ${SMT_SWITCH_DIR}/cmake)
-
-find_package(GMP REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 # Check that dependencies are there
 list(APPEND CMAKE_PREFIX_PATH "${SMT_SWITCH_DIR}/deps/install")
 
+pkg_check_modules(GMPXX REQUIRED gmpxx)
 pkg_check_modules(BITWUZLA REQUIRED bitwuzla)
 
 if (NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
@@ -165,7 +162,7 @@ set(INCLUDE_DIRS
   "${SMT_SWITCH_DIR}/local/include"
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
-  "${GMP_INCLUDE_DIR}"
+  ${GMPXX_INCLUDE_DIRS}
   "${FLEX_INCLUDE_DIRS}"
   )
 
@@ -306,8 +303,7 @@ endif()
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
-target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
-target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
+target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
 
