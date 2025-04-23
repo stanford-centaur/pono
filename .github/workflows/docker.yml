@@ -12,6 +12,9 @@ jobs:
    build-and-publish-to-ghcr:
     runs-on: ubuntu-latest
     steps:
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -27,3 +30,4 @@ jobs:
         with:
           push: true
           tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
+          labels: ${{ steps.meta.outputs.labels }}
