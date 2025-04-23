@@ -45,6 +45,7 @@ enum optionIndex
   RANDOM_SEED,
   VCDNAME,
   WITNESS,
+  BTOR2_WITNESS_NAME,
   STATICCOI,
   SHOW_INVAR,
   CHECK_INVAR,
@@ -186,7 +187,7 @@ const option::Descriptor usage[] = {
     "",
     "vcd",
     Arg::NonEmpty,
-    "  --vcd \tName of Value Change Dump (VCD) if witness exists." },
+    "  --vcd <filename> \tName of Value Change Dump (VCD) if witness exists." },
   { SMT_SOLVER,
     0,
     "",
@@ -228,6 +229,13 @@ const option::Descriptor usage[] = {
     "witness",
     Arg::None,
     "  --witness \tPrint witness if the property is false." },
+  { BTOR2_WITNESS_NAME,
+    0,
+    "",
+    "dump-btor2-witness",
+    Arg::NonEmpty,
+    "  --dump-btor2-witness <filename> \t"
+    "Dump the Btor2 witness into the specified file." },
   { STATICCOI,
     0,
     "",
@@ -694,6 +702,10 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case RANDOM_SEED: random_seed_ = atoi(opt.arg); break;
         case VCDNAME:
           vcd_name_ = opt.arg;
+          witness_ = true;  // implicitly enabling witness
+          break;
+        case BTOR2_WITNESS_NAME:
+          btor2_witness_name_ = opt.arg;
           witness_ = true;  // implicitly enabling witness
           break;
         case SMT_SOLVER: {

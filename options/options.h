@@ -186,6 +186,7 @@ class PonoOptions
   unsigned int random_seed_;
   bool witness_;
   std::string vcd_name_;
+  std::string btor2_witness_name_;
   std::string reset_name_;
   size_t reset_bnd_;
   std::string clock_name_;
