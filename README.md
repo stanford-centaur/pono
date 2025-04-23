@@ -1,6 +1,8 @@
-[![CI](https://github.com/upscale-project/pono/actions/workflows/ci.yml/badge.svg)](https://github.com/upscale-project/pono/actions/workflows/ci.yml)
+[![CI](https://github.com/stanford-centaur/pono/actions/workflows/ci.yml/badge.svg)](https://github.com/stanford-centaur/pono/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/stanford-centaur/pono/blob/main/LICENSE)
 
 # Pono: A Flexible and Extensible SMT-Based Model Checker
+
 Pono is a performant, adaptable, and extensible SMT-based model checker implemented in C++. It leverages [Smt-Switch](https://github.com/stanford-centaur/smt-switch), a generic C++ API for SMT solving. Pono was developed as the next
 generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was originally named _cosa2_.
 
@@ -23,7 +25,7 @@ Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](ht
   * If you don't have bison and flex installed globally, run `./contrib/setup-bison.sh` and `./contrib/setup-flex.sh`
   * Even if you do have bison, you might get errors about not being able to load `-ly`. In such a case, run the bison setup script.
 * Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla
-  * [optional] to build with MathSAT (required for interpolant-based model checking) you need to obtain the libraries yourself
+  * [optional] to build with MathSAT (required for interpolation-based model checking) you need to obtain the libraries yourself
     * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
     * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`
     * then add the `--with-msat` flag to the `setup-smt-switch.sh` command.
@@ -38,6 +40,27 @@ Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](ht
 
 * Please see the [README of smt-switch](https://github.com/stanford-centaur/smt-switch#dependencies) for required dependencies.
 * Note to Arch Linux users: building Pono will fail if the static library of [GMP](https://gmplib.org/), which is required by [cvc5](https://github.com/cvc5/cvc5/blob/main/INSTALL.rst), is not installed on your system. You can fix it by installing `libgmp-static` from [AUR](https://aur.archlinux.org/packages/libgmp-static).
+
+### Docker
+
+We provide a Dockerfile for building a container image with Pono and all its dependencies.
+To build the image locally, run:
+
+```bash
+docker build -t pono .
+```
+
+(You can replace `docker` with `podman` if you prefer a Docker-compatible alternative.)
+
+Note that the Docker image does not include the MathSAT backend due to licensing restrictions.
+If you need MathSAT support, please modify the Dockerfile manually to include it.
+
+For your convenience, we publish the image built from the latest commit of main branch to GitHub Container Registry.
+You can pull the image with:
+
+```bash
+docker pull ghcr.io/stanford-centaur/pono:latest
+```
 
 ### Profiling
 
@@ -65,23 +88,28 @@ gperftools is licensed under a BSD 3-clause license, see
 ## Existing code
 
 ### Transition Systems
+
 There are two Transition System interfaces:
+
 * FunctionalTransitionSystem in fts.*
 * TransitionSystem in rts.*
 
-
 ### Smt-Switch
+
 [Smt-switch](https://github.com/stanford-centaur/smt-switch) is a C++ solver-agnostic API for SMT solvers. The main thing to remember is that everything is a pointer. Objects might be "typedef-ed" with `using` statements, but they're still `shared_ptr`s. Thus, when using a solver or a term, you need to use `->` accesses.
 
 For more information, see the example usage in the [smt-switch tests](https://github.com/stanford-centaur/smt-switch/tree/master/tests/btor).
 Other useful files to visit include:
+
 * `smt-switch/include/solver.h`: this is the main interface you will be using
 * `smt-switch/include/ops.h`: this contains all the ops you might need
   * Note: create indexed ops like `Op(Extract, 7, 4)`
 
 ## Python bindings
+
 To build the `pono` python bindings, first make sure that you have [Cython](https://cython.org/) version >= 0.29 installed. Then ensure that `smt-switch` and its python bindings are installed. Finally, you can configure with `./configure.sh --python` and then build normally. The sequence of commands would be as follows:
-```
+
+```bash
 # Optional recommended step: start a python virtualenv
 # If you install in the virtualenv, you will need to activate it each time before using pono
 # and deactivate the virtualenv with: deactivate
