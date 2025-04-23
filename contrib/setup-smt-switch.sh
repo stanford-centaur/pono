@@ -33,6 +33,7 @@ WITH_YICES2=default
 CONF_OPTS=""
 WITH_PYTHON=default
 cvc5_home=default
+INCL_SOLVER_STR="bitwuzla and cvc5"
 
 while [ $# -gt 0 ]
 do
@@ -40,21 +41,24 @@ do
         -h|--help) usage;;
         --with-msat)
             WITH_MSAT=ON
-            CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat";;
+            CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat"
+            INCL_SOLVER_STR="mathsat, $INCL_SOLVER_STR";;
         --with-btor)
             WITH_BOOLECTOR=ON
-            CONF_OPTS="$CONF_OPTS --btor";;
+            CONF_OPTS="$CONF_OPTS --btor"
+            INCL_SOLVER_STR="boolector, $INCL_SOLVER_STR";;
         --with-yices2)
             WITH_YICES2=ON
-            CONF_OPTS="$CONF_OPTS --yices2";;
+            CONF_OPTS="$CONF_OPTS --yices2"
+            INCL_SOLVER_STR="yices2, $INCL_SOLVER_STR";;
         --python)
             WITH_PYTHON=YES
             CONF_OPTS="$CONF_OPTS --python";;
         --cvc5-home) die "missing argument to $1 (see -h)" ;;
         --cvc5-home=*)
             cvc5_home=${1##*=}
-            # Check if cvc5_home is an absolute path and if not, make it
-            # absolute.
+            # Check if cvc5_home is an absolute path and
+            # if not, make it absolute.
             case $cvc5_home in
                 /*) ;;                            # absolute path
                 *) cvc5_home=$(pwd)/$cvc5_home ;; # make absolute path
@@ -92,7 +96,7 @@ else
 fi
 
 if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]; then
-    echo "It appears smt-switch with boolector and cvc5 was successfully installed to $DEPS/smt-switch/local."
+    echo "It appears smt-switch with $INCL_SOLVER_STR was successfully installed to $DEPS/smt-switch/local."
     echo "You may now build pono with: ./configure.sh && cd build && make"
 else
     echo "Building smt-switch failed."
