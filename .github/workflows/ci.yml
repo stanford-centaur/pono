@@ -86,9 +86,24 @@ jobs:
           make -j
 
       - name: Test C++
+        id: test-cpp
+        continue-on-error: true
         run: |
           cd build
           make check
+
+      - name: Upload failing test log
+        if: steps.test-cpp.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: failing-test-log
+          path: build/tests/Testing/Temporary/LastTest.log
+      
+      - name: Fail pipeline due to C++ test failure
+        if: steps.test-cpp.outcome == 'failure'
+        run: |
+          echo "C++ tests failed. Inspect the artifact for details."
+          exit 1
 
       - name: Install Python Bindings
         run: python3 -m pip install -e ./build/python[test,pysmt]
