@@ -134,8 +134,8 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   SolverEnum se = get<0>(GetParam());
   Engine eng = get<1>(GetParam());
 
-  if (eng == INTERP && se != MSAT) {
-    // skip interpolation unless the solver is MathSAT
+  if ((eng == INTERP || eng == IC3IA_ENGINE) && se != MSAT) {
+    // skip interpolation and IC3ia unless the solver is MathSAT
     return;
   }
 
