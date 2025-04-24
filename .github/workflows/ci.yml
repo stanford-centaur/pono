@@ -37,13 +37,6 @@ jobs:
             libgmp-dev \
             openjdk-8-jdk
 
-      - name: Install Packages (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install \
-            ninja \
-            gmp
-
       - name: Python Environment Setup
         run: |
           python3 -m venv ./.venv
