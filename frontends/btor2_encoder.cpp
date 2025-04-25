@@ -443,7 +443,7 @@ void BTOR2Encoder::parse(const std::string filename)
                      std::back_inserter(justice),
                      [&](auto t) { return bv_to_bool(t); });
     } else if (bt2_line->tag == BTOR2_TAG_fair) {
-      std::cout << "Warning: ignoring fair term" << std::endl;
+      std::cerr << "Warning: ignoring fair term" << std::endl;
       fairvec_.push_back(termargs[0]);
       terms_[bt2_line->id] = termargs[0];
     } else if (bt2_line->constant) {
