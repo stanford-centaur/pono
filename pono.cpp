@@ -297,11 +297,18 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
 
-      Term prop = pono_options.justice_
-                      // This will change the transition system in place.
-                      ? LivenessToSafetyTranslator{}.translate(
-                            fts, justicevec[pono_options.prop_idx_])
-                      : propvec[pono_options.prop_idx_];
+      Term prop;
+      if (pono_options.justice_) {
+        // The selected algorithm can modify the transition system in place.
+        switch (pono_options.justice_translator_) {
+          case pono::LIVENESS_TO_SAFETY:
+            prop = LivenessToSafetyTranslator{}.translate(
+                fts, justicevec[pono_options.prop_idx_]);
+            break;
+        }
+      } else {
+        prop = propvec[pono_options.prop_idx_];
+      }
 
       vector<UnorderedTermMap> cex;
       res = check_prop(pono_options, prop, fts, s, cex);

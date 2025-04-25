@@ -46,6 +46,7 @@ enum optionIndex
   VCDNAME,
   WITNESS,
   JUSTICE,
+  JUSTICE_TRANSLATOR,
   STATICCOI,
   SHOW_INVAR,
   CHECK_INVAR,
@@ -236,6 +237,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --justice, -j \tCheck justice property, instead of safety, at the given "
     "index. (default: false)" },
+  { JUSTICE_TRANSLATOR,
+    0,
+    "",
+    "justice-translator",
+    Arg::NonEmpty,
+    "  --justice-translator <algorithm> \tSelect liveness to safety "
+    "translation algorithm from [l2s]." },
   { STATICCOI,
     0,
     "",
@@ -637,6 +645,15 @@ Engine PonoOptions::to_engine(std::string s)
   }
 }
 
+JusticeTranslator PonoOptions::to_justice_translator(std::string s)
+{
+  if (str2livenessalg.find(s) != str2livenessalg.end()) {
+    return str2livenessalg.at(s);
+  } else {
+    throw PonoException("Unrecognized algorithm: " + s);
+  }
+}
+
 // Parse command line options given by 'argc' and 'argv' and set
 // respective options in the 'pono_options' object.
 // Returns 'ERROR' if there is something wrong with the given options
@@ -736,6 +753,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case PRINTING_SMT_SOLVER: printing_smt_solver_ = true; break;
         case WITNESS: witness_ = true; break;
         case JUSTICE: justice_ = true; break;
+        case JUSTICE_TRANSLATOR:
+          justice_translator_ = to_justice_translator(opt.arg);
+          break;
         case STATICCOI: static_coi_ = true; break;
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
@@ -944,10 +964,24 @@ string to_string(Engine e)
   return res;
 }
 
+string to_string(JusticeTranslator jt)
+{
+  string res;
+  switch (jt) {
+    case LIVENESS_TO_SAFETY: res = "l2s"; break;
+  }
+  return res;
+}
+
 ostream & operator<<(ostream & o, Engine e)
 {
   o << to_string(e);
   return o;
 }
 
+ostream & operator<<(ostream & o, JusticeTranslator jt)
+{
+  o << to_string(jt);
+  return o;
+}
 }  // namespace pono
