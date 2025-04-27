@@ -35,22 +35,8 @@ void InterpSeqMC::initialize()
 
   interpolator_->reset_assertions();
 
-  // symbols are already created in solver
-  // need to add symbols at time 1 to cache
-  // (only at time 1 because Craig Interpolation has to share symbols
-  // between A and B)
+  // register UF symbols
   UnorderedTermMap & cache = to_solver_.get_cache();
-  Term tmp1;
-  for (const auto & s : ts_.statevars()) {
-    tmp1 = unroller_.at_time(s, 1);
-    cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
-  }
-  for (const auto & i : ts_.inputvars()) {
-    tmp1 = unroller_.at_time(i, 1);
-    cache[to_interpolator_.transfer_term(tmp1)] = tmp1;
-  }
-
-  // need to copy over UF as well
   UnorderedTermSet free_symbols;
   get_free_symbols(bad_, free_symbols);
   get_free_symbols(ts_.init(), free_symbols);
@@ -62,10 +48,7 @@ void InterpSeqMC::initialize()
   }
 
   concrete_cex_ = false;
-  init0_ = unroller_.at_time(ts_.init(), 0);
-  transA_ = unroller_.at_time(ts_.trans(), 0);
-  transB_ = solver_->make_term(true);
-  bad_disjuncts_ = solver_->make_term(false);
+  reach_seq_.push_back(ts_.init());
 }
 
 ProverResult InterpSeqMC::check_until(int k)
@@ -83,7 +66,7 @@ ProverResult InterpSeqMC::check_until(int k)
     }
   }
   catch (InternalSolverException & e) {
-    logger.log(1, "Failed when computing interpolant.");
+    logger.log(1, "ISMC failed due to: {}", e.what());
   }
   return ProverResult::UNKNOWN;
 }
@@ -94,7 +77,7 @@ bool InterpSeqMC::step(int i)
     return false;
   }
 
-  logger.log(1, "Checking interpolation at bound: {}", i);
+  logger.log(1, "Running ISMC at bound: {}", i);
 
   if (i == 0) {
     // Can't get an interpolant at bound 0
@@ -102,76 +85,67 @@ bool InterpSeqMC::step(int i)
     return step_0();
   }
 
+  // construct the transition formula at current time step
+  update_term_map(i);
+  const smt::Term trans_i = unroller_.at_time(ts_.trans(), i - 1);
+  trans_seq_.push_back(trans_i);
+  if (i == 1) {
+    // for convenience, we conjoin TR(0, 1) with Init(0)
+    assert(trans_seq_.size() == 1);
+    trans_seq_.at(0) =
+        solver_->make_term(And, unroller_.at_time(ts_.init(), 0), trans_i);
+  }
+  int_trans_seq_.push_back(to_interpolator_.transfer_term(trans_seq_.back()));
+
   Term bad_i = unroller_.at_time(bad_, i);
-  bad_disjuncts_ = solver_->make_term(Or, bad_disjuncts_, bad_i);
-  Term int_bad_disjuncts = to_interpolator_.transfer_term(bad_disjuncts_);
-  Term int_transA = to_interpolator_.transfer_term(transA_);
-  Term int_transB = to_interpolator_.transfer_term(transB_);
-  Term R = init0_;
-  Term Ri;
-  bool got_interpolant = true;
+  Term int_bad_i = to_interpolator_.transfer_term(bad_i);
 
-  while (got_interpolant) {
-    Term int_R = to_interpolator_.transfer_term(R);
-    Term int_Ri;
-    Result r = interpolator_->get_interpolant(
-        interpolator_->make_term(And, int_R, int_transA),
-        interpolator_->make_term(And, int_transB, int_bad_disjuncts),
-        int_Ri);
+  // temporarily push `bad` to `trans_seq` to avoid copying the whole vector
+  int_trans_seq_.push_back(int_bad_i);
 
-    got_interpolant = r.is_unsat();
+  TermVec itp_seq;
+  Result r = interpolator_->get_sequence_interpolants(int_trans_seq_, itp_seq);
 
-    if (got_interpolant) {
-      Ri = to_solver_.transfer_term(int_Ri);
-      // map Ri to time 0
-      Ri = unroller_.at_time(unroller_.untime(Ri), 0);
+  // pop `bad` out from `trans_seq`
+  int_trans_seq_.pop_back();
 
-      if (check_entail(Ri, R)) {
-        // check if the over-approximation has reached a fix-point
-        logger.log(1, "Found a proof at bound: {}", i);
-        invar_ = unroller_.untime(R);
-        return true;
-      } else {
-        logger.log(1, "Extending initial states.");
-        logger.log(3, "Using interpolant: {}", Ri);
-        R = solver_->make_term(Or, R, Ri);
-      }
-    } else if (R == init0_) {
-      // found a concrete counter example
-      // replay it in the solver with model generation
-      concrete_cex_ = true;
-      solver_->reset_assertions();
+  if (r.is_sat()) {
+    // found a concrete counter example
+    // replay it in the solver with model generation
+    concrete_cex_ = true;
+    solver_->reset_assertions();
+    Term trans_until_i = solver_->make_term(And, trans_seq_);
+    solver_->assert_formula(solver_->make_term(And, trans_until_i, bad_i));
 
-      Term solver_trans = solver_->make_term(And, transA_, transB_);
-      solver_->assert_formula(solver_->make_term(
-          And, init0_, solver_->make_term(And, solver_trans, bad_i)));
-
-      Result r = solver_->check_sat();
-      if (!r.is_sat()) {
-        throw PonoException("Internal error: Expecting satisfiable result");
-      }
-      return false;
-    } else if (r.is_unknown()) {
-      // TODO: figure out if makes sense to increase bound and try again
-      throw PonoException("Interpolant generation failed.");
+    if (!solver_->check_sat().is_sat()) {
+      throw PonoException("Internal error: Expecting satisfiable result");
     }
+    return false;
+  } else if (r.is_unsat()) {
+    // update reachability sequence with interpolants
+    reach_seq_.push_back(solver_->make_term(true));
+    assert(reach_seq_.size() == itp_seq.size() + 1);
+    for (size_t j = 0; j < itp_seq.size(); ++j) {
+      Term itp = unroller_.untime(to_solver_.transfer_term(itp_seq.at(j)));
+      reach_seq_.at(j + 1) = solver_->make_term(And, reach_seq_.at(j + 1), itp);
+    }
+    if (check_fixed_point()) {
+      logger.log(1, "Found a proof at bound: {}", i);
+      return true;
+    }
+  } else {
+    throw PonoException("Interpolation failed due to " + r.get_explanation());
   }
 
-  // Note: important that it's for i > 0
-  // transB can't have any symbols from time 0 in it
-  assert(i > 0);
-  // extend the unrolling
-  transB_ = solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
   ++reached_k_;
-
   return false;
 }
 
 bool InterpSeqMC::step_0()
 {
   solver_->reset_assertions();
-  solver_->assert_formula(init0_);
-  solver_->assert_formula(unroller_.at_time(bad_, 0));
+  solver_->assert_formula(reach_seq_.at(0));
+  solver_->assert_formula(bad_);
 
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
@@ -182,6 +156,22 @@ bool InterpSeqMC::step_0()
   return false;
 }
 
+void InterpSeqMC::update_term_map(size_t i)
+{
+  // symbols are already created in solver
+  // need to add symbols at the given time step to cache
+  UnorderedTermMap & cache = to_solver_.get_cache();
+  Term term;
+  for (const auto & sv : ts_.statevars()) {
+    term = unroller_.at_time(sv, i);
+    cache[to_interpolator_.transfer_term(term)] = term;
+  }
+  for (const auto & iv : ts_.inputvars()) {
+    term = unroller_.at_time(iv, i);
+    cache[to_interpolator_.transfer_term(term)] = term;
+  }
+}
+
 bool InterpSeqMC::check_entail(const Term & p, const Term & q)
 {
   solver_->reset_assertions();
@@ -190,6 +180,20 @@ bool InterpSeqMC::check_entail(const Term & p, const Term & q)
   Result r = solver_->check_sat();
   assert(r.is_unsat() || r.is_sat());
   return r.is_unsat();
+}
+
+bool InterpSeqMC::check_fixed_point()
+{
+  assert(reach_seq_.size() > 1);
+  Term acc_img = reach_seq_.at(0);
+  for (size_t i = 1; i < reach_seq_.size(); ++i) {
+    if (check_entail(reach_seq_.at(i), acc_img)) {
+      invar_ = acc_img;
+      return true;
+    }
+    acc_img = solver_->make_term(Or, acc_img, reach_seq_.at(i));
+  }
+  return false;
 }
 
 }  // namespace pono
