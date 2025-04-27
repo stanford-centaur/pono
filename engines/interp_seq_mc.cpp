@@ -109,19 +109,7 @@ bool InterpSeqMC::step(int i)
   // pop `bad` out from `trans_seq`
   int_trans_seq_.pop_back();
 
-  if (r.is_sat()) {
-    // found a concrete counter example
-    // replay it in the solver with model generation
-    concrete_cex_ = true;
-    solver_->reset_assertions();
-    Term trans_until_i = solver_->make_term(And, trans_seq_);
-    solver_->assert_formula(solver_->make_term(And, trans_until_i, bad_i));
-
-    if (!solver_->check_sat().is_sat()) {
-      throw PonoException("Internal error: Expecting satisfiable result");
-    }
-    return false;
-  } else if (r.is_unsat()) {
+  if (r.is_unsat()) {
     // update reachability sequence with interpolants
     reach_seq_.push_back(solver_->make_term(true));
     assert(reach_seq_.size() == itp_seq.size() + 1);
@@ -133,8 +121,26 @@ bool InterpSeqMC::step(int i)
       logger.log(1, "Found a proof at bound: {}", i);
       return true;
     }
-  } else {
-    throw PonoException("Interpolation failed due to " + r.get_explanation());
+  } else {  // handle sat and unknown
+    // check the BMC query using the solver with model generation
+    // note that we also perform the check even when interpolation fails
+    // (i.e., r.is_unknown()), because iterative construction of interpolation
+    // sequence may fail if the given formula is satisfiable
+    solver_->reset_assertions();
+    Term trans_until_i = solver_->make_term(And, trans_seq_);
+    solver_->assert_formula(solver_->make_term(And, trans_until_i, bad_i));
+    Result bmc_res = solver_->check_sat();
+    if (bmc_res.is_sat()) {
+      // found a concrete counter example
+      // replay it in the solver with model generation
+      concrete_cex_ = true;
+    } else if (r.is_sat() && !bmc_res.is_sat()) {
+      throw PonoException("Internal error: Expecting satisfiable result");
+    } else {
+      throw PonoException("Interpolation failed due to: "
+                          + r.get_explanation());
+    }
+    return false;
   }
 
   ++reached_k_;
