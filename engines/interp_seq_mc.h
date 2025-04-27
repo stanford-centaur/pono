@@ -25,8 +25,9 @@ class InterpSeqMC : public Prover
   bool step(int i);
   bool step_0();
 
-  void reset_assertions(smt::SmtSolver & s);
+  void update_term_map(size_t i);
 
+  bool check_fixed_point();
   bool check_entail(const smt::Term & p, const smt::Term & q);
 
   smt::SmtSolver interpolator_;
@@ -38,10 +39,12 @@ class InterpSeqMC : public Prover
   // set to true when a concrete_cex is found
   bool concrete_cex_;
 
-  smt::Term init0_;
-  smt::Term transA_;
-  smt::Term transB_;
-  smt::Term bad_disjuncts_;  ///< a disjunction of bads in the suffix
+  // reachability sequence: <Init, R_0, R_1, ...>
+  smt::TermVec reach_seq_;
+  // transition at each time step: <Init(0) & TR(0, 1), TR(1, 2), ...>
+  // note that at 0th step, Init is conjoined with TR
+  smt::TermVec trans_seq_;
+  smt::TermVec int_trans_seq_;
 
 };  // class InterpSeqMC
 
