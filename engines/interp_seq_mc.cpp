@@ -127,7 +127,9 @@ bool InterpSeqMC::step(int i)
     // (i.e., r.is_unknown()), because iterative construction of interpolation
     // sequence may fail if the given formula is satisfiable
     solver_->reset_assertions();
-    Term trans_until_i = solver_->make_term(And, trans_seq_);
+    Term trans_until_i = (trans_seq_.size() == 1)
+                             ? trans_seq_.at(0)
+                             : solver_->make_term(And, trans_seq_);
     solver_->assert_formula(solver_->make_term(And, trans_until_i, bad_i));
     Result bmc_res = solver_->check_sat();
     if (bmc_res.is_sat()) {
