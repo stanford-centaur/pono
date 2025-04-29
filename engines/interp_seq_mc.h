@@ -29,6 +29,8 @@ class InterpSeqMC : public Prover
 
   bool check_fixed_point();
   bool check_entail(const smt::Term & p, const smt::Term & q);
+  void check_itp_sequence(const smt::TermVec & int_formulas,
+                          const smt::TermVec & int_itp_seq);
 
   smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
