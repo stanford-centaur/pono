@@ -103,8 +103,9 @@ bool InterpSeqMC::step(int i)
   // temporarily push `bad` to `trans_seq` to avoid copying the whole vector
   int_trans_seq_.push_back(int_bad_i);
 
-  TermVec itp_seq;
-  Result r = interpolator_->get_sequence_interpolants(int_trans_seq_, itp_seq);
+  TermVec int_itp_seq;
+  Result r =
+      interpolator_->get_sequence_interpolants(int_trans_seq_, int_itp_seq);
 
   // pop `bad` out from `trans_seq`
   int_trans_seq_.pop_back();
@@ -112,9 +113,9 @@ bool InterpSeqMC::step(int i)
   if (r.is_unsat()) {
     // update reachability sequence with interpolants
     reach_seq_.push_back(solver_->make_term(true));
-    assert(reach_seq_.size() == itp_seq.size() + 1);
-    for (size_t j = 0; j < itp_seq.size(); ++j) {
-      Term itp = unroller_.untime(to_solver_.transfer_term(itp_seq.at(j)));
+    assert(reach_seq_.size() == int_itp_seq.size() + 1);
+    for (size_t j = 0; j < int_itp_seq.size(); ++j) {
+      Term itp = unroller_.untime(to_solver_.transfer_term(int_itp_seq.at(j)));
       reach_seq_.at(j + 1) = solver_->make_term(And, reach_seq_.at(j + 1), itp);
     }
     if (check_fixed_point()) {
