@@ -107,6 +107,12 @@ bool InterpSeqMC::step(int i)
   Result r =
       interpolator_->get_sequence_interpolants(int_trans_seq_, int_itp_seq);
 
+#ifndef NDEBUG
+  if (r.is_unsat()) {
+    check_itp_sequence(int_trans_seq_, int_itp_seq);
+  }
+#endif
+
   // pop `bad` out from `trans_seq`
   int_trans_seq_.pop_back();
 
@@ -203,6 +209,37 @@ bool InterpSeqMC::check_fixed_point()
     acc_img = solver_->make_term(Or, acc_img, reach_seq_.at(i));
   }
   return false;
+}
+
+// check if the interpolation sequence is valid
+// i.e., `A => Itp@i` holds and `Itp@i & B` is UNSAT for each i
+void InterpSeqMC::check_itp_sequence(const TermVec & int_formulas,
+                                     const TermVec & int_itp_seq)
+{
+  assert(int_formulas.size() == int_itp_seq.size() + 1);
+  for (size_t i = 0; i < int_itp_seq.size(); ++i) {
+    TermVec int_a_vec(int_formulas.begin(), int_formulas.begin() + i + 1);
+    TermVec int_b_vec(int_formulas.begin() + i + 1, int_formulas.end());
+    Term int_a = (int_a_vec.size() == 1)
+                     ? int_a_vec.at(0)
+                     : interpolator_->make_term(And, int_a_vec);
+    Term int_b = (int_b_vec.size() == 1)
+                     ? int_b_vec.at(0)
+                     : interpolator_->make_term(And, int_b_vec);
+    Term a = to_solver_.transfer_term(int_a);
+    Term b = to_solver_.transfer_term(int_b);
+    Term itp = to_solver_.transfer_term(int_itp_seq.at(i));
+    if (!check_entail(a, itp)) {
+      throw PonoException("Invalid interpolation sequence: A =\\> Itp@"
+                          + std::to_string(i));
+    }
+    solver_->reset_assertions();
+    solver_->assert_formula(solver_->make_term(And, itp, b));
+    if (!solver_->check_sat().is_unsat()) {
+      throw PonoException("Invalid interpolation sequence: Itp@"
+                          + std::to_string(i) + " & B is not UNSAT");
+    }
+  }
 }
 
 }  // namespace pono
