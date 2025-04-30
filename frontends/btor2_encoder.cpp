@@ -379,9 +379,13 @@ void BTOR2Encoder::parse(const std::string filename)
       Term inbt2_iteq;
 
       if (linesort->get_sort_kind() == BV) {
-        inbt2_iteq = solver_->make_term(Equal, termargs);
+        // state variables are always bitvectors
+        // so we only need to make sure the init term is a bitvector
+        inbt2_iteq =
+            solver_->make_term(Equal, termargs[0], bool_to_bv(termargs[1]));
       } else if (linesort->get_sort_kind() == ARRAY) {
         if (termargs[1]->get_sort()->get_sort_kind() == BV) {
+          // initialize the array state with a bitvector constant
           inbt2_iteq = solver_->make_term(
               Equal, termargs[0], solver_->make_term(termargs[1], linesort));
         } else {
