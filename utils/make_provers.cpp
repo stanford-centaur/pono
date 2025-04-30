@@ -41,11 +41,7 @@ namespace pono {
 
 vector<Engine> all_engines()
 {
-#ifdef WITH_MSAT
   return { BMC, BMC_SP, KIND, MBIC3, INTERP, IC3IA_ENGINE, IC3SA_ENGINE };
-#else
-  return { BMC, BMC_SP, KIND, MBIC3, IC3SA_ENGINE };
-#endif
 }
 
 shared_ptr<Prover> make_prover(Engine e,
@@ -61,23 +57,13 @@ shared_ptr<Prover> make_prover(Engine e,
   } else if (e == KIND) {
     return make_shared<KInduction>(p, ts, slv, opts);
   } else if (e == INTERP) {
-#ifdef WITH_MSAT
     return make_shared<InterpolantMC>(p, ts, slv, opts);
-#else
-    throw PonoException(
-        "Interpolant-based modelchecking requires an interpolator");
-#endif
   } else if (e == MBIC3) {
     return make_shared<ModelBasedIC3>(p, ts, slv, opts);
   } else if (e == IC3_BITS) {
     return make_shared<IC3Bits>(p, ts, slv, opts);
   } else if (e == IC3IA_ENGINE) {
-#ifdef WITH_MSAT
     return make_shared<IC3IA>(p, ts, slv, opts);
-#else
-    throw PonoException(
-        "IC3IA uses MathSAT for interpolants, but not built with MathSAT");
-#endif
 #ifdef WITH_MSAT_IC3IA
   } else if (e == MSAT_IC3IA) {
     return make_shared<MsatIC3IA>(p, ts, slv, opts);
@@ -108,12 +94,7 @@ shared_ptr<Prover> make_ceg_proph_prover(Engine e,
   } else if (e == MBIC3) {
     return std::make_shared<CegProphecyArrays<ModelBasedIC3>>(p, ts, slv, opts);
   } else if (e == IC3IA_ENGINE) {
-#ifdef WITH_MSAT
     return std::make_shared<CegProphecyArrays<IC3IA>>(p, ts, slv, opts);
-#else
-    throw PonoException(
-        "IC3IA uses MathSAT for interpolants, but not built with MathSAT");
-#endif
   }
 #ifdef WITH_MSAT_IC3IA
   else if (e == MSAT_IC3IA) {
