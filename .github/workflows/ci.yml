@@ -42,11 +42,16 @@ jobs:
           python3 -m venv ./.venv
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
-      - name: Python Dependencies (all)
-        run: python3 -m pip install Cython pytest pyparsing toml meson
-
-      - name: Python Dependencies (all)
-        run: python3 -m pip install scikit-build
+      - name: Install Python Dependencies
+        run: |
+          python3 -m pip install \
+            Cython \
+            meson \
+            packaging \
+            pyparsing \
+            pytest \
+            scikit-build \
+            toml
 
       - name: Download MathSAT
         if: runner.os != 'macOS'
