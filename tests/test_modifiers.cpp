@@ -1,16 +1,16 @@
 #include <utility>
-#include <vector>
 
 #include "core/fts.h"
 #include "core/rts.h"
 #include "gtest/gtest.h"
 #include "modifiers/history_modifier.h"
 #include "modifiers/implicit_predicate_abstractor.h"
+#include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/prophecy_modifier.h"
+#include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
-#include "utils/exceptions.h"
 
 using namespace pono;
 using namespace smt;
@@ -135,6 +135,90 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)
   r = s->check_sat();
   s->pop();
   EXPECT_TRUE(r.is_unsat());  // expecting it to be inductive now
+}
+
+TEST_P(ModifierUnitTests, LivenessToSafetyTranslator)
+{
+  // Create TS with one counter state x mod 4.
+  FunctionalTransitionSystem fts(s);
+  Term max_val = fts.make_term(3, bvsort);
+  counter_system(fts, max_val);
+  EXPECT_EQ(fts.inputvars().size(), 0);
+  EXPECT_EQ(fts.statevars().size(), 1);
+
+  // Create justice property x = -1.
+  Term x = fts.named_terms().at("x");
+  Term minus_one = fts.make_term(-1, bvsort);
+  Term justice_cond = fts.make_term(smt::Equal, x, minus_one);
+
+  // Perform liveness to safety translation.
+  LivenessToSafetyTranslator l2s;
+  Term prop = l2s.translate(fts, { justice_cond });
+
+  // Expect one new boolean input "save".
+  EXPECT_EQ(fts.inputvars().size(), 1);
+  Term save;
+  for (auto inputvar : fts.inputvars()) {
+    save = inputvar;
+  }
+  EXPECT_EQ(save->get_sort(), boolsort);
+
+  // Expect three new states: "saved" (bool), "justice" (bool), "loop" (bv).
+  EXPECT_EQ(fts.statevars().size(), 4);
+  Term saved;
+  Term justice;
+  Term loop;
+  for (auto statevar : fts.statevars()) {
+    if (statevar == x) continue;
+    if (statevar->get_sort() == boolsort) {
+      auto state_name = statevar->to_string();
+      if (state_name.find("saved") != state_name.npos) {
+        saved = statevar;
+      } else {
+        justice = statevar;
+      }
+    } else if (statevar->get_sort() == bvsort) {
+      loop = statevar;
+    } else {
+      FAIL() << "unexpected sort for state var";
+    }
+  }
+
+  // saved' = save | saved
+  Term saved_expected = fts.make_term(smt::Or, saved, save);
+  Term saved_actual = fts.state_updates().at(saved);
+  Term saved_correct = fts.make_term(smt::Equal, saved_actual, saved_expected);
+  s->push();
+  s->assert_formula(fts.make_term(smt::Not, saved_correct));
+  auto result = s->check_sat();
+  s->pop();
+  EXPECT_TRUE(result.is_unsat());
+
+  // loop' = (!saved & save) ? x : loop
+  Term loop_expected = fts.make_term(
+      smt::Ite,
+      { fts.make_term(smt::And, fts.make_term(smt::Not, saved), save),
+        x,
+        loop });
+  Term loop_actual = fts.state_updates().at(loop);
+  Term loop_correct = fts.make_term(smt::Equal, loop_actual, loop_expected);
+  s->push();
+  s->assert_formula(fts.make_term(smt::Not, loop_correct));
+  result = s->check_sat();
+  s->pop();
+  EXPECT_TRUE(result.is_unsat());
+
+  // Safety property: !((saved & x = loop) & justice)
+  Term looped =
+      fts.make_term(smt::And, saved, fts.make_term(smt::Equal, x, loop));
+  Term bad = fts.make_term(smt::And, looped, justice);
+  Term safety = fts.make_term(smt::Not, bad);
+  Term prop_correct = fts.make_term(smt::Equal, prop, safety);
+  s->push();
+  s->assert_formula(fts.make_term(smt::Not, prop_correct));
+  result = s->check_sat();
+  s->pop();
+  EXPECT_TRUE(result.is_unsat());
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedModifierUnitTests,

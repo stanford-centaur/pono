@@ -16,8 +16,10 @@
 
 #include "btor2_encoder.h"
 
+#include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <iterator>
 
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
@@ -434,11 +436,14 @@ void BTOR2Encoder::parse(const std::string filename)
       propvec_.push_back(prop);
       terms_[bt2_line->id] = prop;
     } else if (bt2_line->tag == BTOR2_TAG_justice) {
-      std::cout << "Warning: ignoring justice term" << std::endl;
-      justicevec_.push_back(termargs[0]);
-      terms_[bt2_line->id] = termargs[0];
+      auto & justice = justicevec_.emplace_back();
+      justice.reserve(termargs.size());
+      std::transform(termargs.begin(),
+                     termargs.end(),
+                     std::back_inserter(justice),
+                     [&](auto t) { return bv_to_bool(t); });
     } else if (bt2_line->tag == BTOR2_TAG_fair) {
-      std::cout << "Warning: ignoring fair term" << std::endl;
+      std::cerr << "Warning: ignoring fair term" << std::endl;
       fairvec_.push_back(termargs[0]);
       terms_[bt2_line->id] = termargs[0];
     } else if (bt2_line->constant) {
@@ -776,8 +781,8 @@ void BTOR2Encoder::parse(const std::string filename)
       }
     }
 
-    // sort tag should be the only one that doesn't populate terms_
-    assert(bt2_line->tag == BTOR2_TAG_sort
+    // sort and justice tags should be the only that don't populate terms_
+    assert(bt2_line->tag == BTOR2_TAG_sort || bt2_line->tag == BTOR2_TAG_justice
            || terms_.find(bt2_line->id) != terms_.end());
   }
 
