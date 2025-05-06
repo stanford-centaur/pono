@@ -20,7 +20,7 @@ smt::Term LivenessToSafetyTranslator::translate(TransitionSystem & ts,
   auto false_val = ts.solver()->make_term(false);
   auto true_val = ts.solver()->make_term(true);
   // Store a copy of the set of pre-existing state variables.
-  smt::UnorderedTermSet statevars = ts.statevars();
+  const smt::UnorderedTermSet orig_statevars = ts.statevars();
 
   // Add oracle input. When this becomes true, we "save" the current state,
   // then continue until we find the same state again.
@@ -37,7 +37,7 @@ smt::Term LivenessToSafetyTranslator::translate(TransitionSystem & ts,
 
   // Add "loop" states. These keep track of the first state in the loop.
   std::vector<std::pair<smt::Term, smt::Term>> loop_states;
-  for (auto statevar : statevars) {
+  for (auto statevar : orig_statevars) {
     auto loop_state = ts.make_statevar(
         statevar->to_string() + prefix_ + "_loop", statevar->get_sort());
     loop_states.push_back({ statevar, loop_state });
