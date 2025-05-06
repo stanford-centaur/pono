@@ -1202,10 +1202,38 @@ simple_expr: constant {
               }
             }
             | word1 "(" basic_expr ")" {
-              throw PonoException("No word1");
+              if(enc.module_flat){
+                SMVnode *boolean = $3;
+                if(boolean->getType() != SMVnode::Boolean){
+                  throw PonoException("Word1 word type is uncompatible");
+                }
+                smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                smt::Term res = enc.solver_->make_term(smt::Ite, 
+                                                       boolean->getTerm(), 
+                                                       enc.solver_->make_term(1, bv1sort), 
+                                                       enc.solver_->make_term(0, bv1sort));
+                assert(res); //check res non-null
+                $$ = new SMVnode(res,SMVnode::Unsigned);
+              }else{
+                $$ = new word1_expr($3);
+              }
             }
             | tok_bool "(" basic_expr ")"{
-              throw PonoException("No type convert");
+              if(enc.module_flat){
+                SMVnode *a = $3;
+                smt::Sort sort = a->getTerm()->get_sort();
+                // TODO: SMV also supports bool conversion from integer
+                if(sort->get_sort_kind() != smt::BV || (sort->get_sort_kind() == smt::BV && sort->get_width() != 1)){
+                  throw PonoException("Can't convert non-width 1 bitvector to bool.");
+                }
+                smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                smt::Term res = enc.solver_->make_term(smt::Equal, 
+                                                       a->getTerm(), 
+                                                       enc.solver_->make_term(1, bv1sort));
+                $$ = new SMVnode(res,SMVnode::Boolean);
+              }else{
+                $$ = new bool_expr($3);
+              }
             }
             | tok_toint "(" basic_expr ")"{
               throw PonoException("No type convert");
@@ -1253,8 +1281,42 @@ simple_expr: constant {
             | extend "(" basic_expr ")"{
               throw PonoException("No extend now");
             }
-            | resize "(" basic_expr ")" {
-              throw PonoException("No resize");
+            | resize "(" basic_expr "," integer_val ")" {
+              if(enc.module_flat){
+                SMVnode *word = $3;
+                SMVnode::Type word_type = word->getType();
+                
+                if(word_type != SMVnode::Signed && word_type != SMVnode::Unsigned){
+                  throw PonoException("Resize word type is uncompatible");
+                }
+                
+                int integer = stoi($5);
+                smt::Sort word_sort = word->getTerm()->get_sort();
+                uint64_t word_width = word_sort->get_width();
+
+                if(integer == word_width){
+                  $$ = word;
+                }else if(integer < word_width){
+                  smt::Term res;
+                  if(word_type == SMVnode::Signed){
+                    smt::Term tail = enc.solver_->make_term(smt::Op(smt::Extract, integer - 2, 0), word->getTerm());
+                    smt::Term signBit = enc.solver_->make_term(smt::Op(smt::Extract, word_width - 1, word_width - 1), word->getTerm());
+                    res = enc.solver_->make_term(smt::Concat, signBit, tail);
+                  }else{
+                    res = enc.solver_->make_term(smt::Op(smt::Extract, integer - 1, 0), word->getTerm());
+                  }
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,word_type);
+                }else{
+                  smt::PrimOp extendOp = word_type == SMVnode::Signed ? smt::Sign_Extend : smt::Zero_Extend;
+                  smt::Term res = enc.solver_->make_term(smt::Op(extendOp, integer - word_width), word->getTerm());
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,word_type);
+                }
+              }else{
+                SMVnode *integer = new constant($5);
+                $$ = new resize_expr($3,integer);
+              }
             }
             | signed_word sizev "(" basic_expr ")"{
                throw PonoException("No resize");
