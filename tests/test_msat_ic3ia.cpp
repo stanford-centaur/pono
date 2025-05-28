@@ -44,7 +44,7 @@ TEST_P(MsatIC3IAUnitTests, IntCounterSafe)
   EXPECT_EQ(res, ProverResult::TRUE);
 
   Term invar = msat_ic3ia.invar();
-  EXPECT_TRUE(check_invar(rts, p.prop(), invar));
+  EXPECT_TRUE(check_invar(rts, p.prop_term(), invar));
 }
 
 TEST_P(MsatIC3IAUnitTests, IntCounterUnsafe)

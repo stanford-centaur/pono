@@ -41,11 +41,11 @@ Prover::Prover(const Property & p,
       orig_ts_(ts),
       ts_(ts, to_prover_solver_),
       unroller_(ts_),
-      bad_(solver_->make_term(
-          smt::PrimOp::Not,
-          ts_.solver() == orig_property_.solver()
-              ? orig_property_.prop()
-              : to_prover_solver_.transfer_term(orig_property_.prop(), BOOL))),
+      bad_(solver_->make_term(smt::PrimOp::Not,
+                              ts_.solver() == orig_property_.solver()
+                                  ? orig_property_.prop_term()
+                                  : to_prover_solver_.transfer_term(
+                                        orig_property_.prop_term(), BOOL))),
       options_(opt),
       engine_(Engine::NONE)
 {

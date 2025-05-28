@@ -55,7 +55,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 
   // get the invariant
   Term invar = ic3ia.invar();
-  ASSERT_TRUE(check_invar(fts, p.prop(), invar));
+  ASSERT_TRUE(check_invar(fts, p.prop_term(), invar));
 }
 
 TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
@@ -113,7 +113,7 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
   ASSERT_EQ(r, TRUE);
 
   Term invar = ic3ia.invar();
-  ASSERT_TRUE(check_invar(fts, p.prop(), invar));
+  ASSERT_TRUE(check_invar(fts, p.prop_term(), invar));
 }
 
 TEST_P(IC3IAUnitTests, SimpleIntSafe)
@@ -143,7 +143,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
   ASSERT_EQ(r, TRUE);
 
   Term invar = ic3ia.invar();
-  ASSERT_TRUE(check_invar(rts, p.prop(), invar));
+  ASSERT_TRUE(check_invar(rts, p.prop_term(), invar));
 }
 
 INSTANTIATE_TEST_SUITE_P(
