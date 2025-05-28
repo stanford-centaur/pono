@@ -13,6 +13,7 @@ Configures the CMAKE build environment.
 -h, --help              display this message and exit
 --prefix=STR            install directory       (default: /usr/local/)
 --build-dir=STR         custom build directory  (default: build)
+--compilation-database  generate JSON compilation database (default: off)
 --smt-switch-dir=STR    custom smt-switch directory (default: deps/smt-switch)
 --with-btor             build with Boolector  (default: off)
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
@@ -39,6 +40,7 @@ die () {
 build_dir=build
 smt_switch_dir=default
 install_prefix=default
+compilation_database=default
 build_type=default
 with_boolector=default
 with_msat=default
@@ -69,6 +71,7 @@ do
                 *) install_prefix=$(pwd)/$install_prefix ;; # make absolute path
             esac
             ;;
+        --compilation-database) compilation_database=ON;;
         --build-dir) die "missing argument to $1 (see -h)" ;;
         --build-dir=*)
             build_dir=${1##*=}
@@ -125,6 +128,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $install_prefix != default ] \
     && cmake_opts="$cmake_opts -DCMAKE_INSTALL_PREFIX=$install_prefix"
+
+[ $compilation_database != default ] \
+    && cmake_opts="$cmake_opts -DCMAKE_EXPORT_COMPILE_COMMANDS=$compilation_database"
 
 [ $with_boolector != default ] \
     && cmake_opts="$cmake_opts -DWITH_BOOLECTOR=$with_boolector"
