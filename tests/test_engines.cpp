@@ -51,17 +51,17 @@ class EngineUnitTests
     Term x = ts->named_terms().at("x");
 
     Term true_prop = ts->make_term(BVUle, x, ts->make_term(7, bvsort8));
-    true_p = new Property(ts->solver(), true_prop);
+    true_p = new SafetyProperty(ts->solver(), true_prop);
 
     Term false_prop = ts->make_term(BVUle, x, ts->make_term(6, bvsort8));
-    false_p = new Property(ts->solver(), false_prop);
+    false_p = new SafetyProperty(ts->solver(), false_prop);
   }
   SolverEnum se;
   Sort bvsort8;
   Term max_val;
   TransitionSystem * ts;
-  Property * true_p;
-  Property * false_p;
+  SafetyProperty * true_p;
+  SafetyProperty * false_p;
 };
 
 TEST_P(EngineUnitTests, BmcTrue)
@@ -197,7 +197,7 @@ class InterpWinTests : public ::testing::Test,
     Term witness = ts->make_statevar("witness", boolsort);
     ts->constrain_init(witness);
     ts->assign_next(witness, prop);
-    true_p = new Property(ts->solver(), witness);
+    true_p = new SafetyProperty(ts->solver(), witness);
 
     // debugging
     std::cout << "INIT" << std::endl;
@@ -211,7 +211,7 @@ class InterpWinTests : public ::testing::Test,
   SmtSolver itp;
   Sort boolsort, bvsort8;
   TransitionSystem * ts;
-  Property * true_p;
+  SafetyProperty * true_p;
 };
 
 TEST_P(InterpWinTests, BmcFail)

@@ -49,7 +49,7 @@ vector<Engine> all_engines()
 }
 
 shared_ptr<Prover> make_prover(Engine e,
-                               const Property & p,
+                               const SafetyProperty & p,
                                const TransitionSystem & ts,
                                const SmtSolver & slv,
                                PonoOptions opts)
@@ -92,7 +92,7 @@ shared_ptr<Prover> make_prover(Engine e,
 }
 
 shared_ptr<Prover> make_ceg_proph_prover(Engine e,
-                                         const Property & p,
+                                         const SafetyProperty & p,
                                          const TransitionSystem & ts,
                                          const SmtSolver & slv,
                                          PonoOptions opts)
@@ -128,7 +128,7 @@ shared_ptr<Prover> make_ceg_proph_prover(Engine e,
 }
 
 shared_ptr<Prover> make_cegar_values_prover(Engine e,
-                                            const Property & p,
+                                            const SafetyProperty & p,
                                             const TransitionSystem & ts,
                                             const SmtSolver & slv,
                                             PonoOptions opts)
@@ -142,7 +142,7 @@ shared_ptr<Prover> make_cegar_values_prover(Engine e,
 }
 
 shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
-                                              const Property & p,
+                                              const SafetyProperty & p,
                                               const TransitionSystem & ts,
                                               const SmtSolver & slv,
                                               PonoOptions opts)

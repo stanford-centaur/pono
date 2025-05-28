@@ -60,7 +60,7 @@ TEST_P(UFUnitTests, InductiveProp)
 
   Term p = rts.make_term(
       Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort)));
-  Property prop(rts.solver(), p);
+  SafetyProperty prop(rts.solver(), p);
 
   s->push();
   KInduction kind(prop, rts, s);
@@ -110,7 +110,7 @@ TEST_P(UFUnitTests, FalseProp)
       rts.make_term(
           Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort))));
 
-  Property prop(rts.solver(), p);
+  SafetyProperty prop(rts.solver(), p);
 
   ASSERT_FALSE(rts.is_functional());
   s->push();
