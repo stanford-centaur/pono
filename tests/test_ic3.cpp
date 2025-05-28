@@ -51,7 +51,7 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
 
   // get the invariant
   Term invar = ic3.invar();
-  ASSERT_TRUE(check_invar(rts, p.prop(), invar));
+  ASSERT_TRUE(check_invar(rts, p.prop_term(), invar));
 }
 
 TEST_P(IC3UnitTests, SimpleSystemUnsafe)

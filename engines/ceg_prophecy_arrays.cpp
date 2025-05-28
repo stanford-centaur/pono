@@ -57,8 +57,8 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
       aae_(aa_,
            abs_unroller_,
            ts.solver() == super::solver_
-               ? p.prop()
-               : super::to_prover_solver_.transfer_term(p.prop(), BOOL),
+               ? p.prop_term()
+               : super::to_prover_solver_.transfer_term(p.prop_term(), BOOL),
            super::options_.cegp_timed_axiom_red_),
       pm_(abs_ts_),
       reached_k_(-1),

@@ -79,7 +79,7 @@ cdef extern from "core/fts.h" namespace "pono":
 cdef extern from "core/prop.h" namespace "pono":
     cdef cppclass Property:
         Property(const c_SmtSolver& s, c_Term p) except +
-        const c_Term prop() except +
+        const c_Term prop_term() except +
         const c_SmtSolver & solver() except +
         string name()
 

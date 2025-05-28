@@ -66,7 +66,7 @@ TEST_P(IC3SAUnitTests, SimpleSystemSafe)
   IC3SA ic3sa(p, ts, s);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::TRUE);
-  ASSERT_TRUE(check_invar(ts, p.prop(), ic3sa.invar()));
+  ASSERT_TRUE(check_invar(ts, p.prop_term(), ic3sa.invar()));
 }
 
 TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)

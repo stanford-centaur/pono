@@ -139,7 +139,7 @@ TEST_P(InterpUnitTest, InterpTrue)
   ASSERT_EQ(r, ProverResult::TRUE);
 
   Term invar = itpmc.invar();
-  ASSERT_TRUE(check_invar(*ts, true_p->prop(), invar));
+  ASSERT_TRUE(check_invar(*ts, true_p->prop_term(), invar));
 }
 
 TEST_P(InterpUnitTest, InterpFalse)

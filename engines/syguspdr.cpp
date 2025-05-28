@@ -238,8 +238,8 @@ void SygusPdr::initialize()
       //  }
     }
 
-    // sygus_term_manager_.RegisterTermsToWalk(property_.prop());
-    // parent_of_terms_.WalkBFS(property_.prop());
+    // sygus_term_manager_.RegisterTermsToWalk(property_.prop_term());
+    // parent_of_terms_.WalkBFS(property_.prop_term());
   }
 
   // cache two lambda functions for sygus enum

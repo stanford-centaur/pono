@@ -25,11 +25,31 @@ class Property
 {
  public:
   Property(const smt::SmtSolver & s, const smt::Term & p, std::string name = "")
-      : solver_(s), prop_(p), name_(name){};
+      : solver_(s), prop_vec_({ p }), name_(name)
+  {
+  }
 
-  ~Property(){};
+  ~Property() {}
 
-  const smt::Term & prop() const { return prop_; }
+  Property(const smt::SmtSolver & s,
+           const smt::TermVec & pv,
+           std::string name = "")
+      : solver_(s), prop_vec_(pv), name_(name)
+  {
+    if (pv.empty()) {
+      throw PonoException("Property must have at least one term");
+    }
+  }
+
+  const smt::Term & prop_term() const
+  {
+    if (prop_vec_.size() != 1) {
+      throw PonoException("Property has multiple terms");
+    }
+    return prop_vec_.front();
+  }
+
+  const smt::TermVec & prop_vec() const { return prop_vec_; }
 
   const smt::SmtSolver & solver() const { return solver_; }
 
@@ -38,7 +58,7 @@ class Property
  private:
   smt::SmtSolver solver_;
 
-  smt::Term prop_;
+  smt::TermVec prop_vec_;
 
   std::string name_;  ///< a name for the property. If no name is given, just
                       ///< uses the to_string
