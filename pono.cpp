@@ -45,11 +45,11 @@ using namespace pono;
 using namespace smt;
 using namespace std;
 
-ProverResult check_prop(PonoOptions pono_options,
-                        Term & prop,
-                        TransitionSystem & ts,
-                        const SmtSolver & s,
-                        std::vector<UnorderedTermMap> & cex)
+ProverResult check_safety_prop(PonoOptions pono_options,
+                               Term & prop,
+                               TransitionSystem & ts,
+                               const SmtSolver & s,
+                               std::vector<UnorderedTermMap> & cex)
 {
   // get property name before it is rewritten
   const string prop_name = ts.get_name(prop);
@@ -113,7 +113,7 @@ ProverResult check_prop(PonoOptions pono_options,
     prop_in_trans(ts, prop);
   }
 
-  Property p(s, prop, prop_name);
+  SafetyProperty p(s, prop, prop_name);
 
   // end modification of the transition system and property
 
@@ -311,7 +311,7 @@ int main(int argc, char ** argv)
       }
 
       vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, prop, fts, s, cex);
+      res = check_safety_prop(pono_options, prop, fts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -365,7 +365,7 @@ int main(int argc, char ** argv)
       // get property name before it is rewritten
 
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, prop, rts, s, cex);
+      res = check_safety_prop(pono_options, prop, rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 

@@ -130,9 +130,9 @@ TEST_P(TSUnitTests, RTS_Copy)
 TEST_P(TSUnitTests, Prop_Copy)
 {
   RelationalTransitionSystem rts(s);
-  Property p(s, s->make_term(true));
+  SafetyProperty p(s, s->make_term(true));
 
-  Property p2 = p;
+  SafetyProperty p2 = p;
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverTSUnitTests,

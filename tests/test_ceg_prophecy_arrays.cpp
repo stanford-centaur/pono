@@ -37,7 +37,7 @@ TEST(CegProphecyArraysTest, Simple)
 
   Term prop_term = rts.make_term(
       Lt, rts.make_term(Select, a, j), rts.make_term(200, intsort));
-  Property prop(s, prop_term);
+  SafetyProperty prop(s, prop_term);
   std::shared_ptr<Prover> cegp = make_ceg_proph_prover(INTERP, prop, rts, s);
   ProverResult r = cegp->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);

@@ -92,8 +92,8 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
       reached_k_++;
     } while (num_added_axioms_);
 
-    Property latest_prop(super::solver_,
-                         super::solver_->make_term(Not, super::bad_));
+    SafetyProperty latest_prop(super::solver_,
+                               super::solver_->make_term(Not, super::bad_));
     SmtSolver s = create_solver_for(
         super::solver_->get_solver_enum(), super::engine_, false);
     shared_ptr<Prover> prover =
@@ -144,8 +144,8 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     } while (num_added_axioms_ && reached_k_ <= k);
 
     if (super::options_.cegp_force_restart_ || super::engine_ != IC3IA_ENGINE) {
-      Property latest_prop(super::solver_,
-                           super::solver_->make_term(Not, super::bad_));
+      SafetyProperty latest_prop(super::solver_,
+                                 super::solver_->make_term(Not, super::bad_));
       SmtSolver s = create_solver_for(
           super::solver_->get_solver_enum(), super::engine_, false);
       shared_ptr<Prover> prover =

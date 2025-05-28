@@ -129,7 +129,7 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   fts.assign_next(x, fts.make_term(BVAdd, x, one));
 
   Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts.solver(), prop_term);
+  SafetyProperty prop(fts.solver(), prop_term);
 
   SolverEnum se = get<0>(GetParam());
   Engine eng = get<1>(GetParam());
