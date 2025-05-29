@@ -105,6 +105,7 @@ add_cython_target(pono CXX)
 add_library(pono MODULE ${pono})
 
 target_link_libraries(pono pono-lib)
+target_link_options(pono PRIVATE "LINKER:--verbose")
 target_include_directories(pono PUBLIC "${SMT_SWITCH_DIR}/local/include/smt-switch")
 
 python_extension_module(pono)

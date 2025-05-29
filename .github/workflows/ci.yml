@@ -85,6 +85,7 @@ jobs:
         run: |
           cd build
           make -j
+          ldd python/*.so
 
       - name: Test C++
         id: test-cpp
