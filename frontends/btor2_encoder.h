@@ -43,7 +43,7 @@ class BTOR2Encoder
   };
 
   const smt::TermVec & propvec() const { return propvec_; };
-  const smt::TermVec & justicevec() const { return justicevec_; };
+  const std::vector<smt::TermVec> & justicevec() const { return justicevec_; };
   const smt::TermVec & fairvec() const { return fairvec_; };
   const smt::TermVec & inputsvec() const { return inputsvec_; }
   const smt::TermVec & statesvec() const { return statesvec_; }
@@ -91,7 +91,7 @@ class BTOR2Encoder
 
   // properties, justice, and fairness constraints
   smt::TermVec propvec_;
-  smt::TermVec justicevec_;
+  std::vector<smt::TermVec> justicevec_;
   smt::TermVec fairvec_;
 };
 }  // namespace pono

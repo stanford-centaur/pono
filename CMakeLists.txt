@@ -198,6 +198,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/implicit_predicate_abstractor.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/liveness_to_safety_translator.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/history_modifier.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/mod_ts_prop.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/ops_abstractor.cpp"
