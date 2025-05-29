@@ -73,9 +73,6 @@ jobs:
         if: runner.os != 'macOS'
         run: ./contrib/setup-smt-switch.sh --with-msat --python
 
-      - name: Set up Python bindings for smt-switch
-        run: python3 -m pip install -e ./deps/smt-switch/build/python
-
       - name: Configure (macOS)
         if: runner.os == 'macOS'
         run: ./configure.sh --debug --python ${{ matrix.config_opts }}
