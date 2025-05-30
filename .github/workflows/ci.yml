@@ -86,6 +86,12 @@ jobs:
           cd build
           make -j
           ldd python/*.so
+          ls -l /lib/x86_64-linux-gnu/libgmp*
+          for so in `ls /lib/x86_64-linux-gnu/libgmp*`; do
+            readelf -Ws "$so" >syms 2>&1
+            wc -l syms
+            grep _ZlsRSoPK12__mpf_struct syms || echo "no match in $so"
+          done
 
       - name: Test C++
         id: test-cpp
