@@ -321,12 +321,15 @@ int main(int argc, char ** argv)
       if (res == FALSE) {
         cout << "sat" << endl;
         cout << prop_label << endl;
-        assert(pono_options.witness_ || !cex.size());
-        if (cex.size()) {
-          print_witness_btor(btor_enc, cex, fts);
-          if (!pono_options.vcd_name_.empty()) {
-            VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
-            vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+        // note: witness for justice property is not yet supported
+        if (!pono_options.justice_) {
+          assert(pono_options.witness_ || !cex.size());
+          if (cex.size()) {
+            print_witness_btor(btor_enc, cex, fts);
+            if (!pono_options.vcd_name_.empty()) {
+              VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
+              vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+            }
           }
         }
       } else if (res == TRUE) {
