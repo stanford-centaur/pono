@@ -36,20 +36,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake \
-            ninja-build \
-            libgmp-dev \
-            openjdk-8-jdk
+            ninja-build
 
       - name: Python Environment Setup
         run: |
           python3 -m venv ./.venv
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
-      - name: Python Dependencies (all)
-        run: python3 -m pip install Cython pytest pyparsing toml meson
-
-      - name: Python Dependencies (all)
-        run: python3 -m pip install scikit-build
+      - name: Python Dependencies
+        run: |
+          python3 -m pip install \
+            Cython \
+            meson \
+            packaging \
+            pytest \
+            scikit-build
 
       - name: Download MathSAT
         if: runner.os != 'macOS'
