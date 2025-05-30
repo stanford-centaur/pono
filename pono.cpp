@@ -316,9 +316,11 @@ int main(int argc, char ** argv)
       assert(res != ERROR);
 
       // print btor output
+      const string prop_label = (pono_options.justice_ ? "j" : "b")
+                                + to_string(pono_options.prop_idx_);
       if (res == FALSE) {
         cout << "sat" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
+        cout << prop_label << endl;
         assert(pono_options.witness_ || !cex.size());
         if (cex.size()) {
           print_witness_btor(btor_enc, cex, fts);
@@ -329,11 +331,11 @@ int main(int argc, char ** argv)
         }
       } else if (res == TRUE) {
         cout << "unsat" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
+        cout << prop_label << endl;
       } else {
         assert(res == pono::UNKNOWN);
         cout << "unknown" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
+        cout << prop_label << endl;
       }
 
     } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2") {
