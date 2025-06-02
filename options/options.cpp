@@ -859,8 +859,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           } else {
             throw PonoException("Unknown --interp-props option: "
                                 + std::string(opt.arg));
-            break;
           }
+          break;
         case INTERP_EAGER_UNROLL: interp_eager_unroll_ = true; break;
         case INTERP_BACKWARD: interp_backward_ = true; break;
         case UNKNOWN_OPTION:
