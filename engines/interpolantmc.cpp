@@ -58,8 +58,8 @@ void InterpolantMC::initialize()
 
   // symbols are already created in solver
   // need to add symbols at time 1 to cache
-  // (only time 1 because Craig Interpolant has to share symbols between A and
-  // B)
+  // (only at time step 1 because Craig Interpolant
+  // has to share symbols between A and B)
   UnorderedTermMap & cache = to_solver_.get_cache();
   Term tmp1;
   for (const auto & s : ts_.statevars()) {
@@ -199,16 +199,19 @@ bool InterpolantMC::step(const int i)
   assert(i > 0);
   // extend the unrolling
   if (unroll_eagerly_) {
-    // for each computed interpolant, we can extend the safe bound by one
+    // The k-th interpolant itp_k computed at bound i:
+    // - represents a k-step overapproxiation from init, and
+    // - ensures that state in itp_k cannot reach bad states in i-1 steps.
+    // Therefore, the safe bound can be extended to interp_count + i - 1.
     for (int j = 0; j < interp_count; ++j) {
       transB_ = solver_->make_term(
           And, transB_, unroller_.at_time(ts_.trans(), i + j));
     }
-    reached_k_ += interp_count;
+    reached_k_ = interp_count + i - 1;
   } else {
     transB_ =
         solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
-    ++reached_k_;
+    reached_k_ = i;
   }
 
   return false;
@@ -222,7 +225,7 @@ bool InterpolantMC::step_0()
 
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
-    ++reached_k_;
+    reached_k_ = 0;
   } else {
     concrete_cex_ = true;
   }
