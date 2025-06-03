@@ -620,8 +620,9 @@ const option::Descriptor usage[] = {
     "",
     "interp-backward",
     Arg::None,
-    "  --interp-backward \tCompute interpolants in a backward manner in interp "
-    "engine" },
+    "  --interp-backward \tCompute interpolants in a backward manner, "
+    "i.e., not(itp(B, A)), in interp engine "
+    "(forward, i.e., itp(A, B), if not specified)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
