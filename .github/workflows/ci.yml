@@ -47,8 +47,8 @@ jobs:
           python3 -m pip install \
             Cython \
             meson \
-            pyparsing \
-            scikit-build
+            packaging \
+            setuptools
 
       - name: Download MathSAT
         if: runner.os != 'macOS'
