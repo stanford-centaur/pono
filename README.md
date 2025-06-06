@@ -107,7 +107,7 @@ Other useful files to visit include:
 
 ## Python bindings
 
-To build the `pono` python bindings, first make sure that you have [Cython](https://cython.org/) version >= 3.0.0 installed. Then ensure that `smt-switch` and its python bindings are installed. Finally, you can configure with `./configure.sh --python` and then build normally. The sequence of commands would be as follows:
+To build the `pono` python bindings, first make sure that you have [Cython](https://cython.org/) version >= 3.0.0 installed. Then ensure that `smt-switch` and its python bindings are installed. Finally, you can configure with `./configure.sh --python` and then build normally. The bindings will be built under 'build/python', from where you can install them using `pip`. The sequence of commands would be as follows:
 
 ```bash
 # Optional recommended step: start a python virtualenv
@@ -115,16 +115,20 @@ To build the `pono` python bindings, first make sure that you have [Cython](http
 # and deactivate the virtualenv with: deactivate
 python3 -m venv env
 source ./env/bin/activate
-pip install Cython==0.29 pytest
+# Install Python dependencies.
+pip install Cython
+# This will download and build smt-switch with bitwuzla and cvc5 in deps/smt-switch.
 ./contrib/setup-smt-switch.sh --python
+# Install the smt-switch Python bindings in the virtualenv.
+pip install ./deps/smt-switch/build/python
+# Download and build the btor2tools dependency.
 ./contrib/setup-btor2tools.sh
-pip install -e ./deps/smt-switch/build/python
+# Configure and build Pono.
 ./configure.sh --python
-cd build
-make -j4
-pip install ./python
-cd ../
-# Test the bindings
+make -C build -j4  # change the `-j4` to match the number of CPU cores on your system.
+# Install the built Python bindings in the virtualenv (including the `pytest` dependency for testing).
+pip install './build/python[test]'
+# Test the bindings.
 pytest ./tests
 ```
 
