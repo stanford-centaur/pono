@@ -38,20 +38,15 @@ enum RefineResult
 class Prover
 {
  public:
-  Prover(const Property & p,
-         const TransitionSystem & ts,
-         const smt::SmtSolver & s,
-         PonoOptions opt = PonoOptions());
-
   virtual ~Prover();
 
-  virtual void initialize();
+  virtual void initialize() = 0;
 
   virtual ProverResult prove();
 
   virtual ProverResult check_until(int k) = 0;
 
-  virtual bool witness(std::vector<smt::UnorderedTermMap> & out);
+  virtual bool witness(std::vector<smt::UnorderedTermMap> & out) = 0;
 
   /** Returns length of the witness
    *  this can be cheaper than actually computing the witness
@@ -61,13 +56,12 @@ class Prover
    */
   virtual size_t witness_length() const;
 
-  /** Gives a term representing an inductive invariant over current state
-   * variables. Only valid if the property has been proven true. Only supported
-   * by some engines
-   */
-  smt::Term invar();
-
  protected:
+  Prover(const Property & p,
+         const TransitionSystem & ts,
+         const smt::SmtSolver & s,
+         PonoOptions opt = PonoOptions());
+
   /** Take a term from the Prover's solver
    *  to the original transition system's solver
    *  as a particular SortKind
@@ -86,14 +80,6 @@ class Prover
    */
   smt::Term to_orig_ts(smt::Term t);
 
-  /** Default implementation for computing a witness
-   *  Assumes that this engine is unrolling-based and that the solver
-   *   state is currently satisfiable with a counterexample trace
-   *  populates witness_
-   *  @return true on success
-   */
-  bool compute_witness();
-
   /** Returns the reference of the interface ts, which is a copy of orig_ts but
    *  built using solver_. By default, the method returns a reference to ts_.
    *  The derived classes may be based on abstraction-refinement methods (e.g.
@@ -108,24 +94,51 @@ class Prover
 
   Property orig_property_;    ///< original property before copied to new solver
   TransitionSystem orig_ts_;  ///< original TS before copied to new solver
-
   TransitionSystem ts_;
 
   Unroller unroller_;
 
   int reached_k_;  ///< the last bound reached with no counterexamples
 
-  smt::Term bad_;
-
   PonoOptions options_;
 
-  Engine engine_;
-
-  // NOTE: both witness_ and invar_ use terms from the engine's solver
-
+  // NOTE: witness_ uses terms from the prover's solver
   std::vector<smt::UnorderedTermMap>
       witness_;  ///< populated by a witness if a CEX is found
+};  // class Prover
 
+class SafetyProver : public Prover
+{
+ public:
+  virtual ~SafetyProver();
+  void initialize() override;
+  bool witness(std::vector<smt::UnorderedTermMap> & out);
+
+  /** Gives a term representing an inductive invariant over current state
+   * variables. Only valid if the property has been proven true. Only supported
+   * by some engines
+   */
+  smt::Term invar();
+
+ protected:
+  SafetyProver(const SafetyProperty & p,
+               const TransitionSystem & ts,
+               const smt::SmtSolver & s,
+               PonoOptions opt = PonoOptions());
+
+  /** Default implementation for computing a witness
+   *  Assumes that this engine is unrolling-based and that the solver
+   *  state is currently satisfiable with a counterexample trace
+   *  populates witness_
+   *  @return true on success
+   */
+  bool compute_witness();
+
+  Engine engine_;
+  smt::Term bad_;
+
+  // NOTE: invar_ uses terms from the prover's solver
   smt::Term invar_;  ///< populated with an invariant if the engine supports it
-};
+};  // class SafetyProver
+
 }  // namespace pono
