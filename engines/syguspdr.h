@@ -39,7 +39,7 @@ namespace pono {
 class SygusPdr : public IC3Base
 {
  public:
-  SygusPdr(const Property & p,
+  SygusPdr(const SafetyProperty & p,
            const TransitionSystem & ts,
            const smt::SmtSolver & s,
            PonoOptions opt = PonoOptions());

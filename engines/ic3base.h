@@ -153,17 +153,17 @@ class ProofGoalQueue
   std::vector<ProofGoal *> store_;
 };
 
-class IC3Base : public Prover
+class IC3Base : public SafetyProver
 {
  public:
-  typedef Prover super;
+  typedef SafetyProver super;
 
   /** IC3Base constructors take the normal arguments for a prover
    *  + a function that can create an IC3Formula
    *  Depending on the derived class IC3 implementation, the exact
    *  type of IC3Formula will differ: e.g. Clause, Disjunction
    */
-  IC3Base(const Property & p,
+  IC3Base(const SafetyProperty & p,
           const TransitionSystem & ts,
           const smt::SmtSolver & s,
           PonoOptions opt = PonoOptions());

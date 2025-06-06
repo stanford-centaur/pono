@@ -22,7 +22,7 @@ using namespace smt;
 
 namespace pono {
 
-BmcSimplePath::BmcSimplePath(const Property & p,
+BmcSimplePath::BmcSimplePath(const SafetyProperty & p,
                              const TransitionSystem & ts,
                              const SmtSolver & solver,
                              PonoOptions opt)

@@ -44,11 +44,11 @@ vector<Engine> all_engines()
   return { BMC, BMC_SP, KIND, MBIC3, INTERP, IC3IA_ENGINE, IC3SA_ENGINE };
 }
 
-shared_ptr<Prover> make_prover(Engine e,
-                               const SafetyProperty & p,
-                               const TransitionSystem & ts,
-                               const SmtSolver & slv,
-                               PonoOptions opts)
+shared_ptr<SafetyProver> make_safety_prover(Engine e,
+                                            const SafetyProperty & p,
+                                            const TransitionSystem & ts,
+                                            const SmtSolver & slv,
+                                            PonoOptions opts)
 {
   if (e == BMC) {
     return make_shared<Bmc>(p, ts, slv, opts);
@@ -77,11 +77,12 @@ shared_ptr<Prover> make_prover(Engine e,
   }
 }
 
-shared_ptr<Prover> make_ceg_proph_prover(Engine e,
-                                         const SafetyProperty & p,
-                                         const TransitionSystem & ts,
-                                         const SmtSolver & slv,
-                                         PonoOptions opts)
+shared_ptr<SafetyProver> make_ceg_proph_safety_prover(
+    Engine e,
+    const SafetyProperty & p,
+    const TransitionSystem & ts,
+    const SmtSolver & slv,
+    PonoOptions opts)
 {
   if (e == BMC) {
     return std::make_shared<CegProphecyArrays<Bmc>>(p, ts, slv, opts);
@@ -108,11 +109,12 @@ shared_ptr<Prover> make_ceg_proph_prover(Engine e,
   }
 }
 
-shared_ptr<Prover> make_cegar_values_prover(Engine e,
-                                            const SafetyProperty & p,
-                                            const TransitionSystem & ts,
-                                            const SmtSolver & slv,
-                                            PonoOptions opts)
+shared_ptr<SafetyProver> make_cegar_values_safety_prover(
+    Engine e,
+    const SafetyProperty & p,
+    const TransitionSystem & ts,
+    const SmtSolver & slv,
+    PonoOptions opts)
 {
   if (e != IC3IA_ENGINE || !opts.ceg_prophecy_arrays_) {
     throw PonoException(
@@ -122,11 +124,12 @@ shared_ptr<Prover> make_cegar_values_prover(Engine e,
   return make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(p, ts, slv, opts);
 }
 
-shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
-                                              const SafetyProperty & p,
-                                              const TransitionSystem & ts,
-                                              const SmtSolver & slv,
-                                              PonoOptions opts)
+shared_ptr<SafetyProver> make_cegar_bv_arith_safety_prover(
+    Engine e,
+    const SafetyProperty & p,
+    const TransitionSystem & ts,
+    const SmtSolver & slv,
+    PonoOptions opts)
 {
   if (e == IC3IA_ENGINE) {
     if (opts.ceg_prophecy_arrays_) {

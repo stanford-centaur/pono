@@ -34,7 +34,7 @@ using namespace std;
 namespace pono {
 
 template <class Prover_T>
-CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
+CegarOpsUf<Prover_T>::CegarOpsUf(const SafetyProperty & p,
                                  const TransitionSystem & ts,
                                  const SmtSolver & solver,
                                  PonoOptions opt)

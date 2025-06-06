@@ -67,7 +67,7 @@ static void split_eq(SmtSolver & solver, const TermVec & in, TermVec & out)
   }
 }
 
-ModelBasedIC3::ModelBasedIC3(const Property & p,
+ModelBasedIC3::ModelBasedIC3(const SafetyProperty & p,
                              const TransitionSystem & ts,
                              const SmtSolver & slv,
                              PonoOptions opt)

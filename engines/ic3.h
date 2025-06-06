@@ -21,7 +21,7 @@ namespace pono {
 class IC3 : public IC3Base
 {
  public:
-  IC3(const Property & p,
+  IC3(const SafetyProperty & p,
       const TransitionSystem & ts,
       const smt::SmtSolver & s,
       PonoOptions opt = PonoOptions());

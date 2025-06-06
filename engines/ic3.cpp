@@ -27,7 +27,7 @@ namespace pono {
 
 /** IC3 Implementation */
 
-IC3::IC3(const Property & p,
+IC3::IC3(const SafetyProperty & p,
          const TransitionSystem & ts,
          const smt::SmtSolver & s,
          PonoOptions opt)

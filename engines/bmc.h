@@ -20,17 +20,17 @@
 
 namespace pono {
 
-class Bmc : public Prover
+class Bmc : public SafetyProver
 {
  public:
-  Bmc(const Property & p,
+  Bmc(const SafetyProperty & p,
       const TransitionSystem & ts,
       const smt::SmtSolver & solver,
       PonoOptions opt = PonoOptions());
 
   ~Bmc();
 
-  typedef Prover super;
+  typedef SafetyProver super;
 
   void initialize() override;
 

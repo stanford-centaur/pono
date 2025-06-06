@@ -20,17 +20,17 @@
 
 namespace pono {
 
-class KInduction : public Prover
+class KInduction : public SafetyProver
 {
  public:
-  KInduction(const Property & p,
+  KInduction(const SafetyProperty & p,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
              PonoOptions opt = PonoOptions());
 
   virtual ~KInduction();
 
-  typedef Prover super;
+  typedef SafetyProver super;
 
   void initialize() override;
 

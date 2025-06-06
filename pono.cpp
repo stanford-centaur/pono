@@ -119,15 +119,15 @@ ProverResult check_safety_prop(PonoOptions pono_options,
 
   Engine eng = pono_options.engine_;
 
-  std::shared_ptr<Prover> prover;
+  std::shared_ptr<SafetyProver> prover;
   if (pono_options.cegp_abs_vals_) {
-    prover = make_cegar_values_prover(eng, p, ts, s, pono_options);
+    prover = make_cegar_values_safety_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_bv_arith_) {
-    prover = make_cegar_bv_arith_prover(eng, p, ts, s, pono_options);
+    prover = make_cegar_bv_arith_safety_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_prophecy_arrays_) {
-    prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
+    prover = make_ceg_proph_safety_prover(eng, p, ts, s, pono_options);
   } else {
-    prover = make_prover(eng, p, ts, s, pono_options);
+    prover = make_safety_prover(eng, p, ts, s, pono_options);
   }
   assert(prover);
 
