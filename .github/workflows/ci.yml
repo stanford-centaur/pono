@@ -21,6 +21,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         link_type: [dynamic, static]
         include:
+          - os: ubuntu-latest
+            extra_solver_flags: --with-msat
           - link_type: static
             config_opts: --static
 
@@ -43,13 +45,12 @@ jobs:
       - name: Python Environment Setup
         run: |
           python3 -m venv ./.venv
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
-
-      - name: Python Dependencies (all)
-        run: python3 -m pip install Cython pytest pyparsing toml meson
-
-      - name: Python Dependencies (all)
-        run: python3 -m pip install scikit-build
+          source .venv/bin/activate
+          python3 -m pip install \
+            Cython \
+            meson \
+            pyparsing \
+            scikit-build
 
       - name: Download MathSAT
         if: runner.os != 'macOS'
@@ -64,24 +65,20 @@ jobs:
       - name: Setup Btor2Tools
         run: ./contrib/setup-btor2tools.sh
 
-      - name: Setup Smt-Switch (macOS)
-        if: runner.os == 'macOS'
-        run: ./contrib/setup-smt-switch.sh --python
-
-      - name: Setup Smt-Switch (non-macOS)
-        if: runner.os != 'macOS'
-        run: ./contrib/setup-smt-switch.sh --with-msat --python
+      - name: Setup Smt-Switch
+        run: |
+          source .venv/bin/activate
+          ./contrib/setup-smt-switch.sh --python ${{ matrix.extra_solver_flags }}
 
       - name: Set up Python bindings for smt-switch
-        run: python3 -m pip install -e ./deps/smt-switch/build/python
+        run: |
+          source .venv/bin/activate
+          python3 -m pip install -e ./deps/smt-switch/build/python
 
-      - name: Configure (macOS)
-        if: runner.os == 'macOS'
-        run: ./configure.sh --debug --python ${{ matrix.config_opts }}
-
-      - name: Configure (non-macOS)
-        if: runner.os != 'macOS'
-        run: ./configure.sh --with-msat --debug --python ${{ matrix.config_opts }}
+      - name: Configure
+        run: |
+          source .venv/bin/activate
+          ./configure.sh --debug --python ${{ matrix.extra_solver_flags }} ${{ matrix.config_opts }}
 
       - name: Build
         run: |
@@ -109,7 +106,11 @@ jobs:
           exit 1
 
       - name: Install Python Bindings
-        run: python3 -m pip install -e ./build/python[test,pysmt]
+        run: |
+          source .venv/bin/activate
+          python3 -m pip install ./build/python[test]
 
       - name: Test Python Bindings
-        run: pytest ./tests
+        run: |
+          source .venv/bin/activate
+          pytest ./tests
