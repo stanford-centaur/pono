@@ -27,6 +27,7 @@
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
 #include "modifiers/static_coi.h"
@@ -286,7 +287,9 @@ int main(int argc, char ** argv)
       FunctionalTransitionSystem fts(s);
       BTOR2Encoder btor_enc(pono_options.filename_, fts);
       const TermVec & propvec = btor_enc.propvec();
-      unsigned int num_props = propvec.size();
+      const auto & justicevec = btor_enc.justicevec();
+      unsigned int num_props =
+          pono_options.justice_ ? justicevec.size() : propvec.size();
       if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(
             "Property index " + to_string(pono_options.prop_idx_)
@@ -294,7 +297,18 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
 
-      Term prop = propvec[pono_options.prop_idx_];
+      Term prop;
+      if (pono_options.justice_) {
+        // The selected algorithm can modify the transition system in place.
+        switch (pono_options.justice_translator_) {
+          case pono::LIVENESS_TO_SAFETY:
+            prop = LivenessToSafetyTranslator{}.translate(
+                fts, justicevec[pono_options.prop_idx_]);
+            break;
+        }
+      } else {
+        prop = propvec[pono_options.prop_idx_];
+      }
 
       vector<UnorderedTermMap> cex;
       res = check_prop(pono_options, prop, fts, s, cex);
@@ -302,24 +316,29 @@ int main(int argc, char ** argv)
       assert(res != ERROR);
 
       // print btor output
+      const string prop_label = (pono_options.justice_ ? "j" : "b")
+                                + to_string(pono_options.prop_idx_);
       if (res == FALSE) {
         cout << "sat" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
-        assert(pono_options.witness_ || !cex.size());
-        if (cex.size()) {
-          print_witness_btor(btor_enc, cex, fts);
-          if (!pono_options.vcd_name_.empty()) {
-            VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
-            vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+        cout << prop_label << endl;
+        // note: witness for justice property is not yet supported
+        if (!pono_options.justice_) {
+          assert(pono_options.witness_ || !cex.size());
+          if (cex.size()) {
+            print_witness_btor(btor_enc, cex, fts);
+            if (!pono_options.vcd_name_.empty()) {
+              VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
+              vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+            }
           }
         }
       } else if (res == TRUE) {
         cout << "unsat" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
+        cout << prop_label << endl;
       } else {
         assert(res == pono::UNKNOWN);
         cout << "unknown" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
+        cout << prop_label << endl;
       }
 
     } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2") {
