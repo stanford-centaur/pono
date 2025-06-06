@@ -52,7 +52,7 @@ unordered_set<PrimOp> controllable_ops(
 
 // main IC3SA implementation
 
-IC3SA::IC3SA(const Property & p,
+IC3SA::IC3SA(const SafetyProperty & p,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
              PonoOptions opt)

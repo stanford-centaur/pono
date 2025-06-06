@@ -28,7 +28,7 @@ class CegarOpsUf : public CEGAR<Prover_T>
   typedef CEGAR<Prover_T> super;
 
  public:
-  CegarOpsUf(const Property & p,
+  CegarOpsUf(const SafetyProperty & p,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
              PonoOptions opt = PonoOptions());

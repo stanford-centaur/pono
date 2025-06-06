@@ -90,7 +90,7 @@ bool ProofGoalQueue::empty() const { return queue_.empty(); }
 
 /** IC3Base */
 
-IC3Base::IC3Base(const Property & p,
+IC3Base::IC3Base(const SafetyProperty & p,
                  const TransitionSystem & ts,
                  const SmtSolver & s,
                  PonoOptions opt)

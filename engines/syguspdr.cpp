@@ -87,7 +87,7 @@ bool SygusPdr::test_ts_has_op(const std::unordered_set<PrimOp> & prim_ops) const
 // ----------------------------------------------------------------
 // Constructor & Destructor
 // ----------------------------------------------------------------
-SygusPdr::SygusPdr(const Property & p,
+SygusPdr::SygusPdr(const SafetyProperty & p,
                    const TransitionSystem & ts,
                    const SmtSolver & s,
                    PonoOptions opt)

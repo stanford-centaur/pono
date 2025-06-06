@@ -25,7 +25,7 @@ class IC3Bits : public IC3
  public:
   // itp_se is the SolverEnum for the interpolator
 
-  IC3Bits(const Property & p,
+  IC3Bits(const SafetyProperty & p,
           const TransitionSystem & ts,
           const smt::SmtSolver & s,
           PonoOptions opt = PonoOptions());

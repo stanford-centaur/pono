@@ -45,7 +45,7 @@ using namespace std;
 namespace pono {
 
 template <class Prover_T>
-CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
+CegProphecyArrays<Prover_T>::CegProphecyArrays(const SafetyProperty & p,
                                                const TransitionSystem & ts,
                                                const SmtSolver & solver,
                                                PonoOptions opt)
@@ -96,7 +96,7 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
                                super::solver_->make_term(Not, super::bad_));
     SmtSolver s = create_solver_for(
         super::solver_->get_solver_enum(), super::engine_, false);
-    shared_ptr<Prover> prover = make_safety_prover(
+    shared_ptr<SafetyProver> prover = make_safety_prover(
         super::engine_, latest_prop, abs_ts_, s, super::options_);
     res = prover->prove();
 
@@ -148,7 +148,7 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
                                  super::solver_->make_term(Not, super::bad_));
       SmtSolver s = create_solver_for(
           super::solver_->get_solver_enum(), super::engine_, false);
-      shared_ptr<Prover> prover = make_safety_prover(
+      shared_ptr<SafetyProver> prover = make_safety_prover(
           super::engine_, latest_prop, abs_ts_, s, super::options_);
       if (super::engine_ == IC3IA_ENGINE) {
         shared_ptr<IC3IA> ic3ia_prover =

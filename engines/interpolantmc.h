@@ -22,17 +22,17 @@
 
 namespace pono {
 
-class InterpolantMC : public Prover
+class InterpolantMC : public SafetyProver
 {
  public:
-  InterpolantMC(const Property & p,
+  InterpolantMC(const SafetyProperty & p,
                 const TransitionSystem & ts,
                 const smt::SmtSolver & slv,
                 PonoOptions opt = PonoOptions());
 
   ~InterpolantMC();
 
-  typedef Prover super;
+  typedef SafetyProver super;
 
   void initialize() override;
 
