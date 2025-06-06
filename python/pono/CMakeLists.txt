@@ -17,9 +17,6 @@ endif()
 add_custom_command(
   OUTPUT pono.cxx
   COMMAND
-    # We need to use this form for now to pull in the smt-switch pxd files,
-    # because they are not included in the wheel.
-    "${CMAKE_COMMAND}" -E env PYTHONPATH="${SMT_SWITCH_DIR}/python/smt_switch" --
     "${Python_EXECUTABLE}" -m cython "${CMAKE_CURRENT_SOURCE_DIR}/pono.pyx" -o
     "${CMAKE_CURRENT_BINARY_DIR}/pono.cxx" ${CYTHON_FLAGS}
   DEPENDS pono.pyx
@@ -30,5 +27,3 @@ Python_add_library(_pono_impl MODULE WITH_SOABI pono.cxx)
 target_link_libraries(_pono_impl PUBLIC pono-lib)
 # This has to be included because Cython uses the definitions from the smt-switch pxd files.
 target_include_directories(_pono_impl PRIVATE "${SMT_SWITCH_DIR}/local/include/smt-switch")
-# Temporarily include until smt-switch ships its pxd files in the wheel.
-target_include_directories(_pono_impl PRIVATE "${SMT_SWITCH_DIR}/python/smt_switch")
