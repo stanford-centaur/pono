@@ -1,0 +1,3 @@
+from ._pono_impl import *
+
+__version__ = "@PONO_MAJOR@.@PONO_MINOR@.@PONO_RELEASE@"

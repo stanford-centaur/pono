@@ -257,8 +257,9 @@ SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
 }
 
 const std::vector<SolverEnum> itp_enums({
+    CVC5_INTERPOLATOR,
 #if WITH_MSAT
-    MSAT_INTERPOLATOR
+    MSAT_INTERPOLATOR,
 #endif
 });
 

@@ -1,10 +1,13 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.18...4.0)
 
 project(pono)
 
 set(PONO_MAJOR 0)   # Major component of Pono version
 set(PONO_MINOR 1)   # Minor component of Pono version
 set(PONO_RELEASE 1) # Release component of Pono version
+
+# Generate compilation database compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Retrieve the current version via Git
 execute_process(
