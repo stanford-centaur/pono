@@ -47,8 +47,8 @@ jobs:
           python3 -m pip install \
             Cython \
             meson \
-            pyparsing \
-            scikit-build
+            packaging \
+            setuptools
 
       - name: Download MathSAT
         if: runner.os != 'macOS'
@@ -67,11 +67,6 @@ jobs:
         run: |
           source .venv/bin/activate
           ./contrib/setup-smt-switch.sh --python ${{ matrix.extra_solver_flags }}
-
-      - name: Set up Python bindings for smt-switch
-        run: |
-          source .venv/bin/activate
-          python3 -m pip install -e ./deps/smt-switch/build/python
 
       - name: Configure
         run: |
