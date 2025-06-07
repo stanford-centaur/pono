@@ -17,7 +17,8 @@ RUN apt-get install -y \
         ninja-build \
         pkg-config \
         python3 \
-        python3-pyparsing \
+        python3-pip \
+        python3-venv \
         wget
 RUN apt-get autoremove --purge
 RUN apt-get clean -y
