@@ -77,6 +77,11 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     git clone https://github.com/stanford-centaur/smt-switch
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
+    # Sideload sed commands into setup-cvc5.sh to patch FindPoly.cmake and CMakeLists.txt
+    sed -i '/git checkout -f \${CVC5_VERSION}/a\
+\t# --- Sideloaded patch for FindPoly.cmake and cvc5/CMakeLists.txt ---\
+\tsed -i '\''20,28 s/^/#/'\'' "$DIR/../deps/cvc5/cmake/FindPoly.cmake"\
+\t# --- End sideloaded patch ---' "$DEPS/smt-switch/contrib/setup-cvc5.sh"
     ./contrib/setup-bitwuzla.sh
     if [ $cvc5_home = default ]; then
         ./contrib/setup-cvc5.sh
