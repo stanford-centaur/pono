@@ -25,8 +25,10 @@ namespace pono {
 class SMVEncoder
 {
  public:
-  SMVEncoder(std::string filename, pono::RelationalTransitionSystem & rts)
-      : rts_(rts), solver_(rts.solver())
+  SMVEncoder(std::string filename,
+             pono::RelationalTransitionSystem & rts,
+             bool fp_semantics = false)
+      : rts_(rts), solver_(rts.solver()), fp_semantics_(fp_semantics)
   {
     module_flat = false;
     file = filename;
@@ -52,6 +54,7 @@ class SMVEncoder
   smt::Term parse_term;
   const smt::SmtSolver & solver_;
   pono::RelationalTransitionSystem & rts_;
+  bool fp_semantics_;
   std::unordered_map<std::string, smt::Term> terms_;
   std::vector<smt::Term> propvec_;
   ///< signedbv_: to store signed bitvector for type checking

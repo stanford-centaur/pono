@@ -53,6 +53,7 @@ enum optionIndex
   SMT_SOLVER,
   LOGGING_SMT_SOLVER,
   PRINTING_SMT_SOLVER,
+  SMV_FP_SEMANTICS,  
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
@@ -255,6 +256,12 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --clock, -c <clock name> \tSymbol to use for clock signal (only "
     "supports starting at 0 and toggling each step)" },
+  { SMV_FP_SEMANTICS,
+    0,
+    "",
+    "smv-fp-semantics",
+    Arg::None,
+    "  --smv-fp-semantics \tEncode SMV real types with Floating-Point 64-bit precision semantics." },       
   { NO_IC3_PREGEN,
     0,
     "",
@@ -701,6 +708,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = atoi(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
+        case SMV_FP_SEMANTICS: smv_fp_semantics_ = true; break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = atoi(opt.arg); break;

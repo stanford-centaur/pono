@@ -331,7 +331,8 @@ int main(int argc, char ** argv)
       RelationalTransitionSystem rts(s);
       TermVec propvec;
       if (file_ext == "smv") {
-        SMVEncoder smv_enc(pono_options.filename_, rts);
+        SMVEncoder smv_enc(
+            pono_options.filename_, rts, pono_options.smv_fp_semantics_);
         propvec = smv_enc.propvec();
       } else {
         assert(file_ext == "vmt" || file_ext == "smt2");

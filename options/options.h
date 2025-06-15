@@ -101,6 +101,7 @@ class PonoOptions
         static_coi_(default_static_coi_),
         show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
+        smv_fp_semantics_(default_smv_fp_semantics_),
         ic3_pregen_(default_ic3_pregen_),
         ic3_indgen_(default_ic3_indgen_),
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
@@ -195,6 +196,7 @@ class PonoOptions
   bool static_coi_;
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
+  bool smv_fp_semantics_;
   // ic3 options
   bool ic3_pregen_;                ///< generalize counterexamples in IC3
   bool ic3_indgen_;                ///< inductive generalization in IC3
@@ -320,6 +322,7 @@ class PonoOptions
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
   static const bool default_logging_smt_solver_ = false;
   static const bool default_printing_smt_solver_ = false;
+  static const bool default_smv_fp_semantics_ = false;
   static const bool default_ic3_pregen_ = true;
   static const bool default_ic3_indgen_ = true;
   static const unsigned int default_ic3_gen_max_iter_ = 2;
