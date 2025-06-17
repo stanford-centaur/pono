@@ -85,6 +85,16 @@ enum InterpPropsEnum
   ONLY_LAST
 };
 
+// Justice translator option
+enum JusticeTranslator
+{
+  LIVENESS_TO_SAFETY = 0,
+};
+
+const std::unordered_map<std::string, JusticeTranslator> str2livenessalg({
+    { "l2s", LIVENESS_TO_SAFETY },
+});
+
 /*************************************** Options class
  * ************************************************/
 
@@ -101,9 +111,12 @@ class PonoOptions
         bound_(default_bound_),
         verbosity_(default_verbosity_),
         witness_(default_witness_),
+        justice_(default_justice_),
+        justice_translator_(default_justice_translator_),
         reset_bnd_(default_reset_bnd_),
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
+        smt_interpolator_(default_smt_interpolator_),
         logging_smt_solver_(default_logging_smt_solver_),
         printing_smt_solver_(default_printing_smt_solver_),
         static_coi_(default_static_coi_),
@@ -169,7 +182,7 @@ class PonoOptions
   {
   }
 
-  ~PonoOptions(){};
+  ~PonoOptions() {}
 
   /** Parse and set options given argc and argv from main
    *  @param argc
@@ -188,6 +201,7 @@ class PonoOptions
                                      bool expect_file = true);
 
   Engine to_engine(std::string s);
+  JusticeTranslator to_justice_translator(std::string s);
 
   // Pono options
   Engine engine_;
@@ -196,12 +210,16 @@ class PonoOptions
   unsigned int verbosity_;
   unsigned int random_seed_;
   bool witness_;
+  bool justice_;  ///< check justice property at given index, else safety
+  JusticeTranslator
+      justice_translator_;  ///< liveness to safety translation algorithm
   std::string vcd_name_;
   std::string reset_name_;
   size_t reset_bnd_;
   std::string clock_name_;
   std::string filename_;
-  smt::SolverEnum smt_solver_;  ///< underlying smt solver
+  smt::SolverEnum smt_solver_;        ///< underlying smt solver
+  smt::SolverEnum smt_interpolator_;  ///< smt solver for interpolation
   bool logging_smt_solver_;
   bool printing_smt_solver_;
   bool static_coi_;
@@ -333,6 +351,9 @@ class PonoOptions
   static const unsigned int default_verbosity_ = 0;
   static const unsigned int default_random_seed = 0;
   static const bool default_witness_ = false;
+  static const bool default_justice_ = false;
+  static const JusticeTranslator default_justice_translator_ =
+      LIVENESS_TO_SAFETY;
   static const bool default_static_coi_ = false;
   static const bool default_show_invar_ = false;
   static const bool default_check_invar_ = false;
@@ -340,6 +361,12 @@ class PonoOptions
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
+  static const smt::SolverEnum default_smt_interpolator_ =
+#ifdef WITH_MSAT
+      smt::MSAT;
+#else
+      smt::CVC5;
+#endif
   static const bool default_logging_smt_solver_ = false;
   static const bool default_printing_smt_solver_ = false;
   static const bool default_ic3_pregen_ = true;

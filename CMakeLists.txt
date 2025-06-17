@@ -1,10 +1,13 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.18...4.0)
 
 project(pono)
 
 set(PONO_MAJOR 0)   # Major component of Pono version
 set(PONO_MINOR 1)   # Minor component of Pono version
 set(PONO_RELEASE 1) # Release component of Pono version
+
+# Generate compilation database compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Retrieve the current version via Git
 execute_process(
@@ -74,21 +77,20 @@ endif()
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
 
+if (NOT DEFINED SMT_SWITCH_DIR)
+    set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
+endif()
+
 # TODO: Use find_package
 # find package
 #list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
 
-set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
-
-# rely on cmake modules from smt-switch (required anyway)
-set(CMAKE_MODULE_PATH ${SMT_SWITCH_DIR}/cmake)
-
-find_package(GMP REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 # Check that dependencies are there
 list(APPEND CMAKE_PREFIX_PATH "${SMT_SWITCH_DIR}/deps/install")
 
+pkg_check_modules(GMPXX REQUIRED gmpxx)
 pkg_check_modules(BITWUZLA REQUIRED bitwuzla)
 
 if (NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
@@ -163,7 +165,7 @@ set(INCLUDE_DIRS
   "${SMT_SWITCH_DIR}/local/include"
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
-  "${GMP_INCLUDE_DIR}"
+  ${GMPXX_INCLUDE_DIRS}
   "${FLEX_INCLUDE_DIRS}"
   )
 
@@ -196,6 +198,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/implicit_predicate_abstractor.cpp"
+  "${PROJECT_SOURCE_DIR}/modifiers/liveness_to_safety_translator.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/history_modifier.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/mod_ts_prop.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/ops_abstractor.cpp"
@@ -304,8 +307,7 @@ endif()
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
 target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
-target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
-target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
+target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
 
@@ -333,7 +335,13 @@ target_include_directories(pono-bin PUBLIC
 target_link_libraries(pono-bin PUBLIC pono-lib)
 
 if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
-  target_link_libraries(pono-bin PUBLIC -static)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # Static libraries cannot be built on Macs.
+    # See: https://developer.apple.com/library/archive/qa/qa1118/_index.html
+    message(WARNING "Static executables are not supported on macOS")
+  else()
+    target_link_libraries(pono-bin PUBLIC -static)
+  endif()
 endif()
 
 set(CMAKE_INSTALL_MESSAGE LAZY)

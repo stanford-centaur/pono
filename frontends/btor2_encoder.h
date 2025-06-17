@@ -43,13 +43,17 @@ class BTOR2Encoder
   };
 
   const smt::TermVec & propvec() const { return propvec_; };
-  const smt::TermVec & justicevec() const { return justicevec_; };
+  const std::vector<smt::TermVec> & justicevec() const { return justicevec_; };
   const smt::TermVec & fairvec() const { return fairvec_; };
   const smt::TermVec & inputsvec() const { return inputsvec_; }
   const smt::TermVec & statesvec() const { return statesvec_; }
   const std::map<uint64_t, smt::Term> & no_next_statevars() const
   {
     return no_next_states_;
+  }
+  const std::unordered_map<std::string, std::string> & get_symbol_map() const
+  {
+    return symbol_map_;
   }
 
  protected:
@@ -76,25 +80,18 @@ class BTOR2Encoder
   smt::TermVec inputsvec_;
   smt::TermVec statesvec_;
   std::map<uint64_t, smt::Term> no_next_states_;
-  std::unordered_map<uint64_t, std::string> state_renaming_table;
+  // record the renaming done by the `preprocess` pass
+  std::unordered_map<uint64_t, std::string> state_renaming_table_;
+  // a mapping from the internally-assigned names ("intput/state{btor2_id}")
+  // to the original names in Btor2
+  std::unordered_map<std::string, std::string> symbol_map_;
 
-  // Useful variables
-  smt::Sort linesort_;
-  smt::TermVec termargs_;
   std::unordered_map<int, smt::Sort> sorts_;
   std::unordered_map<int, smt::Term> terms_;
-  std::string symbol_;
 
+  // properties, justice, and fairness constraints
   smt::TermVec propvec_;
-  smt::TermVec justicevec_;
+  std::vector<smt::TermVec> justicevec_;
   smt::TermVec fairvec_;
-
-  Btor2Parser * reader_;
-  Btor2LineIterator it_;
-  Btor2Line * l_;
-  size_t i_;
-  int64_t idx_;
-  bool negated_;
-  size_t witness_id_{ 0 };  ///< id of any introduced witnesses for properties
 };
 }  // namespace pono

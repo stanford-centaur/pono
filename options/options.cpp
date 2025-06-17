@@ -16,6 +16,7 @@
 
 #include "options/options.h"
 
+#include <climits>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -44,6 +45,8 @@ enum optionIndex
   RANDOM_SEED,
   VCDNAME,
   WITNESS,
+  JUSTICE,
+  JUSTICE_TRANSLATOR,
   STATICCOI,
   SHOW_INVAR,
   CHECK_INVAR,
@@ -51,6 +54,7 @@ enum optionIndex
   RESET_BND,
   CLK,
   SMT_SOLVER,
+  SMT_INTERPOLATOR,
   LOGGING_SMT_SOLVER,
   PRINTING_SMT_SOLVER,
   NO_IC3_PREGEN,
@@ -194,7 +198,20 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT Solver to use: btor, bzla, msat, yices2, or cvc5." },
+    "  --smt-solver \tSMT Solver to use: btor, bzla, msat, yices2, or cvc5. "
+    "(default: bzla)" },
+  { SMT_INTERPOLATOR,
+    0,
+    "",
+    "smt-interpolator",
+    Arg::NonEmpty,
+    "  --smt-interpolator \tSMT Solver used for interpolation: msat or cvc5. "
+#ifdef WITH_MSAT
+    "(default: msat)"
+#else
+    "(default: cvc5)"
+#endif
+  },
   { LOGGING_SMT_SOLVER,
     0,
     "",
@@ -217,6 +234,20 @@ const option::Descriptor usage[] = {
     "witness",
     Arg::None,
     "  --witness \tPrint witness if the property is false." },
+  { JUSTICE,
+    0,
+    "j",
+    "justice",
+    Arg::None,
+    "  --justice, -j \tCheck justice property, instead of safety, at the given "
+    "index. (default: false)" },
+  { JUSTICE_TRANSLATOR,
+    0,
+    "",
+    "justice-translator",
+    Arg::NonEmpty,
+    "  --justice-translator <algorithm> \tSelect liveness to safety "
+    "translation algorithm from [l2s]." },
   { STATICCOI,
     0,
     "",
@@ -485,7 +516,6 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --bmc-exponential-step \tDouble BMC bound in each step starting at "
     "'bmc-bound-start' (default: false, explores bounds 0, 1, 2, 4,...)." },
-
   { BMC_SINGLE_BAD_STATE,
     0,
     "",
@@ -651,6 +681,15 @@ Engine PonoOptions::to_engine(std::string s)
   }
 }
 
+JusticeTranslator PonoOptions::to_justice_translator(std::string s)
+{
+  if (str2livenessalg.find(s) != str2livenessalg.end()) {
+    return str2livenessalg.at(s);
+  } else {
+    throw PonoException("Unrecognized algorithm: " + s);
+  }
+}
+
 // Parse command line options given by 'argc' and 'argv' and set
 // respective options in the 'pono_options' object.
 // Returns 'ERROR' if there is something wrong with the given options
@@ -703,7 +742,13 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case HELP:
           // not possible, because handled further above and exits the program
         case ENGINE: engine_ = to_engine(opt.arg); break;
-        case BOUND: bound_ = atoi(opt.arg); break;
+        case BOUND:
+          bound_ = atoi(opt.arg);
+          if (bound_ == INT_MAX) {
+            throw PonoException("--bound must be less than "
+                                + std::to_string(INT_MAX) + ".");
+          }
+          break;
         case PROP: prop_idx_ = atoi(opt.arg); break;
         case VERBOSITY: verbosity_ = atoi(opt.arg); break;
         case RANDOM_SEED: random_seed_ = atoi(opt.arg); break;
@@ -728,9 +773,25 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           }
           break;
         }
+        case SMT_INTERPOLATOR: {
+          if (opt.arg == std::string("cvc5")) {
+            smt_interpolator_ = smt::CVC5_INTERPOLATOR;
+          } else if (opt.arg == std::string("msat")) {
+            smt_interpolator_ = smt::MSAT_INTERPOLATOR;
+          } else {
+            throw PonoException("Unknown interpolator: "
+                                + std::string(opt.arg));
+            break;
+          }
+          break;
+        }
         case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
         case PRINTING_SMT_SOLVER: printing_smt_solver_ = true; break;
         case WITNESS: witness_ = true; break;
+        case JUSTICE: justice_ = true; break;
+        case JUSTICE_TRANSLATOR:
+          justice_translator_ = to_justice_translator(opt.arg);
+          break;
         case STATICCOI: static_coi_ = true; break;
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
@@ -871,11 +932,6 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
       }
     }
 
-    if (smt_solver_ != smt::MSAT && engine_ == Engine::INTERP) {
-      throw PonoException(
-          "Interpolation engine can be only used with '--smt-solver msat'.");
-    }
-
     if (ceg_prophecy_arrays_ && smt_solver_ != smt::MSAT) {
       throw PonoException(
           "Counterexample-guided prophecy only supported with MathSAT so far");
@@ -961,10 +1017,24 @@ string to_string(Engine e)
   return res;
 }
 
+string to_string(JusticeTranslator jt)
+{
+  string res;
+  switch (jt) {
+    case LIVENESS_TO_SAFETY: res = "l2s"; break;
+  }
+  return res;
+}
+
 ostream & operator<<(ostream & o, Engine e)
 {
   o << to_string(e);
   return o;
 }
 
+ostream & operator<<(ostream & o, JusticeTranslator jt)
+{
+  o << to_string(jt);
+  return o;
+}
 }  // namespace pono

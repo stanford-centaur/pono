@@ -27,6 +27,7 @@
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
 #include "modifiers/static_coi.h"
@@ -79,7 +80,6 @@ ProverResult check_prop(PonoOptions pono_options,
     // guard the property with reset_done
     prop = ts.solver()->make_term(Implies, reset_done, prop);
   }
-
 
   if (pono_options.static_coi_) {
     /* Compute the set of state/input variables related to the
@@ -136,21 +136,18 @@ ProverResult check_prop(PonoOptions pono_options,
   //       model checker runs prove unbounded) or possibly, have a command line
   //       flag to pick between the two
   ProverResult r;
-  if (pono_options.engine_ == MSAT_IC3IA)
-  {
+  if (pono_options.engine_ == MSAT_IC3IA) {
     // HACK MSAT_IC3IA does not support check_until
     r = prover->prove();
-  }
-  else
-  {
+  } else {
     r = prover->check_until(pono_options.bound_ + has_monitor);
   }
 
   if (r == FALSE && pono_options.witness_) {
     bool success = prover->witness(cex);
     if (has_monitor) {
-      // Witness will always have at least one element, because the monitor is constrained
-      // to start true.
+      // Witness will always have at least one element, because the monitor is
+      // constrained to start true.
       cex.pop_back();
     }
     if (!success) {
@@ -290,7 +287,9 @@ int main(int argc, char ** argv)
       FunctionalTransitionSystem fts(s);
       BTOR2Encoder btor_enc(pono_options.filename_, fts);
       const TermVec & propvec = btor_enc.propvec();
-      unsigned int num_props = propvec.size();
+      const auto & justicevec = btor_enc.justicevec();
+      unsigned int num_props =
+          pono_options.justice_ ? justicevec.size() : propvec.size();
       if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(
             "Property index " + to_string(pono_options.prop_idx_)
@@ -298,7 +297,18 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
 
-      Term prop = propvec[pono_options.prop_idx_];
+      Term prop;
+      if (pono_options.justice_) {
+        // The selected algorithm can modify the transition system in place.
+        switch (pono_options.justice_translator_) {
+          case pono::LIVENESS_TO_SAFETY:
+            prop = LivenessToSafetyTranslator{}.translate(
+                fts, justicevec[pono_options.prop_idx_]);
+            break;
+        }
+      } else {
+        prop = propvec[pono_options.prop_idx_];
+      }
 
       vector<UnorderedTermMap> cex;
       res = check_prop(pono_options, prop, fts, s, cex);
@@ -306,24 +316,29 @@ int main(int argc, char ** argv)
       assert(res != ERROR);
 
       // print btor output
+      const string prop_label = (pono_options.justice_ ? "j" : "b")
+                                + to_string(pono_options.prop_idx_);
       if (res == FALSE) {
         cout << "sat" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
-        assert(pono_options.witness_ || !cex.size());
-        if (cex.size()) {
-          print_witness_btor(btor_enc, cex, fts);
-          if (!pono_options.vcd_name_.empty()) {
-            VCDWitnessPrinter vcdprinter(fts, cex);
-            vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+        cout << prop_label << endl;
+        // note: witness for justice property is not yet supported
+        if (!pono_options.justice_) {
+          assert(pono_options.witness_ || !cex.size());
+          if (cex.size()) {
+            print_witness_btor(btor_enc, cex, fts);
+            if (!pono_options.vcd_name_.empty()) {
+              VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
+              vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+            }
           }
         }
       } else if (res == TRUE) {
         cout << "unsat" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
+        cout << prop_label << endl;
       } else {
         assert(res == pono::UNKNOWN);
         cout << "unknown" << endl;
-        cout << "b" << pono_options.prop_idx_ << endl;
+        cout << prop_label << endl;
       }
 
     } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2") {
@@ -414,8 +429,8 @@ int main(int argc, char ** argv)
   if (pono_options.print_wall_time_) {
     auto end_time_stamp = timestamp();
     auto elapsed_time = timestamp_diff(begin_time_stamp, end_time_stamp);
-    std:cout << "Pono wall clock time (s): " <<
-      time_duration_to_sec_string(elapsed_time) << std::endl;
+    std::cout << "Pono wall clock time (s): "
+              << time_duration_to_sec_string(elapsed_time) << std::endl;
   }
 
   return res;

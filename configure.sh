@@ -13,6 +13,7 @@ Configures the CMAKE build environment.
 -h, --help              display this message and exit
 --prefix=STR            install directory       (default: /usr/local/)
 --build-dir=STR         custom build directory  (default: build)
+--smt-switch-dir=STR    custom smt-switch directory (default: deps/smt-switch)
 --with-btor             build with Boolector  (default: off)
 --with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
                         Required for interpolant based model checking
@@ -36,6 +37,7 @@ die () {
 }
 
 build_dir=build
+smt_switch_dir=default
 install_prefix=default
 build_type=default
 with_boolector=default
@@ -77,6 +79,15 @@ do
                 *) build_dir=$(pwd)/$build_dir ;; # make absolute path
             esac
             ;;
+        --smt-switch-dir) die "missing argument to $1 (see -h)" ;;
+        --smt-switch-dir=*)
+            smt_switch_dir=${1##*=}
+            # Check if this is an absolute path and if not, make it absolute.
+            case $smt_switch_dir in
+                /*) ;;                                      # absolute path
+                *) smt_switch_dir=$(pwd)/$smt_switch_dir ;; # make absolute path
+            esac
+            ;;
         --with-btor) with_boolector=ON;;
         --with-msat) with_msat=ON;;
         --with-yices2) with_yices2=ON;;
@@ -108,6 +119,9 @@ done
     die "CoreIR and static build are incompatible, must omit either '--static/--static-lib' or '--with-coreir/--with-coreir-extern'"
 
 cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STATIC_EXEC=${static_exec}"
+
+[ $smt_switch_dir != default ] \
+    && cmake_opts="$cmake_opts -DSMT_SWITCH_DIR=${smt_switch_dir}"
 
 [ $install_prefix != default ] \
     && cmake_opts="$cmake_opts -DCMAKE_INSTALL_PREFIX=$install_prefix"

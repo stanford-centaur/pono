@@ -31,9 +31,8 @@ InterpolantMC::InterpolantMC(const Property & p,
                              const SmtSolver & slv,
                              PonoOptions opt)
     : super(p, ts, slv, opt),
-      // only mathsat interpolator supported
-      interpolator_(create_interpolating_solver_for(
-          SolverEnum::MSAT_INTERPOLATOR, Engine::INTERP)),
+      interpolator_(create_interpolating_solver_for(opt.smt_interpolator_,
+                                                    Engine::INTERP)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       use_frontier_simpl_(opt.interp_frontier_set_simpl_),
@@ -54,7 +53,7 @@ void InterpolantMC::initialize()
 
   super::initialize();
 
-  reset_assertions(interpolator_);
+  interpolator_->reset_assertions();
 
   // symbols are already created in solver
   // need to add symbols at time 1 to cache
@@ -177,7 +176,7 @@ bool InterpolantMC::step(const int i)
       // found a concrete counter example
       // replay it in the solver with model generation
       concrete_cex_ = true;
-      reset_assertions(solver_);
+      solver_->reset_assertions();
 
       Term solver_trans = solver_->make_term(And, transA_, transB_);
       solver_->assert_formula(solver_->make_term(
@@ -219,7 +218,7 @@ bool InterpolantMC::step(const int i)
 
 bool InterpolantMC::step_0()
 {
-  reset_assertions(solver_);
+  solver_->reset_assertions();
   solver_->assert_formula(init0_);
   solver_->assert_formula(unroller_.at_time(bad_, 0));
 
@@ -232,22 +231,9 @@ bool InterpolantMC::step_0()
   return false;
 }
 
-void InterpolantMC::reset_assertions(SmtSolver & s)
-{
-  // reset assertions is not supported by all solvers
-  // but MathSAT is the only supported solver that can do interpolation
-  // so this should be safe
-  try {
-    s->reset_assertions();
-  }
-  catch (NotImplementedException & e) {
-    throw PonoException("Got unexpected solver in InterpolantMC.");
-  }
-}
-
 bool InterpolantMC::check_entail(const Term & p, const Term & q)
 {
-  reset_assertions(solver_);
+  solver_->reset_assertions();
   solver_->assert_formula(
       solver_->make_term(And, p, solver_->make_term(Not, q)));
   Result r = solver_->check_sat();
