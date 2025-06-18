@@ -119,6 +119,22 @@ TEST_P(Btor2UnitTests, InvalidSmtlibSymbol)
   ASSERT_NE(r, ProverResult::ERROR);
 }
 
+TEST_P(Btor2UnitTests, InitStateWithBool)
+{
+  // test BTOR2 file with bool init value
+  SmtSolver s = create_solver(GetParam());
+  s->set_opt("incremental", "true");
+  FunctionalTransitionSystem fts(s);
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  string filename = STRFY(PONO_SRC_DIR);
+  filename += "/tests/encoders/inputs/btor2/bool-init.btor2";
+  BTOR2Encoder be(filename, fts);
+  Property p(fts.solver(), be.propvec()[0]);
+  Bmc bmc(p, fts, s);
+  ProverResult r = bmc.check_until(0);
+  ASSERT_NE(r, ProverResult::ERROR);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedSolverBtor2FileUnitTests,
     Btor2FileUnitTests,
