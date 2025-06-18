@@ -248,8 +248,10 @@ RefineResult IC3IA::refine()
     register_symbol_mappings(i);
     Term t;
     if (options_.ic3ia_sim_cex_) {
+      // simulate abstract cex
       t = unroller_.at_time(cex_[i], i);
     } else {
+      // perform BMC using Init and P
       if (i == 0) {
         t = unroller_.at_time(conc_ts_.init(), i);
       } else if (i + 1 == cex_length) {

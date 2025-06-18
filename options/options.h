@@ -226,8 +226,8 @@ class PonoOptions
   bool ic3ia_reduce_preds_;  ///< reduce predicates with unsatcore in IC3IA
   bool ic3ia_track_important_vars_;  ///< prioritize predicates with marked
                                      ///< important variables
-  bool ic3ia_sim_cex_;               //< TODO
-  bool ic3sa_func_refine_;           ///< try functional unrolling in refinement
+  bool ic3ia_sim_cex_;      ///< simulate abstract cex during IC3IA's refinement
+  bool ic3sa_func_refine_;  ///< try functional unrolling in refinement
   std::string profiling_log_filename_;
   bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;       ///< assume property in pre-state

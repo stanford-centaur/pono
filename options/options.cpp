@@ -342,7 +342,8 @@ const option::Descriptor usage[] = {
     "",
     "no-ic3ia-sim-cex",
     Arg::None,
-    "  --no-ic3ia-sim-cex \tTODO." },
+    "  --no-ic3ia-sim-cex \tDo not simulate abstract cex during refinement, "
+    "perform BMC instead." },
   { NO_IC3SA_FUNC_REFINE,
     0,
     "",
