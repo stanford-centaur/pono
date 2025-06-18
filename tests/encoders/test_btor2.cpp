@@ -121,7 +121,7 @@ TEST_P(Btor2UnitTests, InvalidSmtlibSymbol)
 
 TEST_P(Btor2UnitTests, InitStateWithBool)
 {
-  // test BTOR2 file with invalid SMT-LIB symbol
+  // test BTOR2 file with bool init value
   SmtSolver s = create_solver(GetParam());
   s->set_opt("incremental", "true");
   FunctionalTransitionSystem fts(s);
