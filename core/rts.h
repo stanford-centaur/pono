@@ -55,6 +55,12 @@ class RelationalTransitionSystem : public TransitionSystem
    * @param constraint new constraint on transition relation
    */
   void constrain_trans(const smt::Term & constraint);
+
+ private:
+  /* Finds all state variables referenced in some 'next' transition inside 
+   * 'term' and marks them as updated states in the TransitionSystem
+   */
+  void set_updated_states(const smt::Term & term);
 };
 
 }  // namespace pono
