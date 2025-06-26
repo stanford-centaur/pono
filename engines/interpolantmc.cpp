@@ -123,10 +123,10 @@ bool InterpolantMC::step(const int i)
   }
 
   Term bad_i = unroller_.at_time(bad_, i);
-  if (interp_props_ == InterpPropsEnum::FIRST_AND_LAST) {
+  if (interp_props_ == InterpPropsEnum::INTERP_FIRST_AND_LAST_PROPS) {
     // Only take the first and last properties; the rest are skipped.
     bad_disjuncts_ = solver_->make_term(Or, unroller_.at_time(bad_, 1), bad_i);
-  } else {  // interp_props_ == InterpPropsEnum::ALL
+  } else {  // interp_props_ == InterpPropsEnum::INTERP_ALL_PROPS
     bad_disjuncts_ = solver_->make_term(Or, bad_disjuncts_, bad_i);
   }
   Term int_bad_disjuncts = to_interpolator_.transfer_term(bad_disjuncts_);
