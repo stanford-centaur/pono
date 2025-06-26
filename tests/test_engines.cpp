@@ -250,18 +250,18 @@ vector<PonoOptions> get_interp_options()
 {
   PonoOptions default_opts;
   PonoOptions interp_first_and_last_props;
-  interp_first_and_last_props.interp_props_ = FIRST_AND_LAST;
-  PonoOptions interp_only_last_prop;
-  interp_first_and_last_props.interp_props_ = ONLY_LAST;
+  interp_first_and_last_props.interp_props_ = INTERP_FIRST_AND_LAST_PROPS;
   PonoOptions eager_unroll;
   eager_unroll.interp_eager_unroll_ = true;
   PonoOptions backward_interp;
   backward_interp.interp_backward_ = true;
   PonoOptions no_frontier_simp;
   backward_interp.interp_frontier_set_simpl_ = false;
-  return { default_opts,          interp_first_and_last_props,
-           interp_only_last_prop, eager_unroll,
-           backward_interp,       no_frontier_simp };
+  return { default_opts,
+           interp_first_and_last_props,
+           eager_unroll,
+           backward_interp,
+           no_frontier_simp };
 }
 
 class InterpOptionsTests : public ::testing::Test,
