@@ -45,11 +45,11 @@ using namespace pono;
 using namespace smt;
 using namespace std;
 
-ProverResult check_prop(PonoOptions pono_options,
-                        Term & prop,
-                        TransitionSystem & ts,
-                        const SmtSolver & s,
-                        std::vector<UnorderedTermMap> & cex)
+ProverResult check_safety_prop(PonoOptions pono_options,
+                               Term & prop,
+                               TransitionSystem & ts,
+                               const SmtSolver & s,
+                               std::vector<UnorderedTermMap> & cex)
 {
   // get property name before it is rewritten
   const string prop_name = ts.get_name(prop);
@@ -113,21 +113,21 @@ ProverResult check_prop(PonoOptions pono_options,
     prop_in_trans(ts, prop);
   }
 
-  Property p(s, prop, prop_name);
+  SafetyProperty p(s, prop, prop_name);
 
   // end modification of the transition system and property
 
   Engine eng = pono_options.engine_;
 
-  std::shared_ptr<Prover> prover;
+  std::shared_ptr<SafetyProver> prover;
   if (pono_options.cegp_abs_vals_) {
-    prover = make_cegar_values_prover(eng, p, ts, s, pono_options);
+    prover = make_cegar_values_safety_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_bv_arith_) {
-    prover = make_cegar_bv_arith_prover(eng, p, ts, s, pono_options);
+    prover = make_cegar_bv_arith_safety_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_prophecy_arrays_) {
-    prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);
+    prover = make_ceg_proph_safety_prover(eng, p, ts, s, pono_options);
   } else {
-    prover = make_prover(eng, p, ts, s, pono_options);
+    prover = make_safety_prover(eng, p, ts, s, pono_options);
   }
   assert(prover);
 
@@ -173,7 +173,7 @@ ProverResult check_prop(PonoOptions pono_options,
   }
 
   if (r == TRUE && pono_options.check_invar_ && invar) {
-    bool invar_passes = check_invar(ts, p.prop(), invar);
+    bool invar_passes = check_invar(ts, p.prop_term(), invar);
     std::cout << "Invariant Check " << (invar_passes ? "PASSED" : "FAILED")
               << std::endl;
     if (!invar_passes) {
@@ -311,7 +311,7 @@ int main(int argc, char ** argv)
       }
 
       vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, prop, fts, s, cex);
+      res = check_safety_prop(pono_options, prop, fts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -365,7 +365,7 @@ int main(int argc, char ** argv)
       // get property name before it is rewritten
 
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, prop, rts, s, cex);
+      res = check_safety_prop(pono_options, prop, rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 

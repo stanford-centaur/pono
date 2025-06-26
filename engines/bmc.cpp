@@ -22,7 +22,7 @@ using namespace smt;
 
 namespace pono {
 
-Bmc::Bmc(const Property & p,
+Bmc::Bmc(const SafetyProperty & p,
          const TransitionSystem & ts,
          const SmtSolver & solver,
          PonoOptions opt)

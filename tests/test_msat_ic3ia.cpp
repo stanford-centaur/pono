@@ -37,14 +37,14 @@ TEST_P(MsatIC3IAUnitTests, IntCounterSafe)
   rts.constrain_init(rts.make_term(Equal, c, rts.make_term(0, intsort)));
   rts.assign_next(c, rts.make_term(Plus, c, rts.make_term(1, intsort)));
 
-  Property p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
+  SafetyProperty p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
 
   MsatIC3IA msat_ic3ia(p, rts, s);
   ProverResult res = msat_ic3ia.prove();
   EXPECT_EQ(res, ProverResult::TRUE);
 
   Term invar = msat_ic3ia.invar();
-  EXPECT_TRUE(check_invar(rts, p.prop(), invar));
+  EXPECT_TRUE(check_invar(rts, p.prop_term(), invar));
 }
 
 TEST_P(MsatIC3IAUnitTests, IntCounterUnsafe)
@@ -61,7 +61,7 @@ TEST_P(MsatIC3IAUnitTests, IntCounterUnsafe)
                     rts.next(c),
                     rts.make_term(Plus, c, rts.make_term(1, intsort)))));
 
-  Property p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
+  SafetyProperty p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
 
   MsatIC3IA msat_ic3ia(p, rts, s);
   ProverResult res = msat_ic3ia.prove();

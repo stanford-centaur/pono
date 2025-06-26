@@ -40,7 +40,7 @@ class IC3IA : public IC3
  public:
   // itp_se is the SolverEnum for the interpolator
 
-  IC3IA(const Property & p,
+  IC3IA(const SafetyProperty & p,
         const TransitionSystem & ts,
         const smt::SmtSolver & s,
         PonoOptions opt = PonoOptions());

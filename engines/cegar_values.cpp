@@ -166,7 +166,7 @@ class ValueAbstractor : public smt::IdentityWalker
 };
 
 template <class Prover_T>
-CegarValues<Prover_T>::CegarValues(const Property & p,
+CegarValues<Prover_T>::CegarValues(const SafetyProperty & p,
                                    const TransitionSystem & ts,
                                    const smt::SmtSolver & solver,
                                    PonoOptions opt)

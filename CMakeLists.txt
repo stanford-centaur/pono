@@ -190,6 +190,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
   "${PROJECT_SOURCE_DIR}/engines/mbic3.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/safety_prover.cpp"
   "${PROJECT_SOURCE_DIR}/engines/syguspdr.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"

@@ -38,7 +38,7 @@ using TypedTerms = std::unordered_map<smt::Sort, smt::UnorderedTermSet>;
 class IC3SA : public IC3
 {
  public:
-  IC3SA(const Property & p,
+  IC3SA(const SafetyProperty & p,
         const TransitionSystem & ts,
         const smt::SmtSolver & solver,
         PonoOptions opt = PonoOptions());

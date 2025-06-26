@@ -45,7 +45,7 @@ using namespace std;
 namespace pono {
 
 template <class Prover_T>
-CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
+CegProphecyArrays<Prover_T>::CegProphecyArrays(const SafetyProperty & p,
                                                const TransitionSystem & ts,
                                                const SmtSolver & solver,
                                                PonoOptions opt)
@@ -57,8 +57,8 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
       aae_(aa_,
            abs_unroller_,
            ts.solver() == super::solver_
-               ? p.prop()
-               : super::to_prover_solver_.transfer_term(p.prop(), BOOL),
+               ? p.prop_term()
+               : super::to_prover_solver_.transfer_term(p.prop_term(), BOOL),
            super::options_.cegp_timed_axiom_red_),
       pm_(abs_ts_),
       reached_k_(-1),
@@ -92,12 +92,12 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
       reached_k_++;
     } while (num_added_axioms_);
 
-    Property latest_prop(super::solver_,
-                         super::solver_->make_term(Not, super::bad_));
+    SafetyProperty latest_prop(super::solver_,
+                               super::solver_->make_term(Not, super::bad_));
     SmtSolver s = create_solver_for(
         super::solver_->get_solver_enum(), super::engine_, false);
-    shared_ptr<Prover> prover =
-        make_prover(super::engine_, latest_prop, abs_ts_, s, super::options_);
+    shared_ptr<SafetyProver> prover = make_safety_prover(
+        super::engine_, latest_prop, abs_ts_, s, super::options_);
     res = prover->prove();
 
     if (res == ProverResult::FALSE) {
@@ -144,12 +144,12 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     } while (num_added_axioms_ && reached_k_ <= k);
 
     if (super::options_.cegp_force_restart_ || super::engine_ != IC3IA_ENGINE) {
-      Property latest_prop(super::solver_,
-                           super::solver_->make_term(Not, super::bad_));
+      SafetyProperty latest_prop(super::solver_,
+                                 super::solver_->make_term(Not, super::bad_));
       SmtSolver s = create_solver_for(
           super::solver_->get_solver_enum(), super::engine_, false);
-      shared_ptr<Prover> prover =
-          make_prover(super::engine_, latest_prop, abs_ts_, s, super::options_);
+      shared_ptr<SafetyProver> prover = make_safety_prover(
+          super::engine_, latest_prop, abs_ts_, s, super::options_);
       if (super::engine_ == IC3IA_ENGINE) {
         shared_ptr<IC3IA> ic3ia_prover =
             std::static_pointer_cast<IC3IA>(prover);

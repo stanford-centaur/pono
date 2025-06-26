@@ -37,7 +37,7 @@ TEST_P(IC3BitsUnitTests, CounterSystemUnsafe)
 
   // off-by-one in property -- unsafe
   Term prop_term = s->make_term(BVUlt, x, max_val);
-  Property p(s, prop_term);
+  SafetyProperty p(s, prop_term);
 
   IC3Bits ic3bits(p, fts, s);
   ProverResult r = ic3bits.check_until(12);
@@ -53,7 +53,7 @@ TEST_P(IC3BitsUnitTests, CounterSystemSafe)
 
   // safe property
   Term prop_term = s->make_term(BVUle, x, max_val);
-  Property p(s, prop_term);
+  SafetyProperty p(s, prop_term);
 
   IC3Bits ic3bits(p, fts, s);
   ProverResult r = ic3bits.prove();

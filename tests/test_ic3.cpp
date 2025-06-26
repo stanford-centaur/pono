@@ -43,7 +43,7 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
   rts.assign_next(s1, s->make_term(Or, s1, s2));
   rts.assign_next(s2, s2);
 
-  Property p(s, s->make_term(Not, s1));
+  SafetyProperty p(s, s->make_term(Not, s1));
 
   IC3 ic3(p, rts, s);
   ProverResult r = ic3.prove();
@@ -51,7 +51,7 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
 
   // get the invariant
   Term invar = ic3.invar();
-  ASSERT_TRUE(check_invar(rts, p.prop(), invar));
+  ASSERT_TRUE(check_invar(rts, p.prop_term(), invar));
 }
 
 TEST_P(IC3UnitTests, SimpleSystemUnsafe)
@@ -69,7 +69,7 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
   fts.assign_next(s1, s->make_term(Or, s1, s2));
   fts.assign_next(s2, s2);
 
-  Property p(s, s->make_term(Not, s1));
+  SafetyProperty p(s, s->make_term(Not, s1));
 
   IC3 ic3(p, fts, s);
   ProverResult r = ic3.prove();

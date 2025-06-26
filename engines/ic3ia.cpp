@@ -40,7 +40,7 @@ using namespace std;
 
 namespace pono {
 
-IC3IA::IC3IA(const Property & p,
+IC3IA::IC3IA(const SafetyProperty & p,
              const TransitionSystem & ts,
              const SmtSolver & s,
              PonoOptions opt)

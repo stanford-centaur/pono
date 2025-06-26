@@ -24,25 +24,66 @@ namespace pono {
 class Property
 {
  public:
+  ~Property() {}
+
+  virtual const smt::Term & prop_term() const
+  {
+    if (prop_vec_.size() != 1) {
+      throw PonoException("Property has multiple terms");
+    }
+    return prop_vec_.front();
+  }
+
+  virtual const smt::TermVec & prop_vec() const { return prop_vec_; }
+
+  virtual const smt::SmtSolver & solver() const { return solver_; }
+
+  virtual std::string name() { return name_; };
+
+ protected:
   Property(const smt::SmtSolver & s, const smt::Term & p, std::string name = "")
-      : solver_(s), prop_(p), name_(name){};
+      : solver_(s), prop_vec_({ p }), name_(name)
+  {
+  }
 
-  ~Property(){};
+  Property(const smt::SmtSolver & s,
+           const smt::TermVec & pv,
+           std::string name = "")
+      : solver_(s), prop_vec_(pv), name_(name)
+  {
+    if (pv.empty()) {
+      throw PonoException("Property must have at least one term");
+    }
+  }
 
-  const smt::Term & prop() const { return prop_; }
-
-  const smt::SmtSolver & solver() const { return solver_; }
-
-  std::string name() { return name_; };
-
- private:
   smt::SmtSolver solver_;
 
-  smt::Term prop_;
+  smt::TermVec prop_vec_;
 
   std::string name_;  ///< a name for the property. If no name is given, just
                       ///< uses the to_string
 
 };  // class Property
+
+class SafetyProperty : public Property
+{
+ public:
+  SafetyProperty(const smt::SmtSolver & s,
+                 const smt::Term & p,
+                 std::string name = "")
+      : Property(s, p, name)
+  {
+  }
+
+  SafetyProperty(const smt::SmtSolver & s,
+                 const smt::TermVec & pv,
+                 std::string name = "")
+      : Property(s, pv, name)
+  {
+    if (prop_vec_.size() != 1) {
+      throw PonoException("Safety property must have exactly one term");
+    }
+  }
+};  // class SafetyProperty
 
 }  // namespace pono
