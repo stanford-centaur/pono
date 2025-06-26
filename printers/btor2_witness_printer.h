@@ -93,7 +93,8 @@ void print_btor_vals_at_time(
     const smt::UnorderedTermMap & valmap,
     unsigned int time,
     const TransitionSystem & ts,
-    const std::unordered_map<std::string, std::string> & symbol_map)
+    const std::unordered_map<std::string, std::string> & symbol_map,
+    std::ostream & output_stream)
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
@@ -105,12 +106,13 @@ void print_btor_vals_at_time(
     if (sk == smt::BV) {
       // TODO: this makes assumptions on format of value from boolector
       //       to support other solvers, we need to be more general
-      logger.log(0,
-                 "{} {} {}@{}",
-                 i,
-                 as_bits(valmap.at(vec[i])->to_string()),
-                 lookup_or_key(symbol_map, vec[i]->to_string()),
-                 time);
+      logger.log_to_stream(0,
+                           output_stream,
+                           "{} {} {}@{}",
+                           i,
+                           as_bits(valmap.at(vec[i])->to_string()),
+                           lookup_or_key(symbol_map, vec[i]->to_string()),
+                           time);
     } else if (sk == smt::ARRAY) {
       smt::Term tmp = valmap.at(vec[i]);
       while (tmp->get_op() == smt::Store) {
@@ -120,25 +122,27 @@ void print_btor_vals_at_time(
           num++;
         }
 
-        logger.log(0,
-                   "{} [{}] {} {}@{}",
-                   i,
-                   as_bits(store_children[1]->to_string()),
-                   as_bits(store_children[2]->to_string()),
-                   lookup_or_key(symbol_map, vec[i]->to_string()),
-                   time);
+        logger.log_to_stream(0,
+                             output_stream,
+                             "{} [{}] {} {}@{}",
+                             i,
+                             as_bits(store_children[1]->to_string()),
+                             as_bits(store_children[2]->to_string()),
+                             lookup_or_key(symbol_map, vec[i]->to_string()),
+                             time);
         tmp = store_children[0];
       }
 
       if (tmp->get_op().is_null()
           && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
         smt::Term const_val = *(tmp->begin());
-        logger.log(0,
-                   "{} {} {}@{}",
-                   i,
-                   as_bits(const_val->to_string()),
-                   lookup_or_key(symbol_map, vec[i]->to_string()),
-                   time);
+        logger.log_to_stream(0,
+                             output_stream,
+                             "{} {} {}@{}",
+                             i,
+                             as_bits(const_val->to_string()),
+                             lookup_or_key(symbol_map, vec[i]->to_string()),
+                             time);
       }
 
     } else {
@@ -152,7 +156,8 @@ void print_btor_vals_at_time(
     const smt::UnorderedTermMap & valmap,
     unsigned int time,
     const TransitionSystem & ts,
-    const std::unordered_map<std::string, std::string> & symbol_map)
+    const std::unordered_map<std::string, std::string> & symbol_map,
+    std::ostream & output_stream)
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
@@ -165,12 +170,13 @@ void print_btor_vals_at_time(
       // TODO: this makes assumptions on format of value from boolector
       //       to support other solvers, we need to be more general
       // Remove the #b prefix
-      logger.log(0,
-                 "{} {} {}@{}",
-                 entry.first,
-                 as_bits(valmap.at(entry.second)->to_string()),
-                 lookup_or_key(symbol_map, entry.second->to_string()),
-                 time);
+      logger.log_to_stream(0,
+                           output_stream,
+                           "{} {} {}@{}",
+                           entry.first,
+                           as_bits(valmap.at(entry.second)->to_string()),
+                           lookup_or_key(symbol_map, entry.second->to_string()),
+                           time);
     } else if (sk == smt::ARRAY) {
       smt::Term tmp = valmap.at(entry.second);
       while (tmp->get_op() == smt::Store) {
@@ -180,25 +186,29 @@ void print_btor_vals_at_time(
           num++;
         }
 
-        logger.log(0,
-                   "{} [{}] {} {}@{}",
-                   entry.first,
-                   as_bits(store_children[1]->to_string()),
-                   as_bits(store_children[2]->to_string()),
-                   lookup_or_key(symbol_map, entry.second->to_string()),
-                   time);
+        logger.log_to_stream(
+            0,
+            output_stream,
+            "{} [{}] {} {}@{}",
+            entry.first,
+            as_bits(store_children[1]->to_string()),
+            as_bits(store_children[2]->to_string()),
+            lookup_or_key(symbol_map, entry.second->to_string()),
+            time);
         tmp = store_children[0];
       }
 
       if (tmp->get_op().is_null()
           && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
         smt::Term const_val = *(tmp->begin());
-        logger.log(0,
-                   "{} {} {}@{}",
-                   entry.first,
-                   as_bits(const_val->to_string()),
-                   lookup_or_key(symbol_map, entry.second->to_string()),
-                   time);
+        logger.log_to_stream(
+            0,
+            output_stream,
+            "{} {} {}@{}",
+            entry.first,
+            as_bits(const_val->to_string()),
+            lookup_or_key(symbol_map, entry.second->to_string()),
+            time);
       }
 
     } else {
@@ -209,7 +219,8 @@ void print_btor_vals_at_time(
 
 void print_witness_btor(const BTOR2Encoder & btor_enc,
                         const std::vector<smt::UnorderedTermMap> & cex,
-                        const TransitionSystem & ts)
+                        const TransitionSystem & ts,
+                        std::ostream & output_stream = std::cout)
 {
   const smt::TermVec inputs = btor_enc.inputsvec();
   const smt::TermVec states = btor_enc.statesvec();
@@ -217,26 +228,47 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
       btor_enc.no_next_statevars();
   bool has_states_without_next = no_next_states.size();
 
-  logger.log(0, "#0");
-  print_btor_vals_at_time(states, cex.at(0), 0, ts, btor_enc.get_symbol_map());
+  logger.log_to_stream(0, output_stream, "#0");
+  print_btor_vals_at_time(
+      states, cex.at(0), 0, ts, btor_enc.get_symbol_map(), output_stream);
 
   for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
     // states without next
     if (k && has_states_without_next) {
-      logger.log(0, "#{}", k);
-      print_btor_vals_at_time(
-          no_next_states, cex.at(k), k, ts, btor_enc.get_symbol_map());
+      logger.log_to_stream(0, output_stream, "#{}", k);
+      print_btor_vals_at_time(no_next_states,
+                              cex.at(k),
+                              k,
+                              ts,
+                              btor_enc.get_symbol_map(),
+                              output_stream);
     }
 
     // inputs
     if (k < cex_size) {
-      logger.log(0, "@{}", k);
+      logger.log_to_stream(0, output_stream, "@{}", k);
       print_btor_vals_at_time(
-          inputs, cex.at(k), k, ts, btor_enc.get_symbol_map());
+          inputs, cex.at(k), k, ts, btor_enc.get_symbol_map(), output_stream);
     }
   }
 
-  logger.log(0, ".");
+  logger.log_to_stream(0, output_stream, ".");
+}
+
+void dump_witness_btor(const BTOR2Encoder & btor_enc,
+                       std::vector<smt::UnorderedTermMap> & cex,
+                       const TransitionSystem & ts,
+                       const unsigned int prop_idx,
+                       const std::string & witness_filename)
+{
+  std::ofstream fout(witness_filename);
+  if (!fout.is_open()) {
+    throw PonoException("Failed to open file: " + witness_filename);
+  }
+
+  fout << "sat" << endl;
+  fout << "b" << prop_idx << endl;
+  print_witness_btor(btor_enc, cex, ts, fout);
 }
 
 }  // namespace pono
