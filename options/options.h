@@ -81,8 +81,7 @@ enum SyGuSTermMode
 enum InterpPropsEnum
 {
   ALL,
-  FIRST_AND_LAST,
-  ONLY_LAST
+  FIRST_AND_LAST
 };
 
 // Justice translator option

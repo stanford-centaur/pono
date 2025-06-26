@@ -634,10 +634,9 @@ const option::Descriptor usage[] = {
     "interp-props",
     Arg::NonEmpty,
     "  --interp-props \tSpecifies at which time frames properties are "
-    "considered when computing interpolants: all, first-and-last, only-last "
-    "(WARNING: choosing not 'all' could cause incompleteness on some "
-    "instances; the fixed point derived by 'only-last' might contain "
-    "unreachable bad states)" },
+    "considered when computing interpolants: all and first-and-last "
+    "(WARNING: choosing not 'fist-and-last' could cause incompleteness on some "
+    "instances)" },
   { INTERP_EAGER_UNROLL,
     0,
     "",
@@ -916,8 +915,6 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
             interp_props_ = InterpPropsEnum::ALL;
           } else if (opt.arg == std::string("first-and-last")) {
             interp_props_ = InterpPropsEnum::FIRST_AND_LAST;
-          } else if (opt.arg == std::string("only-last")) {
-            interp_props_ = InterpPropsEnum::ONLY_LAST;
           } else {
             throw PonoException("Unknown --interp-props option: "
                                 + std::string(opt.arg));
