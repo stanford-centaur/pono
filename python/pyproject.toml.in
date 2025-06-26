@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pono"
+version = "@PONO_MAJOR@.@PONO_MINOR@.@PONO_RELEASE@"
+description = "Python bindings for the model checker Pono"
+readme = {text = "Python bindings for the model checker Pono", content-type = "text/plain"}
+license = "BSD-3-Clause"
+authors = [
+  {name = "Makai Mann", email = "makaim@cs.stanford.edu"},
+  {name = "Ahmed Irfan", email = "ahmed.irfan@sri.com"},
+  {name = "Florian Lonsing", email = "fml@florianlonsing.com"},
+  {name = "Áron Ricardo Perez-Lopez", email = "arpl@cs.stanford.edu"},
+  {name = "Clark Barrett", email = "barrett@cs.stanford.edu"}
+]
+dependencies = ["smt-switch"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/stanford-centaur/pono"
+
+[tool.setuptools]
+packages = ["pono"]
+package-data = {pono = ["*.pxd", "*.so"]}

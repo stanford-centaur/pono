@@ -22,6 +22,7 @@
 
 #include "frontends/btor2_encoder.h"
 #include "utils/logger.h"
+#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -151,7 +152,9 @@ static std::string as_decimal(std::string val)
 // ------------- CLASS FUNCTIONS ------------------ //
 
 VCDWitnessPrinter::VCDWitnessPrinter(
-    const TransitionSystem & ts, const std::vector<smt::UnorderedTermMap> & cex)
+    const TransitionSystem & ts,
+    const std::vector<smt::UnorderedTermMap> & cex,
+    const std::unordered_map<std::string, std::string> & symbol_map)
     : inputs_(ts.inputvars()),
       states_(ts.statevars()),
       named_terms_(ts.named_terms()),
@@ -171,7 +174,9 @@ VCDWitnessPrinter::VCDWitnessPrinter(
     if (sk == smt::ARRAY) {
       continue;  // let's not worry about array so far
     }
-    check_insert_scope(name_term_pair.first, is_reg, name_term_pair.second);
+    check_insert_scope(lookup_or_key(symbol_map, name_term_pair.first),
+                       is_reg,
+                       name_term_pair.second);
   }
 
   for (auto && state : states_) {
@@ -202,15 +207,19 @@ VCDWitnessPrinter::VCDWitnessPrinter(
         if (tmp->get_op().is_null() && tmp->is_value())
           has_default_value = true;
       }  // for each frame, collect
-      check_insert_scope_array(
-          state->to_string(), indices, has_default_value, state);
+      check_insert_scope_array(lookup_or_key(symbol_map, state->to_string()),
+                               indices,
+                               has_default_value,
+                               state);
     } else
-      check_insert_scope(state->to_string(), true, state);
+      check_insert_scope(
+          lookup_or_key(symbol_map, state->to_string()), true, state);
   }
 
   for (auto && input : inputs_) {
     if (input->get_sort()->get_sort_kind() == smt::ARRAY) continue;
-    check_insert_scope(input->to_string(), false, input);
+    check_insert_scope(
+        lookup_or_key(symbol_map, input->to_string()), false, input);
   }
 
 }  // VCDWitnessPrinter -- constructor

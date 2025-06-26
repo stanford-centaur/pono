@@ -40,7 +40,7 @@ OpInpAbstractor::OpInpAbstractor(
   unroller_ = std::make_unique<Unroller>(abs_ts);
 }  // OpAbstractor
 
-TransitionSystem & OpInpAbstractor::abstract_ts(
+void OpInpAbstractor::abstract_ts(
     const TransitionSystem & in_ts,
     TransitionSystem & out_ts,
     const OpSet & op_to_abstract,
@@ -87,8 +87,6 @@ TransitionSystem & OpInpAbstractor::abstract_ts(
   {
     StaticConeOfInfluence coi(out_ts, { prop }, verbosity);
   }
-
-  return out_ts;
 }
 
 bool check_possible(const Term & res,
@@ -225,9 +223,9 @@ OpUfAbstractor::OpUfAbstractor(const TransitionSystem & conc_ts,
   unroller_ = std::make_unique<Unroller>(abs_ts);
 }  // OpAbstractor
 
-TransitionSystem & OpUfAbstractor::abstract_ts(const TransitionSystem & in_ts,
-                                               TransitionSystem & out_ts,
-                                               const OpSet & op_to_abstract)
+void OpUfAbstractor::abstract_ts(const TransitionSystem & in_ts,
+                                 TransitionSystem & out_ts,
+                                 const OpSet & op_to_abstract)
 {
   // copy if not done outside
   if (out_ts.inputvars().empty() && out_ts.statevars().empty()) out_ts = in_ts;
