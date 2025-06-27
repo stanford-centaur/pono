@@ -25,7 +25,7 @@ namespace pono {
 class InterpolantMC : public Prover
 {
  public:
-  InterpolantMC(const Property & p,
+  InterpolantMC(const SafetyProperty & p,
                 const TransitionSystem & ts,
                 const smt::SmtSolver & slv,
                 PonoOptions opt = PonoOptions());

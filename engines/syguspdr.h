@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/fts.h"
+#include "core/ts.h"
 #include "engines/ic3base.h"
 #include "modifiers/op_abstractor.h"
 #include "utils/partial_model.h"
@@ -39,7 +39,7 @@ namespace pono {
 class SygusPdr : public IC3Base
 {
  public:
-  SygusPdr(const Property & p,
+  SygusPdr(const SafetyProperty & p,
            const TransitionSystem & ts,
            const smt::SmtSolver & s,
            PonoOptions opt = PonoOptions());
