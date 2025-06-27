@@ -750,15 +750,15 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           // not possible, because handled further above and exits the program
         case ENGINE: engine_ = to_engine(opt.arg); break;
         case BOUND:
-          bound_ = std::stoul(opt.arg, NULL, 10);
+          bound_ = std::stoul(opt.arg);
           if (bound_ >= INT_MAX) {
             throw PonoException("--bound must be less than "
                                 + std::to_string(INT_MAX) + ".");
           }
           break;
-        case PROP: prop_idx_ = std::stoul(opt.arg, NULL, 10); break;
-        case VERBOSITY: verbosity_ = std::stoul(opt.arg, NULL, 10); break;
-        case RANDOM_SEED: random_seed_ = std::stoul(opt.arg, NULL, 10); break;
+        case PROP: prop_idx_ = std::stoul(opt.arg); break;
+        case VERBOSITY: verbosity_ = std::stoul(opt.arg); break;
+        case RANDOM_SEED: random_seed_ = std::stoul(opt.arg); break;
         case VCDNAME:
           vcd_name_ = opt.arg;
           witness_ = true;  // implicitly enabling witness
@@ -803,15 +803,15 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
-        case RESET_BND: reset_bnd_ = std::stoul(opt.arg, NULL, 10); break;
+        case RESET_BND: reset_bnd_ = std::stoul(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER:
-          ic3_gen_max_iter_ = std::stoul(opt.arg, NULL, 10);
+          ic3_gen_max_iter_ = std::stoul(opt.arg);
           break;
         case MBIC3_INDGEN_MODE:
-          mbic3_indgen_mode = std::stoul(opt.arg, NULL, 10);
+          mbic3_indgen_mode = std::stoul(opt.arg);
           if (!(mbic3_indgen_mode >= 0 && mbic3_indgen_mode <= 2))
             throw PonoException(
                 "--ic3-indgen-mode value must be between 0 and 2.");
@@ -842,22 +842,22 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case CEGP_FORCE_RESTART: cegp_force_restart_ = true; break;
         case CEGP_ABS_VALS: cegp_abs_vals_ = true; break;
         case CEGP_ABS_VALS_CUTOFF:
-          cegp_abs_vals_cutoff_ = std::stoul(opt.arg, NULL, 10);
+          cegp_abs_vals_cutoff_ = std::stoul(opt.arg);
           break;
         case CEGP_STRONG_ABSTRACTION: cegp_strong_abstraction_ = true; break;
         case CEG_BV_ARITH: ceg_bv_arith_ = true; break;
         case CEG_BV_ARITH_MIN_BW:
-          ceg_bv_arith_min_bw_ = std::stoul(opt.arg, NULL, 10);
+          ceg_bv_arith_min_bw_ = std::stoul(opt.arg);
           break;
         case PROMOTE_INPUTVARS: promote_inputvars_ = true; break;
         case SYGUS_OP_LVL:
-          sygus_use_operator_abstraction_ = std::stoul(opt.arg, NULL, 10);
+          sygus_use_operator_abstraction_ = std::stoul(opt.arg);
           break;
         case SYGUS_TERM_MODE:
-          sygus_term_mode_ = SyGuSTermMode(std::stoul(opt.arg, NULL, 10));
+          sygus_term_mode_ = SyGuSTermMode(std::stoul(opt.arg));
           break;
         case IC3SA_INITIAL_TERMS_LVL: {
-          ic3sa_initial_terms_lvl_ = std::stoul(opt.arg, NULL, 10);
+          ic3sa_initial_terms_lvl_ = std::stoul(opt.arg);
           if (ic3sa_initial_terms_lvl_ > 4) {
             throw PonoException(
                 "--ic3sa-initial-terms-lvl must be an integer in [0, 4]");
@@ -867,10 +867,10 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case IC3SA_INTERP: ic3sa_interp_ = true; break;
         case PRINT_WALL_TIME: print_wall_time_ = true; break;
         case BMC_BOUND_START:
-          bmc_bound_start_ = std::stoul(opt.arg, NULL, 10);
+          bmc_bound_start_ = std::stoul(opt.arg);
           break;
         case BMC_BOUND_STEP:
-          bmc_bound_step_ = std::stoul(opt.arg, NULL, 10);
+          bmc_bound_step_ = std::stoul(opt.arg);
           if (bmc_bound_step_ == 0)
             throw PonoException("--bmc-bound-step must be greater than 0");
           break;
@@ -920,7 +920,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case KIND_ONE_TIME_BASE_CHECK: kind_one_time_base_check_ = true; break;
         case KIND_BOUND_STEP:
-          kind_bound_step_ = std::stoul(opt.arg, NULL, 10);
+          kind_bound_step_ = std::stoul(opt.arg);
           if (kind_bound_step_ == 0)
             throw PonoException("--kind-bound-step must be greater than 0");
           break;
