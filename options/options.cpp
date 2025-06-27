@@ -102,7 +102,11 @@ enum optionIndex
   KIND_NO_IND_CHECK,
   KIND_NO_IND_CHECK_PROPERTY,
   KIND_ONE_TIME_BASE_CHECK,
-  KIND_BOUND_STEP
+  KIND_BOUND_STEP,
+  NO_INTERP_FRONTIER_SIMPL,
+  INTERP_PROPS,
+  INTERP_EAGER_UNROLL,
+  INTERP_BACKWARD
 };
 
 struct Arg : public option::Arg
@@ -617,6 +621,37 @@ const option::Descriptor usage[] = {
     Arg::Numeric,
     "  --kind-bound-step \tAmount by which bound (unrolling depth) is "
     "increased in k-induction (default: 1)" },
+  { NO_INTERP_FRONTIER_SIMPL,
+    0,
+    "",
+    "no-interp-frontier-simpl",
+    Arg::None,
+    "  --no-interp-frontier-simpl \tDisable frontier-set simplification in "
+    "interp engine" },
+  { INTERP_PROPS,
+    0,
+    "",
+    "interp-props",
+    Arg::NonEmpty,
+    "  --interp-props \tSpecifies at which time frames properties are "
+    "considered when computing interpolants: all (default) and first-and-last "
+    "(WARNING: choosing 'fist-and-last' could cause incompleteness on some "
+    "instances)" },
+  { INTERP_EAGER_UNROLL,
+    0,
+    "",
+    "interp-eager-unroll",
+    Arg::None,
+    "  --interp-eager-unroll \tUnroll the transition system eagerly in interp "
+    "engine" },
+  { INTERP_BACKWARD,
+    0,
+    "",
+    "interp-backward",
+    Arg::None,
+    "  --interp-backward \tCompute interpolants in a backward manner, "
+    "i.e., not(itp(B, A)), in interp engine "
+    "(forward, i.e., itp(A, B), if not specified)" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -872,6 +907,21 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           if (kind_bound_step_ == 0)
             throw PonoException("--kind-bound-step must be greater than 0");
           break;
+        case NO_INTERP_FRONTIER_SIMPL:
+          interp_frontier_set_simpl_ = false;
+          break;
+        case INTERP_PROPS:
+          if (opt.arg == std::string("all")) {
+            interp_props_ = InterpPropsEnum::INTERP_ALL_PROPS;
+          } else if (opt.arg == std::string("first-and-last")) {
+            interp_props_ = InterpPropsEnum::INTERP_FIRST_AND_LAST_PROPS;
+          } else {
+            throw PonoException("Unknown --interp-props option: "
+                                + std::string(opt.arg));
+          }
+          break;
+        case INTERP_EAGER_UNROLL: interp_eager_unroll_ = true; break;
+        case INTERP_BACKWARD: interp_backward_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error

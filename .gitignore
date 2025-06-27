@@ -44,3 +44,6 @@ __pycache__
 # Generated files
 .gdb_history
 compile_commands.json
+
+# IDE settings
+.vscode
