@@ -1,4 +1,6 @@
 #include "core/fts.h"
+#include "core/prop.h"
+#include "core/rts.h"
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "modifiers/mod_ts_prop.h"
@@ -34,7 +36,7 @@ TEST_P(PseudoInitPropUnitTests, CounterSystemSafe)
 
   TransitionSystem rts = pseudo_init_and_prop(fts, prop_term);
   assert(!rts.is_functional());
-  Property p(s, prop_term);
+  SafetyProperty p(s, prop_term);
 
   KInduction kind(p, rts, s);
   ProverResult r = kind.check_until(11);
@@ -57,7 +59,7 @@ TEST_P(PseudoInitPropUnitTests, TrivialUnsafe)
 
   TransitionSystem ts = pseudo_init_and_prop(rts, prop_term);
   assert(!ts.is_functional());
-  Property p(s, prop_term);
+  SafetyProperty p(s, prop_term);
 
   KInduction kind(p, ts, s);
   ProverResult r = kind.check_until(3);

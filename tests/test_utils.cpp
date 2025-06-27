@@ -1,14 +1,9 @@
-#include <utility>
-#include <vector>
-
 #include "core/fts.h"
+#include "core/prop.h"
 #include "core/rts.h"
-#include "core/unroller.h"
-#include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
-#include "utils/exceptions.h"
 #include "utils/make_provers.h"
 #include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
@@ -129,7 +124,7 @@ TEST_P(UtilsEngineUnitTests, MakeProver)
   fts.assign_next(x, fts.make_term(BVAdd, x, one));
 
   Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts.solver(), prop_term);
+  SafetyProperty prop(fts.solver(), prop_term);
 
   SolverEnum se = get<0>(GetParam());
   Engine eng = get<1>(GetParam());

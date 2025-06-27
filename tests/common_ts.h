@@ -14,9 +14,8 @@
 **
 **/
 
-#include "core/fts.h"
-#include "core/prop.h"
-#include "core/rts.h"
+#include "core/ts.h"
+#include "smt-switch/smt.h"
 
 namespace pono_tests {
 

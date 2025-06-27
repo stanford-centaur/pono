@@ -1,6 +1,3 @@
-#include <utility>
-#include <vector>
-
 #include "core/fts.h"
 #include "core/rts.h"
 #include "engines/ic3.h"
@@ -43,7 +40,7 @@ TEST_P(IC3UnitTests, SimpleSystemSafe)
   rts.assign_next(s1, s->make_term(Or, s1, s2));
   rts.assign_next(s2, s2);
 
-  Property p(s, s->make_term(Not, s1));
+  SafetyProperty p(s, s->make_term(Not, s1));
 
   IC3 ic3(p, rts, s);
   ProverResult r = ic3.prove();
@@ -69,7 +66,7 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
   fts.assign_next(s1, s->make_term(Or, s1, s2));
   fts.assign_next(s2, s2);
 
-  Property p(s, s->make_term(Not, s1));
+  SafetyProperty p(s, s->make_term(Not, s1));
 
   IC3 ic3(p, fts, s);
   ProverResult r = ic3.prove();

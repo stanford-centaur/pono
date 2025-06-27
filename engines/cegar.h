@@ -17,7 +17,10 @@
 
 #pragma once
 
-#include "engines/prover.h"
+#include "core/prop.h"
+#include "core/ts.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 
@@ -27,7 +30,7 @@ class CEGAR : public Prover_T
   typedef Prover_T super;
 
  public:
-  CEGAR(const Property & p,
+  CEGAR(const SafetyProperty & p,
         const TransitionSystem & ts,
         const smt::SmtSolver & solver,
         PonoOptions opt = PonoOptions())
@@ -35,7 +38,7 @@ class CEGAR : public Prover_T
   {
   }
 
-  virtual ~CEGAR(){};
+  virtual ~CEGAR() {}
 
  protected:
   /** Abstract the transition system -- usually only performed once

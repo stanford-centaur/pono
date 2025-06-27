@@ -4,7 +4,6 @@
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/ts_analysis.h"
 
 // need mathsat for ic3ia
 #ifdef WITH_MSAT
@@ -39,7 +38,7 @@ TEST(CegValues, SimpleSafe)
 
   Term prop_term = rts.make_term(
       Lt, rts.make_term(Select, a, j), rts.make_term(200, intsort));
-  Property prop(s, prop_term);
+  SafetyProperty prop(s, prop_term);
 
   // TODO create a make_ command for this
   shared_ptr<Prover> ceg =
@@ -75,7 +74,7 @@ TEST(CegValues, SimpleUnsafe)
 
   Term prop_term = rts.make_term(
       Lt, rts.make_term(Select, a, j), rts.make_term(200, intsort));
-  Property prop(s, prop_term);
+  SafetyProperty prop(s, prop_term);
 
   // TODO create a make_ command for this
   shared_ptr<Prover> ceg =
