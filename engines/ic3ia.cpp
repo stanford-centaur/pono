@@ -246,8 +246,20 @@ RefineResult IC3IA::refine()
   for (size_t i = 0; i < cex_length; ++i) {
     // make sure to_solver_ cache is populated with unrolled symbols
     register_symbol_mappings(i);
-
-    Term t = unroller_.at_time(cex_[i], i);
+    Term t;
+    if (options_.ic3ia_sim_cex_) {
+      // simulate abstract cex
+      t = unroller_.at_time(cex_[i], i);
+    } else {
+      // perform BMC using Init and P
+      if (i == 0) {
+        t = unroller_.at_time(conc_ts_.init(), i);
+      } else if (i + 1 == cex_length) {
+        t = unroller_.at_time(bad_, i);
+      } else {
+        t = solver_->make_term(Not, unroller_.at_time(bad_, i));
+      }
+    }
     if (i + 1 < cex_length) {
       t = solver_->make_term(And, t, unroller_.at_time(conc_ts_.trans(), i));
     }
