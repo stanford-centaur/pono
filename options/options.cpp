@@ -807,9 +807,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case CLK: clock_name_ = opt.arg; break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
-        case IC3_GEN_MAX_ITER:
-          ic3_gen_max_iter_ = std::stoul(opt.arg);
-          break;
+        case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = std::stoul(opt.arg); break;
         case MBIC3_INDGEN_MODE:
           mbic3_indgen_mode = std::stoul(opt.arg);
           if (!(mbic3_indgen_mode >= 0 && mbic3_indgen_mode <= 2))
@@ -866,9 +864,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         }
         case IC3SA_INTERP: ic3sa_interp_ = true; break;
         case PRINT_WALL_TIME: print_wall_time_ = true; break;
-        case BMC_BOUND_START:
-          bmc_bound_start_ = std::stoul(opt.arg);
-          break;
+        case BMC_BOUND_START: bmc_bound_start_ = std::stoul(opt.arg); break;
         case BMC_BOUND_STEP:
           bmc_bound_step_ = std::stoul(opt.arg);
           if (bmc_bound_step_ == 0)
