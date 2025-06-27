@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
-#include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
 
 using namespace pono;

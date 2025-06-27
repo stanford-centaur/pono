@@ -1,9 +1,6 @@
 #ifdef WITH_MSAT
 // Only run this test with MathSAT
 
-#include <utility>
-#include <vector>
-
 #include "core/fts.h"
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
@@ -47,7 +44,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
   fts.assign_next(s1, s->make_term(Or, s1, s2));
   fts.assign_next(s2, s2);
 
-  Property p(s, s->make_term(Not, s1));
+  SafetyProperty p(s, s->make_term(Not, s1));
 
   IC3IA ic3ia(p, fts, s);
   ProverResult r = ic3ia.prove();
@@ -73,7 +70,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
   fts.assign_next(s1, s->make_term(Or, s1, s2));
   fts.assign_next(s2, s2);
 
-  Property p(s, s->make_term(Not, s1));
+  SafetyProperty p(s, s->make_term(Not, s1));
 
   IC3IA ic3ia(p, fts, s);
   ProverResult r = ic3ia.prove();
@@ -90,7 +87,7 @@ TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
   fts.assign_next(x, fts.make_term(BVAdd, x, ext_in));
 
   Term prop_term = s->make_term(BVUlt, x, s->make_term(10, bvsort8));
-  Property p(s, prop_term);
+  SafetyProperty p(s, prop_term);
 
   IC3IA ic3ia(p, fts, s);
   ProverResult r = ic3ia.prove();
@@ -106,7 +103,8 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
 
   Term x = fts.named_terms().at("x");
 
-  Property p(fts.solver(), fts.make_term(Le, x, fts.make_term(10, intsort)));
+  SafetyProperty p(fts.solver(),
+                   fts.make_term(Le, x, fts.make_term(10, intsort)));
 
   IC3IA ic3ia(p, fts, s);
   ProverResult r = ic3ia.prove();
@@ -136,7 +134,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
   rts.constrain_init(wit);
   rts.assign_next(wit, rts.make_term(Equal, x, y));
 
-  Property p(rts.solver(), wit);
+  SafetyProperty p(rts.solver(), wit);
 
   IC3IA ic3ia(p, rts, s);
   ProverResult r = ic3ia.prove();

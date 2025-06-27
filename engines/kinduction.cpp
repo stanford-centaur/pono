@@ -22,7 +22,7 @@ using namespace smt;
 
 namespace pono {
 
-KInduction::KInduction(const Property & p,
+KInduction::KInduction(const SafetyProperty & p,
                        const TransitionSystem & ts,
                        const SmtSolver & solver,
                        PonoOptions opt)

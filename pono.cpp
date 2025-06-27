@@ -113,7 +113,7 @@ ProverResult check_prop(PonoOptions pono_options,
     prop_in_trans(ts, prop);
   }
 
-  Property p(s, prop, prop_name);
+  SafetyProperty p(s, prop, prop_name);
 
   // end modification of the transition system and property
 
