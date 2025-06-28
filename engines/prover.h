@@ -42,6 +42,8 @@ class BaseProver
 
   virtual ProverResult check_until(int k) = 0;
 
+  virtual ~BaseProver() = default;
+
  protected:
   BaseProver(const TransitionSystem & ts, const smt::SmtSolver & solver);
 
