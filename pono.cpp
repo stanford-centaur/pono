@@ -119,7 +119,7 @@ ProverResult check_prop(PonoOptions pono_options,
 
   Engine eng = pono_options.engine_;
 
-  std::shared_ptr<Prover> prover;
+  std::shared_ptr<SafetyProver> prover;
   if (pono_options.cegp_abs_vals_) {
     prover = make_cegar_values_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_bv_arith_) {
