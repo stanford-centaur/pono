@@ -35,6 +35,7 @@ BaseProver::BaseProver(const TransitionSystem & ts, const smt::SmtSolver & s)
     : BaseProver(ts, s, PonoOptions())
 {
 }
+
 BaseProver::BaseProver(const TransitionSystem & ts,
                        const smt::SmtSolver & s,
                        PonoOptions opt)
@@ -76,6 +77,8 @@ Term BaseProver::to_orig_ts(Term t)
 {
   return to_orig_ts(t, t->get_sort()->get_sort_kind());
 }
+
+TransitionSystem & BaseProver::prover_interface_ts() { return ts_; }
 
 SafetyProver::SafetyProver(const SafetyProperty & p,
                            const TransitionSystem & ts,

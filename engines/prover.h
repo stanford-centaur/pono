@@ -69,6 +69,13 @@ class BaseProver
    */
   smt::Term to_orig_ts(smt::Term t);
 
+  /** Returns the reference of the interface ts, which is a copy of orig_ts but
+   *  built using solver_. By default, the method returns a reference to ts_.
+   *  The derived classes may be based on abstraction-refinement methods (e.g.
+   *  IC3IA). In that case, the method would return the concrete ts.
+   */
+  virtual TransitionSystem & prover_interface_ts();
+
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
   TransitionSystem orig_ts_;  ///< original TS before transferring to new solver
@@ -115,13 +122,6 @@ class SafetyProver : public BaseProver
    *  @return true on success
    */
   virtual bool compute_witness();
-
-  /** Returns the reference of the interface ts, which is a copy of orig_ts but
-   *  built using solver_. By default, the method returns a reference to ts_.
-   *  The derived classes may be based on abstraction-refinement methods (e.g.
-   *  IC3IA). In that case, the method would return the concrete ts.
-   */
-  virtual TransitionSystem & prover_interface_ts() { return ts_; };
 
   SafetyProperty orig_property_;  ///< original property before transferring
 
