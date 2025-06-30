@@ -64,9 +64,16 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
 #include <queue>
+#include <vector>
 
+#include "core/proverresult.h"
+#include "core/refineresult.h"
+#include "core/ts.h"
 #include "engines/prover.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 
 namespace pono {

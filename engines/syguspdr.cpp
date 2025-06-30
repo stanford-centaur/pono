@@ -16,10 +16,31 @@
 
 #include "engines/syguspdr.h"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "core/prop.h"
+#include "core/refineresult.h"
+#include "core/ts.h"
 #include "modifiers/mod_ts_prop.h"
+#include "options/options.h"
+#include "smt-switch/result.h"
+#include "smt-switch/smt.h"
 #include "utils/container_shortcut.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
+#include "utils/sygus_ic3formula_helper.h"
 #include "utils/sygus_predicate_constructor.h"
+#include "utils/syntax_analysis_common.h"
+#include "utils/syntax_analysis_walker.h"
 #include "utils/term_walkers.h"
 
 using namespace smt;
