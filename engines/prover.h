@@ -69,10 +69,10 @@ class BaseProver
    */
   smt::Term to_orig_ts(smt::Term t);
 
-  TransitionSystem orig_ts_;  ///< original TS before transferring to new solver
-  TransitionSystem ts_;
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
+  TransitionSystem orig_ts_;  ///< original TS before transferring to new solver
+  TransitionSystem ts_;
   PonoOptions options_;
   Engine engine_ = Engine::NONE;
 

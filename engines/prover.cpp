@@ -38,9 +38,9 @@ BaseProver::BaseProver(const TransitionSystem & ts, const smt::SmtSolver & s)
 BaseProver::BaseProver(const TransitionSystem & ts,
                        const smt::SmtSolver & s,
                        PonoOptions opt)
-    : orig_ts_(ts),
-      solver_(s),
+    : solver_(s),
       to_prover_solver_(s),
+      orig_ts_(ts),
       ts_(ts, to_prover_solver_),
       options_(opt)
 {
