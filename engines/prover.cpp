@@ -16,6 +16,7 @@
 
 #include "engines/prover.h"
 
+#include <algorithm>
 #include <cassert>
 #include <climits>
 #include <cstddef>
@@ -26,18 +27,19 @@
 #include "core/ts.h"
 #include "options/options.h"
 #include "smt-switch/smt.h"
+#include "utils/exceptions.h"
 
 using namespace smt;
-using namespace std;
 
 namespace pono {
+
 BaseProver::BaseProver(const TransitionSystem & ts, const smt::SmtSolver & s)
     : BaseProver(ts, s, PonoOptions())
 {
 }
 
 BaseProver::BaseProver(const TransitionSystem & ts,
-                       const smt::SmtSolver & s,
+                       const SmtSolver & s,
                        PonoOptions opt)
     : solver_(s),
       to_prover_solver_(s),
@@ -80,36 +82,7 @@ Term BaseProver::to_orig_ts(Term t)
 
 TransitionSystem & BaseProver::prover_interface_ts() { return ts_; }
 
-SafetyProver::SafetyProver(const SafetyProperty & p,
-                           const TransitionSystem & ts,
-                           const smt::SmtSolver & s,
-                           PonoOptions opt)
-    : BaseProver(ts, s, opt),
-      orig_property_(p),
-      unroller_(ts_),
-      bad_(solver_->make_term(
-          smt::PrimOp::Not,
-          ts_.solver() == orig_property_.solver()
-              ? orig_property_.prop()
-              : to_prover_solver_.transfer_term(orig_property_.prop(), BOOL)))
-{
-}
-
-void SafetyProver::initialize()
-{
-  if (initialized_) {
-    return;
-  }
-
-  if (!ts_.only_curr(bad_)) {
-    throw PonoException(
-        "Safety property should not contain inputs or next state variables");
-  }
-
-  BaseProver::initialize();
-}
-
-bool SafetyProver::witness(std::vector<UnorderedTermMap> & out)
+bool BaseProver::witness(std::vector<UnorderedTermMap> & out)
 {
   if (!witness_.size()) {
     throw PonoException(
@@ -117,8 +90,8 @@ bool SafetyProver::witness(std::vector<UnorderedTermMap> & out)
         "a counterexample and that the engine supports witness generation.");
   }
 
-  function<Term(const Term &, SortKind)> transfer_to_prover_as;
-  function<Term(const Term &, SortKind)> transfer_to_orig_ts_as;
+  std::function<Term(const Term &, SortKind)> transfer_to_prover_as;
+  std::function<Term(const Term &, SortKind)> transfer_to_orig_ts_as;
   TermTranslator to_orig_ts_solver(orig_ts_.solver());
   if (solver_ == orig_ts_.solver()) {
     // don't need to transfer terms if the solvers are the same
@@ -187,7 +160,36 @@ bool SafetyProver::witness(std::vector<UnorderedTermMap> & out)
   return success;
 }
 
-size_t SafetyProver::witness_length() const { return reached_k_ + 1; }
+std::size_t BaseProver::witness_length() const { return reached_k_ + 1; }
+
+SafetyProver::SafetyProver(const SafetyProperty & p,
+                           const TransitionSystem & ts,
+                           const SmtSolver & s,
+                           PonoOptions opt)
+    : BaseProver(ts, s, opt),
+      orig_property_(p),
+      unroller_(ts_),
+      bad_(solver_->make_term(PrimOp::Not,
+                              ts_.solver() == orig_property_.solver()
+                                  ? orig_property_.prop()
+                                  : to_prover_solver_.transfer_term(
+                                        orig_property_.prop(), SortKind::BOOL)))
+{
+}
+
+void SafetyProver::initialize()
+{
+  if (initialized_) {
+    return;
+  }
+
+  if (!ts_.only_curr(bad_)) {
+    throw PonoException(
+        "Property should not contain inputs or next state variables");
+  }
+
+  BaseProver::initialize();
+}
 
 Term SafetyProver::invar()
 {
@@ -226,6 +228,23 @@ bool SafetyProver::compute_witness()
   }
 
   return true;
+}
+
+LivenessProver::LivenessProver(const LivenessProperty & property,
+                               const TransitionSystem & ts,
+                               const SmtSolver & solver,
+                               PonoOptions options)
+    : BaseProver(ts, solver, options),
+      orig_property_(property),
+      justice_conditions_(orig_property_.terms())
+{
+  if (ts_.solver() != orig_property_.solver()) {
+    std::for_each(justice_conditions_.begin(),
+                  justice_conditions_.end(),
+                  [this](Term & t) {
+                    return to_prover_solver_.transfer_term(t, SortKind::BOOL);
+                  });
+  }
 }
 
 }  // namespace pono

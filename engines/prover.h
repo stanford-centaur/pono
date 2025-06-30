@@ -14,6 +14,9 @@
 
 #pragma once
 
+#include <cstddef>
+#include <vector>
+
 #include "core/prop.h"
 #include "core/proverresult.h"
 #include "core/ts.h"
@@ -31,6 +34,22 @@ class BaseProver
   virtual ProverResult prove();
 
   virtual ProverResult check_until(int k) = 0;
+
+  /** Returns the witness for the violation of the property.
+   *  For liveness (justice) properties, the witness is assumed to be
+   *  lasso-shaped, i.e., the next state, which can be computed from the last
+   *  state and inputs at time k, is identical to one of the previous states
+   *  at time t = 0 ... k.
+   */
+  virtual bool witness(std::vector<smt::UnorderedTermMap> & out);
+
+  /** Returns length of the witness.
+   *  This can be cheaper than actually computing the witness.
+   *  By default, returns reached_k_+1, because reached_k_ was the
+   *  last step that completed without finding a bug
+   *  but some algorithms such as IC3 might need to follow the trace
+   */
+  virtual std::size_t witness_length() const;
 
   virtual ~BaseProver() = default;
 
@@ -76,6 +95,10 @@ class BaseProver
   bool initialized_ = false;
   int reached_k_ = -1;  ///< the last bound reached with no counterexamples
 
+  std::vector<smt::UnorderedTermMap>
+      witness_;  ///< populated by a witness if a CEX is found; uses terms from
+                 ///< the engine's solver
+
 };  // class BaseProver
 
 class SafetyProver : public BaseProver
@@ -84,19 +107,9 @@ class SafetyProver : public BaseProver
   SafetyProver(const SafetyProperty & p,
                const TransitionSystem & ts,
                const smt::SmtSolver & s,
-               PonoOptions opt = PonoOptions());
+               PonoOptions opt = {});
 
   void initialize() override;
-
-  virtual bool witness(std::vector<smt::UnorderedTermMap> & out);
-
-  /** Returns length of the witness
-   *  this can be cheaper than actually computing the witness
-   *  by default returns reached_k_+1, because reached_k_ was the
-   *  last step that completed without finding a bug
-   *  but some algorithms such as IC3 might need to follow the trace
-   */
-  virtual size_t witness_length() const;
 
   /** Gives a term representing an inductive invariant over current state
    * variables. Only valid if the property has been proven true. Only supported
@@ -119,13 +132,23 @@ class SafetyProver : public BaseProver
 
   smt::Term bad_;
 
-  // NOTE: both witness_ and invar_ use terms from the engine's solver
-
-  std::vector<smt::UnorderedTermMap>
-      witness_;  ///< populated by a witness if a CEX is found
-
-  smt::Term invar_;  ///< populated with an invariant if the engine supports it
+  smt::Term invar_;  ///< populated with an invariant if the engine supports it;
+                     ///< uses terms from the engine's solver
 };  // class SafetyProver
+
+class LivenessProver : public BaseProver
+{
+ public:
+  LivenessProver(const LivenessProperty & property,
+                 const TransitionSystem & ts,
+                 const smt::SmtSolver & solver,
+                 PonoOptions options = {});
+
+ protected:
+  LivenessProperty orig_property_;  ///< original property before transferring
+
+  smt::TermVec justice_conditions_;
+};  // class LivenessProver
 
 using Prover [[deprecated("Use SafetyProver.")]] = SafetyProver;
 }  // namespace pono
