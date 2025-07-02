@@ -21,7 +21,7 @@ using namespace std;
 
 namespace pono {
 
-IC3Bits::IC3Bits(const Property & p,
+IC3Bits::IC3Bits(const SafetyProperty & p,
                  const TransitionSystem & ts,
                  const SmtSolver & s,
                  PonoOptions opt)

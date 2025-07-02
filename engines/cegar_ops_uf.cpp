@@ -16,16 +16,14 @@
 
 #include "engines/cegar_ops_uf.h"
 
-#include "core/fts.h"
 #include "core/rts.h"
+#include "core/ts.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
-#include "utils/make_provers.h"
-#include "utils/term_analysis.h"
 #include "utils/ts_manipulation.h"
 
 using namespace smt;
@@ -34,7 +32,7 @@ using namespace std;
 namespace pono {
 
 template <class Prover_T>
-CegarOpsUf<Prover_T>::CegarOpsUf(const Property & p,
+CegarOpsUf<Prover_T>::CegarOpsUf(const SafetyProperty & p,
                                  const TransitionSystem & ts,
                                  const SmtSolver & solver,
                                  PonoOptions opt)

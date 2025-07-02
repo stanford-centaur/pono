@@ -1,6 +1,7 @@
 #include <utility>
 
 #include "core/fts.h"
+#include "core/prop.h"
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "modifiers/mod_ts_prop.h"
@@ -47,7 +48,7 @@ TEST_P(PromoteInputvarsTests, NoPromotion)
   TransitionSystem & ts = res.second;
   Term prop = add_prop_monitor(ts, res.first);
 
-  Property p(s, prop);
+  SafetyProperty p(s, prop);
   KInduction kind(p, ts, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, TRUE);
@@ -60,7 +61,7 @@ TEST_P(PromoteInputvarsTests, WithPromotion)
   Term prop = res.first;
   TransitionSystem ts = promote_inputvars(res.second);
 
-  Property p(s, prop);
+  SafetyProperty p(s, prop);
   KInduction kind(p, ts, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, TRUE);
