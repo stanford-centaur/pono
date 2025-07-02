@@ -32,7 +32,6 @@
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
-#include "utils/term_analysis.h"
 #include "utils/ts_analysis.h"
 
 #ifdef WITH_MSAT_IC3IA
@@ -45,7 +44,7 @@ using namespace std;
 namespace pono {
 
 template <class Prover_T>
-CegProphecyArrays<Prover_T>::CegProphecyArrays(const Property & p,
+CegProphecyArrays<Prover_T>::CegProphecyArrays(const SafetyProperty & p,
                                                const TransitionSystem & ts,
                                                const SmtSolver & solver,
                                                PonoOptions opt)
@@ -144,8 +143,8 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     } while (num_added_axioms_ && reached_k_ <= k);
 
     if (super::options_.cegp_force_restart_ || super::engine_ != IC3IA_ENGINE) {
-      Property latest_prop(super::solver_,
-                           super::solver_->make_term(Not, super::bad_));
+      SafetyProperty latest_prop(super::solver_,
+                                 super::solver_->make_term(Not, super::bad_));
       SmtSolver s = create_solver_for(
           super::solver_->get_solver_enum(), super::engine_, false);
       shared_ptr<Prover> prover =

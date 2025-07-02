@@ -18,19 +18,21 @@
 
 #include <cassert>
 #include <climits>
+#include <cstddef>
+#include <exception>
 #include <functional>
+#include <vector>
 
-#include "core/rts.h"
-#include "modifiers/static_coi.h"
-#include "smt/available_solvers.h"
-#include "utils/logger.h"
+#include "core/ts.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
 
-Prover::Prover(const Property & p,
+Prover::Prover(const SafetyProperty & p,
                const TransitionSystem & ts,
                const smt::SmtSolver & s,
                PonoOptions opt)

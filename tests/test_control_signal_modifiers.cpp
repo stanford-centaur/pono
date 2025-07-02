@@ -1,7 +1,5 @@
-#include <utility>
-#include <vector>
-
 #include "core/fts.h"
+#include "core/prop.h"
 #include "core/rts.h"
 #include "engines/bmc.h"
 #include "gtest/gtest.h"
@@ -44,7 +42,7 @@ TEST_P(ControlUnitTests, SimpleReset)
   fts.assign_next(x,
                   fts.make_term(Ite, rst, fts.make_term(0, bvsort8), x_update));
   Term p_false_term = fts.make_term(BVUle, x, fts.make_term(10, bvsort8));
-  Property p_false(fts.solver(), p_false_term);
+  SafetyProperty p_false(fts.solver(), p_false_term);
   // use a new context so unroller doesn't clash on unrolled symbols
   Bmc bmc_false(p_false, fts, s);
   ProverResult r = bmc_false.check_until(2);
@@ -54,7 +52,7 @@ TEST_P(ControlUnitTests, SimpleReset)
   Term reset_done = add_reset_seq(fts, rst, 1);
   // guard the property
   Term p_true_term = fts.make_term(Implies, reset_done, p_false_term);
-  Property p(fts.solver(), p_true_term);
+  SafetyProperty p(fts.solver(), p_true_term);
   // need to use a fresh solver to check the property again
   // pass the SolverEnum to use the same type of solver
   SmtSolver ns = create_solver(s->get_solver_enum());
@@ -94,7 +92,7 @@ TEST_P(ControlUnitTests, SimpleClock)
       Equal,
       x,
       rts.make_term(BVLshr, state_counter, rts.make_term(1, bvsort8)));
-  Property p_false(rts.solver(), p_term);
+  SafetyProperty p_false(rts.solver(), p_term);
   // use a new context so unroller doesn't clash on unrolled symbols
   Bmc bmc_false(p_false, rts, s);
   ProverResult r = bmc_false.check_until(2);
@@ -103,7 +101,7 @@ TEST_P(ControlUnitTests, SimpleClock)
   // add a clock
   toggle_clock(rts, clk);
   // guard the property
-  Property p(rts.solver(), p_term);
+  SafetyProperty p(rts.solver(), p_term);
   // need to use a fresh solver to check the property again
   // pass the SolverEnum to use the same type of solver
   SmtSolver ns = create_solver(s->get_solver_enum());

@@ -1,13 +1,8 @@
-#include <utility>
-#include <vector>
-
+#include "core/prop.h"
 #include "core/rts.h"
-#include "core/unroller.h"
 #include "engines/kinduction.h"
-#include "engines/mbic3.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
-#include "utils/exceptions.h"
 
 using namespace pono;
 using namespace smt;
@@ -60,7 +55,7 @@ TEST_P(UFUnitTests, InductiveProp)
 
   Term p = rts.make_term(
       Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort)));
-  Property prop(rts.solver(), p);
+  SafetyProperty prop(rts.solver(), p);
 
   s->push();
   KInduction kind(prop, rts, s);
@@ -110,7 +105,7 @@ TEST_P(UFUnitTests, FalseProp)
       rts.make_term(
           Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort))));
 
-  Property prop(rts.solver(), p);
+  SafetyProperty prop(rts.solver(), p);
 
   ASSERT_FALSE(rts.is_functional());
   s->push();

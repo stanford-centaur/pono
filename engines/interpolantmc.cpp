@@ -20,13 +20,12 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/term_analysis.h"
 
 using namespace smt;
 
 namespace pono {
 
-InterpolantMC::InterpolantMC(const Property & p,
+InterpolantMC::InterpolantMC(const SafetyProperty & p,
                              const TransitionSystem & ts,
                              const SmtSolver & slv,
                              PonoOptions opt)

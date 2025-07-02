@@ -1,10 +1,6 @@
-#include <utility>
-#include <vector>
-
 #include "core/fts.h"
 #include "core/prop.h"
 #include "core/rts.h"
-#include "core/unroller.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
@@ -130,9 +126,9 @@ TEST_P(TSUnitTests, RTS_Copy)
 TEST_P(TSUnitTests, Prop_Copy)
 {
   RelationalTransitionSystem rts(s);
-  Property p(s, s->make_term(true));
+  SafetyProperty p(s, s->make_term(true));
 
-  Property p2 = p;
+  SafetyProperty p2 = p;
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverTSUnitTests,
