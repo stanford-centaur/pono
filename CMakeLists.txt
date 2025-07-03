@@ -345,6 +345,23 @@ if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
   endif()
 endif()
 
+# Documentation
+if(BUILD_DOCS)
+  find_package(Doxygen)
+  doxygen_add_docs(docs
+    core/
+    engines/
+    frontends/
+    modifiers/
+    options/
+    printers/
+    refiners/
+    smt/
+    utils/
+    pono.cpp
+  )
+endif()
+
 set(CMAKE_INSTALL_MESSAGE LAZY)
 
 # install smt-switch
