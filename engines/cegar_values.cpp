@@ -54,7 +54,7 @@ class ValueAbstractor : public smt::IdentityWalker
  public:
   ValueAbstractor(TransitionSystem & ts,
                   UnorderedTermMap & abstracted_values,
-                  size_t cutoff)
+                  unsigned long cutoff)
       : smt::IdentityWalker(ts.solver(), false),
         ts_(ts),
         abstracted_values_(abstracted_values),
@@ -161,7 +161,7 @@ class ValueAbstractor : public smt::IdentityWalker
 
   SmtSolver fresh_solver_;  ///< solver just for the range check
   TermTranslator to_fresh_solver_;
-  size_t cutoff_;
+  unsigned long cutoff_;
 };
 
 template <class Prover_T>
