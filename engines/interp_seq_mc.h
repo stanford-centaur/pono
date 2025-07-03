@@ -1,0 +1,53 @@
+#pragma once
+
+#include "engines/prover.h"
+#include "smt-switch/smt.h"
+
+namespace pono {
+
+class InterpSeqMC : public Prover
+{
+ public:
+  InterpSeqMC(const SafetyProperty & p,
+              const TransitionSystem & ts,
+              const smt::SmtSolver & slv,
+              PonoOptions opt = PonoOptions());
+
+  ~InterpSeqMC();
+
+  typedef Prover super;
+
+  void initialize() override;
+
+  ProverResult check_until(int k) override;
+
+ protected:
+  bool step(int i);
+  bool step_0();
+
+  void update_term_map(size_t i);
+
+  bool check_fixed_point();
+  bool check_entail(const smt::Term & p, const smt::Term & q);
+  void check_itp_sequence(const smt::TermVec & int_formulas,
+                          const smt::TermVec & int_itp_seq);
+
+  smt::SmtSolver interpolator_;
+  // for translating terms to interpolator_
+  smt::TermTranslator to_interpolator_;
+  // for translating terms to solver_
+  smt::TermTranslator to_solver_;
+
+  // set to true when a concrete_cex is found
+  bool concrete_cex_;
+
+  // reachability sequence: <Init, R_0, R_1, ...>
+  smt::TermVec reach_seq_;
+  // transition at each time step: <Init(0) & TR(0, 1), TR(1, 2), ...>
+  // note that at 0th step, Init is conjoined with TR
+  smt::TermVec trans_seq_;
+  smt::TermVec int_trans_seq_;
+
+};  // class InterpSeqMC
+
+}  // namespace pono

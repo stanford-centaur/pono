@@ -26,6 +26,7 @@
 #include "engines/bmc_simplepath.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
+#include "engines/interp_seq_mc.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
@@ -624,6 +625,7 @@ template class CegProphecyArrays<Bmc>;
 template class CegProphecyArrays<BmcSimplePath>;
 template class CegProphecyArrays<KInduction>;
 template class CegProphecyArrays<InterpolantMC>;
+template class CegProphecyArrays<InterpSeqMC>;
 template class CegProphecyArrays<ModelBasedIC3>;
 template class CegProphecyArrays<IC3SA>;
 
