@@ -75,6 +75,8 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
   IC3IA ic3ia(p, fts, s);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3ia.witness(cex));
 }
 
 TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
@@ -92,6 +94,8 @@ TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
   IC3IA ic3ia(p, fts, s);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3ia.witness(cex));
 }
 
 TEST_P(IC3IAUnitTests, InductiveIntSafe)

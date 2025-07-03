@@ -92,7 +92,7 @@ class Prover
    *  populates witness_
    *  @return true on success
    */
-  bool compute_witness();
+  virtual bool compute_witness();
 
   /** Returns the reference of the interface ts, which is a copy of orig_ts but
    *  built using solver_. By default, the method returns a reference to ts_.

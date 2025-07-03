@@ -82,6 +82,8 @@ TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)
   IC3SA ic3sa(p, ts, s);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3sa.witness(cex));
 }
 
 TEST_P(IC3SAUnitTests, SimpleCounter)
@@ -102,6 +104,8 @@ TEST_P(IC3SAUnitTests, SimpleCounter)
   IC3SA ic3sa(prop, fts, s);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3sa.witness(cex));
 }
 
 TEST_P(IC3SAUnitTests, SimpleCounterVar)
@@ -128,6 +132,8 @@ TEST_P(IC3SAUnitTests, SimpleCounterVar)
   IC3SA ic3sa(prop, fts, s, opts);
   ProverResult r = ic3sa.check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3sa.witness(cex));
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3SAUnitTests,
