@@ -25,7 +25,7 @@ namespace pono {
 class InterpolantMC : public Prover
 {
  public:
-  InterpolantMC(const Property & p,
+  InterpolantMC(const SafetyProperty & p,
                 const TransitionSystem & ts,
                 const smt::SmtSolver & slv,
                 PonoOptions opt = PonoOptions());
@@ -39,12 +39,18 @@ class InterpolantMC : public Prover
   ProverResult check_until(int k) override;
 
  protected:
-  bool step(int i);
+  bool step(const int i);
   bool step_0();
 
   void reset_assertions(smt::SmtSolver & s);
 
   bool check_entail(const smt::Term & p, const smt::Term & q);
+
+  // configurable options
+  const bool use_frontier_simpl_;
+  const InterpPropsEnum interp_props_;
+  const bool unroll_eagerly_;
+  const bool interp_backward_;
 
   smt::SmtSolver interpolator_;
   // for translating terms to interpolator_

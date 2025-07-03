@@ -1,11 +1,7 @@
-#include <utility>
-#include <vector>
-
 #include "core/fts.h"
 #include "gtest/gtest.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
-#include "utils/exceptions.h"
 
 using namespace pono;
 using namespace smt;

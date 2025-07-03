@@ -2,8 +2,6 @@
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
-#include "utils/logger.h"
-#include "utils/ts_analysis.h"
 
 // need mathsat for ic3ia
 #ifdef WITH_MSAT
@@ -44,7 +42,7 @@ TEST(CegOpsUf, BVSimpleSafe)
   Term x = s->make_symbol("x", sort);
   RelationalTransitionSystem rts = counter_ts(s, x);
   Term prop_term = rts.make_term(BVUlt, x, rts.make_term(11, sort));
-  Property prop(s, prop_term);
+  SafetyProperty prop(s, prop_term);
 
   shared_ptr<CegarOpsUf<IC3IA>> ceg =
       make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
@@ -63,7 +61,7 @@ TEST(CegOpsUf, BVSimpleUnsafe)
 
   RelationalTransitionSystem rts = counter_ts(s, x);
   Term prop_term = rts.make_term(BVUlt, x, s->make_term(10, sort));
-  Property prop(s, prop_term);
+  SafetyProperty prop(s, prop_term);
 
   shared_ptr<CegarOpsUf<IC3IA>> ceg =
       make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
@@ -81,7 +79,7 @@ TEST(CegOpsUf, IntSimpleSafe)
   Term x = s->make_symbol("x", sort);
   RelationalTransitionSystem rts = counter_ts(s, x);
   Term prop_term = rts.make_term(Lt, x, rts.make_term(11, sort));
-  Property prop(s, prop_term);
+  SafetyProperty prop(s, prop_term);
 
   shared_ptr<CegarOpsUf<IC3IA>> ceg =
       make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
@@ -100,7 +98,7 @@ TEST(CegOpsUf, IntSimpleUnsafe)
 
   RelationalTransitionSystem rts = counter_ts(s, x);
   Term prop_term = rts.make_term(Lt, x, s->make_term(10, sort));
-  Property prop(s, prop_term);
+  SafetyProperty prop(s, prop_term);
 
   shared_ptr<CegarOpsUf<IC3IA>> ceg =
       make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);

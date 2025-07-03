@@ -19,15 +19,14 @@
 #include <cmath>
 #include <unordered_set>
 
-#include "core/fts.h"
 #include "core/rts.h"
+#include "core/ts.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
 #include "smt-switch/identity_walker.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
-#include "utils/make_provers.h"
 #include "utils/ts_manipulation.h"
 
 using namespace smt;
@@ -166,7 +165,7 @@ class ValueAbstractor : public smt::IdentityWalker
 };
 
 template <class Prover_T>
-CegarValues<Prover_T>::CegarValues(const Property & p,
+CegarValues<Prover_T>::CegarValues(const SafetyProperty & p,
                                    const TransitionSystem & ts,
                                    const smt::SmtSolver & solver,
                                    PonoOptions opt)

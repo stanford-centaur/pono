@@ -1,6 +1,3 @@
-#include <utility>
-#include <vector>
-
 #include "core/fts.h"
 #include "engines/ic3sa.h"
 #include "gtest/gtest.h"
@@ -61,7 +58,7 @@ TEST_P(IC3SAUnitTests, SimpleSystemSafe)
   Term v = ts.named_terms().at("v");
   Term one = ts.make_term(1, ts.make_sort(BV, 8));
 
-  Property p(s, s->make_term(Distinct, ts.make_term(BVAdd, u, v), one));
+  SafetyProperty p(s, s->make_term(Distinct, ts.make_term(BVAdd, u, v), one));
 
   IC3SA ic3sa(p, ts, s);
   ProverResult r = ic3sa.check_until(10);
@@ -77,7 +74,7 @@ TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)
 
   Sort bvsort8 = ts.make_sort(BV, 8);
 
-  Property p(
+  SafetyProperty p(
       s,
       s->make_term(
           Distinct, ts.make_term(BVAdd, u, v), ts.make_term(10, bvsort8)));
@@ -100,7 +97,7 @@ TEST_P(IC3SAUnitTests, SimpleCounter)
   fts.assign_next(x, fts.make_term(BVAdd, x, one));
 
   Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts.solver(), prop_term);
+  SafetyProperty prop(fts.solver(), prop_term);
 
   IC3SA ic3sa(prop, fts, s);
   ProverResult r = ic3sa.check_until(10);
@@ -123,7 +120,7 @@ TEST_P(IC3SAUnitTests, SimpleCounterVar)
   fts.assign_next(x, fts.make_term(BVAdd, x, ext_in));
 
   Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts.solver(), prop_term);
+  SafetyProperty prop(fts.solver(), prop_term);
 
   PonoOptions opts;
   opts.ic3sa_func_refine_ = false;

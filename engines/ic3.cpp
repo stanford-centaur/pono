@@ -14,11 +14,7 @@
 
 #include "engines/ic3.h"
 
-#include <algorithm>
 #include <cassert>
-#include <random>
-
-#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
@@ -27,7 +23,7 @@ namespace pono {
 
 /** IC3 Implementation */
 
-IC3::IC3(const Property & p,
+IC3::IC3(const SafetyProperty & p,
          const TransitionSystem & ts,
          const smt::SmtSolver & s,
          PonoOptions opt)

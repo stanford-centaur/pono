@@ -1,6 +1,3 @@
-#include <utility>
-#include <vector>
-
 #include "core/fts.h"
 #include "core/functional_unroller.h"
 #include "core/rts.h"
