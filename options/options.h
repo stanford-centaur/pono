@@ -258,8 +258,8 @@ class PonoOptions
       sygus_accumulated_term_bound_;  ///< SyGuS Term accumulation bound count
   unsigned sygus_use_operator_abstraction_;  ///< SyGuS abstract and avoid use
                                              ///< some operators
-  unsigned long ic3sa_initial_terms_lvl_;    ///< configures where to find terms
-                                           ///< for initial abstraction
+  unsigned long ic3sa_initial_terms_lvl_;    ///< configures where to find
+                                             ///< terms for initial abstraction
   bool ic3sa_interp_;
   // print wall clock time spent in entire execution
   bool print_wall_time_;
