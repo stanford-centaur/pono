@@ -25,9 +25,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+
+#include "core/prop.h"
+#include "core/refineresult.h"
 #include "core/ts.h"
 #include "engines/ic3base.h"
 #include "modifiers/op_abstractor.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 #include "utils/partial_model.h"
 #include "utils/sygus_ic3formula_helper.h"
 #include "utils/syntax_analysis.h"

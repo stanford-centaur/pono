@@ -63,7 +63,7 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
   filename += "/tests/encoders/inputs/btor2/mulo-test.btor2";
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
-  Property p(fts.solver(), be.propvec()[0]);
+  SafetyProperty p(fts.solver(), be.propvec()[0]);
   KInduction kind(p, fts, s);
   ProverResult r = kind.check_until(2);
   EXPECT_EQ(r, ProverResult::TRUE);
@@ -80,7 +80,7 @@ TEST_P(Btor2UnitTests, InputConstraints)
   filename += "/tests/encoders/inputs/btor2/mulo-test.btor2";
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
-  Property p(fts.solver(), be.propvec()[0]);
+  SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
   ProverResult r = bmc.check_until(6);
   ASSERT_NE(r, ProverResult::FALSE);
@@ -97,7 +97,7 @@ TEST_P(Btor2UnitTests, InputProp)
   filename += "/tests/encoders/inputs/btor2/input-in-bad.btor2";
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
-  Property p(fts.solver(), be.propvec()[0]);
+  SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
   ProverResult r = bmc.check_until(0);
   EXPECT_EQ(r, ProverResult::FALSE);
@@ -113,7 +113,7 @@ TEST_P(Btor2UnitTests, InvalidSmtlibSymbol)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/btor2/invalid-smtlib-symbol.btor2";
   BTOR2Encoder be(filename, fts);
-  Property p(fts.solver(), be.propvec()[0]);
+  SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
   ProverResult r = bmc.check_until(0);
   ASSERT_NE(r, ProverResult::ERROR);
@@ -129,7 +129,7 @@ TEST_P(Btor2UnitTests, InitStateWithBool)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/btor2/bool-init.btor2";
   BTOR2Encoder be(filename, fts);
-  Property p(fts.solver(), be.propvec()[0]);
+  SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
   ProverResult r = bmc.check_until(0);
   ASSERT_NE(r, ProverResult::ERROR);

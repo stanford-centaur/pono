@@ -1,6 +1,5 @@
 #include <string>
 #include <tuple>
-#include <vector>
 
 #include "core/rts.h"
 #include "engines/kinduction.h"
@@ -36,7 +35,7 @@ TEST_P(SmvFileUnitTests, Encode)
   cout << "Reading file: " << filename << endl;
   SMVEncoder se(filename, rts);
 
-  Property prop(rts.solver(), se.propvec()[0]);
+  SafetyProperty prop(rts.solver(), se.propvec()[0]);
   KInduction kind(prop, rts, s);
   ProverResult res = kind.check_until(10);
   EXPECT_EQ(res, benchmark.second);

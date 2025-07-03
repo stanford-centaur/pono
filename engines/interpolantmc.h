@@ -22,7 +22,7 @@
 
 namespace pono {
 
-class InterpolantMC : public Prover
+class InterpolantMC : public SafetyProver
 {
  public:
   InterpolantMC(const SafetyProperty & p,
@@ -32,7 +32,7 @@ class InterpolantMC : public Prover
 
   ~InterpolantMC();
 
-  typedef Prover super;
+  typedef SafetyProver super;
 
   void initialize() override;
 

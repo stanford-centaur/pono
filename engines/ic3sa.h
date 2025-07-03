@@ -24,8 +24,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
 #include "core/functional_unroller.h"
+#include "core/prop.h"
+#include "core/refineresult.h"
+#include "core/ts.h"
 #include "engines/ic3.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 

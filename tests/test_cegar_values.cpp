@@ -41,7 +41,7 @@ TEST(CegValues, SimpleSafe)
   SafetyProperty prop(s, prop_term);
 
   // TODO create a make_ command for this
-  shared_ptr<Prover> ceg =
+  shared_ptr<SafetyProver> ceg =
       make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s);
 
   ProverResult r = ceg->check_until(5);
@@ -77,7 +77,7 @@ TEST(CegValues, SimpleUnsafe)
   SafetyProperty prop(s, prop_term);
 
   // TODO create a make_ command for this
-  shared_ptr<Prover> ceg =
+  shared_ptr<SafetyProver> ceg =
       make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s);
 
   ProverResult r = ceg->check_until(5);

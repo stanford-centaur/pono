@@ -20,7 +20,7 @@
 
 namespace pono {
 
-class Bmc : public Prover
+class Bmc : public SafetyProver
 {
  public:
   Bmc(const SafetyProperty & p,
@@ -30,7 +30,7 @@ class Bmc : public Prover
 
   ~Bmc();
 
-  typedef Prover super;
+  typedef SafetyProver super;
 
   void initialize() override;
 

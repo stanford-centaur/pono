@@ -64,9 +64,16 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
 #include <queue>
+#include <vector>
 
+#include "core/proverresult.h"
+#include "core/refineresult.h"
+#include "core/ts.h"
 #include "engines/prover.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 
 namespace pono {
@@ -153,10 +160,10 @@ class ProofGoalQueue
   std::vector<ProofGoal *> store_;
 };
 
-class IC3Base : public Prover
+class IC3Base : public SafetyProver
 {
  public:
-  typedef Prover super;
+  typedef SafetyProver super;
 
   /** IC3Base constructors take the normal arguments for a prover
    *  + a function that can create an IC3Formula

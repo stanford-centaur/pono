@@ -22,15 +22,15 @@
 
 namespace pono {
 
-class MsatIC3IA : public Prover
+class MsatIC3IA : public SafetyProver
 {
  public:
-  MsatIC3IA(const Property & p,
+  MsatIC3IA(const SafetyProperty & p,
             const TransitionSystem & ts,
             const smt::SmtSolver & solver,
             PonoOptions opt = PonoOptions());
 
-  typedef Prover super;
+  typedef SafetyProver super;
 
   ProverResult prove() override;
 
