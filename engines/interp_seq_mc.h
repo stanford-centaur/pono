@@ -8,7 +8,7 @@ namespace pono {
 class InterpSeqMC : public Prover
 {
  public:
-  InterpSeqMC(const Property & p,
+  InterpSeqMC(const SafetyProperty & p,
               const TransitionSystem & ts,
               const smt::SmtSolver & slv,
               PonoOptions opt = PonoOptions());

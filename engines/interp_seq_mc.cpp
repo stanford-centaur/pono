@@ -10,7 +10,7 @@ using namespace smt;
 
 namespace pono {
 
-InterpSeqMC::InterpSeqMC(const Property & p,
+InterpSeqMC::InterpSeqMC(const SafetyProperty & p,
                          const TransitionSystem & ts,
                          const SmtSolver & slv,
                          PonoOptions opt)
