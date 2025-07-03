@@ -25,7 +25,7 @@ namespace pono {
 class MsatIC3IA : public Prover
 {
  public:
-  MsatIC3IA(const Property & p,
+  MsatIC3IA(const SafetyProperty & p,
             const TransitionSystem & ts,
             const smt::SmtSolver & solver,
             PonoOptions opt = PonoOptions());

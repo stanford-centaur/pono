@@ -31,7 +31,7 @@ using namespace std;
 
 namespace pono {
 
-MsatIC3IA::MsatIC3IA(const Property & p,
+MsatIC3IA::MsatIC3IA(const SafetyProperty & p,
                      const TransitionSystem & ts,
                      const SmtSolver & solver,
                      PonoOptions opt)

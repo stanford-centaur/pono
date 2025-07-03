@@ -91,8 +91,8 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
       reached_k_++;
     } while (num_added_axioms_);
 
-    Property latest_prop(super::solver_,
-                         super::solver_->make_term(Not, super::bad_));
+    SafetyProperty latest_prop(super::solver_,
+                               super::solver_->make_term(Not, super::bad_));
     SmtSolver s = create_solver_for(
         super::solver_->get_solver_enum(), super::engine_, false);
     shared_ptr<Prover> prover =
