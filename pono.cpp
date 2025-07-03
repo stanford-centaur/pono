@@ -325,7 +325,15 @@ int main(int argc, char ** argv)
         if (!pono_options.justice_) {
           assert(pono_options.witness_ || !cex.size());
           if (cex.size()) {
-            print_witness_btor(btor_enc, cex, fts);
+            if (pono_options.btor2_witness_name_.empty()) {
+              print_witness_btor(btor_enc, cex, fts);
+            } else {
+              dump_witness_btor(btor_enc,
+                                cex,
+                                fts,
+                                pono_options.prop_idx_,
+                                pono_options.btor2_witness_name_);
+            }
             if (!pono_options.vcd_name_.empty()) {
               VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
               vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
