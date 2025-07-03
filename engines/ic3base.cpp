@@ -208,16 +208,17 @@ bool IC3Base::compute_witness()
   solver_->reset_assertions();
 
   // construct base BMC query
+  const size_t wit_len = witness_length();
   solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
-  for (size_t t = 0; t < witness_length(); ++t) {
+  for (size_t t = 0; t < wit_len; ++t) {
     solver_->assert_formula(unroller_.at_time(ts_.trans(), t));
   }
-  solver_->assert_formula(unroller_.at_time(bad_, witness_length()));
+  solver_->assert_formula(unroller_.at_time(bad_, wit_len));
 
   // make stored cex additional constraint to guide the search
   TermVec state_constraints;
-  state_constraints.reserve(witness_length());
-  for (size_t t = 0; t < witness_length(); ++t) {
+  state_constraints.reserve(wit_len);
+  for (size_t t = 0; t < wit_len; ++t) {
     state_constraints.push_back(unroller_.at_time(cex_.at(t), t));
   }
 
