@@ -30,6 +30,7 @@ void RelationalTransitionSystem::set_behavior(const Term & init,
   }
   init_ = init;
   trans_ = trans;
+  set_updated_states(trans_);
 }
 
 void RelationalTransitionSystem::set_trans(const Term & trans)
@@ -39,6 +40,7 @@ void RelationalTransitionSystem::set_trans(const Term & trans)
     throw PonoException("Unknown symbols");
   }
   trans_ = trans;
+  set_updated_states(trans_);
 }
 
 void RelationalTransitionSystem::constrain_trans(const Term & constraint)
@@ -48,6 +50,17 @@ void RelationalTransitionSystem::constrain_trans(const Term & constraint)
     throw PonoException("Unknown symbols");
   }
   trans_ = solver_->make_term(And, trans_, constraint);
+  set_updated_states(constraint);
 }
 
+void RelationalTransitionSystem::set_updated_states(const smt::Term & term)
+{
+  auto curr = curr_map_.find(term);
+  if (curr != curr_map_.end()) {
+    no_state_updates_.erase(curr->second);
+  }
+  for (const auto& subTerm : *term) {
+    set_updated_states(subTerm);
+  }
+}
 }  // namespace pono
