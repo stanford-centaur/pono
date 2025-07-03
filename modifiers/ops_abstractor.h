@@ -35,7 +35,7 @@ class OpsAbstractor : public Abstractor
 
   void set_ops_to_abstract(const smt::UnorderedOpSet & ops_to_abstract);
 
-  void set_min_bitwidth(size_t w) { min_bw_ = w; };
+  void set_min_bitwidth(unsigned long w) { min_bw_ = w; };
 
   void do_abstraction();
 
@@ -71,7 +71,7 @@ class OpsAbstractor : public Abstractor
 
   smt::UnorderedOpSet ops_to_abstract_;
 
-  size_t min_bw_;
+  unsigned long min_bw_;
 
   std::unordered_map<std::string, smt::Term> abs_op_symbols_;
   std::unordered_map<smt::Term, smt::Op> abs_symbols_to_op_;

@@ -42,6 +42,6 @@ void toggle_clock(TransitionSystem & ts, const smt::Term & clock_symbol);
  */
 smt::Term add_reset_seq(TransitionSystem & ts,
                         const smt::Term & reset_symbol,
-                        size_t reset_bnd = 1);
+                        unsigned long reset_bnd = 1);
 
 }  // namespace pono

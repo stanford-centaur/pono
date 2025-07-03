@@ -55,7 +55,7 @@ void toggle_clock(TransitionSystem & ts, const Term & clock_symbol)
 
 Term add_reset_seq(TransitionSystem & ts,
                    const Term & reset_symbol,
-                   size_t reset_bnd)
+                   unsigned long reset_bnd)
 {
   const SmtSolver & s = ts.solver();
   Sort reset_sort = reset_symbol->get_sort();
