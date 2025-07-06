@@ -151,6 +151,13 @@ shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
         { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
     prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
     return prover;
+  } else if (e == INTERP) {
+    shared_ptr<CegarOpsUf<InterpolantMC>> prover =
+        make_shared<CegarOpsUf<InterpolantMC>>(p, ts, slv, opts);
+    prover->set_ops_to_abstract(
+        { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+    prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
+    return prover;
   } else {
     throw PonoException("CegarOpsUf currently only supports IC3IA and IC3SA");
   }

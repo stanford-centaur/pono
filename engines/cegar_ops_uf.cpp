@@ -21,6 +21,7 @@
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
+#include "engines/interpolantmc.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -314,6 +315,7 @@ void CegarOpsUf<CegProphecyArrays<IC3IA>>::refine_subprover_ts(
 // TODO add other template classes
 template class CegarOpsUf<IC3IA>;
 template class CegarOpsUf<IC3SA>;
+template class CegarOpsUf<InterpolantMC>;
 template class CegarOpsUf<CegProphecyArrays<IC3IA>>;
 
 }  // namespace pono
