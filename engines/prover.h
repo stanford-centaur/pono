@@ -47,6 +47,11 @@ class Prover
 
   virtual void initialize();
 
+  /** Reset the internal environment of the prover,
+   *  such that it can start another run in a CEGAR loop
+   */
+  virtual void reset_env();
+
   virtual ProverResult prove();
 
   virtual ProverResult check_until(int k) = 0;

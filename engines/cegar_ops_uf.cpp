@@ -224,15 +224,8 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 }
 
 template <class Prover_T>
-void CegarOpsUf<Prover_T>::refine_subprover_ts(const UnorderedTermSet & axioms,
-                                               bool skip_init)
-{
-  throw PonoException("CegarOpsUf::refine_subprover_ts NYI for generic case");
-}
-
-template <>
-void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
-                                            bool skip_init)
+void CegarOpsUf<Prover_T>::refine_subprover_ts_base(
+    const UnorderedTermSet & axioms, bool skip_init)
 {
   for (const auto & a : axioms) {
     Term ta = from_cegopsuf_solver_.transfer_term(a, BOOL);
@@ -252,7 +245,21 @@ void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
       }
     }
   }
+}
 
+template <class Prover_T>
+void CegarOpsUf<Prover_T>::refine_subprover_ts(const UnorderedTermSet & axioms,
+                                               bool skip_init)
+{
+  refine_subprover_ts_base(axioms, skip_init);
+  super::reset_env();
+}
+
+template <>
+void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
+                                            bool skip_init)
+{
+  refine_subprover_ts_base(axioms, skip_init);
   super::reabstract();
 }
 

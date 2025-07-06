@@ -71,6 +71,12 @@ void Prover::initialize()
   initialized_ = true;
 }
 
+void Prover::reset_env()
+{
+  throw PonoException(
+      "Resetting environment is not supported by the chosen engine.");
+}
+
 ProverResult Prover::prove() { return check_until(INT_MAX); }
 
 bool Prover::witness(std::vector<UnorderedTermMap> & out)
