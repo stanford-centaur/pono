@@ -129,7 +129,7 @@ ProverResult KInduction::check_until(int k)
     // disable initial state predicate and its negated instances
     // enable negated bad state terms
     // enable simple path
-    while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+    sel_assumption_.clear();
     sel_assumption_.push_back(sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
@@ -162,7 +162,7 @@ ProverResult KInduction::check_until(int k)
       // enable initial state predicate and its negated instances
       // enable negated bad state terms
       // enable simple path terms
-      while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+      sel_assumption_.clear();
       sel_assumption_.push_back(not_sel_init_);
       sel_assumption_.push_back(not_sel_neg_init_terms_);
       sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
@@ -194,7 +194,7 @@ ProverResult KInduction::check_until(int k)
     // disable initial state predicate and its negated instances
     // enable negated bad state terms
     // enable simple path
-    while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+    sel_assumption_.clear();
     sel_assumption_.push_back(sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
@@ -232,7 +232,7 @@ ProverResult KInduction::check_until(int k)
     // enable initial state predicate but NOT its negated instances
     // enable negated bad state terms
     // enable simple path
-    while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+    sel_assumption_.clear();
     sel_assumption_.push_back(not_sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
@@ -402,7 +402,7 @@ bool KInduction::final_base_case_check(int cur_bound)
   // DISABLE simple path --- maybe we could keep it if UNSAT
   // result in inductive check was not due to simple path
   // constraints(?)
-  while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+  sel_assumption_.clear();
   sel_assumption_.push_back(not_sel_init_);
   sel_assumption_.push_back(sel_neg_init_terms_);
   sel_assumption_.push_back(sel_neg_bad_state_terms_);
