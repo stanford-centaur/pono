@@ -158,6 +158,27 @@ shared_ptr<Prover> make_cegar_bv_arith_prover(Engine e,
         { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
     prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
     return prover;
+  } else if (e == KIND) {
+    shared_ptr<CegarOpsUf<KInduction>> prover =
+        make_shared<CegarOpsUf<KInduction>>(p, ts, slv, opts);
+    prover->set_ops_to_abstract(
+        { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+    prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
+    return prover;
+  } else if (e == BMC) {
+    shared_ptr<CegarOpsUf<Bmc>> prover =
+        make_shared<CegarOpsUf<Bmc>>(p, ts, slv, opts);
+    prover->set_ops_to_abstract(
+        { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+    prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
+    return prover;
+  } else if (e == BMC_SP) {
+    shared_ptr<CegarOpsUf<BmcSimplePath>> prover =
+        make_shared<CegarOpsUf<BmcSimplePath>>(p, ts, slv, opts);
+    prover->set_ops_to_abstract(
+        { BVMul, BVUdiv, BVSdiv, BVUrem, BVSrem, BVSmod });
+    prover->set_min_bitwidth(opts.ceg_bv_arith_min_bw_);
+    return prover;
   } else {
     throw PonoException("CegarOpsUf currently only supports IC3IA and IC3SA");
   }
