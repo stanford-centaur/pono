@@ -214,6 +214,7 @@ class PonoOptions
   JusticeTranslator
       justice_translator_;  ///< liveness to safety translation algorithm
   std::string vcd_name_;
+  std::string btor2_witness_name_;
   std::string reset_name_;
   size_t reset_bnd_;
   std::string clock_name_;
