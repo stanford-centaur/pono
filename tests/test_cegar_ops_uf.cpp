@@ -49,7 +49,7 @@ class CegOpsUfTests : public ::testing::Test,
   void SetUp() override
   {
     opts.engine_ = GetParam();
-    // use cvc5 as the base solver as it suppofts both BV and Int
+    // use cvc5 as the base solver as it supports both BV and Int
     opts.smt_solver_ = SolverEnum::CVC5;
     solver = create_solver(opts.smt_solver_);
     solver->set_opt("produce-unsat-assumptions", "true");
@@ -60,6 +60,10 @@ class CegOpsUfTests : public ::testing::Test,
 
 TEST_P(CegOpsUfTests, BVSimpleSafe)
 {
+  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
+    // skip BMC on safe tasks as they return UNKNOWN
+    return;
+  }
   Sort sort = solver->make_sort(BV, 8);
   Term x = solver->make_symbol("x", sort);
   FunctionalTransitionSystem fts = counter_ts(solver, x);
@@ -91,6 +95,14 @@ TEST_P(CegOpsUfTests, BVSimpleUnsafe)
 
 TEST_P(CegOpsUfTests, IntSimpleSafe)
 {
+  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
+    // skip BMC on safe tasks as they return UNKNOWN
+    return;
+  }
+  if (opts.engine_ == Engine::IC3SA_ENGINE) {
+    // IC3SA does not support Int
+    return;
+  }
   Sort sort = solver->make_sort(INT);
   Term x = solver->make_symbol("x", sort);
   FunctionalTransitionSystem fts = counter_ts(solver, x);
@@ -106,6 +118,10 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
 
 TEST_P(CegOpsUfTests, IntSimpleUnsafe)
 {
+  if (opts.engine_ == Engine::IC3SA_ENGINE) {
+    // IC3SA does not support Int
+    return;
+  }
   Sort sort = solver->make_sort(INT);
   Term x = solver->make_symbol("x", sort);
 
