@@ -46,6 +46,12 @@ std::shared_ptr<Prover> make_cegar_bv_arith_prover(
     const SafetyProperty & p,
     const TransitionSystem & ts,
     const smt::SmtSolver & slv,
-    PonoOptions opts = PonoOptions());
+    PonoOptions opts = PonoOptions(),
+    const smt::UnorderedOpSet & ops_to_abstract = { { smt::BVMul,
+                                                      smt::BVUdiv,
+                                                      smt::BVSdiv,
+                                                      smt::BVUrem,
+                                                      smt::BVSrem,
+                                                      smt::BVSmod } });
 
 }  // namespace pono
