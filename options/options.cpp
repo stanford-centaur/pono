@@ -177,7 +177,7 @@ const option::Descriptor usage[] = {
     "v",
     "verbosity",
     Arg::Numeric,
-    "  --verbosity, -v \tVerbosity for printing to standard out." },
+    "  --verbosity, -v \tVerbosity for printing to stderr." },
   { RANDOM_SEED,
     0,
     "",
