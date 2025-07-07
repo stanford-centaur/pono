@@ -2,47 +2,96 @@
 /*! \file
  ** \verbatim
  ** Top contributors (to current version):
- **   Ahmed Irfan, Makai Mann
+ **   Ahmed Irfan, Makai Mann, Áron Ricardo Perez-Lopez
  ** This file is part of the pono project.
  ** Copyright (c) 2019 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved.  See the file LICENSE in the top-level source
  ** directory for licensing information.\endverbatim
  **
- ** \brief
- **
- **
+ ** \brief Classes representing LTL properties.
  **/
 
 #pragma once
 
-#include "core/ts.h"
+#include <string>
+
 #include "smt-switch/smt.h"
 
 namespace pono {
 
-class Property
+/**
+ * \brief Abstract base class for all property types.
+ *
+ * Holds common metadata such as the associated solver and property name.
+ */
+class AbstractProperty
 {
  public:
-  Property(const smt::SmtSolver & s, const smt::Term & p, std::string name = "")
-      : solver_(s), prop_(p), name_(name){};
+  /** @return the solver used to construct the property. */
+  const smt::SmtSolver & solver() const;
 
-  ~Property(){};
+  /** @return the name of this property. */
+  const std::string name() const;
 
-  const smt::Term & prop() const { return prop_; }
-
-  const smt::SmtSolver & solver() const { return solver_; }
-
-  std::string name() { return name_; };
+ protected:
+  /** Construct a property. */
+  AbstractProperty(const smt::SmtSolver & solver, const std::string name);
 
  private:
-  smt::SmtSolver solver_;
+  const smt::SmtSolver solver_;
 
-  smt::Term prop_;
+  const std::string name_;
 
-  std::string name_;  ///< a name for the property. If no name is given, just
-                      ///< uses the to_string
+};  // class AbstractProperty
 
-};  // class Property
+/**
+ * \brief Represents an LTL safety property.
+ *
+ * Corresponds to the negation of `bad` in Btor2.
+ * A counterexample to a safety property is a finite path
+ * from an initial state to a state where the property is violated
+ * (i.e., a bad state).
+ */
+class SafetyProperty : public AbstractProperty
+{
+ public:
+  /** Construct a safety property. */
+  SafetyProperty(const smt::SmtSolver & solver,
+                 const smt::Term & property,
+                 std::string name = "");
+
+  /** @return the SMT term of the property. */
+  const smt::Term & prop() const;
+
+ private:
+  const smt::Term prop_;
+};  // class SafetyProperty
+
+using Property [[deprecated("Use SafetyProperty.")]] = SafetyProperty;
+
+/**
+ * \brief Represents an LTL liveness property.
+ *
+ * Corresponds to `justice` (and `fair`) in Btor2.
+ * A counterexample to a liveness property is an
+ * infinite lasso-shaped path starting from an initial state,
+ * along which each term in the property is satisfied infinitely often.
+ */
+class LivenessProperty : public AbstractProperty
+{
+ public:
+  /** Construct a liveness property. */
+  LivenessProperty(const smt::SmtSolver & solver,
+                   const smt::TermVec & conditions,
+                   const std::string name = "");
+
+  /** @return the terms (conditions) for the property. */
+  const smt::TermVec & terms() const;
+
+ private:
+  const smt::TermVec prop_terms_;
+
+};  // class LivenessProperty
 
 }  // namespace pono

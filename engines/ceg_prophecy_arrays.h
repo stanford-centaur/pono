@@ -34,7 +34,7 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   typedef CEGAR<Prover_T> super;
 
  public:
-  CegProphecyArrays(const Property & p,
+  CegProphecyArrays(const SafetyProperty & p,
                     const TransitionSystem & ts,
                     const smt::SmtSolver & solver,
                     PonoOptions opt = PonoOptions());

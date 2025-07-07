@@ -38,7 +38,7 @@ enum RefineResult
 class Prover
 {
  public:
-  Prover(const Property & p,
+  Prover(const SafetyProperty & p,
          const TransitionSystem & ts,
          const smt::SmtSolver & s,
          PonoOptions opt = PonoOptions());
@@ -106,7 +106,8 @@ class Prover
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
 
-  Property orig_property_;    ///< original property before copied to new solver
+  SafetyProperty
+      orig_property_;         ///< original property before copied to new solver
   TransitionSystem orig_ts_;  ///< original TS before copied to new solver
 
   TransitionSystem ts_;

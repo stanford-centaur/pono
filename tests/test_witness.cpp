@@ -1,17 +1,11 @@
-#include <utility>
 #include <vector>
 
 #include "core/fts.h"
-#include "core/rts.h"
-#include "core/unroller.h"
+#include "core/prop.h"
 #include "engines/bmc.h"
-#include "engines/bmc_simplepath.h"
-#include "engines/interpolantmc.h"
-#include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
-#include "utils/exceptions.h"
 
 using namespace pono;
 using namespace smt;
@@ -34,7 +28,7 @@ TEST_P(WitnessUnitTests, SimpleDefaultSolver)
 
   Term eight = fts.make_term(8, bvsort8);
   Term prop_term = fts.make_term(BVUlt, x, eight);
-  Property prop(fts.solver(), prop_term);
+  SafetyProperty prop(fts.solver(), prop_term);
 
   SmtSolver s = create_solver(GetParam());
   Bmc bmc(prop, fts, s);
@@ -73,7 +67,7 @@ TEST_P(WitnessUnitTests, ArraysDefaultSolver)
 
   Term ten = fts.make_term(10, bvsort8);
   Term prop_term = fts.make_term(Distinct, fts.make_term(Select, arr, x), ten);
-  Property prop(fts.solver(), prop_term);
+  SafetyProperty prop(fts.solver(), prop_term);
 
   SmtSolver s = create_solver(GetParam());
   Bmc bmc(prop, fts, s);

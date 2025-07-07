@@ -77,6 +77,13 @@ enum SyGuSTermMode
   TERM_MODE_AUTO = 4
 };
 
+// Interp engine options
+enum InterpPropsEnum
+{
+  INTERP_ALL_PROPS,
+  INTERP_FIRST_AND_LAST_PROPS
+};
+
 // Justice translator option
 enum JusticeTranslator
 {
@@ -122,6 +129,7 @@ class PonoOptions
         ic3_unsatcore_gen_(default_ic3_unsatcore_gen_),
         ic3ia_reduce_preds_(default_ic3ia_reduce_preds_),
         ic3ia_track_important_vars_(default_ic3ia_track_important_vars_),
+        ic3ia_sim_cex_(default_ic3ia_sim_cex_),
         ic3sa_func_refine_(default_ic3sa_func_refine_),
         profiling_log_filename_(default_profiling_log_filename_),
         pseudo_init_prop_(default_pseudo_init_prop_),
@@ -166,7 +174,11 @@ class PonoOptions
         kind_no_ind_check_(default_kind_no_ind_check_),
         kind_no_ind_check_property_(default_kind_no_ind_check_property_),
         kind_one_time_base_check_(default_kind_one_time_base_check_),
-        kind_bound_step_(default_kind_bound_step_)
+        kind_bound_step_(default_kind_bound_step_),
+        interp_frontier_set_simpl_(default_interp_frontier_set_simpl_),
+        interp_props_(default_interp_props_),
+        interp_eager_unroll_(default_interp_eager_unroll_),
+        interp_backward_(default_interp_backward_)
   {
   }
 
@@ -226,7 +238,8 @@ class PonoOptions
   bool ic3ia_reduce_preds_;  ///< reduce predicates with unsatcore in IC3IA
   bool ic3ia_track_important_vars_;  ///< prioritize predicates with marked
                                      ///< important variables
-  bool ic3sa_func_refine_;           ///< try functional unrolling in refinement
+  bool ic3ia_sim_cex_;      ///< simulate abstract cex during IC3IA's refinement
+  bool ic3sa_func_refine_;  ///< try functional unrolling in refinement
   std::string profiling_log_filename_;
   bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;       ///< assume property in pre-state
@@ -321,6 +334,16 @@ class PonoOptions
   bool kind_one_time_base_check_;
   // K-induction: amount of steps by which transition relation is unrolled
   unsigned kind_bound_step_;
+  // Configuration for interp engine:
+  // - whether to apply frontier set simplification
+  bool interp_frontier_set_simpl_;
+  // - at which time frames properties are considered
+  //   when computing interpolants
+  InterpPropsEnum interp_props_;
+  // - whether to unroll the transition system eagerly
+  bool interp_eager_unroll_;
+  // - whether to compute backward interpolants
+  bool interp_backward_;
 
  private:
   // Default options
@@ -356,6 +379,7 @@ class PonoOptions
   static const bool default_ic3_unsatcore_gen_ = true;
   static const bool default_ic3ia_reduce_preds_ = true;
   static const bool default_ic3ia_track_important_vars_ = true;
+  static const bool default_ic3ia_sim_cex_ = true;
   static const bool default_ic3sa_func_refine_ = true;
   static const std::string default_profiling_log_filename_;
   static const bool default_pseudo_init_prop_ = false;
@@ -399,6 +423,11 @@ class PonoOptions
   static const bool default_kind_no_ind_check_property_ = false;
   static const bool default_kind_one_time_base_check_ = false;
   static const unsigned default_kind_bound_step_ = 1;
+  static const bool default_interp_frontier_set_simpl_ = true;
+  static const InterpPropsEnum default_interp_props_ =
+      InterpPropsEnum::INTERP_ALL_PROPS;
+  static const bool default_interp_eager_unroll_ = false;
+  static const bool default_interp_backward_ = false;
 };
 
 // Useful functions for printing etc...
