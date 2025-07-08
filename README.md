@@ -132,6 +132,30 @@ pip install './build/python[test]'
 pytest ./tests
 ```
 
+## Documentation
+
+To generate documentation from the C++ source files, install [Doxygen](https://www.doxygen.nl/index.html), configure with `./configure.sh --docs`, then build the `docs` target:
+
+```
+# Install Doxygen
+# Ubuntu
+sudo apt-get install doxygen
+# Arch Linux
+sudo pacman -S doxygen
+# macOS
+brew install doxygen
+
+# Build documentation
+./configure.sh --docs
+cmake --build build -t docs
+
+# Open the HTML index
+# Linux
+xdg-open build/html/index.html
+# macOS
+open build/html/index.html
+```
+
 ## Generating BTOR2 from Verilog
 
 The best tool for creating BTOR2 from Verilog is [Yosys](https://github.com/YosysHQ/yosys). Yosys has an excellent manual [here](http://www.clifford.at/yosys/files/yosys_manual.pdf). 

@@ -68,13 +68,20 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "sygus-pdr", SYGUS_PDR } });
 
 // SyGuS mode option
-enum SyGuSTermMode
+enum SyGuSTermMode : unsigned long
 {
   FROM_DESIGN_LEARN_EXT = 0,
   VAR_C_EXT = 1,
   SPLIT_FROM_DESIGN = 2,
   VAR_C_EQ_LT = 3,
   TERM_MODE_AUTO = 4
+};
+
+// Interp engine options
+enum InterpPropsEnum
+{
+  INTERP_ALL_PROPS,
+  INTERP_FIRST_AND_LAST_PROPS
 };
 
 // Justice translator option
@@ -122,6 +129,7 @@ class PonoOptions
         ic3_unsatcore_gen_(default_ic3_unsatcore_gen_),
         ic3ia_reduce_preds_(default_ic3ia_reduce_preds_),
         ic3ia_track_important_vars_(default_ic3ia_track_important_vars_),
+        ic3ia_sim_cex_(default_ic3ia_sim_cex_),
         ic3sa_func_refine_(default_ic3sa_func_refine_),
         profiling_log_filename_(default_profiling_log_filename_),
         pseudo_init_prop_(default_pseudo_init_prop_),
@@ -166,7 +174,11 @@ class PonoOptions
         kind_no_ind_check_(default_kind_no_ind_check_),
         kind_no_ind_check_property_(default_kind_no_ind_check_property_),
         kind_one_time_base_check_(default_kind_one_time_base_check_),
-        kind_bound_step_(default_kind_bound_step_)
+        kind_bound_step_(default_kind_bound_step_),
+        interp_frontier_set_simpl_(default_interp_frontier_set_simpl_),
+        interp_props_(default_interp_props_),
+        interp_eager_unroll_(default_interp_eager_unroll_),
+        interp_backward_(default_interp_backward_)
   {
   }
 
@@ -193,17 +205,18 @@ class PonoOptions
 
   // Pono options
   Engine engine_;
-  unsigned int prop_idx_;
-  unsigned int bound_;
-  unsigned int verbosity_;
-  unsigned int random_seed_;
+  unsigned long prop_idx_;
+  unsigned long bound_;
+  unsigned long verbosity_;
+  unsigned long random_seed_;
   bool witness_;
   bool justice_;  ///< check justice property at given index, else safety
   JusticeTranslator
       justice_translator_;  ///< liveness to safety translation algorithm
   std::string vcd_name_;
+  std::string btor2_witness_name_;
   std::string reset_name_;
-  size_t reset_bnd_;
+  unsigned long reset_bnd_;
   std::string clock_name_;
   std::string filename_;
   smt::SolverEnum smt_solver_;        ///< underlying smt solver
@@ -214,18 +227,19 @@ class PonoOptions
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
   // ic3 options
-  bool ic3_pregen_;                ///< generalize counterexamples in IC3
-  bool ic3_indgen_;                ///< inductive generalization in IC3
-  unsigned int ic3_gen_max_iter_;  ///< max iterations in ic3 generalization. 0
-                                   ///< means unbounded
-  unsigned int mbic3_indgen_mode;  ///< inductive generalization mode [0,2]
-  bool ic3_functional_preimage_;   ///< functional preimage in IC3
+  bool ic3_pregen_;                 ///< generalize counterexamples in IC3
+  bool ic3_indgen_;                 ///< inductive generalization in IC3
+  unsigned long ic3_gen_max_iter_;  ///< max iterations in ic3 generalization. 0
+                                    ///< means unbounded
+  unsigned long mbic3_indgen_mode;  ///< inductive generalization mode [0,2]
+  bool ic3_functional_preimage_;    ///< functional preimage in IC3
   bool ic3_unsatcore_gen_;  ///< generalize a cube during relative inductiveness
                             ///< check with unsatcore
   bool ic3ia_reduce_preds_;  ///< reduce predicates with unsatcore in IC3IA
   bool ic3ia_track_important_vars_;  ///< prioritize predicates with marked
                                      ///< important variables
-  bool ic3sa_func_refine_;           ///< try functional unrolling in refinement
+  bool ic3ia_sim_cex_;      ///< simulate abstract cex during IC3IA's refinement
+  bool ic3sa_func_refine_;  ///< try functional unrolling in refinement
   std::string profiling_log_filename_;
   bool pseudo_init_prop_;  ///< replace init and prop with boolean state vars
   bool assume_prop_;       ///< assume property in pre-state
@@ -239,11 +253,12 @@ class PonoOptions
   bool cegp_force_restart_;        ///< force underlying engine to restart after
                                    ///< refinement
   bool cegp_abs_vals_;  ///< abstract values on top of ceg-prophecy-arrays
-  size_t cegp_abs_vals_cutoff_;   ///< cutoff to abstract a value
+  unsigned long cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
   bool cegp_strong_abstraction_;  ///< use strong abstraction (no equality UFs)
   bool ceg_bv_arith_;             ///< CEGAR -- Abstract BV arithmetic operators
-  size_t ceg_bv_arith_min_bw_;    ///< Only abstract operators having bitwidth
-                                  ///< strictly greater than this number
+  unsigned long
+      ceg_bv_arith_min_bw_;  ///< Only abstract operators having bitwidth
+                             ///< strictly greater than this number
   bool promote_inputvars_;
   // sygus-pdr options
   SyGuSTermMode sygus_term_mode_;      ///< SyGuS term production mode
@@ -255,10 +270,10 @@ class PonoOptions
                                      ///< increment bound
   unsigned
       sygus_accumulated_term_bound_;  ///< SyGuS Term accumulation bound count
-  unsigned sygus_use_operator_abstraction_;  ///< SyGuS abstract and avoid use
-                                             ///< some operators
-  size_t ic3sa_initial_terms_lvl_;  ///< configures where to find terms for
-                                    ///< initial abstraction
+  unsigned long sygus_use_operator_abstraction_;  ///< SyGuS abstract and avoid
+                                                  ///< use some operators
+  unsigned long ic3sa_initial_terms_lvl_;  ///< configures where to find terms
+                                           ///< for initial abstraction
   bool ic3sa_interp_;
   // print wall clock time spent in entire execution
   bool print_wall_time_;
@@ -267,13 +282,13 @@ class PonoOptions
   //   they do not apply to engine 'BMC-SP')
   // Default bmc_bound_start_ == 0, which starts search for cex at
   // unrolling depth 0 like traditional BMC.
-  unsigned bmc_bound_start_;
+  unsigned long bmc_bound_start_;
   // Default: bmc_bound_step_ == 1, which results in traditional BMC
   // where every bound is checked one by one. bmc_bound_step_ is the
   // value by which the current unrolling depth is increased. For
   // bmc_bound_step_ > 1, BMC searches for cex in intervals of size
   // bmc_bound_step_.
-  unsigned bmc_bound_step_;
+  unsigned long bmc_bound_step_;
   // BMC: add negated initial state predicate in steps k > 0 (default: false)
   bool bmc_neg_init_step_;
   // BMC: double the bound in each step starting from
@@ -319,7 +334,17 @@ class PonoOptions
   // unsatisfiable
   bool kind_one_time_base_check_;
   // K-induction: amount of steps by which transition relation is unrolled
-  unsigned kind_bound_step_;
+  unsigned long kind_bound_step_;
+  // Configuration for interp engine:
+  // - whether to apply frontier set simplification
+  bool interp_frontier_set_simpl_;
+  // - at which time frames properties are considered
+  //   when computing interpolants
+  InterpPropsEnum interp_props_;
+  // - whether to unroll the transition system eagerly
+  bool interp_eager_unroll_;
+  // - whether to compute backward interpolants
+  bool interp_backward_;
 
  private:
   // Default options
@@ -335,7 +360,7 @@ class PonoOptions
   static const bool default_static_coi_ = false;
   static const bool default_show_invar_ = false;
   static const bool default_check_invar_ = false;
-  static const size_t default_reset_bnd_ = 1;
+  static const unsigned long default_reset_bnd_ = 1;
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
@@ -355,6 +380,7 @@ class PonoOptions
   static const bool default_ic3_unsatcore_gen_ = true;
   static const bool default_ic3ia_reduce_preds_ = true;
   static const bool default_ic3ia_track_important_vars_ = true;
+  static const bool default_ic3ia_sim_cex_ = true;
   static const bool default_ic3sa_func_refine_ = true;
   static const std::string default_profiling_log_filename_;
   static const bool default_pseudo_init_prop_ = false;
@@ -365,10 +391,10 @@ class PonoOptions
   static const bool default_cegp_nonconsec_axiom_red_ = true;
   static const bool default_cegp_force_restart_ = false;
   static const bool default_cegp_abs_vals_ = false;
-  static const size_t default_cegp_abs_vals_cutoff_ = 100;
+  static const unsigned long default_cegp_abs_vals_cutoff_ = 100;
   static const bool default_cegp_strong_abstraction_ = false;
   static const bool default_ceg_bv_arith_ = false;
-  static const size_t default_ceg_bv_arith_min_bw_ = 16;
+  static const unsigned long default_ceg_bv_arith_min_bw_ = 16;
   static const bool default_promote_inputvars_ = false;
   static const SyGuSTermMode default_sygus_term_mode_ = TERM_MODE_AUTO;
   static const unsigned default_sygus_term_extract_depth_ = 0;
@@ -377,7 +403,7 @@ class PonoOptions
   static const unsigned default_sygus_accumulated_term_bound_ = 0;
   static const unsigned default_sygus_use_operator_abstraction_ = 0;
   // default is the highest level
-  static const size_t default_ic3sa_initial_terms_lvl_ = 4;
+  static const unsigned long default_ic3sa_initial_terms_lvl_ = 4;
   static const bool default_ic3sa_interp_ = false;
   static const bool default_print_wall_time_ = false;
   static const unsigned default_bmc_bound_start_ = 0;
@@ -398,6 +424,11 @@ class PonoOptions
   static const bool default_kind_no_ind_check_property_ = false;
   static const bool default_kind_one_time_base_check_ = false;
   static const unsigned default_kind_bound_step_ = 1;
+  static const bool default_interp_frontier_set_simpl_ = true;
+  static const InterpPropsEnum default_interp_props_ =
+      InterpPropsEnum::INTERP_ALL_PROPS;
+  static const bool default_interp_eager_unroll_ = false;
+  static const bool default_interp_backward_ = false;
 };
 
 // Useful functions for printing etc...
