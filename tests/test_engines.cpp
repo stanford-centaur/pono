@@ -253,7 +253,7 @@ vector<PonoOptions> get_interp_options()
   PonoOptions backward_interp;
   backward_interp.interp_backward_ = true;
   PonoOptions no_frontier_simp;
-  backward_interp.interp_frontier_set_simpl_ = false;
+  no_frontier_simp.interp_frontier_set_simpl_ = false;
   return { default_opts,
            interp_first_and_last_props,
            eager_unroll,
@@ -267,16 +267,18 @@ class InterpOptionsTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = s = create_solver_for(MSAT, INTERP, false);
+    s = create_solver_for(MSAT, INTERP, false);
     bvsort8 = s->make_sort(BV, 8);
     max_val = s->make_term(10, bvsort8);
     fts = FunctionalTransitionSystem(s);
     counter_system(fts, max_val);
+    opts = GetParam();
   }
   SmtSolver s;
   Sort bvsort8;
   Term max_val;                    // max value for counter system
   FunctionalTransitionSystem fts;  // counter system
+  PonoOptions opts;
 };
 
 TEST_P(InterpOptionsTests, CounterSystemUnsafe)
@@ -286,7 +288,7 @@ TEST_P(InterpOptionsTests, CounterSystemUnsafe)
   Term prop_term = s->make_term(BVUlt, x, max_val);
   Property p(s, prop_term);
 
-  InterpolantMC interp_mc(p, fts, s);
+  InterpolantMC interp_mc(p, fts, s, opts);
   ProverResult r = interp_mc.prove();
   ASSERT_EQ(r, FALSE);
 }
@@ -298,7 +300,7 @@ TEST_P(InterpOptionsTests, CounterSystemSafe)
   Term prop_term = s->make_term(BVUle, x, max_val);
   Property p(s, prop_term);
 
-  InterpolantMC interp_mc(p, fts, s);
+  InterpolantMC interp_mc(p, fts, s, opts);
   ProverResult r = interp_mc.prove();
   ASSERT_EQ(r, TRUE);
   Term invar = interp_mc.invar();
