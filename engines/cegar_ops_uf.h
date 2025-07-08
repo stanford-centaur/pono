@@ -35,7 +35,7 @@ class CegarOpsUf : public CEGAR<Prover_T>
 
   void set_ops_to_abstract(const smt::UnorderedOpSet & ops_to_abstract);
 
-  void set_min_bitwidth(size_t w) { oa_.set_min_bitwidth(w); };
+  void set_min_bitwidth(unsigned long w) { oa_.set_min_bitwidth(w); };
 
   void initialize() override;
 
