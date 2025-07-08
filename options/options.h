@@ -68,7 +68,7 @@ const std::unordered_map<std::string, Engine> str2engine(
       { "sygus-pdr", SYGUS_PDR } });
 
 // SyGuS mode option
-enum SyGuSTermMode
+enum SyGuSTermMode : unsigned long
 {
   FROM_DESIGN_LEARN_EXT = 0,
   VAR_C_EXT = 1,
@@ -205,10 +205,10 @@ class PonoOptions
 
   // Pono options
   Engine engine_;
-  unsigned int prop_idx_;
-  unsigned int bound_;
-  unsigned int verbosity_;
-  unsigned int random_seed_;
+  unsigned long prop_idx_;
+  unsigned long bound_;
+  unsigned long verbosity_;
+  unsigned long random_seed_;
   bool witness_;
   bool justice_;  ///< check justice property at given index, else safety
   JusticeTranslator
@@ -227,12 +227,12 @@ class PonoOptions
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
   // ic3 options
-  bool ic3_pregen_;                ///< generalize counterexamples in IC3
-  bool ic3_indgen_;                ///< inductive generalization in IC3
-  unsigned int ic3_gen_max_iter_;  ///< max iterations in ic3 generalization. 0
-                                   ///< means unbounded
-  unsigned int mbic3_indgen_mode;  ///< inductive generalization mode [0,2]
-  bool ic3_functional_preimage_;   ///< functional preimage in IC3
+  bool ic3_pregen_;                 ///< generalize counterexamples in IC3
+  bool ic3_indgen_;                 ///< inductive generalization in IC3
+  unsigned long ic3_gen_max_iter_;  ///< max iterations in ic3 generalization. 0
+                                    ///< means unbounded
+  unsigned long mbic3_indgen_mode;  ///< inductive generalization mode [0,2]
+  bool ic3_functional_preimage_;    ///< functional preimage in IC3
   bool ic3_unsatcore_gen_;  ///< generalize a cube during relative inductiveness
                             ///< check with unsatcore
   bool ic3ia_reduce_preds_;  ///< reduce predicates with unsatcore in IC3IA
@@ -269,8 +269,8 @@ class PonoOptions
                                      ///< increment bound
   unsigned
       sygus_accumulated_term_bound_;  ///< SyGuS Term accumulation bound count
-  unsigned sygus_use_operator_abstraction_;  ///< SyGuS abstract and avoid use
-                                             ///< some operators
+  unsigned long sygus_use_operator_abstraction_;  ///< SyGuS abstract and avoid
+                                                  ///< use some operators
   size_t ic3sa_initial_terms_lvl_;  ///< configures where to find terms for
                                     ///< initial abstraction
   bool ic3sa_interp_;
@@ -281,13 +281,13 @@ class PonoOptions
   //   they do not apply to engine 'BMC-SP')
   // Default bmc_bound_start_ == 0, which starts search for cex at
   // unrolling depth 0 like traditional BMC.
-  unsigned bmc_bound_start_;
+  unsigned long bmc_bound_start_;
   // Default: bmc_bound_step_ == 1, which results in traditional BMC
   // where every bound is checked one by one. bmc_bound_step_ is the
   // value by which the current unrolling depth is increased. For
   // bmc_bound_step_ > 1, BMC searches for cex in intervals of size
   // bmc_bound_step_.
-  unsigned bmc_bound_step_;
+  unsigned long bmc_bound_step_;
   // BMC: add negated initial state predicate in steps k > 0 (default: false)
   bool bmc_neg_init_step_;
   // BMC: double the bound in each step starting from
@@ -333,7 +333,7 @@ class PonoOptions
   // unsatisfiable
   bool kind_one_time_base_check_;
   // K-induction: amount of steps by which transition relation is unrolled
-  unsigned kind_bound_step_;
+  unsigned long kind_bound_step_;
   // Configuration for interp engine:
   // - whether to apply frontier set simplification
   bool interp_frontier_set_simpl_;
