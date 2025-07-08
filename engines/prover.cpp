@@ -103,7 +103,7 @@ void SafetyProver::initialize()
 
   if (!ts_.only_curr(bad_)) {
     throw PonoException(
-        "Property should not contain inputs or next state variables");
+        "Safety property should not contain inputs or next state variables");
   }
 
   BaseProver::initialize();
