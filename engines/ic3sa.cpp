@@ -75,6 +75,9 @@ IC3SA::IC3SA(const SafetyProperty & p,
       boolsort_(solver_->make_sort(BOOL)),
       longest_unroll_(0)
 {
+  // since we passed a fresh RelationalTransitionSystem as the main TS
+  // need to point orig_ts_ to the right place
+  orig_ts_ = ts;
   engine_ = Engine::IC3SA_ENGINE;
   approx_pregen_ = true;
 }
