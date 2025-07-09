@@ -18,7 +18,15 @@
 #include "engines/ic3base.h"
 
 #include <cassert>
+#include <cstddef>
+#include <vector>
 
+#include "core/prop.h"
+#include "core/proverresult.h"
+#include "core/refineresult.h"
+#include "core/ts.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
