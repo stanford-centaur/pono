@@ -22,26 +22,27 @@ namespace pono {
 
 std::vector<Engine> all_engines();
 
-std::shared_ptr<Prover> make_prover(Engine e,
-                                    const SafetyProperty & p,
-                                    const TransitionSystem & ts,
-                                    const smt::SmtSolver & slv,
-                                    PonoOptions opts = PonoOptions());
+std::shared_ptr<SafetyProver> make_prover(Engine e,
+                                          const SafetyProperty & p,
+                                          const TransitionSystem & ts,
+                                          const smt::SmtSolver & slv,
+                                          PonoOptions opts = PonoOptions());
 
-std::shared_ptr<Prover> make_ceg_proph_prover(Engine e,
-                                              const SafetyProperty & p,
-                                              const TransitionSystem & ts,
-                                              const smt::SmtSolver & slv,
-                                              PonoOptions opts = PonoOptions());
-
-std::shared_ptr<Prover> make_cegar_values_prover(
+std::shared_ptr<SafetyProver> make_ceg_proph_prover(
     Engine e,
     const SafetyProperty & p,
     const TransitionSystem & ts,
     const smt::SmtSolver & slv,
     PonoOptions opts = PonoOptions());
 
-std::shared_ptr<Prover> make_cegar_bv_arith_prover(
+std::shared_ptr<SafetyProver> make_cegar_values_prover(
+    Engine e,
+    const SafetyProperty & p,
+    const TransitionSystem & ts,
+    const smt::SmtSolver & slv,
+    PonoOptions opts = PonoOptions());
+
+std::shared_ptr<SafetyProver> make_cegar_bv_arith_prover(
     Engine e,
     const SafetyProperty & p,
     const TransitionSystem & ts,

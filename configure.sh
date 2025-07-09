@@ -22,6 +22,7 @@ Configures the CMAKE build environment.
 --with-coreir           build the CoreIR frontend (default: off)
 --with-coreir-extern    build the CoreIR frontend using an installation of coreir in /usr/local/lib (default: off)
 --debug                 build debug with debug symbols (default: off)
+--docs                  build HTML documentation with Doxygen (default: off)
 --python                compile with python bindings (default: off)
 --static-lib            build a static library (default: shared)
 --static                build a static executable (default: dynamic); implies --static-lib
@@ -47,6 +48,7 @@ with_msat_ic3ia=default
 with_coreir=default
 with_coreir_extern=default
 debug=default
+docs=default
 python=default
 lib_type=SHARED
 static_exec=NO
@@ -98,6 +100,7 @@ do
             debug=yes;
             buildtype=Debug
             ;;
+        --docs) docs=yes;;
         --python)
             python=yes
             ;;
@@ -143,6 +146,9 @@ cmake_opts="-DCMAKE_BUILD_TYPE=$buildtype -DPONO_LIB_TYPE=${lib_type} -DPONO_STA
 
 [ $with_coreir_extern != default ] \
     && cmake_opts="$cmake_opts -DWITH_COREIR_EXTERN=$with_coreir_extern"
+
+[ $docs != default ] \
+    && cmake_opts="$cmake_opts -DBUILD_DOCS=ON"
 
 [ $python != default ] \
     && cmake_opts="$cmake_opts -DBUILD_PYTHON_BINDINGS=ON"

@@ -29,8 +29,16 @@
 
 #include "engines/ic3ia.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <random>
 
+#include "core/prop.h"
+#include "core/refineresult.h"
+#include "core/rts.h"
+#include "core/ts.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
