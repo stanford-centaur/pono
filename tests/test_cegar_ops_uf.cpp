@@ -70,7 +70,7 @@ TEST_P(CegOpsUfTests, BVSimpleSafe)
   Term prop_term = fts.make_term(BVUlt, x, fts.make_term(11, sort));
   SafetyProperty prop(solver, prop_term);
 
-  shared_ptr<Prover> ceg_prover = make_cegar_bv_arith_prover(
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
       opts.engine_, prop, fts, solver, opts, { BVAdd });
 
   ProverResult r = ceg_prover->check_until(5);
@@ -86,7 +86,7 @@ TEST_P(CegOpsUfTests, BVSimpleUnsafe)
   Term prop_term = fts.make_term(BVUlt, x, solver->make_term(10, sort));
   SafetyProperty prop(solver, prop_term);
 
-  shared_ptr<Prover> ceg_prover = make_cegar_bv_arith_prover(
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
       opts.engine_, prop, fts, solver, opts, { BVAdd });
 
   ProverResult r = ceg_prover->check_until(11);
@@ -109,7 +109,7 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
   Term prop_term = fts.make_term(Lt, x, fts.make_term(11, sort));
   SafetyProperty prop(solver, prop_term);
 
-  shared_ptr<Prover> ceg_prover = make_cegar_bv_arith_prover(
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
       opts.engine_, prop, fts, solver, opts, { Plus });
 
   ProverResult r = ceg_prover->check_until(5);
@@ -129,7 +129,7 @@ TEST_P(CegOpsUfTests, IntSimpleUnsafe)
   Term prop_term = fts.make_term(Lt, x, solver->make_term(10, sort));
   SafetyProperty prop(solver, prop_term);
 
-  shared_ptr<Prover> ceg_prover = make_cegar_bv_arith_prover(
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
       opts.engine_, prop, fts, solver, opts, { Plus });
 
   ProverResult r = ceg_prover->check_until(11);
