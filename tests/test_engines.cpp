@@ -286,7 +286,7 @@ TEST_P(InterpOptionsTests, CounterSystemUnsafe)
   Term x = fts.named_terms().at("x");
 
   Term prop_term = s->make_term(BVUlt, x, max_val);
-  Property p(s, prop_term);
+  SafetyProperty p(s, prop_term);
 
   InterpolantMC interp_mc(p, fts, s, opts);
   ProverResult r = interp_mc.prove();
@@ -298,7 +298,7 @@ TEST_P(InterpOptionsTests, CounterSystemSafe)
   Term x = fts.named_terms().at("x");
 
   Term prop_term = s->make_term(BVUle, x, max_val);
-  Property p(s, prop_term);
+  SafetyProperty p(s, prop_term);
 
   InterpolantMC interp_mc(p, fts, s, opts);
   ProverResult r = interp_mc.prove();

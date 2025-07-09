@@ -1,6 +1,5 @@
 #ifdef WITH_MSAT_IC3IA
 
-#include <utility>
 #include <vector>
 
 #include "core/rts.h"
@@ -37,7 +36,7 @@ TEST_P(MsatIC3IAUnitTests, IntCounterSafe)
   rts.constrain_init(rts.make_term(Equal, c, rts.make_term(0, intsort)));
   rts.assign_next(c, rts.make_term(Plus, c, rts.make_term(1, intsort)));
 
-  Property p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
+  SafetyProperty p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
 
   MsatIC3IA msat_ic3ia(p, rts, s);
   ProverResult res = msat_ic3ia.prove();
@@ -61,7 +60,7 @@ TEST_P(MsatIC3IAUnitTests, IntCounterUnsafe)
                     rts.next(c),
                     rts.make_term(Plus, c, rts.make_term(1, intsort)))));
 
-  Property p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
+  SafetyProperty p(s, rts.make_term(Ge, c, rts.make_term(0, intsort)));
 
   MsatIC3IA msat_ic3ia(p, rts, s);
   ProverResult res = msat_ic3ia.prove();
