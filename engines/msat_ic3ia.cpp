@@ -19,19 +19,17 @@
 
 #include <cassert>
 
-#include "smt-switch/msat_factory.h"
 #include "smt-switch/msat_solver.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/term_analysis.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
 
-MsatIC3IA::MsatIC3IA(const Property & p,
+MsatIC3IA::MsatIC3IA(const SafetyProperty & p,
                      const TransitionSystem & ts,
                      const SmtSolver & solver,
                      PonoOptions opt)

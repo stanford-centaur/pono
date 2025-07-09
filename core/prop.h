@@ -20,6 +20,11 @@
 
 namespace pono {
 
+/**
+ * \brief Abstract base class for all property types.
+ *
+ * Holds common metadata such as the associated solver and property name.
+ */
 class AbstractProperty
 {
  public:
@@ -40,6 +45,14 @@ class AbstractProperty
 
 };  // class AbstractProperty
 
+/**
+ * \brief Represents an LTL safety property.
+ *
+ * Corresponds to the negation of `bad` in Btor2.
+ * A counterexample to a safety property is a finite path
+ * from an initial state to a state where the property is violated
+ * (i.e., a bad state).
+ */
 class SafetyProperty : public AbstractProperty
 {
  public:
@@ -57,6 +70,14 @@ class SafetyProperty : public AbstractProperty
 
 using Property [[deprecated("Use SafetyProperty.")]] = SafetyProperty;
 
+/**
+ * \brief Represents an LTL liveness property.
+ *
+ * Corresponds to `justice` (and `fair`) in Btor2.
+ * A counterexample to a liveness property is an
+ * infinite lasso-shaped path starting from an initial state,
+ * along which each term in the property is satisfied infinitely often.
+ */
 class LivenessProperty : public AbstractProperty
 {
  public:

@@ -29,9 +29,14 @@
 
 #pragma once
 
+#include <cstddef>
+
+#include "core/prop.h"
+#include "core/refineresult.h"
+#include "core/ts.h"
 #include "engines/ic3.h"
 #include "modifiers/implicit_predicate_abstractor.h"
-#include "smt-switch/term_translator.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 

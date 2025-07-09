@@ -25,10 +25,23 @@
 #include "engines/ic3sa.h"
 
 #include <cassert>
+#include <cstddef>
+#include <iostream>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
+#include "core/prop.h"
+#include "core/refineresult.h"
 #include "core/rts.h"
+#include "core/ts.h"
+#include "options/options.h"
+#include "smt-switch/result.h"
+#include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
 #include "utils/term_walkers.h"
