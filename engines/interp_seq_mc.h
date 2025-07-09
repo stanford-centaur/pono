@@ -5,7 +5,7 @@
 
 namespace pono {
 
-class InterpSeqMC : public Prover
+class InterpSeqMC : public SafetyProver
 {
  public:
   InterpSeqMC(const SafetyProperty & p,
@@ -15,7 +15,7 @@ class InterpSeqMC : public Prover
 
   ~InterpSeqMC();
 
-  typedef Prover super;
+  typedef SafetyProver super;
 
   void initialize() override;
 
