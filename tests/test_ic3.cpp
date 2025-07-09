@@ -71,6 +71,8 @@ TEST_P(IC3UnitTests, SimpleSystemUnsafe)
   IC3 ic3(p, fts, s);
   ProverResult r = ic3.prove();
   ASSERT_EQ(r, FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3.witness(cex));
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverIC3UnitTests,
