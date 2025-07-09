@@ -79,7 +79,7 @@ class BaseProver
   Engine engine_ = Engine::NONE;
 
   bool initialized_ = false;
-  int reached_k_ = -1;  ///< the last bound reached with no counterexamples
+  int reached_k_;  ///< the last bound reached with no counterexamples
 
 };  // class BaseProver
 
