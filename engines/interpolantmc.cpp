@@ -87,6 +87,12 @@ void InterpolantMC::initialize()
   bad_disjuncts_ = solver_->make_term(false);
 }
 
+void InterpolantMC::reset_env()
+{
+  initialized_ = false;
+  InterpolantMC::initialize();
+}
+
 ProverResult InterpolantMC::check_until(int k)
 {
   initialize();

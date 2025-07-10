@@ -47,7 +47,17 @@ BaseProver::BaseProver(const TransitionSystem & ts,
 {
 }
 
-void BaseProver::initialize() { initialized_ = true; }
+void BaseProver::initialize()
+{
+  initialized_ = true;
+  reached_k_ = -1;
+}
+
+void BaseProver::reset_env()
+{
+  throw PonoException(
+      "Resetting environment is not supported by the chosen engine.");
+}
 
 ProverResult BaseProver::prove() { return check_until(INT_MAX); }
 

@@ -1,10 +1,8 @@
-#include "engines/cegar_ops_uf.h"
-#include "engines/ic3ia.h"
+#include "core/fts.h"
+#include "engines/prover.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
-
-// need mathsat for ic3ia
-#ifdef WITH_MSAT
+#include "utils/make_provers.h"
 
 using namespace pono;
 using namespace smt;
@@ -12,102 +10,134 @@ using namespace std;
 
 namespace pono_tests {
 
-RelationalTransitionSystem counter_ts(SmtSolver s, const Term & x)
+unordered_set<Engine> get_cegar_ops_uf_engines()
 {
-  RelationalTransitionSystem rts(s);
+  return {
+#ifdef WITH_MSAT
+    IC3IA_ENGINE, INTERP,
+#endif
+    IC3SA_ENGINE, BMC_SP, BMC, KIND
+  };
+}
+
+FunctionalTransitionSystem counter_ts(SmtSolver s, const Term & x)
+{
+  FunctionalTransitionSystem fts(s);
 
   Sort sort = x->get_sort();
   Term nx = s->make_symbol("x.next", sort);
-  rts.add_statevar(x, nx);
+  fts.add_statevar(x, nx);
 
-  Term max_val = rts.make_term(10, sort);
+  Term max_val = fts.make_term(10, sort);
   SortKind sk = sort->get_sort_kind();
   PrimOp plus_op = (sk == BV) ? BVAdd : Plus;
   PrimOp lt_op = (sk == BV) ? BVUlt : Lt;
-  Term inc_term = rts.make_term(plus_op, x, rts.make_term(1, sort));
-  Term zero = rts.make_term(0, sort);
+  Term inc_term = fts.make_term(plus_op, x, fts.make_term(1, sort));
+  Term zero = fts.make_term(0, sort);
 
-  rts.assign_next(
-      x, rts.make_term(Ite, rts.make_term(lt_op, x, max_val), inc_term, zero));
-  rts.set_init(rts.make_term(Equal, x, zero));
+  fts.assign_next(
+      x, fts.make_term(Ite, fts.make_term(lt_op, x, max_val), inc_term, zero));
+  fts.set_init(fts.make_term(Equal, x, zero));
 
-  return rts;
+  return fts;
 }
 
-TEST(CegOpsUf, BVSimpleSafe)
+class CegOpsUfTests : public ::testing::Test,
+                      public ::testing::WithParamInterface<Engine>
 {
-  SmtSolver s = create_solver(MSAT);
+ protected:
+  void SetUp() override
+  {
+    opts.engine_ = GetParam();
+    // use cvc5 as the base solver as it supports both BV and Int
+    opts.smt_solver_ = SolverEnum::CVC5;
+    solver = create_solver(opts.smt_solver_);
+    solver->set_opt("produce-unsat-assumptions", "true");
+  }
+  PonoOptions opts;
+  SmtSolver solver;
+};
 
-  Sort sort = s->make_sort(BV, 8);
-  Term x = s->make_symbol("x", sort);
-  RelationalTransitionSystem rts = counter_ts(s, x);
-  Term prop_term = rts.make_term(BVUlt, x, rts.make_term(11, sort));
-  SafetyProperty prop(s, prop_term);
+TEST_P(CegOpsUfTests, BVSimpleSafe)
+{
+  Sort sort = solver->make_sort(BV, 8);
+  Term x = solver->make_symbol("x", sort);
+  FunctionalTransitionSystem fts = counter_ts(solver, x);
+  Term prop_term = fts.make_term(BVUlt, x, fts.make_term(11, sort));
+  SafetyProperty prop(solver, prop_term);
 
-  shared_ptr<CegarOpsUf<IC3IA>> ceg =
-      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
-  ceg->set_ops_to_abstract({ BVAdd });
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
+      opts.engine_, prop, fts, solver, opts, { BVAdd });
 
-  ProverResult r = ceg->check_until(5);
-  ASSERT_EQ(r, ProverResult::TRUE);
+  ProverResult r = ceg_prover->check_until(5);
+  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
+    ASSERT_EQ(r, ProverResult::UNKNOWN);
+  } else {
+    ASSERT_EQ(r, ProverResult::TRUE);
+  }
 }
 
-TEST(CegOpsUf, BVSimpleUnsafe)
+TEST_P(CegOpsUfTests, BVSimpleUnsafe)
 {
-  SmtSolver s = create_solver(MSAT);
+  Sort sort = solver->make_sort(BV, 8);
+  Term x = solver->make_symbol("x", sort);
 
-  Sort sort = s->make_sort(BV, 8);
-  Term x = s->make_symbol("x", sort);
+  FunctionalTransitionSystem fts = counter_ts(solver, x);
+  Term prop_term = fts.make_term(BVUlt, x, solver->make_term(10, sort));
+  SafetyProperty prop(solver, prop_term);
 
-  RelationalTransitionSystem rts = counter_ts(s, x);
-  Term prop_term = rts.make_term(BVUlt, x, s->make_term(10, sort));
-  SafetyProperty prop(s, prop_term);
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
+      opts.engine_, prop, fts, solver, opts, { BVAdd });
 
-  shared_ptr<CegarOpsUf<IC3IA>> ceg =
-      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
-  ceg->set_ops_to_abstract({ BVAdd });
-
-  ProverResult r = ceg->check_until(11);
+  ProverResult r = ceg_prover->check_until(11);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
-TEST(CegOpsUf, IntSimpleSafe)
+TEST_P(CegOpsUfTests, IntSimpleSafe)
 {
-  SmtSolver s = create_solver(MSAT);
+  if (opts.engine_ == Engine::IC3SA_ENGINE) {
+    // IC3SA does not support Int
+    return;
+  }
+  Sort sort = solver->make_sort(INT);
+  Term x = solver->make_symbol("x", sort);
+  FunctionalTransitionSystem fts = counter_ts(solver, x);
+  Term prop_term = fts.make_term(Lt, x, fts.make_term(11, sort));
+  SafetyProperty prop(solver, prop_term);
 
-  Sort sort = s->make_sort(INT);
-  Term x = s->make_symbol("x", sort);
-  RelationalTransitionSystem rts = counter_ts(s, x);
-  Term prop_term = rts.make_term(Lt, x, rts.make_term(11, sort));
-  SafetyProperty prop(s, prop_term);
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
+      opts.engine_, prop, fts, solver, opts, { Plus });
 
-  shared_ptr<CegarOpsUf<IC3IA>> ceg =
-      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
-  ceg->set_ops_to_abstract({ Plus });
-
-  ProverResult r = ceg->check_until(5);
-  ASSERT_EQ(r, ProverResult::TRUE);
+  ProverResult r = ceg_prover->check_until(5);
+  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
+    ASSERT_EQ(r, ProverResult::UNKNOWN);
+  } else {
+    ASSERT_EQ(r, ProverResult::TRUE);
+  }
 }
 
-TEST(CegOpsUf, IntSimpleUnsafe)
+TEST_P(CegOpsUfTests, IntSimpleUnsafe)
 {
-  SmtSolver s = create_solver(MSAT);
+  if (opts.engine_ == Engine::IC3SA_ENGINE) {
+    // IC3SA does not support Int
+    return;
+  }
+  Sort sort = solver->make_sort(INT);
+  Term x = solver->make_symbol("x", sort);
 
-  Sort sort = s->make_sort(INT);
-  Term x = s->make_symbol("x", sort);
+  FunctionalTransitionSystem fts = counter_ts(solver, x);
+  Term prop_term = fts.make_term(Lt, x, solver->make_term(10, sort));
+  SafetyProperty prop(solver, prop_term);
 
-  RelationalTransitionSystem rts = counter_ts(s, x);
-  Term prop_term = rts.make_term(Lt, x, s->make_term(10, sort));
-  SafetyProperty prop(s, prop_term);
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
+      opts.engine_, prop, fts, solver, opts, { Plus });
 
-  shared_ptr<CegarOpsUf<IC3IA>> ceg =
-      make_shared<CegarOpsUf<IC3IA>>(prop, rts, s);
-  ceg->set_ops_to_abstract({ Plus });
-
-  ProverResult r = ceg->check_until(11);
+  ProverResult r = ceg_prover->check_until(11);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedCegOpsUfTests,
+                         CegOpsUfTests,
+                         testing::ValuesIn(get_cegar_ops_uf_engines()));
 
 }  // namespace pono_tests
-
-#endif
