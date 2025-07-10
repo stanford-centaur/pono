@@ -40,6 +40,8 @@ TEST_P(IC3BitsUnitTests, CounterSystemUnsafe)
   IC3Bits ic3bits(p, fts, s);
   ProverResult r = ic3bits.check_until(12);
   ASSERT_EQ(r, FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ic3bits.witness(cex));
 }
 
 TEST_P(IC3BitsUnitTests, CounterSystemSafe)
