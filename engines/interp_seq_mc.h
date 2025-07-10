@@ -1,3 +1,21 @@
+/*********************                                                  */
+/*! \file interp_seq_mc.h
+ ** \verbatim
+ ** Top contributors (to current version):
+ **   Po-Chun Chien
+ ** This file is part of the pono project.
+ ** Copyright (c) 2019 by the authors listed in the file AUTHORS
+ ** (in the top-level source directory) and their institutional affiliations.
+ ** All rights reserved.  See the file LICENSE in the top-level source
+ ** directory for licensing information.\endverbatim
+ **
+ ** \brief Implementation of interpolation-sequence based model checking.
+ **
+ ** This unbounded model checking algorithm was introduced by Yakir Vizel and
+ ** Orna Grumberg in FMCAD 2009 (https://doi.org/10.1109/FMCAD.2009.5351148).
+ **
+ **/
+
 #pragma once
 
 #include "engines/prover.h"
