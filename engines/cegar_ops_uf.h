@@ -46,6 +46,8 @@ class CegarOpsUf : public CEGAR<Prover_T>
 
   bool cegar_refine() override;
 
+  void refine_subprover_ts_base(const smt::UnorderedTermSet & axioms,
+                                bool skip_init);
   void refine_subprover_ts(const smt::UnorderedTermSet & axioms,
                            bool skip_init);
 

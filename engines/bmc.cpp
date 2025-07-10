@@ -44,13 +44,15 @@ void Bmc::initialize()
 
   super::initialize();
 
-  // NOTE: For any engine; There's an implicit assumption that this solver is
-  // only used for model checking once. Otherwise there could be conflicting
-  // assertions to the solver or it could just be polluted with redundant
-  // assertions. In the future we can use solver_->reset_assertions(), but it is
-  // not currently supported in boolector.
   logger.log(2, "BMC adding init constraint for step 0");
+  solver_->reset_assertions();
   solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+}
+
+void Bmc::reset_env()
+{
+  initialized_ = false;
+  Bmc::initialize();
 }
 
 ProverResult Bmc::check_until(int k)
