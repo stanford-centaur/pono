@@ -30,32 +30,11 @@ KInduction::KInduction(const SafetyProperty & p,
 {
   engine_ = Engine::KIND;
   kind_engine_name_ = "k-induction";
-}
-
-KInduction::~KInduction() {}
-
-void KInduction::initialize()
-{
-  if (initialized_) {
-    return;
-  }
-
-  super::initialize();
-
-  // NOTE: There's an implicit assumption that this solver is only used for
-  // model checking once Otherwise there could be conflicting assertions to
-  // the solver or it could just be polluted with redundant assertions in the
-  // future we can use solver_->reset_assertions(), but it is not currently
-  // supported in boolector
-  init0_ = unroller_.at_time(ts_.init(), 0);
-  false_ = solver_->make_term(false);
 
   // selector literal to toggle initial state predicate
   Sort boolsort = solver_->make_sort(smt::BOOL);
   sel_init_ = solver_->make_symbol("sel_init", boolsort);
   not_sel_init_ = solver_->make_term(Not, sel_init_);
-  // permanently add term '(sel_init0_ OR init0_)'
-  solver_->assert_formula(solver_->make_term(PrimOp::Or, sel_init_, init0_));
 
   // add second selector literal to toggle conjunction of negated
   // initial state terms
@@ -85,6 +64,30 @@ void KInduction::initialize()
   //   solver_->assert_formula(not_sel_simple_path_terms_);
   //   solver_->assert_formula(not_sel_neg_bad_state_terms_);
   // }
+}
+
+KInduction::~KInduction() {}
+
+void KInduction::initialize()
+{
+  if (initialized_) {
+    return;
+  }
+
+  super::initialize();
+
+  init0_ = unroller_.at_time(ts_.init(), 0);
+  false_ = solver_->make_term(false);
+
+  // permanently add term '(sel_init0_ OR init0_)'
+  solver_->reset_assertions();
+  solver_->assert_formula(solver_->make_term(PrimOp::Or, sel_init_, init0_));
+}
+
+void KInduction::reset_env()
+{
+  initialized_ = false;
+  KInduction::initialize();
 }
 
 ProverResult KInduction::check_until(int k)
@@ -129,7 +132,7 @@ ProverResult KInduction::check_until(int k)
     // disable initial state predicate and its negated instances
     // enable negated bad state terms
     // enable simple path
-    while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+    sel_assumption_.clear();
     sel_assumption_.push_back(sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
@@ -162,7 +165,7 @@ ProverResult KInduction::check_until(int k)
       // enable initial state predicate and its negated instances
       // enable negated bad state terms
       // enable simple path terms
-      while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+      sel_assumption_.clear();
       sel_assumption_.push_back(not_sel_init_);
       sel_assumption_.push_back(not_sel_neg_init_terms_);
       sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
@@ -194,7 +197,7 @@ ProverResult KInduction::check_until(int k)
     // disable initial state predicate and its negated instances
     // enable negated bad state terms
     // enable simple path
-    while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+    sel_assumption_.clear();
     sel_assumption_.push_back(sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
@@ -232,7 +235,7 @@ ProverResult KInduction::check_until(int k)
     // enable initial state predicate but NOT its negated instances
     // enable negated bad state terms
     // enable simple path
-    while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+    sel_assumption_.clear();
     sel_assumption_.push_back(not_sel_init_);
     sel_assumption_.push_back(sel_neg_init_terms_);
     sel_assumption_.push_back(not_sel_neg_bad_state_terms_);
@@ -406,7 +409,7 @@ bool KInduction::final_base_case_check(int cur_bound)
   // DISABLE simple path --- maybe we could keep it if UNSAT
   // result in inductive check was not due to simple path
   // constraints(?)
-  while (!sel_assumption_.empty()) sel_assumption_.pop_back();
+  sel_assumption_.clear();
   sel_assumption_.push_back(not_sel_init_);
   sel_assumption_.push_back(sel_neg_init_terms_);
   sel_assumption_.push_back(sel_neg_bad_state_terms_);
