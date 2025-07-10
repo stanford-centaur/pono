@@ -60,10 +60,6 @@ class CegOpsUfTests : public ::testing::Test,
 
 TEST_P(CegOpsUfTests, BVSimpleSafe)
 {
-  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
-    // skip BMC on safe tasks as they return UNKNOWN
-    return;
-  }
   Sort sort = solver->make_sort(BV, 8);
   Term x = solver->make_symbol("x", sort);
   FunctionalTransitionSystem fts = counter_ts(solver, x);
@@ -74,7 +70,11 @@ TEST_P(CegOpsUfTests, BVSimpleSafe)
       opts.engine_, prop, fts, solver, opts, { BVAdd });
 
   ProverResult r = ceg_prover->check_until(5);
-  ASSERT_EQ(r, ProverResult::TRUE);
+  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
+    ASSERT_EQ(r, ProverResult::UNKNOWN);
+  } else {
+    ASSERT_EQ(r, ProverResult::TRUE);
+  }
 }
 
 TEST_P(CegOpsUfTests, BVSimpleUnsafe)
@@ -95,10 +95,6 @@ TEST_P(CegOpsUfTests, BVSimpleUnsafe)
 
 TEST_P(CegOpsUfTests, IntSimpleSafe)
 {
-  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
-    // skip BMC on safe tasks as they return UNKNOWN
-    return;
-  }
   if (opts.engine_ == Engine::IC3SA_ENGINE) {
     // IC3SA does not support Int
     return;
@@ -113,7 +109,11 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
       opts.engine_, prop, fts, solver, opts, { Plus });
 
   ProverResult r = ceg_prover->check_until(5);
-  ASSERT_EQ(r, ProverResult::TRUE);
+  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
+    ASSERT_EQ(r, ProverResult::UNKNOWN);
+  } else {
+    ASSERT_EQ(r, ProverResult::TRUE);
+  }
 }
 
 TEST_P(CegOpsUfTests, IntSimpleUnsafe)
