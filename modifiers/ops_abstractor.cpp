@@ -22,12 +22,14 @@ using namespace std;
 namespace pono {
 
 OpsAbstractor::OpsAbstractor(const TransitionSystem & conc_ts,
-                             TransitionSystem & abs_ts)
+                             TransitionSystem & abs_ts,
+                             bool abs_using_free_symbols)
     : super(conc_ts, abs_ts),
       solver_(abs_ts_.solver()),
       abs_walker_(*this, &abstraction_cache_),
       conc_walker_(*this, &concretization_cache_),
-      min_bw_(0)
+      min_bw_(0),
+      abs_using_free_symbols_(abs_using_free_symbols)
 {
 }
 
@@ -206,20 +208,31 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
         }
         sv.push_back(sort);
 
-        Term abs_op;
-        auto it = oa_.abs_op_symbols_.find(op_str);
-        if (it == oa_.abs_op_symbols_.end()) {
-          Sort func_sort = solver_->make_sort(FUNCTION, sv);
-          abs_op = solver_->make_symbol(op_str, func_sort);
-          oa_.abs_op_symbols_[op_str] = abs_op;
-          oa_.abs_symbols_to_op_[abs_op] = op;
+        if (oa_.abs_using_free_symbols_) {
+          // abstract ops using free input symbols
+          // each abstracted op is assigned an unique name
+          op_str += "_id" + to_string(oa_.abs_terms_.size());
+          // create a new state var without next state (equivalent to an input)
+          // do not use input as some engines (e.g., IC3IA) do not support it
+          res = oa_.abs_ts_.make_statevar(op_str, sort);
         } else {
-          abs_op = it->second;
-        }
+          // abstract ops using uninterpreted functions
+          Term abs_op;
+          auto it = oa_.abs_op_symbols_.find(op_str);
+          if (it == oa_.abs_op_symbols_.end()) {
+            Sort func_sort = solver_->make_sort(FUNCTION, sv);
+            abs_op = solver_->make_symbol(op_str, func_sort);
+            oa_.abs_op_symbols_[op_str] = abs_op;
+            oa_.abs_symbols_to_op_[abs_op] = op;
+          } else {
+            abs_op = it->second;
+          }
 
-        TermVec args = { abs_op };
-        args.insert(args.end(), cached_children.begin(), cached_children.end());
-        res = solver_->make_term(Apply, args);
+          TermVec args = { abs_op };
+          args.insert(
+              args.end(), cached_children.begin(), cached_children.end());
+          res = solver_->make_term(Apply, args);
+        }
 
         assert(oa_.abs_terms_.find(res) == oa_.abs_terms_.end());
         oa_.abs_terms_[res] = solver_->make_term(op, cached_children);

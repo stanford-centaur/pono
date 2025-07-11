@@ -145,6 +145,7 @@ class PonoOptions
         cegp_abs_vals_cutoff_(default_cegp_abs_vals_cutoff_),
         cegp_strong_abstraction_(default_cegp_strong_abstraction_),
         ceg_bv_arith_(default_ceg_bv_arith_),
+        ceg_bv_arith_as_free_symbol_(default_ceg_bv_arith_as_free_symbol_),
         ceg_bv_arith_min_bw_(default_ceg_bv_arith_min_bw_),
         promote_inputvars_(default_promote_inputvars_),
         sygus_term_mode_(default_sygus_term_mode_),
@@ -258,6 +259,9 @@ class PonoOptions
   unsigned long cegp_abs_vals_cutoff_;  ///< cutoff to abstract a value
   bool cegp_strong_abstraction_;  ///< use strong abstraction (no equality UFs)
   bool ceg_bv_arith_;             ///< CEGAR -- Abstract BV arithmetic operators
+  bool ceg_bv_arith_as_free_symbol_;  ///< Abstract BV arithmetic operators as
+                                      ///< free symbols (instead of
+                                      ///< uninterpreted functions)
   unsigned long
       ceg_bv_arith_min_bw_;  ///< Only abstract operators having bitwidth
                              ///< strictly greater than this number
@@ -396,6 +400,7 @@ class PonoOptions
   static const unsigned long default_cegp_abs_vals_cutoff_ = 100;
   static const bool default_cegp_strong_abstraction_ = false;
   static const bool default_ceg_bv_arith_ = false;
+  static const bool default_ceg_bv_arith_as_free_symbol_ = false;
   static const unsigned long default_ceg_bv_arith_min_bw_ = 16;
   static const bool default_promote_inputvars_ = false;
   static const SyGuSTermMode default_sygus_term_mode_ = TERM_MODE_AUTO;
