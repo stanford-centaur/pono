@@ -53,7 +53,8 @@ void InterpSeqMC::initialize()
 
   interpolator_->reset_assertions();
 
-  // register UF symbols
+  // register uninterpreted-function symbols,
+  // (introduced during abstraction)
   UnorderedTermMap & cache = to_solver_.get_cache();
   UnorderedTermSet free_symbols;
   get_free_symbols(bad_, free_symbols);
