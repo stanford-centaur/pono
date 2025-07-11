@@ -159,6 +159,12 @@ cdef extern from "engines/interpolantmc.h" namespace "pono":
                       c_SmtSolver & s) except +
 
 
+cdef extern from "engines/interp_seq_mc.h" namespace "pono":
+    cdef cppclass InterpSeqMC(Prover):
+        InterpSeqMC(const Property & p, const TransitionSystem & ts,
+                      c_SmtSolver & s) except +
+
+
 cdef extern from "engines/mbic3.h" namespace "pono":
     cdef cppclass ModelBasedIC3(Prover):
         ModelBasedIC3(const Property & p, const TransitionSystem & ts,

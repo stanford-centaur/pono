@@ -165,7 +165,7 @@ const option::Descriptor usage[] = {
     "engine",
     Arg::NonEmpty,
     "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, interp, "
-    "mbic3, ic3bits, ic3ia, msat-ic3ia, ic3sa, sygus-pdr]." },
+    "ismc, mbic3, ic3bits, ic3ia, msat-ic3ia, ic3sa, sygus-pdr]." },
   { BOUND,
     0,
     "k",
@@ -1010,6 +1010,10 @@ string to_string(Engine e)
     }
     case INTERP: {
       res = "interp";
+      break;
+    }
+    case ISMC: {
+      res = "ismc";
       break;
     }
     case MBIC3: {

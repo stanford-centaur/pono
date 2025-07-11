@@ -24,6 +24,7 @@
 #include "engines/ic3bits.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
+#include "engines/interp_seq_mc.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "engines/mbic3.h"
@@ -40,7 +41,7 @@ namespace pono {
 
 vector<Engine> all_engines()
 {
-  return { BMC, BMC_SP, KIND, MBIC3, INTERP, IC3IA_ENGINE, IC3SA_ENGINE };
+  return { BMC, BMC_SP, KIND, MBIC3, INTERP, ISMC, IC3IA_ENGINE, IC3SA_ENGINE };
 }
 
 shared_ptr<SafetyProver> make_prover(Engine e,
@@ -57,6 +58,8 @@ shared_ptr<SafetyProver> make_prover(Engine e,
     return make_shared<KInduction>(p, ts, slv, opts);
   } else if (e == INTERP) {
     return make_shared<InterpolantMC>(p, ts, slv, opts);
+  } else if (e == ISMC) {
+    return make_shared<InterpSeqMC>(p, ts, slv, opts);
   } else if (e == MBIC3) {
     return make_shared<ModelBasedIC3>(p, ts, slv, opts);
   } else if (e == IC3_BITS) {
@@ -90,6 +93,8 @@ shared_ptr<SafetyProver> make_ceg_proph_prover(Engine e,
     return std::make_shared<CegProphecyArrays<KInduction>>(p, ts, slv, opts);
   } else if (e == INTERP) {
     return std::make_shared<CegProphecyArrays<InterpolantMC>>(p, ts, slv, opts);
+  } else if (e == ISMC) {
+    return std::make_shared<CegProphecyArrays<InterpSeqMC>>(p, ts, slv, opts);
   } else if (e == MBIC3) {
     return std::make_shared<CegProphecyArrays<ModelBasedIC3>>(p, ts, slv, opts);
   } else if (e == IC3IA_ENGINE) {
