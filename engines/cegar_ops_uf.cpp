@@ -18,9 +18,13 @@
 
 #include "core/rts.h"
 #include "core/ts.h"
+#include "engines/bmc.h"
+#include "engines/bmc_simplepath.h"
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
+#include "engines/interpolantmc.h"
+#include "engines/kinduction.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -224,15 +228,8 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 }
 
 template <class Prover_T>
-void CegarOpsUf<Prover_T>::refine_subprover_ts(const UnorderedTermSet & axioms,
-                                               bool skip_init)
-{
-  throw PonoException("CegarOpsUf::refine_subprover_ts NYI for generic case");
-}
-
-template <>
-void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
-                                            bool skip_init)
+void CegarOpsUf<Prover_T>::refine_subprover_ts_base(
+    const UnorderedTermSet & axioms, bool skip_init)
 {
   for (const auto & a : axioms) {
     Term ta = from_cegopsuf_solver_.transfer_term(a, BOOL);
@@ -252,7 +249,21 @@ void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
       }
     }
   }
+}
 
+template <class Prover_T>
+void CegarOpsUf<Prover_T>::refine_subprover_ts(const UnorderedTermSet & axioms,
+                                               bool skip_init)
+{
+  refine_subprover_ts_base(axioms, skip_init);
+  super::reset_env();
+}
+
+template <>
+void CegarOpsUf<IC3IA>::refine_subprover_ts(const UnorderedTermSet & axioms,
+                                            bool skip_init)
+{
+  refine_subprover_ts_base(axioms, skip_init);
   super::reabstract();
 }
 
@@ -305,8 +316,12 @@ void CegarOpsUf<CegProphecyArrays<IC3IA>>::refine_subprover_ts(
 }
 
 // TODO add other template classes
+template class CegarOpsUf<Bmc>;
+template class CegarOpsUf<BmcSimplePath>;
 template class CegarOpsUf<IC3IA>;
 template class CegarOpsUf<IC3SA>;
+template class CegarOpsUf<InterpolantMC>;
+template class CegarOpsUf<KInduction>;
 template class CegarOpsUf<CegProphecyArrays<IC3IA>>;
 
 }  // namespace pono

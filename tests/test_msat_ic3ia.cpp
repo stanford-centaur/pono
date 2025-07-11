@@ -67,7 +67,7 @@ TEST_P(MsatIC3IAUnitTests, IntCounterUnsafe)
   EXPECT_EQ(res, ProverResult::FALSE);
 
   vector<UnorderedTermMap> witness;
-  msat_ic3ia.witness(witness);
+  ASSERT_TRUE(msat_ic3ia.witness(witness));
   EXPECT_EQ(witness.size(), counter_limit + 2);
 }
 

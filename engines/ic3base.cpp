@@ -183,6 +183,7 @@ ProverResult IC3Base::check_until(int k)
       } else if (s == REFINE_NONE) {
         // this is a real counterexample
         assert(cex_.size());
+        compute_witness();
         return ProverResult::FALSE;
       } else {
         assert(s == REFINE_FAIL);
@@ -201,11 +202,6 @@ ProverResult IC3Base::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-bool IC3Base::witness(std::vector<smt::UnorderedTermMap> & out)
-{
-  throw PonoException("IC3 witness NYI");
-}
-
 size_t IC3Base::witness_length() const
 {
   // expecting there to have been a witness computed
@@ -214,6 +210,41 @@ size_t IC3Base::witness_length() const
 }
 
 // Protected Methods
+
+bool IC3Base::compute_witness()
+{
+  solver_->reset_assertions();
+
+  // construct base BMC query
+  const size_t wit_len = witness_length();
+  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+  for (size_t t = 0; t < wit_len; ++t) {
+    solver_->assert_formula(unroller_.at_time(ts_.trans(), t));
+  }
+  solver_->assert_formula(unroller_.at_time(bad_, wit_len));
+
+  // make stored cex additional constraint to guide the search
+  TermVec state_constraints;
+  state_constraints.reserve(wit_len);
+  for (size_t t = 0; t < wit_len; ++t) {
+    state_constraints.push_back(unroller_.at_time(cex_.at(t), t));
+  }
+
+  Result r = solver_->check_sat_assuming(state_constraints);
+  if (!r.is_sat()) {
+    logger.log(1,
+               "IC3Base: failed to reconstruct CEX path with state "
+               "constraints, falling back to plain BMC");
+    r = solver_->check_sat();
+  }
+
+  if (!r.is_sat()) {
+    logger.log(1, "IC3Base: failed to compute witness");
+    return false;
+  }
+
+  return super::compute_witness();
+}
 
 IC3Formula IC3Base::ic3formula_disjunction(const TermVec & c) const
 {
