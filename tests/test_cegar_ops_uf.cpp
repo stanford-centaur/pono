@@ -43,12 +43,14 @@ FunctionalTransitionSystem counter_ts(SmtSolver s, const Term & x)
 }
 
 class CegOpsUfTests : public ::testing::Test,
-                      public ::testing::WithParamInterface<Engine>
+                      public ::testing::WithParamInterface<tuple<Engine, bool>>
 {
  protected:
   void SetUp() override
   {
-    opts.engine_ = GetParam();
+    tuple<Engine, bool> test_param = GetParam();
+    opts.engine_ = get<0>(test_param);
+    opts.ceg_bv_arith_as_free_symbol_ = get<1>(test_param);
     // use cvc5 as the base solver as it supports both BV and Int
     opts.smt_solver_ = SolverEnum::CVC5;
     solver = create_solver(opts.smt_solver_);
@@ -136,8 +138,10 @@ TEST_P(CegOpsUfTests, IntSimpleUnsafe)
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
-INSTANTIATE_TEST_SUITE_P(ParameterizedCegOpsUfTests,
-                         CegOpsUfTests,
-                         testing::ValuesIn(get_cegar_ops_uf_engines()));
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedCegOpsUfTests,
+    CegOpsUfTests,
+    testing::Combine(testing::ValuesIn(get_cegar_ops_uf_engines()),
+                     testing::ValuesIn({ false, true })));
 
 }  // namespace pono_tests
