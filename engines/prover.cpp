@@ -33,7 +33,7 @@ using namespace smt;
 
 namespace pono {
 
-BaseProver::BaseProver(const TransitionSystem & ts, const smt::SmtSolver & s)
+BaseProver::BaseProver(const TransitionSystem & ts, const SmtSolver & s)
     : BaseProver(ts, s, PonoOptions())
 {
 }
