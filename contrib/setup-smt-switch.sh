@@ -82,7 +82,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
         ./contrib/setup-cvc5.sh
     fi
     if [ $WITH_BOOLECTOR = ON ]; then
-        ./contrib/setup-btor.sh
+        ./contrib/setup-boolector.sh
     fi
     # pass bison/flex directories from smt-switch perspective
     ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install

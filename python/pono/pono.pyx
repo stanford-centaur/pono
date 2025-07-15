@@ -25,6 +25,7 @@ from pono_imp cimport IC3Bits as c_IC3Bits
 from pono_imp cimport IC3IA as c_IC3IA
 from pono_imp cimport IC3SA as c_IC3SA
 from pono_imp cimport InterpolantMC as c_InterpolantMC
+from pono_imp cimport InterpSeqMC as c_InterpSeqMC
 from pono_imp cimport ModelBasedIC3 as c_ModelBasedIC3
 IF WITH_MSAT_IC3IA == "ON":
     from pono_imp cimport MsatIC3IA as c_MsatIC3IA

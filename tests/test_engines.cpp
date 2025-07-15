@@ -4,6 +4,7 @@
 #include "core/rts.h"
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
+#include "engines/interp_seq_mc.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
@@ -152,6 +153,24 @@ TEST_P(InterpUnitTest, InterpFalse)
   ASSERT_EQ(r, ProverResult::FALSE);
   vector<UnorderedTermMap> cex;
   ASSERT_TRUE(itpmc.witness(cex));
+}
+
+TEST_P(InterpUnitTest, IsmcTrue)
+{
+  InterpSeqMC ismc(*true_p, *ts, s);
+  ProverResult r = ismc.check_until(20);
+  ASSERT_EQ(r, ProverResult::TRUE);
+  Term invar = ismc.invar();
+  ASSERT_TRUE(check_invar(*ts, true_p->prop(), invar));
+}
+
+TEST_P(InterpUnitTest, IsmcFalse)
+{
+  InterpSeqMC ismc(*false_p, *ts, s);
+  ProverResult r = ismc.check_until(20);
+  ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ismc.witness(cex));
 }
 
 INSTANTIATE_TEST_SUITE_P(

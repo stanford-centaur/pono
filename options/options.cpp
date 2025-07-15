@@ -164,7 +164,7 @@ const option::Descriptor usage[] = {
     "engine",
     Arg::NonEmpty,
     "  --engine, -e <engine> \tSelect engine from [bmc, bmc-sp, ind, interp, "
-    "mbic3, ic3bits, ic3ia, msat-ic3ia, ic3sa, sygus-pdr]." },
+    "ismc, mbic3, ic3bits, ic3ia, msat-ic3ia, ic3sa, sygus-pdr]." },
   { BOUND,
     0,
     "k",
@@ -454,7 +454,7 @@ const option::Descriptor usage[] = {
     "ceg-bv-arith",
     Arg::None,
     "  --ceg-bv-arith \tabstraction-refinement for the BV arithmetic operators "
-    "(mul, div, rem, mod). (only supported for IC3IA)" },
+    "(mul, div, rem, mod)" },
   { CEG_BV_ARITH_MIN_BW,
     0,
     "",
@@ -1002,6 +1002,10 @@ string to_string(Engine e)
     }
     case INTERP: {
       res = "interp";
+      break;
+    }
+    case ISMC: {
+      res = "ismc";
       break;
     }
     case MBIC3: {
