@@ -30,6 +30,7 @@
 #include "utils/exceptions.h"
 
 using namespace smt;
+using namespace std;
 
 namespace pono {
 
@@ -49,11 +50,7 @@ BaseProver::BaseProver(const TransitionSystem & ts,
 {
 }
 
-void BaseProver::initialize()
-{
-  initialized_ = true;
-  reached_k_ = -1;
-}
+void BaseProver::initialize() { initialized_ = true; }
 
 void BaseProver::reset_env()
 {
@@ -92,7 +89,7 @@ Term BaseProver::to_orig_ts(Term t)
 
 TransitionSystem & BaseProver::prover_interface_ts() { return ts_; }
 
-bool BaseProver::witness(std::vector<UnorderedTermMap> & out)
+bool BaseProver::witness(vector<UnorderedTermMap> & out)
 {
   if (!witness_.size()) {
     throw PonoException(
@@ -100,8 +97,8 @@ bool BaseProver::witness(std::vector<UnorderedTermMap> & out)
         "a counterexample and that the engine supports witness generation.");
   }
 
-  std::function<Term(const Term &, SortKind)> transfer_to_prover_as;
-  std::function<Term(const Term &, SortKind)> transfer_to_orig_ts_as;
+  function<Term(const Term &, SortKind)> transfer_to_prover_as;
+  function<Term(const Term &, SortKind)> transfer_to_orig_ts_as;
   TermTranslator to_orig_ts_solver(orig_ts_.solver());
   if (solver_ == orig_ts_.solver()) {
     // don't need to transfer terms if the solvers are the same
@@ -146,7 +143,7 @@ bool BaseProver::witness(std::vector<UnorderedTermMap> & out)
       try {
         map[v] = transfer_to_orig_ts_as(wit_map.at(pv), sk);
       }
-      catch (std::exception & e) {
+      catch (exception & e) {
         success = false;
         break;
       }
@@ -159,7 +156,7 @@ bool BaseProver::witness(std::vector<UnorderedTermMap> & out)
         try {
           map[elem.second] = transfer_to_orig_ts_as(wit_map.at(pt), sk);
         }
-        catch (std::exception & e) {
+        catch (exception & e) {
           success = false;
           break;
         }
@@ -169,8 +166,6 @@ bool BaseProver::witness(std::vector<UnorderedTermMap> & out)
 
   return success;
 }
-
-std::size_t BaseProver::witness_length() const { return reached_k_ + 1; }
 
 SafetyProver::SafetyProver(const SafetyProperty & p,
                            const TransitionSystem & ts,
@@ -200,6 +195,8 @@ void SafetyProver::initialize()
 
   BaseProver::initialize();
 }
+
+size_t SafetyProver::witness_length() const { return reached_k_ + 1; }
 
 Term SafetyProver::invar()
 {
@@ -249,11 +246,11 @@ LivenessProver::LivenessProver(const LivenessProperty & property,
       justice_conditions_(orig_property_.terms())
 {
   if (ts_.solver() != orig_property_.solver()) {
-    std::for_each(justice_conditions_.begin(),
-                  justice_conditions_.end(),
-                  [this](Term & t) {
-                    return to_prover_solver_.transfer_term(t, SortKind::BOOL);
-                  });
+    for_each(justice_conditions_.begin(),
+             justice_conditions_.end(),
+             [this](Term & t) {
+               return to_prover_solver_.transfer_term(t, SortKind::BOOL);
+             });
   }
 }
 

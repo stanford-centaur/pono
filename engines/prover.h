@@ -98,7 +98,6 @@ class BaseProver
   Engine engine_ = Engine::NONE;
 
   bool initialized_ = false;
-  int reached_k_;  ///< the last bound reached with no counterexamples
 
   std::vector<smt::UnorderedTermMap>
       witness_;  ///< populated by a witness if a CEX is found; uses terms from
@@ -115,6 +114,13 @@ class SafetyProver : public BaseProver
                PonoOptions opt = {});
 
   void initialize() override;
+
+  /** Returns length of the witness.
+   *  By default, returns reached_k_+1, because reached_k_ was the
+   *  last step that completed without finding a bug
+   *  but some algorithms such as IC3 might need to follow the trace
+   */
+  std::size_t witness_length() const override;
 
   /** Gives a term representing an inductive invariant over current state
    * variables. Only valid if the property has been proven true. Only supported
@@ -139,6 +145,8 @@ class SafetyProver : public BaseProver
 
   smt::Term invar_;  ///< populated with an invariant if the engine supports it;
                      ///< uses terms from the engine's solver
+
+  int reached_k_ = -1;  ///< the last bound reached with no counterexamples
 };  // class SafetyProver
 
 class LivenessProver : public BaseProver
