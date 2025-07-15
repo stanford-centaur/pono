@@ -67,6 +67,7 @@ jobs:
         run: |
           source .venv/bin/activate
           ./contrib/setup-smt-switch.sh --python ${{ matrix.extra_solver_flags }}
+          python3 -m pip install $(ls deps/smt-switch/build/python/*.whl)
 
       - name: Configure
         run: |
