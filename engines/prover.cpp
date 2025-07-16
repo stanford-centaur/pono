@@ -167,6 +167,16 @@ bool BaseProver::witness(vector<UnorderedTermMap> & out)
   return success;
 }
 
+size_t BaseProver::witness_length() const
+{
+  if (!witness_.size()) {
+    throw PonoException(
+        "Recovering witness size failed. Make sure that there was a "
+        "counterexample and that the engine supports witness generation.");
+  }
+  return witness_.size();
+}
+
 SafetyProver::SafetyProver(const SafetyProperty & p,
                            const TransitionSystem & ts,
                            const SmtSolver & s,

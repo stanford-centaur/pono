@@ -48,11 +48,8 @@ class BaseProver
    */
   virtual bool witness(std::vector<smt::UnorderedTermMap> & out);
 
-  /** Returns length of the witness.
+  /** Returns the length of the witness.
    *  This can be cheaper than actually computing the witness.
-   *  By default, returns reached_k_+1, because reached_k_ was the
-   *  last step that completed without finding a bug
-   *  but some algorithms such as IC3 might need to follow the trace
    */
   virtual std::size_t witness_length() const;
 
@@ -115,7 +112,7 @@ class SafetyProver : public BaseProver
 
   void initialize() override;
 
-  /** Returns length of the witness.
+  /** Returns the length of the witness.
    *  By default, returns reached_k_+1, because reached_k_ was the
    *  last step that completed without finding a bug
    *  but some algorithms such as IC3 might need to follow the trace
