@@ -4,7 +4,7 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=80ff7514812a8011f417f82220f8ef1d3a62e248
+SMT_SWITCH_VERSION=85304dd721aa5d095f42ad346c6abd5505800e2c
 
 usage () {
     cat <<EOF
@@ -82,7 +82,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
         ./contrib/setup-cvc5.sh
     fi
     if [ $WITH_BOOLECTOR = ON ]; then
-        ./contrib/setup-btor.sh
+        ./contrib/setup-boolector.sh
     fi
     # pass bison/flex directories from smt-switch perspective
     ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
