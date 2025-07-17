@@ -204,6 +204,8 @@ void SafetyProver::initialize()
   }
 
   BaseProver::initialize();
+
+  reached_k_ = -1;
 }
 
 size_t SafetyProver::witness_length() const { return reached_k_ + 1; }
