@@ -57,6 +57,8 @@ class IC3IA : public IC3
   void add_important_var(smt::Term v);
 
  protected:
+  bool compute_witness() override;
+
   // Note: important that conc_ts_ and abs_ts_ are before ia_
   //       because we will pass them to ia_ and they must be
   //       be initialized first
