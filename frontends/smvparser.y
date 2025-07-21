@@ -1335,6 +1335,8 @@ simple_expr: constant {
                 smt::Term t = $3->getTerm();
                 smt::SortKind sk = t->get_sort()->get_sort_kind();
                 assert(sk == smt::REAL || sk == smt::FLOAT64 || sk == smt::INT);
+                if (sk == smt::FLOAT64)
+                  t = enc.solver_->make_term(smt::FP_To_REAL, t);
                 smt::Term res = enc.solver_->make_term(smt::To_Int, t);
                 $$ = new SMVnode(res, SMVnode::Integer);
               }
