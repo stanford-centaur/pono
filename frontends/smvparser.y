@@ -852,7 +852,15 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term e;
               if((bvs_a == SMVnode::Real && bvs_b == SMVnode::Integer) || (bvs_a == SMVnode::Integer && bvs_b == SMVnode::Real) ){
-                e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
+                smt::Term a_term = a->getTerm();
+                smt::Term b_term = b->getTerm();
+                if (bvs_a == SMVnode::Real || bvs_b == SMVnode::Real){
+                  if (bvs_a != SMVnode::Real)
+                    a_term = enc.solver_->make_term(smt::To_Real, a_term);
+                  if (bvs_b != SMVnode::Real)
+                    b_term = enc.solver_->make_term(smt::To_Real, b_term);
+                }
+                e = enc.solver_->make_term(smt::Equal, a_term, b_term);
               }else if(bvs_a != bvs_b){
                  throw PonoException(to_string(enc.loc.end.line) +" Unsigned/Signed mismatch");
               } else{
@@ -1236,7 +1244,17 @@ simple_expr: constant {
               }
             }
             | tok_toint "(" basic_expr ")"{
-              throw PonoException("No type convert");
+              if(enc.module_flat){
+                SMVnode *a = $3;
+                smt::Sort sort = a->getTerm()->get_sort();
+                if(sort->get_sort_kind() != smt::BV){
+                  throw PonoException("Can't convert non-bitvector to integer.");
+                }
+                smt::Term res = enc.solver_->make_term(smt::BV_To_Nat, a->getTerm());
+                $$ = new SMVnode(res,SMVnode::Integer);
+              }else{
+                $$ = new toint_expr($3);
+              }
             }
             | tok_count "(" basic_expr_list ")"{
               throw PonoException("No type convert");
