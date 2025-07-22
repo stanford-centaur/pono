@@ -178,8 +178,10 @@ bool InterpSeqMC::step(int i)
 bool InterpSeqMC::step_0()
 {
   solver_->reset_assertions();
-  solver_->assert_formula(reach_seq_.at(0));
-  solver_->assert_formula(bad_);
+  // push the unrolled formulas here
+  // as compute_witness() rely on timed variables
+  solver_->assert_formula(unroller_.at_time(reach_seq_.at(0), 0));
+  solver_->assert_formula(unroller_.at_time(bad_, 0));
 
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
