@@ -183,6 +183,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/engines/cegar_ops_uf.cpp"
   "${PROJECT_SOURCE_DIR}/engines/cegar_values.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ceg_prophecy_arrays.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/dual_approx_reach.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3base.cpp"
   "${PROJECT_SOURCE_DIR}/engines/ic3bits.cpp"
