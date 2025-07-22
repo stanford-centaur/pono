@@ -93,9 +93,39 @@ ProverResult DualApproxReach::check_until(int k)
   return ProverResult::UNKNOWN;
 }
 
-bool DualApproxReach::step(int i) { throw PonoException("NYI"); }
+bool DualApproxReach::step(int i)
+{
+  if (i <= reached_k_) {
+    return false;
+  }
 
-bool DualApproxReach::step_0() { throw PonoException("NYI"); }
+  logger.log(1, "Running DAR at bound: {}", i);
+
+  if (i == 0) {
+    // Can't get an interpolant at bound 0
+    // only checking for trivial bug
+    return step_0();
+  }
+
+  throw PonoException("NYI");
+}
+
+bool DualApproxReach::step_0()
+{
+  solver_->reset_assertions();
+  // push the unrolled formulas here
+  // as compute_witness() rely on timed variables
+  solver_->assert_formula(unroller_.at_time(forward_seq_.at(0), 0));   // init
+  solver_->assert_formula(unroller_.at_time(backward_seq_.at(0), 0));  // bad
+
+  Result r = solver_->check_sat();
+  if (r.is_unsat()) {
+    reached_k_ = 0;
+  } else {
+    concrete_cex_ = true;
+  }
+  return false;
+}
 
 void DualApproxReach::update_term_map(size_t i)
 {
