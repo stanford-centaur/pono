@@ -216,6 +216,10 @@ bool IC3Base::compute_witness() { return compute_witness(ts_); }
 bool IC3Base::compute_witness(const TransitionSystem & ts)
 {
   assert(solver_ == ts.solver());
+  if (failed_to_reset_solver_) {
+    logger.log(1, "IC3Base: cannot reset solver, witness computation aborted");
+    return false;
+  }
   solver_->reset_assertions();
 
   // construct base BMC query
