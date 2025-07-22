@@ -45,6 +45,10 @@ class DualApproxReach : public SafetyProver
   bool step(int i);
   bool step_0();
 
+  bool local_strengthen();
+  bool global_strengthen();
+  void pairwise_strengthen();
+
   void update_term_map(size_t i);
 
   bool check_fixed_point(const smt::TermVec & reach_seq);

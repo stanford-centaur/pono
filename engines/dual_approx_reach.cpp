@@ -107,7 +107,15 @@ bool DualApproxReach::step(int i)
     return step_0();
   }
 
-  throw PonoException("NYI");
+  update_term_map(i);
+  if (!local_strengthen() && !global_strengthen()) {
+    concrete_cex_ = true;
+    return false;
+  }
+
+  ++reached_k_;
+
+  return check_fixed_point(forward_seq_) || check_fixed_point(backward_seq_);
 }
 
 bool DualApproxReach::step_0()
@@ -142,6 +150,10 @@ void DualApproxReach::update_term_map(size_t i)
     cache[to_interpolator_.transfer_term(term)] = term;
   }
 }
+
+bool DualApproxReach::local_strengthen() { throw PonoException("NYI"); }
+bool DualApproxReach::global_strengthen() { throw PonoException("NYI"); }
+void DualApproxReach::pairwise_strengthen() { throw PonoException("NYI"); }
 
 bool DualApproxReach::check_entail(const Term & p, const Term & q)
 {
