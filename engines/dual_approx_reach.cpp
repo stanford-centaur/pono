@@ -98,6 +98,7 @@ bool DualApproxReach::step(int i)
   if (i <= reached_k_) {
     return false;
   }
+  assert(i == reached_k_ + 1);
 
   logger.log(1, "Running DAR at bound: {}", i);
 
@@ -108,12 +109,15 @@ bool DualApproxReach::step(int i)
   }
 
   update_term_map(i);
-  if (!local_strengthen() && !global_strengthen()) {
+  if (!local_strengthen() && (i == 1 || !global_strengthen())) {
     concrete_cex_ = true;
     return false;
   }
 
   ++reached_k_;
+  assert(i == reached_k_);
+  assert(forward_seq_.size() == reached_k_ + 1);
+  assert(forward_seq_.size() == backward_seq_.size());
 
   return check_fixed_point(forward_seq_) || check_fixed_point(backward_seq_);
 }
@@ -151,9 +155,152 @@ void DualApproxReach::update_term_map(size_t i)
   }
 }
 
-bool DualApproxReach::local_strengthen() { throw PonoException("NYI"); }
-bool DualApproxReach::global_strengthen() { throw PonoException("NYI"); }
-void DualApproxReach::pairwise_strengthen() { throw PonoException("NYI"); }
+bool DualApproxReach::local_strengthen()
+{
+  // We want to find an index such that
+  // forward_seq_[len-1-i](s0) & TR(s0, s1) & backward_seq_[i](s1) is unsat.
+  // The search can be done in arbitrary order.
+  // Here we follow the order from the original paper,
+  // starting from the last element in forward_seq_
+  size_t unsat_idx = 0;
+  const size_t seq_len = forward_seq_.size();
+  for (; unsat_idx < seq_len; ++unsat_idx) {
+    solver_->reset_assertions();
+    Term f0 = unroller_.at_time(forward_seq_.at(seq_len - 1 - unsat_idx), 0);
+    Term b1 = unroller_.at_time(backward_seq_.at(unsat_idx), 1);
+    Term tr = unroller_.at_time(ts_.trans(), 0);
+    solver_->assert_formula(solver_->make_term(And, f0, tr, b1));
+    Result r = solver_->check_sat();
+    if (r.is_unsat()) {
+      // found an index such that the conjunction is unsat
+      break;
+    }
+  }
+  if (unsat_idx == seq_len) {
+    // no such index found, return false
+    logger.log(1, "DAR: local strengthening failed");
+    return false;
+  }
+  pairwise_strengthen(seq_len - 1 - unsat_idx);
+  return true;
+}
+
+bool DualApproxReach::global_strengthen()
+{
+  assert(forward_seq_.size());
+  TermVec int_assertions;
+  int_assertions.reserve(forward_seq_.size() + 1);
+  solver_->reset_assertions();
+  solver_->push();
+  Term unrolled_trans = unroller_.at_time(
+      solver_->make_term(And, forward_seq_.at(0), ts_.trans()), 0);
+  int_assertions.push_back(to_interpolator_.transfer_term(unrolled_trans));
+  solver_->assert_formula(unrolled_trans);  // init(0) & TR(0, 1)
+
+  const size_t seq_len = forward_seq_.size();
+  size_t unsat_idx = 1;
+  for (; unsat_idx < seq_len; ++unsat_idx) {
+    solver_->push();
+    unrolled_trans = unroller_.at_time(ts_.trans(), unsat_idx);
+    solver_->assert_formula(unrolled_trans);
+    int_assertions.push_back(to_interpolator_.transfer_term(unrolled_trans));
+    solver_->push();
+    Term ub = unroller_.at_time(backward_seq_.at(seq_len - 1 - unsat_idx),
+                                unsat_idx + 1);
+    solver_->assert_formula(ub);
+    Result r = solver_->check_sat();
+    if (r.is_unsat()) {
+      // found an index for refinement
+      int_assertions.push_back(to_interpolator_.transfer_term(ub));
+      break;
+    }
+    if (unsat_idx == seq_len - 1) {
+      // this is a concrete counterexample
+      logger.log(1, "DAR: Found a concrete CEX");
+      return false;
+    }
+    solver_->pop();  // pop backward_seq_ assertion
+  }
+  TermVec int_itpseq;
+  Result int_r =
+      interpolator_->get_sequence_interpolants(int_assertions, int_itpseq);
+  if (!int_r.is_unsat()) {
+    throw PonoException(
+        "DAR: global strengthening failed, expect UNSAT interpolation query");
+  }
+  for (size_t i = 1; i < std::min(seq_len, unsat_idx + 1); ++i) {
+    Term int_itp = int_itpseq.at(i - 1);
+    Term itp = to_solver_.transfer_term(int_itp);
+    logger.log(3,
+               "DAR: strengthening forward reachability sequence at position "
+               "{} with {}",
+               i,
+               itp);
+    forward_seq_.at(i) =
+        solver_->make_term(And, forward_seq_.at(i), unroller_.untime(itp));
+  }
+  pairwise_strengthen(unsat_idx);
+  return true;
+}
+
+void DualApproxReach::pairwise_strengthen(const size_t idx)
+{
+  assert(forward_seq_.size() == backward_seq_.size());
+  assert(idx < forward_seq_.size());
+  const size_t seq_len = forward_seq_.size();
+  Term tr = unroller_.at_time(ts_.trans(), 0);
+  Term int_tr = to_interpolator_.transfer_term(tr);
+
+  // strengthen and extend forward_seq_
+  forward_seq_.push_back(solver_->make_term(true));
+  for (size_t i = idx; i < seq_len; ++i) {
+    Term f = unroller_.at_time(forward_seq_.at(i), 0);
+    Term int_f = to_interpolator_.transfer_term(f);
+    Term b = unroller_.at_time(backward_seq_.at(seq_len - 1 - i), 1);
+    Term int_b = to_interpolator_.transfer_term(b);
+    Term int_itp;
+    Result r = interpolator_->get_interpolant(
+        interpolator_->make_term(And, int_f, int_tr), int_b, int_itp);
+    if (!r.is_unsat()) {
+      throw PonoException(
+          "DAR: pairwise strengthening failed, "
+          "expect UNSAT interpolation query");
+    }
+    Term itp = to_solver_.transfer_term(int_itp);
+    logger.log(3,
+               "DAR: strengthening forward reachability sequence at position "
+               "{} with {}",
+               i + 1,
+               itp);
+    forward_seq_.at(i + 1) =
+        solver_->make_term(And, forward_seq_.at(i + 1), unroller_.untime(itp));
+  }
+
+  // strengthen and extend backward_seq_
+  backward_seq_.push_back(solver_->make_term(true));
+  for (size_t i = seq_len - 1 - idx; i < seq_len; ++i) {
+    Term f = unroller_.at_time(forward_seq_.at(seq_len - 1 - i), 0);
+    Term int_f = to_interpolator_.transfer_term(f);
+    Term b = unroller_.at_time(backward_seq_.at(i), 1);
+    Term int_b = to_interpolator_.transfer_term(b);
+    Term int_itp;
+    Result r = interpolator_->get_interpolant(
+        interpolator_->make_term(And, int_b, int_tr), int_f, int_itp);
+    if (!r.is_unsat()) {
+      throw PonoException(
+          "DAR: pairwise strengthening failed, "
+          "expect UNSAT interpolation query");
+    }
+    Term itp = to_solver_.transfer_term(int_itp);
+    logger.log(3,
+               "DAR: strengthening backward reachability sequence at position "
+               "{} with {}",
+               i + 1,
+               itp);
+    backward_seq_.at(i + 1) =
+        solver_->make_term(And, backward_seq_.at(i + 1), unroller_.untime(itp));
+  }
+}
 
 bool DualApproxReach::check_entail(const Term & p, const Term & q)
 {

@@ -47,7 +47,7 @@ class DualApproxReach : public SafetyProver
 
   bool local_strengthen();
   bool global_strengthen();
-  void pairwise_strengthen();
+  void pairwise_strengthen(const size_t idx);
 
   void update_term_map(size_t i);
 
