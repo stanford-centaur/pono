@@ -166,10 +166,11 @@ bool DualApproxReach::local_strengthen()
   const size_t seq_len = forward_seq_.size();
   for (; unsat_idx < seq_len; ++unsat_idx) {
     solver_->reset_assertions();
-    Term f0 = unroller_.at_time(forward_seq_.at(seq_len - 1 - unsat_idx), 0);
-    Term b1 = unroller_.at_time(backward_seq_.at(unsat_idx), 1);
-    Term tr = unroller_.at_time(ts_.trans(), 0);
-    solver_->assert_formula(solver_->make_term(And, f0, tr, b1));
+    solver_->assert_formula(unroller_.at_time(
+        forward_seq_.at(seq_len - 1 - unsat_idx), 0));           // F(0)
+    solver_->assert_formula(unroller_.at_time(ts_.trans(), 0));  // TR(0, 1)
+    solver_->assert_formula(
+        unroller_.at_time(backward_seq_.at(unsat_idx), 1));  // B(1)
     Result r = solver_->check_sat();
     if (r.is_unsat()) {
       // found an index such that the conjunction is unsat
