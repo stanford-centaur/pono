@@ -119,7 +119,7 @@ bool DualApproxReach::step(int i)
   assert(forward_seq_.size() == reached_k_ + 1);
   assert(forward_seq_.size() == backward_seq_.size());
 
-  return check_fixed_point(forward_seq_) || check_fixed_point(backward_seq_);
+  return check_fixed_point();
 }
 
 bool DualApproxReach::step_0()
@@ -312,13 +312,30 @@ bool DualApproxReach::check_entail(const Term & p, const Term & q)
   return r.is_unsat();
 }
 
-bool DualApproxReach::check_fixed_point(const TermVec & reach_seq)
+bool DualApproxReach::check_fixed_point()
+{
+  Term fixed_point;
+  if (check_fixed_point(forward_seq_, fixed_point)) {
+    logger.log(1, "DAR: found a fixed point in forward reachability sequence");
+    invar_ = fixed_point;
+    return true;
+  }
+  if (check_fixed_point(backward_seq_, fixed_point)) {
+    logger.log(1, "DAR: found a fixed point in backward reachability sequence");
+    invar_ = solver_->make_term(Not, fixed_point);
+    return true;
+  }
+  return false;
+}
+
+bool DualApproxReach::check_fixed_point(const TermVec & reach_seq,
+                                        Term & fixed_point)
 {
   assert(reach_seq.size() > 1);
   Term acc_img = reach_seq.at(0);
   for (size_t i = 1; i < reach_seq.size(); ++i) {
     if (check_entail(reach_seq.at(i), acc_img)) {
-      invar_ = acc_img;
+      fixed_point = acc_img;
       return true;
     }
     acc_img = solver_->make_term(Or, acc_img, reach_seq.at(i));
