@@ -231,13 +231,13 @@ void CegProphecyArrays<Prover_T>::initialize()
     sort = sv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
-      SortKind sk = sort->get_indexsort()->get_sort_kind();
-      if (sk != REAL && sk != INT) {
-        throw PonoException(
-            "CEGP currently only supports infinite domain indices in arrays "
-            "due to an edge case for constant arrays, but got "
-            + sort->to_string());
-      }
+      // SortKind sk = sort->get_indexsort()->get_sort_kind();
+      // if (sk != REAL && sk != INT) {
+      //   throw PonoException(
+      //       "CEGP currently only supports infinite domain indices in arrays "
+      //       "due to an edge case for constant arrays, but got "
+      //       + sort->to_string());
+      // }
     }
   }
 
@@ -245,13 +245,13 @@ void CegProphecyArrays<Prover_T>::initialize()
     sort = iv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
-      SortKind sk = sort->get_indexsort()->get_sort_kind();
-      if (sk != REAL && sk != INT) {
-        throw PonoException(
-            "CEGP currently only supports infinite domain indices in arrays "
-            "due to an edge case for constant arrays, but got "
-            + sort->to_string());
-      }
+      // SortKind sk = sort->get_indexsort()->get_sort_kind();
+      // if (sk != REAL && sk != INT) {
+      //   throw PonoException(
+      //       "CEGP currently only supports infinite domain indices in arrays "
+      //       "due to an edge case for constant arrays, but got "
+      //       + sort->to_string());
+      // }
     }
   }
 
