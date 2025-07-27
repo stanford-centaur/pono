@@ -155,27 +155,29 @@ void DualApproxReach::update_term_map(size_t i)
   }
 }
 
+// see function `LocStrength` (Fig. 2(a)) in the paper
 bool DualApproxReach::local_strengthen()
 {
-  // We want to find an index such that
+  // We want to find an index i such that
   // forward_seq_[len-1-i](s0) & TR(s0, s1) & backward_seq_[i](s1) is unsat.
   // The search can be done in arbitrary order.
   // Here we follow the order from the original paper,
-  // starting from the last element in forward_seq_
+  // starting from the last element in forward_seq_.
   size_t unsat_idx = 0;
   const size_t seq_len = forward_seq_.size();
+  solver_->reset_assertions();
+  solver_->assert_formula(unroller_.at_time(ts_.trans(), 0));  // TR(0, 1)
   for (; unsat_idx < seq_len; ++unsat_idx) {
-    solver_->reset_assertions();
-    solver_->assert_formula(unroller_.at_time(
-        forward_seq_.at(seq_len - 1 - unsat_idx), 0));           // F(0)
-    solver_->assert_formula(unroller_.at_time(ts_.trans(), 0));  // TR(0, 1)
-    solver_->assert_formula(
-        unroller_.at_time(backward_seq_.at(unsat_idx), 1));  // B(1)
+    Term f0 = unroller_.at_time(forward_seq_.at(seq_len - 1 - unsat_idx), 0);
+    Term b1 = unroller_.at_time(backward_seq_.at(unsat_idx), 1);
+    solver_->push();
+    solver_->assert_formula(solver_->make_term(And, f0, b1));
     Result r = solver_->check_sat();
     if (r.is_unsat()) {
       // found an index such that the conjunction is unsat
       break;
     }
+    solver_->pop();  // pop f0 & b1
   }
   if (unsat_idx == seq_len) {
     // no such index found, return false
@@ -186,19 +188,19 @@ bool DualApproxReach::local_strengthen()
   return true;
 }
 
+// see function `GlobStrengthen` (Fig. 3) in the paper
 bool DualApproxReach::global_strengthen()
 {
-  assert(forward_seq_.size());
+  assert(forward_seq_.size() > 1);
+  const size_t seq_len = forward_seq_.size();
   TermVec int_assertions;
-  int_assertions.reserve(forward_seq_.size() + 1);
+  int_assertions.reserve(seq_len + 1);
   solver_->reset_assertions();
-  solver_->push();
   Term unrolled_trans = unroller_.at_time(
       solver_->make_term(And, forward_seq_.at(0), ts_.trans()), 0);
   int_assertions.push_back(to_interpolator_.transfer_term(unrolled_trans));
   solver_->assert_formula(unrolled_trans);  // init(0) & TR(0, 1)
 
-  const size_t seq_len = forward_seq_.size();
   size_t unsat_idx = 1;
   for (; unsat_idx < seq_len; ++unsat_idx) {
     solver_->push();
@@ -222,6 +224,7 @@ bool DualApproxReach::global_strengthen()
     }
     solver_->pop();  // pop backward_seq_ assertion
   }
+  assert(int_assertions.size() == unsat_idx + 2);
   TermVec int_itpseq;
   Result int_r =
       interpolator_->get_sequence_interpolants(int_assertions, int_itpseq);
@@ -229,7 +232,7 @@ bool DualApproxReach::global_strengthen()
     throw PonoException(
         "DAR: global strengthening failed, expect UNSAT interpolation query");
   }
-  for (size_t i = 1; i < std::min(seq_len, unsat_idx + 1); ++i) {
+  for (size_t i = 1; i < std::min(seq_len, unsat_idx + 2); ++i) {
     Term int_itp = int_itpseq.at(i - 1);
     Term itp = to_solver_.transfer_term(int_itp);
     logger.log(3,
@@ -244,10 +247,12 @@ bool DualApproxReach::global_strengthen()
   return true;
 }
 
+// see function `IterLS` (Fig. 2(b)) in the paper
 void DualApproxReach::pairwise_strengthen(const size_t idx)
 {
   assert(forward_seq_.size() == backward_seq_.size());
   assert(idx < forward_seq_.size());
+  // sequence length before extension
   const size_t seq_len = forward_seq_.size();
   Term tr = unroller_.at_time(ts_.trans(), 0);
   Term int_tr = to_interpolator_.transfer_term(tr);
@@ -301,6 +306,8 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     backward_seq_.at(i + 1) =
         solver_->make_term(And, backward_seq_.at(i + 1), unroller_.untime(itp));
   }
+  assert(forward_seq_.size() == backward_seq_.size());
+  assert(forward_seq_.size() == seq_len + 1);
 }
 
 bool DualApproxReach::check_entail(const Term & p, const Term & q)
