@@ -177,12 +177,12 @@ bool DualApproxReach::local_strengthen()
       // found an index such that the conjunction is unsat
       break;
     }
+    if (unsat_idx == seq_len - 1) {
+      // no such index found, return false
+      logger.log(1, "DAR: local strengthening failed");
+      return false;
+    }
     solver_->pop();  // pop f0 & b1
-  }
-  if (unsat_idx == seq_len) {
-    // no such index found, return false
-    logger.log(1, "DAR: local strengthening failed");
-    return false;
   }
   pairwise_strengthen(seq_len - 1 - unsat_idx);
   return true;
