@@ -234,14 +234,13 @@ bool DualApproxReach::global_strengthen()
   }
   for (size_t i = 1; i < std::min(seq_len, unsat_idx + 2); ++i) {
     Term int_itp = int_itpseq.at(i - 1);
-    Term itp = to_solver_.transfer_term(int_itp);
+    Term itp = unroller_.untime(to_solver_.transfer_term(int_itp));
     logger.log(3,
                "DAR: strengthening forward reachability sequence at position "
                "{} with {}",
                i,
                itp);
-    forward_seq_.at(i) =
-        solver_->make_term(And, forward_seq_.at(i), unroller_.untime(itp));
+    forward_seq_.at(i) = solver_->make_term(And, forward_seq_.at(i), itp);
   }
   pairwise_strengthen(unsat_idx);
   return true;
@@ -272,14 +271,14 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
           "DAR: pairwise strengthening failed, "
           "expect UNSAT interpolation query");
     }
-    Term itp = to_solver_.transfer_term(int_itp);
+    Term itp = unroller_.untime(to_solver_.transfer_term(int_itp));
     logger.log(3,
                "DAR: strengthening forward reachability sequence at position "
                "{} with {}",
                i + 1,
                itp);
     forward_seq_.at(i + 1) =
-        solver_->make_term(And, forward_seq_.at(i + 1), unroller_.untime(itp));
+        solver_->make_term(And, forward_seq_.at(i + 1), itp);
   }
 
   // strengthen and extend backward_seq_
@@ -297,14 +296,14 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
           "DAR: pairwise strengthening failed, "
           "expect UNSAT interpolation query");
     }
-    Term itp = to_solver_.transfer_term(int_itp);
+    Term itp = unroller_.untime(to_solver_.transfer_term(int_itp));
     logger.log(3,
                "DAR: strengthening backward reachability sequence at position "
                "{} with {}",
                i + 1,
                itp);
     backward_seq_.at(i + 1) =
-        solver_->make_term(And, backward_seq_.at(i + 1), unroller_.untime(itp));
+        solver_->make_term(And, backward_seq_.at(i + 1), itp);
   }
   assert(forward_seq_.size() == backward_seq_.size());
   assert(forward_seq_.size() == seq_len + 1);
