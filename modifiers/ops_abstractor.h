@@ -26,7 +26,7 @@ class OpsAbstractor : public Abstractor
  public:
   OpsAbstractor(const TransitionSystem & conc_ts,
                 TransitionSystem & abs_ts,
-                bool abs_using_free_symbols);
+                bool abs_using_free_symbols = false);
 
   typedef Abstractor super;
 
