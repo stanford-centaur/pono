@@ -461,8 +461,9 @@ const option::Descriptor usage[] = {
     "",
     "ceg-bv-arith-as-free-symbol",
     Arg::None,
-    "  --ceg-bv-arith-as-free-symbol \tabstractBV arithmetic operators using "
-    "free symbols (unconstrained inputs) instead of uninterpreted functions" },
+    "  --ceg-bv-arith-as-free-symbol \tabstract BV arithmetic operators using "
+    "free symbols (unconstrained state variables) instead of uninterpreted "
+    "functions" },
   { CEG_BV_ARITH_MIN_BW,
     0,
     "",
