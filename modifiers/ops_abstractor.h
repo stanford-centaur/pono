@@ -24,7 +24,9 @@ namespace pono {
 class OpsAbstractor : public Abstractor
 {
  public:
-  OpsAbstractor(const TransitionSystem & conc_ts, TransitionSystem & abs_ts);
+  OpsAbstractor(const TransitionSystem & conc_ts,
+                TransitionSystem & abs_ts,
+                bool abs_using_free_symbols = false);
 
   typedef Abstractor super;
 
@@ -78,6 +80,8 @@ class OpsAbstractor : public Abstractor
 
   smt::UnorderedTermMap abs_terms_;  // abs uf to concrete operator -- only
                                      // replace the top-level uf
+
+  const bool abs_using_free_symbols_;
 };
 
 }  // namespace pono

@@ -81,6 +81,7 @@ enum optionIndex
   CEGP_ABS_VALS_CUTOFF,
   CEGP_STRONG_ABSTRACTION,
   CEG_BV_ARITH,
+  CEG_BV_ARITH_AS_FREE_SYMBOL,
   CEG_BV_ARITH_MIN_BW,
   PROMOTE_INPUTVARS,
   SYGUS_OP_LVL,
@@ -461,7 +462,15 @@ const option::Descriptor usage[] = {
     "ceg-bv-arith",
     Arg::None,
     "  --ceg-bv-arith \tabstraction-refinement for the BV arithmetic operators "
-    "(mul, div, rem, mod)" },
+    "(mul, div, rem, mod) using uninterpreted functions." },
+  { CEG_BV_ARITH_AS_FREE_SYMBOL,
+    0,
+    "",
+    "ceg-bv-arith-as-free-symbol",
+    Arg::None,
+    "  --ceg-bv-arith-as-free-symbol \tabstract BV arithmetic operators using "
+    "free symbols (unconstrained state variables) instead of uninterpreted "
+    "functions" },
   { CEG_BV_ARITH_MIN_BW,
     0,
     "",
@@ -864,6 +873,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case CEGP_STRONG_ABSTRACTION: cegp_strong_abstraction_ = true; break;
         case CEG_BV_ARITH: ceg_bv_arith_ = true; break;
+        case CEG_BV_ARITH_AS_FREE_SYMBOL:
+          ceg_bv_arith_as_free_symbol_ = true;
+          break;
         case CEG_BV_ARITH_MIN_BW:
           ceg_bv_arith_min_bw_ = std::stoul(opt.arg);
           break;
