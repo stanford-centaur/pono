@@ -86,6 +86,11 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
                         size_t bound,
                         bool include_nonconsecutive = true) override;
 
+  bool enumerate_axioms(const smt::Term & abs_trace_formula,
+                        size_t bound,
+                        bool include_nonconsecutive,
+                        bool skip_lambda_axioms);
+
   /** Add a new index to the index set
    *  This can happen as we add auxiliary variables
    *  In particular, prophecy variables that are added here
