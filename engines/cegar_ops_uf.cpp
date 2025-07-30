@@ -52,6 +52,8 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const SafetyProperty & p,
       cegopsuf_un_(cegopsuf_ts_)
 {
   cegopsuf_solver_->set_opt("produce-unsat-assumptions", "true");
+
+  // store the original ts for later use in witness generation
   super::orig_ts_ = ts;
 }
 
