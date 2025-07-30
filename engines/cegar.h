@@ -50,6 +50,21 @@ class CEGAR : public Prover_T
    *  @return true iff it was successfully refined
    */
   virtual bool cegar_refine() = 0;
+
+  /**
+   * Override the `compute_witness` method in the prover class and make it a
+   * no-op. Since provers operate on the abstracted transition system, the
+   * computed witnesses may be spurious.
+   *
+   * Additionally, some prover's implementation of this API destroys the solver
+   * state, which may cause issues when starting another CEGAR iteration.
+   * (Note: the prover's `check_util` or `prove` method is called in each
+   * CEGAR iteration, which transitively calls `compute_witness`.)
+   *
+   * The derived CEGAR classes should take care of storing the concrete CEX
+   * trace themselves.
+   */
+  bool compute_witness() override { return true; }
 };
 
 }  // namespace pono
