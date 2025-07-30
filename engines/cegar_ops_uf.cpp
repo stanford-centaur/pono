@@ -149,6 +149,8 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
 {
   const UnorderedTermMap & abs_terms = oa_.abstract_terms();
   if (abs_terms.size() == 0) {
+    // no abstraction, let prover compute witness
+    Prover_T::compute_witness();
     return false;
   }
 
