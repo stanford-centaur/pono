@@ -73,6 +73,9 @@ class CegProphecyArrays : public CEGAR<Prover_T>
       important_vars_;  ///< important variables
                         ///< useful for IC3IA to prioritize predicates
 
+  // whether the arrays in the system has a finite index sort
+  bool has_finite_index_sort_ = false;
+
   TransitionSystem & prover_interface_ts() override { return conc_ts_; }
 
   void cegar_abstract() override;

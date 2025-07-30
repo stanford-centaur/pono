@@ -232,13 +232,10 @@ void CegProphecyArrays<Prover_T>::initialize()
     sort = sv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
-      // SortKind sk = sort->get_indexsort()->get_sort_kind();
-      // if (sk != REAL && sk != INT) {
-      //   throw PonoException(
-      //       "CEGP currently only supports infinite domain indices in arrays "
-      //       "due to an edge case for constant arrays, but got "
-      //       + sort->to_string());
-      // }
+      SortKind sk = sort->get_indexsort()->get_sort_kind();
+      if (sk != REAL && sk != INT) {
+        has_finite_index_sort_ = true;
+      }
     }
   }
 
@@ -246,13 +243,10 @@ void CegProphecyArrays<Prover_T>::initialize()
     sort = iv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
-      // SortKind sk = sort->get_indexsort()->get_sort_kind();
-      // if (sk != REAL && sk != INT) {
-      //   throw PonoException(
-      //       "CEGP currently only supports infinite domain indices in arrays "
-      //       "due to an edge case for constant arrays, but got "
-      //       + sort->to_string());
-      // }
+      SortKind sk = sort->get_indexsort()->get_sort_kind();
+      if (sk != REAL && sk != INT) {
+        has_finite_index_sort_ = true;
+      }
     }
   }
 
@@ -287,7 +281,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
   Term abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
   // check array axioms over the abstract system
-  if (!aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1)) {
+  if (!aae_.enumerate_axioms(
+          abs_bmc_formula, reached_k_ + 1, true, has_finite_index_sort_)) {
     // concrete CEX
     return false;
   }
@@ -374,7 +369,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
     // search for axioms again but don't include nonconsecutive ones
-    bool ok = aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
+    bool ok = aae_.enumerate_axioms(
+        abs_bmc_formula, reached_k_ + 1, false, has_finite_index_sort_);
     // should be guaranteed to rule out counterexamples at this bound
     assert(ok);
     consecutive_axioms = aae_.get_consecutive_axioms();
