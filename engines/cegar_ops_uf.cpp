@@ -52,6 +52,7 @@ CegarOpsUf<Prover_T>::CegarOpsUf(const SafetyProperty & p,
       cegopsuf_un_(cegopsuf_ts_)
 {
   cegopsuf_solver_->set_opt("produce-unsat-assumptions", "true");
+  super::orig_ts_ = ts;
 }
 
 template <class Prover_T>
@@ -221,10 +222,50 @@ bool CegarOpsUf<Prover_T>::cegar_refine()
       }
     }
     refine_subprover_ts(axioms, cex_length > 0);
+  } else if (r.is_sat()) {
+    // store CEX trace
+    store_witness();
+  } else {
+    throw PonoException("CegarOpsUf::cegar_refine: solver returned "
+                        + r.to_string());
   }
   cegopsuf_solver_->pop();
 
   return r.is_unsat();
+}
+
+template <class Prover_T>
+void CegarOpsUf<Prover_T>::store_witness()
+{
+  auto & witness = super::witness_;
+  witness.clear();
+  witness.reserve(super::witness_length() + 1);
+
+  for (size_t i = 0, wl = super::witness_length(); i <= wl; ++i) {
+    witness.push_back(UnorderedTermMap());
+    UnorderedTermMap & map = witness.back();
+
+    for (const auto & v : cegopsuf_ts_.statevars()) {
+      const Term & vi = cegopsuf_un_.at_time(v, i);
+      const Term & r = cegopsuf_solver_->get_value(vi);
+      map[from_cegopsuf_solver_.transfer_term(v)] =
+          from_cegopsuf_solver_.transfer_term(r);
+    }
+
+    for (const auto & v : cegopsuf_ts_.inputvars()) {
+      const Term & vi = cegopsuf_un_.at_time(v, i);
+      const Term & r = cegopsuf_solver_->get_value(vi);
+      map[from_cegopsuf_solver_.transfer_term(v)] =
+          from_cegopsuf_solver_.transfer_term(r);
+    }
+
+    for (const auto & elem : cegopsuf_ts_.named_terms()) {
+      const Term & ti = cegopsuf_un_.at_time(elem.second, i);
+      const Term & r = cegopsuf_solver_->get_value(ti);
+      map[from_cegopsuf_solver_.transfer_term(elem.second)] =
+          from_cegopsuf_solver_.transfer_term(r);
+    }
+  }
 }
 
 template <class Prover_T>
