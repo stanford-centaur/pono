@@ -59,7 +59,7 @@ class InterpSeqMC : public SafetyProver
   // set to true when a concrete_cex is found
   bool concrete_cex_;
 
-  // reachability sequence: <Init, R_0, R_1, ...>
+  // reachability sequence: <R_0=Init, R_1, R_2, ...>
   smt::TermVec reach_seq_;
   // transition at each time step: <Init(0) & TR(0, 1), TR(1, 2), ...>
   // note that at 0th step, Init is conjoined with TR
