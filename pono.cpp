@@ -55,6 +55,10 @@ ProverResult check_prop(PonoOptions pono_options,
   const string prop_name = ts.get_name(prop);
 
   logger.log(1, "Solving property: {}", prop_name);
+  logger.log(2,
+             "Using SMT solver {} and interpolator {}",
+             to_string(pono_options.smt_solver_),
+             to_string(pono_options.smt_interpolator_));
   logger.log(3, "INIT:\n{}", ts.init());
   logger.log(3, "TRANS:\n{}", ts.trans());
 
