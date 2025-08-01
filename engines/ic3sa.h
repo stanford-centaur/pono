@@ -58,6 +58,8 @@ class IC3SA : public IC3
   typedef IC3 super;
 
  protected:
+  bool compute_witness() override;
+
   TransitionSystem conc_ts_;
 
   FunctionalUnroller f_unroller_;

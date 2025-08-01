@@ -211,15 +211,22 @@ size_t IC3Base::witness_length() const
 
 // Protected Methods
 
-bool IC3Base::compute_witness()
+bool IC3Base::compute_witness() { return compute_witness(ts_); }
+
+bool IC3Base::compute_witness(const TransitionSystem & ts)
 {
+  assert(solver_ == ts.solver());
+  if (failed_to_reset_solver_) {
+    logger.log(1, "IC3Base: cannot reset solver, witness computation aborted");
+    return false;
+  }
   solver_->reset_assertions();
 
   // construct base BMC query
   const size_t wit_len = witness_length();
-  solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
+  solver_->assert_formula(unroller_.at_time(ts.init(), 0));
   for (size_t t = 0; t < wit_len; ++t) {
-    solver_->assert_formula(unroller_.at_time(ts_.trans(), t));
+    solver_->assert_formula(unroller_.at_time(ts.trans(), t));
   }
   solver_->assert_formula(unroller_.at_time(bad_, wit_len));
 
