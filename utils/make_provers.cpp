@@ -21,6 +21,7 @@
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/cegar_ops_uf.h"
 #include "engines/cegar_values.h"
+#include "engines/dual_approx_reach.h"
 #include "engines/ic3bits.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
@@ -54,6 +55,8 @@ shared_ptr<SafetyProver> make_prover(Engine e,
     return make_shared<Bmc>(p, ts, slv, opts);
   } else if (e == BMC_SP) {
     return make_shared<BmcSimplePath>(p, ts, slv, opts);
+  } else if (e == DAR) {
+    return make_shared<DualApproxReach>(p, ts, slv, opts);
   } else if (e == KIND) {
     return make_shared<KInduction>(p, ts, slv, opts);
   } else if (e == INTERP) {
@@ -89,6 +92,9 @@ shared_ptr<SafetyProver> make_ceg_proph_prover(Engine e,
     return std::make_shared<CegProphecyArrays<Bmc>>(p, ts, slv, opts);
   } else if (e == BMC_SP) {
     return std::make_shared<CegProphecyArrays<BmcSimplePath>>(p, ts, slv, opts);
+  } else if (e == DAR) {
+    return std::make_shared<CegProphecyArrays<DualApproxReach>>(
+        p, ts, slv, opts);
   } else if (e == KIND) {
     return std::make_shared<CegProphecyArrays<KInduction>>(p, ts, slv, opts);
   } else if (e == INTERP) {

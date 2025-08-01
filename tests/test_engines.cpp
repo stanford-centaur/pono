@@ -4,6 +4,7 @@
 #include "core/rts.h"
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
+#include "engines/dual_approx_reach.h"
 #include "engines/interp_seq_mc.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
@@ -171,6 +172,24 @@ TEST_P(InterpUnitTest, IsmcFalse)
   ASSERT_EQ(r, ProverResult::FALSE);
   vector<UnorderedTermMap> cex;
   ASSERT_TRUE(ismc.witness(cex));
+}
+
+TEST_P(InterpUnitTest, DarTrue)
+{
+  DualApproxReach dar(*true_p, *ts, s);
+  ProverResult r = dar.check_until(20);
+  ASSERT_EQ(r, ProverResult::TRUE);
+  Term invar = dar.invar();
+  ASSERT_TRUE(check_invar(*ts, true_p->prop(), invar));
+}
+
+TEST_P(InterpUnitTest, DarFalse)
+{
+  DualApproxReach dar(*false_p, *ts, s);
+  ProverResult r = dar.check_until(20);
+  ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(dar.witness(cex));
 }
 
 INSTANTIATE_TEST_SUITE_P(
