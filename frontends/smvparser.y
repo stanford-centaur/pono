@@ -8,6 +8,10 @@
     using namespace std;
     int case_start = 0;
     bool case_true = false;
+    static smt::Term make_arith_op(pono::SMVEncoder &enc,
+                                   smt::Op op,
+                                   pono::SMVnode *a,
+                                   pono::SMVnode *b);
 %}
 
 %code requires{
@@ -900,11 +904,9 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ( (bvs_a == SMVnode::Integer) ||(bvs_b == SMVnode::Integer)){
-                  res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
-              }else if ((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real) ){
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPLt, a->getTerm(), b->getTerm()) 
-                                          : enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());              
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer) 
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Lt, a, b);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
@@ -927,12 +929,10 @@ simple_expr: constant {
               smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
               smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
               smt::Term res;
-              if ( (kind_a == smt::INT) ||(kind_b == smt::INT) ){
-                  res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
-              }else if ( (kind_a == smt::FLOAT64) || (kind_b == smt::FLOAT64) 
-                         || (kind_a == smt::REAL) || (kind_b == smt::REAL) ){
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPGt, a->getTerm(), b->getTerm())
-                                          : enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
+              if ((kind_a == smt::INT) || (kind_b == smt::INT)
+                  || (kind_a == smt::FLOAT64) || (kind_b == smt::FLOAT64)
+                  || (kind_a == smt::REAL) || (kind_b == smt::REAL)){
+                  res = make_arith_op(enc, smt::Gt, a, b);
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
@@ -957,11 +957,9 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ( (bvs_a == SMVnode::Integer) ||(bvs_b == SMVnode::Integer)){
-                  res = enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());
-              }else if ( (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real) ){
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPLeq, a->getTerm(), b->getTerm())
-                                          : enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());              
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Le, a, b);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
@@ -984,11 +982,9 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ( (bvs_a == SMVnode::Integer) ||(bvs_b == SMVnode::Integer) ){
-                  res = enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm());
-              }else if ( (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real) ){
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPGeq, a->getTerm(), b->getTerm())
-                                          : enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm());                  
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Ge, a, b);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
@@ -1034,17 +1030,12 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) ||(bvs_b == SMVnode::Integer)){
-                  res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Plus, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::FLOAT64) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
-              }else if ((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
-                  auto rm = enc.solver_->make_term(smt::FPRoundingMode::ROUND_NEAREST_TIES_TO_EVEN);
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPAdd, rm, a->getTerm(), b->getTerm())
-                                          : enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
-                  assert(res); //check res non-null
-                  $$ = new SMVnode(res,SMVnode::Real);
               }else{
                   if(bvs_a != bvs_b){
                    throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
@@ -1065,17 +1056,12 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) ||(bvs_b == SMVnode::Integer)){
-                  res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Minus, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::FLOAT64) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
-              }else if ((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
-                  auto rm = enc.solver_->make_term(smt::FPRoundingMode::ROUND_NEAREST_TIES_TO_EVEN);
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPSub, rm, a->getTerm(), b->getTerm())
-                                          : enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
-                  assert(res); //check res non-null
-                  $$ = new SMVnode(res,SMVnode::Real); 
               }else{
                   if(bvs_a != bvs_b){
                    throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
@@ -1096,17 +1082,12 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) ||(bvs_b == SMVnode::Integer)){
-                  res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Mult, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::FLOAT64) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
-              }else if ((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
-                  auto rm = enc.solver_->make_term(smt::FPRoundingMode::ROUND_NEAREST_TIES_TO_EVEN);
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPMul, rm, a->getTerm(), b->getTerm())
-                                          : enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
-                  assert(res); //check res non-null
-                  $$ = new SMVnode(res,SMVnode::Real);
               }else{
                   if(bvs_a != bvs_b){
                    throw PonoException(to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
@@ -1127,17 +1108,12 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) ||(bvs_b == SMVnode::Integer)){
-                  res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Div, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::FLOAT64) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
-              }else if ((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
-                  auto rm = enc.solver_->make_term(smt::FPRoundingMode::ROUND_NEAREST_TIES_TO_EVEN);
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPDiv, rm, a->getTerm(), b->getTerm())
-                                          : enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
-                  assert(res); //check res non-null
-                  $$ = new SMVnode(res,SMVnode::Real);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
@@ -1161,16 +1137,12 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) ||(bvs_b == SMVnode::Integer) ){
-                  res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Mod, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::FLOAT64) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
-              }else if ( (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real) ){
-                  res = enc.fp_semantics_ ? enc.solver_->make_term(smt::FPRem, a->getTerm(), b->getTerm())
-                                          : enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
-                  assert(res); //check res non-null
-                  $$ = new SMVnode(res,SMVnode::Real);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUrem, a->getTerm(), b->getTerm());
@@ -1758,6 +1730,71 @@ sizev:
 
 semioption     : %empty | SEMICOLON;
 %%
+
+smt::Term make_arith_op(pono::SMVEncoder &enc,
+                        smt::Op op,
+                        pono::SMVnode *a,
+                        pono::SMVnode *b)
+{
+  // Mapping arithmetic operations to their corresponding Floating-Point ops
+  static std::unordered_map<smt::Op, smt::Op> fp_op = {
+    {smt::Div, smt::FPDiv},
+    {smt::Ge, smt::FPGeq},
+    {smt::Gt, smt::FPGt},
+    {smt::Le, smt::FPLeq},
+    {smt::Lt, smt::FPLt},
+    {smt::Minus, smt::FPSub},
+    {smt::Mod, smt::FPRem},
+    {smt::Mult, smt::FPMul},
+    {smt::Negate, smt::FPNeg},
+    {smt::Plus, smt::FPAdd},
+  };
+
+  using namespace pono;
+  
+  assert(fp_op.count(op) > 0);
+  assert(a && b);
+  SMVnode::Type a_type = a->getType();
+  SMVnode::Type b_type = b->getType();
+  assert(a_type == SMVnode::Integer || a_type == SMVnode::Real);
+  assert(b_type == SMVnode::Integer || b_type == SMVnode::Real);
+  smt::Term a_term = a->getTerm();
+  smt::Term b_term = b->getTerm();
+
+  bool need_fp_semantics = enc.fp_semantics_ && (a_type == SMVnode::Real || b_type == SMVnode::Real);
+  if (a_type != b_type) {
+    // Type mismatch between a and b: convert the Integer one to Real or FP
+    if (a_type == SMVnode::Integer) {
+      a_term = enc.solver_->make_term(smt::To_Real, a_term);
+    }
+    if (b_type == SMVnode::Integer) {
+      b_term = enc.solver_->make_term(smt::To_Real, b_term);
+    }    
+    if (need_fp_semantics) {
+      auto toFPOp = smt::Op(smt::Real_To_FP,
+                            smt::FPSizes<smt::FLOAT64>::exp,
+                            smt::FPSizes<smt::FLOAT64>::sig);
+      auto rm = enc.solver_->make_term(smt::FPRoundingMode::ROUND_NEAREST_TIES_TO_EVEN);
+      if (a_type == SMVnode::Integer) {
+        a_term = enc.solver_->make_term(toFPOp, rm, a_term);
+      }
+      if (b_type == SMVnode::Integer) {
+        b_term = enc.solver_->make_term(toFPOp, rm, b_term);
+      }
+    }
+  }
+
+  if (need_fp_semantics) {
+    op = fp_op[op];
+    if (op == smt::FPAdd || op == smt::FPSub || op == smt::FPMul 
+        || op == smt::FPDiv || op == smt::FPRem) {
+      auto rm = enc.solver_->make_term(smt::FPRoundingMode::ROUND_NEAREST_TIES_TO_EVEN);
+      return enc.solver_->make_term(op, rm, a_term, b_term);
+    }
+  }
+
+  return enc.solver_->make_term(op, a_term, b_term);
+}
 
 void pono::smvparser::error (const location &loc, const std::string& m)
 {
