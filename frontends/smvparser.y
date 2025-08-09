@@ -8,6 +8,10 @@
     using namespace std;
     int case_start = 0;
     bool case_true = false;
+    static smt::Term make_arith_op(pono::SMVEncoder &enc,
+                                   smt::Op op,
+                                   pono::SMVnode *a,
+                                   pono::SMVnode *b);
 %}
 
 %code requires{
@@ -74,7 +78,7 @@ DOT ".";
 
 %right OP_IMPLY
 %left OP_BI
-%left IF_ELSE
+%right IF_ELSE
 %left OP_OR OP_XOR OP_XNOR
 %left OP_AND
 %left OP_EQ OP_NEQ OP_LT OP_GT OP_LTE OP_GTE
@@ -509,7 +513,8 @@ constant: boolean_constant {
 }
           | real_constant{
             if(enc.module_flat){
-            smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
+            smt::Sort sort_ = enc.fp_semantics_ ? enc.solver_->make_sort(smt::FLOAT64)
+                                                : enc.solver_->make_sort(smt::REAL);
             smt::Term con = enc.solver_->make_term($1,sort_);
             $$ = new SMVnode(con,SMVnode::Real);
             }else{
@@ -642,7 +647,7 @@ simple_expr: constant {
                 assert(tok);
                 if (kind_ == smt::BV || kind_ == smt::BOOL) $$ = new SMVnode(tok,SMVnode::Boolean);
                 else if (kind_ == smt::INT) $$ = new SMVnode(tok,SMVnode::Integer);
-                else if (kind_ == smt::REAL) $$ = new SMVnode(tok,SMVnode::Real);
+                else if (kind_ == smt::REAL || kind_ == smt::FLOAT64) $$ = new SMVnode(tok,SMVnode::Real);
                 else throw PonoException("The type of the identifier is wrong");
               }
             }else{
@@ -852,7 +857,15 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term e;
               if((bvs_a == SMVnode::Real && bvs_b == SMVnode::Integer) || (bvs_a == SMVnode::Integer && bvs_b == SMVnode::Real) ){
-                e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
+                smt::Term a_term = a->getTerm();
+                smt::Term b_term = b->getTerm();
+                if (bvs_a == SMVnode::Real || bvs_b == SMVnode::Real){
+                  if (bvs_a != SMVnode::Real)
+                    a_term = enc.solver_->make_term(smt::To_Real, a_term);
+                  if (bvs_b != SMVnode::Real)
+                    b_term = enc.solver_->make_term(smt::To_Real, b_term);
+                }
+                e = enc.solver_->make_term(smt::Equal, a_term, b_term);
               }else if(bvs_a != bvs_b){
                  throw PonoException(to_string(enc.loc.end.line) +" Unsigned/Signed mismatch");
               } else{
@@ -891,8 +904,9 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer) 
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Lt, a, b);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
@@ -915,8 +929,10 @@ simple_expr: constant {
               smt::SortKind kind_a = a->getTerm()->get_sort()->get_sort_kind();
               smt::SortKind kind_b = b->getTerm()->get_sort()->get_sort_kind();
               smt::Term res;
-              if ( (kind_a == smt::INT) || (kind_a == smt::REAL) ||(kind_b == smt::INT) || (kind_b == smt::REAL) ){
-                  res = enc.solver_->make_term(smt::Gt, a->getTerm(), b->getTerm());
+              if ((kind_a == smt::INT) || (kind_b == smt::INT)
+                  || (kind_a == smt::FLOAT64) || (kind_b == smt::FLOAT64)
+                  || (kind_a == smt::REAL) || (kind_b == smt::REAL)){
+                  res = make_arith_op(enc, smt::Gt, a, b);
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
@@ -941,8 +957,9 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Le, a, b);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
@@ -965,8 +982,9 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Ge, a, b);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
@@ -987,11 +1005,15 @@ simple_expr: constant {
                 SMVnode *a = $2;
                 SMVnode::Type bvs_a = a->getType();
                 smt::Term res;
-                if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real)){
+                if ((bvs_a == SMVnode::Integer) || (!enc.fp_semantics_ && bvs_a == SMVnode::Real)){
                   res = enc.solver_->make_term(smt::Negate, a->getTerm());
                   assert(res); //check res non-null
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
+                }else if (enc.fp_semantics_ && (bvs_a == SMVnode::Real)){
+                  res = enc.solver_->make_term(smt::FPNeg, a->getTerm());
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,SMVnode::Real);
                 }else {
                   res = enc.solver_->make_term(smt::BVNeg, a->getTerm());
                   assert(res); //check res non-null
@@ -1008,10 +1030,11 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Plus, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Plus, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
@@ -1033,10 +1056,11 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Minus, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Minus, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
@@ -1058,10 +1082,11 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Mult, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Mult, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if(bvs_a != bvs_b){
@@ -1083,10 +1108,11 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Div, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Div, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
@@ -1111,10 +1137,11 @@ simple_expr: constant {
               SMVnode::Type bvs_a = a->getType();
               SMVnode::Type bvs_b = b->getType();
               smt::Term res;
-              if ((bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
-                  res = enc.solver_->make_term(smt::Mod, a->getTerm(), b->getTerm());
+              if ((bvs_a == SMVnode::Integer) || (bvs_b == SMVnode::Integer)
+                  || (bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)){
+                  res = make_arith_op(enc, smt::Mod, a, b);
                   assert(res); //check res non-null
-                  if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
+                  if((bvs_a == SMVnode::Real) || (bvs_b == SMVnode::Real)) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                   if (bvs_a == bvs_b == SMVnode::Unsigned){
@@ -1202,13 +1229,51 @@ simple_expr: constant {
               }
             }
             | word1 "(" basic_expr ")" {
-              throw PonoException("No word1");
+              if(enc.module_flat){
+                SMVnode *boolean = $3;
+                if(boolean->getType() != SMVnode::Boolean){
+                  throw PonoException("Word1 word type is uncompatible");
+                }
+                smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                smt::Term res = enc.solver_->make_term(smt::Ite, 
+                                                       boolean->getTerm(), 
+                                                       enc.solver_->make_term(1, bv1sort), 
+                                                       enc.solver_->make_term(0, bv1sort));
+                assert(res); //check res non-null
+                $$ = new SMVnode(res,SMVnode::Unsigned);
+              }else{
+                $$ = new word1_expr($3);
+              }
             }
             | tok_bool "(" basic_expr ")"{
-              throw PonoException("No type convert");
+              if(enc.module_flat){
+                SMVnode *a = $3;
+                smt::Sort sort = a->getTerm()->get_sort();
+                // TODO: SMV also supports bool conversion from integer
+                if(sort->get_sort_kind() != smt::BV || (sort->get_sort_kind() == smt::BV && sort->get_width() != 1)){
+                  throw PonoException("Can't convert non-width 1 bitvector to bool.");
+                }
+                smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                smt::Term res = enc.solver_->make_term(smt::Equal, 
+                                                       a->getTerm(), 
+                                                       enc.solver_->make_term(1, bv1sort));
+                $$ = new SMVnode(res,SMVnode::Boolean);
+              }else{
+                $$ = new bool_expr($3);
+              }
             }
             | tok_toint "(" basic_expr ")"{
-              throw PonoException("No type convert");
+              if(enc.module_flat){
+                SMVnode *a = $3;
+                smt::Sort sort = a->getTerm()->get_sort();
+                if(sort->get_sort_kind() != smt::BV){
+                  throw PonoException("Can't convert non-bitvector to integer.");
+                }
+                smt::Term res = enc.solver_->make_term(smt::BV_To_Nat, a->getTerm());
+                $$ = new SMVnode(res,SMVnode::Integer);
+              }else{
+                $$ = new toint_expr($3);
+              }
             }
             | tok_count "(" basic_expr_list ")"{
               throw PonoException("No type convert");
@@ -1241,7 +1306,9 @@ simple_expr: constant {
               {
                 smt::Term t = $3->getTerm();
                 smt::SortKind sk = t->get_sort()->get_sort_kind();
-                assert(sk == smt::REAL || sk == smt::INT);
+                assert(sk == smt::REAL || sk == smt::FLOAT64 || sk == smt::INT);
+                if (sk == smt::FLOAT64)
+                  t = enc.solver_->make_term(smt::FP_To_REAL, t);
                 smt::Term res = enc.solver_->make_term(smt::To_Int, t);
                 $$ = new SMVnode(res, SMVnode::Integer);
               }
@@ -1253,11 +1320,63 @@ simple_expr: constant {
             | extend "(" basic_expr ")"{
               throw PonoException("No extend now");
             }
-            | resize "(" basic_expr ")" {
-              throw PonoException("No resize");
+            | resize "(" basic_expr "," integer_val ")" {
+              if(enc.module_flat){
+                SMVnode *word = $3;
+                SMVnode::Type word_type = word->getType();
+                
+                if(word_type != SMVnode::Integer && word_type != SMVnode::Signed && word_type != SMVnode::Unsigned){
+                  throw PonoException("Resize word type is uncompatible");
+                }
+                
+                int integer = stoi($5);
+                smt::Sort word_sort = word->getTerm()->get_sort();
+                uint64_t word_width = word_type != SMVnode::Integer ? word_sort->get_width() : 0;
+
+                if (word_type == SMVnode::Integer){
+                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Int_To_BV, integer), word->getTerm());
+                  assert(res);
+                  $$ = new SMVnode(res, SMVnode::Signed);                  
+                }else if(integer == word_width){
+                  $$ = word;
+                }else if(integer < word_width){
+                  smt::Term res;
+                  if(word_type == SMVnode::Signed){
+                    smt::Term tail = enc.solver_->make_term(smt::Op(smt::Extract, integer - 2, 0), word->getTerm());
+                    smt::Term signBit = enc.solver_->make_term(smt::Op(smt::Extract, word_width - 1, word_width - 1), word->getTerm());
+                    res = enc.solver_->make_term(smt::Concat, signBit, tail);
+                  }else{
+                    res = enc.solver_->make_term(smt::Op(smt::Extract, integer - 1, 0), word->getTerm());
+                  }
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,word_type);
+                }else{
+                  smt::PrimOp extendOp = word_type == SMVnode::Signed ? smt::Sign_Extend : smt::Zero_Extend;
+                  smt::Term res = enc.solver_->make_term(smt::Op(extendOp, integer - word_width), word->getTerm());
+                  assert(res); //check res non-null
+                  $$ = new SMVnode(res,word_type);
+                }
+              }else{
+                SMVnode *integer = new constant($5);
+                $$ = new resize_expr($3,integer);
+              }
             }
             | signed_word sizev "(" basic_expr ")"{
-               throw PonoException("No resize");
+              if(enc.module_flat){
+                SMVnode *expr = $4;
+                SMVnode::Type expr_type = expr->getType();
+                
+                if(expr_type != SMVnode::Integer){
+                  throw PonoException("Signed word conversion type is uncompatible");
+                }
+                assert(expr);
+                smt::Term res = enc.solver_->make_term(smt::Op(smt::Int_To_BV, $2), expr->getTerm());
+                assert(res);
+                $$ = new SMVnode(res, SMVnode::Signed);
+              }else{
+                SMVnode *integer = new constant(std::to_string($2));
+                $$ = new resize_expr($4,integer);
+              }
             }
             | unsigned_word sizev "(" basic_expr ")"{
                throw PonoException("No resize");
@@ -1271,7 +1390,7 @@ simple_expr: constant {
             | basic_expr OP_IN basic_expr {
                throw PonoException("No array");
             }
-            | basic_expr IF_ELSE basic_expr ":" basic_expr  {
+            | basic_expr IF_ELSE basic_expr ":" basic_expr %prec IF_ELSE {
               if(enc.module_flat){
                  SMVnode *a = $1;
                  SMVnode *b = $3;
@@ -1469,7 +1588,8 @@ complex_identifier: tok_name{
 
 type_identifier: real_type{
         if(enc.module_flat){
-                smt::Sort sort_ = enc.solver_->make_sort(smt::REAL);
+                smt::Sort sort_ = enc.fp_semantics_ ? enc.solver_->make_sort(smt::FLOAT64)
+                                                    : enc.solver_->make_sort(smt::REAL);
                 $$ =  new type_node(sort_,SMVnode::Real);
         }else{
           $$ = new type_node("real");
@@ -1610,6 +1730,71 @@ sizev:
 
 semioption     : %empty | SEMICOLON;
 %%
+
+smt::Term make_arith_op(pono::SMVEncoder &enc,
+                        smt::Op op,
+                        pono::SMVnode *a,
+                        pono::SMVnode *b)
+{
+  // Mapping arithmetic operations to their corresponding Floating-Point ops
+  static std::unordered_map<smt::Op, smt::Op> fp_op = {
+    {smt::Div, smt::FPDiv},
+    {smt::Ge, smt::FPGeq},
+    {smt::Gt, smt::FPGt},
+    {smt::Le, smt::FPLeq},
+    {smt::Lt, smt::FPLt},
+    {smt::Minus, smt::FPSub},
+    {smt::Mod, smt::FPRem},
+    {smt::Mult, smt::FPMul},
+    {smt::Negate, smt::FPNeg},
+    {smt::Plus, smt::FPAdd},
+  };
+
+  using namespace pono;
+  
+  assert(fp_op.count(op) > 0);
+  assert(a && b);
+  SMVnode::Type a_type = a->getType();
+  SMVnode::Type b_type = b->getType();
+  assert(a_type == SMVnode::Integer || a_type == SMVnode::Real);
+  assert(b_type == SMVnode::Integer || b_type == SMVnode::Real);
+  smt::Term a_term = a->getTerm();
+  smt::Term b_term = b->getTerm();
+
+  bool need_fp_semantics = enc.fp_semantics_ && (a_type == SMVnode::Real || b_type == SMVnode::Real);
+  if (a_type != b_type) {
+    // Type mismatch between a and b: convert the Integer one to Real or FP
+    if (a_type == SMVnode::Integer) {
+      a_term = enc.solver_->make_term(smt::To_Real, a_term);
+    }
+    if (b_type == SMVnode::Integer) {
+      b_term = enc.solver_->make_term(smt::To_Real, b_term);
+    }    
+    if (need_fp_semantics) {
+      auto toFPOp = smt::Op(smt::Real_To_FP,
+                            smt::FPSizes<smt::FLOAT64>::exp,
+                            smt::FPSizes<smt::FLOAT64>::sig);
+      auto rm = enc.solver_->make_term(smt::FPRoundingMode::ROUND_NEAREST_TIES_TO_EVEN);
+      if (a_type == SMVnode::Integer) {
+        a_term = enc.solver_->make_term(toFPOp, rm, a_term);
+      }
+      if (b_type == SMVnode::Integer) {
+        b_term = enc.solver_->make_term(toFPOp, rm, b_term);
+      }
+    }
+  }
+
+  if (need_fp_semantics) {
+    op = fp_op[op];
+    if (op == smt::FPAdd || op == smt::FPSub || op == smt::FPMul 
+        || op == smt::FPDiv || op == smt::FPRem) {
+      auto rm = enc.solver_->make_term(smt::FPRoundingMode::ROUND_NEAREST_TIES_TO_EVEN);
+      return enc.solver_->make_term(op, rm, a_term, b_term);
+    }
+  }
+
+  return enc.solver_->make_term(op, a_term, b_term);
+}
 
 void pono::smvparser::error (const location &loc, const std::string& m)
 {
