@@ -127,6 +127,7 @@ bool DualApproxReach::step_0()
   solver_->reset_assertions();
   // push the unrolled formulas here
   // as compute_witness() rely on timed variables
+  solver_->push();
   solver_->assert_formula(unroller_.at_time(forward_seq_.at(0), 0));   // init
   solver_->assert_formula(unroller_.at_time(backward_seq_.at(0), 0));  // bad
 
@@ -136,6 +137,7 @@ bool DualApproxReach::step_0()
   } else {
     concrete_cex_ = true;
   }
+  solver_->pop();
   return false;
 }
 
@@ -166,8 +168,12 @@ bool DualApproxReach::local_strengthen()
   size_t unsat_idx = 0;
   const size_t seq_len = forward_seq_.size();
   solver_->reset_assertions();
+  solver_->push();
   solver_->assert_formula(unroller_.at_time(ts_.trans(), 0));  // TR(0, 1)
-  for (; unsat_idx < seq_len; ++unsat_idx) {
+  // iterate through the reachability sequences
+  // this loop is terminated if (1) an unsat index is found (break) or
+  // (2) the end of the sequence is reached (return false)
+  for (;; ++unsat_idx) {
     Term f0 = unroller_.at_time(forward_seq_.at(seq_len - 1 - unsat_idx), 0);
     Term b1 = unroller_.at_time(backward_seq_.at(unsat_idx), 1);
     solver_->push();
@@ -178,12 +184,26 @@ bool DualApproxReach::local_strengthen()
       break;
     }
     if (unsat_idx == seq_len - 1) {
+      if (!r.is_sat()) {
+        throw PonoException("DAR: local strengthening failed, expect SAT");
+      }
       // no such index found, return false
-      logger.log(1, "DAR: local strengthening failed");
+      logger.log(1,
+                 "DAR: did not find an index for refinement "
+                 "during local strengthening");
+      if (reached_k_ == 0) {
+        // do not pop here to keep the solver state
+        // for later witness extraction (`compute_witness()`)
+        logger.log(1, "DAR: found a concrete CEX");
+      } else {
+        // will enter global strengthening
+        solver_->pop(2);  // pop f0 & b1 and TR(0, 1)
+      }
       return false;
     }
     solver_->pop();  // pop f0 & b1
   }
+  solver_->pop(2);  // pop f0 & b1 and TR(0, 1)
   pairwise_strengthen(seq_len - 1 - unsat_idx);
   return true;
 }
@@ -199,10 +219,14 @@ bool DualApproxReach::global_strengthen()
   Term unrolled_trans = unroller_.at_time(
       solver_->make_term(And, forward_seq_.at(0), ts_.trans()), 0);
   int_assertions.push_back(to_interpolator_.transfer_term(unrolled_trans));
+  solver_->push();
   solver_->assert_formula(unrolled_trans);  // init(0) & TR(0, 1)
 
   size_t unsat_idx = 1;
-  for (; unsat_idx < seq_len; ++unsat_idx) {
+  // iterate through the backward reachability sequence
+  // this loop is terminated if (1) an unsat index is found (break) or
+  // (2) the end of the sequence is reached (return false)
+  for (;; ++unsat_idx) {
     solver_->push();
     unrolled_trans = unroller_.at_time(ts_.trans(), unsat_idx);
     solver_->assert_formula(unrolled_trans);
@@ -218,13 +242,22 @@ bool DualApproxReach::global_strengthen()
       break;
     }
     if (unsat_idx == seq_len - 1) {
-      // this is a concrete counterexample
-      logger.log(1, "DAR: Found a concrete CEX");
+      if (!r.is_sat()) {
+        throw PonoException("DAR: global strengthening failed, expect SAT");
+      }
+      // this is a concrete counterexample;
+      // do not pop here to keep the solver state
+      // for later witness extraction (`compute_witness()`)
+      logger.log(1, "DAR: found a concrete CEX");
       return false;
     }
-    solver_->pop();  // pop backward_seq_ assertion
+    // pop backward_seq_ assertion
+    // keep the unrolled transition because it is reused in the next iteration
+    solver_->pop();
   }
   assert(int_assertions.size() == unsat_idx + 2);
+  solver_->pop(int_assertions.size());  // pop all assertions
+
   TermVec int_itpseq;
   Result int_r =
       interpolator_->get_sequence_interpolants(int_assertions, int_itpseq);
