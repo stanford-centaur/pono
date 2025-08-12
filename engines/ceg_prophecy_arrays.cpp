@@ -10,7 +10,8 @@
 ** directory for licensing information.\endverbatim
 **
 ** \brief An implementation of Counter-Example Guided Prophecy for array
-**        model checking. It is parameterized by an underlying model checking
+**        model checking (https://lmcs.episciences.org/9984/pdf).
+**        It is parameterized by an underlying model checking
 **        procedure which need not handle arrays (only UF). However, a common
 **        instantiation is with an IC3-style procedure, in which case we
 **        often refer to this algorithm as "prophic3".
@@ -87,8 +88,15 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
     // heuristic -- stop refining when no new axioms are needed.
     do {
       if (!CegProphecyArrays::cegar_refine()) {
-        // real counterexample
-        return ProverResult::FALSE;
+        if (has_finite_index_sort_) {
+          // Havoc the result to UNKNOWN because we ignore the lambda axioms
+          // for finite-domain index sort, and this may lead to false alarms
+          // (see p17 of CEGP paper).
+          // TODO: perform BMC on concrete TS and extract witness
+          return ProverResult::UNKNOWN;
+        } else {
+          return ProverResult::FALSE;
+        }
       }
       reached_k_++;
     } while (num_added_axioms_);
@@ -139,7 +147,15 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     // heuristic -- stop refining when no new axioms are needed.
     do {
       if (!CegProphecyArrays::cegar_refine()) {
-        return ProverResult::FALSE;
+        if (has_finite_index_sort_) {
+          // Havoc the result to UNKNOWN because we ignore the lambda axioms
+          // for finite-domain index sort, and this may lead to false alarms
+          // (see p17 of CEGP paper).
+          // TODO: perform BMC on concrete TS and extract witness
+          return ProverResult::UNKNOWN;
+        } else {
+          return ProverResult::FALSE;
+        }
       }
       reached_k_++;
     } while (num_added_axioms_ && reached_k_ <= k);

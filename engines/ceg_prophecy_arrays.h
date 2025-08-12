@@ -10,7 +10,8 @@
 ** directory for licensing information.\endverbatim
 **
 ** \brief An implementation of Counter-Example Guided Prophecy for array
-**        model checking. It is parameterized by an underlying model checking
+**        model checking (https://lmcs.episciences.org/9984/pdf).
+**        It is parameterized by an underlying model checking
 **        procedure which need not handle arrays (only UF). However, a common
 **        instantiation is with an IC3-style procedure, in which case we
 **        often refer to this algorithm as "prophic3".
