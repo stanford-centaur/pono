@@ -226,6 +226,7 @@ void CegProphecyArrays<Prover_T>::initialize()
   super::initialize();
 
   bool contains_arrays = false;
+  has_finite_index_sort_ = false;
   Sort boolsort = super::solver_->make_sort(BOOL);
   Sort sort;
   for (const auto & sv : conc_ts_.statevars()) {
@@ -233,8 +234,13 @@ void CegProphecyArrays<Prover_T>::initialize()
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
       SortKind sk = sort->get_indexsort()->get_sort_kind();
-      if (sk != REAL && sk != INT) {
+      if (sk == REAL || sk == INT) {
+        // do nothing
+      } else if (sk == BV) {
         has_finite_index_sort_ = true;
+      } else {
+        throw PonoException("CEGP: unhandled index sort in array: "
+                            + to_string(sk));
       }
     }
   }
@@ -244,8 +250,13 @@ void CegProphecyArrays<Prover_T>::initialize()
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
       SortKind sk = sort->get_indexsort()->get_sort_kind();
-      if (sk != REAL && sk != INT) {
+      if (sk == REAL || sk == INT) {
+        // do nothing
+      } else if (sk == BV) {
         has_finite_index_sort_ = true;
+      } else {
+        throw PonoException("CEGP: unhandled index sort in array: "
+                            + to_string(sk));
       }
     }
   }
