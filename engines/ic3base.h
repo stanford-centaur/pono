@@ -186,6 +186,8 @@ class IC3Base : public SafetyProver
  protected:
   bool compute_witness() override;
 
+  bool compute_witness(const TransitionSystem & ts);
+
   smt::UnsatCoreReducer reducer_;
 
   ///< keeps track of the current context-level of the solver
