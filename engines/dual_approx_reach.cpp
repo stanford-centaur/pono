@@ -69,8 +69,16 @@ void DualApproxReach::initialize()
   }
 
   concrete_cex_ = false;
+  forward_seq_.clear();
+  backward_seq_.clear();
   forward_seq_.push_back(ts_.init());
   backward_seq_.push_back(bad_);
+}
+
+void DualApproxReach::reset_env()
+{
+  initialized_ = false;
+  DualApproxReach::initialize();
 }
 
 ProverResult DualApproxReach::check_until(int k)
