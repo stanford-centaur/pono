@@ -993,4 +993,6 @@ void IC3SA::debug_print_cex_trace(const std::vector<IC3Formula> & cex)
   cout << "======== end of cex trace debug printing" << endl;
 }
 
+bool IC3SA::compute_witness() { return super::compute_witness(conc_ts_); }
+
 }  // namespace pono

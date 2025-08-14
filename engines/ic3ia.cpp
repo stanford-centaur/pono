@@ -492,4 +492,6 @@ void IC3IA::register_symbol_mappings(size_t i)
   }
 }
 
+bool IC3IA::compute_witness() { return super::compute_witness(conc_ts_); }
+
 }  // namespace pono
