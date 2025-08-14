@@ -252,7 +252,7 @@ void CegProphecyArrays<Prover_T>::initialize()
       SortKind sk = sort->get_indexsort()->get_sort_kind();
       if (sk == REAL || sk == INT) {
         // do nothing
-      } else if (sk == BV) {
+      } else if (sk == BV || sk == BOOL) {
         has_finite_index_sort_ = true;
       } else {
         throw PonoException("CEGP: unhandled index sort in array: "
@@ -268,7 +268,7 @@ void CegProphecyArrays<Prover_T>::initialize()
       SortKind sk = sort->get_indexsort()->get_sort_kind();
       if (sk == REAL || sk == INT) {
         // do nothing
-      } else if (sk == BV) {
+      } else if (sk == BV || sk == BOOL) {
         has_finite_index_sort_ = true;
       } else {
         throw PonoException("CEGP: unhandled index sort in array: "
