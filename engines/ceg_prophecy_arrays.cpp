@@ -24,6 +24,7 @@
 
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
+#include "engines/dual_approx_reach.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
 #include "engines/interp_seq_mc.h"
@@ -624,6 +625,7 @@ template class CegProphecyArrays<IC3IA>;
 template class CegProphecyArrays<Bmc>;
 template class CegProphecyArrays<BmcSimplePath>;
 template class CegProphecyArrays<KInduction>;
+template class CegProphecyArrays<DualApproxReach>;
 template class CegProphecyArrays<InterpolantMC>;
 template class CegProphecyArrays<InterpSeqMC>;
 template class CegProphecyArrays<ModelBasedIC3>;
