@@ -37,6 +37,8 @@ class InterpSeqMC : public SafetyProver
 
   void initialize() override;
 
+  void reset_env() override;
+
   ProverResult check_until(int k) override;
 
  protected:

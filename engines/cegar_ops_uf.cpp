@@ -21,8 +21,10 @@
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/ceg_prophecy_arrays.h"
+#include "engines/dual_approx_reach.h"
 #include "engines/ic3ia.h"
 #include "engines/ic3sa.h"
+#include "engines/interp_seq_mc.h"
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "smt/available_solvers.h"
@@ -363,9 +365,11 @@ void CegarOpsUf<CegProphecyArrays<IC3IA>>::refine_subprover_ts(
 // TODO add other template classes
 template class CegarOpsUf<Bmc>;
 template class CegarOpsUf<BmcSimplePath>;
+template class CegarOpsUf<DualApproxReach>;
 template class CegarOpsUf<IC3IA>;
 template class CegarOpsUf<IC3SA>;
 template class CegarOpsUf<InterpolantMC>;
+template class CegarOpsUf<InterpSeqMC>;
 template class CegarOpsUf<KInduction>;
 template class CegarOpsUf<CegProphecyArrays<IC3IA>>;
 
