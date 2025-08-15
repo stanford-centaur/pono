@@ -142,10 +142,15 @@ bool DualApproxReach::step_0()
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
     reached_k_ = 0;
-  } else {
+    solver_->pop();
+  } else if (r.is_sat()) {
+    // do not pop here to keep the solver state
+    // for later witness extraction (`compute_witness()`)
     concrete_cex_ = true;
+  } else {
+    throw PonoException("DAR: step_0 failed, unexpected result: "
+                        + r.to_string());
   }
-  solver_->pop();
   return false;
 }
 
