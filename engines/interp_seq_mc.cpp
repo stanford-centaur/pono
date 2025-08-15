@@ -68,6 +68,8 @@ void InterpSeqMC::initialize()
 
   concrete_cex_ = false;
   reach_seq_.clear();
+  trans_seq_.clear();
+  int_trans_seq_.clear();
   reach_seq_.push_back(ts_.init());
 }
 
