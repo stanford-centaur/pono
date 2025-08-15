@@ -46,6 +46,17 @@ class CegarOpsUf : public CEGAR<Prover_T>
 
   bool cegar_refine() override;
 
+  /**
+   * Extract the SAT assignment from the latest refine query,
+   * transfer the terms to the prover's solver, and
+   * store them in the prover's `witness_` field.
+   *
+   * We deliberately do not override the prover's `compute_witness`
+   * method, because it may be called by the prover's `check_until`
+   * method, which is called in each CEGAR iteration.
+   */
+  void store_witness();
+
   void refine_subprover_ts_base(const smt::UnorderedTermSet & axioms,
                                 bool skip_init);
   void refine_subprover_ts(const smt::UnorderedTermSet & axioms,
