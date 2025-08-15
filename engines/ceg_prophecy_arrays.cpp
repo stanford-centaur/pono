@@ -10,7 +10,8 @@
 ** directory for licensing information.\endverbatim
 **
 ** \brief An implementation of Counter-Example Guided Prophecy for array
-**        model checking. It is parameterized by an underlying model checking
+**        model checking (https://lmcs.episciences.org/9984/pdf).
+**        It is parameterized by an underlying model checking
 **        procedure which need not handle arrays (only UF). However, a common
 **        instantiation is with an IC3-style procedure, in which case we
 **        often refer to this algorithm as "prophic3".
@@ -87,8 +88,15 @@ ProverResult CegProphecyArrays<MsatIC3IA>::prove()
     // heuristic -- stop refining when no new axioms are needed.
     do {
       if (!CegProphecyArrays::cegar_refine()) {
-        // real counterexample
-        return ProverResult::FALSE;
+        if (has_finite_index_sort_) {
+          // Havoc the result to UNKNOWN because we ignore the lambda axioms
+          // for finite-domain index sort, and this may lead to false alarms
+          // (see p17 of CEGP paper).
+          // TODO: perform BMC on concrete TS and extract witness
+          return ProverResult::UNKNOWN;
+        } else {
+          return ProverResult::FALSE;
+        }
       }
       reached_k_++;
     } while (num_added_axioms_);
@@ -139,7 +147,15 @@ ProverResult CegProphecyArrays<Prover_T>::check_until(int k)
     // heuristic -- stop refining when no new axioms are needed.
     do {
       if (!CegProphecyArrays::cegar_refine()) {
-        return ProverResult::FALSE;
+        if (has_finite_index_sort_) {
+          // Havoc the result to UNKNOWN because we ignore the lambda axioms
+          // for finite-domain index sort, and this may lead to false alarms
+          // (see p17 of CEGP paper).
+          // TODO: perform BMC on concrete TS and extract witness
+          return ProverResult::UNKNOWN;
+        } else {
+          return ProverResult::FALSE;
+        }
       }
       reached_k_++;
     } while (num_added_axioms_ && reached_k_ <= k);
@@ -226,6 +242,7 @@ void CegProphecyArrays<Prover_T>::initialize()
   super::initialize();
 
   bool contains_arrays = false;
+  has_finite_index_sort_ = false;
   Sort boolsort = super::solver_->make_sort(BOOL);
   Sort sort;
   for (const auto & sv : conc_ts_.statevars()) {
@@ -233,11 +250,13 @@ void CegProphecyArrays<Prover_T>::initialize()
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
       SortKind sk = sort->get_indexsort()->get_sort_kind();
-      if (sk != REAL && sk != INT) {
-        throw PonoException(
-            "CEGP currently only supports infinite domain indices in arrays "
-            "due to an edge case for constant arrays, but got "
-            + sort->to_string());
+      if (sk == REAL || sk == INT) {
+        // do nothing
+      } else if (sk == BV || sk == BOOL) {
+        has_finite_index_sort_ = true;
+      } else {
+        throw PonoException("CEGP: unhandled index sort in array: "
+                            + to_string(sk));
       }
     }
   }
@@ -247,11 +266,13 @@ void CegProphecyArrays<Prover_T>::initialize()
     if (sort->get_sort_kind() == ARRAY) {
       contains_arrays = true;
       SortKind sk = sort->get_indexsort()->get_sort_kind();
-      if (sk != REAL && sk != INT) {
-        throw PonoException(
-            "CEGP currently only supports infinite domain indices in arrays "
-            "due to an edge case for constant arrays, but got "
-            + sort->to_string());
+      if (sk == REAL || sk == INT) {
+        // do nothing
+      } else if (sk == BV || sk == BOOL) {
+        has_finite_index_sort_ = true;
+      } else {
+        throw PonoException("CEGP: unhandled index sort in array: "
+                            + to_string(sk));
       }
     }
   }
@@ -287,7 +308,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
   Term abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
   // check array axioms over the abstract system
-  if (!aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1)) {
+  if (!aae_.enumerate_axioms(
+          abs_bmc_formula, reached_k_ + 1, true, has_finite_index_sort_)) {
     // concrete CEX
     return false;
   }
@@ -374,7 +396,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
     // search for axioms again but don't include nonconsecutive ones
-    bool ok = aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
+    bool ok = aae_.enumerate_axioms(
+        abs_bmc_formula, reached_k_ + 1, false, has_finite_index_sort_);
     // should be guaranteed to rule out counterexamples at this bound
     assert(ok);
     consecutive_axioms = aae_.get_consecutive_axioms();

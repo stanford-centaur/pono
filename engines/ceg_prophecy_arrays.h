@@ -10,7 +10,8 @@
 ** directory for licensing information.\endverbatim
 **
 ** \brief An implementation of Counter-Example Guided Prophecy for array
-**        model checking. It is parameterized by an underlying model checking
+**        model checking (https://lmcs.episciences.org/9984/pdf).
+**        It is parameterized by an underlying model checking
 **        procedure which need not handle arrays (only UF). However, a common
 **        instantiation is with an IC3-style procedure, in which case we
 **        often refer to this algorithm as "prophic3".
@@ -72,6 +73,9 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   smt::UnorderedTermSet
       important_vars_;  ///< important variables
                         ///< useful for IC3IA to prioritize predicates
+
+  // whether the arrays in the system has a finite index sort
+  bool has_finite_index_sort_ = false;
 
   TransitionSystem & prover_interface_ts() override { return conc_ts_; }
 
