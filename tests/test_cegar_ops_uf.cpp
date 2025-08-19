@@ -3,6 +3,7 @@
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/make_provers.h"
+#include "utils/ts_analysis.h"
 
 using namespace pono;
 using namespace smt;
@@ -53,6 +54,7 @@ class CegOpsUfTests : public ::testing::Test,
     opts.ceg_bv_arith_as_free_symbol_ = get<1>(test_param);
     // use cvc5 as the base solver as it supports both BV and Int
     opts.smt_solver_ = SolverEnum::CVC5;
+    opts.check_invar_ = true;
     solver = create_solver(opts.smt_solver_);
     solver->set_opt("produce-unsat-assumptions", "true");
   }
@@ -76,6 +78,10 @@ TEST_P(CegOpsUfTests, BVSimpleSafe)
     ASSERT_EQ(r, ProverResult::UNKNOWN);
   } else {
     ASSERT_EQ(r, ProverResult::TRUE);
+    if (opts.engine_ != Engine::BMC_SP && opts.engine_ != Engine::KIND) {
+      Term invar = ceg_prover->invar();
+      ASSERT_TRUE(check_invar(fts, prop_term, invar));
+    }
   }
 }
 
@@ -115,6 +121,10 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
     ASSERT_EQ(r, ProverResult::UNKNOWN);
   } else {
     ASSERT_EQ(r, ProverResult::TRUE);
+    if (opts.engine_ != Engine::BMC_SP && opts.engine_ != Engine::KIND) {
+      Term invar = ceg_prover->invar();
+      ASSERT_TRUE(check_invar(fts, prop_term, invar));
+    }
   }
 }
 
