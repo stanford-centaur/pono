@@ -99,6 +99,8 @@ TEST_P(CegOpsUfTests, BVSimpleUnsafe)
 
   ProverResult r = ceg_prover->check_until(11);
   ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ceg_prover->witness(cex));
 }
 
 TEST_P(CegOpsUfTests, IntSimpleSafe)
@@ -146,6 +148,8 @@ TEST_P(CegOpsUfTests, IntSimpleUnsafe)
 
   ProverResult r = ceg_prover->check_until(11);
   ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ceg_prover->witness(cex));
 }
 
 INSTANTIATE_TEST_SUITE_P(
