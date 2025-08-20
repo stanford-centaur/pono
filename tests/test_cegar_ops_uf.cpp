@@ -14,9 +14,9 @@ unordered_set<Engine> get_cegar_ops_uf_engines()
 {
   return {
 #ifdef WITH_MSAT
-    IC3IA_ENGINE, INTERP,
+    IC3IA_ENGINE, INTERP, ISMC, DAR,
 #endif
-    IC3SA_ENGINE, BMC_SP, BMC, KIND
+    IC3SA_ENGINE, BMC_SP, BMC,  KIND
   };
 }
 
@@ -71,8 +71,8 @@ TEST_P(CegOpsUfTests, BVSimpleSafe)
   shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
       opts.engine_, prop, fts, solver, opts, { BVAdd });
 
-  ProverResult r = ceg_prover->check_until(5);
-  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
+  ProverResult r = ceg_prover->check_until(20);
+  if (opts.engine_ == Engine::BMC) {
     ASSERT_EQ(r, ProverResult::UNKNOWN);
   } else {
     ASSERT_EQ(r, ProverResult::TRUE);
@@ -91,7 +91,7 @@ TEST_P(CegOpsUfTests, BVSimpleUnsafe)
   shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
       opts.engine_, prop, fts, solver, opts, { BVAdd });
 
-  ProverResult r = ceg_prover->check_until(11);
+  ProverResult r = ceg_prover->check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
@@ -110,8 +110,8 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
   shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
       opts.engine_, prop, fts, solver, opts, { Plus });
 
-  ProverResult r = ceg_prover->check_until(5);
-  if (opts.engine_ == Engine::BMC || opts.engine_ == Engine::BMC_SP) {
+  ProverResult r = ceg_prover->check_until(15);
+  if (opts.engine_ == Engine::BMC) {
     ASSERT_EQ(r, ProverResult::UNKNOWN);
   } else {
     ASSERT_EQ(r, ProverResult::TRUE);
@@ -134,7 +134,7 @@ TEST_P(CegOpsUfTests, IntSimpleUnsafe)
   shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
       opts.engine_, prop, fts, solver, opts, { Plus });
 
-  ProverResult r = ceg_prover->check_until(11);
+  ProverResult r = ceg_prover->check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
