@@ -74,7 +74,7 @@ jobs:
       - name: Configure
         run: |
           source .venv/bin/activate
-          ./configure.sh --debug --python ${{ matrix.extra_solver_flags }} ${{ matrix.config_opts }}
+          ./configure.sh --python ${{ matrix.extra_solver_flags }} ${{ matrix.config_opts }}
 
       - name: Build
         run: |
