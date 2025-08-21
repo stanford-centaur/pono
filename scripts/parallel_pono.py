@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import enum
 import shutil
 import signal
 import subprocess
 import sys
 import time
-from typing import NoReturn
+
+ProcessMap = dict[str, tuple[list[str], subprocess.Popen[str], float]]
 
 
 class ReturnCode(enum.Enum):
@@ -69,6 +71,12 @@ def print_summary(engine: str, returncode: int, runtime: float, cmd: list[str]):
     print(result, f"{runtime:.1f}", engine, " ".join(cmd), sep=",", file=sys.stderr)
 
 
+def clean_up(processes: ProcessMap):
+    for _, process, _ in processes.values():
+        if process.poll() is None:
+            process.terminate()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
@@ -79,15 +87,7 @@ def main() -> int:
     args = parser.parse_args()
 
     processes: dict[str, tuple[list[str], subprocess.Popen[str], float]] = {}
-
-    def handle_signal(signum, frame) -> NoReturn:
-        # send signal received to subprocesses
-        for _, process, _ in processes.values():
-            process.send_signal(signum)
-        sys.exit(ReturnCode.UNKNOWN.value)
-
-    signal.signal(signal.SIGINT, handle_signal)
-    signal.signal(signal.SIGTERM, handle_signal)
+    atexit.register(clean_up, processes)
 
     # Try current directory if pono is not on PATH.
     executable = shutil.which("pono") or "./pono"
@@ -120,10 +120,6 @@ def main() -> int:
                         print(ReturnCode(process.returncode).name.lower())
                     else:
                         print(process.stdout.read())
-                    # Terminate remaining instances.
-                    for _, process, _ in processes.values():
-                        if process.poll() is None:
-                            process.terminate()
                     return process.returncode
 
     return ReturnCode.UNKNOWN.value
