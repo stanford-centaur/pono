@@ -71,10 +71,13 @@ def print_summary(engine: str, returncode: int, runtime: float, cmd: list[str]):
     print(result, f"{runtime:.1f}", engine, " ".join(cmd), sep=",", file=sys.stderr)
 
 
-def clean_up(processes: ProcessMap):
-    for _, process, _ in processes.values():
+def clean_up(processes: ProcessMap, verbose: bool):
+    for name, (_, process, _) in processes.items():
         if process.poll() is None:
             process.terminate()
+        if verbose and process.stderr and (stderr := process.stderr.read()):
+            for line in stderr.splitlines():
+                print(f"{name}:", line, file=sys.stderr)
 
 
 def main() -> int:
@@ -83,11 +86,12 @@ def main() -> int:
     parser.add_argument("witness_file", nargs="?", help="file to store the witness")
     parser.add_argument("-k", "--bound", default=1000, type=int, help="unrolling bound")
     parser.add_argument("-s", "--smt-solver", help="main SMT solver")
+    parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
     parser.add_argument("--summarize", action="store_true", help="print summary report")
     args = parser.parse_args()
 
     processes: dict[str, tuple[list[str], subprocess.Popen[str], float]] = {}
-    atexit.register(clean_up, processes)
+    atexit.register(clean_up, processes, args.verbose)
 
     # Try current directory if pono is not on PATH.
     executable = shutil.which("pono") or "./pono"
@@ -102,9 +106,8 @@ def main() -> int:
             # BV UF abstraction doesn't work with plain Boolector
             cmd.append("--logging-smt-solver")
         cmd.append(args.btor_file)
-        proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
-        )
+        stderr = subprocess.PIPE if args.verbose else subprocess.DEVNULL
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, text=True)
         processes[name] = cmd, proc, time.time()
 
     while processes:
@@ -112,6 +115,7 @@ def main() -> int:
             end_time = time.time()
             if process.poll() is not None:
                 del processes[name]
+                clean_up({name: ([], process, 0)}, args.verbose)
                 if args.summarize:
                     print_summary(name, process.returncode, end_time - start_time, cmd)
                 if process.returncode in SOLVED_RETURN_CODES:
