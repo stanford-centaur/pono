@@ -9,8 +9,7 @@ import signal
 import subprocess
 import sys
 import time
-
-ProcessMap = dict[str, tuple[list[str], subprocess.Popen[str], float]]
+from typing import cast
 
 
 class ReturnCode(enum.Enum):
@@ -71,8 +70,8 @@ def print_summary(engine: str, returncode: int, runtime: float, cmd: list[str]):
     print(result, f"{runtime:.1f}", engine, " ".join(cmd), sep=",", file=sys.stderr)
 
 
-def clean_up(processes: ProcessMap, verbose: bool):
-    for name, (_, process, _) in processes.items():
+def clean_up(processes: dict[str, subprocess.Popen[str]], verbose: bool):
+    for name, process in processes.items():
         if process.poll() is None:
             process.terminate()
         if verbose and process.stderr and (stderr := process.stderr.read()):
@@ -90,11 +89,12 @@ def main() -> int:
     parser.add_argument("--summarize", action="store_true", help="print summary report")
     args = parser.parse_args()
 
-    processes: dict[str, tuple[list[str], subprocess.Popen[str], float]] = {}
-    atexit.register(clean_up, processes, args.verbose)
-
     # Try current directory if pono is not on PATH.
     executable = shutil.which("pono") or "./pono"
+
+    processes: dict[str, subprocess.Popen[str]] = {}
+    start_times: dict[str, float] = {}
+    atexit.register(clean_up, processes, args.verbose)
 
     for name, options in ENGINE_OPTIONS.items():
         cmd = [executable, "-k", str(args.bound), *options]
@@ -108,16 +108,19 @@ def main() -> int:
         cmd.append(args.btor_file)
         stderr = subprocess.PIPE if args.verbose else subprocess.DEVNULL
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, text=True)
-        processes[name] = cmd, proc, time.time()
+        start_times[name] = time.time()
+        processes[name] = proc
 
     while processes:
-        for name, (cmd, process, start_time) in list(processes.items()):
+        for name, process in list(processes.items()):
             end_time = time.time()
             if process.poll() is not None:
                 del processes[name]
-                clean_up({name: ([], process, 0)}, args.verbose)
+                clean_up({name: process}, args.verbose)
                 if args.summarize:
-                    print_summary(name, process.returncode, end_time - start_time, cmd)
+                    runtime = end_time - start_times[name]
+                    cmd = cast(list[str], process.args)
+                    print_summary(name, process.returncode, runtime, cmd)
                 if process.returncode in SOLVED_RETURN_CODES:
                     if process.stdout is None:
                         print(f"{parser.prog}:", name, "has no stdout", file=sys.stderr)
