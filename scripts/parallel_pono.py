@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import enum
+import shutil
 import signal
 import subprocess
 import sys
@@ -88,8 +89,11 @@ def main() -> int:
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
+    # Try current directory if pono is not on PATH.
+    executable = shutil.which("pono") or "./pono"
+
     for name, options in ENGINE_OPTIONS.items():
-        cmd = ["pono", "-k", str(args.bound), *options]
+        cmd = [executable, "-k", str(args.bound), *options]
         if args.witness_file:
             cmd.extend(["--dump-btor2-witness", args.witness_file])
         if args.smt_solver:
