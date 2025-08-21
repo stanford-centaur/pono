@@ -374,9 +374,9 @@ class PonoOptions
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
   static const smt::SolverEnum default_smt_interpolator_ =
 #ifdef WITH_MSAT
-      smt::MSAT;
+      smt::MSAT_INTERPOLATOR;
 #else
-      smt::CVC5;
+      smt::BZLA_INTERPOLATOR;
 #endif
   static const bool default_logging_smt_solver_ = false;
   static const bool default_printing_smt_solver_ = false;
