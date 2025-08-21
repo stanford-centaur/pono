@@ -169,6 +169,12 @@ shared_ptr<SafetyProver> make_cegar_bv_arith_prover(
   } else if (e == INTERP) {
     return create_cegar_bv_arith_prover<InterpolantMC>(
         p, ts, slv, opts, ops_to_abstract);
+  } else if (e == ISMC) {
+    return create_cegar_bv_arith_prover<InterpSeqMC>(
+        p, ts, slv, opts, ops_to_abstract);
+  } else if (e == DAR) {
+    return create_cegar_bv_arith_prover<DualApproxReach>(
+        p, ts, slv, opts, ops_to_abstract);
   } else if (e == KIND) {
     return create_cegar_bv_arith_prover<KInduction>(
         p, ts, slv, opts, ops_to_abstract);
