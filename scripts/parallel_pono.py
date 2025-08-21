@@ -112,11 +112,9 @@ def main() -> int:
         processes[name] = proc
 
     while processes:
-        for name, process in list(processes.items()):
+        for name, process in processes.items():
             end_time = time.time()
             if process.poll() is not None:
-                del processes[name]
-                clean_up({name: process}, args.verbose)
                 if args.summarize:
                     runtime = end_time - start_times[name]
                     cmd = cast(list[str], process.args)
@@ -128,6 +126,10 @@ def main() -> int:
                     else:
                         print(process.stdout.read())
                     return process.returncode
+                else:
+                    del processes[name]
+                    clean_up({name: process}, args.verbose)
+                    break
 
     return ReturnCode.UNKNOWN.value
 
