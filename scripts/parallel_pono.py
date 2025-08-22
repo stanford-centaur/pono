@@ -7,10 +7,12 @@ import csv
 import dataclasses
 import enum
 import logging
+import os
 import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from typing import cast
 
@@ -130,13 +132,17 @@ def main() -> int:
 
     processes: dict[str, subprocess.Popen[str]] = {}
     start_times: dict[str, float] = {}
+    witnesses: dict[str, str] = {}
     atexit.register(clean_up, processes, args.verbose)
 
     # Launch each portfolio solver as a subprocess.
     for name, options in ENGINE_OPTIONS.items():
         cmd = [executable, "-k", str(args.bound), *options]
         if args.witness_file:
-            cmd.extend(["--dump-btor2-witness", args.witness_file])
+            witness_file = tempfile.NamedTemporaryFile(delete=False)
+            witnesses[name] = witness_file.name
+            witness_file.close()
+            cmd.extend(["--dump-btor2-witness", witness_file.name])
         if args.smt_solver:
             cmd.extend(["--smt-solver", args.smt_solver])
         if args.smt_solver == "btor" and "--ceg-bv-arith" in cmd:
@@ -163,6 +169,10 @@ def main() -> int:
                         print(ReturnCode(process.returncode).name.lower())
                     else:
                         print(process.stdout.read())
+                    if args.witness_file:
+                        witness_name = witnesses[name]
+                        shutil.copy(witness_name, args.witness_file)
+                        os.remove(witness_name)
                     return process.returncode
                 else:
                     del processes[name]
