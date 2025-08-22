@@ -96,7 +96,7 @@ def summarize(file: str, engine: str, returncode: int, runtime: float, cmd: list
 
 def clean_up(processes: dict[str, subprocess.Popen[str]], verbose: bool):
     for name, process in processes.items():
-        if process.poll() is None:
+        if process.poll() is None:  # process has not finished yet
             process.terminate()
         if verbose and process.stderr and (stderr := process.stderr.read()):
             for line in stderr.splitlines():
@@ -126,6 +126,7 @@ def main() -> int:
     start_times: dict[str, float] = {}
     atexit.register(clean_up, processes, args.verbose)
 
+    # Launch each portfolio solver as a subprocess.
     for name, options in ENGINE_OPTIONS.items():
         cmd = [executable, "-k", str(args.bound), *options]
         if args.witness_file:
@@ -141,10 +142,11 @@ def main() -> int:
         start_times[name] = time.time()
         processes[name] = proc
 
+    # Wait for at least one process to terminate successfully.
     while processes:
         for name, process in processes.items():
             end_time = time.time()
-            if process.poll() is not None:
+            if process.poll() is not None:  # process has finished
                 if args.summarize:
                     runtime = end_time - start_times[name]
                     cmd = cast(list[str], process.args)
