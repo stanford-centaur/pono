@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import csv
+import dataclasses
 import enum
 import shutil
 import signal
@@ -22,6 +24,20 @@ class ReturnCode(enum.Enum):
 
 
 SOLVED_RETURN_CODES = {ReturnCode.SAT.value, ReturnCode.UNSAT.value}
+
+
+@dataclasses.dataclass
+class Summary:
+    """CSV summary record for a single pono run."""
+
+    result: str
+    runtime: str
+    engine: str
+    command: str
+
+
+SUMMARY_FIELDS = [field.name for field in dataclasses.fields(Summary)]
+
 
 ENGINE_OPTIONS = {
     "BMC": [
@@ -55,7 +71,7 @@ ENGINE_OPTIONS = {
 }
 
 
-def print_summary(engine: str, returncode: int, runtime: float, cmd: list[str]):
+def summarize(file: str, engine: str, returncode: int, runtime: float, cmd: list[str]):
     if returncode < 0:
         signum = -returncode
         try:
@@ -67,7 +83,15 @@ def print_summary(engine: str, returncode: int, runtime: float, cmd: list[str]):
             result = ReturnCode(returncode).name.lower()
         except ValueError:
             result = f"error {returncode}"
-    print(result, f"{runtime:.1f}", engine, " ".join(cmd), sep=",", file=sys.stderr)
+    summary = Summary(
+        result=result,
+        runtime=f"{runtime:.1f}",
+        engine=engine,
+        command=" ".join(cmd),
+    )
+    with open(file, "a") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=SUMMARY_FIELDS)
+        writer.writerow(dataclasses.asdict(summary))
 
 
 def clean_up(processes: dict[str, subprocess.Popen[str]], verbose: bool):
@@ -86,8 +110,14 @@ def main() -> int:
     parser.add_argument("-k", "--bound", default=1000, type=int, help="unrolling bound")
     parser.add_argument("-s", "--smt-solver", help="main SMT solver")
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
-    parser.add_argument("--summarize", action="store_true", help="print summary report")
+    parser.add_argument("--summarize", metavar="FILE", help="save csv summary")
     args = parser.parse_args()
+
+    # Create summary file when needed, truncating if it exists.
+    if args.summarize:
+        with open(args.summarize, "w") as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=SUMMARY_FIELDS)
+            writer.writeheader()
 
     # Try current directory if pono is not on PATH.
     executable = shutil.which("pono") or "./pono"
@@ -118,7 +148,7 @@ def main() -> int:
                 if args.summarize:
                     runtime = end_time - start_times[name]
                     cmd = cast(list[str], process.args)
-                    print_summary(name, process.returncode, runtime, cmd)
+                    summarize(args.summarize, name, process.returncode, runtime, cmd)
                 if process.returncode in SOLVED_RETURN_CODES:
                     if process.stdout is None:
                         print(f"{parser.prog}:", name, "has no stdout", file=sys.stderr)
