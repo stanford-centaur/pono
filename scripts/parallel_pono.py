@@ -6,6 +6,7 @@ import atexit
 import csv
 import dataclasses
 import enum
+import logging
 import shutil
 import signal
 import subprocess
@@ -99,8 +100,9 @@ def clean_up(processes: dict[str, subprocess.Popen[str]], verbose: bool):
         if process.poll() is None:  # process has not finished yet
             process.terminate()
         if verbose and process.stderr and (stderr := process.stderr.read()):
+            logger = logging.getLogger(name)
             for line in stderr.splitlines():
-                print(f"{name}:", line, file=sys.stderr)
+                logger.warning(line)
 
 
 def main() -> int:
@@ -118,6 +120,10 @@ def main() -> int:
         with open(args.summarize, "w") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=SUMMARY_FIELDS)
             writer.writeheader()
+
+    # Configure logging.
+    logging.basicConfig(format="{name}: {message}", style="{")
+    logger = logging.getLogger(parser.prog)
 
     # Try current directory if pono is not on PATH.
     executable = shutil.which("pono") or "./pono"
@@ -153,7 +159,7 @@ def main() -> int:
                     summarize(args.summarize, name, process.returncode, runtime, cmd)
                 if process.returncode in SOLVED_RETURN_CODES:
                     if process.stdout is None:
-                        print(f"{parser.prog}:", name, "has no stdout", file=sys.stderr)
+                        logger.warning(f"{name} has no stdout")
                         print(ReturnCode(process.returncode).name.lower())
                     else:
                         print(process.stdout.read())
