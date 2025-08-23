@@ -281,9 +281,18 @@ WalkerStepResult OpsAbstractor::ConcretizationWalker::visit_term(Term & term)
       }
 
       Term rebuilt = solver_->make_term(op, cached_children);
+
+      // Corner case: the abstract term itself is an operation to abstract.
+      // This can occur in invariants derived from the prover.
+      // In this case, only record the abstract-to-concrete term mapping.
+      const bool is_op_to_abstract =
+          oa_.ops_to_abstract_.find(op) != oa_.ops_to_abstract_.end()
+          && (rebuilt->get_sort()->get_sort_kind() != BV
+              || rebuilt->get_sort()->get_width() > oa_.min_bw_);
+
       // Note: reversed order because update_term_cache takes the
       // concrete term first
-      oa_.update_term_cache(rebuilt, term);
+      oa_.update_term_cache(rebuilt, term, is_op_to_abstract);
     }
     return Walker_Continue;
   }

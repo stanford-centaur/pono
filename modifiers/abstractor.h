@@ -69,19 +69,39 @@ class Abstractor
   TransitionSystem & abs_ts() const { return abs_ts_; };
 
  protected:
-  /** Populates term caches
-   *  @param conc_term the concrete term
-   *  @param abs_term the abstract term
-   *  asserts that values aren't overwritten
+  /** Populates term caches.
+   *
+   * The term caches maintain bidirectional mappings between concrete and
+   * abstract terms. Specifically, `abstraction_cache_` records the
+   * concrete-to-abstract term mapping, while `concretization_cache_` records
+   * the abstract-to-concrete term mapping. Existing values in both caches
+   * cannot be overwritten.
+   *
+   * By default (`only_abs_to_conc == false`), the method asserts that neither
+   * the given concrete term nor the abstract term already exist in the caches,
+   * and then updates both mappings.
+   *
+   * If `only_abs_to_conc == true`, only the `concretization_cache_` is updated.
+   * In this mode, `conc_term` may already exist in the `abstraction_cache_`,
+   * allowing multiple abstract terms to map to the same concrete term.
+   *
+   * @param conc_term the concrete term
+   * @param abs_term the abstract term
+   * @param only_abs_to_conc  if true, only updates the abstract-to-concrete
+   * term mapping; otherwise, updates both caches
    */
   void update_term_cache(const smt::Term & conc_term,
-                         const smt::Term & abs_term)
+                         const smt::Term & abs_term,
+                         bool only_abs_to_conc = false)
   {
     // abstraction mapping should never change (even if refined)
-    assert(abstraction_cache_.find(conc_term) == abstraction_cache_.end());
+    assert(only_abs_to_conc
+           || abstraction_cache_.find(conc_term) == abstraction_cache_.end());
     assert(concretization_cache_.find(abs_term) == concretization_cache_.end());
 
-    abstraction_cache_[conc_term] = abs_term;
+    if (!only_abs_to_conc) {
+      abstraction_cache_[conc_term] = abs_term;
+    }
     concretization_cache_[abs_term] = conc_term;
   }
 
