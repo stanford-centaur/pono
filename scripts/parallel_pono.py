@@ -7,7 +7,7 @@ import csv
 import dataclasses
 import enum
 import logging
-import os
+import pathlib
 import shutil
 import signal
 import subprocess
@@ -97,10 +97,16 @@ def summarize(file: str, engine: str, returncode: int, runtime: float, cmd: list
         writer.writerow(dataclasses.asdict(summary))
 
 
-def clean_up(processes: dict[str, subprocess.Popen[str]], verbose: bool):
+def clean_up(
+    processes: dict[str, subprocess.Popen[str]],
+    witnesses: dict[str, pathlib.Path],
+    verbose: bool,
+):
     for name, process in processes.items():
         if process.poll() is None:  # process has not finished yet
             process.terminate()
+        if name in witnesses:
+            witnesses[name].unlink(missing_ok=True)
         if verbose and process.stderr and (stderr := process.stderr.read()):
             logger = logging.getLogger(name)
             for line in stderr.splitlines():
@@ -132,16 +138,16 @@ def main() -> int:
 
     processes: dict[str, subprocess.Popen[str]] = {}
     start_times: dict[str, float] = {}
-    witnesses: dict[str, str] = {}
-    atexit.register(clean_up, processes, args.verbose)
+    witnesses: dict[str, pathlib.Path] = {}
+    atexit.register(clean_up, processes, witnesses, args.verbose)
 
     # Launch each portfolio solver as a subprocess.
     for name, options in ENGINE_OPTIONS.items():
         cmd = [executable, "-k", str(args.bound), *options]
         if args.witness_file:
             witness_file = tempfile.NamedTemporaryFile(delete=False)
-            witnesses[name] = witness_file.name
             witness_file.close()
+            witnesses[name] = pathlib.Path(witness_file.name)
             cmd.extend(["--dump-btor2-witness", witness_file.name])
         if args.smt_solver:
             cmd.extend(["--smt-solver", args.smt_solver])
@@ -170,13 +176,11 @@ def main() -> int:
                     else:
                         print(process.stdout.read())
                     if args.witness_file:
-                        witness_name = witnesses[name]
-                        shutil.copy(witness_name, args.witness_file)
-                        os.remove(witness_name)
+                        witnesses[name].rename(args.witness_file)
                     return process.returncode
                 else:
                     del processes[name]
-                    clean_up({name: process}, args.verbose)
+                    clean_up({name: process}, witnesses, args.verbose)
                     break
 
     return ReturnCode.UNKNOWN.value
