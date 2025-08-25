@@ -206,6 +206,12 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
 SmtSolver create_interpolating_solver(SolverEnum se)
 {
   switch (se) {
+    case BZLA:
+    case BZLA_INTERPOLATOR: {
+      return BitwuzlaSolverFactory::create_interpolating_solver();
+      break;
+      ;
+    }
     case CVC5:
     case CVC5_INTERPOLATOR: {
       return Cvc5SolverFactory::create_interpolating_solver();
@@ -257,6 +263,7 @@ SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
 }
 
 const std::vector<SolverEnum> itp_enums({
+    BZLA_INTERPOLATOR,
     CVC5_INTERPOLATOR,
 #if WITH_MSAT
     MSAT_INTERPOLATOR,
