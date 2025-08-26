@@ -85,13 +85,16 @@ ProverResult CegarOpsUf<Prover_T>::check_until(int k)
   }
 
   if (res == ProverResult::TRUE && super::invar_) {
-    // update the invariant
-
-    // TODO currently getting some errors in the concretization phase.
-    // Commenting for now.
-
-    // super::invar_ = oa_.concrete(super::invar_);
-    super::invar_ = NULL;
+    if (super::options_.check_invar_) {
+      // TODO: Find an example that triggers the error and
+      // document it in the issue tracker.
+      logger.log(1,
+                 "WARNING: Concretizing invariant in CegarOpsUf... "
+                 "This feature is not stable and may encounter errors.");
+      super::invar_ = oa_.concrete(super::invar_);
+    } else {
+      super::invar_ = NULL;
+    }
   }
 
   return res;
