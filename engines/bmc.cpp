@@ -144,7 +144,15 @@ bool Bmc::step(int i)
     if (cex_guarantee) {
       logger.log(2, "  BMC saving reached_k_ = {}", reached_k_);
       int reached_k_saved = reached_k_;
-      int cex_upper_bound = bmc_interval_get_cex_ub(reached_k_ + 1, i);
+      const int cex_upper_bound = bmc_interval_get_cex_ub(reached_k_ + 1, i);
+      if (cex_upper_bound - reached_k_ == 1) {
+        // CEX is already minimal, no need to search
+        reached_k_ = i - 1;
+        logger.log(
+            2, "  BMC interval has length 1, skipping search for shortest cex");
+        return res;
+      }
+
       // FIX for corner case of length-1 interval: some solvers don't
       // allow 'push' before 'get-value' even when no terms are asserted
       // before 'get-value'. Hence don't 'push' if we don't add any terms
@@ -261,12 +269,6 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
              "[reached_k+1,upper_bound] = [{},{}]",
              reached_k_ + 1,
              upper_bound);
-
-  if (upper_bound - reached_k_ == 1) {
-    logger.log(2,
-               "  BMC interval has length 1, skipping search for shortest cex");
-    return true;
-  }
 
   int low = reached_k_ + 1;
   int high = upper_bound;
@@ -389,12 +391,6 @@ bool Bmc::find_shortest_cex_binary_search_less_inc(const int upper_bound)
              "[reached_k+1,upper_bound] = [{},{}]",
              reached_k_ + 1,
              upper_bound);
-
-  if (upper_bound - reached_k_ == 1) {
-    logger.log(2,
-               "  BMC interval has length 1, skipping search for shortest cex");
-    return true;
-  }
 
   int low = reached_k_ + 1;
   int high = upper_bound;
