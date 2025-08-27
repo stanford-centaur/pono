@@ -14,7 +14,7 @@ jobs:
         python-version: [35, 36, 37, 38]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v5
     - name: Checkout submodules
       shell: bash
       run: |
@@ -27,7 +27,7 @@ jobs:
           docker run --mount type=bind,source="$(pwd)"/../pono,target=/pono keyiz/manylinux-java:py${{ matrix.python-version }} /pono/contrib/wheels/ci.sh
       env:
         PY_VERSION: ${{ matrix.python-version }}
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v4
       with:
         name: py${{ matrix.python-version }} wheel
         path: wheelhouse/
