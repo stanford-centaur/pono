@@ -312,11 +312,6 @@ TEST_P(InterpWinTests, KInductionWin)
 
 TEST_P(InterpWinTests, InterpWin)
 {
-  if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
-    GTEST_SKIP()
-        << "Skipping BZLA_INTERPOLATOR due to "
-           "https://github.com/bitwuzla/bitwuzla-interpolants/issues/2";
-  }
   InterpolantMC itpmc(*true_p, *ts, s, opts);
   ProverResult r = itpmc.check_until(10);
   ASSERT_EQ(r, ProverResult::TRUE);
