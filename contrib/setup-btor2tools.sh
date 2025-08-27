@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BTOR2TOOLS_VERSION=5540c7dc1a8f5393e5a8160470219d098ac162bb
+BTOR2TOOLS_VERSION=fb69ee3b95e8baa5f0a9a6b0b19ee8beaad52932
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
@@ -10,7 +10,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/btor2tools" ]; then
     cd $DEPS
-    git clone https://github.com/CyanoKobalamyne/btor2tools.git btor2tools
+    git clone https://github.com/hwmcc/btor2tools.git btor2tools
     cd btor2tools
     git checkout -f $BTOR2TOOLS_VERSION
     CFLAGS="-fPIC" ./configure.sh --static
