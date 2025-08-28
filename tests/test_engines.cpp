@@ -351,7 +351,8 @@ class InterpOptionsTest
  protected:
   void SetUp() override
   {
-    s = create_solver_for(MSAT, INTERP, false);
+    // use Bitwuzla as the base solver
+    s = create_solver(BZLA);
     Sort bvsort8 = s->make_sort(BV, 8);
     max_val = s->make_term(10, bvsort8);
     fts = FunctionalTransitionSystem(s);
