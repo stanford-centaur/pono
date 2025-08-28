@@ -74,7 +74,7 @@ mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
     cd $DEPS
-    git clone https://github.com/Po-Chun-Chien/smt-switch
+    git clone https://github.com/stanford-centaur/smt-switch
     cd smt-switch
     git checkout -f $SMT_SWITCH_VERSION
     ./contrib/setup-bitwuzla.sh
