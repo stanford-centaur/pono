@@ -360,6 +360,11 @@ bool KInduction::check_simple_path_lazy(int i)
     // we return immediately here and skip simple path checking.
     if (options_.kind_no_simple_path_check_) return false;
 
+    if (!r.is_sat()) {
+      kind_log_msg(2, "      ", "simple path check {}", r.to_string());
+      return false;
+    }
+
     added_to_simple_path = false;
 
     for (int j = 0; j < i && (no_multi_call || !added_to_simple_path); ++j) {
