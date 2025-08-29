@@ -356,8 +356,8 @@ bool KInduction::check_simple_path_lazy(int i)
     // we return immediately here and skip simple path checking.
     if (options_.kind_no_simple_path_check_) return false;
 
-    if (r.is_unknown()) {
-      kind_log_msg(2, "      ", "simple path check UNKNOWN");
+    if (!r.is_sat()) {
+      kind_log_msg(2, "      ", "simple path check {}", r.to_string());
       return false;
     }
 
