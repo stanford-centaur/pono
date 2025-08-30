@@ -4,7 +4,7 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=694caf94a34419983e54f03d3a633b6114ff731b
+SMT_SWITCH_VERSION=b536927ab42010326c7f419255c7e996a022fa2f
 
 usage () {
     cat <<EOF
