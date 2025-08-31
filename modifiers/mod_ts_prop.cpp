@@ -17,6 +17,7 @@
 #include "modifiers/mod_ts_prop.h"
 
 #include "core/rts.h"
+#include "modifiers/prophecy_modifier.h"
 #include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "utils/logger.h"
@@ -179,32 +180,15 @@ void generalize_property(TransitionSystem & ts, Term & prop)
       }
     }
 
-  // Universally quantify all free variables (inputs and update-less states).
-  SubTermParametrizer term_parametrizer{ ts.solver(), free_variables };
-  auto parametrized_prop = term_parametrizer.parametrize_subterms(prop);
-  auto params = term_parametrizer.parameters();
-  if (params.size() == 0) {
-    // Nothing to generalize.
-    logger.log(1,
-               "Properties without free variables cannot be generalized yet");
-    return;
+  ProphecyModifier proph_mod(ts);
+  for (auto var : free_variables) {
+    auto proph_var = proph_mod.get_proph(var, 0);
+    prop = ts.solver()->make_term(
+        PrimOp::Implies,
+        ts.solver()->make_term(
+            PrimOp::Equal, proph_var.first, proph_var.second),
+        prop);
   }
-  params.emplace_back(parametrized_prop);
-  auto generalized_prop = ts.solver()->make_term(PrimOp::Forall, params);
-
-  // Verify that this still implies the property.
-  ts.solver()->push();
-  ts.solver()->assert_formula(
-      ts.solver()->make_term(PrimOp::And,
-                             generalized_prop,
-                             ts.solver()->make_term(PrimOp::Not, prop)));
-  if (ts.solver()->check_sat().is_sat()) {
-    logger.log(1, "Property generalization failed, using original one");
-  } else {
-    prop = generalized_prop;
-    logger.log(1, "Generalized property to: {}", prop->to_string());
-  }
-  ts.solver()->pop();
 }
 
 }  // namespace pono
