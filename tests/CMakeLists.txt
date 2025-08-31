@@ -45,13 +45,14 @@ target_include_directories(pono-test-lib PUBLIC "${INCLUDE_DIRS}")
 target_link_libraries(pono-test-lib pono-lib)
 
 # Create `make check` target that (re-)builds tests before trying to run them.
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
+add_custom_target(all-tests)
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS all-tests)
 
 macro(pono_add_test name)
   add_executable(${name} EXCLUDE_FROM_ALL "${CMAKE_CURRENT_SOURCE_DIR}/${name}.cpp")
   target_link_libraries(${name} gtest gtest_main)
   target_link_libraries(${name} pono-test-lib) # also includes pono-lib because it's linked
-  add_dependencies(check ${name})
+  add_dependencies(all-tests ${name})
   add_test(NAME ${name} COMMAND ${name})
 endmacro()
 
