@@ -117,7 +117,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
     parser.add_argument("witness_file", nargs="?", help="file to store the witness")
-    parser.add_argument("-k", "--bound", default=1000, type=int, help="unrolling bound")
+    parser.add_argument("-k", "--bound", default=2**20, type=int, help="check until")
     parser.add_argument("-s", "--smt-solver", help="main SMT solver")
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
     parser.add_argument("--summarize", metavar="FILE", help="save csv summary")
