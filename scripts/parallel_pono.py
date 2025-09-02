@@ -74,7 +74,13 @@ ENGINE_OPTIONS = {
 }
 
 
-def summarize(file: str, engine: str, returncode: int, runtime: float, cmd: list[str]):
+def summarize(
+    file: pathlib.Path,
+    engine: str,
+    returncode: int,
+    runtime: float,
+    cmd: list[str],
+) -> None:
     if returncode < 0:
         signum = -returncode
         try:
@@ -92,7 +98,7 @@ def summarize(file: str, engine: str, returncode: int, runtime: float, cmd: list
         engine=engine,
         command=" ".join(cmd),
     )
-    with open(file, "a") as csvfile:
+    with file.open("a") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=SUMMARY_FIELDS)
         writer.writerow(dataclasses.asdict(summary))
 
@@ -100,8 +106,9 @@ def summarize(file: str, engine: str, returncode: int, runtime: float, cmd: list
 def clean_up(
     processes: dict[str, subprocess.Popen[str]],
     witnesses: dict[str, pathlib.Path],
+    *,
     verbose: bool,
-):
+) -> None:
     for name, process in processes.items():
         if process.poll() is None:  # process has not finished yet
             process.terminate()
@@ -120,12 +127,18 @@ def main() -> int:
     parser.add_argument("-k", "--bound", default=2**20, type=int, help="check until")
     parser.add_argument("-s", "--smt-solver", help="main SMT solver")
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
-    parser.add_argument("--summarize", metavar="FILE", help="save csv summary")
+    parser.add_argument(
+        "-o",
+        "--summarize",
+        metavar="FILE",
+        type=pathlib.Path,
+        help="save csv summary",
+    )
     args = parser.parse_args()
 
     # Create summary file when needed, truncating if it exists.
     if args.summarize:
-        with open(args.summarize, "w") as csvfile:
+        with args.summarize.open("w") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=SUMMARY_FIELDS)
             writer.writeheader()
 
@@ -139,16 +152,15 @@ def main() -> int:
     processes: dict[str, subprocess.Popen[str]] = {}
     start_times: dict[str, float] = {}
     witnesses: dict[str, pathlib.Path] = {}
-    atexit.register(clean_up, processes, witnesses, args.verbose)
+    atexit.register(clean_up, processes, witnesses, verbose=args.verbose)
 
     # Launch each portfolio solver as a subprocess.
     for name, options in ENGINE_OPTIONS.items():
         cmd = [executable, "-k", str(args.bound), *options]
         if args.witness_file:
-            witness_file = tempfile.NamedTemporaryFile(delete=False)
-            witness_file.close()
-            witnesses[name] = pathlib.Path(witness_file.name)
-            cmd.extend(["--dump-btor2-witness", witness_file.name])
+            with tempfile.NamedTemporaryFile(delete=False) as witness_file:
+                witnesses[name] = pathlib.Path(witness_file.name)
+                cmd.extend(["--dump-btor2-witness", witness_file.name])
         if args.smt_solver:
             cmd.extend(["--smt-solver", args.smt_solver])
         if args.smt_solver == "btor" and "--ceg-bv-arith" in cmd:
@@ -167,21 +179,20 @@ def main() -> int:
             if process.poll() is not None:  # process has finished
                 if args.summarize:
                     runtime = end_time - start_times[name]
-                    cmd = cast(list[str], process.args)
+                    cmd = cast("list[str]", process.args)
                     summarize(args.summarize, name, process.returncode, runtime, cmd)
                 if process.returncode in SOLVED_RETURN_CODES:
                     if process.stdout is None:
-                        logger.warning(f"{name} has no stdout")
+                        logger.warning("%s has no stdout", name)
                         print(ReturnCode(process.returncode).name.lower())
                     else:
                         print(process.stdout.read())
                     if args.witness_file:
                         witnesses[name].rename(args.witness_file)
                     return process.returncode
-                else:
-                    del processes[name]
-                    clean_up({name: process}, witnesses, args.verbose)
-                    break
+                del processes[name]
+                clean_up({name: process}, witnesses, verbose=args.verbose)
+                break
 
     return ReturnCode.UNKNOWN.value
 
