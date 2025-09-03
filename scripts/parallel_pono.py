@@ -118,9 +118,8 @@ def main() -> int:
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
     parser.add_argument("witness_file", nargs="?", help="file to store the witness")
     parser.add_argument("-k", "--bound", default=1000, type=int, help="unrolling bound")
-    parser.add_argument("-s", "--smt-solver", help="main SMT solver")
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
-    parser.add_argument("--summarize", metavar="FILE", help="save csv summary")
+    parser.add_argument("-s", "--summarize", metavar="FILE", help="save csv summary")
     args = parser.parse_args()
 
     # Create summary file when needed, truncating if it exists.
@@ -149,11 +148,6 @@ def main() -> int:
             witness_file.close()
             witnesses[name] = pathlib.Path(witness_file.name)
             cmd.extend(["--dump-btor2-witness", witness_file.name])
-        if args.smt_solver:
-            cmd.extend(["--smt-solver", args.smt_solver])
-        if args.smt_solver == "btor" and "--ceg-bv-arith" in cmd:
-            # BV UF abstraction doesn't work with plain Boolector
-            cmd.append("--logging-smt-solver")
         cmd.append(args.btor_file)
         stderr = subprocess.PIPE if args.verbose else subprocess.DEVNULL
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, text=True)
