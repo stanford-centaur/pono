@@ -171,18 +171,18 @@ def main() -> int:
                     runtime = end_time - start_times[name]
                     cmd = cast("list[str]", process.args)
                     summarize(args.summarize, name, process.returncode, runtime, cmd)
-                if process.returncode in SOLVED_RETURN_CODES:
-                    if process.stdout is None:
-                        logger.warning("%s has no stdout", name)
-                        print(ReturnCode(process.returncode).name.lower())
-                    else:
-                        print(process.stdout.read())
-                    if args.witness_file:
-                        witnesses[name].rename(args.witness_file)
-                    return process.returncode
-                del processes[name]
-                clean_up({name: process}, witnesses, verbose=args.verbose)
-                break
+                if process.returncode not in SOLVED_RETURN_CODES:
+                    del processes[name]
+                    clean_up({name: process}, witnesses, verbose=args.verbose)
+                    break
+                if process.stdout is None:
+                    logger.warning("%s has no stdout", name)
+                    print(ReturnCode(process.returncode).name.lower())
+                else:
+                    print(process.stdout.read())
+                if args.witness_file:
+                    witnesses[name].rename(args.witness_file)
+                return process.returncode
 
     return ReturnCode.UNKNOWN.value
 
