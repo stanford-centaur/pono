@@ -16,11 +16,12 @@
 
 #include "engines/interpolantmc.h"
 
+#include <ctime>
+
 #include "smt-switch/exceptions.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-
 using namespace smt;
 
 namespace pono {
@@ -99,11 +100,19 @@ ProverResult InterpolantMC::check_until(int k)
 
   try {
     for (int i = 0; i <= k; ++i) {
-      if (step(i)) {
-        return ProverResult::TRUE;
-      } else if (concrete_cex_) {
-        compute_witness();
-        return ProverResult::FALSE;
+      if (step(i) || concrete_cex_) {
+#ifndef NDEBUG
+        logger.log(2,
+                   "Interpolation stats: {} calls took {:.3f} s",
+                   total_interp_call_count_,
+                   total_interp_call_time_);
+#endif
+        if (!concrete_cex_) {
+          return ProverResult::TRUE;
+        } else {
+          compute_witness();
+          return ProverResult::FALSE;
+        }
       }
     }
   }
@@ -148,10 +157,23 @@ bool InterpolantMC::step(const int i)
     Term int_formulaA = interpolator_->make_term(And, int_RA, int_transA);
     Term int_formulaB =
         interpolator_->make_term(And, int_transB, int_bad_disjuncts);
+#ifndef NDEBUG
+    const std::clock_t start_t = std::clock();
+#endif
     Result r = interpolator_->get_interpolant(
         interp_backward_ ? int_formulaB : int_formulaA,
         interp_backward_ ? int_formulaA : int_formulaB,
         int_Ri);
+#ifndef NDEBUG
+    const std::clock_t end_t = std::clock();
+    const double interp_call_time = double(end_t - start_t) / CLOCKS_PER_SEC;
+    total_interp_call_time_ += interp_call_time;
+    logger.log(2,
+               "Interpolation query #{} took {:.3f} s",
+               total_interp_call_count_,
+               interp_call_time);
+    total_interp_call_count_++;
+#endif
     got_interpolant = r.is_unsat();
 
     if (got_interpolant) {

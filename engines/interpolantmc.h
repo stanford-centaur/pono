@@ -68,6 +68,11 @@ class InterpolantMC : public SafetyProver
   smt::Term transB_;
   smt::Term bad_disjuncts_;  ///< a disjunction of bads in the suffix
 
+#ifndef NDEBUG
+  uint32_t total_interp_call_count_ = 0;
+  double total_interp_call_time_ = 0.0;
+#endif
+
 };  // class InterpolantMC
 
 }  // namespace pono
