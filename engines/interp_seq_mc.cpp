@@ -85,11 +85,19 @@ ProverResult InterpSeqMC::check_until(int k)
 
   try {
     for (int i = 0; i <= k; ++i) {
-      if (step(i)) {
-        return ProverResult::TRUE;
-      } else if (concrete_cex_) {
-        compute_witness();
-        return ProverResult::FALSE;
+      if (step(i) || concrete_cex_) {
+#ifndef NDEBUG
+        logger.log(2,
+                   "Interpolation stats: {} calls took {:.3f} s",
+                   total_interp_call_count_,
+                   total_interp_call_time_);
+#endif
+        if (!concrete_cex_) {
+          return ProverResult::TRUE;
+        } else {
+          compute_witness();
+          return ProverResult::FALSE;
+        }
       }
     }
   }
@@ -131,11 +139,21 @@ bool InterpSeqMC::step(int i)
   // temporarily push `bad` to `trans_seq` to avoid copying the whole vector
   int_trans_seq_.push_back(int_bad_i);
 
+#ifndef NDEBUG
+  const std::clock_t start_t = std::clock();
+#endif
   TermVec int_itp_seq;
   Result r =
       interpolator_->get_sequence_interpolants(int_trans_seq_, int_itp_seq);
-
 #ifndef NDEBUG
+  const std::clock_t end_t = std::clock();
+  const double interp_call_time = double(end_t - start_t) / CLOCKS_PER_SEC;
+  total_interp_call_time_ += interp_call_time;
+  logger.log(2,
+             "Interpolation query #{} took {:.3f} s",
+             total_interp_call_count_,
+             interp_call_time);
+  total_interp_call_count_++;
   if (r.is_unsat()) {
     check_itp_sequence(int_trans_seq_, int_itp_seq);
   }
