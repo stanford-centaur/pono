@@ -325,7 +325,7 @@ enable_testing()
 add_subdirectory(tests)
 
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
-set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
+set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 target_include_directories(pono-bin PUBLIC
   "${PROJECT_SOURCE_DIR}/utils"
