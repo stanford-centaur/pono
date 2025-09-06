@@ -113,10 +113,24 @@ def clean_up(
                 logger.warning(line)
 
 
+def find_file(name: str) -> pathlib.Path:
+    """Return the path to a file in PATH or the script's directory."""
+    fullname = shutil.which(name)
+    if fullname is None:
+        path = pathlib.Path(__file__).parent / name
+    else:
+        path = pathlib.Path(fullname)
+    if not path.is_file():
+        msg = f"file {name} not in script directory or PATH"
+        raise FileNotFoundError(msg)
+    return path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
     parser.add_argument("witness_file", nargs="?", help="file to store the witness")
+    parser.add_argument("-b", "--binary", default="pono", help="name of pono binary")
     parser.add_argument("-k", "--bound", default=1000, type=int, help="unrolling bound")
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
     parser.add_argument("-s", "--summarize", metavar="FILE", help="save csv summary")
@@ -132,15 +146,13 @@ def main() -> int:
     logging.basicConfig(format="{name}: {message}", style="{")
     logger = logging.getLogger(parser.prog)
 
-    # Try current directory if pono is not on PATH.
-    executable = shutil.which("pono") or pathlib.Path(__file__).parent / "pono"
-
     processes: dict[str, subprocess.Popen[str]] = {}
     start_times: dict[str, float] = {}
     witnesses: dict[str, pathlib.Path] = {}
     atexit.register(clean_up, processes, witnesses, args.verbose)
 
     # Launch each portfolio solver as a subprocess.
+    executable = find_file(args.binary)
     for name, options in ENGINE_OPTIONS.items():
         cmd = [executable, "-k", str(args.bound), *options]
         if args.witness_file:
