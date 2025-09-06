@@ -69,8 +69,17 @@ ENGINE_OPTIONS = {
         "11",
         "--kind-one-time-base-check",
     ],
-    "ind.ceg_bv_arith": ["-e", "ind", "--ceg-bv-arith"],
-    "interp": ["-e", "interp", "--smt-interpolator", "bzla"],
+    "ind.ceg_bv_arith": [
+        "-e",
+        "ind",
+        "--ceg-bv-arith",
+    ],
+    "interp": [
+        "-e",
+        "interp",
+        "--smt-interpolator",
+        "bzla",
+    ],
     "interp.backward": [
         "-e",
         "interp",
@@ -88,21 +97,52 @@ ENGINE_OPTIONS = {
         "--promote-inputvars",
         "--interp-backward",
     ],
-    "ismc.ceg_bv_arith": ["-e", "ismc", "--ceg-bv-arith", "--static-coi"],
-    "ic3bits": ["-e", "ic3bits", "--static-coi"],
-    "mbic3": ["-e", "mbic3"],
-    "ic3ia.ceg_bv_arith": ["-e", "ic3ia", "--ceg-bv-arith", "--pseudo-init-prop"],
+    "ismc.ceg_bv_arith": [
+        "-e",
+        "ismc",
+        "--static-coi",
+        "--ceg-bv-arith",
+    ],
+    "ic3bits": [
+        "-e",
+        "ic3bits",
+        "--static-coi",
+    ],
+    "mbic3": [
+        "-e",
+        "mbic3",
+    ],
+    "ic3ia.ceg_bv_arith": [
+        "-e",
+        "ic3ia",
+        "--pseudo-init-prop",
+        "--ceg-bv-arith",
+    ],
     "ic3ia.ceg_bv_arith.bzla": [
         "-e",
         "ic3ia",
-        "--ceg-bv-arith",
-        "--pseudo-init-prop",
         "--smt-interpolator",
         "bzla",
+        "--pseudo-init-prop",
+        "--ceg-bv-arith",
     ],
-    "ic3sa": ["-e", "ic3sa", "--ceg-bv-arith"],
-    "msat_ic3ia": ["-e", "msat-ic3ia", "--smt-solver", "msat", "--static-coi"],
-    "sygus_pdr": ["-e", "sygus-pdr", "--promote-inputvars"],
+    "ic3sa": [
+        "-e",
+        "ic3sa",
+        "--ceg-bv-arith",
+    ],
+    "msat_ic3ia": [
+        "-e",
+        "msat-ic3ia",
+        "--smt-solver",
+        "msat",
+        "--static-coi",
+    ],
+    "sygus_pdr": [
+        "-e",
+        "sygus-pdr",
+        "--promote-inputvars",
+    ],
 }
 
 
@@ -152,10 +192,27 @@ def clean_up(
                 logger.warning(line)
 
 
+def find_file(name: str) -> pathlib.Path:
+    """Return the path to a file in PATH or the script's directory."""
+    fullname = shutil.which(name)
+    if fullname is None:
+        path = pathlib.Path(__file__).parent / name
+    else:
+        path = pathlib.Path(fullname)
+    if not path.is_file():
+        msg = f"file {name} not  in script directory or PATH"
+        raise FileNotFoundError(msg)
+    return path
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
+    parser = argparse.ArgumentParser(
+        description="Run multiple engines in parallel",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
-    parser.add_argument("witness_file", nargs="?", help="file to store the witness")
+    parser.add_argument("witness_file", nargs="?", help="file to store the witness in")
+    parser.add_argument("-b", "--binary", default="pono", help="name of pono binary")
     parser.add_argument("-k", "--bound", default=2**20, type=int, help="check until")
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
     parser.add_argument(
@@ -163,7 +220,7 @@ def main() -> int:
         "--summarize",
         metavar="FILE",
         type=pathlib.Path,
-        help="save csv summary",
+        help="save a csv summary to the specified file",
     )
     args = parser.parse_args()
 
@@ -177,17 +234,15 @@ def main() -> int:
     logging.basicConfig(format="{name}: {message}", style="{")
     logger = logging.getLogger(parser.prog)
 
-    # Try current directory if pono is not on PATH.
-    executable = shutil.which("pono") or pathlib.Path(__file__).parent / "pono"
-
     processes: dict[str, subprocess.Popen[str]] = {}
     start_times: dict[str, float] = {}
     witnesses: dict[str, pathlib.Path] = {}
     atexit.register(clean_up, processes, witnesses, verbose=args.verbose)
 
     # Launch each portfolio solver as a subprocess.
+    executable = find_file(args.binary)
     for name, options in ENGINE_OPTIONS.items():
-        cmd = [executable, "-k", str(args.bound), *options]
+        cmd = [str(executable), "-k", str(args.bound), *options]
         if args.witness_file:
             with tempfile.NamedTemporaryFile(delete=False) as witness_file:
                 witnesses[name] = pathlib.Path(witness_file.name)
