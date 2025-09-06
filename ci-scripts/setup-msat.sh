@@ -2,9 +2,9 @@
 set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-DEPS=$DIR/../deps
+DEPS="$DIR/../deps"
 
-mkdir -p $DEPS
+mkdir -p "$DEPS"
 
 
 usage () {
@@ -20,8 +20,8 @@ EOF
 }
 
 get_msat=default
-msat_version="5.6.4"
-mast_release_url="https://mathsat.fbk.eu/release"
+msat_version=5.6.12
+msat_release_url=https://mathsat.fbk.eu/release
 
 while [ $# -gt 0 ]
 do
@@ -33,26 +33,24 @@ do
     shift
 done
 
-if [[ "$get_msat" == default ]]; then
+if [[ $get_msat == default ]]; then
     read -p "MathSAT is distributed under a custom (non-BSD compliant) license. By continuing you acknowledge this distinction and assume responsibility for meeting the license conditions. Continue? [y]es/[n]o: " get_msat
 fi
 
-if [[ "$get_msat" != y ]]; then
+if ! [[ $get_msat =~ y(es)? ]]; then
     echo "Not downloading MathSAT"
     exit 0
 fi
 
 if [ ! -d "$DEPS/mathsat" ]; then
-    cd $DEPS
+    cd "$DEPS"
     mkdir mathsat
-    if [[ "$OSTYPE" == linux* ]]; then
-        wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-linux-x86_64.tar.gz
-    elif [[ "$OSTYPE" == darwin* ]]; then
-        wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-darwin-libcxx-x86_64.tar.gz
-    elif [[ "$OSTYPE" == msys* ]]; then
-        wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-win64-msvc.zip
-    elif [[ "$OSTYPE" == cygwin* ]]; then
-        wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-linux-x86_64.tar.gz
+    if [[ $OSTYPE == linux* || $OSTYPE == cygwin* ]]; then
+        wget -O mathsat.tar.gz $msat_release_url/mathsat-$msat_version-linux-x86_64.tar.gz
+    elif [[ $OSTYPE == darwin* ]]; then
+        wget -O mathsat.tar.gz $msat_release_url/mathsat-$msat_version-macos.tar.gz
+    elif [[ $OSTYPE == msys* ]]; then
+        wget -O mathsat.tar.gz $msat_release_url/mathsat-$msat_version-win64.zip
     else
         echo "Unrecognized OSTYPE=$OSTYPE"
         exit 1
@@ -65,7 +63,7 @@ else
     echo "$DEPS/mathsat already exists. If you want to re-download, please remove it manually."
 fi
 
-if [ -f $DEPS/mathsat/lib/libmathsat.a ] ; then \
+if [ -f "$DEPS/mathsat/lib/libmathsat.a" ] ; then \
     echo "It appears mathsat was setup successfully into $DEPS/mathsat."
     echo "You may now install it with make ./configure.sh --msat && cd build && make"
 else
