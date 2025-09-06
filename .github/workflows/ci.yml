@@ -49,7 +49,6 @@ jobs:
             setuptools
 
       - name: Download MathSAT
-        if: runner.os != 'macOS'
         run: ./ci-scripts/setup-msat.sh --auto-yes
 
       - name: Setup Flex
