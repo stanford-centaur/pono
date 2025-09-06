@@ -52,11 +52,23 @@ ENGINE_OPTIONS = {
         "5",
         "--bmc-exponential-step",
     ],
-    "ind": ["-e", "ind", "--static-coi"],
+    "ind": [
+        "-e",
+        "ind",
+        "--static-coi",
+    ],
     "ind.ceg_bv_arith": [
         "-e",
         "ind",
+        "--static-coi",
         "--ceg-bv-arith",
+    ],
+    "ind.ceg_bv_arith.bound_step.11": [
+        "-e",
+        "ind",
+        "--static-coi",
+        "--ceg-bv-arith",
+        "--kind-no-simple-path-check",
         "--kind-bound-step",
         "11",
         "--kind-one-time-base-check",
@@ -83,45 +95,57 @@ ENGINE_OPTIONS = {
         "interp",
         "--smt-interpolator",
         "bzla",
+        "--static-coi",
+        "--promote-inputvars",
         "--interp-eager-unroll",
     ],
     "interp.ceg_bv_arith": [
         "-e",
         "interp",
-        "--ceg-bv-arith",
         "--smt-interpolator",
         "bzla",
         "--static-coi",
         "--promote-inputvars",
+        "--ceg-bv-arith",
     ],
     "interp.ceg_bv_arith.backward": [
         "-e",
         "interp",
-        "--ceg-bv-arith",
         "--smt-interpolator",
         "bzla",
         "--static-coi",
+        "--promote-inputvars",
+        "--ceg-bv-arith",
         "--interp-backward",
     ],
-    "ismc": ["-e", "ismc", "--static-coi"],
-    "ismc.ceg_bv_arith": ["-e", "ismc", "--ceg-bv-arith", "--promote-inputvars"],
+    "ismc": [
+        "-e",
+        "ismc",
+        "--static-coi",
+    ],
+    "ismc.ceg_bv_arith": [
+        "-e",
+        "ismc",
+        "--static-coi",
+        "--ceg-bv-arith",
+        "--promote-inputvars",
+    ],
+    "ic3ia": [
+        "-e",
+        "ic3ia",
+        "--smt-solver",
+        "msat",
+        "--pseudo-init-prop",
+        "--ceg-prophecy-arrays",
+    ],
     "ic3ia.ceg_bv_arith": [
         "-e",
         "ic3ia",
-        "--ceg-prophecy-arrays",
         "--smt-solver",
         "msat",
-        "--ceg-bv-arith",
         "--pseudo-init-prop",
-    ],
-    "ic3ia.cegp_abs_vals": [
-        "-e",
-        "ic3ia",
         "--ceg-prophecy-arrays",
-        "--smt-solver",
-        "msat",
-        "--cegp-abs-vals",
-        "--ic3-no-pregen",
+        "--ceg-bv-arith",
     ],
 }
 
@@ -207,7 +231,7 @@ def main() -> int:
 
     # Launch each portfolio solver as a subprocess.
     for name, options in ENGINE_OPTIONS.items():
-        cmd = [executable, "-k", str(args.bound), *options]
+        cmd = [str(executable), "-k", str(args.bound), *options]
         if args.witness_file:
             with tempfile.NamedTemporaryFile(delete=False) as witness_file:
                 witnesses[name] = pathlib.Path(witness_file.name)
