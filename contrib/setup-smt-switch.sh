@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 DEPS=$DIR/../deps
 
-SMT_SWITCH_VERSION=82b4663a830f748b2bc68d779b27d028c2b4db15
+SMT_SWITCH_VERSION=7e42e6c8f06cef9b03c2c42749233262fb819bd5
 
-usage () {
-    cat <<EOF
+usage() {
+  cat <<EOF
 Usage: $0 [<option> ...]
 
 Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
@@ -19,12 +19,12 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 --cvc5-home             use an already downloaded version of cvc5
 --python                build python bindings (default: off)
 EOF
-    exit 0
+  exit 0
 }
 
-die () {
-    echo "*** configure.sh: $*" 1>&2
-    exit 1
+die() {
+  echo "*** configure.sh: $*" 1>&2
+  exit 1
 }
 
 WITH_BOOLECOR=default
@@ -35,72 +35,75 @@ WITH_PYTHON=default
 cvc5_home=default
 INCL_SOLVER_STR="bitwuzla and cvc5"
 
-while [ $# -gt 0 ]
-do
-    case $1 in
-        -h|--help) usage;;
-        --with-msat)
-            WITH_MSAT=ON
-            CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat"
-            INCL_SOLVER_STR="mathsat, $INCL_SOLVER_STR";;
-        --with-btor)
-            WITH_BOOLECTOR=ON
-            CONF_OPTS="$CONF_OPTS --btor"
-            INCL_SOLVER_STR="boolector, $INCL_SOLVER_STR";;
-        --with-yices2)
-            WITH_YICES2=ON
-            CONF_OPTS="$CONF_OPTS --yices2"
-            INCL_SOLVER_STR="yices2, $INCL_SOLVER_STR";;
-        --python)
-            WITH_PYTHON=YES
-            CONF_OPTS="$CONF_OPTS --python";;
-        --cvc5-home) die "missing argument to $1 (see -h)" ;;
-        --cvc5-home=*)
-            cvc5_home=${1##*=}
-            # Check if cvc5_home is an absolute path and
-            # if not, make it absolute.
-            case $cvc5_home in
-                /*) ;;                            # absolute path
-                *) cvc5_home=$(pwd)/$cvc5_home ;; # make absolute path
-            esac
-            CONF_OPTS="$CONF_OPTS --cvc5-home=$cvc5_home"
-            ;;
-        *) die "unexpected argument: $1";;
+while [ $# -gt 0 ]; do
+  case $1 in
+  -h | --help) usage ;;
+  --with-msat)
+    WITH_MSAT=ON
+    CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat"
+    INCL_SOLVER_STR="mathsat, $INCL_SOLVER_STR"
+    ;;
+  --with-btor)
+    WITH_BOOLECTOR=ON
+    CONF_OPTS="$CONF_OPTS --btor"
+    INCL_SOLVER_STR="boolector, $INCL_SOLVER_STR"
+    ;;
+  --with-yices2)
+    WITH_YICES2=ON
+    CONF_OPTS="$CONF_OPTS --yices2"
+    INCL_SOLVER_STR="yices2, $INCL_SOLVER_STR"
+    ;;
+  --python)
+    WITH_PYTHON=YES
+    CONF_OPTS="$CONF_OPTS --python"
+    ;;
+  --cvc5-home) die "missing argument to $1 (see -h)" ;;
+  --cvc5-home=*)
+    cvc5_home=${1##*=}
+    # Check if cvc5_home is an absolute path and
+    # if not, make it absolute.
+    case $cvc5_home in
+    /*) ;;                            # absolute path
+    *) cvc5_home=$(pwd)/$cvc5_home ;; # make absolute path
     esac
-    shift
+    CONF_OPTS="$CONF_OPTS --cvc5-home=$cvc5_home"
+    ;;
+  *) die "unexpected argument: $1" ;;
+  esac
+  shift
 done
 
 mkdir -p $DEPS
 
 if [ ! -d "$DEPS/smt-switch" ]; then
-    cd $DEPS
-    git clone https://github.com/stanford-centaur/smt-switch
-    cd smt-switch
-    git checkout -f $SMT_SWITCH_VERSION
-    ./contrib/setup-bitwuzla.sh
-    if [ $cvc5_home = default ]; then
-        ./contrib/setup-cvc5.sh
-    fi
-    if [ $WITH_BOOLECTOR = ON ]; then
-        ./contrib/setup-boolector.sh
-    fi
-    # pass bison/flex directories from smt-switch perspective
-    ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
-    cd build
-    make -j$(nproc)
-    make test
-    make install
-    cd $DIR
+  cd $DEPS
+  git clone https://github.com/stanford-centaur/smt-switch
+  cd smt-switch
+  git checkout -f $SMT_SWITCH_VERSION
+  ./contrib/setup-bitwuzla.sh
+  if [ $cvc5_home = default ]; then
+    ./contrib/setup-cvc5.sh
+  fi
+  if [ $WITH_BOOLECTOR = ON ]; then
+    ./contrib/setup-boolector.sh
+  fi
+  # pass bison/flex directories from smt-switch perspective
+  ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
+  cd build
+  make -j$(nproc)
+  make test
+  make install
+  cd $DIR
 else
-    echo "$DEPS/smt-switch already exists. If you want to rebuild, please remove it manually."
+  echo "$DEPS/smt-switch already exists. If you want to rebuild, please remove it manually."
 fi
 
 if [ 0 -lt $(ls $DEPS/smt-switch/local/lib/libsmt-switch* 2>/dev/null | wc -w) ]; then
-    echo "It appears smt-switch with $INCL_SOLVER_STR was successfully installed to $DEPS/smt-switch/local."
-    echo "You may now build pono with: ./configure.sh && cd build && make"
+  echo "It appears smt-switch with $INCL_SOLVER_STR was successfully installed to $DEPS/smt-switch/local."
+  echo "You may now build pono with: ./configure.sh && cd build && make"
 else
-    echo "Building smt-switch failed."
-    echo "You might be missing some dependencies."
-    echo "Please see the github page for installation instructions: https://github.com/stanford-centaur/smt-switch"
-    exit 1
+  echo "Building smt-switch failed."
+  echo "You might be missing some dependencies."
+  echo "Please see the github page for installation instructions: https://github.com/stanford-centaur/smt-switch"
+  exit 1
 fi
