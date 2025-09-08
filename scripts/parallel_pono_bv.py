@@ -66,19 +66,22 @@ ENGINE_OPTIONS = {
         "ind",
         "--static-coi",
         "--kind-bound-step",
-        "11",
+        "5",
         "--kind-one-time-base-check",
     ],
     "ind.ceg_bv_arith": [
         "-e",
         "ind",
         "--ceg-bv-arith",
+        "--kind-no-simple-path-check",
     ],
     "interp": [
         "-e",
         "interp",
         "--smt-interpolator",
         "bzla",
+        "--static-coi",
+        "--promote-inputvars",
     ],
     "interp.backward": [
         "-e",
@@ -86,15 +89,17 @@ ENGINE_OPTIONS = {
         "--smt-interpolator",
         "bzla",
         "--static-coi",
+        "--promote-inputvars",
         "--interp-backward",
     ],
-    "interp.promote_inputvars.backward": [
+    "interp.ceg_bv_arith.backward": [
         "-e",
         "interp",
         "--smt-interpolator",
         "bzla",
         "--static-coi",
         "--promote-inputvars",
+        "--ceg-bv-arith",
         "--interp-backward",
     ],
     "ismc.ceg_bv_arith": [
@@ -118,7 +123,7 @@ ENGINE_OPTIONS = {
         "--pseudo-init-prop",
         "--ceg-bv-arith",
     ],
-    "ic3ia.ceg_bv_arith.bzla": [
+    "ic3ia.smt_interpolator.bzla.ceg_bv_arith": [
         "-e",
         "ic3ia",
         "--smt-interpolator",
@@ -126,21 +131,21 @@ ENGINE_OPTIONS = {
         "--pseudo-init-prop",
         "--ceg-bv-arith",
     ],
-    "ic3sa": [
+    "ic3sa.ceg_bv_arith": [
         "-e",
         "ic3sa",
         "--ceg-bv-arith",
     ],
-    "msat_ic3ia": [
+    "ic3sa.smt_solver.btor": [
         "-e",
-        "msat-ic3ia",
+        "ic3sa",
         "--smt-solver",
-        "msat",
-        "--static-coi",
+        "btor",
     ],
     "sygus_pdr": [
         "-e",
         "sygus-pdr",
+        "--static-coi",
         "--promote-inputvars",
     ],
 }
