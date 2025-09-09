@@ -278,7 +278,7 @@ def main() -> int:
                     else:
                         print(process.stdout.read())
                     if args.witness_file:
-                        witnesses[name].rename(args.witness_file)
+                        shutil.move(witnesses[name], args.witness_file)
                     return process.returncode
                 del processes[name]
                 clean_up({name: process}, witnesses, verbose=args.verbose)
