@@ -43,7 +43,16 @@ SUMMARY_FIELDS = [field.name for field in dataclasses.fields(Summary)]
 
 
 ENGINE_OPTIONS = {
-    "bmc.bound_start.5": [
+    "bmc.bound_step.11.single_bad_state": [
+        "-e",
+        "bmc",
+        "--static-coi",
+        "--bmc-allow-non-minimal-cex",
+        "--bmc-bound-step",
+        "11",
+        "--bmc-single-bad-state",
+    ],
+    "bmc.bound_start.5.exponential_step": [
         "-e",
         "bmc",
         "--static-coi",
@@ -52,7 +61,7 @@ ENGINE_OPTIONS = {
         "5",
         "--bmc-exponential-step",
     ],
-    "bmc.bound_start.11": [
+    "bmc.bound_start.11.exponential_step": [
         "-e",
         "bmc",
         "--static-coi",
@@ -129,11 +138,6 @@ ENGINE_OPTIONS = {
         "--smt-interpolator",
         "bzla",
         "--pseudo-init-prop",
-        "--ceg-bv-arith",
-    ],
-    "ic3sa.ceg_bv_arith": [
-        "-e",
-        "ic3sa",
         "--ceg-bv-arith",
     ],
     "ic3sa.smt_solver.btor": [
