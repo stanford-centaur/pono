@@ -26,6 +26,22 @@
 
 namespace pono {
 
+std::string as_bits(const uint64_t value, const uint64_t bit_width)
+{
+  assert(bit_width > 0);
+  std::string res(bit_width, '0');
+  res.reserve(bit_width);
+
+  uint64_t bit_mask = 1;
+  for (uint64_t i = 0; i < bit_width; i++) {
+    if (value & bit_mask) {
+      res[bit_width - 1 - i] = '1';
+    }
+    bit_mask <<= 1;
+  }
+  return res;
+}
+
 std::string as_bits(std::string val)
 {
   // TODO: this makes assumptions on format of value from boolector
@@ -115,6 +131,8 @@ void print_btor_vals_at_time(
                            time);
     } else if (sk == smt::ARRAY) {
       smt::Term tmp = valmap.at(vec[i]);
+      uint64_t index_width = vec[i]->get_sort()->get_indexsort()->get_width();
+      std::vector<bool> written_ids(1ULL << index_width, false);
       while (tmp->get_op() == smt::Store) {
         int num = 0;
         for (auto c : tmp) {
@@ -130,21 +148,34 @@ void print_btor_vals_at_time(
                              as_bits(store_children[2]->to_string()),
                              lookup_or_key(symbol_map, vec[i]->to_string()),
                              time);
+        written_ids[store_children[1]->to_int()] = true;
         tmp = store_children[0];
       }
 
       if (tmp->get_op().is_null()
           && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
         smt::Term const_val = *(tmp->begin());
-        logger.log_to_stream(0,
-                             output_stream,
-                             "{} {} {}@{}",
-                             i,
-                             as_bits(const_val->to_string()),
-                             lookup_or_key(symbol_map, vec[i]->to_string()),
-                             time);
+        if (const_val->to_int() == 0) {
+          // Skip when value is 0.
+          // When unspecified, btorsim assumes 0 as the default value.
+          // Although the correct semantics treat unspecified values as "don't
+          // care", printing 0s for arrays with large index widths would explode
+          // the witness size.
+          continue;
+        }
+        for (size_t j = 0; j < written_ids.size(); ++j) {
+          if (!written_ids[j]) {
+            logger.log_to_stream(0,
+                                 output_stream,
+                                 "{} [{}] {} {}@{}",
+                                 i,
+                                 as_bits(j, index_width),
+                                 as_bits(const_val->to_string()),
+                                 lookup_or_key(symbol_map, vec[i]->to_string()),
+                                 time);
+          }
+        }
       }
-
     } else {
       throw PonoException("Unhandled sort kind: " + ::smt::to_string(sk));
     }
@@ -179,6 +210,9 @@ void print_btor_vals_at_time(
                            time);
     } else if (sk == smt::ARRAY) {
       smt::Term tmp = valmap.at(entry.second);
+      uint64_t index_width =
+          entry.second->get_sort()->get_indexsort()->get_width();
+      std::vector<bool> written_ids(1ULL << index_width, false);
       while (tmp->get_op() == smt::Store) {
         int num = 0;
         for (auto c : tmp) {
@@ -195,12 +229,34 @@ void print_btor_vals_at_time(
             as_bits(store_children[2]->to_string()),
             lookup_or_key(symbol_map, entry.second->to_string()),
             time);
+        written_ids[store_children[1]->to_int()] = true;
         tmp = store_children[0];
       }
 
       if (tmp->get_op().is_null()
           && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
         smt::Term const_val = *(tmp->begin());
+        if (const_val->to_int() == 0) {
+          // Skip when value is 0.
+          // When unspecified, btorsim assumes 0 as the default value.
+          // Although the correct semantics treat unspecified values as "don't
+          // care", printing 0s for arrays with large index widths would explode
+          // the witness size.
+          continue;
+        }
+        for (size_t j = 0; j < written_ids.size(); ++j) {
+          if (!written_ids[j]) {
+            logger.log_to_stream(
+                0,
+                output_stream,
+                "{} [{}] {} {}@{}",
+                entry.first,
+                as_bits(j, index_width),
+                as_bits(const_val->to_string()),
+                lookup_or_key(symbol_map, entry.second->to_string()),
+                time);
+          }
+        }
         logger.log_to_stream(
             0,
             output_stream,
