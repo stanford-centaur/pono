@@ -110,14 +110,22 @@ void print_btor_vals_at_time(
     unsigned int time,
     const TransitionSystem & ts,
     const std::unordered_map<std::string, std::string> & symbol_map,
-    std::ostream & output_stream)
+    std::ostream & output_stream,
+    const smt::UnorderedTermSet & skip_terms = {})
 {
   smt::SortKind sk;
   smt::TermVec store_children(3);
   for (size_t i = 0, size = vec.size(); i < size; ++i) {
     // Do not print if term 'vec[i]' does not appear in COI. When not
     // using COI, this check always returns true.
-    if (!appears_in_ts_coi(vec[i], ts)) continue;
+    if (!appears_in_ts_coi(vec[i], ts)) {
+      continue;
+    }
+    // Skip terms that are present in the given set
+    // (e.g., state variables initialized at #0)
+    if (skip_terms.find(vec.at(i)) != skip_terms.end()) {
+      continue;
+    }
     sk = vec[i]->get_sort()->get_sort_kind();
     if (sk == smt::BV) {
       // TODO: this makes assumptions on format of value from boolector
@@ -282,11 +290,16 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
   const smt::TermVec states = btor_enc.statesvec();
   const std::map<uint64_t, smt::Term> no_next_states =
       btor_enc.no_next_statevars();
-  bool has_states_without_next = no_next_states.size();
+  bool has_states_without_next = !no_next_states.empty();
 
   logger.log_to_stream(0, output_stream, "#0");
-  print_btor_vals_at_time(
-      states, cex.at(0), 0, ts, btor_enc.get_symbol_map(), output_stream);
+  print_btor_vals_at_time(states,
+                          cex.at(0),
+                          0,
+                          ts,
+                          btor_enc.get_symbol_map(),
+                          output_stream,
+                          btor_enc.initialized_statevars());
 
   for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
     // states without next
