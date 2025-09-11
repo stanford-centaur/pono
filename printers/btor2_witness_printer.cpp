@@ -207,7 +207,8 @@ void print_btor_vals_at_time(
     if (skip_terms.find(vec.at(i)) != skip_terms.end()) {
       continue;
     }
-    print_btor_val_at_time(i, vec[i], time, ts, valmap, symbol_map, output_stream);
+    print_btor_val_at_time(
+        i, vec[i], time, ts, valmap, symbol_map, output_stream);
   }
 }
 
