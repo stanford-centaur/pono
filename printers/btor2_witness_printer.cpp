@@ -114,8 +114,9 @@ bool appears_in_ts_coi(const smt::Term & term, const TransitionSystem & ts)
 }
 
 void print_btor_val_at_time(
-    std::size_t btor2_id,
+    std::size_t btor_id,
     smt::Term term,
+    unsigned int time,
     const TransitionSystem & ts,
     const smt::UnorderedTermMap & valmap,
     const std::unordered_map<std::string, std::string> & symbol_map,
@@ -133,7 +134,7 @@ void print_btor_val_at_time(
     logger.log_to_stream(0,
                          output_stream,
                          "{} {} {}@{}",
-                         btor2_id,
+                         btor_id,
                          as_bits(valmap.at(term)->to_string()),
                          lookup_or_key(symbol_map, term->to_string()),
                          time);
@@ -150,7 +151,7 @@ void print_btor_val_at_time(
       logger.log_to_stream(0,
                            output_stream,
                            "{} [{}] {} {}@{}",
-                           btor2_id,
+                           btor_id,
                            as_bits(store_children[1]->to_string()),
                            as_bits(store_children[2]->to_string()),
                            lookup_or_key(symbol_map, term->to_string()),
@@ -179,7 +180,7 @@ void print_btor_val_at_time(
         logger.log_to_stream(0,
                              output_stream,
                              "{} [{}] {} {}@{}",
-                             btor2_id,
+                             btor_id,
                              as_bits(j, index_width),
                              as_bits(const_val->to_string()),
                              lookup_or_key(symbol_map, term->to_string()),
@@ -206,7 +207,7 @@ void print_btor_vals_at_time(
     if (skip_terms.find(vec.at(i)) != skip_terms.end()) {
       continue;
     }
-    print_btor_val_at_time(i, vec[i], ts, valmap, symbol_map, output_stream);
+    print_btor_val_at_time(i, vec[i], time, ts, valmap, symbol_map, output_stream);
   }
 }
 
@@ -220,7 +221,7 @@ void print_btor_vals_at_time(
 {
   for (auto entry : m) {
     print_btor_val_at_time(
-        entry.first, entry.second, ts, valmap, symbol_map, output_stream);
+        entry.first, entry.second, time, ts, valmap, symbol_map, output_stream);
   }
 }
 
