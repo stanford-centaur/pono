@@ -323,7 +323,7 @@ enable_testing()
 # Add tests subdirectory
 # The CMakeLists.txt file there sets up googletest
 # and builds all the parametrized tests
-add_subdirectory(tests)
+add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
 set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
