@@ -80,13 +80,13 @@ void KInduction::initialize()
   false_ = solver_->make_term(false);
 
   // permanently add term '(sel_init0_ OR init0_)'
-  solver_->reset_assertions();
   solver_->assert_formula(solver_->make_term(PrimOp::Or, sel_init_, init0_));
 }
 
 void KInduction::reset_env()
 {
   initialized_ = false;
+  solver_->reset_assertions();
   KInduction::initialize();
 }
 
