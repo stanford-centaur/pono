@@ -2,6 +2,7 @@
 #include "core/prop.h"
 #include "engines/ic3bits.h"
 #include "gtest/gtest.h"
+#include "options/options.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 #include "utils/ts_analysis.h"
@@ -18,7 +19,8 @@ class IC3BitsUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver_for(GetParam(), IC3_BITS, false);
+    s = create_solver_for(
+        GetParam(), IC3_BITS, GetParam() == BTOR, false, false, true);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
   }

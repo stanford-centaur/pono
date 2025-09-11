@@ -1,6 +1,7 @@
 #include "core/fts.h"
 #include "engines/ic3sa.h"
 #include "gtest/gtest.h"
+#include "options/options.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 #include "utils/ts_analysis.h"
@@ -45,8 +46,8 @@ class IC3SAUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
-    s->set_opt("produce-unsat-assumptions", "true");
+    s = create_solver_for(
+        GetParam(), IC3SA_ENGINE, GetParam() == BTOR, false, false, true);
   }
   SmtSolver s;
 };
