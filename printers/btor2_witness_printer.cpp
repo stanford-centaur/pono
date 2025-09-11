@@ -22,25 +22,27 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "core/ts.h"
 #include "frontends/btor2_encoder.h"
 #include "gmpxx.h"
 #include "smt-switch/smt.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/str_util.h"
 
 namespace pono {
 
-std::string as_bits(const uint64_t value, const uint64_t bit_width)
+std::string as_bits(const std::uint64_t value, const std::uint64_t bit_width)
 {
   assert(bit_width > 0);
   std::string res(bit_width, '0');
   res.reserve(bit_width);
 
-  uint64_t bit_mask = 1;
-  for (uint64_t i = 0; i < bit_width; i++) {
+  std::uint64_t bit_mask = 1;
+  for (std::uint64_t i = 0; i < bit_width; i++) {
     if (value & bit_mask) {
       res[bit_width - 1 - i] = '1';
     }
@@ -77,10 +79,10 @@ std::string as_bits(std::string val)
     res = tokens[0];
     // get rid of ")"
     std::string width_str = tokens[1].substr(0, tokens[1].length() - 1);
-    size_t width = std::stoull(width_str);
+    std::size_t width = std::stoull(width_str);
     mpz_class cval(res);
     res = cval.get_str(2);
-    size_t strlen = res.length();
+    std::size_t strlen = res.length();
 
     if (strlen < width) {
       // pad with zeros
@@ -138,8 +140,7 @@ void print_btor_val_at_time(
   } else if (sk == smt::ARRAY) {
     smt::Term tmp = valmap.at(term);
     smt::TermVec store_children(3);
-    std::uint64_t index_width = term->get_sort()->get_indexsort()->get_width();
-    std::vector<bool> written_ids(1ULL << index_width, false);
+    std::unordered_set<std::uint64_t> written_ids;
     while (tmp->get_op() == smt::Store) {
       int num = 0;
       for (auto c : tmp) {
@@ -154,7 +155,7 @@ void print_btor_val_at_time(
                            as_bits(store_children[2]->to_string()),
                            lookup_or_key(symbol_map, term->to_string()),
                            time);
-      written_ids[store_children[1]->to_int()] = true;
+      written_ids.insert(store_children[1]->to_int());
       tmp = store_children[0];
     }
     if (tmp->get_op().is_null()
@@ -168,17 +169,21 @@ void print_btor_val_at_time(
         // the witness size.
         return;
       }
-      for (size_t j = 0; j < written_ids.size(); ++j) {
-        if (!written_ids[j]) {
-          logger.log_to_stream(0,
-                               output_stream,
-                               "{} [{}] {} {}@{}",
-                               btor2_id,
-                               as_bits(j, index_width),
-                               as_bits(const_val->to_string()),
-                               lookup_or_key(symbol_map, term->to_string()),
-                               time);
+      std::uint64_t index_width =
+          term->get_sort()->get_indexsort()->get_width();
+      std::uint64_t index_size = 1ULL << index_width;
+      for (std::size_t j = 0; j < index_size; ++j) {
+        if (written_ids.find(j) != written_ids.end()) {
+          continue;
         }
+        logger.log_to_stream(0,
+                             output_stream,
+                             "{} [{}] {} {}@{}",
+                             btor2_id,
+                             as_bits(j, index_width),
+                             as_bits(const_val->to_string()),
+                             lookup_or_key(symbol_map, term->to_string()),
+                             time);
       }
     }
   } else {
@@ -195,7 +200,7 @@ void print_btor_vals_at_time(
     std::ostream & output_stream,
     const smt::UnorderedTermSet & skip_terms = {})
 {
-  for (size_t i = 0, size = vec.size(); i < size; ++i) {
+  for (std::size_t i = 0, size = vec.size(); i < size; ++i) {
     // Skip terms that are present in the given set
     // (e.g., state variables initialized at #0)
     if (skip_terms.find(vec.at(i)) != skip_terms.end()) {
@@ -239,7 +244,7 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
                           output_stream,
                           btor_enc.initialized_statevars());
 
-  for (size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
+  for (std::size_t k = 0, cex_size = cex.size(); k < cex_size; ++k) {
     // states without next
     if (k && has_states_without_next) {
       logger.log_to_stream(0, output_stream, "#{}", k);
