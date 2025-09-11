@@ -246,14 +246,6 @@ class InterpWinTests : public ::testing::Test,
     ts->constrain_init(witness);
     ts->assign_next(witness, prop);
     true_p = new SafetyProperty(ts->solver(), witness);
-
-    // debugging
-    std::cout << "INIT" << std::endl;
-    std::cout << ts->init() << std::endl;
-    std::cout << "TRANS" << std::endl;
-    std::cout << ts->trans() << std::endl;
-    std::cout << "PROP" << std::endl;
-    std::cout << witness << std::endl;
   }
   SmtSolver s;
   SmtSolver itp;
