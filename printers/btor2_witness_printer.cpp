@@ -111,6 +111,81 @@ bool appears_in_ts_coi(const smt::Term & term, const TransitionSystem & ts)
   return false;
 }
 
+void print_btor_val_at_time(
+    std::size_t btor2_id,
+    smt::Term term,
+    const TransitionSystem & ts,
+    const smt::UnorderedTermMap & valmap,
+    const std::unordered_map<std::string, std::string> & symbol_map,
+    std::ostream & output_stream)
+{
+  // Do not print if term term does not appear in COI. When not
+  // using COI, this check always returns true.
+  if (!appears_in_ts_coi(term, ts)) {
+    return;
+  }
+  smt::SortKind sk = term->get_sort()->get_sort_kind();
+  if (sk == smt::BV) {
+    // TODO: this makes assumptions on format of value from boolector
+    //       to support other solvers, we need to be more general
+    logger.log_to_stream(0,
+                         output_stream,
+                         "{} {} {}@{}",
+                         btor2_id,
+                         as_bits(valmap.at(term)->to_string()),
+                         lookup_or_key(symbol_map, term->to_string()),
+                         time);
+  } else if (sk == smt::ARRAY) {
+    smt::Term tmp = valmap.at(term);
+    smt::TermVec store_children(3);
+    std::uint64_t index_width = term->get_sort()->get_indexsort()->get_width();
+    std::vector<bool> written_ids(1ULL << index_width, false);
+    while (tmp->get_op() == smt::Store) {
+      int num = 0;
+      for (auto c : tmp) {
+        store_children[num] = c;
+        num++;
+      }
+      logger.log_to_stream(0,
+                           output_stream,
+                           "{} [{}] {} {}@{}",
+                           btor2_id,
+                           as_bits(store_children[1]->to_string()),
+                           as_bits(store_children[2]->to_string()),
+                           lookup_or_key(symbol_map, term->to_string()),
+                           time);
+      written_ids[store_children[1]->to_int()] = true;
+      tmp = store_children[0];
+    }
+    if (tmp->get_op().is_null()
+        && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
+      smt::Term const_val = *(tmp->begin());
+      if (const_val->to_int() == 0) {
+        // Skip when value is 0.
+        // When unspecified, btorsim assumes 0 as the default value.
+        // Although the correct semantics treat unspecified values as "don't
+        // care", printing 0s for arrays with large index widths would explode
+        // the witness size.
+        return;
+      }
+      for (size_t j = 0; j < written_ids.size(); ++j) {
+        if (!written_ids[j]) {
+          logger.log_to_stream(0,
+                               output_stream,
+                               "{} [{}] {} {}@{}",
+                               btor2_id,
+                               as_bits(j, index_width),
+                               as_bits(const_val->to_string()),
+                               lookup_or_key(symbol_map, term->to_string()),
+                               time);
+        }
+      }
+    }
+  } else {
+    throw PonoException("Unhandled sort kind: " + ::smt::to_string(sk));
+  }
+}
+
 void print_btor_vals_at_time(
     const smt::TermVec & vec,
     const smt::UnorderedTermMap & valmap,
@@ -120,80 +195,13 @@ void print_btor_vals_at_time(
     std::ostream & output_stream,
     const smt::UnorderedTermSet & skip_terms = {})
 {
-  smt::SortKind sk;
-  smt::TermVec store_children(3);
   for (size_t i = 0, size = vec.size(); i < size; ++i) {
-    // Do not print if term 'vec[i]' does not appear in COI. When not
-    // using COI, this check always returns true.
-    if (!appears_in_ts_coi(vec[i], ts)) {
-      continue;
-    }
     // Skip terms that are present in the given set
     // (e.g., state variables initialized at #0)
     if (skip_terms.find(vec.at(i)) != skip_terms.end()) {
       continue;
     }
-    sk = vec[i]->get_sort()->get_sort_kind();
-    if (sk == smt::BV) {
-      // TODO: this makes assumptions on format of value from boolector
-      //       to support other solvers, we need to be more general
-      logger.log_to_stream(0,
-                           output_stream,
-                           "{} {} {}@{}",
-                           i,
-                           as_bits(valmap.at(vec[i])->to_string()),
-                           lookup_or_key(symbol_map, vec[i]->to_string()),
-                           time);
-    } else if (sk == smt::ARRAY) {
-      smt::Term tmp = valmap.at(vec[i]);
-      uint64_t index_width = vec[i]->get_sort()->get_indexsort()->get_width();
-      std::vector<bool> written_ids(1ULL << index_width, false);
-      while (tmp->get_op() == smt::Store) {
-        int num = 0;
-        for (auto c : tmp) {
-          store_children[num] = c;
-          num++;
-        }
-
-        logger.log_to_stream(0,
-                             output_stream,
-                             "{} [{}] {} {}@{}",
-                             i,
-                             as_bits(store_children[1]->to_string()),
-                             as_bits(store_children[2]->to_string()),
-                             lookup_or_key(symbol_map, vec[i]->to_string()),
-                             time);
-        written_ids[store_children[1]->to_int()] = true;
-        tmp = store_children[0];
-      }
-
-      if (tmp->get_op().is_null()
-          && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
-        smt::Term const_val = *(tmp->begin());
-        if (const_val->to_int() == 0) {
-          // Skip when value is 0.
-          // When unspecified, btorsim assumes 0 as the default value.
-          // Although the correct semantics treat unspecified values as "don't
-          // care", printing 0s for arrays with large index widths would explode
-          // the witness size.
-          continue;
-        }
-        for (size_t j = 0; j < written_ids.size(); ++j) {
-          if (!written_ids[j]) {
-            logger.log_to_stream(0,
-                                 output_stream,
-                                 "{} [{}] {} {}@{}",
-                                 i,
-                                 as_bits(j, index_width),
-                                 as_bits(const_val->to_string()),
-                                 lookup_or_key(symbol_map, vec[i]->to_string()),
-                                 time);
-          }
-        }
-      }
-    } else {
-      throw PonoException("Unhandled sort kind: " + ::smt::to_string(sk));
-    }
+    print_btor_val_at_time(i, vec[i], ts, valmap, symbol_map, output_stream);
   }
 }
 
@@ -205,78 +213,9 @@ void print_btor_vals_at_time(
     const std::unordered_map<std::string, std::string> & symbol_map,
     std::ostream & output_stream)
 {
-  smt::SortKind sk;
-  smt::TermVec store_children(3);
   for (auto entry : m) {
-    // Do not print if term 'entry.second' does not appear in COI. When not
-    // using COI, this check always returns true.
-    if (!appears_in_ts_coi(entry.second, ts)) continue;
-    sk = entry.second->get_sort()->get_sort_kind();
-    if (sk == smt::BV) {
-      // TODO: this makes assumptions on format of value from boolector
-      //       to support other solvers, we need to be more general
-      // Remove the #b prefix
-      logger.log_to_stream(0,
-                           output_stream,
-                           "{} {} {}@{}",
-                           entry.first,
-                           as_bits(valmap.at(entry.second)->to_string()),
-                           lookup_or_key(symbol_map, entry.second->to_string()),
-                           time);
-    } else if (sk == smt::ARRAY) {
-      smt::Term tmp = valmap.at(entry.second);
-      uint64_t index_width =
-          entry.second->get_sort()->get_indexsort()->get_width();
-      std::vector<bool> written_ids(1ULL << index_width, false);
-      while (tmp->get_op() == smt::Store) {
-        int num = 0;
-        for (auto c : tmp) {
-          store_children[num] = c;
-          num++;
-        }
-
-        logger.log_to_stream(
-            0,
-            output_stream,
-            "{} [{}] {} {}@{}",
-            entry.first,
-            as_bits(store_children[1]->to_string()),
-            as_bits(store_children[2]->to_string()),
-            lookup_or_key(symbol_map, entry.second->to_string()),
-            time);
-        written_ids[store_children[1]->to_int()] = true;
-        tmp = store_children[0];
-      }
-
-      if (tmp->get_op().is_null()
-          && tmp->get_sort()->get_sort_kind() == smt::ARRAY) {
-        smt::Term const_val = *(tmp->begin());
-        if (const_val->to_int() == 0) {
-          // Skip when value is 0.
-          // When unspecified, btorsim assumes 0 as the default value.
-          // Although the correct semantics treat unspecified values as "don't
-          // care", printing 0s for arrays with large index widths would explode
-          // the witness size.
-          continue;
-        }
-        for (size_t j = 0; j < written_ids.size(); ++j) {
-          if (!written_ids[j]) {
-            logger.log_to_stream(
-                0,
-                output_stream,
-                "{} [{}] {} {}@{}",
-                entry.first,
-                as_bits(j, index_width),
-                as_bits(const_val->to_string()),
-                lookup_or_key(symbol_map, entry.second->to_string()),
-                time);
-          }
-        }
-      }
-
-    } else {
-      throw PonoException("Unhandled sort kind: " + ::smt::to_string(sk));
-    }
+    print_btor_val_at_time(
+        entry.first, entry.second, ts, valmap, symbol_map, output_stream);
   }
 }
 
