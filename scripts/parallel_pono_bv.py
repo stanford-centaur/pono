@@ -70,15 +70,14 @@ ENGINE_OPTIONS = {
         "11",
         "--bmc-exponential-step",
     ],
-    "ind": [
+    "ind.bound_step.5": [
         "-e",
         "ind",
         "--static-coi",
         "--kind-bound-step",
         "5",
-        "--kind-one-time-base-check",
     ],
-    "ind.ceg_bv_arith": [
+    "ind.ceg_bv_arith.no_simple_path_check": [
         "-e",
         "ind",
         "--ceg-bv-arith",
