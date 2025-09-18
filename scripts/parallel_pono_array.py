@@ -204,7 +204,7 @@ def find_file(name: str) -> pathlib.Path:
     else:
         path = pathlib.Path(fullname)
     if not path.is_file():
-        msg = f"file {name} not  in script directory or PATH"
+        msg = f"file {name} not in script directory or PATH"
         raise FileNotFoundError(msg)
     return path
 
