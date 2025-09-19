@@ -63,15 +63,12 @@ ENGINE_OPTIONS = {
         "--static-coi",
         "--ceg-bv-arith",
     ],
-    "ind.ceg_bv_arith.bound_step.11": [
+    "ind.ceg_bv_arith.no_simple_path_check": [
         "-e",
         "ind",
         "--static-coi",
         "--ceg-bv-arith",
         "--kind-no-simple-path-check",
-        "--kind-bound-step",
-        "11",
-        "--kind-one-time-base-check",
     ],
     "interp": [
         "-e",
