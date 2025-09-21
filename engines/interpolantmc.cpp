@@ -30,8 +30,8 @@ InterpolantMC::InterpolantMC(const SafetyProperty & p,
                              const SmtSolver & slv,
                              PonoOptions opt)
     : super(p, ts, slv, opt),
-      interpolator_(create_interpolating_solver_for(opt.smt_interpolator_,
-                                                    Engine::INTERP)),
+      interpolator_(create_interpolating_solver_for(
+          opt.smt_interpolator_, Engine::INTERP, opt.smt_interpolator_opts_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       use_frontier_simpl_(opt.interp_frontier_set_simpl_),

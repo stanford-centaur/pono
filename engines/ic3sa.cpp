@@ -610,8 +610,8 @@ void IC3SA::initialize()
   super::initialize();
 
   if (options_.ic3sa_interp_) {
-    interpolator_ =
-        create_interpolating_solver_for(options_.smt_interpolator_, engine_);
+    interpolator_ = create_interpolating_solver_for(
+        options_.smt_interpolator_, engine_, options_.smt_interpolator_opts_);
     to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
     from_interpolator_ = std::make_unique<TermTranslator>(solver_);
   }

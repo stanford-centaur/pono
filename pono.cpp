@@ -255,7 +255,8 @@ int main(int argc, char ** argv)
                                     pono_options.engine_,
                                     false,
                                     pono_options.ceg_prophecy_arrays_,
-                                    pono_options.printing_smt_solver_);
+                                    pono_options.printing_smt_solver_,
+                                    pono_options.smt_solver_opts_);
 
     if (pono_options.logging_smt_solver_) {
       s = make_shared<LoggingSolver>(s);

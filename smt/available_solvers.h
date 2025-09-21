@@ -37,7 +37,8 @@ smt::SmtSolver create_solver(smt::SolverEnum se,
                              bool logging = false,
                              bool incremental = true,
                              bool produce_model = true,
-                             bool printing = false);
+                             bool printing = false,
+                             const StringMap & solver_opts = {});
 
 // same as create_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
@@ -50,20 +51,26 @@ smt::SmtSolver create_solver_for(smt::SolverEnum se,
                                  Engine e,
                                  bool logging,
                                  bool full_model = false,
-                                 bool printing = false);
+                                 bool printing = false,
+                                 const StringMap & solver_opts = {});
 
 // same as create_solver but will set reasonable options
 // for a reducing solver (e.g. produce-models off)
 // unsat cores on
 // and other solver-specific options where appropriate
-smt::SmtSolver create_reducer_for(smt::SolverEnum se, Engine e, bool logging);
+smt::SmtSolver create_reducer_for(smt::SolverEnum se,
+                                  Engine e,
+                                  bool logging,
+                                  const StringMap & solver_opts = {});
 
 /** Creates an interpolating SmtSolver of the provided type */
-smt::SmtSolver create_interpolating_solver(smt::SolverEnum se);
+smt::SmtSolver create_interpolating_solver(smt::SolverEnum se,
+                                           const StringMap & solver_opts = {});
 
 // same as create_interpolating_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
-smt::SmtSolver create_interpolating_solver_for(smt::SolverEnum se, Engine e);
+smt::SmtSolver create_interpolating_solver_for(
+    smt::SolverEnum se, Engine e, const StringMap & solver_opts = {});
 
 // collect all the available solvers
 std::vector<smt::SolverEnum> available_solver_enums();
