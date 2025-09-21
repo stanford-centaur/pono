@@ -55,7 +55,6 @@ IC3IA::IC3IA(const SafetyProperty & p,
     : super(p, RelationalTransitionSystem(s), s, opt),
       conc_ts_(ts, to_prover_solver_),
       ia_(conc_ts_, ts_, unroller_),
-      // only mathsat interpolator supported
       interpolator_(
           create_interpolating_solver_for(options_.smt_interpolator_,
                                           Engine::IC3IA_ENGINE,
