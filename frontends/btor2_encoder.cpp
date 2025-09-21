@@ -398,7 +398,7 @@ void BTOR2Encoder::parse(const std::string filename)
 
       ts_.constrain_init(inbt2_iteq);
       terms_[bt2_line->id] = inbt2_iteq;
-
+      initialized_states_.insert(termargs[0]);
     } else if (bt2_line->tag == BTOR2_TAG_next) {
       if (termargs.size() != 2) {
         throw PonoException("Expecting two arguments to next");

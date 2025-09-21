@@ -55,6 +55,10 @@ class BTOR2Encoder
   {
     return symbol_map_;
   }
+  const smt::UnorderedTermSet & initialized_statevars() const
+  {
+    return initialized_states_;
+  }
 
  protected:
   // converts booleans to bitvector of size one
@@ -85,6 +89,7 @@ class BTOR2Encoder
   // a mapping from the internally-assigned names ("intput/state{btor2_id}")
   // to the original names in Btor2
   std::unordered_map<std::string, std::string> symbol_map_;
+  smt::UnorderedTermSet initialized_states_;
 
   std::unordered_map<int, smt::Sort> sorts_;
   std::unordered_map<int, smt::Term> terms_;
