@@ -116,18 +116,26 @@ SmtSolver create_solver(SolverEnum se,
                         bool logging,
                         bool incremental,
                         bool produce_model,
-                        bool printing)
+                        bool printing,
+                        const StringMap & solver_opts)
 {
   SmtSolver s = create_solver_base(se, logging, printing);
 
+  for (const auto & optpair : solver_opts) {
+    s->set_opt(optpair.first, optpair.second);
+  }
   s->set_opt("incremental", incremental ? "true" : "false");
   s->set_opt("produce-models", produce_model ? "true" : "false");
 
   return s;
 }
 
-SmtSolver create_solver_for(
-    SolverEnum se, Engine e, bool logging, bool full_model, bool printing)
+SmtSolver create_solver_for(SolverEnum se,
+                            Engine e,
+                            bool logging,
+                            bool full_model,
+                            bool printing,
+                            const StringMap & solver_opts)
 {
   SmtSolver s;
   bool ic3_engine = ic3_variants().find(e) != ic3_variants().end();
@@ -140,7 +148,8 @@ SmtSolver create_solver_for(
   if (se == MSAT && ic3_engine) {
     // These will be managed by the solver object
     // don't need to destroy
-    unordered_map<string, string> opts({ { "model_generation", "true" } });
+    StringMap opts({ { "model_generation", "true" } });
+    opts.insert(solver_opts.begin(), solver_opts.end());
     if (!full_model && e == IC3IA_ENGINE) {
       // only need boolean model
       opts["bool_model_generation"] = "true";
@@ -166,7 +175,7 @@ SmtSolver create_solver_for(
   } else {
 #endif
     // no special options yet for solvers other than mathsat
-    s = create_solver(se, logging, true, true, printing);
+    s = create_solver(se, logging, true, true, printing, solver_opts);
 #ifdef WITH_MSAT
   }
 #endif
@@ -178,18 +187,25 @@ SmtSolver create_solver_for(
   return s;
 }
 
-SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
+SmtSolver create_reducer_for(SolverEnum se,
+                             Engine e,
+                             bool logging,
+                             const StringMap & solver_opts)
 {
   SmtSolver s;
   if (se != MSAT) {
     s = create_solver_base(se, logging);
+    for (const auto & optpair : solver_opts) {
+      s->set_opt(optpair.first, optpair.second);
+    }
     s->set_opt("incremental", "true");
     s->set_opt("produce-unsat-assumptions", "true");
   }
 #ifdef WITH_MSAT
   else {
     // no models needed for a reducer
-    unordered_map<string, string> opts({ { "model_generation", "false" } });
+    StringMap opts({ { "model_generation", "false" } });
+    opts.insert(solver_opts.begin(), solver_opts.end());
     msat_config cfg = get_msat_config_for_ic3(false, opts);
     msat_env env = msat_create_env(cfg);
     s = std::make_shared<MsatSolver>(cfg, env);
@@ -203,12 +219,14 @@ SmtSolver create_reducer_for(SolverEnum se, Engine e, bool logging)
   return s;
 }
 
-SmtSolver create_interpolating_solver(SolverEnum se)
+SmtSolver create_interpolating_solver(SolverEnum se,
+                                      const StringMap & solver_opts)
 {
+  SmtSolver s;
   switch (se) {
     case CVC5:
     case CVC5_INTERPOLATOR: {
-      return Cvc5SolverFactory::create_interpolating_solver();
+      s = Cvc5SolverFactory::create_interpolating_solver();
       break;
       ;
     }
@@ -216,7 +234,7 @@ SmtSolver create_interpolating_solver(SolverEnum se)
     // for convenience -- accept any MSAT SolverEnum
     case MSAT:
     case MSAT_INTERPOLATOR: {
-      return MsatSolverFactory::create_interpolating_solver();
+      s = MsatSolverFactory::create_interpolating_solver();
       break;
       ;
     }
@@ -225,12 +243,18 @@ SmtSolver create_interpolating_solver(SolverEnum se)
       throw SmtException("Unhandled solver enum");
     }
   }
+  for (const auto & optpair : solver_opts) {
+    s->set_opt(optpair.first, optpair.second);
+  }
+  return s;
 }
 
-SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
+SmtSolver create_interpolating_solver_for(SolverEnum se,
+                                          Engine e,
+                                          const StringMap & solver_opts)
 {
   if (ic3_variants().find(e) == ic3_variants().end() || se != MSAT) {
-    return create_interpolating_solver(se);
+    return create_interpolating_solver(se, solver_opts);
   }
 
   switch (se) {
@@ -240,10 +264,10 @@ SmtSolver create_interpolating_solver_for(SolverEnum se, Engine e)
     case MSAT_INTERPOLATOR: {
       // These will be managed by the solver object
       // don't need to destroy
-      msat_config cfg =
-          get_msat_config_for_ic3(true,
-                                  { { "bool_model_generation", "false" },
-                                    { "model_generation", "true" } });
+      StringMap msat_opts = { { "bool_model_generation", "false" },
+                              { "model_generation", "true" } };
+      msat_opts.insert(solver_opts.begin(), solver_opts.end());
+      msat_config cfg = get_msat_config_for_ic3(true, msat_opts);
       msat_env env = msat_create_env(cfg);
       return std::make_shared<MsatInterpolatingSolver>(cfg, env);
       break;
