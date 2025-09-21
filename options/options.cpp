@@ -213,7 +213,7 @@ const option::Descriptor usage[] = {
 #ifdef WITH_MSAT
     "(default: msat)"
 #else
-    "(default: cvc5)"
+    "(default: bzla)"
 #endif
   },
   { LOGGING_SMT_SOLVER,
