@@ -31,6 +31,8 @@ namespace pono {
  *  @param incremental set the incremental option for the solver
  *  @param produce_model set the produce-model option for the solver
  *  @param printing whether or not dump SMT-LIB sent to solver to standard error
+ *  @param solver_opts additional options passed to the solver;
+ *      these do not override the above options
  *  @return an SmtSolver
  */
 smt::SmtSolver create_solver(smt::SolverEnum se,
