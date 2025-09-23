@@ -51,6 +51,7 @@ enum optionIndex
   STATICCOI,
   SHOW_INVAR,
   CHECK_INVAR,
+  CHECK_TRANS_TOTAL,
   RESET,
   RESET_BND,
   CLK,
@@ -279,6 +280,14 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --check-invar \tFor engines that produce invariants, check that they "
     "hold." },
+  { CHECK_TRANS_TOTAL,
+    0,
+    "",
+    "check-trans-total",
+    Arg::None,
+    "  --check-trans-total \tCheck whether the transition relation is "
+    "right-total. Information is printed only if verbosity > 1. This "
+    "check may involve quantified SMT query." },
   { RESET,
     0,
     "r",
@@ -823,6 +832,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case STATICCOI: static_coi_ = true; break;
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
+        case CHECK_TRANS_TOTAL: check_trans_total_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = std::stoul(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
