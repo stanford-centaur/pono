@@ -151,7 +151,7 @@ def main() -> int:
 
     # Launch each portfolio solver as a subprocess.
     for name, options in ENGINE_OPTIONS.items():
-        cmd = [executable, "-k", str(args.bound), *options]
+        cmd = [str(executable), "-k", str(args.bound), *options]
         if args.witness_file:
             with tempfile.NamedTemporaryFile(delete=False) as witness_file:
                 witnesses[name] = pathlib.Path(witness_file.name)
