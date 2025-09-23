@@ -632,6 +632,11 @@ bool TransitionSystem::contains(const Term & term,
 
 bool TransitionSystem::is_right_total() const
 {
+  if (is_functional() && constraints_.empty()) {
+    // functional transition systems without constraints are always right-total
+    return true;
+  }
+
   // Use a solver that supports quantifiers
   const auto se_attribs = get_solver_attributes(solver_->get_solver_enum());
   SolverEnum se = (se_attribs.find(QUANTIFIERS) != se_attribs.end())
