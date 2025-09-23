@@ -134,7 +134,7 @@ def main() -> int:
     logger = logging.getLogger(parser.prog)
 
     # Try current directory if pono is not on PATH.
-    executable = shutil.which("pono") or "./pono"
+    executable = shutil.which("pono") or pathlib.Path(__file__).parent / "pono"
 
     processes: dict[str, subprocess.Popen[str]] = {}
     start_times: dict[str, float] = {}
