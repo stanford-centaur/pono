@@ -92,9 +92,9 @@ void OpInpAbstractor::abstract_ts(
 bool check_possible(const Term & res,
                     const TermVec & arg,
                     Op op,
-                    const SmtSolver & orig_solver)
+                    const SolverEnum & se)
 {
-  SmtSolver s = create_solver(BTOR, false, false, false);
+  SmtSolver s = create_solver(se, false, false, false);
   TermTranslator tr(s);
   TermVec tr_arg;
 
@@ -158,7 +158,8 @@ bool OpInpAbstractor::refine_with_constraints(
             arg_val.push_back(
                 solver_->get_value(unroller_->at_time(arg, trace_pos - 1)));
           }
-          if (!check_possible(res_val, arg_val, abs_term.op, solver_)) {
+          if (!check_possible(
+                  res_val, arg_val, abs_term.op, solver_->get_solver_enum())) {
             // create an assumption
             Term expected_res_val = solver_->make_term(abs_term.op, arg_val);
             logger.log(3,
@@ -345,7 +346,8 @@ bool OpUfAbstractor::refine_with_constraints(
             arg_val.push_back(
                 solver_->get_value(unroller_->at_time(arg, trace_pos - 1)));
           }
-          if (!check_possible(res_val, arg_val, abs_term.op, solver_)) {
+          if (!check_possible(
+                  res_val, arg_val, abs_term.op, solver_->get_solver_enum())) {
             // create an assumption
             Term expected_res_val = solver_->make_term(abs_term.op, arg_val);
             TermVec apply_farg;
