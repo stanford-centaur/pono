@@ -58,7 +58,7 @@ enum optionIndex
   SMT_INTERPOLATOR,
   LOGGING_SMT_SOLVER,
   PRINTING_SMT_SOLVER,
-  SMV_FP_SEMANTICS,  
+  SMV_FP_SEMANTICS,
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
@@ -306,7 +306,8 @@ const option::Descriptor usage[] = {
     "",
     "smv-fp-semantics",
     Arg::None,
-    "  --smv-fp-semantics \tEncode SMV real types with Floating-Point 64-bit precision semantics." },       
+    "  --smv-fp-semantics \tEncode SMV real types with Floating-Point 64-bit "
+    "precision semantics." },
   { NO_IC3_PREGEN,
     0,
     "",
