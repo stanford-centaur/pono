@@ -57,7 +57,7 @@ class RelationalTransitionSystem : public TransitionSystem
   void constrain_trans(const smt::Term & constraint);
 
  private:
-  /* Finds all state variables referenced in some 'next' transition inside 
+  /* Finds all state variables referenced in some 'next' transition inside
    * 'term' and marks them as updated states in the TransitionSystem
    */
   void set_updated_states(const smt::Term & term);
