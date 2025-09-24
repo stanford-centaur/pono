@@ -120,7 +120,9 @@ def main() -> int:
     )
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
     parser.add_argument("witness_file", nargs="?", help="file to store the witness in")
-    parser.add_argument("-k", "--bound", default=1000, type=int, help="check bound")
+    parser.add_argument(
+        "-k", "--bound", default=1000, type=int, help="bound to check until"
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
     parser.add_argument(
         "-s",
