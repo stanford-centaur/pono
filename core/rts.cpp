@@ -59,7 +59,7 @@ void RelationalTransitionSystem::set_updated_states(const smt::Term & term)
   if (curr != curr_map_.end()) {
     no_state_updates_.erase(curr->second);
   }
-  for (const auto& subTerm : *term) {
+  for (const auto & subTerm : *term) {
     set_updated_states(subTerm);
   }
 }
