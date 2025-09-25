@@ -412,20 +412,20 @@ int main(int argc, char ** argv)
 #ifdef NDEBUG
   }
   catch (PonoException & ce) {
-    cout << ce.what() << endl;
+    cerr << ce.what() << endl;
     cout << "error" << endl;
     cout << "b" << pono_options.prop_idx_ << endl;
     res = ProverResult::ERROR;
   }
   catch (SmtException & se) {
-    cout << se.what() << endl;
+    cerr << se.what() << endl;
     cout << "error" << endl;
     cout << "b" << pono_options.prop_idx_ << endl;
     res = ProverResult::ERROR;
   }
   catch (std::exception & e) {
-    cout << "Caught generic exception..." << endl;
-    cout << e.what() << endl;
+    cerr << "Caught generic exception..." << endl;
+    cerr << e.what() << endl;
     cout << "error" << endl;
     cout << "b" << pono_options.prop_idx_ << endl;
     res = ProverResult::ERROR;
