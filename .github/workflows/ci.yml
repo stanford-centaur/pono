@@ -19,14 +19,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        build_type: [release, debug]
         link_type: [dynamic, static]
         include:
           - os: ubuntu-latest
             extra_solver_flags: --with-msat
+          - build_type: debug
+            conf_build_opts: --debug
           - link_type: static
-            config_opts: --static
+            conf_link_opts: --static
 
-    name: ${{ matrix.os }}-${{ matrix.link_type }}-build
+    name: ${{ matrix.os }}:${{ matrix.build_type }}-${{ matrix.link_type }}
     runs-on: ${{ matrix.os}}
 
     steps:
@@ -72,7 +75,7 @@ jobs:
       - name: Configure
         run: |
           source .venv/bin/activate
-          ./configure.sh --debug --python ${{ matrix.extra_solver_flags }} ${{ matrix.config_opts }}
+          ./configure.sh --python ${{ matrix.extra_solver_flags }} ${{ matrix.conf_build_opts }} ${{ matrix.conf_link_opts }}
 
       - name: Build
         run: |
@@ -83,7 +86,7 @@ jobs:
         if: matrix.link_type == 'static'
         uses: actions/upload-artifact@v4
         with:
-          name: pono_${{ runner.arch }}
+          name: pono_${{ runner.arch }}_${{ matrix.build_type }}
           path: ./build/pono
 
       - name: Test C++
@@ -97,7 +100,7 @@ jobs:
         if: steps.test-cpp.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-${{ matrix.link_type }}-test-log-${{ github.run_id }}
+          name: ${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.link_type }}-test-log-${{ github.run_id }}
           path: build/tests/Testing/Temporary/LastTest.log
 
       - name: Fail pipeline due to C++ test failure

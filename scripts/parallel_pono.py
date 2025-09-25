@@ -121,13 +121,22 @@ def clean_up(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
+    parser = argparse.ArgumentParser(
+        description="Run multiple engines in parallel",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
-    parser.add_argument("witness_file", nargs="?", help="file to store the witness")
-    parser.add_argument("-k", "--bound", default=1000, type=int, help="unrolling bound")
+    parser.add_argument("witness_file", nargs="?", help="file to store the witness in")
+    parser.add_argument(
+        "-k", "--bound", default=1000, type=int, help="bound to check until"
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
     parser.add_argument(
-        "-s", "--summarize", metavar="FILE", type=pathlib.Path, help="save csv summary"
+        "-s",
+        "--summarize",
+        metavar="FILE",
+        type=pathlib.Path
+        help="save a csv summary to the specified file",
     )
     args = parser.parse_args()
 
