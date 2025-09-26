@@ -50,14 +50,17 @@ smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
   // monitor starts true
   ts.constrain_init(monitor);
 
+  smt::SmtSolver s = ts.solver();
+  // monitor is set to false if prop is ever false:
+  // monitor' = prop && monitor
   if (ts.no_next(prop)) {
-    ts.assign_next(monitor, prop);
+    ts.assign_next(monitor, s->make_term(smt::And, prop, monitor));
   } else if (!ts.is_functional()) {
     RelationalTransitionSystem & rts =
         static_cast<RelationalTransitionSystem &>(ts);
-    rts.constrain_trans(rts.make_term(smt::Equal, rts.next(monitor), prop));
+    rts.constrain_trans(rts.make_term(
+        smt::Equal, rts.next(monitor), s->make_term(smt::And, prop, monitor)));
     // ensure that if prop is false, there will always be a next state
-    smt::SmtSolver s = ts.solver();
     rts.set_trans(
         s->make_term(smt::Or, s->make_term(smt::Not, prop), rts.trans()));
   } else {
