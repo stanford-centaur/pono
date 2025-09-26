@@ -22,6 +22,19 @@
 
 namespace pono {
 
+/** Adds a monitor state variable to the transition system for the given
+ *  property. The monitor variable is true iff the property has held at all
+ *  previous time steps. The transition system is modified in place.
+ *
+ *  NOTE: only works for safety properties currently.
+ *
+ *  NOTE: cannot be used on functional transition systems with constraints (more
+ *    precisely, non-right-total transition relation).
+ *
+ *  @param ts the transition system to modify
+ *  @param prop the property term to monitor
+ *  @return the monitor state variable term
+ */
 smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
 {
   logger.log(1, "Adding a monitor for the property");
