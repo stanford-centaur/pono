@@ -308,8 +308,14 @@ class TransitionSystem
    * Otherwise, a fresh solver instance is created and checks if
    * `exist curr, forall next. not trans(curr, next)` is unsatisfiable.
    * Note: The query may be expensive as it involves quantifiers.
+   *
+   * Uses the solver type in the current TransitionSystem if it supports
+   * quantifiers; otherwise cvc5.
    */
   bool is_right_total() const;
+
+  /* Same as @ref is_right_total(), but uses the given solver type */
+  bool is_right_total(const smt::SolverEnum se) const;
 
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;
