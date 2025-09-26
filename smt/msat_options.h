@@ -31,15 +31,6 @@ msat_config get_msat_config_for_ic3(bool interp, const StringMap & options)
 {
   msat_config cfg = msat_create_config();
 
-  for (const auto & optpair : options) {
-    int fail =
-        msat_set_option(cfg, optpair.first.c_str(), optpair.second.c_str());
-    if (fail) {
-      throw PonoException("Failed to set mathsat option: " + optpair.first
-                          + " => " + optpair.second);
-    }
-  }
-
   // no random decisions in the SAT solver
   msat_set_option(cfg, "dpll.branching_random_frequency", "0");
 
@@ -81,6 +72,15 @@ msat_config get_msat_config_for_ic3(bool interp, const StringMap & options)
     // interpolation for BV requires the lazy solver
     msat_set_option(cfg, "theory.bv.bit_blast_mode", "0");
     msat_set_option(cfg, "theory.bv.eager", "false");
+  }
+
+  for (const auto & optpair : options) {
+    int fail =
+        msat_set_option(cfg, optpair.first.c_str(), optpair.second.c_str());
+    if (fail) {
+      throw PonoException("Failed to set mathsat option: " + optpair.first
+                          + " => " + optpair.second);
+    }
   }
 
   return cfg;

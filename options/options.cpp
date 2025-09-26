@@ -231,8 +231,7 @@ const option::Descriptor usage[] = {
     "smt-solver-opt",
     Arg::ColonSepPair,
     "  --smt-solver-opt <smt-opt>:<value> \tSet option in SMT solver. May be "
-    "specified multiple times. Does not overwrite existing settings in Pono. "
-    "(Expert option)" },
+    "specified multiple times. (Expert option)" },
   { SMT_INTERPOLATOR,
     0,
     "",
@@ -251,8 +250,7 @@ const option::Descriptor usage[] = {
     "smt-interpolator-opt",
     Arg::ColonSepPair,
     "  --smt-interpolator-opt <smt-opt>:<value> \tSet option in SMT "
-    "interpolator. May be specified multiple times. Does not overwrite "
-    "existing settings in Pono. (Expert option)" },
+    "interpolator. May be specified multiple times. (Expert option)" },
   { LOGGING_SMT_SOLVER,
     0,
     "",
