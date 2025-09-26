@@ -25,6 +25,13 @@ namespace pono {
 smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
 {
   logger.log(1, "Adding a monitor for the property");
+  // TODO: more precise right-total check
+  // (https://github.com/stanford-centaur/pono/pull/469)
+  if (ts.is_functional() && !ts.constraints().empty()) {
+    throw PonoException(
+        "Cannot add monitor on functional transition systems "
+        "with constraints.");
+  }
 
   smt::Term monitor;
   size_t id = 0;
@@ -49,6 +56,10 @@ smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
     RelationalTransitionSystem & rts =
         static_cast<RelationalTransitionSystem &>(ts);
     rts.constrain_trans(rts.make_term(smt::Equal, rts.next(monitor), prop));
+    // ensure that if prop is false, there will always be a next state
+    smt::SmtSolver s = ts.solver();
+    rts.set_trans(
+        s->make_term(smt::Or, s->make_term(smt::Not, prop), rts.trans()));
   } else {
     assert(ts.is_functional());
     throw PonoException(
