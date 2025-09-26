@@ -25,12 +25,20 @@ namespace pono {
 smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
 {
   logger.log(1, "Adding a monitor for the property");
-  // TODO: more precise right-total check
-  // (https://github.com/stanford-centaur/pono/pull/469)
-  if (ts.is_functional() && !ts.constraints().empty()) {
-    throw PonoException(
-        "Cannot add monitor on functional transition systems "
-        "with constraints.");
+
+  // checks for functional TS
+  if (ts.is_functional()) {
+    if (!ts.no_next(prop)) {
+      throw PonoException(
+          "Cannot use next in property of a functional transition system.");
+    }
+    if (!ts.constraints().empty()) {
+      // TODO: more precise right-total check
+      // (https://github.com/stanford-centaur/pono/pull/469)
+      throw PonoException(
+          "Cannot add monitor on functional transition systems "
+          "with constraints.");
+    }
   }
 
   smt::Term monitor;
@@ -55,7 +63,8 @@ smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
   // monitor' = prop && monitor
   if (ts.no_next(prop)) {
     ts.assign_next(monitor, s->make_term(smt::And, prop, monitor));
-  } else if (!ts.is_functional()) {
+  } else {
+    assert(!ts.is_functional());
     RelationalTransitionSystem & rts =
         static_cast<RelationalTransitionSystem &>(ts);
     rts.constrain_trans(rts.make_term(
@@ -63,10 +72,6 @@ smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
     // ensure that if prop is false, there will always be a next state
     rts.set_trans(
         s->make_term(smt::Or, s->make_term(smt::Not, prop), rts.trans()));
-  } else {
-    assert(ts.is_functional());
-    throw PonoException(
-        "Cannot use next in property of a functional transition system.");
   }
 
   return monitor;
