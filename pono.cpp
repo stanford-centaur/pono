@@ -108,6 +108,7 @@ ProverResult check_prop(PonoOptions pono_options,
                "Generating a monitor state.");
     prop = add_prop_monitor(ts, prop);
     has_monitor = true;
+    logger.log(3, "TRANS with monitor:\n{}", ts.trans());
   }
 
   if (pono_options.assume_prop_) {
