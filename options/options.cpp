@@ -17,6 +17,7 @@
 #include "options/options.h"
 
 #include <climits>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -127,10 +128,10 @@ struct Arg : public option::Arg
 
   static option::ArgStatus Numeric(const option::Option & option, bool msg)
   {
-    char * endptr = 0;
-    if (option.arg != 0 && strtol(option.arg, &endptr, 10)) {
+    char * endptr = nullptr;
+    if (option.arg != nullptr && strtol(option.arg, &endptr, 10)) {
     };
-    if (endptr != option.arg && *endptr == 0) return option::ARG_OK;
+    if (endptr != option.arg && *endptr == '\0') return option::ARG_OK;
 
     if (msg) printError("Option '", option, "' requires a numeric argument\n");
     return option::ARG_ILLEGAL;
@@ -138,7 +139,7 @@ struct Arg : public option::Arg
 
   static option::ArgStatus NonEmpty(const option::Option & option, bool msg)
   {
-    if (option.arg != 0 && option.arg[0] != 0) return option::ARG_OK;
+    if (option.arg != nullptr && strlen(option.arg) > 0) return option::ARG_OK;
 
     if (msg)
       printError("Option '", option, "' requires a non-empty argument\n");
@@ -147,7 +148,7 @@ struct Arg : public option::Arg
 
   static option::ArgStatus ColonSepPair(const option::Option & option, bool msg)
   {
-    if (option.arg != 0 && option.arg[0] != 0) {
+    if (option.arg != nullptr && strlen(option.arg) > 0) {
       string opt_str = string(option.arg);
       size_t pos = opt_str.find(':');
       // not valid if (1) the first char is ':', (2) the last char is ':',
