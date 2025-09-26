@@ -185,7 +185,7 @@ SmtSolver create_solver_for(SolverEnum se,
       // below) not effective
       opts.emplace("preprocessor.toplevel_propagation", "false");
     }
-    msat_config cfg = get_msat_config_for_ic3(false, opts);
+    msat_config cfg = get_msat_config_for_ic3(opts);
     msat_env env = msat_create_env(cfg);
     s = std::make_shared<MsatSolver>(cfg, env);
     if (logging) {
@@ -232,7 +232,7 @@ SmtSolver create_reducer_for(SolverEnum se,
     StringMap opts(solver_opts);
     // no models needed for a reducer
     opts.emplace("model_generation", "false");
-    msat_config cfg = get_msat_config_for_ic3(false, opts);
+    msat_config cfg = get_msat_config_for_ic3(opts);
     msat_env env = msat_create_env(cfg);
     s = std::make_shared<MsatSolver>(cfg, env);
     if (logging) {
@@ -295,7 +295,7 @@ SmtSolver create_interpolating_solver_for(SolverEnum se,
       StringMap msat_opts(solver_opts);
       msat_opts.emplace("bool_model_generation", "false");
       msat_opts.emplace("model_generation", "true");
-      msat_config cfg = get_msat_config_for_ic3(true, msat_opts);
+      msat_config cfg = get_msat_config_for_ic3(msat_opts);
       msat_env env = msat_create_env(cfg);
       return std::make_shared<MsatInterpolatingSolver>(cfg, env);
       break;
