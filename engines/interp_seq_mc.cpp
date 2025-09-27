@@ -33,8 +33,8 @@ InterpSeqMC::InterpSeqMC(const SafetyProperty & p,
                          const SmtSolver & slv,
                          PonoOptions opt)
     : super(p, ts, slv, opt),
-      interpolator_(
-          create_interpolating_solver_for(opt.smt_interpolator_, Engine::ISMC)),
+      interpolator_(create_interpolating_solver_for(
+          opt.smt_interpolator_, Engine::ISMC, opt.smt_interpolator_opts_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {

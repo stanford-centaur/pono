@@ -25,11 +25,9 @@
 
 namespace pono {
 
-using StringMap = std::unordered_map<std::string, std::string>;
-
 // configuration options copied from open-source ic3ia implementation
 // https://es-static.fbk.eu/people/griggio/ic3ia/index.html
-msat_config get_msat_config_for_ic3(bool interp, const StringMap & options)
+msat_config get_msat_config_for_ic3(const StringMap & options)
 {
   msat_config cfg = msat_create_config();
 
@@ -66,15 +64,9 @@ msat_config get_msat_config_for_ic3(bool interp, const StringMap & options)
   msat_set_option(cfg, "dpll.pop_btpoint_reset_var_order", "false");
 
   // enable interpolation if required
-  msat_set_option(cfg, "interpolation", interp ? "true" : "false");
   msat_set_option(cfg, "preprocessor.interpolation_ite_elimination", "true");
 
   msat_set_option(cfg, "theory.bv.bit_blast_mode", "1");
-  if (interp) {
-    // interpolation for BV requires the lazy solver
-    msat_set_option(cfg, "theory.bv.bit_blast_mode", "0");
-    msat_set_option(cfg, "theory.bv.eager", "false");
-  }
 
   for (const auto & optpair : options) {
     int fail =
