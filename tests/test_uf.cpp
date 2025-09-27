@@ -16,7 +16,7 @@ class UFUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    s = create_solver(GetParam(), GetParam() == BTOR);
     boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
     funsort = s->make_sort(FUNCTION, { bvsort, boolsort });
@@ -27,17 +27,6 @@ class UFUnitTests : public ::testing::Test,
 
 TEST_P(UFUnitTests, InductiveProp)
 {
-  // TODO: update this when boolector supports substitution for terms
-  // with UF without logging
-  if (s->get_solver_enum() == BTOR)
-
-  {
-    std::cout << "Warning: not running test with btor because it "
-              << "doesn't support substitution (used in unrolling) for "
-              << " terms containing UFs without using logging." << std::endl;
-    return;
-  }
-
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", bvsort);
   Term f = s->make_symbol("f", funsort);
@@ -73,15 +62,6 @@ TEST_P(UFUnitTests, InductiveProp)
 
 TEST_P(UFUnitTests, FalseProp)
 {
-  // TODO: update this when boolector supports substitution for terms
-  // with UF without logging
-  if (s->get_solver_enum() == BTOR) {
-    std::cout << "Warning: not running btor because it doesn't support "
-              << "substitution (used in unrolling) for terms containing "
-              << "UFs without using logging." << std::endl;
-    return;
-  }
-
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", bvsort);
   Term f = s->make_symbol("f", funsort);
@@ -98,7 +78,7 @@ TEST_P(UFUnitTests, FalseProp)
           Apply, f, rts.make_term(BVSub, x, rts.make_term(1, bvsort))),
       rts.make_term(Apply, f, x)));
 
-  // guart property with a precondition so it doesn't fail in the initial state
+  // guard property with a precondition so it doesn't fail in the initial state
   Term p = rts.make_term(
       Implies,
       rts.make_term(BVUge, x, rts.make_term(10, bvsort)),
