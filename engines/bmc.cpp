@@ -45,13 +45,13 @@ void Bmc::initialize()
   super::initialize();
 
   logger.log(2, "BMC adding init constraint for step 0");
+  solver_->reset_assertions();
   solver_->assert_formula(unroller_.at_time(ts_.init(), 0));
 }
 
 void Bmc::reset_env()
 {
   initialized_ = false;
-  solver_->reset_assertions();
   Bmc::initialize();
 }
 
