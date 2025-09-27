@@ -7,6 +7,7 @@ import csv
 import dataclasses
 import enum
 import logging
+import os
 import pathlib
 import shutil
 import signal
@@ -120,6 +121,22 @@ def clean_up(
                 logger.warning(line)
 
 
+def find_executable(name: str) -> pathlib.Path:
+    """Return the path to a file in PATH or the script's directory."""
+    fullname = shutil.which(name)
+    if fullname is None:
+        path = pathlib.Path(__file__).parent / name
+    else:
+        path = pathlib.Path(fullname)
+    if not path.is_file():
+        msg = f"file '{name}' is not in script directory or PATH"
+        raise FileNotFoundError(msg)
+    if not os.access(path, os.X_OK):
+        msg = f"{path} is not executable"
+        raise PermissionError(msg)
+    return path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run multiple engines in parallel",
@@ -127,6 +144,12 @@ def main() -> int:
     )
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
     parser.add_argument("witness_file", nargs="?", help="file to store the witness in")
+    parser.add_argument(
+        "-b",
+        "--binary",
+        default="pono",
+        help="name of pono binary (file must be in PATH or script dir)",
+    )
     parser.add_argument(
         "-k", "--bound", default=2**20, type=int, help="bound to check until"
     )
@@ -150,15 +173,13 @@ def main() -> int:
     logging.basicConfig(format="{name}: {message}", style="{")
     logger = logging.getLogger(parser.prog)
 
-    # Try current directory if pono is not on PATH.
-    executable = shutil.which("pono") or pathlib.Path(__file__).parent / "pono"
-
     processes: dict[str, subprocess.Popen[str]] = {}
     start_times: dict[str, float] = {}
     witnesses: dict[str, pathlib.Path] = {}
     atexit.register(clean_up, processes, witnesses, verbose=args.verbose)
 
     # Launch each portfolio solver as a subprocess.
+    executable = find_executable(args.binary)
     for name, options in ENGINE_OPTIONS.items():
         cmd = [str(executable), "-k", str(args.bound), *options]
         if args.witness_file:
