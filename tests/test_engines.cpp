@@ -1,6 +1,10 @@
+#include <algorithm>
+#include <tuple>
 #include <vector>
 
 #include "core/fts.h"
+#include "core/prop.h"
+#include "core/proverresult.h"
 #include "core/rts.h"
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
@@ -9,13 +13,14 @@
 #include "engines/interpolantmc.h"
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 #include "utils/ts_analysis.h"
 
 using namespace pono;
 using namespace smt;
-using namespace std;
 
 namespace pono_tests {
 
@@ -77,7 +82,7 @@ TEST_P(EngineUnitTests, BmcFalse)
   Bmc b(*false_p, *ts, s);
   ProverResult r = b.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
-  vector<UnorderedTermMap> cex;
+  std::vector<UnorderedTermMap> cex;
   ASSERT_TRUE(b.witness(cex));
 }
 
@@ -95,7 +100,7 @@ TEST_P(EngineUnitTests, BmcSimplePathFalse)
   BmcSimplePath bsp(*false_p, *ts, s);
   ProverResult r = bsp.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
-  vector<UnorderedTermMap> cex;
+  std::vector<UnorderedTermMap> cex;
   ASSERT_TRUE(bsp.witness(cex));
 }
 
@@ -113,7 +118,7 @@ TEST_P(EngineUnitTests, KInductionFalse)
   KInduction kind(*false_p, *ts, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
-  vector<UnorderedTermMap> cex;
+  std::vector<UnorderedTermMap> cex;
   ASSERT_TRUE(kind.witness(cex));
 }
 
@@ -121,8 +126,8 @@ INSTANTIATE_TEST_SUITE_P(
     ParameterizedEngineUnitTests,
     EngineUnitTests,
     testing::Combine(testing::ValuesIn(available_solver_enums()),
-                     testing::ValuesIn(vector<TSEnum>{ Functional,
-                                                       Relational })));
+                     testing::ValuesIn(std::vector<TSEnum>{ Functional,
+                                                            Relational })));
 
 vector<SolverEnum> get_interpolating_solvers()
 {
@@ -166,7 +171,7 @@ TEST_P(InterpUnitTest, InterpFalse)
   InterpolantMC itpmc(*false_p, *ts, s, opts);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
-  vector<UnorderedTermMap> cex;
+  std::vector<UnorderedTermMap> cex;
   ASSERT_TRUE(itpmc.witness(cex));
 }
 
@@ -184,7 +189,7 @@ TEST_P(InterpUnitTest, IsmcFalse)
   InterpSeqMC ismc(*false_p, *ts, s, opts);
   ProverResult r = ismc.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
-  vector<UnorderedTermMap> cex;
+  std::vector<UnorderedTermMap> cex;
   ASSERT_TRUE(ismc.witness(cex));
 }
 
@@ -202,7 +207,7 @@ TEST_P(InterpUnitTest, DarFalse)
   DualApproxReach dar(*false_p, *ts, s, opts);
   ProverResult r = dar.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
-  vector<UnorderedTermMap> cex;
+  std::vector<UnorderedTermMap> cex;
   ASSERT_TRUE(dar.witness(cex));
 }
 
@@ -260,14 +265,6 @@ class InterpWinTests
     ts->constrain_init(witness);
     ts->assign_next(witness, prop);
     true_p = new SafetyProperty(ts->solver(), witness);
-
-    // debugging
-    std::cout << "INIT" << std::endl;
-    std::cout << ts->init() << std::endl;
-    std::cout << "TRANS" << std::endl;
-    std::cout << ts->trans() << std::endl;
-    std::cout << "PROP" << std::endl;
-    std::cout << witness << std::endl;
   }
   SmtSolver s;
   SmtSolver itp;
@@ -323,7 +320,7 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::ValuesIn(get_interpolating_solvers()),
                      testing::ValuesIn({ Functional, Relational })));
 
-vector<PonoOptions> get_interp_options()
+std::vector<PonoOptions> get_interp_options()
 {
   PonoOptions default_opts;
   PonoOptions interp_first_and_last_props;
@@ -376,7 +373,7 @@ TEST_P(InterpOptionsTests, CounterSystemUnsafe)
   InterpolantMC interp_mc(p, fts, s, opts);
   ProverResult r = interp_mc.prove();
   ASSERT_EQ(r, ProverResult::FALSE);
-  vector<UnorderedTermMap> cex;
+  std::vector<UnorderedTermMap> cex;
   ASSERT_TRUE(interp_mc.witness(cex));
 }
 
