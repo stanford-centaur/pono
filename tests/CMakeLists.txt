@@ -48,7 +48,7 @@ target_link_libraries(pono-test-lib pono-lib)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 
 macro(pono_add_test name)
-  add_executable(${name} EXCLUDE_FROM_ALL "${CMAKE_CURRENT_SOURCE_DIR}/${name}.cpp")
+  add_executable(${name} "${CMAKE_CURRENT_SOURCE_DIR}/${name}.cpp")
   target_link_libraries(${name} gtest gtest_main)
   target_link_libraries(${name} pono-test-lib) # also includes pono-lib because it's linked
   add_dependencies(check ${name})

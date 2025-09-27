@@ -100,7 +100,7 @@ jobs:
         if: steps.test-cpp.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-${{ matrix.link_type }}-test-log-${{ github.run_id }}
+          name: ${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.link_type }}-test-log-${{ github.run_id }}
           path: build/tests/Testing/Temporary/LastTest.log
 
       - name: Fail pipeline due to C++ test failure
