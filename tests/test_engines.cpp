@@ -129,9 +129,9 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(std::vector<TSEnum>{ Functional,
                                                             Relational })));
 
-vector<SolverEnum> get_interpolating_solvers()
+std::vector<SolverEnum> get_interpolating_solvers()
 {
-  vector<SolverEnum> itp_solvers = available_interpolator_enums();
+  std::vector<SolverEnum> itp_solvers = available_interpolator_enums();
   // remove cvc5 because if often fails
   itp_solvers.erase(
       std::remove(itp_solvers.begin(), itp_solvers.end(), CVC5_INTERPOLATOR),
@@ -354,7 +354,7 @@ class InterpOptionsTests
 
     std::tuple<SolverEnum, PonoOptions> t = GetParam();
     opts = std::get<1>(t);
-    opts.smt_interpolator_ = get<0>(t);
+    opts.smt_interpolator_ = std::get<0>(t);
   }
   SmtSolver s;
   Sort bvsort8;
