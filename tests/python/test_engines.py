@@ -56,6 +56,8 @@ def test_bmc(create_solver):
     s = create_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
+    if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
+        s.set_opt("base-context-1", "true")
     prop, ts = build_simple_alu_fts(s)
 
     bmc = pono.Bmc(prop, ts, s)
@@ -68,6 +70,8 @@ def test_kind(create_solver):
     s = create_solver(False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
+    if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
+        s.set_opt("base-context-1", "true")
     prop, ts = build_simple_alu_fts(s)
 
     kind = pono.KInduction(prop, ts, s)
@@ -108,9 +112,12 @@ def test_interp(solver_and_interpolator):
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_kind_inductive_prop(create_solver):
-    s = create_solver(False)
+    is_btor = "btor" in ss.solvers and ss.solvers["btor"] is create_solver
+    s = create_solver(is_btor)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
+    if is_btor:
+        s.set_opt("base-context-1", "true")
     prop, ts = build_simple_alu_fts(s)
 
     states = {str(sv):sv for sv in ts.statevars}
