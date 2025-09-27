@@ -126,12 +126,8 @@ SmtSolver create_solver(SolverEnum se,
   return s;
 }
 
-SmtSolver create_solver_for(SolverEnum se,
-                            Engine e,
-                            bool logging,
-                            bool full_model,
-                            bool printing,
-                            bool witness)
+SmtSolver create_solver_for(
+    SolverEnum se, Engine e, bool logging, bool full_model, bool printing)
 {
   SmtSolver s;
   bool ic3_engine = ic3_variants().find(e) != ic3_variants().end();
@@ -178,8 +174,8 @@ SmtSolver create_solver_for(SolverEnum se,
   assert(s);
   if (ic3_engine) {
     s->set_opt("produce-unsat-assumptions", "true");
-    if (se == BTOR && witness) {
-      // Witness generation in IC3 needs reset_assertions support.
+    if (se == BTOR) {
+      // BTOR does not support reset-assertions by default without this.
       s->set_opt("base-context-1", "true");
     }
   }

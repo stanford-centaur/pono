@@ -50,8 +50,7 @@ smt::SmtSolver create_solver_for(smt::SolverEnum se,
                                  Engine e,
                                  bool logging,
                                  bool full_model = false,
-                                 bool printing = false,
-                                 bool witness = false);
+                                 bool printing = false);
 
 // same as create_solver but will set reasonable options
 // for a reducing solver (e.g. produce-models off)

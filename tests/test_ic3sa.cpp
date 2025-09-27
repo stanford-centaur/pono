@@ -46,8 +46,7 @@ class IC3SAUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver_for(
-        GetParam(), IC3SA_ENGINE, GetParam() == BTOR, false, false, true);
+    s = create_solver(GetParam());
   }
   SmtSolver s;
 };
