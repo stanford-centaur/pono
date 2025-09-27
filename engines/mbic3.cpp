@@ -362,8 +362,8 @@ void ModelBasedIC3::initialize()
 
   // only need interpolator infrastructure for mode 2 (interpolation)
   if (options_.mbic3_indgen_mode == 2) {
-    interpolator_ =
-        create_interpolating_solver_for(interpolator_enum_, engine_);
+    interpolator_ = create_interpolating_solver_for(
+        interpolator_enum_, engine_, options_.smt_interpolator_opts_);
     to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
     to_solver_ = std::make_unique<TermTranslator>(solver_);
 
