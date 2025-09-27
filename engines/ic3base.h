@@ -181,6 +181,8 @@ class IC3Base : public SafetyProver
 
   ProverResult check_until(int k) override;
 
+  bool witness(std::vector<smt::UnorderedTermMap> & out) override;
+
   size_t witness_length() const override;
 
  protected:

@@ -18,7 +18,6 @@
 
 #include <cassert>
 #include <iostream>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -146,6 +145,10 @@ SmtSolver create_solver(SolverEnum se,
 
   s->set_opt("incremental", incremental ? "true" : "false");
   s->set_opt("produce-models", produce_model ? "true" : "false");
+  if (se == BTOR) {
+    // BTOR does not support reset-assertions by default without this.
+    s->set_opt("base-context-1", "true");
+  }
   for (const auto & optpair : solver_opts) {
     s->set_opt(optpair.first, optpair.second);
   }

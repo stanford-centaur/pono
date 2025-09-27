@@ -7,6 +7,8 @@ def test_history_modifier(create_solver):
     solver = create_solver(False)
     solver.set_opt("incremental", "true")
     solver.set_opt("produce-models", "true")
+    if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
+        solver.set_opt("base-context-1", "true")
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
 
     ts = pono.FunctionalTransitionSystem(solver)

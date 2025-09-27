@@ -183,7 +183,6 @@ ProverResult IC3Base::check_until(int k)
       } else if (s == REFINE_NONE) {
         // this is a real counterexample
         assert(cex_.size());
-        compute_witness();
         return ProverResult::FALSE;
       } else {
         assert(s == REFINE_FAIL);
@@ -200,6 +199,12 @@ ProverResult IC3Base::check_until(int k)
   }
 
   return ProverResult::UNKNOWN;
+}
+
+bool IC3Base::witness(vector<UnorderedTermMap> & out)
+{
+  compute_witness();
+  return super::witness(out);
 }
 
 size_t IC3Base::witness_length() const

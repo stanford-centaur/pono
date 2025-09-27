@@ -150,7 +150,7 @@ def main() -> int:
         help="name of pono binary (file must be in PATH or script dir)",
     )
     parser.add_argument(
-        "-k", "--bound", default=1000, type=int, help="bound to check until"
+        "-k", "--bound", default=2**20, type=int, help="bound to check until"
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
     parser.add_argument(
