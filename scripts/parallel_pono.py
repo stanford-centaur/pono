@@ -114,7 +114,7 @@ def clean_up(
                 logger.warning(line)
 
 
-def find_file(name: str) -> pathlib.Path:
+def find_executable(name: str) -> pathlib.Path:
     """Return the path to a file in PATH or the script's directory."""
     fullname = shutil.which(name)
     if fullname is None:
@@ -155,7 +155,7 @@ def main() -> int:
     atexit.register(clean_up, processes, witnesses, args.verbose)
 
     # Launch each portfolio solver as a subprocess.
-    executable = find_file(args.binary)
+    executable = find_executable(args.binary)
     for name, options in ENGINE_OPTIONS.items():
         cmd = [executable, "-k", str(args.bound), *options]
         if args.witness_file:
