@@ -28,14 +28,12 @@ class CopyUnitTests
 
 TEST_P(CopyUnitTests, CopyFromDefault)
 {
-  cout << "Copy to " << get<0>(GetParam()) << endl;
   FunctionalTransitionSystem fts;
   fts.solver()->set_opt("incremental", "true");
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/btor2/";
   filename += get<1>(GetParam());
-  cout << "Reading file: " << filename << ", for copy test" << endl;
   BTOR2Encoder be(filename, fts);
 
   SmtSolver s = create_solver(get<0>(GetParam()));
@@ -106,7 +104,6 @@ TEST_P(CopyUnitTests, CopyFromDefault)
 
 TEST_P(CopyUnitTests, CopyToDefault)
 {
-  cout << "Copy from " << get<0>(GetParam()) << endl;
   SmtSolver s = create_solver(get<0>(GetParam()));
   s->set_opt("incremental", "true");
   FunctionalTransitionSystem fts(s);
@@ -114,7 +111,6 @@ TEST_P(CopyUnitTests, CopyToDefault)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/btor2/";
   filename += get<1>(GetParam());
-  cout << "Reading file: " << filename << ", for copy test" << endl;
   BTOR2Encoder be(filename, fts);
 
   // try copying the transition system

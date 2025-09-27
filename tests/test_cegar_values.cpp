@@ -3,7 +3,6 @@
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
-#include "utils/logger.h"
 
 // need mathsat for ic3ia
 #ifdef WITH_MSAT
@@ -16,8 +15,6 @@ namespace pono_tests {
 
 TEST(CegValues, SimpleSafe)
 {
-  set_global_logger_verbosity(1);
-
   SmtSolver s = create_solver(MSAT);
   RelationalTransitionSystem rts(s);
   Sort intsort = rts.make_sort(INT);
@@ -50,8 +47,6 @@ TEST(CegValues, SimpleSafe)
 
 TEST(CegValues, SimpleUnsafe)
 {
-  set_global_logger_verbosity(1);
-
   SmtSolver s = create_solver(MSAT);
   RelationalTransitionSystem rts(s);
   Sort intsort = rts.make_sort(INT);

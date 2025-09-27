@@ -30,7 +30,6 @@ TEST_P(CoreIRUnitTests, Encode)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/coreir/";
   filename += get<1>(GetParam());
-  cout << "Reading file: " << filename << endl;
   CoreIREncoder ce(filename, rts);
 }
 
@@ -42,7 +41,6 @@ TEST_P(CoreIRUnitTests, EncodeForceAbstract)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/coreir/";
   filename += get<1>(GetParam());
-  cout << "Reading file: " << filename << endl;
   CoreIREncoder ce(filename, rts, true);
 }
 

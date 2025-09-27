@@ -31,7 +31,7 @@ class StaticConeOfInfluence
    */
   StaticConeOfInfluence(TransitionSystem & ts,
                         const smt::TermVec & to_keep,
-                        int verbosity = 1);
+                        int verbosity = 0);
 
  protected:
   TransitionSystem & ts_;
