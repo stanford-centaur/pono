@@ -135,7 +135,7 @@ def main() -> int:
         "-s",
         "--summarize",
         metavar="FILE",
-        type=pathlib.Path
+        type=pathlib.Path,
         help="save a csv summary to the specified file",
     )
     args = parser.parse_args()
