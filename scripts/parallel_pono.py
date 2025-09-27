@@ -132,7 +132,8 @@ def find_executable(name: str) -> pathlib.Path:
         msg = f"file {name} not in script directory or PATH"
         raise FileNotFoundError(msg)
     if not os.access(path, os.X_OK):
-        raise PermissionError(f"{path} is not executable")
+        msg = f"file {path} is not executable"
+        raise PermissionError(msg)
     return path
 
 
