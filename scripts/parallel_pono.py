@@ -133,7 +133,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run multiple engines in parallel")
     parser.add_argument("btor_file", help="input benchmark in BTOR2 format")
     parser.add_argument("witness_file", nargs="?", help="file to store the witness")
-    parser.add_argument("-b", "--binary", default="pono", help="name of pono binary")
+    parser.add_argument(
+        "-b",
+        "--binary",
+        default="pono",
+        help="name of pono binary (file must be in PATH or script dir)",
+    )
     parser.add_argument("-k", "--bound", default=1000, type=int, help="unrolling bound")
     parser.add_argument("-v", "--verbose", action="store_true", help="echo stderr")
     parser.add_argument("-s", "--summarize", metavar="FILE", help="save csv summary")
