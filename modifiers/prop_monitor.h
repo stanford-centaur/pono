@@ -22,9 +22,37 @@
 
 namespace pono {
 
+/** Adds a monitor state variable to the transition system for the given
+ *  property. The monitor variable is true iff the property has held at all
+ *  previous time steps. The transition system is modified in place.
+ *
+ *  NOTE: only works for safety properties currently.
+ *
+ *  NOTE: cannot be used on functional transition systems with constraints (more
+ *    precisely, non-right-total transition relation).
+ *
+ *  @param ts the transition system to modify
+ *  @param prop the property term to monitor
+ *  @return the monitor state variable term
+ */
 smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
 {
   logger.log(1, "Adding a monitor for the property");
+
+  // checks for functional TS
+  if (ts.is_functional()) {
+    if (!ts.no_next(prop)) {
+      throw PonoException(
+          "Cannot use next in property of a functional transition system.");
+    }
+    if (!ts.constraints().empty()) {
+      // TODO: more precise right-total check
+      // (https://github.com/stanford-centaur/pono/pull/469)
+      throw PonoException(
+          "Cannot add monitor on functional transition systems "
+          "with constraints.");
+    }
+  }
 
   smt::Term monitor;
   size_t id = 0;
@@ -43,16 +71,25 @@ smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
   // monitor starts true
   ts.constrain_init(monitor);
 
-  if (ts.no_next(prop)) {
-    ts.assign_next(monitor, prop);
-  } else if (!ts.is_functional()) {
+  smt::SmtSolver s = ts.solver();
+  // monitor is set to false if prop is ever false:
+  // monitor' = prop && monitor
+  smt::Term monitor_next = s->make_term(smt::And, prop, monitor);
+  if (ts.is_functional()) {
+    assert(ts.no_next(prop));
+    ts.assign_next(monitor, monitor_next);
+  } else {  // relational TS
     RelationalTransitionSystem & rts =
         static_cast<RelationalTransitionSystem &>(ts);
-    rts.constrain_trans(rts.make_term(smt::Equal, rts.next(monitor), prop));
-  } else {
-    assert(ts.is_functional());
-    throw PonoException(
-        "Cannot use next in property of a functional transition system.");
+    if (rts.no_next(prop)) {
+      rts.assign_next(monitor, monitor_next);
+    } else {
+      rts.constrain_trans(
+          rts.make_term(smt::Equal, rts.next(monitor), monitor_next));
+    }
+    // ensure that if prop is false, there will always be a next state
+    rts.set_trans(
+        s->make_term(smt::Or, s->make_term(smt::Not, prop), rts.trans()));
   }
 
   return monitor;
