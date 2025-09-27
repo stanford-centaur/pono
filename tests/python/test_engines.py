@@ -80,7 +80,7 @@ def test_kind(create_solver):
 
 
 @pytest.mark.parametrize("solver_and_interpolator", available_solvers.solver_and_interpolators.values())
-def test_interp(solver_and_interpolator):
+def test_ic3ia(solver_and_interpolator):
     s = solver_and_interpolator[0](False)
     s.set_opt('produce-models', 'true')
     s.set_opt('incremental', 'true')
