@@ -44,10 +44,7 @@ class IC3SAUnitTests : public ::testing::Test,
                        public ::testing::WithParamInterface<SolverEnum>
 {
  protected:
-  void SetUp() override
-  {
-    s = create_solver(GetParam());
-  }
+  void SetUp() override { s = create_solver(GetParam()); }
   SmtSolver s;
 };
 
