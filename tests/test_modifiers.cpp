@@ -24,7 +24,7 @@ class ModifierUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    s = create_solver(GetParam(), GetParam() == BTOR);
     boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
     arrsort = s->make_sort(ARRAY, bvsort, bvsort);

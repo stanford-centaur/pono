@@ -19,7 +19,7 @@ class IC3BitsUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver_for(GetParam(), IC3_BITS, false);
+    s = create_solver_for(GetParam(), IC3_BITS, GetParam() == BTOR);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
   }
