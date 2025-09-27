@@ -36,7 +36,6 @@ TEST_P(Btor2FileUnitTests, Encode)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/btor2/";
   filename += get<1>(GetParam());
-  cout << "Reading file: " << filename << endl;
   BTOR2Encoder be(filename, fts);
   // make sure that all inputs in bad and constraint have been promoted
   UnorderedTermSet free_vars;

@@ -162,10 +162,6 @@ TEST_P(UnrollerUnitTests, FunctionalUnroller)
   EXPECT_TRUE(x0->is_symbolic_const());
   EXPECT_FALSE(funroller.at_time(x, 1)->is_symbolic_const());
 
-  cout << "Pure functional unrolling to 2 gives: " << funroller.at_time(x, 2)
-       << endl;
-  cout << "Input unrolled at 2 gives: " << funroller.at_time(inp, 2) << endl;
-
   EXPECT_TRUE(funroller.at_time(inp, 2)->is_symbolic_const())
       << "inputs always need fresh symbols";
 
@@ -250,8 +246,6 @@ TEST_P(UnrollerUnitTests, IntermittentFunctionalUnrolling)
 
   Term x_at_interval = funroller.at_time(x, interval);
   EXPECT_TRUE(x_at_interval->is_symbolic_const());
-
-  cout << "Functional unrolling at interval got " << x_at_interval << endl;
 
   // expected constraint is x@4 = pure functional unrolling at 3 plugged into
   // update function
