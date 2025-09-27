@@ -21,6 +21,8 @@
 
 #include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
+#include "smt/available_solvers.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -627,6 +629,82 @@ bool TransitionSystem::contains(const Term & term,
   }
 
   return true;
+}
+
+bool TransitionSystem::is_right_total() const
+{
+  // Use a solver that supports quantifiers (fall back to cvc5 if necessary)
+  const SolverEnum fallback_se = CVC5;
+  const auto se_attribs = get_solver_attributes(solver_->get_solver_enum());
+  const SolverEnum se = (se_attribs.find(QUANTIFIERS) != se_attribs.end())
+                            ? solver_->get_solver_enum()
+                            : fallback_se;
+  try {
+    return is_right_total(se);
+  }
+  catch (SmtException & e) {
+    if (se == CVC5) {
+      throw e;
+    }
+    logger.log(
+        1,
+        "WARNING: Right-total check using {} failed, trying again with {}",
+        to_string(se),
+        to_string(fallback_se));
+    return is_right_total(fallback_se);
+  }
+}
+
+bool TransitionSystem::is_right_total(const SolverEnum se) const
+{
+  if (is_functional() && constraints_.empty()) {
+    // functional transition systems without constraints are always right-total
+    return true;
+  }
+
+  SmtSolver s = create_solver(se);
+  TermTranslator tt(s);
+
+  // Make state variables quantifiable
+  UnorderedTermMap state_map;
+  TermVec curr_params, next_params;
+  state_map.reserve(statevars_.size() * 2);
+  curr_params.reserve(statevars_.size() + 1);
+  next_params.reserve(statevars_.size() + 1);
+  for (const auto & v : statevars_) {
+    Term p = s->make_param(v->to_string() + ".param",
+                           tt.transfer_sort(v->get_sort()));
+    state_map[tt.transfer_term(v)] = p;
+    curr_params.push_back(p);
+  }
+  for (const auto & v : inputvars_) {
+    // inputs are treated like current-state vars
+    Term p = s->make_param(v->to_string() + ".param",
+                           tt.transfer_sort(v->get_sort()));
+    state_map[tt.transfer_term(v)] = p;
+    curr_params.push_back(p);
+  }
+  for (const auto & v : next_statevars_) {
+    Term p = s->make_param(v->to_string() + ".param",
+                           tt.transfer_sort(v->get_sort()));
+    state_map[tt.transfer_term(v)] = p;
+    next_params.push_back(p);
+  }
+  Term sub_trans = s->substitute(tt.transfer_term(trans(), BOOL), state_map);
+
+  // query: exist curr, forall next. not trans(curr, next)
+  // if unsat, the transition relation is right-total
+  next_params.push_back(s->make_term(Not, sub_trans));
+  Term query = s->make_term(Forall, next_params);
+  curr_params.push_back(query);
+  query = s->make_term(Exists, curr_params);
+  s->assert_formula(query);
+  Result r = s->check_sat();
+  if (!r.is_sat() && !r.is_unsat()) {
+    throw SmtException("Expecting sat/unsat from right-total check, but got "
+                       + r.to_string());
+  }
+  return r.is_unsat();
 }
 
 bool TransitionSystem::only_curr(const Term & term) const

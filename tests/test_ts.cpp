@@ -39,12 +39,14 @@ TEST_P(TSUnitTests, FTS_IsFunc)
   fts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
   EXPECT_TRUE(fts.is_functional());
   EXPECT_TRUE(fts.is_deterministic());
+  EXPECT_TRUE(fts.is_right_total());
   EXPECT_EQ(fts.statevars_with_no_update().size(), 0);
 
   fts.add_constraint(fts.make_term(BVUge, x, s->make_term(2, bvsort)));
   // any kind of constrains makes the system non-deterministic
   // TODO need to improve names here
   EXPECT_FALSE(fts.is_deterministic());
+  EXPECT_FALSE(fts.is_right_total());
 
   Term y = fts.make_statevar("y", bvsort);
   fts.assign_next(y, y);
@@ -80,10 +82,12 @@ TEST_P(TSUnitTests, RTS_IsFunc)
   EXPECT_FALSE(rts.is_functional());
   // cannot guarantee determinism if relational
   EXPECT_FALSE(rts.is_deterministic());
+  EXPECT_TRUE(rts.is_right_total());
 
   TransitionSystem ts_copy = rts;
   EXPECT_EQ(rts.is_functional(), ts_copy.is_functional());
   EXPECT_EQ(rts.is_deterministic(), ts_copy.is_deterministic());
+  EXPECT_EQ(rts.is_right_total(), ts_copy.is_right_total());
   EXPECT_EQ(ts_copy, rts);
   ts_copy.set_init(ts_copy.make_term(Equal, x, ts_copy.make_term(1, bvsort)));
   EXPECT_NE(ts_copy, rts);
