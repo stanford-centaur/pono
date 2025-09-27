@@ -25,6 +25,8 @@ def test_counter_system_safe(create_solver):
     solver = create_solver(False)
     solver.set_opt("produce-models", "true")
     solver.set_opt("incremental", "true")
+    if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
+        solver.set_opt("base-context-1", "true")
     fts = pono.FunctionalTransitionSystem(solver)
     bvsort8 = fts.make_sort(ss.sortkinds.BV, 8)
     x = fts.make_statevar("x", bvsort8)
@@ -55,6 +57,8 @@ def test_trivial_unsafe(create_solver):
     solver = create_solver(False)
     solver.set_opt("produce-models", "true")
     solver.set_opt("incremental", "true")
+    if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
+        solver.set_opt("base-context-1", "true")
     rts = pono.RelationalTransitionSystem(solver)
     bvsort8 = rts.make_sort(ss.sortkinds.BV, 8)
     x = rts.make_statevar('x', bvsort8)

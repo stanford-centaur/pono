@@ -37,7 +37,7 @@ class PromoteInputvarsTests : public ::testing::Test,
                               public ::testing::WithParamInterface<SolverEnum>
 {
  protected:
-  void SetUp() override { s = create_solver(GetParam()); }
+  void SetUp() override { s = create_solver(GetParam(), GetParam() == BTOR); }
   SmtSolver s;
 };
 

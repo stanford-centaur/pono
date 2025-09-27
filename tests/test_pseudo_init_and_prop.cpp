@@ -19,7 +19,7 @@ class PseudoInitPropUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam(), false);
+    s = create_solver(GetParam(), GetParam() == BTOR);
     bvsort8 = s->make_sort(BV, 8);
   }
   SmtSolver s;
