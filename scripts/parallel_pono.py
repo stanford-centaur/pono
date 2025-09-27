@@ -123,6 +123,8 @@ def find_file(name: str) -> pathlib.Path:
     if not path.is_file():
         msg = f"file {name} not in script directory or PATH"
         raise FileNotFoundError(msg)
+    if not os.access(path, os.X_OK):
+        raise PermissionError(f"{path} is not executable")
     return path
 
 
