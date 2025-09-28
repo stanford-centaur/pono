@@ -15,7 +15,7 @@ class TermAnalysisUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    s = create_solver(GetParam(), GetParam() == BTOR);
     boolsort = s->make_sort(BOOL);
     bvsort = s->make_sort(BV, 8);
     funsort = s->make_sort(FUNCTION, { bvsort, bvsort, bvsort });
@@ -27,13 +27,6 @@ class TermAnalysisUnitTests : public ::testing::Test,
 
 TEST_P(TermAnalysisUnitTests, GetPredicatesBasic)
 {
-  if (s->get_solver_enum() == BTOR) {
-    std::cout << "SKIPPING get predicates test for BTOR" << std::endl;
-    std::cout << "smt-switch btor backend cannot get sort of a UF" << std::endl;
-    std::cout << "which is required for get_predicates" << std::endl;
-    return;
-  }
-
   Term x = s->make_symbol("x", bvsort);
   Term y = s->make_symbol("y", bvsort);
   Term b = s->make_symbol("b", boolsort);

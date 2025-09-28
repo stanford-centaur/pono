@@ -25,6 +25,8 @@
 
 namespace pono {
 
+using StringMap = std::unordered_map<std::string, std::string>;
+
 // Engine options
 enum Engine
 {
@@ -119,7 +121,9 @@ class PonoOptions
         reset_bnd_(default_reset_bnd_),
         random_seed_(default_random_seed),
         smt_solver_(default_smt_solver_),
+        smt_solver_opts_(default_smt_solver_opts_),
         smt_interpolator_(default_smt_interpolator_),
+        smt_interpolator_opts_(default_smt_interpolator_opts_),
         logging_smt_solver_(default_logging_smt_solver_),
         printing_smt_solver_(default_printing_smt_solver_),
         static_coi_(default_static_coi_),
@@ -226,7 +230,9 @@ class PonoOptions
   std::string clock_name_;
   std::string filename_;
   smt::SolverEnum smt_solver_;        ///< underlying smt solver
+  StringMap smt_solver_opts_;         ///< options passed to smt solver
   smt::SolverEnum smt_interpolator_;  ///< smt solver for interpolation
+  StringMap smt_interpolator_opts_;   ///< options passed to smt interpolator
   bool logging_smt_solver_;
   bool printing_smt_solver_;
   bool static_coi_;
@@ -375,12 +381,14 @@ class PonoOptions
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
+  inline static const StringMap default_smt_solver_opts_ = {};
   static const smt::SolverEnum default_smt_interpolator_ =
 #ifdef WITH_MSAT
       smt::MSAT;
 #else
       smt::CVC5;
 #endif
+  inline static const StringMap default_smt_interpolator_opts_ = {};
   static const bool default_logging_smt_solver_ = false;
   static const bool default_printing_smt_solver_ = false;
   static const bool default_ic3_pregen_ = true;

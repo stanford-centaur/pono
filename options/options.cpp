@@ -17,6 +17,7 @@
 #include "options/options.h"
 
 #include <climits>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -56,7 +57,9 @@ enum optionIndex
   RESET_BND,
   CLK,
   SMT_SOLVER,
+  SMT_SOLVER_OPT,
   SMT_INTERPOLATOR,
+  SMT_INTERPOLATOR_OPT,
   LOGGING_SMT_SOLVER,
   PRINTING_SMT_SOLVER,
   NO_IC3_PREGEN,
@@ -126,10 +129,10 @@ struct Arg : public option::Arg
 
   static option::ArgStatus Numeric(const option::Option & option, bool msg)
   {
-    char * endptr = 0;
-    if (option.arg != 0 && strtol(option.arg, &endptr, 10)) {
+    char * endptr = nullptr;
+    if (option.arg != nullptr && strtol(option.arg, &endptr, 10)) {
     };
-    if (endptr != option.arg && *endptr == 0) return option::ARG_OK;
+    if (endptr != option.arg && *endptr == '\0') return option::ARG_OK;
 
     if (msg) printError("Option '", option, "' requires a numeric argument\n");
     return option::ARG_ILLEGAL;
@@ -137,10 +140,30 @@ struct Arg : public option::Arg
 
   static option::ArgStatus NonEmpty(const option::Option & option, bool msg)
   {
-    if (option.arg != 0 && option.arg[0] != 0) return option::ARG_OK;
+    if (option.arg != nullptr && strlen(option.arg) > 0) return option::ARG_OK;
 
     if (msg)
       printError("Option '", option, "' requires a non-empty argument\n");
+    return option::ARG_ILLEGAL;
+  }
+
+  static option::ArgStatus ColonSepPair(const option::Option & option, bool msg)
+  {
+    if (option.arg != nullptr && strlen(option.arg) > 0) {
+      string opt_str = string(option.arg);
+      size_t pos = opt_str.find(':');
+      // not valid if (1) the first char is ':', (2) the last char is ':',
+      // (3) no ':', or (4) there is more than one ':'
+      if (pos != 0 && pos != opt_str.size() - 1 && pos != string::npos
+          && opt_str.find(':', pos + 1) == string::npos) {
+        return option::ARG_OK;
+      }
+    }
+
+    if (msg) {
+      printError(
+          "Option '", option, "' requires a colon-separated string pair\n");
+    }
     return option::ARG_ILLEGAL;
   }
 };
@@ -202,20 +225,34 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT Solver to use: btor, bzla, msat, yices2, or cvc5. "
+    "  --smt-solver \tSMT solver to use: btor, bzla, msat, yices2, or cvc5. "
     "(default: bzla)" },
+  { SMT_SOLVER_OPT,
+    0,
+    "",
+    "smt-solver-opt",
+    Arg::ColonSepPair,
+    "  --smt-solver-opt <smt-opt>:<value> \tSet option in SMT solver. May be "
+    "specified multiple times. (Expert option)" },
   { SMT_INTERPOLATOR,
     0,
     "",
     "smt-interpolator",
     Arg::NonEmpty,
-    "  --smt-interpolator \tSMT Solver used for interpolation: msat or cvc5. "
+    "  --smt-interpolator \tSMT solver used for interpolation: msat or cvc5. "
 #ifdef WITH_MSAT
     "(default: msat)"
 #else
     "(default: cvc5)"
 #endif
   },
+  { SMT_INTERPOLATOR_OPT,
+    0,
+    "",
+    "smt-interpolator-opt",
+    Arg::ColonSepPair,
+    "  --smt-interpolator-opt <smt-opt>:<value> \tSet option in SMT "
+    "interpolator. May be specified multiple times. (Expert option)" },
   { LOGGING_SMT_SOLVER,
     0,
     "",
@@ -806,8 +843,13 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
             smt_solver_ = smt::YICES2;
           } else {
             throw PonoException("Unknown solver: " + std::string(opt.arg));
-            break;
           }
+          break;
+        }
+        case SMT_SOLVER_OPT: {
+          string opt_str = string(opt.arg);
+          size_t pos = opt_str.find(':');
+          smt_solver_opts_[opt_str.substr(0, pos)] = opt_str.substr(pos + 1);
           break;
         }
         case SMT_INTERPOLATOR: {
@@ -818,8 +860,14 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           } else {
             throw PonoException("Unknown interpolator: "
                                 + std::string(opt.arg));
-            break;
           }
+          break;
+        }
+        case SMT_INTERPOLATOR_OPT: {
+          string opt_str = string(opt.arg);
+          size_t pos = opt_str.find(':');
+          smt_interpolator_opts_[opt_str.substr(0, pos)] =
+              opt_str.substr(pos + 1);
           break;
         }
         case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
