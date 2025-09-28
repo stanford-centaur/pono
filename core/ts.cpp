@@ -636,7 +636,9 @@ bool TransitionSystem::is_right_total() const
   // Use a solver that supports quantifiers (fall back to cvc5 if necessary)
   const SolverEnum fallback_se = CVC5;
   const auto se_attribs = get_solver_attributes(solver_->get_solver_enum());
-  const SolverEnum se = (se_attribs.find(QUANTIFIERS) != se_attribs.end())
+  const bool support_quant = se_attribs.find(QUANTIFIERS) != se_attribs.end();
+  // skip Boolector because it may run into segfaults
+  const SolverEnum se = (support_quant && solver_->get_solver_enum() != BTOR)
                             ? solver_->get_solver_enum()
                             : fallback_se;
   try {
