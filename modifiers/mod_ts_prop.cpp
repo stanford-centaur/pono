@@ -109,7 +109,8 @@ void prop_in_trans(TransitionSystem & ts, const Term & prop)
   ts.add_constraint(prop, false);
 }
 
-TransitionSystem promote_inputvars(const TransitionSystem & ts)
+TransitionSystem promote_inputvars(const TransitionSystem & ts,
+                                   const UnorderedTermSet & ivs_to_promote)
 {
   SmtSolver solver = ts.solver();
   TransitionSystem new_ts = create_fresh_ts(ts.is_functional(), solver);
@@ -123,7 +124,9 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
   // copy over inputs but make them statevars
   for (const auto & iv : ts.inputvars()) {
     new_ts.add_inputvar(iv);
-    new_ts.promote_inputvar(iv);
+    if (ivs_to_promote.find(iv) != ivs_to_promote.end()) {
+      new_ts.promote_inputvar(iv);
+    }
   }
 
   // set init
@@ -146,8 +149,14 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
     rts_view.set_trans(ts.trans());
   }
 
-  assert(!new_ts.inputvars().size());
   return new_ts;
+}
+
+TransitionSystem promote_inputvars(const TransitionSystem & ts)
+{
+  TransitionSystem ret = promote_inputvars(ts, ts.inputvars());
+  assert(ret.inputvars().empty());
+  return ret;
 }
 
 }  // namespace pono
