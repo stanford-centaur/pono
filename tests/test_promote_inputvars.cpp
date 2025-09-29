@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 
@@ -41,7 +42,7 @@ class PromoteInputvarsTests : public ::testing::Test,
   SmtSolver s;
 };
 
-TEST_P(PromoteInputvarsTests, NoPromotion)
+TEST_P(PromoteInputvarsTests, AddPropMonitor)
 {
   auto res = input_property_sys(s);
   // need a property monitor
@@ -54,10 +55,23 @@ TEST_P(PromoteInputvarsTests, NoPromotion)
   ASSERT_EQ(r, TRUE);
 }
 
-TEST_P(PromoteInputvarsTests, WithPromotion)
+TEST_P(PromoteInputvarsTests, PromoteInputsInProp)
 {
   auto res = input_property_sys(s);
-  // need a property monitor
+  Term prop = res.first;
+  UnorderedTermSet ivs_in_prop;
+  get_free_symbolic_consts(prop, ivs_in_prop);
+  TransitionSystem ts = promote_inputvars(res.second, ivs_in_prop);
+
+  SafetyProperty p(s, prop);
+  KInduction kind(p, ts, s);
+  ProverResult r = kind.check_until(20);
+  ASSERT_EQ(r, TRUE);
+}
+
+TEST_P(PromoteInputvarsTests, PromoteAllInputs)
+{
+  auto res = input_property_sys(s);
   Term prop = res.first;
   TransitionSystem ts = promote_inputvars(res.second);
 
