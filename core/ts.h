@@ -305,17 +305,29 @@ class TransitionSystem
    *
    * If the system is functional and has no constraints, it is right-total.
    *
-   * Otherwise, a fresh solver instance is created and checks if
-   * `exist curr, forall next. not trans(curr, next)` is unsatisfiable.
-   * Note: The query may be expensive as it involves quantifiers.
+   * Otherwise, a fresh solver instance is created and checks if the following
+   * query is unsatisfiable.
    *
+   * - If `inputs_as_states` is false (default), the query is:
+   *   `exists curr. forall next. not (exist input. trans(curr, input, next))`
+   *
+   * - If `inputs_as_states` is true, the query is:
+   *   `exist {curr, input}. forall next. not trans(curr, input, next)`.
+   *
+   * Note: states w/o update (@ref no_state_updates_) are treated as inputs.
+   *
+   * The query may be expensive as it involves quantifiers.
    * Uses the solver type in the current TransitionSystem if it supports
    * quantifiers; otherwise cvc5.
+   *
+   * @param inputs_as_states whether to treat input variables
+   *    as current-state variables
    */
-  bool is_right_total() const;
+  bool is_right_total(const bool inputs_as_states = false) const;
 
   /* Same as @ref is_right_total(), but uses the given solver type */
-  bool is_right_total(const smt::SolverEnum se) const;
+  bool is_right_total(const smt::SolverEnum se,
+                      const bool inputs_as_states = false) const;
 
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;

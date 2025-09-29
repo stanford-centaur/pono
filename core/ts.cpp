@@ -631,7 +631,7 @@ bool TransitionSystem::contains(const Term & term,
   return true;
 }
 
-bool TransitionSystem::is_right_total() const
+bool TransitionSystem::is_right_total(const bool inputs_as_states) const
 {
   // Use a solver that supports quantifiers (fall back to cvc5 if necessary)
   const SolverEnum fallback_se = CVC5;
@@ -642,7 +642,7 @@ bool TransitionSystem::is_right_total() const
                             ? solver_->get_solver_enum()
                             : fallback_se;
   try {
-    return is_right_total(se);
+    return is_right_total(se, inputs_as_states);
   }
   catch (SmtException & e) {
     if (se == CVC5) {
@@ -653,11 +653,12 @@ bool TransitionSystem::is_right_total() const
         "WARNING: Right-total check using {} failed, trying again with {}",
         to_string(se),
         to_string(fallback_se));
-    return is_right_total(fallback_se);
+    return is_right_total(fallback_se, inputs_as_states);
   }
 }
 
-bool TransitionSystem::is_right_total(const SolverEnum se) const
+bool TransitionSystem::is_right_total(const SolverEnum se,
+                                      const bool inputs_as_states) const
 {
   if (is_functional() && constraints_.empty()) {
     // functional transition systems without constraints are always right-total
@@ -668,36 +669,51 @@ bool TransitionSystem::is_right_total(const SolverEnum se) const
   TermTranslator tt(s);
 
   // Make state variables quantifiable
-  UnorderedTermMap state_map;
-  TermVec curr_params, next_params;
-  state_map.reserve(statevars_.size() * 2);
-  curr_params.reserve(statevars_.size() + 1);
-  next_params.reserve(statevars_.size() + 1);
+  UnorderedTermMap var_map;
+  TermVec curr_params, next_params, input_params;
+  const size_t num_states = statevars_.size() - no_state_updates_.size();
+  const size_t num_inputs = inputvars_.size() + no_state_updates_.size();
+  var_map.reserve(num_states * 2 + num_inputs);
+  curr_params.reserve(num_states + 1);
+  next_params.reserve(num_states + 1);
+  input_params.reserve(num_inputs + 1);
   for (const auto & v : statevars_) {
     Term p = s->make_param(v->to_string() + ".param",
                            tt.transfer_sort(v->get_sort()));
-    state_map[tt.transfer_term(v)] = p;
-    curr_params.push_back(p);
+    var_map[tt.transfer_term(v)] = p;
+    if (no_state_updates_.find(v) == no_state_updates_.end()) {
+      curr_params.push_back(p);
+    } else {
+      input_params.push_back(p);
+    }
   }
   for (const auto & v : inputvars_) {
     // inputs are treated like current-state vars
     Term p = s->make_param(v->to_string() + ".param",
                            tt.transfer_sort(v->get_sort()));
-    state_map[tt.transfer_term(v)] = p;
-    curr_params.push_back(p);
+    var_map[tt.transfer_term(v)] = p;
+    input_params.push_back(p);
   }
   for (const auto & v : next_statevars_) {
     Term p = s->make_param(v->to_string() + ".param",
                            tt.transfer_sort(v->get_sort()));
-    state_map[tt.transfer_term(v)] = p;
+    var_map[tt.transfer_term(v)] = p;
     next_params.push_back(p);
   }
-  Term sub_trans = s->substitute(tt.transfer_term(trans(), BOOL), state_map);
 
-  // query: exist curr, forall next. not trans(curr, next)
+  // construct query
   // if unsat, the transition relation is right-total
-  next_params.push_back(s->make_term(Not, sub_trans));
-  Term query = s->make_term(Forall, next_params);
+  Term query = s->substitute(tt.transfer_term(trans(), BOOL), var_map);
+  if (!inputs_as_states) {
+    input_params.push_back(query);
+    query = s->make_term(Exists, input_params);
+  }
+  next_params.push_back(s->make_term(Not, query));
+  query = s->make_term(Forall, next_params);
+  if (inputs_as_states) {
+    input_params.push_back(query);
+    query = s->make_term(Exists, input_params);
+  }
   curr_params.push_back(query);
   query = s->make_term(Exists, curr_params);
   s->assert_formula(query);
