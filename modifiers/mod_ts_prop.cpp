@@ -137,16 +137,18 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts,
     new_ts.assign_next(elem.first, elem.second);
   }
 
-  // need to re-evaluate all constraints that used to be over inputs
-  for (const auto & elem : ts.constraints()) {
-    new_ts.add_constraint(elem.first, elem.second);
-  }
-
-  // relational systems could have things added by constrain_trans
+  // relational systems could have things added by constrain_trans;
+  // this step has to be performed before re-adding constraints as new
+  // constraints might be added to trans()
   if (!new_ts.is_functional()) {
     RelationalTransitionSystem & rts_view =
         static_cast<RelationalTransitionSystem &>(new_ts);
     rts_view.set_trans(ts.trans());
+  }
+
+  // need to re-evaluate all constraints that used to be over inputs
+  for (const auto & elem : ts.constraints()) {
+    new_ts.add_constraint(elem.first, elem.second);
   }
 
   return new_ts;
