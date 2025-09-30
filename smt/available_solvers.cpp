@@ -256,7 +256,7 @@ SmtSolver create_interpolating_solver(SolverEnum se,
   switch (se) {
     case BZLA:
     case BZLA_INTERPOLATOR: {
-      return BitwuzlaSolverFactory::create_interpolating_solver();
+      s = BitwuzlaSolverFactory::create_interpolating_solver();
       break;
       ;
     }
