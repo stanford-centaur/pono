@@ -16,6 +16,8 @@
 
 #include "rts.h"
 
+#include "smt-switch/utils.h"
+
 using namespace smt;
 using namespace std;
 
@@ -55,12 +57,12 @@ void RelationalTransitionSystem::constrain_trans(const Term & constraint)
 
 void RelationalTransitionSystem::set_updated_states(const smt::Term & term)
 {
-  auto curr = curr_map_.find(term);
-  if (curr != curr_map_.end()) {
-    no_state_updates_.erase(curr->second);
-  }
-  for (const auto & subTerm : *term) {
-    set_updated_states(subTerm);
+  UnorderedTermSet free_vars;
+  get_free_symbolic_consts(term, free_vars);
+  for (const auto & free_var : free_vars) {
+    if (next_statevars_.count(free_var)) {
+      no_state_updates_.erase(free_var);
+    }
   }
 }
 }  // namespace pono
