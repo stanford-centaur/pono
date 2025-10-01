@@ -192,6 +192,7 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/engines/interpolantmc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/interp_seq_mc.cpp"
   "${PROJECT_SOURCE_DIR}/engines/kinduction.cpp"
+  "${PROJECT_SOURCE_DIR}/engines/kliveness.cpp"
   "${PROJECT_SOURCE_DIR}/engines/mbic3.cpp"
   "${PROJECT_SOURCE_DIR}/engines/syguspdr.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/btor2_encoder.cpp"
