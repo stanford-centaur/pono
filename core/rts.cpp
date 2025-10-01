@@ -60,8 +60,8 @@ void RelationalTransitionSystem::set_updated_states(const smt::Term & term)
   UnorderedTermSet free_vars;
   get_free_symbolic_consts(term, free_vars);
   for (const auto & free_var : free_vars) {
-    if (next_statevars_.count(free_var)) {
-      no_state_updates_.erase(free_var);
+    if (next_statevars_.find(free_var) != next_statevars_.end()) {
+      no_state_updates_.erase(curr_map_[free_var]);
     }
   }
 }
