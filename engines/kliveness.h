@@ -37,6 +37,11 @@ class KLiveness : public LivenessProver
   ProverResult check_until(int k) override;
 
  protected:
+  smt::Term instrument_ts(TransitionSystem & ts_k, const unsigned long & k);
+  std::shared_ptr<SafetyProver> make_safety_prover(const SafetyProperty & p,
+                                                   const TransitionSystem & ts);
+
+  unsigned long live_count_;
 };  // class KLiveness
 
 }  // namespace pono
