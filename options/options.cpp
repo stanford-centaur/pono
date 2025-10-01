@@ -112,7 +112,8 @@ enum optionIndex
   NO_INTERP_FRONTIER_SIMPL,
   INTERP_PROPS,
   INTERP_EAGER_UNROLL,
-  INTERP_BACKWARD
+  INTERP_BACKWARD,
+  KLIVE_BOUND,
 };
 
 struct Arg : public option::Arg
@@ -294,7 +295,7 @@ const option::Descriptor usage[] = {
     "justice-translator",
     Arg::NonEmpty,
     "  --justice-translator <algorithm> \tSelect liveness to safety "
-    "translation algorithm from [l2s]." },
+    "translation algorithm from [l2s, klive]." },
   { STATICCOI,
     0,
     "",
@@ -714,6 +715,12 @@ const option::Descriptor usage[] = {
     "  --interp-backward \tCompute interpolants in a backward manner, "
     "i.e., not(itp(B, A)), in interp engine "
     "(forward, i.e., itp(A, B), if not specified)" },
+  { KLIVE_BOUND,
+    0,
+    "",
+    "klive-bound",
+    Arg::Numeric,
+    "  --klive-bound \tBound for k-liveness" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -1007,6 +1014,11 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case INTERP_EAGER_UNROLL: interp_eager_unroll_ = true; break;
         case INTERP_BACKWARD: interp_backward_ = true; break;
+        case KLIVE_BOUND:
+          klive_bound_ = std::stoul(opt.arg);
+          if (klive_bound_ == 0)
+            throw PonoException("--klive-bound must be greater than 0");
+          break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
