@@ -405,22 +405,10 @@ void KInduction::kind_log_msg(size_t level,
 bool KInduction::final_base_case_check(const int & cur_bound)
 {
   assert(options_.kind_one_time_base_check_);
-  // if we cannot determine if the transition relation is right-total,
-  // conservatively assume it is not
-  const bool is_trans_total = [](const PonoOptions & opt,
-                                 const TransitionSystem & ts) -> bool {
-    try {
-      return (opt.check_trans_total_ && ts.is_right_total())
-             || (ts.is_functional() && ts.constraints().empty());
-    }
-    catch (SmtException &) {
-      return false;
-    }
-  }(options_, ts_);
 
   Term query = false_;
   sel_assumption_.clear();
-  if (is_trans_total) {
+  if (is_trans_total()) {
     // enable initial state predicate but NOT its negated instances
     // disable negated bad state terms
     // DISABLE simple path --- maybe we could keep it if UNSAT
@@ -473,6 +461,17 @@ bool KInduction::final_base_case_check(const int & cur_bound)
     return true;
   } else {
     throw PonoException("Final base case check returned unknown");
+  }
+}
+
+bool KInduction::is_trans_total() const
+{
+  try {
+    return (options_.check_trans_total_ && ts_.is_right_total())
+           || (ts_.is_functional() && ts_.constraints().empty());
+  }
+  catch (SmtException &) {
+    return false;
   }
 }
 

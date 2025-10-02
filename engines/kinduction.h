@@ -80,6 +80,10 @@ class KInduction : public SafetyProver
   // covering all bounds from 0 to current one to make sure that no
   // counterexamples were missed
   bool final_base_case_check(const int & cur_bound);
+
+  // Checks whether the transition relation is right-total.
+  // Conservatively returns false if it cannot be determined.
+  bool is_trans_total() const;
 };  // class KInduction
 
 }  // namespace pono
