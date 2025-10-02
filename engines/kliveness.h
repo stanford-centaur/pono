@@ -37,7 +37,10 @@ class KLiveness : public LivenessProver
   ProverResult check_until(int k) override;
 
  protected:
-  smt::Term instrument_ts(TransitionSystem & ts_k, const unsigned long & k);
+  smt::Term instrument_ts(TransitionSystem & ts_k,
+                          smt::Term justice_prop,
+                          const unsigned long & k);
+
   std::shared_ptr<SafetyProver> make_safety_prover(const SafetyProperty & p,
                                                    const TransitionSystem & ts);
 
