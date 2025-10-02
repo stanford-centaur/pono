@@ -16,10 +16,12 @@
 
 #include "kliveness.h"
 
+#include <bit>
+
 #include "modifiers/static_coi.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
-
 namespace pono {
 
 KLiveness::KLiveness(const LivenessProperty & p,
@@ -58,10 +60,21 @@ ProverResult KLiveness::check_until(int k)
     // not do it during initialization.
     solver_->reset_assertions();
 
+    // create a new solver; provers may create named terms (e.g., unrolled state
+    // vars) internally and could result in name conflicts
+    smt::SmtSolver solver_k = create_solver_for(solver_->get_solver_enum(),
+                                                engine_,
+                                                false,
+                                                options_.ceg_prophecy_arrays_,
+                                                options_.printing_smt_solver_,
+                                                options_.smt_solver_opts_);
+    smt::TermTranslator tt(solver_k);
+
     // instrument the TS with counter
-    TransitionSystem ts_k = ts_;  // make a copy
-    smt::Term safety_prop_term = instrument_ts(ts_k, live_count_);
-    SafetyProperty safety_prop(solver_, safety_prop_term);
+    TransitionSystem ts_k(ts_, tt);
+    smt::Term safety_prop_term = instrument_ts(
+        ts_k, tt.transfer_term(justice_conditions_.front()), live_count_);
+    SafetyProperty safety_prop(solver_k, safety_prop_term);
 
     // create a safety prover
     auto safety_prover = make_safety_prover(safety_prop, ts_k);
@@ -78,9 +91,59 @@ ProverResult KLiveness::check_until(int k)
 }
 
 smt::Term KLiveness::instrument_ts(TransitionSystem & ts_k,
+                                   smt::Term justice_prop,
                                    const unsigned long & k)
 {
-  throw PonoException("NYI");
+  smt::Sort counter_sort;
+  switch (options_.klive_counter_encoding_) {
+    case KLivenessCounterEncoding::BV_BINARY:
+      counter_sort = ts_k.make_sort(
+          smt::SortKind::BV, (unsigned long)std::floor(std::log2(k)) + 1);
+      break;
+    case KLivenessCounterEncoding::BV_ONE_HOT:
+      counter_sort = ts_k.make_sort(smt::SortKind::BV, k + 1);
+      break;
+    case KLivenessCounterEncoding::INTEGER:
+      counter_sort = ts_k.make_sort(smt::SortKind::INT);
+      break;
+    default: throw PonoException("Unhandled k-liveness counter encoding");
+  }
+
+  smt::Term counter = ts_k.make_statevar(
+      "pono_klive_counter_" + std::to_string(k), counter_sort);
+  smt::Term zero = ts_k.make_term(0, counter_sort);
+  smt::Term one = ts_k.make_term(1, counter_sort);
+
+  smt::Term counter_init, counter_incr, count_to_val;
+  switch (options_.klive_counter_encoding_) {
+    case KLivenessCounterEncoding::BV_BINARY:
+      counter_init = zero;
+      counter_incr = ts_k.make_term(smt::PrimOp::BVAdd, counter, one);
+      count_to_val = ts_k.make_term(k, counter_sort);
+      break;
+    case KLivenessCounterEncoding::BV_ONE_HOT:
+      counter_init = one;
+      counter_incr = ts_k.make_term(smt::PrimOp::BVShl, counter, one);
+      count_to_val = ts_k.make_term(1UL << k, counter_sort);
+      break;
+    case KLivenessCounterEncoding::INTEGER:
+      counter_init = zero;
+      counter_incr = ts_k.make_term(smt::PrimOp::Plus, counter, one);
+      count_to_val = ts_k.make_term(k, counter_sort);
+      break;
+    default: throw PonoException("Unhandled k-liveness counter encoding");
+  }
+
+  smt::Term counter_update =
+      ts_k.make_term(smt::PrimOp::Ite, justice_prop, counter_incr, counter);
+  ts_k.assign_next(counter, counter_update);
+  ts_k.constrain_init(
+      ts_k.make_term(smt::PrimOp::Equal, counter, counter_init));
+  smt::Term safety_prop =
+      ts_k.make_term(smt::PrimOp::Not,
+                     ts_k.make_term(smt::PrimOp::Equal, counter, count_to_val));
+
+  return safety_prop;
 }
 
 std::shared_ptr<SafetyProver> KLiveness::make_safety_prover(
@@ -88,13 +151,13 @@ std::shared_ptr<SafetyProver> KLiveness::make_safety_prover(
 {
   // modified from pono.cpp
   if (options_.cegp_abs_vals_) {
-    return make_cegar_values_prover(engine_, p, ts, solver_, options_);
+    return make_cegar_values_prover(engine_, p, ts, ts.solver(), options_);
   } else if (options_.ceg_bv_arith_) {
-    return make_cegar_bv_arith_prover(engine_, p, ts, solver_, options_);
+    return make_cegar_bv_arith_prover(engine_, p, ts, ts.solver(), options_);
   } else if (options_.ceg_prophecy_arrays_) {
-    return make_ceg_proph_prover(engine_, p, ts, solver_, options_);
+    return make_ceg_proph_prover(engine_, p, ts, ts.solver(), options_);
   } else {
-    return make_prover(engine_, p, ts, solver_, options_);
+    return make_prover(engine_, p, ts, ts.solver(), options_);
   }
 }
 

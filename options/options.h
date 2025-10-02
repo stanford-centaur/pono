@@ -90,6 +90,13 @@ enum InterpPropsEnum
   INTERP_FIRST_AND_LAST_PROPS
 };
 
+enum KLivenessCounterEncoding
+{
+  BV_BINARY,   // binary encoding using bit-vector
+  BV_ONE_HOT,  // one-hot encoding using bit-vector
+  INTEGER,
+};
+
 // Justice translator option
 enum JusticeTranslator
 {
@@ -191,7 +198,8 @@ class PonoOptions
         interp_props_(default_interp_props_),
         interp_eager_unroll_(default_interp_eager_unroll_),
         interp_backward_(default_interp_backward_),
-        klive_bound_(default_klive_bound_)
+        klive_bound_(default_klive_bound_),
+        klive_counter_encoding_(default_klive_counter_encoding_)
   {
   }
 
@@ -365,6 +373,8 @@ class PonoOptions
   bool interp_backward_;
   // k-liveness bound
   unsigned long klive_bound_;
+  // k-liveness counter encoding
+  KLivenessCounterEncoding klive_counter_encoding_;
 
  private:
   // Default options
@@ -453,6 +463,8 @@ class PonoOptions
   static const bool default_interp_eager_unroll_ = false;
   static const bool default_interp_backward_ = false;
   static const unsigned long default_klive_bound_ = 1000;
+  static const KLivenessCounterEncoding default_klive_counter_encoding_ =
+      BV_BINARY;
 };
 
 // Useful functions for printing etc...

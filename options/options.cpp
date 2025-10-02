@@ -114,6 +114,7 @@ enum optionIndex
   INTERP_EAGER_UNROLL,
   INTERP_BACKWARD,
   KLIVE_BOUND,
+  KLIVE_COUNTER_ENC
 };
 
 struct Arg : public option::Arg
@@ -721,6 +722,13 @@ const option::Descriptor usage[] = {
     "klive-bound",
     Arg::Numeric,
     "  --klive-bound \tBound for k-liveness" },
+  { KLIVE_COUNTER_ENC,
+    0,
+    "",
+    "klive-counter-enc",
+    Arg::NonEmpty,
+    "  --klive-counter-enc \tEncoding for k-liveness counter: "
+    "bv-binary (default) bv-one-hot, or int" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -1018,6 +1026,18 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           klive_bound_ = std::stoul(opt.arg);
           if (klive_bound_ == 0)
             throw PonoException("--klive-bound must be greater than 0");
+          break;
+        case KLIVE_COUNTER_ENC:
+          if (opt.arg == std::string("bv-binary")) {
+            klive_counter_encoding_ = KLivenessCounterEncoding::BV_BINARY;
+          } else if (opt.arg == std::string("bv-one-hot")) {
+            klive_counter_encoding_ = KLivenessCounterEncoding::BV_ONE_HOT;
+          } else if (opt.arg == std::string("int")) {
+            klive_counter_encoding_ = KLivenessCounterEncoding::INTEGER;
+          } else {
+            throw PonoException("Unknown --klive-counter-enc option: "
+                                + std::string(opt.arg));
+          }
           break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
