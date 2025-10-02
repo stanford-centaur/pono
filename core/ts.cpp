@@ -645,7 +645,7 @@ bool TransitionSystem::is_right_total(const bool inputs_as_states) const
     return is_right_total(se, inputs_as_states);
   }
   catch (SmtException & e) {
-    if (se == CVC5) {
+    if (se == fallback_se) {
       throw e;
     }
     logger.log(
