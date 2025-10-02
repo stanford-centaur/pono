@@ -418,11 +418,50 @@ bool KInduction::final_base_case_check(const int & cur_bound)
     }
   }(options_, ts_);
 
+  Term query = false_;
+  sel_assumption_.clear();
   if (is_trans_total) {
-    prep_final_base_case_check_total(cur_bound);
+    // enable initial state predicate but NOT its negated instances
+    // disable negated bad state terms
+    // DISABLE simple path --- maybe we could keep it if UNSAT
+    // result in inductive check was not due to simple path
+    // constraints(?)
+    sel_assumption_.push_back(not_sel_init_);
+    sel_assumption_.push_back(sel_neg_init_terms_);
+    sel_assumption_.push_back(sel_neg_bad_state_terms_);
+    sel_assumption_.push_back(sel_simple_path_terms_);
+
+    // build a disjunctive bad state property ranging over bounds 0,...,i
+    // Potential optimization(?): do we have to include the bad state property
+    // for bound 'i' or can we omit it as the respective BMC problem for bound
+    // 'i' is unsat when the inductive check is unsat at bound 'i'?
+    for (int frame = 0; frame <= cur_bound; frame++) {
+      query =
+          solver_->make_term(PrimOp::Or, query, unroller_.at_time(bad_, frame));
+    }
   } else {
-    prep_final_base_case_check_nontotal(cur_bound);
+    // solver stack contains: Init(0) & Tr(0,1) & ... & Tr(n-1,n) ...
+    // only Init(0) is reusable, simply reset
+    solver_->reset_assertions();
+
+    // assert the *disjunction* of the following:
+    // - Init(0) & Bad(0)
+    // - Init(0) & TR(0,1) & Bad(1)
+    // - Init(0) & TR(0,1) & TR(1,2) & Bad(2)
+    // - ...
+    // - Init(0) & TR(0,1) & ... & TR(n-1,n) & Bad(n)
+    // that is: Init(0) & (Bad(0) | (TR(0, 1) & (Bad(1) | (...))))
+    solver_->assert_formula(init0_);
+    for (int i = cur_bound; i >= 0; --i) {
+      Term bad_i = unroller_.at_time(bad_, i);
+      query = solver_->make_term(PrimOp::Or, bad_i, query);
+      if (i > 0) {
+        Term tr_to_i = unroller_.at_time(ts_.trans(), i - 1);
+        query = solver_->make_term(PrimOp::And, tr_to_i, query);
+      }
+    }
   }
+  solver_->assert_formula(query);
 
   kind_log_msg(
       1, "", "checking base case a posteriori at bound: {}", cur_bound);
@@ -435,57 +474,6 @@ bool KInduction::final_base_case_check(const int & cur_bound)
   } else {
     throw PonoException("Final base case check returned unknown");
   }
-}
-
-void KInduction::prep_final_base_case_check_total(const int & cur_bound)
-{
-  // enable initial state predicate but NOT its negated instances
-  // disable negated bad state terms
-  // DISABLE simple path --- maybe we could keep it if UNSAT
-  // result in inductive check was not due to simple path
-  // constraints(?)
-  sel_assumption_.clear();
-  sel_assumption_.push_back(not_sel_init_);
-  sel_assumption_.push_back(sel_neg_init_terms_);
-  sel_assumption_.push_back(sel_neg_bad_state_terms_);
-  sel_assumption_.push_back(sel_simple_path_terms_);
-  // build a disjunctive bad state property ranging over bounds 0,...,i
-  // Potential optimization(?): do we have to include the bad state property for
-  // bound 'i' or can we omit it as the respective BMC problem for bound
-  // 'i' is unsat when the inductive check is unsat at bound 'i'?
-  Term disj = false_;
-  int frame;
-  for (frame = 0; frame <= cur_bound; frame++) {
-    disj = solver_->make_term(PrimOp::Or, disj, unroller_.at_time(bad_, frame));
-  }
-  solver_->assert_formula(disj);
-}
-
-void KInduction::prep_final_base_case_check_nontotal(const int & cur_bound)
-{
-  sel_assumption_.clear();
-  // solver stack contains: Init(0) & Tr(0,1) & ... & Tr(n-1,n) ...
-  // only Init(0) is reusable, simply reset
-  solver_->reset_assertions();
-
-  // assert the *disjunction* of the following:
-  // - Init(0) & Bad(0)
-  // - Init(0) & TR(0,1) & Bad(1)
-  // - Init(0) & TR(0,1) & TR(1,2) & Bad(2)
-  // - ...
-  // - Init(0) & TR(0,1) & ... & TR(n-1,n) & Bad(n)
-  // that is: Init(0) & (Bad(0) | (TR(0, 1) & (Bad(1) | (...))))
-  solver_->assert_formula(init0_);
-  Term query = false_;
-  for (int i = cur_bound; i >= 0; --i) {
-    Term bad_i = unroller_.at_time(bad_, i);
-    query = solver_->make_term(PrimOp::Or, bad_i, query);
-    if (i > 0) {
-      Term tr_to_i = unroller_.at_time(ts_.trans(), i - 1);
-      query = solver_->make_term(PrimOp::And, tr_to_i, query);
-    }
-  }
-  solver_->assert_formula(query);
 }
 
 }  // namespace pono

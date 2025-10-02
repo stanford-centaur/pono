@@ -80,8 +80,6 @@ class KInduction : public SafetyProver
   // covering all bounds from 0 to current one to make sure that no
   // counterexamples were missed
   bool final_base_case_check(const int & cur_bound);
-  void prep_final_base_case_check_total(const int & cur_bound);
-  void prep_final_base_case_check_nontotal(const int & cur_bound);
 };  // class KInduction
 
 }  // namespace pono
