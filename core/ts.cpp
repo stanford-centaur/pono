@@ -631,7 +631,7 @@ bool TransitionSystem::contains(const Term & term,
   return true;
 }
 
-bool TransitionSystem::is_right_total(const bool inputs_as_states) const
+bool TransitionSystem::is_right_total() const
 {
   // Use a solver that supports quantifiers (fall back to cvc5 if necessary)
   const SolverEnum fallback_se = CVC5;
@@ -642,7 +642,7 @@ bool TransitionSystem::is_right_total(const bool inputs_as_states) const
                             ? solver_->get_solver_enum()
                             : fallback_se;
   try {
-    return is_right_total(se, inputs_as_states);
+    return is_right_total(se);
   }
   catch (SmtException & e) {
     if (se == fallback_se) {
@@ -653,12 +653,11 @@ bool TransitionSystem::is_right_total(const bool inputs_as_states) const
         "WARNING: Right-total check using {} failed, trying again with {}",
         to_string(se),
         to_string(fallback_se));
-    return is_right_total(fallback_se, inputs_as_states);
+    return is_right_total(fallback_se);
   }
 }
 
-bool TransitionSystem::is_right_total(const SolverEnum se,
-                                      const bool inputs_as_states) const
+bool TransitionSystem::is_right_total(const SolverEnum se) const
 {
   if (is_functional() && constraints_.empty()) {
     // functional transition systems without constraints are always right-total
@@ -704,16 +703,10 @@ bool TransitionSystem::is_right_total(const SolverEnum se,
   // construct query
   // if unsat, the transition relation is right-total
   Term query = s->substitute(tt.transfer_term(trans(), BOOL), var_map);
-  if (!inputs_as_states) {
-    input_params.push_back(query);
-    query = s->make_term(Exists, input_params);
-  }
+  input_params.push_back(query);
+  query = s->make_term(Exists, input_params);
   next_params.push_back(s->make_term(Not, query));
   query = s->make_term(Forall, next_params);
-  if (inputs_as_states) {
-    input_params.push_back(query);
-    query = s->make_term(Exists, input_params);
-  }
   curr_params.push_back(query);
   query = s->make_term(Exists, curr_params);
   s->assert_formula(query);
