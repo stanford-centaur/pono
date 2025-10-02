@@ -24,16 +24,17 @@ namespace pono {
 
 smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
 {
+  const bool prop_has_next = !ts.no_next(prop);
   // only in debug mode as right-total check can be expensive
-  assert(!ts.no_next(prop) || ts.is_right_total());
-  logger.log(1, "Adding a monitor for the property");
+  assert(prop_has_next || ts.is_right_total());
 
   // checks for functional TS
-  if (ts.is_functional() && !ts.no_next(prop)) {
+  if (ts.is_functional() && prop_has_next) {
     throw PonoException(
         "Cannot use next in property of a functional transition system.");
   }
 
+  logger.log(1, "Adding a monitor for the property");
   smt::Term monitor;
   size_t id = 0;
   while (true) {
@@ -51,7 +52,7 @@ smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
   // monitor starts true
   ts.constrain_init(monitor);
 
-  if (ts.no_next(prop)) {
+  if (!prop_has_next) {
     ts.assign_next(monitor, prop);
   } else {
     assert(!ts.is_functional());
