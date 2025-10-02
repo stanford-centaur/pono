@@ -56,9 +56,6 @@ ProverResult KLiveness::check_until(int k)
   initialize();
   for (; live_count_ <= options_.klive_bound_; ++live_count_) {
     logger.log(1, "k-liveness counter {}", live_count_);
-    // To be extra safe, reset solver state here in case the safety prover does
-    // not do it during initialization.
-    solver_->reset_assertions();
 
     // create a new solver; provers may create named terms (e.g., unrolled state
     // vars) internally and could result in name conflicts
