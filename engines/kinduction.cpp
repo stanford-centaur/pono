@@ -397,7 +397,7 @@ template <typename... Args>
 void KInduction::kind_log_msg(size_t level,
                               const std::string & indent,
                               const std::string & format,
-                              const Args &... args)
+                              const Args &... args) const
 {
   logger.log(level, indent + kind_engine_name_ + " " + format, args...);
 }
@@ -405,7 +405,8 @@ void KInduction::kind_log_msg(size_t level,
 bool KInduction::final_base_case_check(const int & cur_bound)
 {
   assert(options_.kind_one_time_base_check_);
-
+  kind_log_msg(
+      1, "", "checking base case a posteriori at bound: {}", cur_bound);
   Term query = false_;
   sel_assumption_.clear();
   if (is_trans_total()) {
@@ -451,8 +452,6 @@ bool KInduction::final_base_case_check(const int & cur_bound)
   }
   solver_->assert_formula(query);
 
-  kind_log_msg(
-      1, "", "checking base case a posteriori at bound: {}", cur_bound);
   Result res = solver_->check_sat_assuming(sel_assumption_);
   if (res.is_sat()) {
     compute_witness();
@@ -467,8 +466,11 @@ bool KInduction::final_base_case_check(const int & cur_bound)
 bool KInduction::is_trans_total() const
 {
   try {
-    return (options_.check_trans_total_ && ts_.is_right_total())
-           || (ts_.is_functional() && ts_.constraints().empty());
+    bool ret = (options_.check_trans_total_ && ts_.is_right_total())
+               || (ts_.is_functional() && ts_.constraints().empty());
+    kind_log_msg(
+        2, "    ", "transition relation is {}right-total", ret ? "" : "NOT ");
+    return ret;
   }
   catch (SmtException &) {
     return false;

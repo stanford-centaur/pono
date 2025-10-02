@@ -323,8 +323,7 @@ const option::Descriptor usage[] = {
     "check-trans-total",
     Arg::None,
     "  --check-trans-total \tCheck whether the transition relation is "
-    "right-total. Information is printed only if verbosity > 1. This "
-    "check may involve quantified SMT query." },
+    "right-total. This check may involve quantified SMT query." },
   { RESET,
     0,
     "r",

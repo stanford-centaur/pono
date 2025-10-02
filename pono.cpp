@@ -61,9 +61,6 @@ ProverResult check_prop(PonoOptions pono_options,
              to_string(pono_options.smt_interpolator_));
   logger.log(3, "INIT:\n{}", ts.init());
   logger.log(3, "TRANS:\n{}", ts.trans());
-  if (pono_options.check_trans_total_) {
-    logger.log(1, "TRANS is {}right-total", ts.is_right_total() ? "" : "NOT ");
-  }
 
   // modify the transition system and property based on options
   if (!pono_options.clock_name_.empty()) {
