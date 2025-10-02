@@ -74,6 +74,15 @@ smt::SmtSolver create_interpolating_solver(smt::SolverEnum se,
 smt::SmtSolver create_interpolating_solver_for(
     smt::SolverEnum se, Engine e, const StringMap & solver_opts = {});
 
+/** Creates an SmtSolver of the provided type for solving quantified query.
+ *  If the specified solver does not support quantifiers or does not work well
+ *  in practice, cvc5 will be used instead.
+ */
+smt::SmtSolver create_quantifier_solver(smt::SolverEnum se,
+                                        bool logging = false,
+                                        bool printing = false,
+                                        const StringMap & solver_opts = {});
+
 // collect all the available solvers
 std::vector<smt::SolverEnum> available_solver_enums();
 

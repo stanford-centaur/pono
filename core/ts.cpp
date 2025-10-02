@@ -22,7 +22,6 @@
 #include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
-#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -633,38 +632,14 @@ bool TransitionSystem::contains(const Term & term,
 
 bool TransitionSystem::is_right_total() const
 {
-  // Use a solver that supports quantifiers (fall back to cvc5 if necessary)
-  const SolverEnum fallback_se = CVC5;
-  const auto se_attribs = get_solver_attributes(solver_->get_solver_enum());
-  const bool support_quant = se_attribs.find(QUANTIFIERS) != se_attribs.end();
-  // skip Boolector because it may run into segfaults
-  const SolverEnum se = (support_quant && solver_->get_solver_enum() != BTOR)
-                            ? solver_->get_solver_enum()
-                            : fallback_se;
-  try {
-    return is_right_total(se);
-  }
-  catch (SmtException & e) {
-    if (se == fallback_se) {
-      throw e;
-    }
-    logger.log(
-        1,
-        "WARNING: Right-total check using {} failed, trying again with {}",
-        to_string(se),
-        to_string(fallback_se));
-    return is_right_total(fallback_se);
-  }
-}
-
-bool TransitionSystem::is_right_total(const SolverEnum se) const
-{
   if (is_functional() && constraints_.empty()) {
     // functional transition systems without constraints are always right-total
     return true;
   }
 
-  SmtSolver s = create_solver(se);
+  // unable to get printing/logging and other settings from TS
+  // use default for now
+  SmtSolver s = create_quantifier_solver(solver_->get_solver_enum());
   TermTranslator tt(s);
 
   // Make state variables quantifiable
