@@ -407,7 +407,7 @@ bool KInduction::final_base_case_check(const int & cur_bound)
   assert(options_.kind_one_time_base_check_);
   kind_log_msg(
       1, "", "checking base case a posteriori at bound: {}", cur_bound);
-  Term query = false_;
+  Term query;
   sel_assumption_.clear();
   if (is_trans_total()) {
     // enable initial state predicate but NOT its negated instances
@@ -424,7 +424,8 @@ bool KInduction::final_base_case_check(const int & cur_bound)
     // Potential optimization(?): do we have to include the bad state property
     // for bound 'i' or can we omit it as the respective BMC problem for bound
     // 'i' is unsat when the inductive check is unsat at bound 'i'?
-    for (int frame = 0; frame <= cur_bound; frame++) {
+    query = unroller_.at_time(bad_, 0);
+    for (int frame = 1; frame <= cur_bound; frame++) {
       query =
           solver_->make_term(PrimOp::Or, query, unroller_.at_time(bad_, frame));
     }
@@ -440,15 +441,14 @@ bool KInduction::final_base_case_check(const int & cur_bound)
     // - ...
     // - Init(0) & TR(0,1) & ... & TR(n-1,n) & Bad(n)
     // that is: Init(0) & (Bad(0) | (TR(0, 1) & (Bad(1) | (...))))
-    solver_->assert_formula(init0_);
-    for (int i = cur_bound; i >= 0; --i) {
+    query = unroller_.at_time(bad_, cur_bound);
+    for (int i = cur_bound - 1; i >= 0; --i) {
+      Term tr_from_i = unroller_.at_time(ts_.trans(), i);
+      query = solver_->make_term(PrimOp::And, tr_from_i, query);
       Term bad_i = unroller_.at_time(bad_, i);
       query = solver_->make_term(PrimOp::Or, bad_i, query);
-      if (i > 0) {
-        Term tr_to_i = unroller_.at_time(ts_.trans(), i - 1);
-        query = solver_->make_term(PrimOp::And, tr_to_i, query);
-      }
     }
+    query = solver_->make_term(PrimOp::And, init0_, query);
   }
   solver_->assert_formula(query);
 
