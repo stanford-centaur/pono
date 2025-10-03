@@ -63,23 +63,22 @@ if (WITH_PROFILING)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/flex/flex-install")
 if (APPLE)
   list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/bison")
   list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/flex")
 endif()
-find_package(BISON 3.4.2 REQUIRED)
-find_package(FLEX 2.6.4 REQUIRED)
 
+find_package(BISON 3.4.2 REQUIRED)
 if (BISON_FOUND)
   get_filename_component(BISON_PARENT_DIR "${BISON_EXECUTABLE}" DIRECTORY)
   message("-- Adding bison lib: ${BISON_PARENT_DIR}/../lib")
   link_directories("${BISON_PARENT_DIR}/../lib/")
 endif()
 
-message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
-message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
+find_package(FLEX 2.6.4 REQUIRED)
+if(NOT FLEX_INCLUDE_DIRS)
+  message(FATAL_ERROR "Missing flex headers")
+endif()
 
 if (NOT DEFINED SMT_SWITCH_DIR)
     set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
@@ -188,7 +187,7 @@ set(INCLUDE_DIRS
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
   ${GMPXX_INCLUDE_DIRS}
-  "${FLEX_INCLUDE_DIRS}"
+  ${FLEX_INCLUDE_DIRS}
   )
 
 set(SOURCES
