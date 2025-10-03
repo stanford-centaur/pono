@@ -16,8 +16,15 @@
 
 #include "engines/ic3bits.h"
 
+#include <cassert>
+#include <cstddef>
+
+#include "engines/ic3base.h"
+#include "smt-switch/smt.h"
+#include "smt-switch/utils.h"
+#include "utils/exceptions.h"
+
 using namespace smt;
-using namespace std;
 
 namespace pono {
 
@@ -46,7 +53,7 @@ void IC3Bits::initialize()
       state_bits_.push_back(sv);
     } else {
       assert(sort->get_sort_kind() == BV);
-      for (size_t i = 0; i < sort->get_width(); ++i) {
+      for (std::size_t i = 0; i < sort->get_width(); ++i) {
         state_bits_.push_back(solver_->make_term(
             Equal, solver_->make_term(Op(Extract, i, i), sv), bv1));
       }
@@ -93,19 +100,13 @@ bool IC3Bits::ic3formula_check_valid(const IC3Formula & u) const
 
 void IC3Bits::check_ts() const
 {
-  for (const auto & sv : ts_.statevars()) {
-    const Sort & sort = sv->get_sort();
-    if (sort != boolsort_ && sort->get_sort_kind() != BV) {
-      throw PonoException("Unsupported variable sort in IC3Bits: "
-                          + sv->to_string() + ":" + sort->to_string());
-    }
-  }
-
-  for (const auto & iv : ts_.inputvars()) {
-    const Sort & sort = iv->get_sort();
-    if (sort != boolsort_ && sort->get_sort_kind() != BV) {
-      throw PonoException("Unsupported variable sort in IC3Bits: "
-                          + iv->to_string() + ":" + sort->to_string());
+  for (const auto & vars : { ts_.statevars(), ts_.inputvars() }) {
+    for (const auto & var : vars) {
+      const Sort & sort = var->get_sort();
+      if (sort != boolsort_ && sort->get_sort_kind() != BV) {
+        throw PonoException("IC3Bits only supports bit-vectors, got "
+                            + to_string(sort->get_sort_kind()));
+      }
     }
   }
 }

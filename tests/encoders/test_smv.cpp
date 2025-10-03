@@ -32,7 +32,6 @@ TEST_P(SmvFileUnitTests, Encode)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/smv/";
   filename += benchmark.first;
-  cout << "Reading file: " << filename << endl;
   SMVEncoder se(filename, rts);
 
   SafetyProperty prop(rts.solver(), se.propvec()[0]);

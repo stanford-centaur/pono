@@ -2,7 +2,6 @@
 #include "core/rts.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
-#include "utils/logger.h"
 #include "utils/make_provers.h"
 
 #ifdef WITH_MSAT
@@ -15,8 +14,6 @@ namespace pono_tests {
 
 TEST(CegProphecyArraysTest, Simple)
 {
-  set_global_logger_verbosity(1);
-
   SmtSolver s = create_solver(MSAT);
   s->set_opt("produce-unsat-assumptions", "true");
   RelationalTransitionSystem rts(s);
