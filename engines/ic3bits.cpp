@@ -16,6 +16,14 @@
 
 #include "engines/ic3bits.h"
 
+#include <cassert>
+#include <cstddef>
+
+#include "engines/ic3base.h"
+#include "smt-switch/smt.h"
+#include "smt-switch/utils.h"
+#include "utils/exceptions.h"
+
 using namespace smt;
 
 namespace pono {
@@ -45,7 +53,7 @@ void IC3Bits::initialize()
       state_bits_.push_back(sv);
     } else {
       assert(sort->get_sort_kind() == BV);
-      for (size_t i = 0; i < sort->get_width(); ++i) {
+      for (std::size_t i = 0; i < sort->get_width(); ++i) {
         state_bits_.push_back(solver_->make_term(
             Equal, solver_->make_term(Op(Extract, i, i), sv), bv1));
       }
