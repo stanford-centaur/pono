@@ -17,7 +17,6 @@
 #include "engines/ic3bits.h"
 
 using namespace smt;
-using namespace std;
 
 namespace pono {
 
@@ -93,19 +92,13 @@ bool IC3Bits::ic3formula_check_valid(const IC3Formula & u) const
 
 void IC3Bits::check_ts() const
 {
-  for (const auto & sv : ts_.statevars()) {
-    const Sort & sort = sv->get_sort();
-    if (sort != boolsort_ && sort->get_sort_kind() != BV) {
-      throw PonoException("Unsupported variable sort in IC3Bits: "
-                          + sv->to_string() + ":" + sort->to_string());
-    }
-  }
-
-  for (const auto & iv : ts_.inputvars()) {
-    const Sort & sort = iv->get_sort();
-    if (sort != boolsort_ && sort->get_sort_kind() != BV) {
-      throw PonoException("Unsupported variable sort in IC3Bits: "
-                          + iv->to_string() + ":" + sort->to_string());
+  for (const auto & vars : { ts_.statevars(), ts_.inputvars() }) {
+    for (const auto & var : vars) {
+      const Sort & sort = var->get_sort();
+      if (sort != boolsort_ && sort->get_sort_kind() != BV) {
+        throw PonoException("IC3Bits only supports bit-vectors, got "
+                            + to_string(sort->get_sort_kind()));
+      }
     }
   }
 }
