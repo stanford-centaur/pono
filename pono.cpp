@@ -100,9 +100,7 @@ ProverResult check_prop(PonoOptions pono_options,
   if (pono_options.promote_inputvars_) {
     ts = promote_inputvars(ts);
   } else if (!ts.only_curr(prop) && ts.no_next(prop)) {
-    logger.log(1,
-               "Got input variables in property. "
-               "Promoting them to states.");
+    logger.log(1, "Got input variables in property. Promoting them to states.");
     UnorderedTermSet ivs_in_prop;
     get_free_symbolic_consts(prop, ivs_in_prop);
     ts = promote_inputvars(ts, ivs_in_prop);
@@ -110,9 +108,8 @@ ProverResult check_prop(PonoOptions pono_options,
 
   bool has_monitor = false;
   if (!ts.only_curr(prop)) {
-    logger.log(1,
-               "Got next state (and input variables) in property. "
-               "Generating a monitor state.");
+    logger.log(
+        1, "Got next-state variables in property. Generating a monitor state.");
     prop = add_prop_monitor(ts, prop);
     has_monitor = true;
   }
