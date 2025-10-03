@@ -57,9 +57,6 @@ jobs:
         if: runner.os != 'macOS'
         run: ./ci-scripts/setup-msat.sh --auto-yes
 
-      - name: Setup Flex
-        run: ./contrib/setup-flex.sh
-
       - name: Setup Bison
         run: ./contrib/setup-bison.sh
 

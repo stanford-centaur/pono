@@ -22,7 +22,8 @@ Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](ht
 ## Setup
 
 * [optional] Install bison and flex
-  * If you don't have bison and flex installed globally, run `./contrib/setup-bison.sh` and `./contrib/setup-flex.sh`
+  * Flex should be available in your package manager (Linux) or Homebrew (macOS).
+  * If you don't have bison installed globally, run `./contrib/setup-bison.sh`
   * Even if you do have bison, you might get errors about not being able to load `-ly`. In such a case, run the bison setup script.
 * Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla
   * [optional] to build with MathSAT (required for interpolation-based model checking) you need to obtain the libraries yourself
