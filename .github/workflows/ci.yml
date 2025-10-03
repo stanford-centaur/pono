@@ -44,6 +44,14 @@ jobs:
             cmake \
             ninja-build
 
+      - name: Install Packages (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install \
+            bison
+          echo "PATH=$(brew --prefix)/opt/bison/bin:$PATH" >> "$GITHUB_ENV"
+
       - name: Python Environment Setup
         run: |
           python3 -m venv ./.venv
