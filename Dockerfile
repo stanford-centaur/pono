@@ -12,6 +12,7 @@ RUN apt-get install -y \
         curl \
         git \
         libgmp-dev \
+        libbison-dev \
         m4 \
         meson \
         ninja-build \
@@ -22,7 +23,6 @@ RUN apt-get install -y \
         wget
 RUN apt-get autoremove --purge
 RUN apt-get clean -y
-RUN ./contrib/setup-bison.sh
 RUN ./contrib/setup-flex.sh
 RUN ./contrib/setup-btor2tools.sh
 
