@@ -63,18 +63,19 @@ if (WITH_PROFILING)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
-if (APPLE)
-  list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/bison")
-  list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/flex")
+if(APPLE)
+  execute_process(
+    COMMAND brew --prefix
+    RESULT_VARIABLE Brew_RETURNCODE
+    OUTPUT_VARIABLE HOMEBREW_PREFIX
+  )
+  if(Brew_RETURNCODE EQUAL 0)
+    list(APPEND CMAKE_PREFIX_PATH "${HOMEBREW_PREFIX}/opt/bison")
+    list(APPEND CMAKE_PREFIX_PATH "${HOMEBREW_PREFIX}/opt/flex")
+  endif()
 endif()
 
 find_package(BISON 3.4.2 REQUIRED)
-if (BISON_FOUND)
-  get_filename_component(BISON_PARENT_DIR "${BISON_EXECUTABLE}" DIRECTORY)
-  message("-- Adding bison lib: ${BISON_PARENT_DIR}/../lib")
-  link_directories("${BISON_PARENT_DIR}/../lib/")
-endif()
-
 find_package(FLEX 2.6.4 REQUIRED)
 if(NOT FLEX_INCLUDE_DIRS)
   message(FATAL_ERROR "Missing flex headers")
@@ -341,7 +342,6 @@ target_link_libraries(pono-lib PUBLIC ${Btor2Tools_LIBRARIES})
 target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC pthread)
-target_link_libraries(pono-lib PUBLIC y)
 
 if (GOOGLE_PERF)
   target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})

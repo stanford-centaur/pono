@@ -35,7 +35,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libbison-dev \
+            bison \
             libfl-dev \
             cmake \
             ninja-build
@@ -47,8 +47,6 @@ jobs:
           brew install \
             bison \
             flex
-          echo "PATH=$(brew --prefix)/opt/bison/bin:$(brew --prefix)/opt/flex/bin:$PATH" >> "$GITHUB_ENV"
-          echo "CMAKE_PREFIX_PATH=$(brew --prefix)/opt/flex" >> "$GITHUB_ENV"
 
       - name: Python Environment Setup
         run: |

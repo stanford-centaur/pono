@@ -21,10 +21,7 @@ Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](ht
 
 ## Setup
 
-* [optional] Install bison and flex
-  * If you don't have flex installed globally, run `./contrib/setup-flex.sh`
-  * Bison should be available in your OS package manager (Linux) or Homebrew (macOS).
-* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla
+* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla and cvc5
   * [optional] to build with MathSAT (required for interpolation-based model checking) you need to obtain the libraries yourself
     * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
     * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`
@@ -38,7 +35,8 @@ Pono was awarded the Oski Award under its original name _cosa2_ at [HWMCC'19](ht
 
 ### Dependencies
 
-* Please see the [README of smt-switch](https://github.com/stanford-centaur/smt-switch#dependencies) for required dependencies.
+* Bison (at least version 3.4.2) and flex (at least version 2.6.4).
+* Please see the [README of smt-switch](https://github.com/stanford-centaur/smt-switch#dependencies) for the solvers' required dependencies.
 * Note to Arch Linux users: building Pono will fail if the static library of [GMP](https://gmplib.org/), which is required by [cvc5](https://github.com/cvc5/cvc5/blob/main/INSTALL.rst), is not installed on your system. You can fix it by installing `libgmp-static` from [AUR](https://aur.archlinux.org/packages/libgmp-static).
 
 ### Docker

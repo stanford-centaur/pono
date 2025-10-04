@@ -7,12 +7,12 @@ WORKDIR /app/pono/
 RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install -y \
+        bison \
         build-essential \
         cmake \
         curl \
         gettext-base \
         git \
-        libbison-dev \
         libfl-dev \
         libgmp-dev \
         m4 \
