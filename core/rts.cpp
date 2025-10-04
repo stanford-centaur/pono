@@ -16,6 +16,8 @@
 
 #include "rts.h"
 
+#include "smt-switch/utils.h"
+
 using namespace smt;
 using namespace std;
 
@@ -30,6 +32,7 @@ void RelationalTransitionSystem::set_behavior(const Term & init,
   }
   init_ = init;
   trans_ = trans;
+  set_updated_states(trans_);
 }
 
 void RelationalTransitionSystem::set_trans(const Term & trans)
@@ -39,6 +42,7 @@ void RelationalTransitionSystem::set_trans(const Term & trans)
     throw PonoException("Unknown symbols");
   }
   trans_ = trans;
+  set_updated_states(trans_);
 }
 
 void RelationalTransitionSystem::constrain_trans(const Term & constraint)
@@ -48,6 +52,17 @@ void RelationalTransitionSystem::constrain_trans(const Term & constraint)
     throw PonoException("Unknown symbols");
   }
   trans_ = solver_->make_term(And, trans_, constraint);
+  set_updated_states(constraint);
 }
 
+void RelationalTransitionSystem::set_updated_states(const smt::Term & term)
+{
+  UnorderedTermSet free_vars;
+  get_free_symbolic_consts(term, free_vars);
+  for (const auto & free_var : free_vars) {
+    if (next_statevars_.find(free_var) != next_statevars_.end()) {
+      no_state_updates_.erase(curr_map_[free_var]);
+    }
+  }
+}
 }  // namespace pono
