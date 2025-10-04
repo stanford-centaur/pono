@@ -108,7 +108,7 @@ ProverResult InterpolantMC::check_until(int k)
     }
   }
   catch (InternalSolverException & e) {
-    logger.log(1, "Failed when computing interpolant.");
+    logger.log(1, "solver call failed: {}", e.what());
   }
   return ProverResult::UNKNOWN;
 }
@@ -184,13 +184,15 @@ bool InterpolantMC::step(const int i)
           And, init0_, solver_->make_term(And, solver_trans, bad_i)));
 
       Result r = solver_->check_sat();
-      if (!r.is_sat()) {
+      if (r.is_unsat()) {
         throw PonoException("Internal error: Expecting satisfiable result");
+      } else {
+        throw InternalSolverException("solver could not compute concrete cex");
       }
       return false;
     } else if (r.is_unknown()) {
       // TODO: figure out if makes sense to increase bound and try again
-      throw PonoException("Interpolant generation failed.");
+      throw InternalSolverException("interpolant generation failed");
     }
   }
 

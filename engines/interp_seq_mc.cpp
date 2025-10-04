@@ -22,7 +22,6 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/term_analysis.h"
 
 using namespace smt;
 
@@ -172,10 +171,14 @@ bool InterpSeqMC::step(int i)
       // replay it in the solver with model generation
       concrete_cex_ = true;
     } else if (r.is_sat() && !bmc_res.is_sat()) {
-      throw PonoException("Internal error: Expecting satisfiable result");
+      if (bmc_res.is_unsat()) {
+        throw PonoException("expecting satisfiable result");
+      } else {
+        throw InternalSolverException("solver could not compute BMC query");
+      }
     } else {
-      throw PonoException("Interpolation failed due to: "
-                          + r.get_explanation());
+      throw InternalSolverException("interpolation failed due to: "
+                                    + r.get_explanation());
     }
     return false;
   }
