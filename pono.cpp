@@ -35,6 +35,7 @@
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
 #include "smt-switch/logging_solver.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
@@ -98,17 +99,21 @@ ProverResult check_prop(PonoOptions pono_options,
 
   if (pono_options.promote_inputvars_) {
     ts = promote_inputvars(ts);
-    assert(!ts.inputvars().size());
+  } else if (!ts.only_curr(prop) && ts.no_next(prop)) {
+    logger.log(1, "Got input variables in property. Promoting them to states.");
+    UnorderedTermSet ivs_in_prop;
+    get_free_symbolic_consts(prop, ivs_in_prop);
+    ts = promote_inputvars(ts, ivs_in_prop);
   }
 
   bool has_monitor = false;
   if (!ts.only_curr(prop)) {
-    logger.log(1,
-               "Got next state or input variables in property. "
-               "Generating a monitor state.");
+    logger.log(
+        1, "Got next-state variables in property. Generating a monitor state.");
     prop = add_prop_monitor(ts, prop);
     has_monitor = true;
   }
+  assert(ts.only_curr(prop));
 
   if (pono_options.assume_prop_) {
     // NOTE: crucial that pseudo_init_prop and add_prop_monitor passes are

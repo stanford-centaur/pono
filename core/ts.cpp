@@ -683,6 +683,17 @@ void TransitionSystem::promote_inputvar(const Term & iv)
   add_statevar(iv, next_state_var);
 }
 
+void TransitionSystem::promote_inputvars_in(const Term & term)
+{
+  UnorderedTermSet free_vars;
+  get_free_symbolic_consts(term, free_vars);
+  for (const auto & v : free_vars) {
+    if (is_input_var(v)) {
+      promote_inputvar(v);
+    }
+  }
+}
+
 void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
 {
   // first check that all the replacements contain known symbols

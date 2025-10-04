@@ -109,7 +109,8 @@ void prop_in_trans(TransitionSystem & ts, const Term & prop)
   ts.add_constraint(prop, false);
 }
 
-TransitionSystem promote_inputvars(const TransitionSystem & ts)
+TransitionSystem promote_inputvars(const TransitionSystem & ts,
+                                   const UnorderedTermSet & ivs_to_promote)
 {
   SmtSolver solver = ts.solver();
   TransitionSystem new_ts = create_fresh_ts(ts.is_functional(), solver);
@@ -123,7 +124,9 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
   // copy over inputs but make them statevars
   for (const auto & iv : ts.inputvars()) {
     new_ts.add_inputvar(iv);
-    new_ts.promote_inputvar(iv);
+    if (ivs_to_promote.find(iv) != ivs_to_promote.end()) {
+      new_ts.promote_inputvar(iv);
+    }
   }
 
   // set init
@@ -134,20 +137,28 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
     new_ts.assign_next(elem.first, elem.second);
   }
 
-  // need to re-evaluate all constraints that used to be over inputs
-  for (const auto & elem : ts.constraints()) {
-    new_ts.add_constraint(elem.first, elem.second);
-  }
-
-  // relational systems could have things added by constrain_trans
+  // relational systems could have things added by constrain_trans;
+  // this step has to be performed before re-adding constraints as new
+  // constraints might be added to trans()
   if (!new_ts.is_functional()) {
     RelationalTransitionSystem & rts_view =
         static_cast<RelationalTransitionSystem &>(new_ts);
     rts_view.set_trans(ts.trans());
   }
 
-  assert(!new_ts.inputvars().size());
+  // need to re-evaluate all constraints that used to be over inputs
+  for (const auto & elem : ts.constraints()) {
+    new_ts.add_constraint(elem.first, elem.second);
+  }
+
   return new_ts;
+}
+
+TransitionSystem promote_inputvars(const TransitionSystem & ts)
+{
+  TransitionSystem ret = promote_inputvars(ts, ts.inputvars());
+  assert(ret.inputvars().empty());
+  return ret;
 }
 
 }  // namespace pono
