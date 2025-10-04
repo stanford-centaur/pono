@@ -657,6 +657,12 @@ bool TransitionSystem::is_right_total() const
     var_map[tt.transfer_term(v)] = p;
     if (no_state_updates_.find(v) == no_state_updates_.end()) {
       curr_params.push_back(p);
+      // process next-state vars as well
+      Term nv = next_map_.at(v);
+      Term np = s->make_param(nv->to_string() + ".param",
+                              tt.transfer_sort(nv->get_sort()));
+      var_map[tt.transfer_term(nv)] = np;
+      next_params.push_back(np);
     } else {
       input_params.push_back(p);
     }
@@ -667,12 +673,6 @@ bool TransitionSystem::is_right_total() const
                            tt.transfer_sort(v->get_sort()));
     var_map[tt.transfer_term(v)] = p;
     input_params.push_back(p);
-  }
-  for (const auto & v : next_statevars_) {
-    Term p = s->make_param(v->to_string() + ".param",
-                           tt.transfer_sort(v->get_sort()));
-    var_map[tt.transfer_term(v)] = p;
-    next_params.push_back(p);
   }
 
   // construct query
