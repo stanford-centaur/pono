@@ -84,8 +84,8 @@ if [ ! -d "$DEPS/smt-switch" ]; then
     if [ $WITH_BOOLECTOR = ON ]; then
         ./contrib/setup-boolector.sh
     fi
-    # pass bison/flex directories from smt-switch perspective
-    ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
+    # pass flex directory from smt-switch perspective
+    ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --flex-dir=../flex/flex-install
     cd build
     make -j$(nproc)
     make test
