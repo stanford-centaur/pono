@@ -68,6 +68,11 @@ class InterpSeqMC : public SafetyProver
   smt::TermVec trans_seq_;
   smt::TermVec int_trans_seq_;
 
+#ifndef NDEBUG
+  uint32_t total_interp_call_count_ = 0;
+  double total_interp_call_time_ = 0.0;
+#endif
+
 };  // class InterpSeqMC
 
 }  // namespace pono

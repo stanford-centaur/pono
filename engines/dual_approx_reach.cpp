@@ -30,6 +30,22 @@ using namespace smt;
 
 namespace pono {
 
+#ifndef NDEBUG
+inline void log_interp_time(const std::clock_t & start_t,
+                            uint32_t & total_interp_call_count,
+                            double & total_interp_call_time)
+{
+  const std::clock_t end_t = std::clock();
+  const double interp_call_time = double(end_t - start_t) / CLOCKS_PER_SEC;
+  total_interp_call_time += interp_call_time;
+  logger.log(2,
+             "Interpolation query #{} took {:.3f} s",
+             total_interp_call_count,
+             interp_call_time);
+  total_interp_call_count++;
+}
+#endif
+
 DualApproxReach::DualApproxReach(const SafetyProperty & p,
                                  const TransitionSystem & ts,
                                  const SmtSolver & slv,
@@ -87,11 +103,19 @@ ProverResult DualApproxReach::check_until(int k)
 
   try {
     for (int i = 0; i <= k; ++i) {
-      if (step(i)) {
-        return ProverResult::TRUE;
-      } else if (concrete_cex_) {
-        compute_witness();
-        return ProverResult::FALSE;
+      if (step(i) || concrete_cex_) {
+#ifndef NDEBUG
+        logger.log(2,
+                   "Interpolation stats: {} calls took {:.3f} s",
+                   total_interp_call_count_,
+                   total_interp_call_time_);
+#endif
+        if (!concrete_cex_) {
+          return ProverResult::TRUE;
+        } else {
+          compute_witness();
+          return ProverResult::FALSE;
+        }
       }
     }
   }
@@ -271,9 +295,15 @@ bool DualApproxReach::global_strengthen()
   assert(int_assertions.size() == unsat_idx + 2);
   solver_->pop(int_assertions.size());  // pop all assertions
 
+#ifndef NDEBUG
+  const std::clock_t start_t = std::clock();
+#endif
   TermVec int_itpseq;
   Result int_r =
       interpolator_->get_sequence_interpolants(int_assertions, int_itpseq);
+#ifndef NDEBUG
+  log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
+#endif
   if (!int_r.is_unsat()) {
     throw PonoException(
         "DAR: global strengthening failed, expect UNSAT interpolation query");
@@ -310,8 +340,14 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     Term b = unroller_.at_time(backward_seq_.at(seq_len - 1 - i), 1);
     Term int_b = to_interpolator_.transfer_term(b);
     Term int_itp;
+#ifndef NDEBUG
+    const std::clock_t start_t = std::clock();
+#endif
     Result r = interpolator_->get_interpolant(
         interpolator_->make_term(And, int_f, int_tr), int_b, int_itp);
+#ifndef NDEBUG
+    log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
+#endif
     if (!r.is_unsat()) {
       throw PonoException(
           "DAR: pairwise strengthening failed, "
@@ -335,8 +371,14 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     Term b = unroller_.at_time(backward_seq_.at(i), 1);
     Term int_b = to_interpolator_.transfer_term(b);
     Term int_itp;
+#ifndef NDEBUG
+    const std::clock_t start_t = std::clock();
+#endif
     Result r = interpolator_->get_interpolant(
         interpolator_->make_term(And, int_b, int_tr), int_f, int_itp);
+#ifndef NDEBUG
+    log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
+#endif
     if (!r.is_unsat()) {
       throw PonoException(
           "DAR: pairwise strengthening failed, "
