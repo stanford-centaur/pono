@@ -685,12 +685,18 @@ bool TransitionSystem::is_right_total() const
   // construct query
   // if unsat, the transition relation is right-total
   Term query = s->substitute(tt.transfer_term(trans(), BOOL), var_map);
-  input_params.push_back(query);
-  query = s->make_term(Exists, input_params);
-  next_params.push_back(s->make_term(Not, query));
-  query = s->make_term(Forall, next_params);
-  curr_params.push_back(query);
-  query = s->make_term(Exists, curr_params);
+  // only apply quantifiers on non-empty sets of variables
+  //(otherwise some solver might fail)
+  if (!input_params.empty()) {
+    input_params.push_back(query);
+    query = s->make_term(Exists, input_params);
+  }
+  if (!curr_params.empty()) {
+    next_params.push_back(s->make_term(Not, query));
+    query = s->make_term(Forall, next_params);
+    curr_params.push_back(query);
+    query = s->make_term(Exists, curr_params);
+  }
   s->assert_formula(query);
   Result r = s->check_sat();
   if (!r.is_sat() && !r.is_unsat()) {
