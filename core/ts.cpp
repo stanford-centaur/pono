@@ -644,10 +644,12 @@ bool TransitionSystem::is_right_total() const
 
   // Make state variables quantifiable
   UnorderedTermMap var_map;
+  UnorderedTermSet quant_vars;
   TermVec curr_params, next_params, input_params;
   const size_t num_states = statevars_.size() - no_state_updates_.size();
   const size_t num_inputs = inputvars_.size() + no_state_updates_.size();
   var_map.reserve(num_states * 2 + num_inputs);
+  quant_vars.reserve(num_states * 2 + num_inputs);
   curr_params.reserve(num_states + 1);
   next_params.reserve(num_states + 1);
   input_params.reserve(num_inputs + 1);
@@ -655,6 +657,7 @@ bool TransitionSystem::is_right_total() const
     Term p = s->make_param(v->to_string() + ".param",
                            tt.transfer_sort(v->get_sort()));
     var_map[tt.transfer_term(v)] = p;
+    quant_vars.insert(v);
     if (no_state_updates_.find(v) == no_state_updates_.end()) {
       curr_params.push_back(p);
       // process next-state vars as well
@@ -662,6 +665,7 @@ bool TransitionSystem::is_right_total() const
       Term np = s->make_param(nv->to_string() + ".param",
                               tt.transfer_sort(nv->get_sort()));
       var_map[tt.transfer_term(nv)] = np;
+      quant_vars.insert(nv);
       next_params.push_back(np);
     } else {
       input_params.push_back(p);
@@ -672,8 +676,11 @@ bool TransitionSystem::is_right_total() const
     Term p = s->make_param(v->to_string() + ".param",
                            tt.transfer_sort(v->get_sort()));
     var_map[tt.transfer_term(v)] = p;
+    quant_vars.insert(v);
     input_params.push_back(p);
   }
+  assert(var_map.size() == quant_vars.size());
+  assert(contains(trans(), { &quant_vars }));
 
   // construct query
   // if unsat, the transition relation is right-total
