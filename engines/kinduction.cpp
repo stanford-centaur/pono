@@ -397,42 +397,84 @@ template <typename... Args>
 void KInduction::kind_log_msg(size_t level,
                               const std::string & indent,
                               const std::string & format,
-                              const Args &... args)
+                              const Args &... args) const
 {
   logger.log(level, indent + kind_engine_name_ + " " + format, args...);
 }
 
-bool KInduction::final_base_case_check(int cur_bound)
+bool KInduction::final_base_case_check(const int & cur_bound)
 {
   assert(options_.kind_one_time_base_check_);
-  // enable initial state predicate but NOT its negated instances
-  // disable negated bad state terms
-  // DISABLE simple path --- maybe we could keep it if UNSAT
-  // result in inductive check was not due to simple path
-  // constraints(?)
-  sel_assumption_.clear();
-  sel_assumption_.push_back(not_sel_init_);
-  sel_assumption_.push_back(sel_neg_init_terms_);
-  sel_assumption_.push_back(sel_neg_bad_state_terms_);
-  sel_assumption_.push_back(sel_simple_path_terms_);
-  // build a disjunctive bad state property ranging over bounds 0,...,i
-  // Potential optimization(?): do we have to include the bad state property for
-  // bound 'i' or can we omit it as the respective BMC problem for bound
-  // 'i' is unsat when the inductive check is unsat at bound 'i'?
-  Term disj = false_;
-  int frame;
-  for (frame = 0; frame <= cur_bound; frame++) {
-    disj = solver_->make_term(PrimOp::Or, disj, unroller_.at_time(bad_, frame));
-  }
-  solver_->assert_formula(disj);
   kind_log_msg(
       1, "", "checking base case a posteriori at bound: {}", cur_bound);
+  Term query;
+  sel_assumption_.clear();
+  if (is_trans_total()) {
+    // enable initial state predicate but NOT its negated instances
+    // disable negated bad state terms
+    // DISABLE simple path --- maybe we could keep it if UNSAT
+    // result in inductive check was not due to simple path
+    // constraints(?)
+    sel_assumption_.push_back(not_sel_init_);
+    sel_assumption_.push_back(sel_neg_init_terms_);
+    sel_assumption_.push_back(sel_neg_bad_state_terms_);
+    sel_assumption_.push_back(sel_simple_path_terms_);
+
+    // build a disjunctive bad state property ranging over bounds 0,...,i
+    // Potential optimization(?): do we have to include the bad state property
+    // for bound 'i' or can we omit it as the respective BMC problem for bound
+    // 'i' is unsat when the inductive check is unsat at bound 'i'?
+    query = unroller_.at_time(bad_, 0);
+    for (int frame = 1; frame <= cur_bound; frame++) {
+      query =
+          solver_->make_term(PrimOp::Or, query, unroller_.at_time(bad_, frame));
+    }
+  } else {
+    // solver stack contains: Init(0) & Tr(0,1) & ... & Tr(n-1,n) ...
+    // only Init(0) is reusable, simply reset
+    solver_->reset_assertions();
+
+    // assert the *disjunction* of the following:
+    // - Init(0) & Bad(0)
+    // - Init(0) & TR(0,1) & Bad(1)
+    // - Init(0) & TR(0,1) & TR(1,2) & Bad(2)
+    // - ...
+    // - Init(0) & TR(0,1) & ... & TR(n-1,n) & Bad(n)
+    // that is: Init(0) & (Bad(0) | (TR(0, 1) & (Bad(1) | (...))))
+    query = unroller_.at_time(bad_, cur_bound);
+    for (int i = cur_bound - 1; i >= 0; --i) {
+      Term tr_from_i = unroller_.at_time(ts_.trans(), i);
+      query = solver_->make_term(PrimOp::And, tr_from_i, query);
+      Term bad_i = unroller_.at_time(bad_, i);
+      query = solver_->make_term(PrimOp::Or, bad_i, query);
+    }
+    query = solver_->make_term(PrimOp::And, init0_, query);
+  }
+  solver_->assert_formula(query);
+
   Result res = solver_->check_sat_assuming(sel_assumption_);
   if (res.is_sat()) {
     compute_witness();
     return false;
-  } else
+  } else if (res.is_unsat()) {
     return true;
+  } else {
+    throw PonoException("Final base case check returned unknown");
+  }
+}
+
+bool KInduction::is_trans_total() const
+{
+  try {
+    bool ret = (options_.check_trans_total_ && ts_.is_right_total())
+               || (ts_.is_functional() && ts_.constraints().empty());
+    kind_log_msg(
+        2, "    ", "transition relation is {}right-total", ret ? "" : "NOT ");
+    return ret;
+  }
+  catch (SmtException &) {
+    return false;
+  }
 }
 
 }  // namespace pono

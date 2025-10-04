@@ -75,11 +75,15 @@ class KInduction : public SafetyProver
   void kind_log_msg(size_t level,
                     const std::string & indent,
                     const std::string & format,
-                    const Args &... args);
+                    const Args &... args) const;
   // If base case checking is skipped: run one final base check
   // covering all bounds from 0 to current one to make sure that no
   // counterexamples were missed
-  bool final_base_case_check(int cur_bound);
+  bool final_base_case_check(const int & cur_bound);
+
+  // Checks whether the transition relation is right-total.
+  // Conservatively returns false if it cannot be determined.
+  bool is_trans_total() const;
 };  // class KInduction
 
 }  // namespace pono
