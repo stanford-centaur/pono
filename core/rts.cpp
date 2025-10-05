@@ -27,12 +27,11 @@ void RelationalTransitionSystem::set_behavior(const Term & init,
                                               const Term & trans)
 {
   // TODO: Only do this check in debug mode
-  if (!known_symbols(init) || !known_symbols(trans)) {
+  if (!known_symbols(init)) {
     throw PonoException("Unknown symbols");
   }
   init_ = init;
-  trans_ = trans;
-  set_updated_states(trans_);
+  set_trans(trans);
 }
 
 void RelationalTransitionSystem::set_trans(const Term & trans)
