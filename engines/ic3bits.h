@@ -16,7 +16,11 @@
 
 #pragma once
 
+#include "core/prop.h"
+#include "core/ts.h"
 #include "engines/ic3.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 
