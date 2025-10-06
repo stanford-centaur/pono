@@ -104,10 +104,10 @@ ProverResult KLiveness::check_until(int k)
 
     // instrument the TS with counter
     TransitionSystem ts_k(ts_, tt);
-    auto prop_and_monitor = instrument_ts(
+    auto prop_and_counter = instrument_ts(
         ts_k, tt.transfer_term(justice_conditions_.front()), live_count_);
-    smt::Term safety_prop_term = prop_and_monitor.first;
-    smt::Term monitor = prop_and_monitor.second;
+    smt::Term safety_prop_term = prop_and_counter.first;
+    smt::Term counter = prop_and_counter.second;
     SafetyProperty safety_prop(solver_k, safety_prop_term);
 
     // create a safety prover
@@ -120,7 +120,7 @@ ProverResult KLiveness::check_until(int k)
     } else if (res == ProverResult::FALSE) {
       // FALSE (sat) may be spurious and requires additional checks
       if (options_.klive_check_lasso_in_cex_
-          && detect_revisit_in_cex(ts_k, safety_prover, monitor)) {
+          && detect_revisit_in_cex(ts_k, safety_prover, counter)) {
         return res;
       }
       if (options_.klive_lockstep_bmc_
