@@ -11,7 +11,8 @@
  **
  ** \brief Implementation of k-liveness
  **
- **
+ ** This liveness checking algorithm was introduced by Koen Claessen and Niklas
+ ** Sörensson in FMCAD 2012 (https://ieeexplore.ieee.org/document/6462555).
  **/
 
 #include "kliveness.h"
