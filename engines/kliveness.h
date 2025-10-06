@@ -58,7 +58,11 @@ class KLiveness : public LivenessProver
                              std::shared_ptr<SafetyProver> safety_prover,
                              smt::Term counter) const;
 
+  /* Perform BMC in lock-step to find a lasso */
+  bool find_lasso_by_bmc(int bound) const;
+
   unsigned long live_count_;
+  std::unique_ptr<SafetyProver> bmc_prover_;
 };  // class KLiveness
 
 }  // namespace pono

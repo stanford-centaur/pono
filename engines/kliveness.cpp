@@ -19,6 +19,8 @@
 
 #include <map>
 
+#include "engines/bmc.h"
+#include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/static_coi.h"
 #include "smt/available_solvers.h"
@@ -55,6 +57,20 @@ void KLiveness::initialize()
   }
   super::initialize();
   live_count_ = 1;  // start with 1
+
+  // initialize BMC prover on the L2S translated TS
+  smt::SmtSolver bmc_solver = create_solver_for(solver_->get_solver_enum(),
+                                                Engine::BMC,
+                                                options_.logging_smt_solver_,
+                                                options_.ceg_prophecy_arrays_,
+                                                options_.printing_smt_solver_,
+                                                options_.smt_solver_opts_);
+  smt::TermTranslator tt(bmc_solver);
+  TransitionSystem l2s_ts(ts_, tt);
+  smt::Term l2s_prop_term = LivenessToSafetyTranslator{}.translate(
+      l2s_ts, { tt.transfer_term(justice_conditions_.front()) });
+  SafetyProperty l2s_prop(bmc_solver, l2s_prop_term);
+  bmc_prover_ = std::make_unique<Bmc>(l2s_prop, l2s_ts, bmc_solver, options_);
 }
 
 ProverResult KLiveness::check_until(int k)
@@ -77,7 +93,7 @@ ProverResult KLiveness::check_until(int k)
     // vars) internally and could result in name conflicts
     smt::SmtSolver solver_k = create_solver_for(solver_->get_solver_enum(),
                                                 engine_,
-                                                false,
+                                                options_.logging_smt_solver_,
                                                 options_.ceg_prophecy_arrays_,
                                                 options_.printing_smt_solver_,
                                                 options_.smt_solver_opts_);
@@ -102,6 +118,9 @@ ProverResult KLiveness::check_until(int k)
       return res;
     } else if (res == ProverResult::FALSE) {
       if (detect_revisit_in_cex(ts_k, safety_prover, monitor)) {
+        return res;
+      }
+      if (find_lasso_by_bmc(safety_prover->witness_length())) {
         return res;
       }
     }
@@ -253,6 +272,16 @@ bool KLiveness::detect_revisit_in_cex(
     } else {
       visited.emplace(state_vals, step);
     }
+  }
+  return false;
+}
+
+bool KLiveness::find_lasso_by_bmc(int bound) const
+{
+  if (bmc_prover_->check_until(bound) == ProverResult::FALSE) {
+    logger.log(
+        2, "BMC found a lasso at bound {}", bmc_prover_->witness_length());
+    return true;
   }
   return false;
 }
