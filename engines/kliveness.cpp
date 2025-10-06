@@ -166,7 +166,8 @@ std::pair<smt::Term, smt::Term> KLiveness::instrument_ts(
     case KLivenessCounterEncoding::BV_ONE_HOT:
       counter_init = one;
       counter_incr = ts_k.make_term(smt::PrimOp::BVShl, counter, one);
-      count_to_val = ts_k.make_term(1UL << k, counter_sort);
+      // use string to represent value to avoid overflow
+      count_to_val = ts_k.make_term("1" + std::string(k, '0'), counter_sort, 2);
       break;
     case KLivenessCounterEncoding::INTEGER:
       counter_init = zero;
