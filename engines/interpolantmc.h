@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "engines/prover.h"
 #include "smt-switch/smt.h"
 
@@ -69,7 +71,7 @@ class InterpolantMC : public SafetyProver
   smt::Term bad_disjuncts_;  ///< a disjunction of bads in the suffix
 
 #ifndef NDEBUG
-  uint32_t total_interp_call_count_ = 0;
+  std::uint32_t total_interp_call_count_ = 0;
   double total_interp_call_time_ = 0.0;
 #endif
 
