@@ -36,7 +36,7 @@ KLiveness::KLiveness(const LivenessProperty & p,
 {
   engine_ = opt.engine_;
   if (justice_conditions_.size() > 1) {
-    throw PonoException("K-liveness only supports one justice condition.");
+    throw PonoException("k-liveness only supports one justice condition.");
   }
   // copied from pono.cpp
   if (opt.static_coi_) {
@@ -59,18 +59,20 @@ void KLiveness::initialize()
   live_count_ = 1;  // start with 1
 
   // initialize BMC prover on the L2S translated TS
-  smt::SmtSolver bmc_solver = create_solver_for(solver_->get_solver_enum(),
-                                                Engine::BMC,
-                                                options_.logging_smt_solver_,
-                                                options_.ceg_prophecy_arrays_,
-                                                options_.printing_smt_solver_,
-                                                options_.smt_solver_opts_);
-  smt::TermTranslator tt(bmc_solver);
-  TransitionSystem l2s_ts(ts_, tt);
-  smt::Term l2s_prop_term = LivenessToSafetyTranslator{}.translate(
-      l2s_ts, { tt.transfer_term(justice_conditions_.front()) });
-  SafetyProperty l2s_prop(bmc_solver, l2s_prop_term);
-  bmc_prover_ = std::make_unique<Bmc>(l2s_prop, l2s_ts, bmc_solver, options_);
+  if (options_.klive_lockstep_bmc_) {
+    smt::SmtSolver bmc_solver = create_solver_for(solver_->get_solver_enum(),
+                                                  Engine::BMC,
+                                                  options_.logging_smt_solver_,
+                                                  options_.ceg_prophecy_arrays_,
+                                                  options_.printing_smt_solver_,
+                                                  options_.smt_solver_opts_);
+    smt::TermTranslator tt(bmc_solver);
+    TransitionSystem l2s_ts(ts_, tt);
+    smt::Term l2s_prop_term = LivenessToSafetyTranslator{}.translate(
+        l2s_ts, { tt.transfer_term(justice_conditions_.front()) });
+    SafetyProperty l2s_prop(bmc_solver, l2s_prop_term);
+    bmc_prover_ = std::make_unique<Bmc>(l2s_prop, l2s_ts, bmc_solver, options_);
+  }
 }
 
 ProverResult KLiveness::check_until(int k)
@@ -110,17 +112,18 @@ ProverResult KLiveness::check_until(int k)
     // create a safety prover
     auto safety_prover = make_safety_prover(safety_prop, ts_k);
     assert(safety_prover);
+
     ProverResult res = safety_prover->check_until(k);
-    // k-liveness can only confirm TRUE (unsat).
-    // FALSE (sat) may be spurious and requires additional checks (not yet
-    // implemented). For now, we simply continue with a higher live_count_.
     if (res == ProverResult::TRUE) {
       return res;
     } else if (res == ProverResult::FALSE) {
-      if (detect_revisit_in_cex(ts_k, safety_prover, monitor)) {
+      // FALSE (sat) may be spurious and requires additional checks
+      if (options_.klive_check_lasso_in_cex_
+          && detect_revisit_in_cex(ts_k, safety_prover, monitor)) {
         return res;
       }
-      if (find_lasso_by_bmc(safety_prover->witness_length())) {
+      if (options_.klive_lockstep_bmc_
+          && find_lasso_by_bmc(safety_prover->witness_length())) {
         return res;
       }
     }
@@ -278,9 +281,11 @@ bool KLiveness::detect_revisit_in_cex(
 
 bool KLiveness::find_lasso_by_bmc(int bound) const
 {
+  assert(bmc_prover_);
   if (bmc_prover_->check_until(bound) == ProverResult::FALSE) {
     logger.log(
         2, "BMC found a lasso at bound {}", bmc_prover_->witness_length());
+    // TODO: store the lasso
     return true;
   }
   return false;
