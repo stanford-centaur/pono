@@ -56,7 +56,7 @@ void KLiveness::initialize()
     return;
   }
   super::initialize();
-  live_count_ = 1;  // start with 1
+  live_count_ = options_.klive_start_step_;
 
   // initialize BMC prover on the L2S translated TS
   if (options_.klive_lockstep_bmc_) {
@@ -78,7 +78,8 @@ void KLiveness::initialize()
 ProverResult KLiveness::check_until(int k)
 {
   initialize();
-  for (; live_count_ <= options_.klive_bound_; ++live_count_) {
+  for (; live_count_ <= options_.klive_bound_;
+       live_count_ += options_.klive_step_size_) {
     logger.log(1, "k-liveness counter {}", live_count_);
     if (k < live_count_ + 1) {
       // k must be at least live_count_ + 1 to be able to

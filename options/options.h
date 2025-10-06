@@ -199,6 +199,8 @@ class PonoOptions
         interp_eager_unroll_(default_interp_eager_unroll_),
         interp_backward_(default_interp_backward_),
         klive_bound_(default_klive_bound_),
+        klive_start_step_(default_klive_start_step_),
+        klive_step_size_(default_klive_step_size_),
         klive_counter_encoding_(default_klive_counter_encoding_),
         klive_check_lasso_in_cex_(default_klive_check_lasso_in_cex_),
         klive_lockstep_bmc_(default_klive_lockstep_bmc_)
@@ -375,6 +377,8 @@ class PonoOptions
   bool interp_backward_;
   // k-liveness bound
   unsigned long klive_bound_;
+  unsigned long klive_start_step_;
+  unsigned long klive_step_size_;
   // k-liveness counter encoding
   KLivenessCounterEncoding klive_counter_encoding_;
   bool klive_check_lasso_in_cex_;
@@ -467,6 +471,8 @@ class PonoOptions
   static const bool default_interp_eager_unroll_ = false;
   static const bool default_interp_backward_ = false;
   static const unsigned long default_klive_bound_ = 1000;
+  static const unsigned long default_klive_start_step_ = 1;
+  static const unsigned long default_klive_step_size_ = 1;
   static const KLivenessCounterEncoding default_klive_counter_encoding_ =
       BV_BINARY;
   static const bool default_klive_check_lasso_in_cex_ = true;

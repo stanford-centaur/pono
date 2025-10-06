@@ -114,6 +114,8 @@ enum optionIndex
   INTERP_EAGER_UNROLL,
   INTERP_BACKWARD,
   KLIVE_BOUND,
+  KLIVE_START_STEP,
+  KLIVE_STEP_SIZE,
   KLIVE_COUNTER_ENC,
   KLIVE_NO_CHECK_LASSO_IN_CEX,
   KLIVE_NO_LOCKSTEP_BMC,
@@ -724,6 +726,18 @@ const option::Descriptor usage[] = {
     "klive-bound",
     Arg::Numeric,
     "  --klive-bound \tBound for k-liveness" },
+  { KLIVE_START_STEP,
+    0,
+    "",
+    "klive-start-step",
+    Arg::Numeric,
+    "  --klive-start-step \tStarting step for k-liveness (default: 1)" },
+  { KLIVE_STEP_SIZE,
+    0,
+    "",
+    "klive-step-size",
+    Arg::Numeric,
+    "  --klive-step-size \tStep size for k-liveness (default: 1)" },
   { KLIVE_COUNTER_ENC,
     0,
     "",
@@ -1042,6 +1056,16 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           klive_bound_ = std::stoul(opt.arg);
           if (klive_bound_ == 0)
             throw PonoException("--klive-bound must be greater than 0");
+          break;
+        case KLIVE_START_STEP:
+          klive_start_step_ = std::stoul(opt.arg);
+          if (klive_start_step_ == 0)
+            throw PonoException("--klive-start-step must be greater than 0");
+          break;
+        case KLIVE_STEP_SIZE:
+          klive_step_size_ = std::stoul(opt.arg);
+          if (klive_step_size_ == 0)
+            throw PonoException("--klive-step-size must be greater than 0");
           break;
         case KLIVE_COUNTER_ENC:
           if (opt.arg == std::string("bv-binary")) {
