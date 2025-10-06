@@ -199,7 +199,9 @@ class PonoOptions
         interp_eager_unroll_(default_interp_eager_unroll_),
         interp_backward_(default_interp_backward_),
         klive_bound_(default_klive_bound_),
-        klive_counter_encoding_(default_klive_counter_encoding_)
+        klive_counter_encoding_(default_klive_counter_encoding_),
+        klive_check_lasso_in_cex_(default_klive_check_lasso_in_cex_),
+        klive_lockstep_bmc_(default_klive_lockstep_bmc_)
   {
   }
 
@@ -375,6 +377,8 @@ class PonoOptions
   unsigned long klive_bound_;
   // k-liveness counter encoding
   KLivenessCounterEncoding klive_counter_encoding_;
+  bool klive_check_lasso_in_cex_;
+  bool klive_lockstep_bmc_;
 
  private:
   // Default options
@@ -465,6 +469,8 @@ class PonoOptions
   static const unsigned long default_klive_bound_ = 1000;
   static const KLivenessCounterEncoding default_klive_counter_encoding_ =
       BV_BINARY;
+  static const bool default_klive_check_lasso_in_cex_ = true;
+  static const bool default_klive_lockstep_bmc_ = true;
 };
 
 // Useful functions for printing etc...

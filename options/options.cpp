@@ -114,7 +114,9 @@ enum optionIndex
   INTERP_EAGER_UNROLL,
   INTERP_BACKWARD,
   KLIVE_BOUND,
-  KLIVE_COUNTER_ENC
+  KLIVE_COUNTER_ENC,
+  KLIVE_NO_CHECK_LASSO_IN_CEX,
+  KLIVE_NO_LOCKSTEP_BMC,
 };
 
 struct Arg : public option::Arg
@@ -729,6 +731,20 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --klive-counter-enc \tEncoding for k-liveness counter: "
     "bv-binary (default) bv-one-hot, or int" },
+  { KLIVE_NO_CHECK_LASSO_IN_CEX,
+    0,
+    "",
+    "klive-no-check-lasso-in-cex",
+    Arg::None,
+    "  --klive-no-check-lasso-in-cex \tDisable checking for lasso in CEX found "
+    "by safety prover in k-liveness" },
+  { KLIVE_NO_LOCKSTEP_BMC,
+    0,
+    "",
+    "klive-no-lockstep-bmc",
+    Arg::None,
+    "  --klive-no-lockstep-bmc \tDo no perform BMC in lock-step in "
+    "k-liveness" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -1039,6 +1055,10 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
                                 + std::string(opt.arg));
           }
           break;
+        case KLIVE_NO_CHECK_LASSO_IN_CEX:
+          klive_check_lasso_in_cex_ = false;
+          break;
+        case KLIVE_NO_LOCKSTEP_BMC: klive_lockstep_bmc_ = false; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
