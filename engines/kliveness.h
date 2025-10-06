@@ -37,12 +37,25 @@ class KLiveness : public LivenessProver
   ProverResult check_until(int k) override;
 
  protected:
-  smt::Term instrument_ts(TransitionSystem & ts_k,
-                          smt::Term justice_prop,
-                          const unsigned long & k);
+  /** Instruments the original TS with counter.
+   *  Returns a pair of <safety property, counter>.
+   *  - Safety property: the counter never reaches the value k.
+   *  - Counter: the introduced counter state variable.
+   *  Note: the returned terms are in the context of the new TS (`ts_k`).
+   */
+  std::pair<smt::Term, smt::Term> instrument_ts(TransitionSystem & ts_k,
+                                                smt::Term justice_prop,
+                                                const unsigned long & k) const;
 
-  std::shared_ptr<SafetyProver> make_safety_prover(const SafetyProperty & p,
-                                                   const TransitionSystem & ts);
+  std::shared_ptr<SafetyProver> make_safety_prover(
+      const SafetyProperty & p, const TransitionSystem & ts) const;
+
+  /** Detect if there is a lasso in the counterexample trace
+   *  found by the safety prover
+   */
+  bool detect_revisit_in_cex(const TransitionSystem & ts,
+                             std::shared_ptr<SafetyProver> safety_prover,
+                             smt::Term counter) const;
 
   unsigned long live_count_;
 };  // class KLiveness
