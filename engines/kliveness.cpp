@@ -44,7 +44,7 @@ KLiveness::KLiveness(const LivenessProperty & p,
   }
   if (opt.promote_inputvars_) {
     ts_ = promote_inputvars(ts_);
-    assert(!ts_.inputvars().empty());
+    assert(ts_.inputvars().empty());
   }
 }
 
