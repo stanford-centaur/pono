@@ -22,6 +22,7 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+
 using namespace smt;
 
 namespace pono {
