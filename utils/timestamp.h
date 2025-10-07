@@ -17,6 +17,8 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
+#include <ctime>
 #include <iostream>
 
 /*************************************** time stamp functions
@@ -45,11 +47,37 @@ static pono_time_duration timestamp_diff(pono_time_stamp begin,
 }
 
 // convert duration in nanoseconds computed by 'timestamp_diff' to a string
-static string time_duration_to_sec_string(pono_time_duration d)
+static std::string time_duration_to_sec_string(pono_time_duration d)
 {
-  ostringstream out;
+  std::ostringstream out;
   out << d.count() * 1e-9;
   return out.str();
+}
+
+/* Log the *CPU time* (in seconds) used by an interpolation query. The time is
+ * computed as the difference between `start_t` and the current CPU time.
+ *
+ * Note: This measures CPU time, which differs from wall-clock time measured
+ * by `std::chrono`.
+ *
+ * @param start_t Start time of the interpolation query
+ * @param total_interp_call_count Total number of interpolation queries made;
+ *   will be incremented by 1
+ * @param total_interp_call_time Total CPU time used by all previously measured
+ *   interpolation queries; will be incremented by the time used by this query
+ */
+inline void log_interp_time(const std::clock_t & start_t,
+                            std::uint32_t & total_interp_call_count,
+                            double & total_interp_call_time)
+{
+  const std::clock_t end_t = std::clock();
+  const double interp_call_time = double(end_t - start_t) / CLOCKS_PER_SEC;
+  total_interp_call_time += interp_call_time;
+  logger.log(2,
+             "Interpolation query #{} took {:.3f} s",
+             total_interp_call_count,
+             interp_call_time);
+  total_interp_call_count++;
 }
 
 }  // namespace pono

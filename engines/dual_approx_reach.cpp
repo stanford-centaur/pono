@@ -25,26 +25,11 @@
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
+#include "utils/timestamp.h"
 
 using namespace smt;
 
 namespace pono {
-
-#ifndef NDEBUG
-inline void log_interp_time(const std::clock_t & start_t,
-                            uint32_t & total_interp_call_count,
-                            double & total_interp_call_time)
-{
-  const std::clock_t end_t = std::clock();
-  const double interp_call_time = double(end_t - start_t) / CLOCKS_PER_SEC;
-  total_interp_call_time += interp_call_time;
-  logger.log(2,
-             "Interpolation query #{} took {:.3f} s",
-             total_interp_call_count,
-             interp_call_time);
-  total_interp_call_count++;
-}
-#endif
 
 DualApproxReach::DualApproxReach(const SafetyProperty & p,
                                  const TransitionSystem & ts,

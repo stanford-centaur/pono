@@ -22,6 +22,7 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/timestamp.h"
 
 using namespace smt;
 
@@ -166,14 +167,7 @@ bool InterpolantMC::step(const int i)
         interp_backward_ ? int_formulaA : int_formulaB,
         int_Ri);
 #ifndef NDEBUG
-    const std::clock_t end_t = std::clock();
-    const double interp_call_time = double(end_t - start_t) / CLOCKS_PER_SEC;
-    total_interp_call_time_ += interp_call_time;
-    logger.log(2,
-               "Interpolation query #{} took {:.3f} s",
-               total_interp_call_count_,
-               interp_call_time);
-    total_interp_call_count_++;
+    log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
 #endif
     got_interpolant = r.is_unsat();
 
