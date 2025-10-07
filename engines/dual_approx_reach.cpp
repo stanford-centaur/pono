@@ -88,19 +88,19 @@ ProverResult DualApproxReach::check_until(int k)
 
   try {
     for (int i = 0; i <= k; ++i) {
-      if (step(i) || concrete_cex_) {
+      const bool step_result = step(i);
 #ifndef NDEBUG
-        logger.log(2,
-                   "Interpolation stats: {} calls took {:.3f} s",
-                   total_interp_call_count_,
-                   total_interp_call_time_);
+      const std::size_t log_level = (step_result || concrete_cex_) ? 2 : 4;
+      logger.log(log_level,
+                 "Interpolation stats: {} calls took {:.3f} s",
+                 total_interp_call_count_,
+                 total_interp_call_time_);
 #endif
-        if (!concrete_cex_) {
-          return ProverResult::TRUE;
-        } else {
-          compute_witness();
-          return ProverResult::FALSE;
-        }
+      if (step_result) {
+        return ProverResult::TRUE;
+      } else if (concrete_cex_) {
+        compute_witness();
+        return ProverResult::FALSE;
       }
     }
   }
