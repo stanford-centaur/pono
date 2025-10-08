@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "engines/prover.h"
 #include "smt-switch/smt.h"
 
@@ -67,6 +69,11 @@ class InterpSeqMC : public SafetyProver
   // note that at 0th step, Init is conjoined with TR
   smt::TermVec trans_seq_;
   smt::TermVec int_trans_seq_;
+
+#ifndef NDEBUG
+  std::uint32_t total_interp_call_count_ = 0;
+  double total_interp_call_time_ = 0.0;
+#endif
 
 };  // class InterpSeqMC
 
