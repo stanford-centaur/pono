@@ -347,6 +347,21 @@ class TransitionSystem
   void promote_inputvar(const smt::Term & iv);
 
   /** EXPERTS ONLY
+   *  Promotes the input variables found in the given `term` into state
+   *  variables. Calls @ref promote_inputvar internally for each input variable.
+   *
+   *  IMPORTANT: this does not retroactively change constraints
+   *  e.g. if a constraint was not added to init because it
+   *  contains an input variable
+   *
+   *  @param term the term to extract input variables from
+   *
+   *  The input variables in `term` stay the same, but it will now
+   *  be registered as a state variable.
+   */
+  void promote_inputvars_in(const smt::Term & term);
+
+  /** EXPERTS ONLY
    * Replace terms in the transition system with other terms
    *  Traverses all the data structures and updates them with
    *  the replacements

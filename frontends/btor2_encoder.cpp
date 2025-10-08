@@ -358,13 +358,7 @@ void BTOR2Encoder::parse(const std::string filename)
 
       // BTOR2 allows constraints over inputs
       // in Pono these need to be promoted to state variables
-      UnorderedTermSet free_vars;
-      get_free_symbolic_consts(constraint, free_vars);
-      for (const auto & v : free_vars) {
-        if (ts_.is_input_var(v)) {
-          ts_.promote_inputvar(v);
-        }
-      }
+      ts_.promote_inputvars_in(constraint);
 
       ts_.add_constraint(constraint);
       terms_[bt2_line->id] = constraint;
@@ -429,13 +423,7 @@ void BTOR2Encoder::parse(const std::string filename)
 
       // BTOR2 allows properties (negation of bad) over inputs
       // in Pono these need to be promoted to state variables
-      UnorderedTermSet free_vars;
-      get_free_symbolic_consts(bad, free_vars);
-      for (const auto & v : free_vars) {
-        if (ts_.is_input_var(v)) {
-          ts_.promote_inputvar(v);
-        }
-      }
+      ts_.promote_inputvars_in(bad);
 
       propvec_.push_back(prop);
       terms_[bt2_line->id] = prop;
