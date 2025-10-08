@@ -20,7 +20,7 @@ EOF
 }
 
 get_msat=default
-msat_version="5.6.4"
+msat_version="5.6.5"
 mast_release_url="https://mathsat.fbk.eu/release"
 
 while [ $# -gt 0 ]
