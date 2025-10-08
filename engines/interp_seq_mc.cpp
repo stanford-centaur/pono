@@ -146,6 +146,7 @@ bool InterpSeqMC::step(int i)
   TermVec int_itp_seq;
   Result r =
       interpolator_->get_sequence_interpolants(int_trans_seq_, int_itp_seq);
+
 #ifndef NDEBUG
   log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
   if (r.is_unsat()) {
