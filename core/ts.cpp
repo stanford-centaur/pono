@@ -198,7 +198,9 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
 
   state_updates_[state] = val;
   auto erased = no_state_updates_.erase(state);
-  assert(erased);
+  // Relational transition systems might have marked the state as updated
+  // outside 'assign_next', so don't require them to erase here.
+  assert(!functional_ || erased);
   trans_ = solver_->make_term(
       And, trans_, solver_->make_term(Equal, next_map_.at(state), val));
 
