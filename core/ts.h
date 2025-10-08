@@ -300,6 +300,26 @@ class TransitionSystem
    */
   bool is_deterministic() const { return deterministic_; };
 
+  /** Whether the transition relation is right-total,
+   * i.e., every state has a next state.
+   *
+   * If the system is functional and has no constraints, it is right-total.
+   *
+   * Otherwise, a fresh solver instance is created and checks if the following
+   * query is unsatisfiable:
+   * `exists curr. forall next. not (exist input. trans(curr, input, next))`
+   *
+   * Note: states w/o update (@ref no_state_updates_) are treated as inputs.
+   *
+   * The query may be expensive as it involves quantifiers.
+   * Uses the solver type in the current TransitionSystem if it supports
+   * quantifiers; otherwise cvc5.
+   */
+  bool is_right_total() const;
+
+  /* Same as @ref is_right_total(), but uses the given solver type */
+  bool is_right_total(const smt::SolverEnum se) const;
+
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;
 

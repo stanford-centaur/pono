@@ -21,6 +21,7 @@
 
 #include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
+#include "smt/available_solvers.h"
 
 using namespace smt;
 using namespace std;
@@ -627,6 +628,82 @@ bool TransitionSystem::contains(const Term & term,
   }
 
   return true;
+}
+
+bool TransitionSystem::is_right_total() const
+{
+  if (is_functional() && constraints_.empty()) {
+    // functional transition systems without constraints are always right-total
+    return true;
+  }
+
+  // unable to get printing/logging and other settings from TS
+  // use default for now
+  SmtSolver s = create_quantifier_solver(solver_->get_solver_enum());
+  TermTranslator tt(s);
+
+  // Make state variables quantifiable
+  UnorderedTermMap var_map;
+  UnorderedTermSet quant_vars;
+  TermVec curr_params, next_params, input_params;
+  const size_t num_states = statevars_.size() - no_state_updates_.size();
+  const size_t num_inputs = inputvars_.size() + no_state_updates_.size();
+  var_map.reserve(num_states * 2 + num_inputs);
+  quant_vars.reserve(num_states * 2 + num_inputs);
+  curr_params.reserve(num_states + 1);
+  next_params.reserve(num_states + 1);
+  input_params.reserve(num_inputs + 1);
+  for (const auto & v : statevars_) {
+    Term p = s->make_param(v->to_string() + ".param",
+                           tt.transfer_sort(v->get_sort()));
+    var_map[tt.transfer_term(v)] = p;
+    quant_vars.insert(v);
+    if (no_state_updates_.find(v) == no_state_updates_.end()) {
+      curr_params.push_back(p);
+      // process next-state vars as well
+      Term nv = next_map_.at(v);
+      Term np = s->make_param(nv->to_string() + ".param",
+                              tt.transfer_sort(nv->get_sort()));
+      var_map[tt.transfer_term(nv)] = np;
+      quant_vars.insert(nv);
+      next_params.push_back(np);
+    } else {
+      input_params.push_back(p);
+    }
+  }
+  for (const auto & v : inputvars_) {
+    // inputs are treated like current-state vars
+    Term p = s->make_param(v->to_string() + ".param",
+                           tt.transfer_sort(v->get_sort()));
+    var_map[tt.transfer_term(v)] = p;
+    quant_vars.insert(v);
+    input_params.push_back(p);
+  }
+  assert(var_map.size() == quant_vars.size());
+  assert(contains(trans(), { &quant_vars }));
+
+  // construct query
+  // if unsat, the transition relation is right-total
+  Term query = s->substitute(tt.transfer_term(trans(), BOOL), var_map);
+  // only apply quantifiers on non-empty sets of variables
+  //(otherwise some solver might fail)
+  if (!input_params.empty()) {
+    input_params.push_back(query);
+    query = s->make_term(Exists, input_params);
+  }
+  if (!curr_params.empty()) {
+    next_params.push_back(s->make_term(Not, query));
+    query = s->make_term(Forall, next_params);
+    curr_params.push_back(query);
+    query = s->make_term(Exists, curr_params);
+  }
+  s->assert_formula(query);
+  Result r = s->check_sat();
+  if (!r.is_sat() && !r.is_unsat()) {
+    throw SmtException("Expecting sat/unsat from right-total check, but got "
+                       + r.to_string());
+  }
+  return r.is_unsat();
 }
 
 bool TransitionSystem::only_curr(const Term & term) const
