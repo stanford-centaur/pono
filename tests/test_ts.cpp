@@ -135,6 +135,15 @@ TEST_P(TSUnitTests, Prop_Copy)
   SafetyProperty p2 = p;
 }
 
+TEST_P(TSUnitTests, RTS_ConstrainTrans)
+{
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("x", bvsort);
+  Term next_x = rts.next(x);
+  rts.constrain_trans(rts.make_term(BVUge, x, next_x));
+  EXPECT_TRUE(rts.statevars_with_no_update().empty());
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverTSUnitTests,
                          TSUnitTests,
                          testing::ValuesIn(available_solver_enums()));

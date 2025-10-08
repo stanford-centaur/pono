@@ -1,0 +1,28 @@
+-- Test based on counter_yosys.smv using booleans instead of bit-vectors.
+-- Invariant is FALSE
+MODULE main
+  IVAR
+    rst_neg : boolean;
+  VAR
+    counter1 : boolean;
+    counter0 : boolean;
+    previous1 : boolean;
+    previous0 : boolean;
+  DEFINE
+    adder1 := counter1 xor counter0;
+    adder0 := !counter0;
+    increasing := (previous1 -> counter1) & (previous0 -> counter0);
+    next_counter0 := rst_neg ? adder1 : FALSE;
+    next_counter0 := rst_neg ? adder0 : FALSE;
+    next_previous1 := rst_neg ? counter1 : FALSE;
+    next_previous0 := rst_neg ? counter0 : FALSE;
+  ASSIGN
+    init(counter1) := FALSE;
+    init(counter0) := FALSE;
+    init(previous1) := FALSE;
+    init(previous0) := FALSE;
+    next(counter1) := next_counter0;
+    next(counter0) := next_counter0;
+    next(previous1) := next_previous1;
+    next(previous0) := next_previous0;
+  INVARSPEC increasing;

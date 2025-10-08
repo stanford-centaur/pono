@@ -1,7 +1,6 @@
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/partial_model.h"
-#include "utils/sygus_ic3formula_helper.h"
 
 using namespace pono;
 using namespace smt;
@@ -34,23 +33,20 @@ class DynamicCoiUnitTests : public ::testing::Test,
 // #define BoolEQ(x, y) (s->make_term(Iff, (x), (y)))
 #define ITE(c, x, y) (s->make_term(Ite, (c), (x), (y)))
 
-#define CheckPartialModel(p, u)                            \
-  {                                                        \
-    s->push();                                             \
-    auto ast = EQ(p, u);                                   \
-    s->assert_formula(ast);                                \
-    if (s->check_sat().is_sat()) {                         \
-      auto m_cube = pt.GetPartialModelInCube(ast);         \
-      std::cout << "expr: " << ast << std::endl;           \
-      std::cout << m_cube.first.term << std::endl;         \
-      std::cout << m_cube.second.to_string() << std::endl; \
-      s->pop();                                            \
-      s->push();                                           \
-      s->assert_formula(NOT(ast));                         \
-      s->assert_formula(m_cube.first.term);                \
-      EXPECT_TRUE(s->check_sat().is_unsat());              \
-    }                                                      \
-    s->pop();                                              \
+#define CheckPartialModel(p, u)                    \
+  {                                                \
+    s->push();                                     \
+    auto ast = EQ(p, u);                           \
+    s->assert_formula(ast);                        \
+    if (s->check_sat().is_sat()) {                 \
+      auto m_cube = pt.GetPartialModelInCube(ast); \
+      s->pop();                                    \
+      s->push();                                   \
+      s->assert_formula(NOT(ast));                 \
+      s->assert_formula(m_cube.first.term);        \
+      EXPECT_TRUE(s->check_sat().is_unsat());      \
+    }                                              \
+    s->pop();                                      \
   }
 
 TEST_P(DynamicCoiUnitTests, SimpleCoiTest)
