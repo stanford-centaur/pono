@@ -16,10 +16,13 @@
 
 #include "engines/interpolantmc.h"
 
+#include <ctime>
+
 #include "smt-switch/exceptions.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
+#include "utils/timestamp.h"
 
 using namespace smt;
 
@@ -99,7 +102,15 @@ ProverResult InterpolantMC::check_until(int k)
 
   try {
     for (int i = 0; i <= k; ++i) {
-      if (step(i)) {
+      const bool step_result = step(i);
+#ifndef NDEBUG
+      const std::size_t log_level = (step_result || concrete_cex_) ? 2 : 4;
+      logger.log(log_level,
+                 "Interpolation stats: {} calls took {:.3f} s",
+                 total_interp_call_count_,
+                 total_interp_call_time_);
+#endif
+      if (step_result) {
         return ProverResult::TRUE;
       } else if (concrete_cex_) {
         compute_witness();
@@ -148,10 +159,16 @@ bool InterpolantMC::step(const int i)
     Term int_formulaA = interpolator_->make_term(And, int_RA, int_transA);
     Term int_formulaB =
         interpolator_->make_term(And, int_transB, int_bad_disjuncts);
+#ifndef NDEBUG
+    const std::clock_t start_t = std::clock();
+#endif
     Result r = interpolator_->get_interpolant(
         interp_backward_ ? int_formulaB : int_formulaA,
         interp_backward_ ? int_formulaA : int_formulaB,
         int_Ri);
+#ifndef NDEBUG
+    log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
+#endif
     got_interpolant = r.is_unsat();
 
     if (got_interpolant) {

@@ -25,6 +25,7 @@
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 #include "utils/term_analysis.h"
+#include "utils/timestamp.h"
 
 using namespace smt;
 
@@ -87,7 +88,15 @@ ProverResult DualApproxReach::check_until(int k)
 
   try {
     for (int i = 0; i <= k; ++i) {
-      if (step(i)) {
+      const bool step_result = step(i);
+#ifndef NDEBUG
+      const std::size_t log_level = (step_result || concrete_cex_) ? 2 : 4;
+      logger.log(log_level,
+                 "Interpolation stats: {} calls took {:.3f} s",
+                 total_interp_call_count_,
+                 total_interp_call_time_);
+#endif
+      if (step_result) {
         return ProverResult::TRUE;
       } else if (concrete_cex_) {
         compute_witness();
@@ -271,9 +280,15 @@ bool DualApproxReach::global_strengthen()
   assert(int_assertions.size() == unsat_idx + 2);
   solver_->pop(int_assertions.size());  // pop all assertions
 
+#ifndef NDEBUG
+  const std::clock_t start_t = std::clock();
+#endif
   TermVec int_itpseq;
   Result int_r =
       interpolator_->get_sequence_interpolants(int_assertions, int_itpseq);
+#ifndef NDEBUG
+  log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
+#endif
   if (!int_r.is_unsat()) {
     throw PonoException(
         "DAR: global strengthening failed, expect UNSAT interpolation query");
@@ -310,8 +325,14 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     Term b = unroller_.at_time(backward_seq_.at(seq_len - 1 - i), 1);
     Term int_b = to_interpolator_.transfer_term(b);
     Term int_itp;
+#ifndef NDEBUG
+    const std::clock_t start_t = std::clock();
+#endif
     Result r = interpolator_->get_interpolant(
         interpolator_->make_term(And, int_f, int_tr), int_b, int_itp);
+#ifndef NDEBUG
+    log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
+#endif
     if (!r.is_unsat()) {
       throw PonoException(
           "DAR: pairwise strengthening failed, "
@@ -335,8 +356,14 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
     Term b = unroller_.at_time(backward_seq_.at(i), 1);
     Term int_b = to_interpolator_.transfer_term(b);
     Term int_itp;
+#ifndef NDEBUG
+    const std::clock_t start_t = std::clock();
+#endif
     Result r = interpolator_->get_interpolant(
         interpolator_->make_term(And, int_b, int_tr), int_f, int_itp);
+#ifndef NDEBUG
+    log_interp_time(start_t, total_interp_call_count_, total_interp_call_time_);
+#endif
     if (!r.is_unsat()) {
       throw PonoException(
           "DAR: pairwise strengthening failed, "

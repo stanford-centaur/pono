@@ -23,6 +23,7 @@
 
 #include "smt-switch/logging_solver.h"
 #include "smt-switch/printing_solver.h"
+#include "utils/logger.h"
 
 // these two always included
 #include "smt-switch/bitwuzla_factory.h"
@@ -315,6 +316,38 @@ SmtSolver create_interpolating_solver_for(SolverEnum se,
       throw SmtException("Unhandled solver enum");
     }
   }
+}
+
+SmtSolver create_quantifier_solver(smt::SolverEnum se,
+                                   bool logging,
+                                   bool printing,
+                                   const StringMap & solver_opts)
+{
+  check_allowed_smt_opts(solver_opts);
+  const SolverEnum fallback_se = CVC5;
+  const auto se_attribs = get_solver_attributes(se);
+  if (se_attribs.find(QUANTIFIERS) == se_attribs.end()) {
+    logger.log(1,
+               "WARNING: Solver {} does not support quantifiers, "
+               "using {} instead.",
+               to_string(se),
+               to_string(fallback_se));
+    se = fallback_se;
+  } else if (se == BTOR || se == MSAT) {
+    // Boolector may run into segfaults; MathSAT oftentimes return UNKNOWN
+    logger.log(
+        1,
+        "WARNING: Solver {} does not work well with quantifiers in practice, "
+        "using {} instead.",
+        to_string(se),
+        to_string(fallback_se));
+    se = fallback_se;
+  }
+  SmtSolver s = create_solver_base(se, logging, printing);
+  for (const auto & optpair : solver_opts) {
+    s->set_opt(optpair.first, optpair.second);
+  }
+  return s;
 }
 
 const std::vector<SolverEnum> itp_enums({

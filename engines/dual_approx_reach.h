@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "engines/prover.h"
 #include "smt-switch/smt.h"
 
@@ -71,6 +73,12 @@ class DualApproxReach : public SafetyProver
   smt::TermVec forward_seq_;
   // backward reachability sequence: <B_0=Bad, B_1, B_2, ...>
   smt::TermVec backward_seq_;
+
+#ifndef NDEBUG
+  std::uint32_t total_interp_call_count_ = 0;
+  double total_interp_call_time_ = 0.0;
+#endif
+
 };  // class DualApproxReach
 
 }  // namespace pono
