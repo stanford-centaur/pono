@@ -20,7 +20,7 @@ EOF
 }
 
 get_msat=default
-msat_version="5.6.4"
+msat_version="5.6.12"
 mast_release_url="https://mathsat.fbk.eu/release"
 
 while [ $# -gt 0 ]
@@ -48,7 +48,7 @@ if [ ! -d "$DEPS/mathsat" ]; then
     if [[ "$OSTYPE" == linux* ]]; then
         wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-linux-x86_64.tar.gz
     elif [[ "$OSTYPE" == darwin* ]]; then
-        wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-darwin-libcxx-x86_64.tar.gz
+        wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-macos.tar.gz
     elif [[ "$OSTYPE" == msys* ]]; then
         wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-win64-msvc.zip
     elif [[ "$OSTYPE" == cygwin* ]]; then
