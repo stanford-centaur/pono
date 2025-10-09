@@ -1,18 +1,22 @@
-#include <utility>
+#include <tuple>
+#include <vector>
 
 #include "core/fts.h"
 #include "core/prop.h"
+#include "core/proverresult.h"
+#include "core/rts.h"
+#include "core/ts.h"
 #include "engines/kinduction.h"
 #include "gtest/gtest.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/prop_monitor.h"
+#include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 
 using namespace pono;
 using namespace smt;
-using namespace std;
 
 namespace pono_tests {
 
