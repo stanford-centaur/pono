@@ -158,7 +158,7 @@ open build/html/index.html
 
 ## Generating BTOR2 from Verilog
 
-The best tool for creating BTOR2 from Verilog is [Yosys](https://github.com/YosysHQ/yosys). Yosys has an excellent manual [here](http://www.clifford.at/yosys/files/yosys_manual.pdf). 
+The best tool for creating BTOR2 from Verilog is [Yosys](https://github.com/YosysHQ/yosys). Yosys has an excellent manual [here](https://yosyshq.readthedocs.io/projects/yosys/en/latest/).
 You can also run yosys interactively by running yosys with no arguments. Then you can view help messages for each command with: `help <command>`. Running `help` with no arguments lists all commands.
 
 A particularly useful command if you're having trouble is `show`, which can show the current state of the circuit in Yosys.
