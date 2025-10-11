@@ -34,6 +34,9 @@ const unordered_map<string, pono::ProverResult> smv_inputs(
       { "combined-true.smv", pono::ProverResult::TRUE },
       { "counter_yosys.smv", pono::ProverResult::FALSE },
       { "counter_bitvector.smv", pono::ProverResult::FALSE },
-      { "counter_boolean.smv", pono::ProverResult::FALSE } });
+      { "counter_boolean.smv", pono::ProverResult::FALSE },
+      { "ternary.smv", pono::ProverResult::TRUE },
+      { "real_arithmetic.smv", pono::ProverResult::TRUE },
+      { "real_arithmetic_floor.smv", pono::ProverResult::FALSE } });
 
 }  // namespace pono_tests
