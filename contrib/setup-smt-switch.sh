@@ -37,38 +37,38 @@ INCL_SOLVER_STR="bitwuzla and cvc5"
 
 while [ $# -gt 0 ]; do
   case $1 in
-  -h | --help) usage ;;
-  --with-msat)
-    WITH_MSAT=ON
-    CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat"
-    INCL_SOLVER_STR="mathsat, $INCL_SOLVER_STR"
-    ;;
-  --with-btor)
-    WITH_BOOLECTOR=ON
-    CONF_OPTS="$CONF_OPTS --btor"
-    INCL_SOLVER_STR="boolector, $INCL_SOLVER_STR"
-    ;;
-  --with-yices2)
-    WITH_YICES2=ON
-    CONF_OPTS="$CONF_OPTS --yices2"
-    INCL_SOLVER_STR="yices2, $INCL_SOLVER_STR"
-    ;;
-  --python)
-    WITH_PYTHON=YES
-    CONF_OPTS="$CONF_OPTS --python"
-    ;;
-  --cvc5-home) die "missing argument to $1 (see -h)" ;;
-  --cvc5-home=*)
-    cvc5_home=${1##*=}
-    # Check if cvc5_home is an absolute path and
-    # if not, make it absolute.
-    case $cvc5_home in
-    /*) ;;                            # absolute path
-    *) cvc5_home=$(pwd)/$cvc5_home ;; # make absolute path
-    esac
-    CONF_OPTS="$CONF_OPTS --cvc5-home=$cvc5_home"
-    ;;
-  *) die "unexpected argument: $1" ;;
+    -h | --help) usage ;;
+    --with-msat)
+      WITH_MSAT=ON
+      CONF_OPTS="$CONF_OPTS --msat --msat-home=../mathsat"
+      INCL_SOLVER_STR="mathsat, $INCL_SOLVER_STR"
+      ;;
+    --with-btor)
+      WITH_BOOLECTOR=ON
+      CONF_OPTS="$CONF_OPTS --btor"
+      INCL_SOLVER_STR="boolector, $INCL_SOLVER_STR"
+      ;;
+    --with-yices2)
+      WITH_YICES2=ON
+      CONF_OPTS="$CONF_OPTS --yices2"
+      INCL_SOLVER_STR="yices2, $INCL_SOLVER_STR"
+      ;;
+    --python)
+      WITH_PYTHON=YES
+      CONF_OPTS="$CONF_OPTS --python"
+      ;;
+    --cvc5-home) die "missing argument to $1 (see -h)" ;;
+    --cvc5-home=*)
+      cvc5_home=${1##*=}
+      # Check if cvc5_home is an absolute path and
+      # if not, make it absolute.
+      case $cvc5_home in
+        /*) ;;                            # absolute path
+        *) cvc5_home=$(pwd)/$cvc5_home ;; # make absolute path
+      esac
+      CONF_OPTS="$CONF_OPTS --cvc5-home=$cvc5_home"
+      ;;
+    *) die "unexpected argument: $1" ;;
   esac
   shift
 done
