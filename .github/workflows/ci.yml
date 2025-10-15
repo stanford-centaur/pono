@@ -1,0 +1,66 @@
+name: CI
+on:
+  push:
+  workflow_dispatch:  # allow manual trigger
+jobs:
+  build:
+    name: ubuntu-22.04:release-static
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            antlr3 \
+            cmake \
+            libantlr3c-dev \
+            libbison-dev \
+            libcln-dev \
+            libgmp-dev \
+            libfl-dev \
+            libhamcrest-java \
+            openjdk-8-jdk \
+            swig3.0
+      - name: Create Python Environment
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python3 -m pip install \
+            Cython \
+            pytest
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> $GITHUB_PATH
+      - name: Download MathSAT
+        run: travis-scripts/setup-msat.sh --auto-yes
+      - name: Set up Btor2tools
+        run: contrib/setup-btor2tools.sh
+      - name: Set up Smt-Switch
+        run: contrib/setup-smt-switch.sh --python --with-msat
+      - name: Install Smt-Switch Python bindings
+        run: python3 -m pip install -e deps/smt-switch/build/python
+      - name: Configure
+        run: ./configure.sh --python --with-msat --static
+      - name: Build
+        run: make -C build -j
+      - name: Upload built executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: pono
+          path: build/pono
+      - name: Test C++
+        id: test-cpp
+        continue-on-error: true
+        run: make -C build test
+      - name: Upload failing test log
+        if: steps.test-cpp.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-${{ github.run_id }}
+          path: build/tests/Testing/Temporary/LastTest.log
+      - name: Fail pipeline due to C++ test failure
+        if: steps.test-cpp.outcome == 'failure'
+        run: echo "C++ tests failed. Inspect the artifact for details." && exit 1
+      - name: Install Python Bindings
+        run: python3 -m pip install -e build/python
+      - name: Test Python Bindings
+        run: python3 -m pytest tests

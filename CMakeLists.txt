@@ -52,8 +52,6 @@ if (BISON_FOUND)
   link_directories("${BISON_PARENT_DIR}/../lib/")
 endif()
 
-find_library(LIBRT rt)
-
 message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
 message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
 
@@ -259,14 +257,10 @@ endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
 target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
-target_link_libraries(pono-lib PUBLIC "${GMPXX_LIBRARIES}")
-target_link_libraries(pono-lib PUBLIC "${GMP_LIBRARIES}")
+target_link_libraries(pono-lib PUBLIC gmpxx)
+target_link_libraries(pono-lib PUBLIC gmp)
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
-
-if (LIBRT)
-  target_link_libraries(pono-lib PUBLIC ${LIBRT})
-endif()
 
 if (GOOGLE_PERF)
   target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
