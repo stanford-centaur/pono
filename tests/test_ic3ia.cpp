@@ -31,6 +31,11 @@ class IC3IAUnitTests : public ::testing::Test,
 
 TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 {
+#ifdef __APPLE__
+  if (GetParam() == MSAT) {
+    GTEST_SKIP() << "MathSAT causes segfault in this test on macOS";
+  }
+#endif
   FunctionalTransitionSystem fts(s);
   Term s1 = fts.make_statevar("s1", boolsort);
   Term s2 = fts.make_statevar("s2", boolsort);
@@ -57,6 +62,11 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 
 TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 {
+#ifdef __APPLE__
+  if (GetParam() == MSAT) {
+    GTEST_SKIP() << "MathSAT causes segfault in this test on macOS";
+  }
+#endif
   FunctionalTransitionSystem fts(s);
   Term s1 = fts.make_statevar("s1", boolsort);
   Term s2 = fts.make_statevar("s2", boolsort);
