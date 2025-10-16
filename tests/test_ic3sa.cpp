@@ -68,6 +68,11 @@ TEST_P(IC3SAUnitTests, SimpleSystemSafe)
 
 TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)
 {
+#ifdef __APPLE__
+  if (GetParam() == MSAT) {
+    GTEST_SKIP() << "MathSAT causes segfault in this test on macOS";
+  }
+#endif
   TransitionSystem ts = simple_uvw_system(s);
   Term u = ts.named_terms().at("u");
   Term v = ts.named_terms().at("v");
@@ -88,6 +93,11 @@ TEST_P(IC3SAUnitTests, SimpleSystemUnsafe)
 
 TEST_P(IC3SAUnitTests, SimpleCounter)
 {
+#ifdef __APPLE__
+  if (GetParam() == MSAT) {
+    GTEST_SKIP() << "MathSAT causes segfault in this test on macOS";
+  }
+#endif
   FunctionalTransitionSystem fts(s);
   Sort bvsort8 = fts.make_sort(BV, 8);
   Sort boolsort = fts.make_sort(BOOL);

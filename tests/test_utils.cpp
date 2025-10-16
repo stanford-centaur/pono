@@ -112,6 +112,12 @@ TEST_P(UtilsUnitTests, CheckInvarFalseNonState)
 
 TEST_P(UtilsEngineUnitTests, MakeProver)
 {
+#ifdef __APPLE__
+  if (get<0>(GetParam()) == MSAT && get<1>(GetParam()) == IC3SA_ENGINE) {
+    GTEST_SKIP() << "MathSAT causes segfault with IC3SA in this test on macOS";
+  }
+#endif
+
   // use default solver
   FunctionalTransitionSystem fts;
   Sort bvsort8 = fts.make_sort(BV, 8);
