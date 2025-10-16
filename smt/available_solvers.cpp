@@ -45,6 +45,10 @@
 #include "smt-switch/yices2_factory.h"
 #endif
 
+#if WITH_Z3
+#include "smt-switch/z3_factory.h"
+#endif
+
 using namespace smt;
 using namespace std;
 
@@ -85,6 +89,10 @@ const std::vector<SolverEnum> solver_enums({
 #if WITH_YICES2
     YICES2,
 #endif
+
+#if WITH_Z3
+    Z3,
+#endif
 });
 
 // internal method for creating a particular solver
@@ -119,6 +127,12 @@ SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
 #if WITH_YICES2
     case YICES2: {
       s = Yices2SolverFactory::create(logging);
+      break;
+    }
+#endif
+#if WITH_Z3
+    case Z3: {
+      s = Z3SolverFactory::create(logging);
       break;
     }
 #endif

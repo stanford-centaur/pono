@@ -225,7 +225,8 @@ const option::Descriptor usage[] = {
     "",
     "smt-solver",
     Arg::NonEmpty,
-    "  --smt-solver \tSMT solver to use: btor, bzla, msat, yices2, or cvc5. "
+    "  --smt-solver \tSMT solver to use: btor, bzla, cvc5, msat, yices2, or "
+    "z3. "
     "(default: bzla)" },
   { SMT_SOLVER_OPT,
     0,
@@ -840,6 +841,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
             smt_solver_ = smt::MSAT;
           } else if (opt.arg == std::string("yices2")) {
             smt_solver_ = smt::YICES2;
+          } else if (opt.arg == std::string("z3")) {
+            smt_solver_ = smt::Z3;
           } else {
             throw PonoException("Unknown solver: " + std::string(opt.arg));
           }
