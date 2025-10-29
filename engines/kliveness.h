@@ -37,6 +37,8 @@ class KLiveness : public LivenessProver
 
   ProverResult check_until(int k) override;
 
+  bool witness(std::vector<smt::UnorderedTermMap> & out) override;
+
  protected:
   /** Instruments the original TS with counter.
    *  Returns a pair of <safety property, counter>.
@@ -56,13 +58,23 @@ class KLiveness : public LivenessProver
    */
   bool detect_revisit_in_cex(const TransitionSystem & ts,
                              std::shared_ptr<SafetyProver> safety_prover,
-                             smt::Term counter) const;
+                             smt::TermTranslator & to_safety_prover,
+                             smt::Term counter);
 
   /* Perform BMC in lock-step to find a lasso */
-  bool find_lasso_by_bmc(int bound) const;
+  bool find_lasso_by_bmc(int bound);
 
   unsigned long live_count_;
   std::unique_ptr<SafetyProver> bmc_prover_;
+  std::unique_ptr<smt::TermTranslator> to_bmc_prover_;
+
+  // whther the last attempt to extract cex from safety prover was successful
+  bool cex_successful_ = false;
+
+  void store_cex(
+      const std::vector<smt::UnorderedTermMap> & cex_from_safety_prover,
+      const std::size_t cex_length,
+      smt::TermTranslator & to_safety_prover);
 };  // class KLiveness
 
 }  // namespace pono

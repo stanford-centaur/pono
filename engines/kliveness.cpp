@@ -66,10 +66,10 @@ void KLiveness::initialize()
                                                   options_.ceg_prophecy_arrays_,
                                                   options_.printing_smt_solver_,
                                                   options_.smt_solver_opts_);
-    smt::TermTranslator tt(bmc_solver);
-    TransitionSystem l2s_ts(ts_, tt);
+    to_bmc_prover_ = std::make_unique<smt::TermTranslator>(bmc_solver);
+    TransitionSystem l2s_ts(ts_, *to_bmc_prover_);
     smt::Term l2s_prop_term = LivenessToSafetyTranslator{}.translate(
-        l2s_ts, { tt.transfer_term(justice_conditions_.front()) });
+        l2s_ts, { to_bmc_prover_->transfer_term(justice_conditions_.front()) });
     SafetyProperty l2s_prop(bmc_solver, l2s_prop_term);
     bmc_prover_ = std::make_unique<Bmc>(l2s_prop, l2s_ts, bmc_solver, options_);
   }
@@ -120,7 +120,7 @@ ProverResult KLiveness::check_until(int k)
     } else if (res == ProverResult::FALSE) {
       // FALSE (sat) may be spurious and requires additional checks
       if (options_.klive_check_lasso_in_cex_
-          && detect_revisit_in_cex(ts_k, safety_prover, counter)) {
+          && detect_revisit_in_cex(ts_k, safety_prover, tt, counter)) {
         return res;
       }
       if (options_.klive_lockstep_bmc_
@@ -130,6 +130,11 @@ ProverResult KLiveness::check_until(int k)
     }
   }
   return ProverResult::UNKNOWN;
+}
+
+bool KLiveness::witness(std::vector<smt::UnorderedTermMap> & out)
+{
+  return super::witness(out) && cex_successful_;
 }
 
 std::pair<smt::Term, smt::Term> KLiveness::instrument_ts(
@@ -207,14 +212,15 @@ std::shared_ptr<SafetyProver> KLiveness::make_safety_prover(
 bool KLiveness::detect_revisit_in_cex(
     const TransitionSystem & ts,
     std::shared_ptr<SafetyProver> safety_prover,
-    smt::Term counter) const
+    smt::TermTranslator & to_safety_prover,
+    smt::Term counter)
 {
   if (live_count_ == 1) {
     // obviously no revisit when justice signal is triggered only once
     return false;
   }
   std::vector<smt::UnorderedTermMap> cex;
-  safety_prover->witness(cex);
+  cex_successful_ = safety_prover->witness(cex);
   assert(cex.size() >= live_count_ + 1);
 
   // identify the time steps where the justice signal is true
@@ -261,7 +267,7 @@ bool KLiveness::detect_revisit_in_cex(
                  "(loop from step {} to {})",
                  visited.at(state_vals),
                  step);
-      // TODO: store the lasso
+      store_cex(cex, step + 1, to_safety_prover);
 #ifndef NDEBUG
       for (size_t t = 0; t <= step; ++t) {
         std::string step_info = (t == visited.at(state_vals)) ? " (loop start)"
@@ -281,16 +287,64 @@ bool KLiveness::detect_revisit_in_cex(
   return false;
 }
 
-bool KLiveness::find_lasso_by_bmc(int bound) const
+bool KLiveness::find_lasso_by_bmc(int bound)
 {
   assert(bmc_prover_);
   if (bmc_prover_->check_until(bound) == ProverResult::FALSE) {
     logger.log(
         2, "BMC found a lasso at bound {}", bmc_prover_->witness_length());
-    // TODO: store the lasso
+    std::vector<smt::UnorderedTermMap> cex;
+    cex_successful_ = bmc_prover_->witness(cex);
+    store_cex(cex, cex.size(), *to_bmc_prover_);
     return true;
   }
   return false;
+}
+
+void KLiveness::store_cex(
+    const std::vector<smt::UnorderedTermMap> & cex_from_safety_prover,
+    const std::size_t cex_length,
+    smt::TermTranslator & to_safety_prover)
+{
+  assert(cex_from_safety_prover.size() >= cex_length);
+  assert(witness_.empty());
+  smt::TermTranslator to_orig_ts_solver(orig_ts_.solver());
+
+  // add symbols to cache
+  smt::UnorderedTermMap & cache = to_orig_ts_solver.get_cache();
+  for (const auto & v : orig_ts_.statevars()) {
+    cache[to_safety_prover.transfer_term(v)] = v;
+  }
+  for (const auto & v : orig_ts_.inputvars()) {
+    cache[to_safety_prover.transfer_term(v)] = v;
+  }
+
+  for (std::size_t t = 0; t < cex_length; ++t) {
+    witness_.push_back(smt::UnorderedTermMap());
+    smt::UnorderedTermMap & map = witness_.back();
+
+    for (const auto & v : orig_ts_.statevars()) {
+      const smt::SortKind & sk = v->get_sort()->get_sort_kind();
+      const smt::Term & pv = to_safety_prover.transfer_term(v, sk);
+      map[v] = to_orig_ts_solver.transfer_term(
+          cex_from_safety_prover.at(t).at(pv), sk);
+    }
+
+    for (const auto & v : orig_ts_.inputvars()) {
+      const smt::SortKind & sk = v->get_sort()->get_sort_kind();
+      const smt::Term & pv = to_safety_prover.transfer_term(v, sk);
+      map[v] = to_orig_ts_solver.transfer_term(
+          cex_from_safety_prover.at(t).at(pv), sk);
+    }
+
+    for (const auto & elem : orig_ts_.named_terms()) {
+      const smt::Term & v = elem.second;
+      const smt::SortKind & sk = v->get_sort()->get_sort_kind();
+      const smt::Term & pv = to_safety_prover.transfer_term(v, sk);
+      map[v] = to_orig_ts_solver.transfer_term(
+          cex_from_safety_prover.at(t).at(pv), sk);
+    }
+  }
 }
 
 }  // namespace pono

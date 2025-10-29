@@ -322,6 +322,13 @@ int main(int argc, char ** argv)
         LivenessProperty justice_prop(s, justicevec[pono_options.prop_idx_]);
         KLiveness justice_prover(justice_prop, fts, s, pono_options);
         res = justice_prover.check_until(pono_options.bound_);
+        if (res == ProverResult::FALSE && pono_options.witness_) {
+          if (!justice_prover.witness(cex)) {
+            logger.log(0,
+                       "Only got a partial witness from engine. "
+                       "Not suitable for printing.");
+          }
+        }
       } else {
         res = check_prop(pono_options, prop, fts, s, cex);
       }
