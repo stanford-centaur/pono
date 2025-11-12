@@ -129,13 +129,9 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(std::vector<TSEnum>{ Functional,
                                                             Relational })));
 
-vector<SolverEnum> get_interpolating_solvers()
+std::vector<SolverEnum> get_interpolating_solvers()
 {
-  vector<SolverEnum> itp_solvers = available_interpolator_enums();
-  // remove cvc5 because if often fails
-  itp_solvers.erase(
-      std::remove(itp_solvers.begin(), itp_solvers.end(), CVC5_INTERPOLATOR),
-      itp_solvers.end());
+  std::vector<SolverEnum> itp_solvers = available_interpolator_enums();
   return itp_solvers;
 }
 
@@ -168,6 +164,9 @@ TEST_P(InterpUnitTest, InterpTrue)
 
 TEST_P(InterpUnitTest, InterpFalse)
 {
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 interpolation fails for this case";
+  }
   InterpolantMC itpmc(*false_p, *ts, s, opts);
   ProverResult r = itpmc.check_until(20);
   ASSERT_EQ(r, ProverResult::FALSE);
@@ -331,6 +330,9 @@ TEST_P(NonInductiveInterpTest, InterpWin)
         << "Skipping BZLA_INTERPOLATOR due to "
            "https://github.com/bitwuzla/bitwuzla-interpolants/issues/2";
   }
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 interpolation fails for this case";
+  }
   InterpolantMC itpmc(*true_p, *ts, s, opts);
   ProverResult r = itpmc.check_until(10);
   ASSERT_EQ(r, ProverResult::TRUE);
@@ -386,6 +388,9 @@ class InterpOptionsTests
 
 TEST_P(InterpOptionsTests, CounterSystemUnsafe)
 {
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 interpolation fails for this case";
+  }
   Term x = fts.named_terms().at("x");
 
   Term prop_term = s->make_term(BVUlt, x, max_val);
