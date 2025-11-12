@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <tuple>
 #include <vector>
 
@@ -30,7 +29,7 @@ enum TSEnum
   Relational
 };
 
-class EngineUnitTests
+class EngineTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<std::tuple<SolverEnum, TSEnum>>
 {
@@ -46,8 +45,8 @@ class EngineUnitTests
       ts = new RelationalTransitionSystem();
     }
 
-    bvsort8 = ts->make_sort(BV, 8);
-    max_val = ts->make_term(7, bvsort8);
+    Sort bvsort8 = ts->make_sort(BV, 8);
+    Term max_val = ts->make_term(7, bvsort8);
 
     // populate TS with basic resetting counter system
     counter_system(*ts, max_val);
@@ -61,14 +60,12 @@ class EngineUnitTests
     false_p = new SafetyProperty(ts->solver(), false_prop);
   }
   SolverEnum se;
-  Sort bvsort8;
-  Term max_val;
   TransitionSystem * ts;
   SafetyProperty * true_p;
   SafetyProperty * false_p;
 };
 
-TEST_P(EngineUnitTests, BmcTrue)
+TEST_P(EngineTest, BmcTrue)
 {
   SmtSolver s = create_solver(se);
   Bmc b(*true_p, *ts, s);
@@ -76,7 +73,7 @@ TEST_P(EngineUnitTests, BmcTrue)
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
-TEST_P(EngineUnitTests, BmcFalse)
+TEST_P(EngineTest, BmcFalse)
 {
   SmtSolver s = create_solver(se);
   Bmc b(*false_p, *ts, s);
@@ -86,7 +83,7 @@ TEST_P(EngineUnitTests, BmcFalse)
   ASSERT_TRUE(b.witness(cex));
 }
 
-TEST_P(EngineUnitTests, BmcSimplePathTrue)
+TEST_P(EngineTest, BmcSimplePathTrue)
 {
   SmtSolver s = create_solver(se);
   BmcSimplePath bsp(*true_p, *ts, s);
@@ -94,7 +91,7 @@ TEST_P(EngineUnitTests, BmcSimplePathTrue)
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
-TEST_P(EngineUnitTests, BmcSimplePathFalse)
+TEST_P(EngineTest, BmcSimplePathFalse)
 {
   SmtSolver s = create_solver(se);
   BmcSimplePath bsp(*false_p, *ts, s);
@@ -104,7 +101,7 @@ TEST_P(EngineUnitTests, BmcSimplePathFalse)
   ASSERT_TRUE(bsp.witness(cex));
 }
 
-TEST_P(EngineUnitTests, KInductionTrue)
+TEST_P(EngineTest, KInductionTrue)
 {
   SmtSolver s = create_solver(se);
   KInduction kind(*true_p, *ts, s);
@@ -112,7 +109,7 @@ TEST_P(EngineUnitTests, KInductionTrue)
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
-TEST_P(EngineUnitTests, KInductionFalse)
+TEST_P(EngineTest, KInductionFalse)
 {
   SmtSolver s = create_solver(se);
   KInduction kind(*false_p, *ts, s);
@@ -123,30 +120,28 @@ TEST_P(EngineUnitTests, KInductionFalse)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedEngineUnitTests,
-    EngineUnitTests,
+    ParametrizedEngineTest,
+    EngineTest,
     testing::Combine(testing::ValuesIn(available_solver_enums()),
                      testing::ValuesIn(std::vector<TSEnum>{ Functional,
                                                             Relational })));
 
-class InterpUnitTest : public EngineUnitTests
+class InterpEngineTest : public EngineTest
 {
  protected:
   void SetUp() override
   {
-    EngineUnitTests::SetUp();
-
+    EngineTest::SetUp();
     // configure the interpolator in the options
     opts.smt_interpolator_ = se;
-
     // use Bitwuzla as the base solver
-    s = create_solver(MSAT);
+    s = create_solver(BZLA);
   }
   SmtSolver s;
   PonoOptions opts;
 };
 
-TEST_P(InterpUnitTest, InterpTrue)
+TEST_P(InterpEngineTest, InterpTrue)
 {
   InterpolantMC itpmc(*true_p, *ts, s, opts);
   ProverResult r = itpmc.check_until(20);
@@ -156,7 +151,7 @@ TEST_P(InterpUnitTest, InterpTrue)
   ASSERT_TRUE(check_invar(*ts, true_p->prop(), invar));
 }
 
-TEST_P(InterpUnitTest, InterpFalse)
+TEST_P(InterpEngineTest, InterpFalse)
 {
   if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
     GTEST_SKIP() << "cvc5 interpolation fails for this case";
@@ -168,7 +163,7 @@ TEST_P(InterpUnitTest, InterpFalse)
   ASSERT_TRUE(itpmc.witness(cex));
 }
 
-TEST_P(InterpUnitTest, IsmcTrue)
+TEST_P(InterpEngineTest, IsmcTrue)
 {
   InterpSeqMC ismc(*true_p, *ts, s, opts);
   ProverResult r = ismc.check_until(20);
@@ -177,7 +172,7 @@ TEST_P(InterpUnitTest, IsmcTrue)
   ASSERT_TRUE(check_invar(*ts, true_p->prop(), invar));
 }
 
-TEST_P(InterpUnitTest, IsmcFalse)
+TEST_P(InterpEngineTest, IsmcFalse)
 {
   InterpSeqMC ismc(*false_p, *ts, s, opts);
   ProverResult r = ismc.check_until(20);
@@ -186,7 +181,7 @@ TEST_P(InterpUnitTest, IsmcFalse)
   ASSERT_TRUE(ismc.witness(cex));
 }
 
-TEST_P(InterpUnitTest, DarTrue)
+TEST_P(InterpEngineTest, DarTrue)
 {
   DualApproxReach dar(*true_p, *ts, s, opts);
   ProverResult r = dar.check_until(20);
@@ -195,7 +190,7 @@ TEST_P(InterpUnitTest, DarTrue)
   ASSERT_TRUE(check_invar(*ts, true_p->prop(), invar));
 }
 
-TEST_P(InterpUnitTest, DarFalse)
+TEST_P(InterpEngineTest, DarFalse)
 {
   DualApproxReach dar(*false_p, *ts, s, opts);
   ProverResult r = dar.check_until(20);
@@ -205,8 +200,8 @@ TEST_P(InterpUnitTest, DarFalse)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedInterpUnitTest,
-    InterpUnitTest,
+    ParametrizedInterpEngineTest,
+    InterpEngineTest,
     testing::Combine(testing::ValuesIn(available_interpolator_enums()),
                      testing::ValuesIn({ Functional, Relational })));
 
@@ -289,7 +284,7 @@ INSTANTIATE_TEST_SUITE_P(
     NonInductiveTest,
     testing::ValuesIn({ Functional, Relational }));
 
-class NonInductiveInterpTest
+class InterpNonInductiveTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<std::tuple<SolverEnum, TSEnum>>
 {
@@ -317,13 +312,8 @@ class NonInductiveInterpTest
   PonoOptions opts;
 };
 
-TEST_P(NonInductiveInterpTest, InterpWin)
+TEST_P(InterpNonInductiveTest, InterpWin)
 {
-  if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
-    GTEST_SKIP()
-        << "Skipping BZLA_INTERPOLATOR due to "
-           "https://github.com/bitwuzla/bitwuzla-interpolants/issues/2";
-  }
   if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
     GTEST_SKIP() << "cvc5 interpolation fails for this case";
   }
@@ -333,8 +323,8 @@ TEST_P(NonInductiveInterpTest, InterpWin)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParametrizedNonInductiveInterpTest,
-    NonInductiveInterpTest,
+    ParametrizedInterpNonInductiveTest,
+    InterpNonInductiveTest,
     testing::Combine(testing::ValuesIn(available_interpolator_enums()),
                      testing::ValuesIn({ Functional, Relational })));
 
@@ -356,7 +346,7 @@ std::vector<PonoOptions> get_interp_options()
            no_frontier_simp };
 }
 
-class InterpOptionsTests
+class InterpOptionsTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<std::tuple<SolverEnum, PonoOptions>>
 {
@@ -364,7 +354,7 @@ class InterpOptionsTests
   void SetUp() override
   {
     s = create_solver_for(MSAT, INTERP, false);
-    bvsort8 = s->make_sort(BV, 8);
+    Sort bvsort8 = s->make_sort(BV, 8);
     max_val = s->make_term(10, bvsort8);
     fts = FunctionalTransitionSystem(s);
     counter_system(fts, max_val);
@@ -374,13 +364,12 @@ class InterpOptionsTests
     opts.smt_interpolator_ = std::get<0>(t);
   }
   SmtSolver s;
-  Sort bvsort8;
   Term max_val;                    // max value for counter system
   FunctionalTransitionSystem fts;  // counter system
   PonoOptions opts;
 };
 
-TEST_P(InterpOptionsTests, CounterSystemUnsafe)
+TEST_P(InterpOptionsTest, CounterSystemUnsafe)
 {
   if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
     GTEST_SKIP() << "cvc5 interpolation fails for this case";
@@ -397,7 +386,7 @@ TEST_P(InterpOptionsTests, CounterSystemUnsafe)
   ASSERT_TRUE(interp_mc.witness(cex));
 }
 
-TEST_P(InterpOptionsTests, CounterSystemSafe)
+TEST_P(InterpOptionsTest, CounterSystemSafe)
 {
   Term x = fts.named_terms().at("x");
 
@@ -412,8 +401,8 @@ TEST_P(InterpOptionsTests, CounterSystemSafe)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedInterpOptionsTests,
-    InterpOptionsTests,
+    ParametrizedInterpOptionsTest,
+    InterpOptionsTest,
     testing::Combine(testing::ValuesIn(available_interpolator_enums()),
                      testing::ValuesIn(get_interp_options())));
 
