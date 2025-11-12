@@ -129,12 +129,6 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(std::vector<TSEnum>{ Functional,
                                                             Relational })));
 
-std::vector<SolverEnum> get_interpolating_solvers()
-{
-  std::vector<SolverEnum> itp_solvers = available_interpolator_enums();
-  return itp_solvers;
-}
-
 class InterpUnitTest : public EngineUnitTests
 {
  protected:
@@ -213,7 +207,7 @@ TEST_P(InterpUnitTest, DarFalse)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedInterpUnitTest,
     InterpUnitTest,
-    testing::Combine(testing::ValuesIn(get_interpolating_solvers()),
+    testing::Combine(testing::ValuesIn(available_interpolator_enums()),
                      testing::ValuesIn({ Functional, Relational })));
 
 SafetyProperty * create_non_inductive_system(TransitionSystem * ts)
@@ -341,7 +335,7 @@ TEST_P(NonInductiveInterpTest, InterpWin)
 INSTANTIATE_TEST_SUITE_P(
     ParametrizedNonInductiveInterpTest,
     NonInductiveInterpTest,
-    testing::Combine(testing::ValuesIn(get_interpolating_solvers()),
+    testing::Combine(testing::ValuesIn(available_interpolator_enums()),
                      testing::ValuesIn({ Functional, Relational })));
 
 std::vector<PonoOptions> get_interp_options()
@@ -420,7 +414,7 @@ TEST_P(InterpOptionsTests, CounterSystemSafe)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedInterpOptionsTests,
     InterpOptionsTests,
-    testing::Combine(testing::ValuesIn(get_interpolating_solvers()),
+    testing::Combine(testing::ValuesIn(available_interpolator_enums()),
                      testing::ValuesIn(get_interp_options())));
 
 }  // namespace pono_tests
