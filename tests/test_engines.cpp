@@ -249,7 +249,54 @@ SafetyProperty * create_non_inductive_system(TransitionSystem * ts)
   return new SafetyProperty(ts->solver(), witness);
 }
 
-class InterpWinTests
+class NonInductiveTest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<TSEnum>
+{
+ protected:
+  void SetUp() override
+  {
+    // use Bitwuzla as the solver
+    s = create_solver(BZLA);
+    if (GetParam() == Functional) {
+      ts = new FunctionalTransitionSystem(s);
+    } else {
+      ts = new RelationalTransitionSystem(s);
+    }
+    true_p = create_non_inductive_system(ts);
+  }
+  SmtSolver s;
+  TransitionSystem * ts;
+  SafetyProperty * true_p;
+};
+
+TEST_P(NonInductiveTest, BmcFail)
+{
+  Bmc b(*true_p, *ts, s);
+  ProverResult r = b.check_until(10);
+  ASSERT_EQ(r, ProverResult::UNKNOWN);
+}
+
+TEST_P(NonInductiveTest, BmcSimplePathWin)
+{
+  BmcSimplePath bsp(*true_p, *ts, s);
+  ProverResult r = bsp.check_until(10);
+  ASSERT_EQ(r, ProverResult::TRUE);
+}
+
+TEST_P(NonInductiveTest, KInductionWin)
+{
+  KInduction kind(*true_p, *ts, s);
+  ProverResult r = kind.check_until(10);
+  ASSERT_EQ(r, ProverResult::TRUE);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ParametrizedNonInductiveTest,
+    NonInductiveTest,
+    testing::ValuesIn({ Functional, Relational }));
+
+class NonInductiveInterpTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<std::tuple<SolverEnum, TSEnum>>
 {
@@ -277,40 +324,7 @@ class InterpWinTests
   PonoOptions opts;
 };
 
-TEST_P(InterpWinTests, BmcFail)
-{
-  if (opts.smt_interpolator_ != get_interpolating_solvers().front()) {
-    GTEST_SKIP()
-        << "Skipping redundant tests on non-interpolation-based engines";
-  }
-  Bmc b(*true_p, *ts, s);
-  ProverResult r = b.check_until(10);
-  ASSERT_EQ(r, ProverResult::UNKNOWN);
-}
-
-TEST_P(InterpWinTests, BmcSimplePathWin)
-{
-  if (opts.smt_interpolator_ != get_interpolating_solvers().front()) {
-    GTEST_SKIP()
-        << "Skipping redundant tests on non-interpolation-based engines";
-  }
-  BmcSimplePath bsp(*true_p, *ts, s);
-  ProverResult r = bsp.check_until(10);
-  ASSERT_EQ(r, ProverResult::TRUE);
-}
-
-TEST_P(InterpWinTests, KInductionWin)
-{
-  if (opts.smt_interpolator_ != get_interpolating_solvers().front()) {
-    GTEST_SKIP()
-        << "Skipping redundant tests on non-interpolation-based engines";
-  }
-  KInduction kind(*true_p, *ts, s);
-  ProverResult r = kind.check_until(10);
-  ASSERT_EQ(r, ProverResult::TRUE);
-}
-
-TEST_P(InterpWinTests, InterpWin)
+TEST_P(NonInductiveInterpTest, InterpWin)
 {
   if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
     GTEST_SKIP()
@@ -323,8 +337,8 @@ TEST_P(InterpWinTests, InterpWin)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedInterpWinTests,
-    InterpWinTests,
+    ParametrizedNonInductiveInterpTest,
+    NonInductiveInterpTest,
     testing::Combine(testing::ValuesIn(get_interpolating_solvers()),
                      testing::ValuesIn({ Functional, Relational })));
 
