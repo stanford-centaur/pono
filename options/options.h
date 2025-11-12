@@ -408,9 +408,9 @@ class PonoOptions
   inline static const StringMap default_smt_solver_opts_ = {};
   static const smt::SolverEnum default_smt_interpolator_ =
 #ifdef WITH_MSAT
-      smt::MSAT;
+      smt::MSAT_INTERPOLATOR;
 #else
-      smt::CVC5;
+      smt::CVC5_INTERPOLATOR;
 #endif
   inline static const StringMap default_smt_interpolator_opts_ = {};
   static const bool default_logging_smt_solver_ = false;
