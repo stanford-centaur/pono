@@ -103,9 +103,6 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
   if (opts.engine_ == Engine::IC3SA_ENGINE) {
     GTEST_SKIP() << "IC3SA does not support Int";
   }
-  if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
-    GTEST_SKIP() << "Bitwuzla does not support Int";
-  }
   Sort sort = solver->make_sort(INT);
   Term x = solver->make_symbol("x", sort);
   FunctionalTransitionSystem fts = counter_ts(solver, x);
@@ -131,9 +128,6 @@ TEST_P(CegOpsUfTests, IntSimpleUnsafe)
 {
   if (opts.engine_ == Engine::IC3SA_ENGINE) {
     GTEST_SKIP() << "IC3SA does not support Int";
-  }
-  if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
-    GTEST_SKIP() << "Bitwuzla does not support Int";
   }
   Sort sort = solver->make_sort(INT);
   Term x = solver->make_symbol("x", sort);
