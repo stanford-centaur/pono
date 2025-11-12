@@ -237,9 +237,8 @@ SafetyProperty * create_non_inductive_system(TransitionSystem * ts)
   return new SafetyProperty(ts->solver(), witness);
 }
 
-class NonInductiveTest
-    : public ::testing::Test,
-      public ::testing::WithParamInterface<TSEnum>
+class NonInductiveTest : public ::testing::Test,
+                         public ::testing::WithParamInterface<TSEnum>
 {
  protected:
   void SetUp() override
@@ -279,10 +278,9 @@ TEST_P(NonInductiveTest, KInductionWin)
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ParametrizedNonInductiveTest,
-    NonInductiveTest,
-    testing::ValuesIn({ Functional, Relational }));
+INSTANTIATE_TEST_SUITE_P(ParametrizedNonInductiveTest,
+                         NonInductiveTest,
+                         testing::ValuesIn({ Functional, Relational }));
 
 class InterpNonInductiveTest
     : public ::testing::Test,
