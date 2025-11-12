@@ -217,6 +217,38 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::ValuesIn(get_interpolating_solvers()),
                      testing::ValuesIn({ Functional, Relational })));
 
+SafetyProperty * create_non_inductive_system(TransitionSystem * ts)
+{
+  SmtSolver s = ts->solver();
+  Sort boolsort = s->make_sort(BOOL);
+  Sort bvsort8 = s->make_sort(BV, 8);
+
+  // Simple non-inductive system/property
+  Term cfg = ts->make_statevar("cfg", boolsort);
+  Term a = ts->make_inputvar("a", bvsort8);
+  Term b = ts->make_inputvar("b", bvsort8);
+  Term initstate = ts->make_statevar("initstate", boolsort);
+  Term out = ts->make_statevar("out", bvsort8);
+  ts->add_constraint(s->make_term(
+      Equal,
+      out,
+      s->make_term(
+          Ite, cfg, s->make_term(BVAdd, a, b), s->make_term(BVSub, a, b))));
+  ts->constrain_init(initstate);
+  ts->assign_next(initstate, s->make_term(false));
+  ts->assign_next(
+      cfg, s->make_term(Or, cfg, initstate));  // keeps the same configuration
+
+  // since property can only use state variables, we need a witness
+  Term prop = s->make_term(Implies,
+                           s->make_term(Not, initstate),
+                           s->make_term(Equal, out, s->make_term(BVAdd, a, b)));
+  Term witness = ts->make_statevar("witness", boolsort);
+  ts->constrain_init(witness);
+  ts->assign_next(witness, prop);
+  return new SafetyProperty(ts->solver(), witness);
+}
+
 class InterpWinTests
     : public ::testing::Test,
       public ::testing::WithParamInterface<std::tuple<SolverEnum, TSEnum>>
@@ -237,38 +269,9 @@ class InterpWinTests
       ts = new RelationalTransitionSystem(s);
     }
 
-    boolsort = s->make_sort(BOOL);
-    bvsort8 = s->make_sort(BV, 8);
-
-    // Simple non-inductive system/property
-    Term cfg = ts->make_statevar("cfg", boolsort);
-    Term a = ts->make_inputvar("a", bvsort8);
-    Term b = ts->make_inputvar("b", bvsort8);
-    Term initstate = ts->make_statevar("initstate", boolsort);
-    Term out = ts->make_statevar("out", bvsort8);
-    ts->add_constraint(s->make_term(
-        Equal,
-        out,
-        s->make_term(
-            Ite, cfg, s->make_term(BVAdd, a, b), s->make_term(BVSub, a, b))));
-    ts->constrain_init(initstate);
-    ts->assign_next(initstate, s->make_term(false));
-    ts->assign_next(
-        cfg, s->make_term(Or, cfg, initstate));  // keeps the same configuration
-
-    // since property can only use state variables, we need a witness
-    Term prop =
-        s->make_term(Implies,
-                     s->make_term(Not, initstate),
-                     s->make_term(Equal, out, s->make_term(BVAdd, a, b)));
-    Term witness = ts->make_statevar("witness", boolsort);
-    ts->constrain_init(witness);
-    ts->assign_next(witness, prop);
-    true_p = new SafetyProperty(ts->solver(), witness);
+    true_p = create_non_inductive_system(ts);
   }
   SmtSolver s;
-  SmtSolver itp;
-  Sort boolsort, bvsort8;
   TransitionSystem * ts;
   SafetyProperty * true_p;
   PonoOptions opts;
