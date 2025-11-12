@@ -358,7 +358,7 @@ class InterpOptionsTests
 
     std::tuple<SolverEnum, PonoOptions> t = GetParam();
     opts = std::get<1>(t);
-    opts.smt_interpolator_ = get<0>(t);
+    opts.smt_interpolator_ = std::get<0>(t);
   }
   SmtSolver s;
   Sort bvsort8;
