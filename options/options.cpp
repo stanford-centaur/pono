@@ -113,7 +113,13 @@ enum optionIndex
   NO_INTERP_FRONTIER_SIMPL,
   INTERP_PROPS,
   INTERP_EAGER_UNROLL,
-  INTERP_BACKWARD
+  INTERP_BACKWARD,
+  KLIVE_BOUND,
+  KLIVE_START_STEP,
+  KLIVE_STEP_SIZE,
+  KLIVE_COUNTER_ENC,
+  KLIVE_NO_CHECK_LASSO_IN_CEX,
+  KLIVE_NO_LOCKSTEP_BMC,
 };
 
 struct Arg : public option::Arg
@@ -296,7 +302,7 @@ const option::Descriptor usage[] = {
     "justice-translator",
     Arg::NonEmpty,
     "  --justice-translator <algorithm> \tSelect liveness to safety "
-    "translation algorithm from [l2s]." },
+    "translation algorithm from [l2s, klive]." },
   { STATICCOI,
     0,
     "",
@@ -723,6 +729,45 @@ const option::Descriptor usage[] = {
     "  --interp-backward \tCompute interpolants in a backward manner, "
     "i.e., not(itp(B, A)), in interp engine "
     "(forward, i.e., itp(A, B), if not specified)" },
+  { KLIVE_BOUND,
+    0,
+    "",
+    "klive-bound",
+    Arg::Numeric,
+    "  --klive-bound \tBound for k-liveness" },
+  { KLIVE_START_STEP,
+    0,
+    "",
+    "klive-start-step",
+    Arg::Numeric,
+    "  --klive-start-step \tStarting step for k-liveness (default: 1)" },
+  { KLIVE_STEP_SIZE,
+    0,
+    "",
+    "klive-step-size",
+    Arg::Numeric,
+    "  --klive-step-size \tStep size for k-liveness (default: 1)" },
+  { KLIVE_COUNTER_ENC,
+    0,
+    "",
+    "klive-counter-enc",
+    Arg::NonEmpty,
+    "  --klive-counter-enc \tEncoding for k-liveness counter: "
+    "bv-binary (default) bv-one-hot, or int" },
+  { KLIVE_NO_CHECK_LASSO_IN_CEX,
+    0,
+    "",
+    "klive-no-check-lasso-in-cex",
+    Arg::None,
+    "  --klive-no-check-lasso-in-cex \tDisable checking for lasso in CEX found "
+    "by safety prover in k-liveness" },
+  { KLIVE_NO_LOCKSTEP_BMC,
+    0,
+    "",
+    "klive-no-lockstep-bmc",
+    Arg::None,
+    "  --klive-no-lockstep-bmc \tDo no perform BMC in lock-step in "
+    "k-liveness" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -1019,6 +1064,37 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case INTERP_EAGER_UNROLL: interp_eager_unroll_ = true; break;
         case INTERP_BACKWARD: interp_backward_ = true; break;
+        case KLIVE_BOUND:
+          klive_bound_ = std::stoul(opt.arg);
+          if (klive_bound_ == 0)
+            throw PonoException("--klive-bound must be greater than 0");
+          break;
+        case KLIVE_START_STEP:
+          klive_start_step_ = std::stoul(opt.arg);
+          if (klive_start_step_ == 0)
+            throw PonoException("--klive-start-step must be greater than 0");
+          break;
+        case KLIVE_STEP_SIZE:
+          klive_step_size_ = std::stoul(opt.arg);
+          if (klive_step_size_ == 0)
+            throw PonoException("--klive-step-size must be greater than 0");
+          break;
+        case KLIVE_COUNTER_ENC:
+          if (opt.arg == std::string("bv-binary")) {
+            klive_counter_encoding_ = KLivenessCounterEncoding::BV_BINARY;
+          } else if (opt.arg == std::string("bv-one-hot")) {
+            klive_counter_encoding_ = KLivenessCounterEncoding::BV_ONE_HOT;
+          } else if (opt.arg == std::string("int")) {
+            klive_counter_encoding_ = KLivenessCounterEncoding::INTEGER;
+          } else {
+            throw PonoException("Unknown --klive-counter-enc option: "
+                                + std::string(opt.arg));
+          }
+          break;
+        case KLIVE_NO_CHECK_LASSO_IN_CEX:
+          klive_check_lasso_in_cex_ = false;
+          break;
+        case KLIVE_NO_LOCKSTEP_BMC: klive_lockstep_bmc_ = false; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
