@@ -1,5 +1,3 @@
-#ifdef WITH_MSAT_IC3IA
-
 #include <vector>
 
 #include "core/rts.h"
@@ -75,5 +73,3 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverMsatIC3IAUnitTests,
                          MsatIC3IAUnitTests,
                          testing::ValuesIn({ MSAT }));
 }  // namespace pono_tests
-
-#endif

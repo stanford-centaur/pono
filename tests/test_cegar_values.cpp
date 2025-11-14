@@ -2,10 +2,8 @@
 #include "engines/cegar_values.h"
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
+#include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
-
-// need mathsat for ic3ia
-#ifdef WITH_MSAT
 
 using namespace pono;
 using namespace smt;
@@ -13,9 +11,19 @@ using namespace std;
 
 namespace pono_tests {
 
-TEST(CegValues, SimpleSafe)
+class CegarValuesTest : public ::testing::TestWithParam<SolverEnum>
 {
-  SmtSolver s = create_solver(MSAT);
+ protected:
+  void SetUp() override
+  {
+    s = create_solver(GetParam());
+    s->set_opt("produce-unsat-assumptions", "true");
+  }
+  SmtSolver s;
+};
+
+TEST_P(CegarValuesTest, SimpleSafe)
+{
   RelationalTransitionSystem rts(s);
   Sort intsort = rts.make_sort(INT);
   Sort arrsort = rts.make_sort(ARRAY, intsort, intsort);
@@ -45,9 +53,8 @@ TEST(CegValues, SimpleSafe)
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
-TEST(CegValues, SimpleUnsafe)
+TEST_P(CegarValuesTest, SimpleUnsafe)
 {
-  SmtSolver s = create_solver(MSAT);
   RelationalTransitionSystem rts(s);
   Sort intsort = rts.make_sort(INT);
   Sort arrsort = rts.make_sort(ARRAY, intsort, intsort);
@@ -79,6 +86,9 @@ TEST(CegValues, SimpleUnsafe)
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
-}  // namespace pono_tests
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedCegarValuesTest,
+    CegarValuesTest,
+    testing::ValuesIn(filter_solver_enums({ THEORY_INT })));
 
-#endif
+}  // namespace pono_tests
