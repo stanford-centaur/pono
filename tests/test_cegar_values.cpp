@@ -1,11 +1,8 @@
-#include <iostream>
-
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/cegar_values.h"
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
 #include "smt-switch/smt.h"
-#include "smt-switch/printing_solver.h"
 #include "smt/available_solvers.h"
 
 using namespace pono;
@@ -20,7 +17,6 @@ class CegarValuesTest : public ::testing::TestWithParam<SolverEnum>
   void SetUp() override
   {
     s = create_solver(GetParam());
-    // s = create_printing_solver(s, &std::cerr, DEFAULT_STYLE);
     s->set_opt("produce-unsat-assumptions", "true");
   }
   SmtSolver s;
