@@ -1,9 +1,7 @@
-#ifdef WITH_MSAT
-// Only run this test with MathSAT
-
 #include "core/fts.h"
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
+#include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 #include "utils/ts_analysis.h"
@@ -159,10 +157,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedSolverIC3IAUnitTests,
+    ParametrizedSolverIC3IAUnitTests,
     IC3IAUnitTests,
-    // only using MathSAT for now, but could be more general in the future
-    testing::ValuesIn({ MSAT }));
+    testing::ValuesIn(filter_solver_enums({ THEORY_INT })));
 }  // namespace pono_tests
-
-#endif
