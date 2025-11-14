@@ -255,7 +255,6 @@ class NonInductiveTest : public ::testing::Test,
   SmtSolver s;
   TransitionSystem * ts;
   SafetyProperty * true_p;
-  PonoOptions opts;
 };
 
 TEST_P(NonInductiveTest, BmcFail)
