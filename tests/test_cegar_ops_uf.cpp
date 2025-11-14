@@ -13,12 +13,7 @@ namespace pono_tests {
 
 unordered_set<Engine> get_cegar_ops_uf_engines()
 {
-  return {
-#ifdef WITH_MSAT
-    IC3IA_ENGINE, INTERP, ISMC, DAR,
-#endif
-    IC3SA_ENGINE, BMC_SP, BMC,  KIND
-  };
+  return { BMC_SP, BMC, DAR, KIND, IC3IA_ENGINE, IC3SA_ENGINE, INTERP, ISMC };
 }
 
 FunctionalTransitionSystem counter_ts(SmtSolver s, const Term & x)
@@ -106,8 +101,7 @@ TEST_P(CegOpsUfTests, BVSimpleUnsafe)
 TEST_P(CegOpsUfTests, IntSimpleSafe)
 {
   if (opts.engine_ == Engine::IC3SA_ENGINE) {
-    // IC3SA does not support Int
-    return;
+    GTEST_SKIP() << "IC3SA does not support Int";
   }
   Sort sort = solver->make_sort(INT);
   Term x = solver->make_symbol("x", sort);
@@ -133,8 +127,7 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
 TEST_P(CegOpsUfTests, IntSimpleUnsafe)
 {
   if (opts.engine_ == Engine::IC3SA_ENGINE) {
-    // IC3SA does not support Int
-    return;
+    GTEST_SKIP() << "IC3SA does not support Int";
   }
   Sort sort = solver->make_sort(INT);
   Term x = solver->make_symbol("x", sort);
