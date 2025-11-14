@@ -16,6 +16,7 @@ Sets up the smt-switch API for interfacing with SMT solvers through a C++ API.
 --with-btor             include Boolector (default: off)
 --with-msat             include MathSAT which is under a custom non-BSD compliant license (default: off)
 --with-yices2           include Yices2 which is under a custom non-BSD compliant license (default: off)
+--with-z3               include Z3 (default: off)
 --cvc5-home             use an already downloaded version of cvc5
 --python                build python bindings (default: off)
 EOF
@@ -30,6 +31,7 @@ die() {
 WITH_BOOLECOR=default
 WITH_MSAT=default
 WITH_YICES2=default
+WITH_Z3=default
 CONF_OPTS=""
 WITH_PYTHON=default
 cvc5_home=default
@@ -52,6 +54,11 @@ while [ $# -gt 0 ]; do
       WITH_YICES2=ON
       CONF_OPTS="$CONF_OPTS --yices2"
       INCL_SOLVER_STR="yices2, $INCL_SOLVER_STR"
+      ;;
+    --with-z3)
+      WITH_Z3=ON
+      CONF_OPTS="$CONF_OPTS --z3"
+      INCL_SOLVER_STR="z3, $INCL_SOLVER_STR"
       ;;
     --python)
       WITH_PYTHON=YES
@@ -86,6 +93,9 @@ if [ ! -d "$DEPS/smt-switch" ]; then
   fi
   if [ $WITH_BOOLECTOR = ON ]; then
     ./contrib/setup-boolector.sh
+  fi
+  if [ $WITH_Z3 = ON ]; then
+    ./contrib/setup-z3.sh
   fi
   # pass bison/flex directories from smt-switch perspective
   ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install

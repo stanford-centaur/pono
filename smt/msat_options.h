@@ -15,19 +15,16 @@
 **/
 #pragma once
 
-#ifdef WITH_MSAT
-
 #include <string>
-#include <unordered_map>
 
 #include "mathsat.h"
+#include "options/options.h"
 #include "utils/exceptions.h"
 
 namespace pono {
-
 // configuration options copied from open-source ic3ia implementation
 // https://es-static.fbk.eu/people/griggio/ic3ia/index.html
-msat_config get_msat_config_for_ic3(const StringMap & options)
+inline msat_config get_msat_config_for_ic3(const StringMap & options)
 {
   msat_config cfg = msat_create_config();
 
@@ -80,5 +77,3 @@ msat_config get_msat_config_for_ic3(const StringMap & options)
   return cfg;
 }
 }  // namespace pono
-
-#endif

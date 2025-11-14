@@ -257,6 +257,9 @@ LivenessProver::LivenessProver(const LivenessProperty & property,
       orig_property_(property),
       justice_conditions_(orig_property_.terms())
 {
+  if (justice_conditions_.empty()) {
+    throw PonoException("No justice conditions in the liveness property");
+  }
   if (ts_.solver() != orig_property_.solver()) {
     for_each(justice_conditions_.begin(),
              justice_conditions_.end(),

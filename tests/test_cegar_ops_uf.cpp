@@ -82,6 +82,10 @@ TEST_P(CegOpsUfTests, BVSimpleSafe)
 
 TEST_P(CegOpsUfTests, BVSimpleUnsafe)
 {
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR
+      && (opts.engine_ == INTERP || opts.engine_ == IC3IA_ENGINE)) {
+    GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
+  }
   Sort sort = solver->make_sort(BV, 8);
   Term x = solver->make_symbol("x", sort);
 
@@ -105,6 +109,11 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
   }
   if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
     GTEST_SKIP() << "Bitwuzla does not support Int";
+  }
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR
+      && (opts.engine_ == ISMC || opts.engine_ == INTERP
+          || opts.engine_ == IC3IA_ENGINE)) {
+    GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
   }
   Sort sort = solver->make_sort(INT);
   Term x = solver->make_symbol("x", sort);
@@ -134,6 +143,11 @@ TEST_P(CegOpsUfTests, IntSimpleUnsafe)
   }
   if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
     GTEST_SKIP() << "Bitwuzla does not support Int";
+  }
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR
+      && (opts.engine_ == ISMC || opts.engine_ == INTERP
+          || opts.engine_ == IC3IA_ENGINE)) {
+    GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
   }
   Sort sort = solver->make_sort(INT);
   Term x = solver->make_symbol("x", sort);

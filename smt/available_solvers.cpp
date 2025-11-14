@@ -29,11 +29,11 @@
 #include "smt-switch/bitwuzla_factory.h"
 #include "smt-switch/cvc5_factory.h"
 
-#if WITH_BOOLECTOR
+#ifdef WITH_BOOLECTOR
 #include "smt-switch/boolector_factory.h"
 #endif
 
-#if WITH_MSAT
+#ifdef WITH_MSAT
 #include "smt-switch/msat_factory.h"
 // these are for setting specific options
 // e.g. in create_solver_for
@@ -41,12 +41,15 @@
 #include "smt/msat_options.h"
 #endif
 
-#if WITH_YICES2
+#ifdef WITH_YICES2
 #include "smt-switch/yices2_factory.h"
 #endif
 
+#ifdef WITH_Z3
+#include "smt-switch/z3_factory.h"
+#endif
+
 using namespace smt;
-using namespace std;
 
 namespace pono {
 
@@ -76,14 +79,17 @@ inline void check_allowed_smt_opts(const StringMap & opts)
 const std::vector<SolverEnum> solver_enums({
     BZLA,
     CVC5,
-#if WITH_BOOLECTOR
+#ifdef WITH_BOOLECTOR
     BTOR,
 #endif
-#if WITH_MSAT
+#ifdef WITH_MSAT
     MSAT,
 #endif
-#if WITH_YICES2
+#ifdef WITH_YICES2
     YICES2,
+#endif
+#ifdef WITH_Z3
+    Z3,
 #endif
 });
 
@@ -92,33 +98,39 @@ const std::vector<SolverEnum> solver_enums({
 SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
 {
   SmtSolver s;
-  auto printing_style = smt::PrintingStyleEnum::DEFAULT_STYLE;
+  auto printing_style = DEFAULT_STYLE;
   switch (se) {
     case BZLA: {
       s = BitwuzlaSolverFactory::create(logging);
       break;
     }
-    case CVC5: {
-      s = Cvc5SolverFactory::create(logging);
-      printing_style = smt::PrintingStyleEnum::CVC5_STYLE;
-      break;
-    }
-#if WITH_BOOLECTOR
+#ifdef WITH_BOOLECTOR
     case BTOR: {
       s = BoolectorSolverFactory::create(logging);
       break;
     }
 #endif
-#if WITH_MSAT
+    case CVC5: {
+      s = Cvc5SolverFactory::create(logging);
+      printing_style = CVC5_STYLE;
+      break;
+    }
+#ifdef WITH_MSAT
     case MSAT: {
       s = MsatSolverFactory::create(logging);
-      printing_style = smt::PrintingStyleEnum::MSAT_STYLE;
+      printing_style = MSAT_STYLE;
       break;
     }
 #endif
-#if WITH_YICES2
+#ifdef WITH_YICES2
     case YICES2: {
       s = Yices2SolverFactory::create(logging);
+      break;
+    }
+#endif
+#ifdef WITH_Z3
+    case Z3: {
+      s = Z3SolverFactory::create(logging);
       break;
     }
 #endif
@@ -126,9 +138,8 @@ SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
       throw SmtException("Unhandled solver enum");
     }
   }
-
   if (printing) {
-    s = smt::create_printing_solver(s, &cerr, printing_style);
+    s = create_printing_solver(s, &std::cerr, printing_style);
   }
 
   return s;
@@ -172,8 +183,8 @@ SmtSolver create_solver_for(SolverEnum se,
     full_model = true;
   }
 
-#ifdef WITH_MSAT
   if (se == MSAT && ic3_engine) {
+#ifdef WITH_MSAT
     // These will be managed by the solver object
     // don't need to destroy
     StringMap opts(solver_opts);  // user-specified options take precedence
@@ -193,20 +204,19 @@ SmtSolver create_solver_for(SolverEnum se,
     msat_env env = msat_create_env(cfg);
     s = std::make_shared<MsatSolver>(cfg, env);
     if (logging) {
-      s = make_shared<LoggingSolver>(s);
+      s = std::make_shared<LoggingSolver>(s);
     }
     if (printing) {
-      s = smt::create_printing_solver(
-          s, &cerr, smt::PrintingStyleEnum::MSAT_STYLE);
+      s = create_printing_solver(s, &std::cerr, MSAT_STYLE);
     }
     return s;
-  } else {
+#else
+    throw PonoException("not built with MathSAT");
 #endif
+  } else {
     // no special options yet for solvers other than mathsat
     s = create_solver(se, logging, true, true, printing, solver_opts);
-#ifdef WITH_MSAT
   }
-#endif
 
   assert(s);
   if (ic3_engine) {
@@ -229,9 +239,8 @@ SmtSolver create_reducer_for(SolverEnum se,
     for (const auto & optpair : solver_opts) {
       s->set_opt(optpair.first, optpair.second);
     }
-  }
+  } else {
 #ifdef WITH_MSAT
-  else {
     // user-specified options take precedence
     StringMap opts(solver_opts);
     // no models needed for a reducer
@@ -240,10 +249,12 @@ SmtSolver create_reducer_for(SolverEnum se,
     msat_env env = msat_create_env(cfg);
     s = std::make_shared<MsatSolver>(cfg, env);
     if (logging) {
-      s = make_shared<LoggingSolver>(s);
+      s = std::make_shared<LoggingSolver>(s);
     }
-  }
+#else
+    throw PonoException("not built with MathSAT");
 #endif
+  }
 
   assert(s);
   return s;
@@ -267,7 +278,7 @@ SmtSolver create_interpolating_solver(SolverEnum se,
       break;
       ;
     }
-#if WITH_MSAT
+#ifdef WITH_MSAT
     // for convenience -- accept any MSAT SolverEnum
     case MSAT:
     case MSAT_INTERPOLATOR: {
@@ -296,7 +307,7 @@ SmtSolver create_interpolating_solver_for(SolverEnum se,
 
   check_allowed_smt_opts(solver_opts);
   switch (se) {
-#if WITH_MSAT
+#ifdef WITH_MSAT
       // for convenience -- accept any MSAT SolverEnum
     case MSAT:
     case MSAT_INTERPOLATOR: {
@@ -318,7 +329,7 @@ SmtSolver create_interpolating_solver_for(SolverEnum se,
   }
 }
 
-SmtSolver create_quantifier_solver(smt::SolverEnum se,
+SmtSolver create_quantifier_solver(SolverEnum se,
                                    bool logging,
                                    bool printing,
                                    const StringMap & solver_opts)
@@ -353,7 +364,7 @@ SmtSolver create_quantifier_solver(smt::SolverEnum se,
 const std::vector<SolverEnum> itp_enums({
     BZLA_INTERPOLATOR,
     CVC5_INTERPOLATOR,
-#if WITH_MSAT
+#ifdef WITH_MSAT
     MSAT_INTERPOLATOR,
 #endif
 });

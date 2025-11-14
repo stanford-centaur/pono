@@ -23,6 +23,7 @@
 #endif
 
 #include "core/fts.h"
+#include "engines/kliveness.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
@@ -334,7 +335,21 @@ int main(int argc, char ** argv)
       }
 
       vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, prop, fts, s, cex);
+      if (pono_options.justice_
+          && pono_options.justice_translator_ == KLIVENESS) {
+        LivenessProperty justice_prop(s, justicevec[pono_options.prop_idx_]);
+        KLiveness justice_prover(justice_prop, fts, s, pono_options);
+        res = justice_prover.check_until(pono_options.bound_);
+        if (res == ProverResult::FALSE && pono_options.witness_) {
+          if (!justice_prover.witness(cex)) {
+            logger.log(0,
+                       "Only got a partial witness from engine. "
+                       "Not suitable for printing.");
+          }
+        }
+      } else {
+        res = check_prop(pono_options, prop, fts, s, cex);
+      }
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -344,20 +359,23 @@ int main(int argc, char ** argv)
       if (res == FALSE) {
         cout << "sat" << endl;
         cout << prop_label << endl;
-        // note: witness for justice property is not yet supported
-        if (!pono_options.justice_) {
-          assert(pono_options.witness_ || !cex.size());
-          if (cex.size()) {
-            if (pono_options.btor2_witness_name_.empty()) {
-              print_witness_btor(btor_enc, cex, fts);
+        assert(pono_options.witness_ || cex.empty());
+        if (!cex.empty()) {
+          if (pono_options.btor2_witness_name_.empty()) {
+            print_witness_btor(btor_enc, cex, fts);
+          } else {
+            dump_witness_btor(btor_enc,
+                              cex,
+                              fts,
+                              pono_options.prop_idx_,
+                              pono_options.btor2_witness_name_);
+          }
+          if (!pono_options.vcd_name_.empty()) {
+            if (pono_options.justice_) {
+              throw PonoException(
+                  "VCD generation for justice properties "
+                  "is not supported yet.");
             } else {
-              dump_witness_btor(btor_enc,
-                                cex,
-                                fts,
-                                pono_options.prop_idx_,
-                                pono_options.btor2_witness_name_);
-            }
-            if (!pono_options.vcd_name_.empty()) {
               VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
               vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
             }

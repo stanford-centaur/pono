@@ -1,9 +1,7 @@
-#ifdef WITH_MSAT
-// Only run this test with MathSAT
-
 #include "core/fts.h"
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
+#include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
 #include "utils/ts_analysis.h"
@@ -20,11 +18,13 @@ class IC3IAUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
+    opts = PonoOptions{};
     s = create_solver_for(GetParam(), IC3IA_ENGINE, false);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
     intsort = s->make_sort(INT);
   }
+  PonoOptions opts;
   SmtSolver s;
   Sort boolsort, bvsort8, intsort;
 };
@@ -67,6 +67,9 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
     GTEST_SKIP() << "MathSAT causes segfault in this test on macOS";
   }
 #endif
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
+  }
   FunctionalTransitionSystem fts(s);
   Term s1 = fts.make_statevar("s1", boolsort);
   Term s2 = fts.make_statevar("s2", boolsort);
@@ -91,6 +94,9 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 
 TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
 {
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
+  }
   FunctionalTransitionSystem fts(s);
   Term x = fts.make_statevar("x", bvsort8);
   Term in = fts.make_inputvar("in", s->make_sort(BV, 1));
@@ -159,10 +165,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedSolverIC3IAUnitTests,
+    ParametrizedSolverIC3IAUnitTests,
     IC3IAUnitTests,
-    // only using MathSAT for now, but could be more general in the future
-    testing::ValuesIn({ MSAT }));
+    testing::ValuesIn(filter_solver_enums({ THEORY_INT })));
 }  // namespace pono_tests
-
-#endif

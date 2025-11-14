@@ -1,10 +1,10 @@
 #include "core/prop.h"
 #include "core/rts.h"
 #include "gtest/gtest.h"
+#include "options/options.h"
+#include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
 #include "utils/make_provers.h"
-
-#ifdef WITH_MSAT
 
 using namespace pono;
 using namespace smt;
@@ -12,10 +12,19 @@ using namespace std;
 
 namespace pono_tests {
 
-TEST(CegProphecyArraysTest, Simple)
+class CegProphecyArraysTest : public ::testing::TestWithParam<SolverEnum>
 {
-  SmtSolver s = create_solver(MSAT);
-  s->set_opt("produce-unsat-assumptions", "true");
+ protected:
+  void SetUp() override
+  {
+    s = create_solver(GetParam());
+    s->set_opt("produce-unsat-assumptions", "true");
+  }
+  SmtSolver s;
+};
+
+TEST_P(CegProphecyArraysTest, Simple)
+{
   RelationalTransitionSystem rts(s);
   Sort intsort = rts.make_sort(INT);
   Sort arrsort = rts.make_sort(ARRAY, intsort, intsort);
@@ -42,6 +51,9 @@ TEST(CegProphecyArraysTest, Simple)
   ASSERT_EQ(r, ProverResult::TRUE);
 }
 
-}  // namespace pono_tests
+INSTANTIATE_TEST_SUITE_P(
+    ParameterizedCegProphecyArraysTest,
+    CegProphecyArraysTest,
+    testing::ValuesIn(filter_solver_enums({ THEORY_INT })));
 
-#endif
+}  // namespace pono_tests
