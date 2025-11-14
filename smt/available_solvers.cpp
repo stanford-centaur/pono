@@ -207,8 +207,7 @@ SmtSolver create_solver_for(SolverEnum se,
       s = std::make_shared<LoggingSolver>(s);
     }
     if (printing) {
-      s = create_printing_solver(
-          s, &std::cerr, MSAT_STYLE);
+      s = create_printing_solver(s, &std::cerr, MSAT_STYLE);
     }
     return s;
 #else
@@ -240,8 +239,7 @@ SmtSolver create_reducer_for(SolverEnum se,
     for (const auto & optpair : solver_opts) {
       s->set_opt(optpair.first, optpair.second);
     }
-  }
-  else {
+  } else {
 #ifdef WITH_MSAT
     // user-specified options take precedence
     StringMap opts(solver_opts);
