@@ -10,6 +10,7 @@ RUN apt-get install -y \
         build-essential \
         cmake \
         curl \
+        gettext-base \
         git \
         libgmp-dev \
         libbison-dev \
