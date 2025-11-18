@@ -1101,11 +1101,6 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
       }
     }
-
-    if (ceg_prophecy_arrays_ && smt_solver_ != smt::MSAT) {
-      throw PonoException(
-          "Counterexample-guided prophecy only supported with MathSAT so far");
-    }
   }
   catch (PonoException & ce) {
     cout << ce.what() << endl;
