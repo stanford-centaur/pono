@@ -57,6 +57,9 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   }
 
  protected:
+  bool has_finite_index_sort_ =
+      false;  ///< whether the arrays in the system have a finite index sort
+
   TransitionSystem conc_ts_;
   TransitionSystem & abs_ts_;
   Unroller abs_unroller_;
@@ -73,9 +76,6 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   smt::UnorderedTermSet
       important_vars_;  ///< important variables
                         ///< useful for IC3IA to prioritize predicates
-
-  // whether the arrays in the system has a finite index sort
-  bool has_finite_index_sort_ = false;
 
   TransitionSystem & prover_interface_ts() override { return conc_ts_; }
 

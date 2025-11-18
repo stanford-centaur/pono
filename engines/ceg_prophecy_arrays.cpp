@@ -52,6 +52,7 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const SafetyProperty & p,
                                                const SmtSolver & solver,
                                                PonoOptions opt)
     : super(p, RelationalTransitionSystem(solver), solver, opt),
+      has_finite_index_sort_(ts.has_finite_index_sort()),
       conc_ts_(ts),
       abs_ts_(super::prover_interface_ts()),
       abs_unroller_(abs_ts_, "{@}"),
@@ -61,7 +62,8 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const SafetyProperty & p,
            ts.solver() == super::solver_
                ? p.prop()
                : super::to_prover_solver_.transfer_term(p.prop(), BOOL),
-           super::options_.cegp_timed_axiom_red_),
+           super::options_.cegp_timed_axiom_red_,
+           has_finite_index_sort_),
       pm_(abs_ts_),
       reached_k_(-1),
       num_added_axioms_(0)
@@ -250,41 +252,16 @@ void CegProphecyArrays<Prover_T>::initialize()
   super::initialize();
 
   bool contains_arrays = false;
-  has_finite_index_sort_ = false;
-  Sort boolsort = super::solver_->make_sort(BOOL);
-  Sort sort;
   for (const auto & sv : conc_ts_.statevars()) {
-    sort = sv->get_sort();
-    if (sort->get_sort_kind() == ARRAY) {
+    if (sv->get_sort()->get_sort_kind() == ARRAY) {
       contains_arrays = true;
-      SortKind sk = sort->get_indexsort()->get_sort_kind();
-      if (sk == REAL || sk == INT) {
-        // do nothing
-      } else if (sk == BV || sk == BOOL) {
-        has_finite_index_sort_ = true;
-      } else {
-        throw PonoException("CEGP: unhandled index sort in array: "
-                            + to_string(sk));
-      }
     }
   }
-
   for (const auto & iv : conc_ts_.inputvars()) {
-    sort = iv->get_sort();
-    if (sort->get_sort_kind() == ARRAY) {
+    if (iv->get_sort()->get_sort_kind() == ARRAY) {
       contains_arrays = true;
-      SortKind sk = sort->get_indexsort()->get_sort_kind();
-      if (sk == REAL || sk == INT) {
-        // do nothing
-      } else if (sk == BV || sk == BOOL) {
-        has_finite_index_sort_ = true;
-      } else {
-        throw PonoException("CEGP: unhandled index sort in array: "
-                            + to_string(sk));
-      }
     }
   }
-
   if (!contains_arrays) {
     throw PonoException("Ran CegProphecyArrays on system without arrays.");
   }
@@ -316,8 +293,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
   Term abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
   // check array axioms over the abstract system
-  if (!aae_.enumerate_axioms(
-          abs_bmc_formula, reached_k_ + 1, true, has_finite_index_sort_)) {
+  if (!aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, true)) {
     // concrete CEX
     return false;
   }
@@ -404,8 +380,7 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
     // search for axioms again but don't include nonconsecutive ones
-    bool ok = aae_.enumerate_axioms(
-        abs_bmc_formula, reached_k_ + 1, false, has_finite_index_sort_);
+    bool ok = aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
     // should be guaranteed to rule out counterexamples at this bound
     assert(ok);
     consecutive_axioms = aae_.get_consecutive_axioms();
