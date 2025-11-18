@@ -70,6 +70,9 @@ CegProphecyArrays<Prover_T>::CegProphecyArrays(const SafetyProperty & p,
 {
   // point orig_ts_ to the correct one
   super::orig_ts_ = ts;
+  if (super::options_.cegp_consec_axiom_red_) {
+    super::solver_->set_opt("produce-unsat-assumptions", "true");
+  }
 }
 
 template <class Prover_T>

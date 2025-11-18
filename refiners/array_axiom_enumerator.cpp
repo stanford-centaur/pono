@@ -146,6 +146,9 @@ ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
       reduce_axioms_unsatcore_(red_axioms),
       has_finite_index_sort_(has_finite_index_sort)
 {
+  if (reduce_axioms_unsatcore_) {
+    solver_->set_opt("produce-unsat-assumptions", "true");
+  }
   conc_bad_ = solver_->make_term(Not, prop);
   false_ = solver_->make_term(false);
 }
