@@ -5,7 +5,7 @@ import pono
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_cons_fts(create_solver):
-    solver = create_solver(False)
+    solver = create_solver(create_solver is ss.solvers.get("yices2"))
     boolsort = solver.make_sort(ss.sortkinds.BOOL)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
 

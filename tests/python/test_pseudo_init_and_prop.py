@@ -22,7 +22,7 @@ from typing import Set
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_counter_system_safe(create_solver):
-    solver = create_solver(False)
+    solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver.set_opt("produce-models", "true")
     solver.set_opt("incremental", "true")
     if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
@@ -54,7 +54,7 @@ def test_counter_system_safe(create_solver):
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_trivial_unsafe(create_solver):
-    solver = create_solver(False)
+    solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver.set_opt("produce-models", "true")
     solver.set_opt("incremental", "true")
     if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
