@@ -8,7 +8,9 @@ import tempfile
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_vcd_trace(create_solver):
-    solver = create_solver(False)
+    if create_solver is ss.solvers.get("z3"):
+        pytest.skip(reason="Z3's hexadecimal format is not supported yet")
+    solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver.set_opt("incremental", "true")
     solver.set_opt("produce-models", "true")
     if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:

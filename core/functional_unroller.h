@@ -17,6 +17,7 @@
 #pragma once
 
 #include "core/unroller.h"
+#include "utils/exceptions.h"
 
 namespace pono {
 class FunctionalUnroller : public Unroller

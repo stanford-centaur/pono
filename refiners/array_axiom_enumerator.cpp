@@ -138,9 +138,17 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
 ArrayAxiomEnumerator::ArrayAxiomEnumerator(ArrayAbstractor & aa,
                                            Unroller & un,
                                            const Term & prop,
-                                           bool red_axioms)
-    : super(aa.abs_ts()), aa_(aa), un_(un), reduce_axioms_unsatcore_(red_axioms)
+                                           bool red_axioms,
+                                           bool has_finite_index_sort)
+    : super(aa.abs_ts()),
+      aa_(aa),
+      un_(un),
+      reduce_axioms_unsatcore_(red_axioms),
+      has_finite_index_sort_(has_finite_index_sort)
 {
+  if (reduce_axioms_unsatcore_) {
+    solver_->set_opt("produce-unsat-assumptions", "true");
+  }
   conc_bad_ = solver_->make_term(Not, prop);
   false_ = solver_->make_term(false);
 }
@@ -152,21 +160,14 @@ void ArrayAxiomEnumerator::initialize()
   initialized_ = true;
 
   collect_arrays_and_indices();
-  create_lambda_indices();
+  if (!has_finite_index_sort_) {
+    create_lambda_indices();
+  }
 }
 
 bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
                                             size_t bound,
                                             bool include_nonconsecutive)
-{
-  return enumerate_axioms(
-      abs_trace_formula, bound, include_nonconsecutive, false);
-}
-
-bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
-                                            size_t bound,
-                                            bool include_nonconsecutive,
-                                            bool skip_lambda_axioms)
 {
   assert(initialized_);
 
@@ -202,21 +203,21 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
 
     // experimenting with new heuristic order
     found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ, only_curr);
-    if (!skip_lambda_axioms) {
+    if (!has_finite_index_sort_) {
       found_lemmas |= check_consecutive_axioms(ARRAYEQ_READ_LAMBDA, only_curr);
     }
     found_lemmas |= check_consecutive_axioms(STORE_WRITE, only_curr);
     found_lemmas |= check_consecutive_axioms(STORE_READ, only_curr);
-    if (!skip_lambda_axioms) {
+    if (!has_finite_index_sort_) {
       found_lemmas |= check_consecutive_axioms(STORE_READ_LAMBDA, only_curr);
     }
     found_lemmas |= check_consecutive_axioms(CONSTARR, only_curr);
-    if (!skip_lambda_axioms) {
+    if (!has_finite_index_sort_) {
       found_lemmas |= check_consecutive_axioms(CONSTARR_LAMBDA, only_curr);
     }
     found_lemmas |= check_consecutive_axioms(ARRAYEQ_WITNESS, only_curr);
 
-    if (!found_lemmas && !skip_lambda_axioms) {
+    if (!found_lemmas && !has_finite_index_sort_) {
       // NOTE: don't need non-consecutive version of these axioms
       //       all different over current and next is sufficient to be all
       //       different for all time

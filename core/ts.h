@@ -21,7 +21,6 @@
 
 #include "smt-switch/cvc5_factory.h"
 #include "smt-switch/smt.h"
-#include "utils/exceptions.h"
 
 namespace pono {
 
@@ -67,7 +66,7 @@ class TransitionSystem
    */
   TransitionSystem(const TransitionSystem & other_ts, smt::TermTranslator & tt);
 
-  virtual ~TransitionSystem(){};
+  virtual ~TransitionSystem() = default;
 
   /** Equality comparison between TransitionSystems
    *  compares each member variable
@@ -319,6 +318,10 @@ class TransitionSystem
 
   /* Same as @ref is_right_total(), but uses the given solver type */
   bool is_right_total(const smt::SolverEnum se) const;
+
+  /** @return true if a state or input variable is an array with a finite index
+   * sort. */
+  bool has_finite_index_sort() const;
 
   /* Returns true iff all the symbols in the formula are current states */
   bool only_curr(const smt::Term & term) const;

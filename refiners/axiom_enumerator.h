@@ -56,7 +56,7 @@ class AxiomEnumerator
   {
   }
 
-  virtual ~AxiomEnumerator(){};
+  virtual ~AxiomEnumerator() = default;
 
   virtual void initialize() = 0;
 

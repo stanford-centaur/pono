@@ -5,7 +5,7 @@ import pono
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_replace_terms(create_solver):
-    solver = create_solver(False)
+    solver = create_solver(create_solver is ss.solvers.get("yices2"))
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     fts = pono.FunctionalTransitionSystem(solver);
     x = fts.make_statevar("x", bvsort8)

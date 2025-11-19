@@ -6,6 +6,8 @@ from typing import Set
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_fts_unroller(create_solver):
+    if create_solver is ss.solvers.get("yices2"):
+        pytest.skip(reason="Constant arrays not supported by yices2")
     solver = create_solver(False)
     bvsort4 = solver.make_sort(ss.sortkinds.BV, 4)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
@@ -43,7 +45,9 @@ def test_fts_unroller(create_solver):
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_fts_unroller(create_solver):
+def test_rts_unroller(create_solver):
+    if create_solver is ss.solvers.get("yices2"):
+        pytest.skip(reason="Constant arrays not supported by yices2")
     solver = create_solver(False)
     bvsort4 = solver.make_sort(ss.sortkinds.BV, 4)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
