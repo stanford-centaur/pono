@@ -4,7 +4,7 @@ import pono
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_history_modifier(create_solver):
-    solver = create_solver(False)
+    solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver.set_opt("incremental", "true")
     solver.set_opt("produce-models", "true")
     if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
