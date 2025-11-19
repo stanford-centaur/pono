@@ -22,6 +22,7 @@
 #include "smt-switch/substitution_walker.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
+#include "utils/exceptions.h"
 
 using namespace smt;
 using namespace std;
@@ -407,6 +408,29 @@ void TransitionSystem::add_inputvar(const Term & v)
   inputvars_.insert(v);
   // automatically include in named_terms
   name_term(v->to_string(), v);
+}
+
+bool TransitionSystem::has_finite_index_sort() const
+{
+  for (const auto & sv : this->statevars()) {
+    auto sort = sv->get_sort();
+    if (sort->get_sort_kind() == ARRAY) {
+      SortKind sk = sort->get_indexsort()->get_sort_kind();
+      if (sk == BV || sk == BOOL) {
+        return true;
+      }
+    }
+  }
+  for (const auto & iv : this->inputvars()) {
+    auto sort = iv->get_sort();
+    if (sort->get_sort_kind() == ARRAY) {
+      SortKind sk = sort->get_indexsort()->get_sort_kind();
+      if (sk == BV || sk == BOOL) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // term building methods -- forwards to SmtSolver solver_

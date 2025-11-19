@@ -17,6 +17,7 @@
 #include "rts.h"
 
 #include "smt-switch/utils.h"
+#include "utils/exceptions.h"
 
 using namespace smt;
 using namespace std;

@@ -19,6 +19,8 @@
 #include <cassert>
 #include <cmath>
 
+#include "utils/exceptions.h"
+
 using namespace smt;
 using namespace std;
 

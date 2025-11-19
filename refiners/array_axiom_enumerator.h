@@ -15,12 +15,15 @@
 **/
 #pragma once
 
-#include "core/prop.h"
-#include "core/ts.h"
+#include <cstddef>
+#include <string>
+#include <unordered_set>
+
 #include "core/unroller.h"
 #include "modifiers/array_abstractor.h"
 #include "refiners/axiom_enumerator.h"
 #include "smt-switch/identity_walker.h"
+#include "smt-switch/smt.h"
 
 namespace pono {
 
@@ -76,20 +79,16 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   ArrayAxiomEnumerator(ArrayAbstractor & aa,
                        Unroller & un,
                        const smt::Term & prop,
-                       bool red_axioms);
+                       bool red_axioms,
+                       bool has_finite_index_sort = false);
 
   typedef AxiomEnumerator super;
 
   void initialize() override;
 
   bool enumerate_axioms(const smt::Term & abs_trace_formula,
-                        size_t bound,
+                        std::size_t bound,
                         bool include_nonconsecutive = true) override;
-
-  bool enumerate_axioms(const smt::Term & abs_trace_formula,
-                        size_t bound,
-                        bool include_nonconsecutive,
-                        bool skip_lambda_axioms);
 
   /** Add a new index to the index set
    *  This can happen as we add auxiliary variables
@@ -382,8 +381,9 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
 
   bool reduce_axioms_unsatcore_;  ///< reduce generated axioms with an unsat
                                   ///< core if set to true
+  bool has_finite_index_sort_;    ///< lambda axioms will be omitted if true
 
-  size_t bound_;  ///< the bound of the current abstract trace
+  std::size_t bound_;  ///< the bound of the current abstract trace
   smt::UnorderedTermMap
       constarrs_;  ///< maps (abstract) constarrs to their constant value
   smt::UnorderedTermSet stores_;  ///< vector of (abstract) stores
