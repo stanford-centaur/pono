@@ -67,12 +67,16 @@ smt::SmtSolver create_reducer_for(smt::SolverEnum se,
 
 /** Creates an interpolating SmtSolver of the provided type */
 smt::SmtSolver create_interpolating_solver(smt::SolverEnum se,
-                                           const StringMap & solver_opts = {});
+                                           bool printing,
+                                           const StringMap & solver_opts);
 
 // same as create_interpolating_solver but will set reasonable options
 // for particular engines (mostly IC3-variants)
 smt::SmtSolver create_interpolating_solver_for(
-    smt::SolverEnum se, Engine e, const StringMap & solver_opts = {});
+    smt::SolverEnum se,
+    Engine e,
+    bool printing = false,
+    const StringMap & solver_opts = {});
 
 /** Creates an SmtSolver of the provided type for solving quantified query.
  *  If the specified solver does not support quantifiers or does not work well

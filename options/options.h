@@ -136,6 +136,7 @@ class PonoOptions
         smt_interpolator_opts_(default_smt_interpolator_opts_),
         logging_smt_solver_(default_logging_smt_solver_),
         printing_smt_solver_(default_printing_smt_solver_),
+        printing_smt_interpolator_(default_printing_smt_interpolator_),
         static_coi_(default_static_coi_),
         show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
@@ -251,6 +252,7 @@ class PonoOptions
   StringMap smt_interpolator_opts_;   ///< options passed to smt interpolator
   bool logging_smt_solver_;
   bool printing_smt_solver_;
+  bool printing_smt_interpolator_;
   bool static_coi_;
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
@@ -415,6 +417,7 @@ class PonoOptions
   inline static const StringMap default_smt_interpolator_opts_ = {};
   static const bool default_logging_smt_solver_ = false;
   static const bool default_printing_smt_solver_ = false;
+  static const bool default_printing_smt_interpolator_ = false;
   static const bool default_ic3_pregen_ = true;
   static const bool default_ic3_indgen_ = true;
   static const unsigned int default_ic3_gen_max_iter_ = 2;

@@ -71,7 +71,6 @@ ModelBasedIC3::ModelBasedIC3(const SafetyProperty & p,
     : super(p, ts, slv, opt)
 {
   engine_ = Engine::MBIC3;
-  interpolator_enum_ = opt.smt_interpolator_;
 }
 
 IC3Formula ModelBasedIC3::get_model_ic3formula() const
@@ -362,8 +361,11 @@ void ModelBasedIC3::initialize()
 
   // only need interpolator infrastructure for mode 2 (interpolation)
   if (options_.mbic3_indgen_mode == 2) {
-    interpolator_ = create_interpolating_solver_for(
-        interpolator_enum_, engine_, options_.smt_interpolator_opts_);
+    interpolator_ =
+        create_interpolating_solver_for(options_.smt_interpolator_,
+                                        engine_,
+                                        options_.printing_smt_interpolator_,
+                                        options_.smt_interpolator_opts_);
     to_interpolator_ = std::make_unique<TermTranslator>(interpolator_);
     to_solver_ = std::make_unique<TermTranslator>(solver_);
 
