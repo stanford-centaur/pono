@@ -20,14 +20,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         build_type: [release, debug]
-        link_type: [dynamic, static]
         include:
           - build_type: debug
             conf_build_opts: --debug
-          - link_type: static
-            conf_link_opts: --static
 
-    name: ${{ matrix.os }}:${{ matrix.build_type }}-${{ matrix.link_type }}
+    name: ${{ matrix.os }}:${{ matrix.build_type }}
     runs-on: ${{ matrix.os}}
 
     steps:
@@ -80,7 +77,7 @@ jobs:
       - name: Configure
         run: |
           source .venv/bin/activate
-          ./configure.sh --python --with-btor --with-msat ${{ matrix.conf_build_opts }} ${{ matrix.conf_link_opts }}
+          ./configure.sh --python --with-btor --with-msat --static ${{ matrix.conf_build_opts }}
 
       - name: Build
         run: |
@@ -88,7 +85,6 @@ jobs:
           make -j
 
       - name: Upload built executable
-        if: matrix.link_type == 'static'
         uses: actions/upload-artifact@v4
         with:
           name: pono_${{ runner.arch }}_${{ matrix.build_type }}
@@ -105,7 +101,7 @@ jobs:
         if: steps.test-cpp.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.link_type }}-test-log-${{ github.run_id }}
+          name: ${{ matrix.os }}-${{ matrix.build_type }}-test-log-${{ github.run_id }}
           path: build/tests/Testing/Temporary/LastTest.log
 
       - name: Fail pipeline due to C++ test failure

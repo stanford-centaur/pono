@@ -261,10 +261,12 @@ SmtSolver create_reducer_for(SolverEnum se,
 }
 
 SmtSolver create_interpolating_solver(SolverEnum se,
+                                      bool printing,
                                       const StringMap & solver_opts)
 {
   check_allowed_smt_opts(solver_opts);
   SmtSolver s;
+  PrintingStyleEnum printing_style = DEFAULT_STYLE;
   switch (se) {
     case BZLA:
     case BZLA_INTERPOLATOR: {
@@ -275,21 +277,23 @@ SmtSolver create_interpolating_solver(SolverEnum se,
     case CVC5:
     case CVC5_INTERPOLATOR: {
       s = Cvc5SolverFactory::create_interpolating_solver();
+      printing_style = CVC5_STYLE;
       break;
-      ;
     }
 #ifdef WITH_MSAT
-    // for convenience -- accept any MSAT SolverEnum
     case MSAT:
     case MSAT_INTERPOLATOR: {
       s = MsatSolverFactory::create_interpolating_solver();
+      printing_style = MSAT_STYLE;
       break;
-      ;
     }
 #endif
     default: {
       throw SmtException("Unhandled solver enum");
     }
+  }
+  if (printing) {
+    s = create_printing_solver(s, &std::cerr, printing_style);
   }
   for (const auto & optpair : solver_opts) {
     s->set_opt(optpair.first, optpair.second);
@@ -299,10 +303,11 @@ SmtSolver create_interpolating_solver(SolverEnum se,
 
 SmtSolver create_interpolating_solver_for(SolverEnum se,
                                           Engine e,
+                                          bool printing,
                                           const StringMap & solver_opts)
 {
   if (ic3_variants().find(e) == ic3_variants().end() || se != MSAT) {
-    return create_interpolating_solver(se, solver_opts);
+    return create_interpolating_solver(se, printing, solver_opts);
   }
 
   check_allowed_smt_opts(solver_opts);
@@ -318,9 +323,11 @@ SmtSolver create_interpolating_solver_for(SolverEnum se,
       msat_opts.emplace("model_generation", "true");
       msat_config cfg = get_msat_config_for_ic3(msat_opts);
       msat_env env = msat_create_env(cfg);
-      return std::make_shared<MsatInterpolatingSolver>(cfg, env);
-      break;
-      ;
+      SmtSolver solver = std::make_shared<MsatInterpolatingSolver>(cfg, env);
+      if (printing) {
+        solver = create_printing_solver(solver, &std::cerr, MSAT_STYLE);
+      }
+      return solver;
     }
 #endif
     default: {

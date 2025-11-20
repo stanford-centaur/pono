@@ -58,7 +58,8 @@ IC3IA::IC3IA(const SafetyProperty & p,
       interpolator_(
           create_interpolating_solver_for(options_.smt_interpolator_,
                                           Engine::IC3IA_ENGINE,
-                                          opt.smt_interpolator_opts_)),
+                                          options_.printing_smt_interpolator_,
+                                          options_.smt_interpolator_opts_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_),
       longest_cex_length_(0)
