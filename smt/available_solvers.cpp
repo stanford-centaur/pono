@@ -271,8 +271,8 @@ SmtSolver create_interpolating_solver(SolverEnum se,
     case BZLA:
     case BZLA_INTERPOLATOR: {
       s = BitwuzlaSolverFactory::create_interpolating_solver();
+      printing_style = BZLA_STYLE;
       break;
-      ;
     }
     case CVC5:
     case CVC5_INTERPOLATOR: {
