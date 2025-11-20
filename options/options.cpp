@@ -247,11 +247,12 @@ const option::Descriptor usage[] = {
     "",
     "smt-interpolator",
     Arg::NonEmpty,
-    "  --smt-interpolator \tSMT solver used for interpolation: msat or cvc5. "
+    "  --smt-interpolator \tSMT solver used for interpolation: "
+    "bzla, cvc5, or msat. "
 #ifdef WITH_MSAT
     "(default: msat)"
 #else
-    "(default: cvc5)"
+    "(default: bzla)"
 #endif
   },
   { SMT_INTERPOLATOR_OPT,
@@ -909,7 +910,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         }
         case SMT_INTERPOLATOR: {
-          if (opt.arg == std::string("cvc5")) {
+          if (opt.arg == std::string("bzla")) {
+            smt_interpolator_ = smt::BZLA_INTERPOLATOR;
+          } else if (opt.arg == std::string("cvc5")) {
             smt_interpolator_ = smt::CVC5_INTERPOLATOR;
           } else if (opt.arg == std::string("msat")) {
             smt_interpolator_ = smt::MSAT_INTERPOLATOR;

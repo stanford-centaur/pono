@@ -107,6 +107,9 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
   if (opts.engine_ == Engine::IC3SA_ENGINE) {
     GTEST_SKIP() << "IC3SA does not support Int";
   }
+  if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
+    GTEST_SKIP() << "Bitwuzla does not support Int";
+  }
   if (opts.smt_interpolator_ == CVC5_INTERPOLATOR
       && (opts.engine_ == ISMC || opts.engine_ == INTERP
           || opts.engine_ == IC3IA_ENGINE)) {
@@ -137,6 +140,9 @@ TEST_P(CegOpsUfTests, IntSimpleUnsafe)
 {
   if (opts.engine_ == Engine::IC3SA_ENGINE) {
     GTEST_SKIP() << "IC3SA does not support Int";
+  }
+  if (opts.smt_interpolator_ == BZLA_INTERPOLATOR) {
+    GTEST_SKIP() << "Bitwuzla does not support Int";
   }
   if (opts.smt_interpolator_ == CVC5_INTERPOLATOR
       && (opts.engine_ == ISMC || opts.engine_ == INTERP
