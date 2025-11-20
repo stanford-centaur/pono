@@ -62,6 +62,7 @@ enum optionIndex
   SMT_INTERPOLATOR_OPT,
   LOGGING_SMT_SOLVER,
   PRINTING_SMT_SOLVER,
+  PRINTING_SMT_INTERPOLATOR,
   NO_IC3_PREGEN,
   NO_IC3_INDGEN,
   IC3_GEN_MAX_ITER,
@@ -276,6 +277,14 @@ const option::Descriptor usage[] = {
     "  --printing-smt-solver \tDump all SMT queries to standard error output "
     "in SMT-LIB format while solving. Uses smt-switch's create_printing_solver "
     "function. (default: false)" },
+  { PRINTING_SMT_INTERPOLATOR,
+    0,
+    "",
+    "printing-smt-interpolator",
+    Arg::None,
+    "  --printing-smt-interpolator \tDump all SMT interpolation queries to "
+    "standard error output in SMT-LIB format while solving. Uses smt-switch's "
+    "create_printing_solver function. (default: false)" },
   { WITNESS,
     0,
     "",
@@ -919,6 +928,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         }
         case LOGGING_SMT_SOLVER: logging_smt_solver_ = true; break;
         case PRINTING_SMT_SOLVER: printing_smt_solver_ = true; break;
+        case PRINTING_SMT_INTERPOLATOR:
+          printing_smt_interpolator_ = true;
+          break;
         case WITNESS: witness_ = true; break;
         case JUSTICE: justice_ = true; break;
         case JUSTICE_TRANSLATOR:

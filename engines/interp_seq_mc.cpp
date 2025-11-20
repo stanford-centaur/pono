@@ -22,7 +22,6 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/term_analysis.h"
 #include "utils/timestamp.h"
 
 using namespace smt;
@@ -34,8 +33,11 @@ InterpSeqMC::InterpSeqMC(const SafetyProperty & p,
                          const SmtSolver & slv,
                          PonoOptions opt)
     : super(p, ts, slv, opt),
-      interpolator_(create_interpolating_solver_for(
-          opt.smt_interpolator_, Engine::ISMC, opt.smt_interpolator_opts_)),
+      interpolator_(
+          create_interpolating_solver_for(options_.smt_interpolator_,
+                                          Engine::ISMC,
+                                          options_.printing_smt_interpolator_,
+                                          options_.smt_interpolator_opts_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {
