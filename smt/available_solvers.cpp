@@ -225,10 +225,9 @@ SmtSolver create_solver_for(SolverEnum se,
   return s;
 }
 
-SmtSolver create_reducer_for(SolverEnum se,
-                             Engine e,
-                             bool logging,
-                             const StringMap & solver_opts)
+SmtSolver create_reducer(SolverEnum se,
+                         bool logging,
+                         const StringMap & solver_opts)
 {
   check_allowed_smt_opts(solver_opts);
   SmtSolver s;

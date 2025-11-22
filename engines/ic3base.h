@@ -172,8 +172,9 @@ class IC3Base : public SafetyProver
    */
   IC3Base(const SafetyProperty & p,
           const TransitionSystem & ts,
-          const smt::SmtSolver & s,
-          PonoOptions opt = PonoOptions());
+          const smt::SmtSolver & solver,
+          PonoOptions opt,
+          Engine engine);
 
   virtual ~IC3Base();
 

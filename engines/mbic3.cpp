@@ -66,11 +66,11 @@ static void split_eq(SmtSolver & solver, const TermVec & in, TermVec & out)
 
 ModelBasedIC3::ModelBasedIC3(const SafetyProperty & p,
                              const TransitionSystem & ts,
-                             const SmtSolver & slv,
-                             PonoOptions opt)
-    : super(p, ts, slv, opt)
+                             const SmtSolver & solver,
+                             PonoOptions opt,
+                             Engine engine)
+    : super(p, ts, solver, opt, engine)
 {
-  engine_ = Engine::MBIC3;
 }
 
 IC3Formula ModelBasedIC3::get_model_ic3formula() const

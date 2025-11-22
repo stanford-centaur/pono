@@ -19,6 +19,7 @@
 #include "core/unroller.h"
 #include "engines/cegar.h"
 #include "modifiers/ops_abstractor.h"
+#include "options/options.h"
 
 namespace pono {
 
@@ -31,7 +32,7 @@ class CegarOpsUf : public CEGAR<Prover_T>
   CegarOpsUf(const SafetyProperty & p,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
-             PonoOptions opt = PonoOptions());
+             PonoOptions opt = {});
 
   void set_ops_to_abstract(const smt::UnorderedOpSet & ops_to_abstract);
 

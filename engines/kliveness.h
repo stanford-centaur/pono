@@ -27,7 +27,7 @@ class KLiveness : public LivenessProver
   KLiveness(const LivenessProperty & p,
             const TransitionSystem & ts,
             const smt::SmtSolver & solver,
-            PonoOptions opt = PonoOptions());
+            PonoOptions opt = {});
 
   ~KLiveness();
 

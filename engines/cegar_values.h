@@ -18,6 +18,7 @@
 
 #include "core/unroller.h"
 #include "engines/cegar.h"
+#include "options/options.h"
 
 namespace pono {
 template <class Prover_T>
@@ -29,7 +30,7 @@ class CegarValues : public CEGAR<Prover_T>
   CegarValues(const SafetyProperty & p,
               const TransitionSystem & ts,
               const smt::SmtSolver & solver,
-              PonoOptions opt = PonoOptions());
+              PonoOptions opt = {});
 
   ProverResult check_until(int k) override;
 

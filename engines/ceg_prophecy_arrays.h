@@ -38,7 +38,7 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   CegProphecyArrays(const SafetyProperty & p,
                     const TransitionSystem & ts,
                     const smt::SmtSolver & solver,
-                    PonoOptions opt = PonoOptions());
+                    PonoOptions opt = {});
 
   // HACK override prove so that it calls prove
   // in the underlying model checker instead of check_until

@@ -31,8 +31,9 @@ class IC3Bits : public IC3
 
   IC3Bits(const SafetyProperty & p,
           const TransitionSystem & ts,
-          const smt::SmtSolver & s,
-          PonoOptions opt = PonoOptions());
+          const smt::SmtSolver & solver,
+          PonoOptions opt = {},
+          Engine engine = Engine::IC3_BITS);
 
   virtual ~IC3Bits() {}
 

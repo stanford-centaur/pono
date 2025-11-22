@@ -50,14 +50,15 @@ namespace pono {
 
 IC3IA::IC3IA(const SafetyProperty & p,
              const TransitionSystem & ts,
-             const SmtSolver & s,
-             PonoOptions opt)
-    : super(p, RelationalTransitionSystem(s), s, opt),
+             const SmtSolver & solver,
+             PonoOptions opt,
+             Engine engine)
+    : super(p, RelationalTransitionSystem(solver), solver, opt, engine),
       conc_ts_(ts, to_prover_solver_),
       ia_(conc_ts_, ts_, unroller_),
       interpolator_(
           create_interpolating_solver_for(options_.smt_interpolator_,
-                                          Engine::IC3IA_ENGINE,
+                                          engine_,
                                           options_.printing_smt_interpolator_,
                                           options_.smt_interpolator_opts_)),
       to_interpolator_(interpolator_),
@@ -67,7 +68,6 @@ IC3IA::IC3IA(const SafetyProperty & p,
   // since we passed a fresh RelationalTransitionSystem as the main TS
   // need to point orig_ts_ to the right place
   orig_ts_ = ts;
-  engine_ = Engine::IC3IA_ENGINE;
   approx_pregen_ = true;
 }
 
