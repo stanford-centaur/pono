@@ -34,19 +34,16 @@ using namespace std;
 
 namespace pono {
 
-BaseProver::BaseProver(const TransitionSystem & ts, const SmtSolver & s)
-    : BaseProver(ts, s, PonoOptions())
-{
-}
-
 BaseProver::BaseProver(const TransitionSystem & ts,
-                       const SmtSolver & s,
-                       PonoOptions opt)
-    : solver_(s),
-      to_prover_solver_(s),
+                       const SmtSolver & solver,
+                       PonoOptions opt,
+                       const Engine e)
+    : options_(opt),
+      engine_(e),
+      solver_(solver),
+      to_prover_solver_(solver),
       orig_ts_(ts),
-      ts_(ts, to_prover_solver_),
-      options_(opt)
+      ts_(ts, to_prover_solver_)
 {
 }
 
@@ -179,9 +176,10 @@ size_t BaseProver::witness_length() const
 
 SafetyProver::SafetyProver(const SafetyProperty & p,
                            const TransitionSystem & ts,
-                           const SmtSolver & s,
-                           PonoOptions opt)
-    : BaseProver(ts, s, opt),
+                           const SmtSolver & solver,
+                           PonoOptions opt,
+                           const Engine e)
+    : BaseProver(ts, solver, opt, e),
       orig_property_(p),
       unroller_(ts_),
       bad_(solver_->make_term(PrimOp::Not,
@@ -253,7 +251,7 @@ LivenessProver::LivenessProver(const LivenessProperty & property,
                                const TransitionSystem & ts,
                                const SmtSolver & solver,
                                PonoOptions options)
-    : BaseProver(ts, solver, options),
+    : BaseProver(ts, solver, options, options.engine_),
       orig_property_(property),
       justice_conditions_(orig_property_.terms())
 {

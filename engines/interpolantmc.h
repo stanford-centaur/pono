@@ -20,6 +20,7 @@
 #include <cstdint>
 
 #include "engines/prover.h"
+#include "options/options.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -29,8 +30,9 @@ class InterpolantMC : public SafetyProver
  public:
   InterpolantMC(const SafetyProperty & p,
                 const TransitionSystem & ts,
-                const smt::SmtSolver & slv,
-                PonoOptions opt = PonoOptions());
+                const smt::SmtSolver & solver,
+                PonoOptions opt = {},
+                Engine engine = Engine::INTERP);
 
   ~InterpolantMC();
 

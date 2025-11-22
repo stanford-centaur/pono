@@ -16,6 +16,7 @@
 #pragma once
 
 #include "engines/ic3base.h"
+#include "options/options.h"
 
 namespace pono {
 
@@ -24,8 +25,9 @@ class ModelBasedIC3 : public IC3Base
  public:
   ModelBasedIC3(const SafetyProperty & p,
                 const TransitionSystem & ts,
-                const smt::SmtSolver & s,
-                PonoOptions opt = PonoOptions());
+                const smt::SmtSolver & solver,
+                PonoOptions opt = {},
+                Engine engine = Engine::MBIC3);
 
   virtual ~ModelBasedIC3() {}
 

@@ -17,6 +17,7 @@
 #pragma once
 
 #include "engines/kinduction.h"
+#include "options/options.h"
 
 namespace pono {
 
@@ -26,7 +27,8 @@ class BmcSimplePath : public KInduction
   BmcSimplePath(const SafetyProperty & p,
                 const TransitionSystem & ts,
                 const smt::SmtSolver & solver,
-                PonoOptions opt = PonoOptions());
+                PonoOptions opt = {},
+                Engine engine = Engine::BMC_SP);
 
   ~BmcSimplePath();
 

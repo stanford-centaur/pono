@@ -27,11 +27,11 @@ namespace pono {
 
 IC3::IC3(const SafetyProperty & p,
          const TransitionSystem & ts,
-         const smt::SmtSolver & s,
-         PonoOptions opt)
-    : super(p, ts, s, opt)
+         const smt::SmtSolver & solver,
+         PonoOptions opt,
+         Engine engine)
+    : super(p, ts, solver, opt, engine)
 {
-  engine_ = Engine::IC3_BOOL;
 }
 
 IC3Formula IC3::get_model_ic3formula() const

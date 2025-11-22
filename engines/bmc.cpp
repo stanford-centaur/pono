@@ -25,10 +25,10 @@ namespace pono {
 Bmc::Bmc(const SafetyProperty & p,
          const TransitionSystem & ts,
          const SmtSolver & solver,
-         PonoOptions opt)
-    : super(p, ts, solver, opt)
+         PonoOptions opt,
+         Engine engine)
+    : super(p, ts, solver, opt, engine)
 {
-  engine_ = Engine::BMC;
   bin_search_frames_ = 0;
   bound_step_ = opt.bmc_bound_step_;
   bound_start_ = opt.bmc_bound_start_;

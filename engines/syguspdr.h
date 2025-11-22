@@ -52,8 +52,10 @@ class SygusPdr : public IC3Base
  public:
   SygusPdr(const SafetyProperty & p,
            const TransitionSystem & ts,
-           const smt::SmtSolver & s,
-           PonoOptions opt = PonoOptions());
+           const smt::SmtSolver & solver,
+           PonoOptions opt = {},
+           Engine engine = Engine::SYGUS_PDR);
+
   virtual ~SygusPdr();  // need to free the pointers
 
   // we cannot allow copy assignment

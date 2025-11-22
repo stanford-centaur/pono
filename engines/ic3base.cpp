@@ -100,11 +100,12 @@ bool ProofGoalQueue::empty() const { return queue_.empty(); }
 
 IC3Base::IC3Base(const SafetyProperty & p,
                  const TransitionSystem & ts,
-                 const SmtSolver & s,
-                 PonoOptions opt)
-    : super(p, ts, s, opt),
-      reducer_(create_reducer_for(
-          s->get_solver_enum(), Engine::IC3IA_ENGINE, opt.logging_smt_solver_)),
+                 const SmtSolver & solver,
+                 PonoOptions opt,
+                 Engine engine)
+    : super(p, ts, solver, opt, engine),
+      reducer_(
+          create_reducer(solver->get_solver_enum(), opt.logging_smt_solver_)),
       solver_context_(0),
       num_check_sat_since_reset_(0),
       failed_to_reset_solver_(false),

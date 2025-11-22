@@ -19,6 +19,7 @@
 
 #include "engines/prover.h"
 #include "ic3ia/ic3.h"
+#include "options/options.h"
 
 namespace pono {
 
@@ -28,7 +29,8 @@ class MsatIC3IA : public SafetyProver
   MsatIC3IA(const SafetyProperty & p,
             const TransitionSystem & ts,
             const smt::SmtSolver & solver,
-            PonoOptions opt = PonoOptions());
+            PonoOptions opt = {},
+            Engine engine = Engine::MSAT_IC3IA);
 
   typedef SafetyProver super;
 

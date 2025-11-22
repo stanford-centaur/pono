@@ -34,7 +34,6 @@ KLiveness::KLiveness(const LivenessProperty & p,
                      PonoOptions opt)
     : super(p, ts, solver, opt)
 {
-  engine_ = opt.engine_;
   if (justice_conditions_.size() > 1) {
     throw PonoException("k-liveness only supports one justice condition.");
   }

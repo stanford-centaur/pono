@@ -56,11 +56,10 @@ class BaseProver
   virtual ~BaseProver() = default;
 
  protected:
-  BaseProver(const TransitionSystem & ts, const smt::SmtSolver & solver);
-
   BaseProver(const TransitionSystem & ts,
              const smt::SmtSolver & solver,
-             PonoOptions opt);
+             PonoOptions opt,
+             Engine engine);
 
   /** Take a term from the Prover's solver
    *  to the original transition system's solver
@@ -87,12 +86,12 @@ class BaseProver
    */
   virtual TransitionSystem & prover_interface_ts();
 
+  PonoOptions options_;
+  const Engine engine_;
   smt::SmtSolver solver_;
   smt::TermTranslator to_prover_solver_;
   TransitionSystem orig_ts_;  ///< original TS before transferring to new solver
   TransitionSystem ts_;
-  PonoOptions options_;
-  Engine engine_ = Engine::NONE;
 
   bool initialized_ = false;
 
@@ -107,8 +106,9 @@ class SafetyProver : public BaseProver
  public:
   SafetyProver(const SafetyProperty & p,
                const TransitionSystem & ts,
-               const smt::SmtSolver & s,
-               PonoOptions opt = {});
+               const smt::SmtSolver & solver,
+               PonoOptions opt,
+               const Engine engine);
 
   void initialize() override;
 

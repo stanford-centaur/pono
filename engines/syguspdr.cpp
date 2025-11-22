@@ -110,9 +110,10 @@ bool SygusPdr::test_ts_has_op(const std::unordered_set<PrimOp> & prim_ops) const
 // ----------------------------------------------------------------
 SygusPdr::SygusPdr(const SafetyProperty & p,
                    const TransitionSystem & ts,
-                   const SmtSolver & s,
-                   PonoOptions opt)
-    : super(p, ts, s, opt),
+                   const SmtSolver & solver,
+                   PonoOptions opt,
+                   Engine engine)
+    : super(p, ts, solver, opt, engine),
       partial_model_getter(solver_),
       has_assumptions(true)  // most conservative way
 {
