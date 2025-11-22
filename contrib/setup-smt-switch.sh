@@ -101,7 +101,7 @@ if [ ! -d "$DEPS/smt-switch" ]; then
   ./configure.sh --bitwuzla --cvc5 $CONF_OPTS --prefix=local --static --smtlib-reader --bison-dir=../bison/bison-install --flex-dir=../flex/flex-install
   cd build
   make -j$(nproc)
-  make test
+  ctest --verbose
   make install
   cd $DIR
 else
