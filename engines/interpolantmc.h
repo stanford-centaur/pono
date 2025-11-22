@@ -32,8 +32,6 @@ class InterpolantMC : public SafetyProver
                 const smt::SmtSolver & slv,
                 PonoOptions opt = PonoOptions());
 
-  ~InterpolantMC();
-
   typedef SafetyProver super;
 
   void initialize() override;

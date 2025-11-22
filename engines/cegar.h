@@ -38,8 +38,6 @@ class CEGAR : public Prover_T
   {
   }
 
-  virtual ~CEGAR() = default;
-
  protected:
   /** Abstract the transition system -- usually only performed once
    *  (in initialize)

@@ -50,8 +50,6 @@ class IC3IA : public IC3
         const smt::SmtSolver & s,
         PonoOptions opt = PonoOptions());
 
-  virtual ~IC3IA() {}
-
   typedef IC3 super;
 
   void add_important_var(smt::Term v);

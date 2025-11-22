@@ -44,8 +44,6 @@ InterpSeqMC::InterpSeqMC(const SafetyProperty & p,
   engine_ = Engine::ISMC;
 }
 
-InterpSeqMC::~InterpSeqMC() {}
-
 void InterpSeqMC::initialize()
 {
   if (initialized_) {

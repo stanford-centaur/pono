@@ -16,6 +16,9 @@
 
 #include "modifiers/ops_abstractor.h"
 
+#include "core/fts.h"
+#include "core/rts.h"
+
 using namespace smt;
 using namespace std;
 

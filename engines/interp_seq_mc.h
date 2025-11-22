@@ -33,8 +33,6 @@ class InterpSeqMC : public SafetyProver
               const smt::SmtSolver & slv,
               PonoOptions opt = PonoOptions());
 
-  ~InterpSeqMC();
-
   typedef SafetyProver super;
 
   void initialize() override;

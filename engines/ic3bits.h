@@ -34,8 +34,6 @@ class IC3Bits : public IC3
           const smt::SmtSolver & s,
           PonoOptions opt = PonoOptions());
 
-  virtual ~IC3Bits() {}
-
   typedef IC3 super;
 
   void initialize() override;

@@ -66,8 +66,6 @@ KInduction::KInduction(const SafetyProperty & p,
   // }
 }
 
-KInduction::~KInduction() {}
-
 void KInduction::initialize()
 {
   if (initialized_) {

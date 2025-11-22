@@ -112,8 +112,6 @@ IC3Base::IC3Base(const SafetyProperty & p,
 {
 }
 
-IC3Base::~IC3Base() {}
-
 void IC3Base::initialize()
 {
   if (initialized_) {

@@ -53,8 +53,6 @@ class IC3SA : public IC3
         const smt::SmtSolver & solver,
         PonoOptions opt = PonoOptions());
 
-  virtual ~IC3SA() {}
-
   typedef IC3 super;
 
  protected:
