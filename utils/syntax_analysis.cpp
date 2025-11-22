@@ -19,6 +19,7 @@
 #include <cassert>
 
 #include "utils/container_shortcut.h"
+#include "utils/exceptions.h"
 #include "utils/syntax_analysis_walker.h"
 
 namespace pono {
@@ -41,10 +42,6 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre,
   PerVarsetInfo & varset_info = terms_cache_.at(var_string);
 
   assert(varset_info.state.stage != PerVarsetInfo::state_t::EXTRACTBITS);
-#if 0
-  assert(varset_info.state.stage != PerVarsetInfo::state_t::VCLT);
-  assert(varset_info.state.stage != PerVarsetInfo::state_t::VCLTE);
-#endif
   assert(term_mode != SyGuSTermMode::VAR_C_EXT);
   // if we already extract bits, we should be forever good
 
@@ -81,7 +78,9 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre,
       }
     case PerVarsetInfo::state_t::EXTRACTBITS:
       return term_learner.vars_extract_bit_level(post, varset_info);
-    default: assert(false);
+    case PerVarsetInfo::state_t::EMPTY:
+      throw PonoException(
+          "Unhandled case in syntax_analysis::VarTermManager::GetMoreTerms");
   }
   assert(false);
 }  // GetMoreTerms
@@ -156,23 +155,27 @@ const PerVarsetInfo & VarTermManager::GetAllTermsForVarsInModel(
   if (pos != terms_cache_.end()) {
     return pos->second;
   }
-  if (term_mode == SyGuSTermMode::FROM_DESIGN_LEARN_EXT)
-    return SetupTermsForVarModelNormal(m,
-                                       var_string,
-                                       s,
-                                       term_extract_depth,
-                                       initial_term_width,
-                                       initial_term_inc,
-                                       accumulated_term_bound);
-  if (term_mode == SyGuSTermMode::VAR_C_EXT)
-    return SetupTermsForVarModeExt(m, var_string, s);
-  if (term_mode == SyGuSTermMode::SPLIT_FROM_DESIGN)
-    return SetupTermsForVarModeSplit(m, var_string, s);
-  if (term_mode == SyGuSTermMode::VAR_C_EQ_LT)
-    return SetupTermsForVarModelVC(
-        m, var_string, s);  // just var and constant, you don't need a lot more
-
-  assert(false);
+  switch (term_mode) {
+    case SyGuSTermMode::FROM_DESIGN_LEARN_EXT:
+      return SetupTermsForVarModelNormal(m,
+                                         var_string,
+                                         s,
+                                         term_extract_depth,
+                                         initial_term_width,
+                                         initial_term_inc,
+                                         accumulated_term_bound);
+    case SyGuSTermMode::VAR_C_EXT:
+      return SetupTermsForVarModeExt(m, var_string, s);
+    case SyGuSTermMode::SPLIT_FROM_DESIGN:
+      return SetupTermsForVarModeSplit(m, var_string, s);
+    case SyGuSTermMode::VAR_C_EQ_LT:
+      // just var and constant, you don't need a lot more
+      return SetupTermsForVarModelVC(m, var_string, s);
+    case SyGuSTermMode::TERM_MODE_AUTO:
+      throw PonoException(
+          "Unhandled case in "
+          "syntax_analysis::VarTermManager::GetAllTermsForVarsInModel");
+  }
 }  // GetAllTermsFor
 
 // Later you may need to insert
