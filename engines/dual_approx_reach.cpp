@@ -46,8 +46,6 @@ DualApproxReach::DualApproxReach(const SafetyProperty & p,
   engine_ = Engine::DAR;
 }
 
-DualApproxReach::~DualApproxReach() {}
-
 void DualApproxReach::initialize()
 {
   if (initialized_) {

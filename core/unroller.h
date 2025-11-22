@@ -33,7 +33,7 @@ class Unroller
   Unroller(const TransitionSystem & ts,
            const std::string & time_identifier = "@");
 
-  virtual ~Unroller();
+  virtual ~Unroller() = default;
 
   /** Return an unrolled version of transition system term t
    *  at time k

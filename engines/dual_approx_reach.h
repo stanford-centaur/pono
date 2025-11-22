@@ -35,8 +35,6 @@ class DualApproxReach : public SafetyProver
                   const smt::SmtSolver & slv,
                   PonoOptions opt = PonoOptions());
 
-  ~DualApproxReach();
-
   typedef SafetyProver super;
 
   void initialize() override;

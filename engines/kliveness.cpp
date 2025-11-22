@@ -48,8 +48,6 @@ KLiveness::KLiveness(const LivenessProperty & p,
   }
 }
 
-KLiveness::~KLiveness() {}
-
 void KLiveness::initialize()
 {
   if (initialized_) {

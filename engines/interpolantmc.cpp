@@ -48,8 +48,6 @@ InterpolantMC::InterpolantMC(const SafetyProperty & p,
   engine_ = Engine::INTERP;
 }
 
-InterpolantMC::~InterpolantMC() {}
-
 void InterpolantMC::initialize()
 {
   if (initialized_) {

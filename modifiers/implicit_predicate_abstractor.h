@@ -18,9 +18,9 @@
 #pragma once
 
 #include "abstractor.h"
+#include "core/rts.h"
 #include "core/unroller.h"
 #include "smt-switch/term_translator.h"
-#include "smt-switch/utils.h"
 
 namespace pono {
 

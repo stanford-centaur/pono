@@ -28,8 +28,6 @@ class KInduction : public SafetyProver
              const smt::SmtSolver & solver,
              PonoOptions opt = PonoOptions());
 
-  virtual ~KInduction();
-
   typedef SafetyProver super;
 
   void initialize() override;

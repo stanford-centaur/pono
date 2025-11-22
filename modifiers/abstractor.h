@@ -17,8 +17,8 @@
 
 #include <cassert>
 
-#include "core/fts.h"
-#include "core/rts.h"
+#include "core/ts.h"
+#include "utils/exceptions.h"
 
 namespace pono {
 
@@ -37,7 +37,7 @@ class Abstractor
     }
   }
 
-  virtual ~Abstractor() {}
+  virtual ~Abstractor() = default;
 
   /** Returns the abstraction of a concrete term
    *  @param the concrete term to abstract
