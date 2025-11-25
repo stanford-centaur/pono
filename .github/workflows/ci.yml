@@ -67,6 +67,8 @@ jobs:
         run: ./contrib/setup-btor2tools.sh
 
       - name: Setup Smt-Switch
+        env:
+          DYLD_FALLBACK_LIBRARY_PATH: /opt/homebrew/lib  # this lets the precompiled MathSAT binary (used in the tests) find libgmp
         run: |
           eval `ssh-agent -s`
           ssh-add - <<< '${{ secrets.BZLA_PRIVATE_SSH_KEY }}'
