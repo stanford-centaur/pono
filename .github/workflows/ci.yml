@@ -44,8 +44,9 @@ jobs:
         run: |
           brew update
           brew install \
-            bison
-          echo "PATH=$(brew --prefix)/opt/bison/bin:$PATH" >> "$GITHUB_ENV"
+            bison \
+            gnu-sed
+          echo "PATH=$(brew --prefix)/opt/bison/bin:$(brew --prefix)/opt/gnu-sed/libexec/gnubin:$PATH" >> "$GITHUB_ENV"
 
       - name: Python Environment Setup
         run: |
