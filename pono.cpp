@@ -136,6 +136,16 @@ ProverResult check_prop(PonoOptions pono_options,
   if (pono_options.cegp_abs_vals_) {
     prover = make_cegar_values_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_bv_arith_) {
+    // Enable check-interpolants for Bitwuzla by default when using UFs.
+    if (pono_options.smt_interpolator_ == BZLA_INTERPOLATOR
+        && !pono_options.ceg_bv_arith_as_free_symbol_
+        && pono_options.smt_interpolator_opts_.find("check-interpolant")
+               == pono_options.smt_interpolator_opts_.end()) {
+      logger.log(2,
+                 "BV arithmetic abstraction uses UFs, enabling "
+                 "check-interpolant for Bitwuzla interpolator");
+      pono_options.smt_interpolator_opts_["check-interpolant"] = "true";
+    }
     prover = make_cegar_bv_arith_prover(eng, p, ts, s, pono_options);
   } else if (pono_options.ceg_prophecy_arrays_) {
     prover = make_ceg_proph_prover(eng, p, ts, s, pono_options);

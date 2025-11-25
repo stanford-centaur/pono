@@ -268,6 +268,12 @@ SmtSolver create_interpolating_solver(SolverEnum se,
   SmtSolver s;
   PrintingStyleEnum printing_style = DEFAULT_STYLE;
   switch (se) {
+    case BZLA:
+    case BZLA_INTERPOLATOR: {
+      s = BitwuzlaSolverFactory::create_interpolating_solver();
+      printing_style = BZLA_STYLE;
+      break;
+    }
     case CVC5:
     case CVC5_INTERPOLATOR: {
       s = Cvc5SolverFactory::create_interpolating_solver();
@@ -363,6 +369,7 @@ SmtSolver create_quantifier_solver(SolverEnum se,
 }
 
 const std::vector<SolverEnum> itp_enums({
+    BZLA_INTERPOLATOR,
     CVC5_INTERPOLATOR,
 #ifdef WITH_MSAT
     MSAT_INTERPOLATOR,

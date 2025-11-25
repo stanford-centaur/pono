@@ -44,8 +44,9 @@ jobs:
         run: |
           brew update
           brew install \
-            bison
-          echo "PATH=$(brew --prefix)/opt/bison/bin:$PATH" >> "$GITHUB_ENV"
+            bison \
+            gnu-sed
+          echo "PATH=$(brew --prefix)/opt/bison/bin:$(brew --prefix)/opt/gnu-sed/libexec/gnubin:$PATH" >> "$GITHUB_ENV"
 
       - name: Python Environment Setup
         run: |
@@ -70,6 +71,8 @@ jobs:
         env:
           DYLD_FALLBACK_LIBRARY_PATH: /opt/homebrew/lib  # this lets the precompiled MathSAT binary (used in the tests) find libgmp
         run: |
+          eval `ssh-agent -s`
+          ssh-add - <<< '${{ secrets.BZLA_PRIVATE_SSH_KEY }}'
           source .venv/bin/activate
           ./contrib/setup-smt-switch.sh --python --with-btor --with-msat
           python3 -m pip install $(ls deps/smt-switch/build/python/*.whl)

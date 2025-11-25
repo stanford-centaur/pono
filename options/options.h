@@ -412,7 +412,7 @@ class PonoOptions
 #ifdef WITH_MSAT
       smt::MSAT_INTERPOLATOR;
 #else
-      smt::CVC5_INTERPOLATOR;
+      smt::BZLA_INTERPOLATOR;
 #endif
   inline static const StringMap default_smt_interpolator_opts_ = {};
   static const bool default_logging_smt_solver_ = false;
