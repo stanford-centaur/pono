@@ -12,8 +12,9 @@ RUN apt-get install -y \
         curl \
         gettext-base \
         git \
-        libgmp-dev \
         libbison-dev \
+        libfl-dev \
+        libgmp-dev \
         m4 \
         meson \
         ninja-build \
