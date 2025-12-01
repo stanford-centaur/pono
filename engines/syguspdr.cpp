@@ -376,6 +376,7 @@ IC3Formula SygusPdr::inductive_generalization(size_t i, const IC3Formula & c)
   Term base = solver_->make_term(Or, F_T_not_cex, Init_prime);
 
   IC3Formula pre_formula;
+  IC3Formula ret;
   syntax_analysis::IC3FormulaModel * pre_model = NULL;
   syntax_analysis::IC3FormulaModel * pre_full_model = NULL;
   bool failed_at_init;
@@ -431,8 +432,9 @@ IC3Formula SygusPdr::inductive_generalization(size_t i, const IC3Formula & c)
           D(3, "Generated MAY-block model (init) {}", pre_model->to_string());
         }
         // note Here you must give a formula with current variables
-      } else
+      } else {
         insufficient_pred = false;
+      }
       pop_solver_context();
     }  // end of step 1
 
@@ -476,16 +478,17 @@ IC3Formula SygusPdr::inductive_generalization(size_t i, const IC3Formula & c)
 
       // at this point we have enough preds
       // reduce the preds
-      IC3Formula ret =
-          options_.smt_solver_ == SolverEnum::BTOR
-              ? select_predicates_btor(base, pred_collector_.GetAllPredNext())
-              : select_predicates_generic(base,
-                                          pred_collector_.GetAllPredNext());
+      ret = options_.smt_solver_ == SolverEnum::BTOR
+                ? select_predicates_btor(base, pred_collector_.GetAllPredNext())
+                : select_predicates_generic(base,
+                                            pred_collector_.GetAllPredNext());
 
-      return ret;
+      break;
     }
   } while (insufficient_pred);
-  assert(false);  // should not be reachable
+
+  assert(!ret.is_null());
+  return ret;
 }  // inductive_generalization
 
 // special optimization for btor
