@@ -1207,6 +1207,7 @@ string to_string(JusticeTranslator jt)
   string res;
   switch (jt) {
     case LIVENESS_TO_SAFETY: res = "l2s"; break;
+    case KLIVENESS: res = "klive"; break;
   }
   return res;
 }
