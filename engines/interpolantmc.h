@@ -46,9 +46,26 @@ class InterpolantMC : public SafetyProver
   bool step(const int i);
   bool step_0();
 
-  void reset_assertions(smt::SmtSolver & s);
-
-  bool check_entail(const smt::Term & p, const smt::Term & q);
+  /**
+   * @brief Check whether the reached states have converged to a fixed point,
+   * that is, whether the newly computed interpolant is already covered by the
+   * reached states.
+   *
+   * This method has the following side effects:
+   * - the solver stack is modified, and
+   * - the `reached` term is extended to include `new_itp` if `reached` does not
+   *   cover `new_itp` (i.e., the method returns `false`).
+   *
+   * @param new_itp the newly computed interpolant
+   * @param reached The reached states, represented as the disjunction of
+   *        previously computed interpolants.
+   * @param interp_count The number of interpolants computed at the current
+   *        unrolling step.
+   * @return true iff `new_itp` is already covered by `reached`
+   */
+  bool has_converged(const smt::Term & new_itp,
+                     smt::Term & reached,
+                     const int & interp_count);
 
   // configurable options
   const bool use_frontier_simpl_;
