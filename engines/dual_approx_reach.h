@@ -58,7 +58,6 @@ class DualApproxReach : public SafetyProver
   bool check_fixed_point();
   bool check_fixed_point(const smt::TermVec & reach_seq,
                          smt::Term & fixed_point);
-  bool check_entail(const smt::Term & p, const smt::Term & q);
 
   smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
