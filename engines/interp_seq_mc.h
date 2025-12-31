@@ -50,7 +50,6 @@ class InterpSeqMC : public SafetyProver
   void update_term_map(size_t i);
 
   bool check_fixed_point();
-  bool check_entail(const smt::Term & p, const smt::Term & q);
   void check_itp_sequence(const smt::TermVec & int_formulas,
                           const smt::TermVec & int_itp_seq);
 

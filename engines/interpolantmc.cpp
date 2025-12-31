@@ -156,6 +156,9 @@ bool InterpolantMC::step(const int i)
   bool got_interpolant = true;
   int interp_count = 0;
 
+  // pop all assertions from last step
+  solver_->pop(solver_->get_context_level());
+
   while (got_interpolant) {
     Term int_RA = to_interpolator_.transfer_term(use_frontier_simpl_ ? Ri : R);
     Term int_Ri;
@@ -183,23 +186,18 @@ bool InterpolantMC::step(const int i)
       // map Ri to time 0
       Ri = unroller_.at_time(unroller_.untime(Ri), 0);
 
-      if (check_entail(Ri, R)) {
-        // check if the over-approximation has reached a fix-point
+      if (has_converged(Ri, R, interp_count)) {
         logger.log(1, "Found a proof at bound: {}", i);
         invar_ = unroller_.untime(R);
         return true;
-      } else {
-        logger.log(1, "Extending reached states (count: {})", interp_count);
-        logger.log(3, "Using interpolant: {}", Ri);
-        R = solver_->make_term(Or, R, Ri);
       }
     } else if (interp_count == 0) {
       // found a concrete counter example
       // replay it in the solver with model generation
       concrete_cex_ = true;
-      solver_->reset_assertions();
 
       Term solver_trans = solver_->make_term(And, transA_, transB_);
+      solver_->push();
       solver_->assert_formula(solver_->make_term(
           And, init0_, solver_->make_term(And, solver_trans, bad_i)));
 
@@ -239,26 +237,56 @@ bool InterpolantMC::step(const int i)
 
 bool InterpolantMC::step_0()
 {
-  solver_->reset_assertions();
+  solver_->pop(solver_->get_context_level());
+  solver_->push();
   solver_->assert_formula(init0_);
   solver_->assert_formula(unroller_.at_time(bad_, 0));
 
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
     reached_k_ = 0;
-  } else {
+    solver_->pop();
+  } else if (r.is_sat()) {
+    // do not pop here to keep the solver state
+    // for later witness extraction (`compute_witness()`)
     concrete_cex_ = true;
+  } else {
+    throw PonoException("Interp: step_0 failed, unexpected result: "
+                        + r.to_string());
   }
   return false;
 }
 
-bool InterpolantMC::check_entail(const Term & p, const Term & q)
+bool InterpolantMC::has_converged(const Term & new_itp,
+                                  Term & reached,
+                                  const int & interp_count)
 {
-  solver_->reset_assertions();
-  solver_->assert_formula(
-      solver_->make_term(And, p, solver_->make_term(Not, q)));
+  if (solver_->get_context_level() == 0) {
+    // initialize the solver stack on the 1st call to this method
+    // at the current unrolling step
+    assert(reached == init0_);
+    solver_->push();
+    solver_->assert_formula(solver_->make_term(Not, reached));
+  }
+
+  // check if new_itp is already covered by the reached states
+  solver_->push();
+  solver_->assert_formula(new_itp);
+
   Result r = solver_->check_sat();
   assert(r.is_unsat() || r.is_sat());
+
+  if (!r.is_unsat()) {
+    // new_itp contains a state not in reached states
+    // extend the reached states
+    solver_->pop();
+    solver_->push();
+    solver_->assert_formula(solver_->make_term(Not, new_itp));
+
+    logger.log(1, "Extending reached states (count: {})", interp_count);
+    logger.log(3, "Using interpolant: {}", new_itp);
+    reached = solver_->make_term(Or, reached, new_itp);
+  }
   return r.is_unsat();
 }
 
