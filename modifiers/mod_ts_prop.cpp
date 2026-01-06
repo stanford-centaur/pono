@@ -212,6 +212,9 @@ void make_trans_total(TransitionSystem & ts, Term & prop)
         constraints.size() == 1 ? constraints.at(0)
                                 : new_ts.make_term(And, constraints));
     new_ts.assign_next(valid, valid_next);
+    // `valid` is later used for modifying `prop`
+    // the constraints at current time step have to be included
+    valid = valid_next;
   } else {
     Term new_trans = new_ts.make_term(
         Or,
