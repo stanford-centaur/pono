@@ -25,7 +25,6 @@ RUN apt-get install -y \
         wget
 RUN apt-get autoremove --purge
 RUN apt-get clean -y
-RUN ./contrib/setup-flex.sh
 RUN ./contrib/setup-btor2tools.sh
 
 ## To setup MathSAT dependencies, uncomment the following line:
