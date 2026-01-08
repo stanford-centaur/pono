@@ -353,6 +353,9 @@ enable_testing()
 # and builds all the parametrized tests
 add_subdirectory(tests EXCLUDE_FROM_ALL)
 
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+find_package(Yosys)
+
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
 set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
 
@@ -364,6 +367,7 @@ target_include_directories(pono-bin PUBLIC
   "${SMT_SWITCH_DIR}/local/include")
 
 target_link_libraries(pono-bin PUBLIC pono-lib)
+target_link_libraries(pono-bin PRIVATE yosys::yosys)
 
 if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
   if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")

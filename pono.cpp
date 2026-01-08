@@ -27,6 +27,7 @@
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
+#include "kernel/yosys.h"
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
@@ -296,6 +297,41 @@ int main(int argc, char ** argv)
     //       and also only create the transition system once
     string file_ext = pono_options.filename_.substr(
         pono_options.filename_.find_last_of(".") + 1);
+    if (file_ext == "sv" || file_ext == "v") {
+      logger.log(2, "Converting Verilog file to Btor2 using Yosys: {}", pono_options.filename_);
+      std::string tempdir{"/tmp/tmp.XXXXXXXXXX"};
+      mkdtemp(&tempdir.front());
+      Yosys::yosys_setup();
+      Yosys::log_streams.push_back(&std::cerr);
+      Yosys::run_pass("echo on");
+      Yosys::load_plugin("slang", {});
+      string prefix = pono_options.filename_.substr(0, pono_options.filename_.find_last_of("/"));
+      if (prefix == pono_options.filename_) {
+        prefix = ".";
+      }
+      Yosys::run_frontend(pono_options.filename_, "slang -y " + prefix);
+      Yosys::run_pass("chformal -assume -early");
+      Yosys::run_pass("memory -nomap");
+      Yosys::run_pass("flatten");
+      if (!pono_options.clock_name_.empty()) {
+        if (!pono_options.reset_name_.empty()) {
+          if (pono_options.reset_name_[0] == '~') {
+            Yosys::run_pass("sim -clock " + pono_options.clock_name_ + " -resetn " + pono_options.reset_name_.substr(1) + " -n 1 -rstlen 1 -w");
+          } else {
+            Yosys::run_pass("sim -clock " + pono_options.clock_name_ + " -reset " + pono_options.reset_name_ + " -n 1 -rstlen 1 -w");
+          }
+        } else {
+          std::cerr << "warning: no reset signal specified\n";
+        }
+      } else {
+        std::cerr << "warning: no clock name specified\n";
+      }
+      Yosys::run_pass("setundef -undriven -expose");
+      Yosys::run_backend(tempdir + "/design.btor2", "btor");
+      Yosys::yosys_shutdown();
+      pono_options.filename_ = tempdir + "/design.btor2";
+      file_ext = "btor2";
+    }
     if (file_ext == "btor2" || file_ext == "btor") {
       logger.log(2, "Parsing BTOR2 file: {}", pono_options.filename_);
       FunctionalTransitionSystem fts(s);
