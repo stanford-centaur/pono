@@ -21,10 +21,6 @@
 #include <string>
 #include <unordered_set>
 
-// actually no use, because micros are not bound by namespace
-// should only be included in .cpp
-namespace cosa {
-
 #define UNION(a, b, r)         \
   (std::set_union((a).begin(), \
                   (a).end(),   \
@@ -57,6 +53,9 @@ namespace cosa {
 
 #define FIND_IN(e, s) ((std::find((s).begin(), (s).end(), (e))) != (s).end())
 
+namespace pono {
+namespace utils {
+
 template <typename MAP>
 const typename MAP::mapped_type & get_with_default(
     const MAP & m,
@@ -81,4 +80,5 @@ bool is_union_empty(const std::unordered_set<T> & a,
   return true;
 }
 
-}  // namespace cosa
+}  // namespace utils
+}  // namespace pono
