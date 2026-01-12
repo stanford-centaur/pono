@@ -255,12 +255,12 @@ bool InterpSeqMC::check_fixed_point()
     solver_->assert_formula(reach_seq_.at(i));
     Result r = solver_->check_sat();
     assert(r.is_unsat() || r.is_sat());
+    solver_->pop();
     if (r.is_unsat()) {
       // reached a fixed point
       invar_ = acc_img;
       return true;
     }
-    solver_->pop();
     // extend the accumulated reached set
     solver_->push();
     solver_->assert_formula(solver_->make_term(Not, reach_seq_.at(i)));
