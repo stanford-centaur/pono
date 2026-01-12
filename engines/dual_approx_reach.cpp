@@ -143,7 +143,7 @@ bool DualApproxReach::step(int i)
 
 bool DualApproxReach::step_0()
 {
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
   // push the unrolled formulas here
   // as compute_witness() rely on timed variables
   solver_->push();
@@ -191,7 +191,7 @@ bool DualApproxReach::local_strengthen()
   // starting from the last element in forward_seq_.
   size_t unsat_idx = 0;
   const size_t seq_len = forward_seq_.size();
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
   solver_->push();
   solver_->assert_formula(unroller_.at_time(ts_.trans(), 0));  // TR(0, 1)
   // iterate through the reachability sequences
@@ -239,7 +239,7 @@ bool DualApproxReach::global_strengthen()
   const size_t seq_len = forward_seq_.size();
   TermVec int_assertions;
   int_assertions.reserve(seq_len + 1);
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
   Term unrolled_trans = unroller_.at_time(
       solver_->make_term(And, forward_seq_.at(0), ts_.trans()), 0);
   int_assertions.push_back(to_interpolator_.transfer_term(unrolled_trans));
@@ -406,7 +406,7 @@ bool DualApproxReach::check_fixed_point(const TermVec & reach_seq,
                                         Term & fixed_point)
 {
   assert(reach_seq.size() > 1);
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
   Term acc_img = reach_seq.at(0);
   solver_->push();
   solver_->assert_formula(solver_->make_term(Not, acc_img));

@@ -67,6 +67,13 @@ class InterpolantMC : public SafetyProver
                      smt::Term & reached,
                      const int & interp_count);
 
+  /**
+   * Pop all contexts in solver.
+   * TODO: replace with `solver_->pop_all()` after
+   * https://github.com/stanford-centaur/smt-switch/pull/476 is merged
+   */
+  void solver_pop_all() { solver_->pop(solver_->get_context_level()); }
+
   // configurable options
   const bool use_frontier_simpl_;
   const InterpPropsEnum interp_props_;

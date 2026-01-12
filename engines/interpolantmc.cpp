@@ -157,7 +157,7 @@ bool InterpolantMC::step(const int i)
   int interp_count = 0;
 
   // pop all assertions from last step
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
 
   while (got_interpolant) {
     Term int_RA = to_interpolator_.transfer_term(use_frontier_simpl_ ? Ri : R);
@@ -237,7 +237,7 @@ bool InterpolantMC::step(const int i)
 
 bool InterpolantMC::step_0()
 {
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
   solver_->push();
   solver_->assert_formula(init0_);
   solver_->assert_formula(unroller_.at_time(bad_, 0));

@@ -53,6 +53,13 @@ class InterpSeqMC : public SafetyProver
   void check_itp_sequence(const smt::TermVec & int_formulas,
                           const smt::TermVec & int_itp_seq);
 
+  /**
+   * Pop all contexts in solver.
+   * TODO: replace with `solver_->pop_all()` after
+   * https://github.com/stanford-centaur/smt-switch/pull/476 is merged
+   */
+  void solver_pop_all() { solver_->pop(solver_->get_context_level()); }
+
   smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
   smt::TermTranslator to_interpolator_;

@@ -176,7 +176,7 @@ bool InterpSeqMC::step(int i)
     // note that we also perform the check even when interpolation fails
     // (i.e., r.is_unknown()), because iterative construction of interpolation
     // sequence may fail if the given formula is satisfiable
-    solver_->pop(solver_->get_context_level());
+    solver_pop_all();
     solver_->push();
     Term trans_until_i = (trans_seq_.size() == 1)
                              ? trans_seq_.at(0)
@@ -202,7 +202,7 @@ bool InterpSeqMC::step(int i)
 
 bool InterpSeqMC::step_0()
 {
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
   // push the unrolled formulas here
   // as compute_witness() rely on timed variables
   solver_->push();
@@ -244,7 +244,7 @@ bool InterpSeqMC::check_fixed_point()
 {
   assert(reach_seq_.size() > 1);
   // pop assertions from the previous unrolling step
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
   // initialize solver stack and reached set
   Term acc_img = reach_seq_.at(0);
   solver_->push();
@@ -275,7 +275,7 @@ void InterpSeqMC::check_itp_sequence(const TermVec & int_formulas,
                                      const TermVec & int_itp_seq)
 {
   assert(int_formulas.size() == int_itp_seq.size() + 1);
-  solver_->pop(solver_->get_context_level());
+  solver_pop_all();
   for (size_t i = 0; i < int_itp_seq.size(); ++i) {
     TermVec int_a_vec(int_formulas.begin(), int_formulas.begin() + i + 1);
     TermVec int_b_vec(int_formulas.begin() + i + 1, int_formulas.end());
