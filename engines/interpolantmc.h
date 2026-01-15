@@ -77,7 +77,7 @@ class InterpolantMC : public SafetyProver
   smt::TermTranslator to_solver_;
 
   // set to true when a concrete_cex is found
-  bool concrete_cex_;
+  bool concrete_cex_ = false;
 
   smt::Term init0_;
   smt::Term transA_;

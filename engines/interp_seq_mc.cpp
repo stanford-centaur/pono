@@ -78,6 +78,13 @@ void InterpSeqMC::initialize()
 
 void InterpSeqMC::reset_env()
 {
+  // (Soft-)Reset the solver here
+  // (assuming no assertions were push to context level 0).
+  // This step is needed if the engine is used in a CAGAR loop
+  // as there might be assertions from previous iterations.
+  assert(!concrete_cex_ || solver_->get_context_level() == 1);
+  solver_->pop(solver_->get_context_level());
+  // Reinitialize the prover
   initialized_ = false;
   InterpSeqMC::initialize();
 }

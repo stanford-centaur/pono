@@ -66,7 +66,7 @@ class DualApproxReach : public SafetyProver
   smt::TermTranslator to_solver_;
 
   // set to true when a concrete_cex is found
-  bool concrete_cex_;
+  bool concrete_cex_ = false;
 
   // forward reachability sequence: <F_0=Init, F_0, F_1, ...>
   smt::TermVec forward_seq_;

@@ -60,7 +60,7 @@ class InterpSeqMC : public SafetyProver
   smt::TermTranslator to_solver_;
 
   // set to true when a concrete_cex is found
-  bool concrete_cex_;
+  bool concrete_cex_ = false;
 
   // reachability sequence: <R_0=Init, R_1, R_2, ...>
   smt::TermVec reach_seq_;
