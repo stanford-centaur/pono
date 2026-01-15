@@ -51,10 +51,7 @@ class InterpolantMC : public SafetyProver
    * that is, whether the newly computed interpolant is already covered by the
    * reached states.
    *
-   * This method has the following side effects:
-   * - the solver stack is modified, and
-   * - the `reached` term is extended to include `new_itp` if `reached` does not
-   *   cover `new_itp` (i.e., the method returns `false`).
+   * This method modifies the solver stack.
    *
    * @param new_itp the newly computed interpolant
    * @param reached The reached states, represented as the disjunction of
@@ -64,15 +61,8 @@ class InterpolantMC : public SafetyProver
    * @return true iff `new_itp` is already covered by `reached`
    */
   bool has_converged(const smt::Term & new_itp,
-                     smt::Term & reached,
+                     const smt::Term & reached,
                      const int & interp_count);
-
-  /**
-   * Pop all contexts in solver.
-   * TODO: replace with `solver_->pop_all()` after
-   * https://github.com/stanford-centaur/smt-switch/pull/476 is merged
-   */
-  void solver_pop_all() { solver_->pop(solver_->get_context_level()); }
 
   // configurable options
   const bool use_frontier_simpl_;
