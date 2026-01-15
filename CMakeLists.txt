@@ -76,9 +76,6 @@ if (BISON_FOUND)
 endif()
 
 find_package(FLEX 2.6.4 REQUIRED)
-if(NOT FLEX_INCLUDE_DIRS)
-  message(FATAL_ERROR "Missing flex headers")
-endif()
 
 if (NOT DEFINED SMT_SWITCH_DIR)
     set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
@@ -187,7 +184,6 @@ set(INCLUDE_DIRS
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
   ${GMPXX_INCLUDE_DIRS}
-  ${FLEX_INCLUDE_DIRS}
   )
 
 set(SOURCES
