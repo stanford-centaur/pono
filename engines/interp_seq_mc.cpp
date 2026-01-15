@@ -176,7 +176,7 @@ bool InterpSeqMC::step(int i)
     // note that we also perform the check even when interpolation fails
     // (i.e., r.is_unknown()), because iterative construction of interpolation
     // sequence may fail if the given formula is satisfiable
-    solver_pop_all();
+    assert(solver_->get_context_level() == 0);
     solver_->push();
     Term trans_until_i = (trans_seq_.size() == 1)
                              ? trans_seq_.at(0)
@@ -243,13 +243,11 @@ void InterpSeqMC::update_term_map(size_t i)
 bool InterpSeqMC::check_fixed_point()
 {
   assert(reach_seq_.size() > 1);
-  // pop assertions from the previous unrolling step
-  solver_pop_all();
+  assert(solver_->get_context_level() == 0);
   // initialize solver stack and reached set
   Term acc_img = reach_seq_.at(0);
   solver_->push();
   solver_->assert_formula(solver_->make_term(Not, acc_img));
-
   for (size_t i = 1; i < reach_seq_.size(); ++i) {
     solver_->push();
     solver_->assert_formula(reach_seq_.at(i));
@@ -258,6 +256,7 @@ bool InterpSeqMC::check_fixed_point()
     solver_->pop();
     if (r.is_unsat()) {
       // reached a fixed point
+      solver_->pop(i);  // pop all assertions
       invar_ = acc_img;
       return true;
     }
@@ -266,6 +265,7 @@ bool InterpSeqMC::check_fixed_point()
     solver_->assert_formula(solver_->make_term(Not, reach_seq_.at(i)));
     acc_img = solver_->make_term(Or, acc_img, reach_seq_.at(i));
   }
+  solver_->pop(reach_seq_.size());  // pop all assertions
   return false;
 }
 
@@ -275,7 +275,7 @@ void InterpSeqMC::check_itp_sequence(const TermVec & int_formulas,
                                      const TermVec & int_itp_seq)
 {
   assert(int_formulas.size() == int_itp_seq.size() + 1);
-  solver_pop_all();
+  assert(solver_->get_context_level() == 0);
   for (size_t i = 0; i < int_itp_seq.size(); ++i) {
     TermVec int_a_vec(int_formulas.begin(), int_formulas.begin() + i + 1);
     TermVec int_b_vec(int_formulas.begin() + i + 1, int_formulas.end());

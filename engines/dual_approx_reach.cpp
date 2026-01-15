@@ -184,6 +184,7 @@ void DualApproxReach::update_term_map(size_t i)
 // see function `LocStrength` (Fig. 2(a)) in the paper
 bool DualApproxReach::local_strengthen()
 {
+  assert(solver_->get_context_level() == 0);
   // We want to find an index i such that
   // forward_seq_[len-1-i](s0) & TR(s0, s1) & backward_seq_[i](s1) is unsat.
   // The search can be done in arbitrary order.
@@ -191,7 +192,6 @@ bool DualApproxReach::local_strengthen()
   // starting from the last element in forward_seq_.
   size_t unsat_idx = 0;
   const size_t seq_len = forward_seq_.size();
-  solver_pop_all();
   solver_->push();
   solver_->assert_formula(unroller_.at_time(ts_.trans(), 0));  // TR(0, 1)
   // iterate through the reachability sequences
@@ -236,10 +236,10 @@ bool DualApproxReach::local_strengthen()
 bool DualApproxReach::global_strengthen()
 {
   assert(forward_seq_.size() > 1);
+  assert(solver_->get_context_level() == 0);
   const size_t seq_len = forward_seq_.size();
   TermVec int_assertions;
   int_assertions.reserve(seq_len + 1);
-  solver_pop_all();
   Term unrolled_trans = unroller_.at_time(
       solver_->make_term(And, forward_seq_.at(0), ts_.trans()), 0);
   int_assertions.push_back(to_interpolator_.transfer_term(unrolled_trans));
@@ -406,7 +406,7 @@ bool DualApproxReach::check_fixed_point(const TermVec & reach_seq,
                                         Term & fixed_point)
 {
   assert(reach_seq.size() > 1);
-  solver_pop_all();
+  assert(solver_->get_context_level() == 0);
   Term acc_img = reach_seq.at(0);
   solver_->push();
   solver_->assert_formula(solver_->make_term(Not, acc_img));
@@ -418,6 +418,7 @@ bool DualApproxReach::check_fixed_point(const TermVec & reach_seq,
     solver_->pop();
     if (r.is_unsat()) {
       // reached a fixed point
+      solver_->pop(i);  // pop all assertions
       fixed_point = acc_img;
       return true;
     }
@@ -426,6 +427,7 @@ bool DualApproxReach::check_fixed_point(const TermVec & reach_seq,
     solver_->assert_formula(solver_->make_term(Not, reach_seq.at(i)));
     acc_img = solver_->make_term(Or, acc_img, reach_seq.at(i));
   }
+  solver_->pop(reach_seq.size());  // pop all assertions
   return false;
 }
 

@@ -59,13 +59,6 @@ class DualApproxReach : public SafetyProver
   bool check_fixed_point(const smt::TermVec & reach_seq,
                          smt::Term & fixed_point);
 
-  /**
-   * Pop all contexts in solver.
-   * TODO: replace with `solver_->pop_all()` after
-   * https://github.com/stanford-centaur/smt-switch/pull/476 is merged
-   */
-  void solver_pop_all() { solver_->pop(solver_->get_context_level()); }
-
   smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
   smt::TermTranslator to_interpolator_;
