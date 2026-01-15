@@ -237,7 +237,7 @@ bool InterpolantMC::step(const int i)
 
 bool InterpolantMC::step_0()
 {
-  solver_pop_all();
+  assert(solver_->get_context_level() == 0);
   solver_->push();
   solver_->assert_formula(init0_);
   solver_->assert_formula(unroller_.at_time(bad_, 0));

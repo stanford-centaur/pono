@@ -143,7 +143,7 @@ bool DualApproxReach::step(int i)
 
 bool DualApproxReach::step_0()
 {
-  solver_pop_all();
+  assert(solver_->get_context_level() == 0);
   // push the unrolled formulas here
   // as compute_witness() rely on timed variables
   solver_->push();
