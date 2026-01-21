@@ -79,10 +79,10 @@ unsigned VarTermManager::GetMoreTerms(IC3FormulaModel * pre,
     case PerVarsetInfo::state_t::EXTRACTBITS:
       return term_learner.vars_extract_bit_level(post, varset_info);
     case PerVarsetInfo::state_t::EMPTY:
+    default:
       throw PonoException(
           "Unhandled case in syntax_analysis::VarTermManager::GetMoreTerms");
   }
-  assert(false);
 }  // GetMoreTerms
 
 // we just won't compute canonical_string twice
@@ -172,6 +172,7 @@ const PerVarsetInfo & VarTermManager::GetAllTermsForVarsInModel(
       // just var and constant, you don't need a lot more
       return SetupTermsForVarModelVC(m, var_string, s);
     case SyGuSTermMode::TERM_MODE_AUTO:
+    default:
       throw PonoException(
           "Unhandled case in "
           "syntax_analysis::VarTermManager::GetAllTermsForVarsInModel");
