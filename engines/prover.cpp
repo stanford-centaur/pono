@@ -37,9 +37,9 @@ namespace pono {
 BaseProver::BaseProver(const TransitionSystem & ts,
                        const SmtSolver & solver,
                        PonoOptions opt,
-                       const Engine e)
+                       const Engine engine)
     : options_(opt),
-      engine_(e),
+      engine_(engine),
       solver_(solver),
       to_prover_solver_(solver),
       orig_ts_(ts),
