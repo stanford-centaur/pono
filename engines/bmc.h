@@ -28,8 +28,6 @@ class Bmc : public SafetyProver
       const smt::SmtSolver & solver,
       PonoOptions opt = PonoOptions());
 
-  ~Bmc();
-
   typedef SafetyProver super;
 
   void initialize() override;

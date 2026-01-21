@@ -27,8 +27,6 @@ class ModelBasedIC3 : public IC3Base
                 const smt::SmtSolver & s,
                 PonoOptions opt = PonoOptions());
 
-  virtual ~ModelBasedIC3() {}
-
   typedef IC3Base super;
 
  protected:

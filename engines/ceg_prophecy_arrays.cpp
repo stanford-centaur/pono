@@ -23,6 +23,7 @@
 #include <cassert>
 #include <map>
 
+#include "core/rts.h"
 #include "engines/bmc.h"
 #include "engines/bmc_simplepath.h"
 #include "engines/dual_approx_reach.h"

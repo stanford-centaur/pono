@@ -28,8 +28,6 @@ class BmcSimplePath : public KInduction
                 const smt::SmtSolver & solver,
                 PonoOptions opt = PonoOptions());
 
-  ~BmcSimplePath();
-
   typedef KInduction super;
 
   ProverResult check_until(int k) override;
