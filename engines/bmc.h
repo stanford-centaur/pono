@@ -17,6 +17,7 @@
 #pragma once
 
 #include "engines/prover.h"
+#include "options/options.h"
 
 namespace pono {
 
@@ -26,7 +27,8 @@ class Bmc : public SafetyProver
   Bmc(const SafetyProperty & p,
       const TransitionSystem & ts,
       const smt::SmtSolver & solver,
-      PonoOptions opt = PonoOptions());
+      PonoOptions opt = {},
+      Engine engine = Engine::BMC);
 
   typedef SafetyProver super;
 

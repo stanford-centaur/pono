@@ -60,10 +60,9 @@ smt::SmtSolver create_solver_for(smt::SolverEnum se,
 // for a reducing solver (e.g. produce-models off)
 // unsat cores on
 // and other solver-specific options where appropriate
-smt::SmtSolver create_reducer_for(smt::SolverEnum se,
-                                  Engine e,
-                                  bool logging,
-                                  const StringMap & solver_opts = {});
+smt::SmtSolver create_reducer(smt::SolverEnum se,
+                              bool logging,
+                              const StringMap & solver_opts = {});
 
 /** Creates an interpolating SmtSolver of the provided type */
 smt::SmtSolver create_interpolating_solver(smt::SolverEnum se,

@@ -36,6 +36,7 @@
 #include "core/ts.h"
 #include "engines/ic3.h"
 #include "modifiers/implicit_predicate_abstractor.h"
+#include "options/options.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -47,8 +48,9 @@ class IC3IA : public IC3
 
   IC3IA(const SafetyProperty & p,
         const TransitionSystem & ts,
-        const smt::SmtSolver & s,
-        PonoOptions opt = PonoOptions());
+        const smt::SmtSolver & solver,
+        PonoOptions opt = {},
+        Engine engine = Engine::IC3IA_ENGINE);
 
   typedef IC3 super;
 

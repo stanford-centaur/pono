@@ -23,10 +23,10 @@ namespace pono {
 BmcSimplePath::BmcSimplePath(const SafetyProperty & p,
                              const TransitionSystem & ts,
                              const SmtSolver & solver,
-                             PonoOptions opt)
-    : super(p, ts, solver, opt)
+                             PonoOptions opt,
+                             Engine engine)
+    : super(p, ts, solver, opt, engine)
 {
-  engine_ = Engine::BMC_SP;
   kind_engine_name_ = "BMC-SP";
 
   // Options that affect k-induction also have an effect on BMC-SP

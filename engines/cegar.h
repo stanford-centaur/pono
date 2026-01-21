@@ -33,7 +33,7 @@ class CEGAR : public Prover_T
   CEGAR(const SafetyProperty & p,
         const TransitionSystem & ts,
         const smt::SmtSolver & solver,
-        PonoOptions opt = PonoOptions())
+        PonoOptions opt = {})
       : super(p, ts, solver, opt)
   {
   }

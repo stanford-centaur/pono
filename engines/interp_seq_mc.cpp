@@ -30,18 +30,18 @@ namespace pono {
 
 InterpSeqMC::InterpSeqMC(const SafetyProperty & p,
                          const TransitionSystem & ts,
-                         const SmtSolver & slv,
-                         PonoOptions opt)
-    : super(p, ts, slv, opt),
+                         const SmtSolver & solver,
+                         PonoOptions opt,
+                         Engine engine)
+    : super(p, ts, solver, opt, engine),
       interpolator_(
           create_interpolating_solver_for(options_.smt_interpolator_,
-                                          Engine::ISMC,
+                                          engine_,
                                           options_.printing_smt_interpolator_,
                                           options_.smt_interpolator_opts_)),
       to_interpolator_(interpolator_),
       to_solver_(solver_)
 {
-  engine_ = Engine::ISMC;
 }
 
 void InterpSeqMC::initialize()

@@ -51,7 +51,8 @@ class IC3SA : public IC3
   IC3SA(const SafetyProperty & p,
         const TransitionSystem & ts,
         const smt::SmtSolver & solver,
-        PonoOptions opt = PonoOptions());
+        PonoOptions opt = {},
+        Engine engine = Engine::IC3SA_ENGINE);
 
   typedef IC3 super;
 

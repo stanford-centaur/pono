@@ -65,11 +65,12 @@ unordered_set<PrimOp> controllable_ops(
 
 // main IC3SA implementation
 
-IC3SA::IC3SA(const SafetyProperty & p,
+IC3SA::IC3SA(const SafetyProperty & prop,
              const TransitionSystem & ts,
              const smt::SmtSolver & solver,
-             PonoOptions opt)
-    : super(p, RelationalTransitionSystem(solver), solver, opt),
+             PonoOptions opt,
+             Engine engine)
+    : super(prop, RelationalTransitionSystem(solver), solver, opt, engine),
       conc_ts_(ts, to_prover_solver_),
       f_unroller_(conc_ts_, 0, "_AT"),  // zero means pure-functional unrolling
       boolsort_(solver_->make_sort(BOOL)),
@@ -78,7 +79,6 @@ IC3SA::IC3SA(const SafetyProperty & p,
   // since we passed a fresh RelationalTransitionSystem as the main TS
   // need to point orig_ts_ to the right place
   orig_ts_ = ts;
-  engine_ = Engine::IC3SA_ENGINE;
   approx_pregen_ = true;
 }
 
