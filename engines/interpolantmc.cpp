@@ -192,8 +192,8 @@ bool InterpolantMC::step(const int i)
       Ri = unroller_.at_time(unroller_.untime(Ri), 0);
 
       if (has_converged(Ri, R, interp_count)) {
-        assert(solver_->get_context_level() == interp_count);
-        solver_->pop(interp_count);
+        assert(solver_->get_context_level() == 1);
+        solver_->pop();
         logger.log(1, "Found a proof at bound: {}", i);
         invar_ = unroller_.untime(R);
         return true;
@@ -222,8 +222,8 @@ bool InterpolantMC::step(const int i)
       throw PonoException("Interpolant generation failed.");
     }
   }
-  assert(solver_->get_context_level() == interp_count + 1);
-  solver_->pop(interp_count + 1);
+  assert(solver_->get_context_level() == 1);
+  solver_->pop();
 
   // Note: important that it's for i > 0
   // transB can't have any symbols from time 0 in it
@@ -281,7 +281,7 @@ bool InterpolantMC::has_converged(const Term & new_itp,
     solver_->push();
     solver_->assert_formula(solver_->make_term(Not, reached));
   }
-  assert(solver_->get_context_level() == interp_count);
+  assert(solver_->get_context_level() == 1);
 
   // check if new_itp is already covered by the reached states
   solver_->push();
@@ -294,7 +294,6 @@ bool InterpolantMC::has_converged(const Term & new_itp,
   if (!r.is_unsat()) {
     // new_itp contains a state not in reached states
     // extend the reached states
-    solver_->push();
     solver_->assert_formula(solver_->make_term(Not, new_itp));
   }
   return r.is_unsat();

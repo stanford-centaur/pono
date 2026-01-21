@@ -426,16 +426,15 @@ bool DualApproxReach::check_fixed_point(const TermVec & reach_seq,
     solver_->pop();
     if (r.is_unsat()) {
       // reached a fixed point
-      solver_->pop(i);  // pop all assertions
+      solver_->pop();  // pop all assertions
       fixed_point = acc_img;
       return true;
     }
     // extend the accumulated reached set
-    solver_->push();
     solver_->assert_formula(solver_->make_term(Not, reach_seq.at(i)));
     acc_img = solver_->make_term(Or, acc_img, reach_seq.at(i));
   }
-  solver_->pop(reach_seq.size());  // pop all assertions
+  solver_->pop();  // pop all assertions
   return false;
 }
 
