@@ -78,6 +78,13 @@ void InterpSeqMC::initialize()
 
 void InterpSeqMC::reset_env()
 {
+  // (Soft-)Reset the solver here
+  // (assuming no assertions were push to context level 0).
+  // This step is needed if the engine is used in a CAGAR loop
+  // as there might be assertions from previous iterations.
+  assert(!concrete_cex_ || solver_->get_context_level() == 1);
+  solver_->pop(solver_->get_context_level());
+  // Reinitialize the prover
   initialized_ = false;
   InterpSeqMC::initialize();
 }
@@ -176,7 +183,8 @@ bool InterpSeqMC::step(int i)
     // note that we also perform the check even when interpolation fails
     // (i.e., r.is_unknown()), because iterative construction of interpolation
     // sequence may fail if the given formula is satisfiable
-    solver_->reset_assertions();
+    assert(solver_->get_context_level() == 0);
+    solver_->push();
     Term trans_until_i = (trans_seq_.size() == 1)
                              ? trans_seq_.at(0)
                              : solver_->make_term(And, trans_seq_);
@@ -201,17 +209,24 @@ bool InterpSeqMC::step(int i)
 
 bool InterpSeqMC::step_0()
 {
-  solver_->reset_assertions();
+  assert(solver_->get_context_level() == 0);
   // push the unrolled formulas here
   // as compute_witness() rely on timed variables
+  solver_->push();
   solver_->assert_formula(unroller_.at_time(reach_seq_.at(0), 0));
   solver_->assert_formula(unroller_.at_time(bad_, 0));
 
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
-    ++reached_k_;
-  } else {
+    reached_k_ = 0;
+    solver_->pop();
+  } else if (r.is_sat()) {
+    // do not pop here to keep the solver state
+    // for later witness extraction (`compute_witness()`)
     concrete_cex_ = true;
+  } else {
+    throw PonoException("ISMC: step_0 failed, unexpected result: "
+                        + r.to_string());
   }
   return false;
 }
@@ -232,27 +247,31 @@ void InterpSeqMC::update_term_map(size_t i)
   }
 }
 
-bool InterpSeqMC::check_entail(const Term & p, const Term & q)
-{
-  solver_->reset_assertions();
-  solver_->assert_formula(
-      solver_->make_term(And, p, solver_->make_term(Not, q)));
-  Result r = solver_->check_sat();
-  assert(r.is_unsat() || r.is_sat());
-  return r.is_unsat();
-}
-
 bool InterpSeqMC::check_fixed_point()
 {
   assert(reach_seq_.size() > 1);
+  assert(solver_->get_context_level() == 0);
+  // initialize solver stack and reached set
   Term acc_img = reach_seq_.at(0);
+  solver_->push();
+  solver_->assert_formula(solver_->make_term(Not, acc_img));
   for (size_t i = 1; i < reach_seq_.size(); ++i) {
-    if (check_entail(reach_seq_.at(i), acc_img)) {
+    solver_->push();
+    solver_->assert_formula(reach_seq_.at(i));
+    Result r = solver_->check_sat();
+    assert(r.is_unsat() || r.is_sat());
+    solver_->pop();
+    if (r.is_unsat()) {
+      // reached a fixed point
+      solver_->pop();  // pop all assertions
       invar_ = acc_img;
       return true;
     }
+    // extend the accumulated reached set
+    solver_->assert_formula(solver_->make_term(Not, reach_seq_.at(i)));
     acc_img = solver_->make_term(Or, acc_img, reach_seq_.at(i));
   }
+  solver_->pop();  // pop all assertions
   return false;
 }
 
@@ -262,6 +281,7 @@ void InterpSeqMC::check_itp_sequence(const TermVec & int_formulas,
                                      const TermVec & int_itp_seq)
 {
   assert(int_formulas.size() == int_itp_seq.size() + 1);
+  assert(solver_->get_context_level() == 0);
   for (size_t i = 0; i < int_itp_seq.size(); ++i) {
     TermVec int_a_vec(int_formulas.begin(), int_formulas.begin() + i + 1);
     TermVec int_b_vec(int_formulas.begin() + i + 1, int_formulas.end());
@@ -274,16 +294,21 @@ void InterpSeqMC::check_itp_sequence(const TermVec & int_formulas,
     Term a = to_solver_.transfer_term(int_a);
     Term b = to_solver_.transfer_term(int_b);
     Term itp = to_solver_.transfer_term(int_itp_seq.at(i));
-    if (!check_entail(a, itp)) {
+    solver_->push();
+    solver_->assert_formula(a);
+    solver_->assert_formula(solver_->make_term(Not, itp));
+    if (!solver_->check_sat().is_unsat()) {
       throw PonoException("Invalid interpolation sequence: A =\\> Itp@"
                           + std::to_string(i));
     }
-    solver_->reset_assertions();
+    solver_->pop();
+    solver_->push();
     solver_->assert_formula(solver_->make_term(And, itp, b));
     if (!solver_->check_sat().is_unsat()) {
       throw PonoException("Invalid interpolation sequence: Itp@"
                           + std::to_string(i) + " & B is not UNSAT");
     }
+    solver_->pop();
   }
 }
 
