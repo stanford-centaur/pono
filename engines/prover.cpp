@@ -178,8 +178,8 @@ SafetyProver::SafetyProver(const SafetyProperty & p,
                            const TransitionSystem & ts,
                            const SmtSolver & solver,
                            PonoOptions opt,
-                           const Engine e)
-    : BaseProver(ts, solver, opt, e),
+                           const Engine engine)
+    : BaseProver(ts, solver, opt, engine),
       orig_property_(p),
       unroller_(ts_),
       bad_(solver_->make_term(PrimOp::Not,
