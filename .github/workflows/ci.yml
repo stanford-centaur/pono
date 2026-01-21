@@ -36,6 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libbison-dev \
+            libfl-dev \
             cmake \
             ninja-build
 
@@ -44,8 +45,10 @@ jobs:
         run: |
           brew update
           brew install \
-            bison
-          echo "PATH=$(brew --prefix)/opt/bison/bin:$PATH" >> "$GITHUB_ENV"
+            bison \
+            flex
+          echo "PATH=$(brew --prefix)/opt/bison/bin:$(brew --prefix)/opt/flex/bin:$PATH" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix)/opt/flex" >> "$GITHUB_ENV"
 
       - name: Python Environment Setup
         run: |
@@ -60,13 +63,12 @@ jobs:
       - name: Download MathSAT
         run: ./ci-scripts/setup-msat.sh --auto-yes
 
-      - name: Setup Flex
-        run: ./contrib/setup-flex.sh
-
       - name: Setup Btor2Tools
         run: ./contrib/setup-btor2tools.sh
 
       - name: Setup Smt-Switch
+        env:
+          DYLD_FALLBACK_LIBRARY_PATH: /opt/homebrew/lib  # this lets the precompiled MathSAT binary (used in the tests) find libgmp
         run: |
           source .venv/bin/activate
           ./contrib/setup-smt-switch.sh --python --with-btor --with-msat

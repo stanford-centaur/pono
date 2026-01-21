@@ -63,23 +63,22 @@ if (WITH_PROFILING)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/bison/bison-install")
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/flex/flex-install")
 if (APPLE)
   list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/bison")
   list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/flex")
 endif()
-find_package(BISON 3.4.2 REQUIRED)
-find_package(FLEX 2.6.4 REQUIRED)
 
+find_package(BISON 3.4.2 REQUIRED)
 if (BISON_FOUND)
   get_filename_component(BISON_PARENT_DIR "${BISON_EXECUTABLE}" DIRECTORY)
   message("-- Adding bison lib: ${BISON_PARENT_DIR}/../lib")
   link_directories("${BISON_PARENT_DIR}/../lib/")
 endif()
 
-message("-- FOUND FLEX EXECUTABLE: ${FLEX_EXECUTABLE}")
-message("-- FOUND FLEX INCLUDE DIRS: ${FLEX_INCLUDE_DIRS}")
+find_package(FLEX 2.6.4 REQUIRED)
+if(NOT FLEX_INCLUDE_DIRS)
+  message(FATAL_ERROR "Missing flex headers")
+endif()
 
 if (NOT DEFINED SMT_SWITCH_DIR)
     set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
@@ -132,7 +131,7 @@ if (WITH_YICES2)
 endif()
 
 if (WITH_Z3)
-  pkg_check_modules(Z3 REQUIRED z3)
+  find_package(Z3 REQUIRED)
   if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
     message(FATAL_ERROR "Missing smt-switch Z3 library -- try running ./contrib/setup-smt-switch.sh --with-z3")
   endif()
@@ -153,9 +152,20 @@ if (WITH_COREIR)
   endif()
 endif()
 
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/install")
 
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/btor2tools/src")
-  message(FATAL_ERROR "Missing btor2tools -- try running ./contrib/setup-btor2tools.sh")
+# Check for Btor2Tools
+find_path(Btor2Tools_INCLUDE_DIRS NAMES btor2parser.h)
+if(Btor2Tools_INCLUDE_DIRS)
+  message(STATUS "Found Btor2Tools headers: ${Btor2Tools_INCLUDE_DIRS}")
+else()
+  message(FATAL_ERROR "Missing Btor2Tools headers -- try running ./contrib/setup-btor2tools.sh")
+endif()
+find_library(Btor2Tools_LIBRARIES NAMES btor2parser)
+if(Btor2Tools_LIBRARIES)
+  message(STATUS "Found Btor2Tools library: ${Btor2Tools_LIBRARIES}")
+else()
+  message(FATAL_ERROR "Missing Btor2Tools library -- try running ./contrib/setup-btor2tools.sh")
 endif()
 
 # Generate the SMV parser using Flex/Bison
@@ -172,12 +182,12 @@ set(INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
+  ${Btor2Tools_INCLUDE_DIRS}
   "${SMT_SWITCH_DIR}/local/include"
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
   ${GMPXX_INCLUDE_DIRS}
-  "${FLEX_INCLUDE_DIRS}"
+  ${FLEX_INCLUDE_DIRS}
   )
 
 set(SOURCES
@@ -293,8 +303,8 @@ if (WITH_YICES2)
 endif()
 
 if (WITH_Z3)
-  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
-  target_link_libraries(pono-lib PUBLIC "${Z3_LDFLAGS}")
+  target_link_libraries(pono-lib PRIVATE "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
+  target_link_libraries(pono-lib PRIVATE z3::libz3)
 endif()
 
 if (WITH_MSAT_IC3IA)
@@ -327,7 +337,7 @@ if (WITH_COREIR)
 endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
-target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/btor2tools/build/lib/libbtor2parser.a")
+target_link_libraries(pono-lib PUBLIC ${Btor2Tools_LIBRARIES})
 target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC pthread)
@@ -351,7 +361,6 @@ target_include_directories(pono-bin PUBLIC
   "${PROJECT_SOURCE_DIR}/core"
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  "${PROJECT_SOURCE_DIR}/deps/btor2tools/src"
   "${SMT_SWITCH_DIR}/local/include")
 
 target_link_libraries(pono-bin PUBLIC pono-lib)

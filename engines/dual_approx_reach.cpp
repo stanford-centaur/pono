@@ -46,8 +46,6 @@ DualApproxReach::DualApproxReach(const SafetyProperty & p,
 {
 }
 
-DualApproxReach::~DualApproxReach() {}
-
 void DualApproxReach::initialize()
 {
   if (initialized_) {
@@ -80,6 +78,14 @@ void DualApproxReach::initialize()
 
 void DualApproxReach::reset_env()
 {
+  // (Soft-)Reset the solver here
+  // (assuming no assertions were push to context level 0).
+  // This step is needed if the engine is used in a CAGAR loop
+  // as there might be assertions from previous iterations.
+  assert(!concrete_cex_
+         || solver_->get_context_level() == witness_length() + 1);
+  solver_->pop(solver_->get_context_level());
+  // Reinitialize the prover
   initialized_ = false;
   DualApproxReach::initialize();
 }
@@ -143,7 +149,7 @@ bool DualApproxReach::step(int i)
 
 bool DualApproxReach::step_0()
 {
-  solver_->reset_assertions();
+  assert(solver_->get_context_level() == 0);
   // push the unrolled formulas here
   // as compute_witness() rely on timed variables
   solver_->push();
@@ -184,6 +190,7 @@ void DualApproxReach::update_term_map(size_t i)
 // see function `LocStrength` (Fig. 2(a)) in the paper
 bool DualApproxReach::local_strengthen()
 {
+  assert(solver_->get_context_level() == 0);
   // We want to find an index i such that
   // forward_seq_[len-1-i](s0) & TR(s0, s1) & backward_seq_[i](s1) is unsat.
   // The search can be done in arbitrary order.
@@ -191,7 +198,6 @@ bool DualApproxReach::local_strengthen()
   // starting from the last element in forward_seq_.
   size_t unsat_idx = 0;
   const size_t seq_len = forward_seq_.size();
-  solver_->reset_assertions();
   solver_->push();
   solver_->assert_formula(unroller_.at_time(ts_.trans(), 0));  // TR(0, 1)
   // iterate through the reachability sequences
@@ -236,10 +242,10 @@ bool DualApproxReach::local_strengthen()
 bool DualApproxReach::global_strengthen()
 {
   assert(forward_seq_.size() > 1);
+  assert(solver_->get_context_level() == 0);
   const size_t seq_len = forward_seq_.size();
   TermVec int_assertions;
   int_assertions.reserve(seq_len + 1);
-  solver_->reset_assertions();
   Term unrolled_trans = unroller_.at_time(
       solver_->make_term(And, forward_seq_.at(0), ts_.trans()), 0);
   int_assertions.push_back(to_interpolator_.transfer_term(unrolled_trans));
@@ -384,26 +390,18 @@ void DualApproxReach::pairwise_strengthen(const size_t idx)
   assert(forward_seq_.size() == seq_len + 1);
 }
 
-bool DualApproxReach::check_entail(const Term & p, const Term & q)
-{
-  solver_->reset_assertions();
-  solver_->assert_formula(
-      solver_->make_term(And, p, solver_->make_term(Not, q)));
-  Result r = solver_->check_sat();
-  assert(r.is_unsat() || r.is_sat());
-  return r.is_unsat();
-}
-
 bool DualApproxReach::check_fixed_point()
 {
   Term fixed_point;
   if (check_fixed_point(forward_seq_, fixed_point)) {
-    logger.log(1, "DAR: found a fixed point in forward reachability sequence");
+    logger.log(1,
+               "DAR: reached a fixed point in forward reachability sequence");
     invar_ = fixed_point;
     return true;
   }
   if (check_fixed_point(backward_seq_, fixed_point)) {
-    logger.log(1, "DAR: found a fixed point in backward reachability sequence");
+    logger.log(1,
+               "DAR: reached a fixed point in backward reachability sequence");
     invar_ = solver_->make_term(Not, fixed_point);
     return true;
   }
@@ -414,14 +412,27 @@ bool DualApproxReach::check_fixed_point(const TermVec & reach_seq,
                                         Term & fixed_point)
 {
   assert(reach_seq.size() > 1);
+  assert(solver_->get_context_level() == 0);
   Term acc_img = reach_seq.at(0);
+  solver_->push();
+  solver_->assert_formula(solver_->make_term(Not, acc_img));
   for (size_t i = 1; i < reach_seq.size(); ++i) {
-    if (check_entail(reach_seq.at(i), acc_img)) {
+    solver_->push();
+    solver_->assert_formula(reach_seq.at(i));
+    Result r = solver_->check_sat();
+    assert(r.is_unsat() || r.is_sat());
+    solver_->pop();
+    if (r.is_unsat()) {
+      // reached a fixed point
+      solver_->pop();  // pop all assertions
       fixed_point = acc_img;
       return true;
     }
+    // extend the accumulated reached set
+    solver_->assert_formula(solver_->make_term(Not, reach_seq.at(i)));
     acc_img = solver_->make_term(Or, acc_img, reach_seq.at(i));
   }
+  solver_->pop();  // pop all assertions
   return false;
 }
 

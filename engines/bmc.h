@@ -30,8 +30,6 @@ class Bmc : public SafetyProver
       PonoOptions opt = {},
       Engine engine = Engine::BMC);
 
-  ~Bmc();
-
   typedef SafetyProver super;
 
   void initialize() override;

@@ -35,8 +35,6 @@ class IC3Bits : public IC3
           PonoOptions opt = {},
           Engine engine = Engine::IC3_BITS);
 
-  virtual ~IC3Bits() {}
-
   typedef IC3 super;
 
   void initialize() override;

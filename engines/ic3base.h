@@ -95,7 +95,7 @@ struct IC3Formula
   {
   }
 
-  virtual ~IC3Formula() {}
+  virtual ~IC3Formula() = default;
 
   /** Returns true iff this IC3Formula has not been initialized */
   bool is_null() const { return (term == nullptr); };
@@ -175,8 +175,6 @@ class IC3Base : public SafetyProver
           const smt::SmtSolver & solver,
           PonoOptions opt,
           Engine engine);
-
-  virtual ~IC3Base();
 
   void initialize() override;
 

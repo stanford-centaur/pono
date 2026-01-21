@@ -29,8 +29,6 @@ class KLiveness : public LivenessProver
             const smt::SmtSolver & solver,
             PonoOptions opt = {});
 
-  ~KLiveness();
-
   typedef LivenessProver super;
 
   void initialize() override;

@@ -28,8 +28,6 @@ class IC3 : public IC3Base
       PonoOptions opt = {},
       Engine engine = Engine::IC3_BOOL);
 
-  virtual ~IC3() {}
-
   typedef IC3Base super;
 
  protected:

@@ -47,8 +47,6 @@ class FunctionalUnroller : public Unroller
                      size_t interval = 0,
                      const std::string & time_identifier = "@");
 
-  ~FunctionalUnroller() {}
-
   typedef Unroller super;
 
   /** takes a term over current state and input variables

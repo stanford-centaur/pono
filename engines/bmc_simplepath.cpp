@@ -38,8 +38,6 @@ BmcSimplePath::BmcSimplePath(const SafetyProperty & p,
   options_.kind_no_ind_check_property_ = true;
 }
 
-BmcSimplePath::~BmcSimplePath() {}
-
 ProverResult BmcSimplePath::check_until(int k)
 {
   initialize();

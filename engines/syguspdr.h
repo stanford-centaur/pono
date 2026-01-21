@@ -56,7 +56,7 @@ class SygusPdr : public IC3Base
            PonoOptions opt = {},
            Engine engine = Engine::SYGUS_PDR);
 
-  virtual ~SygusPdr();  // need to free the pointers
+  virtual ~SygusPdr() override;  // need to free the pointers
 
   // we cannot allow copy assignment
   SygusPdr & operator=(const SygusPdr &) = delete;

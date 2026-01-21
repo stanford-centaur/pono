@@ -34,8 +34,6 @@ class InterpolantMC : public SafetyProver
                 PonoOptions opt = {},
                 Engine engine = Engine::INTERP);
 
-  ~InterpolantMC();
-
   typedef SafetyProver super;
 
   void initialize() override;
@@ -48,9 +46,23 @@ class InterpolantMC : public SafetyProver
   bool step(const int i);
   bool step_0();
 
-  void reset_assertions(smt::SmtSolver & s);
-
-  bool check_entail(const smt::Term & p, const smt::Term & q);
+  /**
+   * @brief Check whether the reached states have converged to a fixed point,
+   * that is, whether the newly computed interpolant is already covered by the
+   * reached states.
+   *
+   * This method modifies the solver stack.
+   *
+   * @param new_itp the newly computed interpolant
+   * @param reached The reached states, represented as the disjunction of
+   *        previously computed interpolants.
+   * @param interp_count The number of interpolants computed at the current
+   *        unrolling step.
+   * @return true iff `new_itp` is already covered by `reached`
+   */
+  bool has_converged(const smt::Term & new_itp,
+                     const smt::Term & reached,
+                     const int & interp_count);
 
   // configurable options
   const bool use_frontier_simpl_;
@@ -65,7 +77,7 @@ class InterpolantMC : public SafetyProver
   smt::TermTranslator to_solver_;
 
   // set to true when a concrete_cex is found
-  bool concrete_cex_;
+  bool concrete_cex_ = false;
 
   smt::Term init0_;
   smt::Term transA_;

@@ -34,8 +34,6 @@ Bmc::Bmc(const SafetyProperty & p,
   bound_start_ = opt.bmc_bound_start_;
 }
 
-Bmc::~Bmc() {}
-
 void Bmc::initialize()
 {
   if (initialized_) {

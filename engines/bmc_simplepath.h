@@ -30,8 +30,6 @@ class BmcSimplePath : public KInduction
                 PonoOptions opt = {},
                 Engine engine = Engine::BMC_SP);
 
-  ~BmcSimplePath();
-
   typedef KInduction super;
 
   ProverResult check_until(int k) override;

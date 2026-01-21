@@ -48,8 +48,6 @@ InterpolantMC::InterpolantMC(const SafetyProperty & p,
 {
 }
 
-InterpolantMC::~InterpolantMC() {}
-
 void InterpolantMC::initialize()
 {
   if (initialized_) {
@@ -95,6 +93,13 @@ void InterpolantMC::initialize()
 
 void InterpolantMC::reset_env()
 {
+  // (Soft-)Reset the solver here
+  // (assuming no assertions were push to context level 0).
+  // This step is needed if the engine is used in a CAGAR loop
+  // as there might be assertions from previous iterations.
+  assert(!concrete_cex_ || solver_->get_context_level() == 1);
+  solver_->pop(solver_->get_context_level());
+  // Reinitialize the prover
   initialized_ = false;
   InterpolantMC::initialize();
 }
@@ -129,6 +134,7 @@ ProverResult InterpolantMC::check_until(int k)
 
 bool InterpolantMC::step(const int i)
 {
+  assert(solver_->get_context_level() == 0);
   if (i <= reached_k_) {
     return false;
   }
@@ -183,8 +189,9 @@ bool InterpolantMC::step(const int i)
       // map Ri to time 0
       Ri = unroller_.at_time(unroller_.untime(Ri), 0);
 
-      if (check_entail(Ri, R)) {
-        // check if the over-approximation has reached a fix-point
+      if (has_converged(Ri, R, interp_count)) {
+        assert(solver_->get_context_level() == 1);
+        solver_->pop();
         logger.log(1, "Found a proof at bound: {}", i);
         invar_ = unroller_.untime(R);
         return true;
@@ -197,9 +204,9 @@ bool InterpolantMC::step(const int i)
       // found a concrete counter example
       // replay it in the solver with model generation
       concrete_cex_ = true;
-      solver_->reset_assertions();
 
       Term solver_trans = solver_->make_term(And, transA_, transB_);
+      solver_->push();
       solver_->assert_formula(solver_->make_term(
           And, init0_, solver_->make_term(And, solver_trans, bad_i)));
 
@@ -213,6 +220,8 @@ bool InterpolantMC::step(const int i)
       throw PonoException("Interpolant generation failed.");
     }
   }
+  assert(solver_->get_context_level() == 1);
+  solver_->pop();
 
   // Note: important that it's for i > 0
   // transB can't have any symbols from time 0 in it
@@ -239,26 +248,52 @@ bool InterpolantMC::step(const int i)
 
 bool InterpolantMC::step_0()
 {
-  solver_->reset_assertions();
+  assert(solver_->get_context_level() == 0);
+  solver_->push();
   solver_->assert_formula(init0_);
   solver_->assert_formula(unroller_.at_time(bad_, 0));
 
   Result r = solver_->check_sat();
   if (r.is_unsat()) {
     reached_k_ = 0;
-  } else {
+    solver_->pop();
+  } else if (r.is_sat()) {
+    // do not pop here to keep the solver state
+    // for later witness extraction (`compute_witness()`)
     concrete_cex_ = true;
+  } else {
+    throw PonoException("Interp: step_0 failed, unexpected result: "
+                        + r.to_string());
   }
   return false;
 }
 
-bool InterpolantMC::check_entail(const Term & p, const Term & q)
+bool InterpolantMC::has_converged(const Term & new_itp,
+                                  const Term & reached,
+                                  const int & interp_count)
 {
-  solver_->reset_assertions();
-  solver_->assert_formula(
-      solver_->make_term(And, p, solver_->make_term(Not, q)));
+  if (interp_count == 1) {
+    // initialize the solver stack on the 1st call to this method
+    // at the current unrolling step
+    assert(reached == init0_);
+    solver_->push();
+    solver_->assert_formula(solver_->make_term(Not, reached));
+  }
+  assert(solver_->get_context_level() == 1);
+
+  // check if new_itp is already covered by the reached states
+  solver_->push();
+  solver_->assert_formula(new_itp);
+
   Result r = solver_->check_sat();
   assert(r.is_unsat() || r.is_sat());
+  solver_->pop();
+
+  if (!r.is_unsat()) {
+    // new_itp contains a state not in reached states
+    // extend the reached states
+    solver_->assert_formula(solver_->make_term(Not, new_itp));
+  }
   return r.is_unsat();
 }
 

@@ -54,8 +54,6 @@ class IC3SA : public IC3
         PonoOptions opt = {},
         Engine engine = Engine::IC3SA_ENGINE);
 
-  virtual ~IC3SA() {}
-
   typedef IC3 super;
 
  protected:

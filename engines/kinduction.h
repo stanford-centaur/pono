@@ -30,8 +30,6 @@ class KInduction : public SafetyProver
              PonoOptions opt = {},
              Engine engine = Engine::KIND);
 
-  virtual ~KInduction();
-
   typedef SafetyProver super;
 
   void initialize() override;

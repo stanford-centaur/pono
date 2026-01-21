@@ -29,8 +29,6 @@ class ModelBasedIC3 : public IC3Base
                 PonoOptions opt = {},
                 Engine engine = Engine::MBIC3);
 
-  virtual ~ModelBasedIC3() {}
-
   typedef IC3Base super;
 
  protected:
