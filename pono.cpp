@@ -99,7 +99,7 @@ ProverResult check_prop(PonoOptions pono_options,
   }
 
   if (pono_options.pseudo_init_prop_) {
-    ts = pseudo_init_and_prop(ts, prop);
+    prop = pseudo_init_and_prop(ts, prop);
   }
 
   if (pono_options.promote_inputvars_) {
@@ -305,7 +305,7 @@ int main(int argc, char ** argv)
     if (file_ext == "btor2" || file_ext == "btor") {
       logger.log(2, "Parsing BTOR2 file: {}", pono_options.filename_);
       unique_ptr<TransitionSystem> ts_ptr;
-      if (pono_options.use_rel_ts_) {
+      if (pono_options.use_rel_ts_ || pono_options.pseudo_init_prop_) {
         ts_ptr = make_unique<RelationalTransitionSystem>(s);
       } else {
         ts_ptr = make_unique<FunctionalTransitionSystem>(s);

@@ -27,28 +27,13 @@ using namespace std;
 
 namespace pono {
 
-TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
+Term pseudo_init_and_prop(TransitionSystem & ts, const Term & prop)
 {
+  assert(!ts.is_functional());
+
   logger.log(1, "Modifying init and prop");
-
-  RelationalTransitionSystem rts =
-      ts.is_functional() ? RelationalTransitionSystem(ts.solver())
-                         : static_cast<RelationalTransitionSystem &>(ts);
-
-  // make it relational if it wasn't already
-  if (ts.is_functional()) {
-    for (const auto & sv : ts.statevars()) {
-      rts.add_statevar(sv, ts.next(sv));
-    }
-    for (const auto & iv : ts.inputvars()) {
-      rts.add_inputvar(iv);
-    }
-    rts.set_init(ts.init());
-    rts.set_trans(ts.trans());
-  }
-
-  assert(!rts.is_functional());
-
+  RelationalTransitionSystem & rts =
+      static_cast<RelationalTransitionSystem &>(ts);
   Sort boolsort = rts.make_sort(BOOL);
 
   // Save original initial state constraints
@@ -60,7 +45,7 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
   Term not_pseudo_init = rts.make_term(Not, pseudo_init);
 
   // guard property with it
-  prop = rts.make_term(Implies, not_pseudo_init, prop);
+  Term guarded_prop = rts.make_term(Implies, not_pseudo_init, prop);
 
   // create a fake transition from pseudo initial state
   // and enforce that the second state is constrained by the original
@@ -85,20 +70,17 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
 
   // now create a property monitor
   Term new_prop = rts.make_statevar("__prop_monitor", boolsort);
-  if (rts.only_curr(prop)) {
-    rts.add_invar(rts.make_term(Equal, new_prop, prop));
+  if (rts.only_curr(guarded_prop)) {
+    rts.add_invar(rts.make_term(Equal, new_prop, guarded_prop));
   } else {
     // property monitor
-    rts.assign_next(new_prop, prop);
+    rts.assign_next(new_prop, guarded_prop);
   }
   // need to assume in the pseudo initial state
   // or else there's a trivial counterexample
   rts.constrain_init(new_prop);
 
-  // update the property in-place
-  std::swap(prop, new_prop);
-
-  return rts;
+  return new_prop;
 }
 
 void prop_in_trans(TransitionSystem & ts, const Term & prop)
