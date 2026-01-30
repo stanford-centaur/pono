@@ -161,4 +161,77 @@ TransitionSystem promote_inputvars(const TransitionSystem & ts)
   return ret;
 }
 
+void make_trans_total(TransitionSystem & ts, Term & prop)
+{
+  if (ts.is_functional() && ts.constraints().empty()) {
+    // already right-total
+    return;
+  }
+
+  // create a new ts without constraints
+  TransitionSystem new_ts = create_fresh_ts(ts.is_functional(), ts.solver());
+
+  // copy all state and input variables
+  for (const auto & sv : ts.statevars()) {
+    new_ts.add_statevar(sv, ts.next(sv));
+  }
+  for (const auto & iv : ts.inputvars()) {
+    new_ts.add_inputvar(iv);
+  }
+  // set init
+  new_ts.set_init(ts.init());
+
+  // instrument ts with a new state var valid
+  Term valid;
+  std::size_t id = 0;
+  while (true) {
+    try {
+      valid = new_ts.make_statevar("__pono_valid_trans_" + std::to_string(id),
+                                   ts.make_sort(smt::BOOL));
+      break;
+    }
+    catch (SmtException & e) {
+      ++id;
+    }
+  }
+  new_ts.constrain_init(valid);  // valid@0 = true
+
+  if (ts.is_functional()) {
+    for (const auto & elem : ts.state_updates()) {
+      new_ts.assign_next(elem.first, elem.second);
+    }
+
+    vector<Term> constraints;
+    constraints.reserve(ts.constraints().size());
+    for (const auto & elem : ts.constraints()) {
+      constraints.push_back(elem.first);
+    }
+    Term valid_next = new_ts.make_term(
+        And,
+        valid,
+        constraints.size() == 1 ? constraints.at(0)
+                                : new_ts.make_term(And, constraints));
+    new_ts.assign_next(valid, valid_next);
+    // `valid` is later used for modifying `prop`
+    // the constraints at current time step have to be included
+    valid = valid_next;
+  } else {
+    Term new_trans = new_ts.make_term(
+        Or,
+        new_ts.make_term(
+            And,
+            valid,
+            new_ts.make_term(Equal, new_ts.next(valid), ts.trans())),
+        new_ts.make_term(And,
+                         new_ts.make_term(Not, valid),
+                         new_ts.make_term(Not, new_ts.next(valid))));
+    static_cast<RelationalTransitionSystem &>(new_ts).set_trans(new_trans);
+  }
+  assert(new_ts.is_right_total());
+
+  // update ts and prop
+  ts = new_ts;
+  prop = ts.make_term(Implies, valid, prop);
+}
+
 }  // namespace pono
