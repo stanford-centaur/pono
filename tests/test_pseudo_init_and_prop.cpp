@@ -28,13 +28,13 @@ class PseudoInitPropUnitTests : public ::testing::Test,
 
 TEST_P(PseudoInitPropUnitTests, CounterSystemSafe)
 {
-  FunctionalTransitionSystem fts(s);
-  counter_system(fts, fts.make_term(10, bvsort8));
-  Term x = fts.named_terms().at("x");
+  RelationalTransitionSystem rts(s);
+  counter_system(rts, rts.make_term(10, bvsort8));
+  Term x = rts.named_terms().at("x");
 
   Term prop_term = s->make_term(BVUle, x, s->make_term(10, bvsort8));
 
-  TransitionSystem rts = pseudo_init_and_prop(fts, prop_term);
+  prop_term = pseudo_init_and_prop(rts, prop_term);
   assert(!rts.is_functional());
   SafetyProperty p(s, prop_term);
 
@@ -57,11 +57,11 @@ TEST_P(PseudoInitPropUnitTests, TrivialUnsafe)
   // but has a transition relation that is empty (deadlocked)
   rts.set_trans(rts.make_term(false));
 
-  TransitionSystem ts = pseudo_init_and_prop(rts, prop_term);
-  assert(!ts.is_functional());
+  prop_term = pseudo_init_and_prop(rts, prop_term);
+  assert(!rts.is_functional());
   SafetyProperty p(s, prop_term);
 
-  KInduction kind(p, ts, s);
+  KInduction kind(p, rts, s);
   ProverResult r = kind.check_until(3);
   ASSERT_EQ(r, FALSE);
 }

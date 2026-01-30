@@ -771,12 +771,9 @@ cdef class VCDWitnessPrinter:
 # standalone functions
 
 def pseudo_init_and_prop(__AbstractTransitionSystem ts, Term prop):
-    rts = RelationalTransitionSystem(ts._solver)
-    # need to delete old pointer
-    del rts.cts
-    rts.cts = new c_RelationalTransitionSystem(
-        c_pseudo_init_and_prop(dref(ts.cts), prop.ct))
-    return rts
+    cdef Term term = Term(ts._solver)
+    term.ct = c_pseudo_init_and_prop(dref(ts.cts), prop.ct)
+    return term
 
 def prop_in_trans(__AbstractTransitionSystem ts, Term prop):
     c_prop_in_trans(dref(ts.cts), prop.ct)
