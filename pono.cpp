@@ -159,6 +159,11 @@ ProverResult check_prop(PonoOptions pono_options,
 
   if (r == FALSE && pono_options.witness_) {
     bool success = prover->witness(cex);
+    if (pono_options.pseudo_init_prop_) {
+      // The pseudo-init transformation introduces an 1-step delay at the
+      // beginning, so we need to remove the first element of the cex.
+      cex.erase(cex.begin());
+    }
     if (has_monitor) {
       // Witness will always have at least one element, because the monitor is
       // constrained to start true.
