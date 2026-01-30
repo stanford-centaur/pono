@@ -24,15 +24,13 @@ namespace pono {
  *  and adds an extra transition from the pseudo-initial state
  *  and to the property monitor
  *
- *  NOTE: doing this requires making the ts relational
+ *  NOTE: the input ts has to be relational
  *
  *  @param ts the transition system to modify
- *  @param prop the property to modify
- *  @return the updated transition system
- *          the returned system is relational even if ts is functional
- *  Updates the prop in-place
+ *  @param prop the original property
+ *  @return the updated prop
  */
-TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, smt::Term & prop);
+smt::Term pseudo_init_and_prop(TransitionSystem & ts, const smt::Term & prop);
 
 // optimization to assume the property in the pre-state
 // although confusing, this is sound as long as you always check
