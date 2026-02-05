@@ -31,7 +31,7 @@ Term pseudo_init_and_prop(TransitionSystem & ts, const Term & prop)
 {
   assert(!ts.is_functional());
 
-  logger.log(1, "Modifying init and prop");
+  logger.log(1, "Creating pseudo-initial state and property monitor");
   RelationalTransitionSystem & rts =
       static_cast<RelationalTransitionSystem &>(ts);
   Sort boolsort = rts.make_sort(BOOL);
