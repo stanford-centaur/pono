@@ -364,15 +364,15 @@ const option::Descriptor usage[] = {
   { NO_IC3_PREGEN,
     0,
     "",
-    "ic3-no-pregen",
+    "no-ic3-pregen",
     Arg::None,
-    "  --ic3-no-pregen \tDisable preimage generalization in ic3." },
+    "  --no-ic3-pregen \tDisable preimage generalization in ic3." },
   { NO_IC3_INDGEN,
     0,
     "",
-    "ic3-no-indgen",
+    "no-ic3-indgen",
     Arg::None,
-    "  --ic3-no-indgen \tDisable inductive generalization in ic3." },
+    "  --no-ic3-indgen \tDisable inductive generalization in ic3." },
   { IC3_GEN_MAX_ITER,
     0,
     "",
@@ -651,9 +651,9 @@ const option::Descriptor usage[] = {
   { KIND_NO_SIMPLE_PATH_CHECK,
     0,
     "",
-    "kind-no-simple-path-check",
+    "no-kind-simple-path-check",
     Arg::None,
-    "  --kind-no-simple-path-check \tSkip simple path check in k-induction "
+    "  --no-kind-simple-path-check \tSkip simple path check in k-induction "
     "(WARNING: might cause incompleteness)" },
   { KIND_EAGER_SIMPLE_PATH_CHECK,
     0,
@@ -665,31 +665,31 @@ const option::Descriptor usage[] = {
   { KIND_NO_MULTI_CALL_SIMPLE_PATH_CHECK,
     0,
     "",
-    "kind-no-multi-call-simple-path-check",
+    "no-kind-multi-call-simple-path-check",
     Arg::None,
-    "  --kind-no-multi-call-simple-path-check \tTry to avoid multiple solver "
+    "  --no-kind-multi-call-simple-path-check \tTry to avoid multiple solver "
     "calls in lazy simple path check in k-induction" },
   { KIND_NO_IND_CHECK_INIT_STATES,
     0,
     "",
-    "kind-no-ind-check-init-states",
+    "no-kind-ind-check-init-states",
     Arg::None,
-    "  --kind-no-ind-check-init-states \tK-induction: skip checking inductive "
+    "  --no-kind-ind-check-init-states \tK-induction: skip checking inductive "
     "case based on initial states" },
   { KIND_NO_IND_CHECK,
     0,
     "",
-    "kind-no-ind-check",
+    "no-kind-ind-check",
     Arg::None,
-    "  --kind-no-ind-check \tK-induction: skip inductive case checks; implies "
-    "'--kind-no-ind-check-init-states' and '--kind-no-ind-check-property' "
+    "  --no-kind-ind-check \tK-induction: skip inductive case checks; implies "
+    "'--no-kind-ind-check-init-states' and '--no-kind-ind-check-property' "
     "(WARNING: will cause incompleteness on most problem instances)" },
   { KIND_NO_IND_CHECK_PROPERTY,
     0,
     "",
-    "kind-no-ind-check-property",
+    "no-kind-ind-check-property",
     Arg::None,
-    "  --kind-no-ind-check-property \tK-induction: skip checking inductive "
+    "  --no-kind-ind-check-property \tK-induction: skip checking inductive "
     "case based on property (WARNING: will cause incompleteness on most "
     "problem instances)" },
   { KIND_ONE_TIME_BASE_CHECK,
@@ -766,16 +766,16 @@ const option::Descriptor usage[] = {
   { KLIVE_NO_CHECK_LASSO_IN_CEX,
     0,
     "",
-    "klive-no-check-lasso-in-cex",
+    "no-klive-check-lasso-in-cex",
     Arg::None,
-    "  --klive-no-check-lasso-in-cex \tDisable checking for lasso in CEX found "
+    "  --no-klive-check-lasso-in-cex \tDisable checking for lasso in CEX found "
     "by safety prover in k-liveness" },
   { KLIVE_NO_LOCKSTEP_BMC,
     0,
     "",
-    "klive-no-lockstep-bmc",
+    "no-klive-lockstep-bmc",
     Arg::None,
-    "  --klive-no-lockstep-bmc \tDo no perform BMC in lock-step in "
+    "  --no-klive-lockstep-bmc \tDo no perform BMC in lock-step in "
     "k-liveness" },
   { 0, 0, 0, 0, 0, 0 }
 };
