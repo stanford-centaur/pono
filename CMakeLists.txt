@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.18...4.0)
 
 project(pono)
 
-set(PONO_MAJOR 0)   # Major component of Pono version
-set(PONO_MINOR 1)   # Minor component of Pono version
+set(PONO_MAJOR 0) # Major component of Pono version
+set(PONO_MINOR 1) # Minor component of Pono version
 set(PONO_RELEASE 1) # Release component of Pono version
 
 # Generate compilation database compile_commands.json
@@ -11,20 +11,21 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Retrieve the current version via Git
 execute_process(
-    COMMAND git describe --always --dirty
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    RESULT_VARIABLE GIT_DESCRIBE_STATUS
-    OUTPUT_VARIABLE PONO_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  COMMAND git describe --always --dirty
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  RESULT_VARIABLE GIT_DESCRIBE_STATUS
+  OUTPUT_VARIABLE PONO_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 if(GIT_DESCRIBE_STATUS AND NOT GIT_DESCRIBE_STATUS EQUAL 0)
-    set(PONO_VERSION "v${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}")
+  set(PONO_VERSION "v${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}")
 endif()
 
 # handle different versions of CMake
-if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
+if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
   set(CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++17")
   set(CMAKE_CXX17_EXTENSION_COMPILE_OPTION "-std=gnu++17")
-elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.1 OR APPLE)
+elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.1 OR APPLE)
   set(CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++1z")
   set(CMAKE_CXX17_EXTENSION_COMPILE_OPTION "-std=gnu++1z")
 endif()
@@ -42,34 +43,34 @@ else()
   set(SHARED_LIB_EXT "so")
 endif()
 
-if (WITH_BOOLECTOR)
+if(WITH_BOOLECTOR)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_BOOLECTOR")
 endif()
 
-if (WITH_MSAT)
+if(WITH_MSAT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MSAT")
 endif()
 
-if (WITH_YICES2)
+if(WITH_YICES2)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_YICES2")
 endif()
 
-if (WITH_Z3)
+if(WITH_Z3)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_Z3")
 endif()
 
-if (WITH_PROFILING)
+if(WITH_PROFILING)
   find_library(GOOGLE_PERF profiler REQUIRED)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
-if (APPLE)
+if(APPLE)
   list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/bison")
   list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/flex")
 endif()
 
 find_package(BISON 3.4.2 REQUIRED)
-if (BISON_FOUND)
+if(BISON_FOUND)
   get_filename_component(BISON_PARENT_DIR "${BISON_EXECUTABLE}" DIRECTORY)
   message("-- Adding bison lib: ${BISON_PARENT_DIR}/../lib")
   link_directories("${BISON_PARENT_DIR}/../lib/")
@@ -80,8 +81,8 @@ if(NOT FLEX_INCLUDE_DIRS)
   message(FATAL_ERROR "Missing flex headers")
 endif()
 
-if (NOT DEFINED SMT_SWITCH_DIR)
-    set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
+if(NOT DEFINED SMT_SWITCH_DIR)
+  set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
 endif()
 
 # TODO: Use find_package
@@ -96,59 +97,80 @@ list(APPEND CMAKE_PREFIX_PATH "${SMT_SWITCH_DIR}/deps/install")
 pkg_check_modules(GMPXX REQUIRED gmpxx)
 pkg_check_modules(BITWUZLA REQUIRED bitwuzla)
 
-if (NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
+if(NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
   message(FATAL_ERROR "Missing smt-switch headers -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
+if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
   message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
-if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
-  message(FATAL_ERROR "Missing smt-switch Bitwuzla library -- try running ./contrib/setup-smt-switch.sh")
+if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
+  message(
+    FATAL_ERROR
+    "Missing smt-switch Bitwuzla library -- try running ./contrib/setup-smt-switch.sh"
+  )
 endif()
 
-if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
-  message(FATAL_ERROR "Missing smt-switch cvc5 library -- try running ./contrib/setup-smt-switch.sh")
+if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
+  message(
+    FATAL_ERROR
+    "Missing smt-switch cvc5 library -- try running ./contrib/setup-smt-switch.sh"
+  )
 endif()
 
-if (WITH_BOOLECTOR)
-  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
-    message(FATAL_ERROR "Missing smt-switch Boolector library -- try running ./contrib/setup-smt-switch.sh --with-btor")
+if(WITH_BOOLECTOR)
+  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
+    message(
+      FATAL_ERROR
+      "Missing smt-switch Boolector library -- try running ./contrib/setup-smt-switch.sh --with-btor"
+    )
   endif()
 endif()
 
-if (WITH_MSAT)
-  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
-    message(FATAL_ERROR "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-msat")
+if(WITH_MSAT)
+  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+    message(
+      FATAL_ERROR
+      "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-msat"
+    )
   endif()
 endif()
 
-if (WITH_YICES2)
-  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
-    message(FATAL_ERROR "Missing smt-switch Yices2 library -- try running ./contrib/setup-smt-switch.sh --with-yices2")
+if(WITH_YICES2)
+  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
+    message(
+      FATAL_ERROR
+      "Missing smt-switch Yices2 library -- try running ./contrib/setup-smt-switch.sh --with-yices2"
+    )
   endif()
 endif()
 
-if (WITH_Z3)
+if(WITH_Z3)
   find_package(Z3 REQUIRED)
-  if (NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
-    message(FATAL_ERROR "Missing smt-switch Z3 library -- try running ./contrib/setup-smt-switch.sh --with-z3")
+  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
+    message(
+      FATAL_ERROR
+      "Missing smt-switch Z3 library -- try running ./contrib/setup-smt-switch.sh --with-z3"
+    )
   endif()
 endif()
 
-if (WITH_MSAT_IC3IA)
-  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
+if(WITH_MSAT_IC3IA)
+  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
     message(FATAL_ERROR "Missing ic3ia library -- try running ./contrib/setup-ic3ia.sh")
   endif()
 endif()
 
-if (WITH_COREIR)
-  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
+if(WITH_COREIR)
+  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
     message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
   endif()
-  if (NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}")
-    message(FATAL_ERROR "Missing verilogAST library from coreir. Try running ./contrib/setup-coreir.sh")
+  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}")
+    message(
+      FATAL_ERROR
+      "Missing verilogAST library from coreir. Try running ./contrib/setup-coreir.sh"
+    )
   endif()
 endif()
 
@@ -169,16 +191,23 @@ else()
 endif()
 
 # Generate the SMV parser using Flex/Bison
-BISON_TARGET(SMVParser ${PROJECT_SOURCE_DIR}/frontends/smvparser.y
+bison_target(
+  SMVParser
+  ${PROJECT_SOURCE_DIR}/frontends/smvparser.y
   ${CMAKE_CURRENT_BINARY_DIR}/smvparser.cpp
-  DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/smvparser.h)
+  DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/smvparser.h
+)
 
-FLEX_TARGET(SMVScanner ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
-  ${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp)
+flex_target(
+  SMVScanner
+  ${PROJECT_SOURCE_DIR}/frontends/smvparser.l
+  ${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp
+)
 
-ADD_FLEX_BISON_DEPENDENCY(SMVScanner SMVParser)
+add_flex_bison_dependency(SMVScanner SMVParser)
 
-set(INCLUDE_DIRS
+set(
+  INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
@@ -188,9 +217,10 @@ set(INCLUDE_DIRS
   "${CMAKE_CURRENT_BINARY_DIR}"
   ${GMPXX_INCLUDE_DIRS}
   ${FLEX_INCLUDE_DIRS}
-  )
+)
 
-set(SOURCES
+set(
+  SOURCES
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
@@ -252,26 +282,25 @@ set(SOURCES
   "${PROJECT_SOURCE_DIR}/options/options.cpp"
   "${BISON_SMVParser_OUTPUTS}"
   "${FLEX_SMVScanner_OUTPUTS}"
-  )
+)
 
-if (WITH_COREIR OR WITH_COREIR_EXTERN)
+if(WITH_COREIR OR WITH_COREIR_EXTERN)
   add_definitions(-DWITH_COREIR)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
-if (WITH_MSAT)
+if(WITH_MSAT)
   # need direct access to mathsat for setting options
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
 endif()
 
-if (WITH_MSAT_IC3IA)
+if(WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
   # can't include ic3ia directly because some names clash e.g. ic3.h
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
-
 
 add_library(pono-lib "${PONO_LIB_TYPE}" ${SOURCES})
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
@@ -280,60 +309,69 @@ target_compile_definitions(pono-lib PRIVATE "-DPONO_VERSION=\"${PONO_VERSION}\""
 target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
 # Should we build python bindings
-option (BUILD_PYTHON_BINDINGS
-   "Build Python bindings")
+option(BUILD_PYTHON_BINDINGS "Build Python bindings")
 
-if (BUILD_PYTHON_BINDINGS)
+if(BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
 
-if (WITH_BOOLECTOR)
+if(WITH_BOOLECTOR)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
 endif()
 
-if (WITH_MSAT)
+if(WITH_MSAT)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
 endif()
 
-if (WITH_YICES2)
+if(WITH_YICES2)
   target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
 endif()
 
-if (WITH_Z3)
+if(WITH_Z3)
   target_link_libraries(pono-lib PRIVATE "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
   target_link_libraries(pono-lib PRIVATE z3::libz3)
 endif()
 
-if (WITH_MSAT_IC3IA)
+if(WITH_MSAT_IC3IA)
   target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
 endif()
 
-if (WITH_COREIR_EXTERN)
+if(WITH_COREIR_EXTERN)
   if(APPLE)
     set(COREIR_EXTERN_PREFIX "/usr/local")
   else()
     set(COREIR_EXTERN_PREFIX "/usr")
   endif()
   add_library(coreir SHARED IMPORTED)
-  set_target_properties(coreir PROPERTIES
-    IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libcoreir${CMAKE_SHARED_LIBRARY_SUFFIX}"
-    INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
+  set_target_properties(
+    coreir
+    PROPERTIES
+      IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libcoreir${CMAKE_SHARED_LIBRARY_SUFFIX}"
+      INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
   )
   add_library(verilogAST SHARED IMPORTED)
-  set_target_properties(verilogAST PROPERTIES
-    IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libverilogAST${CMAKE_SHARED_LIBRARY_SUFFIX}"
-    INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
+  set_target_properties(
+    verilogAST
+    PROPERTIES
+      IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libverilogAST${CMAKE_SHARED_LIBRARY_SUFFIX}"
+      INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
   )
   target_link_libraries(pono-lib PUBLIC coreir verilogAST)
 endif()
 
-if (WITH_COREIR)
+if(WITH_COREIR)
   target_include_directories(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
-  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
-  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}")
+  target_link_libraries(
+    pono-lib
+    PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}"
+  )
+  target_link_libraries(
+    pono-lib
+    PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}"
+  )
 endif()
 
 target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
@@ -343,7 +381,7 @@ target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC pthread)
 target_link_libraries(pono-lib PUBLIC y)
 
-if (GOOGLE_PERF)
+if(GOOGLE_PERF)
   target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
 endif()
 
@@ -356,16 +394,19 @@ add_subdirectory(tests EXCLUDE_FROM_ALL)
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
 set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
 
-target_include_directories(pono-bin PUBLIC
-  "${PROJECT_SOURCE_DIR}/utils"
-  "${PROJECT_SOURCE_DIR}/core"
-  "${PROJECT_SOURCE_DIR}/contrib/"
-  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  "${SMT_SWITCH_DIR}/local/include")
+target_include_directories(
+  pono-bin
+  PUBLIC
+    "${PROJECT_SOURCE_DIR}/utils"
+    "${PROJECT_SOURCE_DIR}/core"
+    "${PROJECT_SOURCE_DIR}/contrib/"
+    "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+    "${SMT_SWITCH_DIR}/local/include"
+)
 
 target_link_libraries(pono-bin PUBLIC pono-lib)
 
-if ("${PONO_STATIC_EXEC}" STREQUAL "YES")
+if("${PONO_STATIC_EXEC}" STREQUAL "YES")
   if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # Static libraries cannot be built on Macs.
     # See: https://developer.apple.com/library/archive/qa/qa1118/_index.html
@@ -378,7 +419,8 @@ endif()
 # Documentation
 if(BUILD_DOCS)
   find_package(Doxygen)
-  doxygen_add_docs(docs
+  doxygen_add_docs(
+    docs
     core/
     engines/
     frontends/
@@ -399,48 +441,71 @@ install(TARGETS pono-lib DESTINATION lib)
 install(TARGETS pono-bin DESTINATION bin)
 
 # install public headers
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/core/"
-        DESTINATION include/pono/core
-        FILES_MATCHING PATTERN "*.h")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/core/"
+  DESTINATION include/pono/core
+  FILES_MATCHING
+  PATTERN "*.h"
+)
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/engines/"
-        DESTINATION include/pono/engines
-        FILES_MATCHING PATTERN "*.h")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/engines/"
+  DESTINATION include/pono/engines
+  FILES_MATCHING
+  PATTERN "*.h"
+)
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/frontends/"
-        DESTINATION include/pono/frontends
-        FILES_MATCHING PATTERN "*.h")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/frontends/"
+  DESTINATION include/pono/frontends
+  FILES_MATCHING
+  PATTERN "*.h"
+)
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/location.hh"
-        DESTINATION include/pono/)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/location.hh" DESTINATION include/pono/)
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/modifiers/"
-        DESTINATION include/pono/modifiers
-        FILES_MATCHING PATTERN "*.h")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/modifiers/"
+  DESTINATION include/pono/modifiers
+  FILES_MATCHING
+  PATTERN "*.h"
+)
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/options/"
-        DESTINATION include/pono/options
-        FILES_MATCHING PATTERN "*.h")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/options/"
+  DESTINATION include/pono/options
+  FILES_MATCHING
+  PATTERN "*.h"
+)
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/smvparser.h"
-        DESTINATION include/pono/)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/smvparser.h" DESTINATION include/pono/)
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
-        DESTINATION include/pono/utils
-        FILES_MATCHING PATTERN "*.h")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
+  DESTINATION include/pono/utils
+  FILES_MATCHING
+  PATTERN "*.h"
+)
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/contrib/fmt/"
-        DESTINATION include/pono/fmt
-        FILES_MATCHING PATTERN "*.h")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/contrib/fmt/"
+  DESTINATION include/pono/fmt
+  FILES_MATCHING
+  PATTERN "*.h"
+)
 
 # uninstall target
 # copied from https://gitlab.kitware.com/cmake/community/wikis/FAQ#can-i-do-make-uninstall-with-cmake
 if(NOT TARGET uninstall)
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-        IMMEDIATE @ONLY)
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE
+    @ONLY
+  )
 
-    add_custom_target(uninstall
-        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+  add_custom_target(
+    uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
+  )
 endif()
