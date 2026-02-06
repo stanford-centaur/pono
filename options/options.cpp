@@ -53,6 +53,7 @@ enum optionIndex
   SHOW_INVAR,
   CHECK_INVAR,
   CHECK_TRANS_TOTAL,
+  USE_REL_TS,
   RESET,
   RESET_BND,
   CLK,
@@ -340,6 +341,13 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --check-trans-total \tCheck whether the transition relation is "
     "right-total. This check may involve quantified SMT query." },
+  { USE_REL_TS,
+    0,
+    "",
+    "use-rel-ts",
+    Arg::None,
+    "  --use-rel-ts \tUse the relational transistion-system representation "
+    "in Pono." },
   { RESET,
     0,
     "r",
@@ -940,6 +948,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case SHOW_INVAR: show_invar_ = true; break;
         case CHECK_INVAR: check_invar_ = true; break;
         case CHECK_TRANS_TOTAL: check_trans_total_ = true; break;
+        case USE_REL_TS: use_rel_ts_ = true; break;
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = std::stoul(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
