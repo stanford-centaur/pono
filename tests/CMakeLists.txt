@@ -68,6 +68,7 @@ include_directories("${PROJECT_SOURCE_DIR}/tests/")
 
 pono_add_test(test_ts)
 pono_add_test(test_unroller)
+pono_add_test(test_make_trans_total)
 pono_add_test(test_modifiers)
 pono_add_test(test_engines)
 pono_add_test(test_utils)
