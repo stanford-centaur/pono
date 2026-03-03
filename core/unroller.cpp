@@ -34,8 +34,6 @@ Unroller::Unroller(const TransitionSystem & ts, const string & time_identifier)
   num_vars_ += ts_.inputvars().size();
 }
 
-Unroller::~Unroller() {}
-
 Term Unroller::at_time(const Term & t, unsigned int k)
 {
   UnorderedTermMap & cache = var_cache_at_time(k);

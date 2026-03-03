@@ -30,9 +30,10 @@ namespace pono {
 
 IC3Bits::IC3Bits(const SafetyProperty & p,
                  const TransitionSystem & ts,
-                 const SmtSolver & s,
-                 PonoOptions opt)
-    : super(p, ts, s, opt)
+                 const SmtSolver & solver,
+                 PonoOptions opt,
+                 Engine engine)
+    : super(p, ts, solver, opt, engine)
 {
 }
 

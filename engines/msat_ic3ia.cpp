@@ -32,10 +32,10 @@ namespace pono {
 MsatIC3IA::MsatIC3IA(const SafetyProperty & p,
                      const TransitionSystem & ts,
                      const SmtSolver & solver,
-                     PonoOptions opt)
-    : super(p, ts, solver, opt)
+                     PonoOptions opt,
+                     Engine engine)
+    : super(p, ts, solver, opt, engine)
 {
-  engine_ = Engine::MSAT_IC3IA;
 }
 
 ProverResult MsatIC3IA::prove()

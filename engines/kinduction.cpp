@@ -25,10 +25,10 @@ namespace pono {
 KInduction::KInduction(const SafetyProperty & p,
                        const TransitionSystem & ts,
                        const SmtSolver & solver,
-                       PonoOptions opt)
-    : super(p, ts, solver, opt)
+                       PonoOptions opt,
+                       Engine engine)
+    : super(p, ts, solver, opt, engine)
 {
-  engine_ = Engine::KIND;
   kind_engine_name_ = "k-induction";
 
   // selector literal to toggle initial state predicate
@@ -65,8 +65,6 @@ KInduction::KInduction(const SafetyProperty & p,
   //   solver_->assert_formula(not_sel_neg_bad_state_terms_);
   // }
 }
-
-KInduction::~KInduction() {}
 
 void KInduction::initialize()
 {

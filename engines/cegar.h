@@ -33,12 +33,10 @@ class CEGAR : public Prover_T
   CEGAR(const SafetyProperty & p,
         const TransitionSystem & ts,
         const smt::SmtSolver & solver,
-        PonoOptions opt = PonoOptions())
+        PonoOptions opt = {})
       : super(p, ts, solver, opt)
   {
   }
-
-  virtual ~CEGAR() = default;
 
  protected:
   /** Abstract the transition system -- usually only performed once

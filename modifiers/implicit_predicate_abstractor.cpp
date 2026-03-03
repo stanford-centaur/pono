@@ -19,6 +19,8 @@
 
 #include <cassert>
 
+#include "core/rts.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
 

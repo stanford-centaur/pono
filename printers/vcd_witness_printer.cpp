@@ -75,6 +75,13 @@ static std::string as_bits(std::string val)
     throw PonoException("Don't know how to interpret value: " + val);
   }
 
+  if (val == "true") {
+    return "1";
+  }
+  if (val == "false") {
+    return "0";
+  }
+
   if (res.substr(0, 2) == "#b") {
     // #b prefix -> b
     res = res.substr(1, val.length() - 1);
@@ -300,7 +307,8 @@ void VCDWitnessPrinter::check_insert_scope(std::string full_name,
     }
   }  // at the end of this loop, we are at the scope to insert our variable
   const auto & short_name = scopes.back();
-  uint64_t width = ast->get_sort()->get_width();
+  auto sigsort = ast->get_sort();
+  uint64_t width = sigsort->get_sort_kind() == BOOL ? 1 : sigsort->get_width();
 
   std::map<std::string, VCDSignal> & signal_set =
       is_reg ? root->regs : root->wires;

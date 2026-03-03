@@ -21,6 +21,7 @@
 #include <cstdint>
 
 #include "engines/prover.h"
+#include "options/options.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -30,10 +31,9 @@ class InterpSeqMC : public SafetyProver
  public:
   InterpSeqMC(const SafetyProperty & p,
               const TransitionSystem & ts,
-              const smt::SmtSolver & slv,
-              PonoOptions opt = PonoOptions());
-
-  ~InterpSeqMC();
+              const smt::SmtSolver & solver,
+              PonoOptions opt = {},
+              Engine engine = Engine::ISMC);
 
   typedef SafetyProver super;
 
@@ -50,7 +50,6 @@ class InterpSeqMC : public SafetyProver
   void update_term_map(size_t i);
 
   bool check_fixed_point();
-  bool check_entail(const smt::Term & p, const smt::Term & q);
   void check_itp_sequence(const smt::TermVec & int_formulas,
                           const smt::TermVec & int_itp_seq);
 
@@ -61,7 +60,7 @@ class InterpSeqMC : public SafetyProver
   smt::TermTranslator to_solver_;
 
   // set to true when a concrete_cex is found
-  bool concrete_cex_;
+  bool concrete_cex_ = false;
 
   // reachability sequence: <R_0=Init, R_1, R_2, ...>
   smt::TermVec reach_seq_;

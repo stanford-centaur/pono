@@ -19,7 +19,6 @@ class SMVscanner : public yyFlexLexer
     // Uncomment this and debug option in smvparser.l for output
     // yy_flex_debug = 1;
   }
-  virtual ~SMVscanner() {}
   virtual pono::smvparser::symbol_type yylex(SMVEncoder & encoder);
 
  private:

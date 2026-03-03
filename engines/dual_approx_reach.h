@@ -23,6 +23,7 @@
 #include <cstdint>
 
 #include "engines/prover.h"
+#include "options/options.h"
 #include "smt-switch/smt.h"
 
 namespace pono {
@@ -32,10 +33,9 @@ class DualApproxReach : public SafetyProver
  public:
   DualApproxReach(const SafetyProperty & p,
                   const TransitionSystem & ts,
-                  const smt::SmtSolver & slv,
-                  PonoOptions opt = PonoOptions());
-
-  ~DualApproxReach();
+                  const smt::SmtSolver & solver,
+                  PonoOptions opt = {},
+                  Engine engine = Engine::DAR);
 
   typedef SafetyProver super;
 
@@ -58,7 +58,6 @@ class DualApproxReach : public SafetyProver
   bool check_fixed_point();
   bool check_fixed_point(const smt::TermVec & reach_seq,
                          smt::Term & fixed_point);
-  bool check_entail(const smt::Term & p, const smt::Term & q);
 
   smt::SmtSolver interpolator_;
   // for translating terms to interpolator_
@@ -67,7 +66,7 @@ class DualApproxReach : public SafetyProver
   smt::TermTranslator to_solver_;
 
   // set to true when a concrete_cex is found
-  bool concrete_cex_;
+  bool concrete_cex_ = false;
 
   // forward reachability sequence: <F_0=Init, F_0, F_1, ...>
   smt::TermVec forward_seq_;

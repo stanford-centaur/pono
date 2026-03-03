@@ -1,9 +1,9 @@
 # Set Up Google Tests
 
 # build testing infrastructure
-option (SYSTEM_GTEST "Should we try to use the system GTest" ON)
+option(SYSTEM_GTEST "Should we try to use the system GTest" ON)
 
-if (SYSTEM_GTEST)
+if(SYSTEM_GTEST)
   # try finding a system installation of googletest
   find_package(GTest 1.14 CONFIG)
 else()
@@ -13,30 +13,39 @@ endif()
 if(NOT GTest_FOUND)
   # Download and unpack googletest at configure time
   configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+  execute_process(
+    COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
     RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download
+  )
   if(result)
     message(FATAL_ERROR "CMake step for googletest failed: ${result}")
   endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+  execute_process(
+    COMMAND ${CMAKE_COMMAND} --build .
     RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download
+  )
   if(result)
     message(FATAL_ERROR "Build step for googletest failed: ${result}")
   endif()
-    # Add googletest directly to our build. This defines
-    # the gtest and gtest_main targets.
-  add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-                   ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-                   EXCLUDE_FROM_ALL)
+  # Add googletest directly to our build. This defines
+  # the gtest and gtest_main targets.
+  add_subdirectory(
+    ${CMAKE_CURRENT_BINARY_DIR}/googletest-src
+    ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
+    EXCLUDE_FROM_ALL
+  )
 else()
 endif()
-if (WITH_MSAT)
+if(WITH_MSAT)
   add_definitions(-DWITH_MSAT)
 endif()
 
-add_library(pono-test-lib EXCLUDE_FROM_ALL "${PONO_LIB_TYPE}"
+add_library(
+  pono-test-lib
+  EXCLUDE_FROM_ALL
+  "${PONO_LIB_TYPE}"
   "${CMAKE_CURRENT_SOURCE_DIR}/common_ts.cpp"
 )
 

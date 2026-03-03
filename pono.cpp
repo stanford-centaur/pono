@@ -90,7 +90,8 @@ ProverResult check_prop(PonoOptions pono_options,
     prop = ts.solver()->make_term(Implies, reset_done, prop);
   }
 
-  if (pono_options.static_coi_) {
+  // COI-based simplification has been applied before reduction to safety
+  if (pono_options.static_coi_ && !pono_options.justice_) {
     /* Compute the set of state/input variables related to the
        bad-state property. Based on that information, rebuild the
        transition relation of the transition system. */
@@ -168,6 +169,11 @@ ProverResult check_prop(PonoOptions pono_options,
 
   if (r == FALSE && pono_options.witness_) {
     bool success = prover->witness(cex);
+    if (pono_options.pseudo_init_prop_) {
+      // The pseudo-init transformation introduces an 1-step delay at the
+      // beginning, so we need to remove the first element of the cex.
+      cex.erase(cex.begin());
+    }
     if (has_monitor) {
       // Witness will always have at least one element, because the monitor is
       // constrained to start true.
@@ -326,6 +332,11 @@ int main(int argc, char ** argv)
         // The selected algorithm can modify the transition system in place.
         switch (pono_options.justice_translator_) {
           case pono::LIVENESS_TO_SAFETY:
+            if (pono_options.static_coi_) {
+              StaticConeOfInfluence coi(fts,
+                                        justicevec[pono_options.prop_idx_],
+                                        pono_options.verbosity_);
+            }
             prop = LivenessToSafetyTranslator{}.translate(
                 fts, justicevec[pono_options.prop_idx_]);
             break;
