@@ -14,6 +14,7 @@ RUN apt-get install -y \
         git \
         libbison-dev \
         libfl-dev \
+        libmpfr-dev \
         libgmp-dev \
         m4 \
         meson \
