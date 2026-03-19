@@ -379,7 +379,6 @@ target_link_libraries(pono-lib PUBLIC ${Btor2Tools_LIBRARIES})
 target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC pthread)
-target_link_libraries(pono-lib PUBLIC y)
 
 if(GOOGLE_PERF)
   target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
