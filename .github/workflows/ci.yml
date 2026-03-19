@@ -1,19 +1,16 @@
 name: CI
 on:
   push:
-  workflow_dispatch:  # allow manual trigger
-
+  workflow_dispatch: # allow manual trigger
 jobs:
   format-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
       - name: Check format using clang-format
         run: |
           find . -type d -name "contrib" -prune -or -type f \( -name '*.h' -or -name '*.cpp' \) -print \
           | xargs clang-format --dry-run -Werror --style=file
-
   build:
     strategy:
       fail-fast: false
@@ -23,13 +20,10 @@ jobs:
         include:
           - build_type: debug
             conf_build_opts: --debug
-
     name: ${{ matrix.os }}:${{ matrix.build_type }}
     runs-on: ${{ matrix.os}}
-
     steps:
       - uses: actions/checkout@v5
-
       - name: Install Packages (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -37,9 +31,9 @@ jobs:
           sudo apt-get install -y \
             libbison-dev \
             libfl-dev \
+            libmpfr-dev \
             cmake \
             ninja-build
-
       - name: Install Packages (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -49,7 +43,6 @@ jobs:
             flex
           echo "PATH=$(brew --prefix)/opt/bison/bin:$(brew --prefix)/opt/flex/bin:$PATH" >> "$GITHUB_ENV"
           echo "CMAKE_PREFIX_PATH=$(brew --prefix)/opt/flex" >> "$GITHUB_ENV"
-
       - name: Python Environment Setup
         run: |
           python3 -m venv ./.venv
@@ -59,62 +52,51 @@ jobs:
             meson \
             packaging \
             setuptools
-
       - name: Download MathSAT
         run: ./ci-scripts/setup-msat.sh --auto-yes
-
       - name: Setup Btor2Tools
         run: ./contrib/setup-btor2tools.sh
-
       - name: Setup Smt-Switch
         env:
-          DYLD_FALLBACK_LIBRARY_PATH: /opt/homebrew/lib  # this lets the precompiled MathSAT binary (used in the tests) find libgmp
+          DYLD_FALLBACK_LIBRARY_PATH: /opt/homebrew/lib # this lets the precompiled MathSAT binary (used in the tests) find libgmp
         run: |
           source .venv/bin/activate
           ./contrib/setup-smt-switch.sh --python --with-btor --with-msat
           python3 -m pip install $(ls deps/smt-switch/build/python/*.whl)
-
       - name: Configure
         run: |
           source .venv/bin/activate
           ./configure.sh --python --with-btor --with-msat --static ${{ matrix.conf_build_opts }}
-
       - name: Build
         run: |
           cd build
           make -j
-
       - name: Upload built executable
         uses: actions/upload-artifact@v4
         with:
           name: pono_${{ runner.arch }}_${{ matrix.build_type }}
           path: ./build/pono
-
       - name: Test C++
         id: test-cpp
         continue-on-error: true
         run: |
           cd build
           make check
-
       - name: Upload failing test log
         if: steps.test-cpp.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.build_type }}-test-log-${{ github.run_id }}
           path: build/tests/Testing/Temporary/LastTest.log
-
       - name: Fail pipeline due to C++ test failure
         if: steps.test-cpp.outcome == 'failure'
         run: |
           echo "C++ tests failed. Inspect the artifact for details."
           exit 1
-
       - name: Install Python Bindings
         run: |
           source .venv/bin/activate
           python3 -m pip install ./build/python[test]
-
       - name: Test Python Bindings
         run: |
           source .venv/bin/activate
