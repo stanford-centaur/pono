@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-smt_switch_version=8df601e715e002273e4dfa16fb38a63d8e463d7a
+smt_switch_version=v1.1.1
 
 usage() {
   cat <<EOF

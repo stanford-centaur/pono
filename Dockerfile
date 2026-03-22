@@ -16,6 +16,7 @@ RUN apt-get install -y \
         libfl-dev \
         libmpfr-dev \
         libgmp-dev \
+        libmpfr-dev \
         m4 \
         meson \
         ninja-build \
