@@ -14,7 +14,6 @@ RUN apt-get install -y \
         git \
         libbison-dev \
         libfl-dev \
-        libmpfr-dev \
         libgmp-dev \
         libmpfr-dev \
         m4 \
