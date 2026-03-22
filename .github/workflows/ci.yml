@@ -43,6 +43,7 @@ jobs:
             flex
           echo "PATH=$(brew --prefix)/opt/bison/bin:$(brew --prefix)/opt/flex/bin:$PATH" >> "$GITHUB_ENV"
           echo "CMAKE_PREFIX_PATH=$(brew --prefix)/opt/flex" >> "$GITHUB_ENV"
+          echo "CPATH=$(brew --prefix)/include" >> "$GITHUB_ENV"
       - name: Python Environment Setup
         run: |
           python3 -m venv ./.venv
