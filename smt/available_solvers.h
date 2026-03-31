@@ -101,4 +101,10 @@ std::vector<smt::SolverEnum> available_interpolator_enums();
 std::vector<smt::SolverEnum> filter_solver_enums(
     const std::unordered_set<smt::SolverAttribute> attributes);
 
+/** Filter the available interpolators by a set of attributes
+ * @return all available interpolating solvers that have *all* the attributes
+ */
+std::vector<smt::SolverEnum> filter_interpolator_enums(
+    const std::unordered_set<smt::SolverAttribute> attributes);
+
 }  // namespace pono
