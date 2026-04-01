@@ -90,7 +90,8 @@ void CegOpsUfTestBase::initialize_ts<BV>(SolverEnum se)
 template <>
 void CegOpsUfTestBase::initialize_ts<INT>(SolverEnum se)
 {
-  solver = create_solver(se);
+  // MathSAT does some rewriting that breaks invariant concretization.
+  solver = create_solver(se, se == MSAT);
   solver->set_opt("produce-unsat-assumptions", "true");
   sort = solver->make_sort(INT);
   x = solver->make_symbol("x", sort);
