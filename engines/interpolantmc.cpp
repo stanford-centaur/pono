@@ -97,8 +97,9 @@ void InterpolantMC::reset_env()
   // (assuming no assertions were push to context level 0).
   // This step is needed if the engine is used in a CAGAR loop
   // as there might be assertions from previous iterations.
-  assert(!concrete_cex_ || solver_->get_context_level() == 1);
-  solver_->pop(solver_->get_context_level());
+  assert(!concrete_cex_
+         || solver_->get_context_level() == start_context_level_ + 1);
+  solver_->pop(solver_->get_context_level() - start_context_level_);
   // Reinitialize the prover
   initialized_ = false;
   InterpolantMC::initialize();
@@ -134,7 +135,7 @@ ProverResult InterpolantMC::check_until(int k)
 
 bool InterpolantMC::step(const int i)
 {
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   if (i <= reached_k_) {
     return false;
   }
@@ -190,7 +191,7 @@ bool InterpolantMC::step(const int i)
       Ri = unroller_.at_time(unroller_.untime(Ri), 0);
 
       if (has_converged(Ri, R, interp_count)) {
-        assert(solver_->get_context_level() == 1);
+        assert(solver_->get_context_level() == start_context_level_ + 1);
         solver_->pop();
         logger.log(1, "Found a proof at bound: {}", i);
         invar_ = unroller_.untime(R);
@@ -220,7 +221,7 @@ bool InterpolantMC::step(const int i)
       throw PonoException("Interpolant generation failed.");
     }
   }
-  assert(solver_->get_context_level() == 1);
+  assert(solver_->get_context_level() == start_context_level_ + 1);
   solver_->pop();
 
   // Note: important that it's for i > 0
@@ -248,7 +249,7 @@ bool InterpolantMC::step(const int i)
 
 bool InterpolantMC::step_0()
 {
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   solver_->push();
   solver_->assert_formula(init0_);
   solver_->assert_formula(unroller_.at_time(bad_, 0));
@@ -279,7 +280,7 @@ bool InterpolantMC::has_converged(const Term & new_itp,
     solver_->push();
     solver_->assert_formula(solver_->make_term(Not, reached));
   }
-  assert(solver_->get_context_level() == 1);
+  assert(solver_->get_context_level() == start_context_level_ + 1);
 
   // check if new_itp is already covered by the reached states
   solver_->push();

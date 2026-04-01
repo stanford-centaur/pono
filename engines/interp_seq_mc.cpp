@@ -80,8 +80,9 @@ void InterpSeqMC::reset_env()
   // (assuming no assertions were push to context level 0).
   // This step is needed if the engine is used in a CAGAR loop
   // as there might be assertions from previous iterations.
-  assert(!concrete_cex_ || solver_->get_context_level() == 1);
-  solver_->pop(solver_->get_context_level());
+  assert(!concrete_cex_
+         || solver_->get_context_level() == start_context_level_ + 1);
+  solver_->pop(solver_->get_context_level() - start_context_level_);
   // Reinitialize the prover
   initialized_ = false;
   InterpSeqMC::initialize();
@@ -181,7 +182,7 @@ bool InterpSeqMC::step(int i)
     // note that we also perform the check even when interpolation fails
     // (i.e., r.is_unknown()), because iterative construction of interpolation
     // sequence may fail if the given formula is satisfiable
-    assert(solver_->get_context_level() == 0);
+    assert(solver_->get_context_level() == start_context_level_);
     solver_->push();
     Term trans_until_i = (trans_seq_.size() == 1)
                              ? trans_seq_.at(0)
@@ -207,7 +208,7 @@ bool InterpSeqMC::step(int i)
 
 bool InterpSeqMC::step_0()
 {
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   // push the unrolled formulas here
   // as compute_witness() rely on timed variables
   solver_->push();
@@ -248,7 +249,7 @@ void InterpSeqMC::update_term_map(size_t i)
 bool InterpSeqMC::check_fixed_point()
 {
   assert(reach_seq_.size() > 1);
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   // initialize solver stack and reached set
   Term acc_img = reach_seq_.at(0);
   solver_->push();
@@ -279,7 +280,7 @@ void InterpSeqMC::check_itp_sequence(const TermVec & int_formulas,
                                      const TermVec & int_itp_seq)
 {
   assert(int_formulas.size() == int_itp_seq.size() + 1);
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   for (size_t i = 0; i < int_itp_seq.size(); ++i) {
     TermVec int_a_vec(int_formulas.begin(), int_formulas.begin() + i + 1);
     TermVec int_b_vec(int_formulas.begin() + i + 1, int_formulas.end());

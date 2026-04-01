@@ -83,8 +83,9 @@ void DualApproxReach::reset_env()
   // This step is needed if the engine is used in a CAGAR loop
   // as there might be assertions from previous iterations.
   assert(!concrete_cex_
-         || solver_->get_context_level() == witness_length() + 1);
-  solver_->pop(solver_->get_context_level());
+         || solver_->get_context_level() - start_context_level_
+                == witness_length() + 1);
+  solver_->pop(solver_->get_context_level() - start_context_level_);
   // Reinitialize the prover
   initialized_ = false;
   DualApproxReach::initialize();
@@ -149,7 +150,7 @@ bool DualApproxReach::step(int i)
 
 bool DualApproxReach::step_0()
 {
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   // push the unrolled formulas here
   // as compute_witness() rely on timed variables
   solver_->push();
@@ -190,7 +191,7 @@ void DualApproxReach::update_term_map(size_t i)
 // see function `LocStrength` (Fig. 2(a)) in the paper
 bool DualApproxReach::local_strengthen()
 {
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   // We want to find an index i such that
   // forward_seq_[len-1-i](s0) & TR(s0, s1) & backward_seq_[i](s1) is unsat.
   // The search can be done in arbitrary order.
@@ -242,7 +243,7 @@ bool DualApproxReach::local_strengthen()
 bool DualApproxReach::global_strengthen()
 {
   assert(forward_seq_.size() > 1);
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   const size_t seq_len = forward_seq_.size();
   TermVec int_assertions;
   int_assertions.reserve(seq_len + 1);
@@ -412,7 +413,7 @@ bool DualApproxReach::check_fixed_point(const TermVec & reach_seq,
                                         Term & fixed_point)
 {
   assert(reach_seq.size() > 1);
-  assert(solver_->get_context_level() == 0);
+  assert(solver_->get_context_level() == start_context_level_);
   Term acc_img = reach_seq.at(0);
   solver_->push();
   solver_->assert_formula(solver_->make_term(Not, acc_img));
