@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -368,6 +369,11 @@ const std::vector<SolverEnum> itp_enums({
 #endif
 });
 
+const std::unordered_map<SolverEnum, SolverEnum> interpolator_to_solver(
+    { { BZLA_INTERPOLATOR, BZLA },
+      { CVC5_INTERPOLATOR, CVC5 },
+      { MSAT_INTERPOLATOR, MSAT } });
+
 std::vector<SolverEnum> available_solver_enums() { return solver_enums; }
 
 std::vector<SolverEnum> available_solver_enums_except(
@@ -391,7 +397,6 @@ std::vector<SolverEnum> filter_solver_enums(
   for (auto se : solver_enums) {
     const std::unordered_set<SolverAttribute> & se_attrs =
         get_solver_attributes(se);
-
     bool all_attrs = true;
     for (auto a : attributes) {
       if (se_attrs.find(a) == se_attrs.end()) {
@@ -399,12 +404,31 @@ std::vector<SolverEnum> filter_solver_enums(
         break;
       }
     }
-
     if (all_attrs) {
       filtered_enums.push_back(se);
     }
   }
+  return filtered_enums;
+}
 
+std::vector<SolverEnum> filter_interpolator_enums(
+    const std::unordered_set<SolverAttribute> attributes)
+{
+  std::vector<SolverEnum> filtered_enums;
+  for (auto se : itp_enums) {
+    const std::unordered_set<SolverAttribute> & se_attrs =
+        get_solver_attributes(interpolator_to_solver.at(se));
+    bool all_attrs = true;
+    for (auto a : attributes) {
+      if (se_attrs.find(a) == se_attrs.end()) {
+        all_attrs = false;
+        break;
+      }
+    }
+    if (all_attrs) {
+      filtered_enums.push_back(se);
+    }
+  }
   return filtered_enums;
 }
 

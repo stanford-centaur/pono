@@ -1,3 +1,5 @@
+#include <tuple>
+
 #include "core/prop.h"
 #include "core/rts.h"
 #include "gtest/gtest.h"
@@ -12,14 +14,18 @@ using namespace std;
 
 namespace pono_tests {
 
-class CegProphecyArraysTest : public ::testing::TestWithParam<SolverEnum>
+class CegProphecyArraysTest
+    : public ::testing::TestWithParam<tuple<SolverEnum, SolverEnum>>
 {
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    opts.smt_solver_ = get<0>(GetParam());
+    opts.smt_interpolator_ = get<1>(GetParam());
+    s = create_solver(opts.smt_solver_);
     s->set_opt("produce-unsat-assumptions", "true");
   }
+  PonoOptions opts;
   SmtSolver s;
 };
 
@@ -46,7 +52,7 @@ TEST_P(CegProphecyArraysTest, Simple)
       Lt, rts.make_term(Select, a, j), rts.make_term(200, intsort));
   SafetyProperty prop(s, prop_term);
   std::shared_ptr<SafetyProver> cegp =
-      make_ceg_proph_prover(INTERP, prop, rts, s);
+      make_ceg_proph_prover(INTERP, prop, rts, s, opts);
   ProverResult r = cegp->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
 }
@@ -54,6 +60,8 @@ TEST_P(CegProphecyArraysTest, Simple)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedCegProphecyArraysTest,
     CegProphecyArraysTest,
-    testing::ValuesIn(filter_solver_enums({ THEORY_INT })));
+    testing::Combine(
+        testing::ValuesIn(filter_solver_enums({ THEORY_INT })),
+        testing::ValuesIn(filter_interpolator_enums({ THEORY_INT }))));
 
 }  // namespace pono_tests

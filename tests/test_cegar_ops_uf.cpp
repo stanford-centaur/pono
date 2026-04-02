@@ -1,6 +1,9 @@
+#include <tuple>
+
 #include "core/fts.h"
 #include "engines/prover.h"
 #include "gtest/gtest.h"
+#include "options/options.h"
 #include "smt/available_solvers.h"
 #include "utils/make_provers.h"
 #include "utils/ts_analysis.h"
@@ -13,7 +16,16 @@ namespace pono_tests {
 
 unordered_set<Engine> get_cegar_ops_uf_engines()
 {
-  return { BMC_SP, BMC, DAR, KIND, IC3IA_ENGINE, IC3SA_ENGINE, INTERP, ISMC };
+  return { BMC_SP, BMC, KIND };
+}
+
+unordered_set<Engine> get_cegar_ops_uf_bv_engines()
+{
+  return { BMC_SP, BMC, KIND, IC3SA_ENGINE };
+}
+unordered_set<Engine> get_cegar_ops_uf_interp_engines()
+{
+  return { DAR, IC3IA_ENGINE, INTERP, ISMC };
 }
 
 FunctionalTransitionSystem counter_ts(SmtSolver s, const Term & x)
@@ -38,36 +50,80 @@ FunctionalTransitionSystem counter_ts(SmtSolver s, const Term & x)
   return fts;
 }
 
-class CegOpsUfTests : public ::testing::Test,
-                      public ::testing::WithParamInterface<tuple<Engine, bool>>
+Term safe_prop(SmtSolver solver, const Term & x)
+{
+  auto sort = x->get_sort();
+  auto lt_op = sort->get_sort_kind() == BV ? BVUlt : Lt;
+  return solver->make_term(lt_op, x, solver->make_term(11, sort));
+}
+
+Term unsafe_prop(SmtSolver solver, const Term & x)
+{
+  auto sort = x->get_sort();
+  auto lt_op = sort->get_sort_kind() == BV ? BVUlt : Lt;
+  return solver->make_term(lt_op, x, solver->make_term(10, sort));
+}
+
+class CegOpsUfTestBase
+{
+ public:
+  template <SortKind SK>
+  void initialize_ts(SolverEnum se);
+
+ protected:
+  SmtSolver solver;
+  Sort sort;
+  Term x;
+  FunctionalTransitionSystem fts;
+};
+
+template <>
+void CegOpsUfTestBase::initialize_ts<BV>(SolverEnum se)
+{
+  solver = create_solver(se, se == BTOR);
+  solver->set_opt("produce-unsat-assumptions", "true");
+  sort = solver->make_sort(BV, 8);
+  x = solver->make_symbol("x", sort);
+  fts = counter_ts(solver, x);
+}
+
+template <>
+void CegOpsUfTestBase::initialize_ts<INT>(SolverEnum se)
+{
+  // MathSAT does some rewriting that breaks invariant concretization.
+  solver = create_solver(se, se == MSAT);
+  solver->set_opt("produce-unsat-assumptions", "true");
+  sort = solver->make_sort(INT);
+  x = solver->make_symbol("x", sort);
+  fts = counter_ts(solver, x);
+}
+
+template <SortKind SK>
+class CegOpsUfTest
+    : public testing::Test,
+      public testing::WithParamInterface<tuple<Engine, bool, SolverEnum>>,
+      public CegOpsUfTestBase
 {
  protected:
   void SetUp() override
   {
-    tuple<Engine, bool> test_param = GetParam();
-    opts.engine_ = get<0>(test_param);
-    opts.ceg_bv_arith_as_free_symbol_ = get<1>(test_param);
-    // use cvc5 as the base solver as it supports both BV and Int
-    opts.smt_solver_ = SolverEnum::CVC5;
+    opts.engine_ = get<0>(GetParam());
+    opts.ceg_bv_arith_as_free_symbol_ = get<1>(GetParam());
+    opts.smt_solver_ = get<2>(GetParam());
     opts.check_invar_ = true;
-    solver = create_solver(opts.smt_solver_);
-    solver->set_opt("produce-unsat-assumptions", "true");
+    initialize_ts<SK>(opts.smt_solver_);
   }
   PonoOptions opts;
-  SmtSolver solver;
 };
 
-TEST_P(CegOpsUfTests, BVSimpleSafe)
+typedef CegOpsUfTest<BV> BVCegOpsUfTest;
+typedef CegOpsUfTest<INT> IntCegOpsUfTest;
+
+TEST_P(BVCegOpsUfTest, Safe)
 {
-  Sort sort = solver->make_sort(BV, 8);
-  Term x = solver->make_symbol("x", sort);
-  FunctionalTransitionSystem fts = counter_ts(solver, x);
-  Term prop_term = fts.make_term(BVUlt, x, fts.make_term(11, sort));
-  SafetyProperty prop(solver, prop_term);
-
+  Term prop_term = safe_prop(solver, x);
   shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
-      opts.engine_, prop, fts, solver, opts, { BVAdd });
-
+      opts.engine_, { solver, prop_term }, fts, solver, opts, { BVAdd });
   ProverResult r = ceg_prover->check_until(20);
   if (opts.engine_ == Engine::BMC) {
     ASSERT_EQ(r, ProverResult::UNKNOWN);
@@ -80,47 +136,29 @@ TEST_P(CegOpsUfTests, BVSimpleSafe)
   }
 }
 
-TEST_P(CegOpsUfTests, BVSimpleUnsafe)
+TEST_P(BVCegOpsUfTest, Unsafe)
 {
-  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR
-      && (opts.engine_ == INTERP || opts.engine_ == IC3IA_ENGINE)) {
-    GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
-  }
-  Sort sort = solver->make_sort(BV, 8);
-  Term x = solver->make_symbol("x", sort);
-
-  FunctionalTransitionSystem fts = counter_ts(solver, x);
-  Term prop_term = fts.make_term(BVUlt, x, solver->make_term(10, sort));
-  SafetyProperty prop(solver, prop_term);
-
+  Term prop_term = unsafe_prop(solver, x);
   shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
-      opts.engine_, prop, fts, solver, opts, { BVAdd });
-
+      opts.engine_, { solver, prop_term }, fts, solver, opts, { BVAdd });
   ProverResult r = ceg_prover->check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
   vector<UnorderedTermMap> cex;
   ASSERT_TRUE(ceg_prover->witness(cex));
 }
 
-TEST_P(CegOpsUfTests, IntSimpleSafe)
+INSTANTIATE_TEST_SUITE_P(
+    ParametrizedCegOpsUfTests,
+    BVCegOpsUfTest,
+    testing::Combine(testing::ValuesIn(get_cegar_ops_uf_bv_engines()),
+                     testing::ValuesIn({ false, true }),
+                     testing::ValuesIn(filter_solver_enums({ THEORY_BV }))));
+
+TEST_P(IntCegOpsUfTest, Safe)
 {
-  if (opts.engine_ == Engine::IC3SA_ENGINE) {
-    GTEST_SKIP() << "IC3SA does not support Int";
-  }
-  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR
-      && (opts.engine_ == ISMC || opts.engine_ == INTERP
-          || opts.engine_ == IC3IA_ENGINE)) {
-    GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
-  }
-  Sort sort = solver->make_sort(INT);
-  Term x = solver->make_symbol("x", sort);
-  FunctionalTransitionSystem fts = counter_ts(solver, x);
-  Term prop_term = fts.make_term(Lt, x, fts.make_term(11, sort));
-  SafetyProperty prop(solver, prop_term);
-
+  Term prop_term = safe_prop(solver, x);
   shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
-      opts.engine_, prop, fts, solver, opts, { Plus });
-
+      opts.engine_, { solver, prop_term }, fts, solver, opts, { Plus });
   ProverResult r = ceg_prover->check_until(15);
   if (opts.engine_ == Engine::BMC) {
     ASSERT_EQ(r, ProverResult::UNKNOWN);
@@ -133,25 +171,65 @@ TEST_P(CegOpsUfTests, IntSimpleSafe)
   }
 }
 
-TEST_P(CegOpsUfTests, IntSimpleUnsafe)
+TEST_P(IntCegOpsUfTest, Unsafe)
 {
-  if (opts.engine_ == Engine::IC3SA_ENGINE) {
-    GTEST_SKIP() << "IC3SA does not support Int";
-  }
-  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR
-      && (opts.engine_ == ISMC || opts.engine_ == INTERP
-          || opts.engine_ == IC3IA_ENGINE)) {
-    GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
-  }
-  Sort sort = solver->make_sort(INT);
-  Term x = solver->make_symbol("x", sort);
-
-  FunctionalTransitionSystem fts = counter_ts(solver, x);
-  Term prop_term = fts.make_term(Lt, x, solver->make_term(10, sort));
-  SafetyProperty prop(solver, prop_term);
-
+  Term prop_term = unsafe_prop(solver, x);
   shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
-      opts.engine_, prop, fts, solver, opts, { Plus });
+      opts.engine_, { solver, prop_term }, fts, solver, opts, { Plus });
+  ProverResult r = ceg_prover->check_until(10);
+  ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ceg_prover->witness(cex));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ParametrizedCegOpsUfTests,
+    IntCegOpsUfTest,
+    testing::Combine(testing::ValuesIn(get_cegar_ops_uf_engines()),
+                     testing::ValuesIn({ false, true }),
+                     testing::ValuesIn(filter_solver_enums({ THEORY_INT }))));
+
+template <SortKind SK>
+class CegOpsUfInterpTest : public testing::Test,
+                           public testing::WithParamInterface<
+                               tuple<Engine, bool, SolverEnum, SolverEnum>>,
+                           public CegOpsUfTestBase
+{
+ protected:
+  void SetUp() override
+  {
+    opts.engine_ = get<0>(GetParam());
+    opts.ceg_bv_arith_as_free_symbol_ = get<1>(GetParam());
+    opts.smt_solver_ = get<2>(GetParam());
+    opts.smt_interpolator_ = get<3>(GetParam());
+    opts.check_invar_ = true;
+    initialize_ts<SK>(opts.smt_solver_);
+  }
+  PonoOptions opts;
+};
+
+typedef CegOpsUfInterpTest<BV> BVCegOpsUfInterpTest;
+typedef CegOpsUfInterpTest<INT> IntCegOpsUfInterpTest;
+
+TEST_P(BVCegOpsUfInterpTest, Safe)
+{
+  Term prop_term = safe_prop(solver, x);
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
+      opts.engine_, { solver, prop_term }, fts, solver, opts, { BVAdd });
+  ProverResult r = ceg_prover->check_until(20);
+  ASSERT_EQ(r, ProverResult::TRUE);
+  Term invar = ceg_prover->invar();
+  ASSERT_TRUE(check_invar(fts, prop_term, invar));
+}
+
+TEST_P(BVCegOpsUfInterpTest, Unsafe)
+{
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 get-interpolant fails for this test";
+  }
+  Term prop_term = unsafe_prop(solver, x);
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
+      opts.engine_, { solver, prop_term }, fts, solver, opts, { BVAdd });
 
   ProverResult r = ceg_prover->check_until(10);
   ASSERT_EQ(r, ProverResult::FALSE);
@@ -160,9 +238,50 @@ TEST_P(CegOpsUfTests, IntSimpleUnsafe)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedCegOpsUfTests,
-    CegOpsUfTests,
-    testing::Combine(testing::ValuesIn(get_cegar_ops_uf_engines()),
-                     testing::ValuesIn({ false, true })));
+    ParametrizedCegOpsUfTests,
+    BVCegOpsUfInterpTest,
+    testing::Combine(
+        testing::ValuesIn(get_cegar_ops_uf_interp_engines()),
+        testing::ValuesIn({ false, true }),
+        testing::ValuesIn(filter_solver_enums({ THEORY_BV })),
+        testing::ValuesIn(filter_interpolator_enums({ THEORY_BV }))));
+
+TEST_P(IntCegOpsUfInterpTest, Safe)
+{
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 get-interpolant does not terminate for this test";
+  }
+  Term prop_term = safe_prop(solver, x);
+  SafetyProperty prop(solver, prop_term);
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
+      opts.engine_, { solver, prop_term }, fts, solver, opts, { Plus });
+  ProverResult r = ceg_prover->check_until(15);
+  ASSERT_EQ(r, ProverResult::TRUE);
+  Term invar = ceg_prover->invar();
+  ASSERT_TRUE(check_invar(fts, prop_term, invar));
+}
+
+TEST_P(IntCegOpsUfInterpTest, Unsafe)
+{
+  if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
+    GTEST_SKIP() << "cvc5 get-interpolant does not terminate for this test";
+  }
+  Term prop_term = unsafe_prop(solver, x);
+  shared_ptr<SafetyProver> ceg_prover = make_cegar_bv_arith_prover(
+      opts.engine_, { solver, prop_term }, fts, solver, opts, { Plus });
+  ProverResult r = ceg_prover->check_until(10);
+  ASSERT_EQ(r, ProverResult::FALSE);
+  vector<UnorderedTermMap> cex;
+  ASSERT_TRUE(ceg_prover->witness(cex));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ParametrizedCegOpsUfTests,
+    IntCegOpsUfInterpTest,
+    testing::Combine(
+        testing::ValuesIn(get_cegar_ops_uf_interp_engines()),
+        testing::ValuesIn({ false, true }),
+        testing::ValuesIn(filter_solver_enums({ THEORY_INT })),
+        testing::ValuesIn(filter_interpolator_enums({ THEORY_INT }))));
 
 }  // namespace pono_tests
