@@ -15,6 +15,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "core/prop.h"
@@ -94,6 +95,7 @@ class BaseProver
   TransitionSystem ts_;
 
   bool initialized_ = false;
+  std::uint64_t start_context_level_ = 0;
 
   std::vector<smt::UnorderedTermMap>
       witness_;  ///< populated by a witness if a CEX is found; uses terms from

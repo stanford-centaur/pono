@@ -1,7 +1,10 @@
+#include <tuple>
+
 #include "engines/ceg_prophecy_arrays.h"
 #include "engines/cegar_values.h"
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
+#include "options/options.h"
 #include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
 
@@ -11,14 +14,18 @@ using namespace std;
 
 namespace pono_tests {
 
-class CegarValuesTest : public ::testing::TestWithParam<SolverEnum>
+class CegarValuesTest
+    : public testing::TestWithParam<tuple<SolverEnum, SolverEnum>>
 {
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    opts.smt_solver_ = get<0>(GetParam());
+    opts.smt_interpolator_ = get<1>(GetParam());
+    s = create_solver(opts.smt_solver_);
     s->set_opt("produce-unsat-assumptions", "true");
   }
+  PonoOptions opts;
   SmtSolver s;
 };
 
@@ -47,7 +54,7 @@ TEST_P(CegarValuesTest, SimpleSafe)
 
   // TODO create a make_ command for this
   shared_ptr<SafetyProver> ceg =
-      make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s);
+      make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s, opts);
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::TRUE);
@@ -80,7 +87,7 @@ TEST_P(CegarValuesTest, SimpleUnsafe)
 
   // TODO create a make_ command for this
   shared_ptr<SafetyProver> ceg =
-      make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s);
+      make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s, opts);
 
   ProverResult r = ceg->check_until(5);
   ASSERT_EQ(r, ProverResult::FALSE);
@@ -89,6 +96,8 @@ TEST_P(CegarValuesTest, SimpleUnsafe)
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedCegarValuesTest,
     CegarValuesTest,
-    testing::ValuesIn(filter_solver_enums({ THEORY_INT })));
+    testing::Combine(
+        testing::ValuesIn(filter_solver_enums({ THEORY_INT })),
+        testing::ValuesIn(filter_interpolator_enums({ THEORY_INT }))));
 
 }  // namespace pono_tests

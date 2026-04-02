@@ -1,6 +1,9 @@
+#include <tuple>
+
 #include "core/fts.h"
 #include "engines/ic3ia.h"
 #include "gtest/gtest.h"
+#include "options/options.h"
 #include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
 #include "tests/common_ts.h"
@@ -12,30 +15,26 @@ using namespace std;
 
 namespace pono_tests {
 
-class IC3IAUnitTests : public ::testing::Test,
-                       public ::testing::WithParamInterface<SolverEnum>
+class IC3IATest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<tuple<SolverEnum, SolverEnum>>
 {
  protected:
   void SetUp() override
   {
-    opts = PonoOptions{};
-    s = create_solver_for(GetParam(), IC3IA_ENGINE, false);
+    opts.smt_solver_ = get<0>(GetParam());
+    opts.smt_interpolator_ = get<1>(GetParam());
+    s = create_solver_for(opts.smt_solver_, IC3IA_ENGINE, false);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
-    intsort = s->make_sort(INT);
   }
   PonoOptions opts;
   SmtSolver s;
-  Sort boolsort, bvsort8, intsort;
+  Sort boolsort, bvsort8;
 };
 
-TEST_P(IC3IAUnitTests, SimpleSystemSafe)
+TEST_P(IC3IATest, SimpleSafe)
 {
-#ifdef __APPLE__
-  if (GetParam() == MSAT) {
-    GTEST_SKIP() << "MathSAT causes segfault in this test on macOS";
-  }
-#endif
   FunctionalTransitionSystem fts(s);
   Term s1 = fts.make_statevar("s1", boolsort);
   Term s2 = fts.make_statevar("s2", boolsort);
@@ -51,7 +50,7 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
 
   SafetyProperty p(s, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, fts, s);
+  IC3IA ic3ia(p, fts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -60,13 +59,8 @@ TEST_P(IC3IAUnitTests, SimpleSystemSafe)
   ASSERT_TRUE(check_invar(fts, p.prop(), invar));
 }
 
-TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
+TEST_P(IC3IATest, SimpleUnsafe)
 {
-#ifdef __APPLE__
-  if (GetParam() == MSAT) {
-    GTEST_SKIP() << "MathSAT causes segfault in this test on macOS";
-  }
-#endif
   if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
     GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
   }
@@ -85,14 +79,14 @@ TEST_P(IC3IAUnitTests, SimpleSystemUnsafe)
 
   SafetyProperty p(s, s->make_term(Not, s1));
 
-  IC3IA ic3ia(p, fts, s);
+  IC3IA ic3ia(p, fts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
   vector<UnorderedTermMap> cex;
   ASSERT_TRUE(ic3ia.witness(cex));
 }
 
-TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
+TEST_P(IC3IATest, CounterUnsafe)
 {
   if (opts.smt_interpolator_ == CVC5_INTERPOLATOR) {
     GTEST_SKIP() << "cvc5 fails to generate an interpolant for this case";
@@ -107,14 +101,31 @@ TEST_P(IC3IAUnitTests, CounterSystemUnsafe)
   Term prop_term = s->make_term(BVUlt, x, s->make_term(10, bvsort8));
   SafetyProperty p(s, prop_term);
 
-  IC3IA ic3ia(p, fts, s);
+  IC3IA ic3ia(p, fts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, FALSE);
   vector<UnorderedTermMap> cex;
   ASSERT_TRUE(ic3ia.witness(cex));
 }
 
-TEST_P(IC3IAUnitTests, InductiveIntSafe)
+INSTANTIATE_TEST_SUITE_P(
+    ParametrizedIC3IATests,
+    IC3IATest,
+    testing::Combine(testing::ValuesIn(available_solver_enums()),
+                     testing::ValuesIn(available_interpolator_enums())));
+
+class IC3IAIntTest : public IC3IATest
+{
+ protected:
+  void SetUp() override
+  {
+    IC3IATest::SetUp();
+    intsort = s->make_sort(INT);
+  }
+  Sort intsort;
+};
+
+TEST_P(IC3IAIntTest, InductiveSafe)
 {
   FunctionalTransitionSystem fts(s);
   Term max_val = fts.make_term(10, intsort);
@@ -126,7 +137,7 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
   SafetyProperty p(fts.solver(),
                    fts.make_term(Le, x, fts.make_term(10, intsort)));
 
-  IC3IA ic3ia(p, fts, s);
+  IC3IA ic3ia(p, fts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -134,7 +145,7 @@ TEST_P(IC3IAUnitTests, InductiveIntSafe)
   ASSERT_TRUE(check_invar(fts, p.prop(), invar));
 }
 
-TEST_P(IC3IAUnitTests, SimpleIntSafe)
+TEST_P(IC3IAIntTest, SimpleSafe)
 {
   RelationalTransitionSystem rts(s);
   Term x = rts.make_statevar("x", intsort);
@@ -156,7 +167,7 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 
   SafetyProperty p(rts.solver(), wit);
 
-  IC3IA ic3ia(p, rts, s);
+  IC3IA ic3ia(p, rts, s, opts);
   ProverResult r = ic3ia.prove();
   ASSERT_EQ(r, TRUE);
 
@@ -165,7 +176,9 @@ TEST_P(IC3IAUnitTests, SimpleIntSafe)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParametrizedSolverIC3IAUnitTests,
-    IC3IAUnitTests,
-    testing::ValuesIn(filter_solver_enums({ THEORY_INT })));
+    ParametrizedIC3IAIntTests,
+    IC3IAIntTest,
+    testing::Combine(
+        testing::ValuesIn(filter_solver_enums({ THEORY_INT })),
+        testing::ValuesIn(filter_interpolator_enums({ THEORY_INT }))));
 }  // namespace pono_tests

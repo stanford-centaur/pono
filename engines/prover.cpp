@@ -45,6 +45,7 @@ BaseProver::BaseProver(const TransitionSystem & ts,
       orig_ts_(ts),
       ts_(ts, to_prover_solver_)
 {
+  start_context_level_ = solver_->get_context_level();
 }
 
 void BaseProver::initialize() { initialized_ = true; }
