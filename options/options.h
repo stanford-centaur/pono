@@ -407,11 +407,7 @@ class PonoOptions
   static const smt::SolverEnum default_smt_solver_ = smt::BZLA;
   inline static const StringMap default_smt_solver_opts_ = {};
   static const smt::SolverEnum default_smt_interpolator_ =
-#ifdef WITH_MSAT
-      smt::MSAT_INTERPOLATOR;
-#else
-      smt::CVC5_INTERPOLATOR;
-#endif
+      smt::BZLA_INTERPOLATOR;
   inline static const StringMap default_smt_interpolator_opts_ = {};
   static const bool default_logging_smt_solver_ = false;
   static const bool default_printing_smt_solver_ = false;

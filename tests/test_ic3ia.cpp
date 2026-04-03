@@ -24,7 +24,8 @@ class IC3IATest
   {
     opts.smt_solver_ = get<0>(GetParam());
     opts.smt_interpolator_ = get<1>(GetParam());
-    s = create_solver_for(opts.smt_solver_, IC3IA_ENGINE, false);
+    s = create_solver_for(
+        opts.smt_solver_, IC3IA_ENGINE, opts.smt_solver_ == BTOR);
     boolsort = s->make_sort(BOOL);
     bvsort8 = s->make_sort(BV, 8);
   }

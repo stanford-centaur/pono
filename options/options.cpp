@@ -233,8 +233,7 @@ const option::Descriptor usage[] = {
     "smt-solver",
     Arg::NonEmpty,
     "  --smt-solver \tSMT solver to use: btor, bzla, cvc5, msat, yices2, or "
-    "z3. "
-    "(default: bzla)" },
+    "z3 (default: bzla)." },
   { SMT_SOLVER_OPT,
     0,
     "",
@@ -247,13 +246,8 @@ const option::Descriptor usage[] = {
     "",
     "smt-interpolator",
     Arg::NonEmpty,
-    "  --smt-interpolator \tSMT solver used for interpolation: msat or cvc5. "
-#ifdef WITH_MSAT
-    "(default: msat)"
-#else
-    "(default: cvc5)"
-#endif
-  },
+    "  --smt-interpolator \tSMT solver used for interpolation: bzla, cvc5, or "
+    "msat (default: bzla)." },
   { SMT_INTERPOLATOR_OPT,
     0,
     "",
@@ -304,7 +298,7 @@ const option::Descriptor usage[] = {
     "justice",
     Arg::None,
     "  --justice, -j \tCheck justice property, instead of safety, at the given "
-    "index. (default: false)" },
+    "index (default: false)." },
   { JUSTICE_TRANSLATOR,
     0,
     "",
@@ -609,7 +603,7 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --bmc-single-bad-state \tEXPERT OPTION: add a single bad state literal "
     "for current bound k rather than a disjunctive term covering the checked "
-    "interval; counterexamples may be missed. (default: false)." },
+    "interval; counterexamples may be missed (default: false)." },
   { BMC_NEG_BAD_STEP,
     0,
     "",
@@ -909,7 +903,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         }
         case SMT_INTERPOLATOR: {
-          if (opt.arg == std::string("cvc5")) {
+          if (opt.arg == std::string("bzla")) {
+            smt_interpolator_ = smt::BZLA_INTERPOLATOR;
+          } else if (opt.arg == std::string("cvc5")) {
             smt_interpolator_ = smt::CVC5_INTERPOLATOR;
           } else if (opt.arg == std::string("msat")) {
             smt_interpolator_ = smt::MSAT_INTERPOLATOR;
