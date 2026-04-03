@@ -72,13 +72,13 @@ ProofGoalQueue::~ProofGoalQueue() { clear(); }
 
 void ProofGoalQueue::clear()
 {
+  while (!queue_.empty()) {
+    queue_.pop();
+  }
   for (auto p : store_) {
     delete p;
   }
   store_.clear();
-  while (!queue_.empty()) {
-    queue_.pop();
-  }
 }
 
 void ProofGoalQueue::new_proof_goal(const IC3Formula & c,
