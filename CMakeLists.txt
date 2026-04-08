@@ -162,6 +162,24 @@ if(WITH_MSAT_IC3IA)
   endif()
 endif()
 
+if(WITH_SLANG)
+  set(SLANG_DIR "${PROJECT_SOURCE_DIR}/deps/slang/local")
+  if(NOT EXISTS "${SLANG_DIR}/include/slang/ast/Compilation.h")
+    message(FATAL_ERROR "Missing slang headers -- try running ./contrib/setup-slang.sh")
+  endif()
+  # slang may install its library as libsvlang or libslang, in lib or lib64
+  find_library(
+    SLANG_LIBRARY
+    NAMES svlang slang
+    PATHS "${SLANG_DIR}/lib" "${SLANG_DIR}/lib64"
+    NO_DEFAULT_PATH
+  )
+  if(NOT SLANG_LIBRARY)
+    message(FATAL_ERROR "Missing slang library -- try running ./contrib/setup-slang.sh")
+  endif()
+  message(STATUS "Found slang library: ${SLANG_LIBRARY}")
+endif()
+
 if(WITH_COREIR)
   if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
     message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
@@ -289,6 +307,11 @@ if(WITH_COREIR OR WITH_COREIR_EXTERN)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
+if(WITH_SLANG)
+  add_definitions(-DWITH_SLANG)
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/sv_encoder.cpp")
+endif()
+
 if(WITH_MSAT)
   # need direct access to mathsat for setting options
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
@@ -360,6 +383,29 @@ if(WITH_COREIR_EXTERN)
       INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
   )
   target_link_libraries(pono-lib PUBLIC coreir verilogAST)
+endif()
+
+if(WITH_SLANG)
+  target_include_directories(pono-lib PUBLIC "${SLANG_DIR}/include")
+  target_link_libraries(pono-lib PUBLIC "${SLANG_LIBRARY}")
+  # slang requires C++20 features in its headers
+  set_property(TARGET pono-lib PROPERTY CXX_STANDARD 20)
+  # slang also depends on fmt; it may bundle it or use system fmt
+  find_library(
+    SLANG_FMT_LIBRARY
+    NAMES fmt
+    PATHS "${SLANG_DIR}/lib" "${SLANG_DIR}/lib64"
+    NO_DEFAULT_PATH
+  )
+  if(SLANG_FMT_LIBRARY)
+    target_link_libraries(pono-lib PUBLIC "${SLANG_FMT_LIBRARY}")
+  else()
+    # Try system fmt
+    find_package(fmt QUIET)
+    if(fmt_FOUND)
+      target_link_libraries(pono-lib PUBLIC fmt::fmt)
+    endif()
+  endif()
 endif()
 
 if(WITH_COREIR)
