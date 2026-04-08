@@ -141,6 +141,7 @@ class PonoOptions
         show_invar_(default_show_invar_),
         check_invar_(default_check_invar_),
         check_trans_total_(default_check_trans_total_),
+        ensure_trans_total_(default_ensure_trans_total_),
         ic3_pregen_(default_ic3_pregen_),
         ic3_indgen_(default_ic3_indgen_),
         ic3_gen_max_iter_(default_ic3_gen_max_iter_),
@@ -254,7 +255,8 @@ class PonoOptions
   bool static_coi_;
   bool show_invar_;   ///< display invariant when running from command line
   bool check_invar_;  ///< check invariants (if available) when run through CLI
-  bool check_trans_total_;  ///< check if transition relation is right-total
+  bool check_trans_total_;   ///< check if transition relation is right-total
+  bool ensure_trans_total_;  ///< ensure that transition relation is right-total
   // ic3 options
   bool ic3_pregen_;                 ///< generalize counterexamples in IC3
   bool ic3_indgen_;                 ///< inductive generalization in IC3
@@ -401,6 +403,7 @@ class PonoOptions
   static const bool default_show_invar_ = false;
   static const bool default_check_invar_ = false;
   static const bool default_check_trans_total_ = false;
+  static const bool default_ensure_trans_total_ = false;
   static const unsigned long default_reset_bnd_ = 1;
   // TODO distinguish when solver is not set and choose a
   //      good solver for the provided engine automatically
