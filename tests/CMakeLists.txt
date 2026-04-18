@@ -1,7 +1,7 @@
 # Set Up Google Tests
 
 # build testing infrastructure
-option(SYSTEM_GTEST "Should we try to use the system GTest" ON)
+option(SYSTEM_GTEST "Should we try to use the system GTest" OFF)
 
 if(SYSTEM_GTEST)
   # try finding a system installation of googletest
@@ -88,6 +88,7 @@ pono_add_test(test_walkers)
 pono_add_test(test_pseudo_init_and_prop)
 pono_add_test(test_promote_inputvars)
 pono_add_test(test_partial_model)
+pono_add_test(test_tts)
 
 if(WITH_MSAT_IC3IA)
   pono_add_test(test_msat_ic3ia)

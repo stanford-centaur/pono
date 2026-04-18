@@ -98,6 +98,7 @@ pkg_check_modules(GMPXX REQUIRED gmpxx)
 pkg_check_modules(BITWUZLA REQUIRED bitwuzla)
 
 if(NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
+  message("SMT_SWITCH_DIR: ${SMT_SWITCH_DIR}")
   message(FATAL_ERROR "Missing smt-switch headers -- try running ./contrib/setup-smt-switch.sh")
 endif()
 
@@ -224,6 +225,7 @@ set(
   "${PROJECT_SOURCE_DIR}/core/ts.cpp"
   "${PROJECT_SOURCE_DIR}/core/rts.cpp"
   "${PROJECT_SOURCE_DIR}/core/fts.cpp"
+  "${PROJECT_SOURCE_DIR}/core/tts.cpp"
   "${PROJECT_SOURCE_DIR}/core/unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/functional_unroller.cpp"
   "${PROJECT_SOURCE_DIR}/core/prop.cpp"
