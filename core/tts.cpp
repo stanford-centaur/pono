@@ -8,11 +8,11 @@ using namespace smt;
 namespace pono {
 const std::string TimedTransitionSystem::DELAY_VAR_NAME = "_pono_time_delay_";
 
-std::string to_string(TADelayStrictness strictness)
+std::string to_string(TimedAutomatonDelayStrictness strictness)
 {
   switch (strictness) {
-    case TADelayStrictness::Strict: return "Strict";
-    case TADelayStrictness::Weak: return "Weak";
+    case TimedAutomatonDelayStrictness::Strict: return "Strict";
+    case TimedAutomatonDelayStrictness::Weak: return "Weak";
   }
   return "Unknown";
 }
@@ -36,9 +36,105 @@ void TimedTransitionSystem::add_dummy_init_transitions()
   }
   dummy_transition = solver_->make_term(And, dummy_transition, init());
   logger.log(4, "Dummy transitions: {}", dummy_transition);
-  // dummy_transition = X'=X/\ C'=C /\ init
+  // dummy_transition = X'=X /\ C'=C /\ init
   // trans := trans \/ dummy_transition
   set_trans(solver_->make_term(Or, trans(), dummy_transition));
+}
+
+bool TimedTransitionSystem::contains_clocks(const smt::Term & term) const {
+  smt::UnorderedTermSet vars;
+  smt::UnorderedTermSet clock_vars;
+  get_free_symbolic_consts(term, vars);
+  for (auto c : clock_vars_) {
+      if (vars.find(c) != vars.end()){
+          return true;
+      }
+  }
+  return false;
+}
+
+bool TimedTransitionSystem::check_clock_invariant(const smt::Term & inv) const {
+  smt::Op op = inv->get_op();
+  if (op.is_null()){
+    // inv contains at least one clock variable, so cannot be a Boolean constraint
+    return false;
+  }
+  TermVec children(inv->begin(), inv->end());
+  if (op.prim_op == Implies){
+    return !contains_clocks(children[0])
+      && is_clock_guard(children[1]);
+  }
+  return is_clock_guard(inv);
+}
+
+bool TimedTransitionSystem::is_clock_guard(const smt::Term & term) const {
+  if (term == solver_->make_term(true) || term == solver_->make_term(false))
+    return true;
+  smt::Op op = term->get_op();
+  TermVec children(term->begin(), term->end());
+  switch(op.prim_op){
+    case And:
+      for (auto ch : children){
+        if (!is_clock_guard(ch)){
+          return false;
+        }
+      }
+    default:
+      return is_clock_predicate(term);
+  }
+}
+
+bool TimedTransitionSystem::is_clock_predicate(const smt::Term & term) const {
+  smt::Op op = term->get_op();
+  if (op.is_null()){
+    return false;
+  }
+  TermVec children(term->begin(), term->end());
+  switch(op.prim_op){
+    case Le:
+    case Lt:
+    case Ge:
+    case Gt:
+    case Equal:
+      for (auto ch : children){
+        if (!is_clock_expression(ch)){
+          return false;
+        }
+      }
+      break;
+  }
+  return true;
+}
+
+bool TimedTransitionSystem::is_clock_expression(const smt::Term & term) const {
+  smt::Op op = term->get_op();
+  if (op.is_null()){
+    if (term->is_value() || clock_vars_.find(term) != clock_vars_.end())
+      return true;
+  }
+  TermVec children(term->begin(), term->end());
+  if (op.prim_op == To_Real || op.prim_op == To_Int){
+    assert(children.size() == 1);
+    if (children[0]->is_value())
+      return true;
+  }
+  if (op.prim_op == Minus || op.prim_op == Plus){
+    assert(children.size() == 2);
+    // x - y is OK x + y is not
+    if (clock_vars_.find(children[0]) != clock_vars_.end() && clock_vars_.find(children[1]) != clock_vars_.end()){
+      return op.prim_op == Minus;
+    }
+    // x +/- k
+    if (children[0]->is_value() && clock_vars_.find(children[1]) != clock_vars_.end())
+      return true;
+    // k +/- x
+    if (children[1]->is_value() && clock_vars_.find(children[0]) != clock_vars_.end())
+      return true;
+    // k +/- k'
+    if (children[0]->is_value() && children[1]->is_value())
+      return true;
+  }
+  return false;
 }
 
 void TimedTransitionSystem::encode_compact_delays()
@@ -67,7 +163,7 @@ void TimedTransitionSystem::encode_compact_delays()
 
   delta_ = TransitionSystem::make_inputvar(DELAY_VAR_NAME, this->delay_sort_);
   logger.log(1, "Sort of timed automata clocks: {}", this->delay_sort_);
-  logger.log(1, "Delays are: {}", to_string(TADelayStrictness::Strict));
+  logger.log(1, "Delays are: {}", to_string(TimedAutomatonDelayStrictness::Strict));
   logger.log(2, "Listing timed automata clocks:");
   for (auto c : clock_vars_) {
     logger.log(2, "\t{}", c);
@@ -96,6 +192,7 @@ void TimedTransitionSystem::encode_compact_delays()
   /*
    * newtrans(C, X, I, C',X') =
    *  /\ C >= 0 /\ C' >= 0
+   *  /\ clockinvar(X,C)
    *  /\ delta >= 0 or > 0
    *  /\ (urgent(X') -> delta = 0)
    *  /\ (trans(C,X,I,C'-delta,X')
@@ -106,14 +203,13 @@ void TimedTransitionSystem::encode_compact_delays()
   add_invar(clocks_nonnegative);
 
   smt::Term delta_nonnegative;
-  if (this->delay_strictness_ == TADelayStrictness::Weak)
+  if (this->delay_strictness_ == TimedAutomatonDelayStrictness::Weak)
     delta_nonnegative = solver_->make_term(Le, zero, delta_);
   else 
     delta_nonnegative = solver_->make_term(Lt, zero, delta_);
   logger.log(4, "TA nonnegative: {}", delta_nonnegative);
 
   // /\ delta >= 0
-  // new_trans = solver_->make_term(And, new_trans, delta_nonnegative);
   smt::Term new_trans = delta_nonnegative;
 
   // /\ (urgent(X') -> delta = 0)
@@ -135,8 +231,7 @@ void TimedTransitionSystem::encode_compact_delays()
   new_trans = solver_->make_term(
       And, new_trans, solver_->substitute(trans(), Cp2Cp_minus_delta));
 
-  // /\ locinvar(X', C')
-  // new_trans = solver_->make_term(And, new_trans, next(locinvar()));
+  // /\ clockinvar(X', C')
   new_trans = solver_->make_term(And, new_trans, next(this->clockinvar()));
 
   set_trans(new_trans);

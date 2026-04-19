@@ -1,19 +1,21 @@
 #pragma once
 #include "core/ts.h"
 #include "core/rts.h"
+#include "smt-switch/utils.h"
+#include "utils/exceptions.h"
 
-namespace pono{
+namespace pono {
 
 /**
  * Strict: delays are > 0; Weak: delays are >=0.
 */
-enum class TADelayStrictness
+enum class TimedAutomatonDelayStrictness
 {
     Strict,
     Weak
 };
 
-std::string to_string(TADelayStrictness strictness);
+std::string to_string(TimedAutomatonDelayStrictness strictness);
 
 /**
  * Relational transition relation encoding timed automata semantics
@@ -39,7 +41,7 @@ std::string to_string(TADelayStrictness strictness);
 class TimedTransitionSystem : public RelationalTransitionSystem {
     public:
     TimedTransitionSystem(const smt::SmtSolver & s, 
-        TADelayStrictness strictness = TADelayStrictness::Weak
+        TimedAutomatonDelayStrictness strictness = TimedAutomatonDelayStrictness::Weak
         ) : 
         RelationalTransitionSystem(s),
         solver_(s),
@@ -84,24 +86,38 @@ class TimedTransitionSystem : public RelationalTransitionSystem {
      */
     void add_invar(const smt::Term & inv) {
         TransitionSystem::add_invar(inv);
-        // TODO check if inv contains clock variables
-        // TODO apply syntactic checks to clock invariants
-        // TODO store clock invariants in clockinvar_
-        // (we add inv in all cases using add_invar)
-        clockinvar_ = solver_->make_term(smt::And, clockinvar_, inv);
+        smt::UnorderedTermSet vars;
+        smt::UnorderedTermSet clock_vars;
+        get_free_symbolic_consts(inv, vars);
+        bool contains_clocks = false;
+        for (auto c : clock_vars_) {
+            if (vars.find(c) != vars.end()){
+                contains_clocks = true;
+                break;
+            }
+        }
+        if (contains_clocks){
+            if (check_clock_invariant(inv)) {
+                clockinvar_ = solver_->make_term(smt::And, clockinvar_, inv);
+            } else {
+                throw PonoException("The following expression does not conform to timed automata invariants: " + inv->to_string());
+            }
+        }
     }
     /**
      * Add an urgency constraint: the global urgency constraint is the disjunction
      * of all added constraints, which all describe urgent states.
+     * @pre constraint does not contain clocks.
      */
     void add_urgent(const smt::Term & u){
+        if ( contains_clocks(u) ) {
+            throw PonoException("Urgency constraints cannot contain clock variables" + u->to_string());
+        }
         urgent_ = solver_->make_term(smt::Or, urgent(), u);
     }
     /**
-     * Redefine the transition relation by adding delays
-     * @pre urgent() only contains nonclock variables
-     * @pre locinvar() only contains upper bounds on clocks (when put in negation normal form)
-     * @pre invar() does not contain clock variables
+     * Redefine the transition relation by adding delays. 
+     * To be called once after discrete transitions have been defined.
     */
     void encode_timed_automaton_delays();
 
@@ -128,6 +144,52 @@ class TimedTransitionSystem : public RelationalTransitionSystem {
     */
     void encode_compact_delays();
 
+    /**
+     * Check whether inv is of the form either psi or phi -> psi where
+     * - phi is a Boolean formula
+     * - psi is a conjunction of clock predicates (that may contain clocks).
+     * This ensures the convexity of clock invariants.
+     * 
+     * @see is_clock_predicate
+     */
+    bool check_clock_invariant(const smt::Term & inv) const;
+
+    /**
+     * Whether the term contains clock variables.
+     */
+    bool contains_clocks(const smt::Term & term) const;
+
+    /**
+     * Check if the term is one of the following forms:
+     * 
+     * x - y
+     * x +/- k
+     * x
+     * k
+     * 
+     * where x is a clock, k a constant.
+     */
+    bool is_clock_expression(const smt::Term & term) const;
+
+    /**
+     * Checks if term is a comparison (Le, Lt, Ge, Gt, Equal)
+     * between two clock expressions. This includes expressions of the form:
+     * 
+     * x-y <= z - w
+     * 
+     * for clocks, x, y, z, w. This is not a timed automaton guard
+     * but is invariant under time elapse. So it is safe to allow 
+     * invariants of this form.
+     * @see is_clock_expression
+     */
+    bool is_clock_predicate(const smt::Term & term) const;
+
+    /**
+     * Whether term is a conjunction of clock predicates.
+     * @see is_clock_predicate
+     */
+    bool is_clock_guard(const smt::Term & term) const;
+
     const smt::SmtSolver & solver_;
     smt::UnorderedTermSet nonclock_vars_;
     smt::UnorderedTermSet clock_vars_;
@@ -135,7 +197,7 @@ class TimedTransitionSystem : public RelationalTransitionSystem {
     smt::Term urgent_;
     smt::Term delta_;
     smt::Sort delay_sort_;
-    TADelayStrictness delay_strictness_;
+    TimedAutomatonDelayStrictness delay_strictness_;
 
     bool encoded_delays_;
     bool has_dummy_init_transitions_;

@@ -22,7 +22,7 @@ class TTSUnitTests : public ::testing::Test,
     s = create_solver(GetParam());
     s2 = create_solver(GetParam());
     tts = new TimedTransitionSystem(s);
-    tts2 = new TimedTransitionSystem(s2, TADelayStrictness::Strict);
+    tts2 = new TimedTransitionSystem(s2, TimedAutomatonDelayStrictness::Strict);
     realsort = s->make_sort(smt::REAL);
     intsort = s->make_sort(smt::INT);
     boolsort = s->make_sort(smt::BOOL);
@@ -96,6 +96,12 @@ class TTSUnitTests : public ::testing::Test,
     );
 
     tts->constrain_trans(s->make_term(Or, {edge1, edge2, edge3, edge4}));
+    tts->add_invar(s->make_term(Le, s->make_term(Minus, x, y), s->make_term(10, realsort)));
+    tts->add_invar(s->make_term(Le, x, s->make_term(Plus, x, s->make_term(10, realsort))));
+    tts->add_invar(s->make_term(Le, s->make_term(Minus, x, s->make_term(10, realsort)), x));
+    tts->add_invar(s->make_term(Le, x, s->make_term(Minus, s->make_term(10, realsort), s->make_term(0, realsort))));
+    tts->add_invar(s->make_term(Implies, l, s->make_term(Le, s->make_term(Minus, x, y), s->make_term(10, realsort))));
+    tts->add_invar(s->make_term(Implies, l, s->make_term(Ge, s->make_term(Minus, x, y), s->make_term(-10, realsort))));
     tts->encode_timed_automaton_delays();
 
     // tts2
@@ -104,12 +110,21 @@ class TTSUnitTests : public ::testing::Test,
     tts2->add_nonclock_var(q);
     tts2->add_clock_var(z);
 
-    tts2->constrain_init(s2->make_term(And, q, s2->make_term(Equal, z, s2->make_term(0, realsort))));
-    Term edge = s2->make_term(And, q, 
-        s2->make_term(Not, tts2->next(q))
+    tts2->constrain_init(q);
+    tts2->constrain_init(s2->make_term(Equal, z, s2->make_term(0, realsort)));
+    Term edge = s2->make_term(And, 
+        q, 
+        s2->make_term(Not, tts2->next(q)),
+        s2->make_term(Equal, z, tts2->next(z))
+      );
+    Term back_edge = s2->make_term(And, 
+        s2->make_term(Not, q), 
+        tts2->next(q),
+        s2->make_term(Equal, z, tts2->next(z))
       );
     tts2->set_trans(edge);
-    tts2->add_invar(s2->make_term(Le, z, s2->make_term(2, realsort)));
+    tts2->add_invar(s2->make_term(Lt, z, s2->make_term(2, realsort)));
+    tts2->add_invar(s2->make_term(Implies, q, s2->make_term(Ge, z, s2->make_term(0, realsort))));
     tts2->encode_timed_automaton_delays();
   }
   SmtSolver s, s2;
@@ -148,6 +163,19 @@ TEST_P(TTSUnitTests, TTS_NonEmptyTrans)
   EXPECT_TRUE(s->check_sat().is_sat());
   s->pop();
 
+  }
+  TEST_P(TTSUnitTests, TTS_BadInvar)
+  {
+    EXPECT_ANY_THROW(tts->add_invar(x));
+    EXPECT_ANY_THROW(tts->add_invar(
+        s->make_term(Le, s->make_term(Plus, x, x), s->make_term(0, realsort)))
+      );
+    EXPECT_ANY_THROW(tts->add_invar(
+        s->make_term(And,
+          s->make_term(Le, s->make_term(Plus, x, x), s->make_term(0, realsort)),
+          l)
+        )
+      );
   }
   TEST_P(TTSUnitTests, TTS_BMCUnreach)
   {
@@ -228,6 +256,20 @@ TEST_P(TTSUnitTests, TTS_NonEmptyTrans)
     Bmc b2(p2, *tts, s);
     ProverResult r = b2.check_until(4);
     ASSERT_EQ(r, ProverResult::UNKNOWN);
+  }  
+
+
+  TEST_P(TTSUnitTests, TTS2_BMCUnReachViaInvar)
+  {
+    Term unreachable_point = 
+      tts2->make_term(And,
+        {tts2->make_term(Not, q),
+        tts2->make_term(Gt, z, tts2->make_term(2, realsort))
+        }
+      );
+    SafetyProperty p2(s2, tts2->make_term(Not, unreachable_point));
+    Bmc b2(p2, *tts2, s2);
+    ProverResult r = b2.check_until(3);
     // std::vector<UnorderedTermMap> cex;
     // ASSERT_TRUE(b2.witness(cex));
     // for (auto tv : cex){
@@ -237,32 +279,7 @@ TEST_P(TTSUnitTests, TTS_NonEmptyTrans)
     //   }
     //   std::cout << "\n";
     // }
-
-  }  
-
-
-  TEST_P(TTSUnitTests, TTS2_BMCUnReachViaInvar)
-  {
-    Term unreachable_point = 
-      tts2->make_term(And,
-        {tts2->make_term(Not, q),
-        tts2->make_term(Gt, z, tts2->make_term(1, realsort))
-        // tts2->make_term(Equal, z, tts2->make_term(0, realsort2))
-        }
-      );
-    SafetyProperty p2(s2, tts2->make_term(Not, unreachable_point));
-    Bmc b2(p2, *tts2, s2);
-    ProverResult r = b2.check_until(3);
     ASSERT_EQ(r, ProverResult::UNKNOWN);
-    std::vector<UnorderedTermMap> cex;
-    ASSERT_TRUE(b2.witness(cex));
-    for (auto tv : cex){
-      for (auto t : tv) {
-        if (tts->is_curr_var(t.first) || tts->is_input_var(t.first))
-          std::cout << t.first << " = " << t.second << "\n";
-      }
-      std::cout << "\n";
-    }
   }  
 
   const std::vector<SolverEnum> real_solver_enums({
