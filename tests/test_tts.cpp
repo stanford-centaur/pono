@@ -28,7 +28,6 @@ class TTSUnitTests : public ::testing::Test,
     boolsort = s->make_sort(smt::BOOL);
     realsort2 = s2->make_sort(smt::REAL);
     boolsort2 = s2->make_sort(smt::BOOL);
-    // logger.set_verbosity(5);
     build_tts();    
   }
   void build_tts() {
@@ -282,21 +281,8 @@ TEST_P(TTSUnitTests, TTS_NonEmptyTrans)
     ASSERT_EQ(r, ProverResult::UNKNOWN);
   }  
 
-  const std::vector<SolverEnum> real_solver_enums({
-      CVC5,
-  #ifdef WITH_MSAT
-      MSAT,
-  #endif
-  #ifdef WITH_YICES2
-      YICES2,
-  #endif
-  #ifdef WITH_Z3
-      Z3,
-  #endif
-  });
-
   INSTANTIATE_TEST_SUITE_P(ParameterizedSolverTTSUnitTests,
                          TTSUnitTests,
-                         testing::ValuesIn(real_solver_enums));
+                         testing::ValuesIn(filter_solver_enums({ THEORY_REAL })));
 
 }

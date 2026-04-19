@@ -27,6 +27,7 @@
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
+#include "frontends/timed_vmt_encoder.h"
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
@@ -390,18 +391,30 @@ int main(int argc, char ** argv)
         cout << "unknown" << endl;
         cout << prop_label << endl;
       }
-
     } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2") {
       logger.log(2, "Parsing SMV/VMT file: {}", pono_options.filename_);
-      RelationalTransitionSystem rts(s);
+      std::unique_ptr<RelationalTransitionSystem> rts = nullptr;
       TermVec propvec;
-      if (file_ext == "smv") {
-        SMVEncoder smv_enc(pono_options.filename_, rts);
-        propvec = smv_enc.propvec();
+
+      if (pono_options.timed_automaton_){
+        if (file_ext == "smv") {
+          throw PonoException("Timed automaton in SMV format is not yet supported.");
+        } else {
+          std::unique_ptr<TimedTransitionSystem> tts = std::make_unique<TimedTransitionSystem>(s);
+          TimedVMTEncoder tvmt_enc(pono_options.filename_, *tts);
+          propvec = tvmt_enc.propvec();
+          rts = std::move(tts);
+        }
       } else {
-        assert(file_ext == "vmt" || file_ext == "smt2");
-        VMTEncoder vmt_enc(pono_options.filename_, rts);
-        propvec = vmt_enc.propvec();
+        rts = std::make_unique<RelationalTransitionSystem>(s);
+        if (file_ext == "smv") {
+          SMVEncoder smv_enc(pono_options.filename_, *rts);
+          propvec = smv_enc.propvec();
+        } else {
+          assert(file_ext == "vmt" || file_ext == "smt2");
+          VMTEncoder vmt_enc(pono_options.filename_, *rts);
+          propvec = vmt_enc.propvec();
+        }
       }
       unsigned int num_props = propvec.size();
       if (pono_options.prop_idx_ >= num_props) {
@@ -415,7 +428,7 @@ int main(int argc, char ** argv)
       // get property name before it is rewritten
 
       std::vector<UnorderedTermMap> cex;
-      res = check_prop(pono_options, prop, rts, s, cex);
+      res = check_prop(pono_options, prop, *rts, s, cex);
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
@@ -433,7 +446,7 @@ int main(int argc, char ** argv)
         }
         assert(pono_options.witness_ || pono_options.vcd_name_.empty());
         if (!pono_options.vcd_name_.empty()) {
-          VCDWitnessPrinter vcdprinter(rts, cex);
+          VCDWitnessPrinter vcdprinter(*rts, cex);
           vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
         }
       } else if (res == TRUE) {

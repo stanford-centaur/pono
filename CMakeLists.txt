@@ -252,6 +252,7 @@ set(
   "${PROJECT_SOURCE_DIR}/frontends/smv_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/smv_node.cpp"
   "${PROJECT_SOURCE_DIR}/frontends/vmt_encoder.cpp"
+  "${PROJECT_SOURCE_DIR}/frontends/timed_vmt_encoder.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/array_abstractor.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/control_signals.cpp"
   "${PROJECT_SOURCE_DIR}/modifiers/implicit_predicate_abstractor.cpp"
