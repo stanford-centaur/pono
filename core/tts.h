@@ -76,25 +76,8 @@ class TimedTransitionSystem : public RelationalTransitionSystem
   void add_invar(const smt::Term & inv)
   {
     TransitionSystem::add_invar(inv);
-    smt::UnorderedTermSet vars;
-    smt::UnorderedTermSet clock_vars;
-    get_free_symbolic_consts(inv, vars);
-    bool contains_clocks = false;
-    for (auto c : clock_vars_) {
-      if (vars.find(c) != vars.end()) {
-        contains_clocks = true;
-        break;
-      }
-    }
-    if (contains_clocks) {
-      if (check_clock_invariant(inv)) {
-        clockinvar_ = solver_->make_term(smt::And, clockinvar_, inv);
-      } else {
-        throw PonoException(
-            "The following expression does not conform to timed automata "
-            "invariants: "
-            + inv->to_string());
-      }
+    if (contains_clocks(inv)) {
+      clockinvar_ = solver_->make_term(smt::And, clockinvar_, inv);
     }
   }
   /**

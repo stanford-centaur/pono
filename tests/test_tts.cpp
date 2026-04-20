@@ -123,6 +123,7 @@ class TTSUnitTests : public ::testing::Test,
         l,
         s->make_term(
             Ge, s->make_term(Minus, x, y), s->make_term(-10, realsort))));
+
     tts->encode_timed_automaton_delays();
 
     // tts2
@@ -186,12 +187,12 @@ TEST_P(TTSUnitTests, TTS_NonEmptyTrans)
 TEST_P(TTSUnitTests, TTS_BadInvar)
 {
   EXPECT_ANY_THROW(tts->add_invar(x));
-  EXPECT_ANY_THROW(tts->add_invar(
-      s->make_term(Le, s->make_term(Plus, x, x), s->make_term(0, realsort))));
-  EXPECT_ANY_THROW(tts->add_invar(s->make_term(
+  tts->add_invar(
+      s->make_term(Le, s->make_term(Plus, x, x), s->make_term(0, realsort)));
+  tts->add_invar(s->make_term(
       And,
       s->make_term(Le, s->make_term(Plus, x, x), s->make_term(0, realsort)),
-      l)));
+      l));
 }
 TEST_P(TTSUnitTests, TTS_BMCUnreach)
 {

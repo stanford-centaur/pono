@@ -35,16 +35,14 @@ const unordered_map<string, pono::ProverResult> smv_inputs(
       { "counter_bitvector.smv", pono::ProverResult::FALSE },
       { "counter_boolean.smv", pono::ProverResult::FALSE } });
 
-const unordered_map<string, pono::ProverResult> tvmt_inputs(
-    {
-        { "simple_ta.vmt", pono::ProverResult::TRUE},
-        { "simple_ta_unsafe.vmt", pono::ProverResult::FALSE},
-        { "simple_ta_2_int.vmt", pono::ProverResult::FALSE },
-        { "simple_ta_2.vmt", pono::ProverResult::FALSE },
-        { "simple_ta_3.vmt", pono::ProverResult::FALSE },
-        { "simple_ta_2_clocked_prop_int.vmt", pono::ProverResult::FALSE },
-        { "test_urgent.vmt", pono::ProverResult::TRUE },
+const unordered_map<string, pono::ProverResult> tvmt_inputs({
+    { "simple_ta.vmt", pono::ProverResult::TRUE },
+    { "simple_ta_unsafe.vmt", pono::ProverResult::FALSE },
+    { "simple_ta_2_int.vmt", pono::ProverResult::FALSE },
+    { "simple_ta_2.vmt", pono::ProverResult::FALSE },
+    { "simple_ta_3.vmt", pono::ProverResult::FALSE },
+    { "simple_ta_2_clocked_prop_int.vmt", pono::ProverResult::FALSE },
+    { "test_urgent.vmt", pono::ProverResult::TRUE },
 });
-
 
 }  // namespace pono_tests
