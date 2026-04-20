@@ -1,4 +1,5 @@
 #include "frontends/timed_vmt_encoder.h"
+
 #include "utils/logger.h"
 
 using namespace smt;
@@ -10,12 +11,13 @@ TimedVMTEncoder::TimedVMTEncoder(std::string filename,
                                  TimedTransitionSystem & tts)
     : smt::SmtLibReader(tts.get_solver()), filename_(filename), tts_(tts)
 {
-  int res = parse(filename_); 
+  int res = parse(filename_);
   assert(!res);  // 0 means success
   tts_.encode_timed_automaton_delays();
 }
 
-void TimedVMTEncoder::new_symbol(const std::string & name, const smt::Sort & sort)
+void TimedVMTEncoder::new_symbol(const std::string & name,
+                                 const smt::Sort & sort)
 {
   smt::SmtLibReader::new_symbol(name, sort);
   if (sort->get_sort_kind() != FUNCTION) {

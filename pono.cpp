@@ -26,8 +26,8 @@
 #include "engines/kliveness.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
-#include "frontends/vmt_encoder.h"
 #include "frontends/timed_vmt_encoder.h"
+#include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
@@ -396,11 +396,13 @@ int main(int argc, char ** argv)
       std::unique_ptr<RelationalTransitionSystem> rts = nullptr;
       TermVec propvec;
 
-      if (pono_options.timed_automaton_){
+      if (pono_options.timed_automaton_) {
         if (file_ext == "smv") {
-          throw PonoException("Timed automaton in SMV format is not yet supported.");
+          throw PonoException(
+              "Timed automaton in SMV format is not yet supported.");
         } else {
-          std::unique_ptr<TimedTransitionSystem> tts = std::make_unique<TimedTransitionSystem>(s);
+          std::unique_ptr<TimedTransitionSystem> tts =
+              std::make_unique<TimedTransitionSystem>(s);
           TimedVMTEncoder tvmt_enc(pono_options.filename_, *tts);
           propvec = tvmt_enc.propvec();
           rts = std::move(tts);

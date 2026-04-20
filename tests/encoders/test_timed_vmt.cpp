@@ -3,7 +3,6 @@
 
 #include "core/tts.h"
 #include "engines/kinduction.h"
-#include "engines/bmc.h"
 #include "frontends/timed_vmt_encoder.h"
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"

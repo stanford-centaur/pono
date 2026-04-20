@@ -480,7 +480,6 @@ class PonoOptions
   static const bool default_klive_check_lasso_in_cex_ = true;
   static const bool default_klive_lockstep_bmc_ = true;
   static const bool default_timed_automaton_ = false;
-
 };
 
 // Useful functions for printing etc...

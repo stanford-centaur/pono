@@ -4,11 +4,11 @@
 
 #include "assert.h"
 #include "core/rts.h"
+#include "core/tts.h"
 #include "smt-switch/smt.h"
 #include "smt-switch/smtlib_reader.h"
 #include "utils/exceptions.h"
 #include "vmt_encoder.h"
-#include "core/tts.h"
 
 namespace pono {
 class TimedVMTEncoder : public smt::SmtLibReader
@@ -23,10 +23,10 @@ class TimedVMTEncoder : public smt::SmtLibReader
                       const std::string & value) override;
   const smt::TermVec & propvec() const { return propvec_; }
 
-  protected:
+ protected:
   TimedTransitionSystem & tts_;
   std::string filename_;
-  smt::TermVec propvec_;  
+  smt::TermVec propvec_;
 };
 
 }  // namespace pono

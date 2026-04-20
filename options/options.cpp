@@ -777,8 +777,7 @@ const option::Descriptor usage[] = {
     "",
     "timed-automaton",
     Arg::None,
-    "  --timed-automaton \tEncode timed automaton semantics"
-    },
+    "  --timed-automaton \tEncode timed automaton semantics" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -1111,8 +1110,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           klive_check_lasso_in_cex_ = false;
           break;
         case KLIVE_NO_LOCKSTEP_BMC: klive_lockstep_bmc_ = false; break;
-        case TIMED_AUTOMATON:
-          timed_automaton_ = true; break;
+        case TIMED_AUTOMATON: timed_automaton_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
