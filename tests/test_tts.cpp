@@ -31,6 +31,14 @@ class TTSUnitTests : public ::testing::Test,
     boolsort2 = s2->make_sort(smt::BOOL);
     build_tts();
   }
+  Term get_binary_ands(smt::SmtSolver s, TermVec & conjuncts)
+  {
+    Term conj = conjuncts[0];
+    for (auto c = conjuncts.begin() + 1; c != conjuncts.end(); c++) {
+      conj = s->make_term(And, conj, *c);
+    }
+    return conj;
+  }
   void build_tts()
   {
     // state variables without state updates
@@ -60,7 +68,7 @@ class TTSUnitTests : public ::testing::Test,
       tts->make_term(Not, tts->next(l)),  // ~l is the next location
       tts->next(b)
     };
-    Term edge1 = s->make_term(And, attributes1);
+    Term edge1 = get_binary_ands(s, attributes1);
 
     // edge2: (~l/\b, y>=2, x:=0, l/\b)
     TermVec attributes2 = {
@@ -73,7 +81,7 @@ class TTSUnitTests : public ::testing::Test,
       tts->next(l),  // l is the next location
       tts->next(b)
     };
-    Term edge2 = s->make_term(And, attributes2);
+    Term edge2 = get_binary_ands(s, attributes2);
     // edge3: (l/\b, x>=1, y:=0, l/\~b)
     TermVec attributes3 = {
       b,
@@ -84,7 +92,7 @@ class TTSUnitTests : public ::testing::Test,
       tts->make_term(Not, tts->next(b)),
       tts->next(l),
     };
-    Term edge3 = s->make_term(And, attributes3);
+    Term edge3 = get_binary_ands(s, attributes3);
 
     // edge4: (l/\~b, true, ~l/\~b)
     TermVec attributes4 = { l,
@@ -93,7 +101,7 @@ class TTSUnitTests : public ::testing::Test,
                             tts->make_term(Equal, tts->next(y), y),
                             tts->make_term(Not, tts->next(l)),
                             tts->make_term(Not, tts->next(b)) };
-    Term edge4 = s->make_term(And, attributes4);
+    Term edge4 = get_binary_ands(s, attributes4);
 
     tts->add_urgent(tts->make_term(And, l, tts->make_term(Not, b)));
     tts->add_invar(tts->make_term(
@@ -101,7 +109,8 @@ class TTSUnitTests : public ::testing::Test,
         tts->make_term(And, tts->make_term(Not, l), tts->make_term(Not, b)),
         tts->make_term(Le, x, tts->make_term(1, realsort))));
 
-    tts->constrain_trans(s->make_term(Or, { edge1, edge2, edge3, edge4 }));
+    tts->constrain_trans(s->make_term(
+        Or, s->make_term(Or, edge1, edge2), s->make_term(Or, edge3, edge4)));
     tts->add_invar(s->make_term(
         Le, s->make_term(Minus, x, y), s->make_term(10, realsort)));
     tts->add_invar(
@@ -134,14 +143,17 @@ class TTSUnitTests : public ::testing::Test,
 
     tts2->constrain_init(q);
     tts2->constrain_init(s2->make_term(Equal, z, s2->make_term(0, realsort)));
-    Term edge = s2->make_term(And,
-                              q,
-                              s2->make_term(Not, tts2->next(q)),
-                              s2->make_term(Equal, z, tts2->next(z)));
-    Term back_edge = s2->make_term(And,
-                                   s2->make_term(Not, q),
-                                   tts2->next(q),
-                                   s2->make_term(Equal, z, tts2->next(z)));
+    Term edge =
+        s2->make_term(And,
+                      q,
+                      s2->make_term(And,
+                                    s2->make_term(Not, tts2->next(q)),
+                                    s2->make_term(Equal, z, tts2->next(z))));
+    Term back_edge = s2->make_term(
+        And,
+        s2->make_term(Not, q),
+        s2->make_term(
+            And, tts2->next(q), s2->make_term(Equal, z, tts2->next(z))));
     tts2->set_trans(edge);
     tts2->add_invar(s2->make_term(Lt, z, s2->make_term(2, realsort)));
     tts2->add_invar(s2->make_term(
