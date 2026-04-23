@@ -27,9 +27,9 @@
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/expressions/SelectExpressions.h"
-#include "slang/ast/statements/BlockStatement.h"
+#include "slang/ast/Statement.h"
 #include "slang/ast/statements/ConditionalStatements.h"
-#include "slang/ast/statements/TimedStatement.h"
+#include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -38,6 +38,7 @@
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
+#include "slang/diagnostics/DiagnosticEngine.h"
 #include "slang/syntax/SyntaxTree.h"
 
 #include "utils/logger.h"
@@ -66,11 +67,12 @@ SVEncoder::~SVEncoder() = default;
 void SVEncoder::encode(const string & filename)
 {
   // Parse the SystemVerilog source file.
-  // SyntaxTree::fromFile returns a shared_ptr<SyntaxTree>.
-  auto tree = slang::syntax::SyntaxTree::fromFile(filename);
-  if (!tree) {
+  // SyntaxTree::fromFile returns an expected<shared_ptr<SyntaxTree>, ...>.
+  auto tree_result = slang::syntax::SyntaxTree::fromFile(filename);
+  if (!tree_result) {
     throw PonoException("SVEncoder: failed to parse file: " + filename);
   }
+  auto tree = std::move(tree_result).value();
 
   // Create a compilation and elaborate the design.
   compilation_ = make_unique<slang::ast::Compilation>();
@@ -78,18 +80,23 @@ void SVEncoder::encode(const string & filename)
 
   // Check for diagnostics (errors/warnings).
   // Force full elaboration before checking diagnostics.
-  auto diagnostics = compilation_->getAllDiagnostics();
+  auto & diagnostics = compilation_->getAllDiagnostics();
   bool has_errors = false;
-  string diag_messages;
-  for (auto & diag : diagnostics) {
-    if (diag.isError()) {
+  for (size_t i = 0; i < diagnostics.size(); i++) {
+    if (diagnostics[i].isError()) {
       has_errors = true;
+      break;
     }
   }
   if (has_errors) {
     // Format diagnostics for the error message.
-    for (auto & diag : diagnostics) {
-      diag_messages += diag.toString() + "\n";
+    auto * sm = compilation_->getSourceManager();
+    string diag_messages;
+    if (sm) {
+      diag_messages =
+          slang::DiagnosticEngine::reportAll(*sm, diagnostics);
+    } else {
+      diag_messages = "(unable to format diagnostics)";
     }
     throw PonoException("SVEncoder: errors in SystemVerilog file:\n"
                         + diag_messages);
@@ -151,6 +158,24 @@ void SVEncoder::process_module(const slang::ast::InstanceSymbol & inst)
 // namespace-scope helper.
 namespace {
 
+/// Helper to iterate over sub-statements of a BlockStatement body.
+/// The body is a single Statement; if it is a StatementList, iterate its
+/// children, otherwise visit the single statement directly.
+template <typename Func>
+void for_each_stmt_in_block(const slang::ast::BlockStatement & block,
+                            Func && func)
+{
+  auto & body = block.body;
+  if (body.kind == slang::ast::StatementKind::List) {
+    auto & list = body.as<slang::ast::StatementList>();
+    for (auto * s : list.list) {
+      func(*s);
+    }
+  } else {
+    func(body);
+  }
+}
+
 void collect_nonblocking_targets(
     const slang::ast::Statement & stmt,
     std::unordered_set<const slang::ast::Symbol *> & targets)
@@ -176,9 +201,9 @@ void collect_nonblocking_targets(
     }
     case StatementKind::Block: {
       auto & block = stmt.as<BlockStatement>();
-      for (auto & s : block.body.getStatements()) {
+      for_each_stmt_in_block(block, [&](const Statement & s) {
         collect_nonblocking_targets(s, targets);
-      }
+      });
       break;
     }
     case StatementKind::Conditional: {
@@ -512,9 +537,9 @@ void SVEncoder::process_statement(const slang::ast::Statement & stmt,
 
     case StatementKind::Block: {
       auto & block = stmt.as<BlockStatement>();
-      for (auto & s : block.body.getStatements()) {
+      for_each_stmt_in_block(block, [&](const Statement & s) {
         process_statement(s, ctx, condition);
-      }
+      });
       break;
     }
 
@@ -623,12 +648,12 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
     }
 
     case ExpressionKind::IntegerLiteral: {
-      auto & lit = expr.as<IntegerLiteralExpression>();
+      auto & lit = expr.as<IntegerLiteral>();
       uint64_t width = expr.type->getBitWidth();
       if (width == 0) width = 32;  // Default integer width.
       Sort sort = solver_->make_sort(BV, width);
       // SVInt::toString(base, includeBase) returns std::string.
-      auto & val = lit.getValue();
+      auto val = lit.getValue();
       string val_str = val.toString(10, /* includeBase */ false);
       // If the value is negative (signed), handle via two's complement.
       // smt-switch make_term with base 10 expects unsigned decimal.
@@ -642,11 +667,11 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
     }
 
     case ExpressionKind::UnbasedUnsizedIntegerLiteral: {
-      auto & lit = expr.as<UnbasedUnsizedIntegerLiteralExpression>();
+      auto & lit = expr.as<UnbasedUnsizedIntegerLiteral>();
       uint64_t width = expr.type->getBitWidth();
       if (width == 0) width = 1;
       Sort sort = solver_->make_sort(BV, width);
-      auto & val = lit.getValue();
+      auto val = lit.getValue();
       string val_str = val.toString(10, false);
       return solver_->make_term(val_str, sort, 10);
     }
@@ -869,7 +894,7 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
 
     case ExpressionKind::Concatenation: {
       auto & concat = expr.as<ConcatenationExpression>();
-      auto & operands = concat.operands();
+      auto operands = concat.operands();
       if (operands.empty()) {
         throw PonoException("SVEncoder: empty concatenation");
       }
@@ -886,7 +911,7 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
       auto & repl = expr.as<ReplicationExpression>();
       Term inner = expr_to_term(repl.concat());
       // The count should be a compile-time constant.
-      auto count_cv = repl.count().constant;
+      auto count_cv = repl.count().getConstant();
       if (!count_cv) {
         throw PonoException("SVEncoder: non-constant replication count");
       }
@@ -912,8 +937,8 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
       auto & sel_expr = sel.selector();
 
       // If the selector is a compile-time constant, use Extract.
-      if (sel_expr.constant) {
-        auto idx_opt = sel_expr.constant->integer().as<uint64_t>();
+      if (sel_expr.getConstant()) {
+        auto idx_opt = sel_expr.getConstant()->integer().as<uint64_t>();
         if (idx_opt) {
           uint64_t idx = *idx_opt;
           return solver_->make_term(Op(Extract, idx, idx), val);
@@ -935,12 +960,12 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
       auto & right_expr = sel.right();
 
       // Both bounds should be compile-time constants for synthesizable code.
-      if (!left_expr.constant || !right_expr.constant) {
+      if (!left_expr.getConstant() || !right_expr.getConstant()) {
         throw PonoException(
             "SVEncoder: non-constant range select bounds");
       }
-      auto hi_opt = left_expr.constant->integer().as<uint64_t>();
-      auto lo_opt = right_expr.constant->integer().as<uint64_t>();
+      auto hi_opt = left_expr.getConstant()->integer().as<uint64_t>();
+      auto lo_opt = right_expr.getConstant()->integer().as<uint64_t>();
       if (!hi_opt || !lo_opt) {
         throw PonoException(
             "SVEncoder: invalid range select bounds");
