@@ -163,21 +163,17 @@ if(WITH_MSAT_IC3IA)
 endif()
 
 if(WITH_SLANG)
-  set(SLANG_DIR "${PROJECT_SOURCE_DIR}/deps/slang/local")
-  if(NOT EXISTS "${SLANG_DIR}/include/slang/ast/Compilation.h")
-    message(FATAL_ERROR "Missing slang headers -- try running ./contrib/setup-slang.sh")
-  endif()
-  # slang may install its library as libsvlang or libslang, in lib or lib64
-  find_library(
-    SLANG_LIBRARY
-    NAMES svlang slang
-    PATHS "${SLANG_DIR}/lib" "${SLANG_DIR}/lib64"
-    NO_DEFAULT_PATH
+  include(FetchContent)
+  FetchContent_Declare(
+    slang
+    GIT_REPOSITORY https://github.com/MikePopoloski/slang.git
+    GIT_TAG v10.0
+    GIT_SHALLOW TRUE
   )
-  if(NOT SLANG_LIBRARY)
-    message(FATAL_ERROR "Missing slang library -- try running ./contrib/setup-slang.sh")
-  endif()
-  message(STATUS "Found slang library: ${SLANG_LIBRARY}")
+  set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
+  set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(slang)
+  message(STATUS "slang fetched via FetchContent")
 endif()
 
 if(WITH_COREIR)
@@ -386,26 +382,9 @@ if(WITH_COREIR_EXTERN)
 endif()
 
 if(WITH_SLANG)
-  target_include_directories(pono-lib PUBLIC "${SLANG_DIR}/include")
-  target_link_libraries(pono-lib PUBLIC "${SLANG_LIBRARY}")
+  target_link_libraries(pono-lib PUBLIC slang::slang)
   # slang requires C++20 features in its headers
   set_property(TARGET pono-lib PROPERTY CXX_STANDARD 20)
-  # slang also depends on fmt; it may bundle it or use system fmt
-  find_library(
-    SLANG_FMT_LIBRARY
-    NAMES fmt
-    PATHS "${SLANG_DIR}/lib" "${SLANG_DIR}/lib64"
-    NO_DEFAULT_PATH
-  )
-  if(SLANG_FMT_LIBRARY)
-    target_link_libraries(pono-lib PUBLIC "${SLANG_FMT_LIBRARY}")
-  else()
-    # Try system fmt
-    find_package(fmt QUIET)
-    if(fmt_FOUND)
-      target_link_libraries(pono-lib PUBLIC fmt::fmt)
-    endif()
-  endif()
 endif()
 
 if(WITH_COREIR)
