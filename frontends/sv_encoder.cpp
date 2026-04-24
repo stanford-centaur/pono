@@ -30,6 +30,7 @@
 #include "slang/ast/Statement.h"
 #include "slang/ast/statements/ConditionalStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
+#include "slang/ast/expressions/AssertionExpr.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -135,7 +136,9 @@ void SVEncoder::process_module(const slang::ast::InstanceSymbol & inst)
       auto & proc =
           member.as<slang::ast::ProceduralBlockSymbol>();
       if (proc.procedureKind
-          == slang::ast::ProceduralBlockKind::AlwaysFF) {
+              == slang::ast::ProceduralBlockKind::AlwaysFF
+          || proc.procedureKind
+                 == slang::ast::ProceduralBlockKind::Always) {
         // Pre-scan: find all non-blocking assignment targets.
         pre_scan_always_ff(proc.getBody());
       }
@@ -387,12 +390,19 @@ void SVEncoder::process_assignments(
         case ProceduralBlockKind::Initial:
           process_initial(proc);
           break;
-        case ProceduralBlockKind::Always:
-          // Legacy 'always' blocks: try to infer whether this is
-          // sequential or combinational based on sensitivity list
-          // and assignment types. For now treat as combinational.
-          process_always_comb(proc);
+        case ProceduralBlockKind::Always: {
+          // Legacy 'always' blocks: infer whether this is sequential
+          // or combinational based on whether the block contains
+          // non-blocking assignments to state variables.
+          std::unordered_set<const Symbol *> targets;
+          collect_nonblocking_targets(proc.getBody(), targets);
+          if (!targets.empty()) {
+            process_always_ff(proc);
+          } else {
+            process_always_comb(proc);
+          }
           break;
+        }
         default:
           // AlwaysLatch, Final, etc. -- skip for now.
           break;
@@ -621,6 +631,44 @@ void SVEncoder::process_statement(const slang::ast::Statement & stmt,
       // Skip timing control (e.g., @(posedge clk)) and process the body.
       auto & timed = stmt.as<TimedStatement>();
       process_statement(timed.stmt, ctx, condition);
+      break;
+    }
+
+    case StatementKind::ConcurrentAssertion: {
+      auto & ca = stmt.as<ConcurrentAssertionStatement>();
+      // Only handle 'assert' (not 'assume', 'cover', etc.).
+      if (ca.assertionKind == AssertionKind::Assert) {
+        // Extract the property expression.  Unwrap clocking wrappers
+        // to reach the underlying SimpleAssertionExpr.
+        const AssertionExpr * ae = &ca.propertySpec;
+        // Strip ClockingAssertionExpr wrapper if present.
+        if (ae->kind == AssertionExprKind::Clocking) {
+          ae = &ae->as<ClockingAssertionExpr>().expr;
+        }
+        if (ae->kind == AssertionExprKind::Simple) {
+          auto & simple = ae->as<SimpleAssertionExpr>();
+          Term prop = expr_to_term(simple.expr);
+          // Convert BV1 result to a Boolean equality check.
+          uint64_t pw = prop->get_sort()->get_width();
+          if (pw == 1) {
+            prop = solver_->make_term(
+                Equal, prop,
+                solver_->make_term(1, solver_->make_sort(BV, 1)));
+          } else {
+            // Non-zero means true.
+            prop = solver_->make_term(
+                Distinct, prop,
+                solver_->make_term(0, prop->get_sort()));
+          }
+          propvec_.push_back(prop);
+          logger.log(1, "SVEncoder: extracted concurrent assertion property");
+        } else {
+          logger.log(
+              1,
+              "SVEncoder: skipping unsupported assertion expression kind {}",
+              static_cast<int>(ae->kind));
+        }
+      }
       break;
     }
 
