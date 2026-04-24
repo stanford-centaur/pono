@@ -41,26 +41,25 @@ std::string to_string(TimedAutomatonDelayStrictness strictness);
 class TimedTransitionSystem : public RelationalTransitionSystem
 {
  public:
+  TimedTransitionSystem() : RelationalTransitionSystem() {}
   TimedTransitionSystem(const smt::SmtSolver & s,
                         TimedAutomatonDelayStrictness strictness =
                             TimedAutomatonDelayStrictness::Weak)
       : RelationalTransitionSystem(s),
-        solver_(s),
         clockinvar_(solver_->make_term(true)),
         urgent_(solver_->make_term(false)),
         encoded_delays_(false),
-        has_dummy_init_transitions_(false),
         delay_sort_(s->make_sort(smt::REAL)),
-        delay_strictness_(strictness),
-        invariant_(s->make_term(true))
+        delay_strictness_(strictness)
   {
   }
+  TimedTransitionSystem(const TimedTransitionSystem & other,
+                        smt::TermTranslator & tt);
 
-  // TODO Add a copy constructor
-  TimedTransitionSystem(const TimedTransitionSystem & other) = delete;
+  TimedTransitionSystem & operator=(TimedTransitionSystem other);
+  friend void swap(TimedTransitionSystem & ts1, TimedTransitionSystem & ts2);
 
   static const std::string DELAY_VAR_NAME;
-  static const std::string DUMMY_INIT_VAR_NAME;
 
   const smt::UnorderedTermSet & nonclock_vars() { return nonclock_vars_; }
   const smt::UnorderedTermSet & clock_vars() { return clock_vars_; }
@@ -125,52 +124,10 @@ class TimedTransitionSystem : public RelationalTransitionSystem
   void encode_compact_delays();
 
   /**
-   * Check whether inv is of the form either psi or phi -> psi where
-   * - phi is a Boolean formula
-   * - psi is a conjunction of clock predicates (that may contain clocks).
-   * This ensures the convexity of clock invariants.
-   *
-   * @see is_clock_predicate
-   */
-  bool check_clock_invariant(const smt::Term & inv) const;
-
-  /**
    * Whether the term contains clock variables.
    */
   bool contains_clocks(const smt::Term & term) const;
 
-  /**
-   * Check if the term is one of the following forms:
-   *
-   * x - y
-   * x +/- k
-   * x
-   * k
-   *
-   * where x is a clock, k a constant.
-   */
-  bool is_clock_expression(const smt::Term & term) const;
-
-  /**
-   * Checks if term is a comparison (Le, Lt, Ge, Gt, Equal)
-   * between two clock expressions. This includes expressions of the form:
-   *
-   * x-y <= z - w
-   *
-   * for clocks, x, y, z, w. This is not a timed automaton guard
-   * but is invariant under time elapse. So it is safe to allow
-   * invariants of this form.
-   * @see is_clock_expression
-   */
-  bool is_clock_predicate(const smt::Term & term) const;
-
-  /**
-   * Whether term is a conjunction of clock predicates.
-   * @see is_clock_predicate
-   */
-  bool is_clock_guard(const smt::Term & term) const;
-
-  const smt::SmtSolver & solver_;
   smt::UnorderedTermSet nonclock_vars_;
   smt::UnorderedTermSet clock_vars_;
   smt::Term clockinvar_;
@@ -180,8 +137,5 @@ class TimedTransitionSystem : public RelationalTransitionSystem
   TimedAutomatonDelayStrictness delay_strictness_;
 
   bool encoded_delays_;
-  bool has_dummy_init_transitions_;
-
-  smt::Term invariant_;
 };
 }  // namespace pono

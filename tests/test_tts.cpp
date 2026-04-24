@@ -278,6 +278,47 @@ TEST_P(TTSUnitTests, TTS_BMCUnReachViaInvar)
   ASSERT_EQ(r, ProverResult::UNKNOWN);
 }
 
+TEST_P(TTSUnitTests, TTS_AssignmentOperator)
+{
+  TimedTransitionSystem fresh_tts;
+  fresh_tts = *tts;
+  Term unreachable_point = fresh_tts.make_term(
+      And,
+      { fresh_tts.make_term(Not, b),
+        fresh_tts.make_term(Not, l),
+        fresh_tts.make_term(
+            Gt, x, fresh_tts.make_term(1, fresh_tts.make_sort(REAL))) });
+  SafetyProperty p2(s, fresh_tts.make_term(Not, unreachable_point));
+  Bmc b2(p2, *tts, s);
+  ProverResult r = b2.check_until(4);
+  ASSERT_EQ(r, ProverResult::UNKNOWN);
+}
+TEST_P(TTSUnitTests, TTS_CopyConstructor)
+{
+  TermTranslator tt(s);
+  TimedTransitionSystem fresh_tts(*tts, tt);
+
+  Term unreachable_point = fresh_tts.make_term(
+      And,
+      { fresh_tts.make_term(Not, b),
+        fresh_tts.make_term(Not, l),
+        fresh_tts.make_term(
+            Gt, x, fresh_tts.make_term(1, fresh_tts.make_sort(REAL))) });
+  SafetyProperty p2(s, fresh_tts.make_term(Not, unreachable_point));
+  Bmc b2(p2, fresh_tts, fresh_tts.solver());
+  ProverResult r = b2.check_until(4);
+  ASSERT_EQ(r, ProverResult::UNKNOWN);
+
+  TermTranslator tt2(s2);
+  TimedTransitionSystem fresh_tts2(*tts, tt2);
+  Term unreachable_point2 = tt2.transfer_term(unreachable_point);
+  ASSERT_EQ(s2, fresh_tts2.solver());
+  SafetyProperty p22(s2, s2->make_term(Not, unreachable_point2));
+  Bmc b22(p22, fresh_tts2, fresh_tts2.solver());
+  ProverResult r2 = b22.check_until(4);
+  ASSERT_EQ(r2, ProverResult::UNKNOWN);
+}
+
 TEST_P(TTSUnitTests, TTS2_BMCUnReachViaInvar)
 {
   Term unreachable_point =

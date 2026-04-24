@@ -1,8 +1,12 @@
 #include "core/tts.h"
 
 #include <cassert>
+#include <functional>
 
+#include "smt-switch/substitution_walker.h"
 #include "smt-switch/term.h"
+#include "smt-switch/utils.h"
+#include "smt/available_solvers.h"
 #include "utils/logger.h"
 using namespace smt;
 namespace pono {
@@ -16,19 +20,68 @@ std::string to_string(TimedAutomatonDelayStrictness strictness)
   }
   return "Unknown";
 }
+void swap(TimedTransitionSystem & ts1, TimedTransitionSystem & ts2)
+{
+  swap((TransitionSystem &)ts1, (TransitionSystem &)ts2);
+  std::swap(ts1.clock_vars_, ts2.clock_vars_);
+  std::swap(ts1.nonclock_vars_, ts2.nonclock_vars_);
+  std::swap(ts1.delay_strictness_, ts2.delay_strictness_);
+  std::swap(ts1.clockinvar_, ts2.clockinvar_);
+  std::swap(ts1.urgent_, ts2.urgent_);
+  std::swap(ts1.delta_, ts2.delta_);
+  std::swap(ts1.delay_sort_, ts2.delay_sort_);
+  std::swap(ts1.encoded_delays_, ts2.encoded_delays_);
+}
+TimedTransitionSystem & TimedTransitionSystem::operator=(
+    TimedTransitionSystem other)
+{
+  swap(*this, other);
+  return *this;
+}
+TimedTransitionSystem::TimedTransitionSystem(
+    const TimedTransitionSystem & other_ts, smt::TermTranslator & tt)
+    : RelationalTransitionSystem(other_ts, tt)
+{
+  std::function<Term(const Term &)> transfer;
+  std::function<Term(const Term &, SortKind)> transfer_as;
+  if (other_ts.solver() == tt.get_solver()) {
+    // if the solvers are the same, don't need to transfer
+    transfer = [](const Term & t) { return t; };
+    // assume you don't need to do sort-casting for terms from the same solver
+    transfer_as = [](const Term & t, SortKind sk) { return t; };
+    delay_sort_ = other_ts.delay_sort_;
+  } else {
+    transfer = [&tt](const Term & t) { return tt.transfer_term(t); };
+    transfer_as = [&tt](const Term & t, SortKind sk) {
+      return tt.transfer_term(t, sk);
+    };
+    delay_sort_ = tt.transfer_sort(other_ts.delay_sort_);
+  }
+
+  for (const auto & v : other_ts.clock_vars_) {
+    clock_vars_.insert(transfer(v));
+  }
+  for (const auto & v : other_ts.nonclock_vars_) {
+    nonclock_vars_.insert(transfer(v));
+  }
+  delta_ = transfer(other_ts.delta_);
+  clockinvar_ = transfer_as(other_ts.clockinvar_, BOOL);
+  urgent_ = transfer_as(other_ts.urgent_, BOOL);
+  delay_strictness_ = other_ts.delay_strictness_;
+  encoded_delays_ = other_ts.encoded_delays_;
+}
 
 void TimedTransitionSystem::encode_timed_automaton_delays()
 {
-  if (encoded_delays_) return;
+  if (encoded_delays_)
+    throw PonoException(
+        "The encode_timed_automaton_delays function must be called only once.");
   this->encoded_delays_ = true;
   encode_compact_delays();
 }
 
 void TimedTransitionSystem::add_dummy_init_transitions()
 {
-  assert(!this->has_dummy_init_transitions_);
-  this->has_dummy_init_transitions_ = true;
-
   smt::Term dummy_transition = solver_->make_term(true);
   for (auto v : statevars_) {
     smt::Term vunchanged = solver_->make_term(Equal, v, next(v));
