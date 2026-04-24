@@ -205,7 +205,8 @@ class PonoOptions
         klive_step_size_(default_klive_step_size_),
         klive_counter_encoding_(default_klive_counter_encoding_),
         klive_check_lasso_in_cex_(default_klive_check_lasso_in_cex_),
-        klive_lockstep_bmc_(default_klive_lockstep_bmc_)
+        klive_lockstep_bmc_(default_klive_lockstep_bmc_),
+        timed_automaton_(default_timed_automaton_)
   {
   }
 
@@ -385,6 +386,7 @@ class PonoOptions
   KLivenessCounterEncoding klive_counter_encoding_;
   bool klive_check_lasso_in_cex_;
   bool klive_lockstep_bmc_;
+  bool timed_automaton_;
 
  private:
   // Default options
@@ -477,6 +479,7 @@ class PonoOptions
       BV_BINARY;
   static const bool default_klive_check_lasso_in_cex_ = true;
   static const bool default_klive_lockstep_bmc_ = true;
+  static const bool default_timed_automaton_ = false;
 };
 
 // Useful functions for printing etc...

@@ -1,0 +1,51 @@
+;; Timed automaton with two locations, 2 clocks.
+;;
+(set-logic QF_LIA)
+(declare-fun x__AT0 () Int)
+(declare-fun x__AT1 () Int)
+(declare-fun y__AT0 () Int)
+(declare-fun y__AT1 () Int)
+(declare-fun loc__AT0 () Bool)
+(declare-fun loc__AT1 () Bool)
+
+(define-fun .def_0 () Int (! x__AT0 :nextclock x__AT1))
+(define-fun .def_1 () Int (! y__AT0 :nextclock y__AT1))
+(define-fun .def_2 () Int (! loc__AT0 :next loc__AT1))
+
+
+;; Initial state
+(define-fun .def_3 () Bool (! (and
+(= x__AT0 0)
+(= y__AT0 0)
+loc__AT0
+) :init true))
+
+;; Location invariant
+(define-fun .def_4 () Bool (!
+    (<= x__AT0 3)
+:invar true))
+
+;; Transitions
+(define-fun .def_18 () Bool (! (and
+
+  (=> loc__AT0 (and
+    (= x__AT1 0)
+    (= y__AT0 y__AT1)
+    (not loc__AT1)
+    )
+  )
+
+(=> (not loc__AT0) (and
+    (>= x__AT0 10)
+    (= x__AT1 0)
+    (= y__AT1 0)
+    loc__AT1
+    )
+  )
+
+) :trans true))
+
+(define-fun .def_19 () Bool (! (or loc__AT0 (<= x__AT0 2)) :invar-property 0))
+(define-fun .def_20 () Bool (! (or loc__AT0 (<= x__AT0 5)) :invar-property 1))
+
+(assert true)

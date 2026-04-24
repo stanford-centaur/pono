@@ -1,0 +1,45 @@
+;; A property with a clock constraint: this can be violated but the delay-first semantics does not see it
+;;
+(set-logic QF_LRA)
+(declare-fun x__AT0 () Real)
+(declare-fun x__AT1 () Real)
+(declare-fun y__AT0 () Real)
+(declare-fun y__AT1 () Real)
+(declare-fun loc__AT0 () Bool)
+(declare-fun loc__AT1 () Bool)
+
+(define-fun .def_0 () Real (! x__AT0 :nextclock x__AT1))
+(define-fun .def_1 () Real (! y__AT0 :nextclock y__AT1))
+(define-fun .def_2 () Bool (! loc__AT0 :next loc__AT1))
+
+
+;; Initial state
+(define-fun .def_3 () Bool (! (and
+(= x__AT0 0.0)
+(= y__AT0 0.0)
+loc__AT0
+) :init true))
+
+;; Location invariant
+(define-fun .def_4 () Bool (! 
+    (=> (not loc__AT0) (<= 3.0 x__AT0))
+:invar true))
+
+;; Transitions
+(define-fun .def_18 () Bool (! 
+  (or
+  (and loc__AT0
+    (= x__AT1 0.0)
+    (= y__AT0 y__AT1)
+    (not loc__AT1)
+  )
+  (and (not loc__AT0) 
+    (>= x__AT0 10.0)
+    (= x__AT1 0.0)
+    (= y__AT1 0.0)
+    loc__AT1
+  )
+) :trans true))
+
+(define-fun .def_19 () Bool (! (<= y__AT0 6.0) :invar-property 0))
+(assert true)
