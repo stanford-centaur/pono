@@ -110,7 +110,7 @@ else
 fi
 cd build
 cmake --build . -j
-ctest -j
+ctest
 cmake --install .
 cd ..
 
