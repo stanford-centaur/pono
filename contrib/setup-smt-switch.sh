@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-smt_switch_version=v1.1.1
+smt_switch_version=v1.1.3
 
 usage() {
   cat <<EOF
@@ -110,7 +110,7 @@ else
 fi
 cd build
 cmake --build . -j
-ctest -j
+ctest
 cmake --install .
 cd ..
 
