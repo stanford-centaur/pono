@@ -27,6 +27,9 @@
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
+#ifdef WITH_SLANG
+#include "frontends/sv_encoder.h"
+#endif
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
@@ -442,7 +445,58 @@ int main(int argc, char ** argv)
         assert(res == pono::UNKNOWN);
         cout << "unknown" << endl;
       }
-    } else {
+    }
+#ifdef WITH_SLANG
+    else if (file_ext == "sv" || file_ext == "v") {
+      logger.log(2, "Parsing SystemVerilog file: {}", pono_options.filename_);
+      FunctionalTransitionSystem fts(s);
+      SVEncoder sv_enc(pono_options.filename_, fts);
+      const TermVec & propvec = sv_enc.propvec();
+      unsigned int num_props = propvec.size();
+      if (num_props == 0) {
+        throw PonoException(
+            "No properties found in SystemVerilog file "
+            + pono_options.filename_
+            + ". Add assert statements to specify properties.");
+      }
+      if (pono_options.prop_idx_ >= num_props) {
+        throw PonoException(
+            "Property index " + to_string(pono_options.prop_idx_)
+            + " is greater than the number of properties in file "
+            + pono_options.filename_ + " (" + to_string(num_props) + ")");
+      }
+
+      Term prop = propvec[pono_options.prop_idx_];
+
+      vector<UnorderedTermMap> cex;
+      res = check_prop(pono_options, prop, fts, s, cex);
+      assert(res != ERROR);
+
+      logger.log(
+          0, "Property {} is {}", pono_options.prop_idx_, to_string(res));
+
+      if (res == FALSE) {
+        cout << "sat" << endl;
+        assert(pono_options.witness_ || cex.size() == 0);
+        for (size_t t = 0; t < cex.size(); t++) {
+          cout << "AT TIME " << t << endl;
+          for (auto elem : cex[t]) {
+            cout << "\t" << elem.first << " : " << elem.second << endl;
+          }
+        }
+        if (!pono_options.vcd_name_.empty()) {
+          VCDWitnessPrinter vcdprinter(fts, cex);
+          vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
+        }
+      } else if (res == TRUE) {
+        cout << "unsat" << endl;
+      } else {
+        assert(res == pono::UNKNOWN);
+        cout << "unknown" << endl;
+      }
+    }
+#endif
+    else {
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }

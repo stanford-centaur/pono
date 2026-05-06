@@ -162,6 +162,20 @@ if(WITH_MSAT_IC3IA)
   endif()
 endif()
 
+if(WITH_SLANG)
+  include(FetchContent)
+  FetchContent_Declare(
+    slang
+    GIT_REPOSITORY https://github.com/MikePopoloski/slang.git
+    GIT_TAG v10.0
+    GIT_SHALLOW TRUE
+  )
+  set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
+  set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(slang)
+  message(STATUS "slang fetched via FetchContent")
+endif()
+
 if(WITH_COREIR)
   if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
     message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
@@ -289,6 +303,11 @@ if(WITH_COREIR OR WITH_COREIR_EXTERN)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
+if(WITH_SLANG)
+  add_definitions(-DWITH_SLANG)
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/sv_encoder.cpp")
+endif()
+
 if(WITH_MSAT)
   # need direct access to mathsat for setting options
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
@@ -360,6 +379,12 @@ if(WITH_COREIR_EXTERN)
       INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
   )
   target_link_libraries(pono-lib PUBLIC coreir verilogAST)
+endif()
+
+if(WITH_SLANG)
+  target_link_libraries(pono-lib PUBLIC slang::slang)
+  # slang requires C++20 features in its headers
+  set_property(TARGET pono-lib PROPERTY CXX_STANDARD 20)
 endif()
 
 if(WITH_COREIR)
