@@ -13,7 +13,7 @@
  **
  **/
 
-#include "frontends/sv_encoder.h"
+#include "frontends/systemverilog_encoder.h"
 
 #include <cassert>
 #include <iostream>
@@ -64,25 +64,25 @@ void collect_blocking_targets(
 // Construction / destruction
 // ============================================================================
 
-SVEncoder::SVEncoder(string filename, FunctionalTransitionSystem & fts)
+SystemVerilogEncoder::SystemVerilogEncoder(string filename, FunctionalTransitionSystem & fts)
     : fts_(fts), solver_(fts.solver())
 {
   encode(filename);
 }
 
-SVEncoder::~SVEncoder() = default;
+SystemVerilogEncoder::~SystemVerilogEncoder() = default;
 
 // ============================================================================
 // Top-level encoding pipeline
 // ============================================================================
 
-void SVEncoder::encode(const string & filename)
+void SystemVerilogEncoder::encode(const string & filename)
 {
   // Parse the SystemVerilog source file.
   // SyntaxTree::fromFile returns an expected<shared_ptr<SyntaxTree>, ...>.
   auto tree_result = slang::syntax::SyntaxTree::fromFile(filename);
   if (!tree_result) {
-    throw PonoException("SVEncoder: failed to parse file: " + filename);
+    throw PonoException("SystemVerilogEncoder: failed to parse file: " + filename);
   }
   auto tree = std::move(tree_result).value();
 
@@ -110,7 +110,7 @@ void SVEncoder::encode(const string & filename)
     } else {
       diag_messages = "(unable to format diagnostics)";
     }
-    throw PonoException("SVEncoder: errors in SystemVerilog file:\n"
+    throw PonoException("SystemVerilogEncoder: errors in SystemVerilog file:\n"
                         + diag_messages);
   }
 
@@ -119,7 +119,7 @@ void SVEncoder::encode(const string & filename)
   auto top_instances = root.topInstances;
   if (top_instances.empty()) {
     throw PonoException(
-        "SVEncoder: no top-level module instances found in " + filename);
+        "SystemVerilogEncoder: no top-level module instances found in " + filename);
   }
 
   // Process the first top-level module.
@@ -132,10 +132,10 @@ void SVEncoder::encode(const string & filename)
 // Module processing
 // ============================================================================
 
-void SVEncoder::process_module(const slang::ast::InstanceSymbol & inst)
+void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & inst)
 {
   string inst_name(inst.name);
-  logger.log(1, "SVEncoder: processing module {}", inst_name);
+  logger.log(1, "SystemVerilogEncoder: processing module {}", inst_name);
   prefix_ = inst_name;
 
   auto & body = inst.body;
@@ -351,12 +351,12 @@ void collect_nonblocking_targets(
 
 // This is a private helper called from process_module; it is not in the
 // header to avoid exposing slang::ast::Statement there.
-void SVEncoder::pre_scan_always_ff(const slang::ast::Statement & body)
+void SystemVerilogEncoder::pre_scan_always_ff(const slang::ast::Statement & body)
 {
   collect_nonblocking_targets(body, state_var_symbols_);
 }
 
-void SVEncoder::pre_scan_always_comb(const slang::ast::Statement & body)
+void SystemVerilogEncoder::pre_scan_always_comb(const slang::ast::Statement & body)
 {
   // Collect blocking-assign LHS targets as wires, but only if they
   // weren't already classified as state variables by always_ff.
@@ -373,7 +373,7 @@ void SVEncoder::pre_scan_always_comb(const slang::ast::Statement & body)
 // Variable declaration (first pass)
 // ============================================================================
 
-void SVEncoder::declare_variables(
+void SystemVerilogEncoder::declare_variables(
     const slang::ast::InstanceBodySymbol & body)
 {
   using namespace slang::ast;
@@ -403,7 +403,7 @@ void SVEncoder::declare_variables(
         Term sv = fts_.make_statevar(name, sort);
         symbol_to_term_[&var] = sv;
         fts_.name_term(name, sv);
-        logger.log(2, "SVEncoder: state var {} : bv{}", name,
+        logger.log(2, "SystemVerilogEncoder: state var {} : bv{}", name,
                    sort->get_width());
       } else {
         // No assignment found for this variable -- treat as a free
@@ -412,7 +412,7 @@ void SVEncoder::declare_variables(
         Term iv = fts_.make_inputvar(name, sort);
         symbol_to_term_[&var] = iv;
         fts_.name_term(name, iv);
-        logger.log(2, "SVEncoder: undriven var {} : bv{}", name,
+        logger.log(2, "SystemVerilogEncoder: undriven var {} : bv{}", name,
                    sort->get_width());
       }
     } else if (member.kind == SymbolKind::Net) {
@@ -426,13 +426,13 @@ void SVEncoder::declare_variables(
       Term iv = fts_.make_inputvar(name, sort);
       symbol_to_term_[&net] = iv;
       fts_.name_term(name, iv);
-      logger.log(2, "SVEncoder: net {} : bv{}", name,
+      logger.log(2, "SystemVerilogEncoder: net {} : bv{}", name,
                  sort->get_width());
     }
   }
 }
 
-void SVEncoder::process_port(const slang::ast::PortSymbol & port)
+void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
 {
   using namespace slang::ast;
 
@@ -446,7 +446,7 @@ void SVEncoder::process_port(const slang::ast::PortSymbol & port)
       Term iv = fts_.make_inputvar(name, sort);
       symbol_to_term_[&port] = iv;
       fts_.name_term(name, iv);
-      logger.log(2, "SVEncoder: input port {} : bv{}", name,
+      logger.log(2, "SystemVerilogEncoder: input port {} : bv{}", name,
                  sort->get_width());
     } else {
       // Output/inout without internal symbol: treat as state or wire
@@ -470,7 +470,7 @@ void SVEncoder::process_port(const slang::ast::PortSymbol & port)
     symbol_to_term_[internal] = iv;
     symbol_to_term_[&port] = iv;
     fts_.name_term(name, iv);
-    logger.log(2, "SVEncoder: input port {} : bv{}", name,
+    logger.log(2, "SystemVerilogEncoder: input port {} : bv{}", name,
                sort->get_width());
   } else {
     // Output or inout: classify based on driver kind.
@@ -479,20 +479,20 @@ void SVEncoder::process_port(const slang::ast::PortSymbol & port)
       symbol_to_term_[internal] = sv;
       symbol_to_term_[&port] = sv;
       fts_.name_term(name, sv);
-      logger.log(2, "SVEncoder: output port (reg) {} : bv{}", name,
+      logger.log(2, "SystemVerilogEncoder: output port (reg) {} : bv{}", name,
                  sort->get_width());
     } else if (wire_symbols_.count(internal)) {
       // Combinational output port: defer term creation to
       // process_continuous_assign / process_always_comb, which will
       // populate symbol_to_term_ for `internal`.  Lookups via the port
       // symbol fall back to the internal symbol's entry.
-      logger.log(2, "SVEncoder: output port (wire) {}: deferred", name);
+      logger.log(2, "SystemVerilogEncoder: output port (wire) {}: deferred", name);
     } else {
       Term iv = fts_.make_inputvar(name, sort);
       symbol_to_term_[internal] = iv;
       symbol_to_term_[&port] = iv;
       fts_.name_term(name, iv);
-      logger.log(2, "SVEncoder: output port (undriven) {} : bv{}", name,
+      logger.log(2, "SystemVerilogEncoder: output port (undriven) {} : bv{}", name,
                  sort->get_width());
     }
   }
@@ -502,7 +502,7 @@ void SVEncoder::process_port(const slang::ast::PortSymbol & port)
 // Assignment processing (second pass)
 // ============================================================================
 
-void SVEncoder::process_assignments(
+void SystemVerilogEncoder::process_assignments(
     const slang::ast::InstanceBodySymbol & body)
 {
   using namespace slang::ast;
@@ -554,7 +554,7 @@ void SVEncoder::process_assignments(
   }
 }
 
-void SVEncoder::process_always_ff(
+void SystemVerilogEncoder::process_always_ff(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
   pending_next_updates_.clear();
@@ -566,12 +566,12 @@ void SVEncoder::process_always_ff(
   // Commit all pending next-state updates.
   for (auto & [state_term, next_expr] : pending_next_updates_) {
     fts_.assign_next(state_term, next_expr);
-    logger.log(2, "SVEncoder: assign_next {} := ...",
+    logger.log(2, "SystemVerilogEncoder: assign_next {} := ...",
                fts_.get_name(state_term));
   }
 }
 
-void SVEncoder::process_always_comb(
+void SystemVerilogEncoder::process_always_comb(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
   pending_comb_updates_.clear();
@@ -583,19 +583,19 @@ void SVEncoder::process_always_comb(
     string name = make_name(string(sym->name));
     symbol_to_term_[sym] = term;
     fts_.name_term(name, term);
-    logger.log(2, "SVEncoder: always_comb (wire) {} := ...", name);
+    logger.log(2, "SystemVerilogEncoder: always_comb (wire) {} := ...", name);
   }
   pending_comb_updates_.clear();
 }
 
-void SVEncoder::process_initial(
+void SystemVerilogEncoder::process_initial(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
   Term true_term = solver_->make_term(true);
   process_statement(proc.getBody(), StmtContext::INITIAL, true_term);
 }
 
-void SVEncoder::process_continuous_assign(
+void SystemVerilogEncoder::process_continuous_assign(
     const slang::ast::ContinuousAssignSymbol & ca)
 {
   using namespace slang::ast;
@@ -624,7 +624,7 @@ void SVEncoder::process_continuous_assign(
     string name = make_name(string(sym->name));
     symbol_to_term_[sym] = rhs;
     fts_.name_term(name, rhs);
-    logger.log(2, "SVEncoder: continuous assign (wire) {} := ...", name);
+    logger.log(2, "SystemVerilogEncoder: continuous assign (wire) {} := ...", name);
     return;
   }
 
@@ -636,7 +636,7 @@ void SVEncoder::process_continuous_assign(
     Term lhs_term = it->second;
     Term eq = solver_->make_term(Equal, lhs_term, rhs);
     fts_.add_invar(eq);
-    logger.log(2, "SVEncoder: continuous assign {} = ...",
+    logger.log(2, "SystemVerilogEncoder: continuous assign {} = ...",
                fts_.get_name(lhs_term));
   }
 }
@@ -645,7 +645,7 @@ void SVEncoder::process_continuous_assign(
 // Statement processing
 // ============================================================================
 
-void SVEncoder::process_statement(const slang::ast::Statement & stmt,
+void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                                   StmtContext ctx,
                                   const Term & condition)
 {
@@ -850,11 +850,11 @@ void SVEncoder::process_statement(const slang::ast::Statement & stmt,
                 solver_->make_term(0, prop->get_sort()));
           }
           propvec_.push_back(prop);
-          logger.log(1, "SVEncoder: extracted concurrent assertion property");
+          logger.log(1, "SystemVerilogEncoder: extracted concurrent assertion property");
         } else {
           logger.log(
               1,
-              "SVEncoder: skipping unsupported assertion expression kind {}",
+              "SystemVerilogEncoder: skipping unsupported assertion expression kind {}",
               static_cast<int>(ae->kind));
         }
       }
@@ -864,7 +864,7 @@ void SVEncoder::process_statement(const slang::ast::Statement & stmt,
     default:
       // Other statement kinds (loops, etc.): not supported in
       // synthesizable subset. Log a warning and skip.
-      logger.log(1, "SVEncoder: skipping unsupported statement kind {}",
+      logger.log(1, "SystemVerilogEncoder: skipping unsupported statement kind {}",
                  static_cast<int>(stmt.kind));
       break;
   }
@@ -874,7 +874,7 @@ void SVEncoder::process_statement(const slang::ast::Statement & stmt,
 // Expression conversion
 // ============================================================================
 
-Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
+Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
 {
   using namespace slang::ast;
 
@@ -1048,7 +1048,7 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
           break;
         default:
           throw PonoException(
-              "SVEncoder: unsupported binary operator "
+              "SystemVerilogEncoder: unsupported binary operator "
               + to_string(static_cast<int>(binop.op)));
       }
       return resize_to(result, result_width);
@@ -1115,7 +1115,7 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
         }
         default:
           throw PonoException(
-              "SVEncoder: unsupported unary operator "
+              "SystemVerilogEncoder: unsupported unary operator "
               + to_string(static_cast<int>(unop.op)));
       }
       return resize_to(result, result_width);
@@ -1132,7 +1132,7 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
       auto & concat = expr.as<ConcatenationExpression>();
       auto operands = concat.operands();
       if (operands.empty()) {
-        throw PonoException("SVEncoder: empty concatenation");
+        throw PonoException("SystemVerilogEncoder: empty concatenation");
       }
       // Concatenate from MSB (first) to LSB (last).
       Term result = expr_to_term(*operands[0]);
@@ -1149,15 +1149,15 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
       // The count should be a compile-time constant.
       auto count_cv = repl.count().getConstant();
       if (!count_cv) {
-        throw PonoException("SVEncoder: non-constant replication count");
+        throw PonoException("SystemVerilogEncoder: non-constant replication count");
       }
       auto count_opt = count_cv->integer().as<uint32_t>();
       if (!count_opt) {
-        throw PonoException("SVEncoder: invalid replication count");
+        throw PonoException("SystemVerilogEncoder: invalid replication count");
       }
       uint32_t count = *count_opt;
       if (count == 0) {
-        throw PonoException("SVEncoder: zero replication count");
+        throw PonoException("SystemVerilogEncoder: zero replication count");
       }
       Term result = inner;
       for (uint32_t i = 1; i < count; i++) {
@@ -1198,13 +1198,13 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
       // Both bounds should be compile-time constants for synthesizable code.
       if (!left_expr.getConstant() || !right_expr.getConstant()) {
         throw PonoException(
-            "SVEncoder: non-constant range select bounds");
+            "SystemVerilogEncoder: non-constant range select bounds");
       }
       auto hi_opt = left_expr.getConstant()->integer().as<uint64_t>();
       auto lo_opt = right_expr.getConstant()->integer().as<uint64_t>();
       if (!hi_opt || !lo_opt) {
         throw PonoException(
-            "SVEncoder: invalid range select bounds");
+            "SystemVerilogEncoder: invalid range select bounds");
       }
       uint64_t hi = *hi_opt;
       uint64_t lo = *lo_opt;
@@ -1242,7 +1242,7 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
 
     default:
       throw PonoException(
-          "SVEncoder: unsupported expression kind "
+          "SystemVerilogEncoder: unsupported expression kind "
           + to_string(static_cast<int>(expr.kind)));
   }
 }
@@ -1251,40 +1251,40 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
 // Type conversion
 // ============================================================================
 
-Sort SVEncoder::type_to_sort(const slang::ast::Type & type)
+Sort SystemVerilogEncoder::type_to_sort(const slang::ast::Type & type)
 {
   if (type.isIntegral()) {
     uint64_t width = type.getBitWidth();
     if (width == 0) {
-      throw PonoException("SVEncoder: zero-width integral type");
+      throw PonoException("SystemVerilogEncoder: zero-width integral type");
     }
     return solver_->make_sort(BV, width);
   }
 
-  throw PonoException("SVEncoder: unsupported type kind");
+  throw PonoException("SystemVerilogEncoder: unsupported type kind");
 }
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-Term SVEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
+Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
 {
   auto it = symbol_to_term_.find(sym);
   if (it != symbol_to_term_.end()) {
     return it->second;
   }
-  throw PonoException("SVEncoder: unknown symbol '"
+  throw PonoException("SystemVerilogEncoder: unknown symbol '"
                       + string(sym->name) + "'");
 }
 
-string SVEncoder::make_name(const string & name) const
+string SystemVerilogEncoder::make_name(const string & name) const
 {
   if (prefix_.empty()) return name;
   return prefix_ + "." + name;
 }
 
-Term SVEncoder::resize_to(const Term & t, uint64_t target_width)
+Term SystemVerilogEncoder::resize_to(const Term & t, uint64_t target_width)
 {
   uint64_t current_width = t->get_sort()->get_width();
   if (current_width == target_width) {

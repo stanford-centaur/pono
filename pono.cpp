@@ -28,7 +28,7 @@
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
 #ifdef WITH_SLANG
-#include "frontends/sv_encoder.h"
+#include "frontends/systemverilog_encoder.h"
 #endif
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"
@@ -450,7 +450,7 @@ int main(int argc, char ** argv)
     else if (file_ext == "sv" || file_ext == "v") {
       logger.log(2, "Parsing SystemVerilog file: {}", pono_options.filename_);
       FunctionalTransitionSystem fts(s);
-      SVEncoder sv_enc(pono_options.filename_, fts);
+      SystemVerilogEncoder sv_enc(pono_options.filename_, fts);
       const TermVec & propvec = sv_enc.propvec();
       unsigned int num_props = propvec.size();
       if (num_props == 0) {

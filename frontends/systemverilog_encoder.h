@@ -46,10 +46,10 @@ class PortSymbol;
 
 namespace pono {
 
-class SVEncoder
+class SystemVerilogEncoder
 {
  public:
-  /** Construct an SVEncoder that parses a SystemVerilog file and populates
+  /** Construct an SystemVerilogEncoder that parses a SystemVerilog file and populates
    *  the given FunctionalTransitionSystem.
    *
    *  Supported SystemVerilog constructs (synthesizable subset):
@@ -63,9 +63,9 @@ class SVEncoder
    *  @param filename path to the SystemVerilog source file
    *  @param fts the transition system to populate
    */
-  SVEncoder(std::string filename, FunctionalTransitionSystem & fts);
+  SystemVerilogEncoder(std::string filename, FunctionalTransitionSystem & fts);
 
-  ~SVEncoder();
+  ~SystemVerilogEncoder();
 
   /** @return the vector of properties (negated assertions) found in the design
    */

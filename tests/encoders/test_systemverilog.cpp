@@ -4,7 +4,7 @@
 
 #include "core/fts.h"
 #include "engines/bmc.h"
-#include "frontends/sv_encoder.h"
+#include "frontends/systemverilog_encoder.h"
 #include "gtest/gtest.h"
 #include "modifiers/mod_ts_prop.h"
 #include "smt-switch/utils.h"
@@ -35,7 +35,7 @@ class SVUnitTests : public ::testing::Test,
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
     FunctionalTransitionSystem fts(s);
-    SVEncoder enc(sv_path(file), fts);
+    SystemVerilogEncoder enc(sv_path(file), fts);
     ASSERT_EQ(enc.propvec().size(), 1u);
     Term prop_term = enc.propvec()[0];
 
@@ -74,7 +74,7 @@ TEST_P(SVUnitTests, MultipleAssertions)
 {
   SmtSolver s = create_solver(GetParam());
   FunctionalTransitionSystem fts(s);
-  SVEncoder enc(sv_path("multi_assert.sv"), fts);
+  SystemVerilogEncoder enc(sv_path("multi_assert.sv"), fts);
   EXPECT_EQ(enc.propvec().size(), 3u);
 }
 

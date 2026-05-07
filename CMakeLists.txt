@@ -305,7 +305,7 @@ endif()
 
 if(WITH_SLANG)
   add_definitions(-DWITH_SLANG)
-  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/sv_encoder.cpp")
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/systemverilog_encoder.cpp")
 endif()
 
 if(WITH_MSAT)
