@@ -889,17 +889,14 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
       uint64_t width = expr.type->getBitWidth();
       if (width == 0) width = 32;  // Default integer width.
       Sort sort = solver_->make_sort(BV, width);
-      // SVInt::toString(base, includeBase) returns std::string.
+      // Reinterpret the value as unsigned so that toString emits the raw
+      // two's-complement bit pattern as a positive decimal.  Without
+      // setSigned(false), signed-negative values would stringify as
+      // "-N", which smt-switch's base-10 parser rejects.
       auto val = lit.getValue();
-      string val_str = val.toString(10, /* includeBase */ false);
-      // If the value is negative (signed), handle via two's complement.
-      // smt-switch make_term with base 10 expects unsigned decimal.
-      if (!val_str.empty() && val_str[0] == '-') {
-        // Negative value: compute two's complement as a positive number.
-        // Use the slang SVInt directly: get the raw bits as hex.
-        val_str = val.toString(16, false);
-        return solver_->make_term(val_str, sort, 16);
-      }
+      val.setSigned(false);
+      string val_str =
+          val.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
       return solver_->make_term(val_str, sort, 10);
     }
 
@@ -909,7 +906,9 @@ Term SVEncoder::expr_to_term(const slang::ast::Expression & expr)
       if (width == 0) width = 1;
       Sort sort = solver_->make_sort(BV, width);
       auto val = lit.getValue();
-      string val_str = val.toString(10, false);
+      val.setSigned(false);
+      string val_str =
+          val.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
       return solver_->make_term(val_str, sort, 10);
     }
 

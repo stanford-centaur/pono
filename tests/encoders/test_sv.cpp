@@ -66,6 +66,9 @@ TEST_P(SVUnitTests, EncodeCounter) { check_falsifiable("counter.sv"); }
 // `initial` block sets register's initial state.
 TEST_P(SVUnitTests, InitialBlock) { check_falsifiable("initial_block.sv", 1); }
 
+// Sized integer literals (hex, binary, signed negative).
+TEST_P(SVUnitTests, SizedLiterals) { check_falsifiable("sized_literals.sv"); }
+
 // Multiple `assert property` statements yield multiple props.
 TEST_P(SVUnitTests, MultipleAssertions)
 {
