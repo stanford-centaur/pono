@@ -28,8 +28,12 @@ class SVUnitTests : public ::testing::Test,
   }
 
   // Encode `file` (which must contain a single assert property), run
-  // BMC up to 5 cycles, and check that the result matches `expected`.
+  // BMC up to `bound` cycles, and check that the result matches
+  // `expected`.  When `expected` is FALSE, the resulting witness
+  // length must equal `bound` -- i.e., the property fails at exactly
+  // cycle `bound` and not earlier.
   void check_bmc(const string & file,
+                 size_t bound,
                  ProverResult expected = ProverResult::FALSE)
   {
     SmtSolver s = create_solver(GetParam());
@@ -53,7 +57,10 @@ class SVUnitTests : public ::testing::Test,
 
     SafetyProperty prop(ts.solver(), prop_term);
     Bmc bmc(prop, ts, s);
-    EXPECT_EQ(bmc.check_until(5), expected);
+    EXPECT_EQ(bmc.check_until(bound), expected);
+    if (expected == ProverResult::FALSE) {
+      EXPECT_EQ(bmc.witness_length(), bound);
+    }
   }
 };
 
@@ -62,13 +69,13 @@ class SVUnitTests : public ::testing::Test,
 // ---------------------------------------------------------------------------
 
 // Module ports + always_ff with non-blocking assignment + binary +.
-TEST_P(SVUnitTests, EncodeCounter) { check_bmc("counter.sv"); }
+TEST_P(SVUnitTests, EncodeCounter) { check_bmc("counter.sv", 0); }
 
 // `initial` block sets register's initial state.
-TEST_P(SVUnitTests, InitialBlock) { check_bmc("initial_block.sv"); }
+TEST_P(SVUnitTests, InitialBlock) { check_bmc("initial_block.sv", 0); }
 
 // Sized integer literals (hex, binary, signed negative).
-TEST_P(SVUnitTests, SizedLiterals) { check_bmc("sized_literals.sv"); }
+TEST_P(SVUnitTests, SizedLiterals) { check_bmc("sized_literals.sv", 0); }
 
 // Multiple `assert property` statements yield multiple props.
 TEST_P(SVUnitTests, MultipleAssertions)
@@ -88,38 +95,38 @@ TEST_P(SVUnitTests, MultipleAssertions)
 // the expectation once hierarchical encoding lands.
 TEST_P(SVUnitTests, HierarchicalModules)
 {
-  check_bmc("hierarchical.sv", ProverResult::UNKNOWN);
+  check_bmc("hierarchical.sv", 5, ProverResult::UNKNOWN);
 }
 
 // ---------------------------------------------------------------------------
 // Statement kinds
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, IfElse) { check_bmc("if_else.sv"); }
-TEST_P(SVUnitTests, CaseStatement) { check_bmc("case_stmt.sv"); }
+TEST_P(SVUnitTests, IfElse) { check_bmc("if_else.sv", 0); }
+TEST_P(SVUnitTests, CaseStatement) { check_bmc("case_stmt.sv", 0); }
 
 // ---------------------------------------------------------------------------
 // Expression kinds
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Ternary) { check_bmc("ternary.sv"); }
-TEST_P(SVUnitTests, BitSelect) { check_bmc("bit_select.sv"); }
-TEST_P(SVUnitTests, RangeSelect) { check_bmc("range_select.sv"); }
-TEST_P(SVUnitTests, Concat) { check_bmc("concat.sv"); }
-TEST_P(SVUnitTests, Replication) { check_bmc("replication.sv"); }
+TEST_P(SVUnitTests, Ternary) { check_bmc("ternary.sv", 0); }
+TEST_P(SVUnitTests, BitSelect) { check_bmc("bit_select.sv", 0); }
+TEST_P(SVUnitTests, RangeSelect) { check_bmc("range_select.sv", 0); }
+TEST_P(SVUnitTests, Concat) { check_bmc("concat.sv", 0); }
+TEST_P(SVUnitTests, Replication) { check_bmc("replication.sv", 0); }
 
 // ---------------------------------------------------------------------------
 // Operators
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, BinaryArith) { check_bmc("binary_arith.sv"); }
-TEST_P(SVUnitTests, BinaryBitwise) { check_bmc("binary_bitwise.sv"); }
-TEST_P(SVUnitTests, BinaryCompare) { check_bmc("binary_compare.sv"); }
-TEST_P(SVUnitTests, BinaryLogical) { check_bmc("binary_logical.sv"); }
-TEST_P(SVUnitTests, Shift) { check_bmc("shift.sv"); }
-TEST_P(SVUnitTests, UnaryNot) { check_bmc("unary_not.sv"); }
-TEST_P(SVUnitTests, UnaryMinus) { check_bmc("unary_minus.sv"); }
-TEST_P(SVUnitTests, Reduction) { check_bmc("reduction.sv"); }
+TEST_P(SVUnitTests, BinaryArith) { check_bmc("binary_arith.sv", 0); }
+TEST_P(SVUnitTests, BinaryBitwise) { check_bmc("binary_bitwise.sv", 0); }
+TEST_P(SVUnitTests, BinaryCompare) { check_bmc("binary_compare.sv", 0); }
+TEST_P(SVUnitTests, BinaryLogical) { check_bmc("binary_logical.sv", 0); }
+TEST_P(SVUnitTests, Shift) { check_bmc("shift.sv", 0); }
+TEST_P(SVUnitTests, UnaryNot) { check_bmc("unary_not.sv", 0); }
+TEST_P(SVUnitTests, UnaryMinus) { check_bmc("unary_minus.sv", 0); }
+TEST_P(SVUnitTests, Reduction) { check_bmc("reduction.sv", 0); }
 
 // ---------------------------------------------------------------------------
 // Combinational logic
@@ -127,14 +134,14 @@ TEST_P(SVUnitTests, Reduction) { check_bmc("reduction.sv"); }
 
 TEST_P(SVUnitTests, ContinuousAssign)
 {
-  check_bmc("continuous_assign.sv");
+  check_bmc("continuous_assign.sv", 0);
 }
 
-TEST_P(SVUnitTests, AlwaysComb) { check_bmc("always_comb.sv"); }
+TEST_P(SVUnitTests, AlwaysComb) { check_bmc("always_comb.sv", 0); }
 
 TEST_P(SVUnitTests, LegacyAlwaysStar)
 {
-  check_bmc("legacy_always_comb.sv");
+  check_bmc("legacy_always_comb.sv", 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVUnitTests,
