@@ -179,6 +179,22 @@ class SystemVerilogEncoder
    */
   void pre_scan_always_comb(const slang::ast::Statement & body);
 
+  /** Pre-scan a child instance to identify any parent-side variables
+   *  that are driven by the child's output ports; those become wires
+   *  in the parent's transition system.  Also recurses into nested
+   *  instances.
+   *  @param inst the child instance to scan
+   */
+  void pre_scan_instance(const slang::ast::InstanceSymbol & inst);
+
+  /** Process a child module instance: register its port connections,
+   *  then walk its body (continuous assigns, always blocks, nested
+   *  instances) so the parent's transition system inherits all of
+   *  the child's behavior.
+   *  @param inst the child instance to process
+   */
+  void process_instance(const slang::ast::InstanceSymbol & inst);
+
   // ---------- Data members ----------
 
   FunctionalTransitionSystem & fts_;
@@ -203,6 +219,14 @@ class SystemVerilogEncoder
   // their term in symbol_to_term_ is the defining expression itself,
   // not a fresh state or input variable.
   std::unordered_set<const slang::ast::Symbol *> wire_symbols_;
+
+  // Map from a child instance's port internal symbol to the parent-side
+  // variable symbol that the port connects to.  Populated while
+  // processing a child instance and consulted when resolving the LHS
+  // of a continuous-assign or always_comb statement so writes to a
+  // child output port redirect to the parent-side wire.
+  std::unordered_map<const slang::ast::Symbol *, const slang::ast::Symbol *>
+      port_output_aliases_;
 
   // For always_ff processing: accumulated conditional next-state updates.
   // Maps state variable term -> conditional next-state expression.

@@ -202,6 +202,8 @@ void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & ins
           }
         }
       }
+    } else if (member.kind == slang::ast::SymbolKind::Instance) {
+      pre_scan_instance(member.as<slang::ast::InstanceSymbol>());
     }
   }
 
@@ -379,6 +381,48 @@ void SystemVerilogEncoder::pre_scan_always_comb(const slang::ast::Statement & bo
   }
 }
 
+void SystemVerilogEncoder::pre_scan_instance(
+    const slang::ast::InstanceSymbol & inst)
+{
+  using namespace slang::ast;
+
+  // Each output (or inout) port of the child is driven by the child's
+  // logic.  In the parent's view the connected expression must be a
+  // simple NamedValue (e.g. `child c (.sum(y))`) -- the named symbol
+  // becomes a wire.  More elaborate connections (slices,
+  // concatenations, etc.) are not yet supported.
+  for (auto * pc : inst.getPortConnections()) {
+    if (!pc) continue;
+    if (pc->port.kind != SymbolKind::Port) continue;
+    auto & port = pc->port.as<PortSymbol>();
+    if (port.direction != ArgumentDirection::Out
+        && port.direction != ArgumentDirection::InOut)
+      continue;
+    auto * conn_expr = pc->getExpression();
+    if (!conn_expr) continue;
+    // Slang wraps an output-port connection as an Assignment whose
+    // left-hand side is the parent-side expression being driven.
+    // Unwrap it; the child's logic effectively writes through to the
+    // LHS.
+    if (conn_expr->kind == ExpressionKind::Assignment) {
+      conn_expr = &conn_expr->as<AssignmentExpression>().left();
+    }
+    if (conn_expr->kind != ExpressionKind::NamedValue) continue;
+    auto * parent_sym = &conn_expr->as<NamedValueExpression>().symbol;
+    if (!state_var_symbols_.count(parent_sym)) {
+      wire_symbols_.insert(parent_sym);
+    }
+  }
+
+  // Recurse into nested instances so any wires further down the
+  // hierarchy are visible to declare_variables.
+  for (auto & m : inst.body.members()) {
+    if (m.kind == SymbolKind::Instance) {
+      pre_scan_instance(m.as<InstanceSymbol>());
+    }
+  }
+}
+
 // ============================================================================
 // Variable declaration (first pass)
 // ============================================================================
@@ -519,7 +563,10 @@ void SystemVerilogEncoder::process_assignments(
 
   // Combinational definitions are processed first so that wires have a
   // term assigned in symbol_to_term_ before any always_ff or initial
-  // block (or assertion) tries to reference them.
+  // block (or assertion) tries to reference them.  Child instances are
+  // walked here too -- a child's continuous assigns / always_comb
+  // blocks may drive parent-side wires that downstream parent code
+  // references.
   for (auto & member : body.members()) {
     if (member.kind == SymbolKind::ContinuousAssign) {
       process_continuous_assign(member.as<ContinuousAssignSymbol>());
@@ -534,6 +581,8 @@ void SystemVerilogEncoder::process_assignments(
           process_always_comb(proc);
         }
       }
+    } else if (member.kind == SymbolKind::Instance) {
+      process_instance(member.as<InstanceSymbol>());
     }
   }
 
@@ -625,7 +674,14 @@ void SystemVerilogEncoder::process_continuous_assign(
     return;
   }
   auto & nv = lhs_expr.as<NamedValueExpression>();
-  auto * sym = &nv.symbol;
+  const Symbol * sym = &nv.symbol;
+  // If we're inside a child instance, redirect the LHS through the
+  // port connection map so that writes to a child output port land
+  // on the parent-side wire.
+  auto alias_it = port_output_aliases_.find(sym);
+  if (alias_it != port_output_aliases_.end()) {
+    sym = alias_it->second;
+  }
   uint64_t lhs_width = lhs_expr.type->getBitWidth();
   rhs = resize_to(rhs, lhs_width);
 
@@ -651,6 +707,99 @@ void SystemVerilogEncoder::process_continuous_assign(
   }
 }
 
+void SystemVerilogEncoder::process_instance(
+    const slang::ast::InstanceSymbol & inst)
+{
+  using namespace slang::ast;
+
+  // Switch the naming context so any state vars / wires declared
+  // inside the child get hierarchical names like "<parent>.<inst>.<x>".
+  string saved_prefix = prefix_;
+  prefix_ = saved_prefix + "." + string(inst.name);
+
+  // Bind the child's port-internal symbols to their parent-side
+  // counterparts.  Inputs become parent-side terms (so reads inside
+  // the child resolve via lookup_symbol).  Outputs become aliases (so
+  // writes inside the child redirect to parent-side wires).  Save the
+  // additions so we can undo them at the end of this call -- slang
+  // may share an InstanceBody across multiple instantiations.
+  std::vector<const Symbol *> output_aliases_added;
+  std::vector<const Symbol *> input_terms_added;
+  for (auto * pc : inst.getPortConnections()) {
+    if (!pc) continue;
+    if (pc->port.kind != SymbolKind::Port) continue;
+    auto & port = pc->port.as<PortSymbol>();
+    auto * conn_expr = pc->getExpression();
+    if (!conn_expr) continue;
+    auto * internal = port.internalSymbol;
+    if (!internal) continue;
+
+    bool is_output = (port.direction == ArgumentDirection::Out
+                      || port.direction == ArgumentDirection::InOut);
+    if (is_output) {
+      // Output-port connections are wrapped in an Assignment whose
+      // left-hand side is the parent-side expression.
+      if (conn_expr->kind == ExpressionKind::Assignment) {
+        conn_expr = &conn_expr->as<AssignmentExpression>().left();
+      }
+      if (conn_expr->kind == ExpressionKind::NamedValue) {
+        auto * parent_sym = &conn_expr->as<NamedValueExpression>().symbol;
+        port_output_aliases_[internal] = parent_sym;
+        output_aliases_added.push_back(internal);
+      }
+    } else {
+      Term term = expr_to_term(*conn_expr);
+      term = resize_to(term, port.getType().getBitWidth());
+      symbol_to_term_[internal] = term;
+      input_terms_added.push_back(internal);
+    }
+  }
+
+  // Combinational pass over child's body (and any sub-instances).
+  for (auto & m : inst.body.members()) {
+    if (m.kind == SymbolKind::ContinuousAssign) {
+      process_continuous_assign(m.as<ContinuousAssignSymbol>());
+    } else if (m.kind == SymbolKind::ProceduralBlock) {
+      auto & proc = m.as<ProceduralBlockSymbol>();
+      if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
+        process_always_comb(proc);
+      } else if (proc.procedureKind == ProceduralBlockKind::Always) {
+        std::unordered_set<const Symbol *> targets;
+        collect_nonblocking_targets(proc.getBody(), targets);
+        if (targets.empty()) {
+          process_always_comb(proc);
+        }
+      }
+    } else if (m.kind == SymbolKind::Instance) {
+      process_instance(m.as<InstanceSymbol>());
+    }
+  }
+
+  // Sequential / initial pass.
+  for (auto & m : inst.body.members()) {
+    if (m.kind != SymbolKind::ProceduralBlock) continue;
+    auto & proc = m.as<ProceduralBlockSymbol>();
+    switch (proc.procedureKind) {
+      case ProceduralBlockKind::AlwaysFF: process_always_ff(proc); break;
+      case ProceduralBlockKind::Initial: process_initial(proc); break;
+      case ProceduralBlockKind::Always: {
+        std::unordered_set<const Symbol *> targets;
+        collect_nonblocking_targets(proc.getBody(), targets);
+        if (!targets.empty()) process_always_ff(proc);
+        break;
+      }
+      default: break;
+    }
+  }
+
+  // Restore context: undo the per-instance bindings so that a sibling
+  // (or repeated) instantiation of the same module can be processed
+  // cleanly.
+  for (auto * sym : output_aliases_added) port_output_aliases_.erase(sym);
+  for (auto * sym : input_terms_added) symbol_to_term_.erase(sym);
+  prefix_ = saved_prefix;
+}
+
 // ============================================================================
 // Statement processing
 // ============================================================================
@@ -674,7 +823,13 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
         if (lhs_expr.kind == ExpressionKind::NamedValue) {
           auto & nv = lhs_expr.as<NamedValueExpression>();
-          auto * sym = &nv.symbol;
+          const Symbol * sym = &nv.symbol;
+          // Same alias redirect as in process_continuous_assign so
+          // child-instance output ports translate to parent-side wires.
+          auto alias_it = port_output_aliases_.find(sym);
+          if (alias_it != port_output_aliases_.end()) {
+            sym = alias_it->second;
+          }
           uint64_t lhs_width = lhs_expr.type->getBitWidth();
           rhs = resize_to(rhs, lhs_width);
 

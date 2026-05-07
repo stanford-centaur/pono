@@ -124,12 +124,9 @@ TEST_P(SVUnitTests, MultipleAssertions)
 }
 
 // Hierarchical SystemVerilog: a parent module instantiates a child
-// that drives one of the parent's wires.  If sub-modules are encoded,
-// the child's `assign` constrains the wire and BMC cannot falsify the
-// assertion in any finite bound.  EXPECTED TO FAIL with the current
-// encoder, which skips Instance members and leaves the wire as a free
-// input -- BMC then picks values that violate the property.  Update
-// the expectation once hierarchical encoding lands.
+// that drives one of the parent's wires.  Sub-modules are now
+// encoded, so the child's `assign` constrains the wire and BMC
+// cannot falsify the assertion at any finite bound.
 TEST_P(SVUnitTests, HierarchicalModules)
 {
   check_bmc("hierarchical.sv", 5, ProverResult::UNKNOWN);
