@@ -1,13 +1,19 @@
 // Tests reduction operators (&, |, ^).
-// Property: !(all_ones && parity).  For a 3-bit input, all_ones=1
-// requires a=3'b111, which has odd parity (parity=1).  BMC must
-// falsify within 2 steps when a == 7.
-module reduction (input logic clk, input logic [2:0] a);
+// Reset clears the registers; one cycle later, free input a = 3'b111
+// produces all_ones=1 and parity=1 (3 ones is odd), falsifying the
+// property.
+module reduction (input logic clk, input logic rst, input logic [2:0] a);
   logic all_ones, parity, any_one;
   always_ff @(posedge clk) begin
-    all_ones <= &a;
-    any_one  <= |a;
-    parity   <= ^a;
+    if (rst) begin
+      all_ones <= 0;
+      any_one  <= 0;
+      parity   <= 0;
+    end else begin
+      all_ones <= &a;
+      any_one  <= |a;
+      parity   <= ^a;
+    end
   end
   assert property (@(posedge clk) !(all_ones && parity));
 endmodule

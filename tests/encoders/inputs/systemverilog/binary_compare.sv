@@ -1,12 +1,16 @@
 // Tests comparison operator (>=).
-// Property: ge != 1.  BMC must falsify within 2 steps because the
-// register `ge` gets a >= b, and a, b are free inputs.
+// Reset clears ge; one cycle later, BMC picks a, b with a >= b so ge
+// becomes 1 and the property is falsified.
 module binary_compare (
     input logic clk,
+    input logic rst,
     input logic [3:0] a,
     input logic [3:0] b
 );
   logic ge;
-  always_ff @(posedge clk) ge <= a >= b;
+  always_ff @(posedge clk) begin
+    if (rst) ge <= 0;
+    else ge <= a >= b;
+  end
   assert property (@(posedge clk) ge != 1);
 endmodule

@@ -1,10 +1,11 @@
 // Tests a case statement inside always_ff.
-// When s == 3, x is set to 8.
-// Property: x != 8.  BMC must falsify within 2 steps.
-module case_stmt (input logic clk, input logic [1:0] s);
+// Reset clears x; one cycle later, s == 3 selects the case that sets
+// x to 8, falsifying the property.
+module case_stmt (input logic clk, input logic rst, input logic [1:0] s);
   logic [3:0] x;
   always_ff @(posedge clk) begin
-    case (s)
+    if (rst) x <= 0;
+    else case (s)
       0: x <= 1;
       1: x <= 2;
       2: x <= 4;
