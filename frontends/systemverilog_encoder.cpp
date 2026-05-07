@@ -15,19 +15,29 @@
 
 #include "frontends/systemverilog_encoder.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <unordered_set>
+#include <utility>
+
 #include "slang/ast/Compilation.h"
 #include "slang/ast/Expression.h"
+#include "slang/ast/SemanticFacts.h"
+#include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
+#include "slang/ast/expressions/AssertionExpr.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/ConversionExpression.h"
 #include "slang/ast/expressions/LiteralExpressions.h"
 #include "slang/ast/expressions/MiscExpressions.h"
+#include "slang/ast/expressions/Operator.h"
 #include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/expressions/SelectExpressions.h"
-#include "slang/ast/Statement.h"
 #include "slang/ast/statements/ConditionalStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
-#include "slang/ast/expressions/AssertionExpr.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -37,8 +47,12 @@
 #include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
+#include "slang/numeric/SVInt.h"
 #include "slang/syntax/SyntaxTree.h"
 
+#include "core/fts.h"
+#include "smt-switch/smt.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 
 using namespace smt;
