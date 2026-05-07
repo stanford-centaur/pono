@@ -78,6 +78,35 @@ TEST_P(SVUnitTests, MultipleAssertions)
   EXPECT_EQ(enc.propvec().size(), 3u);
 }
 
+// Hierarchical SystemVerilog: a parent module instantiates a child
+// that drives one of the parent's wires.  If sub-modules are encoded,
+// the child's `assign` constrains the wire and BMC cannot falsify the
+// assertion in any finite bound.  EXPECTED TO FAIL with the current
+// encoder, which skips Instance members and leaves the wire as a free
+// input -- BMC then picks values that violate the property.  Update
+// the expectation once hierarchical encoding lands.
+TEST_P(SVUnitTests, HierarchicalModules)
+{
+  SmtSolver s = create_solver(GetParam());
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  FunctionalTransitionSystem fts(s);
+  SystemVerilogEncoder enc(sv_path("hierarchical.sv"), fts);
+  ASSERT_EQ(enc.propvec().size(), 1u);
+  Term prop_term = enc.propvec()[0];
+
+  TransitionSystem ts = fts;
+  if (!ts.only_curr(prop_term) && ts.no_next(prop_term)) {
+    UnorderedTermSet ivs_in_prop;
+    get_free_symbolic_consts(prop_term, ivs_in_prop);
+    ts = promote_inputvars(ts, ivs_in_prop);
+  }
+
+  SafetyProperty prop(ts.solver(), prop_term);
+  Bmc bmc(prop, ts, s);
+  EXPECT_NE(bmc.check_until(5), ProverResult::FALSE);
+}
+
 // ---------------------------------------------------------------------------
 // Statement kinds
 // ---------------------------------------------------------------------------
