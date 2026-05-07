@@ -23,11 +23,9 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
 #include "core/fts.h"
 #include "smt-switch/smt.h"
-#include "utils/exceptions.h"
 
 // Forward declarations for slang types to avoid exposing slang headers
 // to all translation units.
