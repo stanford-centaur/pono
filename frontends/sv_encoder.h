@@ -174,6 +174,12 @@ class SVEncoder
    */
   void pre_scan_always_ff(const slang::ast::Statement & body);
 
+  /** Pre-scan a combinational always_comb body to identify blocking
+   *  assignment targets as combinational wire symbols.
+   *  @param body the statement body of the always_comb block
+   */
+  void pre_scan_always_comb(const slang::ast::Statement & body);
+
   // ---------- Data members ----------
 
   FunctionalTransitionSystem & fts_;
@@ -184,6 +190,8 @@ class SVEncoder
 
   // Map from slang symbol pointer to the corresponding SMT term.
   // For state variables, this maps to the current-state term.
+  // For wires (continuous-assign / always_comb targets), this maps to
+  // the defining SMT expression (macro substitution).
   std::unordered_map<const slang::ast::Symbol *, smt::Term> symbol_to_term_;
 
   // Set of symbols that are state variables (assigned in always_ff).
@@ -191,10 +199,22 @@ class SVEncoder
   // which variables are registers vs. wires.
   std::unordered_set<const slang::ast::Symbol *> state_var_symbols_;
 
+  // Set of symbols that are combinational wires (assigned in
+  // continuous_assign or always_comb).  These are macro-substituted:
+  // their term in symbol_to_term_ is the defining expression itself,
+  // not a fresh state or input variable.
+  std::unordered_set<const slang::ast::Symbol *> wire_symbols_;
+
   // For always_ff processing: accumulated conditional next-state updates.
   // Maps state variable term -> conditional next-state expression.
   // After processing the block, these are committed via assign_next().
   std::unordered_map<smt::Term, smt::Term> pending_next_updates_;
+
+  // For always_comb processing: accumulated wire-define expressions
+  // keyed by the LHS wire symbol.  After processing the block, the
+  // accumulated term is stored in symbol_to_term_.
+  std::unordered_map<const slang::ast::Symbol *, smt::Term>
+      pending_comb_updates_;
 
   // Properties extracted from SVA assert statements.
   smt::TermVec propvec_;

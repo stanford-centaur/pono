@@ -6,6 +6,8 @@
 #include "engines/bmc.h"
 #include "frontends/sv_encoder.h"
 #include "gtest/gtest.h"
+#include "modifiers/mod_ts_prop.h"
+#include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
 
@@ -35,8 +37,21 @@ class SVUnitTests : public ::testing::Test,
     FunctionalTransitionSystem fts(s);
     SVEncoder enc(sv_path(file), fts);
     ASSERT_EQ(enc.propvec().size(), 1u);
-    SafetyProperty prop(fts.solver(), enc.propvec()[0]);
-    Bmc bmc(prop, fts, s);
+    Term prop_term = enc.propvec()[0];
+
+    // Promote any input vars referenced by the property to state vars
+    // (with no update), matching the preprocessing done by pono.cpp.
+    // This is required because SafetyProver only accepts predicates
+    // over current-state variables.
+    TransitionSystem ts = fts;
+    if (!ts.only_curr(prop_term) && ts.no_next(prop_term)) {
+      UnorderedTermSet ivs_in_prop;
+      get_free_symbolic_consts(prop_term, ivs_in_prop);
+      ts = promote_inputvars(ts, ivs_in_prop);
+    }
+
+    SafetyProperty prop(ts.solver(), prop_term);
+    Bmc bmc(prop, ts, s);
     EXPECT_EQ(bmc.check_until(bound), ProverResult::FALSE);
   }
 };
@@ -91,29 +106,17 @@ TEST_P(SVUnitTests, UnaryMinus) { check_falsifiable("unary_minus.sv"); }
 TEST_P(SVUnitTests, Reduction) { check_falsifiable("reduction.sv"); }
 
 // ---------------------------------------------------------------------------
-// Combinational logic — currently broken in SVEncoder.
-//
-// `assign`, `always_comb`, and legacy `always @*` all funnel into the
-// combinational branch which calls `fts_.add_invar(...)` on a constraint
-// containing wires (declared as input vars).  add_invar requires the
-// constraint to mention only state variables, so it throws
-// "Invariants should be over current states only.".  The fix likely
-// involves modeling wires by macro-substitution or via add_constraint
-// with both init and next applications.  Tests are kept (DISABLED_) so
-// that they will start passing once the encoder is fixed.
+// Combinational logic
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, DISABLED_ContinuousAssign)
+TEST_P(SVUnitTests, ContinuousAssign)
 {
   check_falsifiable("continuous_assign.sv");
 }
 
-TEST_P(SVUnitTests, DISABLED_AlwaysComb)
-{
-  check_falsifiable("always_comb.sv");
-}
+TEST_P(SVUnitTests, AlwaysComb) { check_falsifiable("always_comb.sv"); }
 
-TEST_P(SVUnitTests, DISABLED_LegacyAlwaysStar)
+TEST_P(SVUnitTests, LegacyAlwaysStar)
 {
   check_falsifiable("legacy_always_comb.sv");
 }

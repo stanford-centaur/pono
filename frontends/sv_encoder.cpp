@@ -49,6 +49,17 @@ using namespace std;
 
 namespace pono {
 
+// Forward declarations for helpers defined in an anonymous namespace
+// later in this file.
+namespace {
+void collect_nonblocking_targets(
+    const slang::ast::Statement & stmt,
+    std::unordered_set<const slang::ast::Symbol *> & targets);
+void collect_blocking_targets(
+    const slang::ast::Statement & stmt,
+    std::unordered_set<const slang::ast::Symbol *> & targets);
+}  // namespace
+
 // ============================================================================
 // Construction / destruction
 // ============================================================================
@@ -145,10 +156,51 @@ void SVEncoder::process_module(const slang::ast::InstanceSymbol & inst)
     }
   }
 
-  // Second pass: declare all variables (ports + internal declarations).
+  // Second pre-pass: identify combinational wire symbols from
+  // always_comb blocks, legacy `always` blocks without non-blocking
+  // assignments, and continuous-assign LHS values.  Wires are not
+  // independent variables -- they will be macro-substituted with their
+  // defining expressions, so we must skip declaring them as input vars.
+  for (auto & member : body.members()) {
+    if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
+      auto & proc =
+          member.as<slang::ast::ProceduralBlockSymbol>();
+      if (proc.procedureKind
+          == slang::ast::ProceduralBlockKind::AlwaysComb) {
+        pre_scan_always_comb(proc.getBody());
+      } else if (proc.procedureKind
+                 == slang::ast::ProceduralBlockKind::Always) {
+        // Legacy always: combinational iff it has no non-blocking
+        // assignments to identify it as sequential.
+        std::unordered_set<const slang::ast::Symbol *> nb_targets;
+        collect_nonblocking_targets(proc.getBody(), nb_targets);
+        if (nb_targets.empty()) {
+          pre_scan_always_comb(proc.getBody());
+        }
+      }
+    } else if (member.kind == slang::ast::SymbolKind::ContinuousAssign) {
+      auto & ca = member.as<slang::ast::ContinuousAssignSymbol>();
+      auto & ae = ca.getAssignment();
+      if (ae.kind == slang::ast::ExpressionKind::Assignment) {
+        auto & lhs =
+            ae.as<slang::ast::AssignmentExpression>().left();
+        if (lhs.kind == slang::ast::ExpressionKind::NamedValue) {
+          auto * sym =
+              &lhs.as<slang::ast::NamedValueExpression>().symbol;
+          if (!state_var_symbols_.count(sym)) {
+            wire_symbols_.insert(sym);
+          }
+        }
+      }
+    }
+  }
+
+  // Third pass: declare state vars, inputs, and output-port aliases.
+  // Wire symbols are skipped here -- they get their defining term
+  // assigned during combinational-assignment processing.
   declare_variables(body);
 
-  // Third pass: process behavioral code and continuous assignments.
+  // Fourth pass: process behavioral code and continuous assignments.
   process_assignments(body);
 }
 
@@ -176,6 +228,63 @@ void for_each_stmt_in_block(const slang::ast::BlockStatement & block,
     }
   } else {
     func(body);
+  }
+}
+
+// Collect assignment targets from a combinational block (always_comb or
+// legacy always with no non-blocking assigns).  Both blocking and
+// non-blocking forms are scanned, since the combinational classification
+// is determined by the caller.
+void collect_blocking_targets(
+    const slang::ast::Statement & stmt,
+    std::unordered_set<const slang::ast::Symbol *> & targets)
+{
+  using namespace slang::ast;
+
+  switch (stmt.kind) {
+    case StatementKind::ExpressionStatement: {
+      auto & es = stmt.as<ExpressionStatement>();
+      auto & expr = es.expr;
+      if (expr.kind == ExpressionKind::Assignment) {
+        auto & assign = expr.as<AssignmentExpression>();
+        auto & lhs = assign.left();
+        if (lhs.kind == ExpressionKind::NamedValue) {
+          auto & nv = lhs.as<NamedValueExpression>();
+          targets.insert(&nv.symbol);
+        }
+      }
+      break;
+    }
+    case StatementKind::Block: {
+      auto & block = stmt.as<BlockStatement>();
+      auto & body = block.body;
+      if (body.kind == StatementKind::List) {
+        auto & list = body.as<StatementList>();
+        for (auto * s : list.list) collect_blocking_targets(*s, targets);
+      } else {
+        collect_blocking_targets(body, targets);
+      }
+      break;
+    }
+    case StatementKind::Conditional: {
+      auto & cond = stmt.as<ConditionalStatement>();
+      collect_blocking_targets(cond.ifTrue, targets);
+      if (cond.ifFalse) collect_blocking_targets(*cond.ifFalse, targets);
+      break;
+    }
+    case StatementKind::Case: {
+      auto & cs = stmt.as<CaseStatement>();
+      for (auto & item : cs.items) collect_blocking_targets(*item.stmt, targets);
+      if (cs.defaultCase) collect_blocking_targets(*cs.defaultCase, targets);
+      break;
+    }
+    case StatementKind::Timed: {
+      auto & ts = stmt.as<TimedStatement>();
+      collect_blocking_targets(ts.stmt, targets);
+      break;
+    }
+    default:
+      break;
   }
 }
 
@@ -247,6 +356,19 @@ void SVEncoder::pre_scan_always_ff(const slang::ast::Statement & body)
   collect_nonblocking_targets(body, state_var_symbols_);
 }
 
+void SVEncoder::pre_scan_always_comb(const slang::ast::Statement & body)
+{
+  // Collect blocking-assign LHS targets as wires, but only if they
+  // weren't already classified as state variables by always_ff.
+  std::unordered_set<const slang::ast::Symbol *> targets;
+  collect_blocking_targets(body, targets);
+  for (auto * sym : targets) {
+    if (!state_var_symbols_.count(sym)) {
+      wire_symbols_.insert(sym);
+    }
+  }
+}
+
 // ============================================================================
 // Variable declaration (first pass)
 // ============================================================================
@@ -269,6 +391,9 @@ void SVEncoder::declare_variables(
       auto & var = member.as<VariableSymbol>();
       // Skip if already declared via port processing.
       if (symbol_to_term_.count(&var)) continue;
+      // Wires get their term assigned during combinational-assignment
+      // processing (macro substitution), not declared upfront.
+      if (wire_symbols_.count(&var)) continue;
 
       string name = make_name(string(var.name));
       Sort sort = type_to_sort(var.getType());
@@ -281,18 +406,19 @@ void SVEncoder::declare_variables(
         logger.log(2, "SVEncoder: state var {} : bv{}", name,
                    sort->get_width());
       } else {
-        // This is a wire/combinational signal: create an input variable
-        // as a placeholder. It will be constrained when we process
-        // always_comb or continuous assign.
+        // No assignment found for this variable -- treat as a free
+        // input.  This matches Verilog's "open" semantics where an
+        // undriven net is unconstrained.
         Term iv = fts_.make_inputvar(name, sort);
         symbol_to_term_[&var] = iv;
         fts_.name_term(name, iv);
-        logger.log(2, "SVEncoder: wire {} : bv{}", name,
+        logger.log(2, "SVEncoder: undriven var {} : bv{}", name,
                    sort->get_width());
       }
     } else if (member.kind == SymbolKind::Net) {
       auto & net = member.as<NetSymbol>();
       if (symbol_to_term_.count(&net)) continue;
+      if (wire_symbols_.count(&net)) continue;
 
       string name = make_name(string(net.name));
       Sort sort = type_to_sort(net.getType());
@@ -347,7 +473,7 @@ void SVEncoder::process_port(const slang::ast::PortSymbol & port)
     logger.log(2, "SVEncoder: input port {} : bv{}", name,
                sort->get_width());
   } else {
-    // Output or inout: check if it's a register.
+    // Output or inout: classify based on driver kind.
     if (state_var_symbols_.count(internal)) {
       Term sv = fts_.make_statevar(name, sort);
       symbol_to_term_[internal] = sv;
@@ -355,12 +481,18 @@ void SVEncoder::process_port(const slang::ast::PortSymbol & port)
       fts_.name_term(name, sv);
       logger.log(2, "SVEncoder: output port (reg) {} : bv{}", name,
                  sort->get_width());
+    } else if (wire_symbols_.count(internal)) {
+      // Combinational output port: defer term creation to
+      // process_continuous_assign / process_always_comb, which will
+      // populate symbol_to_term_ for `internal`.  Lookups via the port
+      // symbol fall back to the internal symbol's entry.
+      logger.log(2, "SVEncoder: output port (wire) {}: deferred", name);
     } else {
       Term iv = fts_.make_inputvar(name, sort);
       symbol_to_term_[internal] = iv;
       symbol_to_term_[&port] = iv;
       fts_.name_term(name, iv);
-      logger.log(2, "SVEncoder: output port (wire) {} : bv{}", name,
+      logger.log(2, "SVEncoder: output port (undriven) {} : bv{}", name,
                  sort->get_width());
     }
   }
@@ -375,8 +507,27 @@ void SVEncoder::process_assignments(
 {
   using namespace slang::ast;
 
-  Term true_term = solver_->make_term(true);
+  // Combinational definitions are processed first so that wires have a
+  // term assigned in symbol_to_term_ before any always_ff or initial
+  // block (or assertion) tries to reference them.
+  for (auto & member : body.members()) {
+    if (member.kind == SymbolKind::ContinuousAssign) {
+      process_continuous_assign(member.as<ContinuousAssignSymbol>());
+    } else if (member.kind == SymbolKind::ProceduralBlock) {
+      auto & proc = member.as<ProceduralBlockSymbol>();
+      if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
+        process_always_comb(proc);
+      } else if (proc.procedureKind == ProceduralBlockKind::Always) {
+        std::unordered_set<const Symbol *> targets;
+        collect_nonblocking_targets(proc.getBody(), targets);
+        if (targets.empty()) {
+          process_always_comb(proc);
+        }
+      }
+    }
+  }
 
+  // Sequential and assertion-bearing blocks come second.
   for (auto & member : body.members()) {
     if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
@@ -384,31 +535,21 @@ void SVEncoder::process_assignments(
         case ProceduralBlockKind::AlwaysFF:
           process_always_ff(proc);
           break;
-        case ProceduralBlockKind::AlwaysComb:
-          process_always_comb(proc);
-          break;
         case ProceduralBlockKind::Initial:
           process_initial(proc);
           break;
         case ProceduralBlockKind::Always: {
-          // Legacy 'always' blocks: infer whether this is sequential
-          // or combinational based on whether the block contains
-          // non-blocking assignments to state variables.
           std::unordered_set<const Symbol *> targets;
           collect_nonblocking_targets(proc.getBody(), targets);
           if (!targets.empty()) {
             process_always_ff(proc);
-          } else {
-            process_always_comb(proc);
           }
           break;
         }
         default:
-          // AlwaysLatch, Final, etc. -- skip for now.
+          // AlwaysComb handled above; AlwaysLatch, Final, etc. skipped.
           break;
       }
-    } else if (member.kind == SymbolKind::ContinuousAssign) {
-      process_continuous_assign(member.as<ContinuousAssignSymbol>());
     }
   }
 }
@@ -433,8 +574,18 @@ void SVEncoder::process_always_ff(
 void SVEncoder::process_always_comb(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
+  pending_comb_updates_.clear();
   Term true_term = solver_->make_term(true);
   process_statement(proc.getBody(), StmtContext::COMBINATIONAL, true_term);
+
+  // Commit accumulated wire definitions via macro substitution.
+  for (auto & [sym, term] : pending_comb_updates_) {
+    string name = make_name(string(sym->name));
+    symbol_to_term_[sym] = term;
+    fts_.name_term(name, term);
+    logger.log(2, "SVEncoder: always_comb (wire) {} := ...", name);
+  }
+  pending_comb_updates_.clear();
 }
 
 void SVEncoder::process_initial(
@@ -460,19 +611,33 @@ void SVEncoder::process_continuous_assign(
 
   Term rhs = expr_to_term(rhs_expr);
 
-  // For continuous assigns, the LHS wire is constrained to equal the RHS.
-  if (lhs_expr.kind == ExpressionKind::NamedValue) {
-    auto & nv = lhs_expr.as<NamedValueExpression>();
-    auto it = symbol_to_term_.find(&nv.symbol);
-    if (it != symbol_to_term_.end()) {
-      Term lhs_term = it->second;
-      rhs = resize_to(rhs, lhs_term->get_sort()->get_width());
-      // Constrain the wire to equal the RHS expression.
-      Term eq = solver_->make_term(Equal, lhs_term, rhs);
-      fts_.add_invar(eq);
-      logger.log(2, "SVEncoder: continuous assign {} = ...",
-                 fts_.get_name(lhs_term));
-    }
+  if (lhs_expr.kind != ExpressionKind::NamedValue) {
+    return;
+  }
+  auto & nv = lhs_expr.as<NamedValueExpression>();
+  auto * sym = &nv.symbol;
+  uint64_t lhs_width = lhs_expr.type->getBitWidth();
+  rhs = resize_to(rhs, lhs_width);
+
+  if (wire_symbols_.count(sym)) {
+    // Macro-substitute: the wire's term IS the defining expression.
+    string name = make_name(string(sym->name));
+    symbol_to_term_[sym] = rhs;
+    fts_.name_term(name, rhs);
+    logger.log(2, "SVEncoder: continuous assign (wire) {} := ...", name);
+    return;
+  }
+
+  // Fallback: existing variable (e.g., output port reg). Constrain the
+  // current term to equal the RHS via add_invar (only valid for state
+  // variables).
+  auto it = symbol_to_term_.find(sym);
+  if (it != symbol_to_term_.end()) {
+    Term lhs_term = it->second;
+    Term eq = solver_->make_term(Equal, lhs_term, rhs);
+    fts_.add_invar(eq);
+    logger.log(2, "SVEncoder: continuous assign {} = ...",
+               fts_.get_name(lhs_term));
   }
 }
 
@@ -499,12 +664,35 @@ void SVEncoder::process_statement(const slang::ast::Statement & stmt,
 
         if (lhs_expr.kind == ExpressionKind::NamedValue) {
           auto & nv = lhs_expr.as<NamedValueExpression>();
-          auto it = symbol_to_term_.find(&nv.symbol);
-          if (it == symbol_to_term_.end()) break;
-
-          Term lhs_term = it->second;
-          uint64_t lhs_width = lhs_term->get_sort()->get_width();
+          auto * sym = &nv.symbol;
+          uint64_t lhs_width = lhs_expr.type->getBitWidth();
           rhs = resize_to(rhs, lhs_width);
+
+          // Wire LHS (combinational): accumulate the defining
+          // expression keyed by symbol; symbol_to_term_ is populated
+          // when the enclosing always_comb block finishes.
+          if (ctx == StmtContext::COMBINATIONAL
+              && wire_symbols_.count(sym)) {
+            auto pit = pending_comb_updates_.find(sym);
+            if (condition == solver_->make_term(true)) {
+              pending_comb_updates_[sym] = rhs;
+            } else if (pit != pending_comb_updates_.end()) {
+              pending_comb_updates_[sym] =
+                  solver_->make_term(Ite, condition, rhs, pit->second);
+            } else {
+              // No previous definition under this path: use rhs itself
+              // as the default value.  This corresponds to "if the
+              // condition is false, the wire is implicitly equal to
+              // the only assigned value" (latch-free under common
+              // synthesis assumptions).
+              pending_comb_updates_[sym] = rhs;
+            }
+            break;
+          }
+
+          auto it = symbol_to_term_.find(sym);
+          if (it == symbol_to_term_.end()) break;
+          Term lhs_term = it->second;
 
           switch (ctx) {
             case StmtContext::NEXT_STATE: {
@@ -525,7 +713,8 @@ void SVEncoder::process_statement(const slang::ast::Statement & stmt,
               break;
             }
             case StmtContext::COMBINATIONAL: {
-              // Constrain wire = rhs (under condition).
+              // Constrain non-wire LHS (e.g. output port reg) to equal
+              // rhs under the path condition.
               Term eq = solver_->make_term(Equal, lhs_term, rhs);
               if (condition != solver_->make_term(true)) {
                 eq = solver_->make_term(Implies, condition, eq);
