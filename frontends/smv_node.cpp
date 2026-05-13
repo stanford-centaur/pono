@@ -829,10 +829,11 @@ void pono::resize_expr::generate_ostream(
     std::unordered_map<string, string> new_prefix,
     ostream & s)
 {
-  s << " resize ";
+  s << " resize (";
   ex1->generate_ostream(name, prefix, module_list, new_prefix, s);
   s << " , ";
   ex2->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
 }
 
 void pono::union_expr::generate_ostream(
