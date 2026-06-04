@@ -84,6 +84,13 @@ class SystemVerilogEncoder
    */
   void declare_variables(const slang::ast::InstanceBodySymbol & body);
 
+  /** Declare just the internal (non-port) variables of `body`.  Used
+   *  when descending into a child instance, whose ports have already
+   *  been bound through the port-connection map.
+   */
+  void declare_variables_internal(
+      const slang::ast::InstanceBodySymbol & body);
+
   /** Declare a single port as an input or output variable. */
   void process_port(const slang::ast::PortSymbol & port);
 
@@ -228,6 +235,12 @@ class SystemVerilogEncoder
   std::unordered_map<const slang::ast::Symbol *, const slang::ast::Symbol *>
       port_output_aliases_;
 
+  // Symbols in pending_comb_updates_ that came from an alias-redirect
+  // through port_output_aliases_; their term must be named in
+  // parent_prefix_ rather than prefix_ when the always_comb block
+  // commits.
+  std::unordered_set<const slang::ast::Symbol *> pending_comb_aliased_;
+
   // For always_ff processing: accumulated conditional next-state updates.
   // Maps state variable term -> conditional next-state expression.
   // After processing the block, these are committed via assign_next().
@@ -244,6 +257,13 @@ class SystemVerilogEncoder
 
   // Hierarchical name prefix for the current module.
   std::string prefix_;
+
+  // Hierarchical name prefix for the *parent* of the module currently
+  // being processed (i.e., the prefix of the scope where output-port
+  // aliases live).  Updated as we recurse into / out of child
+  // instances so wires redirected via port_output_aliases_ get named
+  // in their owning scope rather than the child's.
+  std::string parent_prefix_;
 };
 
 }  // namespace pono

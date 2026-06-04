@@ -439,6 +439,14 @@ void SystemVerilogEncoder::declare_variables(
     }
   }
 
+  declare_variables_internal(body);
+}
+
+void SystemVerilogEncoder::declare_variables_internal(
+    const slang::ast::InstanceBodySymbol & body)
+{
+  using namespace slang::ast;
+
   // Process internal variable declarations (non-port variables).
   for (auto & member : body.members()) {
     if (member.kind == SymbolKind::Variable) {
@@ -448,6 +456,11 @@ void SystemVerilogEncoder::declare_variables(
       // Wires get their term assigned during combinational-assignment
       // processing (macro substitution), not declared upfront.
       if (wire_symbols_.count(&var)) continue;
+      // Output ports of a child instance: the port-internal Variable
+      // appears here as a member of the child's body, but its term is
+      // really the parent-side wire reached through the alias map --
+      // skip declaring a separate term for it.
+      if (port_output_aliases_.count(&var)) continue;
 
       string name = make_name(string(var.name));
       Sort sort = type_to_sort(var.getType());
@@ -473,6 +486,7 @@ void SystemVerilogEncoder::declare_variables(
       auto & net = member.as<NetSymbol>();
       if (symbol_to_term_.count(&net)) continue;
       if (wire_symbols_.count(&net)) continue;
+      if (port_output_aliases_.count(&net)) continue;
 
       string name = make_name(string(net.name));
       Sort sort = type_to_sort(net.getType());
@@ -634,17 +648,28 @@ void SystemVerilogEncoder::process_always_comb(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
   pending_comb_updates_.clear();
+  pending_comb_aliased_.clear();
   Term true_term = solver_->make_term(true);
   process_statement(proc.getBody(), StmtContext::COMBINATIONAL, true_term);
 
   // Commit accumulated wire definitions via macro substitution.
+  // Aliased entries belong in the parent's scope; everything else
+  // uses the current prefix.
   for (auto & [sym, term] : pending_comb_updates_) {
-    string name = make_name(string(sym->name));
+    string name;
+    if (pending_comb_aliased_.count(sym)) {
+      name = parent_prefix_.empty()
+                 ? string(sym->name)
+                 : parent_prefix_ + "." + string(sym->name);
+    } else {
+      name = make_name(string(sym->name));
+    }
     symbol_to_term_[sym] = term;
     fts_.name_term(name, term);
     logger.log(2, "SystemVerilogEncoder: always_comb (wire) {} := ...", name);
   }
   pending_comb_updates_.clear();
+  pending_comb_aliased_.clear();
 }
 
 void SystemVerilogEncoder::process_initial(
@@ -679,7 +704,8 @@ void SystemVerilogEncoder::process_continuous_assign(
   // port connection map so that writes to a child output port land
   // on the parent-side wire.
   auto alias_it = port_output_aliases_.find(sym);
-  if (alias_it != port_output_aliases_.end()) {
+  bool aliased = alias_it != port_output_aliases_.end();
+  if (aliased) {
     sym = alias_it->second;
   }
   uint64_t lhs_width = lhs_expr.type->getBitWidth();
@@ -687,7 +713,16 @@ void SystemVerilogEncoder::process_continuous_assign(
 
   if (wire_symbols_.count(sym)) {
     // Macro-substitute: the wire's term IS the defining expression.
-    string name = make_name(string(sym->name));
+    // For aliased syms the wire lives in the parent's scope; name it
+    // accordingly.
+    string name;
+    if (aliased) {
+      name = parent_prefix_.empty()
+                 ? string(sym->name)
+                 : parent_prefix_ + "." + string(sym->name);
+    } else {
+      name = make_name(string(sym->name));
+    }
     symbol_to_term_[sym] = rhs;
     fts_.name_term(name, rhs);
     logger.log(2, "SystemVerilogEncoder: continuous assign (wire) {} := ...", name);
@@ -714,7 +749,12 @@ void SystemVerilogEncoder::process_instance(
 
   // Switch the naming context so any state vars / wires declared
   // inside the child get hierarchical names like "<parent>.<inst>.<x>".
+  // Also track the *parent's* prefix so wires redirected via
+  // port_output_aliases_ (which live in the parent's scope) get
+  // named correctly.
   string saved_prefix = prefix_;
+  string saved_parent_prefix = parent_prefix_;
+  parent_prefix_ = prefix_;
   prefix_ = saved_prefix + "." + string(inst.name);
 
   // Bind the child's port-internal symbols to their parent-side
@@ -754,6 +794,32 @@ void SystemVerilogEncoder::process_instance(
       input_terms_added.push_back(internal);
     }
   }
+
+  // Pre-scan the child's procedural blocks so internal NB-assigned
+  // registers and blocking-assigned wires get classified before
+  // declare_variables_internal runs.
+  for (auto & m : inst.body.members()) {
+    if (m.kind != SymbolKind::ProceduralBlock) continue;
+    auto & proc = m.as<ProceduralBlockSymbol>();
+    if (proc.procedureKind == ProceduralBlockKind::AlwaysFF) {
+      pre_scan_always_ff(proc.getBody());
+    } else if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
+      pre_scan_always_comb(proc.getBody());
+    } else if (proc.procedureKind == ProceduralBlockKind::Always) {
+      std::unordered_set<const Symbol *> nb_targets;
+      collect_nonblocking_targets(proc.getBody(), nb_targets);
+      if (!nb_targets.empty()) {
+        pre_scan_always_ff(proc.getBody());
+      } else {
+        pre_scan_always_comb(proc.getBody());
+      }
+    }
+  }
+
+  // Declare the child's internal (non-port) variables with the new
+  // hierarchical prefix; ports are already bound through the
+  // connection map above.
+  declare_variables_internal(inst.body);
 
   // Combinational pass over child's body (and any sub-instances).
   for (auto & m : inst.body.members()) {
@@ -798,6 +864,7 @@ void SystemVerilogEncoder::process_instance(
   for (auto * sym : output_aliases_added) port_output_aliases_.erase(sym);
   for (auto * sym : input_terms_added) symbol_to_term_.erase(sym);
   prefix_ = saved_prefix;
+  parent_prefix_ = saved_parent_prefix;
 }
 
 // ============================================================================
@@ -827,7 +894,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           // Same alias redirect as in process_continuous_assign so
           // child-instance output ports translate to parent-side wires.
           auto alias_it = port_output_aliases_.find(sym);
-          if (alias_it != port_output_aliases_.end()) {
+          bool aliased = alias_it != port_output_aliases_.end();
+          if (aliased) {
             sym = alias_it->second;
           }
           uint64_t lhs_width = lhs_expr.type->getBitWidth();
@@ -838,6 +906,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           // when the enclosing always_comb block finishes.
           if (ctx == StmtContext::COMBINATIONAL
               && wire_symbols_.count(sym)) {
+            if (aliased) pending_comb_aliased_.insert(sym);
             auto pit = pending_comb_updates_.find(sym);
             if (condition == solver_->make_term(true)) {
               pending_comb_updates_[sym] = rhs;
@@ -1435,6 +1504,12 @@ Sort SystemVerilogEncoder::type_to_sort(const slang::ast::Type & type)
 
 Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
 {
+  // If `sym` is a child instance's output-port internal, redirect to
+  // the parent-side wire so reads resolve to its term.
+  auto alias_it = port_output_aliases_.find(sym);
+  if (alias_it != port_output_aliases_.end()) {
+    sym = alias_it->second;
+  }
   auto it = symbol_to_term_.find(sym);
   if (it != symbol_to_term_.end()) {
     return it->second;
