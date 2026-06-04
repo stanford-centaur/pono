@@ -132,6 +132,15 @@ TEST_P(SVUnitTests, HierarchicalModules)
   check_bmc("hierarchical.sv", 5, ProverResult::UNKNOWN);
 }
 
+// Hierarchical value reference: the parent reads a child's internal
+// register via a dotted name (`c.cnt`) rather than through a port.
+// Exercises ExpressionKind::HierarchicalValue resolution.  c.cnt
+// hits 5 at cycle 6 (one reset cycle + five increments from 0).
+TEST_P(SVUnitTests, HierarchicalValue)
+{
+  check_bmc("hierarchical_value.sv", 6);
+}
+
 // Width-parameterized counter.  The property references a
 // `localparam` MAX whose value depends on the module parameter,
 // exercising NamedValue -> ParameterSymbol resolution.  With

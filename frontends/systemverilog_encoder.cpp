@@ -1119,6 +1119,15 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       return lookup_symbol(&nv.symbol);
     }
 
+    case ExpressionKind::HierarchicalValue: {
+      // Cross-scope dotted read (e.g. `child_inst.reg`).  Slang has
+      // already resolved the dotted path to the target ValueSymbol;
+      // lookup_symbol finds its term in the appropriate scope
+      // provided the referenced instance has been encoded already.
+      auto & hv = expr.as<HierarchicalValueExpression>();
+      return lookup_symbol(&hv.symbol);
+    }
+
     case ExpressionKind::IntegerLiteral: {
       auto & lit = expr.as<IntegerLiteral>();
       uint64_t width = expr.type->getBitWidth();
