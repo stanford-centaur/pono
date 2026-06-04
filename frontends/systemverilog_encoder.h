@@ -43,6 +43,7 @@ class ProceduralBlockSymbol;
 class ContinuousAssignSymbol;
 class PortSymbol;
 class EvalContext;
+class AssertionExpr;
 }  // namespace slang::ast
 
 namespace pono {
@@ -228,6 +229,19 @@ class SystemVerilogEncoder
    *  expressions when unrolling procedural `for` loops.
    */
   slang::ast::EvalContext & eval_ctx();
+
+  /** Compile an SVA AssertionExpr into a Boolean SMT term that holds
+   *  iff the assertion passes at the current cycle.  Returns a null
+   *  Term when the expression uses an unsupported operator
+   *  (e.g. liveness, sequence delays other than the canonical `|=>`
+   *  form, etc.); the caller can then skip that assertion.
+   *  Non-overlapping implication (`|=>`) introduces a hidden 1-bit
+   *  latch state var so the "P held last cycle" predicate is
+   *  current-state-only.
+   *  @param ae the assertion expression to compile
+   *  @return the boolean term, or a null Term when unsupported
+   */
+  smt::Term assertion_expr_to_bool(const slang::ast::AssertionExpr & ae);
 
   // ---------- Data members ----------
 

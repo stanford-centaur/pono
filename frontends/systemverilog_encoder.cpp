@@ -1328,26 +1328,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & ca = stmt.as<ConcurrentAssertionStatement>();
       // Only handle 'assert' (not 'assume', 'cover', etc.).
       if (ca.assertionKind == AssertionKind::Assert) {
-        // Extract the property expression.  Unwrap clocking wrappers
-        // to reach the underlying SimpleAssertionExpr.
-        const AssertionExpr * ae = &ca.propertySpec;
-        // Strip ClockingAssertionExpr wrapper if present.
-        if (ae->kind == AssertionExprKind::Clocking) {
-          ae = &ae->as<ClockingAssertionExpr>().expr;
-        }
-        if (ae->kind == AssertionExprKind::Simple) {
-          auto & simple = ae->as<SimpleAssertionExpr>();
-          Term prop = expr_to_term(simple.expr);
-          // Convert BV1 result to a Boolean equality check.
-          uint64_t pw = prop->get_sort()->get_width();
-          if (pw == 1) {
-            prop = solver_->make_term(
-                Equal, prop, solver_->make_term(1, solver_->make_sort(BV, 1)));
-          } else {
-            // Non-zero means true.
-            prop = solver_->make_term(
-                Distinct, prop, solver_->make_term(0, prop->get_sort()));
-          }
+        Term prop = assertion_expr_to_bool(ca.propertySpec);
+        if (prop) {
           propvec_.push_back(prop);
           logger.log(
               1,
@@ -1356,7 +1338,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           logger.log(1,
                      "SystemVerilogEncoder: skipping unsupported assertion "
                      "expression kind {}",
-                     static_cast<int>(ae->kind));
+                     static_cast<int>(ca.propertySpec.kind));
         }
       }
       break;
@@ -1889,6 +1871,86 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
     default:
       throw PonoException("SystemVerilogEncoder: unsupported expression kind "
                           + to_string(static_cast<int>(expr.kind)));
+  }
+}
+
+// ============================================================================
+// SVA assertion-expression conversion
+// ============================================================================
+
+Term SystemVerilogEncoder::assertion_expr_to_bool(
+    const slang::ast::AssertionExpr & ae)
+{
+  using namespace slang::ast;
+
+  switch (ae.kind) {
+    case AssertionExprKind::Clocking: {
+      // The clocking event has already been baked into our cycle
+      // abstraction; just recurse into the underlying expression.
+      return assertion_expr_to_bool(ae.as<ClockingAssertionExpr>().expr);
+    }
+
+    case AssertionExprKind::Simple: {
+      auto & simple = ae.as<SimpleAssertionExpr>();
+      Term t = expr_to_term(simple.expr);
+      // Normalize to Bool: t != 0.
+      Sort sort = t->get_sort();
+      Term zero = solver_->make_term(0, sort);
+      return solver_->make_term(Distinct, t, zero);
+    }
+
+    case AssertionExprKind::Binary: {
+      auto & b = ae.as<BinaryAssertionExpr>();
+      // Non-overlapping implication needs the LHS as it was *last*
+      // cycle, so build that latch before recursing into the RHS.
+      // Pattern: P |=> Q  ==  G(prev_P -> Q), with prev_P a hidden
+      // 1-bit state var that takes its next-state from P and is
+      // initialised to 0 (no antecedent has fired at cycle 0).
+      if (b.op == BinaryAssertionOperator::NonOverlappedImplication) {
+        Term lhs = assertion_expr_to_bool(b.left);
+        Term rhs = assertion_expr_to_bool(b.right);
+        if (!lhs || !rhs) return Term();
+        Sort bv1 = solver_->make_sort(BV, 1);
+        Term latch = fts_.make_statevar(
+            make_name("__sva_latch_" + std::to_string(propvec_.size())),
+            bv1);
+        Term one_bv1 = solver_->make_term(1, bv1);
+        Term zero_bv1 = solver_->make_term(0, bv1);
+        // Initial: latch = 0.
+        fts_.constrain_init(solver_->make_term(Equal, latch, zero_bv1));
+        // Next-state of latch is the antecedent's truth this cycle.
+        fts_.assign_next(latch,
+                         solver_->make_term(Ite, lhs, one_bv1, zero_bv1));
+        Term prev_p = solver_->make_term(Equal, latch, one_bv1);
+        return solver_->make_term(Implies, prev_p, rhs);
+      }
+
+      Term lhs = assertion_expr_to_bool(b.left);
+      Term rhs = assertion_expr_to_bool(b.right);
+      if (!lhs || !rhs) return Term();
+      switch (b.op) {
+        case BinaryAssertionOperator::And:
+          return solver_->make_term(And, lhs, rhs);
+        case BinaryAssertionOperator::Or:
+          return solver_->make_term(Or, lhs, rhs);
+        case BinaryAssertionOperator::Iff:
+          return solver_->make_term(Equal, lhs, rhs);
+        case BinaryAssertionOperator::Implies:
+        case BinaryAssertionOperator::OverlappedImplication:
+          return solver_->make_term(Implies, lhs, rhs);
+        default:
+          // Intersect / Throughout / Within / Until* / FollowedBy:
+          // sequence operators that span multiple cycles in the
+          // general case -- out of scope for the current encoder.
+          return Term();
+      }
+    }
+
+    default:
+      // Sequence delays (`##N`), unary temporal operators
+      // (`always`, `s_eventually`, ...), FirstMatch, etc.: not
+      // supported.  Caller logs the skipped kind.
+      return Term();
   }
 }
 

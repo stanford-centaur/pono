@@ -172,6 +172,28 @@ TEST_P(SVUnitTests, CompoundAssign) { check_bmc("compound_assign.sv", 2); }
 // 4'b1111.
 TEST_P(SVUnitTests, ElementSelectLhs) { check_bmc("element_select_lhs.sv", 2); }
 
+// SVA overlapping implication (`|->`): `!rst |-> data != 15`.
+// Falsifies at cycle 1 once reset releases and BMC picks data=15.
+TEST_P(SVUnitTests, BinaryImplication)
+{
+  check_bmc("binary_implication.sv", 1);
+}
+
+// SVA non-overlapping implication (`|=>`).  The hidden latch is
+// 0 at cycle 0 (init), then picks up arm at each cycle.  BMC
+// chooses arm=1 during the reset cycle so the latch is high at
+// cycle 1 alongside reset_done; with `data` a free input, the
+// consequent (data == 10) is falsified at cycle 1.
+TEST_P(SVUnitTests, BinaryNonOverlap)
+{
+  check_bmc("binary_nonoverlap.sv", 1);
+}
+
+// SVA `and` operator over two simple sub-properties.  Free `data`
+// means BMC picks values violating one half immediately at
+// cycle 0 (no reset wiring in this design).
+TEST_P(SVUnitTests, BinaryAnd) { check_bmc("binary_and.sv", 0); }
+
 // ---------------------------------------------------------------------------
 // Statement kinds
 // ---------------------------------------------------------------------------
