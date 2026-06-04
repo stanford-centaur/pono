@@ -22,9 +22,12 @@
 #include <string>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "slang/ast/Compilation.h"
+#include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
+#include "slang/ast/Scope.h"
 #include "slang/ast/SemanticFacts.h"
 #include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
@@ -37,6 +40,7 @@
 #include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/expressions/SelectExpressions.h"
 #include "slang/ast/statements/ConditionalStatements.h"
+#include "slang/ast/statements/LoopStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
@@ -70,6 +74,70 @@ void collect_blocking_targets(
     const slang::ast::Statement & stmt,
     std::unordered_set<const slang::ast::Symbol *> & targets);
 }  // namespace
+
+// ============================================================================
+// Member iteration helpers
+// ============================================================================
+
+template <typename Fn>
+void SystemVerilogEncoder::walk_members(const slang::ast::Scope & scope,
+                                        Fn && fn)
+{
+  using namespace slang::ast;
+  for (auto & m : scope.members()) {
+    if (m.kind == SymbolKind::GenerateBlockArray) {
+      // Generate-for: walk each instantiated entry, pushing a
+      // bracket-indexed prefix so per-iteration variables get
+      // unique hierarchical names like "<top>.ctr[0].count".
+      auto & arr = m.as<GenerateBlockArraySymbol>();
+      std::string saved_prefix = prefix_;
+      std::string arr_name = std::string(arr.name);
+      if (arr_name.empty()) arr_name = arr.getExternalName();
+      for (auto * entry : arr.entries) {
+        if (!entry || entry->isUninstantiated) continue;
+        std::string idx_str;
+        if (entry->arrayIndex) {
+          auto idx = *entry->arrayIndex;
+          idx.setSigned(false);
+          idx_str =
+              idx.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
+        } else {
+          idx_str = std::to_string(entry->constructIndex);
+        }
+        prefix_ = saved_prefix + "." + arr_name + "[" + idx_str + "]";
+        walk_members(*entry, fn);
+      }
+      prefix_ = saved_prefix;
+    } else if (m.kind == SymbolKind::GenerateBlock) {
+      // Generate-if / generate-case: a single block scope.  Push
+      // its name (or slang's synthesized "genblkN") as the suffix.
+      auto & gb = m.as<GenerateBlockSymbol>();
+      if (gb.isUninstantiated) continue;
+      std::string saved_prefix = prefix_;
+      std::string block_name = std::string(gb.name);
+      if (block_name.empty()) block_name = gb.getExternalName();
+      prefix_ = saved_prefix + "." + block_name;
+      walk_members(gb, fn);
+      prefix_ = saved_prefix;
+    } else {
+      fn(m);
+    }
+  }
+}
+
+slang::ast::EvalContext & SystemVerilogEncoder::eval_ctx()
+{
+  if (!eval_ctx_) {
+    // Use the slang compilation root as the AST context scope; we
+    // only use the eval context's locals stack to bind procedural
+    // loop counters, so the lookup location doesn't matter.
+    slang::ast::ASTContext ast_ctx(compilation_->getRoot(),
+                                   slang::ast::LookupLocation::min);
+    eval_ctx_ = std::make_unique<slang::ast::EvalContext>(ast_ctx);
+    eval_ctx_->pushEmptyFrame();
+  }
+  return *eval_ctx_;
+}
 
 // ============================================================================
 // Construction / destruction
@@ -153,7 +221,7 @@ void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & ins
 
   // First pass: identify state variable symbols by scanning always_ff blocks
   // for non-blocking assignment targets, before declaring variables.
-  for (auto & member : body.members()) {
+  walk_members(body, [&](const slang::ast::Symbol & member) {
     if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
       auto & proc =
           member.as<slang::ast::ProceduralBlockSymbol>();
@@ -165,14 +233,14 @@ void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & ins
         pre_scan_always_ff(proc.getBody());
       }
     }
-  }
+  });
 
   // Second pre-pass: identify combinational wire symbols from
   // always_comb blocks, legacy `always` blocks without non-blocking
   // assignments, and continuous-assign LHS values.  Wires are not
   // independent variables -- they will be macro-substituted with their
   // defining expressions, so we must skip declaring them as input vars.
-  for (auto & member : body.members()) {
+  walk_members(body, [&](const slang::ast::Symbol & member) {
     if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
       auto & proc =
           member.as<slang::ast::ProceduralBlockSymbol>();
@@ -206,7 +274,7 @@ void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & ins
     } else if (member.kind == slang::ast::SymbolKind::Instance) {
       pre_scan_instance(member.as<slang::ast::InstanceSymbol>());
     }
-  }
+  });
 
   // Third pass: declare state vars, inputs, and output-port aliases.
   // Wire symbols are skipped here -- they get their defining term
@@ -296,6 +364,13 @@ void collect_blocking_targets(
       collect_blocking_targets(ts.stmt, targets);
       break;
     }
+    case StatementKind::ForLoop: {
+      // Recurse into the body so blocking-assigned wires inside the
+      // (compile-time-unrolled) loop are seen during pre-scan.
+      auto & loop = stmt.as<ForLoopStatement>();
+      collect_blocking_targets(loop.body, targets);
+      break;
+    }
     default:
       break;
   }
@@ -352,6 +427,13 @@ void collect_nonblocking_targets(
     case StatementKind::Timed: {
       auto & ts = stmt.as<TimedStatement>();
       collect_nonblocking_targets(ts.stmt, targets);
+      break;
+    }
+    case StatementKind::ForLoop: {
+      // Recurse into the body so NB-assigned registers inside the
+      // (compile-time-unrolled) loop are seen during pre-scan.
+      auto & loop = stmt.as<ForLoopStatement>();
+      collect_nonblocking_targets(loop.body, targets);
       break;
     }
     default:
@@ -417,11 +499,11 @@ void SystemVerilogEncoder::pre_scan_instance(
 
   // Recurse into nested instances so any wires further down the
   // hierarchy are visible to declare_variables.
-  for (auto & m : inst.body.members()) {
+  walk_members(inst.body, [&](const Symbol & m) {
     if (m.kind == SymbolKind::Instance) {
       pre_scan_instance(m.as<InstanceSymbol>());
     }
-  }
+  });
 }
 
 // ============================================================================
@@ -449,19 +531,19 @@ void SystemVerilogEncoder::declare_variables_internal(
   using namespace slang::ast;
 
   // Process internal variable declarations (non-port variables).
-  for (auto & member : body.members()) {
+  walk_members(body, [&](const Symbol & member) {
     if (member.kind == SymbolKind::Variable) {
       auto & var = member.as<VariableSymbol>();
       // Skip if already declared via port processing.
-      if (symbol_to_term_.count(&var)) continue;
+      if (symbol_to_term_.count(&var)) return;
       // Wires get their term assigned during combinational-assignment
       // processing (macro substitution), not declared upfront.
-      if (wire_symbols_.count(&var)) continue;
+      if (wire_symbols_.count(&var)) return;
       // Output ports of a child instance: the port-internal Variable
       // appears here as a member of the child's body, but its term is
       // really the parent-side wire reached through the alias map --
       // skip declaring a separate term for it.
-      if (port_output_aliases_.count(&var)) continue;
+      if (port_output_aliases_.count(&var)) return;
 
       string name = make_name(string(var.name));
       Sort sort = type_to_sort(var.getType());
@@ -485,9 +567,9 @@ void SystemVerilogEncoder::declare_variables_internal(
       }
     } else if (member.kind == SymbolKind::Net) {
       auto & net = member.as<NetSymbol>();
-      if (symbol_to_term_.count(&net)) continue;
-      if (wire_symbols_.count(&net)) continue;
-      if (port_output_aliases_.count(&net)) continue;
+      if (symbol_to_term_.count(&net)) return;
+      if (wire_symbols_.count(&net)) return;
+      if (port_output_aliases_.count(&net)) return;
 
       string name = make_name(string(net.name));
       Sort sort = type_to_sort(net.getType());
@@ -498,7 +580,7 @@ void SystemVerilogEncoder::declare_variables_internal(
       logger.log(2, "SystemVerilogEncoder: net {} : bv{}", name,
                  sort->get_width());
     }
-  }
+  });
 }
 
 void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
@@ -582,7 +664,7 @@ void SystemVerilogEncoder::process_assignments(
   // walked here too -- a child's continuous assigns / always_comb
   // blocks may drive parent-side wires that downstream parent code
   // references.
-  for (auto & member : body.members()) {
+  walk_members(body, [&](const Symbol & member) {
     if (member.kind == SymbolKind::ContinuousAssign) {
       process_continuous_assign(member.as<ContinuousAssignSymbol>());
     } else if (member.kind == SymbolKind::ProceduralBlock) {
@@ -599,10 +681,10 @@ void SystemVerilogEncoder::process_assignments(
     } else if (member.kind == SymbolKind::Instance) {
       process_instance(member.as<InstanceSymbol>());
     }
-  }
+  });
 
   // Sequential and assertion-bearing blocks come second.
-  for (auto & member : body.members()) {
+  walk_members(body, [&](const Symbol & member) {
     if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
       switch (proc.procedureKind) {
@@ -625,7 +707,7 @@ void SystemVerilogEncoder::process_assignments(
           break;
       }
     }
-  }
+  });
 }
 
 void SystemVerilogEncoder::process_always_ff(
@@ -799,8 +881,8 @@ void SystemVerilogEncoder::process_instance(
   // Pre-scan the child's procedural blocks so internal NB-assigned
   // registers and blocking-assigned wires get classified before
   // declare_variables_internal runs.
-  for (auto & m : inst.body.members()) {
-    if (m.kind != SymbolKind::ProceduralBlock) continue;
+  walk_members(inst.body, [&](const Symbol & m) {
+    if (m.kind != SymbolKind::ProceduralBlock) return;
     auto & proc = m.as<ProceduralBlockSymbol>();
     if (proc.procedureKind == ProceduralBlockKind::AlwaysFF) {
       pre_scan_always_ff(proc.getBody());
@@ -815,7 +897,7 @@ void SystemVerilogEncoder::process_instance(
         pre_scan_always_comb(proc.getBody());
       }
     }
-  }
+  });
 
   // Declare the child's internal (non-port) variables with the new
   // hierarchical prefix; ports are already bound through the
@@ -823,7 +905,7 @@ void SystemVerilogEncoder::process_instance(
   declare_variables_internal(inst.body);
 
   // Combinational pass over child's body (and any sub-instances).
-  for (auto & m : inst.body.members()) {
+  walk_members(inst.body, [&](const Symbol & m) {
     if (m.kind == SymbolKind::ContinuousAssign) {
       process_continuous_assign(m.as<ContinuousAssignSymbol>());
     } else if (m.kind == SymbolKind::ProceduralBlock) {
@@ -840,11 +922,11 @@ void SystemVerilogEncoder::process_instance(
     } else if (m.kind == SymbolKind::Instance) {
       process_instance(m.as<InstanceSymbol>());
     }
-  }
+  });
 
   // Sequential / initial pass.
-  for (auto & m : inst.body.members()) {
-    if (m.kind != SymbolKind::ProceduralBlock) continue;
+  walk_members(inst.body, [&](const Symbol & m) {
+    if (m.kind != SymbolKind::ProceduralBlock) return;
     auto & proc = m.as<ProceduralBlockSymbol>();
     switch (proc.procedureKind) {
       case ProceduralBlockKind::AlwaysFF: process_always_ff(proc); break;
@@ -857,7 +939,7 @@ void SystemVerilogEncoder::process_instance(
       }
       default: break;
     }
-  }
+  });
 
   // Restore context: undo the per-instance bindings so that a sibling
   // (or repeated) instantiation of the same module can be processed
@@ -1092,6 +1174,121 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
               "SystemVerilogEncoder: skipping unsupported assertion expression kind {}",
               static_cast<int>(ae->kind));
         }
+      }
+      break;
+    }
+
+    case StatementKind::VariableDeclaration: {
+      // Procedural local variable (`int x = ...`).  Treated as an
+      // immutable per-block constant: evaluate the initializer once
+      // and bind it in the slang EvalContext and our SMT-side
+      // loop_var_terms_ map.  Any later procedural write (outside a
+      // for-loop step) is out of scope and effectively ignored.
+      auto & vds = stmt.as<VariableDeclStatement>();
+      auto & sym = vds.symbol;
+      slang::ConstantValue cv;
+      if (auto * init = sym.getInitializer()) {
+        cv = init->eval(eval_ctx());
+      }
+      if (cv.bad()) {
+        cv = sym.getType().getDefaultValue();
+      }
+      if (!cv.isInteger()) {
+        throw PonoException(
+            "SystemVerilogEncoder: non-integer local '"
+            + string(sym.name) + "'");
+      }
+      eval_ctx().createLocal(&sym, cv);
+      auto svint = cv.integer();
+      uint64_t width = sym.getType().getBitWidth();
+      if (width == 0) width = svint.getBitWidth();
+      if (width == 0) width = 32;
+      Sort sort = solver_->make_sort(BV, width);
+      svint.setSigned(false);
+      string val_str =
+          svint.toString(slang::LiteralBase::Decimal, false);
+      loop_var_terms_[&sym] = solver_->make_term(val_str, sort, 10);
+      break;
+    }
+
+    case StatementKind::ForLoop: {
+      // Compile-time unroll the loop.  Slang has already validated
+      // that the bounds and steps are constant expressions for the
+      // synthesizable subset.
+      auto & loop = stmt.as<ForLoopStatement>();
+      std::vector<const ValueSymbol *> declared;
+
+      auto bind_var = [&](const VariableSymbol & lv) {
+        slang::ConstantValue cv;
+        if (auto * init = lv.getInitializer()) {
+          cv = init->eval(eval_ctx());
+        }
+        if (cv.bad()) {
+          cv = lv.getType().getDefaultValue();
+        }
+        if (!cv.isInteger()) {
+          throw PonoException(
+              "SystemVerilogEncoder: non-integer for-loop var '"
+              + string(lv.name) + "'");
+        }
+        eval_ctx().createLocal(&lv, cv);
+        declared.push_back(&lv);
+      };
+
+      auto refresh_bv = [&](const VariableSymbol & lv) {
+        auto * cur = eval_ctx().findLocal(&lv);
+        if (!cur || !cur->isInteger()) {
+          throw PonoException(
+              "SystemVerilogEncoder: for-loop var '" + string(lv.name)
+              + "' lost its constant value");
+        }
+        auto svint = cur->integer();
+        uint64_t width = lv.getType().getBitWidth();
+        if (width == 0) width = svint.getBitWidth();
+        if (width == 0) width = 32;
+        Sort sort = solver_->make_sort(BV, width);
+        svint.setSigned(false);
+        string val_str =
+            svint.toString(slang::LiteralBase::Decimal, false);
+        loop_var_terms_[&lv] = solver_->make_term(val_str, sort, 10);
+      };
+
+      for (auto * lv : loop.loopVars) bind_var(*lv);
+      for (auto * init : loop.initializers) {
+        if (init->eval(eval_ctx()).bad()) {
+          throw PonoException(
+              "SystemVerilogEncoder: for-loop initializer eval failed");
+        }
+      }
+
+      constexpr size_t MAX_ITERS = 65536;
+      for (size_t it = 0;; ++it) {
+        if (it >= MAX_ITERS) {
+          throw PonoException(
+              "SystemVerilogEncoder: for-loop exceeded "
+              + std::to_string(MAX_ITERS) + " iterations");
+        }
+        if (loop.stopExpr) {
+          auto sv = loop.stopExpr->eval(eval_ctx());
+          if (sv.bad()) {
+            throw PonoException(
+                "SystemVerilogEncoder: for-loop stop eval failed");
+          }
+          if (!sv.isTrue()) break;
+        }
+        for (auto * lv : loop.loopVars) refresh_bv(*lv);
+        process_statement(loop.body, ctx, condition);
+        for (auto * step : loop.steps) {
+          if (step->eval(eval_ctx()).bad()) {
+            throw PonoException(
+                "SystemVerilogEncoder: for-loop step eval failed");
+          }
+        }
+      }
+
+      for (auto * sym : declared) {
+        loop_var_terms_.erase(sym);
+        eval_ctx().deleteLocal(sym);
       }
       break;
     }
@@ -1516,12 +1713,29 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
 {
   using namespace slang::ast;
 
+  // Procedural for-loop counter: bound to a per-iteration BV
+  // constant for the duration of the unrolling.
+  auto lvt = loop_var_terms_.find(sym);
+  if (lvt != loop_var_terms_.end()) {
+    return lvt->second;
+  }
+
   // If `sym` is a child instance's output-port internal, redirect to
   // the parent-side wire so reads resolve to its term.
   auto alias_it = port_output_aliases_.find(sym);
   if (alias_it != port_output_aliases_.end()) {
     sym = alias_it->second;
   }
+
+  // Wire being defined in the enclosing always_comb block: return
+  // the partial accumulated term so that read-modify-write patterns
+  // (e.g. `popcount = popcount + din[i];` inside an unrolled for
+  // loop) see the previously-written value.
+  auto pending_it = pending_comb_updates_.find(sym);
+  if (pending_it != pending_comb_updates_.end()) {
+    return pending_it->second;
+  }
+
   auto it = symbol_to_term_.find(sym);
   if (it != symbol_to_term_.end()) {
     return it->second;

@@ -36,11 +36,13 @@ class Type;
 class Expression;
 class Statement;
 class Symbol;
+class Scope;
 class InstanceSymbol;
 class InstanceBodySymbol;
 class ProceduralBlockSymbol;
 class ContinuousAssignSymbol;
 class PortSymbol;
+class EvalContext;
 }  // namespace slang::ast
 
 namespace pono {
@@ -202,6 +204,23 @@ class SystemVerilogEncoder
    */
   void process_instance(const slang::ast::InstanceSymbol & inst);
 
+  /** Invoke `fn` for every concrete member of `scope`, recursing
+   *  through generate-block scopes so the caller sees the unrolled
+   *  per-iteration members directly.  Uninstantiated generate
+   *  blocks (the unselected arm of a generate-if / generate-case)
+   *  are skipped.
+   *  @param scope the scope whose members should be visited
+   *  @param fn   callback invoked once per concrete member symbol
+   */
+  template <typename Fn>
+  void walk_members(const slang::ast::Scope & scope, Fn && fn);
+
+  /** Lazily construct and return the encoder's slang EvalContext.
+   *  Used to evaluate compile-time-constant loop bounds and step
+   *  expressions when unrolling procedural `for` loops.
+   */
+  slang::ast::EvalContext & eval_ctx();
+
   // ---------- Data members ----------
 
   FunctionalTransitionSystem & fts_;
@@ -264,6 +283,20 @@ class SystemVerilogEncoder
   // instances so wires redirected via port_output_aliases_ get named
   // in their owning scope rather than the child's.
   std::string parent_prefix_;
+
+  // Procedural-loop counter bindings: when unrolling a `for` loop,
+  // each loop variable's slang VariableSymbol is mapped to a BV
+  // term representing its current iteration value.  Consulted by
+  // lookup_symbol so the loop body's references resolve to the
+  // right constant in each unrolled iteration.
+  std::unordered_map<const slang::ast::Symbol *, smt::Term>
+      loop_var_terms_;
+
+  // Slang evaluation context, lazily constructed on first use to
+  // evaluate constant bounds and step expressions during for-loop
+  // unrolling.  Owned via unique_ptr because EvalContext is not
+  // default-constructible and is only forward-declared here.
+  std::unique_ptr<slang::ast::EvalContext> eval_ctx_;
 };
 
 }  // namespace pono

@@ -148,6 +148,21 @@ TEST_P(SVUnitTests, HierarchicalValue)
 // cycle + 15 increments from 0).
 TEST_P(SVUnitTests, Parameter) { check_bmc("parameter.sv", 16); }
 
+// Procedural for loop: 4-bit popcount via NamedValue LHS
+// accumulation inside an always_comb block.  Falsifies when din
+// is all-ones, which lets the registered popcount reach 4 at
+// cycle 2 (one reset cycle + one cycle for the always_ff).
+TEST_P(SVUnitTests, ForLoop) { check_bmc("for_loop.sv", 2); }
+
+// Generate-for block: four independent counters, each declared
+// inside a per-iteration generate block.  The assertion reads
+// ctr[2].count via hierarchical reference; the counter reaches 5
+// at cycle 6 (one reset cycle + five increments).
+TEST_P(SVUnitTests, GenerateBlock)
+{
+  check_bmc("generate_block.sv", 6);
+}
+
 // ---------------------------------------------------------------------------
 // Statement kinds
 // ---------------------------------------------------------------------------
