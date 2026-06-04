@@ -132,6 +132,13 @@ TEST_P(SVUnitTests, HierarchicalModules)
   check_bmc("hierarchical.sv", 5, ProverResult::UNKNOWN);
 }
 
+// Width-parameterized counter.  The property references a
+// `localparam` MAX whose value depends on the module parameter,
+// exercising NamedValue -> ParameterSymbol resolution.  With
+// WIDTH=4 the counter rolls over to MAX=15 at cycle 16 (one reset
+// cycle + 15 increments from 0).
+TEST_P(SVUnitTests, Parameter) { check_bmc("parameter.sv", 16); }
+
 // ---------------------------------------------------------------------------
 // Statement kinds
 // ---------------------------------------------------------------------------

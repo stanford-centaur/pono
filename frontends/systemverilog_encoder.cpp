@@ -42,6 +42,7 @@
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
+#include "slang/ast/symbols/ParameterSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/Type.h"
@@ -1504,6 +1505,8 @@ Sort SystemVerilogEncoder::type_to_sort(const slang::ast::Type & type)
 
 Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
 {
+  using namespace slang::ast;
+
   // If `sym` is a child instance's output-port internal, redirect to
   // the parent-side wire so reads resolve to its term.
   auto alias_it = port_output_aliases_.find(sym);
@@ -1514,6 +1517,28 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
   if (it != symbol_to_term_.end()) {
     return it->second;
   }
+
+  // Parameter / localparam: slang has already evaluated the value at
+  // elaboration time.  Materialize a fresh BV constant from it so
+  // references to `REQUESTERS`, `MAX_COUNT`, etc. fold to literals.
+  if (sym->kind == SymbolKind::Parameter) {
+    auto & param = sym->as<ParameterSymbol>();
+    const auto & cv = param.getValue();
+    if (!cv.isInteger()) {
+      throw PonoException("SystemVerilogEncoder: non-integer parameter '"
+                          + string(sym->name) + "'");
+    }
+    auto val = cv.integer();
+    uint64_t width = param.getType().getBitWidth();
+    if (width == 0) width = val.getBitWidth();
+    if (width == 0) width = 32;
+    Sort sort = solver_->make_sort(BV, width);
+    val.setSigned(false);
+    string val_str =
+        val.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
+    return solver_->make_term(val_str, sort, 10);
+  }
+
   throw PonoException("SystemVerilogEncoder: unknown symbol '"
                       + string(sym->name) + "'");
 }
