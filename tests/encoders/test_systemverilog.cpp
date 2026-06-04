@@ -7,6 +7,7 @@
 #include "frontends/systemverilog_encoder.h"
 #include "gtest/gtest.h"
 #include "modifiers/control_signals.h"
+#include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
@@ -92,6 +93,51 @@ class SVUnitTests : public ::testing::Test,
     if (expected == ProverResult::FALSE) {
       EXPECT_EQ(bmc.witness_length(), bound);
     }
+  }
+
+  // Encode `file` (which must contain a single `s_eventually`
+  // assertion -> single justice condition), translate to safety
+  // via LivenessToSafetyTranslator, then run BMC up to `bound`.
+  // Reset preprocessing is applied if the design has an `rst`
+  // input.  The L2S translator adds a "save" input and a few
+  // bookkeeping state vars that BMC chooses freely; a FALSE
+  // verdict means BMC found a lasso violating the liveness
+  // claim.
+  void check_liveness_bmc(const string & file,
+                          size_t bound,
+                          ProverResult expected = ProverResult::FALSE)
+  {
+    SmtSolver s = create_solver(GetParam());
+    s->set_opt("incremental", "true");
+    s->set_opt("produce-models", "true");
+    FunctionalTransitionSystem fts(s);
+    SystemVerilogEncoder enc(sv_path(file), fts);
+    ASSERT_EQ(enc.propvec().size(), 0u);
+    ASSERT_EQ(enc.liveness_propvec().size(), 1u);
+    Term justice_cond = enc.liveness_propvec()[0];
+
+    TransitionSystem ts = fts;
+    if (Term rst = find_reset(ts)) {
+      Term reset_done = add_reset_seq(ts, rst, /*reset_bnd=*/1);
+      // After reset, the liveness claim is "eventually P holds";
+      // a violating lasso has !P infinitely often in its loop.
+      // Conjunct reset_done into the justice so the lasso must
+      // sit fully after reset has released.
+      justice_cond = ts.solver()->make_term(And, reset_done, justice_cond);
+    }
+
+    Term safety_term = LivenessToSafetyTranslator{}.translate(
+        ts, { justice_cond });
+
+    if (!ts.only_curr(safety_term) && ts.no_next(safety_term)) {
+      UnorderedTermSet ivs_in_prop;
+      get_free_symbolic_consts(safety_term, ivs_in_prop);
+      ts = promote_inputvars(ts, ivs_in_prop);
+    }
+
+    SafetyProperty prop(ts.solver(), safety_term);
+    Bmc bmc(prop, ts, s);
+    EXPECT_EQ(bmc.check_until(bound), expected);
   }
 };
 
@@ -209,6 +255,24 @@ TEST_P(SVUnitTests, PastCall) { check_bmc("past_call.sv", 1); }
 TEST_P(SVUnitTests, SequenceDelay)
 {
   check_bmc("sequence_delay.sv", 2);
+}
+
+// Top-level `always P` unwraps to the same safety property as
+// plain `P`.  Counter reaches 5 at cycle 5 (one reset cycle + 5
+// increments), falsifying `always (count != 5)`.
+TEST_P(SVUnitTests, AlwaysAssertion)
+{
+  check_bmc("always_assertion.sv", 5);
+}
+
+// Top-level `s_eventually P` goes through liveness_propvec_; the
+// test harness wraps the TS with LivenessToSafetyTranslator and
+// runs BMC.  When `enable` is held low after reset, `count` stays
+// at 0 forever and the lasso witness is found within a few
+// translator-introduced cycles.
+TEST_P(SVUnitTests, EventuallyAssertion)
+{
+  check_liveness_bmc("eventually_assertion.sv", 5);
 }
 
 // ---------------------------------------------------------------------------

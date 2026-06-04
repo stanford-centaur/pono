@@ -1329,7 +1329,51 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & ca = stmt.as<ConcurrentAssertionStatement>();
       // Only handle 'assert' (not 'assume', 'cover', etc.).
       if (ca.assertionKind == AssertionKind::Assert) {
-        Term prop = assertion_expr_to_bool(ca.propertySpec);
+        // Peel off Clocking / StrongWeak wrappers, then detect
+        // top-level Always (safety, inner) vs Eventually (liveness,
+        // justice = !inner) vs anything else (fall through to safety
+        // via assertion_expr_to_bool).
+        const AssertionExpr * a = &ca.propertySpec;
+        while (true) {
+          if (a->kind == AssertionExprKind::Clocking) {
+            a = &a->as<ClockingAssertionExpr>().expr;
+          } else if (a->kind == AssertionExprKind::StrongWeak) {
+            a = &a->as<StrongWeakAssertionExpr>().expr;
+          } else if (a->kind == AssertionExprKind::Unary
+                     && (a->as<UnaryAssertionExpr>().op
+                             == UnaryAssertionOperator::Always
+                         || a->as<UnaryAssertionExpr>().op
+                                == UnaryAssertionOperator::SAlways)) {
+            // `always P` at the top is just P checked at every
+            // cycle -- our existing safety encoding.
+            a = &a->as<UnaryAssertionExpr>().expr;
+          } else {
+            break;
+          }
+        }
+
+        if (a->kind == AssertionExprKind::Unary) {
+          auto & u = a->as<UnaryAssertionExpr>();
+          if (u.op == UnaryAssertionOperator::Eventually
+              || u.op == UnaryAssertionOperator::SEventually) {
+            Term inner = assertion_expr_to_bool(u.expr);
+            if (inner) {
+              liveness_propvec_.push_back(solver_->make_term(Not, inner));
+              logger.log(
+                  1,
+                  "SystemVerilogEncoder: extracted liveness justice");
+            } else {
+              logger.log(
+                  1,
+                  "SystemVerilogEncoder: skipping unsupported liveness "
+                  "inner assertion kind {}",
+                  static_cast<int>(u.expr.kind));
+            }
+            break;
+          }
+        }
+
+        Term prop = assertion_expr_to_bool(*a);
         if (prop) {
           propvec_.push_back(prop);
           logger.log(
@@ -1339,7 +1383,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           logger.log(1,
                      "SystemVerilogEncoder: skipping unsupported assertion "
                      "expression kind {}",
-                     static_cast<int>(ca.propertySpec.kind));
+                     static_cast<int>(a->kind));
         }
       }
       break;
@@ -1970,6 +2014,38 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
         return assertion_expr_to_bool(*matched->second);
       }
       return Term();
+    }
+
+    case AssertionExprKind::StrongWeak: {
+      // The strong/weak qualifier governs how an unbounded sequence
+      // is treated at the end of time; under our infinite-time safety
+      // encoding it has no effect.  Just unwrap.
+      return assertion_expr_to_bool(ae.as<StrongWeakAssertionExpr>().expr);
+    }
+
+    case AssertionExprKind::Unary: {
+      auto & u = ae.as<UnaryAssertionExpr>();
+      switch (u.op) {
+        case UnaryAssertionOperator::Not: {
+          Term inner = assertion_expr_to_bool(u.expr);
+          if (!inner) return Term();
+          return solver_->make_term(Not, inner);
+        }
+        case UnaryAssertionOperator::Always:
+        case UnaryAssertionOperator::SAlways: {
+          // Pure safety: `always P` is true at the current cycle
+          // exactly when P is true at the current cycle (the
+          // "always at every cycle" closure is implicit in the
+          // per-cycle property check).
+          return assertion_expr_to_bool(u.expr);
+        }
+        default:
+          // Eventually / SEventually / NextTime / SNextTime can't
+          // be folded into a current-cycle Boolean: liveness must
+          // come through the top-level dispatch and NextTime needs
+          // a forward-shift the encoder doesn't model yet.
+          return Term();
+      }
     }
 
     case AssertionExprKind::Binary: {

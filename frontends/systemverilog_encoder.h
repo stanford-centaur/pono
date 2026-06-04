@@ -69,9 +69,20 @@ class SystemVerilogEncoder
 
   ~SystemVerilogEncoder();
 
-  /** @return the vector of properties (negated assertions) found in the design
+  /** @return the vector of safety properties (negated assertions)
+   *  found in the design.
    */
   const smt::TermVec & propvec() const { return propvec_; }
+
+  /** @return the vector of liveness justice conditions extracted
+   *  from top-level `s_eventually` / `eventually` assertions.  Each
+   *  entry `c` represents a justice condition such that a witness
+   *  for the original liveness violation is an infinite lasso along
+   *  which `c` holds infinitely often.  See pono's
+   *  LivenessProperty / LivenessToSafetyTranslator for how to
+   *  consume them.
+   */
+  const smt::TermVec & liveness_propvec() const { return liveness_propvec_; }
 
  private:
   // ---------- Encoding pipeline ----------
@@ -304,8 +315,15 @@ class SystemVerilogEncoder
   std::unordered_map<const slang::ast::Symbol *, smt::Term>
       pending_comb_updates_;
 
-  // Properties extracted from SVA assert statements.
+  // Safety properties extracted from SVA assert statements.
   smt::TermVec propvec_;
+
+  // Justice conditions extracted from top-level `s_eventually`
+  // (and `eventually`) assertions.  Each entry `c` is a term such
+  // that a counterexample to the original liveness assertion is a
+  // lasso along which `c` is true infinitely often.  Concretely,
+  // `c == !inner` where the assertion was `s_eventually inner`.
+  smt::TermVec liveness_propvec_;
 
   // Hierarchical name prefix for the current module.
   std::string prefix_;
