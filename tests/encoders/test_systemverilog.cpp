@@ -163,6 +163,24 @@ TEST_P(SVUnitTests, GenerateBlock)
   check_bmc("generate_block.sv", 6);
 }
 
+// Compound assignment (`|=`) inside a for loop builds an
+// OR-reduction.  Exercises ExpressionKind::LValueReference, which
+// slang emits as the implicit self-reference on the RHS.  Falsifies
+// at cycle 2 once any bit of the free `din` is high.
+TEST_P(SVUnitTests, CompoundAssign)
+{
+  check_bmc("compound_assign.sv", 2);
+}
+
+// Element-select LHS.  Each bit of a 4-bit register is set
+// individually in an unrolled for loop, composing partial writes
+// via replace_bits.  Falsifies at cycle 2 when flag reaches
+// 4'b1111.
+TEST_P(SVUnitTests, ElementSelectLhs)
+{
+  check_bmc("element_select_lhs.sv", 2);
+}
+
 // ---------------------------------------------------------------------------
 // Statement kinds
 // ---------------------------------------------------------------------------

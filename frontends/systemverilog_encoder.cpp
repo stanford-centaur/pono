@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -70,9 +71,38 @@ namespace {
 void collect_nonblocking_targets(
     const slang::ast::Statement & stmt,
     std::unordered_set<const slang::ast::Symbol *> & targets);
+// Collects bases of blocking assignments inside `stmt`.  `full` gets
+// only NamedValue / HierarchicalValue (full-width) LHS bases;
+// `partial` gets bases reached through ElementSelect / RangeSelect.
+// Symbols that appear in both sets are partially written somewhere
+// and so must be classified as state vars to keep add_invar slice
+// constraints valid.
 void collect_blocking_targets(
     const slang::ast::Statement & stmt,
-    std::unordered_set<const slang::ast::Symbol *> & targets);
+    std::unordered_set<const slang::ast::Symbol *> & full,
+    std::unordered_set<const slang::ast::Symbol *> & partial);
+
+// Identifies the base ValueSymbol underlying a (possibly nested)
+// bit/range-select LHS.  Returns nullptr if the LHS shape isn't
+// supported by the encoder (e.g. concatenation LHS).
+const slang::ast::Symbol * find_lhs_base(
+    const slang::ast::Expression & lhs);
+
+// Describes an LHS slice: which base symbol gets written and at what
+// bit range.  For a NamedValue (or HierarchicalValue) LHS this is the
+// full range [0, base_w-1]; for nested ElementSelects of constant
+// indices the range narrows accordingly while base_w stays the full
+// base bit width.
+struct LValueDesc
+{
+  const slang::ast::Symbol * base;
+  uint64_t lo;
+  uint64_t hi;
+  uint64_t base_w;
+};
+
+std::optional<LValueDesc> resolve_lvalue(
+    const slang::ast::Expression & lhs, slang::ast::EvalContext & ctx);
 }  // namespace
 
 // ============================================================================
@@ -269,6 +299,13 @@ void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & ins
           if (!state_var_symbols_.count(sym)) {
             wire_symbols_.insert(sym);
           }
+        } else if (auto * base = find_lhs_base(lhs)) {
+          // Partial-LHS continuous assign (`assign arr[i] = ...`):
+          // the base needs to be a state var so process_continuous_assign
+          // can constrain the slice via add_invar.
+          if (!wire_symbols_.count(base)) {
+            state_var_symbols_.insert(base);
+          }
         }
       }
     } else if (member.kind == slang::ast::SymbolKind::Instance) {
@@ -312,13 +349,13 @@ void for_each_stmt_in_block(const slang::ast::BlockStatement & block,
   }
 }
 
-// Collect assignment targets from a combinational block (always_comb or
-// legacy always with no non-blocking assigns).  Both blocking and
-// non-blocking forms are scanned, since the combinational classification
-// is determined by the caller.
+// Collect blocking-assignment targets, separating full-width LHSes
+// (wire candidates) from partial LHSes (which must be state vars so
+// the assignment handler's add_invar slice constraints are valid).
 void collect_blocking_targets(
     const slang::ast::Statement & stmt,
-    std::unordered_set<const slang::ast::Symbol *> & targets)
+    std::unordered_set<const slang::ast::Symbol *> & full,
+    std::unordered_set<const slang::ast::Symbol *> & partial)
 {
   using namespace slang::ast;
 
@@ -330,8 +367,11 @@ void collect_blocking_targets(
         auto & assign = expr.as<AssignmentExpression>();
         auto & lhs = assign.left();
         if (lhs.kind == ExpressionKind::NamedValue) {
-          auto & nv = lhs.as<NamedValueExpression>();
-          targets.insert(&nv.symbol);
+          full.insert(&lhs.as<NamedValueExpression>().symbol);
+        } else if (lhs.kind == ExpressionKind::HierarchicalValue) {
+          full.insert(&lhs.as<HierarchicalValueExpression>().symbol);
+        } else if (auto * base = find_lhs_base(lhs)) {
+          partial.insert(base);
         }
       }
       break;
@@ -341,34 +381,38 @@ void collect_blocking_targets(
       auto & body = block.body;
       if (body.kind == StatementKind::List) {
         auto & list = body.as<StatementList>();
-        for (auto * s : list.list) collect_blocking_targets(*s, targets);
+        for (auto * s : list.list)
+          collect_blocking_targets(*s, full, partial);
       } else {
-        collect_blocking_targets(body, targets);
+        collect_blocking_targets(body, full, partial);
       }
       break;
     }
     case StatementKind::Conditional: {
       auto & cond = stmt.as<ConditionalStatement>();
-      collect_blocking_targets(cond.ifTrue, targets);
-      if (cond.ifFalse) collect_blocking_targets(*cond.ifFalse, targets);
+      collect_blocking_targets(cond.ifTrue, full, partial);
+      if (cond.ifFalse)
+        collect_blocking_targets(*cond.ifFalse, full, partial);
       break;
     }
     case StatementKind::Case: {
       auto & cs = stmt.as<CaseStatement>();
-      for (auto & item : cs.items) collect_blocking_targets(*item.stmt, targets);
-      if (cs.defaultCase) collect_blocking_targets(*cs.defaultCase, targets);
+      for (auto & item : cs.items)
+        collect_blocking_targets(*item.stmt, full, partial);
+      if (cs.defaultCase)
+        collect_blocking_targets(*cs.defaultCase, full, partial);
       break;
     }
     case StatementKind::Timed: {
       auto & ts = stmt.as<TimedStatement>();
-      collect_blocking_targets(ts.stmt, targets);
+      collect_blocking_targets(ts.stmt, full, partial);
       break;
     }
     case StatementKind::ForLoop: {
-      // Recurse into the body so blocking-assigned wires inside the
+      // Recurse into the body so writes inside the
       // (compile-time-unrolled) loop are seen during pre-scan.
       auto & loop = stmt.as<ForLoopStatement>();
-      collect_blocking_targets(loop.body, targets);
+      collect_blocking_targets(loop.body, full, partial);
       break;
     }
     default:
@@ -389,11 +433,10 @@ void collect_nonblocking_targets(
       if (expr.kind == ExpressionKind::Assignment) {
         auto & assign = expr.as<AssignmentExpression>();
         if (assign.isNonBlocking()) {
-          // The LHS of a non-blocking assignment is a state variable.
-          auto & lhs = assign.left();
-          if (lhs.kind == ExpressionKind::NamedValue) {
-            auto & nv = lhs.as<NamedValueExpression>();
-            targets.insert(&nv.symbol);
+          // The LHS of a non-blocking assignment is a state variable;
+          // for partial writes (`arr[i] <= ...`) we classify the base.
+          if (auto * base = find_lhs_base(assign.left())) {
+            targets.insert(base);
           }
         }
       }
@@ -442,6 +485,62 @@ void collect_nonblocking_targets(
   }
 }
 
+const slang::ast::Symbol * find_lhs_base(
+    const slang::ast::Expression & lhs)
+{
+  using namespace slang::ast;
+  switch (lhs.kind) {
+    case ExpressionKind::NamedValue:
+      return &lhs.as<NamedValueExpression>().symbol;
+    case ExpressionKind::HierarchicalValue:
+      return &lhs.as<HierarchicalValueExpression>().symbol;
+    case ExpressionKind::ElementSelect:
+      return find_lhs_base(lhs.as<ElementSelectExpression>().value());
+    case ExpressionKind::RangeSelect:
+      return find_lhs_base(lhs.as<RangeSelectExpression>().value());
+    default:
+      return nullptr;
+  }
+}
+
+std::optional<LValueDesc> resolve_lvalue(
+    const slang::ast::Expression & lhs, slang::ast::EvalContext & ctx)
+{
+  using namespace slang::ast;
+  switch (lhs.kind) {
+    case ExpressionKind::NamedValue: {
+      auto * sym = &lhs.as<NamedValueExpression>().symbol;
+      uint64_t w = lhs.type->getBitWidth();
+      if (w == 0) return std::nullopt;
+      return LValueDesc{sym, 0, w - 1, w};
+    }
+    case ExpressionKind::HierarchicalValue: {
+      auto * sym = &lhs.as<HierarchicalValueExpression>().symbol;
+      uint64_t w = lhs.type->getBitWidth();
+      if (w == 0) return std::nullopt;
+      return LValueDesc{sym, 0, w - 1, w};
+    }
+    case ExpressionKind::ElementSelect: {
+      auto & sel = lhs.as<ElementSelectExpression>();
+      auto inner = resolve_lvalue(sel.value(), ctx);
+      if (!inner) return std::nullopt;
+      auto idx_cv = sel.selector().eval(ctx);
+      if (!idx_cv.isInteger()) return std::nullopt;
+      auto idx_opt = idx_cv.integer().as<uint64_t>();
+      if (!idx_opt) return std::nullopt;
+      uint64_t idx = *idx_opt;
+      uint64_t elem_w = lhs.type->getBitWidth();
+      if (elem_w == 0) return std::nullopt;
+      uint64_t lo = inner->lo + idx * elem_w;
+      uint64_t hi = lo + elem_w - 1;
+      if (hi > inner->hi) return std::nullopt;
+      return LValueDesc{inner->base, lo, hi, inner->base_w};
+    }
+    default:
+      return std::nullopt;
+  }
+}
+
 }  // anonymous namespace
 
 // This is a private helper called from process_module; it is not in the
@@ -453,13 +552,26 @@ void SystemVerilogEncoder::pre_scan_always_ff(const slang::ast::Statement & body
 
 void SystemVerilogEncoder::pre_scan_always_comb(const slang::ast::Statement & body)
 {
-  // Collect blocking-assign LHS targets as wires, but only if they
-  // weren't already classified as state variables by always_ff.
-  std::unordered_set<const slang::ast::Symbol *> targets;
-  collect_blocking_targets(body, targets);
-  for (auto * sym : targets) {
-    if (!state_var_symbols_.count(sym)) {
+  // Collect blocking-assign LHS targets.  Bases written full-width
+  // become wires (macro-substituted); bases written through bit /
+  // range selects become state vars instead so the assignment
+  // handler can use slice-equality add_invar constraints (which
+  // requires the term to be a state var, not an input var).  Mixed
+  // full+partial writes also go to state vars to keep the splice
+  // semantics correct.
+  std::unordered_set<const slang::ast::Symbol *> full, partial;
+  collect_blocking_targets(body, full, partial);
+  for (auto * sym : full) {
+    if (state_var_symbols_.count(sym)) continue;
+    if (partial.count(sym)) {
+      state_var_symbols_.insert(sym);
+    } else {
       wire_symbols_.insert(sym);
+    }
+  }
+  for (auto * sym : partial) {
+    if (!wire_symbols_.count(sym)) {
+      state_var_symbols_.insert(sym);
     }
   }
 }
@@ -776,28 +888,41 @@ void SystemVerilogEncoder::process_continuous_assign(
   auto & lhs_expr = assign.left();
   auto & rhs_expr = assign.right();
 
-  Term rhs = expr_to_term(rhs_expr);
-
-  if (lhs_expr.kind != ExpressionKind::NamedValue) {
-    return;
-  }
-  auto & nv = lhs_expr.as<NamedValueExpression>();
-  const Symbol * sym = &nv.symbol;
-  // If we're inside a child instance, redirect the LHS through the
-  // port connection map so that writes to a child output port land
-  // on the parent-side wire.
+  auto desc = resolve_lvalue(lhs_expr, eval_ctx());
+  if (!desc) return;
+  const Symbol * sym = desc->base;
   auto alias_it = port_output_aliases_.find(sym);
   bool aliased = alias_it != port_output_aliases_.end();
-  if (aliased) {
-    sym = alias_it->second;
-  }
-  uint64_t lhs_width = lhs_expr.type->getBitWidth();
-  rhs = resize_to(rhs, lhs_width);
+  if (aliased) sym = alias_it->second;
 
+  uint64_t lo = desc->lo;
+  uint64_t hi = desc->hi;
+  uint64_t slice_w = hi - lo + 1;
+
+  Term rhs = expr_to_term(rhs_expr);
+  rhs = resize_to(rhs, slice_w);
+
+  // Wire LHS: macro-substitute the *full-width* defining expression.
+  // For a partial LHS (`assign arr[i] = ...`) we splice the slice
+  // into whatever was previously stored under `sym`; for the very
+  // first partial assign there is no prior term to splice into, so
+  // we fall through to the add_invar path below where the base has
+  // already been declared as a free input.
   if (wire_symbols_.count(sym)) {
-    // Macro-substitute: the wire's term IS the defining expression.
-    // For aliased syms the wire lives in the parent's scope; name it
-    // accordingly.
+    bool full_write = (lo == 0 && hi + 1 == slice_w);
+    Term new_term;
+    if (full_write) {
+      new_term = rhs;
+    } else {
+      auto sit = symbol_to_term_.find(sym);
+      if (sit == symbol_to_term_.end()) {
+        // No seed term: partial assigns to a wire base aren't
+        // expressible without it, so this base shouldn't have been
+        // classified as a wire.  Skip.
+        return;
+      }
+      new_term = replace_bits(sit->second, rhs, lo, hi);
+    }
     string name;
     if (aliased) {
       name = parent_prefix_.empty()
@@ -806,20 +931,26 @@ void SystemVerilogEncoder::process_continuous_assign(
     } else {
       name = make_name(string(sym->name));
     }
-    symbol_to_term_[sym] = rhs;
-    fts_.name_term(name, rhs);
+    symbol_to_term_[sym] = new_term;
+    fts_.name_term(name, new_term);
     logger.log(2, "SystemVerilogEncoder: continuous assign (wire) {} := ...", name);
     return;
   }
 
-  // Fallback: existing variable (e.g., output port reg). Constrain the
-  // current term to equal the RHS via add_invar (only valid for state
-  // variables).
+  // Fallback: existing variable (e.g., output port reg, or a
+  // partially-driven base that wasn't classified as a wire).
+  // Constrain the appropriate slice via add_constraint (which
+  // tolerates input vars in the term).
   auto it = symbol_to_term_.find(sym);
   if (it != symbol_to_term_.end()) {
     Term lhs_term = it->second;
-    Term eq = solver_->make_term(Equal, lhs_term, rhs);
-    fts_.add_invar(eq);
+    uint64_t base_w = lhs_term->get_sort()->get_width();
+    bool full_write = (lo == 0 && hi == base_w - 1);
+    Term lhs_slice =
+        full_write ? lhs_term
+                   : solver_->make_term(Op(Extract, hi, lo), lhs_term);
+    Term eq = solver_->make_term(Equal, lhs_slice, rhs);
+    fts_.add_constraint(eq);
     logger.log(2, "SystemVerilogEncoder: continuous assign {} = ...",
                fts_.get_name(lhs_term));
   }
@@ -969,82 +1100,137 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         auto & assign = expr.as<AssignmentExpression>();
         auto & lhs_expr = assign.left();
         auto & rhs_expr = assign.right();
-        Term rhs = expr_to_term(rhs_expr);
 
-        if (lhs_expr.kind == ExpressionKind::NamedValue) {
-          auto & nv = lhs_expr.as<NamedValueExpression>();
-          const Symbol * sym = &nv.symbol;
-          // Same alias redirect as in process_continuous_assign so
-          // child-instance output ports translate to parent-side wires.
-          auto alias_it = port_output_aliases_.find(sym);
-          bool aliased = alias_it != port_output_aliases_.end();
-          if (aliased) {
-            sym = alias_it->second;
+        auto desc = resolve_lvalue(lhs_expr, eval_ctx());
+        if (!desc) break;
+        const Symbol * sym = desc->base;
+        auto alias_it = port_output_aliases_.find(sym);
+        bool aliased = alias_it != port_output_aliases_.end();
+        if (aliased) sym = alias_it->second;
+
+        uint64_t lo = desc->lo;
+        uint64_t hi = desc->hi;
+        uint64_t slice_w = hi - lo + 1;
+
+        // Figure out the full-base "previous" term so that
+        //  (a) compound assignments can read the slice via the
+        //      LValueReference stash, and
+        //  (b) partial writes can be composed via replace_bits.
+        Term prev_base;
+        bool wire_comb =
+            ctx == StmtContext::COMBINATIONAL && wire_symbols_.count(sym);
+        Term state_term;  // only valid when ctx == NEXT_STATE
+        if (wire_comb) {
+          auto pit = pending_comb_updates_.find(sym);
+          if (pit != pending_comb_updates_.end()) prev_base = pit->second;
+        } else if (ctx == StmtContext::NEXT_STATE) {
+          auto sit = symbol_to_term_.find(sym);
+          if (sit == symbol_to_term_.end()) break;
+          state_term = sit->second;
+          auto pit = pending_next_updates_.find(state_term);
+          prev_base =
+              (pit != pending_next_updates_.end()) ? pit->second : state_term;
+        } else {
+          // COMBINATIONAL non-wire or INITIAL: prev_base is the
+          // current (constant) value of the LHS used only for
+          // compound-assignment self-reference.
+          auto sit = symbol_to_term_.find(sym);
+          if (sit != symbol_to_term_.end()) prev_base = sit->second;
+        }
+
+        // Stash the slice value for any LValueReference inside rhs.
+        Term saved_lvalue = current_lvalue_term_;
+        if (prev_base) {
+          uint64_t pw = prev_base->get_sort()->get_width();
+          if (lo == 0 && hi == pw - 1) {
+            current_lvalue_term_ = prev_base;
+          } else {
+            current_lvalue_term_ =
+                solver_->make_term(Op(Extract, hi, lo), prev_base);
           }
-          uint64_t lhs_width = lhs_expr.type->getBitWidth();
-          rhs = resize_to(rhs, lhs_width);
+        } else {
+          current_lvalue_term_ = Term();
+        }
 
-          // Wire LHS (combinational): accumulate the defining
-          // expression keyed by symbol; symbol_to_term_ is populated
-          // when the enclosing always_comb block finishes.
-          if (ctx == StmtContext::COMBINATIONAL
-              && wire_symbols_.count(sym)) {
-            if (aliased) pending_comb_aliased_.insert(sym);
-            auto pit = pending_comb_updates_.find(sym);
-            if (condition == solver_->make_term(true)) {
-              pending_comb_updates_[sym] = rhs;
-            } else if (pit != pending_comb_updates_.end()) {
-              pending_comb_updates_[sym] =
-                  solver_->make_term(Ite, condition, rhs, pit->second);
-            } else {
-              // No previous definition under this path: use rhs itself
-              // as the default value.  This corresponds to "if the
-              // condition is false, the wire is implicitly equal to
-              // the only assigned value" (latch-free under common
-              // synthesis assumptions).
-              pending_comb_updates_[sym] = rhs;
-            }
+        Term rhs = expr_to_term(rhs_expr);
+        current_lvalue_term_ = saved_lvalue;
+
+        rhs = resize_to(rhs, slice_w);
+
+        if (wire_comb) {
+          if (aliased) pending_comb_aliased_.insert(sym);
+          // Compose new full-base value from prev_base + slice rhs.
+          // If there's no prev_base yet, treat the slice as the new
+          // value (matches the existing latch-free default for
+          // first-time conditional writes).
+          Term combined;
+          if (prev_base) {
+            combined = replace_bits(prev_base, rhs, lo, hi);
+          } else if (lo == 0 && hi + 1 == slice_w) {
+            combined = rhs;
+          } else {
+            // Partial write to a wire with no seed term: skip; the
+            // unwritten bits would be undefined.
+            logger.log(1,
+                       "SystemVerilogEncoder: partial write to undriven "
+                       "wire {} -- skipped",
+                       string(sym->name));
             break;
           }
+          if (condition == solver_->make_term(true)) {
+            pending_comb_updates_[sym] = combined;
+          } else {
+            Term def = prev_base ? prev_base : combined;
+            pending_comb_updates_[sym] =
+                solver_->make_term(Ite, condition, combined, def);
+          }
+          break;
+        }
 
-          auto it = symbol_to_term_.find(sym);
-          if (it == symbol_to_term_.end()) break;
-          Term lhs_term = it->second;
+        auto it = symbol_to_term_.find(sym);
+        if (it == symbol_to_term_.end()) break;
+        Term lhs_term = it->second;
+        uint64_t base_w = lhs_term->get_sort()->get_width();
+        bool full_write = (lo == 0 && hi == base_w - 1);
 
-          switch (ctx) {
-            case StmtContext::NEXT_STATE: {
-              // Build conditional next-state: if (condition) rhs else
-              // current
-              Term update;
-              auto pit = pending_next_updates_.find(lhs_term);
-              Term prev = (pit != pending_next_updates_.end())
-                              ? pit->second
-                              : lhs_term;  // default: hold current value
-              // Check if condition is just 'true'
-              if (condition == solver_->make_term(true)) {
-                update = rhs;
-              } else {
-                update = solver_->make_term(Ite, condition, rhs, prev);
-              }
-              pending_next_updates_[lhs_term] = update;
-              break;
+        switch (ctx) {
+          case StmtContext::NEXT_STATE: {
+            Term combined =
+                full_write ? rhs : replace_bits(prev_base, rhs, lo, hi);
+            Term update;
+            if (condition == solver_->make_term(true)) {
+              update = combined;
+            } else {
+              update = solver_->make_term(Ite, condition, combined,
+                                          prev_base);
             }
-            case StmtContext::COMBINATIONAL: {
-              // Constrain non-wire LHS (e.g. output port reg) to equal
-              // rhs under the path condition.
-              Term eq = solver_->make_term(Equal, lhs_term, rhs);
-              if (condition != solver_->make_term(true)) {
-                eq = solver_->make_term(Implies, condition, eq);
-              }
-              fts_.add_invar(eq);
-              break;
+            pending_next_updates_[state_term] = update;
+            break;
+          }
+          case StmtContext::COMBINATIONAL: {
+            // Non-wire LHS (e.g. output port reg, or a partially-
+            // written base): constrain the appropriate slice via
+            // add_constraint, which accepts terms involving input
+            // vars (so RHSes that reference input ports work).
+            Term lhs_slice = full_write
+                                 ? lhs_term
+                                 : solver_->make_term(
+                                       Op(Extract, hi, lo), lhs_term);
+            Term eq = solver_->make_term(Equal, lhs_slice, rhs);
+            if (condition != solver_->make_term(true)) {
+              eq = solver_->make_term(Implies, condition, eq);
             }
-            case StmtContext::INITIAL: {
-              // Constrain initial state: state_var = value.
-              Term eq = solver_->make_term(Equal, lhs_term, rhs);
-              fts_.constrain_init(eq);
-              break;
-            }
+            fts_.add_constraint(eq);
+            break;
+          }
+          case StmtContext::INITIAL: {
+            Term lhs_slice = full_write
+                                 ? lhs_term
+                                 : solver_->make_term(
+                                       Op(Extract, hi, lo), lhs_term);
+            Term eq = solver_->make_term(Equal, lhs_slice, rhs);
+            fts_.constrain_init(eq);
+            break;
           }
         }
       }
@@ -1323,6 +1509,19 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // provided the referenced instance has been encoded already.
       auto & hv = expr.as<HierarchicalValueExpression>();
       return lookup_symbol(&hv.symbol);
+    }
+
+    case ExpressionKind::LValueReference: {
+      // Implicit self-reference produced by compound assignments
+      // (`x &= y` -> `x = LValueReference & y`).  The owning
+      // assignment handler must have stashed the current LHS term
+      // before recursing into the RHS.
+      if (!current_lvalue_term_) {
+        throw PonoException(
+            "SystemVerilogEncoder: LValueReference outside compound "
+            "assignment");
+      }
+      return current_lvalue_term_;
     }
 
     case ExpressionKind::IntegerLiteral: {
@@ -1608,25 +1807,45 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
     }
 
     case ExpressionKind::ElementSelect: {
-      // Single bit select: a[i]
+      // Element select: `a[i]`.  For packed arrays the element width
+      // can be more than one bit; the constant-index case uses
+      // Extract with the full slice, while the dynamic case is
+      // restricted to single-bit elements where shift+extract works.
       auto & sel = expr.as<ElementSelectExpression>();
       Term val = expr_to_term(sel.value());
       auto & sel_expr = sel.selector();
+      uint64_t elem_w = expr.type->getBitWidth();
+      if (elem_w == 0) elem_w = 1;
 
-      // If the selector is a compile-time constant, use Extract.
+      // Try to evaluate the selector as a constant -- including the
+      // case where the index is a loop counter bound via eval_ctx.
+      std::optional<uint64_t> idx_const;
       if (sel_expr.getConstant()) {
-        auto idx_opt = sel_expr.getConstant()->integer().as<uint64_t>();
-        if (idx_opt) {
-          uint64_t idx = *idx_opt;
-          return solver_->make_term(Op(Extract, idx, idx), val);
-        }
+        idx_const = sel_expr.getConstant()->integer().as<uint64_t>();
+      } else {
+        auto cv = sel_expr.eval(eval_ctx());
+        if (cv.isInteger()) idx_const = cv.integer().as<uint64_t>();
       }
 
-      // Dynamic bit select: shift right by index, then extract bit 0.
+      if (idx_const) {
+        uint64_t low = *idx_const * elem_w;
+        uint64_t high = low + elem_w - 1;
+        return solver_->make_term(Op(Extract, high, low), val);
+      }
+
+      // Dynamic select: shift right by (idx * elem_w) bits, then
+      // extract the bottom `elem_w` bits.
+      uint64_t val_w = val->get_sort()->get_width();
+      Sort val_sort = solver_->make_sort(BV, val_w);
       Term idx = expr_to_term(sel_expr);
-      idx = resize_to(idx, val->get_sort()->get_width());
-      Term shifted = solver_->make_term(BVLshr, val, idx);
-      return solver_->make_term(Op(Extract, 0, 0), shifted);
+      idx = resize_to(idx, val_w);
+      Term shift_amount = idx;
+      if (elem_w != 1) {
+        Term elem_w_term = solver_->make_term(elem_w, val_sort);
+        shift_amount = solver_->make_term(BVMul, idx, elem_w_term);
+      }
+      Term shifted = solver_->make_term(BVLshr, val, shift_amount);
+      return solver_->make_term(Op(Extract, elem_w - 1, 0), shifted);
     }
 
     case ExpressionKind::RangeSelect: {
@@ -1785,6 +2004,28 @@ Term SystemVerilogEncoder::resize_to(const Term & t, uint64_t target_width)
   }
   // Truncate (extract lower bits).
   return solver_->make_term(Op(Extract, target_width - 1, 0), t);
+}
+
+Term SystemVerilogEncoder::replace_bits(const Term & base,
+                                        const Term & slice,
+                                        uint64_t lo, uint64_t hi)
+{
+  uint64_t base_w = base->get_sort()->get_width();
+  if (lo == 0 && hi == base_w - 1) return slice;
+  std::vector<Term> parts;
+  if (hi + 1 < base_w) {
+    parts.push_back(
+        solver_->make_term(Op(Extract, base_w - 1, hi + 1), base));
+  }
+  parts.push_back(slice);
+  if (lo > 0) {
+    parts.push_back(solver_->make_term(Op(Extract, lo - 1, 0), base));
+  }
+  Term result = parts[0];
+  for (size_t i = 1; i < parts.size(); ++i) {
+    result = solver_->make_term(Concat, result, parts[i]);
+  }
+  return result;
 }
 
 }  // namespace pono

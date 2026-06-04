@@ -176,6 +176,15 @@ class SystemVerilogEncoder
    */
   smt::Term resize_to(const smt::Term & t, uint64_t target_width);
 
+  /** Build a partial-write term: take the full-width `base` and
+   *  return a term equal to `base` everywhere except bits
+   *  [lo .. hi], which take their values from `slice`.  A full-width
+   *  write (lo == 0 && hi == width(base)-1) is just `slice`.
+   */
+  smt::Term replace_bits(const smt::Term & base,
+                         const smt::Term & slice,
+                         uint64_t lo, uint64_t hi);
+
   /** Pre-scan an always_ff body to identify non-blocking assignment
    *  targets as state variable symbols.
    *  @param body the statement body of the always_ff block
@@ -297,6 +306,14 @@ class SystemVerilogEncoder
   // unrolling.  Owned via unique_ptr because EvalContext is not
   // default-constructible and is only forward-declared here.
   std::unique_ptr<slang::ast::EvalContext> eval_ctx_;
+
+  // Stashed "current value of the LHS" used when expanding compound
+  // assignments (`x &= y`, `x += y`, ...).  Slang represents the
+  // implicit self-reference in the RHS as an
+  // ExpressionKind::LValueReference; expr_to_term returns this term
+  // for that case.  Set just before converting a compound RHS and
+  // cleared right after, with save/restore for nested contexts.
+  smt::Term current_lvalue_term_;
 };
 
 }  // namespace pono
