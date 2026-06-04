@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "core/fts.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
@@ -54,8 +55,6 @@
 #include "slang/diagnostics/DiagnosticEngine.h"
 #include "slang/numeric/SVInt.h"
 #include "slang/syntax/SyntaxTree.h"
-
-#include "core/fts.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -85,8 +84,7 @@ void collect_blocking_targets(
 // Identifies the base ValueSymbol underlying a (possibly nested)
 // bit/range-select LHS.  Returns nullptr if the LHS shape isn't
 // supported by the encoder (e.g. concatenation LHS).
-const slang::ast::Symbol * find_lhs_base(
-    const slang::ast::Expression & lhs);
+const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs);
 
 // Describes an LHS slice: which base symbol gets written and at what
 // bit range.  For a NamedValue (or HierarchicalValue) LHS this is the
@@ -101,8 +99,8 @@ struct LValueDesc
   uint64_t base_w;
 };
 
-std::optional<LValueDesc> resolve_lvalue(
-    const slang::ast::Expression & lhs, slang::ast::EvalContext & ctx);
+std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
+                                         slang::ast::EvalContext & ctx);
 }  // namespace
 
 // ============================================================================
@@ -173,7 +171,8 @@ slang::ast::EvalContext & SystemVerilogEncoder::eval_ctx()
 // Construction / destruction
 // ============================================================================
 
-SystemVerilogEncoder::SystemVerilogEncoder(string filename, FunctionalTransitionSystem & fts)
+SystemVerilogEncoder::SystemVerilogEncoder(string filename,
+                                           FunctionalTransitionSystem & fts)
     : fts_(fts), solver_(fts.solver())
 {
   encode(filename);
@@ -191,7 +190,8 @@ void SystemVerilogEncoder::encode(const string & filename)
   // SyntaxTree::fromFile returns an expected<shared_ptr<SyntaxTree>, ...>.
   auto tree_result = slang::syntax::SyntaxTree::fromFile(filename);
   if (!tree_result) {
-    throw PonoException("SystemVerilogEncoder: failed to parse file: " + filename);
+    throw PonoException("SystemVerilogEncoder: failed to parse file: "
+                        + filename);
   }
   auto tree = std::move(tree_result).value();
 
@@ -214,8 +214,7 @@ void SystemVerilogEncoder::encode(const string & filename)
     auto * sm = compilation_->getSourceManager();
     string diag_messages;
     if (sm) {
-      diag_messages =
-          slang::DiagnosticEngine::reportAll(*sm, diagnostics);
+      diag_messages = slang::DiagnosticEngine::reportAll(*sm, diagnostics);
     } else {
       diag_messages = "(unable to format diagnostics)";
     }
@@ -228,7 +227,8 @@ void SystemVerilogEncoder::encode(const string & filename)
   auto top_instances = root.topInstances;
   if (top_instances.empty()) {
     throw PonoException(
-        "SystemVerilogEncoder: no top-level module instances found in " + filename);
+        "SystemVerilogEncoder: no top-level module instances found in "
+        + filename);
   }
 
   // Process the first top-level module.
@@ -241,7 +241,8 @@ void SystemVerilogEncoder::encode(const string & filename)
 // Module processing
 // ============================================================================
 
-void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & inst)
+void SystemVerilogEncoder::process_module(
+    const slang::ast::InstanceSymbol & inst)
 {
   string inst_name(inst.name);
   logger.log(1, "SystemVerilogEncoder: processing module {}", inst_name);
@@ -253,12 +254,9 @@ void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & ins
   // for non-blocking assignment targets, before declaring variables.
   walk_members(body, [&](const slang::ast::Symbol & member) {
     if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
-      auto & proc =
-          member.as<slang::ast::ProceduralBlockSymbol>();
-      if (proc.procedureKind
-              == slang::ast::ProceduralBlockKind::AlwaysFF
-          || proc.procedureKind
-                 == slang::ast::ProceduralBlockKind::Always) {
+      auto & proc = member.as<slang::ast::ProceduralBlockSymbol>();
+      if (proc.procedureKind == slang::ast::ProceduralBlockKind::AlwaysFF
+          || proc.procedureKind == slang::ast::ProceduralBlockKind::Always) {
         // Pre-scan: find all non-blocking assignment targets.
         pre_scan_always_ff(proc.getBody());
       }
@@ -272,10 +270,8 @@ void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & ins
   // defining expressions, so we must skip declaring them as input vars.
   walk_members(body, [&](const slang::ast::Symbol & member) {
     if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
-      auto & proc =
-          member.as<slang::ast::ProceduralBlockSymbol>();
-      if (proc.procedureKind
-          == slang::ast::ProceduralBlockKind::AlwaysComb) {
+      auto & proc = member.as<slang::ast::ProceduralBlockSymbol>();
+      if (proc.procedureKind == slang::ast::ProceduralBlockKind::AlwaysComb) {
         pre_scan_always_comb(proc.getBody());
       } else if (proc.procedureKind
                  == slang::ast::ProceduralBlockKind::Always) {
@@ -291,11 +287,9 @@ void SystemVerilogEncoder::process_module(const slang::ast::InstanceSymbol & ins
       auto & ca = member.as<slang::ast::ContinuousAssignSymbol>();
       auto & ae = ca.getAssignment();
       if (ae.kind == slang::ast::ExpressionKind::Assignment) {
-        auto & lhs =
-            ae.as<slang::ast::AssignmentExpression>().left();
+        auto & lhs = ae.as<slang::ast::AssignmentExpression>().left();
         if (lhs.kind == slang::ast::ExpressionKind::NamedValue) {
-          auto * sym =
-              &lhs.as<slang::ast::NamedValueExpression>().symbol;
+          auto * sym = &lhs.as<slang::ast::NamedValueExpression>().symbol;
           if (!state_var_symbols_.count(sym)) {
             wire_symbols_.insert(sym);
           }
@@ -381,8 +375,7 @@ void collect_blocking_targets(
       auto & body = block.body;
       if (body.kind == StatementKind::List) {
         auto & list = body.as<StatementList>();
-        for (auto * s : list.list)
-          collect_blocking_targets(*s, full, partial);
+        for (auto * s : list.list) collect_blocking_targets(*s, full, partial);
       } else {
         collect_blocking_targets(body, full, partial);
       }
@@ -391,8 +384,7 @@ void collect_blocking_targets(
     case StatementKind::Conditional: {
       auto & cond = stmt.as<ConditionalStatement>();
       collect_blocking_targets(cond.ifTrue, full, partial);
-      if (cond.ifFalse)
-        collect_blocking_targets(*cond.ifFalse, full, partial);
+      if (cond.ifFalse) collect_blocking_targets(*cond.ifFalse, full, partial);
       break;
     }
     case StatementKind::Case: {
@@ -415,8 +407,7 @@ void collect_blocking_targets(
       collect_blocking_targets(loop.body, full, partial);
       break;
     }
-    default:
-      break;
+    default: break;
   }
 }
 
@@ -485,8 +476,7 @@ void collect_nonblocking_targets(
   }
 }
 
-const slang::ast::Symbol * find_lhs_base(
-    const slang::ast::Expression & lhs)
+const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs)
 {
   using namespace slang::ast;
   switch (lhs.kind) {
@@ -498,13 +488,12 @@ const slang::ast::Symbol * find_lhs_base(
       return find_lhs_base(lhs.as<ElementSelectExpression>().value());
     case ExpressionKind::RangeSelect:
       return find_lhs_base(lhs.as<RangeSelectExpression>().value());
-    default:
-      return nullptr;
+    default: return nullptr;
   }
 }
 
-std::optional<LValueDesc> resolve_lvalue(
-    const slang::ast::Expression & lhs, slang::ast::EvalContext & ctx)
+std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
+                                         slang::ast::EvalContext & ctx)
 {
   using namespace slang::ast;
   switch (lhs.kind) {
@@ -512,13 +501,13 @@ std::optional<LValueDesc> resolve_lvalue(
       auto * sym = &lhs.as<NamedValueExpression>().symbol;
       uint64_t w = lhs.type->getBitWidth();
       if (w == 0) return std::nullopt;
-      return LValueDesc{sym, 0, w - 1, w};
+      return LValueDesc{ sym, 0, w - 1, w };
     }
     case ExpressionKind::HierarchicalValue: {
       auto * sym = &lhs.as<HierarchicalValueExpression>().symbol;
       uint64_t w = lhs.type->getBitWidth();
       if (w == 0) return std::nullopt;
-      return LValueDesc{sym, 0, w - 1, w};
+      return LValueDesc{ sym, 0, w - 1, w };
     }
     case ExpressionKind::ElementSelect: {
       auto & sel = lhs.as<ElementSelectExpression>();
@@ -534,10 +523,9 @@ std::optional<LValueDesc> resolve_lvalue(
       uint64_t lo = inner->lo + idx * elem_w;
       uint64_t hi = lo + elem_w - 1;
       if (hi > inner->hi) return std::nullopt;
-      return LValueDesc{inner->base, lo, hi, inner->base_w};
+      return LValueDesc{ inner->base, lo, hi, inner->base_w };
     }
-    default:
-      return std::nullopt;
+    default: return std::nullopt;
   }
 }
 
@@ -545,12 +533,14 @@ std::optional<LValueDesc> resolve_lvalue(
 
 // This is a private helper called from process_module; it is not in the
 // header to avoid exposing slang::ast::Statement there.
-void SystemVerilogEncoder::pre_scan_always_ff(const slang::ast::Statement & body)
+void SystemVerilogEncoder::pre_scan_always_ff(
+    const slang::ast::Statement & body)
 {
   collect_nonblocking_targets(body, state_var_symbols_);
 }
 
-void SystemVerilogEncoder::pre_scan_always_comb(const slang::ast::Statement & body)
+void SystemVerilogEncoder::pre_scan_always_comb(
+    const slang::ast::Statement & body)
 {
   // Collect blocking-assign LHS targets.  Bases written full-width
   // become wires (macro-substituted); bases written through bit /
@@ -665,7 +655,9 @@ void SystemVerilogEncoder::declare_variables_internal(
         Term sv = fts_.make_statevar(name, sort);
         symbol_to_term_[&var] = sv;
         fts_.name_term(name, sv);
-        logger.log(2, "SystemVerilogEncoder: state var {} : bv{}", name,
+        logger.log(2,
+                   "SystemVerilogEncoder: state var {} : bv{}",
+                   name,
                    sort->get_width());
       } else {
         // No assignment found for this variable -- treat as a free
@@ -674,7 +666,9 @@ void SystemVerilogEncoder::declare_variables_internal(
         Term iv = fts_.make_inputvar(name, sort);
         symbol_to_term_[&var] = iv;
         fts_.name_term(name, iv);
-        logger.log(2, "SystemVerilogEncoder: undriven var {} : bv{}", name,
+        logger.log(2,
+                   "SystemVerilogEncoder: undriven var {} : bv{}",
+                   name,
                    sort->get_width());
       }
     } else if (member.kind == SymbolKind::Net) {
@@ -689,8 +683,8 @@ void SystemVerilogEncoder::declare_variables_internal(
       Term iv = fts_.make_inputvar(name, sort);
       symbol_to_term_[&net] = iv;
       fts_.name_term(name, iv);
-      logger.log(2, "SystemVerilogEncoder: net {} : bv{}", name,
-                 sort->get_width());
+      logger.log(
+          2, "SystemVerilogEncoder: net {} : bv{}", name, sort->get_width());
     }
   });
 }
@@ -709,7 +703,9 @@ void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
       Term iv = fts_.make_inputvar(name, sort);
       symbol_to_term_[&port] = iv;
       fts_.name_term(name, iv);
-      logger.log(2, "SystemVerilogEncoder: input port {} : bv{}", name,
+      logger.log(2,
+                 "SystemVerilogEncoder: input port {} : bv{}",
+                 name,
                  sort->get_width());
     } else {
       // Output/inout without internal symbol: treat as state or wire
@@ -733,7 +729,9 @@ void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
     symbol_to_term_[internal] = iv;
     symbol_to_term_[&port] = iv;
     fts_.name_term(name, iv);
-    logger.log(2, "SystemVerilogEncoder: input port {} : bv{}", name,
+    logger.log(2,
+               "SystemVerilogEncoder: input port {} : bv{}",
+               name,
                sort->get_width());
   } else {
     // Output or inout: classify based on driver kind.
@@ -742,20 +740,25 @@ void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
       symbol_to_term_[internal] = sv;
       symbol_to_term_[&port] = sv;
       fts_.name_term(name, sv);
-      logger.log(2, "SystemVerilogEncoder: output port (reg) {} : bv{}", name,
+      logger.log(2,
+                 "SystemVerilogEncoder: output port (reg) {} : bv{}",
+                 name,
                  sort->get_width());
     } else if (wire_symbols_.count(internal)) {
       // Combinational output port: defer term creation to
       // process_continuous_assign / process_always_comb, which will
       // populate symbol_to_term_ for `internal`.  Lookups via the port
       // symbol fall back to the internal symbol's entry.
-      logger.log(2, "SystemVerilogEncoder: output port (wire) {}: deferred", name);
+      logger.log(
+          2, "SystemVerilogEncoder: output port (wire) {}: deferred", name);
     } else {
       Term iv = fts_.make_inputvar(name, sort);
       symbol_to_term_[internal] = iv;
       symbol_to_term_[&port] = iv;
       fts_.name_term(name, iv);
-      logger.log(2, "SystemVerilogEncoder: output port (undriven) {} : bv{}", name,
+      logger.log(2,
+                 "SystemVerilogEncoder: output port (undriven) {} : bv{}",
+                 name,
                  sort->get_width());
     }
   }
@@ -800,12 +803,8 @@ void SystemVerilogEncoder::process_assignments(
     if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
       switch (proc.procedureKind) {
-        case ProceduralBlockKind::AlwaysFF:
-          process_always_ff(proc);
-          break;
-        case ProceduralBlockKind::Initial:
-          process_initial(proc);
-          break;
+        case ProceduralBlockKind::AlwaysFF: process_always_ff(proc); break;
+        case ProceduralBlockKind::Initial: process_initial(proc); break;
         case ProceduralBlockKind::Always: {
           std::unordered_set<const Symbol *> targets;
           collect_nonblocking_targets(proc.getBody(), targets);
@@ -834,7 +833,8 @@ void SystemVerilogEncoder::process_always_ff(
   // Commit all pending next-state updates.
   for (auto & [state_term, next_expr] : pending_next_updates_) {
     fts_.assign_next(state_term, next_expr);
-    logger.log(2, "SystemVerilogEncoder: assign_next {} := ...",
+    logger.log(2,
+               "SystemVerilogEncoder: assign_next {} := ...",
                fts_.get_name(state_term));
   }
 }
@@ -853,9 +853,8 @@ void SystemVerilogEncoder::process_always_comb(
   for (auto & [sym, term] : pending_comb_updates_) {
     string name;
     if (pending_comb_aliased_.count(sym)) {
-      name = parent_prefix_.empty()
-                 ? string(sym->name)
-                 : parent_prefix_ + "." + string(sym->name);
+      name = parent_prefix_.empty() ? string(sym->name)
+                                    : parent_prefix_ + "." + string(sym->name);
     } else {
       name = make_name(string(sym->name));
     }
@@ -925,15 +924,15 @@ void SystemVerilogEncoder::process_continuous_assign(
     }
     string name;
     if (aliased) {
-      name = parent_prefix_.empty()
-                 ? string(sym->name)
-                 : parent_prefix_ + "." + string(sym->name);
+      name = parent_prefix_.empty() ? string(sym->name)
+                                    : parent_prefix_ + "." + string(sym->name);
     } else {
       name = make_name(string(sym->name));
     }
     symbol_to_term_[sym] = new_term;
     fts_.name_term(name, new_term);
-    logger.log(2, "SystemVerilogEncoder: continuous assign (wire) {} := ...", name);
+    logger.log(
+        2, "SystemVerilogEncoder: continuous assign (wire) {} := ...", name);
     return;
   }
 
@@ -946,12 +945,13 @@ void SystemVerilogEncoder::process_continuous_assign(
     Term lhs_term = it->second;
     uint64_t base_w = lhs_term->get_sort()->get_width();
     bool full_write = (lo == 0 && hi == base_w - 1);
-    Term lhs_slice =
-        full_write ? lhs_term
-                   : solver_->make_term(Op(Extract, hi, lo), lhs_term);
+    Term lhs_slice = full_write
+                         ? lhs_term
+                         : solver_->make_term(Op(Extract, hi, lo), lhs_term);
     Term eq = solver_->make_term(Equal, lhs_slice, rhs);
     fts_.add_constraint(eq);
-    logger.log(2, "SystemVerilogEncoder: continuous assign {} = ...",
+    logger.log(2,
+               "SystemVerilogEncoder: continuous assign {} = ...",
                fts_.get_name(lhs_term));
   }
 }
@@ -1086,8 +1086,8 @@ void SystemVerilogEncoder::process_instance(
 // ============================================================================
 
 void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
-                                  StmtContext ctx,
-                                  const Term & condition)
+                                             StmtContext ctx,
+                                             const Term & condition)
 {
   using namespace slang::ast;
 
@@ -1201,8 +1201,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             if (condition == solver_->make_term(true)) {
               update = combined;
             } else {
-              update = solver_->make_term(Ite, condition, combined,
-                                          prev_base);
+              update = solver_->make_term(Ite, condition, combined, prev_base);
             }
             pending_next_updates_[state_term] = update;
             break;
@@ -1212,10 +1211,9 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             // written base): constrain the appropriate slice via
             // add_constraint, which accepts terms involving input
             // vars (so RHSes that reference input ports work).
-            Term lhs_slice = full_write
-                                 ? lhs_term
-                                 : solver_->make_term(
-                                       Op(Extract, hi, lo), lhs_term);
+            Term lhs_slice =
+                full_write ? lhs_term
+                           : solver_->make_term(Op(Extract, hi, lo), lhs_term);
             Term eq = solver_->make_term(Equal, lhs_slice, rhs);
             if (condition != solver_->make_term(true)) {
               eq = solver_->make_term(Implies, condition, eq);
@@ -1224,10 +1222,9 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             break;
           }
           case StmtContext::INITIAL: {
-            Term lhs_slice = full_write
-                                 ? lhs_term
-                                 : solver_->make_term(
-                                       Op(Extract, hi, lo), lhs_term);
+            Term lhs_slice =
+                full_write ? lhs_term
+                           : solver_->make_term(Op(Extract, hi, lo), lhs_term);
             Term eq = solver_->make_term(Equal, lhs_slice, rhs);
             fts_.constrain_init(eq);
             break;
@@ -1260,7 +1257,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         Term zero = solver_->make_term(0, cond_term->get_sort());
         cond_term = solver_->make_term(Distinct, cond_term, zero);
         cond_term = solver_->make_term(
-            Ite, cond_term,
+            Ite,
+            cond_term,
             solver_->make_term(1, solver_->make_sort(BV, 1)),
             solver_->make_term(0, solver_->make_sort(BV, 1)));
       }
@@ -1302,8 +1300,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           Term pat = expr_to_term(*expr);
           pat = resize_to(pat, sel->get_sort()->get_width());
           Term match = solver_->make_term(Equal, sel, pat);
-          item_cond = item_cond ? solver_->make_term(Or, item_cond, match)
-                                : match;
+          item_cond =
+              item_cond ? solver_->make_term(Or, item_cond, match) : match;
         }
         Term full_cond = (condition == solver_->make_term(true))
                              ? item_cond
@@ -1344,21 +1342,21 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           uint64_t pw = prop->get_sort()->get_width();
           if (pw == 1) {
             prop = solver_->make_term(
-                Equal, prop,
-                solver_->make_term(1, solver_->make_sort(BV, 1)));
+                Equal, prop, solver_->make_term(1, solver_->make_sort(BV, 1)));
           } else {
             // Non-zero means true.
             prop = solver_->make_term(
-                Distinct, prop,
-                solver_->make_term(0, prop->get_sort()));
+                Distinct, prop, solver_->make_term(0, prop->get_sort()));
           }
           propvec_.push_back(prop);
-          logger.log(1, "SystemVerilogEncoder: extracted concurrent assertion property");
-        } else {
           logger.log(
               1,
-              "SystemVerilogEncoder: skipping unsupported assertion expression kind {}",
-              static_cast<int>(ae->kind));
+              "SystemVerilogEncoder: extracted concurrent assertion property");
+        } else {
+          logger.log(1,
+                     "SystemVerilogEncoder: skipping unsupported assertion "
+                     "expression kind {}",
+                     static_cast<int>(ae->kind));
         }
       }
       break;
@@ -1380,9 +1378,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         cv = sym.getType().getDefaultValue();
       }
       if (!cv.isInteger()) {
-        throw PonoException(
-            "SystemVerilogEncoder: non-integer local '"
-            + string(sym.name) + "'");
+        throw PonoException("SystemVerilogEncoder: non-integer local '"
+                            + string(sym.name) + "'");
       }
       eval_ctx().createLocal(&sym, cv);
       auto svint = cv.integer();
@@ -1391,8 +1388,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       if (width == 0) width = 32;
       Sort sort = solver_->make_sort(BV, width);
       svint.setSigned(false);
-      string val_str =
-          svint.toString(slang::LiteralBase::Decimal, false);
+      string val_str = svint.toString(slang::LiteralBase::Decimal, false);
       loop_var_terms_[&sym] = solver_->make_term(val_str, sort, 10);
       break;
     }
@@ -1413,9 +1409,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           cv = lv.getType().getDefaultValue();
         }
         if (!cv.isInteger()) {
-          throw PonoException(
-              "SystemVerilogEncoder: non-integer for-loop var '"
-              + string(lv.name) + "'");
+          throw PonoException("SystemVerilogEncoder: non-integer for-loop var '"
+                              + string(lv.name) + "'");
         }
         eval_ctx().createLocal(&lv, cv);
         declared.push_back(&lv);
@@ -1424,9 +1419,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto refresh_bv = [&](const VariableSymbol & lv) {
         auto * cur = eval_ctx().findLocal(&lv);
         if (!cur || !cur->isInteger()) {
-          throw PonoException(
-              "SystemVerilogEncoder: for-loop var '" + string(lv.name)
-              + "' lost its constant value");
+          throw PonoException("SystemVerilogEncoder: for-loop var '"
+                              + string(lv.name) + "' lost its constant value");
         }
         auto svint = cur->integer();
         uint64_t width = lv.getType().getBitWidth();
@@ -1434,8 +1428,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         if (width == 0) width = 32;
         Sort sort = solver_->make_sort(BV, width);
         svint.setSigned(false);
-        string val_str =
-            svint.toString(slang::LiteralBase::Decimal, false);
+        string val_str = svint.toString(slang::LiteralBase::Decimal, false);
         loop_var_terms_[&lv] = solver_->make_term(val_str, sort, 10);
       };
 
@@ -1450,9 +1443,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       constexpr size_t MAX_ITERS = 65536;
       for (size_t it = 0;; ++it) {
         if (it >= MAX_ITERS) {
-          throw PonoException(
-              "SystemVerilogEncoder: for-loop exceeded "
-              + std::to_string(MAX_ITERS) + " iterations");
+          throw PonoException("SystemVerilogEncoder: for-loop exceeded "
+                              + std::to_string(MAX_ITERS) + " iterations");
         }
         if (loop.stopExpr) {
           auto sv = loop.stopExpr->eval(eval_ctx());
@@ -1482,7 +1474,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
     default:
       // Other statement kinds (loops, etc.): not supported in
       // synthesizable subset. Log a warning and skip.
-      logger.log(1, "SystemVerilogEncoder: skipping unsupported statement kind {}",
+      logger.log(1,
+                 "SystemVerilogEncoder: skipping unsupported statement kind {}",
                  static_cast<int>(stmt.kind));
       break;
   }
@@ -1601,77 +1594,69 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           Term eq = solver_->make_term(Equal, left, right);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
-              Ite, eq, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+              Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::Inequality: {
           Term eq = solver_->make_term(Equal, left, right);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
-              Ite, eq, solver_->make_term(0, bv1),
-              solver_->make_term(1, bv1));
+              Ite, eq, solver_->make_term(0, bv1), solver_->make_term(1, bv1));
           break;
         }
         case BinaryOperator::LessThan: {
           Term lt = solver_->make_term(BVUlt, left, right);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
-              Ite, lt, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+              Ite, lt, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::LessThanEqual: {
           Term le = solver_->make_term(BVUle, left, right);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
-              Ite, le, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+              Ite, le, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::GreaterThan: {
           Term gt = solver_->make_term(BVUlt, right, left);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
-              Ite, gt, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+              Ite, gt, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::GreaterThanEqual: {
           Term ge = solver_->make_term(BVUle, right, left);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
-              Ite, ge, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+              Ite, ge, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::LogicalAnd: {
           // Logical AND: both operands nonzero.
           Sort bv1 = solver_->make_sort(BV, 1);
           Term l_nz = solver_->make_term(
-              Distinct, left,
-              solver_->make_term(0, left->get_sort()));
+              Distinct, left, solver_->make_term(0, left->get_sort()));
           Term r_nz = solver_->make_term(
-              Distinct, right,
-              solver_->make_term(0, right->get_sort()));
+              Distinct, right, solver_->make_term(0, right->get_sort()));
           Term both = solver_->make_term(And, l_nz, r_nz);
-          result = solver_->make_term(
-              Ite, both, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+          result = solver_->make_term(Ite,
+                                      both,
+                                      solver_->make_term(1, bv1),
+                                      solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::LogicalOr: {
           Sort bv1 = solver_->make_sort(BV, 1);
           Term l_nz = solver_->make_term(
-              Distinct, left,
-              solver_->make_term(0, left->get_sort()));
+              Distinct, left, solver_->make_term(0, left->get_sort()));
           Term r_nz = solver_->make_term(
-              Distinct, right,
-              solver_->make_term(0, right->get_sort()));
+              Distinct, right, solver_->make_term(0, right->get_sort()));
           Term either = solver_->make_term(Or, l_nz, r_nz);
-          result = solver_->make_term(
-              Ite, either, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+          result = solver_->make_term(Ite,
+                                      either,
+                                      solver_->make_term(1, bv1),
+                                      solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::LogicalShiftLeft:
@@ -1707,11 +1692,11 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         case UnaryOperator::LogicalNot: {
           Sort bv1 = solver_->make_sort(BV, 1);
           Term is_zero = solver_->make_term(
-              Equal, operand,
-              solver_->make_term(0, operand->get_sort()));
-          result = solver_->make_term(
-              Ite, is_zero, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+              Equal, operand, solver_->make_term(0, operand->get_sort()));
+          result = solver_->make_term(Ite,
+                                      is_zero,
+                                      solver_->make_term(1, bv1),
+                                      solver_->make_term(0, bv1));
           break;
         }
         case UnaryOperator::Minus:
@@ -1721,24 +1706,26 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           // Reduction AND: result is 1 if all bits are 1.
           Sort bv1 = solver_->make_sort(BV, 1);
           Term all_ones = solver_->make_term(
-              Equal, operand,
-              solver_->make_term(
-                  string(operand->get_sort()->get_width(), '1'),
-                  operand->get_sort(), 2));
-          result = solver_->make_term(
-              Ite, all_ones, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+              Equal,
+              operand,
+              solver_->make_term(string(operand->get_sort()->get_width(), '1'),
+                                 operand->get_sort(),
+                                 2));
+          result = solver_->make_term(Ite,
+                                      all_ones,
+                                      solver_->make_term(1, bv1),
+                                      solver_->make_term(0, bv1));
           break;
         }
         case UnaryOperator::BitwiseOr: {
           // Reduction OR: result is 1 if any bit is 1.
           Sort bv1 = solver_->make_sort(BV, 1);
           Term any_one = solver_->make_term(
-              Distinct, operand,
-              solver_->make_term(0, operand->get_sort()));
-          result = solver_->make_term(
-              Ite, any_one, solver_->make_term(1, bv1),
-              solver_->make_term(0, bv1));
+              Distinct, operand, solver_->make_term(0, operand->get_sort()));
+          result = solver_->make_term(Ite,
+                                      any_one,
+                                      solver_->make_term(1, bv1),
+                                      solver_->make_term(0, bv1));
           break;
         }
         case UnaryOperator::BitwiseXor: {
@@ -1789,7 +1776,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // The count should be a compile-time constant.
       auto count_cv = repl.count().getConstant();
       if (!count_cv) {
-        throw PonoException("SystemVerilogEncoder: non-constant replication count");
+        throw PonoException(
+            "SystemVerilogEncoder: non-constant replication count");
       }
       auto count_opt = count_cv->integer().as<uint32_t>();
       if (!count_opt) {
@@ -1890,20 +1878,17 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       Term bool_cond;
       if (cw == 1) {
         bool_cond = solver_->make_term(
-            Equal, cond,
-            solver_->make_term(1, solver_->make_sort(BV, 1)));
+            Equal, cond, solver_->make_term(1, solver_->make_sort(BV, 1)));
       } else {
         bool_cond = solver_->make_term(
-            Distinct, cond,
-            solver_->make_term(0, cond->get_sort()));
+            Distinct, cond, solver_->make_term(0, cond->get_sort()));
       }
       return solver_->make_term(Ite, bool_cond, then_val, else_val);
     }
 
     default:
-      throw PonoException(
-          "SystemVerilogEncoder: unsupported expression kind "
-          + to_string(static_cast<int>(expr.kind)));
+      throw PonoException("SystemVerilogEncoder: unsupported expression kind "
+                          + to_string(static_cast<int>(expr.kind)));
   }
 }
 
@@ -1999,8 +1984,7 @@ Term SystemVerilogEncoder::resize_to(const Term & t, uint64_t target_width)
   }
   if (current_width < target_width) {
     // Zero-extend.
-    return solver_->make_term(
-        Op(Zero_Extend, target_width - current_width), t);
+    return solver_->make_term(Op(Zero_Extend, target_width - current_width), t);
   }
   // Truncate (extract lower bits).
   return solver_->make_term(Op(Extract, target_width - 1, 0), t);
@@ -2008,14 +1992,14 @@ Term SystemVerilogEncoder::resize_to(const Term & t, uint64_t target_width)
 
 Term SystemVerilogEncoder::replace_bits(const Term & base,
                                         const Term & slice,
-                                        uint64_t lo, uint64_t hi)
+                                        uint64_t lo,
+                                        uint64_t hi)
 {
   uint64_t base_w = base->get_sort()->get_width();
   if (lo == 0 && hi == base_w - 1) return slice;
   std::vector<Term> parts;
   if (hi + 1 < base_w) {
-    parts.push_back(
-        solver_->make_term(Op(Extract, base_w - 1, hi + 1), base));
+    parts.push_back(solver_->make_term(Op(Extract, base_w - 1, hi + 1), base));
   }
   parts.push_back(slice);
   if (lo > 0) {

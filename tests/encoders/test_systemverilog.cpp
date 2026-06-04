@@ -24,8 +24,8 @@ class SVUnitTests : public ::testing::Test,
  protected:
   static string sv_path(const string & name)
   {
-    return string(STRFY(PONO_SRC_DIR))
-           + "/tests/encoders/inputs/systemverilog/" + name;
+    return string(STRFY(PONO_SRC_DIR)) + "/tests/encoders/inputs/systemverilog/"
+           + name;
   }
 
   // Locate the `rst` input port in the encoded transition system,
@@ -158,28 +158,19 @@ TEST_P(SVUnitTests, ForLoop) { check_bmc("for_loop.sv", 2); }
 // inside a per-iteration generate block.  The assertion reads
 // ctr[2].count via hierarchical reference; the counter reaches 5
 // at cycle 6 (one reset cycle + five increments).
-TEST_P(SVUnitTests, GenerateBlock)
-{
-  check_bmc("generate_block.sv", 6);
-}
+TEST_P(SVUnitTests, GenerateBlock) { check_bmc("generate_block.sv", 6); }
 
 // Compound assignment (`|=`) inside a for loop builds an
 // OR-reduction.  Exercises ExpressionKind::LValueReference, which
 // slang emits as the implicit self-reference on the RHS.  Falsifies
 // at cycle 2 once any bit of the free `din` is high.
-TEST_P(SVUnitTests, CompoundAssign)
-{
-  check_bmc("compound_assign.sv", 2);
-}
+TEST_P(SVUnitTests, CompoundAssign) { check_bmc("compound_assign.sv", 2); }
 
 // Element-select LHS.  Each bit of a 4-bit register is set
 // individually in an unrolled for loop, composing partial writes
 // via replace_bits.  Falsifies at cycle 2 when flag reaches
 // 4'b1111.
-TEST_P(SVUnitTests, ElementSelectLhs)
-{
-  check_bmc("element_select_lhs.sv", 2);
-}
+TEST_P(SVUnitTests, ElementSelectLhs) { check_bmc("element_select_lhs.sv", 2); }
 
 // ---------------------------------------------------------------------------
 // Statement kinds
@@ -215,17 +206,11 @@ TEST_P(SVUnitTests, Reduction) { check_bmc("reduction.sv", 2); }
 // Combinational logic
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, ContinuousAssign)
-{
-  check_bmc("continuous_assign.sv", 0);
-}
+TEST_P(SVUnitTests, ContinuousAssign) { check_bmc("continuous_assign.sv", 0); }
 
 TEST_P(SVUnitTests, AlwaysComb) { check_bmc("always_comb.sv", 0); }
 
-TEST_P(SVUnitTests, LegacyAlwaysStar)
-{
-  check_bmc("legacy_always_comb.sv", 0);
-}
+TEST_P(SVUnitTests, LegacyAlwaysStar) { check_bmc("legacy_always_comb.sv", 0); }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVUnitTests,
                          SVUnitTests,

@@ -50,8 +50,8 @@ namespace pono {
 class SystemVerilogEncoder
 {
  public:
-  /** Construct an SystemVerilogEncoder that parses a SystemVerilog file and populates
-   *  the given FunctionalTransitionSystem.
+  /** Construct an SystemVerilogEncoder that parses a SystemVerilog file and
+   * populates the given FunctionalTransitionSystem.
    *
    *  Supported SystemVerilog constructs (synthesizable subset):
    *    - Module port declarations (input/output/inout)
@@ -90,8 +90,7 @@ class SystemVerilogEncoder
    *  when descending into a child instance, whose ports have already
    *  been bound through the port-connection map.
    */
-  void declare_variables_internal(
-      const slang::ast::InstanceBodySymbol & body);
+  void declare_variables_internal(const slang::ast::InstanceBodySymbol & body);
 
   /** Declare a single port as an input or output variable. */
   void process_port(const slang::ast::PortSymbol & port);
@@ -111,8 +110,7 @@ class SystemVerilogEncoder
   void process_initial(const slang::ast::ProceduralBlockSymbol & proc);
 
   /** Process a continuous assignment (assign statement). */
-  void process_continuous_assign(
-      const slang::ast::ContinuousAssignSymbol & ca);
+  void process_continuous_assign(const slang::ast::ContinuousAssignSymbol & ca);
 
   // ---------- Statement processing ----------
 
@@ -183,7 +181,8 @@ class SystemVerilogEncoder
    */
   smt::Term replace_bits(const smt::Term & base,
                          const smt::Term & slice,
-                         uint64_t lo, uint64_t hi);
+                         uint64_t lo,
+                         uint64_t hi);
 
   /** Pre-scan an always_ff body to identify non-blocking assignment
    *  targets as state variable symbols.
@@ -298,8 +297,7 @@ class SystemVerilogEncoder
   // term representing its current iteration value.  Consulted by
   // lookup_symbol so the loop body's references resolve to the
   // right constant in each unrolled iteration.
-  std::unordered_map<const slang::ast::Symbol *, smt::Term>
-      loop_var_terms_;
+  std::unordered_map<const slang::ast::Symbol *, smt::Term> loop_var_terms_;
 
   // Slang evaluation context, lazily constructed on first use to
   // evaluate constant bounds and step expressions during for-loop
