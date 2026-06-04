@@ -194,6 +194,23 @@ TEST_P(SVUnitTests, BinaryNonOverlap)
 // cycle 0 (no reset wiring in this design).
 TEST_P(SVUnitTests, BinaryAnd) { check_bmc("binary_and.sv", 0); }
 
+// `$past(expr)` returns the previous-cycle value via a hidden
+// 1-cycle latch.  reg_data tracks $past(data); the assertion
+// `reg_data != $past(data)` is falsified at cycle 1 when BMC
+// picks data(0)=0 (so reg_data after reset matches the latched
+// past).
+TEST_P(SVUnitTests, PastCall) { check_bmc("past_call.sv", 1); }
+
+// `|-> ##N`: the encoder builds N hidden latches to delay the
+// antecedent.  With `arm |-> ##2 data == 4'b1010`, BMC picks
+// arm=1 during reset (cycle 0); the antecedent latch propagates
+// over two cycles and the consequent fails at cycle 2 when BMC
+// picks data != 10.
+TEST_P(SVUnitTests, SequenceDelay)
+{
+  check_bmc("sequence_delay.sv", 2);
+}
+
 // ---------------------------------------------------------------------------
 // Statement kinds
 // ---------------------------------------------------------------------------

@@ -35,6 +35,7 @@
 #include "slang/ast/Symbol.h"
 #include "slang/ast/expressions/AssertionExpr.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/CallExpression.h"
 #include "slang/ast/expressions/ConversionExpression.h"
 #include "slang/ast/expressions/LiteralExpressions.h"
 #include "slang/ast/expressions/MiscExpressions.h"
@@ -1868,6 +1869,35 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       return solver_->make_term(Ite, bool_cond, then_val, else_val);
     }
 
+    case ExpressionKind::Call: {
+      // Only the `$past` system function is currently handled; it
+      // expands into a chain of 1-cycle latch state vars.  Other
+      // calls (user subroutines, system tasks) are not supported.
+      auto & call = expr.as<CallExpression>();
+      if (call.isSystemCall()
+          && call.getSubroutineName() == "$past") {
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException(
+              "SystemVerilogEncoder: $past with no value argument");
+        }
+        Term val = expr_to_term(*args[0]);
+        uint32_t n = 1;
+        if (args.size() >= 2 && args[1]) {
+          auto cv = args[1]->eval(eval_ctx());
+          if (cv.isInteger()) {
+            auto opt = cv.integer().as<uint32_t>();
+            if (opt) n = *opt;
+          }
+        }
+        if (n == 0) return val;
+        return make_history_chain(val, n);
+      }
+      throw PonoException(
+          "SystemVerilogEncoder: unsupported call to "
+          + std::string(call.getSubroutineName()));
+    }
+
     default:
       throw PonoException("SystemVerilogEncoder: unsupported expression kind "
                           + to_string(static_cast<int>(expr.kind)));
@@ -1877,6 +1907,38 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
 // ============================================================================
 // SVA assertion-expression conversion
 // ============================================================================
+
+Term SystemVerilogEncoder::make_history_chain(const Term & value, uint32_t n)
+{
+  Sort sort = value->get_sort();
+  Term zero = solver_->make_term(0, sort);
+  Term link = value;
+  for (uint32_t i = 0; i < n; ++i) {
+    Term latch = fts_.make_statevar(
+        make_name("__sva_past_" + std::to_string(latch_counter_++)), sort);
+    fts_.constrain_init(solver_->make_term(Equal, latch, zero));
+    fts_.assign_next(latch, link);
+    link = latch;
+  }
+  return link;
+}
+
+namespace {
+// Detect a SequenceConcat that we can interpret as a constant
+// k-cycle delay applied to a single inner assertion expression
+// (`##k Q`).  Returns (k, Q*) on success, std::nullopt otherwise.
+std::optional<std::pair<uint32_t, const slang::ast::AssertionExpr *>>
+match_const_delay_seq(const slang::ast::AssertionExpr & ae)
+{
+  using namespace slang::ast;
+  if (ae.kind != AssertionExprKind::SequenceConcat) return std::nullopt;
+  auto & sc = ae.as<SequenceConcatExpr>();
+  if (sc.elements.size() != 1) return std::nullopt;
+  auto & e = sc.elements[0];
+  if (!e.delay.max || *e.delay.max != e.delay.min) return std::nullopt;
+  return std::make_pair(e.delay.min, &*e.sequence);
+}
+}  // namespace
 
 Term SystemVerilogEncoder::assertion_expr_to_bool(
     const slang::ast::AssertionExpr & ae)
@@ -1899,30 +1961,57 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
       return solver_->make_term(Distinct, t, zero);
     }
 
+    case AssertionExprKind::SequenceConcat: {
+      // A standalone `##k Q` as a property: in our infinite-time
+      // safety encoding the constant front-shift doesn't change the
+      // truth value (it just postpones when the first violation can
+      // be reported), so unwrap the inner sequence.
+      if (auto matched = match_const_delay_seq(ae)) {
+        return assertion_expr_to_bool(*matched->second);
+      }
+      return Term();
+    }
+
     case AssertionExprKind::Binary: {
       auto & b = ae.as<BinaryAssertionExpr>();
-      // Non-overlapping implication needs the LHS as it was *last*
-      // cycle, so build that latch before recursing into the RHS.
-      // Pattern: P |=> Q  ==  G(prev_P -> Q), with prev_P a hidden
-      // 1-bit state var that takes its next-state from P and is
-      // initialised to 0 (no antecedent has fired at cycle 0).
-      if (b.op == BinaryAssertionOperator::NonOverlappedImplication) {
+      bool is_impl =
+          (b.op == BinaryAssertionOperator::OverlappedImplication
+           || b.op == BinaryAssertionOperator::NonOverlappedImplication
+           || b.op == BinaryAssertionOperator::Implies);
+
+      if (is_impl) {
+        // Compute the antecedent now, the consequent at its
+        // anchor cycle (offset by any `##k` on the RHS), then
+        // delay the antecedent by that offset using a chain of
+        // 1-bit latches so the resulting implication is
+        // expressed in the current cycle.
         Term lhs = assertion_expr_to_bool(b.left);
-        Term rhs = assertion_expr_to_bool(b.right);
-        if (!lhs || !rhs) return Term();
-        Sort bv1 = solver_->make_sort(BV, 1);
-        Term latch = fts_.make_statevar(
-            make_name("__sva_latch_" + std::to_string(propvec_.size())),
-            bv1);
-        Term one_bv1 = solver_->make_term(1, bv1);
-        Term zero_bv1 = solver_->make_term(0, bv1);
-        // Initial: latch = 0.
-        fts_.constrain_init(solver_->make_term(Equal, latch, zero_bv1));
-        // Next-state of latch is the antecedent's truth this cycle.
-        fts_.assign_next(latch,
-                         solver_->make_term(Ite, lhs, one_bv1, zero_bv1));
-        Term prev_p = solver_->make_term(Equal, latch, one_bv1);
-        return solver_->make_term(Implies, prev_p, rhs);
+        if (!lhs) return Term();
+
+        uint32_t delay = (b.op
+                          == BinaryAssertionOperator::NonOverlappedImplication)
+                             ? 1
+                             : 0;
+        const AssertionExpr * rhs_inner = &b.right;
+        if (auto matched = match_const_delay_seq(b.right)) {
+          delay += matched->first;
+          rhs_inner = matched->second;
+        }
+
+        Term rhs = assertion_expr_to_bool(*rhs_inner);
+        if (!rhs) return Term();
+
+        if (delay > 0) {
+          // Materialize the antecedent as a 1-bit BV so the
+          // history chain has a value to latch.
+          Sort bv1 = solver_->make_sort(BV, 1);
+          Term one_bv1 = solver_->make_term(1, bv1);
+          Term zero_bv1 = solver_->make_term(0, bv1);
+          Term lhs_bv = solver_->make_term(Ite, lhs, one_bv1, zero_bv1);
+          Term delayed_bv = make_history_chain(lhs_bv, delay);
+          lhs = solver_->make_term(Equal, delayed_bv, one_bv1);
+        }
+        return solver_->make_term(Implies, lhs, rhs);
       }
 
       Term lhs = assertion_expr_to_bool(b.left);
@@ -1935,9 +2024,6 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
           return solver_->make_term(Or, lhs, rhs);
         case BinaryAssertionOperator::Iff:
           return solver_->make_term(Equal, lhs, rhs);
-        case BinaryAssertionOperator::Implies:
-        case BinaryAssertionOperator::OverlappedImplication:
-          return solver_->make_term(Implies, lhs, rhs);
         default:
           // Intersect / Throughout / Within / Until* / FollowedBy:
           // sequence operators that span multiple cycles in the
@@ -1947,9 +2033,9 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
     }
 
     default:
-      // Sequence delays (`##N`), unary temporal operators
-      // (`always`, `s_eventually`, ...), FirstMatch, etc.: not
-      // supported.  Caller logs the skipped kind.
+      // Unary temporal operators (`always`, `s_eventually`, ...),
+      // FirstMatch, etc.: not supported.  Caller logs the skipped
+      // kind.
       return Term();
   }
 }

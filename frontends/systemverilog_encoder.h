@@ -233,15 +233,26 @@ class SystemVerilogEncoder
   /** Compile an SVA AssertionExpr into a Boolean SMT term that holds
    *  iff the assertion passes at the current cycle.  Returns a null
    *  Term when the expression uses an unsupported operator
-   *  (e.g. liveness, sequence delays other than the canonical `|=>`
-   *  form, etc.); the caller can then skip that assertion.
-   *  Non-overlapping implication (`|=>`) introduces a hidden 1-bit
-   *  latch state var so the "P held last cycle" predicate is
-   *  current-state-only.
+   *  (e.g. liveness, sequence delays inside arbitrary positions,
+   *  etc.); the caller can then skip that assertion.
+   *  Non-overlapping implication (`|=>`) and the
+   *  `|-> ##N` pattern introduce hidden latch state vars so the
+   *  "P held N cycles ago" predicate is current-state-only.
    *  @param ae the assertion expression to compile
    *  @return the boolean term, or a null Term when unsupported
    */
   smt::Term assertion_expr_to_bool(const slang::ast::AssertionExpr & ae);
+
+  /** Build a chain of `n` 1-cycle latch state vars that track
+   *  `value` over n cycles, returning a Term equal to the value
+   *  from `n` cycles ago.  Each latch is initialised to 0 and its
+   *  next-state is the previous link in the chain.  Used by both
+   *  `$past(...)` and sequence-delay assertion expressions.
+   *  @param value the current-cycle value to delay
+   *  @param n     the number of cycles of delay (>= 1)
+   *  @return a Term holding `value` from `n` cycles ago
+   */
+  smt::Term make_history_chain(const smt::Term & value, uint32_t n);
 
   // ---------- Data members ----------
 
@@ -326,6 +337,10 @@ class SystemVerilogEncoder
   // for that case.  Set just before converting a compound RHS and
   // cleared right after, with save/restore for nested contexts.
   smt::Term current_lvalue_term_;
+
+  // Monotonic counter used to mint unique state-var names for the
+  // hidden latches introduced by `$past`, `|=>`, and `|-> ##N`.
+  uint32_t latch_counter_ = 0;
 };
 
 }  // namespace pono
