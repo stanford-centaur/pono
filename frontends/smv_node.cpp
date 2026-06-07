@@ -836,6 +836,20 @@ void pono::resize_expr::generate_ostream(
   s << " ) ";
 }
 
+void pono::signed_word::generate_ostream(
+    std::string name,
+    std::string prefix,
+    std::unordered_map<string, module_node *> module_list,
+    std::unordered_map<string, string> new_prefix,
+    ostream & s)
+{
+  s << " signed word [ ";
+  size->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ] ( ";
+  ex->generate_ostream(name, prefix, module_list, new_prefix, s);
+  s << " ) ";
+}
+
 void pono::union_expr::generate_ostream(
     std::string name,
     std::string prefix,

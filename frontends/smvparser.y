@@ -1304,19 +1304,15 @@ simple_expr: constant {
                 SMVnode *word = $3;
                 SMVnode::Type word_type = word->getType();
                 
-                if(word_type != SMVnode::Integer && word_type != SMVnode::Signed && word_type != SMVnode::Unsigned){
+                if(word_type != SMVnode::Signed && word_type != SMVnode::Unsigned){
                   throw PonoException("Resize word type is uncompatible");
                 }
                 
                 int integer = stoi($5);
                 smt::Sort word_sort = word->getTerm()->get_sort();
-                uint64_t word_width = word_type != SMVnode::Integer ? word_sort->get_width() : 0;
+                uint64_t word_width = word_sort->get_width();
 
-                if (word_type == SMVnode::Integer){
-                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Int_To_BV, integer), word->getTerm());
-                  assert(res);
-                  $$ = new SMVnode(res, SMVnode::Signed);                  
-                }else if(integer == word_width){
+                if(integer == word_width){
                   $$ = word;
                 }else if(integer < word_width){
                   smt::Term res;
@@ -1354,7 +1350,7 @@ simple_expr: constant {
                 $$ = new SMVnode(res, SMVnode::Signed);
               }else{
                 SMVnode *integer = new constant(std::to_string($2));
-                $$ = new resize_expr($4,integer);
+                $$ = new signed_word(integer,$4);
               }
             }
             | unsigned_word sizev "(" basic_expr ")"{
