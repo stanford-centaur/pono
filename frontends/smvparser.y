@@ -1220,7 +1220,6 @@ simple_expr: constant {
                                                        boolean->getTerm(), 
                                                        enc.solver_->make_term(1, bv1sort), 
                                                        enc.solver_->make_term(0, bv1sort));
-                assert(res); //check res non-null
                 $$ = new SMVnode(res,SMVnode::Unsigned);
               }else{
                 $$ = new word1_expr($3);
@@ -1323,12 +1322,10 @@ simple_expr: constant {
                   }else{
                     res = enc.solver_->make_term(smt::Op(smt::Extract, integer - 1, 0), word->getTerm());
                   }
-                  assert(res); //check res non-null
                   $$ = new SMVnode(res,word_type);
                 }else{
                   smt::PrimOp extendOp = word_type == SMVnode::Signed ? smt::Sign_Extend : smt::Zero_Extend;
                   smt::Term res = enc.solver_->make_term(smt::Op(extendOp, integer - word_width), word->getTerm());
-                  assert(res); //check res non-null
                   $$ = new SMVnode(res,word_type);
                 }
               }else{
@@ -1346,7 +1343,6 @@ simple_expr: constant {
                 }
                 assert(expr);
                 smt::Term res = enc.solver_->make_term(smt::Op(smt::Int_To_BV, $2), expr->getTerm());
-                assert(res);
                 $$ = new SMVnode(res, SMVnode::Signed);
               }else{
                 SMVnode *integer = new constant(std::to_string($2));
