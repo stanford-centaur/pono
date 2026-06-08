@@ -1213,7 +1213,7 @@ simple_expr: constant {
               if(enc.module_flat){
                 SMVnode *boolean = $3;
                 if(boolean->getType() != SMVnode::Boolean){
-                  throw PonoException("Word1 word type is uncompatible");
+                  throw PonoException("word1 can only be applied to booleans");
                 }
                 smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
                 smt::Term res = enc.solver_->make_term(smt::Ite, 
