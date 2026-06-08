@@ -1325,30 +1325,30 @@ simple_expr: constant {
                   throw PonoException("Resize word type is uncompatible");
                 }
                 
-                int integer = stoi($5);
+                int to_width = stoi($5);
                 smt::Sort word_sort = word->getTerm()->get_sort();
                 uint64_t word_width = word_sort->get_width();
 
-                if(integer == word_width){
+                if(to_width == word_width){
                   $$ = word;
-                }else if(integer < word_width){
+                }else if(to_width < word_width){
                   smt::Term res;
                   if(word_type == SMVnode::Signed){
-                    smt::Term tail = enc.solver_->make_term(smt::Op(smt::Extract, integer - 2, 0), word->getTerm());
+                    smt::Term tail = enc.solver_->make_term(smt::Op(smt::Extract, to_width - 2, 0), word->getTerm());
                     smt::Term signBit = enc.solver_->make_term(smt::Op(smt::Extract, word_width - 1, word_width - 1), word->getTerm());
                     res = enc.solver_->make_term(smt::Concat, signBit, tail);
                   }else{
-                    res = enc.solver_->make_term(smt::Op(smt::Extract, integer - 1, 0), word->getTerm());
+                    res = enc.solver_->make_term(smt::Op(smt::Extract, to_width - 1, 0), word->getTerm());
                   }
                   $$ = new SMVnode(res,word_type);
                 }else{
                   smt::PrimOp extendOp = word_type == SMVnode::Signed ? smt::Sign_Extend : smt::Zero_Extend;
-                  smt::Term res = enc.solver_->make_term(smt::Op(extendOp, integer - word_width), word->getTerm());
+                  smt::Term res = enc.solver_->make_term(smt::Op(extendOp, to_width - word_width), word->getTerm());
                   $$ = new SMVnode(res,word_type);
                 }
               }else{
-                SMVnode *integer = new constant($5);
-                $$ = new resize_expr($3,integer);
+                SMVnode *to_width = new constant($5);
+                $$ = new resize_expr($3,to_width);
               }
             }
             | signed_word sizev "(" basic_expr ")"{
