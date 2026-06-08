@@ -74,7 +74,7 @@ DOT ".";
 
 %right OP_IMPLY
 %left OP_BI
-%left IF_ELSE
+%right IF_ELSE
 %left OP_OR OP_XOR OP_XNOR
 %left OP_AND
 %left OP_EQ OP_NEQ OP_LT OP_GT OP_LTE OP_GTE
@@ -852,7 +852,15 @@ simple_expr: constant {
               SMVnode::Type bvs_b = b->getType();
               smt::Term e;
               if((bvs_a == SMVnode::Real && bvs_b == SMVnode::Integer) || (bvs_a == SMVnode::Integer && bvs_b == SMVnode::Real) ){
-                e = enc.solver_->make_term(smt::Equal, a->getTerm(), b->getTerm());
+                smt::Term a_term = a->getTerm();
+                smt::Term b_term = b->getTerm();
+                if (bvs_a == SMVnode::Real || bvs_b == SMVnode::Real){
+                  if (bvs_a != SMVnode::Real)
+                    a_term = enc.solver_->make_term(smt::To_Real, a_term);
+                  if (bvs_b != SMVnode::Real)
+                    b_term = enc.solver_->make_term(smt::To_Real, b_term);
+                }
+                e = enc.solver_->make_term(smt::Equal, a_term, b_term);
               }else if(bvs_a != bvs_b){
                  throw PonoException(to_string(enc.loc.end.line) +" Unsigned/Signed mismatch");
               } else{
@@ -1202,13 +1210,68 @@ simple_expr: constant {
               }
             }
             | word1 "(" basic_expr ")" {
-              throw PonoException("No word1");
+              if(enc.module_flat){
+                SMVnode *boolean = $3;
+                if(boolean->getType() != SMVnode::Boolean){
+                  throw PonoException("word1 can only be applied to booleans");
+                }
+                smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                smt::Term res = enc.solver_->make_term(smt::Ite, 
+                                                       boolean->getTerm(), 
+                                                       enc.solver_->make_term(1, bv1sort), 
+                                                       enc.solver_->make_term(0, bv1sort));
+                $$ = new SMVnode(res,SMVnode::Unsigned);
+              }else{
+                $$ = new word1_expr($3);
+              }
             }
             | tok_bool "(" basic_expr ")"{
-              throw PonoException("No type convert");
+              if(enc.module_flat){
+                SMVnode *a = $3;
+                smt::Sort sort = a->getTerm()->get_sort();
+                smt::Term res;
+                if(sort->get_sort_kind() == smt::INT){
+                  smt::Sort intsort = enc.solver_->make_sort(smt::INT);
+                  res = enc.solver_->make_term(smt::Distinct,
+                                               a->getTerm(),
+                                               enc.solver_->make_term(0, intsort));
+                }else if(sort->get_sort_kind() == smt::BOOL){
+                  res = a->getTerm();
+                }else if(sort->get_sort_kind() == smt::BV && sort->get_width() == 1){
+                  smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                  res = enc.solver_->make_term(smt::Equal,
+                                               a->getTerm(),
+                                               enc.solver_->make_term(1, bv1sort));
+                }else{
+                  throw PonoException("bool can only be applied to integers and unsigned word[1]");
+                }
+                $$ = new SMVnode(res,SMVnode::Boolean);
+              }else{
+                $$ = new bool_expr($3);
+              }
             }
             | tok_toint "(" basic_expr ")"{
-              throw PonoException("No type convert");
+              if(enc.module_flat){
+                SMVnode *a = $3;
+                smt::Sort sort = a->getTerm()->get_sort();
+                smt::Term res;
+                if(sort->get_sort_kind() == smt::BV){
+                  res = enc.solver_->make_term(smt::BV_To_Nat, a->getTerm());
+                }else if(sort->get_sort_kind() == smt::BOOL){
+                  smt::Sort intsort = enc.solver_->make_sort(smt::INT);
+                  res = enc.solver_->make_term(smt::Ite,
+                                               a->getTerm(),
+                                               enc.solver_->make_term(1, intsort),
+                                               enc.solver_->make_term(0, intsort));
+                }else if(sort->get_sort_kind() == smt::INT){
+                  res = a->getTerm();
+                }else{
+                  throw PonoException("toint can only be applied to booleans and bitvectors");
+                }
+                $$ = new SMVnode(res,SMVnode::Integer);
+              }else{
+                $$ = new toint_expr($3);
+              }
             }
             | tok_count "(" basic_expr_list ")"{
               throw PonoException("No type convert");
@@ -1253,11 +1316,56 @@ simple_expr: constant {
             | extend "(" basic_expr ")"{
               throw PonoException("No extend now");
             }
-            | resize "(" basic_expr ")" {
-              throw PonoException("No resize");
+            | resize "(" basic_expr "," integer_val ")" {
+              if(enc.module_flat){
+                SMVnode *word = $3;
+                SMVnode::Type word_type = word->getType();
+                
+                if(word_type != SMVnode::Signed && word_type != SMVnode::Unsigned){
+                  throw PonoException("Resize word type is uncompatible");
+                }
+                
+                int to_width = stoi($5);
+                smt::Sort word_sort = word->getTerm()->get_sort();
+                uint64_t word_width = word_sort->get_width();
+
+                if(to_width == word_width){
+                  $$ = word;
+                }else if(to_width < word_width){
+                  smt::Term res;
+                  if(word_type == SMVnode::Signed){
+                    smt::Term tail = enc.solver_->make_term(smt::Op(smt::Extract, to_width - 2, 0), word->getTerm());
+                    smt::Term signBit = enc.solver_->make_term(smt::Op(smt::Extract, word_width - 1, word_width - 1), word->getTerm());
+                    res = enc.solver_->make_term(smt::Concat, signBit, tail);
+                  }else{
+                    res = enc.solver_->make_term(smt::Op(smt::Extract, to_width - 1, 0), word->getTerm());
+                  }
+                  $$ = new SMVnode(res,word_type);
+                }else{
+                  smt::PrimOp extendOp = word_type == SMVnode::Signed ? smt::Sign_Extend : smt::Zero_Extend;
+                  smt::Term res = enc.solver_->make_term(smt::Op(extendOp, to_width - word_width), word->getTerm());
+                  $$ = new SMVnode(res,word_type);
+                }
+              }else{
+                SMVnode *to_width = new constant($5);
+                $$ = new resize_expr($3,to_width);
+              }
             }
             | signed_word sizev "(" basic_expr ")"{
-               throw PonoException("No resize");
+              if(enc.module_flat){
+                SMVnode *expr = $4;
+                SMVnode::Type expr_type = expr->getType();
+                
+                if(expr_type != SMVnode::Integer){
+                  throw PonoException("Signed word conversion type is uncompatible");
+                }
+                assert(expr);
+                smt::Term res = enc.solver_->make_term(smt::Op(smt::Int_To_BV, $2), expr->getTerm());
+                $$ = new SMVnode(res, SMVnode::Signed);
+              }else{
+                SMVnode *integer = new constant(std::to_string($2));
+                $$ = new signed_word(integer,$4);
+              }
             }
             | unsigned_word sizev "(" basic_expr ")"{
                throw PonoException("No resize");
@@ -1271,7 +1379,7 @@ simple_expr: constant {
             | basic_expr OP_IN basic_expr {
                throw PonoException("No array");
             }
-            | basic_expr IF_ELSE basic_expr ":" basic_expr  {
+            | basic_expr IF_ELSE basic_expr ":" basic_expr %prec IF_ELSE {
               if(enc.module_flat){
                  SMVnode *a = $1;
                  SMVnode *b = $3;
