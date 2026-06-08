@@ -1229,14 +1229,22 @@ simple_expr: constant {
               if(enc.module_flat){
                 SMVnode *a = $3;
                 smt::Sort sort = a->getTerm()->get_sort();
-                // TODO: SMV also supports bool conversion from integer
-                if(sort->get_sort_kind() != smt::BV || (sort->get_sort_kind() == smt::BV && sort->get_width() != 1)){
-                  throw PonoException("Can't convert non-width 1 bitvector to bool.");
+                smt::Term res;
+                if(sort->get_sort_kind() == smt::INT){
+                  smt::Sort intsort = enc.solver_->make_sort(smt::INT);
+                  res = enc.solver_->make_term(smt::Distinct,
+                                               a->getTerm(),
+                                               enc.solver_->make_term(0, intsort));
+                }else if(sort->get_sort_kind() == smt::BOOL){
+                  res = a->getTerm();
+                }else if(sort->get_sort_kind() == smt::BV && sort->get_width() == 1){
+                  smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
+                  res = enc.solver_->make_term(smt::Equal,
+                                               a->getTerm(),
+                                               enc.solver_->make_term(1, bv1sort));
+                }else{
+                  throw PonoException("bool can only be applied to integers and unsigned word[1]");
                 }
-                smt::Sort bv1sort = enc.solver_->make_sort(smt::BV, 1);
-                smt::Term res = enc.solver_->make_term(smt::Equal, 
-                                                       a->getTerm(), 
-                                                       enc.solver_->make_term(1, bv1sort));
                 $$ = new SMVnode(res,SMVnode::Boolean);
               }else{
                 $$ = new bool_expr($3);
