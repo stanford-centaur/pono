@@ -1254,10 +1254,20 @@ simple_expr: constant {
               if(enc.module_flat){
                 SMVnode *a = $3;
                 smt::Sort sort = a->getTerm()->get_sort();
-                if(sort->get_sort_kind() != smt::BV){
-                  throw PonoException("Can't convert non-bitvector to integer.");
+                smt::Term res;
+                if(sort->get_sort_kind() == smt::BV){
+                  res = enc.solver_->make_term(smt::BV_To_Nat, a->getTerm());
+                }else if(sort->get_sort_kind() == smt::BOOL){
+                  smt::Sort intsort = enc.solver_->make_sort(smt::INT);
+                  res = enc.solver_->make_term(smt::Ite,
+                                               a->getTerm(),
+                                               enc.solver_->make_term(1, intsort),
+                                               enc.solver_->make_term(0, intsort));
+                }else if(sort->get_sort_kind() == smt::INT){
+                  res = a->getTerm();
+                }else{
+                  throw PonoException("toint can only be applied to booleans and bitvectors");
                 }
-                smt::Term res = enc.solver_->make_term(smt::BV_To_Nat, a->getTerm());
                 $$ = new SMVnode(res,SMVnode::Integer);
               }else{
                 $$ = new toint_expr($3);
