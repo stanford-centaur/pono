@@ -99,7 +99,7 @@ ProverResult check_prop(PonoOptions pono_options,
   }
 
   if (pono_options.pseudo_init_prop_) {
-    ts = pseudo_init_and_prop(ts, prop);
+    prop = pseudo_init_and_prop(ts, prop);
   }
 
   if (pono_options.promote_inputvars_) {
@@ -304,8 +304,14 @@ int main(int argc, char ** argv)
         pono_options.filename_.find_last_of(".") + 1);
     if (file_ext == "btor2" || file_ext == "btor") {
       logger.log(2, "Parsing BTOR2 file: {}", pono_options.filename_);
-      FunctionalTransitionSystem fts(s);
-      BTOR2Encoder btor_enc(pono_options.filename_, fts);
+      unique_ptr<TransitionSystem> ts_ptr;
+      if (pono_options.use_rel_ts_ || pono_options.pseudo_init_prop_) {
+        ts_ptr = make_unique<RelationalTransitionSystem>(s);
+      } else {
+        ts_ptr = make_unique<FunctionalTransitionSystem>(s);
+      }
+      TransitionSystem & ts = *ts_ptr;
+      BTOR2Encoder btor_enc(pono_options.filename_, ts);
       const TermVec & propvec = btor_enc.propvec();
       const auto & justicevec = btor_enc.justicevec();
       unsigned int num_props =
@@ -323,12 +329,12 @@ int main(int argc, char ** argv)
         switch (pono_options.justice_translator_) {
           case pono::LIVENESS_TO_SAFETY:
             if (pono_options.static_coi_) {
-              StaticConeOfInfluence coi(fts,
+              StaticConeOfInfluence coi(ts,
                                         justicevec[pono_options.prop_idx_],
                                         pono_options.verbosity_);
             }
             prop = LivenessToSafetyTranslator{}.translate(
-                fts, justicevec[pono_options.prop_idx_]);
+                ts, justicevec[pono_options.prop_idx_]);
             break;
         }
       } else {
@@ -339,7 +345,7 @@ int main(int argc, char ** argv)
       if (pono_options.justice_
           && pono_options.justice_translator_ == KLIVENESS) {
         LivenessProperty justice_prop(s, justicevec[pono_options.prop_idx_]);
-        KLiveness justice_prover(justice_prop, fts, s, pono_options);
+        KLiveness justice_prover(justice_prop, ts, s, pono_options);
         res = justice_prover.check_until(pono_options.bound_);
         if (res == ProverResult::FALSE && pono_options.witness_) {
           if (!justice_prover.witness(cex)) {
@@ -349,7 +355,7 @@ int main(int argc, char ** argv)
           }
         }
       } else {
-        res = check_prop(pono_options, prop, fts, s, cex);
+        res = check_prop(pono_options, prop, ts, s, cex);
       }
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
@@ -363,11 +369,11 @@ int main(int argc, char ** argv)
         assert(pono_options.witness_ || cex.empty());
         if (!cex.empty()) {
           if (pono_options.btor2_witness_name_.empty()) {
-            print_witness_btor(btor_enc, cex, fts);
+            print_witness_btor(btor_enc, cex, ts);
           } else {
             dump_witness_btor(btor_enc,
                               cex,
-                              fts,
+                              ts,
                               pono_options.prop_idx_,
                               pono_options.btor2_witness_name_);
           }
@@ -377,7 +383,7 @@ int main(int argc, char ** argv)
                   "VCD generation for justice properties "
                   "is not supported yet.");
             } else {
-              VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
+              VCDWitnessPrinter vcdprinter(ts, cex, btor_enc.get_symbol_map());
               vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
             }
           }
