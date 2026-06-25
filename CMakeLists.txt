@@ -167,11 +167,12 @@ if(WITH_SLANG)
   FetchContent_Declare(
     slang
     GIT_REPOSITORY https://github.com/MikePopoloski/slang.git
-    GIT_TAG v10.0
+    GIT_TAG v11.0
     GIT_SHALLOW TRUE
   )
   set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
   set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
+  set(SLANG_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(slang)
   message(STATUS "slang fetched via FetchContent")
 endif()
