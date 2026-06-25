@@ -265,6 +265,24 @@ class SystemVerilogEncoder
    */
   smt::Term make_history_chain(const smt::Term & value, uint32_t n);
 
+  /** Try to recognize an SVA assertion of the LTL shape
+   *  `(G P_1) ∧ ... ∧ (G P_n) ∧ (G F R_1) ∧ ... ∧ (G F R_m) ⇒ F Q`
+   *  (any of the antecedent conjuncts may be missing).  On a match,
+   *  emit a fair-lasso justice term into `liveness_propvec_` and
+   *  return true; on a non-match return false so the caller can fall
+   *  through to its other handlers.
+   *
+   *  Encoding: a fresh 1-bit "violated" state var latches as soon as
+   *  any invariant P_i fails or the consequent Q holds at the current
+   *  cycle; once latched it stays high.  The justice term combines
+   *  the fairness conjuncts via a Streett-to-Büchi counter, gated by
+   *  the current cycle being violation-free.
+   *
+   *  Returns true on success (justice pushed); false if the shape did
+   *  not match or any inner Boolean failed to compile.
+   */
+  bool try_extract_fair_ltl(const slang::ast::AssertionExpr & ae);
+
   // ---------- Data members ----------
 
   FunctionalTransitionSystem & fts_;

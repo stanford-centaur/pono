@@ -1373,6 +1373,14 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           }
         }
 
+        // Recognize the LTL-implication pattern
+        //   `(always P_1) ∧ ... ∧ (always (s_eventually R_1)) ∧ ...
+        //     implies s_eventually Q`
+        // (arbiter.sv's `arbiter_is_fair`).  On match this pushes a
+        // fair-lasso justice term onto liveness_propvec_ and we are
+        // done; otherwise fall through to the safety path.
+        if (try_extract_fair_ltl(*a)) break;
+
         Term prop = assertion_expr_to_bool(*a);
         if (prop) {
           propvec_.push_back(prop);
@@ -1983,6 +1991,148 @@ match_const_delay_seq(const slang::ast::AssertionExpr & ae)
   return std::make_pair(e.delay.min, &*e.sequence);
 }
 }  // namespace
+
+// Decompose an AssertionExpr by top-level `and` into its conjuncts.
+// (Recurses through nested BinaryAssertionExpr(And) so that
+// `(A and B) and C` flattens to {A, B, C}.)
+namespace {
+void flatten_assertion_and(
+    const slang::ast::AssertionExpr & ae,
+    std::vector<const slang::ast::AssertionExpr *> & out)
+{
+  using namespace slang::ast;
+  if (ae.kind == AssertionExprKind::Binary) {
+    auto & b = ae.as<BinaryAssertionExpr>();
+    if (b.op == BinaryAssertionOperator::And) {
+      flatten_assertion_and(b.left, out);
+      flatten_assertion_and(b.right, out);
+      return;
+    }
+  }
+  out.push_back(&ae);
+}
+}  // namespace
+
+bool SystemVerilogEncoder::try_extract_fair_ltl(
+    const slang::ast::AssertionExpr & ae)
+{
+  using namespace slang::ast;
+
+  // We expect the *outer* shape `LHS implies RHS` (LRM Implies, the
+  // long-range LTL implication that bridges liveness operands).
+  if (ae.kind != AssertionExprKind::Binary) return false;
+  auto & impl = ae.as<BinaryAssertionExpr>();
+  if (impl.op != BinaryAssertionOperator::Implies) return false;
+
+  // RHS must be a liveness goal: `s_eventually Q` or `eventually Q`.
+  auto strip_wraps = [](const AssertionExpr * a) {
+    while (true) {
+      if (a->kind == AssertionExprKind::StrongWeak) {
+        a = &a->as<StrongWeakAssertionExpr>().expr;
+      } else if (a->kind == AssertionExprKind::Clocking) {
+        a = &a->as<ClockingAssertionExpr>().expr;
+      } else {
+        break;
+      }
+    }
+    return a;
+  };
+
+  const AssertionExpr * rhs = strip_wraps(&impl.right);
+  if (rhs->kind != AssertionExprKind::Unary) return false;
+  auto & ugoal = rhs->as<UnaryAssertionExpr>();
+  if (ugoal.op != UnaryAssertionOperator::Eventually
+      && ugoal.op != UnaryAssertionOperator::SEventually) {
+    return false;
+  }
+  Term goal = assertion_expr_to_bool(ugoal.expr);
+  if (!goal) return false;
+
+  // LHS is a conjunction of `always P` (invariants) and
+  // `always (s_eventually R)` (fairness conjuncts).
+  std::vector<const AssertionExpr *> conjuncts;
+  flatten_assertion_and(impl.left, conjuncts);
+
+  std::vector<Term> invariants;
+  std::vector<Term> fairness;
+  for (auto * c0 : conjuncts) {
+    auto * c = strip_wraps(c0);
+    if (c->kind != AssertionExprKind::Unary) return false;
+    auto & uc = c->as<UnaryAssertionExpr>();
+    if (uc.op != UnaryAssertionOperator::Always
+        && uc.op != UnaryAssertionOperator::SAlways) {
+      return false;
+    }
+    auto * inner = strip_wraps(&uc.expr);
+    if (inner->kind == AssertionExprKind::Unary) {
+      auto & ui = inner->as<UnaryAssertionExpr>();
+      if (ui.op == UnaryAssertionOperator::Eventually
+          || ui.op == UnaryAssertionOperator::SEventually) {
+        Term r = assertion_expr_to_bool(ui.expr);
+        if (!r) return false;
+        fairness.push_back(r);
+        continue;
+      }
+    }
+    Term p = assertion_expr_to_bool(uc.expr);
+    if (!p) return false;
+    invariants.push_back(p);
+  }
+
+  // Multi-fairness Streett-to-Büchi is out of scope for the current
+  // encoder; arbiter.sv has at most one fairness conjunct per
+  // property anyway.
+  if (fairness.size() > 1) return false;
+
+  // Build the "violated" latch.  Cycle-0 init reflects only the
+  // accumulated history (zero), so the cycle-0 check uses the
+  // combinational `viol_now` term below.
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+
+  Term violated = fts_.make_statevar(
+      make_name("__sva_ltl_viol_" + std::to_string(latch_counter_++)),
+      bv1);
+  fts_.constrain_init(solver_->make_term(Equal, violated, zero_bv1));
+  Term violated_bool = solver_->make_term(Equal, violated, one_bv1);
+
+  // `viol_now` is true iff any invariant fails or the goal has held
+  // at this cycle, OR a prior cycle already latched the violation.
+  Term inv_conj = solver_->make_term(true);
+  for (auto & p : invariants) {
+    inv_conj = solver_->make_term(And, inv_conj, p);
+  }
+  Term inv_fail = solver_->make_term(Not, inv_conj);
+  Term viol_now = solver_->make_term(
+      Or, violated_bool, solver_->make_term(Or, inv_fail, goal));
+
+  // Next-state for `violated` is just the current-cycle viol_now;
+  // once set it stays set forever.
+  Term viol_now_bv = solver_->make_term(Ite, viol_now, one_bv1, zero_bv1);
+  fts_.assign_next(violated, viol_now_bv);
+
+  // Justice: at lasso points the antecedent must still hold (i.e.
+  // viol_now must be false) and the fairness conjunct (if any) must
+  // fire.  L2S requires this term to hold infinitely often on the
+  // witness; when it does, no invariant has ever failed in the
+  // sampled portion of the lasso, the goal has never held, and the
+  // fairness conjunct fires infinitely often -- exactly the
+  // counterexample shape for the original LTL implication.
+  Term not_viol_now = solver_->make_term(Not, viol_now);
+  Term justice = not_viol_now;
+  if (!fairness.empty()) {
+    justice = solver_->make_term(And, fairness[0], not_viol_now);
+  }
+  liveness_propvec_.push_back(justice);
+  logger.log(
+      1,
+      "SystemVerilogEncoder: extracted fair-LTL liveness justice "
+      "(invariants={}, fairness={})",
+      invariants.size(),
+      fairness.size());
+  return true;
+}
 
 Term SystemVerilogEncoder::assertion_expr_to_bool(
     const slang::ast::AssertionExpr & ae)
