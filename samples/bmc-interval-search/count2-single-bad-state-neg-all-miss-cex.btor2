@@ -1,5 +1,5 @@
 ; 2-bit counter with state 1 as bad state, wrap around after state 3
-; I.e., bad states due to cycle length of 4: 1, 5, 9, 13, ... 
+; I.e., bad states due to cycle length of 4: 1, 5, 9, 13, ...
 ; When using single bad state approach with an interval length of 3
 ; (flags '--bmc-bound-step 3 --bmc-single-bad-state') then we will
 ; miss the counterexample at states 1 and 5, but will find it at state 9.

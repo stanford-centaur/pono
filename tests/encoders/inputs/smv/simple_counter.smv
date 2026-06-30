@@ -14,10 +14,10 @@ INIT a = TRUE
 INIT b = FALSE;
 INIT c = (a&!b);
 
-TRANS 
+TRANS
 (counter <= 0ud8_4) -> (next(counter) = counter + 0ud8_1);
 TRANS
 (counter > 0ud8_4) -> (next(counter) = 0ud8_0)
 
-INVARSPEC 
+INVARSPEC
 (counter <= 0ud8_5 & c)

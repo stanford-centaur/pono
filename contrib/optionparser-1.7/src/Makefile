@@ -14,7 +14,7 @@ all: example_arg testparse testprintusage testodr example doc
 %: %.cpp optionparser.h
 	$(CXX) $(CXXFLAGS) $(OPTIMIZE) -o $@ $<
 
-# .cc files depend only on libc 
+# .cc files depend only on libc
 %.o: %.cc optionparser.h
 	$(CXX) $(CCFLAGS) $(OPTIMIZE) -c $<
 
