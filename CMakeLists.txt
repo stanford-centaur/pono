@@ -162,6 +162,34 @@ if(WITH_MSAT_IC3IA)
   endif()
 endif()
 
+if(WITH_SLANG)
+  include(FetchContent)
+
+  # slang v11.0 pins fmt 12.1.0 and does not build against fmt >= 12.2.0:
+  # fmt 12.2 reorganized its headers so that <fmt/core.h> / <fmt/base.h>
+  # no longer expose fmt::format, which slang's sources rely on through
+  # transitive includes ("'format' is not a member of 'fmt'").  slang's
+  # dependency setup calls find_package(fmt) before falling back to
+  # FetchContent, so a too-new fmt installed system-wide gets picked up
+  # and breaks the build.  Force slang to fetch and build its pinned fmt
+  # instead of any system copy.  Pono does not use fmt directly (only
+  # transitively through slang), so disabling the system package is
+  # safe, and building the header-mostly fmt from source is cheap.
+  set(CMAKE_DISABLE_FIND_PACKAGE_fmt ON)
+
+  FetchContent_Declare(
+    slang
+    GIT_REPOSITORY https://github.com/MikePopoloski/slang.git
+    GIT_TAG v11.0
+    GIT_SHALLOW TRUE
+  )
+  set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
+  set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
+  set(SLANG_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(slang)
+  message(STATUS "slang fetched via FetchContent")
+endif()
+
 if(WITH_COREIR)
   if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
     message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
@@ -289,6 +317,11 @@ if(WITH_COREIR OR WITH_COREIR_EXTERN)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
+if(WITH_SLANG)
+  add_definitions(-DWITH_SLANG)
+  set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/systemverilog_encoder.cpp")
+endif()
+
 if(WITH_MSAT)
   # need direct access to mathsat for setting options
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
@@ -360,6 +393,12 @@ if(WITH_COREIR_EXTERN)
       INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
   )
   target_link_libraries(pono-lib PUBLIC coreir verilogAST)
+endif()
+
+if(WITH_SLANG)
+  target_link_libraries(pono-lib PUBLIC slang::slang)
+  # slang requires C++20 features in its headers
+  set_property(TARGET pono-lib PROPERTY CXX_STANDARD 20)
 endif()
 
 if(WITH_COREIR)
