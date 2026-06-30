@@ -45,6 +45,3 @@ int main()
   Descriptor d = usage[0];
   std::printf("%s",d.shortopt);
 }
-
-
-

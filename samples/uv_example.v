@@ -25,4 +25,3 @@ module uv_example(clk, rst);
       prop: assert((u + v) != one);
    end
 endmodule // uv_example
-

@@ -36,4 +36,3 @@ extern bool foo(int argc, const char* argv[])
   option::Parser parse(usage, argc, argv, options, buffer);
   return parse.error();
 }
-

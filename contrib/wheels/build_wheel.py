@@ -118,4 +118,3 @@ setup(
     tests_require=['pytest'],
     zip_safe=False,
 )
-
