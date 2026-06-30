@@ -75,4 +75,3 @@ def test_query_rts(create_solver):
         ts.constrain_trans(solver.make_term(ss.primops.Equal, ts.next(states[0]), ts.next(states[1])))
     except Exception as e:
         assert False
-
