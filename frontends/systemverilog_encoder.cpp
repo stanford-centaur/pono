@@ -1329,70 +1329,71 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & ca = stmt.as<ConcurrentAssertionStatement>();
       // Only handle 'assert' (not 'assume', 'cover', etc.).
       if (ca.assertionKind == AssertionKind::Assert) {
-        // Peel off Clocking / StrongWeak wrappers, then detect
-        // top-level Always (safety, inner) vs Eventually (liveness,
-        // justice = !inner) vs anything else (fall through to safety
-        // via assertion_expr_to_bool).
+        // Strip the clocking wrapper; the clock event is already baked
+        // into our per-cycle abstraction.
         const AssertionExpr * a = &ca.propertySpec;
-        while (true) {
-          if (a->kind == AssertionExprKind::Clocking) {
-            a = &a->as<ClockingAssertionExpr>().expr;
-          } else if (a->kind == AssertionExprKind::StrongWeak) {
-            a = &a->as<StrongWeakAssertionExpr>().expr;
-          } else if (a->kind == AssertionExprKind::Unary
-                     && (a->as<UnaryAssertionExpr>().op
-                             == UnaryAssertionOperator::Always
-                         || a->as<UnaryAssertionExpr>().op
-                                == UnaryAssertionOperator::SAlways)) {
-            // `always P` at the top is just P checked at every
-            // cycle -- our existing safety encoding.
-            a = &a->as<UnaryAssertionExpr>().expr;
-          } else {
-            break;
-          }
+        while (a->kind == AssertionExprKind::Clocking) {
+          a = &a->as<ClockingAssertionExpr>().expr;
         }
 
-        if (a->kind == AssertionExprKind::Unary) {
-          auto & u = a->as<UnaryAssertionExpr>();
-          if (u.op == UnaryAssertionOperator::Eventually
-              || u.op == UnaryAssertionOperator::SEventually) {
-            Term inner = assertion_expr_to_bool(u.expr);
-            if (inner) {
-              liveness_propvec_.push_back(solver_->make_term(Not, inner));
-              logger.log(
-                  1,
-                  "SystemVerilogEncoder: extracted liveness justice");
-            } else {
-              logger.log(
-                  1,
-                  "SystemVerilogEncoder: skipping unsupported liveness "
-                  "inner assertion kind {}",
-                  static_cast<int>(u.expr.kind));
-            }
-            break;
-          }
-        }
-
-        // Recognize the LTL-implication pattern
-        //   `(always P_1) ∧ ... ∧ (always (s_eventually R_1)) ∧ ...
-        //     implies s_eventually Q`
-        // (arbiter.sv's `arbiter_is_fair`).  On match this pushes a
-        // fair-lasso justice term onto liveness_propvec_ and we are
-        // done; otherwise fall through to the safety path.
-        if (try_extract_fair_ltl(*a)) break;
-
-        Term prop = assertion_expr_to_bool(*a);
-        if (prop) {
+        // Prefer the pure-safety encoding when the property reduces to
+        // a single current-cycle Boolean (plain `assert P`, `always
+        // P`, bounded `|->` / `|=>` / `##k` implications).
+        // assertion_expr_to_bool returns null as soon as a genuine
+        // liveness operator (eventually / unbounded until) appears.
+        if (Term prop = assertion_expr_to_bool(*a)) {
           propvec_.push_back(prop);
           logger.log(
-              1,
-              "SystemVerilogEncoder: extracted concurrent assertion property");
-        } else {
-          logger.log(1,
-                     "SystemVerilogEncoder: skipping unsupported assertion "
-                     "expression kind {}",
-                     static_cast<int>(a->kind));
+              1, "SystemVerilogEncoder: extracted safety assertion property");
+          break;
         }
+
+        // Otherwise build the general LTL tableau for the *negated*
+        // property and collect its eventuality-discharge justice
+        // conditions.  A fair lasso of the resulting system (every
+        // justice condition true infinitely often) on which the
+        // negated property holds at cycle 0 is exactly a
+        // counterexample to the original assertion.
+        TermVec justice;
+        Term satpsi = ltl_to_sat(*a, /*neg=*/true, justice);
+        if (!satpsi) {
+          logger.log(1,
+                     "SystemVerilogEncoder: skipping unsupported temporal "
+                     "assertion kind {}",
+                     static_cast<int>(a->kind));
+          break;
+        }
+
+        Sort bv1 = solver_->make_sort(BV, 1);
+        Term one_bv1 = solver_->make_term(1, bv1);
+
+        // Per-property activation latch: a free 1-bit constant.  The
+        // justice set forces it to 1 (so this property's time-0
+        // obligation is enabled), while every *other* property's latch
+        // may stay 0, leaving their obligations vacuous.  This keeps
+        // independent LTL properties from interfering in one system.
+        Term act = fts_.make_statevar(
+            make_name("__ltl_act_" + std::to_string(latch_counter_++)), bv1);
+        fts_.assign_next(act, act);
+        Term act_bool = solver_->make_term(Equal, act, one_bv1);
+
+        // Time-0 obligation: when active, the negated property must
+        // hold at the first cycle.  Gated by the shared init flag so
+        // it constrains only cycle 0, and added to the transition
+        // relation (it references the tableau's promise inputs) rather
+        // than to the initial-state predicate.
+        Term obligation = solver_->make_term(
+            Implies,
+            solver_->make_term(And, ltl_init_flag(), act_bool),
+            satpsi);
+        fts_.add_constraint(obligation, /*to_init_and_next=*/false);
+
+        justice.push_back(act_bool);
+        ltl_justice_.push_back(justice);
+        logger.log(1,
+                   "SystemVerilogEncoder: extracted LTL liveness property "
+                   "({} justice condition(s))",
+                   justice.size());
       }
       break;
     }
@@ -1926,8 +1927,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // expands into a chain of 1-cycle latch state vars.  Other
       // calls (user subroutines, system tasks) are not supported.
       auto & call = expr.as<CallExpression>();
-      if (call.isSystemCall()
-          && call.getSubroutineName() == "$past") {
+      if (call.isSystemCall() && call.getSubroutineName() == "$past") {
         auto args = call.arguments();
         if (args.empty() || !args[0]) {
           throw PonoException(
@@ -1945,9 +1945,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         if (n == 0) return val;
         return make_history_chain(val, n);
       }
-      throw PonoException(
-          "SystemVerilogEncoder: unsupported call to "
-          + std::string(call.getSubroutineName()));
+      throw PonoException("SystemVerilogEncoder: unsupported call to "
+                          + std::string(call.getSubroutineName()));
     }
 
     default:
@@ -1992,146 +1991,305 @@ match_const_delay_seq(const slang::ast::AssertionExpr & ae)
 }
 }  // namespace
 
-// Decompose an AssertionExpr by top-level `and` into its conjuncts.
-// (Recurses through nested BinaryAssertionExpr(And) so that
-// `(A and B) and C` flattens to {A, B, C}.)
-namespace {
-void flatten_assertion_and(
-    const slang::ast::AssertionExpr & ae,
-    std::vector<const slang::ast::AssertionExpr *> & out)
+// ============================================================================
+// LTL tableau
+// ============================================================================
+//
+// Properties that are not pure safety are translated with a standard
+// symbolic LTL tableau (temporal testers).  Every temporal operator
+// introduces a one-step "promise" tester:
+//
+//   * a free 1-bit input  n  guessing whether the operator's body
+//     holds at the *next* cycle (this is the operator's value now);
+//   * a 1-bit state  s  with  s' = n  (it remembers the guess), plus
+//     the per-cycle consistency constraint  s == body, which forces
+//     the guess made one cycle earlier to have been correct.
+//
+// Greatest-fixpoint operators (G, R) need no fairness.  Least-fixpoint
+// operators (F, strong-U) additionally emit a justice (GF) condition
+// that discharges the eventuality, ruling out lassos where a promise
+// is made forever but never fulfilled.  ltl_to_sat() pushes negation
+// to the leaves on the fly, so the testers it builds always match the
+// negation-normal form of the (negated) property.
+
+smt::Term SystemVerilogEncoder::ltl_init_flag()
 {
-  using namespace slang::ast;
-  if (ae.kind == AssertionExprKind::Binary) {
-    auto & b = ae.as<BinaryAssertionExpr>();
-    if (b.op == BinaryAssertionOperator::And) {
-      flatten_assertion_and(b.left, out);
-      flatten_assertion_and(b.right, out);
-      return;
-    }
-  }
-  out.push_back(&ae);
-}
-}  // namespace
-
-bool SystemVerilogEncoder::try_extract_fair_ltl(
-    const slang::ast::AssertionExpr & ae)
-{
-  using namespace slang::ast;
-
-  // We expect the *outer* shape `LHS implies RHS` (LRM Implies, the
-  // long-range LTL implication that bridges liveness operands).
-  if (ae.kind != AssertionExprKind::Binary) return false;
-  auto & impl = ae.as<BinaryAssertionExpr>();
-  if (impl.op != BinaryAssertionOperator::Implies) return false;
-
-  // RHS must be a liveness goal: `s_eventually Q` or `eventually Q`.
-  auto strip_wraps = [](const AssertionExpr * a) {
-    while (true) {
-      if (a->kind == AssertionExprKind::StrongWeak) {
-        a = &a->as<StrongWeakAssertionExpr>().expr;
-      } else if (a->kind == AssertionExprKind::Clocking) {
-        a = &a->as<ClockingAssertionExpr>().expr;
-      } else {
-        break;
-      }
-    }
-    return a;
-  };
-
-  const AssertionExpr * rhs = strip_wraps(&impl.right);
-  if (rhs->kind != AssertionExprKind::Unary) return false;
-  auto & ugoal = rhs->as<UnaryAssertionExpr>();
-  if (ugoal.op != UnaryAssertionOperator::Eventually
-      && ugoal.op != UnaryAssertionOperator::SEventually) {
-    return false;
-  }
-  Term goal = assertion_expr_to_bool(ugoal.expr);
-  if (!goal) return false;
-
-  // LHS is a conjunction of `always P` (invariants) and
-  // `always (s_eventually R)` (fairness conjuncts).
-  std::vector<const AssertionExpr *> conjuncts;
-  flatten_assertion_and(impl.left, conjuncts);
-
-  std::vector<Term> invariants;
-  std::vector<Term> fairness;
-  for (auto * c0 : conjuncts) {
-    auto * c = strip_wraps(c0);
-    if (c->kind != AssertionExprKind::Unary) return false;
-    auto & uc = c->as<UnaryAssertionExpr>();
-    if (uc.op != UnaryAssertionOperator::Always
-        && uc.op != UnaryAssertionOperator::SAlways) {
-      return false;
-    }
-    auto * inner = strip_wraps(&uc.expr);
-    if (inner->kind == AssertionExprKind::Unary) {
-      auto & ui = inner->as<UnaryAssertionExpr>();
-      if (ui.op == UnaryAssertionOperator::Eventually
-          || ui.op == UnaryAssertionOperator::SEventually) {
-        Term r = assertion_expr_to_bool(ui.expr);
-        if (!r) return false;
-        fairness.push_back(r);
-        continue;
-      }
-    }
-    Term p = assertion_expr_to_bool(uc.expr);
-    if (!p) return false;
-    invariants.push_back(p);
-  }
-
-  // Multi-fairness Streett-to-Büchi is out of scope for the current
-  // encoder; arbiter.sv has at most one fairness conjunct per
-  // property anyway.
-  if (fairness.size() > 1) return false;
-
-  // Build the "violated" latch.  Cycle-0 init reflects only the
-  // accumulated history (zero), so the cycle-0 check uses the
-  // combinational `viol_now` term below.
+  if (ltl_init_flag_) return ltl_init_flag_;
   Sort bv1 = solver_->make_sort(BV, 1);
   Term one_bv1 = solver_->make_term(1, bv1);
   Term zero_bv1 = solver_->make_term(0, bv1);
+  Term flag = fts_.make_statevar(make_name("__ltl_init_flag"), bv1);
+  fts_.constrain_init(solver_->make_term(Equal, flag, one_bv1));
+  fts_.assign_next(flag, zero_bv1);
+  ltl_init_flag_ = solver_->make_term(Equal, flag, one_bv1);
+  return ltl_init_flag_;
+}
 
-  Term violated = fts_.make_statevar(
-      make_name("__sva_ltl_viol_" + std::to_string(latch_counter_++)),
-      bv1);
-  fts_.constrain_init(solver_->make_term(Equal, violated, zero_bv1));
-  Term violated_bool = solver_->make_term(Equal, violated, one_bv1);
+smt::Term SystemVerilogEncoder::ltl_make_X(const smt::Term & phi)
+{
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+  uint32_t id = latch_counter_++;
+  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
+  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
+  fts_.assign_next(s, n);  // s@(t+1) = n@t  (remember the guess)
+  // The guess made at t-1 about phi@t must have been correct.  The
+  // cycle-0 instance only pins the otherwise-unused initial s.
+  Term phi_bv = solver_->make_term(Ite, phi, one_bv1, zero_bv1);
+  fts_.add_constraint(solver_->make_term(Equal, s, phi_bv),
+                      /*to_init_and_next=*/false);
+  return solver_->make_term(Equal, n, one_bv1);  // sat(X phi) = guess
+}
 
-  // `viol_now` is true iff any invariant fails or the goal has held
-  // at this cycle, OR a prior cycle already latched the violation.
-  Term inv_conj = solver_->make_term(true);
-  for (auto & p : invariants) {
-    inv_conj = solver_->make_term(And, inv_conj, p);
+smt::Term SystemVerilogEncoder::ltl_make_G(const smt::Term & phi)
+{
+  // G phi == phi && X(G phi)
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+  uint32_t id = latch_counter_++;
+  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
+  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
+  fts_.assign_next(s, n);
+  Term n_bool = solver_->make_term(Equal, n, one_bv1);
+  Term body = solver_->make_term(And, phi, n_bool);  // sat(G phi)
+  Term body_bv = solver_->make_term(Ite, body, one_bv1, zero_bv1);
+  fts_.add_constraint(solver_->make_term(Equal, s, body_bv),
+                      /*to_init_and_next=*/false);
+  return body;
+}
+
+smt::Term SystemVerilogEncoder::ltl_make_F(const smt::Term & phi,
+                                           smt::TermVec & justice)
+{
+  // F phi == phi || X(F phi)
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+  uint32_t id = latch_counter_++;
+  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
+  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
+  fts_.assign_next(s, n);
+  Term n_bool = solver_->make_term(Equal, n, one_bv1);
+  Term body = solver_->make_term(Or, phi, n_bool);  // sat(F phi)
+  Term body_bv = solver_->make_term(Ite, body, one_bv1, zero_bv1);
+  fts_.add_constraint(solver_->make_term(Equal, s, body_bv),
+                      /*to_init_and_next=*/false);
+  // Discharge: infinitely often phi holds or we stop promising F.
+  justice.push_back(
+      solver_->make_term(Or, phi, solver_->make_term(Not, n_bool)));
+  return body;
+}
+
+smt::Term SystemVerilogEncoder::ltl_make_R(const smt::Term & a,
+                                           const smt::Term & b)
+{
+  // a R b == b && (a || X(a R b))   (greatest fixpoint, no fairness)
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+  uint32_t id = latch_counter_++;
+  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
+  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
+  fts_.assign_next(s, n);
+  Term n_bool = solver_->make_term(Equal, n, one_bv1);
+  Term body = solver_->make_term(
+      And, b, solver_->make_term(Or, a, n_bool));  // sat(a R b)
+  Term body_bv = solver_->make_term(Ite, body, one_bv1, zero_bv1);
+  fts_.add_constraint(solver_->make_term(Equal, s, body_bv),
+                      /*to_init_and_next=*/false);
+  return body;
+}
+
+smt::Term SystemVerilogEncoder::ltl_make_U(const smt::Term & a,
+                                           const smt::Term & b,
+                                           smt::TermVec & justice)
+{
+  // a U b (strong) == b || (a && X(a U b))
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+  uint32_t id = latch_counter_++;
+  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
+  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
+  fts_.assign_next(s, n);
+  Term n_bool = solver_->make_term(Equal, n, one_bv1);
+  Term body = solver_->make_term(
+      Or, b, solver_->make_term(And, a, n_bool));  // sat(a U b)
+  Term body_bv = solver_->make_term(Ite, body, one_bv1, zero_bv1);
+  fts_.add_constraint(solver_->make_term(Equal, s, body_bv),
+                      /*to_init_and_next=*/false);
+  // Discharge: infinitely often b holds or a U b is false.
+  justice.push_back(solver_->make_term(Or, solver_->make_term(Not, body), b));
+  return body;
+}
+
+smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
+                                           bool neg,
+                                           smt::TermVec & justice)
+{
+  using namespace slang::ast;
+
+  switch (ae.kind) {
+    case AssertionExprKind::Clocking:
+      return ltl_to_sat(ae.as<ClockingAssertionExpr>().expr, neg, justice);
+
+    case AssertionExprKind::StrongWeak:
+      // The strong/weak qualifier governs end-of-time behaviour, which
+      // is immaterial under our infinite-lasso semantics.  Unwrap.
+      return ltl_to_sat(ae.as<StrongWeakAssertionExpr>().expr, neg, justice);
+
+    case AssertionExprKind::Simple: {
+      Term t = expr_to_term(ae.as<SimpleAssertionExpr>().expr);
+      if (!t) return Term();
+      Term zero = solver_->make_term(0, t->get_sort());
+      Term b = solver_->make_term(Distinct, t, zero);
+      return neg ? solver_->make_term(Not, b) : b;
+    }
+
+    case AssertionExprKind::SequenceConcat: {
+      // A bare `##k Q` property has the same truth value as Q under
+      // our infinite-time semantics (modulo a front shift).  Unwrap.
+      if (auto m = match_const_delay_seq(ae)) {
+        return ltl_to_sat(*m->second, neg, justice);
+      }
+      return Term();
+    }
+
+    case AssertionExprKind::Unary: {
+      auto & u = ae.as<UnaryAssertionExpr>();
+      switch (u.op) {
+        case UnaryAssertionOperator::Not:
+          return ltl_to_sat(u.expr, !neg, justice);
+
+        case UnaryAssertionOperator::Always:
+        case UnaryAssertionOperator::SAlways: {
+          // G phi  (positive)  /  !G phi == F !phi  (negated)
+          Term phi = ltl_to_sat(u.expr, neg, justice);
+          if (!phi) return Term();
+          return neg ? ltl_make_F(phi, justice) : ltl_make_G(phi);
+        }
+
+        case UnaryAssertionOperator::Eventually:
+        case UnaryAssertionOperator::SEventually: {
+          // F phi  (positive)  /  !F phi == G !phi  (negated)
+          Term phi = ltl_to_sat(u.expr, neg, justice);
+          if (!phi) return Term();
+          return neg ? ltl_make_G(phi) : ltl_make_F(phi, justice);
+        }
+
+        case UnaryAssertionOperator::NextTime:
+        case UnaryAssertionOperator::SNextTime: {
+          // !X phi == X !phi, so the negation rides along inside phi.
+          Term phi = ltl_to_sat(u.expr, neg, justice);
+          if (!phi) return Term();
+          return ltl_make_X(phi);
+        }
+
+        default: return Term();
+      }
+    }
+
+    case AssertionExprKind::Binary: {
+      auto & b = ae.as<BinaryAssertionExpr>();
+      switch (b.op) {
+        case BinaryAssertionOperator::And:
+        case BinaryAssertionOperator::Or: {
+          Term l = ltl_to_sat(b.left, neg, justice);
+          Term r = ltl_to_sat(b.right, neg, justice);
+          if (!l || !r) return Term();
+          bool is_and = (b.op == BinaryAssertionOperator::And);
+          if (neg) is_and = !is_and;  // De Morgan
+          return solver_->make_term(is_and ? And : Or, l, r);
+        }
+
+        case BinaryAssertionOperator::Iff: {
+          // Children appear in both polarities, so build them
+          // positively and apply the outer negation here.  (Temporal
+          // operands under `iff` are not negation-normalized; such
+          // properties are exotic and out of scope for fairness.)
+          Term l = ltl_to_sat(b.left, false, justice);
+          Term r = ltl_to_sat(b.right, false, justice);
+          if (!l || !r) return Term();
+          return neg ? solver_->make_term(Distinct, l, r)
+                     : solver_->make_term(Equal, l, r);
+        }
+
+        case BinaryAssertionOperator::Implies: {
+          // a implies b == !a || b ;  !(a implies b) == a && !b
+          Term l = ltl_to_sat(b.left, !neg, justice);
+          Term r = ltl_to_sat(b.right, neg, justice);
+          if (!l || !r) return Term();
+          return solver_->make_term(neg ? And : Or, l, r);
+        }
+
+        case BinaryAssertionOperator::OverlappedImplication:
+        case BinaryAssertionOperator::NonOverlappedImplication: {
+          // seq |-> prop / seq |=> prop with a Boolean antecedent:
+          //   !a || X^delay b   (delay 0 overlapped, 1 non-overlapped,
+          //                       plus any ##k on the consequent)
+          // and its negation a && X^delay !b.
+          uint32_t delay =
+              (b.op == BinaryAssertionOperator::NonOverlappedImplication) ? 1
+                                                                          : 0;
+          const AssertionExpr * rhs = &b.right;
+          if (auto m = match_const_delay_seq(b.right)) {
+            delay += m->first;
+            rhs = m->second;
+          }
+          Term l = ltl_to_sat(b.left, !neg, justice);
+          Term r = ltl_to_sat(*rhs, neg, justice);
+          if (!l || !r) return Term();
+          for (uint32_t i = 0; i < delay; ++i) r = ltl_make_X(r);
+          return solver_->make_term(neg ? And : Or, l, r);
+        }
+
+        case BinaryAssertionOperator::Until:
+        case BinaryAssertionOperator::SUntil:
+        case BinaryAssertionOperator::UntilWith:
+        case BinaryAssertionOperator::SUntilWith: {
+          bool strong = (b.op == BinaryAssertionOperator::SUntil
+                         || b.op == BinaryAssertionOperator::SUntilWith);
+          bool with = (b.op == BinaryAssertionOperator::UntilWith
+                       || b.op == BinaryAssertionOperator::SUntilWith);
+          if (!neg) {
+            Term l = ltl_to_sat(b.left, false, justice);
+            Term r = ltl_to_sat(b.right, false, justice);
+            if (!l || !r) return Term();
+            // until_with: the terminating cycle must also satisfy a.
+            Term term = with ? solver_->make_term(And, l, r) : r;
+            if (strong) return ltl_make_U(l, term, justice);
+            // weak until: a W term == term R (a || term).
+            return ltl_make_R(term, solver_->make_term(Or, l, term));
+          }
+          // Negated, with operands already in negation-normal form
+          // (nl = sat(!left), nr = sat(!right)):
+          //   !(a U_strong b)      = !a R !b
+          //   !(a W b)             = !b U (!a && !b)
+          //   !(a U_strong (a&&b)) = !a R (!a || !b)
+          //   !(a W (a&&b))        = (!a || !b) U !a
+          Term nl = ltl_to_sat(b.left, true, justice);
+          Term nr = ltl_to_sat(b.right, true, justice);
+          if (!nl || !nr) return Term();
+          if (!with) {
+            if (strong) return ltl_make_R(nl, nr);
+            return ltl_make_U(nr, solver_->make_term(And, nl, nr), justice);
+          }
+          Term nterm = solver_->make_term(Or, nl, nr);  // !(a && b)
+          if (strong) return ltl_make_R(nl, nterm);
+          return ltl_make_U(nterm, nl, justice);
+        }
+
+        default:
+          // Intersect / Throughout / Within / FollowedBy: multi-cycle
+          // sequence operators the tableau does not model.
+          return Term();
+      }
+    }
+
+    default: return Term();
   }
-  Term inv_fail = solver_->make_term(Not, inv_conj);
-  Term viol_now = solver_->make_term(
-      Or, violated_bool, solver_->make_term(Or, inv_fail, goal));
-
-  // Next-state for `violated` is just the current-cycle viol_now;
-  // once set it stays set forever.
-  Term viol_now_bv = solver_->make_term(Ite, viol_now, one_bv1, zero_bv1);
-  fts_.assign_next(violated, viol_now_bv);
-
-  // Justice: at lasso points the antecedent must still hold (i.e.
-  // viol_now must be false) and the fairness conjunct (if any) must
-  // fire.  L2S requires this term to hold infinitely often on the
-  // witness; when it does, no invariant has ever failed in the
-  // sampled portion of the lasso, the goal has never held, and the
-  // fairness conjunct fires infinitely often -- exactly the
-  // counterexample shape for the original LTL implication.
-  Term not_viol_now = solver_->make_term(Not, viol_now);
-  Term justice = not_viol_now;
-  if (!fairness.empty()) {
-    justice = solver_->make_term(And, fairness[0], not_viol_now);
-  }
-  liveness_propvec_.push_back(justice);
-  logger.log(
-      1,
-      "SystemVerilogEncoder: extracted fair-LTL liveness justice "
-      "(invariants={}, fairness={})",
-      invariants.size(),
-      fairness.size());
-  return true;
 }
 
 Term SystemVerilogEncoder::assertion_expr_to_bool(
@@ -2214,10 +2372,8 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
         Term lhs = assertion_expr_to_bool(b.left);
         if (!lhs) return Term();
 
-        uint32_t delay = (b.op
-                          == BinaryAssertionOperator::NonOverlappedImplication)
-                             ? 1
-                             : 0;
+        uint32_t delay =
+            (b.op == BinaryAssertionOperator::NonOverlappedImplication) ? 1 : 0;
         const AssertionExpr * rhs_inner = &b.right;
         if (auto matched = match_const_delay_seq(b.right)) {
           delay += matched->first;

@@ -1,7 +1,8 @@
 // `s_eventually P`: a liveness property claiming P must hold at
-// some future cycle.  The encoder pushes !P onto liveness_propvec_;
-// the test wraps the resulting TS with LivenessToSafetyTranslator
-// so BMC can hunt for the lasso counterexample.
+// some future cycle.  The encoder builds the LTL tableau for the
+// negation (G !P) and exposes its justice set; the test wraps the
+// resulting TS with LivenessToSafetyTranslator so BMC can hunt for
+// the lasso counterexample.
 //
 // Here `enable` is a free input.  When `enable` is held low after
 // the reset, `count` stays at 0 forever and never reaches 5, so

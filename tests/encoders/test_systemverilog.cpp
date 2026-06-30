@@ -95,14 +95,13 @@ class SVUnitTests : public ::testing::Test,
     }
   }
 
-  // Encode `file` (which must contain a single `s_eventually`
-  // assertion -> single justice condition), translate to safety
-  // via LivenessToSafetyTranslator, then run BMC up to `bound`.
-  // Reset preprocessing is applied if the design has an `rst`
-  // input.  The L2S translator adds a "save" input and a few
-  // bookkeeping state vars that BMC chooses freely; a FALSE
-  // verdict means BMC found a lasso violating the liveness
-  // claim.
+  // Encode `file` (which must contain a single temporal/LTL
+  // assertion), reduce its generalized-Büchi justice set to a safety
+  // property via LivenessToSafetyTranslator, then run BMC up to
+  // `bound`.  Reset preprocessing is applied if the design has an
+  // `rst` input.  The L2S translator adds a "save" input and a few
+  // bookkeeping state vars that BMC chooses freely; a FALSE verdict
+  // means BMC found a fair lasso violating the LTL property.
   void check_liveness_bmc(const string & file,
                           size_t bound,
                           ProverResult expected = ProverResult::FALSE)
@@ -113,21 +112,20 @@ class SVUnitTests : public ::testing::Test,
     FunctionalTransitionSystem fts(s);
     SystemVerilogEncoder enc(sv_path(file), fts);
     ASSERT_EQ(enc.propvec().size(), 0u);
-    ASSERT_EQ(enc.liveness_propvec().size(), 1u);
-    Term justice_cond = enc.liveness_propvec()[0];
+    ASSERT_EQ(enc.ltl_justice().size(), 1u);
+    TermVec justice = enc.ltl_justice()[0];
 
     TransitionSystem ts = fts;
     if (Term rst = find_reset(ts)) {
       Term reset_done = add_reset_seq(ts, rst, /*reset_bnd=*/1);
-      // After reset, the liveness claim is "eventually P holds";
-      // a violating lasso has !P infinitely often in its loop.
-      // Conjunct reset_done into the justice so the lasso must
-      // sit fully after reset has released.
-      justice_cond = ts.solver()->make_term(And, reset_done, justice_cond);
+      // Pin the accepting lasso to the post-reset region by requiring
+      // every justice condition to fire while reset has released.
+      for (Term & j : justice) {
+        j = ts.solver()->make_term(And, reset_done, j);
+      }
     }
 
-    Term safety_term = LivenessToSafetyTranslator{}.translate(
-        ts, { justice_cond });
+    Term safety_term = LivenessToSafetyTranslator{}.translate(ts, justice);
 
     if (!ts.only_curr(safety_term) && ts.no_next(safety_term)) {
       UnorderedTermSet ivs_in_prop;
@@ -230,10 +228,7 @@ TEST_P(SVUnitTests, BinaryImplication)
 // chooses arm=1 during the reset cycle so the latch is high at
 // cycle 1 alongside reset_done; with `data` a free input, the
 // consequent (data == 10) is falsified at cycle 1.
-TEST_P(SVUnitTests, BinaryNonOverlap)
-{
-  check_bmc("binary_nonoverlap.sv", 1);
-}
+TEST_P(SVUnitTests, BinaryNonOverlap) { check_bmc("binary_nonoverlap.sv", 1); }
 
 // SVA `and` operator over two simple sub-properties.  Free `data`
 // means BMC picks values violating one half immediately at
@@ -252,28 +247,43 @@ TEST_P(SVUnitTests, PastCall) { check_bmc("past_call.sv", 1); }
 // arm=1 during reset (cycle 0); the antecedent latch propagates
 // over two cycles and the consequent fails at cycle 2 when BMC
 // picks data != 10.
-TEST_P(SVUnitTests, SequenceDelay)
-{
-  check_bmc("sequence_delay.sv", 2);
-}
+TEST_P(SVUnitTests, SequenceDelay) { check_bmc("sequence_delay.sv", 2); }
 
 // Top-level `always P` unwraps to the same safety property as
 // plain `P`.  Counter reaches 5 at cycle 5 (one reset cycle + 5
 // increments), falsifying `always (count != 5)`.
-TEST_P(SVUnitTests, AlwaysAssertion)
-{
-  check_bmc("always_assertion.sv", 5);
-}
+TEST_P(SVUnitTests, AlwaysAssertion) { check_bmc("always_assertion.sv", 5); }
 
-// Top-level `s_eventually P` goes through liveness_propvec_; the
-// test harness wraps the TS with LivenessToSafetyTranslator and
-// runs BMC.  When `enable` is held low after reset, `count` stays
-// at 0 forever and the lasso witness is found within a few
-// translator-introduced cycles.
+// Top-level `s_eventually P` goes through the LTL tableau (its
+// negation G!P has no eventuality, so the justice set is just the
+// activation latch).  The test harness wraps the TS with
+// LivenessToSafetyTranslator and runs BMC.  When `enable` is held low
+// after reset, `count` stays at 0 forever and the lasso witness is
+// found within a few translator-introduced cycles.
 TEST_P(SVUnitTests, EventuallyAssertion)
 {
   check_liveness_bmc("eventually_assertion.sv", 5);
 }
+
+// Full LTL: request/response liveness `always (req |-> s_eventually
+// ack)` nests `always` over `s_eventually`, so it is not pure safety
+// and goes through the general tableau.  With `ack` free, BMC finds a
+// fair lasso where a request is never acknowledged.
+TEST_P(SVUnitTests, ReqAckLiveness) { check_liveness_bmc("req_ack.sv", 10); }
+
+// Same property with `ack` tied high, so it genuinely holds.  The
+// tableau must not invent a counterexample; BMC exhausts the bound
+// and returns UNKNOWN.
+TEST_P(SVUnitTests, ReqAckHolds)
+{
+  check_liveness_bmc("req_ack_holds.sv", 8, ProverResult::UNKNOWN);
+}
+
+// Strong until `busy s_until done` (busy tied high) is a liveness
+// obligation that `done` must eventually arrive.  With `done` held
+// low forever, the tableau's release-encoded negation G(!done) yields
+// a lasso counterexample.
+TEST_P(SVUnitTests, UntilLiveness) { check_liveness_bmc("until_live.sv", 10); }
 
 // ---------------------------------------------------------------------------
 // Statement kinds

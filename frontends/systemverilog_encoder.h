@@ -74,15 +74,27 @@ class SystemVerilogEncoder
    */
   const smt::TermVec & propvec() const { return propvec_; }
 
-  /** @return the vector of liveness justice conditions extracted
-   *  from top-level `s_eventually` / `eventually` assertions.  Each
-   *  entry `c` represents a justice condition such that a witness
-   *  for the original liveness violation is an infinite lasso along
-   *  which `c` holds infinitely often.  See pono's
-   *  LivenessProperty / LivenessToSafetyTranslator for how to
-   *  consume them.
+  /** @return the per-property generalized-Büchi justice sets
+   *  extracted from temporal (LTL) assertions that are not pure
+   *  safety properties.  There is one entry per such assertion; each
+   *  entry is the set of justice conditions { j_0, ..., j_k } for that
+   *  one property, meaning a counterexample to the original assertion
+   *  is an infinite lasso along which every j_i holds infinitely
+   *  often (i.e. the conjunction of GF j_i).  Feed a single entry's
+   *  TermVec straight into LivenessToSafetyTranslator::translate to
+   *  reduce that one property to safety.
+   *
+   *  Each LTL property also installs its own auxiliary tableau state
+   *  (next-step "promise" latches, an init flag, and a per-property
+   *  activation latch) and transition constraints directly into the
+   *  transition system, so the justice sets are only meaningful
+   *  against the system the encoder populated.  Because the
+   *  per-property activation latch gates that property's time-0
+   *  obligation, distinct LTL properties do not interfere: checking
+   *  one property's justice set leaves the others' obligations
+   *  vacuous.
    */
-  const smt::TermVec & liveness_propvec() const { return liveness_propvec_; }
+  const std::vector<smt::TermVec> & ltl_justice() const { return ltl_justice_; }
 
  private:
   // ---------- Encoding pipeline ----------
@@ -265,23 +277,49 @@ class SystemVerilogEncoder
    */
   smt::Term make_history_chain(const smt::Term & value, uint32_t n);
 
-  /** Try to recognize an SVA assertion of the LTL shape
-   *  `(G P_1) ∧ ... ∧ (G P_n) ∧ (G F R_1) ∧ ... ∧ (G F R_m) ⇒ F Q`
-   *  (any of the antecedent conjuncts may be missing).  On a match,
-   *  emit a fair-lasso justice term into `liveness_propvec_` and
-   *  return true; on a non-match return false so the caller can fall
-   *  through to its other handlers.
+  /** General symbolic-tableau translation of an SVA property into the
+   *  Boolean SMT term `sat(psi)` that holds at a cycle iff the
+   *  (possibly negated) property `psi` holds starting from that cycle,
+   *  where `psi` is `ae` when `neg` is false and `!ae` when `neg` is
+   *  true.  Negation is pushed through the operators on the fly (so
+   *  the gadgets built always correspond to the operators of `psi` in
+   *  negation-normal form) -- this keeps the eventuality-fairness
+   *  conditions correct regardless of the surrounding polarity.
    *
-   *  Encoding: a fresh 1-bit "violated" state var latches as soon as
-   *  any invariant P_i fails or the consequent Q holds at the current
-   *  cycle; once latched it stays high.  The justice term combines
-   *  the fairness conjuncts via a Streett-to-Büchi counter, gated by
-   *  the current cycle being violation-free.
+   *  Each temporal operator instantiates a one-step "promise" latch
+   *  (see `ltl_make_*`) via `assign_next` plus a current-cycle
+   *  consistency constraint, and every strong-eventuality operator
+   *  (F / strong-until) appends its discharge condition to `justice`.
    *
-   *  Returns true on success (justice pushed); false if the shape did
-   *  not match or any inner Boolean failed to compile.
+   *  Returns a null Term when the property uses an operator the
+   *  tableau does not model (sequence intersect/throughout/within/
+   *  followed-by, etc.); the caller then skips the assertion.
    */
-  bool try_extract_fair_ltl(const slang::ast::AssertionExpr & ae);
+  smt::Term ltl_to_sat(const slang::ast::AssertionExpr & ae,
+                       bool neg,
+                       smt::TermVec & justice);
+
+  /** Tableau gadget builders.  Each takes the already-compiled
+   *  `sat(...)` Boolean term(s) of the operand(s) and returns the
+   *  `sat(...)` term of the composite temporal formula, installing the
+   *  necessary "promise" latch and consistency constraint into the
+   *  transition system.  The F / U builders also push their
+   *  eventuality-discharge term onto `justice`.
+   */
+  smt::Term ltl_make_X(const smt::Term & phi);
+  smt::Term ltl_make_G(const smt::Term & phi);
+  smt::Term ltl_make_F(const smt::Term & phi, smt::TermVec & justice);
+  smt::Term ltl_make_R(const smt::Term & a, const smt::Term & b);
+  smt::Term ltl_make_U(const smt::Term & a,
+                       const smt::Term & b,
+                       smt::TermVec & justice);
+
+  /** Lazily create the shared "first cycle" flag: a 1-bit state var
+   *  that is 1 in the initial state and 0 forever after.  Returned as
+   *  a Boolean term (`flag == 1`).  Used to gate each LTL property's
+   *  time-0 obligation so it is only asserted at the start of the
+   *  trace. */
+  smt::Term ltl_init_flag();
 
   // ---------- Data members ----------
 
@@ -336,12 +374,17 @@ class SystemVerilogEncoder
   // Safety properties extracted from SVA assert statements.
   smt::TermVec propvec_;
 
-  // Justice conditions extracted from top-level `s_eventually`
-  // (and `eventually`) assertions.  Each entry `c` is a term such
-  // that a counterexample to the original liveness assertion is a
-  // lasso along which `c` is true infinitely often.  Concretely,
-  // `c == !inner` where the assertion was `s_eventually inner`.
-  smt::TermVec liveness_propvec_;
+  // Per-property generalized-Büchi justice sets extracted from
+  // temporal (LTL) assertions that are not pure safety.  Each entry
+  // is the justice set { j_0, ..., j_k } of one assertion: a
+  // counterexample is a lasso along which every j_i holds infinitely
+  // often.  See ltl_justice() and ltl_to_sat().
+  std::vector<smt::TermVec> ltl_justice_;
+
+  // Cached Boolean term (`flag == 1`) for the shared LTL "first
+  // cycle" state var, created on demand by ltl_init_flag().  Null
+  // until the first LTL property is encoded.
+  smt::Term ltl_init_flag_;
 
   // Hierarchical name prefix for the current module.
   std::string prefix_;
