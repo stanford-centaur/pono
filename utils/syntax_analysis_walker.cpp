@@ -696,7 +696,7 @@ unsigned TermLearner::same_val_replace_ast(
         for (unsigned idx2 = idx1 + 1; idx2 < tvec_new.size(); ++ idx2) {
           const auto & t1 = tvec_new.at(idx1);
           const auto & t2 = tvec_new.at(idx2);
-          
+
           n_new_terms += replace_hierachically(t1, t2, varset_info);
           n_new_terms += replace_hierachically(t2, t1, varset_info);
         }
@@ -707,7 +707,7 @@ unsigned TermLearner::same_val_replace_ast(
         for (unsigned idx2 = idx1 + 1; idx2 < tvec_old.size(); ++ idx2) {
           const auto & t1 = tvec_old.at(idx1);
           const auto & t2 = tvec_old.at(idx2);
-          
+
           n_new_terms += replace_hierachically(t1, t2, varset_info);
           n_new_terms += replace_hierachically(t2, t1, varset_info);
         }

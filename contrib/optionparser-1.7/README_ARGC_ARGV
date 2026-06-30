@@ -30,9 +30,9 @@ constraints:
 
 — If the value of argc is greater than zero, the array members argv[0] through
   argv[argc-1] inclusive shall contain pointers to strings, which are given
-  implementation-defined values by the host environment prior to program startup. 
+  implementation-defined values by the host environment prior to program startup.
   The intent is to supply to the program information determined prior to program
-  startup from elsewhere in the hosted environment. If the host environment is 
+  startup from elsewhere in the hosted environment. If the host environment is
   not capable of supplying strings with letters in both uppercase and lowercase,
   the implementation shall ensure that the strings are received in lowercase.
 

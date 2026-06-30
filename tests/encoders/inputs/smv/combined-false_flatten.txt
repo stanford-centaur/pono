@@ -6,7 +6,7 @@ b1:boolean;
 b2:boolean;
 c:unsigned word [8];
 FROZENVAR
-v : integer ; 
+v : integer ;
 INIT
  b1  &  ! b2  ;
 INIT
