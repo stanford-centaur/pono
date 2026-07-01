@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import argparse
+
 import pono
 import smt_switch as ss
 from smt_switch.primops import And, BVAdd, BVSub, Equal, Ite
-from smt_switch.sortkinds import BOOL, BV
+from smt_switch.sortkinds import BV
 
 
 def build_simple_alu_fts(s: ss.SmtSolver) -> pono.Property:
@@ -56,7 +57,7 @@ def build_simple_alu_fts(s: ss.SmtSolver) -> pono.Property:
     return prop, fts
 
 
-def k_induction_attempt():
+def k_induction_attempt() -> None:
     # Create an smt_switch.SmtSolver with Boolector as the backend
     # and no logging
     s = ss.create_btor_solver(False)
@@ -65,9 +66,9 @@ def k_induction_attempt():
     prop, fts = build_simple_alu_fts(s)
 
     print("\n============== Running k-induction ==============")
-    print("INIT\n\t{}".format(fts.init))
-    print("TRANS\n\t{}".format(fts.trans))
-    print("PROP\n\t{}".format(prop.prop))
+    print(f"INIT\n\t{fts.init}")
+    print(f"TRANS\n\t{fts.trans}")
+    print(f"PROP\n\t{prop.prop}")
 
     # Create KInduction engine -- using same solver (in future can change the solver)
     kind = pono.KInduction(prop, fts, s)
@@ -79,7 +80,7 @@ def k_induction_attempt():
     print("KInduction returned unknown")
 
 
-def interpolant_attempt():
+def interpolant_attempt() -> None:
     # Create solver and interpolator using MathSAT
     # and no logging for the solver
     s = ss.create_msat_solver(False)
@@ -88,9 +89,9 @@ def interpolant_attempt():
     prop, fts = build_simple_alu_fts(s)
 
     print("\n============== Running Interpolant-based Model Checking ==============")
-    print("INIT\n\t{}".format(fts.init))
-    print("TRANS\n\t{}".format(fts.trans))
-    print("PROP\n\t{}".format(prop.prop))
+    print(f"INIT\n\t{fts.init}")
+    print(f"TRANS\n\t{fts.trans}")
+    print(f"PROP\n\t{prop.prop}")
 
     # Create InterpolantMC engine
     itpmc = pono.InterpolantMC(prop, fts, s)
@@ -102,7 +103,7 @@ def interpolant_attempt():
     print("InterpolantMC returned true")
 
 
-def k_induction_attempt_inductive():
+def k_induction_attempt_inductive() -> None:
     # Create an smt_switch.SmtSolver with Boolector as the backend
     # and no logging
     s = ss.create_btor_solver(False)
@@ -124,11 +125,12 @@ def k_induction_attempt_inductive():
     )
 
     print(
-        "\n============== Running k-induction on inductively strengthened property =============="
+        "\n============== Running k-induction on inductively strengthened property "
+        "=============="
     )
-    print("INIT\n\t{}".format(fts.init))
-    print("TRANS\n\t{}".format(fts.trans))
-    print("PROP\n\t{}".format(prop.prop))
+    print(f"INIT\n\t{fts.init}")
+    print(f"TRANS\n\t{fts.trans}")
+    print(f"PROP\n\t{prop.prop}")
 
     # Create KInduction engine -- using same solver (in future can change the solver)
     kind = pono.KInduction(prop, fts, s)

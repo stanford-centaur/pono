@@ -6,5 +6,12 @@ ignore = ["D", "T", "COM812"]
 
 [lint.per-file-ignores]
 "contrib/wheels/build_wheel.py" = ["S603"]
+"examples/*" = ["S101"]
 "scripts/*" = ["S603"]
 "tests/python/test_*" = ["S101"]
+
+[lint.flake8-boolean-trap]
+extend-allowed-calls = [
+  "smt_switch.create_btor_solver",
+  "smt_switch.create_msat_solver",
+]
