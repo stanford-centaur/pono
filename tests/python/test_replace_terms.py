@@ -7,7 +7,7 @@ import pono
 def test_replace_terms(create_solver):
     solver = create_solver(create_solver is ss.solvers.get("yices2"))
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
-    fts = pono.FunctionalTransitionSystem(solver);
+    fts = pono.FunctionalTransitionSystem(solver)
     x = fts.make_statevar("x", bvsort8)
     a = fts.make_statevar("a", bvsort8)
     b = fts.make_statevar("b", bvsort8)

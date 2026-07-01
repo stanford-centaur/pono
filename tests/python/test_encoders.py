@@ -5,15 +5,18 @@ import pono
 
 try:
     import coreir
-    COREIR_AVAILABLE=True
+
+    COREIR_AVAILABLE = True
 except:
-    COREIR_AVAILABLE=False
+    COREIR_AVAILABLE = False
 
 from pathlib import Path
 
 
 @pytest.mark.skipif(not COREIR_AVAILABLE, reason="Requires coreir python bindings")
-@pytest.mark.skipif(not hasattr(pono, "CoreIREncoder"), reason="Requires building with coreir")
+@pytest.mark.skipif(
+    not hasattr(pono, "CoreIREncoder"), reason="Requires building with coreir"
+)
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_coreir(create_solver):
     file_dir = Path(os.path.dirname(__file__))

@@ -13,7 +13,7 @@ from distutils.version import LooseVersion
 
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir=''):
+    def __init__(self, name, sourcedir=""):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
 
@@ -21,16 +21,18 @@ class CMakeExtension(Extension):
 class CMakeBuild(build_ext):
     def run(self):
         try:
-            out = subprocess.check_output(['cmake', '--version'])
+            out = subprocess.check_output(["cmake", "--version"])
         except OSError:
             raise RuntimeError(
-                "CMake must be installed to build the following extensions: " +
-                ", ".join(e.name for e in self.extensions))
+                "CMake must be installed to build the following extensions: "
+                + ", ".join(e.name for e in self.extensions)
+            )
 
         if self.is_windows():
             cmake_version = LooseVersion(
-                re.search(r'version\s*([\d.]+)', out.decode()).group(1))
-            if cmake_version < '3.1.0':
+                re.search(r"version\s*([\d.]+)", out.decode()).group(1)
+            )
+            if cmake_version < "3.1.0":
                 raise RuntimeError("CMake >= 3.1.0 is required on Windows")
 
         for ext in self.extensions:
@@ -47,21 +49,23 @@ class CMakeBuild(build_ext):
         return tag == "linux"
 
     def build_extension(self, ext):
-        extdir = os.path.abspath(
-            os.path.dirname(self.get_ext_fullpath(ext.name)))
+        extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         if not os.path.isdir(extdir):
             os.makedirs(extdir)
 
-        cfg = 'Release'
-        build_args = ['--config', cfg]
+        cfg = "Release"
+        build_args = ["--config", cfg]
 
         cpu_count = max(2, multiprocessing.cpu_count() // 2)
-        build_args += ['--', '-j{0}'.format(cpu_count)]
+        build_args += ["--", "-j{0}".format(cpu_count)]
 
         # contrib folder
         contrib_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         # build smt-switch
-        contrib_smt_switch = [os.path.join(contrib_path, "setup-smt-switch.sh"), "--python"]
+        contrib_smt_switch = [
+            os.path.join(contrib_path, "setup-smt-switch.sh"),
+            "--python",
+        ]
         subprocess.check_call(contrib_smt_switch)
         # build btor2
         contrib_btor2 = os.path.join(contrib_path, "setup-btor2tools.sh")
@@ -89,7 +93,8 @@ class CMakeBuild(build_ext):
 
         # build the main library
         subprocess.check_call(
-            ['cmake', '--build', '.', "--target", "pono"] + build_args, cwd=build_dir)
+            ["cmake", "--build", ".", "--target", "pono"] + build_args, cwd=build_dir
+        )
         # build the python binding
         python_build_dir = os.path.join(build_dir, "python")
         subprocess.check_call(["make"], cwd=python_build_dir)
@@ -106,15 +111,15 @@ class CMakeBuild(build_ext):
 
 
 setup(
-    name='pono',
-    version='0.1.1',
-    author='Makai Mann',
-    ext_modules=[CMakeExtension('pono')],
+    name="pono",
+    version="0.1.1",
+    author="Makai Mann",
+    ext_modules=[CMakeExtension("pono")],
     cmdclass=dict(build_ext=CMakeBuild),
-    long_description='python bindings for Pono (next generation of CoSA)',
-    url='https://github.com/upscale-project/pono',
-    license='BSD',
-    install_requires=['smt-switch'],
-    tests_require=['pytest'],
+    long_description="python bindings for Pono (next generation of CoSA)",
+    url="https://github.com/upscale-project/pono",
+    license="BSD",
+    install_requires=["smt-switch"],
+    tests_require=["pytest"],
     zip_safe=False,
 )
