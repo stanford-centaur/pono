@@ -1,10 +1,14 @@
+from __future__ import annotations
+
+from typing import Callable
+
+import pono
 import pytest
 import smt_switch as ss
-import pono
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_history_modifier(create_solver):
+def test_history_modifier(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver.set_opt("incremental", "true")
     solver.set_opt("produce-models", "true")
@@ -37,6 +41,6 @@ def test_history_modifier(create_solver):
         if i > 1:
             checked_at_least_one = True
             # checking semantics of history modifier delay
-            assert witness[i][counter_delay_2] == witness[i - 2][counter]
+            assert m[counter_delay_2] == witness[i - 2][counter]
 
     assert checked_at_least_one
