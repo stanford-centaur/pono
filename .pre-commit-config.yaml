@@ -15,6 +15,7 @@ repos:
     rev: v22.1.5
     hooks:
       - id: clang-format
+        exclude: "^contrib/"
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.20
     hooks:
