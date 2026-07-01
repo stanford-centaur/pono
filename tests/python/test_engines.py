@@ -7,12 +7,15 @@ import available_solvers
 
 from typing import Tuple
 
-def build_simple_alu_fts(s:ss.SmtSolver)->Tuple[pono.Property, pono.FunctionalTransitionSystem]:
-    '''
+
+def build_simple_alu_fts(
+    s: ss.SmtSolver,
+) -> Tuple[pono.Property, pono.FunctionalTransitionSystem]:
+    """
     Creates a simple alu transition system
     @param s - an SmtSolver from smt_switch
     @return a property
-    '''
+    """
 
     # Instantiate a functional transition system
     fts = pono.FunctionalTransitionSystem(s)
@@ -22,13 +25,13 @@ def build_simple_alu_fts(s:ss.SmtSolver)->Tuple[pono.Property, pono.FunctionalTr
     bvsort8 = s.make_sort(BV, 8)
 
     # Create the states
-    cfg = fts.make_statevar('cfg', bvsort1)
-    spec_res = fts.make_statevar('spec_res', bvsort8)
-    imp_res  = fts.make_statevar('imp_res', bvsort8)
+    cfg = fts.make_statevar("cfg", bvsort1)
+    spec_res = fts.make_statevar("spec_res", bvsort8)
+    imp_res = fts.make_statevar("imp_res", bvsort8)
 
     # Create the inputs
-    a = fts.make_inputvar('a', bvsort8)
-    b = fts.make_inputvar('b', bvsort8)
+    a = fts.make_inputvar("a", bvsort8)
+    b = fts.make_inputvar("b", bvsort8)
 
     # Add logic for cfg
     ## Start at 0
@@ -42,20 +45,26 @@ def build_simple_alu_fts(s:ss.SmtSolver)->Tuple[pono.Property, pono.FunctionalTr
     ## spec_res is the sum: spec_res' = a + b
     fts.assign_next(spec_res, s.make_term(BVAdd, a, b))
     ## depends on the configuration: imp_res' == (cfg == 0) ? a + b : a - b
-    fts.assign_next(imp_res, s.make_term(Ite,
-                                     s.make_term(Equal, cfg, s.make_term(0, bvsort1)),
-                                     s.make_term(BVAdd, a, b),
-                                     s.make_term(BVSub, a, b)))
+    fts.assign_next(
+        imp_res,
+        s.make_term(
+            Ite,
+            s.make_term(Equal, cfg, s.make_term(0, bvsort1)),
+            s.make_term(BVAdd, a, b),
+            s.make_term(BVSub, a, b),
+        ),
+    )
 
     # Create a property: (spec_cnt == imp_cnt - 1)
     prop = pono.Property(s, s.make_term(Equal, spec_res, imp_res))
     return prop, fts
 
+
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_bmc(create_solver):
     s = create_solver(create_solver is ss.solvers.get("yices2"))
-    s.set_opt('produce-models', 'true')
-    s.set_opt('incremental', 'true')
+    s.set_opt("produce-models", "true")
+    s.set_opt("incremental", "true")
     if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
         s.set_opt("base-context-1", "true")
     prop, ts = build_simple_alu_fts(s)
@@ -65,11 +74,12 @@ def test_bmc(create_solver):
 
     assert res is None, "BMC shouldn't be able to solve"
 
+
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_kind(create_solver):
     s = create_solver(create_solver is ss.solvers.get("yices2"))
-    s.set_opt('produce-models', 'true')
-    s.set_opt('incremental', 'true')
+    s.set_opt("produce-models", "true")
+    s.set_opt("incremental", "true")
     if "btor" in ss.solvers and ss.solvers["btor"] is create_solver:
         s.set_opt("base-context-1", "true")
     prop, ts = build_simple_alu_fts(s)
@@ -83,11 +93,13 @@ def test_kind(create_solver):
     assert res is True, "KInduction should be able to solve this property"
 
 
-@pytest.mark.parametrize("solver_and_interpolator", available_solvers.solver_and_interpolators.values())
+@pytest.mark.parametrize(
+    "solver_and_interpolator", available_solvers.solver_and_interpolators.values()
+)
 def test_ic3ia(solver_and_interpolator):
     s = solver_and_interpolator[0](False)
-    s.set_opt('produce-models', 'true')
-    s.set_opt('incremental', 'true')
+    s.set_opt("produce-models", "true")
+    s.set_opt("incremental", "true")
 
     prop, ts = build_simple_alu_fts(s)
 
@@ -97,11 +109,13 @@ def test_ic3ia(solver_and_interpolator):
     assert res is True, "IC3IA be able to solve this property"
 
 
-@pytest.mark.parametrize("solver_and_interpolator", available_solvers.solver_and_interpolators.values())
+@pytest.mark.parametrize(
+    "solver_and_interpolator", available_solvers.solver_and_interpolators.values()
+)
 def test_interp(solver_and_interpolator):
     s = solver_and_interpolator[0](False)
-    s.set_opt('produce-models', 'true')
-    s.set_opt('incremental', 'true')
+    s.set_opt("produce-models", "true")
+    s.set_opt("incremental", "true")
 
     prop, ts = build_simple_alu_fts(s)
 
@@ -110,24 +124,31 @@ def test_interp(solver_and_interpolator):
 
     assert res is True, "InterpolantMC be able to solve this property"
 
+
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_kind_inductive_prop(create_solver):
     is_btor = "btor" in ss.solvers and ss.solvers["btor"] is create_solver
     s = create_solver(is_btor or create_solver is ss.solvers.get("yices2"))
-    s.set_opt('produce-models', 'true')
-    s.set_opt('incremental', 'true')
+    s.set_opt("produce-models", "true")
+    s.set_opt("incremental", "true")
     if is_btor:
         s.set_opt("base-context-1", "true")
     prop, ts = build_simple_alu_fts(s)
 
-    states = {str(sv):sv for sv in ts.statevars}
+    states = {str(sv): sv for sv in ts.statevars}
 
-    prop = pono.Property(s, s.make_term(And,
-                                        s.make_term(Equal, states['cfg'],
-                                                    s.make_term(0, s.make_sort(BV, 1))),
-                                        prop.prop))
+    prop = pono.Property(
+        s,
+        s.make_term(
+            And,
+            s.make_term(Equal, states["cfg"], s.make_term(0, s.make_sort(BV, 1))),
+            prop.prop,
+        ),
+    )
 
     kind = pono.KInduction(prop, ts, s)
     res = kind.check_until(10)
 
-    assert res is True, "KInduction should be able to solve this manually strengthened property"
+    assert res is True, (
+        "KInduction should be able to solve this manually strengthened property"
+    )

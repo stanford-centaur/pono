@@ -14,8 +14,8 @@ def test_fts_unroller(create_solver):
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
 
     ts = pono.FunctionalTransitionSystem(solver)
-    x = ts.make_statevar('x', bvsort4)
-    mem = ts.make_statevar('mem', arrsort)
+    x = ts.make_statevar("x", bvsort4)
+    mem = ts.make_statevar("mem", arrsort)
 
     u = pono.Unroller(ts)
 
@@ -27,13 +27,10 @@ def test_fts_unroller(create_solver):
     assert u.at_time(x, 1) == u.at_time(x, 1)
 
     constarr0 = solver.make_term(solver.make_term(0, bvsort8), arrsort)
-    ts.constrain_init(solver.make_term(ss.primops.Equal,
-                                       mem,
-                                       constarr0))
-    ts.assign_next(mem, solver.make_term(ss.primops.Store,
-                                         mem,
-                                         x,
-                                         solver.make_term(1, bvsort8)))
+    ts.constrain_init(solver.make_term(ss.primops.Equal, mem, constarr0))
+    ts.assign_next(
+        mem, solver.make_term(ss.primops.Store, mem, x, solver.make_term(1, bvsort8))
+    )
 
     assert ts.init != u.at_time(ts.init, 0)
     assert u.at_time(ts.init, 0) == u.at_time(ts.init, 0)
@@ -54,8 +51,8 @@ def test_rts_unroller(create_solver):
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
 
     ts = pono.RelationalTransitionSystem(solver)
-    x = ts.make_statevar('x', bvsort4)
-    mem = ts.make_statevar('mem', arrsort)
+    x = ts.make_statevar("x", bvsort4)
+    mem = ts.make_statevar("mem", arrsort)
 
     u = pono.Unroller(ts)
 
@@ -67,25 +64,28 @@ def test_rts_unroller(create_solver):
     assert u.at_time(x, 1) == u.at_time(x, 1)
 
     constarr0 = solver.make_term(solver.make_term(0, bvsort8), arrsort)
-    ts.constrain_init(solver.make_term(ss.primops.Equal,
-                                       mem,
-                                       constarr0))
+    ts.constrain_init(solver.make_term(ss.primops.Equal, mem, constarr0))
 
     try:
-        ts.assign_next(mem, solver.make_term(ss.primops.Store,
-                                            mem,
-                                            ts.next(x),
-                                            solver.make_term(1, bvsort8)))
+        ts.assign_next(
+            mem,
+            solver.make_term(
+                ss.primops.Store, mem, ts.next(x), solver.make_term(1, bvsort8)
+            ),
+        )
         assert False
     except:
         pass
 
-    ts.constrain_trans(solver.make_term(ss.primops.Equal,
-                                        ts.next(mem),
-                                        solver.make_term(ss.primops.Store,
-                                            mem,
-                                            ts.next(x),
-                                            solver.make_term(1, bvsort8))))
+    ts.constrain_trans(
+        solver.make_term(
+            ss.primops.Equal,
+            ts.next(mem),
+            solver.make_term(
+                ss.primops.Store, mem, ts.next(x), solver.make_term(1, bvsort8)
+            ),
+        )
+    )
 
     assert ts.init != u.at_time(ts.init, 0)
     assert u.at_time(ts.init, 0) == u.at_time(ts.init, 0)

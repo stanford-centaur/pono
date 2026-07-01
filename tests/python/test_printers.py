@@ -17,14 +17,13 @@ def test_vcd_trace(create_solver):
         solver.set_opt("base-context-1", "true")
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     ts = pono.FunctionalTransitionSystem(solver)
-    x = ts.make_statevar('x', bvsort8)
-    ts.constrain_init(solver.make_term(ss.primops.Equal,
-                                       x,
-                                       solver.make_term(0, x.get_sort())))
-    ts.assign_next(x,
-                   ts.make_term(ss.primops.BVAdd,
-                                x,
-                                solver.make_term(1, x.get_sort())))
+    x = ts.make_statevar("x", bvsort8)
+    ts.constrain_init(
+        solver.make_term(ss.primops.Equal, x, solver.make_term(0, x.get_sort()))
+    )
+    ts.assign_next(
+        x, ts.make_term(ss.primops.BVAdd, x, solver.make_term(1, x.get_sort()))
+    )
 
     prop_term = solver.make_term(ss.primops.BVUle, x, solver.make_term(9, x.get_sort()))
 
