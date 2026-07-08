@@ -1,0 +1,8 @@
+enable=add-default-case
+enable=avoid-negated-conditions
+enable=avoid-nullary-conditions
+enable=check-set-e-suppressed
+enable=check-unassigned-uppercase
+enable=deprecate-which
+enable=require-double-brackets
+enable=useless-use-of-cat
