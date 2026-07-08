@@ -1,44 +1,40 @@
 name: Python Wheels
-
 on:
   push:
     tags:
       - '*'
-
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [35, 36, 37, 38]
-
     steps:
-    - uses: actions/checkout@v5
-    - name: Checkout submodules
-      shell: bash
-      run: |
-        auth_header="$(git config --local --get http.https://github.com/.extraheader)"
-        git submodule sync --recursive
-        git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
-    - name: Build wheels
-      shell: bash
-      run: |
+      - uses: actions/checkout@v5
+      - name: Checkout submodules
+        shell: bash
+        run: |
+          auth_header="$(git config --local --get http.https://github.com/.extraheader)"
+          git submodule sync --recursive
+          git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
+      - name: Build wheels
+        shell: bash
+        run: |
           docker run --mount type=bind,source="$(pwd)"/../pono,target=/pono keyiz/manylinux-java:py${{ matrix.python-version }} /pono/contrib/wheels/ci.sh
-      env:
-        PY_VERSION: ${{ matrix.python-version }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: py${{ matrix.python-version }} wheel
-        path: wheelhouse/
-    - name: Installing Python packages
-      shell: bash
-      run: |
+        env:
+          PY_VERSION: ${{ matrix.python-version }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: py${{ matrix.python-version }} wheel
+          path: wheelhouse/
+      - name: Installing Python packages
+        shell: bash
+        run: |
           sudo pip3 install setuptools
           sudo pip3 install twine
-    - name: Uploading to PyPi
-      shell: bash
-      run: |
+      - name: Uploading to PyPi
+        shell: bash
+        run: |
           echo [distutils]                                  > ~/.pypirc
           echo index-servers =                             >> ~/.pypirc
           echo "  pypi"                                    >> ~/.pypirc
@@ -48,5 +44,5 @@ jobs:
           echo username=makaim                             >> ~/.pypirc
           echo password=$PYPI_PASSWORD                     >> ~/.pypirc
           twine upload --config-file ~/.pypirc --skip-existing wheelhouse/*
-      env:
+        env:
           PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}

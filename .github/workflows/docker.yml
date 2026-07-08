@@ -4,15 +4,13 @@ on:
     branches:
       - main
   pull_request:
-      branches:
+    branches:
       - main
-  workflow_dispatch:  # allow manual trigger
-
+  workflow_dispatch: # allow manual trigger
 env:
   REGISTRY: ghcr.io
-
 jobs:
-   build-and-publish-to-ghcr:
+  build-and-publish-to-ghcr:
     runs-on: ubuntu-latest
     steps:
       - name: Docker meta
