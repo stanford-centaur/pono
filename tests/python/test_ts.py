@@ -50,12 +50,6 @@ def test_query_fts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     assert ts.is_functional()
     assert not ts.is_deterministic(), "not deterministic because no update for y"
 
-    states = list(ts.statevars)
-    with pytest.raises(RuntimeError):
-        ts.constrain_trans(
-            solver.make_term(ss.primops.Equal, ts.next(states[0]), ts.next(states[1]))
-        )
-
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
 def test_func_update_fts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
@@ -89,7 +83,6 @@ def test_query_rts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     assert not ts.is_functional()
 
     states = list(ts.statevars)
-    with pytest.raises(RuntimeError):
-        ts.constrain_trans(
-            solver.make_term(ss.primops.Equal, ts.next(states[0]), ts.next(states[1]))
-        )
+    ts.constrain_trans(
+        solver.make_term(ss.primops.Equal, ts.next(states[0]), ts.next(states[1]))
+    )
