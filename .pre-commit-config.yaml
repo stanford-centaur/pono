@@ -39,11 +39,13 @@ repos:
     rev: v0.21.0
     hooks:
       - id: yamlfmt
-  - repo: https://github.com/ComPWA/taplo-pre-commit
-    rev: v0.9.3
+  - repo: https://github.com/tombi-toml/tombi-pre-commit
+    rev: v1.2.0
     hooks:
-      - id: taplo-format
-      - id: taplo-lint
+      - id: tombi-format
+        args: [--offline]
+      - id: tombi-lint
+        args: [--offline]
   - repo: https://github.com/BlankSpruce/gersemi
     rev: 0.26.1
     hooks:
