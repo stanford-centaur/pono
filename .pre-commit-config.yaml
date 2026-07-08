@@ -23,7 +23,7 @@ repos:
       - id: ruff-check
         args: [--fix]
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.1.0
+    rev: v2.2.0
     hooks:
       - id: mypy
   - repo: https://github.com/scop/pre-commit-shfmt
