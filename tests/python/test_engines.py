@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Callable
 
-import available_solvers
 import pono
 import pytest
 import smt_switch as ss
 from smt_switch.primops import And, BVAdd, BVSub, Equal, Ite
 from smt_switch.sortkinds import BV
+
+from . import available_solvers
 
 
 def build_simple_alu_fts(
