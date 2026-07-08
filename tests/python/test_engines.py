@@ -1,16 +1,18 @@
+from __future__ import annotations
+
+from typing import Callable
+
+import available_solvers
+import pono
 import pytest
 import smt_switch as ss
-from smt_switch.sortkinds import BV
 from smt_switch.primops import And, BVAdd, BVSub, Equal, Ite
-import pono
-import available_solvers
-
-from typing import Tuple
+from smt_switch.sortkinds import BV
 
 
 def build_simple_alu_fts(
     s: ss.SmtSolver,
-) -> Tuple[pono.Property, pono.FunctionalTransitionSystem]:
+) -> tuple[pono.Property, pono.FunctionalTransitionSystem]:
     """
     Creates a simple alu transition system
     @param s - an SmtSolver from smt_switch
@@ -61,7 +63,7 @@ def build_simple_alu_fts(
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_bmc(create_solver):
+def test_bmc(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     s = create_solver(create_solver is ss.solvers.get("yices2"))
     s.set_opt("produce-models", "true")
     s.set_opt("incremental", "true")
@@ -76,7 +78,7 @@ def test_bmc(create_solver):
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_kind(create_solver):
+def test_kind(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     s = create_solver(create_solver is ss.solvers.get("yices2"))
     s.set_opt("produce-models", "true")
     s.set_opt("incremental", "true")
@@ -96,8 +98,12 @@ def test_kind(create_solver):
 @pytest.mark.parametrize(
     "solver_and_interpolator", available_solvers.solver_and_interpolators.values()
 )
-def test_ic3ia(solver_and_interpolator):
-    s = solver_and_interpolator[0](False)
+def test_ic3ia(
+    solver_and_interpolator: tuple[
+        Callable[[bool], ss.SmtSolver], Callable[[bool], ss.SmtSolver]
+    ],
+) -> None:
+    s = solver_and_interpolator[0](False)  # noqa: FBT003
     s.set_opt("produce-models", "true")
     s.set_opt("incremental", "true")
 
@@ -112,8 +118,12 @@ def test_ic3ia(solver_and_interpolator):
 @pytest.mark.parametrize(
     "solver_and_interpolator", available_solvers.solver_and_interpolators.values()
 )
-def test_interp(solver_and_interpolator):
-    s = solver_and_interpolator[0](False)
+def test_interp(
+    solver_and_interpolator: tuple[
+        Callable[[bool], ss.SmtSolver], Callable[[bool], ss.SmtSolver]
+    ],
+) -> None:
+    s = solver_and_interpolator[0](False)  # noqa: FBT003
     s.set_opt("produce-models", "true")
     s.set_opt("incremental", "true")
 
@@ -126,7 +136,7 @@ def test_interp(solver_and_interpolator):
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_kind_inductive_prop(create_solver):
+def test_kind_inductive_prop(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     is_btor = "btor" in ss.solvers and ss.solvers["btor"] is create_solver
     s = create_solver(is_btor or create_solver is ss.solvers.get("yices2"))
     s.set_opt("produce-models", "true")

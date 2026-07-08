@@ -137,7 +137,7 @@ def find_executable(name: str) -> pathlib.Path:
     return path
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901
     parser = argparse.ArgumentParser(
         description="Run multiple engines in parallel",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

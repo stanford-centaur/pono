@@ -1,14 +1,17 @@
+from __future__ import annotations
+
+from typing import Callable
+
+import pono
 import pytest
 import smt_switch as ss
-import pono
-from typing import Set
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_fts_unroller(create_solver):
+def test_fts_unroller(create_solver: Callable[[bool], ss.Solver]) -> None:
     if create_solver is ss.solvers.get("yices2"):
         pytest.skip(reason="Constant arrays not supported by yices2")
-    solver = create_solver(False)
+    solver = create_solver(False)  # noqa: FBT003
     bvsort4 = solver.make_sort(ss.sortkinds.BV, 4)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
@@ -42,10 +45,10 @@ def test_fts_unroller(create_solver):
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_rts_unroller(create_solver):
+def test_rts_unroller(create_solver: Callable[[bool], ss.Solver]) -> None:
     if create_solver is ss.solvers.get("yices2"):
         pytest.skip(reason="Constant arrays not supported by yices2")
-    solver = create_solver(False)
+    solver = create_solver(False)  # noqa: FBT003
     bvsort4 = solver.make_sort(ss.sortkinds.BV, 4)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
@@ -66,16 +69,13 @@ def test_rts_unroller(create_solver):
     constarr0 = solver.make_term(solver.make_term(0, bvsort8), arrsort)
     ts.constrain_init(solver.make_term(ss.primops.Equal, mem, constarr0))
 
-    try:
+    with pytest.raises(pono.PonoException):
         ts.assign_next(
             mem,
             solver.make_term(
                 ss.primops.Store, mem, ts.next(x), solver.make_term(1, bvsort8)
             ),
         )
-        assert False
-    except:
-        pass
 
     ts.constrain_trans(
         solver.make_term(

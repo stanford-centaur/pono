@@ -1,10 +1,14 @@
+from __future__ import annotations
+
+from typing import Callable
+
+import pono
 import pytest
 import smt_switch as ss
-import pono
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_cons_fts(create_solver):
+def test_cons_fts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     solver = create_solver(create_solver is ss.solvers.get("yices2"))
     boolsort = solver.make_sort(ss.sortkinds.BOOL)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
@@ -14,6 +18,7 @@ def test_cons_fts(create_solver):
     b = fts.make_inputvar("b", bvsort8)
     c = fts.make_inputvar("c", bvsort8)
     d = fts.make_inputvar("d", boolsort)
+    n_inputvars = 4
     regres = fts.make_statevar("regres", bvsort8)
     counter = fts.make_statevar("counter", bvsort8)
     zero = fts.make_term(0, bvsort8)
@@ -29,7 +34,7 @@ def test_cons_fts(create_solver):
     pono.coi_reduction(fts, [out])
 
     assert regres in fts.statevars
-    assert len(fts.inputvars) == 3
+    assert len(fts.inputvars) == n_inputvars - 1
     assert a in fts.inputvars
     assert b in fts.inputvars
     assert c not in fts.inputvars

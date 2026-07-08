@@ -6,5 +6,5 @@ if hasattr(ss, "create_msat_interpolator"):
     }
 else:
     solver_and_interpolators = {}
-bv_solvers = {name: fun for name, fun in ss.solvers.items()}
+bv_solvers = dict(ss.solvers.items())
 arith_solvers = {name: fun for name, fun in ss.solvers.items() if name != "btor"}
