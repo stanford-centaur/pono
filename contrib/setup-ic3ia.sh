@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -21,13 +21,13 @@ die () {
     exit 1
 }
 
-mkdir -p $DEPS
-cd $DEPS
+mkdir -p "$DEPS"
+cd "$DEPS"
 
 msat_home="$DEPS/mathsat"
 ic3ia_version=ic3ia-23.05
 
-while [ $# -gt 0 ]
+while [[ $# -gt 0 ]]
 do
     case $1 in
         -h|--help) usage;;
@@ -45,22 +45,22 @@ do
     shift
 done
 
-if [ -d "$DEPS/ic3ia" ]; then
+if [[ -d "$DEPS/ic3ia" ]]; then
     echo "It appears ic3ia was already downloaded"
     echo "If you'd like to rebuild, please manually delete it"
     exit 1
 fi
 
-if [ ! -d "$msat_home" ]; then
+if [[ ! -d "$msat_home" ]]; then
     echo "Could not locate mathsat"
     echo "Required for building ic3ia"
     echo "Looked here: $msat_home"
     exit 1
 fi
 
-curl -Lk https://es-static.fbk.eu/people/griggio/ic3ia/$ic3ia_version.tar.gz --output $DEPS/$ic3ia_version.tar.gz
+curl -Lk https://es-static.fbk.eu/people/griggio/ic3ia/$ic3ia_version.tar.gz --output "$DEPS/$ic3ia_version.tar.gz"
 
-if [ ! -f "$DEPS/$ic3ia_version.tar.gz" ]; then
+if [[ ! -f "$DEPS/$ic3ia_version.tar.gz" ]]; then
     echo "It appears that downloading ic3ia failed."
     exit 1
 fi
@@ -71,6 +71,6 @@ mv $ic3ia_version ic3ia
 cd ic3ia
 mkdir build
 cd build
-cmake .. -DMATHSAT_DIR=$msat_home -DCMAKE_BUILD_TYPE=Release
+cmake .. -DMATHSAT_DIR="$msat_home" -DCMAKE_BUILD_TYPE=Release
 make -j
-cd $DEPS/..
+cd "$DEPS/.."

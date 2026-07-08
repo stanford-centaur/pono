@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-mkdir -p $DEPS
+mkdir -p "$DEPS"
 
 
 usage () {
@@ -23,7 +23,7 @@ get_msat=default
 msat_version="5.6.12"
 mast_release_url="https://mathsat.fbk.eu/release"
 
-while [ $# -gt 0 ]
+while [[ $# -gt 0 ]]
 do
     case $1 in
         -h|--help) usage;;
@@ -34,7 +34,7 @@ do
 done
 
 if [[ "$get_msat" == default ]]; then
-    read -p "MathSAT is distributed under a custom (non-BSD compliant) license. By continuing you acknowledge this distinction and assume responsibility for meeting the license conditions. Continue? [y]es/[n]o: " get_msat
+    read -rp "MathSAT is distributed under a custom (non-BSD compliant) license. By continuing you acknowledge this distinction and assume responsibility for meeting the license conditions. Continue? [y]es/[n]o: " get_msat
 fi
 
 if [[ "$get_msat" != y ]]; then
@@ -42,8 +42,8 @@ if [[ "$get_msat" != y ]]; then
     exit 0
 fi
 
-if [ ! -d "$DEPS/mathsat" ]; then
-    cd $DEPS
+if [[ ! -d "$DEPS/mathsat" ]]; then
+    cd "$DEPS"
     mkdir mathsat
     if [[ "$OSTYPE" == linux* ]]; then
         wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-linux-x86_64.tar.gz
@@ -65,7 +65,7 @@ else
     echo "$DEPS/mathsat already exists. If you want to re-download, please remove it manually."
 fi
 
-if [ -f $DEPS/mathsat/lib/libmathsat.a ] ; then \
+if [[ -f "$DEPS/mathsat/lib/libmathsat.a" ]] ; then \
     echo "It appears mathsat was setup successfully into $DEPS/mathsat."
     echo "You may now install it with make ./configure.sh --msat && cd build && make"
 else
