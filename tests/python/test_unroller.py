@@ -69,7 +69,7 @@ def test_rts_unroller(create_solver: Callable[[bool], ss.Solver]) -> None:
     constarr0 = solver.make_term(solver.make_term(0, bvsort8), arrsort)
     ts.constrain_init(solver.make_term(ss.primops.Equal, mem, constarr0))
 
-    with pytest.raises(pono.PonoException):
+    with pytest.raises(RuntimeError):
         ts.assign_next(
             mem,
             solver.make_term(
