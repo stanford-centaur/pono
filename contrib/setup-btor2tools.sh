@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 BTOR2TOOLS_VERSION=fb69ee3b95e8baa5f0a9a6b0b19ee8beaad52932
@@ -6,10 +6,10 @@ BTOR2TOOLS_VERSION=fb69ee3b95e8baa5f0a9a6b0b19ee8beaad52932
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DEPS=$DIR/../deps
 
-mkdir -p $DEPS
+mkdir -p "$DEPS"
 
-if [ ! -d "$DEPS/btor2tools" ]; then
-    cd $DEPS
+if [[ ! -d "$DEPS/btor2tools" ]]; then
+    cd "$DEPS"
     git clone https://github.com/hwmcc/btor2tools.git btor2tools
     cd btor2tools
     git checkout -f $BTOR2TOOLS_VERSION
@@ -17,12 +17,12 @@ if [ ! -d "$DEPS/btor2tools" ]; then
     cd build
     cmake --build . -j
     cmake --install . --prefix "$DEPS/install"
-    cd $DIR
+    cd "$DIR"
 else
     echo "$DEPS/btor2tools already exists. If you want to rebuild, please remove it manually."
 fi
 
-if [ -f $DEPS/install/lib/libbtor2parser.a ] ; then \
+if [[ -f "$DEPS/install/lib/libbtor2parser.a" ]]; then \
     echo "It appears btor2tools was successfully built in $DEPS/btor2tools."
     echo "You may now build pono with: ./configure.sh && cd build && make"
 else
