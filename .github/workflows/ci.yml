@@ -71,7 +71,7 @@ jobs:
           cd build
           make -j
       - name: Upload built executable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pono_${{ runner.arch }}_${{ matrix.build_type }}
           path: ./build/pono
@@ -83,7 +83,7 @@ jobs:
           make check
       - name: Upload failing test log
         if: steps.test-cpp.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.os }}-${{ matrix.build_type }}-test-log-${{ github.run_id }}
           path: build/tests/Testing/Temporary/LastTest.log
