@@ -47,6 +47,6 @@ repos:
       - id: tombi-lint
         args: [--offline]
   - repo: https://github.com/BlankSpruce/gersemi-pre-commit
-    rev: 0.26.1
+    rev: 0.27.7
     hooks:
       - id: gersemi
