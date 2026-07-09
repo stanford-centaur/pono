@@ -165,22 +165,10 @@ endif()
 if(WITH_SLANG)
   include(FetchContent)
 
-  # slang v11.0 pins fmt 12.1.0 and does not build against fmt >= 12.2.0:
-  # fmt 12.2 reorganized its headers so that <fmt/core.h> / <fmt/base.h>
-  # no longer expose fmt::format, which slang's sources rely on through
-  # transitive includes ("'format' is not a member of 'fmt'").  slang's
-  # dependency setup calls find_package(fmt) before falling back to
-  # FetchContent, so a too-new fmt installed system-wide gets picked up
-  # and breaks the build.  Force slang to fetch and build its pinned fmt
-  # instead of any system copy.  Pono does not use fmt directly (only
-  # transitively through slang), so disabling the system package is
-  # safe, and building the header-mostly fmt from source is cheap.
-  set(CMAKE_DISABLE_FIND_PACKAGE_fmt ON)
-
   FetchContent_Declare(
     slang
     GIT_REPOSITORY https://github.com/MikePopoloski/slang.git
-    GIT_TAG v11.0
+    GIT_TAG 2e7495bcb64180553ae84d1d78307090823c794c
     GIT_SHALLOW TRUE
   )
   set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
