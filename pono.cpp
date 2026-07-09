@@ -63,8 +63,10 @@ ProverResult check_prop(PonoOptions pono_options,
              to_string(pono_options.smt_interpolator_));
   logger.log(3, "INIT:\n{}", ts.init());
   logger.log(3, "TRANS:\n{}", ts.trans());
+  bool trans_is_total = false;  // conservatively assume not total
   if (pono_options.check_trans_total_) {
-    logger.log(1, "TRANS is {}right-total", ts.is_right_total() ? "" : "NOT ");
+    trans_is_total = ts.is_right_total();
+    logger.log(1, "TRANS is {}right-total", trans_is_total ? "" : "NOT ");
   }
 
   // modify the transition system and property based on options
@@ -109,6 +111,11 @@ ProverResult check_prop(PonoOptions pono_options,
     UnorderedTermSet ivs_in_prop;
     get_free_symbolic_consts(prop, ivs_in_prop);
     ts = promote_inputvars(ts, ivs_in_prop);
+  }
+
+  if (pono_options.ensure_trans_total_ && !trans_is_total) {
+    logger.log(1, "Making TS right-total.");
+    make_trans_total(ts, prop);
   }
 
   bool has_monitor = false;
