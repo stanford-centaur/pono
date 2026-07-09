@@ -112,6 +112,18 @@ TEST_P(ControlUnitTests, SimpleClock)
             ProverResult::UNKNOWN);  // bmc can't prove, will only say unknown
 }
 
+TEST_P(ControlUnitTests, ToggleClockHierarchicalName)
+{
+  // Regression test: toggle_clock() builds the mirrored clock-state
+  // variable's name by concatenating "__state__" onto Term::to_string(),
+  // which needs desanitizing for names that require SMT-LIB `|...|` quoting.
+  // Passing an input var (rather than an existing state var) as the clock
+  // symbol is what makes toggle_clock() create that mirrored state var.
+  RelationalTransitionSystem rts(s);
+  Term clk = rts.make_inputvar("mod.clk[0]", boolsort);
+  ASSERT_NO_THROW(toggle_clock(rts, clk));
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedControlUnitTests,
                          ControlUnitTests,
                          testing::ValuesIn(available_solver_enums()));
