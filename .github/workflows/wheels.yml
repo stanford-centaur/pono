@@ -10,7 +10,7 @@ jobs:
       matrix:
         python-version: [35, 36, 37, 38]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Checkout submodules
         shell: bash
         run: |
