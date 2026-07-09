@@ -450,14 +450,14 @@ int main(int argc, char ** argv)
     else if (file_ext == "sv" || file_ext == "v") {
       logger.log(2, "Parsing SystemVerilog file: {}", pono_options.filename_);
       FunctionalTransitionSystem fts(s);
-      SystemVerilogEncoder sv_enc(pono_options.filename_, fts);
+      SystemVerilogEncoder sv_enc(
+          pono_options.filename_, fts, pono_options.sv_filelists_);
       const TermVec & propvec = sv_enc.propvec();
       unsigned int num_props = propvec.size();
       if (num_props == 0) {
-        throw PonoException(
-            "No properties found in SystemVerilog file "
-            + pono_options.filename_
-            + ". Add assert statements to specify properties.");
+        throw PonoException("No properties found in SystemVerilog file "
+                            + pono_options.filename_
+                            + ". Add assert statements to specify properties.");
       }
       if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(

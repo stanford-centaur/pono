@@ -1,6 +1,7 @@
 #ifdef WITH_SLANG
 
 #include <string>
+#include <vector>
 
 #include "core/fts.h"
 #include "engines/bmc.h"
@@ -12,6 +13,7 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "test_encoder_inputs.h"
+#include "utils/exceptions.h"
 
 using namespace pono;
 using namespace smt;
@@ -62,13 +64,14 @@ class SVUnitTests : public ::testing::Test,
   // combinational) skip this step.
   void check_bmc(const string & file,
                  size_t bound,
-                 ProverResult expected = ProverResult::FALSE)
+                 ProverResult expected = ProverResult::FALSE,
+                 const vector<string> & filelists = {})
   {
     SmtSolver s = create_solver(GetParam());
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
     FunctionalTransitionSystem fts(s);
-    SystemVerilogEncoder enc(sv_path(file), fts);
+    SystemVerilogEncoder enc(sv_path(file), fts, filelists);
     ASSERT_EQ(enc.propvec().size(), 1u);
     Term prop_term = enc.propvec()[0];
 
@@ -183,6 +186,42 @@ TEST_P(SVUnitTests, HierarchicalModules)
 TEST_P(SVUnitTests, HierarchicalValue)
 {
   check_bmc("hierarchical_value.sv", 6);
+}
+
+// --sv-filelist support: `top` (filelist_top.sv) instantiates `child`,
+// which is named only by filelist.f rather than appearing in
+// filelist_top.sv itself.  Mirrors HierarchicalModules: if the
+// list-file's extra source is elaborated, BMC cannot falsify the
+// assertion at any finite bound.
+TEST_P(SVUnitTests, Filelist)
+{
+  check_bmc(
+      "filelist_top.sv", 5, ProverResult::UNKNOWN, { sv_path("filelist.f") });
+}
+
+// A list file with an unsupported directive line (e.g. "+incdir+...")
+// must be rejected rather than silently misread as a filename.
+TEST_P(SVUnitTests, FilelistUnsupportedDirective)
+{
+  SmtSolver s = create_solver(GetParam());
+  FunctionalTransitionSystem fts(s);
+  EXPECT_THROW(
+      SystemVerilogEncoder enc(sv_path("filelist_top.sv"),
+                               fts,
+                               { sv_path("filelist_bad_directive.f") }),
+      PonoException);
+}
+
+// A list file naming a source file that does not exist must produce a
+// clear parse failure.
+TEST_P(SVUnitTests, FilelistMissingFile)
+{
+  SmtSolver s = create_solver(GetParam());
+  FunctionalTransitionSystem fts(s);
+  EXPECT_THROW(
+      SystemVerilogEncoder enc(
+          sv_path("filelist_top.sv"), fts, { sv_path("filelist_missing.f") }),
+      PonoException);
 }
 
 // Width-parameterized counter.  The property references a

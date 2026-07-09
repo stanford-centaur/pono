@@ -24,6 +24,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "core/fts.h"
 #include "smt-switch/smt.h"
@@ -64,8 +65,16 @@ class SystemVerilogEncoder
    *
    *  @param filename path to the SystemVerilog source file
    *  @param fts the transition system to populate
+   *  @param filelists paths to SystemVerilog list files (".f" files), each
+   *         containing one additional source file path per line ('#' and
+   *         "//" lines are comments). Relative paths inside a list file
+   *         resolve against that list file's directory. All files named by
+   *         `filename` and every `filelists` entry are elaborated together
+   *         as a single compilation.
    */
-  SystemVerilogEncoder(std::string filename, FunctionalTransitionSystem & fts);
+  SystemVerilogEncoder(std::string filename,
+                       FunctionalTransitionSystem & fts,
+                       const std::vector<std::string> & filelists = {});
 
   ~SystemVerilogEncoder();
 
@@ -99,8 +108,14 @@ class SystemVerilogEncoder
  private:
   // ---------- Encoding pipeline ----------
 
-  /** Top-level encoding: parse file, elaborate, and walk the design. */
-  void encode(const std::string & filename);
+  /** Top-level encoding: parse all source files, elaborate, and walk the
+   *  design.
+   *  @param filename the primary SystemVerilog source file
+   *  @param filelists paths to SystemVerilog list files (".f" files) naming
+   *         additional source files to parse alongside `filename`
+   */
+  void encode(const std::string & filename,
+              const std::vector<std::string> & filelists);
 
   /** Process a top-level module instance. */
   void process_module(const slang::ast::InstanceSymbol & inst);

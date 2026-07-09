@@ -18,6 +18,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -172,33 +174,99 @@ slang::ast::EvalContext & SystemVerilogEncoder::eval_ctx()
 // Construction / destruction
 // ============================================================================
 
-SystemVerilogEncoder::SystemVerilogEncoder(string filename,
-                                           FunctionalTransitionSystem & fts)
+SystemVerilogEncoder::SystemVerilogEncoder(
+    string filename,
+    FunctionalTransitionSystem & fts,
+    const std::vector<std::string> & filelists)
     : fts_(fts), solver_(fts.solver())
 {
-  encode(filename);
+  encode(filename, filelists);
 }
 
 SystemVerilogEncoder::~SystemVerilogEncoder() = default;
 
 // ============================================================================
+// List-file (".f") parsing
+// ============================================================================
+
+namespace {
+
+// Parses a SystemVerilog list ("dot-f") file: one source-file path per
+// line, blank lines and '#'/"//" comment lines are skipped, and relative
+// paths resolve against the directory containing `filelist_path`. Lines
+// that look like a tool directive (starting with '+' or '-', e.g.
+// "+incdir+" or "-y") are rejected rather than silently treated as
+// filenames, since those directives are not supported.
+std::vector<std::string> parse_dot_f_file(const std::string & filelist_path)
+{
+  std::ifstream in(filelist_path);
+  if (!in) {
+    throw PonoException("SystemVerilogEncoder: failed to open list file: "
+                        + filelist_path);
+  }
+
+  std::filesystem::path base_dir =
+      std::filesystem::path(filelist_path).parent_path();
+
+  std::vector<std::string> files;
+  std::string line;
+  while (std::getline(in, line)) {
+    size_t begin = line.find_first_not_of(" \t\r\n");
+    if (begin == std::string::npos) {
+      continue;  // blank line
+    }
+    size_t end = line.find_last_not_of(" \t\r\n");
+    std::string trimmed = line.substr(begin, end - begin + 1);
+
+    if (trimmed.rfind('#', 0) == 0 || trimmed.rfind("//", 0) == 0) {
+      continue;  // comment line
+    }
+    if (trimmed[0] == '+' || trimmed[0] == '-') {
+      throw PonoException(
+          "SystemVerilogEncoder: unsupported list-file directive '" + trimmed
+          + "' in " + filelist_path
+          + " -- only bare source file paths are supported.");
+    }
+
+    std::filesystem::path p(trimmed);
+    if (p.is_relative()) {
+      p = base_dir / p;
+    }
+    files.push_back(p.string());
+  }
+
+  return files;
+}
+
+}  // namespace
+
+// ============================================================================
 // Top-level encoding pipeline
 // ============================================================================
 
-void SystemVerilogEncoder::encode(const string & filename)
+void SystemVerilogEncoder::encode(const string & filename,
+                                  const std::vector<std::string> & filelists)
 {
-  // Parse the SystemVerilog source file.
-  // SyntaxTree::fromFile returns an expected<shared_ptr<SyntaxTree>, ...>.
-  auto tree_result = slang::syntax::SyntaxTree::fromFile(filename);
-  if (!tree_result) {
-    throw PonoException("SystemVerilogEncoder: failed to parse file: "
-                        + filename);
+  // Build the full list of source files: the primary file followed by
+  // every file named in each list-file, in order.
+  std::vector<std::string> source_files{ filename };
+  for (const auto & filelist : filelists) {
+    std::vector<std::string> expanded = parse_dot_f_file(filelist);
+    source_files.insert(source_files.end(), expanded.begin(), expanded.end());
   }
-  auto tree = std::move(tree_result).value();
 
-  // Create a compilation and elaborate the design.
+  // Create a compilation and add every source file's syntax tree to it, so
+  // they are all elaborated together.
   compilation_ = make_unique<slang::ast::Compilation>();
-  compilation_->addSyntaxTree(tree);
+  for (const auto & source_file : source_files) {
+    // SyntaxTree::fromFile returns an expected<shared_ptr<SyntaxTree>, ...>.
+    auto tree_result = slang::syntax::SyntaxTree::fromFile(source_file);
+    if (!tree_result) {
+      throw PonoException("SystemVerilogEncoder: failed to parse file: "
+                          + source_file);
+    }
+    compilation_->addSyntaxTree(std::move(tree_result).value());
+  }
 
   // Check for diagnostics (errors/warnings).
   // Force full elaboration before checking diagnostics.
