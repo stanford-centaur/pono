@@ -221,6 +221,44 @@ TEST_P(ModifierUnitTests, LivenessToSafetyTranslator)
   EXPECT_TRUE(result.is_unsat());
 }
 
+TEST_P(ModifierUnitTests, LivenessToSafetyTranslatorHierarchicalName)
+{
+  // Regression test: a state variable whose name requires SMT-LIB `|...|`
+  // quoting (e.g. a hierarchical name like SystemVerilog produces, such as
+  // "mod.sig[3]") must not corrupt the generated "loop" copy's name.
+  // LivenessToSafetyTranslator used to build the new name via
+  // `statevar->to_string() + suffix`; to_string() already returns the
+  // quoted form for such names, so appending more text after it produced a
+  // malformed name (text trailing a closing quote), which some solvers
+  // (e.g. bzla) reject with "invalid symbol ... not SMT-LIB compliant".
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("mod.sig[3]", bvsort);
+  fts.assign_next(x, x);
+  Term minus_one = fts.make_term(-1, bvsort);
+  Term justice_cond = fts.make_term(smt::Equal, x, minus_one);
+
+  LivenessToSafetyTranslator l2s;
+  ASSERT_NO_THROW(l2s.translate(fts, { justice_cond }));
+
+  Term loop;
+  for (auto statevar : fts.statevars()) {
+    if (statevar != x && statevar->get_sort() == bvsort) {
+      loop = statevar;
+    }
+  }
+  ASSERT_TRUE(loop);
+
+  // The printed name must be a single well-formed SMT-LIB token: after
+  // stripping one optional outer `|...|` quote pair, there must be no
+  // leftover '|' characters.
+  string loop_name = loop->to_string();
+  if (loop_name.size() > 2 && loop_name.front() == '|'
+      && loop_name.back() == '|') {
+    loop_name = loop_name.substr(1, loop_name.size() - 2);
+  }
+  EXPECT_EQ(loop_name.find('|'), string::npos);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedModifierUnitTests,
                          ModifierUnitTests,
                          testing::ValuesIn(available_solver_enums()));

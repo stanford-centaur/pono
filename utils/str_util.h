@@ -82,4 +82,11 @@ const std::string & lookup_or_key(
     const std::unordered_map<std::string, std::string> & map,
     const std::string & key);
 
+/// Wrap a name in `|...|` if it isn't already a valid SMT-LIB "simple
+/// symbol" (e.g. it contains characters other than alnum/./-/_).
+std::string name_sanitize(const std::string & s);
+
+/// Inverse of name_sanitize: strip a matching `|...|` pair if present.
+std::string name_desanitize(const std::string & s);
+
 }  // namespace pono

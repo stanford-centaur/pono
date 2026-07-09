@@ -137,31 +137,6 @@ bool PerVarsetInfo::TermLearnerInsertTerm(const smt::Term & new_term)
 //
 // --------------------------------------------------
 
-std::string name_sanitize(const std::string & s)
-{
-  if (s.length() > 2 && s.front() == '|' && s.back() == '|')
-    return s;  // already | |
-  bool need_separator = false;
-  for (auto pos = s.begin(); pos != s.end(); ++pos) {
-    char c = *pos;
-    if (isalnum(c)) continue;
-    if (c == '.' || c == '-') continue;
-    if (c == '_' && pos != s.begin()) continue;
-    // else
-    need_separator = true;
-    break;
-  }
-  if (need_separator) return "|" + s + "|";
-  return s;
-}
-
-std::string name_desanitize(const std::string & s)
-{
-  if (s.length() > 2 && s.front() == '|' && s.back() == '|')
-    return s.substr(1, s.length() - 2);  // already | |
-  return s;
-}
-
 uint64_t get_width_of_var(const smt::Term & v)
 {
   if (v->get_sort()->get_sort_kind() == smt::SortKind::BOOL)
