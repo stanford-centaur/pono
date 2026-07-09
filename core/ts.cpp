@@ -23,6 +23,7 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
+#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -680,7 +681,7 @@ bool TransitionSystem::is_right_total() const
   next_params.reserve(num_states + 1);
   input_params.reserve(num_inputs + 1);
   for (const auto & v : statevars_) {
-    Term p = s->make_param(v->to_string() + ".param",
+    Term p = s->make_param(name_desanitize(v->to_string()) + ".param",
                            tt.transfer_sort(v->get_sort()));
     var_map[tt.transfer_term(v)] = p;
     quant_vars.insert(v);
@@ -688,7 +689,7 @@ bool TransitionSystem::is_right_total() const
       curr_params.push_back(p);
       // process next-state vars as well
       Term nv = next_map_.at(v);
-      Term np = s->make_param(nv->to_string() + ".param",
+      Term np = s->make_param(name_desanitize(nv->to_string()) + ".param",
                               tt.transfer_sort(nv->get_sort()));
       var_map[tt.transfer_term(nv)] = np;
       quant_vars.insert(nv);
@@ -699,7 +700,7 @@ bool TransitionSystem::is_right_total() const
   }
   for (const auto & v : inputvars_) {
     // inputs are treated like current-state vars
-    Term p = s->make_param(v->to_string() + ".param",
+    Term p = s->make_param(name_desanitize(v->to_string()) + ".param",
                            tt.transfer_sort(v->get_sort()));
     var_map[tt.transfer_term(v)] = p;
     quant_vars.insert(v);
@@ -781,8 +782,8 @@ void TransitionSystem::promote_inputvar(const Term & iv)
 
   // set to false until there is a next state update for this statevar
   deterministic_ = false;
-  Term next_state_var =
-      solver_->make_symbol(iv->to_string() + next_suffix_, iv->get_sort());
+  Term next_state_var = solver_->make_symbol(
+      name_desanitize(iv->to_string()) + next_suffix_, iv->get_sort());
   add_statevar(iv, next_state_var);
 }
 

@@ -20,6 +20,7 @@
 #include <cmath>
 
 #include "utils/exceptions.h"
+#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -41,8 +42,9 @@ void toggle_clock(TransitionSystem & ts, const Term & clock_symbol)
   Term clk_state = clock_symbol;
   assert(!ts.is_next_var(clk_state));
   if (!ts.is_curr_var(clk_state)) {
-    Term clk_state = ts.make_statevar(clock_symbol->to_string() + "__state__",
-                                      clock_symbol->get_sort());
+    Term clk_state = ts.make_statevar(
+        name_desanitize(clock_symbol->to_string()) + "__state__",
+        clock_symbol->get_sort());
     ts.constrain_inputs(s->make_term(Equal, clock_symbol, clk_state));
   }
   assert(sk == BV || sk == BOOL);
