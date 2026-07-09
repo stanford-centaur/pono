@@ -10,7 +10,7 @@
     </tab>
     <tab type="classes" visible="yes" title="">
       <tab type="classlist" visible="yes" title="" intro=""/>
-      <tab type="classindex" visible="$ALPHABETICAL_INDEX" title=""/> 
+      <tab type="classindex" visible="$ALPHABETICAL_INDEX" title=""/>
       <tab type="hierarchy" visible="yes" title="" intro=""/>
       <tab type="classmembers" visible="no" title="" intro=""/>
     </tab>
@@ -19,7 +19,7 @@
       <tab type="globals" visible="yes" title="" intro=""/>
     </tab>
     <!--<tab type="dirs" visible="yes" title="" intro=""/>-->
-    <tab type="examples" visible="yes" title="" intro=""/>  
+    <tab type="examples" visible="yes" title="" intro=""/>
   </navindex>
 
   <!-- Layout definition for a class page -->
@@ -62,7 +62,7 @@
       <related title="" subtitle=""/>
       <membergroups visible="yes"/>
     </memberdecl>
-    
+
     <memberdef>
       <inlineclasses title=""/>
       <typedefs title=""/>
@@ -91,7 +91,7 @@
       <variables title=""/>
       <membergroups visible="yes"/>
     </memberdecl>
-    
+
     <memberdef>
       <inlineclasses title=""/>
       <typedefs title=""/>
@@ -120,7 +120,7 @@
       <variables title=""/>
       <membergroups visible="yes"/>
     </memberdecl>
-    
+
     <memberdef>
       <inlineclasses title=""/>
       <defines title=""/>
@@ -158,7 +158,7 @@
       <friends title=""/>
       <membergroups visible="yes"/>
     </memberdecl>
-    
+
     <memberdef>
       <pagedocs/>
       <inlineclasses title=""/>
@@ -188,6 +188,6 @@
       <dirs visible="yes"/>
       <files visible="yes"/>
     </memberdecl>
-    
+
   </directory>
 </doxygenlayout>

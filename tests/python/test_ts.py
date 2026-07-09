@@ -1,15 +1,25 @@
+from __future__ import annotations
+
+from typing import Callable
+
+import pono
 import pytest
 import smt_switch as ss
-import pono
 
-def build_simple_ts(solver, TS):
+NUM_STATEVARS = 2
+NUM_NAMED_TERMS = 5
+
+
+def build_simple_ts(
+    solver: ss.SmtSolver, ts_class: type[pono.TransitionSystem]
+) -> tuple[ss.SmtSolver, pono.TransitionSystem]:
     bvsort = solver.make_sort(ss.sortkinds.BV, 8)
 
-    ts = TS(solver)
-    x = ts.make_statevar('x', bvsort)
-    y = ts.make_statevar('y', bvsort)
+    ts = ts_class(solver)
+    x = ts.make_statevar("x", bvsort)
+    y = ts.make_statevar("y", bvsort)
     xp1 = solver.make_term(ss.primops.BVAdd, x, solver.make_term(1, bvsort))
-    ts.name_term('xp1', xp1)
+    ts.name_term("xp1", xp1)
     ts.assign_next(x, xp1)
     assert ts.state_updates[x] == xp1
 
@@ -19,60 +29,60 @@ def build_simple_ts(solver, TS):
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_cons_fts(create_solver):
+def test_cons_fts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     solver = create_solver(create_solver is ss.solvers.get("yices2"))
-    solver, ts = build_simple_ts(solver, pono.FunctionalTransitionSystem)
+    solver, _ = build_simple_ts(solver, pono.FunctionalTransitionSystem)
+
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_query_fts(create_solver):
+def test_query_fts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver, ts = build_simple_ts(solver, pono.FunctionalTransitionSystem)
 
-    assert len(ts.statevars) == 2
+    assert len(ts.statevars) == NUM_STATEVARS
     assert len(ts.state_updates) == 1
-    assert len(ts.named_terms) == 5, "expecting a named term for each curr/next state var and explicitly named term"
-    assert len(ts.constraints) == 1, "expecting the added constraint over current state vars only"
+    assert len(ts.named_terms) == NUM_NAMED_TERMS, (
+        "expecting a named term for each curr/next state var and explicitly named term"
+    )
+    assert len(ts.constraints) == 1, (
+        "expecting the added constraint over current state vars only"
+    )
     assert ts.is_functional()
     assert not ts.is_deterministic(), "not deterministic because no update for y"
 
-    states = list(ts.statevars)
-    try:
-        ts.constrain_trans(solver.make_term(ss.primops.Equal, ts.next(states[0]), ts.next(states[1])))
-        assert False
-    except Exception as e:
-        pass
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_func_update_fts(create_solver):
+def test_func_update_fts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver, ts = build_simple_ts(solver, pono.FunctionalTransitionSystem)
 
     states = list(ts.statevars)
-    try:
+    with pytest.raises(RuntimeError):
         ts.assign_next(states[0], ts.next(states[1]))
-        assert False
-    except:
-        pass
+
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_cons_rts(create_solver):
+def test_cons_rts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
+    solver = create_solver(create_solver is ss.solvers.get("yices2"))
+    solver, _ = build_simple_ts(solver, pono.RelationalTransitionSystem)
+
+
+@pytest.mark.parametrize("create_solver", ss.solvers.values())
+def test_query_rts(create_solver: Callable[[bool], ss.SmtSolver]) -> None:
     solver = create_solver(create_solver is ss.solvers.get("yices2"))
     solver, ts = build_simple_ts(solver, pono.RelationalTransitionSystem)
 
-@pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_query_rts(create_solver):
-    solver = create_solver(create_solver is ss.solvers.get("yices2"))
-    solver, ts = build_simple_ts(solver, pono.RelationalTransitionSystem)
-
-    assert len(ts.statevars) == 2
+    assert len(ts.statevars) == NUM_STATEVARS
     assert len(ts.state_updates) == 1
-    assert len(ts.named_terms) == 5, "expecting a named term for each curr/next state var and explicitly named term"
-    assert len(ts.constraints) == 1, "expecting the added constraint over current state vars only"
+    assert len(ts.named_terms) == NUM_NAMED_TERMS, (
+        "expecting a named term for each curr/next state var and explicitly named term"
+    )
+    assert len(ts.constraints) == 1, (
+        "expecting the added constraint over current state vars only"
+    )
     assert not ts.is_functional()
 
     states = list(ts.statevars)
-    try:
-        ts.constrain_trans(solver.make_term(ss.primops.Equal, ts.next(states[0]), ts.next(states[1])))
-    except Exception as e:
-        assert False
-
+    ts.constrain_trans(
+        solver.make_term(ss.primops.Equal, ts.next(states[0]), ts.next(states[1]))
+    )

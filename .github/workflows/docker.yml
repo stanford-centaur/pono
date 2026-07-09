@@ -4,20 +4,18 @@ on:
     branches:
       - main
   pull_request:
-      branches:
+    branches:
       - main
-  workflow_dispatch:  # allow manual trigger
-
+  workflow_dispatch: # allow manual trigger
 env:
   REGISTRY: ghcr.io
-
 jobs:
-   build-and-publish-to-ghcr:
+  build-and-publish-to-ghcr:
     runs-on: ubuntu-latest
     steps:
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -25,9 +23,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build and push
         uses: docker/build-push-action@v6
         with:

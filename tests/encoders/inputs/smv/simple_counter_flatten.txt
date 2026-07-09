@@ -5,7 +5,7 @@ a:boolean;
 b:boolean;
 e:unsigned word [8];
 FROZENVAR
-c : boolean ; 
+c : boolean ;
 INIT
  counter  = 0ud8_0 ;
 INIT

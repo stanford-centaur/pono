@@ -1,6 +1,5 @@
----
-Language:        Cpp
-BasedOnStyle:  Google
+Language: Cpp
+BasedOnStyle: Google
 AlignTrailingComments: true
 AllowShortCaseLabelsOnASingleLine: true
 BinPackArguments: false
@@ -21,4 +20,3 @@ Cpp11BracedListStyle: false
 DerivePointerAlignment: false
 PointerAlignment: Middle
 IndentWidth: 2
-...

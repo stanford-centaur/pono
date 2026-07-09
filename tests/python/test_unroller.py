@@ -1,21 +1,24 @@
+from __future__ import annotations
+
+from typing import Callable
+
+import pono
 import pytest
 import smt_switch as ss
-import pono
-from typing import Set
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_fts_unroller(create_solver):
+def test_fts_unroller(create_solver: Callable[[bool], ss.Solver]) -> None:
     if create_solver is ss.solvers.get("yices2"):
         pytest.skip(reason="Constant arrays not supported by yices2")
-    solver = create_solver(False)
+    solver = create_solver(False)  # noqa: FBT003
     bvsort4 = solver.make_sort(ss.sortkinds.BV, 4)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
 
     ts = pono.FunctionalTransitionSystem(solver)
-    x = ts.make_statevar('x', bvsort4)
-    mem = ts.make_statevar('mem', arrsort)
+    x = ts.make_statevar("x", bvsort4)
+    mem = ts.make_statevar("mem", arrsort)
 
     u = pono.Unroller(ts)
 
@@ -27,13 +30,10 @@ def test_fts_unroller(create_solver):
     assert u.at_time(x, 1) == u.at_time(x, 1)
 
     constarr0 = solver.make_term(solver.make_term(0, bvsort8), arrsort)
-    ts.constrain_init(solver.make_term(ss.primops.Equal,
-                                       mem,
-                                       constarr0))
-    ts.assign_next(mem, solver.make_term(ss.primops.Store,
-                                         mem,
-                                         x,
-                                         solver.make_term(1, bvsort8)))
+    ts.constrain_init(solver.make_term(ss.primops.Equal, mem, constarr0))
+    ts.assign_next(
+        mem, solver.make_term(ss.primops.Store, mem, x, solver.make_term(1, bvsort8))
+    )
 
     assert ts.init != u.at_time(ts.init, 0)
     assert u.at_time(ts.init, 0) == u.at_time(ts.init, 0)
@@ -45,17 +45,17 @@ def test_fts_unroller(create_solver):
 
 
 @pytest.mark.parametrize("create_solver", ss.solvers.values())
-def test_rts_unroller(create_solver):
+def test_rts_unroller(create_solver: Callable[[bool], ss.Solver]) -> None:
     if create_solver is ss.solvers.get("yices2"):
         pytest.skip(reason="Constant arrays not supported by yices2")
-    solver = create_solver(False)
+    solver = create_solver(False)  # noqa: FBT003
     bvsort4 = solver.make_sort(ss.sortkinds.BV, 4)
     bvsort8 = solver.make_sort(ss.sortkinds.BV, 8)
     arrsort = solver.make_sort(ss.sortkinds.ARRAY, bvsort4, bvsort8)
 
     ts = pono.RelationalTransitionSystem(solver)
-    x = ts.make_statevar('x', bvsort4)
-    mem = ts.make_statevar('mem', arrsort)
+    x = ts.make_statevar("x", bvsort4)
+    mem = ts.make_statevar("mem", arrsort)
 
     u = pono.Unroller(ts)
 
@@ -67,25 +67,25 @@ def test_rts_unroller(create_solver):
     assert u.at_time(x, 1) == u.at_time(x, 1)
 
     constarr0 = solver.make_term(solver.make_term(0, bvsort8), arrsort)
-    ts.constrain_init(solver.make_term(ss.primops.Equal,
-                                       mem,
-                                       constarr0))
+    ts.constrain_init(solver.make_term(ss.primops.Equal, mem, constarr0))
 
-    try:
-        ts.assign_next(mem, solver.make_term(ss.primops.Store,
-                                            mem,
-                                            ts.next(x),
-                                            solver.make_term(1, bvsort8)))
-        assert False
-    except:
-        pass
+    with pytest.raises(RuntimeError):
+        ts.assign_next(
+            mem,
+            solver.make_term(
+                ss.primops.Store, mem, ts.next(x), solver.make_term(1, bvsort8)
+            ),
+        )
 
-    ts.constrain_trans(solver.make_term(ss.primops.Equal,
-                                        ts.next(mem),
-                                        solver.make_term(ss.primops.Store,
-                                            mem,
-                                            ts.next(x),
-                                            solver.make_term(1, bvsort8))))
+    ts.constrain_trans(
+        solver.make_term(
+            ss.primops.Equal,
+            ts.next(mem),
+            solver.make_term(
+                ss.primops.Store, mem, ts.next(x), solver.make_term(1, bvsort8)
+            ),
+        )
+    )
 
     assert ts.init != u.at_time(ts.init, 0)
     assert u.at_time(ts.init, 0) == u.at_time(ts.init, 0)

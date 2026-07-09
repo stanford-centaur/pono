@@ -246,4 +246,3 @@ cdef extern from "utils/ts_analysis.h" namespace "pono":
     bint check_invar(const TransitionSystem & ts,
                      const c_Term & prop,
                      const c_Term & invar) except +
-

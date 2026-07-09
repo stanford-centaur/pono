@@ -7,7 +7,7 @@
 45 constd 10 3
 50 eq 11 30 45
 55 add 10 30 25
-; cnt == 3 ? 0 : cnt + 1 
+; cnt == 3 ? 0 : cnt + 1
 60 ite 10 50 21 55
 70 next 10 30 60
 ; bad state property

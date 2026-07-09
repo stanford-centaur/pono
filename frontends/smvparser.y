@@ -352,7 +352,7 @@ var_list:
           enc.arrayty_[$1] = a->getElementType();
          } else if(a->getType() == SMVnode::IntArray){
           enc.arrayint_[$1] = a->getElementType();
-         } 
+         }
       }else{
           SMVnode *a = new var_node_c($1,$3,SMVnode::BasicT);
           enc.var_list_.push_back(new var_node_c($1,$3,SMVnode::BasicT));

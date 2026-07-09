@@ -365,4 +365,3 @@ int main()
   fprintf(stdout, "All tests passed.\n");
   return 0;
 }
-

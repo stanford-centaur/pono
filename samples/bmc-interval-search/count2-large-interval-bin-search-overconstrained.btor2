@@ -1,5 +1,5 @@
 ; 2-bit counter with state 1 as bad state, wrap around after state 3
-; I.e., bad states due to cycle length of 4: 1, 5, 9, 13, ... 
+; I.e., bad states due to cycle length of 4: 1, 5, 9, 13, ...
 ;
 ; Command line: ./pono -v 2 -e bmc -k 1000000000 --bmc-bound-start 20 --bmc-bound-step 10
 ;
@@ -7,7 +7,7 @@
 ; an overconstrained problem caused by blocking terms added to divide the interval into subintervals.
 ; We will fall back into linear search in that case
 ;
-; This is not an issue with flags '--bmc-min-cex-less-inc-bin-search' (less incremental binary search) or linear search. 
+; This is not an issue with flags '--bmc-min-cex-less-inc-bin-search' (less incremental binary search) or linear search.
 1 sort bitvec 2
 2 zero 1
 3 state 1

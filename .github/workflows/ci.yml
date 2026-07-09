@@ -3,14 +3,12 @@ on:
   push:
   workflow_dispatch: # allow manual trigger
 jobs:
-  format-check:
+  pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Check format using clang-format
-        run: |
-          find . -type d -name "contrib" -prune -or -type f \( -name '*.h' -or -name '*.cpp' \) -print \
-          | xargs clang-format --dry-run -Werror --style=file
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+      - uses: pre-commit/action@v3.0.1
   build:
     strategy:
       fail-fast: false
@@ -23,7 +21,7 @@ jobs:
     name: ${{ matrix.os }}:${{ matrix.build_type }}
     runs-on: ${{ matrix.os}}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install Packages (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -73,7 +71,7 @@ jobs:
           cd build
           make -j
       - name: Upload built executable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pono_${{ runner.arch }}_${{ matrix.build_type }}
           path: ./build/pono
@@ -85,7 +83,7 @@ jobs:
           make check
       - name: Upload failing test log
         if: steps.test-cpp.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.os }}-${{ matrix.build_type }}-test-log-${{ github.run_id }}
           path: build/tests/Testing/Temporary/LastTest.log
