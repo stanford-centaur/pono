@@ -3,14 +3,12 @@ on:
   push:
   workflow_dispatch: # allow manual trigger
 jobs:
-  format-check:
+  pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Check format using clang-format
-        run: |
-          find . -type d -name "contrib" -prune -or -type f \( -name '*.h' -or -name '*.cpp' \) -print \
-          | xargs clang-format --dry-run -Werror --style=file
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+      - uses: pre-commit/action@v3.0.1
   build:
     strategy:
       fail-fast: false
