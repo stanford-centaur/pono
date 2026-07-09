@@ -163,8 +163,6 @@ typedef std::unordered_map<IC3FormulaModel *, PerCexInfo>
 //
 // --------------------------------------------------
 
-std::string name_sanitize(const std::string &);
-std::string name_desanitize(const std::string & s);
 uint64_t get_width_of_var(const smt::Term & v);
 smt::Term smt_string_to_const_term(const std::string & val, smt::SmtSolver & s);
 bool is_primop_symmetry(smt::PrimOp);
