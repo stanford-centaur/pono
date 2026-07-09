@@ -57,6 +57,7 @@
 #include "slang/ast/types/Type.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
 #include "slang/numeric/SVInt.h"
+#include "slang/syntax/AllSyntax.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
@@ -104,6 +105,10 @@ struct LValueDesc
 
 std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
                                          slang::ast::EvalContext & ctx);
+
+// Returns the source label of a concurrent assertion statement (e.g. the
+// `p1` in `p1: assert property (...)`), or "<unnamed>" if it has none.
+std::string assertion_label(const slang::ast::Statement & stmt);
 }  // namespace
 
 // ============================================================================
@@ -596,6 +601,20 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
     }
     default: return std::nullopt;
   }
+}
+
+std::string assertion_label(const slang::ast::Statement & stmt)
+{
+  if (auto * syntax = stmt.syntax) {
+    if (auto * ca_syntax =
+            syntax
+                ->as_if<slang::syntax::ConcurrentAssertionStatementSyntax>()) {
+      if (ca_syntax->label) {
+        return std::string(ca_syntax->label->name.valueText());
+      }
+    }
+  }
+  return "<unnamed>";
 }
 
 }  // anonymous namespace
@@ -1411,8 +1430,11 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         // liveness operator (eventually / unbounded until) appears.
         if (Term prop = assertion_expr_to_bool(*a)) {
           propvec_.push_back(prop);
-          logger.log(
-              1, "SystemVerilogEncoder: extracted safety assertion property");
+          logger.log(1,
+                     "SystemVerilogEncoder: extracted safety assertion "
+                     "property {} (index {})",
+                     assertion_label(stmt),
+                     propvec_.size() - 1);
           break;
         }
 
@@ -1460,7 +1482,9 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         ltl_justice_.push_back(justice);
         logger.log(1,
                    "SystemVerilogEncoder: extracted LTL liveness property "
-                   "({} justice condition(s))",
+                   "{} (index {}, {} justice condition(s))",
+                   assertion_label(stmt),
+                   ltl_justice_.size() - 1,
                    justice.size());
       }
       break;
