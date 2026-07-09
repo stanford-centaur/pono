@@ -17,6 +17,7 @@
 #include "str_util.h"
 
 #include <cassert>
+#include <cctype>
 #include <iostream>
 #include <sstream>
 
@@ -187,6 +188,31 @@ const std::string & lookup_or_key(
 {
   auto it = map.find(key);
   return (it != map.end() && !it->second.empty()) ? it->second : key;
+}
+
+std::string name_sanitize(const std::string & s)
+{
+  if (s.length() > 2 && s.front() == '|' && s.back() == '|')
+    return s;  // already | |
+  bool need_separator = false;
+  for (auto pos = s.begin(); pos != s.end(); ++pos) {
+    char c = *pos;
+    if (isalnum(c)) continue;
+    if (c == '.' || c == '-') continue;
+    if (c == '_' && pos != s.begin()) continue;
+    // else
+    need_separator = true;
+    break;
+  }
+  if (need_separator) return "|" + s + "|";
+  return s;
+}
+
+std::string name_desanitize(const std::string & s)
+{
+  if (s.length() > 2 && s.front() == '|' && s.back() == '|')
+    return s.substr(1, s.length() - 2);  // already | |
+  return s;
 }
 
 }  // namespace pono

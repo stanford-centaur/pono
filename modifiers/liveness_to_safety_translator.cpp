@@ -6,6 +6,7 @@
 
 #include "core/ts.h"
 #include "smt-switch/smt.h"
+#include "utils/str_util.h"
 
 namespace pono {
 LivenessToSafetyTranslator::LivenessToSafetyTranslator(std::string var_prefix)
@@ -39,7 +40,8 @@ smt::Term LivenessToSafetyTranslator::translate(TransitionSystem & ts,
   std::vector<std::pair<smt::Term, smt::Term>> loop_states;
   for (auto statevar : orig_statevars) {
     auto loop_state = ts.make_statevar(
-        statevar->to_string() + prefix_ + "_loop", statevar->get_sort());
+        name_desanitize(statevar->to_string()) + prefix_ + "_loop",
+        statevar->get_sort());
     loop_states.push_back({ statevar, loop_state });
     // loop_i' = (save /\ !saved) ? state_i : loop_i;
     ts.assign_next(loop_state,
