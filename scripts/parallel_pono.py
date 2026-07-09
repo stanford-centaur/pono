@@ -8,14 +8,15 @@ import dataclasses
 import enum
 import logging
 import os
-import pathlib
 import shutil
 import signal
 import subprocess
 import sys
 import tempfile
 import time
-from typing import cast
+from logging import Logger
+from pathlib import Path
+from typing import NamedTuple, cast
 
 
 class ReturnCode(enum.Enum):
@@ -76,7 +77,7 @@ ENGINE_OPTIONS = {
 
 
 def summarize(
-    file: pathlib.Path,
+    file: Path,
     engine: str,
     returncode: int,
     runtime: float,
@@ -104,30 +105,10 @@ def summarize(
         writer.writerow(dataclasses.asdict(summary))
 
 
-def clean_up(
-    processes: dict[str, subprocess.Popen[str]],
-    witnesses: dict[str, pathlib.Path],
-    *,
-    verbose: bool,
-) -> None:
-    for name, process in processes.items():
-        if process.poll() is None:  # process has not finished yet
-            process.terminate()
-        if name in witnesses:
-            witnesses[name].unlink(missing_ok=True)
-        if verbose and process.stderr and (stderr := process.stderr.read()):
-            logger = logging.getLogger(name)
-            for line in stderr.splitlines():
-                logger.warning(line)
-
-
-def find_executable(name: str) -> pathlib.Path:
+def find_executable(name: str) -> Path:
     """Return the path to a file in PATH or the script's directory."""
     fullname = shutil.which(name)
-    if fullname is None:
-        path = pathlib.Path(__file__).parent / name
-    else:
-        path = pathlib.Path(fullname)
+    path = Path(__file__).parent / name if fullname is None else Path(fullname)
     if not path.is_file():
         msg = f"file '{name}' is not in script directory or PATH"
         raise FileNotFoundError(msg)
@@ -137,7 +118,101 @@ def find_executable(name: str) -> pathlib.Path:
     return path
 
 
-def main() -> int:  # noqa: C901
+class ProverDesc(NamedTuple):
+    name: str
+    process: subprocess.Popen
+    start_time: float
+    witness_file: Path | None = None
+
+
+def clean_up_prover(desc: ProverDesc, *, verbose: bool) -> None:
+    if desc.process.poll() is None:  # process has not finished yet
+        desc.process.terminate()
+    if desc.witness_file:
+        desc.witness_file.unlink(missing_ok=True)
+    if verbose and desc.process.stderr:
+        stderr = desc.process.stderr.read()
+        logger = logging.getLogger(desc.name)
+        for line in stderr.splitlines():
+            logger.warning(line)
+
+
+class ProverManager:
+    def __init__(self, binary_name: str, logger: Logger, *, verbose: bool) -> None:
+        self.provers: set[ProverDesc] = set()
+        self.executable = str(find_executable(binary_name))
+        self.logger = logger
+        self.verbose = verbose
+        atexit.register(self._clean_up)
+
+    def _clean_up(self) -> None:
+        for prover in self.provers:
+            clean_up_prover(prover, verbose=self.verbose)
+
+    def start_provers(self, btor_file: str, bound: int) -> None:
+        """Launch each portfolio solver as a subprocess."""
+        for name, options in ENGINE_OPTIONS.items():
+            cmd = [self.executable, "-k", str(bound), *options, btor_file]
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE if self.verbose else subprocess.DEVNULL,
+                text=True,
+            )
+            self.provers.add(ProverDesc(name, proc, time.time()))
+
+    def start_provers_with_witness(self, btor_file: str, bound: int) -> None:
+        """Launch each portfolio solver as a subprocess."""
+        for name, options in ENGINE_OPTIONS.items():
+            witness_file = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
+            cmd = [
+                self.executable,
+                "-k",
+                str(bound),
+                *options,
+                "--dump-btor2-witness",
+                witness_file.name,
+                btor_file,
+            ]
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE if self.verbose else subprocess.DEVNULL,
+                text=True,
+            )
+            self.provers.add(
+                ProverDesc(name, proc, time.time(), Path(witness_file.name))
+            )
+
+    def wait_for_provers(self, summary_file: Path | None) -> tuple[int, Path | None]:
+        while self.provers:
+            for prover in self.provers:
+                end_time = time.time()
+                if prover.process.poll() is not None:  # process has finished
+                    if summary_file:
+                        runtime = end_time - prover.start_time
+                        cmd = cast("list[str]", prover.process.args)
+                        summarize(
+                            summary_file,
+                            prover.name,
+                            prover.process.returncode,
+                            runtime,
+                            cmd,
+                        )
+                    if prover.process.returncode not in SOLVED_RETURN_CODES:
+                        self.provers.discard(prover)
+                        clean_up_prover(prover, verbose=self.verbose)
+                        break
+                    if prover.process.stdout is None:
+                        self.logger.warning("%s has no stdout", prover.name)
+                        print(ReturnCode(prover.process.returncode).name.lower())
+                    else:
+                        print(prover.process.stdout.read())
+                    return prover.process.returncode, prover.witness_file
+        return ReturnCode.UNKNOWN.value, None
+
+
+def get_args() -> tuple[argparse.Namespace, str]:
     parser = argparse.ArgumentParser(
         description="Run multiple engines in parallel",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -158,11 +233,14 @@ def main() -> int:  # noqa: C901
         "-s",
         "--summarize",
         metavar="FILE",
-        type=pathlib.Path,
+        type=Path,
         help="save a csv summary to the specified file",
     )
-    args = parser.parse_args()
+    return parser.parse_args(), parser.prog
 
+
+def main() -> int:
+    args, progname = get_args()
     # Create summary file when needed, truncating if it exists.
     if args.summarize:
         with args.summarize.open("w") as csvfile:
@@ -171,50 +249,22 @@ def main() -> int:  # noqa: C901
 
     # Configure logging.
     logging.basicConfig(format="{name}: {message}", style="{")
-    logger = logging.getLogger(parser.prog)
+    logger = logging.getLogger(progname)
 
-    processes: dict[str, subprocess.Popen[str]] = {}
-    start_times: dict[str, float] = {}
-    witnesses: dict[str, pathlib.Path] = {}
-    atexit.register(clean_up, processes, witnesses, verbose=args.verbose)
+    prover_manager = ProverManager(args.binary, logger, verbose=args.verbose)
+    if args.witness_file:
+        prover_manager.start_provers_with_witness(args.btor_file, args.bound)
+    else:
+        prover_manager.start_provers(args.btor_file, args.bound)
+    return_code, witness_file = prover_manager.wait_for_provers(args.summarize)
 
-    # Launch each portfolio solver as a subprocess.
-    executable = find_executable(args.binary)
-    for name, options in ENGINE_OPTIONS.items():
-        cmd = [str(executable), "-k", str(args.bound), *options]
-        if args.witness_file:
-            with tempfile.NamedTemporaryFile(delete=False) as witness_file:
-                witnesses[name] = pathlib.Path(witness_file.name)
-                cmd.extend(["--dump-btor2-witness", witness_file.name])
-        cmd.append(args.btor_file)
-        stderr = subprocess.PIPE if args.verbose else subprocess.DEVNULL
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, text=True)
-        start_times[name] = time.time()
-        processes[name] = proc
+    if args.witness_file:
+        if not witness_file:
+            logger.warning("witness requested but no witness file present")
+        else:
+            shutil.move(witness_file, args.witness_file)
 
-    # Wait for at least one process to terminate successfully.
-    while processes:
-        for name, process in processes.items():
-            end_time = time.time()
-            if process.poll() is not None:  # process has finished
-                if args.summarize:
-                    runtime = end_time - start_times[name]
-                    cmd = cast("list[str]", process.args)
-                    summarize(args.summarize, name, process.returncode, runtime, cmd)
-                if process.returncode not in SOLVED_RETURN_CODES:
-                    del processes[name]
-                    clean_up({name: process}, witnesses, verbose=args.verbose)
-                    break
-                if process.stdout is None:
-                    logger.warning("%s has no stdout", name)
-                    print(ReturnCode(process.returncode).name.lower())
-                else:
-                    print(process.stdout.read())
-                if args.witness_file:
-                    shutil.move(witnesses[name], args.witness_file)
-                return process.returncode
-
-    return ReturnCode.UNKNOWN.value
+    return return_code
 
 
 if __name__ == "__main__":
