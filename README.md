@@ -24,8 +24,7 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 
 ## Setup
 
-* [optional] Install bison and flex
-  * If you don't have flex installed globally, run `./contrib/setup-flex.sh`
+* [optional] Install bison
   * Bison should be available in your OS package manager (Linux) or Homebrew (macOS).
 * Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla
   * [optional] to build with MathSAT (required for interpolation-based model checking) you need to obtain the libraries yourself
