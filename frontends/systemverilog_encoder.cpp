@@ -1433,7 +1433,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           logger.log(1,
                      "SystemVerilogEncoder: extracted safety assertion "
                      "property {} (index {})",
-                     assertion_label(stmt),
+                     make_name(assertion_label(stmt)),
                      propvec_.size() - 1);
           break;
         }
@@ -1483,7 +1483,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         logger.log(1,
                    "SystemVerilogEncoder: extracted LTL liveness property "
                    "{} (index {}, {} justice condition(s))",
-                   assertion_label(stmt),
+                   make_name(assertion_label(stmt)),
                    ltl_justice_.size() - 1,
                    justice.size());
       }
