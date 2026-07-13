@@ -140,6 +140,9 @@ TEST_P(ModifierUnitTests, ImplicitPredicateAbstractorHierarchicalName)
 
 TEST_P(ModifierUnitTests, ArrayAbstractorHierarchicalName)
 {
+  if (s->get_solver_enum() == BTOR) {
+    GTEST_SKIP() << "Boolector does not support abstract sorts";
+  }
   // Regression test: ArrayAbstractor builds names for the abstracted
   // constant-array, state, and input variables by concatenating a prefix
   // onto Term::to_string(), which needs desanitizing for names that require
