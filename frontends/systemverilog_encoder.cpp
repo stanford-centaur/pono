@@ -861,6 +861,14 @@ void SystemVerilogEncoder::process_assignments(
 {
   using namespace slang::ast;
 
+  // Track which module's scope we're in so assertions processed below
+  // can look up that module's `default disable iff` (if any).  Saved
+  // and restored around this call so that, after recursing into a
+  // child instance below, subsequent siblings in the parent's own
+  // member loop see the parent's scope again.
+  const Scope * saved_scope = current_scope_;
+  current_scope_ = &body;
+
   // Combinational definitions are processed first so that wires have a
   // term assigned in symbol_to_term_ before any always_ff or initial
   // block (or assertion) tries to reference them.  Child instances are
@@ -907,6 +915,8 @@ void SystemVerilogEncoder::process_assignments(
       }
     }
   });
+
+  current_scope_ = saved_scope;
 }
 
 void SystemVerilogEncoder::process_always_ff(
@@ -1173,6 +1183,78 @@ void SystemVerilogEncoder::process_instance(
 // Statement processing
 // ============================================================================
 
+void SystemVerilogEncoder::process_dynamic_element_assign(
+    const slang::ast::ElementSelectExpression & sel,
+    const slang::ast::Expression & rhs_expr,
+    StmtContext ctx,
+    const Term & condition)
+{
+  using namespace slang::ast;
+
+  // Only a direct `base[idx] = rhs` pattern is supported: the select
+  // must sit directly on a plain variable, not on a nested select.
+  if (sel.value().kind != ExpressionKind::NamedValue
+      && sel.value().kind != ExpressionKind::HierarchicalValue) {
+    return;
+  }
+  const Symbol * sym =
+      (sel.value().kind == ExpressionKind::NamedValue)
+          ? &sel.value().as<NamedValueExpression>().symbol
+          : &sel.value().as<HierarchicalValueExpression>().symbol;
+  auto alias_it = port_output_aliases_.find(sym);
+  bool aliased = alias_it != port_output_aliases_.end();
+  if (aliased) sym = alias_it->second;
+
+  uint64_t elem_w = sel.type->getBitWidth();
+  if (elem_w == 0) elem_w = 1;
+
+  bool wire_comb =
+      ctx == StmtContext::COMBINATIONAL && wire_symbols_.count(sym);
+  Term prev_base;
+  Term state_term;
+  if (wire_comb) {
+    auto pit = pending_comb_updates_.find(sym);
+    if (pit != pending_comb_updates_.end()) {
+      prev_base = pit->second;
+    } else {
+      auto sit = symbol_to_term_.find(sym);
+      if (sit != symbol_to_term_.end()) prev_base = sit->second;
+    }
+  } else if (ctx == StmtContext::NEXT_STATE) {
+    auto sit = symbol_to_term_.find(sym);
+    if (sit == symbol_to_term_.end()) return;
+    state_term = sit->second;
+    auto pit = pending_next_updates_.find(state_term);
+    prev_base = (pit != pending_next_updates_.end()) ? pit->second : state_term;
+  } else {
+    // COMBINATIONAL non-wire / INITIAL dynamic-index writes aren't
+    // needed by any currently-supported construct; leave unsupported
+    // rather than risk an under-constrained partial encoding.
+    return;
+  }
+  if (!prev_base) return;
+
+  Term idx = expr_to_term(sel.selector());
+  Term rhs = expr_to_term(rhs_expr);
+  rhs = resize_to(rhs, elem_w);
+  Term combined = replace_bits_dynamic(prev_base, rhs, idx, elem_w);
+
+  if (wire_comb) {
+    if (aliased) pending_comb_aliased_.insert(sym);
+    pending_comb_updates_[sym] =
+        (condition == solver_->make_term(true))
+            ? combined
+            : solver_->make_term(Ite, condition, combined, prev_base);
+    return;
+  }
+
+  // ctx == NEXT_STATE
+  pending_next_updates_[state_term] =
+      (condition == solver_->make_term(true))
+          ? combined
+          : solver_->make_term(Ite, condition, combined, prev_base);
+}
+
 void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                                              StmtContext ctx,
                                              const Term & condition)
@@ -1190,7 +1272,19 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         auto & rhs_expr = assign.right();
 
         auto desc = resolve_lvalue(lhs_expr, eval_ctx());
-        if (!desc) break;
+        if (!desc) {
+          // resolve_lvalue() only handles constant-index selects; a
+          // runtime-variable index (`arr[idx] = rhs`) needs a
+          // dynamic-position splice instead of a static bit range.
+          if (lhs_expr.kind == ExpressionKind::ElementSelect) {
+            process_dynamic_element_assign(
+                lhs_expr.as<ElementSelectExpression>(),
+                rhs_expr,
+                ctx,
+                condition);
+          }
+          break;
+        }
         const Symbol * sym = desc->base;
         auto alias_it = port_output_aliases_.find(sym);
         bool aliased = alias_it != port_output_aliases_.end();
@@ -1416,11 +1510,35 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & ca = stmt.as<ConcurrentAssertionStatement>();
       // Only handle 'assert' (not 'assume', 'cover', etc.).
       if (ca.assertionKind == AssertionKind::Assert) {
-        // Strip the clocking wrapper; the clock event is already baked
-        // into our per-cycle abstraction.
+        // Strip the clocking wrapper (the clock event is already
+        // baked into our per-cycle abstraction) and any explicit
+        // `disable iff` wrapper, recording its condition.  If the
+        // statement has no explicit `disable iff`, fall back to the
+        // enclosing module's `default disable iff`, if any.
         const AssertionExpr * a = &ca.propertySpec;
-        while (a->kind == AssertionExprKind::Clocking) {
-          a = &a->as<ClockingAssertionExpr>().expr;
+        const Expression * disable_expr = nullptr;
+        while (true) {
+          if (a->kind == AssertionExprKind::Clocking) {
+            a = &a->as<ClockingAssertionExpr>().expr;
+          } else if (a->kind == AssertionExprKind::DisableIff) {
+            auto & di = a->as<DisableIffAssertionExpr>();
+            disable_expr = &di.condition;
+            a = &di.expr;
+          } else {
+            break;
+          }
+        }
+        if (!disable_expr && current_scope_) {
+          disable_expr = compilation_->getDefaultDisable(*current_scope_);
+        }
+
+        Term saved_disable_cond = current_disable_cond_;
+        if (disable_expr) {
+          Term dc = expr_to_term(*disable_expr);
+          current_disable_cond_ = solver_->make_term(
+              Distinct, dc, solver_->make_term(0, dc->get_sort()));
+        } else {
+          current_disable_cond_ = Term();
         }
 
         // Prefer the pure-safety encoding when the property reduces to
@@ -1429,12 +1547,19 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         // assertion_expr_to_bool returns null as soon as a genuine
         // liveness operator (eventually / unbounded until) appears.
         if (Term prop = assertion_expr_to_bool(*a)) {
+          // Catch-all `disable iff` exemption for property shapes
+          // (plain `assert P`, `always P`, ...) that don't already
+          // gate themselves more precisely inside assertion_expr_to_bool.
+          if (Term dw = disable_window(0)) {
+            prop = solver_->make_term(Or, dw, prop);
+          }
           propvec_.push_back(prop);
           logger.log(1,
                      "SystemVerilogEncoder: extracted safety assertion "
                      "property {} (index {})",
                      make_name(assertion_label(stmt)),
                      propvec_.size() - 1);
+          current_disable_cond_ = saved_disable_cond;
           break;
         }
 
@@ -1451,6 +1576,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                      "SystemVerilogEncoder: skipping unsupported temporal "
                      "assertion kind {}",
                      static_cast<int>(a->kind));
+          current_disable_cond_ = saved_disable_cond;
           break;
         }
 
@@ -1486,6 +1612,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                    make_name(assertion_label(stmt)),
                    ltl_justice_.size() - 1,
                    justice.size());
+        current_disable_cond_ = saved_disable_cond;
       }
       break;
     }
@@ -2117,6 +2244,53 @@ smt::Term SystemVerilogEncoder::ltl_init_flag()
   return ltl_init_flag_;
 }
 
+smt::Term SystemVerilogEncoder::ltl_before_cycle(uint32_t k)
+{
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+  // "is cycle 0" pulse, delayed by 1..k-1 steps gives "is cycle i" for
+  // each i in [1, k); their disjunction (with the undelayed pulse) is
+  // true exactly during cycles [0, k).
+  Term pulse = ltl_init_flag();
+  Term result = pulse;
+  Term link = solver_->make_term(Ite, pulse, one_bv1, zero_bv1);
+  for (uint32_t i = 1; i < k; ++i) {
+    Term latch = fts_.make_statevar(
+        make_name("__before_cycle_" + std::to_string(latch_counter_++)), bv1);
+    fts_.constrain_init(solver_->make_term(Equal, latch, zero_bv1));
+    fts_.assign_next(latch, link);
+    result = solver_->make_term(
+        Or, result, solver_->make_term(Equal, latch, one_bv1));
+    link = latch;
+  }
+  return result;
+}
+
+smt::Term SystemVerilogEncoder::disable_window(uint32_t window)
+{
+  if (!current_disable_cond_) return Term();
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+  // OR the disable condition together with its 1..window-cycle-delayed
+  // versions, so a `disable iff` that was true anywhere in an
+  // antecedent's shift window still exempts the whole property, not
+  // just the single cycle the check ends up anchored at.
+  Term result = current_disable_cond_;
+  Term link = solver_->make_term(Ite, current_disable_cond_, one_bv1, zero_bv1);
+  for (uint32_t i = 0; i < window; ++i) {
+    Term latch = fts_.make_statevar(
+        make_name("__disable_hist_" + std::to_string(latch_counter_++)), bv1);
+    fts_.constrain_init(solver_->make_term(Equal, latch, zero_bv1));
+    fts_.assign_next(latch, link);
+    result = solver_->make_term(
+        Or, result, solver_->make_term(Equal, latch, one_bv1));
+    link = latch;
+  }
+  return result;
+}
+
 smt::Term SystemVerilogEncoder::ltl_make_X(const smt::Term & phi)
 {
   Sort bv1 = solver_->make_sort(BV, 1);
@@ -2456,14 +2630,25 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
            || b.op == BinaryAssertionOperator::Implies);
 
       if (is_impl) {
-        // Compute the antecedent now, the consequent at its
-        // anchor cycle (offset by any `##k` on the RHS), then
-        // delay the antecedent by that offset using a chain of
-        // 1-bit latches so the resulting implication is
-        // expressed in the current cycle.
-        Term lhs = assertion_expr_to_bool(b.left);
+        // A `##k` prefix on the antecedent restricts which cycles a
+        // match can even start from (the earliest anchor cycle is
+        // k); gate the whole implication so it is vacuously true
+        // before cycle k instead of dropping the delay, which would
+        // otherwise evaluate the consequent (e.g. a `$past` with no
+        // real history yet) at cycles no valid match could reach.
+        uint32_t lhs_delay = 0;
+        const AssertionExpr * lhs_inner = &b.left;
+        if (auto lhs_matched = match_const_delay_seq(b.left)) {
+          lhs_delay = lhs_matched->first;
+          lhs_inner = lhs_matched->second;
+        }
+        Term lhs = assertion_expr_to_bool(*lhs_inner);
         if (!lhs) return Term();
 
+        // Compute the consequent at its anchor cycle (offset by any
+        // `##k` on the RHS), then delay the antecedent by that
+        // offset using a chain of 1-bit latches so the resulting
+        // implication is expressed in the current cycle.
         uint32_t delay =
             (b.op == BinaryAssertionOperator::NonOverlappedImplication) ? 1 : 0;
         const AssertionExpr * rhs_inner = &b.right;
@@ -2485,7 +2670,18 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
           Term delayed_bv = make_history_chain(lhs_bv, delay);
           lhs = solver_->make_term(Equal, delayed_bv, one_bv1);
         }
-        return solver_->make_term(Implies, lhs, rhs);
+        Term result = solver_->make_term(Implies, lhs, rhs);
+        if (lhs_delay > 0) {
+          result = solver_->make_term(Or, ltl_before_cycle(lhs_delay), result);
+        }
+        // `disable iff`: exempt this cycle's check if the disable
+        // condition held anywhere in the antecedent-to-consequent
+        // shift window, not just at the single cycle the check is
+        // anchored at.
+        if (Term dw = disable_window(delay)) {
+          result = solver_->make_term(Or, dw, result);
+        }
+        return result;
       }
 
       Term lhs = assertion_expr_to_bool(b.left);
@@ -2632,6 +2828,31 @@ Term SystemVerilogEncoder::replace_bits(const Term & base,
     result = solver_->make_term(Concat, result, parts[i]);
   }
   return result;
+}
+
+Term SystemVerilogEncoder::replace_bits_dynamic(const Term & base,
+                                                const Term & slice,
+                                                const Term & idx,
+                                                uint64_t elem_w)
+{
+  uint64_t base_w = base->get_sort()->get_width();
+  Sort base_sort = solver_->make_sort(BV, base_w);
+  Term idx_ext = resize_to(idx, base_w);
+  Term shift_amount = idx_ext;
+  if (elem_w != 1) {
+    Term elem_w_term = solver_->make_term(elem_w, base_sort);
+    shift_amount = solver_->make_term(BVMul, idx_ext, elem_w_term);
+  }
+  Term elem_ones = solver_->make_term(
+      BVNot, solver_->make_term(0, solver_->make_sort(BV, elem_w)));
+  Term mask =
+      solver_->make_term(BVShl, resize_to(elem_ones, base_w), shift_amount);
+  Term slice_shifted =
+      solver_->make_term(BVShl, resize_to(slice, base_w), shift_amount);
+  Term cleared =
+      solver_->make_term(BVAnd, base, solver_->make_term(BVNot, mask));
+  return solver_->make_term(
+      BVOr, cleared, solver_->make_term(BVAnd, slice_shifted, mask));
 }
 
 }  // namespace pono

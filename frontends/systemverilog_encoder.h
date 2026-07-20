@@ -45,6 +45,7 @@ class ContinuousAssignSymbol;
 class PortSymbol;
 class EvalContext;
 class AssertionExpr;
+class ElementSelectExpression;
 }  // namespace slang::ast
 
 namespace pono {
@@ -223,6 +224,36 @@ class SystemVerilogEncoder
                          uint64_t lo,
                          uint64_t hi);
 
+  /** Build a partial-write term like replace_bits(), but for a
+   *  runtime-variable element index (`arr[idx] = slice` where `idx`
+   *  is not a compile-time constant): shifts an `elem_w`-wide window
+   *  of ones into position `idx * elem_w` and uses it to mask the
+   *  shifted-into-position `slice` into `base`, leaving every other
+   *  element unchanged.  Mirrors the shift+extract technique already
+   *  used for dynamic-index *reads* in expr_to_term().
+   */
+  smt::Term replace_bits_dynamic(const smt::Term & base,
+                                 const smt::Term & slice,
+                                 const smt::Term & idx,
+                                 uint64_t elem_w);
+
+  /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
+   *  not a compile-time constant, so resolve_lvalue() can't produce a
+   *  static bit range.  Only a direct select on a plain variable base
+   *  is supported (no nested dynamic selects).  A no-op (matching the
+   *  prior silent-skip behavior) if the base isn't a plain variable
+   *  or has no current term yet.
+   *  @param sel  the dynamic element-select LHS expression
+   *  @param rhs_expr the assignment's right-hand side
+   *  @param ctx  which kind of block this assignment is in
+   *  @param condition accumulated path condition (for if/case nesting)
+   */
+  void process_dynamic_element_assign(
+      const slang::ast::ElementSelectExpression & sel,
+      const slang::ast::Expression & rhs_expr,
+      StmtContext ctx,
+      const smt::Term & condition);
+
   /** Pre-scan an always_ff body to identify non-blocking assignment
    *  targets as state variable symbols.
    *  @param body the statement body of the always_ff block
@@ -336,6 +367,28 @@ class SystemVerilogEncoder
    *  trace. */
   smt::Term ltl_init_flag();
 
+  /** Returns a Boolean term true iff the current cycle is one of the
+   *  first `k` cycles of the trace (cycle index 0..k-1).  Used to
+   *  exempt a `##k seq |-> ...` property from being checked before
+   *  cycle `k`, the earliest cycle any `##k` match can end at (a
+   *  naive per-cycle check would otherwise wrongly evaluate the
+   *  consequent -- e.g. a `$past` with no real history yet -- at
+   *  cycles no valid match could ever reach).
+   *  @param k number of leading cycles to flag (k >= 1)
+   */
+  smt::Term ltl_before_cycle(uint32_t k);
+
+  /** Returns a Boolean term true iff `current_disable_cond_` holds at
+   *  the current cycle or at any of the `window` cycles before it.
+   *  Used to extend a `disable iff` condition sampled at an
+   *  antecedent's trigger cycle across the cycles a delayed (`##k`)
+   *  consequent shifts the check over, so the whole match window is
+   *  exempted, not just its last cycle.  Returns a null Term when
+   *  `current_disable_cond_` is null (no disable iff in scope).
+   *  @param window number of cycles before the current one to OR in
+   */
+  smt::Term disable_window(uint32_t window);
+
   // ---------- Data members ----------
 
   FunctionalTransitionSystem & fts_;
@@ -435,6 +488,21 @@ class SystemVerilogEncoder
   // Monotonic counter used to mint unique state-var names for the
   // hidden latches introduced by `$past`, `|=>`, and `|-> ##N`.
   uint32_t latch_counter_ = 0;
+
+  // Scope of the module instance body currently being processed by
+  // process_assignments().  Used to look up that module's `default
+  // disable iff` condition (Compilation::getDefaultDisable walks up
+  // the scope's parent chain).  Saved/restored around recursion into
+  // child instances.
+  const slang::ast::Scope * current_scope_ = nullptr;
+
+  // The `disable iff` condition (explicit on the current assert
+  // statement, or the enclosing module's `default disable iff`) as a
+  // Boolean SMT term, or null if none applies.  Set just before
+  // compiling one assertion's property expression and read by
+  // assertion_expr_to_bool()/ltl_to_sat() via disable_window(), so it
+  // need not be threaded through every recursive call.
+  smt::Term current_disable_cond_;
 };
 
 }  // namespace pono
