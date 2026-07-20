@@ -93,6 +93,44 @@ TEST_P(CegarValuesTest, SimpleUnsafe)
   ASSERT_EQ(r, ProverResult::FALSE);
 }
 
+TEST_P(CegarValuesTest, HierarchicalName)
+{
+  // Regression test: CegarValues builds the frozen-value variable's name
+  // and the assumption label's name by concatenating a prefix onto
+  // Term::to_string(), which needs desanitizing for names that require
+  // SMT-LIB `|...|` quoting (e.g. hierarchical names like SystemVerilog
+  // produces, such as "mod.sig[3]"). Same scenario as SimpleSafe, just with
+  // hierarchical variable names so value abstraction actually exercises the
+  // fixed code paths.
+  RelationalTransitionSystem rts(s);
+  Sort intsort = rts.make_sort(INT);
+  Sort arrsort = rts.make_sort(ARRAY, intsort, intsort);
+  Term i = rts.make_statevar("mod.i[0]", intsort);
+  Term j = rts.make_statevar("mod.j[0]", intsort);
+  Term d = rts.make_statevar("mod.d[0]", intsort);
+  Term a = rts.make_statevar("mod.a[0]", arrsort);
+
+  Term constarr0 = rts.make_term(rts.make_term(0, intsort), arrsort);
+  rts.set_init(rts.make_term(Equal, a, constarr0));
+  rts.assign_next(
+      a,
+      rts.make_term(Ite,
+                    rts.make_term(Lt, d, rts.make_term(200, intsort)),
+                    rts.make_term(Store, a, i, d),
+                    a));
+
+  Term prop_term = rts.make_term(
+      Lt, rts.make_term(Select, a, j), rts.make_term(200, intsort));
+  SafetyProperty prop(s, prop_term);
+
+  shared_ptr<SafetyProver> ceg =
+      make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s, opts);
+
+  ProverResult r2;
+  ASSERT_NO_THROW(r2 = ceg->check_until(5));
+  ASSERT_EQ(r2, ProverResult::TRUE);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ParameterizedCegarValuesTest,
     CegarValuesTest,

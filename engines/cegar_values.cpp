@@ -27,6 +27,7 @@
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
+#include "utils/str_util.h"
 #include "utils/ts_manipulation.h"
 
 using namespace smt;
@@ -117,8 +118,8 @@ class ValueAbstractor : public smt::IdentityWalker
         fresh_solver_->pop();
 
         // create a frozen variable
-        Term frozen_var =
-            ts_.make_statevar("__abs_" + term->to_string(), term->get_sort());
+        Term frozen_var = ts_.make_statevar(
+            "__abs_" + name_desanitize(term->to_string()), term->get_sort());
         // will be made frozen later
         // since the transition system will be modified after this
         save_in_cache(term, frozen_var);
@@ -243,8 +244,8 @@ void CegarValues<Prover_T>::initialize()
   Sort boolsort = cegval_solver_->make_sort(BOOL);
   Term lbl;
   for (const auto & elem : to_vals_) {
-    lbl = cegval_solver_->make_symbol("__assump_" + elem.second->to_string(),
-                                      boolsort);
+    lbl = cegval_solver_->make_symbol(
+        "__assump_" + name_desanitize(elem.second->to_string()), boolsort);
     cegval_labels_[elem.first] = lbl;
   }
 }

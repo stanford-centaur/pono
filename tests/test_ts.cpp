@@ -93,6 +93,35 @@ TEST_P(TSUnitTests, RTS_IsFunc)
   EXPECT_NE(ts_copy, rts);
 }
 
+TEST_P(TSUnitTests, RTS_IsRightTotal_HierarchicalName)
+{
+  // Coverage test: is_right_total() builds quantifier param names by
+  // concatenating ".param" onto Term::to_string(), which needs desanitizing
+  // for names that require SMT-LIB `|...|` quoting (e.g. hierarchical names
+  // like SystemVerilog produces, such as "mod.sig[3]"), matching the same
+  // fix applied elsewhere. Unlike promote_inputvar() below, the available
+  // backends don't validate quantifier param symbols strictly enough for
+  // this to reproduce a failure pre-fix, but it still exercises the fixed
+  // code path and checks the result is correct.
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("mod.sig[3]", bvsort);
+  rts.assign_next(x, s->make_term(BVAdd, x, s->make_term(1, bvsort)));
+  bool right_total;
+  ASSERT_NO_THROW(right_total = rts.is_right_total());
+  EXPECT_TRUE(right_total);
+}
+
+TEST_P(TSUnitTests, PromoteInputvar_HierarchicalName)
+{
+  // Regression test: promote_inputvar() builds the next-state symbol's name
+  // by concatenating a suffix onto Term::to_string(), which needs
+  // desanitizing for names that require SMT-LIB `|...|` quoting.
+  FunctionalTransitionSystem fts(s);
+  Term iv = fts.make_inputvar("mod.sig[3]", bvsort);
+  ASSERT_NO_THROW(fts.promote_inputvar(iv));
+  EXPECT_TRUE(fts.is_curr_var(iv));
+}
+
 TEST_P(TSUnitTests, FTS_Exceptions)
 {
   FunctionalTransitionSystem fts(s);

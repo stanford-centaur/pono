@@ -20,6 +20,7 @@
 
 #include "core/rts.h"
 #include "utils/exceptions.h"
+#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -58,7 +59,7 @@ WalkerStepResult ArrayAbstractor::AbstractionWalker::visit_term(Term & term)
   if (sk == ARRAY && op.is_null()) {
     // constant array
     Term val = *(term->begin());
-    string name = "constarr" + val->to_string();
+    string name = "constarr" + name_desanitize(val->to_string());
     res = aa_.abs_ts_.make_statevar(name, aa_.abstract_array_sort(sort));
   } else if (op == Select) {
     assert(cached_children.size() == 2);
@@ -283,7 +284,7 @@ void ArrayAbstractor::abstract_vars()
   for (auto sv : conc_ts_.statevars()) {
     sort = sv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
-      abs_var = abs_ts_.make_statevar("abs_" + sv->to_string(),
+      abs_var = abs_ts_.make_statevar("abs_" + name_desanitize(sv->to_string()),
                                       abstract_array_sort(sort));
       update_term_cache(sv, abs_var);
       update_term_cache(conc_ts_.next(sv), abs_ts_.next(abs_var));
@@ -294,7 +295,7 @@ void ArrayAbstractor::abstract_vars()
   for (auto iv : conc_ts_.inputvars()) {
     sort = iv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
-      abs_var = abs_ts_.make_inputvar("abs_" + iv->to_string(),
+      abs_var = abs_ts_.make_inputvar("abs_" + name_desanitize(iv->to_string()),
                                       abstract_array_sort(sort));
       update_term_cache(iv, abs_var);
     } else {

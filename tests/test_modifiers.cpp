@@ -3,6 +3,7 @@
 #include "core/fts.h"
 #include "core/rts.h"
 #include "gtest/gtest.h"
+#include "modifiers/array_abstractor.h"
 #include "modifiers/history_modifier.h"
 #include "modifiers/implicit_predicate_abstractor.h"
 #include "modifiers/liveness_to_safety_translator.h"
@@ -61,6 +62,20 @@ TEST_P(ModifierUnitTests, HistoryModifier)
   EXPECT_EQ(num_state_vars_orig + 10, fts.statevars().size());
 }
 
+TEST_P(ModifierUnitTests, HistoryModifierHierarchicalName)
+{
+  // Regression test: get_hist() builds each history variable's name by
+  // concatenating a prefix/suffix onto Term::to_string(), which needs
+  // desanitizing for names that require SMT-LIB `|...|` quoting (e.g.
+  // hierarchical names like SystemVerilog produces, such as "mod.sig[3]").
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("mod.sig[3]", bvsort);
+  fts.assign_next(x, x);
+
+  HistoryModifier hm(fts);
+  ASSERT_NO_THROW(hm.get_hist(x, 3));
+}
+
 TEST_P(ModifierUnitTests, ProphecyModifierSimple)
 {
   FunctionalTransitionSystem fts(s);
@@ -90,6 +105,58 @@ TEST_P(ModifierUnitTests, ProphecyModifierSimple)
 
   // but now the prophecy variable should be also
   EXPECT_TRUE(free_vars.find(proph_var) != free_vars.end());
+}
+
+TEST_P(ModifierUnitTests, ProphecyModifierHierarchicalName)
+{
+  // Regression test: get_proph() builds the prophecy variable's name by
+  // concatenating a prefix/suffix onto Term::to_string(), which needs
+  // desanitizing for names that require SMT-LIB `|...|` quoting. It also
+  // composes HistoryModifier::get_hist() internally, so this exercises
+  // both fixes together.
+  FunctionalTransitionSystem fts(s);
+  Term x = fts.make_statevar("mod.sig[3]", bvsort);
+  fts.assign_next(x, x);
+
+  ProphecyModifier pm(fts);
+  ASSERT_NO_THROW(pm.get_proph(x, 2));
+}
+
+TEST_P(ModifierUnitTests, ImplicitPredicateAbstractorHierarchicalName)
+{
+  // Regression test: do_abstraction() builds the abstracted next-var's name
+  // by concatenating "^" onto Term::to_string(), which needs desanitizing
+  // for names that require SMT-LIB `|...|` quoting.
+  RelationalTransitionSystem rts(s);
+  Term x = rts.make_statevar("mod.sig[3]", bvsort);
+  rts.assign_next(x, x);
+  rts.set_init(rts.make_term(Equal, x, rts.make_term(0, bvsort)));
+
+  RelationalTransitionSystem abs_rts(rts.solver());
+  Unroller un(abs_rts);
+  ImplicitPredicateAbstractor ia(rts, abs_rts, un);
+  ASSERT_NO_THROW(ia.do_abstraction());
+}
+
+TEST_P(ModifierUnitTests, ArrayAbstractorHierarchicalName)
+{
+  if (s->get_solver_enum() == BTOR) {
+    GTEST_SKIP() << "Boolector does not support abstract sorts";
+  }
+  // Regression test: ArrayAbstractor builds names for the abstracted
+  // constant-array, state, and input variables by concatenating a prefix
+  // onto Term::to_string(), which needs desanitizing for names that require
+  // SMT-LIB `|...|` quoting.
+  RelationalTransitionSystem conc_rts(s);
+  Term arr = conc_rts.make_statevar("mod.arr[3]", arrsort);
+  Term arr_in = conc_rts.make_inputvar("mod.in_arr[1]", arrsort);
+  Term constarr0 = conc_rts.make_term(conc_rts.make_term(0, bvsort), arrsort);
+  conc_rts.set_init(conc_rts.make_term(Equal, arr, constarr0));
+  conc_rts.assign_next(arr, arr);
+
+  RelationalTransitionSystem abs_rts(s);
+  ArrayAbstractor aa(conc_rts, abs_rts);
+  ASSERT_NO_THROW(aa.do_abstraction());
 }
 
 TEST_P(ModifierUnitTests, ImplicitPredicateAbstractor)

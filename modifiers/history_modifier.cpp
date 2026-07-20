@@ -18,6 +18,7 @@
 
 #include "core/rts.h"
 #include "utils/exceptions.h"
+#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -44,8 +45,8 @@ Term HistoryModifier::get_hist(const Term & target, size_t delay)
   size_t num_existing_hist_vars = hist_vars_[target].size();
   while (num_existing_hist_vars < delay) {
     num_existing_hist_vars++;
-    name =
-        "hist_" + target->to_string() + "_" + to_string(num_existing_hist_vars);
+    name = "hist_" + name_desanitize(target->to_string()) + "_"
+           + to_string(num_existing_hist_vars);
     var = ts_.make_statevar(name, sort);
 
     if (num_existing_hist_vars == 1) {
