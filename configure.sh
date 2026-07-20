@@ -20,6 +20,7 @@ Configures the CMAKE build environment.
 --with-msat-ic3ia       build with the open-source IC3IA implementation as a backend. (default: off)
 --with-coreir           build the CoreIR frontend (default: off)
 --with-coreir-extern    build the CoreIR frontend using an installation of coreir in /usr/local/lib (default: off)
+--with-slang            build the SystemVerilog frontend using slang (default: off)
 --debug                 build debug with debug symbols (default: off)
 --docs                  build HTML documentation with Doxygen (default: off)
 --python                compile with python bindings (default: off)
@@ -47,6 +48,7 @@ with_z3=default
 with_msat_ic3ia=default
 with_coreir=default
 with_coreir_extern=default
+with_slang=default
 docs=default
 python=default
 lib_type=SHARED
@@ -93,6 +95,7 @@ while [[ $# -gt 0 ]]; do
     --with-msat-ic3ia) with_msat_ic3ia=ON ;;
     --with-coreir) with_coreir=ON ;;
     --with-coreir-extern) with_coreir_extern=ON ;;
+    --with-slang) with_slang=ON ;;
     --debug)
       build_type=Debug
       ;;
@@ -145,6 +148,9 @@ cmake_opts=(-DCMAKE_BUILD_TYPE="$build_type" -DPONO_LIB_TYPE="$lib_type" -DPONO_
 
 [[ $with_coreir_extern != default ]] &&
   cmake_opts+=(-DWITH_COREIR_EXTERN="$with_coreir_extern")
+
+[[ $with_slang != default ]] &&
+  cmake_opts+=(-DWITH_SLANG="$with_slang")
 
 [[ $docs != default ]] &&
   cmake_opts+=(-DBUILD_DOCS=ON)
