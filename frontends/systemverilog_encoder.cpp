@@ -988,9 +988,8 @@ void SystemVerilogEncoder::process_continuous_assign(
   auto desc = resolve_lvalue(lhs_expr, eval_ctx());
   if (!desc) return;
   const Symbol * sym = desc->base;
-  auto alias_it = port_output_aliases_.find(sym);
-  bool aliased = alias_it != port_output_aliases_.end();
-  if (aliased) sym = alias_it->second;
+  auto [resolved_sym, aliased] = resolve_output_alias(sym);
+  sym = resolved_sym;
 
   uint64_t lo = desc->lo;
   uint64_t hi = desc->hi;
@@ -1201,9 +1200,8 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
       (sel.value().kind == ExpressionKind::NamedValue)
           ? &sel.value().as<NamedValueExpression>().symbol
           : &sel.value().as<HierarchicalValueExpression>().symbol;
-  auto alias_it = port_output_aliases_.find(sym);
-  bool aliased = alias_it != port_output_aliases_.end();
-  if (aliased) sym = alias_it->second;
+  auto [resolved_sym, aliased] = resolve_output_alias(sym);
+  sym = resolved_sym;
 
   uint64_t elem_w = sel.type->getBitWidth();
   if (elem_w == 0) elem_w = 1;
@@ -1286,9 +1284,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           break;
         }
         const Symbol * sym = desc->base;
-        auto alias_it = port_output_aliases_.find(sym);
-        bool aliased = alias_it != port_output_aliases_.end();
-        if (aliased) sym = alias_it->second;
+        auto [resolved_sym, aliased] = resolve_output_alias(sym);
+        sym = resolved_sym;
 
         uint64_t lo = desc->lo;
         uint64_t hi = desc->hi;
@@ -2744,6 +2741,19 @@ Sort SystemVerilogEncoder::type_to_sort(const slang::ast::Type & type)
 // Helpers
 // ============================================================================
 
+std::pair<const slang::ast::Symbol *, bool>
+SystemVerilogEncoder::resolve_output_alias(const slang::ast::Symbol * sym) const
+{
+  bool aliased = false;
+  auto alias_it = port_output_aliases_.find(sym);
+  while (alias_it != port_output_aliases_.end()) {
+    aliased = true;
+    sym = alias_it->second;
+    alias_it = port_output_aliases_.find(sym);
+  }
+  return { sym, aliased };
+}
+
 Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
 {
   using namespace slang::ast;
@@ -2756,11 +2766,11 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
   }
 
   // If `sym` is a child instance's output-port internal, redirect to
-  // the parent-side wire so reads resolve to its term.
-  auto alias_it = port_output_aliases_.find(sym);
-  if (alias_it != port_output_aliases_.end()) {
-    sym = alias_it->second;
-  }
+  // the parent-side wire so reads resolve to its term.  This may
+  // chain through multiple levels of instantiation (e.g. a
+  // grandchild's output port connected straight through an
+  // intermediate module's own output port), so chase it to the root.
+  sym = resolve_output_alias(sym).first;
 
   // Wire being defined in the enclosing always_comb block: return
   // the partial accumulated term so that read-modify-write patterns

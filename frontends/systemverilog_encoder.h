@@ -24,6 +24,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "core/fts.h"
@@ -199,6 +200,15 @@ class SystemVerilogEncoder
    *  @return the SMT term, or throws if not found
    */
   smt::Term lookup_symbol(const slang::ast::Symbol * sym) const;
+
+  /** Chase port_output_aliases_ transitively (an output port that is
+   *  itself connected to an outer output port, e.g. through two
+   *  levels of instantiation) to the final root symbol.
+   *  @param sym the symbol to resolve
+   *  @return the root symbol, and whether any alias hop was taken
+   */
+  std::pair<const slang::ast::Symbol *, bool> resolve_output_alias(
+      const slang::ast::Symbol * sym) const;
 
   /** Build the hierarchical name for a symbol.
    *  @param name the local name
