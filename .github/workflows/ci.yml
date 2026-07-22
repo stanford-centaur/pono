@@ -7,7 +7,9 @@ jobs:
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
-      - uses: pre-commit/action@v3.0.1
+      - uses: j178/prek-action@v2
+        with:
+          extra-args: --all-files
   build:
     strategy:
       fail-fast: false
