@@ -2142,9 +2142,10 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
     }
 
     case ExpressionKind::Call: {
-      // Only the `$past` system function is currently handled; it
-      // expands into a chain of 1-cycle latch state vars.  Other
-      // calls (user subroutines, system tasks) are not supported.
+      // Only the `$past` and `$stable` system functions are currently
+      // handled; they expand into a chain of 1-cycle latch state
+      // vars.  Other calls (user subroutines, system tasks) are not
+      // supported.
       auto & call = expr.as<CallExpression>();
       if (call.isSystemCall() && call.getSubroutineName() == "$past") {
         auto args = call.arguments();
@@ -2163,6 +2164,18 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         }
         if (n == 0) return val;
         return make_history_chain(val, n);
+      }
+      if (call.isSystemCall() && call.getSubroutineName() == "$stable") {
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException(
+              "SystemVerilogEncoder: $stable with no value argument");
+        }
+        Term val = expr_to_term(*args[0]);
+        Term eq = solver_->make_term(Equal, val, make_history_chain(val, 1));
+        Sort bv1 = solver_->make_sort(BV, 1);
+        return solver_->make_term(
+            Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
       }
       throw PonoException("SystemVerilogEncoder: unsupported call to "
                           + std::string(call.getSubroutineName()));
