@@ -366,7 +366,7 @@ void SystemVerilogEncoder::process_module(
     if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
       auto & proc = member.as<slang::ast::ProceduralBlockSymbol>();
       if (proc.procedureKind == slang::ast::ProceduralBlockKind::AlwaysComb) {
-        pre_scan_always_comb(proc.getBody());
+        pre_scan_always_comb(proc.getBody(), proc);
       } else if (proc.procedureKind
                  == slang::ast::ProceduralBlockKind::Always) {
         // Legacy always: combinational iff it has no non-blocking
@@ -374,7 +374,7 @@ void SystemVerilogEncoder::process_module(
         std::unordered_set<const slang::ast::Symbol *> nb_targets;
         collect_nonblocking_targets(proc.getBody(), nb_targets);
         if (nb_targets.empty()) {
-          pre_scan_always_comb(proc.getBody());
+          pre_scan_always_comb(proc.getBody(), proc);
         }
       }
     } else if (member.kind == slang::ast::SymbolKind::ContinuousAssign) {
@@ -386,6 +386,7 @@ void SystemVerilogEncoder::process_module(
           auto * sym = &lhs.as<slang::ast::NamedValueExpression>().symbol;
           if (!state_var_symbols_.count(sym)) {
             wire_symbols_.insert(sym);
+            wire_drivers_[sym] = { &ca, nullptr, prefix_, parent_prefix_ };
           }
         } else if (auto * base = find_lhs_base(lhs)) {
           // Partial-LHS continuous assign (`assign arr[i] = ...`):
@@ -648,7 +649,8 @@ void SystemVerilogEncoder::pre_scan_always_ff(
 }
 
 void SystemVerilogEncoder::pre_scan_always_comb(
-    const slang::ast::Statement & body)
+    const slang::ast::Statement & body,
+    const slang::ast::ProceduralBlockSymbol & proc)
 {
   // Collect blocking-assign LHS targets.  Bases written full-width
   // become wires (macro-substituted); bases written through bit /
@@ -665,6 +667,7 @@ void SystemVerilogEncoder::pre_scan_always_comb(
       state_var_symbols_.insert(sym);
     } else {
       wire_symbols_.insert(sym);
+      wire_drivers_[sym] = { nullptr, &proc, prefix_, parent_prefix_ };
     }
   }
   for (auto * sym : partial) {
@@ -926,16 +929,16 @@ void SystemVerilogEncoder::process_assignments(
   // references.
   walk_members(body, [&](const Symbol & member) {
     if (member.kind == SymbolKind::ContinuousAssign) {
-      process_continuous_assign(member.as<ContinuousAssignSymbol>());
+      process_continuous_assign_once(member.as<ContinuousAssignSymbol>());
     } else if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
       if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
-        process_always_comb(proc);
+        process_always_comb_once(proc);
       } else if (proc.procedureKind == ProceduralBlockKind::Always) {
         std::unordered_set<const Symbol *> targets;
         collect_nonblocking_targets(proc.getBody(), targets);
         if (targets.empty()) {
-          process_always_comb(proc);
+          process_always_comb_once(proc);
         }
       }
     } else if (member.kind == SymbolKind::Instance) {
@@ -1018,6 +1021,20 @@ void SystemVerilogEncoder::process_initial(
 {
   Term true_term = solver_->make_term(true);
   process_statement(proc.getBody(), StmtContext::INITIAL, true_term);
+}
+
+void SystemVerilogEncoder::process_always_comb_once(
+    const slang::ast::ProceduralBlockSymbol & proc)
+{
+  if (!processed_drivers_.insert(&proc).second) return;
+  process_always_comb(proc);
+}
+
+void SystemVerilogEncoder::process_continuous_assign_once(
+    const slang::ast::ContinuousAssignSymbol & ca)
+{
+  if (!processed_drivers_.insert(&ca).second) return;
+  process_continuous_assign(ca);
 }
 
 void SystemVerilogEncoder::process_continuous_assign(
@@ -1178,14 +1195,14 @@ void SystemVerilogEncoder::process_instance(
     if (proc.procedureKind == ProceduralBlockKind::AlwaysFF) {
       pre_scan_always_ff(proc.getBody());
     } else if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
-      pre_scan_always_comb(proc.getBody());
+      pre_scan_always_comb(proc.getBody(), proc);
     } else if (proc.procedureKind == ProceduralBlockKind::Always) {
       std::unordered_set<const Symbol *> nb_targets;
       collect_nonblocking_targets(proc.getBody(), nb_targets);
       if (!nb_targets.empty()) {
         pre_scan_always_ff(proc.getBody());
       } else {
-        pre_scan_always_comb(proc.getBody());
+        pre_scan_always_comb(proc.getBody(), proc);
       }
     }
   });
@@ -1198,16 +1215,16 @@ void SystemVerilogEncoder::process_instance(
   // Combinational pass over child's body (and any sub-instances).
   walk_members(inst.body, [&](const Symbol & m) {
     if (m.kind == SymbolKind::ContinuousAssign) {
-      process_continuous_assign(m.as<ContinuousAssignSymbol>());
+      process_continuous_assign_once(m.as<ContinuousAssignSymbol>());
     } else if (m.kind == SymbolKind::ProceduralBlock) {
       auto & proc = m.as<ProceduralBlockSymbol>();
       if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
-        process_always_comb(proc);
+        process_always_comb_once(proc);
       } else if (proc.procedureKind == ProceduralBlockKind::Always) {
         std::unordered_set<const Symbol *> targets;
         collect_nonblocking_targets(proc.getBody(), targets);
         if (targets.empty()) {
-          process_always_comb(proc);
+          process_always_comb_once(proc);
         }
       }
     } else if (m.kind == SymbolKind::Instance) {
@@ -2910,7 +2927,39 @@ SystemVerilogEncoder::resolve_output_alias(const slang::ast::Symbol * sym) const
   return { sym, aliased, has_range, lo, hi };
 }
 
-Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
+bool SystemVerilogEncoder::resolve_wire_on_demand(
+    const slang::ast::Symbol * sym)
+{
+  auto it = wire_drivers_.find(sym);
+  if (it == wire_drivers_.end()) return false;
+  const WireDriver & drv = it->second;
+  const void * stmt_key = drv.ca ? static_cast<const void *>(drv.ca)
+                                 : static_cast<const void *>(drv.comb);
+  if (processed_drivers_.count(stmt_key)) return true;
+
+  if (!resolving_wires_.insert(sym).second) {
+    throw PonoException(
+        "SystemVerilogEncoder: combinational loop detected involving '"
+        + std::string(sym->name) + "'");
+  }
+  string saved_prefix = prefix_;
+  string saved_parent_prefix = parent_prefix_;
+  prefix_ = drv.prefix;
+  parent_prefix_ = drv.parent_prefix;
+
+  if (drv.ca) {
+    process_continuous_assign_once(*drv.ca);
+  } else {
+    process_always_comb_once(*drv.comb);
+  }
+
+  prefix_ = saved_prefix;
+  parent_prefix_ = saved_parent_prefix;
+  resolving_wires_.erase(sym);
+  return true;
+}
+
+Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym)
 {
   using namespace slang::ast;
 
@@ -2947,6 +2996,17 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym) const
   auto it = symbol_to_term_.find(sym);
   if (it != symbol_to_term_.end()) {
     return slice(it->second);
+  }
+
+  // Not resolved yet -- if `sym` is a wire whose driving continuous
+  // assign / always_comb block simply hasn't been walked yet (e.g. it
+  // appears later in program order than this read), process it now,
+  // out of order, and retry.
+  if (resolve_wire_on_demand(sym)) {
+    auto pit = pending_comb_updates_.find(sym);
+    if (pit != pending_comb_updates_.end()) return slice(pit->second);
+    auto sit = symbol_to_term_.find(sym);
+    if (sit != symbol_to_term_.end()) return slice(sit->second);
   }
 
   // Parameter / localparam: slang has already evaluated the value at

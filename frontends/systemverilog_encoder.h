@@ -152,6 +152,30 @@ class SystemVerilogEncoder
   /** Process a continuous assignment (assign statement). */
   void process_continuous_assign(const slang::ast::ContinuousAssignSymbol & ca);
 
+  /** Process an always_comb block, or a continuous assign, unless it
+   *  has already been processed (either by the normal walk reaching
+   *  it, or because some earlier read forced it via
+   *  resolve_wire_on_demand()).  Every call site that would otherwise
+   *  call process_always_comb() / process_continuous_assign() directly
+   *  goes through these instead, so a driver is never processed twice.
+   */
+  void process_always_comb_once(const slang::ast::ProceduralBlockSymbol & proc);
+  void process_continuous_assign_once(
+      const slang::ast::ContinuousAssignSymbol & ca);
+
+  /** If `sym` is a wire whose driving continuous assign / always_comb
+   *  block lives in a scope already walked (so its home prefix_ /
+   *  parent_prefix_ are known) but hasn't been processed yet -- e.g.
+   *  a same-scope wire whose `assign` appears later in program order
+   *  than the code that reads it -- process that driver now, out of
+   *  order, so lookup_symbol() can retry.  Detects and throws on a
+   *  genuine combinational cycle.
+   *  @return true if a driver was found (and is now processed, or
+   *          already had been); false if `sym` isn't a locally-driven
+   *          wire this mechanism knows about.
+   */
+  bool resolve_wire_on_demand(const slang::ast::Symbol * sym);
+
   // ---------- Statement processing ----------
 
   /** Context for statement processing: whether we are building next-state
@@ -198,7 +222,7 @@ class SystemVerilogEncoder
    *  @param sym pointer to the slang symbol
    *  @return the SMT term, or throws if not found
    */
-  smt::Term lookup_symbol(const slang::ast::Symbol * sym) const;
+  smt::Term lookup_symbol(const slang::ast::Symbol * sym);
 
   /** Result of chasing an output-port alias chain to its root: the
    *  root symbol, whether any hop was taken at all, and -- when the
@@ -295,10 +319,16 @@ class SystemVerilogEncoder
   void pre_scan_always_ff(const slang::ast::Statement & body);
 
   /** Pre-scan a combinational always_comb body to identify blocking
-   *  assignment targets as combinational wire symbols.
+   *  assignment targets as combinational wire symbols.  Each wire
+   *  target found is recorded (with the current prefix_ /
+   *  parent_prefix_) as being driven by `proc`, so a read of it that
+   *  occurs before `proc` is naturally walked can force it to be
+   *  processed on demand -- see resolve_wire_on_demand().
    *  @param body the statement body of the always_comb block
+   *  @param proc the enclosing always_comb block symbol
    */
-  void pre_scan_always_comb(const slang::ast::Statement & body);
+  void pre_scan_always_comb(const slang::ast::Statement & body,
+                            const slang::ast::ProceduralBlockSymbol & proc);
 
   /** Pre-scan a child instance to identify any parent-side variables
    *  that are driven by the child's output ports; those become wires
@@ -447,6 +477,30 @@ class SystemVerilogEncoder
   // their term in symbol_to_term_ is the defining expression itself,
   // not a fresh state or input variable.
   std::unordered_set<const slang::ast::Symbol *> wire_symbols_;
+
+  // A locally-driven wire's driving statement, plus the prefix_ /
+  // parent_prefix_ its home scope was walked with -- everything
+  // resolve_wire_on_demand() needs to process that statement out of
+  // program order.  Exactly one of {ca, comb} is set.
+  struct WireDriver
+  {
+    const slang::ast::ContinuousAssignSymbol * ca = nullptr;
+    const slang::ast::ProceduralBlockSymbol * comb = nullptr;
+    std::string prefix;
+    std::string parent_prefix;
+  };
+  std::unordered_map<const slang::ast::Symbol *, WireDriver> wire_drivers_;
+
+  // Driving statements (ContinuousAssignSymbol* / ProceduralBlockSymbol*,
+  // type-erased) that have already been processed, whether by the
+  // normal walk reaching them or via resolve_wire_on_demand() -- so
+  // neither path ever processes the same driver twice.
+  std::unordered_set<const void *> processed_drivers_;
+
+  // Wires currently being resolved by resolve_wire_on_demand(), to
+  // detect a genuine combinational cycle rather than recursing
+  // forever.
+  std::unordered_set<const slang::ast::Symbol *> resolving_wires_;
 
   // An output-port alias target: either the whole of `sym` (has_range
   // false), or -- for an instance-array element wired to one slice of
