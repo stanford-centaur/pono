@@ -1418,22 +1418,23 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         if (wire_comb) {
           if (aliased) pending_comb_aliased_.insert(sym);
           // Compose new full-base value from prev_base + slice rhs.
-          // If there's no prev_base yet, treat the slice as the new
-          // value (matches the existing latch-free default for
-          // first-time conditional writes).
+          // On the very first write to this wire within the block
+          // there is no prev_base yet; treat it as covering the
+          // whole symbol only if it actually does, checked against
+          // the symbol's declared width (not the write's own slice
+          // width, which is trivially equal to itself) -- otherwise
+          // seed a fresh placeholder to splice into, e.g. a
+          // `for (i) arr[i] = ...;` pattern writing one element per
+          // iteration.
           Term combined;
           if (prev_base) {
             combined = replace_bits(prev_base, rhs, lo, hi);
-          } else if (!resolved.has_range && lo == 0 && hi + 1 == slice_w) {
-            combined = rhs;
           } else {
-            // Partial write to a wire with no seed term: skip; the
-            // unwritten bits would be undefined.
-            logger.log(1,
-                       "SystemVerilogEncoder: partial write to undriven "
-                       "wire {} -- skipped",
-                       string(sym->name));
-            break;
+            uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
+            bool full_write = !resolved.has_range && lo == 0 && hi + 1 == sym_w;
+            combined = full_write
+                           ? rhs
+                           : replace_bits(wire_seed_term(sym), rhs, lo, hi);
           }
           if (condition == solver_->make_term(true)) {
             pending_comb_updates_[sym] = combined;
