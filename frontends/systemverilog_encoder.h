@@ -24,7 +24,6 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "core/fts.h"
@@ -201,13 +200,28 @@ class SystemVerilogEncoder
    */
   smt::Term lookup_symbol(const slang::ast::Symbol * sym) const;
 
+  /** Result of chasing an output-port alias chain to its root: the
+   *  root symbol, whether any hop was taken at all, and -- when the
+   *  chain passed through a bus-element connection (e.g. one element
+   *  of an instance array wired to a slice of a parent-side array) --
+   *  the bit range within the root that this symbol corresponds to.
+   */
+  struct ResolvedOutputAlias
+  {
+    const slang::ast::Symbol * sym;
+    bool aliased;
+    bool has_range;
+    uint64_t lo;
+    uint64_t hi;
+  };
+
   /** Chase port_output_aliases_ transitively (an output port that is
    *  itself connected to an outer output port, e.g. through two
-   *  levels of instantiation) to the final root symbol.
+   *  levels of instantiation, or through a bus-element connection of
+   *  an instance array) to the final root symbol and bit range.
    *  @param sym the symbol to resolve
-   *  @return the root symbol, and whether any alias hop was taken
    */
-  std::pair<const slang::ast::Symbol *, bool> resolve_output_alias(
+  ResolvedOutputAlias resolve_output_alias(
       const slang::ast::Symbol * sym) const;
 
   /** Build the hierarchical name for a symbol.
@@ -215,6 +229,16 @@ class SystemVerilogEncoder
    *  @return the fully-qualified name with prefix
    */
   std::string make_name(const std::string & name) const;
+
+  /** Return the existing term for a wire-classified symbol, or --
+   *  if this is the first write it has ever received -- create a
+   *  fresh free variable sized to its declared bit width to serve as
+   *  the splice base for a partial write (e.g. one element of a
+   *  multi-driver bus written piecemeal across several instance-array
+   *  elements).  The placeholder's own value never surfaces once
+   *  every bit of the symbol has been written by some partial write.
+   */
+  smt::Term wire_seed_term(const slang::ast::Symbol * sym);
 
   /** Ensure a term has the expected bit-width, zero-extending or
    *  truncating as needed.
@@ -424,12 +448,24 @@ class SystemVerilogEncoder
   // not a fresh state or input variable.
   std::unordered_set<const slang::ast::Symbol *> wire_symbols_;
 
+  // An output-port alias target: either the whole of `sym` (has_range
+  // false), or -- for an instance-array element wired to one slice of
+  // a parent-side bus signal -- bits [lo, hi] of `sym`.
+  struct OutputAliasTarget
+  {
+    const slang::ast::Symbol * sym;
+    bool has_range = false;
+    uint64_t lo = 0;
+    uint64_t hi = 0;
+  };
+
   // Map from a child instance's port internal symbol to the parent-side
-  // variable symbol that the port connects to.  Populated while
-  // processing a child instance and consulted when resolving the LHS
-  // of a continuous-assign or always_comb statement so writes to a
-  // child output port redirect to the parent-side wire.
-  std::unordered_map<const slang::ast::Symbol *, const slang::ast::Symbol *>
+  // variable (and, for a bus-element connection, bit range) that the
+  // port connects to.  Populated while processing a child instance and
+  // consulted when resolving the LHS of a continuous-assign or
+  // always_comb statement so writes to a child output port redirect to
+  // the parent-side wire.
+  std::unordered_map<const slang::ast::Symbol *, OutputAliasTarget>
       port_output_aliases_;
 
   // Symbols in pending_comb_updates_ that came from an alias-redirect
