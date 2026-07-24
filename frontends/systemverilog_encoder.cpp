@@ -732,8 +732,29 @@ void SystemVerilogEncoder::declare_variables_internal(
       // Output ports of a child instance: the port-internal Variable
       // appears here as a member of the child's body, but its term is
       // really the parent-side wire reached through the alias map --
-      // skip declaring a separate term for it.
-      if (port_output_aliases_.count(&var)) return;
+      // skip declaring a separate term for it.  A register is the
+      // exception: unlike a comb wire (whose term is filled in later
+      // via macro substitution when its driving assignment is
+      // processed), no later pass ever assigns a term to a bare
+      // pass-through symbol, so a register's state var must be
+      // created here, keyed under the fully resolved alias root.
+      if (port_output_aliases_.count(&var)) {
+        if (state_var_symbols_.count(&var)) {
+          const Symbol * root = resolve_output_alias(&var).first;
+          if (!symbol_to_term_.count(root)) {
+            string name = make_name(string(var.name));
+            Sort sort = type_to_sort(var.getType());
+            Term sv = fts_.make_statevar(name, sort);
+            symbol_to_term_[root] = sv;
+            fts_.name_term(name, sv);
+            logger.log(2,
+                       "SystemVerilogEncoder: state var (aliased) {} : bv{}",
+                       name,
+                       sort->get_width());
+          }
+        }
+        return;
+      }
 
       string name = make_name(string(var.name));
       Sort sort = type_to_sort(var.getType());
