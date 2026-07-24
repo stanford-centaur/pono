@@ -54,6 +54,7 @@
 #include "slang/ast/symbols/ParameterSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
 #include "slang/numeric/SVInt.h"
@@ -2188,6 +2189,65 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       uint64_t lo = *lo_opt;
       if (hi < lo) swap(hi, lo);
       return solver_->make_term(Op(Extract, hi, lo), val);
+    }
+
+    case ExpressionKind::MemberAccess: {
+      // Packed-struct field read (`s.field`): extract the field's bit
+      // range, using the FieldSymbol's own bitOffset (LSB-relative,
+      // per packed-struct layout) and declared width.
+      auto & ma = expr.as<MemberAccessExpression>();
+      if (ma.member.kind != SymbolKind::Field) {
+        throw PonoException(
+            "SystemVerilogEncoder: unsupported member access on "
+            + std::string(ma.member.name));
+      }
+      Term base = expr_to_term(ma.value());
+      auto & field = ma.member.as<FieldSymbol>();
+      uint64_t w = field.getType().getBitWidth();
+      uint64_t lo = field.bitOffset;
+      uint64_t hi = lo + w - 1;
+      return solver_->make_term(Op(Extract, hi, lo), base);
+    }
+
+    case ExpressionKind::StructuredAssignmentPattern: {
+      // Packed-struct construction (`'{field: value, ...}`): every
+      // field must be given a named setter -- concatenate them MSB
+      // first (declaration order), matching packed-struct layout.
+      auto & pat = expr.as<StructuredAssignmentPatternExpression>();
+      auto & canon = expr.type->getCanonicalType();
+      if (canon.kind != SymbolKind::PackedStructType) {
+        throw PonoException(
+            "SystemVerilogEncoder: unsupported assignment pattern target "
+            "type");
+      }
+      auto & st = canon.as<PackedStructType>();
+      std::unordered_map<const Symbol *, const Expression *> setters;
+      for (auto & ms : pat.memberSetters) {
+        setters[&*ms.member] = &*ms.expr;
+      }
+      std::vector<Term> parts;
+      for (auto & m : st.members()) {
+        if (m.kind != SymbolKind::Field) continue;
+        auto & field = m.as<FieldSymbol>();
+        auto sit = setters.find(&m);
+        if (sit == setters.end()) {
+          throw PonoException(
+              "SystemVerilogEncoder: assignment pattern missing field '"
+              + std::string(field.name) + "'");
+        }
+        Term val = resize_to(expr_to_term(*sit->second),
+                             field.getType().getBitWidth());
+        parts.push_back(val);
+      }
+      if (parts.empty()) {
+        throw PonoException(
+            "SystemVerilogEncoder: assignment pattern for empty struct");
+      }
+      Term result = parts[0];
+      for (size_t i = 1; i < parts.size(); ++i) {
+        result = solver_->make_term(Concat, result, parts[i]);
+      }
+      return result;
     }
 
     case ExpressionKind::ConditionalOp: {
