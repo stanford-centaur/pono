@@ -4,6 +4,11 @@
 # information.
 #
 # This file is part of the pono project.
+"""Test the pseudo_init_and_prop modification function.
+
+This method is general but is most useful for improving IC3IA performance.
+This test is based on the C++ tests.
+"""
 from __future__ import annotations
 
 from typing import Callable
