@@ -9,6 +9,7 @@
 This method is general but is most useful for improving IC3IA performance.
 This test is based on the C++ tests.
 """
+
 from __future__ import annotations
 
 from typing import Callable
