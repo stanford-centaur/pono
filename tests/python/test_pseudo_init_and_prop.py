@@ -1,18 +1,15 @@
-###############################################################
-# \file test_pseudo_init_and_prop.py
-# \verbatim
-# Top contributors (to current version):
-#   Makai Mann
-# This file is part of the smt-switch project.
-# Copyright (c) 2021 by the authors listed in the file AUTHORS
-# in the top-level source directory) and their institutional affiliations.
-# All rights reserved.  See the file LICENSE in the top-level source
-# directory for licensing information.\endverbatim
+# Copyright (c) 2021 by the authors listed in the file AUTHORS in the top-level
+# source directory and their institutional affiliations. All rights reserved.
+# See the file LICENSE in the top-level source directory for licensing
+# information.
 #
-# \brief Test the pseudo_init_and_prop modification function.
-#        This method is general but is most useful for improving
-#        IC3IA performance. This test is based on the C++ tests.
-#
+# This file is part of the pono project.
+"""Test the pseudo_init_and_prop modification function.
+
+This method is general but is most useful for improving IC3IA performance.
+This test is based on the C++ tests.
+"""
+
 from __future__ import annotations
 
 from typing import Callable
