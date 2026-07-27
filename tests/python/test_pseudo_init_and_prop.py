@@ -1,7 +1,6 @@
 # Copyright (c) 2021 by the authors listed in the file AUTHORS in the top-level
-# source directory and their institutional affiliations. All rights reserved.
-# See the file LICENSE in the top-level source directory for licensing
-# information.
+# source directory and their institutional affiliations. See the file LICENSE
+# in the top-level source directory for licensing information.
 #
 # This file is part of the pono project.
 """Test the pseudo_init_and_prop modification function.
