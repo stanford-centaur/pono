@@ -1,0 +1,127 @@
+#ifdef WITH_SLANG
+
+#include "sv_test_fixture.h"
+
+using namespace pono;
+using namespace smt;
+
+namespace pono_tests {
+
+// ---------------------------------------------------------------------------
+// Packed multi-dimensional arrays (array-of-vectors) -- these pass: both
+// constant- and variable-index reads/writes on a packed array are already
+// supported.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, PackedArrayConstIndexChain)
+{
+  check_bmc("array_const_index.sv", 7);
+}
+
+TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
+{
+  check_bmc("array_dyn_index.sv", 16);
+}
+
+// ---------------------------------------------------------------------------
+// Packed structs
+// ---------------------------------------------------------------------------
+
+// GAP (confirmed by inspection): resolve_lvalue() in
+// systemverilog_encoder.cpp only has cases for NamedValue,
+// HierarchicalValue, ElementSelect, and RangeSelect -- there is no
+// ExpressionKind::MemberAccess case.  A struct-field nonblocking
+// assignment (`p.cnt <= ...`, `s.a.x <= ...`) therefore fails to
+// resolve as an lvalue and is silently dropped: the field is never
+// registered as an assign_next() target and stays a completely free
+// state variable every cycle.  Confirmed empirically: both fields
+// were found violable at cycle 1, which the reset-forced value (0)
+// cannot produce on its own -- only an unconstrained free variable
+// can.  Read access to struct fields *is* supported (MemberAccess is
+// handled in expr_to_term()); only the write side is missing.
+TEST_P(SVUnitTests, Gap_PackedStructFieldState)
+{
+  check_bmc("struct_state.sv", 5);
+}
+
+TEST_P(SVUnitTests, Gap_PackedStructNested)
+{
+  check_bmc("struct_nested.sv", 4);
+}
+
+// Passes: struct-typed *ports* only exercise the (supported) read-side
+// MemberAccess path, not the missing struct-field lvalue path above.
+TEST_P(SVUnitTests, TypedefStructPort)
+{
+  check_bmc("typedef_struct_port.sv", 2);
+}
+
+// ---------------------------------------------------------------------------
+// Packed enums
+// ---------------------------------------------------------------------------
+
+// GAP (confirmed by inspection/observed exception): none of these four
+// actually reach a BMC call -- SystemVerilogEncoder's constructor
+// throws "unknown symbol 'IDLE'"/'ACK'" immediately.  lookup_symbol()
+// has no path for an EnumValueSymbol; only declare_variables()-tracked
+// registers/wires/parameters are ever inserted into symbol_to_term_.
+// Declaring an enum-typed *variable* works fine (its type is integral,
+// so type_to_sort() succeeds), but referencing one of the enum's own
+// named literals (IDLE/REQ/ACK, used exactly as ordinary SV permits
+// once the enum is declared) does not.
+TEST_P(SVUnitTests, Gap_PackedEnumStateMachine) { check_bmc("enum_fsm.sv", 3); }
+
+TEST_P(SVUnitTests, Gap_PackedEnumStateMachineHolds)
+{
+  check_bmc("enum_fsm_holds.sv", 5, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, Gap_PackedArrayOfEnums)
+{
+  check_bmc("array_of_enums.sv", 3);
+}
+
+TEST_P(SVUnitTests, Gap_EnumCastFromInt) { check_bmc("enum_cast.sv", 2); }
+
+// ---------------------------------------------------------------------------
+// Packed unions
+// ---------------------------------------------------------------------------
+
+// Passes: packed-union member access correctly aliases at bit offset
+// 0 for every member (unlike struct members, which are packed
+// end-to-end) -- writing through `.b` and reading back through
+// `.parts.hi`/`.parts.lo` is bit-consistent.
+TEST_P(SVUnitTests, PackedUnionOverlap)
+{
+  check_bmc("union_overlap.sv", 6, ProverResult::UNKNOWN);
+}
+
+// ---------------------------------------------------------------------------
+// typedef -- passes: a typedef'd plain vector is just its underlying sort.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, TypedefVectorWidth) { check_bmc("typedef_vector.sv", 5); }
+
+// ---------------------------------------------------------------------------
+// 2-state (`bit`) vs 4-state (`logic`) parity -- passes both directions:
+// Pono's SMT bitvector model has no X/Z state, so `bit` and `logic`
+// registers updated identically are numerically indistinguishable.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, BitVsLogicParityHolds)
+{
+  check_bmc("bit_vs_logic_parity.sv", 10, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, BitVsLogicParityMismatchFails)
+{
+  check_bmc("bit_vs_logic_parity_mismatch.sv", 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVTypesTests,
+                         SVUnitTests,
+                         testing::ValuesIn(available_solver_enums()));
+
+}  // namespace pono_tests
+
+#endif
