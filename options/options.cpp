@@ -121,6 +121,7 @@ enum optionIndex
   KLIVE_COUNTER_ENC,
   KLIVE_NO_CHECK_LASSO_IN_CEX,
   KLIVE_NO_LOCKSTEP_BMC,
+  TIMED_AUTOMATON
 };
 
 struct Arg : public option::Arg
@@ -771,6 +772,12 @@ const option::Descriptor usage[] = {
     Arg::None,
     "  --no-klive-lockstep-bmc \tDo no perform BMC in lock-step in "
     "k-liveness" },
+  { TIMED_AUTOMATON,
+    0,
+    "",
+    "timed-automaton",
+    Arg::None,
+    "  --timed-automaton \tEncode timed automaton semantics" },
   { 0, 0, 0, 0, 0, 0 }
 };
 /*********************************** end Option Handling setup
@@ -1103,6 +1110,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           klive_check_lasso_in_cex_ = false;
           break;
         case KLIVE_NO_LOCKSTEP_BMC: klive_lockstep_bmc_ = false; break;
+        case TIMED_AUTOMATON: timed_automaton_ = true; break;
         case UNKNOWN_OPTION:
           // not possible because Arg::Unknown returns ARG_ILLEGAL
           // which aborts the parse with an error
