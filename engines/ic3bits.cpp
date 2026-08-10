@@ -23,6 +23,7 @@
 #include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "utils/exceptions.h"
+#include "utils/partial_model.h"
 
 using namespace smt;
 
@@ -33,7 +34,9 @@ IC3Bits::IC3Bits(const SafetyProperty & p,
                  const SmtSolver & solver,
                  PonoOptions opt,
                  Engine engine)
-    : super(p, ts, solver, opt, engine)
+    : super(p, ts, solver, opt, engine),
+      partial_model_getter_(solver_),
+      has_assumptions_(false)
 {
 }
 
@@ -44,6 +47,22 @@ void IC3Bits::initialize()
   }
 
   super::initialize();
+
+  build_ts_related_info();
+
+  // Constraints live over current/no-next terms. Include each constraint and
+  // its next-state update rewritten back to current variables when computing
+  // the predecessor's relevant bit slices.
+  assert(!nxt_state_updates_.empty());
+  for (const auto & c_initnext : ts_.constraints()) {
+    has_assumptions_ = true;
+    assert(ts_.no_next(c_initnext.first));
+    constraints_curr_var_.emplace(
+        c_initnext.first, std::vector<std::pair<int, int>>({ { 0, 0 } }));
+    constraints_curr_var_.emplace(
+        next_curr_replace(ts_.next(c_initnext.first)),
+        std::vector<std::pair<int, int>>({ { 0, 0 } }));
+  }
 
   Term bv1 = solver_->make_term(1, solver_->make_sort(BV, 1));
 
@@ -58,6 +77,22 @@ void IC3Bits::initialize()
         state_bits_.push_back(solver_->make_term(
             Equal, solver_->make_term(Op(Extract, i, i), sv), bv1));
       }
+    }
+  }
+}
+
+void IC3Bits::build_ts_related_info()
+{
+  // nxt_state_updates_ rewrites primed state variables to their next-state
+  // functions. State variables without updates are treated like inputs and are
+  // omitted from partial predecessors unless assumptions force keeping them.
+  const auto & state_updates = ts_.state_updates();
+  for (const auto & sv : ts_.statevars()) {
+    auto pos = state_updates.find(sv);
+    if (pos == state_updates.end()) {
+      no_next_vars_.insert(sv);
+    } else {
+      nxt_state_updates_.emplace(ts_.next(sv), pos->second);
     }
   }
 }
@@ -109,6 +144,77 @@ void IC3Bits::check_ts() const
                             + to_string(sort->get_sort_kind()));
       }
     }
+  }
+}
+
+bool IC3Bits::keep_var_in_partial_model(const Term & v) const
+{
+  // With constraints, input/no-next variables can affect enabled transitions,
+  // so keep all current variables. Otherwise restrict cubes to updated state.
+  if (has_assumptions_) {
+    return ts_.is_curr_var(v);
+  }
+
+  return ts_.is_curr_var(v) && no_next_vars_.find(v) == no_next_vars_.end();
+}
+
+IC3Formula IC3Bits::ExtractPartialModel(const Term & p)
+{
+  assert(ts_.no_next(p));
+
+  std::unordered_map<Term, std::vector<std::pair<int, int>>> varlist;
+  // IC3 gives a current-state bad predicate. To compute a predecessor cube,
+  // move it through the next-state functions and then analyze the result over
+  // current variables.
+  Term bad_state_no_nxt = next_curr_replace(ts_.next(p));
+
+  if (has_assumptions_) {
+    auto ast_slices = constraints_curr_var_;
+    ast_slices.emplace(bad_state_no_nxt,
+                       std::vector<std::pair<int, int>>({ { 0, 0 } }));
+    partial_model_getter_.GetVarListForAsts_in_bitlevel(ast_slices, varlist);
+  } else {
+    std::unordered_map<Term, std::vector<std::pair<int, int>>> in_ast;
+    in_ast.emplace(bad_state_no_nxt,
+                   std::vector<std::pair<int, int>>({ { 0, 0 } }));
+    partial_model_getter_.GetVarListForAsts_in_bitlevel(in_ast, varlist);
+  }
+
+  TermVec conjvec_partial;
+  for (const auto & v_slice_pair : varlist) {
+    const auto & v = v_slice_pair.first;
+    if (!keep_var_in_partial_model(v)) continue;
+
+    Term val = solver_->get_value(v);
+    if (v->get_sort() == boolsort_) {
+      // Boolean variables are already single-bit terms; Extract is only valid
+      // for bit-vectors.
+      conjvec_partial.push_back(solver_->make_term(Op(Equal), v, val));
+      continue;
+    }
+
+    for (const auto & h_l_pair : v_slice_pair.second) {
+      for (int idx = h_l_pair.first; idx >= h_l_pair.second; --idx) {
+        auto eq = solver_->make_term(
+            Op(Equal),
+            solver_->make_term(Op(Extract, idx, idx), v),
+            solver_->make_term(Op(Extract, idx, idx), val));
+        conjvec_partial.push_back(eq);
+      }
+    }
+  }
+
+  if (conjvec_partial.empty()) conjvec_partial.push_back(solver_true_);
+  return ic3formula_conjunction(conjvec_partial);
+}
+
+void IC3Bits::predecessor_generalization(size_t i,
+                                         const Term & cterm,
+                                         IC3Formula & pred)
+{
+  (void)i;
+  if (options_.ic3_pregen_) {
+    pred = ExtractPartialModel(cterm);
   }
 }
 
