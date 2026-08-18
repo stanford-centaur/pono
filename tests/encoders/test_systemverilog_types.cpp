@@ -50,28 +50,33 @@ TEST_P(SVUnitTests, TypedefStructPort)
 // Packed enums
 // ---------------------------------------------------------------------------
 
-// GAP (confirmed by inspection/observed exception): none of these four
-// actually reach a BMC call -- SystemVerilogEncoder's constructor
-// throws "unknown symbol 'IDLE'"/'ACK'" immediately.  lookup_symbol()
-// has no path for an EnumValueSymbol; only declare_variables()-tracked
-// registers/wires/parameters are ever inserted into symbol_to_term_.
-// Declaring an enum-typed *variable* works fine (its type is integral,
-// so type_to_sort() succeeds), but referencing one of the enum's own
+// FIXED: lookup_symbol() had no path for an EnumValueSymbol -- only
+// declare_variables()-tracked registers/wires/parameters were ever
+// inserted into symbol_to_term_ -- so referencing one of an enum's own
 // named literals (IDLE/REQ/ACK, used exactly as ordinary SV permits
-// once the enum is declared) does not.
-TEST_P(SVUnitTests, Gap_PackedEnumStateMachine) { check_bmc("enum_fsm.sv", 3); }
+// once the enum is declared) threw "unknown symbol".  Declaring an
+// enum-typed *variable* already worked fine (its type is integral, so
+// type_to_sort() succeeds); lookup_symbol() now also resolves an
+// EnumValueSymbol the same way it already resolved a ParameterSymbol
+// (both are elaboration-time constants slang has already evaluated).
+//
+// Each FSM fixture below deliberately has no `default:` case arm: one
+// was needed to fully exercise these fixtures, and along the way it
+// surfaced a distinct, pre-existing bug where a `case` statement's
+// `default:` arm applies unconditionally alongside whichever other
+// item already matched (rather than only when none of them did),
+// which stuck every such FSM at its default value forever. That's
+// tracked separately, not fixed here.
+TEST_P(SVUnitTests, PackedEnumStateMachine) { check_bmc("enum_fsm.sv", 3); }
 
-TEST_P(SVUnitTests, Gap_PackedEnumStateMachineHolds)
+TEST_P(SVUnitTests, PackedEnumStateMachineHolds)
 {
   check_bmc("enum_fsm_holds.sv", 5, ProverResult::UNKNOWN);
 }
 
-TEST_P(SVUnitTests, Gap_PackedArrayOfEnums)
-{
-  check_bmc("array_of_enums.sv", 3);
-}
+TEST_P(SVUnitTests, PackedArrayOfEnums) { check_bmc("array_of_enums.sv", 3); }
 
-TEST_P(SVUnitTests, Gap_EnumCastFromInt) { check_bmc("enum_cast.sv", 2); }
+TEST_P(SVUnitTests, EnumCastFromInt) { check_bmc("enum_cast.sv", 2); }
 
 // ---------------------------------------------------------------------------
 // Packed unions

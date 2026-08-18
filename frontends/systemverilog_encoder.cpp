@@ -3089,6 +3089,29 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym)
     return solver_->make_term(val_str, sort, 10);
   }
 
+  // Enum literal (`IDLE`, `REQ`, ...): slang has already evaluated its
+  // value at elaboration time, exactly like a parameter.  Declaring an
+  // enum-typed *variable* already worked (its type is integral, so
+  // type_to_sort() succeeds); only referencing one of the enum's own
+  // named values -- ordinary once the enum is declared -- was missing.
+  if (sym->kind == SymbolKind::EnumValue) {
+    auto & enum_val = sym->as<EnumValueSymbol>();
+    const auto & cv = enum_val.getValue();
+    if (!cv.isInteger()) {
+      throw PonoException("SystemVerilogEncoder: non-integer enum value '"
+                          + string(sym->name) + "'");
+    }
+    auto val = cv.integer();
+    uint64_t width = enum_val.getType().getBitWidth();
+    if (width == 0) width = val.getBitWidth();
+    if (width == 0) width = 32;
+    Sort sort = solver_->make_sort(BV, width);
+    val.setSigned(false);
+    string val_str =
+        val.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
+    return solver_->make_term(val_str, sort, 10);
+  }
+
   throw PonoException("SystemVerilogEncoder: unknown symbol '"
                       + string(sym->name) + "'");
 }

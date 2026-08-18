@@ -1,9 +1,10 @@
-// Same FSM shape as enum_fsm.sv, but `go` is hardwired low so the
-// state machine can never leave IDLE.  The property `st != ACK`
-// genuinely holds forever here -- BMC must exhaust the bound with
-// UNKNOWN rather than manufacture a counterexample, which is exactly
-// the failure mode a test that only ever falsifies its property
-// could never catch.
+// Same FSM shape as enum_fsm.sv (including the missing `default:`
+// arm, for the same reason -- see that file's comment), but `go` is
+// hardwired low so the state machine can never leave IDLE.  The
+// property `st != ACK` genuinely holds forever here -- BMC must
+// exhaust the bound with UNKNOWN rather than manufacture a
+// counterexample, which is exactly the failure mode a test that only
+// ever falsifies its property could never catch.
 typedef enum logic [1:0] {
   IDLE = 2'b00,
   REQ  = 2'b01,
@@ -25,7 +26,6 @@ module enum_fsm_holds (input logic clk, input logic rst);
         IDLE: st <= go ? REQ : IDLE;
         REQ: st <= ACK;
         ACK: st <= IDLE;
-        default: st <= IDLE;
       endcase
     end
   end
