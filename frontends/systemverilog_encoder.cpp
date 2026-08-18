@@ -1602,8 +1602,16 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
     case StatementKind::ConcurrentAssertion: {
       auto & ca = stmt.as<ConcurrentAssertionStatement>();
-      // Only handle 'assert' (not 'assume', 'cover', etc.).
-      if (ca.assertionKind == AssertionKind::Assert) {
+      // Handle 'assert', 'assume', and 'restrict' (not 'cover': dropping a
+      // coverage goal doesn't corrupt any proof the way silently dropping
+      // an assumption would, so it isn't worth the tableau/justice-set
+      // machinery a real implementation would need).  'assume'/'restrict'
+      // share the exact same property-shape handling as 'assert' below;
+      // they differ only in what happens to the resulting boolean once
+      // it's built (see the two branches further down).
+      bool is_assumption = ca.assertionKind == AssertionKind::Assume
+                           || ca.assertionKind == AssertionKind::Restrict;
+      if (ca.assertionKind == AssertionKind::Assert || is_assumption) {
         // Strip the clocking wrapper (the clock event is already
         // baked into our per-cycle abstraction) and any explicit
         // `disable iff` wrapper, recording its condition.  If the
@@ -1644,15 +1652,45 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           // Catch-all `disable iff` exemption for property shapes
           // (plain `assert P`, `always P`, ...) that don't already
           // gate themselves more precisely inside assertion_expr_to_bool.
+          // For an assumption, this is exactly the right shape too:
+          // "assume P disable iff C" means P is only assumed while C is
+          // false, i.e. the ever-true constraint is (C || P).
           if (Term dw = disable_window(0)) {
             prop = solver_->make_term(Or, dw, prop);
           }
-          propvec_.push_back(prop);
+          if (is_assumption) {
+            // Hold at every reachable step (init and, via the transition
+            // relation, every subsequent state) -- the same "always true"
+            // primitive already used for plain state/input invariants
+            // elsewhere in the encoder, just applied to an assumption
+            // instead of a proof obligation.
+            fts_.add_constraint(prop, /*to_init_and_next=*/true);
+            logger.log(1,
+                       "SystemVerilogEncoder: extracted assumption "
+                       "constraint from {}",
+                       make_name(assertion_label(stmt)));
+          } else {
+            propvec_.push_back(prop);
+            logger.log(1,
+                       "SystemVerilogEncoder: extracted safety assertion "
+                       "property {} (index {})",
+                       make_name(assertion_label(stmt)),
+                       propvec_.size() - 1);
+          }
+          current_disable_cond_ = saved_disable_cond;
+          break;
+        }
+
+        if (is_assumption) {
+          // Temporal (non-safety) assume/restrict properties would need
+          // their own fairness-constraint machinery (assuming a GF
+          // condition rather than proving one), which nothing else in
+          // the encoder builds yet -- skip cleanly rather than attempt a
+          // partial, likely-unsound translation.
           logger.log(1,
-                     "SystemVerilogEncoder: extracted safety assertion "
-                     "property {} (index {})",
-                     make_name(assertion_label(stmt)),
-                     propvec_.size() - 1);
+                     "SystemVerilogEncoder: skipping unsupported temporal "
+                     "assume/restrict property {}",
+                     make_name(assertion_label(stmt)));
           current_disable_cond_ = saved_disable_cond;
           break;
         }

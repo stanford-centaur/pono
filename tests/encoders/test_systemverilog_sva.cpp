@@ -52,21 +52,23 @@ TEST_P(SVUnitTests, MultipleAssertions)
 }
 
 // ---------------------------------------------------------------------------
-// TOP PRIORITY (see the plan's Context section): `assume`/`restrict
-// property` are a complete silent no-op today -- not even a log line --
-// which is the single most dangerous gap this suite documents, since a
-// dropped environment assumption can make a real bug look like a proof.
-// `cover property` dropping silently is comparatively low-stakes (no proof
-// obligation to corrupt), so it's checked for clean absence instead of
-// being asserted against a safety property.
+// FIXED (previously the single most dangerous gap this suite documented --
+// `assume`/`restrict property` used to be a complete silent no-op, not even
+// a log line, so a dropped environment assumption could make a real bug
+// look like a proof).  The ConcurrentAssertion handler now routes the same
+// property-shape computation used for `assert` through fts_.add_constraint()
+// for `assume`/`restrict` instead of propvec_, for the safety (non-temporal)
+// fast path.  `cover property` dropping silently is comparatively low-stakes
+// (no proof obligation to corrupt) and still unimplemented, so it's checked
+// for clean absence instead of being asserted against a safety property.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_AssumePropertyConstrainsTrace)
+TEST_P(SVUnitTests, AssumePropertyConstrainsTrace)
 {
   check_bmc("assume_property.sv", 4, ProverResult::UNKNOWN);
 }
 
-TEST_P(SVUnitTests, Gap_RestrictPropertyConstrainsTrace)
+TEST_P(SVUnitTests, RestrictPropertyConstrainsTrace)
 {
   check_bmc("restrict_property.sv", 4, ProverResult::UNKNOWN);
 }

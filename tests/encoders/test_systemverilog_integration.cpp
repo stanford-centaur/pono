@@ -47,15 +47,15 @@ TEST_P(SVUnitTests, RegfileCtrlKInductionProves)
 }
 
 // Integration #3: credit-based link, checked with IC3Bits.  Written
-// by hand rather than via check_prover() because IC3's counterexample
-// length isn't pinned to the `check_until` bound the way Bmc's is, so
-// asserting an exact witness_length() would be asserting an
-// implementation detail rather than anything meaningful.  Demonstrates
-// the assume_property.sv gap (test_systemverilog_sva.cpp) mattering at
-// design scale: IC3 finds credits overflowing past 4'd4 by driving
-// `push` while credits == 0, exactly the case the (silently-ignored)
-// `assume property` was meant to rule out.
-TEST_P(SVUnitTests, Gap_CreditLinkAssumeIgnoredByIC3)
+// by hand rather than via check_prover() because IC3's proof isn't
+// bounded by a `check_until` step count the way Bmc's counterexample
+// search is.  FIXED: this used to demonstrate the assume_property.sv
+// gap (test_systemverilog_sva.cpp) mattering at design scale -- IC3
+// found credits overflowing past 4'd4 by driving `push` while
+// credits == 0, exactly the case `assume property` was meant to rule
+// out but (before the ConcurrentAssertion fix) silently didn't.  Now
+// that assumptions are honored, IC3 actually *proves* the property.
+TEST_P(SVUnitTests, CreditLinkAssumeHonoredByIC3)
 {
   // IC3Bits needs solver options (e.g. unsat-assumptions production)
   // beyond the plain incremental/produce-models pair Bmc/KInduction
@@ -75,7 +75,7 @@ TEST_P(SVUnitTests, Gap_CreditLinkAssumeIgnoredByIC3)
 
   SafetyProperty prop(ts.solver(), prop_term);
   IC3Bits ic3bits(prop, ts, s);
-  EXPECT_EQ(ic3bits.check_until(10), ProverResult::FALSE);
+  EXPECT_EQ(ic3bits.check_until(10), ProverResult::TRUE);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVIntegrationTests,
