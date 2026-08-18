@@ -583,6 +583,8 @@ const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs)
       return find_lhs_base(lhs.as<ElementSelectExpression>().value());
     case ExpressionKind::RangeSelect:
       return find_lhs_base(lhs.as<RangeSelectExpression>().value());
+    case ExpressionKind::MemberAccess:
+      return find_lhs_base(lhs.as<MemberAccessExpression>().value());
     default: return nullptr;
   }
 }
@@ -617,6 +619,25 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
       if (elem_w == 0) return std::nullopt;
       uint64_t lo = inner->lo + idx * elem_w;
       uint64_t hi = lo + elem_w - 1;
+      if (hi > inner->hi) return std::nullopt;
+      return LValueDesc{ inner->base, lo, hi, inner->base_w };
+    }
+    case ExpressionKind::MemberAccess: {
+      // Packed-struct/union field write (`s.field <= ...`): narrow the
+      // inner base's range by the field's own bitOffset, mirroring the
+      // read-side logic in expr_to_term()'s MemberAccess case. Additive
+      // offsets compose correctly for nested access (`s.a.x`), since
+      // each FieldSymbol's bitOffset is relative to its own immediately
+      // enclosing struct/union type.
+      auto & ma = lhs.as<MemberAccessExpression>();
+      if (ma.member.kind != SymbolKind::Field) return std::nullopt;
+      auto inner = resolve_lvalue(ma.value(), ctx);
+      if (!inner) return std::nullopt;
+      auto & field = ma.member.as<FieldSymbol>();
+      uint64_t w = field.getType().getBitWidth();
+      if (w == 0) return std::nullopt;
+      uint64_t lo = inner->lo + field.bitOffset;
+      uint64_t hi = lo + w - 1;
       if (hi > inner->hi) return std::nullopt;
       return LValueDesc{ inner->base, lo, hi, inner->base_w };
     }

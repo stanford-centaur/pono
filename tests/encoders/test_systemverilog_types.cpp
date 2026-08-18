@@ -27,30 +27,20 @@ TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
 // Packed structs
 // ---------------------------------------------------------------------------
 
-// GAP (confirmed by inspection): resolve_lvalue() in
-// systemverilog_encoder.cpp only has cases for NamedValue,
-// HierarchicalValue, ElementSelect, and RangeSelect -- there is no
-// ExpressionKind::MemberAccess case.  A struct-field nonblocking
-// assignment (`p.cnt <= ...`, `s.a.x <= ...`) therefore fails to
-// resolve as an lvalue and is silently dropped: the field is never
-// registered as an assign_next() target and stays a completely free
-// state variable every cycle.  Confirmed empirically: both fields
-// were found violable at cycle 1, which the reset-forced value (0)
-// cannot produce on its own -- only an unconstrained free variable
-// can.  Read access to struct fields *is* supported (MemberAccess is
-// handled in expr_to_term()); only the write side is missing.
-TEST_P(SVUnitTests, Gap_PackedStructFieldState)
-{
-  check_bmc("struct_state.sv", 5);
-}
+// FIXED: find_lhs_base()/resolve_lvalue() in systemverilog_encoder.cpp
+// used to have no ExpressionKind::MemberAccess case, so a struct-field
+// nonblocking assignment (`p.cnt <= ...`, `s.a.x <= ...`) failed to
+// resolve as an lvalue and was silently dropped -- the field was never
+// registered as an assign_next() target and stayed a completely free
+// state variable every cycle. Both helpers now narrow the inner base's
+// bit range by the field's own bitOffset, the same way the read-side
+// MemberAccess case in expr_to_term() already did.
+TEST_P(SVUnitTests, PackedStructFieldState) { check_bmc("struct_state.sv", 5); }
 
-TEST_P(SVUnitTests, Gap_PackedStructNested)
-{
-  check_bmc("struct_nested.sv", 4);
-}
+TEST_P(SVUnitTests, PackedStructNested) { check_bmc("struct_nested.sv", 4); }
 
 // Passes: struct-typed *ports* only exercise the (supported) read-side
-// MemberAccess path, not the missing struct-field lvalue path above.
+// MemberAccess path, not the field-write path fixed above.
 TEST_P(SVUnitTests, TypedefStructPort)
 {
   check_bmc("typedef_struct_port.sv", 2);
