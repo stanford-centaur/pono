@@ -47,6 +47,19 @@ TEST_P(SVUnitTests, PriorityIfUniqueCaseHolds)
   check_bmc("priority_if_unique_case_holds.sv", 6, ProverResult::UNKNOWN);
 }
 
+// FIXED: a `case` statement's `default:` arm used to apply
+// unconditionally alongside whichever other item already matched
+// (process_statement's Case handler processed the default arm with
+// the bare outer `condition` rather than `condition AND NOT(any item
+// matched)`), so any case statement with a `default:` clause always
+// ended up applying the default's assignment regardless of which item
+// actually matched. Now the default arm's condition explicitly
+// excludes every item's match condition.
+TEST_P(SVUnitTests, CaseStatementDefaultOnlyWhenNoMatch)
+{
+  check_bmc("case_default.sv", 2);
+}
+
 // ---------------------------------------------------------------------------
 // GAP (confirmed empirically): the `?` don't-care bits in `4'b1??1` make
 // the case-item literal a 4-state value with unknown bits.  The encoder

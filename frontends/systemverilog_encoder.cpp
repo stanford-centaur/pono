@@ -1590,6 +1590,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & case_stmt = stmt.as<CaseStatement>();
       Term sel = expr_to_term(case_stmt.expr);
 
+      Term any_item_matched;
       for (auto & item : case_stmt.items) {
         // Build OR of all patterns matching this item.
         Term item_cond;
@@ -1600,16 +1601,25 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           item_cond =
               item_cond ? solver_->make_term(Or, item_cond, match) : match;
         }
+        any_item_matched =
+            any_item_matched
+                ? solver_->make_term(Or, any_item_matched, item_cond)
+                : item_cond;
         Term full_cond = (condition == solver_->make_term(true))
                              ? item_cond
                              : solver_->make_term(And, condition, item_cond);
         process_statement(*item.stmt, ctx, full_cond);
       }
       if (case_stmt.defaultCase) {
-        // Default: none of the other cases match.
-        // For simplicity, we just use the outer condition.
-        // A complete implementation would negate all other item conditions.
-        process_statement(*case_stmt.defaultCase, ctx, condition);
+        // Default: only when none of the other items matched.
+        Term not_matched = any_item_matched
+                               ? solver_->make_term(Not, any_item_matched)
+                               : solver_->make_term(true);
+        Term default_cond =
+            (condition == solver_->make_term(true))
+                ? not_matched
+                : solver_->make_term(And, condition, not_matched);
+        process_statement(*case_stmt.defaultCase, ctx, default_cond);
       }
       break;
     }

@@ -1,8 +1,7 @@
 // A packed array whose element type is a user-defined enum (rather
 // than a plain bit-vector), read/written through a constant index.
 // Exercises the combination of packed-array ElementSelect with an
-// enum base type.  Deliberately has no `default:` case arm -- see
-// enum_fsm.sv's comment for why.
+// enum base type.
 //
 // slot[0] cycles IDLE -> REQ -> ACK -> IDLE -> ...; it first reaches
 // ACK at cycle 3 (one reset cycle + two transitions).
@@ -25,6 +24,7 @@ module array_of_enums (input logic clk, input logic rst);
         IDLE: slot[0] <= REQ;
         REQ: slot[0] <= ACK;
         ACK: slot[0] <= IDLE;
+        default: slot[0] <= IDLE;
       endcase
       slot[1] <= slot[0];
     end

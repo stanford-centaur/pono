@@ -60,13 +60,14 @@ TEST_P(SVUnitTests, TypedefStructPort)
 // EnumValueSymbol the same way it already resolved a ParameterSymbol
 // (both are elaboration-time constants slang has already evaluated).
 //
-// Each FSM fixture below deliberately has no `default:` case arm: one
-// was needed to fully exercise these fixtures, and along the way it
-// surfaced a distinct, pre-existing bug where a `case` statement's
-// `default:` arm applies unconditionally alongside whichever other
-// item already matched (rather than only when none of them did),
-// which stuck every such FSM at its default value forever. That's
-// tracked separately, not fixed here.
+// Each FSM fixture below has a `default:` case arm -- exercising one
+// was needed to fully test these fixtures, and along the way it
+// surfaced (and, separately, fixed -- see
+// CaseStatementDefaultOnlyWhenNoMatch in test_systemverilog_statements
+// .cpp) a distinct, pre-existing bug where a `case` statement's
+// `default:` arm applied unconditionally alongside whichever other
+// item already matched, sticking every such FSM at its default value
+// forever.
 TEST_P(SVUnitTests, PackedEnumStateMachine) { check_bmc("enum_fsm.sv", 3); }
 
 TEST_P(SVUnitTests, PackedEnumStateMachineHolds)
