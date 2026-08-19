@@ -61,16 +61,20 @@ TEST_P(SVUnitTests, CaseStatementDefaultOnlyWhenNoMatch)
 }
 
 // ---------------------------------------------------------------------------
-// GAP (confirmed empirically): the `?` don't-care bits in `4'b1??1` make
-// the case-item literal a 4-state value with unknown bits.  The encoder
-// doesn't special-case that when converting the literal to an SMT term, so
-// it hands an X-containing decimal string straight to the solver and
-// crashes with a raw solver-library exception ("invalid decimal string" /
-// "mpz_set_str") rather than a clean PonoException -- itself worth noting
-// alongside the missing wildcard-matching semantics.
+// FIXED: the `?` don't-care bits in `4'b1??1` make the case-item literal a
+// 4-state value with unknown bits, which used to get handed straight to
+// expr_to_term()'s generic (wildcard-unaware) IntegerLiteral case, which in
+// turn handed an X-containing decimal string straight to the solver and
+// crashed with a raw solver-library exception ("invalid decimal string" /
+// "mpz_set_str") rather than implementing (or even cleanly rejecting)
+// wildcard matching. The Case statement handler now special-cases
+// casex/casez: for a constant item pattern, it builds a (mask, value) pair
+// from the pattern's own X (casex) or Z (both; `?` is an alias for `z`)
+// bits and compares `(sel & mask) == value`, ignoring exactly the wildcard
+// positions, instead of comparing the raw (invalid) literal directly.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_CasexCasezWildcard)
+TEST_P(SVUnitTests, CasexCasezWildcard)
 {
   check_bmc("casex_casez.sv", 4, ProverResult::UNKNOWN);
 }

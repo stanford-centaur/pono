@@ -1753,14 +1753,62 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & case_stmt = stmt.as<CaseStatement>();
       Term sel = expr_to_term(case_stmt.expr);
 
+      // For casex/casez, a constant item pattern's X (casex only) or
+      // Z (both; `?` is just an alias for `z` here) bits are
+      // wildcards: build a (mask, value) pair with a 0 at each
+      // wildcard bit position and 1s everywhere else, so
+      // (sel & mask) == value ignores exactly those positions.
+      // Returns nullopt for a non-constant pattern (nothing to mask
+      // against) or a width too large for this uint64_t-based mask,
+      // in which case the caller falls back to plain equality.
+      auto casex_mask = [&](const Expression & pat_expr)
+          -> std::optional<std::pair<uint64_t, uint64_t>> {
+        auto cv = pat_expr.eval(eval_ctx());
+        if (!cv.isInteger()) return std::nullopt;
+        auto & sv = cv.integer();
+        uint64_t w = pat_expr.type->getBitWidth();
+        if (w == 0 || w > 64) return std::nullopt;
+        uint64_t mask = 0, value = 0;
+        for (uint64_t i = 0; i < w; ++i) {
+          slang::logic_t bit = sv[static_cast<int32_t>(i)];
+          bool wildcard =
+              (case_stmt.condition == CaseStatementCondition::WildcardXOrZ)
+                  ? bit.isUnknown()
+                  : bit.value == slang::logic_t::z.value;
+          if (!wildcard) {
+            mask |= (uint64_t{ 1 } << i);
+            if (bit.value == 1) value |= (uint64_t{ 1 } << i);
+          }
+        }
+        return std::make_pair(mask, value);
+      };
+      bool is_wildcard_case =
+          case_stmt.condition == CaseStatementCondition::WildcardXOrZ
+          || case_stmt.condition == CaseStatementCondition::WildcardJustZ;
+
       Term any_item_matched;
       for (auto & item : case_stmt.items) {
         // Build OR of all patterns matching this item.
         Term item_cond;
         for (auto expr : item.expressions) {
-          Term pat = expr_to_term(*expr);
-          pat = resize_to(pat, sel->get_sort()->get_width());
-          Term match = solver_->make_term(Equal, sel, pat);
+          Term match;
+          auto mv = is_wildcard_case ? casex_mask(*expr) : std::nullopt;
+          if (mv) {
+            uint64_t pat_w = expr->type->getBitWidth();
+            Sort pat_sort = solver_->make_sort(BV, pat_w);
+            Term mask_term = resize_to(
+                solver_->make_term(std::to_string(mv->first), pat_sort, 10),
+                sel->get_sort()->get_width());
+            Term value_term = resize_to(
+                solver_->make_term(std::to_string(mv->second), pat_sort, 10),
+                sel->get_sort()->get_width());
+            match = solver_->make_term(
+                Equal, solver_->make_term(BVAnd, sel, mask_term), value_term);
+          } else {
+            Term pat = expr_to_term(*expr);
+            pat = resize_to(pat, sel->get_sort()->get_width());
+            match = solver_->make_term(Equal, sel, pat);
+          }
           item_cond =
               item_cond ? solver_->make_term(Or, item_cond, match) : match;
         }
