@@ -325,6 +325,19 @@ class SystemVerilogEncoder
    */
   void pre_scan_always_ff(const slang::ast::Statement & body);
 
+  /** Recursively pre-scan an instance body's own `always_ff`/`always`
+   *  blocks (via pre_scan_always_ff()) and every descendant instance's
+   *  body, so every register anywhere in the design tree is known
+   *  before any instance's variables are declared -- otherwise a
+   *  sibling instance visited earlier in source order (e.g. an
+   *  `interface` instance whose members are actually driven by a
+   *  later sibling's always_ff through a hierarchical/interface-port
+   *  reference) would get its members wrongly declared as free
+   *  inputs.
+   *  @param body the instance body to scan (and recurse from)
+   */
+  void pre_scan_state_vars(const slang::ast::InstanceBodySymbol & body);
+
   /** Pre-scan a combinational always_comb body to identify blocking
    *  assignment targets as combinational wire symbols.  Each wire
    *  target found is recorded (with the current prefix_ /

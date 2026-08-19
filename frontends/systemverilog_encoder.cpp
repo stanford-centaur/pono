@@ -373,18 +373,16 @@ void SystemVerilogEncoder::process_module(
 
   auto & body = inst.body;
 
-  // First pass: identify state variable symbols by scanning always_ff blocks
-  // for non-blocking assignment targets, before declaring variables.
-  walk_members(body, [&](const slang::ast::Symbol & member) {
-    if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
-      auto & proc = member.as<slang::ast::ProceduralBlockSymbol>();
-      if (proc.procedureKind == slang::ast::ProceduralBlockKind::AlwaysFF
-          || proc.procedureKind == slang::ast::ProceduralBlockKind::Always) {
-        // Pre-scan: find all non-blocking assignment targets.
-        pre_scan_always_ff(proc.getBody());
-      }
-    }
-  });
+  // First pass: identify state variable symbols by scanning always_ff
+  // blocks for non-blocking assignment targets, before declaring any
+  // variables anywhere in the design -- recurses into every descendant
+  // instance up front (not just this body's own direct members) so a
+  // sibling instance visited earlier in source order (e.g. an
+  // `interface` instance whose members are actually driven by a later
+  // sibling's always_ff through a hierarchical/interface-port
+  // reference) doesn't get its members wrongly declared as free inputs
+  // before its true driver is discovered.
+  pre_scan_state_vars(body);
 
   // Second pre-pass: identify combinational wire symbols from
   // always_comb blocks, legacy `always` blocks without non-blocking
@@ -726,6 +724,23 @@ void SystemVerilogEncoder::pre_scan_always_ff(
     const slang::ast::Statement & body)
 {
   collect_nonblocking_targets(body, state_var_symbols_);
+}
+
+void SystemVerilogEncoder::pre_scan_state_vars(
+    const slang::ast::InstanceBodySymbol & body)
+{
+  using namespace slang::ast;
+  walk_members(body, [&](const Symbol & member) {
+    if (member.kind == SymbolKind::ProceduralBlock) {
+      auto & proc = member.as<ProceduralBlockSymbol>();
+      if (proc.procedureKind == ProceduralBlockKind::AlwaysFF
+          || proc.procedureKind == ProceduralBlockKind::Always) {
+        pre_scan_always_ff(proc.getBody());
+      }
+    } else if (member.kind == SymbolKind::Instance) {
+      pre_scan_state_vars(member.as<InstanceSymbol>().body);
+    }
+  });
 }
 
 void SystemVerilogEncoder::pre_scan_always_comb(
@@ -1294,22 +1309,21 @@ void SystemVerilogEncoder::process_instance(
     }
   }
 
-  // Pre-scan the child's procedural blocks so internal NB-assigned
-  // registers and blocking-assigned wires get classified before
-  // declare_variables_internal runs.
+  // Pre-scan the child's blocking-assigned wires so they get classified
+  // before declare_variables_internal runs. NB-assigned registers are
+  // *not* pre-scanned here -- process_module()'s pre_scan_state_vars()
+  // already classified every always_ff/always block in the whole
+  // design tree, including this instance's, before any instance's
+  // variables were declared.
   walk_members(inst.body, [&](const Symbol & m) {
     if (m.kind != SymbolKind::ProceduralBlock) return;
     auto & proc = m.as<ProceduralBlockSymbol>();
-    if (proc.procedureKind == ProceduralBlockKind::AlwaysFF) {
-      pre_scan_always_ff(proc.getBody());
-    } else if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
+    if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
       pre_scan_always_comb(proc.getBody(), proc);
     } else if (proc.procedureKind == ProceduralBlockKind::Always) {
       std::unordered_set<const Symbol *> nb_targets;
       collect_nonblocking_targets(proc.getBody(), nb_targets);
-      if (!nb_targets.empty()) {
-        pre_scan_always_ff(proc.getBody());
-      } else {
+      if (nb_targets.empty()) {
         pre_scan_always_comb(proc.getBody(), proc);
       }
     }

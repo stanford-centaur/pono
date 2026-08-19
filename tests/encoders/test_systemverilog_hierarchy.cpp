@@ -108,14 +108,25 @@ TEST_P(SVUnitTests, ClogTwoAndBitsElaborationFunctions)
 }
 
 // ---------------------------------------------------------------------------
-// GAP (confirmed empirically): a plain signal-bundle `interface` (no
-// modports/tasks) throws "Unknown state variable" building the
-// property term -- interface instances are not walked/declared the
-// way ordinary module instances are, so `bus.data` never became a
-// tracked state variable at all.
+// FIXED: `bus.data`/`bus.valid` (referenced from `bus_producer`'s
+// always_ff) already resolved correctly to the interface instance's real
+// member symbols via the existing HierarchicalValue path -- confirmed by
+// inspection, no expression-resolution fix needed. The actual bug was a
+// pre-scan *ordering* problem: state-variable discovery (which
+// always_ff/always blocks anywhere in the design write via non-blocking
+// assignment) only ever happened lazily, per instance, as each sibling
+// was visited in source order. Since `simple_bus bus ()` (the interface)
+// is declared before `bus_producer p (bus, ...)` in this fixture, `bus`'s
+// own members got declared as free/undriven inputs before
+// `bus_producer`'s always_ff was ever pre-scanned to discover they were
+// actually registers -- so assign_next() later threw "Unknown state
+// variable". Fixed by adding pre_scan_state_vars(), a recursive pass that
+// classifies every always_ff/always block anywhere in the whole instance
+// tree *before* any instance's variables are declared, replacing the old
+// pre-scan that only covered a body's own direct members.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_InterfaceSignalBundle)
+TEST_P(SVUnitTests, InterfaceSignalBundle)
 {
   check_bmc("interface_bundle.sv", 4);
 }
