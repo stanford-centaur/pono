@@ -855,10 +855,11 @@ void SystemVerilogEncoder::pre_scan_instance(
   // logic.  In the parent's view the connected expression is usually a
   // simple NamedValue (e.g. `child c (.sum(y))`), but for an instance-
   // array element it's a constant-index slice of a parent-side bus
-  // (e.g. `fifo_data_out[i]`, already resolved by slang) -- either way
-  // the underlying base symbol becomes a wire.  More elaborate
-  // connections (concatenations, non-constant indices, etc.) are not
-  // yet supported.
+  // (e.g. `fifo_data_out[i]`, already resolved by slang), or a
+  // concatenation of several parent-side signals (`.sum({hi, lo})`,
+  // splitting the port's bits across each) -- either way, every
+  // underlying base symbol becomes a wire. Non-constant indices are
+  // not yet supported.
   for (auto * pc : inst.getPortConnections()) {
     if (!pc) continue;
     if (pc->port.kind != SymbolKind::Port) continue;
@@ -875,10 +876,20 @@ void SystemVerilogEncoder::pre_scan_instance(
     if (conn_expr->kind == ExpressionKind::Assignment) {
       conn_expr = &conn_expr->as<AssignmentExpression>().left();
     }
-    auto * parent_sym = find_lhs_base(*conn_expr);
-    if (!parent_sym) continue;
-    if (!state_var_symbols_.count(parent_sym)) {
-      wire_symbols_.insert(parent_sym);
+    auto mark_wire = [&](const Expression & target) {
+      auto * parent_sym = find_lhs_base(target);
+      if (!parent_sym) return;
+      if (!state_var_symbols_.count(parent_sym)) {
+        wire_symbols_.insert(parent_sym);
+      }
+    };
+    if (conn_expr->kind == ExpressionKind::Concatenation) {
+      for (auto * operand :
+           conn_expr->as<ConcatenationExpression>().operands()) {
+        mark_wire(*operand);
+      }
+    } else {
+      mark_wire(*conn_expr);
     }
   }
 
@@ -935,22 +946,38 @@ void SystemVerilogEncoder::declare_variables_internal(
       // created here, keyed under the fully resolved alias root.
       if (port_output_aliases_.count(&var)) {
         if (state_var_symbols_.count(&var)) {
-          auto resolved = resolve_output_alias(&var);
-          // A ranged alias (a register connected through a bus-
-          // element instance-array connection) isn't supported here;
-          // leave unconstrained rather than create a wrongly-sized
-          // state var.
-          if (!resolved.has_range && !symbol_to_term_.count(resolved.sym)) {
-            const Symbol * root = resolved.sym;
-            string name = make_name(string(var.name));
-            Sort sort = type_to_sort(var.getType());
-            Term sv = fts_.make_statevar(name, sort);
-            symbol_to_term_[root] = sv;
-            fts_.name_term(name, sv);
-            logger.log(2,
-                       "SystemVerilogEncoder: state var (aliased) {} : bv{}",
-                       name,
-                       sort->get_width());
+          uint64_t var_w = var.getType().getBitWidth();
+          auto pieces = resolve_output_alias_pieces(&var, 0, var_w - 1);
+          for (auto & piece : pieces) {
+            // A piece that only covers *part* of its own target's
+            // width (a register connected through a bus-element
+            // instance-array connection) isn't supported here; leave
+            // unconstrained rather than create a wrongly-sized state
+            // var.
+            uint64_t target_w =
+                piece.sym->as<ValueSymbol>().getType().getBitWidth();
+            bool piece_full =
+                (piece.target_lo == 0 && piece.target_hi + 1 == target_w);
+            if (piece_full && !symbol_to_term_.count(piece.sym)) {
+              const Symbol * root = piece.sym;
+              // Matches the pre-existing (single-target) naming
+              // exactly when there's only one piece; disambiguated by
+              // the target's own name for a concatenation-target
+              // connection, where reusing `var.name` for every piece
+              // would collide.
+              string name =
+                  make_name(pieces.size() > 1
+                                ? string(var.name) + "_" + string(root->name)
+                                : string(var.name));
+              Sort sort = type_to_sort(root->as<ValueSymbol>().getType());
+              Term sv = fts_.make_statevar(name, sort);
+              symbol_to_term_[root] = sv;
+              fts_.name_term(name, sv);
+              logger.log(2,
+                         "SystemVerilogEncoder: state var (aliased) {} : bv{}",
+                         name,
+                         sort->get_width());
+            }
           }
         }
         return;
@@ -1276,71 +1303,73 @@ void SystemVerilogEncoder::process_continuous_assign(
 
   auto desc = resolve_lvalue(lhs_expr, eval_ctx());
   if (!desc) return;
-  const Symbol * sym = desc->base;
-  auto resolved = resolve_output_alias(sym);
-  sym = resolved.sym;
-  bool aliased = resolved.aliased;
+  const Symbol * base_sym = desc->base;
+  bool aliased = port_output_aliases_.count(base_sym) > 0;
 
-  uint64_t lo = desc->lo;
-  uint64_t hi = desc->hi;
-  uint64_t slice_w = hi - lo + 1;
-  if (resolved.has_range) {
-    // `sym` (pre-alias) is exactly bits [resolved.lo, resolved.hi] of
-    // the resolved root -- remap this write into the root's bits.
-    lo += resolved.lo;
-    hi += resolved.lo;
-  }
+  Term rhs_full = expr_to_term(rhs_expr);
+  rhs_full = resize_to(rhs_full, desc->hi - desc->lo + 1);
 
-  Term rhs = expr_to_term(rhs_expr);
-  rhs = resize_to(rhs, slice_w);
+  // A concatenation-target output-port connection splits this one
+  // write across several pieces, each with its own target
+  // symbol/bit-range and its own slice of rhs_full; the common,
+  // non-aliased (or singly-aliased) case is exactly one piece
+  // spanning the whole write.
+  auto pieces = resolve_output_alias_pieces(base_sym, desc->lo, desc->hi);
+  for (auto & piece : pieces) {
+    const Symbol * sym = piece.sym;
+    uint64_t lo = piece.target_lo;
+    uint64_t hi = piece.target_hi;
+    Term rhs = slice_bits(rhs_full, piece.rhs_lo, piece.rhs_hi);
 
-  // Wire LHS: macro-substitute the *full-width* defining expression.
-  // For a partial LHS (`assign arr[i] = ...`, or one element of an
-  // instance array wired to a slice of a bus) we splice the slice
-  // into whatever was previously stored under `sym`, creating a fresh
-  // placeholder to splice into on the very first such write.
-  if (wire_symbols_.count(sym)) {
-    auto sit = symbol_to_term_.find(sym);
-    bool full_write = !resolved.has_range && lo == 0
-                      && (sit == symbol_to_term_.end()
-                          || hi == sit->second->get_sort()->get_width() - 1);
-    Term new_term;
-    if (full_write) {
-      new_term = rhs;
-    } else {
-      new_term = replace_bits(wire_seed_term(sym), rhs, lo, hi);
+    // Wire LHS: macro-substitute the *full-width* defining expression.
+    // For a partial LHS (`assign arr[i] = ...`, or one element of an
+    // instance array wired to a slice of a bus) we splice the slice
+    // into whatever was previously stored under `sym`, creating a
+    // fresh placeholder to splice into on the very first such write.
+    if (wire_symbols_.count(sym)) {
+      auto sit = symbol_to_term_.find(sym);
+      bool full_write = lo == 0
+                        && (sit == symbol_to_term_.end()
+                            || hi == sit->second->get_sort()->get_width() - 1);
+      Term new_term;
+      if (full_write) {
+        new_term = rhs;
+      } else {
+        new_term = replace_bits(wire_seed_term(sym), rhs, lo, hi);
+      }
+      string name;
+      if (aliased) {
+        name = parent_prefix_.empty()
+                   ? string(sym->name)
+                   : parent_prefix_ + "." + string(sym->name);
+      } else {
+        name = make_name(string(sym->name));
+      }
+      symbol_to_term_[sym] = new_term;
+      fts_.name_term(name, new_term);
+      logger.log(
+          2, "SystemVerilogEncoder: continuous assign (wire) {} := ...", name);
+      continue;
     }
-    string name;
-    if (aliased) {
-      name = parent_prefix_.empty() ? string(sym->name)
-                                    : parent_prefix_ + "." + string(sym->name);
-    } else {
-      name = make_name(string(sym->name));
-    }
-    symbol_to_term_[sym] = new_term;
-    fts_.name_term(name, new_term);
-    logger.log(
-        2, "SystemVerilogEncoder: continuous assign (wire) {} := ...", name);
-    return;
-  }
 
-  // Fallback: existing variable (e.g., output port reg, or a
-  // partially-driven base that wasn't classified as a wire).
-  // Constrain the appropriate slice via add_constraint (which
-  // tolerates input vars in the term).
-  auto it = symbol_to_term_.find(sym);
-  if (it != symbol_to_term_.end()) {
-    Term lhs_term = it->second;
-    uint64_t base_w = lhs_term->get_sort()->get_width();
-    bool full_write = (lo == 0 && hi == base_w - 1);
-    Term lhs_slice = full_write
-                         ? lhs_term
-                         : solver_->make_term(Op(Extract, hi, lo), lhs_term);
-    Term eq = solver_->make_term(Equal, lhs_slice, rhs);
-    fts_.add_constraint(eq);
-    logger.log(2,
-               "SystemVerilogEncoder: continuous assign {} = ...",
-               fts_.get_name(lhs_term));
+    // Fallback: existing variable (e.g., output port reg, or a
+    // partially-driven base that wasn't classified as a wire).
+    // Constrain the appropriate slice via add_constraint (which
+    // tolerates input vars in the term).
+    auto it = symbol_to_term_.find(sym);
+    if (it != symbol_to_term_.end()) {
+      Term lhs_term = it->second;
+      uint64_t base_w = lhs_term->get_sort()->get_width();
+      bool full_write = (lo == 0 && hi == base_w - 1);
+      Term lhs_slice = full_write
+                           ? lhs_term
+                           : solver_->make_term(Op(Extract, hi, lo), lhs_term);
+      Term eq = solver_->make_term(Equal, lhs_slice, rhs);
+      fts_.add_constraint(eq);
+      logger.log(2,
+                 "SystemVerilogEncoder: continuous assign {} = ...",
+                 fts_.get_name(lhs_term));
+    }
   }
 }
 
@@ -1393,13 +1422,44 @@ void SystemVerilogEncoder::process_instance(
       if (conn_expr->kind == ExpressionKind::Assignment) {
         conn_expr = &conn_expr->as<AssignmentExpression>().left();
       }
-      auto desc = resolve_lvalue(*conn_expr, eval_ctx());
-      if (desc) {
-        bool full = (desc->lo == 0 && desc->hi + 1 == desc->base_w);
-        port_output_aliases_[internal] =
-            full ? OutputAliasTarget{ desc->base }
-                 : OutputAliasTarget{ desc->base, true, desc->lo, desc->hi };
-        output_aliases_added.push_back(internal);
+      uint64_t port_w = port.getType().getBitWidth();
+      if (conn_expr->kind == ExpressionKind::Concatenation) {
+        // `.port({hi, lo})`: split the port's bits across each
+        // operand, MSB-first (leftmost operand = most significant),
+        // one segment per operand.
+        std::vector<OutputAliasSegment> segments;
+        bool ok = port_w > 0;
+        uint64_t covered = 0;
+        for (auto * operand :
+             conn_expr->as<ConcatenationExpression>().operands()) {
+          auto odesc = resolve_lvalue(*operand, eval_ctx());
+          if (!odesc) {
+            ok = false;
+            break;
+          }
+          uint64_t seg_w = odesc->hi - odesc->lo + 1;
+          if (seg_w == 0 || covered + seg_w > port_w) {
+            ok = false;
+            break;
+          }
+          uint64_t seg_hi = port_w - 1 - covered;
+          uint64_t seg_lo = seg_hi - (seg_w - 1);
+          segments.push_back(
+              { seg_lo, seg_hi, odesc->base, odesc->lo, odesc->hi });
+          covered += seg_w;
+        }
+        if (ok && covered == port_w && !segments.empty()) {
+          port_output_aliases_[internal] = std::move(segments);
+          output_aliases_added.push_back(internal);
+        }
+      } else {
+        auto desc = resolve_lvalue(*conn_expr, eval_ctx());
+        if (desc) {
+          port_output_aliases_[internal] = {
+            { 0, port_w - 1, desc->base, desc->lo, desc->hi }
+          };
+          output_aliases_added.push_back(internal);
+        }
       }
     } else {
       Term term = expr_to_term(*conn_expr);
@@ -1512,15 +1572,23 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
       (sel.value().kind == ExpressionKind::NamedValue)
           ? &sel.value().as<NamedValueExpression>().symbol
           : &sel.value().as<HierarchicalValueExpression>().symbol;
-  auto resolved = resolve_output_alias(sym);
-  sym = resolved.sym;
-  bool aliased = resolved.aliased;
-  if (resolved.has_range) {
-    // Dynamic-index writes into a bus-element alias (e.g. one element
-    // of an instance array wired to a slice of a parent bus) aren't
-    // supported; leave unconstrained rather than risk a wrong
-    // encoding.
-    return;
+  bool aliased = port_output_aliases_.count(sym) > 0;
+  {
+    uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
+    auto pieces = resolve_output_alias_pieces(sym, 0, sym_w - 1);
+    uint64_t piece_w =
+        pieces.empty()
+            ? 0
+            : pieces[0].sym->as<ValueSymbol>().getType().getBitWidth();
+    if (pieces.size() != 1 || pieces[0].target_lo != 0
+        || pieces[0].target_hi + 1 != piece_w) {
+      // Dynamic-index writes into a bus-element alias (e.g. one
+      // element of an instance array wired to a slice of a parent
+      // bus) or a concatenation-target alias aren't supported; leave
+      // unconstrained rather than risk a wrong encoding.
+      return;
+    }
+    sym = pieces[0].sym;
   }
 
   uint64_t elem_w = sel.type->getBitWidth();
@@ -1647,67 +1715,73 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // -- shared by plain/compound assignment (whose RHS may read
       // this via an implicit LValueReference) and by `++`/`--` (which
       // reads it directly as "the current value" -- see slice_of()
-      // below). Returns nullopt if lhs_expr isn't a shape
+      // below). Returns an empty vector if lhs_expr isn't a shape
       // resolve_lvalue() handles (e.g. a dynamic-index element
       // select), in which case the caller may fall back to
       // process_dynamic_element_assign() for ElementSelect LHSes.
+      // Ordinarily returns exactly one piece; a concatenation-target
+      // output-port alias (`.port({hi, lo})`) splits a single write
+      // into one piece per operand, each tagged with which slice of
+      // the write's overall rhs value (`rhs_lo`/`rhs_hi`, 0-indexed
+      // from the write's own low bit) it covers.
       struct LValueWrite
       {
         const Symbol * sym;
         bool aliased;
-        bool has_range;  // true if `sym` itself is an aliased bus slice
+        bool has_range;  // true if this piece doesn't cover all of `sym`
         uint64_t lo, hi, slice_w;
         Term prev_base;  // may be null -- see call sites
         bool wire_comb;
         Term state_term;  // only valid when ctx == NEXT_STATE
+        uint64_t rhs_lo, rhs_hi;
       };
       auto begin_write =
-          [&](const Expression & lhs_expr) -> std::optional<LValueWrite> {
+          [&](const Expression & lhs_expr) -> std::vector<LValueWrite> {
         auto desc = resolve_lvalue(lhs_expr, eval_ctx());
-        if (!desc) return std::nullopt;
-        const Symbol * sym = desc->base;
-        auto resolved = resolve_output_alias(sym);
-        sym = resolved.sym;
+        if (!desc) return {};
+        bool base_aliased = port_output_aliases_.count(desc->base) > 0;
+        auto pieces =
+            resolve_output_alias_pieces(desc->base, desc->lo, desc->hi);
 
-        uint64_t lo = desc->lo;
-        uint64_t hi = desc->hi;
-        if (resolved.has_range) {
-          // `sym` (pre-alias) is exactly bits [resolved.lo,
-          // resolved.hi] of the resolved root -- remap this write
-          // into the root's bits.
-          lo += resolved.lo;
-          hi += resolved.lo;
-        }
+        std::vector<LValueWrite> writes;
+        writes.reserve(pieces.size());
+        for (auto & piece : pieces) {
+          const Symbol * sym = piece.sym;
+          uint64_t lo = piece.target_lo;
+          uint64_t hi = piece.target_hi;
+          uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
+          bool has_range = !(lo == 0 && hi + 1 == sym_w);
 
-        LValueWrite w{ sym,
-                       resolved.aliased,
-                       resolved.has_range,
-                       lo,
-                       hi,
-                       hi - lo + 1,
-                       Term(),
-                       false,
-                       Term() };
-        w.wire_comb =
-            ctx == StmtContext::COMBINATIONAL && wire_symbols_.count(sym);
-        if (w.wire_comb) {
-          auto pit = pending_comb_updates_.find(sym);
-          if (pit != pending_comb_updates_.end()) w.prev_base = pit->second;
-        } else if (ctx == StmtContext::NEXT_STATE) {
-          auto sit = symbol_to_term_.find(sym);
-          if (sit == symbol_to_term_.end()) return std::nullopt;
-          w.state_term = sit->second;
-          auto pit = pending_next_updates_.find(w.state_term);
-          w.prev_base =
-              (pit != pending_next_updates_.end()) ? pit->second : w.state_term;
-        } else {
-          // COMBINATIONAL non-wire or INITIAL: prev_base is the
-          // current (constant) value of the LHS used only for
-          // self-reference (compound assignment, ++/--).
-          auto sit = symbol_to_term_.find(sym);
-          if (sit != symbol_to_term_.end()) w.prev_base = sit->second;
+          LValueWrite w{ sym,    base_aliased, has_range,   lo,
+                         hi,     hi - lo + 1,  Term(),      false,
+                         Term(), piece.rhs_lo, piece.rhs_hi };
+          w.wire_comb =
+              ctx == StmtContext::COMBINATIONAL && wire_symbols_.count(sym);
+          if (w.wire_comb) {
+            auto pit = pending_comb_updates_.find(sym);
+            if (pit != pending_comb_updates_.end()) w.prev_base = pit->second;
+          } else if (ctx == StmtContext::NEXT_STATE) {
+            auto sit = symbol_to_term_.find(sym);
+            if (sit == symbol_to_term_.end()) {
+              // All-or-nothing: if any piece of a (possibly split)
+              // write can't resolve a state term, don't commit a
+              // partial write for the others either.
+              return {};
+            }
+            w.state_term = sit->second;
+            auto pit = pending_next_updates_.find(w.state_term);
+            w.prev_base = (pit != pending_next_updates_.end()) ? pit->second
+                                                               : w.state_term;
+          } else {
+            // COMBINATIONAL non-wire or INITIAL: prev_base is the
+            // current (constant) value of the LHS used only for
+            // self-reference (compound assignment, ++/--).
+            auto sit = symbol_to_term_.find(sym);
+            if (sit != symbol_to_term_.end()) w.prev_base = sit->second;
+          }
+          writes.push_back(w);
         }
-        return w;
+        return writes;
       };
 
       // Slices [lo, hi] out of `base`, or returns a null Term if
@@ -1803,13 +1877,38 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         }
       };
 
+      // Reassembles "the current value of the whole (possibly split)
+      // lvalue" by concatenating each piece's own current-value slice
+      // MSB-first (highest rhs_hi first) -- needed both for an
+      // LValueReference inside a compound-assignment RHS and for
+      // `++`/`--`'s "read the current value" step. Returns a null Term
+      // if any piece has no previous value to read yet.
+      auto reassemble_current =
+          [&](const std::vector<LValueWrite> & ws) -> Term {
+        std::vector<const LValueWrite *> ordered;
+        ordered.reserve(ws.size());
+        for (auto & w : ws) ordered.push_back(&w);
+        std::sort(ordered.begin(),
+                  ordered.end(),
+                  [](const LValueWrite * a, const LValueWrite * b) {
+                    return a->rhs_lo > b->rhs_lo;
+                  });
+        Term result;
+        for (auto * w : ordered) {
+          Term piece = slice_of(w->prev_base, w->lo, w->hi);
+          if (!piece) return Term();
+          result = result ? solver_->make_term(Concat, result, piece) : piece;
+        }
+        return result;
+      };
+
       if (expr.kind == ExpressionKind::Assignment) {
         auto & assign = expr.as<AssignmentExpression>();
         auto & lhs_expr = assign.left();
         auto & rhs_expr = assign.right();
 
-        auto w = begin_write(lhs_expr);
-        if (!w) {
+        auto writes = begin_write(lhs_expr);
+        if (writes.empty()) {
           // resolve_lvalue() only handles constant-index selects; a
           // runtime-variable index (`arr[idx] = rhs`) needs a
           // dynamic-position splice instead of a static bit range.
@@ -1825,13 +1924,17 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
         // Stash the slice value for any LValueReference inside rhs.
         Term saved_lvalue = current_lvalue_term_;
-        current_lvalue_term_ = slice_of(w->prev_base, w->lo, w->hi);
+        current_lvalue_term_ = reassemble_current(writes);
 
         Term rhs = expr_to_term(rhs_expr);
         current_lvalue_term_ = saved_lvalue;
 
-        rhs = resize_to(rhs, w->slice_w);
-        commit_write(*w, rhs);
+        uint64_t total_w = 0;
+        for (auto & w : writes) total_w = std::max(total_w, w.rhs_hi + 1);
+        rhs = resize_to(rhs, total_w);
+        for (auto & w : writes) {
+          commit_write(w, slice_of(rhs, w.rhs_lo, w.rhs_hi));
+        }
       } else if (expr.kind == ExpressionKind::UnaryOp) {
         // `i++`/`--i`/etc. as a standalone statement (distinct from
         // the same operators used as a `for`-loop step expression,
@@ -1846,25 +1949,27 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             || unop.op == UnaryOperator::Postincrement
             || unop.op == UnaryOperator::Predecrement
             || unop.op == UnaryOperator::Postdecrement) {
-          auto w = begin_write(unop.operand());
-          if (!w) {
+          auto writes = begin_write(unop.operand());
+          if (writes.empty()) {
             logger.log(1,
                        "SystemVerilogEncoder: skipping unsupported ++/-- "
                        "operand shape");
             break;
           }
-          Term cur = slice_of(w->prev_base, w->lo, w->hi);
+          Term cur = reassemble_current(writes);
           if (!cur) {
             throw PonoException(
                 "SystemVerilogEncoder: '++'/'--' has no previous value to "
                 "read for '"
-                + std::string(w->sym->name) + "'");
+                + std::string(writes[0].sym->name) + "'");
           }
           bool is_inc = unop.op == UnaryOperator::Preincrement
                         || unop.op == UnaryOperator::Postincrement;
           Term one = solver_->make_term(1, cur->get_sort());
           Term new_val = solver_->make_term(is_inc ? BVAdd : BVSub, cur, one);
-          commit_write(*w, new_val);
+          for (auto & w : writes) {
+            commit_write(w, slice_of(new_val, w.rhs_lo, w.rhs_hi));
+          }
         }
       }
       break;
@@ -4430,34 +4535,46 @@ Sort SystemVerilogEncoder::type_to_sort(const slang::ast::Type & type)
 // Helpers
 // ============================================================================
 
-SystemVerilogEncoder::ResolvedOutputAlias
-SystemVerilogEncoder::resolve_output_alias(const slang::ast::Symbol * sym) const
+std::vector<SystemVerilogEncoder::ResolvedAliasPiece>
+SystemVerilogEncoder::resolve_output_alias_pieces(
+    const slang::ast::Symbol * sym,
+    uint64_t lo,
+    uint64_t hi,
+    uint64_t rhs_base) const
 {
-  bool aliased = false;
-  bool has_range = false;
-  uint64_t lo = 0;
-  uint64_t hi = 0;
   auto alias_it = port_output_aliases_.find(sym);
-  while (alias_it != port_output_aliases_.end()) {
-    aliased = true;
-    const OutputAliasTarget & tgt = alias_it->second;
-    if (tgt.has_range) {
-      // `sym` (or the range of it we've already narrowed to) is
-      // exactly bits [tgt.lo, tgt.hi] of tgt.sym -- remap our
-      // accumulated range into tgt.sym's bit numbering.
-      if (has_range) {
-        lo = tgt.lo + lo;
-        hi = tgt.lo + hi;
-      } else {
-        lo = tgt.lo;
-        hi = tgt.hi;
-        has_range = true;
-      }
-    }
-    sym = tgt.sym;
-    alias_it = port_output_aliases_.find(sym);
+  if (alias_it == port_output_aliases_.end()) {
+    return { { sym, lo, hi, rhs_base, rhs_base + (hi - lo) } };
   }
-  return { sym, aliased, has_range, lo, hi };
+  std::vector<ResolvedAliasPiece> result;
+  for (auto & seg : alias_it->second) {
+    // Intersect the caller's [lo, hi] window (in sym's own numbering)
+    // with this segment's own [port_lo, port_hi] coverage.
+    uint64_t ilo = std::max(lo, seg.port_lo);
+    uint64_t ihi = std::min(hi, seg.port_hi);
+    if (ilo > ihi) continue;
+    uint64_t offset = ilo - seg.port_lo;
+    uint64_t span = ihi - ilo;
+    uint64_t tlo = seg.target_lo + offset;
+    uint64_t thi = tlo + span;
+    // Recurse in case `seg.target` is itself an output-port alias
+    // (e.g. a nested/chained instantiation); rhs_base advances by
+    // however far into the caller's own window this segment starts.
+    auto sub = resolve_output_alias_pieces(
+        seg.target, tlo, thi, rhs_base + (ilo - lo));
+    result.insert(result.end(), sub.begin(), sub.end());
+  }
+  return result;
+}
+
+smt::Term SystemVerilogEncoder::slice_bits(const smt::Term & base,
+                                           uint64_t lo,
+                                           uint64_t hi) const
+{
+  if (!base) return Term();
+  uint64_t w = base->get_sort()->get_width();
+  if (lo == 0 && hi == w - 1) return base;
+  return solver_->make_term(Op(Extract, hi, lo), base);
 }
 
 bool SystemVerilogEncoder::resolve_wire_on_demand(
@@ -4503,19 +4620,31 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym)
     return lvt->second;
   }
 
-  // If `sym` is a child instance's output-port internal, redirect to
-  // the parent-side wire so reads resolve to its term.  This may
-  // chain through multiple levels of instantiation (e.g. a
+  // If `sym` is a child instance's output-port internal, reconstruct
+  // its value from the (one, in the common case; more than one for a
+  // concatenation-target connection) segment(s) it was split across.
+  // This may chase through multiple levels of instantiation (e.g. a
   // grandchild's output port connected straight through an
   // intermediate module's own output port, or one element of an
-  // instance array wired to a slice of a parent-side bus), so chase
-  // it to the root and pick out the resolved bit range, if any.
-  auto resolved = resolve_output_alias(sym);
-  sym = resolved.sym;
-  auto slice = [&](const Term & t) -> Term {
-    if (!resolved.has_range) return t;
-    return solver_->make_term(Op(Extract, resolved.hi, resolved.lo), t);
-  };
+  // instance array wired to a slice of a parent-side bus), each
+  // segment resolved all the way to its own non-aliased root.
+  if (port_output_aliases_.count(sym)) {
+    uint64_t width = sym->as<ValueSymbol>().getType().getBitWidth();
+    auto pieces = resolve_output_alias_pieces(sym, 0, width - 1);
+    std::sort(pieces.begin(),
+              pieces.end(),
+              [](const ResolvedAliasPiece & a, const ResolvedAliasPiece & b) {
+                return a.rhs_lo > b.rhs_lo;
+              });
+    Term result;
+    for (auto & piece : pieces) {
+      Term t = lookup_symbol(piece.sym);
+      Term piece_term = slice_bits(t, piece.target_lo, piece.target_hi);
+      result =
+          result ? solver_->make_term(Concat, result, piece_term) : piece_term;
+    }
+    return result;
+  }
 
   // Wire being defined in the enclosing always_comb block: return
   // the partial accumulated term so that read-modify-write patterns
@@ -4523,12 +4652,12 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym)
   // loop) see the previously-written value.
   auto pending_it = pending_comb_updates_.find(sym);
   if (pending_it != pending_comb_updates_.end()) {
-    return slice(pending_it->second);
+    return pending_it->second;
   }
 
   auto it = symbol_to_term_.find(sym);
   if (it != symbol_to_term_.end()) {
-    return slice(it->second);
+    return it->second;
   }
 
   // Not resolved yet -- if `sym` is a wire whose driving continuous
@@ -4537,9 +4666,9 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym)
   // out of order, and retry.
   if (resolve_wire_on_demand(sym)) {
     auto pit = pending_comb_updates_.find(sym);
-    if (pit != pending_comb_updates_.end()) return slice(pit->second);
+    if (pit != pending_comb_updates_.end()) return pit->second;
     auto sit = symbol_to_term_.find(sym);
-    if (sit != symbol_to_term_.end()) return slice(sit->second);
+    if (sit != symbol_to_term_.end()) return sit->second;
   }
 
   // Parameter / localparam: slang has already evaluated the value at

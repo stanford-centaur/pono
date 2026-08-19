@@ -245,29 +245,45 @@ class SystemVerilogEncoder
    */
   smt::Term lookup_symbol(const slang::ast::Symbol * sym);
 
-  /** Result of chasing an output-port alias chain to its root: the
-   *  root symbol, whether any hop was taken at all, and -- when the
-   *  chain passed through a bus-element connection (e.g. one element
-   *  of an instance array wired to a slice of a parent-side array) --
-   *  the bit range within the root that this symbol corresponds to.
+  /** One piece of a (possibly split) output-port alias resolution:
+   *  bits [rhs_lo, rhs_hi] of the caller's original write/read window
+   *  (0-indexed from the window's own low bit) correspond to bits
+   *  [target_lo, target_hi] of `sym`, a final symbol that is itself
+   *  guaranteed *not* to be a further output-port alias.
    */
-  struct ResolvedOutputAlias
+  struct ResolvedAliasPiece
   {
     const slang::ast::Symbol * sym;
-    bool aliased;
-    bool has_range;
-    uint64_t lo;
-    uint64_t hi;
+    uint64_t target_lo, target_hi;
+    uint64_t rhs_lo, rhs_hi;
   };
 
-  /** Chase port_output_aliases_ transitively (an output port that is
-   *  itself connected to an outer output port, e.g. through two
-   *  levels of instantiation, or through a bus-element connection of
-   *  an instance array) to the final root symbol and bit range.
+  /** Chase port_output_aliases_ transitively for bits [lo, hi] of
+   *  `sym` (an output port that is itself connected to an outer
+   *  output port, e.g. through two levels of instantiation, through a
+   *  bus-element connection of an instance array, or through a
+   *  concatenation-target connection splitting `sym`'s bits across
+   *  several parent-side signals) to one or more final (non-aliased)
+   *  pieces. A plain, non-aliased `sym` resolves to a single piece
+   *  covering itself. Piece order is unspecified; a caller that needs
+   *  to reassemble the whole value should sort by rhs_lo.
    *  @param sym the symbol to resolve
+   *  @param lo  the low bit of the window to resolve (relative to sym)
+   *  @param hi  the high bit of the window to resolve (relative to sym)
+   *  @param rhs_base the rhs-window bit corresponding to `lo` --
+   *              callers should omit this (recursive calls set it)
    */
-  ResolvedOutputAlias resolve_output_alias(
-      const slang::ast::Symbol * sym) const;
+  std::vector<ResolvedAliasPiece> resolve_output_alias_pieces(
+      const slang::ast::Symbol * sym,
+      uint64_t lo,
+      uint64_t hi,
+      uint64_t rhs_base = 0) const;
+
+  /** Extract bits [lo, hi] from `base`, or return `base` unchanged
+   *  when [lo, hi] already covers its whole width. Returns a null
+   *  Term if `base` is null.
+   */
+  smt::Term slice_bits(const smt::Term & base, uint64_t lo, uint64_t hi) const;
 
   /** Build the hierarchical name for a symbol.
    *  @param name the local name
@@ -623,21 +639,28 @@ class SystemVerilogEncoder
   // An output-port alias target: either the whole of `sym` (has_range
   // false), or -- for an instance-array element wired to one slice of
   // a parent-side bus signal -- bits [lo, hi] of `sym`.
-  struct OutputAliasTarget
+  // One segment of an output-port alias: bits [port_lo, port_hi] of
+  // the aliased port symbol map affinely onto bits [target_lo,
+  // target_hi] of `target`. A plain (non-concatenation) connection
+  // has exactly one segment spanning the port's whole width; a
+  // concatenation-target connection (`.port({hi, lo})`) has one
+  // segment per operand, each covering the corresponding slice of the
+  // port's bits.
+  struct OutputAliasSegment
   {
-    const slang::ast::Symbol * sym;
-    bool has_range = false;
-    uint64_t lo = 0;
-    uint64_t hi = 0;
+    uint64_t port_lo, port_hi;
+    const slang::ast::Symbol * target;
+    uint64_t target_lo, target_hi;
   };
 
-  // Map from a child instance's port internal symbol to the parent-side
-  // variable (and, for a bus-element connection, bit range) that the
-  // port connects to.  Populated while processing a child instance and
+  // Map from a child instance's port internal symbol to the segment(s)
+  // describing which parent-side variable(s) (and bit range(s)) its
+  // bits connect to.  Populated while processing a child instance and
   // consulted when resolving the LHS of a continuous-assign or
   // always_comb statement so writes to a child output port redirect to
-  // the parent-side wire.
-  std::unordered_map<const slang::ast::Symbol *, OutputAliasTarget>
+  // the parent-side wire(s).
+  std::unordered_map<const slang::ast::Symbol *,
+                     std::vector<OutputAliasSegment>>
       port_output_aliases_;
 
   // Symbols in pending_comb_updates_ that came from an alias-redirect

@@ -35,16 +35,15 @@ TEST_P(SVUnitTests, UnconnectedInputPortIsFree)
   check_bmc("unconnected_input_port.sv", 1);
 }
 
-// GAP: a child instance's output port connected to a concatenation of
+// A child instance's output port connected to a concatenation of
 // parent-side signals (`.sum({hi, lo})`), splitting the port's bits
-// across two parent nets. find_lhs_base()/resolve_lvalue() only
-// recognize a plain name/index/range/member as a port-connection
-// target; a Concatenation expression falls through both (returns
-// nullptr/nullopt), so the whole connection is silently dropped --
-// `hi`/`lo` end up free rather than tracking the child's driven value,
-// despite a comment at the call site already (incorrectly) claiming
-// this case "is not yet supported" as if it threw.
-TEST_P(SVUnitTests, Gap_ConcatenationOutputPort)
+// across two parent nets. port_output_aliases_ maps each port-internal
+// symbol to one or more OutputAliasSegments (one per concatenation
+// operand, MSB-first); resolve_output_alias_pieces() intersects a
+// write's own bit window against each segment and remaps it into the
+// segment's own target range, so `hi`/`lo` each track their own slice
+// of the child's driven value.
+TEST_P(SVUnitTests, ConcatenationOutputPort)
 {
   check_bmc("concat_output_port.sv", 4, ProverResult::UNKNOWN);
 }
