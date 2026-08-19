@@ -11,6 +11,32 @@
  **
  ** \brief SystemVerilog frontend encoder using the slang library.
  **
+ ** SVA design decisions
+ ** ---------------------
+ ** A few SVA constructs have no single "obviously correct" encoding given
+ ** this encoder's model (a single global clock, and a propvec()-of-safety-
+ ** properties / ltl_justice()-of-liveness-obligations interface with no
+ ** notion of coverage or multiple clock domains). The choices made here are
+ ** deliberate and documented so future changes don't accidentally drift
+ ** from them:
+ **
+ **   - `cover property (P)` / immediate `cover (P)`: modeled via
+ **     reachability duality -- checked exactly like `assert property (!P)`
+ **     (or `assert (!P)`), so a "violation" of that surrogate assertion is
+ **     precisely "P was reached". This is the standard way to expose a
+ **     coverage goal through a safety-property-only interface. Temporal/
+ **     sequence-shaped cover goals are out of scope (negating a liveness
+ **     obligation isn't a reachability check) and throw a clear error.
+ **
+ **   - Multiclock properties (a property whose sequence mentions more than
+ **     one `@(posedge clkN)`): this encoder has no clock-domain-crossing
+ **     model at all -- every design in this frontend's test suite already
+ **     implicitly assumes one global clock advances the whole design by one
+ **     cycle per sample. Rather than reject a multiclock property outright,
+ **     every named clock is treated identically (each clock edge mentioned
+ **     anywhere in a sequence advances the same global pono-cycle). This is
+ **     the minimal behavior consistent with the encoder's existing single-
+ **     clock assumption, not a real multi-domain/clock-ratio model.
  **/
 
 #include "frontends/systemverilog_encoder.h"
@@ -1946,16 +1972,22 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
     case StatementKind::ConcurrentAssertion: {
       auto & ca = stmt.as<ConcurrentAssertionStatement>();
-      // Handle 'assert', 'assume', and 'restrict' (not 'cover': dropping a
-      // coverage goal doesn't corrupt any proof the way silently dropping
-      // an assumption would, so it isn't worth the tableau/justice-set
-      // machinery a real implementation would need).  'assume'/'restrict'
-      // share the exact same property-shape handling as 'assert' below;
-      // they differ only in what happens to the resulting boolean once
-      // it's built (see the two branches further down).
+      // Handle 'assert', 'assume', 'restrict', and 'cover'.  'assume'/
+      // 'restrict' share the exact same property-shape handling as
+      // 'assert' below; they differ only in what happens to the
+      // resulting boolean once it's built (see the two branches further
+      // down). 'cover' is handled via reachability duality (see the
+      // design-decision note at the top of this file): `cover
+      // property(P)` is checked exactly like `assert property(!P)`, so
+      // a "violation" of that surrogate assertion is precisely "P was
+      // reached" -- it shares the same safety fast path as assert/
+      // assume, just with the boolean negated before the shared
+      // disable-window/push logic runs.
       bool is_assumption = ca.assertionKind == AssertionKind::Assume
                            || ca.assertionKind == AssertionKind::Restrict;
-      if (ca.assertionKind == AssertionKind::Assert || is_assumption) {
+      bool is_cover = ca.assertionKind == AssertionKind::CoverProperty;
+      if (ca.assertionKind == AssertionKind::Assert || is_assumption
+          || is_cover) {
         // Strip the clocking wrapper (the clock event is already
         // baked into our per-cycle abstraction) and any explicit
         // `disable iff` wrapper, recording its condition.  If the
@@ -1993,6 +2025,14 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         // assertion_expr_to_bool returns null as soon as a genuine
         // liveness operator (eventually / unbounded until) appears.
         if (Term prop = assertion_expr_to_bool(*a)) {
+          if (is_cover) {
+            // Reachability duality: negate before the disable-window
+            // exemption below runs, so a `disable iff C` on a cover
+            // property correctly means "don't count P as covered while
+            // C holds" (the composed surrogate is `!P || C`, whose own
+            // violation is exactly "P held and C did not").
+            prop = solver_->make_term(Not, prop);
+          }
           // Catch-all `disable iff` exemption for property shapes
           // (plain `assert P`, `always P`, ...) that don't already
           // gate themselves more precisely inside assertion_expr_to_bool.
@@ -2037,6 +2077,19 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                      make_name(assertion_label(stmt)));
           current_disable_cond_ = saved_disable_cond;
           break;
+        }
+
+        if (is_cover) {
+          // A temporal/sequence-shaped cover goal (e.g. `cover property
+          // (a ##1 b)`) would need the reachability duality above
+          // extended through the same LTL tableau `ltl_to_sat()` builds
+          // for `assert`/`assume` -- negating a liveness obligation
+          // doesn't correspond to "was this ever reached" the way it
+          // does for a plain current-cycle Boolean, so that extension
+          // is out of scope here. Throw rather than silently drop.
+          throw PonoException(
+              "SystemVerilogEncoder: temporal/sequence-shaped 'cover "
+              "property' is not supported");
         }
 
         // Otherwise build the general LTL tableau for the *negated*
@@ -2106,15 +2159,23 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // assume/restrict. Pass/fail action blocks (`assert (x) else
       // $error(...);`) are simulation-only display statements with no
       // synthesis meaning and are intentionally not processed, same
-      // as $display/$error elsewhere in this encoder. `cover` is not
-      // modeled, matching the ConcurrentAssertion case above.
+      // as $display/$error elsewhere in this encoder. `cover` uses the
+      // same reachability-duality contract as the ConcurrentAssertion
+      // case above (see the design-decision note at the top of this
+      // file): `cover (expr);` is checked exactly like
+      // `assert (!expr);`.
       auto & ia = stmt.as<ImmediateAssertionStatement>();
       bool is_assumption = ia.assertionKind == AssertionKind::Assume
                            || ia.assertionKind == AssertionKind::Restrict;
-      if (ia.assertionKind == AssertionKind::Assert || is_assumption) {
+      bool is_cover = ia.assertionKind == AssertionKind::CoverProperty;
+      if (ia.assertionKind == AssertionKind::Assert || is_assumption
+          || is_cover) {
         Term cond_term = expr_to_term(ia.cond);
         Term bool_cond = solver_->make_term(
             Distinct, cond_term, solver_->make_term(0, cond_term->get_sort()));
+        if (is_cover) {
+          bool_cond = solver_->make_term(Not, bool_cond);
+        }
         Term prop = (condition == solver_->make_term(true))
                         ? bool_cond
                         : solver_->make_term(Implies, condition, bool_cond);

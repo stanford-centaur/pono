@@ -58,8 +58,8 @@ TEST_P(SVUnitTests, MultipleAssertions)
 // look like a proof).  The ConcurrentAssertion handler now routes the same
 // property-shape computation used for `assert` through fts_.add_constraint()
 // for `assume`/`restrict` instead of propvec_, for the safety (non-temporal)
-// fast path.  `cover property` is a separate, still-open gap -- see
-// Gap_CoverProperty below.
+// fast path.  `cover property` is fixed separately -- see CoverProperty
+// below.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, AssumePropertyConstrainsTrace)
@@ -72,26 +72,23 @@ TEST_P(SVUnitTests, RestrictPropertyConstrainsTrace)
   check_bmc("restrict_property.sv", 4, ProverResult::UNKNOWN);
 }
 
-// GAP: `cover property` is a complete silent no-op today -- the
-// ConcurrentAssertion handler's outer `if` only branches on
-// Assert/Assume/Restrict, so a Cover statement is skipped with no log
-// line and contributes nothing to propvec()/ltl_justice() at all. This
-// should be implemented, not just cleanly rejected: the standard way
-// to make a coverage goal checkable through a safety-property-only
-// interface like propvec() is the reachability duality also used by
-// BMC-based reachability tools generally -- `cover property (P)` is
-// equivalent to asking whether `assert property (!P)` is *falsifiable*,
-// since finding a counterexample to "P never holds" is exactly "P was
-// reached". A correct implementation should therefore push `!P` onto
-// propvec() the same way `assert P` pushes `P`. `data` is free, so the
-// cover point (data == 5) is reachable at the earliest possible cycle.
-TEST_P(SVUnitTests, Gap_CoverProperty) { check_bmc("cover_property.sv", 1); }
+// FIXED: `cover property` used to be a complete silent no-op -- the
+// ConcurrentAssertion handler's outer `if` only branched on
+// Assert/Assume/Restrict, so a Cover statement was skipped with no log
+// line and contributed nothing to propvec()/ltl_justice() at all. Now
+// implemented via reachability duality (see the design-decision note at
+// the top of systemverilog_encoder.cpp): `cover property (P)` is checked
+// exactly like `assert property (!P)`, so finding a counterexample to
+// that surrogate assertion is precisely "P was reached". `data` is free,
+// so the cover point (data == 5) is reachable at the earliest possible
+// cycle.
+TEST_P(SVUnitTests, CoverProperty) { check_bmc("cover_property.sv", 1); }
 
 // Procedural immediate `cover(expr);` (distinct from concurrent `cover
-// property (...)` above) has the exact same silent no-op gap in
-// ImmediateAssertion's handling, and the same assumed reachability-
-// duality contract applies.
-TEST_P(SVUnitTests, Gap_ImmediateCover) { check_bmc("immediate_cover.sv", 1); }
+// property (...)` above) had the exact same silent no-op gap in
+// ImmediateAssertion's handling; fixed with the same reachability-
+// duality contract.
+TEST_P(SVUnitTests, ImmediateCover) { check_bmc("immediate_cover.sv", 1); }
 
 // ---------------------------------------------------------------------------
 // FIXED: $rose/$fell/$changed/$onehot/$onehot0/$isunknown were all missing
