@@ -32,6 +32,30 @@ TEST_P(SVUnitTests, EncodeCounter) { check_bmc("counter.sv", 5); }
 
 TEST_P(SVUnitTests, InitialBlockSetsState) { check_bmc("initial_block.sv", 0); }
 
+// GAP: `always_latch` is completely absent from process_assignments()'s
+// procedural-block dispatch (its `default:` case only names
+// AlwaysComb/AlwaysFF/Always/Initial; AlwaysLatch falls through
+// silently, same as Final). Since the latch's target (`q`) is never
+// pre-scanned as a state variable either, it ends up declared as a
+// plain free/undriven input, completely disconnected from `en`/`d`/
+// `rst`: `en`/`rst` low should hold `q` at its previous value (the same
+// "state variable defaulting to itself" treatment a register gets),
+// but currently BMC can pick any `q` it likes regardless of `en`.
+TEST_P(SVUnitTests, Gap_AlwaysLatchHold)
+{
+  check_bmc("always_latch.sv", 4, ProverResult::UNKNOWN);
+}
+
+// `final` blocks run once at the end of simulation for cleanup/
+// reporting -- no synthesis meaning and no analog in this bounded/
+// infinite-trace model (there's no "end of simulation"), so they're
+// intentionally ignored, the same as $display and other simulation-
+// only constructs elsewhere in this encoder.
+TEST_P(SVUnitTests, FinalBlockIgnored)
+{
+  check_bmc("final_block.sv", 4, ProverResult::UNKNOWN);
+}
+
 // ---------------------------------------------------------------------------
 // `priority if` / `unique case` as semantic modifiers, replacing the old
 // bare if_else.sv / case_stmt.sv with one denser, paired test.
