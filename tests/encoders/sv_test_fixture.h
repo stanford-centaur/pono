@@ -207,27 +207,6 @@ class SVUnitTests : public ::testing::Test,
     FunctionalTransitionSystem fts(s);
     EXPECT_NO_THROW(SystemVerilogEncoder enc(sv_path(file), fts, filelists));
   }
-
-  // Assert that `file` encodes without throwing, but that none of its
-  // assert/assume/cover statements produced a safety property or LTL
-  // justice set -- the silent-skip contract used by
-  // assertion_expr_to_bool()/ltl_to_sat() for unsupported SVA
-  // operators (intersect/within/throughout/multiclock/...), by the
-  // default case in process_statement() for unsupported statement
-  // kinds, and by the ConcurrentAssertion handler for assume/cover/
-  // restrict properties.  This intentionally does NOT throw: it
-  // documents the dangerous "elaborates fine, drops semantics" gap
-  // called out in the plan, rather than a clean rejection.
-  void expect_silently_dropped(const std::string & file,
-                               const std::vector<std::string> & filelists = {})
-  {
-    using namespace pono;
-    using namespace smt;
-    SmtSolver s = create_solver(GetParam());
-    FunctionalTransitionSystem fts(s);
-    SystemVerilogEncoder enc(sv_path(file), fts, filelists);
-    EXPECT_EQ(enc.propvec().size() + enc.ltl_justice().size(), 0u);
-  }
 };
 
 }  // namespace pono_tests
