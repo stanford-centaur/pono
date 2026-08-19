@@ -144,6 +144,20 @@ class SystemVerilogEncoder
   /** Process an always_ff block to extract next-state update functions. */
   void process_always_ff(const slang::ast::ProceduralBlockSymbol & proc);
 
+  /** Shared implementation of process_always_ff(): process `body` with
+   *  StmtContext::NEXT_STATE and commit every accumulated
+   *  pending_next_updates_ entry via assign_next(). Blocking- vs.
+   *  nonblocking-assignment syntax makes no difference to this
+   *  encoding -- only the StmtContext does -- so this is also reused
+   *  directly for `always_latch` (whose writes use blocking `=`, but
+   *  need exactly the same "holds previous value when not written"
+   *  register semantics) and for a `forever @(...) ...` loop
+   *  recognized as a legacy structural spelling of `always_ff`.
+   *  @param body the statement body to process (typically a Timed
+   *              statement wrapping the event-controlled block)
+   */
+  void process_next_state_body(const slang::ast::Statement & body);
+
   /** Process an always_comb block to extract combinational definitions. */
   void process_always_comb(const slang::ast::ProceduralBlockSymbol & proc);
 
@@ -349,6 +363,18 @@ class SystemVerilogEncoder
    */
   void pre_scan_always_comb(const slang::ast::Statement & body,
                             const slang::ast::ProceduralBlockSymbol & proc);
+
+  /** Pre-scan an always_latch body to identify every blocking-
+   *  assignment target (full- or partial-width alike) as a state
+   *  variable. Unlike always_comb's full-vs-partial wire/state-var
+   *  split, an always_latch target is *always* a state variable, even
+   *  when a single write covers its whole width, since a latch
+   *  implicitly holds its previous value along any path that doesn't
+   *  reassign it -- exactly the same "defaults to itself" semantics
+   *  process_next_state_body()'s NEXT_STATE writes already provide.
+   *  @param body the statement body of the always_latch block
+   */
+  void pre_scan_always_latch(const slang::ast::Statement & body);
 
   /** Pre-scan a child instance to identify any parent-side variables
    *  that are driven by the child's output ports; those become wires

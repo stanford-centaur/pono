@@ -32,16 +32,14 @@ TEST_P(SVUnitTests, EncodeCounter) { check_bmc("counter.sv", 5); }
 
 TEST_P(SVUnitTests, InitialBlockSetsState) { check_bmc("initial_block.sv", 0); }
 
-// GAP: `always_latch` is completely absent from process_assignments()'s
-// procedural-block dispatch (its `default:` case only names
-// AlwaysComb/AlwaysFF/Always/Initial; AlwaysLatch falls through
-// silently, same as Final). Since the latch's target (`q`) is never
-// pre-scanned as a state variable either, it ends up declared as a
-// plain free/undriven input, completely disconnected from `en`/`d`/
-// `rst`: `en`/`rst` low should hold `q` at its previous value (the same
-// "state variable defaulting to itself" treatment a register gets),
-// but currently BMC can pick any `q` it likes regardless of `en`.
-TEST_P(SVUnitTests, Gap_AlwaysLatchHold)
+// `always_latch`: pre_scan_always_latch() marks every blocking-
+// assignment target as a state variable unconditionally (unlike
+// always_comb's full-vs-partial wire/state-var split), and
+// process_next_state_body() (shared with always_ff) processes the body
+// with StmtContext::NEXT_STATE, so an unwritten path implicitly holds
+// the latch's previous value -- the same "defaults to itself"
+// semantics a register's next-state gets.
+TEST_P(SVUnitTests, AlwaysLatchHold)
 {
   check_bmc("always_latch.sv", 4, ProverResult::UNKNOWN);
 }
@@ -56,15 +54,25 @@ TEST_P(SVUnitTests, FinalBlockIgnored)
   check_bmc("final_block.sv", 4, ProverResult::UNKNOWN);
 }
 
-// GAP: `initial forever @(posedge clk) ...` is a legacy structural
-// spelling of `always_ff @(posedge clk) ...`. `forever`'s own
-// StatementKind isn't in process_statement()'s switch, so it falls
-// through silently (same as always_latch above): `q` never gets
-// pre-scanned as a state variable and ends up a free input, completely
-// disconnected from `din`, rather than a proper register.
-TEST_P(SVUnitTests, Gap_ForeverEventAsRegister)
+// `initial forever @(posedge clk) ...` is a legacy structural spelling
+// of `always_ff @(posedge clk) ...`: as_forever_event_body() recognizes
+// this shape (a ForeverLoop whose own body is a Timed statement) and
+// redirects it to the same process_next_state_body() an always_ff
+// block gets, instead of treating it as an initial-state constraint. A
+// *bare* `forever` (no event control) doesn't match this shape and
+// remains an architectural boundary -- see Unsupported_BareForever
+// below.
+TEST_P(SVUnitTests, ForeverEventAsRegister)
 {
   check_bmc("forever_loop.sv", 4, ProverResult::UNKNOWN);
+}
+
+// A bare `forever` (no event control) has no static iteration bound at
+// all and can't be unrolled by the compile-time-bounded model -- a
+// genuine architectural boundary, not a "not implemented yet" gap.
+TEST_P(SVUnitTests, Unsupported_BareForever)
+{
+  expect_encode_throws("bare_forever.sv");
 }
 
 // ---------------------------------------------------------------------------

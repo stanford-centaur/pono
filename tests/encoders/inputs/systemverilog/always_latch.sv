@@ -19,6 +19,11 @@ module always_latch_test (
     else if (en) q = d;
   end
 
-  assert property (@(posedge clk) (rst || en) || (q == $past(q)));
+  // q(T) is computed from rst/en/d as of cycle T-1 (this encoder's
+  // per-cycle model has no notion of edge vs. level triggering, so
+  // every write -- register or latch -- takes effect on the "next"
+  // cycle relative to the inputs that drove it), hence the $past on
+  // rst/en here, not just on q.
+  assert property (@(posedge clk) ($past(rst) || $past(en)) || (q == $past(q)));
 
 endmodule

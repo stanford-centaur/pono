@@ -752,6 +752,39 @@ void SystemVerilogEncoder::pre_scan_always_ff(
   collect_nonblocking_targets(body, state_var_symbols_);
 }
 
+namespace {
+// `initial forever @(...) body` is a legacy structural spelling of
+// `always @(...) body` -- unlike a general `forever` (which has no
+// static iteration bound at all and is a genuine architectural
+// boundary of this encoder's compile-time-unrolling model), this
+// specific shape runs its (timing-controlled) body exactly once per
+// pono-cycle, exactly like an always_ff/always block does. Returns the
+// forever loop's own (Timed) body if `stmt` matches this shape
+// (allowing the single-statement Block wrapper slang gives an
+// `initial` block's top-level statement), nullptr otherwise.
+const slang::ast::Statement * as_forever_event_body(
+    const slang::ast::Statement & stmt)
+{
+  using namespace slang::ast;
+  const Statement * s = &stmt;
+  if (s->kind == StatementKind::Block) {
+    auto & block = s->as<BlockStatement>();
+    auto & inner = block.body;
+    if (inner.kind == StatementKind::List) {
+      auto & list = inner.as<StatementList>();
+      if (list.list.size() != 1) return nullptr;
+      s = list.list[0];
+    } else {
+      s = &inner;
+    }
+  }
+  if (s->kind != StatementKind::ForeverLoop) return nullptr;
+  auto & forever_stmt = s->as<ForeverLoopStatement>();
+  if (forever_stmt.body.kind != StatementKind::Timed) return nullptr;
+  return &forever_stmt.body;
+}
+}  // namespace
+
 void SystemVerilogEncoder::pre_scan_state_vars(
     const slang::ast::InstanceBodySymbol & body)
 {
@@ -762,6 +795,12 @@ void SystemVerilogEncoder::pre_scan_state_vars(
       if (proc.procedureKind == ProceduralBlockKind::AlwaysFF
           || proc.procedureKind == ProceduralBlockKind::Always) {
         pre_scan_always_ff(proc.getBody());
+      } else if (proc.procedureKind == ProceduralBlockKind::AlwaysLatch) {
+        pre_scan_always_latch(proc.getBody());
+      } else if (proc.procedureKind == ProceduralBlockKind::Initial) {
+        if (auto * forever_body = as_forever_event_body(proc.getBody())) {
+          pre_scan_always_ff(*forever_body);
+        }
       }
     } else if (member.kind == SymbolKind::Instance) {
       pre_scan_state_vars(member.as<InstanceSymbol>().body);
@@ -796,6 +835,15 @@ void SystemVerilogEncoder::pre_scan_always_comb(
       state_var_symbols_.insert(sym);
     }
   }
+}
+
+void SystemVerilogEncoder::pre_scan_always_latch(
+    const slang::ast::Statement & body)
+{
+  std::unordered_set<const slang::ast::Symbol *> full, partial;
+  collect_blocking_targets(body, full, partial);
+  for (auto * sym : full) state_var_symbols_.insert(sym);
+  for (auto * sym : partial) state_var_symbols_.insert(sym);
 }
 
 void SystemVerilogEncoder::pre_scan_instance(
@@ -1073,7 +1121,18 @@ void SystemVerilogEncoder::process_assignments(
       auto & proc = member.as<ProceduralBlockSymbol>();
       switch (proc.procedureKind) {
         case ProceduralBlockKind::AlwaysFF: process_always_ff(proc); break;
-        case ProceduralBlockKind::Initial: process_initial(proc); break;
+        case ProceduralBlockKind::Initial: {
+          // `initial forever @(...) body` is a legacy structural
+          // spelling of `always @(...) body` -- redirect to the same
+          // NEXT_STATE processing an always_ff block gets instead of
+          // treating it as an initial-state constraint.
+          if (auto * forever_body = as_forever_event_body(proc.getBody())) {
+            process_next_state_body(*forever_body);
+          } else {
+            process_initial(proc);
+          }
+          break;
+        }
         case ProceduralBlockKind::Always: {
           std::unordered_set<const Symbol *> targets;
           collect_nonblocking_targets(proc.getBody(), targets);
@@ -1082,8 +1141,17 @@ void SystemVerilogEncoder::process_assignments(
           }
           break;
         }
+        case ProceduralBlockKind::AlwaysLatch:
+          // A level-sensitive latch's writes (blocking `=`, implicit
+          // hold when a path doesn't reassign) are encoded exactly
+          // like a register's (nonblocking `<=`, defaulting to itself
+          // when not written) -- NEXT_STATE processing doesn't care
+          // which assignment operator was used, only that writes
+          // should become assign_next() targets.
+          process_next_state_body(proc.getBody());
+          break;
         default:
-          // AlwaysComb handled above; AlwaysLatch, Final, etc. skipped.
+          // AlwaysComb handled above; Final, etc. skipped.
           break;
       }
     }
@@ -1095,12 +1163,18 @@ void SystemVerilogEncoder::process_assignments(
 void SystemVerilogEncoder::process_always_ff(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
+  process_next_state_body(proc.getBody());
+}
+
+void SystemVerilogEncoder::process_next_state_body(
+    const slang::ast::Statement & body)
+{
   pending_next_updates_.clear();
 
   // Use a null condition to represent "unconditional".
   Term true_term = solver_->make_term(true);
   try {
-    process_statement(proc.getBody(), StmtContext::NEXT_STATE, true_term);
+    process_statement(body, StmtContext::NEXT_STATE, true_term);
   }
   catch (const LoopControlSignal &) {
     // Only a compile-time-constant break/continue/disable (caught by
@@ -1386,13 +1460,23 @@ void SystemVerilogEncoder::process_instance(
     auto & proc = m.as<ProceduralBlockSymbol>();
     switch (proc.procedureKind) {
       case ProceduralBlockKind::AlwaysFF: process_always_ff(proc); break;
-      case ProceduralBlockKind::Initial: process_initial(proc); break;
+      case ProceduralBlockKind::Initial: {
+        if (auto * forever_body = as_forever_event_body(proc.getBody())) {
+          process_next_state_body(*forever_body);
+        } else {
+          process_initial(proc);
+        }
+        break;
+      }
       case ProceduralBlockKind::Always: {
         std::unordered_set<const Symbol *> targets;
         collect_nonblocking_targets(proc.getBody(), targets);
         if (!targets.empty()) process_always_ff(proc);
         break;
       }
+      case ProceduralBlockKind::AlwaysLatch:
+        process_next_state_body(proc.getBody());
+        break;
       default: break;
     }
   });
@@ -2318,6 +2402,25 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         eval_ctx().deleteLocal(sym);
       }
       break;
+    }
+
+    case StatementKind::ForeverLoop: {
+      // `initial forever @(...) body` (a legacy structural spelling of
+      // `always @(...) body`) is recognized and redirected before
+      // ever reaching process_statement() at all -- see
+      // as_forever_event_body() in process_assignments()/
+      // process_instance(). Any `forever` reached *here* is some other
+      // shape (no event control, nested inside another statement,
+      // etc.): it has no static iteration bound at all, unlike
+      // `for`/`while`/`repeat`, which this encoder unrolls up to a
+      // compile-time-computable count -- a genuine architectural
+      // boundary, not a "not implemented yet" gap. Throw a clear error
+      // rather than silently dropping whatever is inside it.
+      throw PonoException(
+          "SystemVerilogEncoder: 'forever' is only supported as "
+          "'initial forever @(...) ...', a structural spelling of "
+          "'always @(...) ...'; a bare forever loop has no static "
+          "iteration bound and is not supported");
     }
 
     case StatementKind::WhileLoop: {
