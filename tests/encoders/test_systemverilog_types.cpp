@@ -27,20 +27,18 @@ TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
 // Packed structs
 // ---------------------------------------------------------------------------
 
-// FIXED: find_lhs_base()/resolve_lvalue() in systemverilog_encoder.cpp
-// used to have no ExpressionKind::MemberAccess case, so a struct-field
-// nonblocking assignment (`p.cnt <= ...`, `s.a.x <= ...`) failed to
-// resolve as an lvalue and was silently dropped -- the field was never
-// registered as an assign_next() target and stayed a completely free
-// state variable every cycle. Both helpers now narrow the inner base's
-// bit range by the field's own bitOffset, the same way the read-side
-// MemberAccess case in expr_to_term() already did.
+// Struct-field nonblocking assignment (`p.cnt <= ...`, `s.a.x <= ...`):
+// find_lhs_base()/resolve_lvalue() in systemverilog_encoder.cpp resolve
+// a MemberAccess lvalue by narrowing the inner base's bit range by the
+// field's own bitOffset, the same way the read-side MemberAccess case
+// in expr_to_term() does, so the field is registered as a real
+// assign_next() target rather than staying a free state variable.
 TEST_P(SVUnitTests, PackedStructFieldState) { check_bmc("struct_state.sv", 5); }
 
 TEST_P(SVUnitTests, PackedStructNested) { check_bmc("struct_nested.sv", 4); }
 
-// Passes: struct-typed *ports* only exercise the (supported) read-side
-// MemberAccess path, not the field-write path fixed above.
+// Struct-typed *ports* only exercise the read-side MemberAccess path,
+// not the field-write path above.
 TEST_P(SVUnitTests, TypedefStructPort)
 {
   check_bmc("typedef_struct_port.sv", 2);
@@ -50,24 +48,16 @@ TEST_P(SVUnitTests, TypedefStructPort)
 // Packed enums
 // ---------------------------------------------------------------------------
 
-// FIXED: lookup_symbol() had no path for an EnumValueSymbol -- only
-// declare_variables()-tracked registers/wires/parameters were ever
-// inserted into symbol_to_term_ -- so referencing one of an enum's own
-// named literals (IDLE/REQ/ACK, used exactly as ordinary SV permits
-// once the enum is declared) threw "unknown symbol".  Declaring an
-// enum-typed *variable* already worked fine (its type is integral, so
-// type_to_sort() succeeds); lookup_symbol() now also resolves an
-// EnumValueSymbol the same way it already resolved a ParameterSymbol
-// (both are elaboration-time constants slang has already evaluated).
+// Referencing one of an enum's own named literals (IDLE/REQ/ACK, used
+// exactly as ordinary SV permits once the enum is declared):
+// lookup_symbol() resolves an EnumValueSymbol the same way it resolves
+// a ParameterSymbol (both are elaboration-time constants slang has
+// already evaluated).
 //
-// Each FSM fixture below has a `default:` case arm -- exercising one
-// was needed to fully test these fixtures, and along the way it
-// surfaced (and, separately, fixed -- see
-// CaseStatementDefaultOnlyWhenNoMatch in test_systemverilog_statements
-// .cpp) a distinct, pre-existing bug where a `case` statement's
-// `default:` arm applied unconditionally alongside whichever other
-// item already matched, sticking every such FSM at its default value
-// forever.
+// Each FSM fixture below has a `default:` case arm, exercising the
+// case-statement default-arm-only-when-no-match behavior tested more
+// directly by CaseStatementDefaultOnlyWhenNoMatch in
+// test_systemverilog_statements.cpp.
 TEST_P(SVUnitTests, PackedEnumStateMachine) { check_bmc("enum_fsm.sv", 3); }
 
 TEST_P(SVUnitTests, PackedEnumStateMachineHolds)

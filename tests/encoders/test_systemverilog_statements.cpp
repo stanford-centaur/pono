@@ -47,31 +47,24 @@ TEST_P(SVUnitTests, PriorityIfUniqueCaseHolds)
   check_bmc("priority_if_unique_case_holds.sv", 6, ProverResult::UNKNOWN);
 }
 
-// FIXED: a `case` statement's `default:` arm used to apply
-// unconditionally alongside whichever other item already matched
-// (process_statement's Case handler processed the default arm with
-// the bare outer `condition` rather than `condition AND NOT(any item
-// matched)`), so any case statement with a `default:` clause always
-// ended up applying the default's assignment regardless of which item
-// actually matched. Now the default arm's condition explicitly
-// excludes every item's match condition.
+// A `case` statement's `default:` arm only applies when no other item
+// matched: process_statement's Case handler gives the default arm's
+// condition as `condition AND NOT(any item matched)`, excluding every
+// item's own match condition, rather than the bare outer `condition`.
 TEST_P(SVUnitTests, CaseStatementDefaultOnlyWhenNoMatch)
 {
   check_bmc("case_default.sv", 2);
 }
 
 // ---------------------------------------------------------------------------
-// FIXED: the `?` don't-care bits in `4'b1??1` make the case-item literal a
-// 4-state value with unknown bits, which used to get handed straight to
-// expr_to_term()'s generic (wildcard-unaware) IntegerLiteral case, which in
-// turn handed an X-containing decimal string straight to the solver and
-// crashed with a raw solver-library exception ("invalid decimal string" /
-// "mpz_set_str") rather than implementing (or even cleanly rejecting)
-// wildcard matching. The Case statement handler now special-cases
-// casex/casez: for a constant item pattern, it builds a (mask, value) pair
-// from the pattern's own X (casex) or Z (both; `?` is an alias for `z`)
-// bits and compares `(sel & mask) == value`, ignoring exactly the wildcard
-// positions, instead of comparing the raw (invalid) literal directly.
+// casex/casez wildcard matching: the `?` don't-care bits in `4'b1??1`
+// make the case-item literal a 4-state value with unknown bits. The
+// Case statement handler special-cases casex/casez: for a constant item
+// pattern, it builds a (mask, value) pair from the pattern's own X
+// (casex) or Z (both; `?` is an alias for `z`) bits and compares
+// `(sel & mask) == value`, ignoring exactly the wildcard positions,
+// instead of comparing the raw literal directly (which would otherwise
+// reach expr_to_term()'s generic, wildcard-unaware IntegerLiteral case).
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, CasexCasezWildcard)
@@ -80,29 +73,19 @@ TEST_P(SVUnitTests, CasexCasezWildcard)
 }
 
 // ---------------------------------------------------------------------------
-// FIXED: `while`/`do-while`/`repeat`/`foreach` were all missing from
-// process_statement()'s switch, hitting the default case, which (confirmed
-// by inspection) silently skips any statement kind it doesn't recognize,
-// logging only a level-1 warning -- so the loop body was simply a no-op.
-// Root cause went one level deeper than a missing switch case: a plain
-// procedural scratch variable (`int i;` mutated by `i = i + 1;` inside a
-// block) wasn't tracked anywhere when written via a normal
-// ExpressionStatement, since that path resolves through begin_write()/
-// commit_write(), which for a symbol that's neither a wire nor a state
-// variable silently drops the write. That's harmless for `for`, whose own
-// step expressions are evaluated directly against slang's constant
-// evaluator by the ForLoop case itself -- but a `while`/`do-while`
-// condition re-testing `i` on every iteration would never see it change.
-// Fixed by adding a fast path to ExpressionStatement's Assignment/++/--
-// handling: a write to any symbol currently bound as a compile-time-
-// unrolled local is now evaluated by slang's own constant evaluator and
-// mirrored back into the same loop_var_terms_ map `for`-loop counters
-// already use, instead of falling into the wire/state-var path. `while`/
-// `do-while` conditions and `repeat` counts follow the same compile-time-
-// constant-only contract as `for` bounds and break/continue/disable
-// (clear PonoException, not a wrong verdict, for a runtime-dependent
-// bound); `foreach` is scoped to a single statically-sized dimension with
-// a loop variable, which is what `foreach (arr[i])` over a fixed-size
+// `while`/`do-while`/`repeat`/`foreach` loop unrolling. A plain
+// procedural scratch variable (`int i;` mutated by `i = i + 1;` inside
+// the loop body) needs its own fast path in ExpressionStatement's
+// Assignment/++/-- handling: a write to any symbol currently bound as a
+// compile-time-unrolled local is evaluated by slang's own constant
+// evaluator and mirrored back into the same loop_var_terms_ map
+// `for`-loop counters use, rather than the wire/state-var write path
+// (which only applies to real design signals). `while`/`do-while`
+// conditions and `repeat` counts follow the same compile-time-constant-
+// only contract as `for` bounds and break/continue/disable (clear
+// PonoException, not a wrong verdict, for a runtime-dependent bound);
+// `foreach` is scoped to a single statically-sized dimension with a
+// loop variable, which is what `foreach (arr[i])` over a fixed-size
 // packed vector produces.
 // ---------------------------------------------------------------------------
 
@@ -115,17 +98,18 @@ TEST_P(SVUnitTests, RepeatLoop) { check_bmc("repeat_loop.sv", 2); }
 TEST_P(SVUnitTests, ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
 
 // ---------------------------------------------------------------------------
-// FIXED, scoped to compile-time-constant conditions: process_statement()
-// gained a LoopControlSignal thrown by Break/Continue/Disable and caught by
-// the nearest enclosing ForLoop (Break/Continue) or matching named Block
-// (Disable). This only works because the Conditional case now also tries
-// to const-evaluate an `if`'s condition first (falling back to the
-// existing symbolic-guard path when that fails) -- each fixture below
-// guards its break/continue/disable with a comparison against an
-// already-unrolled `for`-loop counter, so the const-eval succeeds and the
-// signal can propagate out of the one branch actually taken in C++, the
-// same way real control flow would.  See Gap_BreakRuntimeDependent below
-// for the (deliberately unsupported, clean-error) runtime-dependent case.
+// `break`/`continue`/`disable`, scoped to compile-time-constant
+// conditions: process_statement() throws a LoopControlSignal from
+// Break/Continue/Disable, caught by the nearest enclosing ForLoop
+// (Break/Continue) or matching named Block (Disable). This relies on
+// the Conditional case const-evaluating an `if`'s condition first
+// (falling back to the existing symbolic-guard path when that fails)
+// -- each fixture below guards its break/continue/disable with a
+// comparison against an already-unrolled `for`-loop counter, so the
+// const-eval succeeds and the signal can propagate out of the one
+// branch actually taken in C++, the same way real control flow would.
+// See Unsupported_BreakRuntimeDependent below for the (deliberately
+// unsupported, clean-error) runtime-dependent case.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, BreakInForLoop)
@@ -156,13 +140,11 @@ TEST_P(SVUnitTests, Unsupported_BreakRuntimeDependent)
   expect_encode_throws("break_runtime_dependent.sv");
 }
 
-// FIXED: procedural immediate assertion (`assert (expr);`, distinct from
-// `assert property (...)`) had no StatementKind::ImmediateAssertion case at
-// all and so produced zero properties, contradicting the encoder header's
-// own doc-comment claim that "Basic SVA immediate assertions" are
-// supported. Added a case that builds a safety property (for `assert`) or
-// a standing constraint (for `assume`/`restrict`), guarded by the
-// accumulated path condition rather than treated as always-active.
+// Procedural immediate assertion (`assert (expr);`, distinct from
+// `assert property (...)`): StatementKind::ImmediateAssertion builds a
+// safety property (for `assert`) or a standing constraint (for
+// `assume`/`restrict`), guarded by the accumulated path condition
+// rather than treated as always-active.
 //
 // Unlike the register-based examples elsewhere in this suite, an
 // immediate assertion inside always_ff checks *current-cycle* values with

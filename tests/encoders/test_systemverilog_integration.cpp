@@ -49,12 +49,9 @@ TEST_P(SVUnitTests, RegfileCtrlKInductionProves)
 // Integration #3: credit-based link, checked with IC3Bits.  Written
 // by hand rather than via check_prover() because IC3's proof isn't
 // bounded by a `check_until` step count the way Bmc's counterexample
-// search is.  FIXED: this used to demonstrate the assume_property.sv
-// gap (test_systemverilog_sva.cpp) mattering at design scale -- IC3
-// found credits overflowing past 4'd4 by driving `push` while
-// credits == 0, exactly the case `assume property` was meant to rule
-// out but (before the ConcurrentAssertion fix) silently didn't.  Now
-// that assumptions are honored, IC3 actually *proves* the property.
+// search is.  The design has an `assume property` constraining `push`
+// to never fire while credits == 0; with that assumption honored, IC3
+// proves credits never overflow past 4'd4.
 TEST_P(SVUnitTests, CreditLinkAssumeHonoredByIC3)
 {
   // IC3Bits needs solver options (e.g. unsat-assumptions production)
