@@ -79,23 +79,21 @@ TEST_P(SVUnitTests, CoverPropertyCleanlyAbsent)
 }
 
 // ---------------------------------------------------------------------------
-// $rose/$fell/$changed/$onehot/$onehot0/$isunknown, checked as identities.
+// FIXED: $rose/$fell/$changed/$onehot/$onehot0/$isunknown were all missing
+// from expr_to_term()'s Call case (only $past/$stable were handled).
+// $rose/$fell/$changed reuse the same 1-cycle latch chain $past/$stable
+// already build; $onehot/$onehot0 are the standard (x & (x-1)) == 0
+// power-of-two bit trick; $isunknown is always false, since this encoder's
+// pure 2-valued bitvector model has no X/Z representation at all. Checked
+// as identities here, not one hand-picked value.
 // ---------------------------------------------------------------------------
 
-// GAP (confirmed empirically): only $past/$stable are handled in
-// expr_to_term()'s Call case; $rose throws "unsupported call to
-// $rose" before $fell/$changed are even reached.
-TEST_P(SVUnitTests, Gap_RoseFellChangedHold)
+TEST_P(SVUnitTests, RoseFellChangedHold)
 {
   check_bmc("rose_fell_changed.sv", 4, ProverResult::UNKNOWN);
 }
 
-// GAP (confirmed empirically, after fixing an unrelated syntax bug in
-// an earlier draft that mixed a property-level `|->` inside a boolean
-// `&&` expression): $onehot throws "unsupported call to $onehot"
-// before $onehot0/$isunknown are even reached -- the same "only
-// $past/$stable are handled" gap as Gap_RoseFellChangedHold above.
-TEST_P(SVUnitTests, Gap_OnehotIsUnknownHold)
+TEST_P(SVUnitTests, OnehotIsUnknownHold)
 {
   check_bmc("onehot_isunknown.sv", 4, ProverResult::UNKNOWN);
 }

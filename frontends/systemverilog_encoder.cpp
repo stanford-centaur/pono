@@ -2856,9 +2856,11 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
     }
 
     case ExpressionKind::Call: {
-      // Only the `$past` and `$stable` system functions are currently
-      // handled; they expand into a chain of 1-cycle latch state
-      // vars.  Other calls (user subroutines, system tasks) are not
+      // `$past`/`$stable`/`$changed`/`$rose`/`$fell` all expand into
+      // (or read from) a chain of 1-cycle latch state vars;
+      // `$onehot`/`$onehot0` are a plain bit trick; `$isunknown` is a
+      // constant given this encoder's pure 2-valued bitvector model.
+      // Other calls (user subroutines, system tasks) are not
       // supported.
       auto & call = expr.as<CallExpression>();
       if (call.isSystemCall() && call.getSubroutineName() == "$past") {
@@ -2890,6 +2892,82 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         Sort bv1 = solver_->make_sort(BV, 1);
         return solver_->make_term(
             Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+      }
+      if (call.isSystemCall() && call.getSubroutineName() == "$changed") {
+        // $stable's negation: the value differs from one cycle ago,
+        // over its full width (unlike $rose/$fell, which per the LRM
+        // only look at bit 0).
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException(
+              "SystemVerilogEncoder: $changed with no value argument");
+        }
+        Term val = expr_to_term(*args[0]);
+        Term neq =
+            solver_->make_term(Distinct, val, make_history_chain(val, 1));
+        Sort bv1 = solver_->make_sort(BV, 1);
+        return solver_->make_term(
+            Ite, neq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+      }
+      if (call.isSystemCall()
+          && (call.getSubroutineName() == "$rose"
+              || call.getSubroutineName() == "$fell")) {
+        // Per the LRM, $rose/$fell only look at bit 0 of a
+        // multi-bit argument. Reuses the same 1-cycle latch chain
+        // $past/$stable already build for "value one cycle ago".
+        bool is_rose = call.getSubroutineName() == "$rose";
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException("SystemVerilogEncoder: "
+                              + std::string(call.getSubroutineName())
+                              + " with no value argument");
+        }
+        Term val = expr_to_term(*args[0]);
+        Sort bv1 = solver_->make_sort(BV, 1);
+        Term bit0 = solver_->make_term(Op(Extract, 0, 0), val);
+        Term prev_bit0 = make_history_chain(bit0, 1);
+        Term now_val = solver_->make_term(is_rose ? 1 : 0, bv1);
+        Term prev_val = solver_->make_term(is_rose ? 0 : 1, bv1);
+        Term edge =
+            solver_->make_term(And,
+                               solver_->make_term(Equal, bit0, now_val),
+                               solver_->make_term(Equal, prev_bit0, prev_val));
+        return solver_->make_term(
+            Ite, edge, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+      }
+      if (call.isSystemCall() && call.getSubroutineName() == "$isunknown") {
+        // This encoder's SMT model is pure 2-valued bitvectors -- there
+        // is no X/Z representation at all -- so nothing is ever unknown.
+        return solver_->make_term(0, solver_->make_sort(BV, 1));
+      }
+      if (call.isSystemCall()
+          && (call.getSubroutineName() == "$onehot"
+              || call.getSubroutineName() == "$onehot0")) {
+        // Standard power-of-two bit trick: (x & (x-1)) == 0 iff x has
+        // at most one bit set; $onehot additionally requires x != 0.
+        // No popcount adder needed.
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException("SystemVerilogEncoder: "
+                              + std::string(call.getSubroutineName())
+                              + " with no value argument");
+        }
+        Term val = expr_to_term(*args[0]);
+        Term one = solver_->make_term(1, val->get_sort());
+        Term minus_one = solver_->make_term(BVSub, val, one);
+        Term at_most_one =
+            solver_->make_term(Equal,
+                               solver_->make_term(BVAnd, val, minus_one),
+                               solver_->make_term(0, val->get_sort()));
+        Term cond = at_most_one;
+        if (call.getSubroutineName() == "$onehot") {
+          Term nonzero = solver_->make_term(
+              Distinct, val, solver_->make_term(0, val->get_sort()));
+          cond = solver_->make_term(And, nonzero, at_most_one);
+        }
+        Sort bv1 = solver_->make_sort(BV, 1);
+        return solver_->make_term(
+            Ite, cond, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
       }
       throw PonoException("SystemVerilogEncoder: unsupported call to "
                           + std::string(call.getSubroutineName()));
