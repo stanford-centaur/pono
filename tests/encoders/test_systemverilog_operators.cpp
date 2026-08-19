@@ -96,7 +96,28 @@ TEST_P(SVUnitTests, Gap_ReductionNandNorXnor)
   check_bmc("reduction_nand_nor_xnor.sv", 4, ProverResult::UNKNOWN);
 }
 
-TEST_P(SVUnitTests, Gap_IncrementDecrement) { check_bmc("inc_dec.sv", 4); }
+// FIXED: process_statement()'s ExpressionStatement case only ever
+// recognized ExpressionKind::Assignment, so a standalone `i++;`/`--i;`
+// statement (distinct from the same operators used as a `for`-loop
+// step, which slang's own constant evaluator already handled via a
+// completely separate path) fell through and did nothing. Added a
+// UnaryOp branch that reuses the same lvalue-resolution/commit
+// machinery as plain assignment (refactored into begin_write()/
+// commit_write() local lambdas shared by both), reading the current
+// value directly instead of evaluating an RHS expression -- so this
+// works for any lvalue shape resolve_lvalue() supports, not just a
+// plain scalar (see ElementIncrement/StructFieldIncrement below).
+TEST_P(SVUnitTests, IncrementDecrement) { check_bmc("inc_dec.sv", 4); }
+
+// `++` on a packed-array element and a packed-struct field,
+// confirming the fix above is genuinely general rather than a
+// scalar-only special case.
+TEST_P(SVUnitTests, ElementIncrement) { check_bmc("element_increment.sv", 4); }
+
+TEST_P(SVUnitTests, StructFieldIncrement)
+{
+  check_bmc("struct_field_increment.sv", 4);
+}
 
 TEST_P(SVUnitTests, Gap_StreamingOperator) { check_bmc("streaming_op.sv", 2); }
 

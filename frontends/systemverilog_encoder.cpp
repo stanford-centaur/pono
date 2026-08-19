@@ -1373,13 +1373,174 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & es = stmt.as<ExpressionStatement>();
       auto & expr = es.expr;
 
+      // Resolves `lhs_expr` to its base symbol/bit-range/output-alias
+      // and the "previous" full-base term a write should compose onto
+      // -- shared by plain/compound assignment (whose RHS may read
+      // this via an implicit LValueReference) and by `++`/`--` (which
+      // reads it directly as "the current value" -- see slice_of()
+      // below). Returns nullopt if lhs_expr isn't a shape
+      // resolve_lvalue() handles (e.g. a dynamic-index element
+      // select), in which case the caller may fall back to
+      // process_dynamic_element_assign() for ElementSelect LHSes.
+      struct LValueWrite
+      {
+        const Symbol * sym;
+        bool aliased;
+        bool has_range;  // true if `sym` itself is an aliased bus slice
+        uint64_t lo, hi, slice_w;
+        Term prev_base;  // may be null -- see call sites
+        bool wire_comb;
+        Term state_term;  // only valid when ctx == NEXT_STATE
+      };
+      auto begin_write =
+          [&](const Expression & lhs_expr) -> std::optional<LValueWrite> {
+        auto desc = resolve_lvalue(lhs_expr, eval_ctx());
+        if (!desc) return std::nullopt;
+        const Symbol * sym = desc->base;
+        auto resolved = resolve_output_alias(sym);
+        sym = resolved.sym;
+
+        uint64_t lo = desc->lo;
+        uint64_t hi = desc->hi;
+        if (resolved.has_range) {
+          // `sym` (pre-alias) is exactly bits [resolved.lo,
+          // resolved.hi] of the resolved root -- remap this write
+          // into the root's bits.
+          lo += resolved.lo;
+          hi += resolved.lo;
+        }
+
+        LValueWrite w{ sym,
+                       resolved.aliased,
+                       resolved.has_range,
+                       lo,
+                       hi,
+                       hi - lo + 1,
+                       Term(),
+                       false,
+                       Term() };
+        w.wire_comb =
+            ctx == StmtContext::COMBINATIONAL && wire_symbols_.count(sym);
+        if (w.wire_comb) {
+          auto pit = pending_comb_updates_.find(sym);
+          if (pit != pending_comb_updates_.end()) w.prev_base = pit->second;
+        } else if (ctx == StmtContext::NEXT_STATE) {
+          auto sit = symbol_to_term_.find(sym);
+          if (sit == symbol_to_term_.end()) return std::nullopt;
+          w.state_term = sit->second;
+          auto pit = pending_next_updates_.find(w.state_term);
+          w.prev_base =
+              (pit != pending_next_updates_.end()) ? pit->second : w.state_term;
+        } else {
+          // COMBINATIONAL non-wire or INITIAL: prev_base is the
+          // current (constant) value of the LHS used only for
+          // self-reference (compound assignment, ++/--).
+          auto sit = symbol_to_term_.find(sym);
+          if (sit != symbol_to_term_.end()) w.prev_base = sit->second;
+        }
+        return w;
+      };
+
+      // Slices [lo, hi] out of `base`, or returns a null Term if
+      // `base` itself is null (no previous write to reference yet).
+      auto slice_of = [&](const Term & base, uint64_t lo, uint64_t hi) -> Term {
+        if (!base) return Term();
+        uint64_t pw = base->get_sort()->get_width();
+        if (lo == 0 && hi == pw - 1) return base;
+        return solver_->make_term(Op(Extract, hi, lo), base);
+      };
+
+      // Commits `rhs` (already the correct slice_w-wide final value)
+      // as the write described by `w` -- shared by plain/compound
+      // assignment and by ++/--, which differ only in how `rhs` was
+      // computed.
+      auto commit_write = [&](const LValueWrite & w, const Term & rhs) {
+        if (w.wire_comb) {
+          if (w.aliased) pending_comb_aliased_.insert(w.sym);
+          // Compose new full-base value from prev_base + slice rhs.
+          // On the very first write to this wire within the block
+          // there is no prev_base yet; treat it as covering the
+          // whole symbol only if it actually does, checked against
+          // the symbol's declared width (not the write's own slice
+          // width, which is trivially equal to itself) -- otherwise
+          // seed a fresh placeholder to splice into, e.g. a
+          // `for (i) arr[i] = ...;` pattern writing one element per
+          // iteration.
+          Term combined;
+          if (w.prev_base) {
+            combined = replace_bits(w.prev_base, rhs, w.lo, w.hi);
+          } else {
+            uint64_t sym_w = w.sym->as<ValueSymbol>().getType().getBitWidth();
+            bool full_write = !w.has_range && w.lo == 0 && w.hi + 1 == sym_w;
+            combined = full_write ? rhs
+                                  : replace_bits(
+                                        wire_seed_term(w.sym), rhs, w.lo, w.hi);
+          }
+          if (condition == solver_->make_term(true)) {
+            pending_comb_updates_[w.sym] = combined;
+          } else {
+            Term def = w.prev_base ? w.prev_base : combined;
+            pending_comb_updates_[w.sym] =
+                solver_->make_term(Ite, condition, combined, def);
+          }
+          return;
+        }
+
+        auto it = symbol_to_term_.find(w.sym);
+        if (it == symbol_to_term_.end()) return;
+        Term lhs_term = it->second;
+        uint64_t base_w = lhs_term->get_sort()->get_width();
+        bool full_write = (w.lo == 0 && w.hi == base_w - 1);
+
+        switch (ctx) {
+          case StmtContext::NEXT_STATE: {
+            Term combined =
+                full_write ? rhs : replace_bits(w.prev_base, rhs, w.lo, w.hi);
+            Term update;
+            if (condition == solver_->make_term(true)) {
+              update = combined;
+            } else {
+              update =
+                  solver_->make_term(Ite, condition, combined, w.prev_base);
+            }
+            pending_next_updates_[w.state_term] = update;
+            break;
+          }
+          case StmtContext::COMBINATIONAL: {
+            // Non-wire LHS (e.g. output port reg, or a partially-
+            // written base): constrain the appropriate slice via
+            // add_constraint, which accepts terms involving input
+            // vars (so RHSes that reference input ports work).
+            Term lhs_slice =
+                full_write
+                    ? lhs_term
+                    : solver_->make_term(Op(Extract, w.hi, w.lo), lhs_term);
+            Term eq = solver_->make_term(Equal, lhs_slice, rhs);
+            if (condition != solver_->make_term(true)) {
+              eq = solver_->make_term(Implies, condition, eq);
+            }
+            fts_.add_constraint(eq);
+            break;
+          }
+          case StmtContext::INITIAL: {
+            Term lhs_slice =
+                full_write
+                    ? lhs_term
+                    : solver_->make_term(Op(Extract, w.hi, w.lo), lhs_term);
+            Term eq = solver_->make_term(Equal, lhs_slice, rhs);
+            fts_.constrain_init(eq);
+            break;
+          }
+        }
+      };
+
       if (expr.kind == ExpressionKind::Assignment) {
         auto & assign = expr.as<AssignmentExpression>();
         auto & lhs_expr = assign.left();
         auto & rhs_expr = assign.right();
 
-        auto desc = resolve_lvalue(lhs_expr, eval_ctx());
-        if (!desc) {
+        auto w = begin_write(lhs_expr);
+        if (!w) {
           // resolve_lvalue() only handles constant-index selects; a
           // runtime-variable index (`arr[idx] = rhs`) needs a
           // dynamic-position splice instead of a static bit range.
@@ -1392,140 +1553,49 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           }
           break;
         }
-        const Symbol * sym = desc->base;
-        auto resolved = resolve_output_alias(sym);
-        sym = resolved.sym;
-        bool aliased = resolved.aliased;
-
-        uint64_t lo = desc->lo;
-        uint64_t hi = desc->hi;
-        uint64_t slice_w = hi - lo + 1;
-        if (resolved.has_range) {
-          // `sym` (pre-alias) is exactly bits [resolved.lo,
-          // resolved.hi] of the resolved root -- remap this write
-          // into the root's bits.
-          lo += resolved.lo;
-          hi += resolved.lo;
-        }
-
-        // Figure out the full-base "previous" term so that
-        //  (a) compound assignments can read the slice via the
-        //      LValueReference stash, and
-        //  (b) partial writes can be composed via replace_bits.
-        Term prev_base;
-        bool wire_comb =
-            ctx == StmtContext::COMBINATIONAL && wire_symbols_.count(sym);
-        Term state_term;  // only valid when ctx == NEXT_STATE
-        if (wire_comb) {
-          auto pit = pending_comb_updates_.find(sym);
-          if (pit != pending_comb_updates_.end()) prev_base = pit->second;
-        } else if (ctx == StmtContext::NEXT_STATE) {
-          auto sit = symbol_to_term_.find(sym);
-          if (sit == symbol_to_term_.end()) break;
-          state_term = sit->second;
-          auto pit = pending_next_updates_.find(state_term);
-          prev_base =
-              (pit != pending_next_updates_.end()) ? pit->second : state_term;
-        } else {
-          // COMBINATIONAL non-wire or INITIAL: prev_base is the
-          // current (constant) value of the LHS used only for
-          // compound-assignment self-reference.
-          auto sit = symbol_to_term_.find(sym);
-          if (sit != symbol_to_term_.end()) prev_base = sit->second;
-        }
 
         // Stash the slice value for any LValueReference inside rhs.
         Term saved_lvalue = current_lvalue_term_;
-        if (prev_base) {
-          uint64_t pw = prev_base->get_sort()->get_width();
-          if (lo == 0 && hi == pw - 1) {
-            current_lvalue_term_ = prev_base;
-          } else {
-            current_lvalue_term_ =
-                solver_->make_term(Op(Extract, hi, lo), prev_base);
-          }
-        } else {
-          current_lvalue_term_ = Term();
-        }
+        current_lvalue_term_ = slice_of(w->prev_base, w->lo, w->hi);
 
         Term rhs = expr_to_term(rhs_expr);
         current_lvalue_term_ = saved_lvalue;
 
-        rhs = resize_to(rhs, slice_w);
-
-        if (wire_comb) {
-          if (aliased) pending_comb_aliased_.insert(sym);
-          // Compose new full-base value from prev_base + slice rhs.
-          // On the very first write to this wire within the block
-          // there is no prev_base yet; treat it as covering the
-          // whole symbol only if it actually does, checked against
-          // the symbol's declared width (not the write's own slice
-          // width, which is trivially equal to itself) -- otherwise
-          // seed a fresh placeholder to splice into, e.g. a
-          // `for (i) arr[i] = ...;` pattern writing one element per
-          // iteration.
-          Term combined;
-          if (prev_base) {
-            combined = replace_bits(prev_base, rhs, lo, hi);
-          } else {
-            uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
-            bool full_write = !resolved.has_range && lo == 0 && hi + 1 == sym_w;
-            combined = full_write
-                           ? rhs
-                           : replace_bits(wire_seed_term(sym), rhs, lo, hi);
-          }
-          if (condition == solver_->make_term(true)) {
-            pending_comb_updates_[sym] = combined;
-          } else {
-            Term def = prev_base ? prev_base : combined;
-            pending_comb_updates_[sym] =
-                solver_->make_term(Ite, condition, combined, def);
-          }
-          break;
-        }
-
-        auto it = symbol_to_term_.find(sym);
-        if (it == symbol_to_term_.end()) break;
-        Term lhs_term = it->second;
-        uint64_t base_w = lhs_term->get_sort()->get_width();
-        bool full_write = (lo == 0 && hi == base_w - 1);
-
-        switch (ctx) {
-          case StmtContext::NEXT_STATE: {
-            Term combined =
-                full_write ? rhs : replace_bits(prev_base, rhs, lo, hi);
-            Term update;
-            if (condition == solver_->make_term(true)) {
-              update = combined;
-            } else {
-              update = solver_->make_term(Ite, condition, combined, prev_base);
-            }
-            pending_next_updates_[state_term] = update;
+        rhs = resize_to(rhs, w->slice_w);
+        commit_write(*w, rhs);
+      } else if (expr.kind == ExpressionKind::UnaryOp) {
+        // `i++`/`--i`/etc. as a standalone statement (distinct from
+        // the same operators used as a `for`-loop step expression,
+        // which slang's own constant evaluator already handles
+        // separately via ForLoopStatement's step evaluation). Per the
+        // LRM these are equivalent to `i = i +/- 1`; reuse the exact
+        // same lvalue-resolution/commit machinery as plain assignment
+        // above, reading the current value directly rather than
+        // evaluating an RHS expression.
+        auto & unop = expr.as<UnaryExpression>();
+        if (unop.op == UnaryOperator::Preincrement
+            || unop.op == UnaryOperator::Postincrement
+            || unop.op == UnaryOperator::Predecrement
+            || unop.op == UnaryOperator::Postdecrement) {
+          auto w = begin_write(unop.operand());
+          if (!w) {
+            logger.log(1,
+                       "SystemVerilogEncoder: skipping unsupported ++/-- "
+                       "operand shape");
             break;
           }
-          case StmtContext::COMBINATIONAL: {
-            // Non-wire LHS (e.g. output port reg, or a partially-
-            // written base): constrain the appropriate slice via
-            // add_constraint, which accepts terms involving input
-            // vars (so RHSes that reference input ports work).
-            Term lhs_slice =
-                full_write ? lhs_term
-                           : solver_->make_term(Op(Extract, hi, lo), lhs_term);
-            Term eq = solver_->make_term(Equal, lhs_slice, rhs);
-            if (condition != solver_->make_term(true)) {
-              eq = solver_->make_term(Implies, condition, eq);
-            }
-            fts_.add_constraint(eq);
-            break;
+          Term cur = slice_of(w->prev_base, w->lo, w->hi);
+          if (!cur) {
+            throw PonoException(
+                "SystemVerilogEncoder: '++'/'--' has no previous value to "
+                "read for '"
+                + std::string(w->sym->name) + "'");
           }
-          case StmtContext::INITIAL: {
-            Term lhs_slice =
-                full_write ? lhs_term
-                           : solver_->make_term(Op(Extract, hi, lo), lhs_term);
-            Term eq = solver_->make_term(Equal, lhs_slice, rhs);
-            fts_.constrain_init(eq);
-            break;
-          }
+          bool is_inc = unop.op == UnaryOperator::Preincrement
+                        || unop.op == UnaryOperator::Postincrement;
+          Term one = solver_->make_term(1, cur->get_sort());
+          Term new_val = solver_->make_term(is_inc ? BVAdd : BVSub, cur, one);
+          commit_write(*w, new_val);
         }
       }
       break;
