@@ -3285,6 +3285,34 @@ match_const_delay_seq(const slang::ast::AssertionExpr & ae)
   if (!e.delay.max || *e.delay.max != e.delay.min) return std::nullopt;
   return std::make_pair(e.delay.min, &*e.sequence);
 }
+
+// A named `sequence`/`property` declaration referenced by name (e.g.
+// `assert property (p_check);`) binds as a SimpleAssertionExpr wrapping
+// an AssertionInstanceExpression -- not a plain boolean Expression --
+// so routing it through expr_to_term() throws "unsupported expression
+// kind". Slang has already expanded the referenced item's body (with
+// any arguments substituted) into `body`; for the no-argument,
+// non-recursive case that's exactly the AssertionExpr this encoder
+// should recurse into instead. Returns nullptr if `e` isn't such a
+// reference (the caller should fall back to its normal expr_to_term()
+// path). Argumented, local-variable-bearing, or recursive property
+// instantiations are a materially harder problem (they need their own
+// binding environment) and are out of scope; throws a clear error
+// rather than silently mis-evaluating them.
+const slang::ast::AssertionExpr * resolve_named_assertion_ref(
+    const slang::ast::Expression & e)
+{
+  using namespace slang::ast;
+  if (e.kind != ExpressionKind::AssertionInstance) return nullptr;
+  auto & aie = e.as<AssertionInstanceExpression>();
+  if (aie.isRecursiveProperty || !aie.arguments.empty()
+      || !aie.localVars.empty()) {
+    throw PonoException(
+        "SystemVerilogEncoder: named sequence/property references with "
+        "arguments, local variables, or recursion are not supported");
+  }
+  return &aie.body;
+}
 }  // namespace
 
 // ============================================================================
@@ -3484,7 +3512,11 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       return ltl_to_sat(ae.as<StrongWeakAssertionExpr>().expr, neg, justice);
 
     case AssertionExprKind::Simple: {
-      Term t = expr_to_term(ae.as<SimpleAssertionExpr>().expr);
+      auto & simple = ae.as<SimpleAssertionExpr>();
+      if (auto * named = resolve_named_assertion_ref(simple.expr)) {
+        return ltl_to_sat(*named, neg, justice);
+      }
+      Term t = expr_to_term(simple.expr);
       if (!t) return Term();
       Term zero = solver_->make_term(0, t->get_sort());
       Term b = solver_->make_term(Distinct, t, zero);
@@ -3649,6 +3681,9 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
 
     case AssertionExprKind::Simple: {
       auto & simple = ae.as<SimpleAssertionExpr>();
+      if (auto * named = resolve_named_assertion_ref(simple.expr)) {
+        return assertion_expr_to_bool(*named);
+      }
       Term t = expr_to_term(simple.expr);
       // Normalize to Bool: t != 0.
       Sort sort = t->get_sort();

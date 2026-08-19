@@ -116,13 +116,17 @@ TEST_P(SVUnitTests, Gap_FirstMatchSeq)
   expect_silently_dropped("first_match_seq.sv");
 }
 
-// GAP (confirmed empirically): referencing a named `property`
-// declaration throws "unsupported expression kind 39" -- a
-// different failure mode again (an uncaught exception, not a silent
-// drop), since resolving the AssertionInstanceExpression that names
-// p_check apparently routes through expr_to_term() rather than
-// assertion_expr_to_bool()/ltl_to_sat().
-TEST_P(SVUnitTests, Gap_NamedSequencePropertyDecl)
+// FIXED: `assert property (p_check);` binds p_check as a
+// SimpleAssertionExpr wrapping an AssertionInstanceExpression, not a
+// plain boolean Expression, so assertion_expr_to_bool()/ltl_to_sat()'s
+// Simple case routed it through expr_to_term(), which has no case for
+// ExpressionKind::AssertionInstance and threw "unsupported expression
+// kind". Slang has already expanded the referenced property's own body
+// (clocking, |->, etc. intact) into AssertionInstanceExpression::body;
+// both functions' Simple case now recurses into that instead, scoped to
+// the no-argument, non-recursive case (an argumented or recursive
+// property/sequence instantiation throws a clear error instead).
+TEST_P(SVUnitTests, NamedSequencePropertyDecl)
 {
   check_bmc("named_property_decl.sv", 1);
 }
