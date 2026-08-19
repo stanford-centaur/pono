@@ -12,9 +12,14 @@ module reduction_nand_nor_xnor (input logic clk, input logic rst, input logic [3
 
   always_ff @(posedge clk) begin
     if (rst) begin
+      // a_reg resets to 0, so nand_r/nor_r must reset to 1 (NAND/NOR
+      // of an all-zero input are both true) to stay consistent with
+      // the assertion below -- forcing them to 0 here would violate
+      // the property from the very first post-reset cycle, unrelated
+      // to whether ~&/~| are actually correct.
       a_reg  <= 4'd0;
-      nand_r <= 1'b0;
-      nor_r  <= 1'b0;
+      nand_r <= 1'b1;
+      nor_r  <= 1'b1;
       xnor_r <= 1'b0;
     end else begin
       a_reg  <= a;

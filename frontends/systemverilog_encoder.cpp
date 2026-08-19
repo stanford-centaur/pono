@@ -2273,6 +2273,64 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
 
     case ExpressionKind::BinaryOp: {
       auto & binop = expr.as<BinaryExpression>();
+
+      if (binop.op == BinaryOperator::WildcardEquality
+          || binop.op == BinaryOperator::WildcardInequality) {
+        // Must special-case *before* the generic eager left/right
+        // conversion below: a right operand with unknown bits (e.g.
+        // `4'b10??`) would otherwise hit the generic (wildcard-
+        // unaware) IntegerLiteral case first and crash trying to hand
+        // an X-containing decimal string to the solver, the same bug
+        // casex/casez's item patterns had. Per the LRM, only the
+        // *right* operand's X/Z bits are wildcards, so left is always
+        // safe to convert normally; only convert right if we end up
+        // needing it for the plain-equality fallback below. Reuses
+        // the same (mask, value) technique as casex/casez in
+        // process_statement()'s Case handling: build a mask with a 0
+        // at each wildcard bit and compare (left & mask) == value,
+        // ignoring exactly those positions. Falls back to plain
+        // equality if the right operand isn't a constant (nothing to
+        // wildcard against -- this encoder's BV model has no way for
+        // a non-literal term to hold an unknown bit at all).
+        Term left = expr_to_term(binop.left());
+        uint64_t result_width = expr.type->getBitWidth();
+        Term eq;
+        auto rhs_cv = binop.right().eval(eval_ctx());
+        uint64_t rhs_w = binop.right().type->getBitWidth();
+        if (!rhs_cv.bad() && rhs_cv.isInteger() && rhs_w > 0 && rhs_w <= 64) {
+          auto & sv = rhs_cv.integer();
+          uint64_t mask = 0, value = 0;
+          for (uint64_t i = 0; i < rhs_w; ++i) {
+            slang::logic_t bit = sv[static_cast<int32_t>(i)];
+            if (!bit.isUnknown()) {
+              mask |= (uint64_t{ 1 } << i);
+              if (bit.value == 1) value |= (uint64_t{ 1 } << i);
+            }
+          }
+          Sort rhs_sort = solver_->make_sort(BV, rhs_w);
+          Term mask_term =
+              resize_to(solver_->make_term(std::to_string(mask), rhs_sort, 10),
+                        left->get_sort()->get_width());
+          Term value_term =
+              resize_to(solver_->make_term(std::to_string(value), rhs_sort, 10),
+                        left->get_sort()->get_width());
+          eq = solver_->make_term(
+              Equal, solver_->make_term(BVAnd, left, mask_term), value_term);
+        } else {
+          Term right = expr_to_term(binop.right());
+          right = resize_to(right, left->get_sort()->get_width());
+          eq = solver_->make_term(Equal, left, right);
+        }
+        Sort bv1 = solver_->make_sort(BV, 1);
+        bool want_eq = binop.op == BinaryOperator::WildcardEquality;
+        Term result =
+            solver_->make_term(Ite,
+                               eq,
+                               solver_->make_term(want_eq ? 1 : 0, bv1),
+                               solver_->make_term(want_eq ? 0 : 1, bv1));
+        return resize_to(result, result_width);
+      }
+
       Term left = expr_to_term(binop.left());
       Term right = expr_to_term(binop.right());
 
@@ -2397,6 +2455,53 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         case BinaryOperator::ArithmeticShiftRight:
           result = solver_->make_term(BVAshr, left, right);
           break;
+        case BinaryOperator::Power: {
+          // Scoped to a compile-time-constant exponent (the
+          // overwhelming majority of real synthesizable use, e.g.
+          // `x**2`, `2**WIDTH` in a parameter expression) -- unrolled
+          // into repeated multiplication at the operands' common
+          // width, matching the truncating-wraparound semantics the
+          // rest of this encoder already uses for arithmetic (the
+          // uniform resize_to(result, result_width) below then
+          // applies exactly as it does for every other operator). A
+          // non-constant exponent would need real BV exponentiation,
+          // which isn't part of the SMT BV theory and isn't worth a
+          // barrel-multiplier-style encoding for how rarely it's used
+          // with a runtime exponent.
+          auto exp_cv = binop.right().eval(eval_ctx());
+          if (exp_cv.bad() || !exp_cv.isInteger()) {
+            throw PonoException(
+                "SystemVerilogEncoder: '**' is only supported with a "
+                "compile-time-constant exponent");
+          }
+          auto exp_opt = exp_cv.integer().as<uint32_t>();
+          if (!exp_opt) {
+            throw PonoException(
+                "SystemVerilogEncoder: '**' exponent out of range");
+          }
+          result = solver_->make_term(1, left->get_sort());
+          for (uint32_t i = 0; i < *exp_opt; ++i) {
+            result = solver_->make_term(BVMul, result, left);
+          }
+          break;
+        }
+        case BinaryOperator::CaseEquality: {
+          // No X/Z representation in this encoder's pure-BV model, so
+          // case equality can never actually differ from logical
+          // equality.
+          Term eq = solver_->make_term(Equal, left, right);
+          Sort bv1 = solver_->make_sort(BV, 1);
+          result = solver_->make_term(
+              Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+          break;
+        }
+        case BinaryOperator::CaseInequality: {
+          Term eq = solver_->make_term(Equal, left, right);
+          Sort bv1 = solver_->make_sort(BV, 1);
+          result = solver_->make_term(
+              Ite, eq, solver_->make_term(0, bv1), solver_->make_term(1, bv1));
+          break;
+        }
         default:
           throw PonoException(
               "SystemVerilogEncoder: unsupported binary operator "
@@ -2466,12 +2571,91 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           }
           break;
         }
+        case UnaryOperator::Plus:
+          // Unary `+` is a no-op per the LRM.
+          result = operand;
+          break;
+        case UnaryOperator::BitwiseNand: {
+          // Reduction NAND: NOT(AND-reduce) -- same all-ones check as
+          // BitwiseAnd above, with the Ite branches swapped.
+          Sort bv1 = solver_->make_sort(BV, 1);
+          Term all_ones = solver_->make_term(
+              Equal,
+              operand,
+              solver_->make_term(string(operand->get_sort()->get_width(), '1'),
+                                 operand->get_sort(),
+                                 2));
+          result = solver_->make_term(Ite,
+                                      all_ones,
+                                      solver_->make_term(0, bv1),
+                                      solver_->make_term(1, bv1));
+          break;
+        }
+        case UnaryOperator::BitwiseNor: {
+          // Reduction NOR: NOT(OR-reduce) -- same any-one check as
+          // BitwiseOr above, with the Ite branches swapped.
+          Sort bv1 = solver_->make_sort(BV, 1);
+          Term any_one = solver_->make_term(
+              Distinct, operand, solver_->make_term(0, operand->get_sort()));
+          result = solver_->make_term(Ite,
+                                      any_one,
+                                      solver_->make_term(0, bv1),
+                                      solver_->make_term(1, bv1));
+          break;
+        }
+        case UnaryOperator::BitwiseXnor: {
+          // Reduction XNOR: NOT(XOR-reduce parity) -- same bit-by-bit
+          // XOR fold as BitwiseXor above, negated at the end.
+          uint64_t w = operand->get_sort()->get_width();
+          Term parity = solver_->make_term(Op(Extract, 0, 0), operand);
+          for (uint64_t i = 1; i < w; i++) {
+            Term bit = solver_->make_term(Op(Extract, i, i), operand);
+            parity = solver_->make_term(BVXor, parity, bit);
+          }
+          result = solver_->make_term(BVNot, parity);
+          break;
+        }
         default:
           throw PonoException(
               "SystemVerilogEncoder: unsupported unary operator "
               + to_string(static_cast<int>(unop.op)));
       }
       return resize_to(result, result_width);
+    }
+
+    case ExpressionKind::Streaming: {
+      // Scoped to a single stream with no `with` sub-range clause --
+      // covers real synthesizable usage of streaming concatenation
+      // (reversing/regrouping one packed value's bits or byte-lanes,
+      // e.g. `{<<{a}}`), not the LRM's full generality (multiple
+      // streams, `with` ranges, dynamically-sized queues/arrays).
+      auto & sc = expr.as<StreamingConcatenationExpression>();
+      if (sc.streams().size() != 1 || sc.streams()[0].withExpr) {
+        throw PonoException(
+            "SystemVerilogEncoder: unsupported streaming concatenation "
+            "shape (only a single stream with no `with` range is "
+            "supported)");
+      }
+      Term base = expr_to_term(*sc.streams()[0].operand);
+      uint64_t slice = sc.getSliceSize();
+      if (slice == 0) {
+        // `{>>{x}}` (left-to-right): a single stream is unchanged.
+        return base;
+      }
+      uint64_t w = base->get_sort()->get_width();
+      if (w % slice != 0) {
+        throw PonoException(
+            "SystemVerilogEncoder: streaming concatenation slice size "
+            "does not evenly divide operand width");
+      }
+      // `{<<{x}}` (right-to-left): reassemble slice-wide chunks in
+      // reverse order, taken from x's LSB to MSB.
+      Term result;
+      for (uint64_t lo = 0; lo < w; lo += slice) {
+        Term piece = solver_->make_term(Op(Extract, lo + slice - 1, lo), base);
+        result = result ? solver_->make_term(Concat, result, piece) : piece;
+      }
+      return result;
     }
 
     case ExpressionKind::Conversion: {
