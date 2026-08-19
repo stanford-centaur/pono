@@ -37,6 +37,7 @@ class Type;
 class Expression;
 class Statement;
 class Symbol;
+class ValueSymbol;
 class Scope;
 class InstanceSymbol;
 class InstanceBodySymbol;
@@ -197,6 +198,12 @@ class SystemVerilogEncoder
   void process_statement(const slang::ast::Statement & stmt,
                          StmtContext ctx,
                          const smt::Term & condition);
+
+  /** Re-derive `loop_var_terms_[&sym]` from `sym`'s current constant
+   *  value in eval_ctx() (after a for-loop step, a while/repeat/foreach
+   *  iteration, or a plain assignment to a compile-time-unrolled local).
+   *  Throws if `sym` isn't a currently-bound integer local. */
+  void refresh_loop_var_term(const slang::ast::ValueSymbol & sym);
 
   // ---------- Expression conversion ----------
 

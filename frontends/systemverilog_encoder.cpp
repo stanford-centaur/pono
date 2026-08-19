@@ -531,6 +531,22 @@ void collect_blocking_targets(
       collect_blocking_targets(loop.body, full, partial);
       break;
     }
+    case StatementKind::WhileLoop:
+      collect_blocking_targets(
+          stmt.as<WhileLoopStatement>().body, full, partial);
+      break;
+    case StatementKind::DoWhileLoop:
+      collect_blocking_targets(
+          stmt.as<DoWhileLoopStatement>().body, full, partial);
+      break;
+    case StatementKind::RepeatLoop:
+      collect_blocking_targets(
+          stmt.as<RepeatLoopStatement>().body, full, partial);
+      break;
+    case StatementKind::ForeachLoop:
+      collect_blocking_targets(
+          stmt.as<ForeachLoopStatement>().body, full, partial);
+      break;
     default: break;
   }
 }
@@ -594,6 +610,20 @@ void collect_nonblocking_targets(
       collect_nonblocking_targets(loop.body, targets);
       break;
     }
+    case StatementKind::WhileLoop:
+      collect_nonblocking_targets(stmt.as<WhileLoopStatement>().body, targets);
+      break;
+    case StatementKind::DoWhileLoop:
+      collect_nonblocking_targets(stmt.as<DoWhileLoopStatement>().body,
+                                  targets);
+      break;
+    case StatementKind::RepeatLoop:
+      collect_nonblocking_targets(stmt.as<RepeatLoopStatement>().body, targets);
+      break;
+    case StatementKind::ForeachLoop:
+      collect_nonblocking_targets(stmt.as<ForeachLoopStatement>().body,
+                                  targets);
+      break;
     default:
       // Other statement types: nothing to extract.
       break;
@@ -1419,6 +1449,24 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
           : solver_->make_term(Ite, condition, combined, prev_base);
 }
 
+void SystemVerilogEncoder::refresh_loop_var_term(
+    const slang::ast::ValueSymbol & sym)
+{
+  auto * cur = eval_ctx().findLocal(&sym);
+  if (!cur || !cur->isInteger()) {
+    throw PonoException("SystemVerilogEncoder: local variable '"
+                        + string(sym.name) + "' lost its constant value");
+  }
+  auto svint = cur->integer();
+  uint64_t width = sym.getType().getBitWidth();
+  if (width == 0) width = svint.getBitWidth();
+  if (width == 0) width = 32;
+  Sort sort = solver_->make_sort(BV, width);
+  svint.setSigned(false);
+  string val_str = svint.toString(slang::LiteralBase::Decimal, false);
+  loop_var_terms_[&sym] = solver_->make_term(val_str, sort, 10);
+}
+
 void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                                              StmtContext ctx,
                                              const Term & condition)
@@ -1429,6 +1477,46 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
     case StatementKind::ExpressionStatement: {
       auto & es = stmt.as<ExpressionStatement>();
       auto & expr = es.expr;
+
+      // A write to a plain compile-time-unrolled local (a `for`/
+      // `while`/`repeat`/`foreach` scratch variable, or any other
+      // `VariableDeclaration` local) is neither a wire nor a state
+      // variable, so the SMT-term machinery below would silently drop
+      // it (falls through to `symbol_to_term_.find() == end()` and
+      // returns without doing anything) -- delegate the whole
+      // expression to slang's own constant evaluator instead, exactly
+      // as `ForLoopStatement`'s own step expressions already do, and
+      // refresh the mirrored SMT constant so later condition
+      // evaluation (a `while`/`do`-`while` test, a `for`-loop bound)
+      // sees the new value.
+      {
+        const Expression * lval_expr = nullptr;
+        if (expr.kind == ExpressionKind::Assignment) {
+          lval_expr = &expr.as<AssignmentExpression>().left();
+        } else if (expr.kind == ExpressionKind::UnaryOp) {
+          auto & unop = expr.as<UnaryExpression>();
+          if (unop.op == UnaryOperator::Preincrement
+              || unop.op == UnaryOperator::Postincrement
+              || unop.op == UnaryOperator::Predecrement
+              || unop.op == UnaryOperator::Postdecrement) {
+            lval_expr = &unop.operand();
+          }
+        }
+        if (lval_expr) {
+          if (auto * base = find_lhs_base(*lval_expr)) {
+            auto & vsym = base->as<ValueSymbol>();
+            if (eval_ctx().findLocal(&vsym)) {
+              if (expr.eval(eval_ctx()).bad()) {
+                throw PonoException(
+                    "SystemVerilogEncoder: assignment to local variable '"
+                    + string(base->name) + "' failed to constant-evaluate");
+              }
+              refresh_loop_var_term(vsym);
+              break;
+            }
+          }
+        }
+      }
 
       // Resolves `lhs_expr` to its base symbol/bit-range/output-alias
       // and the "previous" full-base term a write should compose onto
@@ -2153,6 +2241,176 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       for (auto * sym : declared) {
         loop_var_terms_.erase(sym);
         eval_ctx().deleteLocal(sym);
+      }
+      break;
+    }
+
+    case StatementKind::WhileLoop: {
+      // Compile-time unroll, same contract as `for`: the condition
+      // must be constant-evaluable on every iteration (it can
+      // reference `for`-loop counters or other locals kept in sync by
+      // the ExpressionStatement fast path above) -- a condition that
+      // genuinely depends on a runtime (free/registered) signal can't
+      // be modeled as C++-level control flow at all, the same
+      // architectural boundary as the runtime-dependent break/
+      // continue/disable case below.
+      auto & loop = stmt.as<WhileLoopStatement>();
+      constexpr size_t MAX_ITERS = 65536;
+      for (size_t it = 0;; ++it) {
+        auto cv = loop.cond.eval(eval_ctx());
+        if (cv.bad()) {
+          throw PonoException(
+              "SystemVerilogEncoder: 'while' condition is not a "
+              "compile-time constant (runtime-dependent while loops "
+              "are not supported)");
+        }
+        if (!cv.isTrue()) break;
+        if (it >= MAX_ITERS) {
+          throw PonoException("SystemVerilogEncoder: 'while' loop exceeded "
+                              + std::to_string(MAX_ITERS) + " iterations");
+        }
+        bool broke = false;
+        try {
+          process_statement(loop.body, ctx, condition);
+        }
+        catch (const LoopControlSignal & sig) {
+          if (sig.kind == LoopControlSignal::Break) {
+            broke = true;
+          } else if (sig.kind != LoopControlSignal::Continue) {
+            throw;
+          }
+        }
+        if (broke) break;
+      }
+      break;
+    }
+
+    case StatementKind::DoWhileLoop: {
+      // Same as WhileLoop, but the condition is tested after the
+      // first execution of the body (`do ... while (cond);`).
+      auto & loop = stmt.as<DoWhileLoopStatement>();
+      constexpr size_t MAX_ITERS = 65536;
+      for (size_t it = 0;; ++it) {
+        if (it >= MAX_ITERS) {
+          throw PonoException("SystemVerilogEncoder: 'do-while' loop exceeded "
+                              + std::to_string(MAX_ITERS) + " iterations");
+        }
+        bool broke = false;
+        try {
+          process_statement(loop.body, ctx, condition);
+        }
+        catch (const LoopControlSignal & sig) {
+          if (sig.kind == LoopControlSignal::Break) {
+            broke = true;
+          } else if (sig.kind != LoopControlSignal::Continue) {
+            throw;
+          }
+        }
+        if (broke) break;
+        auto cv = loop.cond.eval(eval_ctx());
+        if (cv.bad()) {
+          throw PonoException(
+              "SystemVerilogEncoder: 'do-while' condition is not a "
+              "compile-time constant (runtime-dependent do-while "
+              "loops are not supported)");
+        }
+        if (!cv.isTrue()) break;
+      }
+      break;
+    }
+
+    case StatementKind::RepeatLoop: {
+      // The trip count is evaluated once, up front (per the LRM,
+      // `repeat` takes a plain expression, not a re-tested condition
+      // like `while`); an unroll-time-unresolvable count (a runtime
+      // signal) is out of scope, same contract as `for`/`while`
+      // bounds.
+      auto & loop = stmt.as<RepeatLoopStatement>();
+      auto cv = loop.count.eval(eval_ctx());
+      auto n_opt = cv.bad() ? std::nullopt : cv.integer().as<uint64_t>();
+      if (!n_opt) {
+        throw PonoException(
+            "SystemVerilogEncoder: 'repeat' count is not a "
+            "compile-time constant (runtime-dependent repeat counts "
+            "are not supported)");
+      }
+      constexpr uint64_t MAX_ITERS = 65536;
+      uint64_t n = *n_opt;
+      if (n > MAX_ITERS) {
+        throw PonoException("SystemVerilogEncoder: 'repeat' loop exceeded "
+                            + std::to_string(MAX_ITERS) + " iterations");
+      }
+      for (uint64_t it = 0; it < n; ++it) {
+        bool broke = false;
+        try {
+          process_statement(loop.body, ctx, condition);
+        }
+        catch (const LoopControlSignal & sig) {
+          if (sig.kind == LoopControlSignal::Break) {
+            broke = true;
+          } else if (sig.kind != LoopControlSignal::Continue) {
+            throw;
+          }
+        }
+        if (broke) break;
+      }
+      break;
+    }
+
+    case StatementKind::ForeachLoop: {
+      // Scoped to a single iterated dimension with a concrete loop
+      // variable and a statically-known range -- exactly the shape
+      // `foreach (arr[i])` produces for a fixed-size packed
+      // array/vector, which is all a compile-time-unrolling model can
+      // support. Multiple dimensions (`foreach (arr[i][j])`) or a
+      // dynamically-sized dimension (a real dynamic array/queue,
+      // which this encoder has no sort for anyway) throw a clear
+      // error instead of silently iterating the wrong thing or just
+      // the first dimension.
+      auto & loop = stmt.as<ForeachLoopStatement>();
+      if (loop.loopDims.size() != 1 || !loop.loopDims[0].loopVar
+          || !loop.loopDims[0].range) {
+        throw PonoException(
+            "SystemVerilogEncoder: 'foreach' is only supported over a "
+            "single statically-sized dimension with a loop variable "
+            "(multi-dimensional or dynamically-sized foreach is not "
+            "supported)");
+      }
+      auto & dim = loop.loopDims[0];
+      auto & iter_sym = *dim.loopVar;
+      int32_t lo = dim.range->lower();
+      int32_t hi = dim.range->upper();
+      uint64_t width = iter_sym.getType().getBitWidth();
+      if (width == 0) width = 32;
+
+      constexpr uint64_t MAX_ITERS = 65536;
+      if (static_cast<uint64_t>(hi) - static_cast<uint64_t>(lo) + 1
+          > MAX_ITERS) {
+        throw PonoException("SystemVerilogEncoder: 'foreach' loop exceeded "
+                            + std::to_string(MAX_ITERS) + " iterations");
+      }
+      for (int32_t idx = lo; idx <= hi; ++idx) {
+        slang::SVInt iv(static_cast<slang::bitwidth_t>(width),
+                        static_cast<uint64_t>(idx),
+                        /*isSigned=*/true);
+        eval_ctx().createLocal(&iter_sym, slang::ConstantValue(iv));
+        refresh_loop_var_term(iter_sym);
+        bool broke = false;
+        try {
+          process_statement(loop.body, ctx, condition);
+        }
+        catch (const LoopControlSignal & sig) {
+          if (sig.kind != LoopControlSignal::Break
+              && sig.kind != LoopControlSignal::Continue) {
+            loop_var_terms_.erase(&iter_sym);
+            eval_ctx().deleteLocal(&iter_sym);
+            throw;
+          }
+          broke = sig.kind == LoopControlSignal::Break;
+        }
+        loop_var_terms_.erase(&iter_sym);
+        eval_ctx().deleteLocal(&iter_sym);
+        if (broke) break;
       }
       break;
     }

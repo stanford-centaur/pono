@@ -80,22 +80,39 @@ TEST_P(SVUnitTests, CasexCasezWildcard)
 }
 
 // ---------------------------------------------------------------------------
-// Loop kinds beyond the already-supported `for`.  process_statement()'s
-// default case (confirmed by inspection) silently skips any statement kind
-// it doesn't recognize, logging only a level-1 warning -- so an
-// unimplemented loop kind doesn't throw, it just makes the loop body a
-// no-op.  Each of these mirrors the OR-reduction compound_assign.sv/
-// while_loop.sv already prove works via `for`, so a Gap_ result here
-// isolates the loop *keyword* as the point of failure.
+// FIXED: `while`/`do-while`/`repeat`/`foreach` were all missing from
+// process_statement()'s switch, hitting the default case, which (confirmed
+// by inspection) silently skips any statement kind it doesn't recognize,
+// logging only a level-1 warning -- so the loop body was simply a no-op.
+// Root cause went one level deeper than a missing switch case: a plain
+// procedural scratch variable (`int i;` mutated by `i = i + 1;` inside a
+// block) wasn't tracked anywhere when written via a normal
+// ExpressionStatement, since that path resolves through begin_write()/
+// commit_write(), which for a symbol that's neither a wire nor a state
+// variable silently drops the write. That's harmless for `for`, whose own
+// step expressions are evaluated directly against slang's constant
+// evaluator by the ForLoop case itself -- but a `while`/`do-while`
+// condition re-testing `i` on every iteration would never see it change.
+// Fixed by adding a fast path to ExpressionStatement's Assignment/++/--
+// handling: a write to any symbol currently bound as a compile-time-
+// unrolled local is now evaluated by slang's own constant evaluator and
+// mirrored back into the same loop_var_terms_ map `for`-loop counters
+// already use, instead of falling into the wire/state-var path. `while`/
+// `do-while` conditions and `repeat` counts follow the same compile-time-
+// constant-only contract as `for` bounds and break/continue/disable
+// (clear PonoException, not a wrong verdict, for a runtime-dependent
+// bound); `foreach` is scoped to a single statically-sized dimension with
+// a loop variable, which is what `foreach (arr[i])` over a fixed-size
+// packed vector produces.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_WhileLoop) { check_bmc("while_loop.sv", 2); }
+TEST_P(SVUnitTests, WhileLoop) { check_bmc("while_loop.sv", 2); }
 
-TEST_P(SVUnitTests, Gap_DoWhileLoop) { check_bmc("do_while_loop.sv", 2); }
+TEST_P(SVUnitTests, DoWhileLoop) { check_bmc("do_while_loop.sv", 2); }
 
-TEST_P(SVUnitTests, Gap_RepeatLoop) { check_bmc("repeat_loop.sv", 2); }
+TEST_P(SVUnitTests, RepeatLoop) { check_bmc("repeat_loop.sv", 2); }
 
-TEST_P(SVUnitTests, Gap_ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
+TEST_P(SVUnitTests, ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
 
 // ---------------------------------------------------------------------------
 // FIXED, scoped to compile-time-constant conditions: process_statement()
