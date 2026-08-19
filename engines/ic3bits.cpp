@@ -212,10 +212,14 @@ void IC3Bits::predecessor_generalization(size_t i,
                                          const Term & cterm,
                                          IC3Formula & pred)
 {
-  (void)i;
-  if (options_.ic3_pregen_) {
+  if (!options_.ic3_pregen_) return;
+
+  if (options_.ic3bits_partial_model_pregen_) {
     pred = ExtractPartialModel(cterm);
+    return;
   }
+
+  IC3::predecessor_generalization(i, cterm, pred);
 }
 
 }  // namespace pono

@@ -68,6 +68,7 @@ enum optionIndex
   IC3_GEN_MAX_ITER,
   IC3_FUNCTIONAL_PREIMAGE,
   NO_IC3_UNSATCORE_GEN,
+  IC3BITS_PARTIAL_MODEL_PREGEN,
   NO_IC3IA_REDUCE_PREDS,
   NO_IC3IA_TRACK_IMPORTANT_VARS,
   NO_IC3IA_SIM_CEX,
@@ -391,6 +392,14 @@ const option::Descriptor usage[] = {
     "variants but also runs the risk of myopic over-generalization. Some IC3 "
     "variants have better inductive generalization and do better with this "
     "option." },
+  { IC3BITS_PARTIAL_MODEL_PREGEN,
+    0,
+    "",
+    "ic3bits-partial-model-pregen",
+    Arg::None,
+    "  --ic3bits-partial-model-pregen \tUse bit-level partial-model "
+    "predecessor generalization in IC3Bits instead of the parent Boolean IC3 "
+    "predecessor generalization." },
   { NO_IC3IA_REDUCE_PREDS,
     0,
     "",
@@ -950,6 +959,9 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case IC3_FUNCTIONAL_PREIMAGE: ic3_functional_preimage_ = true; break;
         case NO_IC3_UNSATCORE_GEN: ic3_unsatcore_gen_ = false; break;
+        case IC3BITS_PARTIAL_MODEL_PREGEN:
+          ic3bits_partial_model_pregen_ = true;
+          break;
         case NO_IC3IA_REDUCE_PREDS: ic3ia_reduce_preds_ = false;
         case NO_IC3IA_TRACK_IMPORTANT_VARS: ic3ia_track_important_vars_ = false;
         case NO_IC3IA_SIM_CEX: ic3ia_sim_cex_ = false; break;
