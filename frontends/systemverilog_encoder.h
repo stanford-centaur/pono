@@ -429,6 +429,33 @@ class SystemVerilogEncoder
    */
   smt::Term match_exists(const slang::ast::AssertionExpr & seq);
 
+  /** The Boolean condition of a sequence's own leading element --
+   *  "has an attempt to match `seq` just begun" -- used by
+   *  weak_seq_bool() to detect when an in-progress match attempt has
+   *  definitely failed. Recurses through FirstMatch/Clocking (like
+   *  offsets_ending_now()) and into a SequenceConcat's first element.
+   *  Throws for a sequence shape this doesn't model (its own leading
+   *  repetition, or a Binary intersect/within/throughout as the
+   *  outermost sequence) rather than guessing.
+   *  @param seq the sequence expression to inspect
+   *  @return the Boolean "an attempt just started" term
+   */
+  smt::Term leading_condition(const slang::ast::AssertionExpr & seq);
+
+  /** Builds the `weak(seq)` Boolean safety condition: `seq` carries no
+   *  obligation to ever match, but if an attempt began exactly
+   *  `S = offsets_ending_now(seq).size() - 1` cycles ago (`S` being
+   *  the sequence's own maximum span -- the last possible chance for
+   *  that attempt to complete) and no completion happened anywhere in
+   *  the intervening window, that attempt has definitely failed.
+   *  Checked at every cycle, this covers every possible attempt start
+   *  point exactly once, `S` cycles after it began. Returns a null
+   *  Term if `seq`'s shape isn't modeled by offsets_ending_now().
+   *  @param seq the sequence expression `weak(...)` wraps
+   *  @return the Boolean safety term, or a null Term
+   */
+  smt::Term weak_seq_bool(const slang::ast::AssertionExpr & seq);
+
   /** Build a chain of `n` 1-cycle latch state vars that track
    *  `value` over n cycles, returning a Term equal to the value
    *  from `n` cycles ago.  Each latch is initialised to 0 and its

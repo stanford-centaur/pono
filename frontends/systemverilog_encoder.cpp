@@ -3846,6 +3846,66 @@ smt::Term SystemVerilogEncoder::match_exists(
   return result;
 }
 
+smt::Term SystemVerilogEncoder::leading_condition(
+    const slang::ast::AssertionExpr & seq)
+{
+  using namespace slang::ast;
+  switch (seq.kind) {
+    case AssertionExprKind::Simple: {
+      auto & simple = seq.as<SimpleAssertionExpr>();
+      if (simple.repetition) {
+        throw PonoException(
+            "SystemVerilogEncoder: weak()/strong() of a sequence with its "
+            "own leading repetition is not supported");
+      }
+      Term t = expr_to_term(simple.expr);
+      return solver_->make_term(
+          Distinct, t, solver_->make_term(0, t->get_sort()));
+    }
+    case AssertionExprKind::FirstMatch:
+      return leading_condition(seq.as<FirstMatchAssertionExpr>().seq);
+    case AssertionExprKind::Clocking:
+      return leading_condition(seq.as<ClockingAssertionExpr>().expr);
+    case AssertionExprKind::SequenceConcat:
+      return leading_condition(
+          *seq.as<SequenceConcatExpr>().elements[0].sequence);
+    default:
+      throw PonoException(
+          "SystemVerilogEncoder: weak()/strong() of this sequence shape is "
+          "not supported");
+  }
+}
+
+smt::Term SystemVerilogEncoder::weak_seq_bool(
+    const slang::ast::AssertionExpr & seq)
+{
+  TermVec offsets = offsets_ending_now(seq);
+  if (offsets.empty()) return Term();
+  Term me;
+  for (auto & t : offsets) {
+    if (!t) continue;
+    me = me ? solver_->make_term(Or, me, t) : t;
+  }
+  if (!me) return Term();
+
+  // S = the sequence's own maximum span: the last possible cycle an
+  // attempt that started here could still complete by.
+  uint32_t s = static_cast<uint32_t>(offsets.size()) - 1;
+  Term started_s_ago = delay_bool(leading_condition(seq), s);
+  Term completed_in_window = me;
+  for (uint32_t j = 1; j <= s; ++j) {
+    completed_in_window =
+        solver_->make_term(Or, completed_in_window, delay_bool(me, j));
+  }
+  // Violated iff an attempt began exactly S cycles ago and no
+  // completion happened anywhere from then through now; weak(seq) is
+  // the negation -- no obligation to ever attempt, but an attempt that
+  // did begin must not be a definite, provable failure.
+  Term violated = solver_->make_term(
+      And, started_s_ago, solver_->make_term(Not, completed_in_window));
+  return solver_->make_term(Not, violated);
+}
+
 smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
                                            bool neg,
                                            smt::TermVec & justice)
@@ -3856,10 +3916,24 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
     case AssertionExprKind::Clocking:
       return ltl_to_sat(ae.as<ClockingAssertionExpr>().expr, neg, justice);
 
-    case AssertionExprKind::StrongWeak:
-      // The strong/weak qualifier governs end-of-time behaviour, which
-      // is immaterial under our infinite-lasso semantics.  Unwrap.
-      return ltl_to_sat(ae.as<StrongWeakAssertionExpr>().expr, neg, justice);
+    case AssertionExprKind::StrongWeak: {
+      auto & sw = ae.as<StrongWeakAssertionExpr>();
+      // The strong/weak qualifier only meaningfully differs for a
+      // genuine bounded sequence -- must it eventually complete
+      // (strong) or not (weak)? Any other shape (already a plain
+      // Boolean/temporal expression) is unaffected by the qualifier
+      // under this encoder's infinite-lasso semantics; just unwrap.
+      if (sw.strength == StrongWeakAssertionExpr::Strong) {
+        Term me = match_exists(sw.expr);
+        if (me) {
+          // strong(seq): a genuine liveness obligation -- the sequence
+          // must eventually complete a match.
+          return neg ? ltl_make_G(solver_->make_term(Not, me))
+                     : ltl_make_F(me, justice);
+        }
+      }
+      return ltl_to_sat(sw.expr, neg, justice);
+    }
 
     case AssertionExprKind::Simple: {
       auto & simple = ae.as<SimpleAssertionExpr>();
@@ -4069,10 +4143,24 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
     }
 
     case AssertionExprKind::StrongWeak: {
-      // The strong/weak qualifier governs how an unbounded sequence
-      // is treated at the end of time; under our infinite-time safety
-      // encoding it has no effect.  Just unwrap.
-      return assertion_expr_to_bool(ae.as<StrongWeakAssertionExpr>().expr);
+      auto & sw = ae.as<StrongWeakAssertionExpr>();
+      if (sw.strength == StrongWeakAssertionExpr::Strong) {
+        // strong(seq) is a genuine liveness obligation ("must
+        // eventually complete"), not reducible to a current-cycle
+        // Boolean -- handled by ltl_to_sat()'s StrongWeak case
+        // instead, which builds the eventuality tableau. Returning
+        // null here forces the ConcurrentAssertion handler to fall
+        // through to that path rather than (incorrectly) treating a
+        // strong sequence as if it were always-true right now.
+        return Term();
+      }
+      // weak(seq): no obligation to ever match, but an attempt that
+      // did begin must not be a definite, provable failure -- see
+      // weak_seq_bool(). Any other shape (already a plain Boolean/
+      // temporal expression) is unaffected by the qualifier; just
+      // unwrap.
+      if (Term w = weak_seq_bool(sw.expr)) return w;
+      return assertion_expr_to_bool(sw.expr);
     }
 
     case AssertionExprKind::Unary: {

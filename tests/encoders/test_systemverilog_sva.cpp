@@ -171,32 +171,37 @@ TEST_P(SVUnitTests, UntilHoldsViaReleaseTableau)
 }
 
 // ---------------------------------------------------------------------------
-// GAP: strong(seq)/weak(seq) applied to a general (multi-element)
-// sequence leave both propvec() and ltl_justice() empty. StrongWeak
-// itself unwraps fine in both assertion_expr_to_bool()/ltl_to_sat(),
-// but the inner `a ##1 1'b1` is a 2-element SequenceConcat, and
-// match_const_delay_seq() (the only SequenceConcat shape either
-// function handles) requires exactly one element -- so general
-// sequence-to-LTL translation (the actual missing feature) never gets
-// a chance to run.
+// FIXED: strong(seq)/weak(seq) applied to a general (multi-element)
+// sequence used to leave both propvec() and ltl_justice() empty --
+// StrongWeak itself unwrapped fine in both assertion_expr_to_bool()/
+// ltl_to_sat(), but the inner `a ##1 1'b1` is a 2-element
+// SequenceConcat, and match_const_delay_seq() (the only SequenceConcat
+// shape either function handled) required exactly one element, so
+// general sequence matching never got a chance to run.
 //
 // strong(seq) is a genuine liveness obligation: the sequence must
-// *eventually* match. `a` is free and can stay low forever, so BMC (via
-// the L2S translator) should find a fair lasso where the eventuality
-// is never discharged.
+// *eventually* match. Now built as `F(match_exists(seq))` in
+// ltl_to_sat()'s StrongWeak case. `a` is free and can stay low forever,
+// so BMC (via the L2S translator) finds a fair lasso where the
+// eventuality is never discharged.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_StrongSeqObligation)
+TEST_P(SVUnitTests, StrongSeqObligation)
 {
   check_liveness_bmc("strong_seq.sv", 5);
 }
 
-// weak(seq) carries no obligation to ever match: if `a` never fires,
-// the sequence never starts, and (since its continuation `##1 1'b1` is
-// an unconditional truth that can never itself fail once started) the
-// property holds vacuously forever -- a genuine tautology, not merely
-// "unproven within this bound".
-TEST_P(SVUnitTests, Gap_WeakSeqVacuousHold)
+// weak(seq) carries no obligation to ever match, but an attempt that
+// *did* begin must not be a definite, provable failure -- see
+// weak_seq_bool(): an attempt began exactly S cycles ago (S = the
+// sequence's own max span) and nothing completed anywhere in that
+// window. Here, `a` never firing means no attempt ever began at all
+// (vacuously fine), and once it does fire, the continuation `##1 1'b1`
+// is an unconditional truth that can never itself fail -- so the
+// property holds vacuously forever, a genuine tautology (confirmed by
+// weak_seq_bool()'s formula reducing to a logical contradiction for
+// this shape), not merely "unproven within this bound".
+TEST_P(SVUnitTests, WeakSeqVacuousHold)
 {
   check_bmc("weak_seq.sv", 4, ProverResult::UNKNOWN);
 }
