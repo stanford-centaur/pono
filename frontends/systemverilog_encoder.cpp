@@ -3557,6 +3557,196 @@ smt::Term SystemVerilogEncoder::ltl_make_U(const smt::Term & a,
   return body;
 }
 
+Term SystemVerilogEncoder::delay_bool(const Term & cond, uint32_t n)
+{
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+  Term zero_bv1 = solver_->make_term(0, bv1);
+  Term cond_bv = solver_->make_term(Ite, cond, one_bv1, zero_bv1);
+  Term delayed_bv = make_history_chain(cond_bv, n);
+  return solver_->make_term(Equal, delayed_bv, one_bv1);
+}
+
+namespace {
+// The largest total span (in cycles) offsets_ending_now() will build
+// before giving up -- a defensive cap against a pathological/absurd
+// bounded sequence, mirroring the MAX_ITERS-style caps used elsewhere
+// in this encoder for other compile-time-unrolled constructs.
+constexpr uint32_t MAX_SEQ_WINDOW = 256;
+}  // namespace
+
+smt::TermVec SystemVerilogEncoder::offsets_ending_now(
+    const slang::ast::AssertionExpr & seq)
+{
+  using namespace slang::ast;
+
+  // A single Boolean expression, optionally with a consecutive
+  // repetition (`expr[*n:m]`, `expr[+]`, `expr[*]`). Shared by both
+  // SimpleAssertionExpr and SequenceWithMatchExpr, which each carry
+  // their own std::optional<SequenceRepetition>.
+  auto boolean_with_repetition =
+      [&](const slang::ast::Expression & expr,
+          const std::optional<SequenceRepetition> & repetition) -> TermVec {
+    Term b = expr_to_term(expr);
+    b = solver_->make_term(Distinct, b, solver_->make_term(0, b->get_sort()));
+    if (!repetition) return { b };
+    if (repetition->kind != SequenceRepetition::Consecutive) {
+      throw PonoException(
+          "SystemVerilogEncoder: nonconsecutive/goto sequence repetition "
+          "([->]/[=]) is not supported");
+    }
+    if (!repetition->range.max) {
+      throw PonoException(
+          "SystemVerilogEncoder: unbounded consecutive sequence "
+          "repetition ([*]/[+]/[*n:$]) is not supported");
+    }
+    uint32_t lo = repetition->range.min;
+    uint32_t hi = *repetition->range.max;
+    if (hi >= MAX_SEQ_WINDOW) {
+      throw PonoException("SystemVerilogEncoder: sequence repetition exceeds "
+                          + std::to_string(MAX_SEQ_WINDOW) + " cycles");
+    }
+    // expr[*lo:hi] matches (ending now, started L cycles ago) for
+    // L in [lo-1, hi-1], requiring expr to hold at every one of the
+    // L+1 cycles from L-cycles-ago through now.
+    TermVec out(hi, Term());
+    Term running = b;
+    for (uint32_t count = 1; count <= hi; ++count) {
+      if (count > 1) {
+        running = solver_->make_term(And, running, delay_bool(b, count - 1));
+      }
+      if (count >= lo) out[count - 1] = running;
+    }
+    return out;
+  };
+
+  switch (seq.kind) {
+    case AssertionExprKind::Simple: {
+      auto & simple = seq.as<SimpleAssertionExpr>();
+      return boolean_with_repetition(simple.expr, simple.repetition);
+    }
+
+    case AssertionExprKind::SequenceWithMatch: {
+      auto & swm = seq.as<SequenceWithMatchExpr>();
+      // A parenthesized sequence with its own repetition
+      // (`(seq)[*n:m]`) would need to convolve `seq`'s own offset
+      // vector with itself count times -- out of scope; only a plain
+      // Boolean operand with repetition is handled today.
+      if (swm.repetition) {
+        if (swm.expr.kind != AssertionExprKind::Simple
+            || swm.expr.as<SimpleAssertionExpr>().repetition) {
+          throw PonoException(
+              "SystemVerilogEncoder: repetition of a non-Boolean sequence "
+              "is not supported");
+        }
+        return boolean_with_repetition(swm.expr.as<SimpleAssertionExpr>().expr,
+                                       swm.repetition);
+      }
+      return offsets_ending_now(swm.expr);
+    }
+
+    case AssertionExprKind::FirstMatch:
+      // first_match(seq) only restricts *which* match is reported when
+      // a sequence can match in more than one way -- it never changes
+      // whether a match exists at all, which is all this encoder's
+      // callers (an implication antecedent, an intersect/within/
+      // throughout operand) ever ask offsets_ending_now() for.
+      return offsets_ending_now(seq.as<FirstMatchAssertionExpr>().seq);
+
+    case AssertionExprKind::Clocking:
+      // Per this file's multiclock design decision: every named clock
+      // is treated as the same global pono-cycle, so a nested clocking
+      // change inside a sequence element is simply unwrapped.
+      return offsets_ending_now(seq.as<ClockingAssertionExpr>().expr);
+
+    case AssertionExprKind::SequenceConcat: {
+      auto & sc = seq.as<SequenceConcatExpr>();
+      TermVec acc;
+      for (size_t i = 0; i < sc.elements.size(); ++i) {
+        auto & elem = sc.elements[i];
+        if (!elem.delay.max) {
+          throw PonoException(
+              "SystemVerilogEncoder: unbounded sequence delay (##[m:$]) is "
+              "not supported");
+        }
+        uint32_t dmin = elem.delay.min;
+        uint32_t dmax = *elem.delay.max;
+        TermVec elem_offsets = offsets_ending_now(*elem.sequence);
+        if (elem_offsets.empty()) return {};
+
+        if (i == 0) {
+          // The delay before the very first element just relabels how
+          // far back "the sequence's start" is, with no extra
+          // condition to AND in.
+          size_t new_size = elem_offsets.size() - 1 + dmax + 1;
+          if (new_size > MAX_SEQ_WINDOW) {
+            throw PonoException("SystemVerilogEncoder: sequence window exceeds "
+                                + std::to_string(MAX_SEQ_WINDOW) + " cycles");
+          }
+          acc.assign(new_size, Term());
+          for (size_t l = 0; l < elem_offsets.size(); ++l) {
+            if (!elem_offsets[l]) continue;
+            for (uint32_t d = dmin; d <= dmax; ++d) {
+              size_t idx = l + d;
+              acc[idx] = acc[idx]
+                             ? solver_->make_term(Or, acc[idx], elem_offsets[l])
+                             : elem_offsets[l];
+            }
+          }
+          continue;
+        }
+
+        size_t new_size = acc.size() - 1 + dmax + (elem_offsets.size() - 1) + 1;
+        if (new_size > MAX_SEQ_WINDOW) {
+          throw PonoException("SystemVerilogEncoder: sequence window exceeds "
+                              + std::to_string(MAX_SEQ_WINDOW) + " cycles");
+        }
+        TermVec new_acc(new_size, Term());
+        for (size_t lp = 0; lp < acc.size(); ++lp) {
+          if (!acc[lp]) continue;
+          for (uint32_t d = dmin; d <= dmax; ++d) {
+            for (size_t le = 0; le < elem_offsets.size(); ++le) {
+              if (!elem_offsets[le]) continue;
+              size_t idx = lp + d + le;
+              // Bring the (already-anchored-at-"now") prefix condition
+              // back by (d + le) cycles so it aligns with this
+              // element's own occurrence, then AND with this
+              // element's own (unshifted) completion condition.
+              Term shifted_prefix =
+                  (d + le == 0) ? acc[lp] : delay_bool(acc[lp], d + le);
+              Term combined =
+                  solver_->make_term(And, shifted_prefix, elem_offsets[le]);
+              new_acc[idx] =
+                  new_acc[idx] ? solver_->make_term(Or, new_acc[idx], combined)
+                               : combined;
+            }
+          }
+        }
+        acc = std::move(new_acc);
+      }
+      return acc;
+    }
+
+    default:
+      // Unsupported sequence shape (a nested Binary/StrongWeak/etc.
+      // operand this primitive doesn't model yet) -- the caller falls
+      // back to its existing unsupported-construct handling.
+      return {};
+  }
+}
+
+smt::Term SystemVerilogEncoder::match_exists(
+    const slang::ast::AssertionExpr & seq)
+{
+  TermVec offsets = offsets_ending_now(seq);
+  Term result;
+  for (auto & t : offsets) {
+    if (!t) continue;
+    result = result ? solver_->make_term(Or, result, t) : t;
+  }
+  return result;
+}
+
 smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
                                            bool neg,
                                            smt::TermVec & justice)
@@ -3576,6 +3766,15 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       auto & simple = ae.as<SimpleAssertionExpr>();
       if (auto * named = resolve_named_assertion_ref(simple.expr)) {
         return ltl_to_sat(*named, neg, justice);
+      }
+      if (simple.repetition) {
+        // See the matching check in assertion_expr_to_bool(): route
+        // through the general bounded sequence matcher (which throws
+        // for an unbounded repeat count) instead of silently ignoring
+        // the repetition.
+        Term me = match_exists(ae);
+        if (!me) return Term();
+        return neg ? solver_->make_term(Not, me) : me;
       }
       Term t = expr_to_term(simple.expr);
       if (!t) return Term();
@@ -3745,6 +3944,13 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
       if (auto * named = resolve_named_assertion_ref(simple.expr)) {
         return assertion_expr_to_bool(*named);
       }
+      if (simple.repetition) {
+        // `expr[*n:m]`/`expr[+]`/`expr[*]`: route through the general
+        // bounded sequence matcher (which throws for an unbounded
+        // repeat count) instead of silently ignoring the repetition
+        // and returning a bare `bool(expr)`.
+        return match_exists(ae);
+      }
       Term t = expr_to_term(simple.expr);
       // Normalize to Bool: t != 0.
       Sort sort = t->get_sort();
@@ -3815,22 +4021,52 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
           lhs_delay = lhs_matched->first;
           lhs_inner = lhs_matched->second;
         }
+        // A plain-Boolean-reducible antecedent (the common case) is
+        // handled directly; a multi-element/first-match/nested-clock
+        // sequence antecedent (`a ##1 b |-> ...`,
+        // `first_match(seq) |-> ...`) falls back to the general
+        // bounded sequence matcher.
         Term lhs = assertion_expr_to_bool(*lhs_inner);
+        if (!lhs) lhs = match_exists(*lhs_inner);
         if (!lhs) return Term();
 
         // Compute the consequent at its anchor cycle (offset by any
         // `##k` on the RHS), then delay the antecedent by that
         // offset using a chain of 1-bit latches so the resulting
-        // implication is expressed in the current cycle.
+        // implication is expressed in the current cycle. A *range*
+        // delay on a single-element consequent (`##[m:n] Q`) instead
+        // becomes an OR over "Q held i cycles ago" for i spanning the
+        // window, anchored at the window's latest cycle (delay +=
+        // wmax) -- checking at that cycle is exactly when a violation
+        // (the whole window has passed with no match) becomes certain.
         uint32_t delay =
             (b.op == BinaryAssertionOperator::NonOverlappedImplication) ? 1 : 0;
         const AssertionExpr * rhs_inner = &b.right;
+        Term rhs;
         if (auto matched = match_const_delay_seq(b.right)) {
           delay += matched->first;
           rhs_inner = matched->second;
+          rhs = assertion_expr_to_bool(*rhs_inner);
+        } else if (b.right.kind == AssertionExprKind::SequenceConcat
+                   && b.right.as<SequenceConcatExpr>().elements.size() == 1) {
+          auto & elem = b.right.as<SequenceConcatExpr>().elements[0];
+          if (!elem.delay.max) {
+            throw PonoException(
+                "SystemVerilogEncoder: unbounded sequence delay (##[m:$]) "
+                "is not supported");
+          }
+          uint32_t wmin = elem.delay.min;
+          uint32_t wmax = *elem.delay.max;
+          if (Term inner = assertion_expr_to_bool(*elem.sequence)) {
+            delay += wmax;
+            rhs = inner;
+            for (uint32_t i = 1; i <= wmax - wmin; ++i) {
+              rhs = solver_->make_term(Or, rhs, delay_bool(inner, i));
+            }
+          }
+        } else {
+          rhs = assertion_expr_to_bool(*rhs_inner);
         }
-
-        Term rhs = assertion_expr_to_bool(*rhs_inner);
         if (!rhs) return Term();
 
         if (delay > 0) {

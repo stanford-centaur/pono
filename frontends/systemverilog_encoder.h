@@ -396,6 +396,39 @@ class SystemVerilogEncoder
    */
   smt::Term assertion_expr_to_bool(const slang::ast::AssertionExpr & ae);
 
+  /** General bounded sequence matching: given a sequence expression
+   *  (`Simple`, `SequenceConcat` with per-element `[m:n]` delay ranges,
+   *  `FirstMatch`, `Clocking` -- unwrapped/ignored per this file's
+   *  multiclock design decision), returns a vector indexed by relative
+   *  offset `L` where entry `L` is a Term true iff the sequence
+   *  completes a match at the *current* cycle, having started `L`
+   *  cycles earlier. A null entry means that offset is structurally
+   *  unreachable. Returns an empty vector for sequence shapes this
+   *  primitive doesn't (yet) model -- the caller should treat that the
+   *  same as an unsupported construct.
+   *
+   *  Scoped to statically-bounded sequences: an unbounded (`[*]`,
+   *  `[+]`, `[*n:$]`) or nonconsecutive/goto repetition, or an
+   *  unbounded inter-element delay (`##[m:$]`), throws a clear
+   *  PonoException rather than silently mismodeling or dropping it --
+   *  this is a permanent architectural boundary of the encoder's
+   *  compile-time-bounded model, not a "not implemented yet" gap.
+   *  @param seq the sequence expression to match
+   *  @return offsets indexed by relative start-to-end span
+   */
+  smt::TermVec offsets_ending_now(const slang::ast::AssertionExpr & seq);
+
+  /** Convenience wrapper over offsets_ending_now(): ORs together every
+   *  reachable offset, i.e. "does `seq` complete a match at the
+   *  current cycle, regardless of how long it took". Returns a null
+   *  Term if offsets_ending_now() returns no reachable offsets at all
+   *  (an unsupported sequence shape) so callers can fall back to their
+   *  existing unsupported-construct handling.
+   *  @param seq the sequence expression to match
+   *  @return the "matches now" Boolean term, or a null Term
+   */
+  smt::Term match_exists(const slang::ast::AssertionExpr & seq);
+
   /** Build a chain of `n` 1-cycle latch state vars that track
    *  `value` over n cycles, returning a Term equal to the value
    *  from `n` cycles ago.  Each latch is initialised to 0 and its
@@ -406,6 +439,18 @@ class SystemVerilogEncoder
    *  @return a Term holding `value` from `n` cycles ago
    */
   smt::Term make_history_chain(const smt::Term & value, uint32_t n);
+
+  /** Like make_history_chain(), but for a Bool-sorted (not BV-sorted)
+   *  `cond` -- some solvers (e.g. Bitwuzla) can't build a state
+   *  variable or a zero constant of sort Bool, so this wraps `cond`
+   *  into a BV1 flag before delaying it and unwraps back to Bool
+   *  afterward, matching the pattern already used for the `|=>`/
+   *  `|-> ##N` antecedent delay.
+   *  @param cond the current-cycle Bool-sorted condition to delay
+   *  @param n    the number of cycles of delay (>= 1)
+   *  @return a Bool-sorted Term equal to `cond` from `n` cycles ago
+   */
+  smt::Term delay_bool(const smt::Term & cond, uint32_t n);
 
   /** General symbolic-tableau translation of an SVA property into the
    *  Boolean SMT term `sat(psi)` that holds at a cycle iff the

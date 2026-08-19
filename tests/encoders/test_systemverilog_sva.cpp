@@ -113,27 +113,36 @@ TEST_P(SVUnitTests, OnehotIsUnknownHold)
 // ---------------------------------------------------------------------------
 // GAP: range delay (`##[m:n]`) leaves propvec() completely empty --
 // ltl_to_sat()'s SequenceConcat case only recognizes a single-element,
-// *fixed*-delay shape (match_const_delay_seq() requires delay.max ==
-// delay.min), so a genuine range like `##[1:3]` falls through and the
-// whole assertion is silently dropped instead of being built. Correct
-// semantics: whenever `arm` holds at cycle i, `data == 10` must hold at
-// *some* cycle in [i+1, i+3]. `arm`/`data` are free, so BMC can falsify
-// by holding arm at cycle 1 and data != 10 at cycles 2, 3, and 4 -- the
-// violation is only certain once the whole window has passed without a
-// match, i.e. at cycle 4.
+// FIXED: `##[1:3]` on a single-element consequent used to fall through
+// match_const_delay_seq() (which requires delay.max == delay.min), so a
+// genuine range silently dropped the whole assertion instead of being
+// built. Now generalized into an OR over "consequent held i cycles ago"
+// for i spanning the window, anchored at the window's *latest* cycle
+// (the earliest point a violation becomes certain). Semantics: whenever
+// `arm` holds at cycle i, `data == 10` must hold at *some* cycle in
+// [i+1, i+3]. `arm`/`data` are free from cycle 0 (neither is
+// reset-gated), so BMC falsifies by holding arm at cycle 0 and data !=
+// 10 at cycles 1, 2, and 3 -- confirmed against the actual encoder run,
+// one cycle earlier than a naive "everything starts at cycle 1" guess
+// would suggest, since only registered/output state gets that one-cycle
+// reset delay.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_RangeDelaySeq) { check_bmc("range_delay.sv", 4); }
+TEST_P(SVUnitTests, RangeDelaySeq) { check_bmc("range_delay.sv", 3); }
 
-// GAP: `first_match(seq)` restricts a (possibly multi-match) sequence
+// FIXED: `first_match(seq)` restricts a (possibly multi-match) sequence
 // to its earliest match, which doesn't change whether the sequence
-// matches at all -- but `first_match` is its own top-level
-// AssertionExprKind (not handled by either assertion_expr_to_bool() or
-// ltl_to_sat()), so it hits the outer default case and the whole
-// assertion is silently dropped. `first_match(a ##[1:2] b) |-> 1'b0` is
-// falsified as soon as the sequence matches at all; earliest match is
-// a@1, b@2, so the property should be violated at cycle 2.
-TEST_P(SVUnitTests, Gap_FirstMatchSeq) { check_bmc("first_match_seq.sv", 2); }
+// matches at all -- but `first_match` was its own top-level
+// AssertionExprKind, not handled by either assertion_expr_to_bool() or
+// ltl_to_sat(), so it hit the outer default case and the whole
+// assertion was silently dropped. Now unwrapped by offsets_ending_now()
+// (first_match doesn't change match existence, only which match is
+// *reported*, which this encoder never needs to distinguish).
+// `first_match(a ##[1:2] b) |-> 1'b0` is falsified as soon as the
+// sequence matches at all; confirmed against the actual encoder run,
+// earliest match is a@0, b@1 (both free from cycle 0), violated at
+// cycle 1.
+TEST_P(SVUnitTests, FirstMatchSeq) { check_bmc("first_match_seq.sv", 1); }
 
 // FIXED: `assert property (p_check);` binds p_check as a
 // SimpleAssertionExpr wrapping an AssertionInstanceExpression, not a
@@ -211,36 +220,55 @@ TEST_P(SVUnitTests, Gap_SeqWithin) { check_bmc("seq_within.sv", 2); }
 TEST_P(SVUnitTests, Gap_SeqThroughout) { check_bmc("seq_throughout.sv", 2); }
 
 // ---------------------------------------------------------------------------
-// GAP: a multiclock property is silently dropped entirely (propvec()
-// stays empty) rather than being honored, mis-encoded, or cleanly
-// rejected -- confirmed empirically it is *not* the "every Clocking
-// wrapper stripped unconditionally, clock change silently collapsed"
-// outcome one might expect from the ConcurrentAssertion handler's
-// Clocking-unwrap loop; the real cause is that the antecedent
-// `a ##1 @(posedge clk2) b` is a 2-element SequenceConcat with a
-// mid-sequence clock change, and (same root cause as
-// Gap_SeqIntersect/Within/Throughout) general SequenceConcat handling
-// doesn't exist yet, so match_const_delay_seq() rejects it before the
-// clock-domain question is ever reached.
-//
-// This encoder has no clock-domain-crossing model at all -- every
-// fixture in this whole suite implicitly assumes one global clock
-// advances the design by one cycle per `@(posedge clk)` sample. The
-// simplest defensible correct behavior, consistent with that existing
-// assumption, is to treat *every* named clock identically (advance one
-// pono-cycle per `##`/clock-edge mentioned, ignoring which physical
-// clock is named) rather than reject the design outright -- which
-// reduces this property to exactly the same shape as a plain
-// `a ##1 b |-> 1'b0`. `a`/`b` free: earliest match is a@1, b@2, so the
-// property should be violated at cycle 2. A real clock-domain-crossing
+// FIXED: a multiclock property used to be silently dropped entirely
+// (propvec() stayed empty) -- confirmed empirically it was *not* the
+// "every Clocking wrapper stripped unconditionally, clock change
+// silently collapsed" outcome one might expect from the
+// ConcurrentAssertion handler's Clocking-unwrap loop; the real cause
+// was that the antecedent `a ##1 @(posedge clk2) b` is a 2-element
+// SequenceConcat with a mid-sequence clock change, and (same root
+// cause as SeqIntersect/Within/Throughout) general SequenceConcat
+// handling didn't exist. Fixed by offsets_ending_now(), which unwraps
+// a nested Clocking node exactly like the outer handler already does
+// for the top-level one -- per this file's documented multiclock
+// design decision, every named clock is treated as the same global
+// pono-cycle. This reduces the property to exactly the same shape as
+// a plain `a ##1 b |-> 1'b0`. `a`/`b` are free from cycle 0 (neither
+// is reset-gated); confirmed against the actual encoder run, earliest
+// match is a@0, b@1, violated at cycle 1. A real clock-domain-crossing
 // model (relative clock ratios, distinct per-domain sampling) would be
 // a substantially larger feature; this is the minimal correct behavior
 // given the encoder's existing single-clock assumption.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_MulticlockProperty)
+TEST_P(SVUnitTests, MulticlockProperty)
 {
-  check_bmc("multiclock_property.sv", 2);
+  check_bmc("multiclock_property.sv", 1);
+}
+
+// ---------------------------------------------------------------------------
+// Unbounded consecutive sequence repetition (`[*]`, `[+]`, `[*n:$]`): a
+// genuine architectural boundary of offsets_ending_now()'s compile-
+// time-bounded model, not a "not implemented yet" gap -- an unbounded
+// repeat count can't be unrolled into a finite offset vector. Must
+// throw a clear error rather than silently dropping the assertion (the
+// same contract as runtime-dependent break/continue/while conditions
+// elsewhere in this encoder).
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, Unsupported_SequenceRepetitionStar)
+{
+  expect_encode_throws("unbounded_repeat_star.sv");
+}
+
+TEST_P(SVUnitTests, Unsupported_SequenceRepetitionPlus)
+{
+  expect_encode_throws("unbounded_repeat_plus.sv");
+}
+
+TEST_P(SVUnitTests, Unsupported_SequenceRepetitionUnboundedRange)
+{
+  expect_encode_throws("unbounded_repeat_range.sv");
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVSvaTests,
