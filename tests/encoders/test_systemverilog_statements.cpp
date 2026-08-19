@@ -135,18 +135,26 @@ TEST_P(SVUnitTests, Unsupported_BreakRuntimeDependent)
   expect_encode_throws("break_runtime_dependent.sv");
 }
 
-// ---------------------------------------------------------------------------
-// GAP (confirmed empirically, and contradicting the encoder header's own
-// doc-comment claim that "Basic SVA immediate assertions" are supported):
-// procedural immediate assertion (`assert (expr);`, distinct from
-// `assert property (...)`) produces zero properties -- enc.propvec() is
-// empty, so the ASSERT_EQ(propvec().size(), 1u) inside check_bmc() fails
-// before BMC even runs.
-// ---------------------------------------------------------------------------
+// FIXED: procedural immediate assertion (`assert (expr);`, distinct from
+// `assert property (...)`) had no StatementKind::ImmediateAssertion case at
+// all and so produced zero properties, contradicting the encoder header's
+// own doc-comment claim that "Basic SVA immediate assertions" are
+// supported. Added a case that builds a safety property (for `assert`) or
+// a standing constraint (for `assume`/`restrict`), guarded by the
+// accumulated path condition rather than treated as always-active.
+//
+// Unlike the register-based examples elsewhere in this suite, an
+// immediate assertion inside always_ff checks *current-cycle* values with
+// no register latency involved (rst and a are both plain inputs here, not
+// registers) -- rst is already free (not forced) starting at cycle 1, so
+// BMC can pick rst == 0 and a == 7 simultaneously at cycle 1 itself, not
+// "one cycle after release" the way a registered value would need.
+TEST_P(SVUnitTests, ImmediateAssert) { check_bmc("immediate_assert.sv", 1); }
 
-TEST_P(SVUnitTests, Gap_ImmediateAssert)
+// Immediate `assume` (Assume/Restrict share the same fixed code path).
+TEST_P(SVUnitTests, ImmediateAssume)
 {
-  check_bmc("immediate_assert.sv", 2);
+  check_bmc("immediate_assume.sv", 4, ProverResult::UNKNOWN);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVStatementsTests,

@@ -1943,6 +1943,46 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       break;
     }
 
+    case StatementKind::ImmediateAssertion: {
+      // A *procedural* immediate assertion (`assert (expr);`),
+      // distinct from the concurrent `assert property (...)` form
+      // handled above. Reuses the same Assert-vs-Assume/Restrict
+      // split: an assert becomes a safety property, an assume/
+      // restrict becomes a standing constraint. Guarded by the
+      // accumulated path `condition` (e.g. an enclosing `if`) rather
+      // than treated as always-active, since it's only actually
+      // reached when program flow gets there -- "if reached, expr
+      // must hold" for assert, "if reached, assume expr" for
+      // assume/restrict. Pass/fail action blocks (`assert (x) else
+      // $error(...);`) are simulation-only display statements with no
+      // synthesis meaning and are intentionally not processed, same
+      // as $display/$error elsewhere in this encoder. `cover` is not
+      // modeled, matching the ConcurrentAssertion case above.
+      auto & ia = stmt.as<ImmediateAssertionStatement>();
+      bool is_assumption = ia.assertionKind == AssertionKind::Assume
+                           || ia.assertionKind == AssertionKind::Restrict;
+      if (ia.assertionKind == AssertionKind::Assert || is_assumption) {
+        Term cond_term = expr_to_term(ia.cond);
+        Term bool_cond = solver_->make_term(
+            Distinct, cond_term, solver_->make_term(0, cond_term->get_sort()));
+        Term prop = (condition == solver_->make_term(true))
+                        ? bool_cond
+                        : solver_->make_term(Implies, condition, bool_cond);
+        if (is_assumption) {
+          fts_.add_constraint(prop, /*to_init_and_next=*/true);
+          logger.log(1,
+                     "SystemVerilogEncoder: extracted assumption constraint");
+        } else {
+          propvec_.push_back(prop);
+          logger.log(1,
+                     "SystemVerilogEncoder: extracted safety assertion "
+                     "property from immediate assertion (index {})",
+                     propvec_.size() - 1);
+        }
+      }
+      break;
+    }
+
     case StatementKind::VariableDeclaration: {
       // Procedural local variable (`int x = ...`).  Treated as an
       // immutable per-block constant: evaluate the initializer once
