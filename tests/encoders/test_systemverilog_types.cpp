@@ -82,6 +82,16 @@ TEST_P(SVUnitTests, PackedUnionOverlap)
   check_bmc("union_overlap.sv", 6, ProverResult::UNKNOWN);
 }
 
+// Packed-union construction via `'{default: ...}` (distinct from
+// PackedUnionOverlap's member-access, which already works) is a
+// genuinely out-of-scope shape: expr_to_term()'s StructuredAssignment
+// Pattern case only builds a PackedStructType target, so a union
+// canonical type throws a clear error.
+TEST_P(SVUnitTests, Unsupported_UnionLiteral)
+{
+  expect_encode_throws("union_literal.sv");
+}
+
 // ---------------------------------------------------------------------------
 // typedef -- passes: a typedef'd plain vector is just its underlying sort.
 // ---------------------------------------------------------------------------

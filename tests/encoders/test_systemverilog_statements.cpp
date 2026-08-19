@@ -56,6 +56,17 @@ TEST_P(SVUnitTests, FinalBlockIgnored)
   check_bmc("final_block.sv", 4, ProverResult::UNKNOWN);
 }
 
+// GAP: `initial forever @(posedge clk) ...` is a legacy structural
+// spelling of `always_ff @(posedge clk) ...`. `forever`'s own
+// StatementKind isn't in process_statement()'s switch, so it falls
+// through silently (same as always_latch above): `q` never gets
+// pre-scanned as a state variable and ends up a free input, completely
+// disconnected from `din`, rather than a proper register.
+TEST_P(SVUnitTests, Gap_ForeverEventAsRegister)
+{
+  check_bmc("forever_loop.sv", 4, ProverResult::UNKNOWN);
+}
+
 // ---------------------------------------------------------------------------
 // `priority if` / `unique case` as semantic modifiers, replacing the old
 // bare if_else.sv / case_stmt.sv with one denser, paired test.

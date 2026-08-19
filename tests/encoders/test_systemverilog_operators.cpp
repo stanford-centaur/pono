@@ -138,6 +138,17 @@ TEST_P(SVUnitTests, StreamingOperator) { check_bmc("streaming_op.sv", 2); }
 // Unary '+' (a no-op per the LRM).
 TEST_P(SVUnitTests, UnaryPlusIdentity) { check_bmc("unary_plus.sv", 2); }
 
+// A plain user-defined SV `function` called with a symbolic (runtime-
+// dependent) argument -- a common RTL idiom (a small combinational
+// helper function). expr_to_term()'s Call case only recognizes a fixed
+// list of system calls; inlining a user function's body isn't
+// implemented, so any other call throws a clear "unsupported call"
+// error.
+TEST_P(SVUnitTests, Unsupported_UserFunctionCall)
+{
+  expect_encode_throws("user_function_call.sv");
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVOperatorsTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
