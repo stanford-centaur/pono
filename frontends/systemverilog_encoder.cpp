@@ -3620,6 +3620,40 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
     return out;
   };
 
+  // ORs together every non-null entry of a TermVec (the "does it
+  // complete here at all" merge, without recomputing offsets_ending_now
+  // -- used by Within/Intersect below).
+  auto or_vec = [&](const TermVec & v) -> Term {
+    Term result;
+    for (auto & t : v) {
+      if (!t) continue;
+      result = result ? solver_->make_term(Or, result, t) : t;
+    }
+    return result;
+  };
+
+  // OR of `base` and its delayed copies over the last `k` cycles
+  // (`base` itself, plus 1..k cycles ago) -- "did `base` hold at *some*
+  // point in the last k+1 cycles". Used by Within.
+  auto window_or = [&](const Term & base, uint32_t k) -> Term {
+    Term result = base;
+    for (uint32_t j = 1; j <= k; ++j) {
+      result = solver_->make_term(Or, result, delay_bool(base, j));
+    }
+    return result;
+  };
+
+  // AND of `base` and its delayed copies over the last `k` cycles --
+  // "did `base` hold at *every* point in the last k+1 cycles". Used by
+  // Throughout.
+  auto window_and = [&](const Term & base, uint32_t k) -> Term {
+    Term result = base;
+    for (uint32_t j = 1; j <= k; ++j) {
+      result = solver_->make_term(And, result, delay_bool(base, j));
+    }
+    return result;
+  };
+
   switch (seq.kind) {
     case AssertionExprKind::Simple: {
       auto & simple = seq.as<SimpleAssertionExpr>();
@@ -3727,10 +3761,75 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
       return acc;
     }
 
+    case AssertionExprKind::Binary: {
+      auto & b = seq.as<BinaryAssertionExpr>();
+      switch (b.op) {
+        case BinaryAssertionOperator::Intersect: {
+          // s1 intersect s2 matches iff both match with the *same*
+          // span -- AND the two offset vectors entry-by-entry.
+          TermVec v1 = offsets_ending_now(b.left);
+          TermVec v2 = offsets_ending_now(b.right);
+          if (v1.empty() || v2.empty()) return {};
+          size_t n = std::min(v1.size(), v2.size());
+          TermVec out(n, Term());
+          for (size_t k = 0; k < n; ++k) {
+            if (v1[k] && v2[k]) out[k] = solver_->make_term(And, v1[k], v2[k]);
+          }
+          return out;
+        }
+
+        case BinaryAssertionOperator::Within: {
+          // s1 within s2 matches over the same span as a match of s2,
+          // provided s1 matches ending somewhere inside that span: for
+          // each of s2's own completion offsets k, "s1 matched
+          // somewhere in the last k+1 cycles" is exactly window_or()
+          // over s1's merged "matches here" term.
+          TermVec v1 = offsets_ending_now(b.left);
+          TermVec v2 = offsets_ending_now(b.right);
+          if (v1.empty() || v2.empty()) return {};
+          Term s1_matches = or_vec(v1);
+          if (!s1_matches) return {};
+          TermVec out(v2.size(), Term());
+          for (size_t k = 0; k < v2.size(); ++k) {
+            if (!v2[k]) continue;
+            out[k] = solver_->make_term(
+                And, v2[k], window_or(s1_matches, (uint32_t)k));
+          }
+          return out;
+        }
+
+        case BinaryAssertionOperator::Throughout: {
+          // expr throughout seq: the plain boolean expr must hold at
+          // every cycle spanned by seq's match -- for each of seq's
+          // own completion offsets k, that span is exactly the last
+          // k+1 cycles, checked via window_and().
+          Term expr_bool = assertion_expr_to_bool(b.left);
+          if (!expr_bool) return {};
+          TermVec v2 = offsets_ending_now(b.right);
+          if (v2.empty()) return {};
+          TermVec out(v2.size(), Term());
+          for (size_t k = 0; k < v2.size(); ++k) {
+            if (!v2[k]) continue;
+            out[k] = solver_->make_term(
+                And, v2[k], window_and(expr_bool, (uint32_t)k));
+          }
+          return out;
+        }
+
+        default:
+          // And/Or/Iff/Implies/Until*/FollowedBy/etc. as a *sequence*
+          // operand aren't sequence-composition operators in the SVA
+          // sense (they combine boolean/property values, not match
+          // spans) -- not something offsets_ending_now() is ever
+          // asked for by this encoder's callers today.
+          return {};
+      }
+    }
+
     default:
-      // Unsupported sequence shape (a nested Binary/StrongWeak/etc.
-      // operand this primitive doesn't model yet) -- the caller falls
-      // back to its existing unsupported-construct handling.
+      // Unsupported sequence shape (a nested StrongWeak/etc. operand
+      // this primitive doesn't model yet) -- the caller falls back to
+      // its existing unsupported-construct handling.
       return {};
   }
 }

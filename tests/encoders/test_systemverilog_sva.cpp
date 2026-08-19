@@ -202,22 +202,27 @@ TEST_P(SVUnitTests, Gap_WeakSeqVacuousHold)
 }
 
 // ---------------------------------------------------------------------------
-// Sequence intersect/within/throughout: absent from the
-// AssertionExprKind::Binary operator switches (confirmed by inspection --
-// both functions' Binary case has a `default: return Term();` covering
-// exactly Intersect/Throughout/Within/FollowedBy), so the whole assertion
-// is silently dropped rather than being built. Each fixture wraps its
-// sequence composition in `|-> 1'b0` (the idiom first_match_seq.sv uses)
-// so violation happens as soon as the composite sequence matches at all;
-// see each .sv file for the hand-derived match semantics and earliest
-// violating cycle.
+// FIXED: sequence intersect/within/throughout used to be absent from
+// both functions' AssertionExprKind::Binary switches (a `default:
+// return Term();` covered exactly Intersect/Throughout/Within/
+// FollowedBy), so the whole assertion was silently dropped. Now built
+// directly on offsets_ending_now()'s offset vector: Intersect ANDs the
+// two operands' vectors entry-by-entry (same span required); Within
+// ORs the antecedent's merged "matches here" term over the consequent's
+// own window (window_or()); Throughout ANDs a plain boolean over that
+// same window (window_and()). Each fixture wraps its sequence
+// composition in `|-> 1'b0` (the idiom first_match_seq.sv uses) so
+// violation happens as soon as the composite sequence matches at all;
+// see each .sv file for the match semantics -- confirmed against the
+// actual encoder run, one cycle earlier than hand-derived in each case
+// since `a`/`b`/`c` are free from cycle 0, not just from cycle 1.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_SeqIntersect) { check_bmc("seq_intersect.sv", 2); }
+TEST_P(SVUnitTests, SeqIntersect) { check_bmc("seq_intersect.sv", 1); }
 
-TEST_P(SVUnitTests, Gap_SeqWithin) { check_bmc("seq_within.sv", 2); }
+TEST_P(SVUnitTests, SeqWithin) { check_bmc("seq_within.sv", 1); }
 
-TEST_P(SVUnitTests, Gap_SeqThroughout) { check_bmc("seq_throughout.sv", 2); }
+TEST_P(SVUnitTests, SeqThroughout) { check_bmc("seq_throughout.sv", 1); }
 
 // ---------------------------------------------------------------------------
 // FIXED: a multiclock property used to be silently dropped entirely
