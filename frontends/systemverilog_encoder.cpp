@@ -110,6 +110,35 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
 // Returns the source label of a concurrent assertion statement (e.g. the
 // `p1` in `p1: assert property (...)`), or "<unnamed>" if it has none.
 std::string assertion_label(const slang::ast::Statement & stmt);
+
+// Internal control-flow signal for `break`/`continue`/`disable`,
+// thrown by process_statement()'s Break/Continue/Disable cases and
+// caught by whichever enclosing construct can absorb it: a ForLoop
+// (for Break/Continue) or a named Block whose symbol matches
+// disable_target (for Disable). This only correctly models
+// compile-time-reachable control flow -- e.g. `if (i == 2) break;`
+// where `i` is an already-unrolled `for`-loop counter, handled by the
+// Conditional case's constant-fold fast path, which branches in C++
+// rather than building a symbolic guard for both arms, so this signal
+// can propagate out of only the taken branch exactly like a real
+// break/continue/disable would.  A signal thrown from inside a
+// *runtime*-dependent condition (which the general symbolic-guard
+// path processes unconditionally for both arms) has no correct
+// interpretation here and is never meant to be caught by anything;
+// process_always_ff()/process_always_comb()/process_initial() convert
+// any instance that escapes all the way out into a clear
+// PonoException rather than letting it propagate as a raw internal
+// exception type.
+struct LoopControlSignal
+{
+  enum Kind
+  {
+    Break,
+    Continue,
+    Disable
+  } kind;
+  const slang::ast::Symbol * disable_target = nullptr;  // only for Disable
+};
 }  // namespace
 
 // ============================================================================
@@ -999,7 +1028,19 @@ void SystemVerilogEncoder::process_always_ff(
 
   // Use a null condition to represent "unconditional".
   Term true_term = solver_->make_term(true);
-  process_statement(proc.getBody(), StmtContext::NEXT_STATE, true_term);
+  try {
+    process_statement(proc.getBody(), StmtContext::NEXT_STATE, true_term);
+  }
+  catch (const LoopControlSignal &) {
+    // Only a compile-time-constant break/continue/disable (caught by
+    // an enclosing ForLoop/named Block) is supported; one reached via
+    // a runtime-dependent condition, or with no matching enclosing
+    // construct at all, escapes all the way here.
+    throw PonoException(
+        "SystemVerilogEncoder: break/continue/disable is only supported "
+        "when its condition is a compile-time constant (e.g. depends only "
+        "on already-unrolled for-loop counters)");
+  }
 
   // Commit all pending next-state updates.
   for (auto & [state_term, next_expr] : pending_next_updates_) {
@@ -1016,7 +1057,15 @@ void SystemVerilogEncoder::process_always_comb(
   pending_comb_updates_.clear();
   pending_comb_aliased_.clear();
   Term true_term = solver_->make_term(true);
-  process_statement(proc.getBody(), StmtContext::COMBINATIONAL, true_term);
+  try {
+    process_statement(proc.getBody(), StmtContext::COMBINATIONAL, true_term);
+  }
+  catch (const LoopControlSignal &) {
+    throw PonoException(
+        "SystemVerilogEncoder: break/continue/disable is only supported "
+        "when its condition is a compile-time constant (e.g. depends only "
+        "on already-unrolled for-loop counters)");
+  }
 
   // Commit accumulated wire definitions via macro substitution.
   // Aliased entries belong in the parent's scope; everything else
@@ -1041,7 +1090,15 @@ void SystemVerilogEncoder::process_initial(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
   Term true_term = solver_->make_term(true);
-  process_statement(proc.getBody(), StmtContext::INITIAL, true_term);
+  try {
+    process_statement(proc.getBody(), StmtContext::INITIAL, true_term);
+  }
+  catch (const LoopControlSignal &) {
+    throw PonoException(
+        "SystemVerilogEncoder: break/continue/disable is only supported "
+        "when its condition is a compile-time constant (e.g. depends only "
+        "on already-unrolled for-loop counters)");
+  }
 }
 
 void SystemVerilogEncoder::process_always_comb_once(
@@ -1603,14 +1660,50 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
     case StatementKind::Block: {
       auto & block = stmt.as<BlockStatement>();
-      for_each_stmt_in_block(block, [&](const Statement & s) {
-        process_statement(s, ctx, condition);
-      });
+      try {
+        for_each_stmt_in_block(block, [&](const Statement & s) {
+          process_statement(s, ctx, condition);
+        });
+      }
+      catch (const LoopControlSignal & sig) {
+        // Absorb a `disable <this block's name>;` reached from inside
+        // (stopping the rest of this block); anything else -- a
+        // Break/Continue meant for an enclosing ForLoop, or a Disable
+        // targeting a different (typically outer) named block --
+        // keeps propagating.
+        if (sig.kind == LoopControlSignal::Disable && block.blockSymbol
+            && sig.disable_target == block.blockSymbol) {
+          break;
+        }
+        throw;
+      }
       break;
     }
 
     case StatementKind::Conditional: {
       auto & cond_stmt = stmt.as<ConditionalStatement>();
+
+      // If the condition is a compile-time constant (e.g. it only
+      // references already-unrolled `for`-loop counters), branch on
+      // it directly in C++ instead of building a symbolic guard for
+      // both arms -- this is what lets break/continue/disable, which
+      // can only be modeled as C++-level control flow
+      // (LoopControlSignal), propagate correctly out of whichever
+      // branch is actually taken. Skipped for the (rare) pattern-match
+      // `if` form (multiple conditions); falls back to the general
+      // symbolic-guard path below for any condition that isn't
+      // const-evaluable (e.g. depends on a runtime signal).
+      if (cond_stmt.conditions.size() == 1) {
+        auto const_cv = cond_stmt.conditions[0].expr->eval(eval_ctx());
+        if (!const_cv.bad()) {
+          if (const_cv.isTrue()) {
+            process_statement(cond_stmt.ifTrue, ctx, condition);
+          } else if (cond_stmt.ifFalse) {
+            process_statement(*cond_stmt.ifFalse, ctx, condition);
+          }
+          break;
+        }
+      }
 
       // Get the condition expression.
       // ConditionalStatement has conditions span; for simple if, there
@@ -1943,7 +2036,24 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           if (!sv.isTrue()) break;
         }
         for (auto * lv : loop.loopVars) refresh_bv(*lv);
-        process_statement(loop.body, ctx, condition);
+        bool broke = false;
+        try {
+          process_statement(loop.body, ctx, condition);
+        }
+        catch (const LoopControlSignal & sig) {
+          if (sig.kind == LoopControlSignal::Break) {
+            broke = true;
+          } else if (sig.kind != LoopControlSignal::Continue) {
+            // A Disable targeting some other (typically outer) named
+            // block keeps propagating past this loop.
+            throw;
+          }
+          // Continue: swallow and fall through to run the step
+          // expressions below, matching SV's `continue` (which still
+          // runs the step before the next iteration test) -- same as
+          // a normally-completed iteration.
+        }
+        if (broke) break;
         for (auto * step : loop.steps) {
           if (step->eval(eval_ctx()).bad()) {
             throw PonoException(
@@ -1957,6 +2067,46 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         eval_ctx().deleteLocal(sym);
       }
       break;
+    }
+
+    case StatementKind::Break:
+    case StatementKind::Continue:
+    case StatementKind::Disable: {
+      // `condition` is only ever narrowed away from the trivial `true`
+      // term by the Conditional/Case cases' *general symbolic* guard
+      // building -- the Conditional case's constant-fold fast path
+      // (see its comment) always passes `condition` through unchanged,
+      // and Block/ForLoop never touch it at all. So reaching this
+      // statement with `condition` still exactly `true` means every
+      // enclosing `if` along the way was compile-time-resolved, i.e.
+      // this control-flow statement is genuinely, unconditionally
+      // reached at this point in the unrolling -- interpretable via
+      // LoopControlSignal, caught by the nearest enclosing ForLoop
+      // (Break/Continue) or matching named Block (Disable). Any other
+      // value means we came through at least one runtime-dependent
+      // `if`, which (since that path processes both arms
+      // unconditionally) can't be correctly modeled as C++-level
+      // control flow at all -- a clear error beats silently always- or
+      // never-triggering regardless of the real condition.
+      if (condition != solver_->make_term(true)) {
+        throw PonoException(
+            "SystemVerilogEncoder: break/continue/disable is only "
+            "supported when its controlling condition is a compile-time "
+            "constant (e.g. depends only on already-unrolled for-loop "
+            "counters)");
+      }
+      if (stmt.kind == StatementKind::Break) {
+        throw LoopControlSignal{ LoopControlSignal::Break };
+      }
+      if (stmt.kind == StatementKind::Continue) {
+        throw LoopControlSignal{ LoopControlSignal::Continue };
+      }
+      auto & ds = stmt.as<DisableStatement>();
+      const Symbol * target = nullptr;
+      if (ds.target.kind == ExpressionKind::ArbitrarySymbol) {
+        target = ds.target.as<ArbitrarySymbolExpression>().symbol.get();
+      }
+      throw LoopControlSignal{ LoopControlSignal::Disable, target };
     }
 
     default:

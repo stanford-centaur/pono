@@ -94,27 +94,45 @@ TEST_P(SVUnitTests, Gap_RepeatLoop) { check_bmc("repeat_loop.sv", 2); }
 TEST_P(SVUnitTests, Gap_ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
 
 // ---------------------------------------------------------------------------
-// GAP (confirmed empirically): break / continue / disable inside the
-// already-supported `for` loop are all silently skipped rather than
-// honored -- each fixture's distinguishing construction (see the .sv
-// comments) observed the "control-flow statement ignored" outcome
-// (property falsified) rather than the "honored" outcome (property holds)
-// asserted here per correct LRM semantics.
+// FIXED, scoped to compile-time-constant conditions: process_statement()
+// gained a LoopControlSignal thrown by Break/Continue/Disable and caught by
+// the nearest enclosing ForLoop (Break/Continue) or matching named Block
+// (Disable). This only works because the Conditional case now also tries
+// to const-evaluate an `if`'s condition first (falling back to the
+// existing symbolic-guard path when that fails) -- each fixture below
+// guards its break/continue/disable with a comparison against an
+// already-unrolled `for`-loop counter, so the const-eval succeeds and the
+// signal can propagate out of the one branch actually taken in C++, the
+// same way real control flow would.  See Gap_BreakRuntimeDependent below
+// for the (deliberately unsupported, clean-error) runtime-dependent case.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_BreakInForLoop)
+TEST_P(SVUnitTests, BreakInForLoop)
 {
   check_bmc("break_in_for.sv", 6, ProverResult::UNKNOWN);
 }
 
-TEST_P(SVUnitTests, Gap_ContinueInForLoop)
+TEST_P(SVUnitTests, ContinueInForLoop)
 {
   check_bmc("continue_in_for.sv", 6, ProverResult::UNKNOWN);
 }
 
-TEST_P(SVUnitTests, Gap_DisableNamedBlock)
+TEST_P(SVUnitTests, DisableNamedBlock)
 {
   check_bmc("disable_named_block.sv", 6, ProverResult::UNKNOWN);
+}
+
+// A `break` guarded by a runtime signal rather than a compile-time
+// constant can't be modeled as C++-level control flow at all (the
+// general symbolic-guard path processes both `if` arms
+// unconditionally) -- a genuine architectural boundary of the
+// compile-time-unrolling model, not a "not implemented yet" gap, so
+// it's named like the other deliberate-non-goal Unsupported_ cases.
+// Must throw a clear PonoException rather than silently doing nothing
+// or applying the wrong verdict either way.
+TEST_P(SVUnitTests, Unsupported_BreakRuntimeDependent)
+{
+  expect_encode_throws("break_runtime_dependent.sv");
 }
 
 // ---------------------------------------------------------------------------
