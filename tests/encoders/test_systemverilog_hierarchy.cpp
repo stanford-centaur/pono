@@ -48,6 +48,17 @@ TEST_P(SVUnitTests, ConcatenationOutputPort)
   check_bmc("concat_output_port.sv", 4, ProverResult::UNKNOWN);
 }
 
+// Three sibling instances drive non-adjacent slices of one shared bus,
+// with the first-processed instance's write starting at bit 0 but not
+// covering the whole bus. process_continuous_assign() must seed a
+// full-width placeholder for the wire's first write in that case,
+// rather than mistaking it for a full-width write and later corrupting
+// (or crashing while building) a subsequent non-adjacent slice write.
+TEST_P(SVUnitTests, GappedBusSliceFromSiblingInstances)
+{
+  check_bmc("gapped_bus_slice.sv", 4, ProverResult::UNKNOWN);
+}
+
 TEST_P(SVUnitTests, GenerateForBlock) { check_bmc("generate_block.sv", 6); }
 
 TEST_P(SVUnitTests, ForLoopPopcount) { check_bmc("for_loop.sv", 2); }

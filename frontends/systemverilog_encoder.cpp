@@ -1327,28 +1327,41 @@ void SystemVerilogEncoder::process_continuous_assign(
     // into whatever was previously stored under `sym`, creating a
     // fresh placeholder to splice into on the very first such write.
     if (wire_symbols_.count(sym)) {
-      auto sit = symbol_to_term_.find(sym);
-      bool full_write = lo == 0
-                        && (sit == symbol_to_term_.end()
-                            || hi == sit->second->get_sort()->get_width() - 1);
+      // Check against the symbol's own declared width, not the width
+      // of whatever (possibly still-partial) term is already stored
+      // under it -- otherwise a first write that starts at bit 0 but
+      // doesn't cover the whole symbol gets mistaken for a full write,
+      // corrupting the width of later, non-adjacent slice writes.
+      uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
+      bool full_write = (lo == 0 && hi + 1 == sym_w);
       Term new_term;
       if (full_write) {
         new_term = rhs;
       } else {
         new_term = replace_bits(wire_seed_term(sym), rhs, lo, hi);
       }
-      string name;
-      if (aliased) {
-        name = parent_prefix_.empty()
-                   ? string(sym->name)
-                   : parent_prefix_ + "." + string(sym->name);
-      } else {
-        name = make_name(string(sym->name));
-      }
       symbol_to_term_[sym] = new_term;
-      fts_.name_term(name, new_term);
-      logger.log(
-          2, "SystemVerilogEncoder: continuous assign (wire) {} := ...", name);
+      // Only register the debug name on a full write: a wire spliced
+      // together from several partial writes (e.g. separate sibling
+      // instances each driving a different slice of one shared bus)
+      // has no single write that owns its name, and re-naming it on
+      // every partial write would collide with name_term()'s "one name,
+      // one term" invariant as soon as two of those partial terms
+      // differ.
+      if (full_write) {
+        string name;
+        if (aliased) {
+          name = parent_prefix_.empty()
+                     ? string(sym->name)
+                     : parent_prefix_ + "." + string(sym->name);
+        } else {
+          name = make_name(string(sym->name));
+        }
+        fts_.name_term(name, new_term);
+        logger.log(2,
+                   "SystemVerilogEncoder: continuous assign (wire) {} := ...",
+                   name);
+      }
       continue;
     }
 
