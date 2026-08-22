@@ -165,11 +165,13 @@ endif()
 if(WITH_SLANG)
   include(FetchContent)
 
+  # GIT_SHALLOW is intentionally omitted: FetchContent's shallow clone only
+  # fetches the tip of each branch, so it cannot reach GIT_TAG once that
+  # commit is no longer a branch tip (as happens once upstream moves on).
   FetchContent_Declare(
     slang
     GIT_REPOSITORY https://github.com/MikePopoloski/slang.git
     GIT_TAG 2e7495bcb64180553ae84d1d78307090823c794c
-    GIT_SHALLOW TRUE
   )
   set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
   set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
