@@ -46,6 +46,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -1328,13 +1329,44 @@ void SystemVerilogEncoder::process_continuous_assign(
   auto & lhs_expr = assign.left();
   auto & rhs_expr = assign.right();
 
+  // Concatenation-target LHS (`assign {hi, lo} = ...;`): unlike a
+  // range-/element-select, this has more than one base symbol, so it
+  // can't be represented as a single LValueDesc. Split the RHS across
+  // each operand MSB-first (leftmost operand = most significant) and
+  // recurse into process_continuous_assign_operand() once per operand,
+  // exactly mirroring how a concatenation-target *port connection* is
+  // already split into one OutputAliasSegment per operand.
+  if (lhs_expr.kind == ExpressionKind::Concatenation) {
+    uint64_t total_w = lhs_expr.type->getBitWidth();
+    if (total_w == 0) return;
+    Term rhs_full = resize_to(expr_to_term(rhs_expr), total_w);
+    uint64_t covered = 0;
+    for (auto * operand : lhs_expr.as<ConcatenationExpression>().operands()) {
+      uint64_t seg_w = operand->type->getBitWidth();
+      if (seg_w == 0 || covered + seg_w > total_w) break;
+      uint64_t seg_hi = total_w - 1 - covered;
+      uint64_t seg_lo = seg_hi - (seg_w - 1);
+      process_continuous_assign_operand(*operand,
+                                        slice_bits(rhs_full, seg_lo, seg_hi));
+      covered += seg_w;
+    }
+    return;
+  }
+
+  process_continuous_assign_operand(lhs_expr, expr_to_term(rhs_expr));
+}
+
+void SystemVerilogEncoder::process_continuous_assign_operand(
+    const slang::ast::Expression & lhs_expr, const smt::Term & rhs_arg)
+{
+  using namespace slang::ast;
+
   auto desc = resolve_lvalue(lhs_expr, eval_ctx());
   if (!desc) return;
   const Symbol * base_sym = desc->base;
   bool aliased = port_output_aliases_.count(base_sym) > 0;
 
-  Term rhs_full = expr_to_term(rhs_expr);
-  rhs_full = resize_to(rhs_full, desc->hi - desc->lo + 1);
+  Term rhs_full = resize_to(rhs_arg, desc->hi - desc->lo + 1);
 
   // A concatenation-target output-port connection splits this one
   // write across several pieces, each with its own target
@@ -1775,8 +1807,39 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         Term state_term;  // only valid when ctx == NEXT_STATE
         uint64_t rhs_lo, rhs_hi;
       };
-      auto begin_write =
+      std::function<std::vector<LValueWrite>(const Expression &)> begin_write =
           [&](const Expression & lhs_expr) -> std::vector<LValueWrite> {
+        // Concatenation-target LHS (`{hi, lo} <= ...;`): unlike a
+        // range-/element-select, this has more than one base symbol,
+        // so it can't be represented as a single LValueDesc. Recurse
+        // into each operand (MSB-first, matching the write's overall
+        // rhs numbering) and rebase its own piece(s)' rhs_lo/rhs_hi
+        // (relative to that operand's own width) into the whole
+        // concatenation's numbering -- exactly mirroring how a
+        // concatenation-target *port connection* is split into one
+        // OutputAliasSegment per operand.
+        if (lhs_expr.kind == ExpressionKind::Concatenation) {
+          uint64_t total_w = lhs_expr.type->getBitWidth();
+          if (total_w == 0) return {};
+          std::vector<LValueWrite> writes;
+          uint64_t covered = 0;
+          for (auto * operand :
+               lhs_expr.as<ConcatenationExpression>().operands()) {
+            uint64_t seg_w = operand->type->getBitWidth();
+            if (seg_w == 0 || covered + seg_w > total_w) return {};
+            auto sub = begin_write(*operand);
+            if (sub.empty()) return {};
+            uint64_t seg_lo = total_w - covered - seg_w;
+            for (auto & w : sub) {
+              w.rhs_lo += seg_lo;
+              w.rhs_hi += seg_lo;
+              writes.push_back(w);
+            }
+            covered += seg_w;
+          }
+          return writes;
+        }
+
         auto desc = resolve_lvalue(lhs_expr, eval_ctx());
         if (!desc) return {};
         bool base_aliased = port_output_aliases_.count(desc->base) > 0;

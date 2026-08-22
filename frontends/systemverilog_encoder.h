@@ -167,6 +167,18 @@ class SystemVerilogEncoder
   /** Process a continuous assignment (assign statement). */
   void process_continuous_assign(const slang::ast::ContinuousAssignSymbol & ca);
 
+  /** Process one write from a continuous assignment: `lhs_expr` is
+   *  either the assignment's whole LHS (the common case), or one
+   *  operand of a concatenation-target LHS (`assign {hi, lo} = ...`),
+   *  in which case `rhs` is already sliced down to that operand's own
+   *  width.
+   *  @param lhs_expr the (non-concatenation) lvalue expression being
+   *                  written
+   *  @param rhs the value to write, resized to lhs_expr's width
+   */
+  void process_continuous_assign_operand(
+      const slang::ast::Expression & lhs_expr, const smt::Term & rhs);
+
   /** Process an always_comb block, or a continuous assign, unless it
    *  has already been processed (either by the normal walk reaching
    *  it, or because some earlier read forced it via

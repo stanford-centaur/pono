@@ -32,6 +32,26 @@ TEST_P(SVUnitTests, RangeSelectLhs)
   check_bmc("range_select_lhs.sv", 4, ProverResult::UNKNOWN);
 }
 
+// Concatenation-target LHS on a plain continuous assign (`assign {hi,
+// lo} = ...;`), as opposed to a concatenation-target *port connection*
+// (already supported separately via OutputAliasSegment).
+// resolve_lvalue() has no case for ExpressionKind::Concatenation --
+// unlike a port connection, a concatenation LHS has more than one base
+// symbol, so it can't be represented as a single LValueDesc at all --
+// and the write was silently dropped entirely.
+TEST_P(SVUnitTests, ConcatenationLhs)
+{
+  check_bmc("concat_lhs.sv", 4, ProverResult::UNKNOWN);
+}
+
+// Same gap, procedural (non-blocking) assignment form: begin_write()
+// (shared by blocking/non-blocking assignment and ++/--) also has no
+// case for a top-level concatenation-target LHS.
+TEST_P(SVUnitTests, ConcatenationLhsNextState)
+{
+  check_bmc("concat_lhs_next_state.sv", 2);
+}
+
 // Basic block-level smoke checks -- module ports + always_ff (counter.sv)
 // and `initial` blocks pinning initial state (initial_block.sv) -- kept
 // from the original suite verbatim rather than folded away: the pattern
