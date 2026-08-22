@@ -20,6 +20,18 @@ TEST_P(SVUnitTests, CompoundAssignOrReduce)
 
 TEST_P(SVUnitTests, ElementSelectLhs) { check_bmc("element_select_lhs.sv", 2); }
 
+// Range-select (bit-slice) LHS on a plain continuous assign
+// (`assign w[7:4] = ...;`). resolve_lvalue() previously had no case
+// for ExpressionKind::RangeSelect at all (only NamedValue,
+// HierarchicalValue, ElementSelect, MemberAccess), so a range-select
+// LHS silently failed to resolve and the write was dropped entirely --
+// `w` was declared as a free/unconstrained state var instead of being
+// pinned by either assign.
+TEST_P(SVUnitTests, RangeSelectLhs)
+{
+  check_bmc("range_select_lhs.sv", 4, ProverResult::UNKNOWN);
+}
+
 // Basic block-level smoke checks -- module ports + always_ff (counter.sv)
 // and `initial` blocks pinning initial state (initial_block.sv) -- kept
 // from the original suite verbatim rather than folded away: the pattern

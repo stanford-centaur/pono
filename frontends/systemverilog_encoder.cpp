@@ -705,6 +705,33 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
       if (hi > inner->hi) return std::nullopt;
       return LValueDesc{ inner->base, lo, hi, inner->base_w };
     }
+    case ExpressionKind::RangeSelect: {
+      // Constant range-select write (`w[7:4] <= ...`): both bounds must
+      // be compile-time constants, mirroring the read-side logic in
+      // expr_to_term()'s RangeSelect case (which likewise requires
+      // constant bounds and normalizes hi/lo regardless of whether the
+      // source wrote `[hi:lo]`, `[base +: width]`, or `[base -: width]`
+      // -- slang's `.left()`/`.right()` already reflect the resolved
+      // bounds either way).
+      auto & sel = lhs.as<RangeSelectExpression>();
+      auto inner = resolve_lvalue(sel.value(), ctx);
+      if (!inner) return std::nullopt;
+      auto & left_expr = sel.left();
+      auto & right_expr = sel.right();
+      if (!left_expr.getConstant() || !right_expr.getConstant()) {
+        return std::nullopt;
+      }
+      auto hi_opt = left_expr.getConstant()->integer().as<uint64_t>();
+      auto lo_opt = right_expr.getConstant()->integer().as<uint64_t>();
+      if (!hi_opt || !lo_opt) return std::nullopt;
+      uint64_t local_hi = *hi_opt;
+      uint64_t local_lo = *lo_opt;
+      if (local_hi < local_lo) swap(local_hi, local_lo);
+      uint64_t lo = inner->lo + local_lo;
+      uint64_t hi = inner->lo + local_hi;
+      if (hi > inner->hi) return std::nullopt;
+      return LValueDesc{ inner->base, lo, hi, inner->base_w };
+    }
     case ExpressionKind::MemberAccess: {
       // Packed-struct/union field write (`s.field <= ...`): narrow the
       // inner base's range by the field's own bitOffset, mirroring the
