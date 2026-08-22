@@ -310,6 +310,14 @@ endif()
 if(WITH_SLANG)
   add_definitions(-DWITH_SLANG)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/systemverilog_encoder.cpp")
+  # slang requires C++20 features in its headers; scope this to the one
+  # translation unit that includes them so the rest of pono-lib stays C++17.
+  # (The CXX_STANDARD source property is not honored by the Ninja/Makefiles
+  # generators, so the standard flag is set directly via COMPILE_OPTIONS.)
+  set_source_files_properties(
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_encoder.cpp"
+    PROPERTIES COMPILE_OPTIONS "${CMAKE_CXX20_STANDARD_COMPILE_OPTION}"
+  )
 endif()
 
 if(WITH_MSAT)
@@ -387,8 +395,6 @@ endif()
 
 if(WITH_SLANG)
   target_link_libraries(pono-lib PUBLIC slang::slang)
-  # slang requires C++20 features in its headers
-  set_property(TARGET pono-lib PROPERTY CXX_STANDARD 20)
 endif()
 
 if(WITH_COREIR)
