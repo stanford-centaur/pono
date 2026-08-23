@@ -2465,9 +2465,26 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // reached" -- it shares the same safety fast path as assert/
       // assume, just with the boolean negated before the shared
       // disable-window/push logic runs.
+      // `expect (property_expr);` is a procedural blocking-wait
+      // statement (pause until the property holds), not a checked
+      // invariant -- a simulation-control construct with no
+      // synthesizable hardware meaning, the same category as `wait`
+      // below. Handle it before the dispatch so it doesn't fall
+      // through the rest of this case silently.
+      if (ca.assertionKind == AssertionKind::Expect) {
+        logger.log(1,
+                   "SystemVerilogEncoder: ignoring 'expect' property "
+                   "(simulation-only construct)");
+        break;
+      }
       bool is_assumption = ca.assertionKind == AssertionKind::Assume
                            || ca.assertionKind == AssertionKind::Restrict;
-      bool is_cover = ca.assertionKind == AssertionKind::CoverProperty;
+      // `cover sequence(S)` shares the exact same reachability-duality
+      // treatment as `cover property(P)` below -- both just check
+      // "was propertySpec ever true", regardless of whether the
+      // source wrote `property` or `sequence`.
+      bool is_cover = ca.assertionKind == AssertionKind::CoverProperty
+                      || ca.assertionKind == AssertionKind::CoverSequence;
       if (ca.assertionKind == AssertionKind::Assert || is_assumption
           || is_cover) {
         // Strip the clocking wrapper (the clock event is already

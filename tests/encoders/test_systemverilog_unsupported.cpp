@@ -77,6 +77,29 @@ TEST_P(SVUnitTests, Unsupported_WaitStmt)
   expect_encode_succeeds_ignoring("wait_stmt.sv");
 }
 
+// `expect (property_expr);` is a procedural blocking-wait statement
+// (pause until the property holds), not a checked invariant -- the
+// same simulation-only category as `wait` above.
+TEST_P(SVUnitTests, Unsupported_ExpectProperty)
+{
+  expect_encode_succeeds_ignoring("expect_property.sv");
+}
+
+// `cover sequence(S)`, distinct from the already-supported
+// `cover property(P)`: both are AssertionKind values the
+// ConcurrentAssertion handler's `is_cover` check previously only
+// recognized one of, so `cover sequence` silently vanished entirely
+// (no log, no throw). Once recognized, a genuinely multi-cycle
+// sequence like `a ##1 b` hits the *already-existing* "temporal/
+// sequence-shaped cover goal" throw a couple of paths below (see the
+// design-decision note at the top of the file) -- extending the
+// reachability-duality trick through the LTL tableau is out of scope,
+// same as `cover property (a ##1 b)` already throws today.
+TEST_P(SVUnitTests, Gap_CoverSequence)
+{
+  expect_encode_throws("cover_sequence.sv");
+}
+
 TEST_P(SVUnitTests, Unsupported_EventType)
 {
   expect_encode_throws("event_type.sv");
