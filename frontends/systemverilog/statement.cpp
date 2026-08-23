@@ -178,11 +178,13 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // A write to a plain compile-time-unrolled local (a `for`/
       // `while`/`repeat`/`foreach` scratch variable, or any other
       // `VariableDeclaration` local) is neither a wire nor a state
-      // variable, so the SMT-term machinery below would silently drop
-      // it (falls through to `symbol_to_term_.find() == end()` and
-      // returns without doing anything) -- delegate the whole
-      // expression to slang's own constant evaluator instead, exactly
-      // as `ForLoopStatement`'s own step expressions already do, and
+      // variable, so the SMT-term machinery below can't handle it: in
+      // NEXT_STATE context begin_write() finds no declared term for it
+      // and silently returns no writes, while in COMBINATIONAL/INITIAL
+      // context the write instead reaches commit_write()'s "has no
+      // declared term" exception -- delegate the whole expression to
+      // slang's own constant evaluator instead, exactly as
+      // `ForLoopStatement`'s own step expressions already do, and
       // refresh the mirrored SMT constant so later condition
       // evaluation (a `while`/`do`-`while` test, a `for`-loop bound)
       // sees the new value.
@@ -726,7 +728,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // 'assert' below; they differ only in what happens to the
       // resulting boolean once it's built (see the two branches further
       // down). 'cover' is handled via reachability duality (see the
-      // design-decision note at the top of this file): `cover
+      // "SVA design decisions" note at the top of sva.cpp): `cover
       // property(P)` is checked exactly like `assert property(!P)`, so
       // a "violation" of that surrogate assertion is precisely "P was
       // reached" -- it shares the same safety fast path as assert/
@@ -927,8 +929,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // synthesis meaning and are intentionally not processed, same
       // as $display/$error elsewhere in this encoder. `cover` uses the
       // same reachability-duality contract as the ConcurrentAssertion
-      // case above (see the design-decision note at the top of this
-      // file): `cover (expr);` is checked exactly like
+      // case above (see the "SVA design decisions" note at the top of
+      // sva.cpp): `cover (expr);` is checked exactly like
       // `assert (!expr);`.
       auto & ia = stmt.as<ImmediateAssertionStatement>();
       bool is_assumption = ia.assertionKind == AssertionKind::Assume
@@ -961,11 +963,12 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
     }
 
     case StatementKind::VariableDeclaration: {
-      // Procedural local variable (`int x = ...`).  Treated as an
-      // immutable per-block constant: evaluate the initializer once
-      // and bind it in the slang EvalContext and our SMT-side
-      // loop_var_terms_ map.  Any later procedural write (outside a
-      // for-loop step) is out of scope and effectively ignored.
+      // Procedural local variable (`int x = ...`): evaluate the
+      // initializer once and bind it in the slang EvalContext and our
+      // SMT-side loop_var_terms_ map.  A later plain-assignment or
+      // `++`/`--` write to it is handled by the ExpressionStatement
+      // local-variable fast path above, which re-evaluates the write
+      // via slang's constant evaluator and refreshes loop_var_terms_.
       auto & vds = stmt.as<VariableDeclStatement>();
       auto & sym = vds.symbol;
       slang::ConstantValue cv;
@@ -992,9 +995,11 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
     }
 
     case StatementKind::ForLoop: {
-      // Compile-time unroll the loop.  Slang has already validated
-      // that the bounds and steps are constant expressions for the
-      // synthesizable subset.
+      // Compile-time unroll the loop.  The initializers, stop
+      // expression, and step expressions are evaluated via eval_ctx()
+      // below and must succeed as compile-time constants; a
+      // non-constant bound throws a PonoException rather than being
+      // silently accepted.
       auto & loop = stmt.as<ForLoopStatement>();
       std::vector<const ValueSymbol *> declared;
 
@@ -1287,7 +1292,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // enclosing `if` along the way was compile-time-resolved, i.e.
       // this control-flow statement is genuinely, unconditionally
       // reached at this point in the unrolling -- interpretable via
-      // LoopControlSignal, caught by the nearest enclosing ForLoop
+      // LoopControlSignal, caught by the nearest enclosing loop
       // (Break/Continue) or matching named Block (Disable). Any other
       // value means we came through at least one runtime-dependent
       // `if`, which (since that path processes both arms
@@ -1316,8 +1321,9 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
     }
 
     default:
-      // Other statement kinds (loops, etc.): not supported in
-      // synthesizable subset. Log a warning and skip.
+      // Other statement kinds (e.g. wait, return, event triggers,
+      // randcase): not supported in synthesizable subset. Log a
+      // warning and skip.
       logger.log(1,
                  "SystemVerilogEncoder: skipping unsupported statement kind {}",
                  static_cast<int>(stmt.kind));

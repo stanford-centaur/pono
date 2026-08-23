@@ -165,8 +165,9 @@ void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
                  name,
                  sort->get_width());
     } else {
-      // Output/inout without internal symbol: treat as state or wire
-      // depending on whether it was found in always_ff pre-scan.
+      // Output/inout without internal symbol: treat as a state var if
+      // pre-scan found it driven by always_ff/always/always_latch,
+      // otherwise as an (unconstrained) input var.
       if (state_var_symbols_.count(&port)) {
         Term sv = fts_.make_statevar(name, sort);
         symbol_to_term_[&port] = sv;
@@ -204,8 +205,10 @@ void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
     } else if (wire_symbols_.count(internal)) {
       // Combinational output port: defer term creation to
       // process_continuous_assign / process_always_comb, which will
-      // populate symbol_to_term_ for `internal`.  Lookups via the port
-      // symbol fall back to the internal symbol's entry.
+      // populate symbol_to_term_ for `internal` once its driving
+      // assignment is processed.  Expressions elsewhere reference
+      // `internal` directly (per slang, the port symbol itself is
+      // never referenceable), so no entry for `&port` is needed.
       logger.log(
           2, "SystemVerilogEncoder: output port (wire) {}: deferred", name);
     } else {

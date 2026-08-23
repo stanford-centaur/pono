@@ -354,7 +354,7 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
 
   // ORs together every non-null entry of a TermVec (the "does it
   // complete here at all" merge, without recomputing offsets_ending_now
-  // -- used by Within/Intersect below).
+  // -- used by Within below).
   auto or_vec = [&](const TermVec & v) -> Term {
     Term result;
     for (auto & t : v) {
@@ -1023,17 +1023,22 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
         case BinaryAssertionOperator::Iff:
           return solver_->make_term(Equal, lhs, rhs);
         default:
-          // Intersect / Throughout / Within / Until* / FollowedBy:
-          // sequence operators that span multiple cycles in the
-          // general case -- out of scope for the current encoder.
+          // Intersect / Throughout / Within / FollowedBy: sequence
+          // operators that span multiple cycles in the general case --
+          // out of scope for the current encoder. Until/SUntil/
+          // UntilWith/SUntilWith aren't reducible to a current-cycle
+          // Boolean either, but (unlike these) are handled by the
+          // general LTL tableau in ltl_to_sat() instead.
           return Term();
       }
     }
 
     default:
-      // Unary temporal operators (`always`, `s_eventually`, ...),
-      // FirstMatch, etc.: not supported.  Caller logs the skipped
-      // kind.
+      // FirstMatch, SequenceWithMatch, Conditional, Case, Abort,
+      // DisableIff, etc.: shapes this current-cycle-Boolean fast path
+      // doesn't reduce (Unary is handled by its own case above, not
+      // here).  Caller logs the skipped kind if the ltl_to_sat()
+      // fallback can't reduce it either.
       return Term();
   }
 }

@@ -354,7 +354,7 @@ void SystemVerilogEncoder::process_module(
         } else if (auto * base = find_lhs_base(lhs)) {
           // Partial-LHS continuous assign (`assign arr[i] = ...`):
           // the base needs to be a state var so process_continuous_assign
-          // can constrain the slice via add_invar.
+          // can constrain the slice via add_constraint.
           if (!wire_symbols_.count(base)) {
             state_var_symbols_.insert(base);
           }

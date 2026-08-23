@@ -143,8 +143,9 @@ class SystemVerilogEncoder
    *  reduce that one property to safety.
    *
    *  Each LTL property also installs its own auxiliary tableau state
-   *  (next-step "promise" latches, an init flag, and a per-property
-   *  activation latch) and transition constraints directly into the
+   *  (next-step "promise" latches and a per-property activation latch,
+   *  gated by the one shared "first cycle" init flag common to every
+   *  LTL property) and transition constraints directly into the
    *  transition system, so the justice sets are only meaningful
    *  against the system the encoder populated.  Because the
    *  per-property activation latch gates that property's time-0
@@ -169,8 +170,9 @@ class SystemVerilogEncoder
   /** Process a top-level module instance. */
   void process_module(const slang::ast::InstanceSymbol & inst);
 
-  /** First pass: declare all variables (state vars, inputs, wires).
-   *  Walks ports and internal variable declarations.
+  /** First pass: declare state vars and inputs.  Wires are skipped --
+   *  they get their term assigned later during combinational-assignment
+   *  processing.  Walks ports and internal variable declarations.
    */
   void declare_variables(const slang::ast::InstanceBodySymbol & body);
 
@@ -265,7 +267,9 @@ class SystemVerilogEncoder
    */
   enum class StmtContext
   {
-    NEXT_STATE,     ///< Inside always_ff: build next-state functions
+    NEXT_STATE,     ///< Inside always_ff (also always_latch and a legacy
+                    ///< `forever @(...)` spelling of always_ff): build
+                    ///< next-state functions
     COMBINATIONAL,  ///< Inside always_comb: build combinational definitions
     INITIAL         ///< Inside initial: build init constraints
   };
@@ -299,7 +303,8 @@ class SystemVerilogEncoder
 
   /** Convert a slang type to an SMT sort.
    *  @param type the slang type
-   *  @return the corresponding SMT sort (BV or BOOL)
+   *  @return the corresponding BV sort (even for a 1-bit type); throws
+   *          for a non-integral type
    */
   smt::Sort type_to_sort(const slang::ast::Type & type);
 
@@ -411,9 +416,13 @@ class SystemVerilogEncoder
   /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
    *  not a compile-time constant, so resolve_lvalue() can't produce a
    *  static bit range.  Only a direct select on a plain variable base
-   *  is supported (no nested dynamic selects).  A no-op (matching the
-   *  prior silent-skip behavior) if the base isn't a plain variable
-   *  or has no current term yet.
+   *  is supported (no nested dynamic selects).  A no-op if the base
+   *  isn't a plain variable, if it resolves through
+   *  port_output_aliases_ to anything other than a single whole-symbol
+   *  alias, if it has no current term yet, or if `ctx` doesn't apply
+   *  to it (a COMBINATIONAL write to a non-wire symbol, or any
+   *  INITIAL write, isn't needed by any currently-supported
+   *  construct).
    *  @param sel  the dynamic element-select LHS expression
    *  @param rhs_expr the assignment's right-hand side
    *  @param ctx  which kind of block this assignment is in
@@ -432,24 +441,33 @@ class SystemVerilogEncoder
   void pre_scan_always_ff(const slang::ast::Statement & body);
 
   /** Recursively pre-scan an instance body's own `always_ff`/`always`
-   *  blocks (via pre_scan_always_ff()) and every descendant instance's
-   *  body, so every register anywhere in the design tree is known
-   *  before any instance's variables are declared -- otherwise a
-   *  sibling instance visited earlier in source order (e.g. an
-   *  `interface` instance whose members are actually driven by a
-   *  later sibling's always_ff through a hierarchical/interface-port
-   *  reference) would get its members wrongly declared as free
-   *  inputs.
+   *  blocks (via pre_scan_always_ff()), `always_latch` blocks (via
+   *  pre_scan_always_latch()), `initial forever @(...)` blocks (the
+   *  legacy always_ff spelling, via pre_scan_always_ff()), and every
+   *  descendant instance's body, so every register anywhere in the
+   *  design tree is known before any instance's variables are
+   *  declared -- otherwise a sibling instance visited earlier in
+   *  source order (e.g. an `interface` instance whose members are
+   *  actually driven by a later sibling's always_ff through a
+   *  hierarchical/interface-port reference) would get its members
+   *  wrongly declared as free inputs.
    *  @param body the instance body to scan (and recurse from)
    */
   void pre_scan_state_vars(const slang::ast::InstanceBodySymbol & body);
 
   /** Pre-scan a combinational always_comb body to identify blocking
-   *  assignment targets as combinational wire symbols.  Each wire
-   *  target found is recorded (with the current prefix_ /
-   *  parent_prefix_) as being driven by `proc`, so a read of it that
-   *  occurs before `proc` is naturally walked can force it to be
-   *  processed on demand -- see resolve_wire_on_demand().
+   *  assignment targets.  A target written only full-width becomes a
+   *  combinational wire symbol; a target written (even partly)
+   *  through a bit/range select, or written both full- and
+   *  partial-width, becomes a state variable instead (mirroring
+   *  pre_scan_always_latch()'s always-a-state-var rule for that
+   *  case), so the slice can later be constrained with an
+   *  add_constraint rather than needing a state term to macro-
+   *  substitute into.  Each wire target found is recorded (with the
+   *  current prefix_ / parent_prefix_) as being driven by `proc`, so a
+   *  read of it that occurs before `proc` is naturally walked can
+   *  force it to be processed on demand -- see
+   *  resolve_wire_on_demand().
    *  @param body the statement body of the always_comb block
    *  @param proc the enclosing always_comb block symbol
    */
@@ -505,9 +523,13 @@ class SystemVerilogEncoder
   void walk_members(const slang::ast::Scope & scope,
                     const std::function<void(const slang::ast::Symbol &)> & fn);
 
-  /** Lazily construct and return the encoder's slang EvalContext.
-   *  Used to evaluate compile-time-constant loop bounds and step
-   *  expressions when unrolling procedural `for` loops.
+  /** Lazily construct and return the encoder's slang EvalContext, used
+   *  throughout statement/expression processing to evaluate
+   *  compile-time-constant expressions -- not just loop bounds and
+   *  step expressions when unrolling procedural loops, but also
+   *  things like case-statement selectors/patterns, constant
+   *  array/bit-select indices, and other constant-foldable operands
+   *  (e.g. a `**` exponent or `$past`'s cycle-count argument).
    */
   slang::ast::EvalContext & eval_ctx();
 
@@ -525,10 +547,13 @@ class SystemVerilogEncoder
   smt::Term assertion_expr_to_bool(const slang::ast::AssertionExpr & ae);
 
   /** General bounded sequence matching: given a sequence expression
-   *  (`Simple`, `SequenceConcat` with per-element `[m:n]` delay ranges,
-   *  `FirstMatch`, `Clocking` -- unwrapped/ignored per this file's
-   *  multiclock design decision), returns a vector indexed by relative
-   *  offset `L` where entry `L` is a Term true iff the sequence
+   *  (`Simple`/`SequenceWithMatch` with a consecutive `[m:n]`
+   *  repetition, `SequenceConcat` with per-element `[m:n]` delay
+   *  ranges, `FirstMatch`, `Clocking` -- unwrapped/ignored per this
+   *  file's multiclock design decision -- or a `Binary`
+   *  intersect/within/throughout composition of two such sequences),
+   *  returns a vector indexed by relative offset `L` where entry `L`
+   *  is a Term true iff the sequence
    *  completes a match at the *current* cycle, having started `L`
    *  cycles earlier. A null entry means that offset is structurally
    *  unreachable. Returns an empty vector for sequence shapes this
@@ -562,9 +587,9 @@ class SystemVerilogEncoder
    *  weak_seq_bool() to detect when an in-progress match attempt has
    *  definitely failed. Recurses through FirstMatch/Clocking (like
    *  offsets_ending_now()) and into a SequenceConcat's first element.
-   *  Throws for a sequence shape this doesn't model (its own leading
-   *  repetition, or a Binary intersect/within/throughout as the
-   *  outermost sequence) rather than guessing.
+   *  Throws for any other sequence shape (its own leading repetition,
+   *  a `SequenceWithMatch`, or a `Binary` intersect/within/throughout
+   *  as the outermost sequence) rather than guessing.
    *  @param seq the sequence expression to inspect
    *  @return the Boolean "an attempt just started" term
    */
@@ -590,7 +615,8 @@ class SystemVerilogEncoder
    *  next-state is the previous link in the chain.  Used by both
    *  `$past(...)` and sequence-delay assertion expressions.
    *  @param value the current-cycle value to delay
-   *  @param n     the number of cycles of delay (>= 1)
+   *  @param n     the number of cycles of delay (n == 0 is a no-op,
+   *         returning `value` unchanged)
    *  @return a Term holding `value` from `n` cycles ago
    */
   smt::Term make_history_chain(const smt::Term & value, uint32_t n);
@@ -602,7 +628,8 @@ class SystemVerilogEncoder
    *  afterward, matching the pattern already used for the `|=>`/
    *  `|-> ##N` antecedent delay.
    *  @param cond the current-cycle Bool-sorted condition to delay
-   *  @param n    the number of cycles of delay (>= 1)
+   *  @param n    the number of cycles of delay (n == 0 is a no-op,
+   *         returning `cond` unchanged)
    *  @return a Bool-sorted Term equal to `cond` from `n` cycles ago
    */
   smt::Term delay_bool(const smt::Term & cond, uint32_t n);
@@ -791,11 +818,13 @@ class SystemVerilogEncoder
   // in their owning scope rather than the child's.
   std::string parent_prefix_;
 
-  // Procedural-loop counter bindings: when unrolling a `for` loop,
-  // each loop variable's slang VariableSymbol is mapped to a BV
-  // term representing its current iteration value.  Consulted by
-  // lookup_symbol so the loop body's references resolve to the
-  // right constant in each unrolled iteration.
+  // Compile-time-constant local bindings: each `for`/`foreach` loop
+  // variable is mapped here to a BV term representing its current
+  // iteration value while the loop is unrolling, and a plain
+  // procedural local declaration (`int x = ...;`) is bound here too,
+  // as an immutable per-block constant.  Consulted by lookup_symbol
+  // so references resolve to the right constant in each unrolled
+  // iteration (or to the local's one bound value).
   std::unordered_map<const slang::ast::Symbol *, smt::Term> loop_var_terms_;
 
   // Slang evaluation context, lazily constructed on first use to
@@ -812,8 +841,11 @@ class SystemVerilogEncoder
   // cleared right after, with save/restore for nested contexts.
   smt::Term current_lvalue_term_;
 
-  // Monotonic counter used to mint unique state-var names for the
-  // hidden latches introduced by `$past`, `|=>`, and `|-> ##N`.
+  // Monotonic counter used to mint unique state-var names for every
+  // hidden latch sva.cpp introduces: history chains (`$past`, `|=>`/
+  // `|-> ##N`, sequence-repetition delays), the LTL tableau's promise
+  // latches (ltl_make_X/G/F/R/U) and per-property activation latches,
+  // and the before_cycle()/disable_window() cycle-counting latches.
   uint32_t latch_counter_ = 0;
 
   // Scope of the module instance body currently being processed by

@@ -113,9 +113,11 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         // process_statement()'s Case handling: build a mask with a 0
         // at each wildcard bit and compare (left & mask) == value,
         // ignoring exactly those positions. Falls back to plain
-        // equality if the right operand isn't a constant (nothing to
-        // wildcard against -- this encoder's BV model has no way for
-        // a non-literal term to hold an unknown bit at all).
+        // equality if the right operand isn't a usable compile-time
+        // constant of 1-64 bits (mask/value are tracked in a
+        // uint64_t) -- nothing else to wildcard against, and this
+        // encoder's BV model has no way for a non-literal term to
+        // hold an unknown bit at all.
         Term left = expr_to_term(binop.left());
         uint64_t result_width = expr.type->getBitWidth();
         Term eq;
@@ -565,9 +567,9 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
 
     case ExpressionKind::ElementSelect: {
       // Element select: `a[i]`.  For packed arrays the element width
-      // can be more than one bit; the constant-index case uses
-      // Extract with the full slice, while the dynamic case is
-      // restricted to single-bit elements where shift+extract works.
+      // can be more than one bit; both the constant-index case (Extract
+      // over the full slice) and the dynamic case (shift by idx*elem_w
+      // then extract elem_w bits) handle arbitrary element widths.
       auto & sel = expr.as<ElementSelectExpression>();
       Term val = expr_to_term(sel.value());
       auto & sel_expr = sel.selector();
@@ -737,6 +739,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
     }
 
     case ExpressionKind::Call: {
+      // `$signed`/`$unsigned` are a pure type reinterpretation;
       // `$past`/`$stable`/`$changed`/`$rose`/`$fell` all expand into
       // (or read from) a chain of 1-cycle latch state vars;
       // `$onehot`/`$onehot0` are a plain bit trick; `$isunknown` is a
@@ -810,8 +813,10 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           && (call.getSubroutineName() == "$rose"
               || call.getSubroutineName() == "$fell")) {
         // Per the LRM, $rose/$fell only look at bit 0 of a
-        // multi-bit argument. Reuses the same 1-cycle latch chain
-        // $past/$stable already build for "value one cycle ago".
+        // multi-bit argument. Builds a fresh 1-cycle latch chain for
+        // just that bit, via the same make_history_chain() helper
+        // $past/$stable use for "value one cycle ago" -- not a chain
+        // shared with any $past/$stable call on the full value.
         bool is_rose = call.getSubroutineName() == "$rose";
         auto args = call.arguments();
         if (args.empty() || !args[0]) {

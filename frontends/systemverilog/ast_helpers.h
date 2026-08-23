@@ -55,15 +55,15 @@ const slang::ast::Symbol & canonicalize_modport_port(
     const slang::ast::Symbol & sym);
 
 // Identifies the base ValueSymbol underlying a (possibly nested)
-// bit/range-select LHS.  Returns nullptr if the LHS shape isn't
-// supported by the encoder (e.g. concatenation LHS).
+// bit/range-select or struct-member-access LHS.  Returns nullptr if
+// the LHS shape isn't supported by the encoder (e.g. concatenation LHS).
 const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs);
 
 // Describes an LHS slice: which base symbol gets written and at what
 // bit range.  For a NamedValue (or HierarchicalValue) LHS this is the
-// full range [0, base_w-1]; for nested ElementSelects of constant
-// indices the range narrows accordingly while base_w stays the full
-// base bit width.
+// full range [0, base_w-1]; for nested ElementSelects/RangeSelects of
+// constant indices/bounds, or MemberAccess field selects, the range
+// narrows accordingly while base_w stays the full base bit width.
 struct LValueDesc
 {
   const slang::ast::Symbol * base;
@@ -91,9 +91,10 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
 
 // Internal control-flow signal for `break`/`continue`/`disable`,
 // thrown by process_statement()'s Break/Continue/Disable cases and
-// caught by whichever enclosing construct can absorb it: a ForLoop
-// (for Break/Continue) or a named Block whose symbol matches
-// disable_target (for Disable). This only correctly models
+// caught by whichever enclosing construct can absorb it: any of the
+// unrolled loop kinds -- ForLoop, WhileLoop, DoWhileLoop, RepeatLoop,
+// ForeachLoop -- (for Break/Continue) or a named Block whose symbol
+// matches disable_target (for Disable). This only correctly models
 // compile-time-reachable control flow -- e.g. `if (i == 2) break;`
 // where `i` is an already-unrolled `for`-loop counter, handled by the
 // Conditional case's constant-fold fast path, which branches in C++

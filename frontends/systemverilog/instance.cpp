@@ -37,10 +37,13 @@ void SystemVerilogEncoder::process_assignments(
   using namespace slang::ast;
 
   // Track which module's scope we're in so assertions processed below
-  // can look up that module's `default disable iff` (if any).  Saved
-  // and restored around this call so that, after recursing into a
-  // child instance below, subsequent siblings in the parent's own
-  // member loop see the parent's scope again.
+  // (in this function's own two walks) can look up that module's
+  // `default disable iff` (if any).  Saved and restored around this
+  // call; note that process_instance() below does not itself update
+  // current_scope_ when it recurses into a child instance, so
+  // assertions inside a child instance's own procedural blocks are
+  // still resolved against this (outer) scope rather than the
+  // child's.
   const Scope * saved_scope = current_scope_;
   current_scope_ = &body;
 
@@ -157,10 +160,12 @@ void SystemVerilogEncoder::process_next_state_body(
     process_statement(body, StmtContext::NEXT_STATE, true_term);
   }
   catch (const LoopControlSignal &) {
-    // Only a compile-time-constant break/continue/disable (caught by
-    // an enclosing ForLoop/named Block) is supported; one reached via
-    // a runtime-dependent condition, or with no matching enclosing
-    // construct at all, escapes all the way here.
+    // A compile-time-constant break/continue/disable is absorbed by a
+    // matching enclosing ForLoop/named Block. A runtime-dependent one
+    // is rejected right at the statement itself (it never becomes a
+    // LoopControlSignal at all -- see StatementKind::Break/Continue/
+    // Disable in statement.cpp). Only "no matching enclosing
+    // construct anywhere" reaches this catch.
     throw PonoException(
         "SystemVerilogEncoder: break/continue/disable is only supported "
         "when its condition is a compile-time constant (e.g. depends only "

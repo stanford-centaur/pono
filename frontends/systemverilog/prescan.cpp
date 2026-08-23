@@ -31,7 +31,7 @@ namespace {
 
 // Collect blocking-assignment targets, separating full-width LHSes
 // (wire candidates) from partial LHSes (which must be state vars so
-// the assignment handler's add_invar slice constraints are valid).
+// the assignment handler's add_constraint slice constraints are valid).
 void collect_blocking_targets(
     const slang::ast::Statement & stmt,
     std::unordered_set<const slang::ast::Symbol *> & full,
@@ -117,8 +117,8 @@ void collect_blocking_targets(
 
 }  // namespace
 
-// This is a private helper called from process_module; it is not in the
-// header to avoid exposing slang::ast::Statement there.
+// Thin wrapper around collect_nonblocking_targets(); called from
+// pre_scan_state_vars() for every always_ff/always block in the design.
 void SystemVerilogEncoder::pre_scan_always_ff(
     const slang::ast::Statement & body)
 {
@@ -155,7 +155,7 @@ void SystemVerilogEncoder::pre_scan_always_comb(
   // Collect blocking-assign LHS targets.  Bases written full-width
   // become wires (macro-substituted); bases written through bit /
   // range selects become state vars instead so the assignment
-  // handler can use slice-equality add_invar constraints (which
+  // handler can use slice-equality add_constraint constraints (which
   // requires the term to be a state var, not an input var).  Mixed
   // full+partial writes also go to state vars to keep the splice
   // semantics correct.
@@ -198,8 +198,9 @@ void SystemVerilogEncoder::pre_scan_instance(
   // (e.g. `fifo_data_out[i]`, already resolved by slang), or a
   // concatenation of several parent-side signals (`.sum({hi, lo})`,
   // splitting the port's bits across each) -- either way, every
-  // underlying base symbol becomes a wire. Non-constant indices are
-  // not yet supported.
+  // underlying base symbol becomes a wire, unless it's already known
+  // to be a register (state var), which takes priority. Non-constant
+  // indices are not yet supported.
   for (auto * pc : inst.getPortConnections()) {
     if (!pc) continue;
     if (pc->port.kind != SymbolKind::Port) continue;
