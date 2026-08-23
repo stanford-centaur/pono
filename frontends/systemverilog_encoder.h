@@ -20,6 +20,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -465,11 +466,18 @@ class SystemVerilogEncoder
    *  per-iteration members directly.  Uninstantiated generate
    *  blocks (the unselected arm of a generate-if / generate-case)
    *  are skipped.
+   *
+   *  Takes a type-erased `std::function` (rather than a template
+   *  parameter) so that this method has a single ordinary, non-template
+   *  definition -- a template member function's definition must instead
+   *  be visible (and separately instantiated) in every translation unit
+   *  that calls it, which becomes a problem as soon as callers span more
+   *  than one .cpp file.
    *  @param scope the scope whose members should be visited
    *  @param fn   callback invoked once per concrete member symbol
    */
-  template <typename Fn>
-  void walk_members(const slang::ast::Scope & scope, Fn && fn);
+  void walk_members(const slang::ast::Scope & scope,
+                    const std::function<void(const slang::ast::Symbol &)> & fn);
 
   /** Lazily construct and return the encoder's slang EvalContext.
    *  Used to evaluate compile-time-constant loop bounds and step

@@ -193,9 +193,9 @@ void warn_on_bind_directives(const slang::syntax::SyntaxNode & node);
 // Member iteration helpers
 // ============================================================================
 
-template <typename Fn>
-void SystemVerilogEncoder::walk_members(const slang::ast::Scope & scope,
-                                        Fn && fn)
+void SystemVerilogEncoder::walk_members(
+    const slang::ast::Scope & scope,
+    const std::function<void(const slang::ast::Symbol &)> & fn)
 {
   using namespace slang::ast;
   for (auto & m : scope.members()) {
