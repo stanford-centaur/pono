@@ -138,6 +138,15 @@ TEST_P(SVUnitTests, StreamingOperator) { check_bmc("streaming_op.sv", 2); }
 // Unary '+' (a no-op per the LRM).
 TEST_P(SVUnitTests, UnaryPlusIdentity) { check_bmc("unary_plus.sv", 2); }
 
+// A `&&&`-joined multi-condition ternary (`a &&& b ? x : y`, LRM
+// 11.4.11) is legal outside case/if context too. expr_to_term()
+// previously only ever read conditions[0], silently ignoring every
+// later `&&&`-joined condition.
+TEST_P(SVUnitTests, MultiConditionTernary)
+{
+  check_bmc("multi_cond_ternary.sv", 0, ProverResult::UNKNOWN);
+}
+
 // A plain user-defined SV `function` called with a symbolic (runtime-
 // dependent) argument -- a common RTL idiom (a small combinational
 // helper function). expr_to_term()'s Call case only recognizes a fixed

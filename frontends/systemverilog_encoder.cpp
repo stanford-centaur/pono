@@ -3722,8 +3722,33 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
     }
 
     case ExpressionKind::ConditionalOp: {
+      // `cond1 &&& cond2 &&& ... ? a : b` (LRM 11.4.11): more than one
+      // `&&&`-joined condition is legal outside case/if context too.
+      // A `matches` pattern on any condition introduces destructuring
+      // bind semantics this encoder doesn't implement -- throw rather
+      // than silently evaluate only the plain boolean part of it.
       auto & ternary = expr.as<ConditionalExpression>();
-      Term cond = expr_to_term(*ternary.conditions[0].expr);
+      Term bool_cond;
+      for (auto & c : ternary.conditions) {
+        if (c.pattern) {
+          throw PonoException(
+              "SystemVerilogEncoder: pattern-matching ternary condition "
+              "('... matches ...') is not supported");
+        }
+        Term c_term = expr_to_term(*c.expr);
+        uint64_t cw = c_term->get_sort()->get_width();
+        Term c_bool =
+            (cw == 1)
+                ? solver_->make_term(
+                      Equal,
+                      c_term,
+                      solver_->make_term(1, solver_->make_sort(BV, 1)))
+                : solver_->make_term(Distinct,
+                                     c_term,
+                                     solver_->make_term(0, c_term->get_sort()));
+        bool_cond =
+            bool_cond ? solver_->make_term(And, bool_cond, c_bool) : c_bool;
+      }
       Term then_val = expr_to_term(ternary.left());
       Term else_val = expr_to_term(ternary.right());
 
@@ -3738,16 +3763,6 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       then_val = resize_to(then_val, max_w, branches_signed);
       else_val = resize_to(else_val, max_w, branches_signed);
 
-      // Convert condition to Bool for Ite.
-      uint64_t cw = cond->get_sort()->get_width();
-      Term bool_cond;
-      if (cw == 1) {
-        bool_cond = solver_->make_term(
-            Equal, cond, solver_->make_term(1, solver_->make_sort(BV, 1)));
-      } else {
-        bool_cond = solver_->make_term(
-            Distinct, cond, solver_->make_term(0, cond->get_sort()));
-      }
       return solver_->make_term(Ite, bool_cond, then_val, else_val);
     }
 
