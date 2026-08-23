@@ -166,6 +166,15 @@ struct LoopControlSignal
   } kind;
   const slang::ast::Symbol * disable_target = nullptr;  // only for Disable
 };
+
+// Recursively scans `node` for `bind` directive syntax, logging a
+// warning for each one found. A `bind` directive injects an
+// additional instance into another module's scope from outside its
+// source and has no functional-logic representation in this encoder's
+// model, but (unlike a program/checker instance or a specify block)
+// it has no corresponding elaborated Symbol to catch during the usual
+// member walk -- it has to be found in the raw syntax tree instead.
+void warn_on_bind_directives(const slang::syntax::SyntaxNode & node);
 }  // namespace
 
 // ============================================================================
@@ -370,6 +379,13 @@ void SystemVerilogEncoder::encode(const string & filename,
     }
     throw PonoException("SystemVerilogEncoder: errors in SystemVerilog file:\n"
                         + diag_messages);
+  }
+
+  // `bind` directives have no corresponding elaborated Symbol to catch
+  // during the usual member walk, so scan the raw syntax for them
+  // directly and warn -- see warn_on_bind_directives().
+  for (auto & tree : compilation_->getSyntaxTrees()) {
+    warn_on_bind_directives(tree->root());
   }
 
   // Walk the top-level instances.
@@ -822,6 +838,21 @@ std::string assertion_label(const slang::ast::Statement & stmt)
   return "<unnamed>";
 }
 
+void warn_on_bind_directives(const slang::syntax::SyntaxNode & node)
+{
+  if (node.kind == slang::syntax::SyntaxKind::BindDirective) {
+    logger.log(
+        1,
+        "SystemVerilogEncoder: ignoring `bind` directive (simulation-only "
+        "construct)");
+  }
+  for (size_t i = 0, n = node.getChildCount(); i < n; i++) {
+    if (auto * child = node.childNode(i)) {
+      warn_on_bind_directives(*child);
+    }
+  }
+}
+
 }  // anonymous namespace
 
 // This is a private helper called from process_module; it is not in the
@@ -1219,6 +1250,32 @@ void SystemVerilogEncoder::process_assignments(
       }
     } else if (member.kind == SymbolKind::Instance) {
       process_instance(member.as<InstanceSymbol>());
+    } else if (member.kind == SymbolKind::CheckerInstance) {
+      // `checker ... endchecker`, instantiated like a module: a
+      // verification-only construct (SVA sequence/property checking
+      // outside the DUT's own functional logic), so this instance and
+      // everything inside it -- including any of its own assertions --
+      // is simulation-only and has no functional-logic counterpart to
+      // encode.
+      logger.log(1,
+                 "SystemVerilogEncoder: ignoring checker instance '{}' "
+                 "(simulation-only construct)",
+                 string(member.name));
+    } else if (member.kind == SymbolKind::SpecifyBlock) {
+      // `specify ... endspecify`: path delays / timing checks only,
+      // no functional effect on the DUT's logic.
+      logger.log(1,
+                 "SystemVerilogEncoder: ignoring specify block (timing-only)");
+    } else if (member.kind == SymbolKind::DefParam) {
+      // `defparam inst.PARAM = value;`: a legacy parameter-override
+      // mechanism with no functional-logic representation of its own
+      // (the target instance is encoded with its own declared
+      // defaults instead). The `#(...)` instantiation-time override
+      // styles are fully supported; only this legacy spelling isn't.
+      logger.log(1,
+                 "SystemVerilogEncoder: ignoring defparam (parameter "
+                 "overrides via `#(...)` at instantiation are supported; "
+                 "`defparam` is not)");
     }
   });
 
@@ -1511,6 +1568,22 @@ void SystemVerilogEncoder::process_instance(
     const slang::ast::InstanceSymbol & inst)
 {
   using namespace slang::ast;
+
+  // `program ... endprogram`, instantiated like a module: a
+  // verification-only construct (a testbench entry point, not
+  // synthesizable DUT logic), so this instance and everything inside
+  // it is simulation-only and has no functional-logic counterpart to
+  // encode. (`interface` instances share SymbolKind::Instance with
+  // ordinary modules too, but are a supported signal-bundle feature,
+  // not a simulation-only one -- only DefinitionKind::Program is
+  // skipped here.)
+  if (inst.body.getDefinition().definitionKind == DefinitionKind::Program) {
+    logger.log(1,
+               "SystemVerilogEncoder: ignoring program instance '{}' "
+               "(simulation-only construct)",
+               string(inst.name));
+    return;
+  }
 
   // Switch the naming context so any state vars / wires declared
   // inside the child get hierarchical names like "<parent>.<inst>.<x>".

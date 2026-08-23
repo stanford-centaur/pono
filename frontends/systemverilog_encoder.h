@@ -65,6 +65,29 @@ class SystemVerilogEncoder
    *    - Basic SVA immediate assertions (converted to properties)
    *    - Bitvector types (logic, bit, reg with packed dimensions)
    *
+   *  Error handling contract for anything outside that subset -- every
+   *  construct this encoder doesn't support falls into exactly one of
+   *  two buckets, never a third "silently produces a wrong encoding"
+   *  bucket:
+   *    - Simulation-only constructs (no possible functional-logic
+   *      meaning in a per-cycle model at all: `program`/`checker`
+   *      instances, `specify` blocks, `fork`/`join`, `wait`,
+   *      `force`/`release`, `defparam`, `bind`, ...) are dropped and
+   *      logged as a warning (`logger.log(1, ...)`, visible at
+   *      verbosity >= 1) rather than encoded or rejected -- the rest
+   *      of the design is still encoded normally.
+   *    - Everything else this encoder doesn't (yet) support -- a
+   *      mainstream RTL feature not yet implemented, or a malformed/
+   *      out-of-bounds use of a feature it does implement -- throws a
+   *      PonoException instead of silently dropping or mis-encoding
+   *      it. This is enforced structurally, not just by convention:
+   *      e.g. resolve_lvalue()'s default case throws for any lvalue
+   *      expression shape it has no case for, rather than returning
+   *      nullopt and letting the caller silently no-op the write.
+   *  See tests/encoders/test_systemverilog_unsupported.cpp for the
+   *  ledger of constructs checked against this contract, each verified
+   *  empirically (not assumed) to land in the bucket its test expects.
+   *
    *  @param filename path to the SystemVerilog source file
    *  @param fts the transition system to populate
    *  @param filelists paths to SystemVerilog list files (".f" files), each

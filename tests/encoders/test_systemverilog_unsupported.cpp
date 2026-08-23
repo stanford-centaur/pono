@@ -44,11 +44,15 @@ TEST_P(SVUnitTests, Unsupported_CovergroupDecl)
   expect_encode_throws("covergroup_decl.sv");
 }
 
-// GAP in the "clean rejection" contract itself (confirmed empirically):
-// program/checker instances are never walked at all -- process_module()'s
-// top-level walk and process_instance() only recognize ordinary module
-// InstanceSymbols -- so the whole construct is silently invisible rather
-// than throwing.
+// `program`/`checker` instances are a verification-only construct with
+// no functional-logic counterpart: process_instance() recognizes a
+// program instance via DefinitionKind::Program and skips it, and a
+// checker instance is a distinct SymbolKind::CheckerInstance the usual
+// member walk doesn't match at all -- either way logged via
+// logger.log(1, "... ignoring ... instance ...") rather than thrown,
+// per the "simulation-only constructs are dropped and logged" half of
+// the constructor's documented contract (see
+// SystemVerilogEncoder::SystemVerilogEncoder()'s doc comment).
 TEST_P(SVUnitTests, Unsupported_ProgramBlock)
 {
   expect_encode_succeeds_ignoring("program_block.sv");
@@ -59,9 +63,10 @@ TEST_P(SVUnitTests, Unsupported_CheckerBlock)
   expect_encode_succeeds_ignoring("checker_block.sv");
 }
 
-// GAP in the "clean rejection" contract (confirmed empirically): these
-// hit the same silent statement-kind skip documented in
-// test_systemverilog_statements.cpp, not a throw.
+// `fork`/`join` and `wait` are simulation-timing constructs with no
+// per-cycle counterpart in this encoder's model; process_statement()'s
+// default case logs a warning (logger.log(1, "... skipping unsupported
+// statement kind ...")) and skips them, rather than throwing.
 TEST_P(SVUnitTests, Unsupported_ForkJoin)
 {
   expect_encode_succeeds_ignoring("fork_join.sv");
@@ -146,10 +151,14 @@ TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
   expect_encode_throws("element_select_out_of_bounds_lhs.sv");
 }
 
-// GAP in the "clean rejection" contract (confirmed empirically):
-// `defparam`/`bind` are simply never processed -- the base module they
-// target is still walked normally with its *own* defaults, so encoding
-// succeeds as if the override/bind-in never appeared in the source.
+// `defparam`/`bind` are legacy simulation-era constructs with no
+// functional-logic representation: the base module they target is
+// still walked normally with its *own* defaults, so encoding succeeds
+// as if the override/bind-in never appeared in the source -- logged
+// via logger.log(1, "... ignoring ...") rather than thrown. `defparam`
+// is caught as a walkable SymbolKind::DefParam member; `bind` has no
+// elaborated Symbol at all and is instead found by scanning the raw
+// syntax tree for BindDirective nodes (warn_on_bind_directives()).
 TEST_P(SVUnitTests, Unsupported_DefparamStmt)
 {
   expect_encode_succeeds_ignoring("defparam_stmt.sv");
@@ -173,22 +182,24 @@ TEST_P(SVUnitTests, Unsupported_InterfaceModportTask)
   expect_encode_succeeds_ignoring("interface_modport_task.sv");
 }
 
-// `specify` affects only timing (not functional logic), so silently
-// ignoring it (confirmed empirically: it's a module-scope member kind
-// walk_members() doesn't recognize, skipped with no error) doesn't
-// corrupt any functional proof the way the assume/cover/statement-kind
-// gaps elsewhere in this suite can.
+// `specify` affects only timing (not functional logic), so ignoring it
+// (a walkable SymbolKind::SpecifyBlock member, logged via
+// logger.log(1, "... ignoring specify block ...") rather than thrown)
+// doesn't corrupt any functional proof the way the assume/cover/
+// statement-kind gaps elsewhere in this suite can.
 TEST_P(SVUnitTests, Unsupported_SpecifyBlock)
 {
   expect_encode_succeeds_ignoring("specify_block.sv");
 }
 
 // force/release's effect is inherently simulation-timing-dependent and
-// doesn't map onto Pono's per-cycle model; confirmed empirically that
-// encoding just proceeds as if the initial block's force/release calls
-// weren't there (this test's own assert doesn't reference `x`, so it
-// can't further distinguish "ignored" from "applied and then reverted" --
-// only that neither one crashes the encoder).
+// doesn't map onto Pono's per-cycle model; process_statement()'s
+// default case logs a warning and skips them (same mechanism as
+// fork/join and wait above), so encoding just proceeds as if the
+// initial block's force/release calls weren't there (this test's own
+// assert doesn't reference `x`, so it can't further distinguish
+// "ignored" from "applied and then reverted" -- only that neither one
+// crashes the encoder).
 TEST_P(SVUnitTests, Unsupported_ForceRelease)
 {
   expect_encode_succeeds_ignoring("force_release.sv");
