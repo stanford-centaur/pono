@@ -2113,7 +2113,21 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         }
 
         auto it = symbol_to_term_.find(w.sym);
-        if (it == symbol_to_term_.end()) return;
+        if (it == symbol_to_term_.end()) {
+          // Every non-wire write target should already have a term by
+          // the time any statement is processed: locals are
+          // intercepted earlier in this function (see findLocal()
+          // above), a wire goes through the w.wire_comb branch above
+          // instead, and every remaining declared symbol gets a term
+          // from declare_variables_internal()/process_port() before
+          // process_assignments() ever runs. Throw rather than
+          // silently drop the write if that invariant somehow doesn't
+          // hold.
+          throw PonoException(
+              "SystemVerilogEncoder: write to '" + string(w.sym->name)
+              + "' has no declared term (out-of-order or unsupported "
+                "target)");
+        }
         Term lhs_term = it->second;
         uint64_t base_w = lhs_term->get_sort()->get_width();
         bool full_write = (w.lo == 0 && w.hi == base_w - 1);

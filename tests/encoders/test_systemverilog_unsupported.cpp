@@ -72,6 +72,19 @@ TEST_P(SVUnitTests, Unsupported_ForkJoin)
   expect_encode_succeeds_ignoring("fork_join.sv");
 }
 
+// `case (x) matches ... endcase` (StatementKind::PatternCase) is a
+// distinct statement kind from plain case/casex/casez
+// (StatementKind::Case) that pre_scan_state_vars()'s
+// collect_blocking_targets()/collect_nonblocking_targets() don't
+// recognize either -- but since process_statement() itself also
+// doesn't process it (falling to the generic unhandled-statement-kind
+// default below), the two omissions are consistent: no write inside
+// it is ever pre-scanned *or* applied, and the skip is logged.
+TEST_P(SVUnitTests, Gap_PatternCase)
+{
+  expect_encode_succeeds_ignoring("pattern_case.sv");
+}
+
 TEST_P(SVUnitTests, Unsupported_WaitStmt)
 {
   expect_encode_succeeds_ignoring("wait_stmt.sv");
