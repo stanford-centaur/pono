@@ -8,9 +8,8 @@ using namespace smt;
 namespace pono_tests {
 
 // ---------------------------------------------------------------------------
-// Packed multi-dimensional arrays (array-of-vectors) -- these pass: both
-// constant- and variable-index reads/writes on a packed array are already
-// supported.
+// Packed multi-dimensional arrays (array-of-vectors): constant- and
+// variable-index reads/writes on a packed array.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, PackedArrayConstIndexChain)
@@ -28,11 +27,10 @@ TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
 // ---------------------------------------------------------------------------
 
 // Struct-field nonblocking assignment (`p.cnt <= ...`, `s.a.x <= ...`):
-// find_lhs_base()/resolve_lvalue() in systemverilog_encoder.cpp resolve
-// a MemberAccess lvalue by narrowing the inner base's bit range by the
-// field's own bitOffset, the same way the read-side MemberAccess case
-// in expr_to_term() does, so the field is registered as a real
-// assign_next() target rather than staying a free state variable.
+// resolve_lvalue() narrows the inner base's bit range by the field's
+// own bitOffset, mirroring the read-side MemberAccess case in
+// expr_to_term(), so the field is registered as a real assign_next()
+// target rather than staying a free state variable.
 TEST_P(SVUnitTests, PackedStructFieldState) { check_bmc("struct_state.sv", 5); }
 
 TEST_P(SVUnitTests, PackedStructNested) { check_bmc("struct_nested.sv", 4); }
@@ -48,8 +46,7 @@ TEST_P(SVUnitTests, TypedefStructPort)
 // Packed enums
 // ---------------------------------------------------------------------------
 
-// Referencing one of an enum's own named literals (IDLE/REQ/ACK, used
-// exactly as ordinary SV permits once the enum is declared):
+// Referencing one of an enum's own named literals (IDLE/REQ/ACK):
 // lookup_symbol() resolves an EnumValueSymbol the same way it resolves
 // a ParameterSymbol (both are elaboration-time constants slang has
 // already evaluated).
@@ -73,35 +70,36 @@ TEST_P(SVUnitTests, EnumCastFromInt) { check_bmc("enum_cast.sv", 2); }
 // Packed unions
 // ---------------------------------------------------------------------------
 
-// Passes: packed-union member access correctly aliases at bit offset
-// 0 for every member (unlike struct members, which are packed
-// end-to-end) -- writing through `.b` and reading back through
-// `.parts.hi`/`.parts.lo` is bit-consistent.
+// Packed-union member access aliases at bit offset 0 for every member
+// (unlike struct members, which are packed end-to-end): writing
+// through `.b` and reading back through `.parts.hi`/`.parts.lo` is
+// bit-consistent.
 TEST_P(SVUnitTests, PackedUnionOverlap)
 {
   check_bmc("union_overlap.sv", 6, ProverResult::UNKNOWN);
 }
 
 // Packed-union construction via `'{default: ...}` (distinct from
-// PackedUnionOverlap's member-access, which already works) is a
-// genuinely out-of-scope shape: expr_to_term()'s StructuredAssignment
-// Pattern case only builds a PackedStructType target, so a union
-// canonical type throws a clear error.
+// PackedUnionOverlap's member-access above) is out of scope:
+// expr_to_term()'s StructuredAssignmentPattern case only builds a
+// PackedStructType target, so a union canonical type throws a clear
+// error.
 TEST_P(SVUnitTests, Unsupported_UnionLiteral)
 {
   expect_encode_throws("union_literal.sv");
 }
 
 // ---------------------------------------------------------------------------
-// typedef -- passes: a typedef'd plain vector is just its underlying sort.
+// typedef: a typedef'd plain vector is just its underlying sort.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, TypedefVectorWidth) { check_bmc("typedef_vector.sv", 5); }
 
 // ---------------------------------------------------------------------------
-// 2-state (`bit`) vs 4-state (`logic`) parity -- passes both directions:
-// Pono's SMT bitvector model has no X/Z state, so `bit` and `logic`
-// registers updated identically are numerically indistinguishable.
+// 2-state (`bit`) vs 4-state (`logic`) parity: Pono's SMT bitvector
+// model has no X/Z state, so `bit` and `logic` registers updated
+// identically are numerically indistinguishable (checked as both a
+// holding and a violated property below).
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, BitVsLogicParityHolds)

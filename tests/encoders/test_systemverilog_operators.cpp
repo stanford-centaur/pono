@@ -108,13 +108,11 @@ TEST_P(SVUnitTests, ReductionNandNorXnor)
 }
 
 // `i++;`/`--i;` as a standalone statement (distinct from the same
-// operators used as a `for`-loop step, which slang's own constant
-// evaluator handles via a separate path). Reuses the same lvalue-
-// resolution/commit machinery as plain assignment (begin_write()/
-// commit_write() local lambdas shared by both), reading the current
-// value directly instead of evaluating an RHS expression -- this works
-// for any lvalue shape resolve_lvalue() supports, not just a plain
-// scalar (see ElementIncrement/StructFieldIncrement below).
+// operator used as a `for`-loop step, which slang's constant evaluator
+// handles separately). Reuses the assignment lvalue-resolution/commit
+// machinery, so this works for any lvalue shape resolve_lvalue()
+// supports, not just a plain scalar (see ElementIncrement/
+// StructFieldIncrement below).
 TEST_P(SVUnitTests, IncrementDecrement) { check_bmc("inc_dec.sv", 4); }
 
 // `++` on a packed-array element and a packed-struct field, confirming
@@ -139,20 +137,17 @@ TEST_P(SVUnitTests, StreamingOperator) { check_bmc("streaming_op.sv", 2); }
 TEST_P(SVUnitTests, UnaryPlusIdentity) { check_bmc("unary_plus.sv", 2); }
 
 // A `&&&`-joined multi-condition ternary (`a &&& b ? x : y`, LRM
-// 11.4.11) is legal outside case/if context too. expr_to_term()
-// previously only ever read conditions[0], silently ignoring every
-// later `&&&`-joined condition.
+// 11.4.11) is legal outside case/if context too; expr_to_term() must
+// AND together every joined condition, not just the first.
 TEST_P(SVUnitTests, MultiConditionTernary)
 {
   check_bmc("multi_cond_ternary.sv", 0, ProverResult::UNKNOWN);
 }
 
 // A plain user-defined SV `function` called with a symbolic (runtime-
-// dependent) argument -- a common RTL idiom (a small combinational
-// helper function). expr_to_term()'s Call case only recognizes a fixed
-// list of system calls; inlining a user function's body isn't
-// implemented, so any other call throws a clear "unsupported call"
-// error.
+// dependent) argument. expr_to_term()'s Call case only recognizes a
+// fixed list of system calls; user functions aren't inlined, so this
+// throws "unsupported call".
 TEST_P(SVUnitTests, Unsupported_UserFunctionCall)
 {
   expect_encode_throws("user_function_call.sv");

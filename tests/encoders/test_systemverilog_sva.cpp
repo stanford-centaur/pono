@@ -7,13 +7,6 @@ using namespace smt;
 
 namespace pono_tests {
 
-// ---------------------------------------------------------------------------
-// Migrated from the original test_systemverilog.cpp -- already compositional
-// and (for the ReqAck pair) already the holds+fails template the rubric
-// asks every property-style test to generalize; kept as-is per the triage
-// in the plan.
-// ---------------------------------------------------------------------------
-
 TEST_P(SVUnitTests, ReqAckLiveness) { check_liveness_bmc("req_ack.sv", 10); }
 
 TEST_P(SVUnitTests, ReqAckHolds)
@@ -71,7 +64,7 @@ TEST_P(SVUnitTests, RestrictPropertyConstrainsTrace)
 }
 
 // `cover property (P)`: implemented via reachability duality (see the
-// design-decision note at the top of systemverilog_encoder.cpp) --
+// design-decision note at the top of frontends/systemverilog/sva.cpp) --
 // checked exactly like `assert property (!P)`, so finding a
 // counterexample to that surrogate assertion is precisely "P was
 // reached". `data` is free, so the cover point (data == 5) is reachable
@@ -84,11 +77,12 @@ TEST_P(SVUnitTests, ImmediateCover) { check_bmc("immediate_cover.sv", 1); }
 
 // ---------------------------------------------------------------------------
 // $rose/$fell/$changed/$onehot/$onehot0/$isunknown. $rose/$fell/$changed
-// reuse the same 1-cycle latch chain $past/$stable build; $onehot/$onehot0
-// are the standard (x & (x-1)) == 0 power-of-two bit trick; $isunknown is
-// always false, since this encoder's pure 2-valued bitvector model has no
-// X/Z representation at all. Checked as identities here, not one
-// hand-picked value.
+// each build their own 1-cycle latch chain via the same make_history_chain()
+// helper $past/$stable use; $onehot/$onehot0 are the standard
+// (x & (x-1)) == 0 power-of-two bit trick; $isunknown is always false,
+// since this encoder's pure 2-valued bitvector model has no X/Z
+// representation at all. Checked as identities here, not one hand-picked
+// value.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, RoseFellChangedHold)

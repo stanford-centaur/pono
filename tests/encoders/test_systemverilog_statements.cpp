@@ -8,9 +8,8 @@ using namespace smt;
 namespace pono_tests {
 
 // ---------------------------------------------------------------------------
-// Migrated from the original test_systemverilog.cpp -- already compositional
-// (procedural for-loop + compound assignment / element-select LHS composed
-// with always_ff), kept as-is per the triage in the plan.
+// Compositional cases: a procedural for-loop combined with compound
+// assignment (`|=`) or an element-select LHS, both inside always_ff.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, CompoundAssignOrReduce)
@@ -21,12 +20,9 @@ TEST_P(SVUnitTests, CompoundAssignOrReduce)
 TEST_P(SVUnitTests, ElementSelectLhs) { check_bmc("element_select_lhs.sv", 2); }
 
 // Range-select (bit-slice) LHS on a plain continuous assign
-// (`assign w[7:4] = ...;`). resolve_lvalue() previously had no case
-// for ExpressionKind::RangeSelect at all (only NamedValue,
-// HierarchicalValue, ElementSelect, MemberAccess), so a range-select
-// LHS silently failed to resolve and the write was dropped entirely --
-// `w` was declared as a free/unconstrained state var instead of being
-// pinned by either assign.
+// (`assign w[7:4] = ...;`): resolve_lvalue() has a dedicated
+// RangeSelect case requiring constant bounds, so each assign pins its
+// half of `w` instead of leaving it a free state var.
 TEST_P(SVUnitTests, RangeSelectLhs)
 {
   check_bmc("range_select_lhs.sv", 4, ProverResult::UNKNOWN);
@@ -34,32 +30,30 @@ TEST_P(SVUnitTests, RangeSelectLhs)
 
 // Concatenation-target LHS on a plain continuous assign (`assign {hi,
 // lo} = ...;`), as opposed to a concatenation-target *port connection*
-// (already supported separately via OutputAliasSegment).
-// resolve_lvalue() has no case for ExpressionKind::Concatenation --
-// unlike a port connection, a concatenation LHS has more than one base
-// symbol, so it can't be represented as a single LValueDesc at all --
-// and the write was silently dropped entirely.
+// (already supported separately via OutputAliasSegment). Since a
+// concatenation has more than one base symbol and can't be represented
+// as a single LValueDesc, process_continuous_assign() special-cases it
+// by splitting the RHS across each operand rather than going through
+// resolve_lvalue() directly.
 TEST_P(SVUnitTests, ConcatenationLhs)
 {
   check_bmc("concat_lhs.sv", 4, ProverResult::UNKNOWN);
 }
 
-// Same gap, procedural (non-blocking) assignment form: begin_write()
-// (shared by blocking/non-blocking assignment and ++/--) also has no
-// case for a top-level concatenation-target LHS.
+// Same shape, procedural (non-blocking) assignment form: begin_write()
+// (shared by blocking/non-blocking assignment and ++/--) special-cases
+// a top-level concatenation-target LHS the same way
+// process_continuous_assign() does for the continuous-assign form
+// above.
 TEST_P(SVUnitTests, ConcatenationLhsNextState)
 {
   check_bmc("concat_lhs_next_state.sv", 2);
 }
 
-// Basic block-level smoke checks -- module ports + always_ff (counter.sv)
-// and `initial` blocks pinning initial state (initial_block.sv) -- kept
-// from the original suite verbatim rather than folded away: the pattern
-// they exercise (a bare always_ff counter; a design with no `rst` port at
-// all, relying solely on `initial` to pin state) recurs as a building
-// block throughout this whole suite, so it's worth keeping one minimal,
-// direct test of each rather than only ever seeing it composed with
-// something else.
+// Minimal, direct checks of two patterns that recur composed with other
+// constructs throughout this suite: a bare always_ff counter, and (for
+// initial_block.sv below) a design with no `rst` port at all, relying
+// solely on `initial` to pin state.
 TEST_P(SVUnitTests, EncodeCounter) { check_bmc("counter.sv", 5); }
 
 TEST_P(SVUnitTests, InitialBlockSetsState) { check_bmc("initial_block.sv", 0); }
@@ -108,8 +102,8 @@ TEST_P(SVUnitTests, Unsupported_BareForever)
 }
 
 // ---------------------------------------------------------------------------
-// `priority if` / `unique case` as semantic modifiers, replacing the old
-// bare if_else.sv / case_stmt.sv with one denser, paired test.
+// `priority if` / `unique case` as semantic modifiers (not just a parse-
+// through of plain if/case).
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, PriorityIfUniqueCaseFails)
@@ -150,18 +144,11 @@ TEST_P(SVUnitTests, CasexCasezWildcard)
 // ---------------------------------------------------------------------------
 // `while`/`do-while`/`repeat`/`foreach` loop unrolling. A plain
 // procedural scratch variable (`int i;` mutated by `i = i + 1;` inside
-// the loop body) needs its own fast path in ExpressionStatement's
-// Assignment/++/-- handling: a write to any symbol currently bound as a
-// compile-time-unrolled local is evaluated by slang's own constant
-// evaluator and mirrored back into the same loop_var_terms_ map
-// `for`-loop counters use, rather than the wire/state-var write path
-// (which only applies to real design signals). `while`/`do-while`
-// conditions and `repeat` counts follow the same compile-time-constant-
-// only contract as `for` bounds and break/continue/disable (clear
-// PonoException, not a wrong verdict, for a runtime-dependent bound);
-// `foreach` is scoped to a single statically-sized dimension with a
-// loop variable, which is what `foreach (arr[i])` over a fixed-size
-// packed vector produces.
+// the loop body) is neither a wire nor a state var, so writes to it go
+// through slang's own constant evaluator and the loop_var_terms_ map
+// instead of the normal wire/state-var write path. `while`/`do-while`
+// conditions and `repeat` counts must be compile-time constants, same
+// as `for` bounds (a runtime-dependent bound throws PonoException).
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, WhileLoop) { check_bmc("while_loop.sv", 2); }
@@ -173,18 +160,15 @@ TEST_P(SVUnitTests, RepeatLoop) { check_bmc("repeat_loop.sv", 2); }
 TEST_P(SVUnitTests, ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
 
 // ---------------------------------------------------------------------------
-// `break`/`continue`/`disable`, scoped to compile-time-constant
-// conditions: process_statement() throws a LoopControlSignal from
-// Break/Continue/Disable, caught by the nearest enclosing ForLoop
-// (Break/Continue) or matching named Block (Disable). This relies on
-// the Conditional case const-evaluating an `if`'s condition first
-// (falling back to the existing symbolic-guard path when that fails)
-// -- each fixture below guards its break/continue/disable with a
-// comparison against an already-unrolled `for`-loop counter, so the
-// const-eval succeeds and the signal can propagate out of the one
-// branch actually taken in C++, the same way real control flow would.
-// See Unsupported_BreakRuntimeDependent below for the (deliberately
-// unsupported, clean-error) runtime-dependent case.
+// `break`/`continue`/`disable`, scoped to compile-time-constant guard
+// conditions: process_statement() throws a LoopControlSignal, caught
+// by the nearest enclosing ForLoop (Break/Continue) or matching named
+// Block (Disable). This relies on the `if` guarding each one being
+// const-evaluable (each fixture below compares against an
+// already-unrolled `for`-loop counter), so only the branch actually
+// taken in C++ runs and the signal propagates correctly. See
+// Unsupported_BreakRuntimeDependent below for the runtime-dependent
+// case.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, BreakInForLoop)
@@ -229,7 +213,7 @@ TEST_P(SVUnitTests, Unsupported_BreakRuntimeDependent)
 // "one cycle after release" the way a registered value would need.
 TEST_P(SVUnitTests, ImmediateAssert) { check_bmc("immediate_assert.sv", 1); }
 
-// Immediate `assume` (Assume/Restrict share the same fixed code path).
+// Immediate `assume` (Assume/Restrict share the same code path as assert).
 TEST_P(SVUnitTests, ImmediateAssume)
 {
   check_bmc("immediate_assume.sv", 4, ProverResult::UNKNOWN);

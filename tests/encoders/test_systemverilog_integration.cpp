@@ -47,16 +47,16 @@ TEST_P(SVUnitTests, RegfileCtrlKInductionProves)
 }
 
 // Integration #3: credit-based link, checked with IC3Bits.  Written
-// by hand rather than via check_prover() because IC3's proof isn't
-// bounded by a `check_until` step count the way Bmc's counterexample
-// search is.  The design has an `assume property` constraining `push`
-// to never fire while credits == 0; with that assumption honored, IC3
-// proves credits never overflow past 4'd4.
+// by hand rather than via check_prover() because IC3Bits needs a
+// differently-configured solver (see below).  The design has an
+// `assume property` constraining `push` to never fire while credits
+// == 0; with that assumption honored, IC3 proves credits never
+// overflow past 4'd4.
 TEST_P(SVUnitTests, CreditLinkAssumeHonoredByIC3)
 {
   // IC3Bits needs solver options (e.g. unsat-assumptions production)
   // beyond the plain incremental/produce-models pair Bmc/KInduction
-  // get by away with -- create_solver_for(..., Engine::IC3_BITS, ...)
+  // get away with -- create_solver_for(..., Engine::IC3_BITS, ...)
   // is the same helper test_ic3bits.cpp uses for exactly this reason.
   SmtSolver s = create_solver_for(GetParam(), Engine::IC3_BITS, false);
   FunctionalTransitionSystem fts(s);

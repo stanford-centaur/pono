@@ -8,20 +8,15 @@ using namespace smt;
 namespace pono_tests {
 
 // ---------------------------------------------------------------------------
-// Ledger of genuinely out-of-scope IEEE 1800-2017 chapters (OOP/classes,
-// randomization, DPI, functional coverage, programs/checkers,
-// fork/join/wait, non-integral types, dynamic containers) plus a few
-// synthesizable-RTL legacy constructs (defparam, bind).  Each is checked
-// via expect_encode_throws() per the intended "clean rejection" contract;
-// where the actual behavior turned out to be something else (a silent
-// drop, or a different exception message), that's called out in the
-// per-test comment -- verified empirically, not assumed.  All test names
-// are prefixed `Unsupported_` (rather than `Gap_`) since these are
-// deliberate non-goals, not missed synthesizable-subset features -- with
-// the exception of unpacked-array memories and plain interfaces, which
-// stayed in Gap_ ledgers (test_systemverilog_unsupported.cpp /
-// test_systemverilog_hierarchy.cpp respectively) since those *are*
-// mainstream RTL, not verification-only features.
+// Ledger of genuinely out-of-scope IEEE 1800-2017 constructs (OOP/classes,
+// randomization, DPI, functional coverage, programs/checkers/specify,
+// fork/join/wait/force-release, non-integral types, dynamic containers,
+// defparam/bind). Each is checked via either expect_encode_throws() or
+// expect_encode_succeeds_ignoring(), whichever matches how the encoder
+// actually rejects it; see the per-test comment when that isn't obvious
+// from the test name. Tests prefixed `Gap_` instead cover mainstream-RTL
+// features or lvalue-resolution edge cases this encoder doesn't yet
+// support -- missed synthesizable-subset work, not deliberate non-goals.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, Unsupported_ClassDecl)
@@ -98,16 +93,12 @@ TEST_P(SVUnitTests, Unsupported_ExpectProperty)
   expect_encode_succeeds_ignoring("expect_property.sv");
 }
 
-// `cover sequence(S)`, distinct from the already-supported
-// `cover property(P)`: both are AssertionKind values the
-// ConcurrentAssertion handler's `is_cover` check previously only
-// recognized one of, so `cover sequence` silently vanished entirely
-// (no log, no throw). Once recognized, a genuinely multi-cycle
-// sequence like `a ##1 b` hits the *already-existing* "temporal/
-// sequence-shaped cover goal" throw a couple of paths below (see the
-// design-decision note at the top of the file) -- extending the
-// reachability-duality trick through the LTL tableau is out of scope,
-// same as `cover property (a ##1 b)` already throws today.
+// `cover sequence(S)` is treated the same as `cover property(P)` --
+// both set the ConcurrentAssertion handler's `is_cover` flag. Since
+// `a ##1 b` is a genuinely multi-cycle sequence, it hits the
+// temporal/sequence-shaped cover-goal throw (same as
+// `cover property (a ##1 b)` already does): extending reachability
+// duality through the LTL tableau for cover goals is out of scope.
 TEST_P(SVUnitTests, Gap_CoverSequence)
 {
   expect_encode_throws("cover_sequence.sv");
@@ -159,13 +150,12 @@ TEST_P(SVUnitTests, Gap_UnpackedRegfileMemory)
 
 // A register whose output port is aliased through an instance-array
 // bus-element connection to only *part* of its target's declared
-// width (the register analogue of the wire-splicing bug fixed earlier
-// -- see gapped_bus_slice.sv / commit "Fix wrong full-write detection
-// on a wire's first partial write") isn't supported:
-// declare_variables_internal() has no splicing logic for a register
-// spread across sibling instances the way process_continuous_assign()
-// does for a wire, so it must throw rather than silently never create
-// a state var for the shared target at all.
+// width (compare gapped_bus_slice.sv's analogous wire-splicing case)
+// isn't supported: declare_variables_internal() has no splicing logic
+// for a register spread across sibling instances the way
+// process_continuous_assign() does for a wire, so it must throw
+// rather than silently never create a state var for the shared target
+// at all.
 TEST_P(SVUnitTests, Gap_RegisterAliasedToPartialTarget)
 {
   expect_encode_throws("reg_bus_slice.sv");
@@ -218,15 +208,6 @@ TEST_P(SVUnitTests, Unsupported_BindDirective)
 {
   expect_encode_succeeds_ignoring("bind_directive.sv");
 }
-
-// A modport-qualified interface port connection (`b.master`) is now a
-// correctly-supported mainstream RTL feature -- canonicalize_modport_port()
-// redirects the ModportPortSymbol proxy `b.data` resolves to back to
-// the interface instance's real `data` VariableSymbol. See
-// SVUnitTests.InterfaceModportPort in test_systemverilog_hierarchy.cpp
-// for the functional-correctness check against this same fixture (this
-// file's interior `task automatic reset_bus();` is still out of scope,
-// but has no effect on encoding since it's never called anywhere).
 
 // `specify` affects only timing (not functional logic), so ignoring it
 // (a walkable SymbolKind::SpecifyBlock member, logged via
