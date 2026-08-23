@@ -162,24 +162,6 @@ if(WITH_MSAT_IC3IA)
   endif()
 endif()
 
-if(WITH_SLANG)
-  include(FetchContent)
-
-  # GIT_SHALLOW is intentionally omitted: FetchContent's shallow clone only
-  # fetches the tip of each branch, so it cannot reach GIT_TAG once that
-  # commit is no longer a branch tip (as happens once upstream moves on).
-  FetchContent_Declare(
-    slang
-    GIT_REPOSITORY https://github.com/MikePopoloski/slang.git
-    GIT_TAG 2e7495bcb64180553ae84d1d78307090823c794c
-  )
-  set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
-  set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
-  set(SLANG_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(slang)
-  message(STATUS "slang fetched via FetchContent")
-endif()
-
 if(WITH_COREIR)
   if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
     message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
@@ -309,27 +291,7 @@ endif()
 
 if(WITH_SLANG)
   add_definitions(-DWITH_SLANG)
-  set(
-    SYSTEMVERILOG_SOURCES
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/encoder.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/ast_helpers.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/prescan.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/declare.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/instance.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/statement.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/expr.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/sva.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/terms.cpp"
-  )
-  set(SOURCES "${SOURCES}" "${SYSTEMVERILOG_SOURCES}")
-  # slang requires C++20 features in its headers; scope this to just these
-  # translation units so the rest of pono-lib stays C++17. (The CXX_STANDARD
-  # source property is not honored by the Ninja/Makefiles generators, so the
-  # standard flag is set directly via COMPILE_OPTIONS.)
-  set_source_files_properties(
-    ${SYSTEMVERILOG_SOURCES}
-    PROPERTIES COMPILE_OPTIONS "${CMAKE_CXX20_STANDARD_COMPILE_OPTION}"
-  )
+  add_subdirectory(frontends/systemverilog)
 endif()
 
 if(WITH_MSAT)
@@ -406,7 +368,7 @@ if(WITH_COREIR_EXTERN)
 endif()
 
 if(WITH_SLANG)
-  target_link_libraries(pono-lib PUBLIC slang::slang)
+  target_link_libraries(pono-lib PUBLIC pono-systemverilog)
 endif()
 
 if(WITH_COREIR)
@@ -485,6 +447,10 @@ set(CMAKE_INSTALL_MESSAGE LAZY)
 # install smt-switch
 install(TARGETS pono-lib DESTINATION lib)
 install(TARGETS pono-bin DESTINATION bin)
+
+if(WITH_SLANG)
+  install(TARGETS pono-systemverilog DESTINATION lib)
+endif()
 
 # install public headers
 install(
