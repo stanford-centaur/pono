@@ -121,6 +121,20 @@ TEST_P(SVUnitTests, Gap_UnpackedRegfileMemory)
   expect_encode_throws("unpacked_regfile.sv");
 }
 
+// A register whose output port is aliased through an instance-array
+// bus-element connection to only *part* of its target's declared
+// width (the register analogue of the wire-splicing bug fixed earlier
+// -- see gapped_bus_slice.sv / commit "Fix wrong full-write detection
+// on a wire's first partial write") isn't supported:
+// declare_variables_internal() has no splicing logic for a register
+// spread across sibling instances the way process_continuous_assign()
+// does for a wire, so it must throw rather than silently never create
+// a state var for the shared target at all.
+TEST_P(SVUnitTests, Gap_RegisterAliasedToPartialTarget)
+{
+  expect_encode_throws("reg_bus_slice.sv");
+}
+
 // A range-select lvalue with a non-constant (variable) base
 // (`w[base +: 4]`) has no dynamic-range-select write fallback anywhere
 // in this encoder, unlike ElementSelect's single-bit dynamic-index

@@ -1088,16 +1088,25 @@ void SystemVerilogEncoder::declare_variables_internal(
           uint64_t var_w = var.getType().getBitWidth();
           auto pieces = resolve_output_alias_pieces(&var, 0, var_w - 1);
           for (auto & piece : pieces) {
-            // A piece that only covers *part* of its own target's
-            // width (a register connected through a bus-element
-            // instance-array connection) isn't supported here; leave
-            // unconstrained rather than create a wrongly-sized state
-            // var.
             uint64_t target_w =
                 piece.sym->as<ValueSymbol>().getType().getBitWidth();
             bool piece_full =
                 (piece.target_lo == 0 && piece.target_hi + 1 == target_w);
-            if (piece_full && !symbol_to_term_.count(piece.sym)) {
+            // A piece that only covers *part* of its own target's
+            // width (e.g. one element of an instance array wired to a
+            // slice of a shared register) has no splicing logic here
+            // the way process_continuous_assign() has for a wire --
+            // throw rather than silently never create a state var for
+            // the shared target at all.
+            if (!piece_full) {
+              throw PonoException(
+                  "SystemVerilogEncoder: register '" + string(var.name)
+                  + "' is output-port-aliased to only part of '"
+                  + string(piece.sym->name)
+                  + "' (e.g. one element of an instance array wired to "
+                    "a slice of a shared register) -- not supported");
+            }
+            if (!symbol_to_term_.count(piece.sym)) {
               const Symbol * root = piece.sym;
               // Matches the pre-existing (single-target) naming
               // exactly when there's only one piece; disambiguated by
