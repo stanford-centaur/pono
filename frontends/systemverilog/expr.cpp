@@ -1,12 +1,12 @@
-/*! \file systemverilog_expr.cpp
+/*! \file expr.cpp
  *  \brief SystemVerilogEncoder's expression-to-term conversion: the main
  *         expr_to_term() switch covering literals, operators, selects,
  *         conversions, and system-function calls.
  */
 #include <string>
 
-#include "frontends/systemverilog_ast_helpers.h"
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/encoder.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/Symbol.h"

@@ -1,9 +1,9 @@
-/*! \file systemverilog_declare.cpp
+/*! \file declare.cpp
  *  \brief SystemVerilogEncoder's variable-declaration pass: creates the
  *         SMT term (state var / input var) for each port and internal
  *         variable/net, guided by the pre-scan classification.
  */
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"

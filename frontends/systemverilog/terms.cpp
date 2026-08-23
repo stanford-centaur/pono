@@ -1,4 +1,4 @@
-/*! \file systemverilog_terms.cpp
+/*! \file terms.cpp
  *  \brief SystemVerilogEncoder's low-level bit/term helper substrate:
  *         type-to-sort conversion, output-port-alias resolution, symbol
  *         lookup/naming, and the resize/replace-bits term-manipulation
@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
 #include "slang/ast/symbols/ValueSymbol.h"

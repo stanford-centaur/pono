@@ -1,4 +1,4 @@
-/*! \file systemverilog_instance.cpp
+/*! \file instance.cpp
  *  \brief SystemVerilogEncoder's per-instance encoding pass: continuous
  *         assigns, always_comb/always_ff/initial blocks, and recursive
  *         processing of child module instances.
@@ -6,8 +6,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "frontends/systemverilog_ast_helpers.h"
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/encoder.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/SemanticFacts.h"

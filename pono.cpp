@@ -28,7 +28,7 @@
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
 #ifdef WITH_SLANG
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/encoder.h"
 #endif
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"

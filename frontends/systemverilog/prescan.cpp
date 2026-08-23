@@ -1,12 +1,12 @@
-/*! \file systemverilog_prescan.cpp
+/*! \file prescan.cpp
  *  \brief SystemVerilogEncoder's pre-scan pass: classifies which base
  *         symbols become wires vs. state vars before any variable is
  *         declared.
  */
 #include <unordered_set>
 
-#include "frontends/systemverilog_ast_helpers.h"
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/SemanticFacts.h"
 #include "slang/ast/Statement.h"

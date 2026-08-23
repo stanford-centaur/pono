@@ -7,7 +7,7 @@
 
 #include "core/fts.h"
 #include "engines/bmc.h"
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/encoder.h"
 #include "gtest/gtest.h"
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"

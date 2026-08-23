@@ -11,11 +11,11 @@
  **
  ** \brief SystemVerilogEncoder's top-level pipeline: source-file loading,
  **        slang compilation, and the per-module encoding dispatch that
- **        drives the passes implemented in the other systemverilog_*.cpp
- **        files (see systemverilog_encoder.h for the file map).
+ **        drives the passes implemented in the other files in this
+ **        directory (see encoder.h for the file map).
  **/
 
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/encoder.h"
 
 #include <filesystem>
 #include <fstream>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "frontends/systemverilog_ast_helpers.h"
+#include "frontends/systemverilog/ast_helpers.h"
 #include "slang/ast/ASTContext.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"

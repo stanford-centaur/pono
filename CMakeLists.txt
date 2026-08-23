@@ -311,15 +311,15 @@ if(WITH_SLANG)
   add_definitions(-DWITH_SLANG)
   set(
     SYSTEMVERILOG_SOURCES
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_encoder.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_ast_helpers.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_prescan.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_declare.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_instance.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_statement.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_expr.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_sva.cpp"
-    "${PROJECT_SOURCE_DIR}/frontends/systemverilog_terms.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/encoder.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/ast_helpers.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/prescan.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/declare.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/instance.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/statement.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/expr.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/sva.cpp"
+    "${PROJECT_SOURCE_DIR}/frontends/systemverilog/terms.cpp"
   )
   set(SOURCES "${SOURCES}" "${SYSTEMVERILOG_SOURCES}")
   # slang requires C++20 features in its headers; scope this to just these

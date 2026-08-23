@@ -1,21 +1,22 @@
-/*! \file systemverilog_statement.cpp
+/*! \file statement.cpp
  *  \brief SystemVerilogEncoder's procedural-statement encoder: the main
  *         process_statement() switch (covering assignments, conditionals,
  *         loops, case statements, and concurrent/immediate assertions)
  *         plus its dynamic-index-write and loop-variable-refresh helpers.
  */
+#include "slang/ast/Statement.h"
+
 #include <algorithm>
 #include <functional>
 #include <string>
 #include <vector>
 
-#include "frontends/systemverilog_ast_helpers.h"
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/SemanticFacts.h"
-#include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/MiscExpressions.h"

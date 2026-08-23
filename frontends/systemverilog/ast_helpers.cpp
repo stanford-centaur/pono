@@ -1,8 +1,8 @@
-/*! \file systemverilog_ast_helpers.cpp
+/*! \file ast_helpers.cpp
  *  \brief Shared free-function AST helpers used across multiple
  *         SystemVerilogEncoder translation units.
  */
-#include "frontends/systemverilog_ast_helpers.h"
+#include "frontends/systemverilog/ast_helpers.h"
 
 #include <string>
 #include <utility>

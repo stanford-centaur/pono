@@ -1,4 +1,4 @@
-/*! \file systemverilog_sva.cpp
+/*! \file sva.cpp
  *  \brief SystemVerilogEncoder's SVA/LTL encoding: the history-chain and
  *         `$past`-style helpers, the bounded LTL-to-SAT tableau
  *         (X/G/F/R/U operators, sequence matching), and the top-level
@@ -34,7 +34,7 @@
 #include <cstdint>
 #include <string>
 
-#include "frontends/systemverilog_encoder.h"
+#include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/expressions/AssertionExpr.h"

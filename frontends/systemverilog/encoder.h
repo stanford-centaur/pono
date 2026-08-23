@@ -16,28 +16,28 @@
  ** and properties.
  **
  ** This class's declaration lives in one file, but its implementation is
- ** split by concern across several systemverilog_*.cpp files:
+ ** split by concern across several other files in this directory
+ ** (frontends/systemverilog/):
  **
- **   - systemverilog_encoder.cpp:  construction, slang compilation, and
- **                                 the top-level per-module encoding
- **                                 dispatch (encode(), process_module()).
- **   - systemverilog_ast_helpers.h/.cpp:
- **                                 free-function AST helpers (lvalue
- **                                 resolution, modport canonicalization,
- **                                 loop-control-signal type) shared across
- **                                 the files below.
- **   - systemverilog_prescan.cpp:  the pre-scan pass that classifies wires
- **                                 vs. state vars before declaration.
- **   - systemverilog_declare.cpp:  the variable-declaration pass.
- **   - systemverilog_instance.cpp: continuous assigns, always_comb/ff/
- **                                 initial blocks, and per-instance
- **                                 (child module) processing.
- **   - systemverilog_statement.cpp: the process_statement() procedural
- **                                 statement encoder.
- **   - systemverilog_expr.cpp:    the expr_to_term() expression encoder.
- **   - systemverilog_sva.cpp:     SVA/LTL assertion encoding.
- **   - systemverilog_terms.cpp:   low-level bit/term helpers (type-to-sort,
- **                                 resize/replace-bits, symbol lookup).
+ **   - encoder.cpp:      construction, slang compilation, and the
+ **                       top-level per-module encoding dispatch
+ **                       (encode(), process_module()).
+ **   - ast_helpers.h/.cpp:
+ **                       free-function AST helpers (lvalue resolution,
+ **                       modport canonicalization, loop-control-signal
+ **                       type) shared across the files below.
+ **   - prescan.cpp:      the pre-scan pass that classifies wires vs.
+ **                       state vars before declaration.
+ **   - declare.cpp:      the variable-declaration pass.
+ **   - instance.cpp:     continuous assigns, always_comb/ff/initial
+ **                       blocks, and per-instance (child module)
+ **                       processing.
+ **   - statement.cpp:    the process_statement() procedural statement
+ **                       encoder.
+ **   - expr.cpp:         the expr_to_term() expression encoder.
+ **   - sva.cpp:          SVA/LTL assertion encoding.
+ **   - terms.cpp:        low-level bit/term helpers (type-to-sort,
+ **                       resize/replace-bits, symbol lookup).
  **/
 
 #pragma once
