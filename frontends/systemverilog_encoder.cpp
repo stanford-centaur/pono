@@ -113,6 +113,18 @@ void collect_blocking_targets(
     std::unordered_set<const slang::ast::Symbol *> & full,
     std::unordered_set<const slang::ast::Symbol *> & partial);
 
+// A modport-qualified interface port access (`b.data`, where `b`'s
+// declared type is e.g. `bus_if.master`) resolves to a synthesized
+// ModportPortSymbol proxy, not directly to the interface instance's
+// own `data` VariableSymbol -- even though the plain (non-modport)
+// interface case (`b.data` where `b`'s type is just `bus_if`) resolves
+// straight to that same shared symbol. Redirect through
+// ModportPortSymbol::internalSymbol so every access path -- with or
+// without a modport qualifier -- converges on the same underlying
+// symbol identity. A no-op for every other symbol kind.
+const slang::ast::Symbol & canonicalize_modport_port(
+    const slang::ast::Symbol & sym);
+
 // Identifies the base ValueSymbol underlying a (possibly nested)
 // bit/range-select LHS.  Returns nullptr if the LHS shape isn't
 // supported by the encoder (e.g. concatenation LHS).
@@ -526,9 +538,11 @@ void collect_blocking_targets(
         auto & assign = expr.as<AssignmentExpression>();
         auto & lhs = assign.left();
         if (lhs.kind == ExpressionKind::NamedValue) {
-          full.insert(&lhs.as<NamedValueExpression>().symbol);
+          full.insert(&canonicalize_modport_port(
+              lhs.as<NamedValueExpression>().symbol));
         } else if (lhs.kind == ExpressionKind::HierarchicalValue) {
-          full.insert(&lhs.as<HierarchicalValueExpression>().symbol);
+          full.insert(&canonicalize_modport_port(
+              lhs.as<HierarchicalValueExpression>().symbol));
         } else if (auto * base = find_lhs_base(lhs)) {
           partial.insert(base);
         }
@@ -671,14 +685,26 @@ void collect_nonblocking_targets(
   }
 }
 
+const slang::ast::Symbol & canonicalize_modport_port(
+    const slang::ast::Symbol & sym)
+{
+  using namespace slang::ast;
+  if (sym.kind == SymbolKind::ModportPort) {
+    auto & mp = sym.as<ModportPortSymbol>();
+    if (mp.internalSymbol) return *mp.internalSymbol;
+  }
+  return sym;
+}
+
 const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs)
 {
   using namespace slang::ast;
   switch (lhs.kind) {
     case ExpressionKind::NamedValue:
-      return &lhs.as<NamedValueExpression>().symbol;
+      return &canonicalize_modport_port(lhs.as<NamedValueExpression>().symbol);
     case ExpressionKind::HierarchicalValue:
-      return &lhs.as<HierarchicalValueExpression>().symbol;
+      return &canonicalize_modport_port(
+          lhs.as<HierarchicalValueExpression>().symbol);
     case ExpressionKind::ElementSelect:
       return find_lhs_base(lhs.as<ElementSelectExpression>().value());
     case ExpressionKind::RangeSelect:
@@ -709,7 +735,8 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
   using namespace slang::ast;
   switch (lhs.kind) {
     case ExpressionKind::NamedValue: {
-      auto * sym = &lhs.as<NamedValueExpression>().symbol;
+      auto * sym =
+          &canonicalize_modport_port(lhs.as<NamedValueExpression>().symbol);
       uint64_t w = lhs.type->getBitWidth();
       if (w == 0) {
         throw PonoException("SystemVerilogEncoder: zero-width lvalue '"
@@ -718,7 +745,8 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
       return LValueDesc{ sym, 0, w - 1, w };
     }
     case ExpressionKind::HierarchicalValue: {
-      auto * sym = &lhs.as<HierarchicalValueExpression>().symbol;
+      auto * sym = &canonicalize_modport_port(
+          lhs.as<HierarchicalValueExpression>().symbol);
       uint64_t w = lhs.type->getBitWidth();
       if (w == 0) {
         throw PonoException("SystemVerilogEncoder: zero-width lvalue '"
@@ -1775,10 +1803,10 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
       && sel.value().kind != ExpressionKind::HierarchicalValue) {
     return;
   }
-  const Symbol * sym =
+  const Symbol * sym = &canonicalize_modport_port(
       (sel.value().kind == ExpressionKind::NamedValue)
-          ? &sel.value().as<NamedValueExpression>().symbol
-          : &sel.value().as<HierarchicalValueExpression>().symbol;
+          ? sel.value().as<NamedValueExpression>().symbol
+          : sel.value().as<HierarchicalValueExpression>().symbol);
   bool aliased = port_output_aliases_.count(sym) > 0;
   {
     uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
@@ -2997,7 +3025,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
   switch (expr.kind) {
     case ExpressionKind::NamedValue: {
       auto & nv = expr.as<NamedValueExpression>();
-      return lookup_symbol(&nv.symbol);
+      return lookup_symbol(&canonicalize_modport_port(nv.symbol));
     }
 
     case ExpressionKind::HierarchicalValue: {
@@ -3005,8 +3033,11 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // already resolved the dotted path to the target ValueSymbol;
       // lookup_symbol finds its term in the appropriate scope
       // provided the referenced instance has been encoded already.
+      // A modport-qualified access resolves to a ModportPortSymbol
+      // proxy rather than the real symbol directly -- see
+      // canonicalize_modport_port().
       auto & hv = expr.as<HierarchicalValueExpression>();
-      return lookup_symbol(&hv.symbol);
+      return lookup_symbol(&canonicalize_modport_port(hv.symbol));
     }
 
     case ExpressionKind::LValueReference: {

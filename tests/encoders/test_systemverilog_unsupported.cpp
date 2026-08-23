@@ -169,18 +169,14 @@ TEST_P(SVUnitTests, Unsupported_BindDirective)
   expect_encode_succeeds_ignoring("bind_directive.sv");
 }
 
-// GAP in the "clean rejection" contract (confirmed empirically, and
-// distinct from the plain signal-bundle interface case in
-// test_systemverilog_hierarchy.cpp, which *does* throw "Unknown state
-// variable" building the same shape of property): with a modport-
-// qualified port connection (`b.master`), encoding succeeds without
-// throwing at all, even though the assert references `b.data` directly
-// -- i.e. this shows a *different* failure mode than the plain-bundle
-// case, not just a more severe version of it.
-TEST_P(SVUnitTests, Unsupported_InterfaceModportTask)
-{
-  expect_encode_succeeds_ignoring("interface_modport_task.sv");
-}
+// A modport-qualified interface port connection (`b.master`) is now a
+// correctly-supported mainstream RTL feature -- canonicalize_modport_port()
+// redirects the ModportPortSymbol proxy `b.data` resolves to back to
+// the interface instance's real `data` VariableSymbol. See
+// SVUnitTests.InterfaceModportPort in test_systemverilog_hierarchy.cpp
+// for the functional-correctness check against this same fixture (this
+// file's interior `task automatic reset_bus();` is still out of scope,
+// but has no effect on encoding since it's never called anywhere).
 
 // `specify` affects only timing (not functional logic), so ignoring it
 // (a walkable SymbolKind::SpecifyBlock member, logged via

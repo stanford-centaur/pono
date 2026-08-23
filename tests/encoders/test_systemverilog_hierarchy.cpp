@@ -161,6 +161,19 @@ TEST_P(SVUnitTests, InterfaceSignalBundle)
   check_bmc("interface_bundle.sv", 4);
 }
 
+// Same shape as InterfaceSignalBundle, but through a *modport*-qualified
+// port (`bus_if.master b`) instead of a plain interface port. A
+// modport-qualified access (`b.data`) resolves to a synthesized
+// ModportPortSymbol proxy rather than directly to the interface
+// instance's own `data` VariableSymbol the way the plain (non-modport)
+// case does -- canonicalize_modport_port() redirects through
+// ModportPortSymbol::internalSymbol so both access paths converge on
+// the same underlying symbol identity.
+TEST_P(SVUnitTests, InterfaceModportPort)
+{
+  check_bmc("interface_modport_task.sv", 4);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
