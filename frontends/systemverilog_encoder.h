@@ -15,6 +15,29 @@
  ** the elaborated representation into Pono's FunctionalTransitionSystem
  ** and properties.
  **
+ ** This class's declaration lives in one file, but its implementation is
+ ** split by concern across several systemverilog_*.cpp files:
+ **
+ **   - systemverilog_encoder.cpp:  construction, slang compilation, and
+ **                                 the top-level per-module encoding
+ **                                 dispatch (encode(), process_module()).
+ **   - systemverilog_ast_helpers.h/.cpp:
+ **                                 free-function AST helpers (lvalue
+ **                                 resolution, modport canonicalization,
+ **                                 loop-control-signal type) shared across
+ **                                 the files below.
+ **   - systemverilog_prescan.cpp:  the pre-scan pass that classifies wires
+ **                                 vs. state vars before declaration.
+ **   - systemverilog_declare.cpp:  the variable-declaration pass.
+ **   - systemverilog_instance.cpp: continuous assigns, always_comb/ff/
+ **                                 initial blocks, and per-instance
+ **                                 (child module) processing.
+ **   - systemverilog_statement.cpp: the process_statement() procedural
+ **                                 statement encoder.
+ **   - systemverilog_expr.cpp:    the expr_to_term() expression encoder.
+ **   - systemverilog_sva.cpp:     SVA/LTL assertion encoding.
+ **   - systemverilog_terms.cpp:   low-level bit/term helpers (type-to-sort,
+ **                                 resize/replace-bits, symbol lookup).
  **/
 
 #pragma once
@@ -468,11 +491,14 @@ class SystemVerilogEncoder
    *  are skipped.
    *
    *  Takes a type-erased `std::function` (rather than a template
-   *  parameter) so that this method has a single ordinary, non-template
-   *  definition -- a template member function's definition must instead
-   *  be visible (and separately instantiated) in every translation unit
-   *  that calls it, which becomes a problem as soon as callers span more
-   *  than one .cpp file.
+   *  parameter) specifically so its single definition can live in
+   *  exactly one systemverilog_*.cpp file while still being callable,
+   *  as an ordinary non-template member function, from every other
+   *  systemverilog_*.cpp file -- a template's definition would instead
+   *  need to be visible (and separately instantiated) in each of those
+   *  translation units, which for this method would also force this
+   *  header to fully include (rather than just forward-declare) the
+   *  slang types its body depends on.
    *  @param scope the scope whose members should be visited
    *  @param fn   callback invoked once per concrete member symbol
    */
