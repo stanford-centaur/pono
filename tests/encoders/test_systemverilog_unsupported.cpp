@@ -116,6 +116,18 @@ TEST_P(SVUnitTests, Gap_UnpackedRegfileMemory)
   expect_encode_throws("unpacked_regfile.sv");
 }
 
+// A range-select lvalue with a non-constant (variable) base
+// (`w[base +: 4]`) has no dynamic-range-select write fallback anywhere
+// in this encoder, unlike ElementSelect's single-bit dynamic-index
+// fallback (process_dynamic_element_assign()). resolve_lvalue() throws
+// a clear PonoException for this rather than silently dropping the
+// write -- the same "throw rather than silently mis-encode" contract
+// enforced everywhere else in this file.
+TEST_P(SVUnitTests, Gap_DynamicRangeSelectLhs)
+{
+  expect_encode_throws("dynamic_range_select_lhs.sv");
+}
+
 // GAP in the "clean rejection" contract (confirmed empirically):
 // `defparam`/`bind` are simply never processed -- the base module they
 // target is still walked normally with its *own* defaults, so encoding

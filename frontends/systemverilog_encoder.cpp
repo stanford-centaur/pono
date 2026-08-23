@@ -673,6 +673,20 @@ const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs)
   }
 }
 
+// resolve_lvalue() has exactly one legitimate reason to return nullopt
+// rather than throw: ExpressionKind::ElementSelect with a genuinely
+// non-constant (runtime-variable) index, which the caller detects via
+// `lhs_expr.kind == ExpressionKind::ElementSelect` and re-dispatches to
+// process_dynamic_element_assign() instead. Every other unresolvable
+// shape -- a whole ExpressionKind this function has no case for at
+// all, or a malformed/out-of-bounds constant within a case it does
+// recognize -- throws instead of silently dropping the write, per the
+// same "throw rather than silently mis-encode" contract enforced
+// everywhere else in this file (see expr_to_term()'s own default
+// case). A nested dynamic index (e.g. `arr[i][3:0] <= ...`) still
+// propagates as nullopt through `inner`, since the top-level caller's
+// ElementSelect-shaped fallback only ever re-dispatches on the
+// outermost expression.
 std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
                                          slang::ast::EvalContext & ctx)
 {
@@ -681,13 +695,19 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
     case ExpressionKind::NamedValue: {
       auto * sym = &lhs.as<NamedValueExpression>().symbol;
       uint64_t w = lhs.type->getBitWidth();
-      if (w == 0) return std::nullopt;
+      if (w == 0) {
+        throw PonoException("SystemVerilogEncoder: zero-width lvalue '"
+                            + string(sym->name) + "'");
+      }
       return LValueDesc{ sym, 0, w - 1, w };
     }
     case ExpressionKind::HierarchicalValue: {
       auto * sym = &lhs.as<HierarchicalValueExpression>().symbol;
       uint64_t w = lhs.type->getBitWidth();
-      if (w == 0) return std::nullopt;
+      if (w == 0) {
+        throw PonoException("SystemVerilogEncoder: zero-width lvalue '"
+                            + string(sym->name) + "'");
+      }
       return LValueDesc{ sym, 0, w - 1, w };
     }
     case ExpressionKind::ElementSelect: {
@@ -697,13 +717,22 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
       auto idx_cv = sel.selector().eval(ctx);
       if (!idx_cv.isInteger()) return std::nullopt;
       auto idx_opt = idx_cv.integer().as<uint64_t>();
-      if (!idx_opt) return std::nullopt;
+      if (!idx_opt) {
+        throw PonoException(
+            "SystemVerilogEncoder: invalid constant element-select index");
+      }
       uint64_t idx = *idx_opt;
       uint64_t elem_w = lhs.type->getBitWidth();
-      if (elem_w == 0) return std::nullopt;
+      if (elem_w == 0) {
+        throw PonoException(
+            "SystemVerilogEncoder: zero-width element-select lvalue");
+      }
       uint64_t lo = inner->lo + idx * elem_w;
       uint64_t hi = lo + elem_w - 1;
-      if (hi > inner->hi) return std::nullopt;
+      if (hi > inner->hi) {
+        throw PonoException(
+            "SystemVerilogEncoder: element-select index out of bounds");
+      }
       return LValueDesc{ inner->base, lo, hi, inner->base_w };
     }
     case ExpressionKind::RangeSelect: {
@@ -713,24 +742,34 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
       // constant bounds and normalizes hi/lo regardless of whether the
       // source wrote `[hi:lo]`, `[base +: width]`, or `[base -: width]`
       // -- slang's `.left()`/`.right()` already reflect the resolved
-      // bounds either way).
+      // bounds either way). Unlike ElementSelect, there is no dynamic-
+      // range-select write fallback anywhere in this encoder, so a
+      // non-constant bound throws immediately instead of silently
+      // dropping the write.
       auto & sel = lhs.as<RangeSelectExpression>();
       auto inner = resolve_lvalue(sel.value(), ctx);
       if (!inner) return std::nullopt;
       auto & left_expr = sel.left();
       auto & right_expr = sel.right();
       if (!left_expr.getConstant() || !right_expr.getConstant()) {
-        return std::nullopt;
+        throw PonoException(
+            "SystemVerilogEncoder: non-constant range select lvalue bounds");
       }
       auto hi_opt = left_expr.getConstant()->integer().as<uint64_t>();
       auto lo_opt = right_expr.getConstant()->integer().as<uint64_t>();
-      if (!hi_opt || !lo_opt) return std::nullopt;
+      if (!hi_opt || !lo_opt) {
+        throw PonoException(
+            "SystemVerilogEncoder: invalid range select lvalue bounds");
+      }
       uint64_t local_hi = *hi_opt;
       uint64_t local_lo = *lo_opt;
       if (local_hi < local_lo) swap(local_hi, local_lo);
       uint64_t lo = inner->lo + local_lo;
       uint64_t hi = inner->lo + local_hi;
-      if (hi > inner->hi) return std::nullopt;
+      if (hi > inner->hi) {
+        throw PonoException(
+            "SystemVerilogEncoder: range select lvalue out of bounds");
+      }
       return LValueDesc{ inner->base, lo, hi, inner->base_w };
     }
     case ExpressionKind::MemberAccess: {
@@ -741,18 +780,31 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
       // each FieldSymbol's bitOffset is relative to its own immediately
       // enclosing struct/union type.
       auto & ma = lhs.as<MemberAccessExpression>();
-      if (ma.member.kind != SymbolKind::Field) return std::nullopt;
+      if (ma.member.kind != SymbolKind::Field) {
+        throw PonoException(
+            "SystemVerilogEncoder: unsupported member access lvalue on "
+            + std::string(ma.member.name));
+      }
       auto inner = resolve_lvalue(ma.value(), ctx);
       if (!inner) return std::nullopt;
       auto & field = ma.member.as<FieldSymbol>();
       uint64_t w = field.getType().getBitWidth();
-      if (w == 0) return std::nullopt;
+      if (w == 0) {
+        throw PonoException("SystemVerilogEncoder: zero-width field lvalue '"
+                            + string(field.name) + "'");
+      }
       uint64_t lo = inner->lo + field.bitOffset;
       uint64_t hi = lo + w - 1;
-      if (hi > inner->hi) return std::nullopt;
+      if (hi > inner->hi) {
+        throw PonoException("SystemVerilogEncoder: field lvalue out of bounds");
+      }
       return LValueDesc{ inner->base, lo, hi, inner->base_w };
     }
-    default: return std::nullopt;
+    default:
+      throw PonoException(
+          "SystemVerilogEncoder: unsupported lvalue "
+          "expression kind "
+          + to_string(static_cast<int>(lhs.kind)));
   }
 }
 
@@ -1361,8 +1413,18 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
 {
   using namespace slang::ast;
 
+  // Unlike the procedural-assignment path (which falls back to
+  // process_dynamic_element_assign() for a genuinely dynamic-index
+  // ElementSelect), a continuous assign has no such fallback -- a
+  // nullopt here always means resolve_lvalue() couldn't statically
+  // resolve this lvalue at all, so throw rather than silently
+  // dropping the write.
   auto desc = resolve_lvalue(lhs_expr, eval_ctx());
-  if (!desc) return;
+  if (!desc) {
+    throw PonoException(
+        "SystemVerilogEncoder: unsupported continuous-assign lvalue "
+        "(non-constant index?)");
+  }
   const Symbol * base_sym = desc->base;
   bool aliased = port_output_aliases_.count(base_sym) > 0;
 
