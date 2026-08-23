@@ -1,14 +1,11 @@
 // Integration test #1 (liveness half): identical hierarchy/arbitration
 // logic to arbiter_bus.sv, but with a liveness property in place of the
 // safety one, checked via the LivenessToSafetyTranslator path
-// (check_liveness_bmc) instead of plain Bmc -- exercising a second
-// prover-facing code path over the same hierarchical design.
+// (check_liveness_bmc) instead of plain Bmc.
 //
 // "Whenever requester 0 asks, it must eventually be granted."  `req`
 // is free, so BMC/L2S can pick req[1] held continuously while req[0]
-// pulses once, starving requester 0 if `turn` never favors it -- a
-// genuine (if simple) round-robin-fairness liveness check, distinct
-// from the "free input just never cooperates" style of req_ack.sv.
+// pulses once, starving requester 0 if `turn` never favors it.
 typedef struct packed {
   logic valid;
   logic id;

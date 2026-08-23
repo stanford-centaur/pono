@@ -1,10 +1,8 @@
 // A child instance's input port left explicitly unconnected (`.a()`).
-// Per the LRM an unconnected input reads as high-impedance; since this
-// encoder has no 4-state/high-Z representation, the closest correct
-// model is to treat it as a completely free (undriven) input, the same
-// as any other undriven signal elsewhere in this encoder -- so `bout`
-// (driven combinationally from the child's now-free `a`) should be
-// freely choosable by BMC, not stuck at some fixed value.
+// This encoder has no 4-state/high-Z representation, so an
+// unconnected input is modeled as a free (undriven) input; `bout`,
+// driven combinationally from `a`, should be freely choosable by BMC
+// rather than stuck at a fixed value.
 module child_unconn (input logic clk, input logic a, output logic b);
   assign b = a;
 endmodule

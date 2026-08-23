@@ -1,9 +1,7 @@
 // `$clog2`/`$bits` as elaboration-time functions sizing an RTL
-// register (not inside an SVA expression, unlike parameter.sv's use
-// of a plain shift).  IDX_W = $clog2(5) = 3 sizes the `idx` register;
-// BITW = $bits(logic [N-1:0]) should just equal N.  idx(k) = k-1
-// (wrapping at N-1=4, but the wrap doesn't matter -- it first reaches
-// 4 at cycle 5, before ever wrapping).
+// register. IDX_W = $clog2(5) = 3 sizes the `idx` register; BITW =
+// $bits(logic [N-1:0]) should equal N. idx counts up from 0 and first
+// reaches N-1 == 4 at cycle 5.
 module elaboration_functions #(
     parameter int N = 5
 ) (

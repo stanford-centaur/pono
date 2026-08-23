@@ -1,10 +1,9 @@
 // Concatenation-target LHS on a *procedural* (non-blocking) assignment
 // (`{hi, lo} <= {a, b};`), the always_ff counterpart to the
 // continuous-assign concat_lhs.sv test. begin_write() (shared by
-// blocking/non-blocking assignment and ++/--) has no case for a
-// top-level ExpressionKind::Concatenation LHS either, so this write
-// was silently dropped: after reset releases, hi/lo never actually
-// track a/b.
+// blocking/non-blocking assignment and ++/--) special-cases a
+// top-level concatenation-target LHS the same way
+// process_continuous_assign() does for the continuous-assign form.
 module concat_lhs_next_state (input logic clk,
                               input logic rst,
                               input logic [3:0] a,

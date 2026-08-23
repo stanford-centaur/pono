@@ -1,10 +1,7 @@
-// Generate-for block creating four independent counters.  Each
-// iteration's body lives in its own `ctr[i]` scope; the genvar
-// `i` is exposed by slang as a per-iteration ParameterSymbol.
-// The assertion outside the loop reads one of the per-iteration
-// counters via a hierarchical reference (HierarchicalValue), so
-// this test also covers genvar -> parameter, generate-block
-// member walking, and cross-scope reads.
+// Generate-for block creating four independent counters, each in its
+// own `ctr[i]` scope. The assertion outside the loop reads one
+// iteration's counter via a hierarchical reference (`ctr[2].count`),
+// covering generate-block member walking and cross-scope reads.
 module generate_block_counters (input logic clk, input logic rst);
 
   for (genvar i = 0; i < 4; ++i) begin : ctr

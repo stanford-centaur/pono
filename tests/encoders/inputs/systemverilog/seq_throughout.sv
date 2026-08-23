@@ -5,12 +5,9 @@
 // idiom first_match_seq.sv/seq_intersect.sv/seq_within.sv use) so the
 // property is violated as soon as the composite sequence matches at
 // all. `a`/`b`/`c` free: earliest match is a@1, b@1, a@2, c@2, so the
-// property should be violated at cycle 2 -- currently it is never
-// reached: `throughout` is absent from the AssertionExprKind::Binary
-// switches in assertion_expr_to_bool()/ltl_to_sat() (confirmed by
-// inspection), so the default case returns a null Term and the whole
-// assertion is silently dropped (propvec() stays empty) instead of
-// being built or cleanly rejected.
+// property is violated at cycle 2. Handled by offsets_ending_now()'s
+// Throughout case in sva.cpp, which ANDs the plain boolean over seq's
+// own completion window.
 module seq_throughout (input logic clk, input logic rst, input logic a, input logic b, input logic c);
 
   assert property (@(posedge clk) (a throughout (b ##1 c)) |-> 1'b0);

@@ -1,12 +1,9 @@
 // Positional parameter override (`#(3)`) of parameter_counter
-// (duplicated here from parameter.sv so this test is self-contained,
-// since check_bmc() loads a single file with no filelist), instead of
-// the named-override style (`#(.WIDTH(3))`) covered by
-// named_param_override.sv.  With WIDTH overridden to 3, MAX becomes 7
-// and the child's own `assert property (count != MAX)` falsifies at
-// cycle 8; if the override were ignored (falling back to
-// parameter_counter's own default WIDTH=4, MAX=15), count could never
-// reach 15 within 8 cycles and BMC would return UNKNOWN instead.
+// (duplicated here from parameter.sv so this test is self-contained),
+// as opposed to the named-override style (`#(.WIDTH(3))`) in
+// named_param_override.sv. With WIDTH overridden to 3, MAX becomes 7
+// and `count != MAX` falsifies at cycle 8; if the override were
+// ignored, MAX would be 15 and BMC would return UNKNOWN instead.
 module parameter_counter #(
     parameter int WIDTH = 4
 ) (

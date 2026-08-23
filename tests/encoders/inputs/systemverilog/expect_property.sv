@@ -1,8 +1,7 @@
 // `expect (property_expr);`, a procedural blocking-wait statement
-// distinct from `assert property (...)` -- AssertionKind::Expect,
-// which the ImmediateAssertion statement handler never checked for,
-// silently dropping this construct entirely (no log, no throw, no
-// encoding effect).
+// distinct from `assert property (...)`. The ConcurrentAssertion
+// statement handler explicitly recognizes AssertionKind::Expect and
+// logs+skips it as a simulation-only construct.
 module expect_property (input logic clk, input logic a);
 
   initial begin

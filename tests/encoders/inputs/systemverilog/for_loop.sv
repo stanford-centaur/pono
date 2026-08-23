@@ -1,11 +1,6 @@
-// Procedural `for` loop in an always_comb block.  The loop
-// computes the popcount of a 4-bit input by summing into a scalar
-// (NamedValue LHS, since bit-select LHS is not yet supported).
-//
-// After reset, popcount[t] == popcount(din[t-1]) <= 4 at every
-// cycle, so the property `popcount != 5` first fails at cycle... it
-// can't actually fail, popcount is bounded by 4.  Make the test
-// falsifiable by asserting a tighter bound: popcount <= 3.
+// Procedural `for` loop in an always_comb block: computes the
+// popcount of a 4-bit input by summing into a scalar (NamedValue LHS,
+// since bit-select LHS is not yet supported).
 module for_loop_popcount (input logic clk, input logic rst,
                           input logic [3:0] din);
 

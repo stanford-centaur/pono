@@ -1,8 +1,6 @@
 // A ternary condition can be a `&&&`-joined list of more than one
 // expression (LRM 11.4.11), legal outside case/if context too --
-// `a &&& b` means both must hold. expr_to_term() previously only ever
-// read conditions[0], silently ignoring `&&& b`: with a true but b
-// false, the buggy encoding picks the "true" branch anyway.
+// `a &&& b` means both must hold.
 module multi_cond_ternary (input logic clk,
                            input logic a,
                            input logic b);

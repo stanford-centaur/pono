@@ -1,22 +1,17 @@
 // Integration test #2: a small single-write-port register file backed
-// by a *packed* multi-dimensional array (`mem`), the memory-shaped
-// state deliberately kept packed rather than a true SV unpacked array
-// -- see the Gap_UnpackedRegfileMemory finding in
-// test_systemverilog_unsupported.cpp for why an unpacked array would
-// crash the encoder outright rather than exercising anything.
-// Combines: parameters, $clog2, a packed array-of-vectors read/written
-// through a *runtime* (not compile-time-constant) address, and a
-// one-cycle-delayed read-after-write invariant.
+// by a *packed* multi-dimensional array (`mem`) rather than a true SV
+// unpacked array -- see Gap_UnpackedRegfileMemory in
+// test_systemverilog_unsupported.cpp for why the latter isn't
+// supported.  Combines: parameters, $clog2, a packed array-of-vectors
+// read/written through a *runtime* address, and a one-cycle-delayed
+// read-after-write invariant.
 //
 // Safety: if address X was written last cycle, reading address X this
 // cycle must return the value that was written (single write port, so
-// "last write wins" is trivially well-defined -- there's no same-
-// cycle multi-write race to reason about).  Checked first with Bmc
-// (which can only ever report UNKNOWN -- "no counterexample found up
-// to this bound" -- since it doesn't attempt an inductive proof), then
-// with KInduction, which should actually *prove* it (this one-step
-// invariant is 1-inductive), demonstrating the SV frontend's output
-// working with a second engine.
+// "last write wins" is well-defined).  Checked first with Bmc (can
+// only report UNKNOWN, since it doesn't attempt an inductive proof),
+// then with KInduction, which proves it (this invariant is
+// 1-inductive).
 module regfile_ctrl #(
     parameter int WIDTH = 8,
     parameter int DEPTH = 4

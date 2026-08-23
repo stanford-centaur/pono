@@ -1,19 +1,13 @@
 // Integration test #3: a minimal credit-based flow-control link
 // (hierarchical sender instance) checked with IC3Bits rather than
 // Bmc/KInduction, to exercise a third distinct prover engine against
-// the SV frontend's output.  This design also exists to show the
-// (now-fixed) assume_property.sv gap (test_systemverilog_sva.cpp)
-// mattering at design scale, not just in a single-property unit test:
-// the environment assumption ("never push when out of credits") is
-// exactly the kind of backpressure contract real hierarchical designs
-// rely on `assume property` to state.
-// Deliberately unguarded: without the `assume property` below,
-// nothing stops `push` while `credits == 0`, so credits underflows to
-// 4'hF.  A real sender relies on the environment contract the assume
-// statement expresses, rather than re-deriving a saturating guard
-// here; this mirrors how the assume_property.sv unit test also puts
-// all the "protection" in the assumption rather than the design
-// itself.
+// the SV frontend's output.
+//
+// The sender itself is deliberately unguarded: without the
+// `assume property` below, nothing stops `push` while `credits == 0`,
+// underflowing credits to 4'hF.  The environment assumption ("never
+// push when out of credits") is the backpressure contract a real
+// sender would rely on instead of re-deriving a saturating guard.
 module sender (
     input  logic       clk,
     input  logic       rst,

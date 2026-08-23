@@ -1,9 +1,8 @@
-// Regression for a case-statement bug where `default:` used to apply
-// unconditionally alongside whichever other item already matched: if
-// that bug were present, x would always become 9 (the default value)
-// regardless of `s`, and `x != 1` would hold forever.  With the fix,
-// `s == 0` lets x reach 1 at the first post-reset transition,
-// falsifying the property at cycle 2.
+// `default:` must apply only when no other case item matches: `s == 0`
+// lets x reach 1 at the first post-reset transition, falsifying the
+// property at cycle 2. A case implementation that applied `default`
+// unconditionally would instead always drive x to 9, and the property
+// would hold forever.
 module case_default (input logic clk, input logic rst, input logic [1:0] s);
 
   logic [3:0] x;

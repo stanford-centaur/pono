@@ -1,10 +1,7 @@
 // A plain signal-bundle `interface` (no modports, no tasks) wiring a
-// producer module to the top level -- the most common "just group
-// some wires" use of `interface` in synthesizable RTL, distinct from
-// the modport/task-bearing interfaces covered as out-of-scope in
-// test_systemverilog_unsupported.cpp.  bus.data(k) = k-1, so it first
-// equals 3 at cycle 4, *if* interface instances/ports are walked like
-// ordinary module instances.
+// producer module to the top level, distinct from the modport-
+// qualified access covered by interface_modport_task.sv. bus.data
+// increments each cycle, first reaching 3 at cycle 4.
 interface simple_bus;
   logic [3:0] data;
   logic       valid;

@@ -1,9 +1,10 @@
 // Concatenation-target LHS on a plain continuous assign (`assign {hi,
 // lo} = ...;`), as opposed to a concatenation-target *port connection*
-// (`.port({hi, lo})`, already supported separately). resolve_lvalue()
-// has no case for ExpressionKind::Concatenation, so this silently
-// failed to resolve and the whole write was dropped: hi/lo were
-// declared as free/unconstrained state vars instead of being pinned.
+// (`.port({hi, lo})`, already supported separately). Since a
+// concatenation has more than one base symbol and can't be represented
+// as a single LValueDesc, process_continuous_assign() special-cases it
+// by splitting the RHS across each operand rather than going through
+// resolve_lvalue() directly.
 module concat_lhs (input logic clk,
                     input logic [3:0] a,
                     input logic [3:0] b);

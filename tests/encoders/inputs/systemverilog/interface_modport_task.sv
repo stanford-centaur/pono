@@ -1,7 +1,8 @@
-// Out-of-scope: an `interface` with `modport`s and a `task`, as
-// opposed to the plain signal-bundle interface covered (and shown to
-// be a Gap_, not a deliberate non-goal) in
-// test_systemverilog_hierarchy.cpp.
+// An `interface` with `modport`s, accessed through a modport-qualified
+// port (`bus_if.master b`) rather than the plain signal-bundle style
+// in interface_bundle.sv. The `task` is declared but unused by the
+// design under test; it is only present to show a task inside an
+// interface doesn't break elaboration.
 interface bus_if;
   logic [3:0] data;
   modport master(output data);

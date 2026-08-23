@@ -1,11 +1,8 @@
 // A multiclock property (`@(posedge clk1) a ##1 @(posedge clk2) b`).
-// The Clocking-wrapper handling in the ConcurrentAssertion/
-// assertion_expr_to_bool code strips *every* clocking wrapper it
-// finds unconditionally, without checking whether the newly-named
-// clock differs from the outer one -- so a genuine clock change may
-// be silently collapsed into a single-clock (mis-)encoding rather
-// than either being honored or cleanly rejected.  Verified
-// empirically which of those three outcomes actually happens.
+// Per the documented design decision at the top of sva.cpp, this
+// encoder has no clock-domain-crossing model: every named clock is
+// treated as the same global pono-cycle, so the nested `@(posedge
+// clk2)` wrapper is simply unwrapped like any other Clocking node.
 module multiclock_property (
     input logic clk1,
     input logic clk2,

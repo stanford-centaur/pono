@@ -1,21 +1,10 @@
 // Integration test #1 (safety half): a small round-robin arbiter
 // hierarchically instantiating two `requester` children.  Grant
-// decisions are computed directly from the free `req` inputs (not
-// from the children's internal `pending` state) -- earlier drafts of
-// this design instead read each child's internal `pending` back
-// (via an output port, and separately via a hierarchical value
-// reference) from a parent-side always_comb block that also fed a
-// sibling instance's port, and every variant of that shape threw
-// "unknown symbol" building the property term, even though the
-// individual ingredients (output-port aliasing, hierarchical value
-// references, always_comb) all work fine in isolation elsewhere in
-// this suite.  That combination wasn't successfully narrowed down to
-// a minimal, confidently-attributable repro, so it's not reported as
-// a standalone Gap_ finding; this design was simplified to avoid it
-// rather than risk mischaracterizing the cause.  Combines: module
-// hierarchy, a packed struct built with a whole-
-// value assignment pattern ('{...}), always_comb + always_ff
-// interaction, and a safety property checked with plain Bmc.
+// decisions are computed directly from the free `req` inputs, not
+// from the children's internal `pending` state.  Combines: module
+// hierarchy, a packed struct built with a whole-value assignment
+// pattern ('{...}), always_comb + always_ff interaction, and a safety
+// property checked with plain Bmc.
 //
 // Safety: a grant is only ever issued to a requester that actually
 // asked for it *this* cycle -- holds by construction, so BMC should

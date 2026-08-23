@@ -1,9 +1,9 @@
 // Range-select (bit-slice) LHS on a plain continuous assign: two
 // separate assigns each pin a different half of `w` via a constant
 // range select (`w[3:0]`, `w[7:4]`), rather than a single-bit
-// ElementSelect. resolve_lvalue() must recognize RangeSelect the same
-// way it already recognizes ElementSelect/MemberAccess so these
-// constrain `w` instead of being silently dropped.
+// ElementSelect. resolve_lvalue() has a dedicated RangeSelect case
+// requiring constant bounds, so each assign pins its half of `w`
+// instead of leaving it a free state var.
 module range_select_lhs (input logic clk,
                           input logic [3:0] a,
                           input logic [3:0] b);

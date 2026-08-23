@@ -1,9 +1,9 @@
-// Generate-`case`: the (default) parameter selects among three
-// differently-stepping always_ff blocks at elaboration time.  With
-// the default MODE=1 (+2/cycle), count == 6 first at cycle 4 --
-// MODE=0 (+1/cycle) wouldn't reach 6 until cycle 7, and the default
-// branch (+3/cycle) would overshoot past 6 without ever hitting it
-// exactly, so this bound cleanly identifies which branch actually ran.
+// Generate-`case`: the parameter selects among three differently-
+// stepping always_ff blocks at elaboration time. With the default
+// MODE=1 (+2/cycle), count == 6 first at cycle 4; MODE=0 (+1/cycle)
+// wouldn't reach 6 until cycle 7, and the default branch (+3/cycle)
+// would overshoot 6 without hitting it exactly -- so the bound
+// identifies which branch actually elaborated.
 module generate_case_counter #(
     parameter int MODE = 1
 ) (

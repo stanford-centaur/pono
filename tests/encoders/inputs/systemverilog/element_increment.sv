@@ -1,6 +1,5 @@
-// `++` on a packed-array *element* (constant index), not just a plain
-// scalar -- proves the general lvalue-resolution refactor (not just a
-// scalar-only special case) handles ++/-- correctly.
+// `++` on a packed-array element (constant index), not just a plain
+// scalar.
 // mem[1](k) = k-1 for k >= 1, so mem[1] first equals 3 at cycle 4.
 module element_increment (input logic clk, input logic rst);
 

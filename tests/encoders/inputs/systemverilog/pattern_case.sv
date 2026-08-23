@@ -1,9 +1,8 @@
 // `case (x) matches ... endcase` (pattern-matching case,
 // StatementKind::PatternCase) is a distinct statement kind from plain
 // `case`/`casex`/`casez` (StatementKind::Case). process_statement()'s
-// main switch has no explicit case for it, but its generic
-// unhandled-statement-kind default already logs a warning and skips
-// it cleanly (confirmed empirically) -- this locks that behavior in.
+// main switch has no explicit case for it, so it falls to the generic
+// unhandled-statement-kind default, which logs a warning and skips it.
 module pattern_case (input logic clk, input logic [3:0] x);
 
   logic [3:0] y;

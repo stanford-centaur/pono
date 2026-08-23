@@ -1,13 +1,9 @@
 // Hierarchical design: `parent` instantiates `child`, which drives
-// `parent.y` via its output port.
-//
-// If sub-modules are encoded correctly, y == a + b at every cycle,
-// so for a == 3, b == 5 we must have y == 8 != 0, and the assertion
-// holds (BMC returns UNKNOWN within any finite bound).
-//
-// If sub-modules are skipped (current encoder behavior), y is left
-// as a free input and BMC will pick y == 0 with a == 3, b == 5,
-// falsifying the property.
+// `parent.y` via its output port. y == a + b at every cycle, so for
+// a == 3, b == 5, y == 8 != 0 always holds (BMC returns UNKNOWN
+// within any finite bound). If sub-modules were left unencoded, y
+// would be a free input and BMC would falsify the property by
+// picking y == 0.
 module child (
     input  logic [3:0] a,
     input  logic [3:0] b,

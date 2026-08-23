@@ -8,12 +8,9 @@
 // the sequence matches at all, sidestepping the separate (and more
 // LRM-ambiguous) question of what a *bare* sequence used directly as a
 // property means. `a`/`b` free: earliest match is a@1, b@2, so the
-// property should be violated at cycle 2 -- currently it is never
-// reached: `intersect` is absent from the AssertionExprKind::Binary
-// switches in assertion_expr_to_bool()/ltl_to_sat() (confirmed by
-// inspection), so the default case returns a null Term and the whole
-// assertion is silently dropped (propvec() stays empty) instead of
-// being built or cleanly rejected.
+// property is violated at cycle 2. Handled by offsets_ending_now()'s
+// Intersect case in sva.cpp, which ANDs the two operands' offset
+// vectors entry-by-entry.
 module seq_intersect (input logic clk, input logic rst, input logic a, input logic b);
 
   assert property (@(posedge clk) ((a ##1 b) intersect (a ##[1:2] b)) |-> 1'b0);

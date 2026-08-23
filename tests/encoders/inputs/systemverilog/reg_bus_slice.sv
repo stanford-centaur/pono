@@ -22,10 +22,9 @@ module reg_bus_slice (input logic clk,
   child4_reg u_hi  (.clk(clk), .in(b), .out(bus[2]));
   child4_reg u_mid (.clk(clk), .in(c), .out(bus[1]));
 
-  // Deliberately doesn't reference `bus` here: without this fix, the
-  // encoder would otherwise silently succeed with the three registers
-  // simply absent from the model (confirmed empirically) rather than
-  // failing at the point the gap is actually hit.
+  // Deliberately doesn't reference `bus` here: the throw must come
+  // from declare_variables_internal() itself, not from a later use of
+  // `bus` in this module.
   assert property (@(posedge clk) 1'b1);
 
 endmodule

@@ -1,12 +1,8 @@
 // Packed-union construction via an assignment-pattern literal
 // (`'{default: ...}`), distinct from union_overlap.sv's member-access
-// (read/write through `.b`/`.parts`) which already works.
-// expr_to_term()'s StructuredAssignmentPattern case only builds a
-// PackedStructType target; a union canonical type throws "unsupported
-// assignment pattern target type" instead of picking the pattern's
-// value directly (a union literal is exactly the pattern's own value,
-// at bit offset 0, unlike a struct literal's concatenation of all
-// members).
+// through `.b`/`.parts`. expr_to_term()'s StructuredAssignmentPattern
+// case only builds a PackedStructType target, so a union canonical
+// type throws "unsupported assignment pattern target type".
 typedef union packed {
   logic [7:0] b;
   struct packed {

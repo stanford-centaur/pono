@@ -1,11 +1,10 @@
 // Three sibling instances each drive a different element of one shared
-// packed array `bus`, declared so the *first*-processed instance
-// (u_lo) writes element 0 -- a write starting at bit 0 -- while the
-// *second*-processed instance (u_hi) writes the non-adjacent element 2,
-// with element 1 filled in last by u_mid. This exercises
-// process_continuous_assign()'s "is this the wire's full-width write"
-// check on a wire's very first write, for a write that starts at bit 0
-// but does not cover the whole bus.
+// packed array `bus`. u_lo writes element 0 first (a write starting
+// at bit 0 but not covering the whole bus), then u_hi writes the
+// non-adjacent element 2, then u_mid fills in element 1. Exercises
+// process_continuous_assign_operand()'s full-width-write check, which
+// must compare against the wire's declared width rather than mistake
+// u_lo's partial first write for a full one.
 module child4 (input logic [3:0] in, output logic [3:0] out);
   assign out = in;
 endmodule

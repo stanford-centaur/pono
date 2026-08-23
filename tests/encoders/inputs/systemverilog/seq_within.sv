@@ -5,13 +5,9 @@
 // `|-> 1'b0` (the same idiom first_match_seq.sv/seq_intersect.sv use)
 // so the property is violated as soon as the composite sequence
 // matches at all. `a`/`b`/`c` free: earliest match is b@1, c@2, a@1
-// (or a@2), so the property should be violated at cycle 2 -- currently
-// it is never reached: `within` is absent from the
-// AssertionExprKind::Binary switches in
-// assertion_expr_to_bool()/ltl_to_sat() (confirmed by inspection), so
-// the default case returns a null Term and the whole assertion is
-// silently dropped (propvec() stays empty) instead of being built or
-// cleanly rejected.
+// (or a@2), so the property is violated at cycle 2. Handled by
+// offsets_ending_now()'s Within case in sva.cpp, which ORs s1's merged
+// "matches here" term over s2's own completion window.
 module seq_within (input logic clk, input logic rst, input logic a, input logic b, input logic c);
 
   assert property (@(posedge clk) (a within (b ##1 c)) |-> 1'b0);
