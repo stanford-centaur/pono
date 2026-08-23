@@ -114,6 +114,37 @@ TEST_P(SVUnitTests, BitVsLogicParityMismatchFails)
   check_bmc("bit_vs_logic_parity_mismatch.sv", 1);
 }
 
+// ---------------------------------------------------------------------------
+// `signed` types: width-extension, comparison, and division must all use
+// two's-complement signed semantics, not treat the raw bit pattern as
+// unsigned.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, SignedSignExtend)
+{
+  check_bmc("signed_sign_extend.sv", 0, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SignedCompare)
+{
+  check_bmc("signed_compare.sv", 0, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SignedDivide)
+{
+  check_bmc("signed_divide.sv", 0, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SignedCast)
+{
+  check_bmc("signed_cast.sv", 0, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SignedContextWidth)
+{
+  check_bmc("signed_context_width.sv", 0, ProverResult::UNKNOWN);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVTypesTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));

@@ -1474,27 +1474,34 @@ void SystemVerilogEncoder::process_continuous_assign(
   // exactly mirroring how a concatenation-target *port connection* is
   // already split into one OutputAliasSegment per operand.
   if (lhs_expr.kind == ExpressionKind::Concatenation) {
+    // A concatenation's own type -- and so each slice written through
+    // it -- is always unsigned per the LRM, regardless of the RHS
+    // expression's own signedness: this is positional bit-splicing,
+    // not a numeric value being widened.
     uint64_t total_w = lhs_expr.type->getBitWidth();
     if (total_w == 0) return;
-    Term rhs_full = resize_to(expr_to_term(rhs_expr), total_w);
+    Term rhs_full = resize_to(expr_to_term(rhs_expr), total_w, false);
     uint64_t covered = 0;
     for (auto * operand : lhs_expr.as<ConcatenationExpression>().operands()) {
       uint64_t seg_w = operand->type->getBitWidth();
       if (seg_w == 0 || covered + seg_w > total_w) break;
       uint64_t seg_hi = total_w - 1 - covered;
       uint64_t seg_lo = seg_hi - (seg_w - 1);
-      process_continuous_assign_operand(*operand,
-                                        slice_bits(rhs_full, seg_lo, seg_hi));
+      process_continuous_assign_operand(
+          *operand, slice_bits(rhs_full, seg_lo, seg_hi), false);
       covered += seg_w;
     }
     return;
   }
 
-  process_continuous_assign_operand(lhs_expr, expr_to_term(rhs_expr));
+  process_continuous_assign_operand(
+      lhs_expr, expr_to_term(rhs_expr), rhs_expr.type->isSigned());
 }
 
 void SystemVerilogEncoder::process_continuous_assign_operand(
-    const slang::ast::Expression & lhs_expr, const smt::Term & rhs_arg)
+    const slang::ast::Expression & lhs_expr,
+    const smt::Term & rhs_arg,
+    bool rhs_signed)
 {
   using namespace slang::ast;
 
@@ -1513,7 +1520,7 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
   const Symbol * base_sym = desc->base;
   bool aliased = port_output_aliases_.count(base_sym) > 0;
 
-  Term rhs_full = resize_to(rhs_arg, desc->hi - desc->lo + 1);
+  Term rhs_full = resize_to(rhs_arg, desc->hi - desc->lo + 1, rhs_signed);
 
   // A concatenation-target output-port connection splits this one
   // write across several pieces, each with its own target
@@ -1698,7 +1705,8 @@ void SystemVerilogEncoder::process_instance(
       }
     } else {
       Term term = expr_to_term(*conn_expr);
-      term = resize_to(term, port.getType().getBitWidth());
+      term = resize_to(
+          term, port.getType().getBitWidth(), conn_expr->type->isSigned());
       symbol_to_term_[internal] = term;
       input_terms_added.push_back(internal);
     }
@@ -1857,7 +1865,7 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
 
   Term idx = expr_to_term(sel.selector());
   Term rhs = expr_to_term(rhs_expr);
-  rhs = resize_to(rhs, elem_w);
+  rhs = resize_to(rhs, elem_w, sel.type->isSigned());
   Term combined = replace_bits_dynamic(prev_base, rhs, idx, elem_w);
 
   if (wire_comb) {
@@ -2197,7 +2205,12 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
         uint64_t total_w = 0;
         for (auto & w : writes) total_w = std::max(total_w, w.rhs_hi + 1);
-        rhs = resize_to(rhs, total_w);
+        // A concatenation-target LHS is always unsigned per the LRM
+        // (positional bit-splicing, not a numeric value); otherwise
+        // use the RHS expression's own signedness.
+        bool rhs_signed = lhs_expr.kind != ExpressionKind::Concatenation
+                          && rhs_expr.type->isSigned();
+        rhs = resize_to(rhs, total_w, rhs_signed);
         for (auto & w : writes) {
           commit_write(w, slice_of(rhs, w.rhs_lo, w.rhs_hi));
         }
@@ -2379,17 +2392,22 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           if (mv) {
             uint64_t pat_w = expr->type->getBitWidth();
             Sort pat_sort = solver_->make_sort(BV, pat_w);
+            // Raw bit-pattern masks, not numeric values -- always
+            // zero-extend.
             Term mask_term = resize_to(
                 solver_->make_term(std::to_string(mv->first), pat_sort, 10),
-                sel->get_sort()->get_width());
+                sel->get_sort()->get_width(),
+                false);
             Term value_term = resize_to(
                 solver_->make_term(std::to_string(mv->second), pat_sort, 10),
-                sel->get_sort()->get_width());
+                sel->get_sort()->get_width(),
+                false);
             match = solver_->make_term(
                 Equal, solver_->make_term(BVAnd, sel, mask_term), value_term);
           } else {
             Term pat = expr_to_term(*expr);
-            pat = resize_to(pat, sel->get_sort()->get_width());
+            pat = resize_to(
+                pat, sel->get_sort()->get_width(), expr->type->isSigned());
             match = solver_->make_term(Equal, sel, pat);
           }
           item_cond =
@@ -3118,17 +3136,23 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
             }
           }
           Sort rhs_sort = solver_->make_sort(BV, rhs_w);
+          // Raw bit-pattern masks, not numeric values -- always
+          // zero-extend.
           Term mask_term =
               resize_to(solver_->make_term(std::to_string(mask), rhs_sort, 10),
-                        left->get_sort()->get_width());
+                        left->get_sort()->get_width(),
+                        false);
           Term value_term =
               resize_to(solver_->make_term(std::to_string(value), rhs_sort, 10),
-                        left->get_sort()->get_width());
+                        left->get_sort()->get_width(),
+                        false);
           eq = solver_->make_term(
               Equal, solver_->make_term(BVAnd, left, mask_term), value_term);
         } else {
           Term right = expr_to_term(binop.right());
-          right = resize_to(right, left->get_sort()->get_width());
+          right = resize_to(right,
+                            left->get_sort()->get_width(),
+                            binop.right().type->isSigned());
           eq = solver_->make_term(Equal, left, right);
         }
         Sort bv1 = solver_->make_sort(BV, 1);
@@ -3138,18 +3162,31 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
                                eq,
                                solver_->make_term(want_eq ? 1 : 0, bv1),
                                solver_->make_term(want_eq ? 0 : 1, bv1));
-        return resize_to(result, result_width);
+        // Result is a plain 0/1 boolean -- always zero-extend.
+        return resize_to(result, result_width, false);
       }
 
       Term left = expr_to_term(binop.left());
       Term right = expr_to_term(binop.right());
 
-      // Ensure operands have the same width.
+      // Both operands are signed iff the *whole* operation is signed
+      // (SystemVerilog's usual arithmetic conversion rule: mixing a
+      // signed operand with an unsigned one makes the whole operation
+      // unsigned) -- checking both, rather than trusting they already
+      // agree, doesn't rely on slang having inserted a unifying
+      // conversion on every operator variant that reaches here.
+      bool op_signed =
+          binop.left().type->isSigned() && binop.right().type->isSigned();
+
+      // Ensure operands have the same width, sign-extending rather
+      // than zero-extending a narrower signed operand -- otherwise a
+      // negative value becomes a large positive one before the
+      // operator below ever sees it.
       uint64_t lw = left->get_sort()->get_width();
       uint64_t rw = right->get_sort()->get_width();
       uint64_t max_w = max(lw, rw);
-      left = resize_to(left, max_w);
-      right = resize_to(right, max_w);
+      left = resize_to(left, max_w, op_signed);
+      right = resize_to(right, max_w, op_signed);
 
       uint64_t result_width = expr.type->getBitWidth();
       Term result;
@@ -3165,10 +3202,10 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           result = solver_->make_term(BVMul, left, right);
           break;
         case BinaryOperator::Divide:
-          result = solver_->make_term(BVUdiv, left, right);
+          result = solver_->make_term(op_signed ? BVSdiv : BVUdiv, left, right);
           break;
         case BinaryOperator::Mod:
-          result = solver_->make_term(BVUrem, left, right);
+          result = solver_->make_term(op_signed ? BVSrem : BVUrem, left, right);
           break;
         case BinaryOperator::BinaryAnd:
           result = solver_->make_term(BVAnd, left, right);
@@ -3199,28 +3236,28 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           break;
         }
         case BinaryOperator::LessThan: {
-          Term lt = solver_->make_term(BVUlt, left, right);
+          Term lt = solver_->make_term(op_signed ? BVSlt : BVUlt, left, right);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
               Ite, lt, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::LessThanEqual: {
-          Term le = solver_->make_term(BVUle, left, right);
+          Term le = solver_->make_term(op_signed ? BVSle : BVUle, left, right);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
               Ite, le, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::GreaterThan: {
-          Term gt = solver_->make_term(BVUlt, right, left);
+          Term gt = solver_->make_term(op_signed ? BVSlt : BVUlt, right, left);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
               Ite, gt, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
           break;
         }
         case BinaryOperator::GreaterThanEqual: {
-          Term ge = solver_->make_term(BVUle, right, left);
+          Term ge = solver_->make_term(op_signed ? BVSle : BVUle, right, left);
           Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(
               Ite, ge, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
@@ -3317,7 +3354,13 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               "SystemVerilogEncoder: unsupported binary operator "
               + to_string(static_cast<int>(binop.op)));
       }
-      return resize_to(result, result_width);
+      // If the surrounding (context-determined) width is wider than
+      // the operands' own common width, extend the already-computed
+      // result rather than the operands -- self-determined operations
+      // (e.g. wraparound on overflow) happen at the operands' natural
+      // width first, exactly as the LRM specifies, and only the final
+      // value is widened to fit the context.
+      return resize_to(result, result_width, expr.type->isSigned());
     }
 
     case ExpressionKind::UnaryOp: {
@@ -3430,7 +3473,10 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               "SystemVerilogEncoder: unsupported unary operator "
               + to_string(static_cast<int>(unop.op)));
       }
-      return resize_to(result, result_width);
+      // See the analogous BinaryOp comment above: widen the computed
+      // result to fit a wider context-determined width, sign-extending
+      // if the result is itself signed.
+      return resize_to(result, result_width, expr.type->isSigned());
     }
 
     case ExpressionKind::Streaming: {
@@ -3469,10 +3515,17 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
     }
 
     case ExpressionKind::Conversion: {
+      // Widening a *signed* source value must sign-extend (replicate
+      // the top bit) rather than zero-extend, or a negative value
+      // becomes a large positive one in the wider representation.
+      // The source operand's own signedness decides this, not the
+      // target type's: converting an unsigned value into a wider
+      // signed type still zero-extends, since there is no sign bit in
+      // the source to replicate.
       auto & conv = expr.as<ConversionExpression>();
       Term inner = expr_to_term(conv.operand());
       uint64_t target_width = expr.type->getBitWidth();
-      return resize_to(inner, target_width);
+      return resize_to(inner, target_width, conv.operand().type->isSigned());
     }
 
     case ExpressionKind::Concatenation: {
@@ -3545,8 +3598,10 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // extract the bottom `elem_w` bits.
       uint64_t val_w = val->get_sort()->get_width();
       Sort val_sort = solver_->make_sort(BV, val_w);
+      // Index arithmetic for a shift amount, not a value -- zero-
+      // extend regardless of the index expression's own signedness.
       Term idx = expr_to_term(sel_expr);
-      idx = resize_to(idx, val_w);
+      idx = resize_to(idx, val_w, false);
       Term shift_amount = idx;
       if (elem_w != 1) {
         Term elem_w_term = solver_->make_term(elem_w, val_sort);
@@ -3625,7 +3680,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               + std::string(field.name) + "'");
         }
         Term val = resize_to(expr_to_term(*sit->second),
-                             field.getType().getBitWidth());
+                             field.getType().getBitWidth(),
+                             sit->second->type->isSigned());
         parts.push_back(val);
       }
       if (parts.empty()) {
@@ -3645,12 +3701,16 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       Term then_val = expr_to_term(ternary.left());
       Term else_val = expr_to_term(ternary.right());
 
-      // Ensure then/else have the same width.
+      // Ensure then/else have the same width, sign-extending rather
+      // than zero-extending a narrower signed branch (see BinaryOp's
+      // op_signed handling above for why).
+      bool branches_signed =
+          ternary.left().type->isSigned() && ternary.right().type->isSigned();
       uint64_t tw = then_val->get_sort()->get_width();
       uint64_t ew = else_val->get_sort()->get_width();
       uint64_t max_w = max(tw, ew);
-      then_val = resize_to(then_val, max_w);
-      else_val = resize_to(else_val, max_w);
+      then_val = resize_to(then_val, max_w, branches_signed);
+      else_val = resize_to(else_val, max_w, branches_signed);
 
       // Convert condition to Bool for Ite.
       uint64_t cw = cond->get_sort()->get_width();
@@ -3673,6 +3733,22 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // Other calls (user subroutines, system tasks) are not
       // supported.
       auto & call = expr.as<CallExpression>();
+      if (call.isSystemCall()
+          && (call.getSubroutineName() == "$signed"
+              || call.getSubroutineName() == "$unsigned")) {
+        // Pure bit-pattern reinterpretation: same width, same bits,
+        // only the *type* (and so, downstream, which comparison/
+        // division/extension semantics apply) changes. expr.type
+        // already reflects the cast's signedness for any caller that
+        // inspects it (e.g. BinaryOp's op_signed check).
+        auto args = call.arguments();
+        if (args.empty() || !args[0]) {
+          throw PonoException("SystemVerilogEncoder: "
+                              + std::string(call.getSubroutineName())
+                              + " with no value argument");
+        }
+        return expr_to_term(*args[0]);
+      }
       if (call.isSystemCall() && call.getSubroutineName() == "$past") {
         auto args = call.arguments();
         if (args.empty() || !args[0]) {
@@ -5006,15 +5082,18 @@ Term SystemVerilogEncoder::wire_seed_term(const slang::ast::Symbol * sym)
   return iv;
 }
 
-Term SystemVerilogEncoder::resize_to(const Term & t, uint64_t target_width)
+Term SystemVerilogEncoder::resize_to(const Term & t,
+                                     uint64_t target_width,
+                                     bool is_signed)
 {
   uint64_t current_width = t->get_sort()->get_width();
   if (current_width == target_width) {
     return t;
   }
   if (current_width < target_width) {
-    // Zero-extend.
-    return solver_->make_term(Op(Zero_Extend, target_width - current_width), t);
+    Op ext_op(is_signed ? Sign_Extend : Zero_Extend,
+              target_width - current_width);
+    return solver_->make_term(ext_op, t);
   }
   // Truncate (extract lower bits).
   return solver_->make_term(Op(Extract, target_width - 1, 0), t);
@@ -5047,9 +5126,14 @@ Term SystemVerilogEncoder::replace_bits_dynamic(const Term & base,
                                                 const Term & idx,
                                                 uint64_t elem_w)
 {
+  // Index arithmetic and bit masks below -- zero-extend throughout;
+  // `slice` is padded before shifting into position, but `mask`
+  // clears every bit outside the shifted elem_w-wide window
+  // regardless, so the padding bits of `slice` never affect the
+  // result either way.
   uint64_t base_w = base->get_sort()->get_width();
   Sort base_sort = solver_->make_sort(BV, base_w);
-  Term idx_ext = resize_to(idx, base_w);
+  Term idx_ext = resize_to(idx, base_w, false);
   Term shift_amount = idx_ext;
   if (elem_w != 1) {
     Term elem_w_term = solver_->make_term(elem_w, base_sort);
@@ -5057,10 +5141,10 @@ Term SystemVerilogEncoder::replace_bits_dynamic(const Term & base,
   }
   Term elem_ones = solver_->make_term(
       BVNot, solver_->make_term(0, solver_->make_sort(BV, elem_w)));
-  Term mask =
-      solver_->make_term(BVShl, resize_to(elem_ones, base_w), shift_amount);
+  Term mask = solver_->make_term(
+      BVShl, resize_to(elem_ones, base_w, false), shift_amount);
   Term slice_shifted =
-      solver_->make_term(BVShl, resize_to(slice, base_w), shift_amount);
+      solver_->make_term(BVShl, resize_to(slice, base_w, false), shift_amount);
   Term cleared =
       solver_->make_term(BVAnd, base, solver_->make_term(BVNot, mask));
   return solver_->make_term(

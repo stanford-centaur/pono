@@ -198,9 +198,16 @@ class SystemVerilogEncoder
    *  @param lhs_expr the (non-concatenation) lvalue expression being
    *                  written
    *  @param rhs the value to write, resized to lhs_expr's width
+   *  @param rhs_signed whether to sign-extend (rather than zero-
+   *         extend) `rhs` if it needs to grow to fit lhs_expr's width
+   *         -- the caller passes the *source* expression's own
+   *         signedness (false for a concatenation-target slice, which
+   *         is positional bit-splicing, not a numeric value)
    */
   void process_continuous_assign_operand(
-      const slang::ast::Expression & lhs_expr, const smt::Term & rhs);
+      const slang::ast::Expression & lhs_expr,
+      const smt::Term & rhs,
+      bool rhs_signed);
 
   /** Process an always_comb block, or a continuous assign, unless it
    *  has already been processed (either by the normal walk reaching
@@ -336,13 +343,23 @@ class SystemVerilogEncoder
    */
   smt::Term wire_seed_term(const slang::ast::Symbol * sym);
 
-  /** Ensure a term has the expected bit-width, zero-extending or
+  /** Ensure a term has the expected bit-width, extending or
    *  truncating as needed.
    *  @param t the term to resize
    *  @param target_width the desired width
+   *  @param is_signed if the term grows, sign-extend (replicate the
+   *         top bit) instead of zero-extending -- use this whenever
+   *         `t` is the value of a `signed`-typed SystemVerilog
+   *         expression being widened; every other use (bit-range
+   *         bookkeeping, unsigned types, etc.) should pass false.
+   *         Required (no default) so every call site makes an
+   *         explicit, reviewed choice instead of silently defaulting
+   *         to zero-extension.
    *  @return the resized term
    */
-  smt::Term resize_to(const smt::Term & t, uint64_t target_width);
+  smt::Term resize_to(const smt::Term & t,
+                      uint64_t target_width,
+                      bool is_signed);
 
   /** Build a partial-write term: take the full-width `base` and
    *  return a term equal to `base` everywhere except bits
