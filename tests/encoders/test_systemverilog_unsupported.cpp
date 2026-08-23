@@ -128,6 +128,24 @@ TEST_P(SVUnitTests, Gap_DynamicRangeSelectLhs)
   expect_encode_throws("dynamic_range_select_lhs.sv");
 }
 
+// A streaming concatenation used as an assignment target
+// (`{>>{hi, lo}} <= a;`) is ExpressionKind::Streaming, distinct from a
+// plain concatenation-target LHS (ExpressionKind::Concatenation,
+// already supported). resolve_lvalue() has no case for it at all.
+TEST_P(SVUnitTests, Gap_StreamingConcatLhs)
+{
+  expect_encode_throws("streaming_concat_lhs.sv");
+}
+
+// A constant element-select lvalue whose index is out of range for its
+// base (`flag[10]` into a 4-bit `flag`) -- the LRM permits this
+// (writes are a no-op, reads return 'x), but this encoder has no such
+// semantics.
+TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
+{
+  expect_encode_throws("element_select_out_of_bounds_lhs.sv");
+}
+
 // GAP in the "clean rejection" contract (confirmed empirically):
 // `defparam`/`bind` are simply never processed -- the base module they
 // target is still walked normally with its *own* defaults, so encoding
