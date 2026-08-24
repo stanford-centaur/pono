@@ -60,9 +60,10 @@ TEST_P(SVUnitTests, CreditLinkAssumeHonoredByIC3)
   // is the same helper test_ic3bits.cpp uses for exactly this reason.
   SmtSolver s = create_solver_for(GetParam(), Engine::IC3_BITS, false);
   FunctionalTransitionSystem fts(s);
-  SystemVerilogEncoder enc(sv_path("integration/credit_link.sv"), fts);
-  ASSERT_EQ(enc.propvec().size(), 1u);
-  Term prop_term = enc.propvec()[0];
+  auto sv_result =
+      SystemVerilogEncoder::encode(sv_path("integration/credit_link.sv"), fts);
+  ASSERT_EQ(sv_result.propvec.size(), 1u);
+  Term prop_term = sv_result.propvec[0];
 
   TransitionSystem ts = fts;
   if (Term rst = find_reset(ts)) {

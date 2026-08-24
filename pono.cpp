@@ -450,10 +450,10 @@ int main(int argc, char ** argv)
     else if (file_ext == "sv" || file_ext == "v") {
       logger.log(2, "Parsing SystemVerilog file: {}", pono_options.filename_);
       FunctionalTransitionSystem fts(s);
-      SystemVerilogEncoder sv_enc(
+      SystemVerilogEncoder::Result sv_result = SystemVerilogEncoder::encode(
           pono_options.filename_, fts, pono_options.sv_filelists_);
-      const TermVec & propvec = sv_enc.propvec();
-      const auto & ltl_justice_vec = sv_enc.ltl_justice();
+      const TermVec & propvec = sv_result.propvec;
+      const auto & ltl_justice_vec = sv_result.ltl_justice;
       unsigned int num_props =
           pono_options.justice_ ? ltl_justice_vec.size() : propvec.size();
       if (num_props == 0) {

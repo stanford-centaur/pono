@@ -40,8 +40,9 @@ TEST_P(SVUnitTests, MultipleAssertions)
 {
   SmtSolver s = create_solver(GetParam());
   FunctionalTransitionSystem fts(s);
-  SystemVerilogEncoder enc(sv_path("multi_assert.sv"), fts);
-  EXPECT_EQ(enc.propvec().size(), 3u);
+  auto sv_result =
+      SystemVerilogEncoder::encode(sv_path("multi_assert.sv"), fts);
+  EXPECT_EQ(sv_result.propvec.size(), 3u);
 }
 
 // ---------------------------------------------------------------------------

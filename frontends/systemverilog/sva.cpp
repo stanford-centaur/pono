@@ -17,11 +17,11 @@
  * SVA design decisions
  * ---------------------
  * A few SVA constructs have no single "obviously correct" encoding given
- * this encoder's model (a single global clock, and a propvec()-of-safety-
- * properties / ltl_justice()-of-liveness-obligations interface with no
- * notion of coverage or multiple clock domains). The choices made here are
- * deliberate and documented so future changes don't accidentally drift
- * from them:
+ * this encoder's model (a single global clock, and a Result::propvec-of-
+ * safety-properties / Result::ltl_justice-of-liveness-obligations interface
+ * with no notion of coverage or multiple clock domains). The choices made here
+ * are deliberate and documented so future changes don't accidentally drift from
+ * them:
  *
  *   - `cover property (P)` / immediate `cover (P)`: modeled via
  *     reachability duality -- checked exactly like `assert property (!P)`

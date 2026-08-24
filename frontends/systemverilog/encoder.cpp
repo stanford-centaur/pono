@@ -5,16 +5,18 @@
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
  *
- * Besides encode() and process_module(), this file provides walk_members(),
- * which flattens generate-for/generate-if blocks and arrayed instances into the
- * member dispatch while pushing bracket-indexed hierarchical name prefixes, and
- * eval_ctx(), which lazily builds the EvalContext used to bind procedural loop
- * counters. Anonymous-namespace helpers parse dot-f list files (rejecting
- * unsupported +/- tool directives) and scan the raw syntax tree for `bind`
- * directives, which have no elaborated Symbol to catch during the normal member
- * walk. process_module() runs four ordered passes -- state-variable pre-scan,
- * combinational-wire pre-scan, variable declaration, then assignment processing
- * -- since later passes rely on symbol classifications established earlier.
+ * Besides the public encode() factory, run() (the pipeline it delegates to
+ * right after constructing the encoder), and process_module(), this file
+ * provides walk_members(), which flattens generate-for/generate-if blocks and
+ * arrayed instances into the member dispatch while pushing bracket-indexed
+ * hierarchical name prefixes, and eval_ctx(), which lazily builds the
+ * EvalContext used to bind procedural loop counters. Anonymous-namespace
+ * helpers parse dot-f list files (rejecting unsupported +/- tool directives)
+ * and scan the raw syntax tree for `bind` directives, which have no
+ * elaborated Symbol to catch during the normal member walk. process_module()
+ * runs four ordered passes -- state-variable pre-scan, combinational-wire
+ * pre-scan, variable declaration, then assignment processing -- since later
+ * passes rely on symbol classifications established earlier.
  */
 
 #include "frontends/systemverilog/encoder.h"
@@ -137,16 +139,22 @@ slang::ast::EvalContext & SystemVerilogEncoder::eval_ctx()
 // Construction / destruction
 // ============================================================================
 
-SystemVerilogEncoder::SystemVerilogEncoder(
-    string filename,
-    FunctionalTransitionSystem & fts,
-    const std::vector<std::string> & filelists)
+SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
     : fts_(fts), solver_(fts.solver())
 {
-  encode(filename, filelists);
 }
 
 SystemVerilogEncoder::~SystemVerilogEncoder() = default;
+
+SystemVerilogEncoder::Result SystemVerilogEncoder::encode(
+    string filename,
+    FunctionalTransitionSystem & fts,
+    const std::vector<std::string> & filelists)
+{
+  SystemVerilogEncoder enc(fts);
+  enc.run(filename, filelists);
+  return Result{ std::move(enc.propvec_), std::move(enc.ltl_justice_) };
+}
 
 // ============================================================================
 // List-file (".f") parsing
@@ -229,8 +237,8 @@ void warn_on_bind_directives(const slang::syntax::SyntaxNode & node)
 // Top-level encoding pipeline
 // ============================================================================
 
-void SystemVerilogEncoder::encode(const string & filename,
-                                  const std::vector<std::string> & filelists)
+void SystemVerilogEncoder::run(const string & filename,
+                               const std::vector<std::string> & filelists)
 {
   // Build the full list of source files: the primary file followed by
   // every file named in each list-file, in order.

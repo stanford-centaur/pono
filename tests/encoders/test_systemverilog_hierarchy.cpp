@@ -63,9 +63,9 @@ TEST_P(SVUnitTests, FilelistUnsupportedDirective)
   SmtSolver s = create_solver(GetParam());
   FunctionalTransitionSystem fts(s);
   EXPECT_THROW(
-      SystemVerilogEncoder enc(sv_path("filelist_top.sv"),
-                               fts,
-                               { sv_path("filelist_bad_directive.f") }),
+      SystemVerilogEncoder::encode(sv_path("filelist_top.sv"),
+                                   fts,
+                                   { sv_path("filelist_bad_directive.f") }),
       PonoException);
 }
 
@@ -74,7 +74,7 @@ TEST_P(SVUnitTests, FilelistMissingFile)
   SmtSolver s = create_solver(GetParam());
   FunctionalTransitionSystem fts(s);
   EXPECT_THROW(
-      SystemVerilogEncoder enc(
+      SystemVerilogEncoder::encode(
           sv_path("filelist_top.sv"), fts, { sv_path("filelist_missing.f") }),
       PonoException);
 }

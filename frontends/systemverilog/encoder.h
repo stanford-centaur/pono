@@ -13,9 +13,9 @@
  * split by concern across several other files in this directory
  * (frontends/systemverilog/):
  *
- *   - encoder.cpp:        construction, slang compilation, and the top-level
- *                         per-module encoding dispatch (encode(),
- *                         process_module()).
+ *   - encoder.cpp:        the public encode() factory, construction, slang
+ *                         compilation, and the top-level per-module
+ *                         encoding dispatch (run(), process_module()).
  *   - ast_helpers.h/.cpp: free-function AST helpers (lvalue resolution, modport
  *                         canonicalization, loop-control-signal type) shared
  *                         across the files below.
@@ -69,8 +69,40 @@ namespace pono {
 class SystemVerilogEncoder
 {
  public:
-  /** Construct a SystemVerilogEncoder that parses a SystemVerilog file and
-   * populates the given FunctionalTransitionSystem.
+  /** The properties extracted from a SystemVerilog design by encode(). */
+  struct Result
+  {
+    /** The vector of safety properties (negated assertions) found in
+     *  the design.
+     */
+    smt::TermVec propvec;
+
+    /** The per-property generalized-Büchi justice sets extracted from
+     *  temporal (LTL) assertions that are not pure safety properties.
+     *  There is one entry per such assertion; each entry is the set
+     *  of justice conditions { j_0, ..., j_k } for that one property,
+     *  meaning a counterexample to the original assertion is an
+     *  infinite lasso along which every j_i holds infinitely often
+     *  (i.e. the conjunction of GF j_i).  Feed a single entry's
+     *  TermVec straight into LivenessToSafetyTranslator::translate to
+     *  reduce that one property to safety.
+     *
+     *  Each LTL property also installs its own auxiliary tableau
+     *  state (next-step "promise" latches and a per-property
+     *  activation latch, gated by the one shared "first cycle" init
+     *  flag common to every LTL property) and transition constraints
+     *  directly into the transition system, so the justice sets are
+     *  only meaningful against the system encode() populated.
+     *  Because the per-property activation latch gates that
+     *  property's time-0 obligation, distinct LTL properties do not
+     *  interfere: checking one property's justice set leaves the
+     *  others' obligations vacuous.
+     */
+    std::vector<smt::TermVec> ltl_justice;
+  };
+
+  /** Parse a SystemVerilog file, elaborate it, and encode it into the
+   *  given FunctionalTransitionSystem.
    *
    *  Supported SystemVerilog constructs (synthesizable subset):
    *    - Module port declarations (input/output/inout)
@@ -111,52 +143,31 @@ class SystemVerilogEncoder
    *         resolve against that list file's directory. All files named by
    *         `filename` and every `filelists` entry are elaborated together
    *         as a single compilation.
+   *  @return the safety properties and LTL justice sets found in the design
    */
-  SystemVerilogEncoder(std::string filename,
+  static Result encode(std::string filename,
                        FunctionalTransitionSystem & fts,
                        const std::vector<std::string> & filelists = {});
 
   ~SystemVerilogEncoder();
 
-  /** @return the vector of safety properties (negated assertions)
-   *  found in the design.
-   */
-  const smt::TermVec & propvec() const { return propvec_; }
-
-  /** @return the per-property generalized-Büchi justice sets
-   *  extracted from temporal (LTL) assertions that are not pure
-   *  safety properties.  There is one entry per such assertion; each
-   *  entry is the set of justice conditions { j_0, ..., j_k } for that
-   *  one property, meaning a counterexample to the original assertion
-   *  is an infinite lasso along which every j_i holds infinitely
-   *  often (i.e. the conjunction of GF j_i).  Feed a single entry's
-   *  TermVec straight into LivenessToSafetyTranslator::translate to
-   *  reduce that one property to safety.
-   *
-   *  Each LTL property also installs its own auxiliary tableau state
-   *  (next-step "promise" latches and a per-property activation latch,
-   *  gated by the one shared "first cycle" init flag common to every
-   *  LTL property) and transition constraints directly into the
-   *  transition system, so the justice sets are only meaningful
-   *  against the system the encoder populated.  Because the
-   *  per-property activation latch gates that property's time-0
-   *  obligation, distinct LTL properties do not interfere: checking
-   *  one property's justice set leaves the others' obligations
-   *  vacuous.
-   */
-  const std::vector<smt::TermVec> & ltl_justice() const { return ltl_justice_; }
-
  private:
+  /** Construct a SystemVerilogEncoder bound to `fts` and its solver, doing
+   *  no parsing or encoding -- see encode(), the only public entry point,
+   *  which is also the only caller of this constructor.
+   */
+  explicit SystemVerilogEncoder(FunctionalTransitionSystem & fts);
+
   // ---------- Encoding pipeline ----------
 
   /** Top-level encoding: parse all source files, elaborate, and walk the
-   *  design.
+   *  design.  Called exactly once, by encode(), right after construction.
    *  @param filename the primary SystemVerilog source file
    *  @param filelists paths to SystemVerilog list files (".f" files) naming
    *         additional source files to parse alongside `filename`
    */
-  void encode(const std::string & filename,
-              const std::vector<std::string> & filelists);
+  void run(const std::string & filename,
+           const std::vector<std::string> & filelists);
 
   /** Process a top-level module instance. */
   void process_module(const slang::ast::InstanceSymbol & inst);
@@ -791,7 +802,7 @@ class SystemVerilogEncoder
   // temporal (LTL) assertions that are not pure safety.  Each entry
   // is the justice set { j_0, ..., j_k } of one assertion: a
   // counterexample is a lasso along which every j_i holds infinitely
-  // often.  See ltl_justice() and ltl_to_sat().
+  // often.  See Result::ltl_justice and ltl_to_sat().
   std::vector<smt::TermVec> ltl_justice_;
 
   // Cached Boolean term (`flag == 1`) for the shared LTL "first

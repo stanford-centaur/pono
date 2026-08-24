@@ -98,9 +98,10 @@ class SVUnitTests : public ::testing::Test,
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
     FunctionalTransitionSystem fts(s);
-    SystemVerilogEncoder enc(sv_path(file), fts, filelists);
-    ASSERT_EQ(enc.propvec().size(), 1u);
-    Term prop_term = enc.propvec()[0];
+    auto sv_result =
+        SystemVerilogEncoder::encode(sv_path(file), fts, filelists);
+    ASSERT_EQ(sv_result.propvec.size(), 1u);
+    Term prop_term = sv_result.propvec[0];
 
     TransitionSystem ts = fts;
     if (Term rst = find_reset(ts)) {
@@ -144,10 +145,10 @@ class SVUnitTests : public ::testing::Test,
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
     FunctionalTransitionSystem fts(s);
-    SystemVerilogEncoder enc(sv_path(file), fts);
-    ASSERT_EQ(enc.propvec().size(), 0u);
-    ASSERT_EQ(enc.ltl_justice().size(), 1u);
-    TermVec justice = enc.ltl_justice()[0];
+    auto sv_result = SystemVerilogEncoder::encode(sv_path(file), fts);
+    ASSERT_EQ(sv_result.propvec.size(), 0u);
+    ASSERT_EQ(sv_result.ltl_justice.size(), 1u);
+    TermVec justice = sv_result.ltl_justice[0];
 
     TransitionSystem ts = fts;
     if (Term rst = find_reset(ts)) {
@@ -183,7 +184,7 @@ class SVUnitTests : public ::testing::Test,
     using namespace smt;
     SmtSolver s = create_solver(GetParam());
     FunctionalTransitionSystem fts(s);
-    EXPECT_THROW(SystemVerilogEncoder enc(sv_path(file), fts, filelists),
+    EXPECT_THROW(SystemVerilogEncoder::encode(sv_path(file), fts, filelists),
                  PonoException);
   }
 
@@ -195,7 +196,7 @@ class SVUnitTests : public ::testing::Test,
   // `defparam`, `fork`/`wait` statements), so encoding quietly
   // proceeds as if the construct weren't there.  Distinct from
   // expect_silently_dropped(), which is about one *assertion*
-  // vanishing from propvec()/ltl_justice() -- here the whole
+  // vanishing from Result::propvec/Result::ltl_justice -- here the whole
   // construct (often not an assertion at all) has no observable
   // effect on the resulting transition system whatsoever.
   void expect_encode_succeeds_ignoring(
@@ -205,7 +206,8 @@ class SVUnitTests : public ::testing::Test,
     using namespace smt;
     SmtSolver s = create_solver(GetParam());
     FunctionalTransitionSystem fts(s);
-    EXPECT_NO_THROW(SystemVerilogEncoder enc(sv_path(file), fts, filelists));
+    EXPECT_NO_THROW(
+        SystemVerilogEncoder::encode(sv_path(file), fts, filelists));
   }
 };
 

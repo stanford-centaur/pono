@@ -46,8 +46,8 @@ TEST_P(SVUnitTests, Unsupported_CovergroupDecl)
 // member walk doesn't match at all -- either way logged via
 // logger.log(1, "... ignoring ... instance ...") rather than thrown,
 // per the "simulation-only constructs are dropped and logged" half of
-// the constructor's documented contract (see
-// SystemVerilogEncoder::SystemVerilogEncoder()'s doc comment).
+// encode()'s documented contract (see SystemVerilogEncoder::encode()'s
+// doc comment).
 TEST_P(SVUnitTests, Unsupported_ProgramBlock)
 {
   expect_encode_succeeds_ignoring("program_block.sv");
