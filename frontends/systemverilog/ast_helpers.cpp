@@ -1,6 +1,20 @@
-/*! \file ast_helpers.cpp
- *  \brief Shared free-function AST helpers used across multiple
- *         SystemVerilogEncoder translation units.
+/*!
+ * \file ast_helpers.cpp
+ * \brief LHS-resolution, traversal, and control-flow helper implementations.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * These helpers fall into three groups. Statement traversal
+ * (for_each_stmt_in_block, collect_nonblocking_targets) walks
+ * block/conditional/case/loop bodies to find non-blocking-assignment targets
+ * during pre-scan and process_instance(). LHS/lvalue resolution
+ * (canonicalize_modport_port, find_lhs_base, resolve_lvalue, LValueDesc) maps
+ * an assignment's left-hand side through modport indirection down to a base
+ * Symbol and constant bit range. Compile-time control flow (LoopControlSignal,
+ * as_forever_event_body) lets process_statement() model break/continue/disable
+ * across unrolled loops and recognize the legacy `initial forever @(...) body`
+ * idiom as equivalent to an always block.
  */
 #include "frontends/systemverilog/ast_helpers.h"
 

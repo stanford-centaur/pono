@@ -1,44 +1,35 @@
-/*********************                                                        */
-/*! \file
- ** \verbatim
- ** Top contributors (to current version):
- **   Áron Ricardo Perez-Lopez
- ** This file is part of the pono project.
- ** Copyright (c) 2019 by the authors listed in the file AUTHORS
- ** in the top-level source directory) and their institutional affiliations.
- ** All rights reserved.  See the file LICENSE in the top-level source
- ** directory for licensing information.\endverbatim
- **
- ** \brief SystemVerilog frontend encoder using the slang library.
- **
- ** Parses and elaborates SystemVerilog designs via slang, then converts
- ** the elaborated representation into Pono's FunctionalTransitionSystem
- ** and properties.
- **
- ** This class's declaration lives in one file, but its implementation is
- ** split by concern across several other files in this directory
- ** (frontends/systemverilog/):
- **
- **   - encoder.cpp:      construction, slang compilation, and the
- **                       top-level per-module encoding dispatch
- **                       (encode(), process_module()).
- **   - ast_helpers.h/.cpp:
- **                       free-function AST helpers (lvalue resolution,
- **                       modport canonicalization, loop-control-signal
- **                       type) shared across the files below.
- **   - prescan.cpp:      the pre-scan pass that classifies wires vs.
- **                       state vars before declaration.
- **   - declare.cpp:      the variable-declaration pass.
- **   - instance.cpp:     continuous assigns, always_comb/ff/initial
- **                       blocks, and per-instance (child module)
- **                       processing.
- **   - statement.cpp:    the process_statement() procedural statement
- **                       encoder.
- **   - expr.cpp:         the expr_to_term() expression encoder.
- **   - sva.cpp:          SVA/LTL assertion encoding.
- **   - terms.cpp:        low-level bit/term helpers (type-to-sort,
- **                       resize/replace-bits, symbol lookup).
- **/
+/*!
+ * \file encoder.h
+ * \brief SystemVerilog frontend encoder using the slang library.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Parses and elaborates SystemVerilog designs via slang, then converts
+ * the elaborated representation into Pono's FunctionalTransitionSystem
+ * and properties.
+ *
+ * This class's declaration lives in one file, but its implementation is
+ * split by concern across several other files in this directory
+ * (frontends/systemverilog/):
+ *
+ *   - encoder.cpp:        construction, slang compilation, and the top-level
+ *                         per-module encoding dispatch (encode(),
+ *                         process_module()).
+ *   - ast_helpers.h/.cpp: free-function AST helpers (lvalue resolution, modport
+ *                         canonicalization, loop-control-signal type) shared
+ *                         across the files below.
+ *   - prescan.cpp:        the pre-scan pass that classifies wires vs. state
+ *                         vars before declaration.
+ *   - declare.cpp:        the variable-declaration pass.
+ *   - instance.cpp:       continuous assigns, always_comb/ff/initial blocks,
+ *                         and per-instance (child module) processing.
+ *   - statement.cpp:      the process_statement() procedural statement encoder.
+ *   - expr.cpp:           the expr_to_term() expression encoder.
+ *   - sva.cpp:            SVA/LTL assertion encoding.
+ *   - terms.cpp:          low-level bit/term helpers (type-to-sort,
+ *                         resize/replace-bits, symbol lookup).
+ */
 
 #pragma once
 

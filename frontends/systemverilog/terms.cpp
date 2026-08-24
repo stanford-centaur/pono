@@ -1,8 +1,19 @@
-/*! \file terms.cpp
- *  \brief SystemVerilogEncoder's low-level bit/term helper substrate:
- *         type-to-sort conversion, output-port-alias resolution, symbol
- *         lookup/naming, and the resize/replace-bits term-manipulation
- *         primitives used throughout the rest of the encoder.
+/*!
+ * \file terms.cpp
+ * \brief Low-level bit/term helpers shared across the SV encoder.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Covers type_to_sort() (integral slang types -> BV sorts), lookup_symbol()'s
+ * resolution chain (loop-variable bindings, output-port-alias reconstruction
+ * via resolve_output_alias_pieces(), in-progress always_comb partial values,
+ * on-demand wire resolution with combinational-loop detection, and
+ * parameter/enum-literal materialization from slang's elaborated constants),
+ * plus the bit-manipulation primitives (slice_bits(), resize_to(),
+ * replace_bits(), replace_bits_dynamic()) and naming/lookup utilities
+ * (make_name(), wire_seed_term()) used to stitch together the rest of the
+ * encoder.
  */
 #include <algorithm>
 #include <cstdint>

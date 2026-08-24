@@ -1,7 +1,19 @@
-/*! \file declare.cpp
- *  \brief SystemVerilogEncoder's variable-declaration pass: creates the
- *         SMT term (state var / input var) for each port and internal
- *         variable/net, guided by the pre-scan classification.
+/*!
+ * \file declare.cpp
+ * \brief Creates SMT terms for ports, registers, and free variables.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Ports are declared first (process_port), then remaining internal Variable and
+ * Net symbols (declare_variables_internal). Each symbol is classified using the
+ * pre-scan results (state_var_symbols_, wire_symbols_, port_output_aliases_):
+ * registers become state vars, undriven signals become free input vars, and
+ * combinational wires are skipped here -- their terms are filled in later,
+ * during macro-substitution in continuous-assignment/always_comb processing. A
+ * special case handles registers reached through an output-port alias chain,
+ * splicing per-piece state vars keyed by the fully resolved alias root; only
+ * full-width aliasing is supported today, partial-width aliasing throws.
  */
 #include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Symbol.h"

@@ -1,7 +1,22 @@
-/*! \file prescan.cpp
- *  \brief SystemVerilogEncoder's pre-scan pass: classifies which base
- *         symbols become wires vs. state vars before any variable is
- *         declared.
+/*!
+ * \file prescan.cpp
+ * \brief Classifies wires vs. state vars before variables are declared.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Walks always_ff/always/always_latch bodies and instance port connections to
+ * decide, per base symbol, whether it must become a state var or can be a
+ * simple (macro-substituted) wire. Blocking assigns written full-width become
+ * wire candidates; those written through a bit/range select become state vars
+ * instead, since the assignment handler's slice-equality add_constraint needs a
+ * state var rather than an input var. Mixed full- and partial-width writes to
+ * the same symbol also fall back to state var to preserve splice semantics.
+ * always_latch targets are always state vars. For each instance, output/inout
+ * port connections (including concatenation operands, e.g. `.sum({hi, lo})`)
+ * mark their parent-side base symbols as wires unless already classified as
+ * state vars, which take priority; the scan recurses into nested instances and
+ * unrolled for-loop bodies so writes there are visible to declare_variables.
  */
 #include <unordered_set>
 

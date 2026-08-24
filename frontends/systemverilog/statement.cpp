@@ -1,8 +1,25 @@
-/*! \file statement.cpp
- *  \brief SystemVerilogEncoder's procedural-statement encoder: the main
- *         process_statement() switch (covering assignments, conditionals,
- *         loops, case statements, and concurrent/immediate assertions)
- *         plus its dynamic-index-write and loop-variable-refresh helpers.
+/*!
+ * \file statement.cpp
+ * \brief The process_statement() switch encoding SV procedural statements.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Dispatches on slang::ast::StatementKind to encode assignments (plain,
+ * compound, ++/--, concatenation-target and dynamic-index LHS splicing),
+ * if/case/casex/casez, and concurrent/immediate assertions into the
+ * FunctionalTransitionSystem. Loops (for/while/do-while/repeat/foreach) are
+ * unrolled at compile time via slang's own constant evaluator, up to a fixed
+ * iteration cap; a genuinely runtime-dependent loop bound, or a
+ * break/continue/disable reached through a non-constant condition, is rejected
+ * rather than silently mis-encoded. Local (non-state, non-wire) variables are
+ * mirrored as SMT constants and kept in sync with slang's evaluator by
+ * refresh_loop_var_term() after each constant-evaluated write.
+ * break/continue/disable are modeled as C++ exceptions (LoopControlSignal)
+ * caught by the nearest loop or matching named block. Assertions dispatch
+ * assert/cover to safety properties (or an LTL tableau for genuine liveness),
+ * and assume/restrict to standing constraints, honoring disable iff/default
+ * disable iff.
  */
 #include "slang/ast/Statement.h"
 

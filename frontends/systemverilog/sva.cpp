@@ -1,8 +1,18 @@
-/*! \file sva.cpp
- *  \brief SystemVerilogEncoder's SVA/LTL encoding: the history-chain and
- *         `$past`-style helpers, the bounded LTL-to-SAT tableau
- *         (X/G/F/R/U operators, sequence matching), and the top-level
- *         assertion-expression-to-bool conversion.
+/*!
+ * \file sva.cpp
+ * \brief SVA/LTL encoding: $past helpers, the LTL tableau, and sequences.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Covers: `$past`/history-chain latching (make_history_chain, delay_bool); a
+ * symbolic LTL tableau via one-step "promise" testers for X/G/F/R/U with
+ * justice (fairness) conditions for the least-fixpoint operators (ltl_to_sat
+ * and friends); a bounded sequence matcher for `##`, `[*n:m]`,
+ * intersect/within/throughout, and weak()/strong() (offsets_ending_now,
+ * match_exists, weak_seq_bool); and assertion_expr_to_bool(), the top-level
+ * fast path that reduces a property to a current-cycle Boolean where possible
+ * (falling back to ltl_to_sat() for genuine temporal/liveness shapes).
  *
  * SVA design decisions
  * ---------------------

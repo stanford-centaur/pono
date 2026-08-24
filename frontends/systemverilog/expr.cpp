@@ -1,7 +1,18 @@
-/*! \file expr.cpp
- *  \brief SystemVerilogEncoder's expression-to-term conversion: the main
- *         expr_to_term() switch covering literals, operators, selects,
- *         conversions, and system-function calls.
+/*!
+ * \file expr.cpp
+ * \brief expr_to_term(): converts slang AST expressions to SMT terms.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Handles literals, all unary/binary operators (reduction ops, wildcard/case
+ * (in)equality, constant-exponent power), packed bit/range/member selects,
+ * struct construction, streaming concatenation, and conversions, applying
+ * SystemVerilog's width/sign-extension rules uniformly via resize_to(). Also
+ * implements the sampled-value system functions ($past, $stable, $changed,
+ * $rose, $fell) via make_history_chain(), plus $signed/$unsigned and
+ * $onehot/$onehot0; $isunknown is always false since this encoder's bitvector
+ * model is purely 2-valued (no X/Z state).
  */
 #include <string>
 

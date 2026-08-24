@@ -1,19 +1,21 @@
-/*********************                                                        */
-/*! \file
- ** \verbatim
- ** Top contributors (to current version):
- **   Áron Ricardo Perez-Lopez
- ** This file is part of the pono project.
- ** Copyright (c) 2019 by the authors listed in the file AUTHORS
- ** in the top-level source directory) and their institutional affiliations.
- ** All rights reserved.  See the file LICENSE in the top-level source
- ** directory for licensing information.\endverbatim
- **
- ** \brief SystemVerilogEncoder's top-level pipeline: source-file loading,
- **        slang compilation, and the per-module encoding dispatch that
- **        drives the passes implemented in the other files in this
- **        directory (see encoder.h for the file map).
- **/
+/*!
+ * \file encoder.cpp
+ * \brief Top-level pipeline: source loading, slang compilation, and dispatch.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Besides encode() and process_module(), this file provides walk_members(),
+ * which flattens generate-for/generate-if blocks and arrayed instances into the
+ * member dispatch while pushing bracket-indexed hierarchical name prefixes, and
+ * eval_ctx(), which lazily builds the EvalContext used to bind procedural loop
+ * counters. Anonymous-namespace helpers parse dot-f list files (rejecting
+ * unsupported +/- tool directives) and scan the raw syntax tree for `bind`
+ * directives, which have no elaborated Symbol to catch during the normal member
+ * walk. process_module() runs four ordered passes -- state-variable pre-scan,
+ * combinational-wire pre-scan, variable declaration, then assignment processing
+ * -- since later passes rely on symbol classifications established earlier.
+ */
 
 #include "frontends/systemverilog/encoder.h"
 

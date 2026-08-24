@@ -1,7 +1,22 @@
-/*! \file instance.cpp
- *  \brief SystemVerilogEncoder's per-instance encoding pass: continuous
- *         assigns, always_comb/always_ff/initial blocks, and recursive
- *         processing of child module instances.
+/*!
+ * \file instance.cpp
+ * \brief Per-instance pass: continuous assigns, procedural blocks, instances.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Processes one module instance body in two passes so combinational definitions
+ * are visible to their consumers: continuous assigns and always_comb (including
+ * plain `always` blocks with no nonblocking targets) first, then always_ff,
+ * always_latch, and initial blocks second. Legacy `initial forever @(...)` is
+ * redirected to the same NEXT_STATE handling as always_ff/always_latch.
+ * process_instance() recurses into child instances, rebinding hierarchical name
+ * prefixes and port connections (including concatenation- and
+ * array-element-target ports) as parent-side term reads (inputs) or
+ * write-redirecting aliases (outputs), then undoes those bindings on return
+ * since slang may share one InstanceBody across several instantiations.
+ * `checker`, `specify`, `program`, and `defparam` constructs are recognized and
+ * skipped as simulation-only or functionally-inert.
  */
 #include <unordered_set>
 #include <vector>
