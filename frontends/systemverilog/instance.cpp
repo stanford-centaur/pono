@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/encoder.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
@@ -288,7 +289,7 @@ void SystemVerilogEncoder::process_continuous_assign(
     // not a numeric value being widened.
     uint64_t total_w = lhs_expr.type->getBitWidth();
     if (total_w == 0) return;
-    Term rhs_full = resize_to(expr_to_term(rhs_expr), total_w, false);
+    Term rhs_full = resize_to(solver_, expr_to_term(rhs_expr), total_w, false);
     uint64_t covered = 0;
     for (auto * operand : lhs_expr.as<ConcatenationExpression>().operands()) {
       uint64_t seg_w = operand->type->getBitWidth();
@@ -296,7 +297,7 @@ void SystemVerilogEncoder::process_continuous_assign(
       uint64_t seg_hi = total_w - 1 - covered;
       uint64_t seg_lo = seg_hi - (seg_w - 1);
       process_continuous_assign_operand(
-          *operand, slice_bits(rhs_full, seg_lo, seg_hi), false);
+          *operand, slice_bits(solver_, rhs_full, seg_lo, seg_hi), false);
       covered += seg_w;
     }
     return;
@@ -328,7 +329,8 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
   const Symbol * base_sym = desc->base;
   bool aliased = port_output_aliases_.count(base_sym) > 0;
 
-  Term rhs_full = resize_to(rhs_arg, desc->hi - desc->lo + 1, rhs_signed);
+  Term rhs_full =
+      resize_to(solver_, rhs_arg, desc->hi - desc->lo + 1, rhs_signed);
 
   // A concatenation-target output-port connection splits this one
   // write across several pieces, each with its own target
@@ -340,7 +342,7 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
     const Symbol * sym = piece.sym;
     uint64_t lo = piece.target_lo;
     uint64_t hi = piece.target_hi;
-    Term rhs = slice_bits(rhs_full, piece.rhs_lo, piece.rhs_hi);
+    Term rhs = slice_bits(solver_, rhs_full, piece.rhs_lo, piece.rhs_hi);
 
     // Wire LHS: macro-substitute the *full-width* defining expression.
     // For a partial LHS (`assign arr[i] = ...`, or one element of an
@@ -359,7 +361,7 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
       if (full_write) {
         new_term = rhs;
       } else {
-        new_term = replace_bits(wire_seed_term(sym), rhs, lo, hi);
+        new_term = replace_bits(solver_, wire_seed_term(sym), rhs, lo, hi);
       }
       symbol_to_term_[sym] = new_term;
       // Only register the debug name on a full write: a wire spliced
@@ -513,8 +515,10 @@ void SystemVerilogEncoder::process_instance(
       }
     } else {
       Term term = expr_to_term(*conn_expr);
-      term = resize_to(
-          term, port.getType().getBitWidth(), conn_expr->type->isSigned());
+      term = resize_to(solver_,
+                       term,
+                       port.getType().getBitWidth(),
+                       conn_expr->type->isSigned());
       symbol_to_term_[internal] = term;
       input_terms_added.push_back(internal);
     }

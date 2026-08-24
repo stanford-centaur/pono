@@ -1,31 +1,31 @@
 /*!
  * \file terms.cpp
- * \brief Low-level bit/term helpers shared across the SV encoder.
+ * \brief Low-level symbol/term-lookup helpers shared across the SV encoder.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
  *
- * Covers type_to_sort() (integral slang types -> BV sorts), lookup_symbol()'s
- * resolution chain (loop-variable bindings, output-port-alias reconstruction
- * via resolve_output_alias_pieces(), in-progress always_comb partial values,
- * on-demand wire resolution with combinational-loop detection, and
- * parameter/enum-literal materialization from slang's elaborated constants),
- * plus the bit-manipulation primitives (slice_bits(), resize_to(),
- * replace_bits(), replace_bits_dynamic()) and naming/lookup utilities
- * (make_name(), wire_seed_term()) used to stitch together the rest of the
- * encoder.
+ * Covers lookup_symbol()'s resolution chain (loop-variable bindings,
+ * output-port-alias reconstruction via resolve_output_alias_pieces(),
+ * in-progress always_comb partial values, on-demand wire resolution with
+ * combinational-loop detection, and parameter/enum-literal materialization
+ * from slang's elaborated constants), plus naming/lookup utilities
+ * (make_name(), wire_seed_term()). The pure bit/type-manipulation helpers
+ * (type_to_sort(), slice_bits(), resize_to(), replace_bits(),
+ * replace_bits_dynamic()) live in bit_utils.h/.cpp instead, since they need
+ * no encoder state at all.
  */
 #include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
 
+#include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
 #include "slang/ast/symbols/ValueSymbol.h"
 #include "slang/ast/types/AllTypes.h"
-#include "slang/ast/types/Type.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
 
@@ -33,19 +33,6 @@ using namespace smt;
 using namespace std;
 
 namespace pono {
-
-Sort SystemVerilogEncoder::type_to_sort(const slang::ast::Type & type)
-{
-  if (type.isIntegral()) {
-    uint64_t width = type.getBitWidth();
-    if (width == 0) {
-      throw PonoException("SystemVerilogEncoder: zero-width integral type");
-    }
-    return solver_->make_sort(BV, width);
-  }
-
-  throw PonoException("SystemVerilogEncoder: unsupported type kind");
-}
 
 // ============================================================================
 // Helpers
@@ -81,16 +68,6 @@ SystemVerilogEncoder::resolve_output_alias_pieces(
     result.insert(result.end(), sub.begin(), sub.end());
   }
   return result;
-}
-
-smt::Term SystemVerilogEncoder::slice_bits(const smt::Term & base,
-                                           uint64_t lo,
-                                           uint64_t hi) const
-{
-  if (!base) return Term();
-  uint64_t w = base->get_sort()->get_width();
-  if (lo == 0 && hi == w - 1) return base;
-  return solver_->make_term(Op(Extract, hi, lo), base);
 }
 
 bool SystemVerilogEncoder::resolve_wire_on_demand(
@@ -155,7 +132,8 @@ Term SystemVerilogEncoder::lookup_symbol(const slang::ast::Symbol * sym)
     Term result;
     for (auto & piece : pieces) {
       Term t = lookup_symbol(piece.sym);
-      Term piece_term = slice_bits(t, piece.target_lo, piece.target_hi);
+      Term piece_term =
+          slice_bits(solver_, t, piece.target_lo, piece.target_hi);
       result =
           result ? solver_->make_term(Concat, result, piece_term) : piece_term;
     }
@@ -251,75 +229,6 @@ Term SystemVerilogEncoder::wire_seed_term(const slang::ast::Symbol * sym)
                                solver_->make_sort(BV, width));
   symbol_to_term_[sym] = iv;
   return iv;
-}
-
-Term SystemVerilogEncoder::resize_to(const Term & t,
-                                     uint64_t target_width,
-                                     bool is_signed)
-{
-  uint64_t current_width = t->get_sort()->get_width();
-  if (current_width == target_width) {
-    return t;
-  }
-  if (current_width < target_width) {
-    Op ext_op(is_signed ? Sign_Extend : Zero_Extend,
-              target_width - current_width);
-    return solver_->make_term(ext_op, t);
-  }
-  // Truncate (extract lower bits).
-  return solver_->make_term(Op(Extract, target_width - 1, 0), t);
-}
-
-Term SystemVerilogEncoder::replace_bits(const Term & base,
-                                        const Term & slice,
-                                        uint64_t lo,
-                                        uint64_t hi)
-{
-  uint64_t base_w = base->get_sort()->get_width();
-  if (lo == 0 && hi == base_w - 1) return slice;
-  std::vector<Term> parts;
-  if (hi + 1 < base_w) {
-    parts.push_back(solver_->make_term(Op(Extract, base_w - 1, hi + 1), base));
-  }
-  parts.push_back(slice);
-  if (lo > 0) {
-    parts.push_back(solver_->make_term(Op(Extract, lo - 1, 0), base));
-  }
-  Term result = parts[0];
-  for (size_t i = 1; i < parts.size(); ++i) {
-    result = solver_->make_term(Concat, result, parts[i]);
-  }
-  return result;
-}
-
-Term SystemVerilogEncoder::replace_bits_dynamic(const Term & base,
-                                                const Term & slice,
-                                                const Term & idx,
-                                                uint64_t elem_w)
-{
-  // Index arithmetic and bit masks below -- zero-extend throughout;
-  // `slice` is padded before shifting into position, but `mask`
-  // clears every bit outside the shifted elem_w-wide window
-  // regardless, so the padding bits of `slice` never affect the
-  // result either way.
-  uint64_t base_w = base->get_sort()->get_width();
-  Sort base_sort = solver_->make_sort(BV, base_w);
-  Term idx_ext = resize_to(idx, base_w, false);
-  Term shift_amount = idx_ext;
-  if (elem_w != 1) {
-    Term elem_w_term = solver_->make_term(elem_w, base_sort);
-    shift_amount = solver_->make_term(BVMul, idx_ext, elem_w_term);
-  }
-  Term elem_ones = solver_->make_term(
-      BVNot, solver_->make_term(0, solver_->make_sort(BV, elem_w)));
-  Term mask = solver_->make_term(
-      BVShl, resize_to(elem_ones, base_w, false), shift_amount);
-  Term slice_shifted =
-      solver_->make_term(BVShl, resize_to(slice, base_w, false), shift_amount);
-  Term cleared =
-      solver_->make_term(BVAnd, base, solver_->make_term(BVNot, mask));
-  return solver_->make_term(
-      BVOr, cleared, solver_->make_term(BVAnd, slice_shifted, mask));
 }
 
 }  // namespace pono

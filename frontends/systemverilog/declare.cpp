@@ -15,6 +15,7 @@
  * splicing per-piece state vars keyed by the fully resolved alias root; only
  * full-width aliasing is supported today, partial-width aliasing throws.
  */
+#include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -102,7 +103,8 @@ void SystemVerilogEncoder::declare_variables_internal(
                   make_name(pieces.size() > 1
                                 ? string(var.name) + "_" + string(root->name)
                                 : string(var.name));
-              Sort sort = type_to_sort(root->as<ValueSymbol>().getType());
+              Sort sort =
+                  type_to_sort(solver_, root->as<ValueSymbol>().getType());
               Term sv = fts_.make_statevar(name, sort);
               symbol_to_term_[root] = sv;
               fts_.name_term(name, sv);
@@ -117,7 +119,7 @@ void SystemVerilogEncoder::declare_variables_internal(
       }
 
       string name = make_name(string(var.name));
-      Sort sort = type_to_sort(var.getType());
+      Sort sort = type_to_sort(solver_, var.getType());
 
       if (state_var_symbols_.count(&var)) {
         // This is a register: create a state variable.
@@ -147,7 +149,7 @@ void SystemVerilogEncoder::declare_variables_internal(
       if (port_output_aliases_.count(&net)) return;
 
       string name = make_name(string(net.name));
-      Sort sort = type_to_sort(net.getType());
+      Sort sort = type_to_sort(solver_, net.getType());
 
       Term iv = fts_.make_inputvar(name, sort);
       symbol_to_term_[&net] = iv;
@@ -163,7 +165,7 @@ void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
   using namespace slang::ast;
 
   string name = make_name(string(port.name));
-  Sort sort = type_to_sort(port.getType());
+  Sort sort = type_to_sort(solver_, port.getType());
 
   const Symbol * internal = port.internalSymbol;
   if (!internal) {

@@ -17,6 +17,7 @@
 #include <string>
 
 #include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/encoder.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
@@ -148,18 +149,21 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           // Raw bit-pattern masks, not numeric values -- always
           // zero-extend.
           Term mask_term =
-              resize_to(solver_->make_term(std::to_string(mask), rhs_sort, 10),
+              resize_to(solver_,
+                        solver_->make_term(std::to_string(mask), rhs_sort, 10),
                         left->get_sort()->get_width(),
                         false);
           Term value_term =
-              resize_to(solver_->make_term(std::to_string(value), rhs_sort, 10),
+              resize_to(solver_,
+                        solver_->make_term(std::to_string(value), rhs_sort, 10),
                         left->get_sort()->get_width(),
                         false);
           eq = solver_->make_term(
               Equal, solver_->make_term(BVAnd, left, mask_term), value_term);
         } else {
           Term right = expr_to_term(binop.right());
-          right = resize_to(right,
+          right = resize_to(solver_,
+                            right,
                             left->get_sort()->get_width(),
                             binop.right().type->isSigned());
           eq = solver_->make_term(Equal, left, right);
@@ -172,7 +176,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
                                solver_->make_term(want_eq ? 1 : 0, bv1),
                                solver_->make_term(want_eq ? 0 : 1, bv1));
         // Result is a plain 0/1 boolean -- always zero-extend.
-        return resize_to(result, result_width, false);
+        return resize_to(solver_, result, result_width, false);
       }
 
       Term left = expr_to_term(binop.left());
@@ -194,8 +198,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       uint64_t lw = left->get_sort()->get_width();
       uint64_t rw = right->get_sort()->get_width();
       uint64_t max_w = max(lw, rw);
-      left = resize_to(left, max_w, op_signed);
-      right = resize_to(right, max_w, op_signed);
+      left = resize_to(solver_, left, max_w, op_signed);
+      right = resize_to(solver_, right, max_w, op_signed);
 
       uint64_t result_width = expr.type->getBitWidth();
       Term result;
@@ -369,7 +373,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // (e.g. wraparound on overflow) happen at the operands' natural
       // width first, exactly as the LRM specifies, and only the final
       // value is widened to fit the context.
-      return resize_to(result, result_width, expr.type->isSigned());
+      return resize_to(solver_, result, result_width, expr.type->isSigned());
     }
 
     case ExpressionKind::UnaryOp: {
@@ -485,7 +489,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // See the analogous BinaryOp comment above: widen the computed
       // result to fit a wider context-determined width, sign-extending
       // if the result is itself signed.
-      return resize_to(result, result_width, expr.type->isSigned());
+      return resize_to(solver_, result, result_width, expr.type->isSigned());
     }
 
     case ExpressionKind::Streaming: {
@@ -534,7 +538,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       auto & conv = expr.as<ConversionExpression>();
       Term inner = expr_to_term(conv.operand());
       uint64_t target_width = expr.type->getBitWidth();
-      return resize_to(inner, target_width, conv.operand().type->isSigned());
+      return resize_to(
+          solver_, inner, target_width, conv.operand().type->isSigned());
     }
 
     case ExpressionKind::Concatenation: {
@@ -610,7 +615,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // Index arithmetic for a shift amount, not a value -- zero-
       // extend regardless of the index expression's own signedness.
       Term idx = expr_to_term(sel_expr);
-      idx = resize_to(idx, val_w, false);
+      idx = resize_to(solver_, idx, val_w, false);
       Term shift_amount = idx;
       if (elem_w != 1) {
         Term elem_w_term = solver_->make_term(elem_w, val_sort);
@@ -688,7 +693,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               "SystemVerilogEncoder: assignment pattern missing field '"
               + std::string(field.name) + "'");
         }
-        Term val = resize_to(expr_to_term(*sit->second),
+        Term val = resize_to(solver_,
+                             expr_to_term(*sit->second),
                              field.getType().getBitWidth(),
                              sit->second->type->isSigned());
         parts.push_back(val);
@@ -743,8 +749,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       uint64_t tw = then_val->get_sort()->get_width();
       uint64_t ew = else_val->get_sort()->get_width();
       uint64_t max_w = max(tw, ew);
-      then_val = resize_to(then_val, max_w, branches_signed);
-      else_val = resize_to(else_val, max_w, branches_signed);
+      then_val = resize_to(solver_, then_val, max_w, branches_signed);
+      else_val = resize_to(solver_, else_val, max_w, branches_signed);
 
       return solver_->make_term(Ite, bool_cond, then_val, else_val);
     }

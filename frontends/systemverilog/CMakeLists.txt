@@ -19,6 +19,7 @@ add_library(
   STATIC
   encoder.cpp
   ast_helpers.cpp
+  bit_utils.cpp
   prescan.cpp
   declare.cpp
   instance.cpp

@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/encoder.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
@@ -144,8 +145,8 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
 
   Term idx = expr_to_term(sel.selector());
   Term rhs = expr_to_term(rhs_expr);
-  rhs = resize_to(rhs, elem_w, sel.type->isSigned());
-  Term combined = replace_bits_dynamic(prev_base, rhs, idx, elem_w);
+  rhs = resize_to(solver_, rhs, elem_w, sel.type->isSigned());
+  Term combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
 
   if (wire_comb) {
     if (aliased) pending_comb_aliased_.insert(sym);
@@ -366,13 +367,15 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           // iteration.
           Term combined;
           if (w.prev_base) {
-            combined = replace_bits(w.prev_base, rhs, w.lo, w.hi);
+            combined = replace_bits(solver_, w.prev_base, rhs, w.lo, w.hi);
           } else {
             uint64_t sym_w = w.sym->as<ValueSymbol>().getType().getBitWidth();
             bool full_write = !w.has_range && w.lo == 0 && w.hi + 1 == sym_w;
-            combined = full_write ? rhs
-                                  : replace_bits(
-                                        wire_seed_term(w.sym), rhs, w.lo, w.hi);
+            combined =
+                full_write
+                    ? rhs
+                    : replace_bits(
+                          solver_, wire_seed_term(w.sym), rhs, w.lo, w.hi);
           }
           if (condition == solver_->make_term(true)) {
             pending_comb_updates_[w.sym] = combined;
@@ -407,7 +410,9 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         switch (ctx) {
           case StmtContext::NEXT_STATE: {
             Term combined =
-                full_write ? rhs : replace_bits(w.prev_base, rhs, w.lo, w.hi);
+                full_write
+                    ? rhs
+                    : replace_bits(solver_, w.prev_base, rhs, w.lo, w.hi);
             Term update;
             if (condition == solver_->make_term(true)) {
               update = combined;
@@ -505,7 +510,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         // use the RHS expression's own signedness.
         bool rhs_signed = lhs_expr.kind != ExpressionKind::Concatenation
                           && rhs_expr.type->isSigned();
-        rhs = resize_to(rhs, total_w, rhs_signed);
+        rhs = resize_to(solver_, rhs, total_w, rhs_signed);
         for (auto & w : writes) {
           commit_write(w, slice_of(rhs, w.rhs_lo, w.rhs_hi));
         }
@@ -690,10 +695,12 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             // Raw bit-pattern masks, not numeric values -- always
             // zero-extend.
             Term mask_term = resize_to(
+                solver_,
                 solver_->make_term(std::to_string(mv->first), pat_sort, 10),
                 sel->get_sort()->get_width(),
                 false);
             Term value_term = resize_to(
+                solver_,
                 solver_->make_term(std::to_string(mv->second), pat_sort, 10),
                 sel->get_sort()->get_width(),
                 false);
@@ -701,8 +708,10 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                 Equal, solver_->make_term(BVAnd, sel, mask_term), value_term);
           } else {
             Term pat = expr_to_term(*expr);
-            pat = resize_to(
-                pat, sel->get_sort()->get_width(), expr->type->isSigned());
+            pat = resize_to(solver_,
+                            pat,
+                            sel->get_sort()->get_width(),
+                            expr->type->isSigned());
             match = solver_->make_term(Equal, sel, pat);
           }
           item_cond =

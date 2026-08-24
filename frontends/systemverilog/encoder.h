@@ -50,6 +50,7 @@
 #include <vector>
 
 #include "core/fts.h"
+#include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/tableau.h"
 #include "smt-switch/smt.h"
 
@@ -310,15 +311,6 @@ class SystemVerilogEncoder
    */
   smt::Term expr_to_term(const slang::ast::Expression & expr);
 
-  // ---------- Type conversion ----------
-
-  /** Convert a slang type to an SMT sort.
-   *  @param type the slang type
-   *  @return the corresponding BV sort (even for a 1-bit type); throws
-   *          for a non-integral type
-   */
-  smt::Sort type_to_sort(const slang::ast::Type & type);
-
   // ---------- Helpers ----------
 
   /** Look up the SMT term for a slang symbol.
@@ -361,12 +353,6 @@ class SystemVerilogEncoder
       uint64_t hi,
       uint64_t rhs_base = 0) const;
 
-  /** Extract bits [lo, hi] from `base`, or return `base` unchanged
-   *  when [lo, hi] already covers its whole width. Returns a null
-   *  Term if `base` is null.
-   */
-  smt::Term slice_bits(const smt::Term & base, uint64_t lo, uint64_t hi) const;
-
   /** Build the hierarchical name for a symbol.
    *  @param name the local name
    *  @return the fully-qualified name with prefix
@@ -382,47 +368,6 @@ class SystemVerilogEncoder
    *  every bit of the symbol has been written by some partial write.
    */
   smt::Term wire_seed_term(const slang::ast::Symbol * sym);
-
-  /** Ensure a term has the expected bit-width, extending or
-   *  truncating as needed.
-   *  @param t the term to resize
-   *  @param target_width the desired width
-   *  @param is_signed if the term grows, sign-extend (replicate the
-   *         top bit) instead of zero-extending -- use this whenever
-   *         `t` is the value of a `signed`-typed SystemVerilog
-   *         expression being widened; every other use (bit-range
-   *         bookkeeping, unsigned types, etc.) should pass false.
-   *         Required (no default) so every call site makes an
-   *         explicit, reviewed choice instead of silently defaulting
-   *         to zero-extension.
-   *  @return the resized term
-   */
-  smt::Term resize_to(const smt::Term & t,
-                      uint64_t target_width,
-                      bool is_signed);
-
-  /** Build a partial-write term: take the full-width `base` and
-   *  return a term equal to `base` everywhere except bits
-   *  [lo .. hi], which take their values from `slice`.  A full-width
-   *  write (lo == 0 && hi == width(base)-1) is just `slice`.
-   */
-  smt::Term replace_bits(const smt::Term & base,
-                         const smt::Term & slice,
-                         uint64_t lo,
-                         uint64_t hi);
-
-  /** Build a partial-write term like replace_bits(), but for a
-   *  runtime-variable element index (`arr[idx] = slice` where `idx`
-   *  is not a compile-time constant): shifts an `elem_w`-wide window
-   *  of ones into position `idx * elem_w` and uses it to mask the
-   *  shifted-into-position `slice` into `base`, leaving every other
-   *  element unchanged.  Mirrors the shift+extract technique already
-   *  used for dynamic-index *reads* in expr_to_term().
-   */
-  smt::Term replace_bits_dynamic(const smt::Term & base,
-                                 const smt::Term & slice,
-                                 const smt::Term & idx,
-                                 uint64_t elem_w);
 
   /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
    *  not a compile-time constant, so resolve_lvalue() can't produce a
