@@ -26,7 +26,15 @@
  *                         and per-instance (child module) processing.
  *   - statement.cpp:      the process_statement() procedural statement encoder.
  *   - expr.cpp:           the expr_to_term() expression encoder.
- *   - sva.cpp:            SVA/LTL assertion encoding.
+ *   - sva.cpp:            SVA/LTL AST-walking and dispatch
+ * (assertion_expr_to_bool, offsets_ending_now, ltl_to_sat, and friends) --
+ *                         needs expr_to_term(), so it stays here rather than
+ *                         moving into tableau.{h,cpp}.
+ *   - tableau.h/.cpp:     the Tableau class -- the SVA/LTL tableau's pure
+ *                         latch-building primitives, with no dependency on
+ *                         the rest of this class. Owned by
+ *                         SystemVerilogEncoder as tableau_ and called from
+ *                         sva.cpp.
  *   - terms.cpp:          low-level bit/term helpers (type-to-sort,
  *                         resize/replace-bits, symbol lookup).
  */
@@ -42,6 +50,7 @@
 #include <vector>
 
 #include "core/fts.h"
+#include "frontends/systemverilog/tableau.h"
 #include "smt-switch/smt.h"
 
 // Forward declarations for slang types to avoid exposing slang headers
@@ -611,31 +620,6 @@ class SystemVerilogEncoder
    */
   smt::Term weak_seq_bool(const slang::ast::AssertionExpr & seq);
 
-  /** Build a chain of `n` 1-cycle latch state vars that track
-   *  `value` over n cycles, returning a Term equal to the value
-   *  from `n` cycles ago.  Each latch is initialised to 0 and its
-   *  next-state is the previous link in the chain.  Used by both
-   *  `$past(...)` and sequence-delay assertion expressions.
-   *  @param value the current-cycle value to delay
-   *  @param n     the number of cycles of delay (n == 0 is a no-op,
-   *         returning `value` unchanged)
-   *  @return a Term holding `value` from `n` cycles ago
-   */
-  smt::Term make_history_chain(const smt::Term & value, uint32_t n);
-
-  /** Like make_history_chain(), but for a Bool-sorted (not BV-sorted)
-   *  `cond` -- some solvers (e.g. Bitwuzla) can't build a state
-   *  variable or a zero constant of sort Bool, so this wraps `cond`
-   *  into a BV1 flag before delaying it and unwraps back to Bool
-   *  afterward, matching the pattern already used for the `|=>`/
-   *  `|-> ##N` antecedent delay.
-   *  @param cond the current-cycle Bool-sorted condition to delay
-   *  @param n    the number of cycles of delay (n == 0 is a no-op,
-   *         returning `cond` unchanged)
-   *  @return a Bool-sorted Term equal to `cond` from `n` cycles ago
-   */
-  smt::Term delay_bool(const smt::Term & cond, uint32_t n);
-
   /** General symbolic-tableau translation of an SVA property into the
    *  Boolean SMT term `sat(psi)` that holds at a cycle iff the
    *  (possibly negated) property `psi` holds starting from that cycle,
@@ -646,9 +630,10 @@ class SystemVerilogEncoder
    *  conditions correct regardless of the surrounding polarity.
    *
    *  Each temporal operator instantiates a one-step "promise" latch
-   *  (see `ltl_make_*`) via `assign_next` plus a current-cycle
-   *  consistency constraint, and every strong-eventuality operator
-   *  (F / strong-until) appends its discharge condition to `justice`.
+   *  (see `tableau_`'s `make_X/G/F/R/U`) via `assign_next`
+   *  plus a current-cycle consistency constraint, and every
+   *  strong-eventuality operator (F / strong-until) appends its
+   *  discharge condition to `justice`.
    *
    *  Returns a null Term when the property uses an operator the
    *  tableau does not model (sequence intersect/throughout/within/
@@ -658,54 +643,18 @@ class SystemVerilogEncoder
                        bool neg,
                        smt::TermVec & justice);
 
-  /** Tableau gadget builders.  Each takes the already-compiled
-   *  `sat(...)` Boolean term(s) of the operand(s) and returns the
-   *  `sat(...)` term of the composite temporal formula, installing the
-   *  necessary "promise" latch and consistency constraint into the
-   *  transition system.  The F / U builders also push their
-   *  eventuality-discharge term onto `justice`.
-   */
-  smt::Term ltl_make_X(const smt::Term & phi);
-  smt::Term ltl_make_G(const smt::Term & phi);
-  smt::Term ltl_make_F(const smt::Term & phi, smt::TermVec & justice);
-  smt::Term ltl_make_R(const smt::Term & a, const smt::Term & b);
-  smt::Term ltl_make_U(const smt::Term & a,
-                       const smt::Term & b,
-                       smt::TermVec & justice);
-
-  /** Lazily create the shared "first cycle" flag: a 1-bit state var
-   *  that is 1 in the initial state and 0 forever after.  Returned as
-   *  a Boolean term (`flag == 1`).  Used to gate each LTL property's
-   *  time-0 obligation so it is only asserted at the start of the
-   *  trace. */
-  smt::Term ltl_init_flag();
-
-  /** Returns a Boolean term true iff the current cycle is one of the
-   *  first `k` cycles of the trace (cycle index 0..k-1).  Used to
-   *  exempt a `##k seq |-> ...` property from being checked before
-   *  cycle `k`, the earliest cycle any `##k` match can end at (a
-   *  naive per-cycle check would otherwise wrongly evaluate the
-   *  consequent -- e.g. a `$past` with no real history yet -- at
-   *  cycles no valid match could ever reach).
-   *  @param k number of leading cycles to flag (k >= 1)
-   */
-  smt::Term ltl_before_cycle(uint32_t k);
-
-  /** Returns a Boolean term true iff `current_disable_cond_` holds at
-   *  the current cycle or at any of the `window` cycles before it.
-   *  Used to extend a `disable iff` condition sampled at an
-   *  antecedent's trigger cycle across the cycles a delayed (`##k`)
-   *  consequent shifts the check over, so the whole match window is
-   *  exempted, not just its last cycle.  Returns a null Term when
-   *  `current_disable_cond_` is null (no disable iff in scope).
-   *  @param window number of cycles before the current one to OR in
-   */
-  smt::Term disable_window(uint32_t window);
-
   // ---------- Data members ----------
 
   FunctionalTransitionSystem & fts_;
   const smt::SmtSolver & solver_;
+
+  // The SVA/LTL tableau's pure latch-building primitives (make_X/G/F/R/U,
+  // make_history_chain, delay_bool, init_flag, before_cycle,
+  // disable_window). Holds no reference back to this class -- called from
+  // the AST-walking methods above (assertion_expr_to_bool(), ltl_to_sat(),
+  // and friends, in sva.cpp) with explicit Term/count/prefix_ arguments.
+  // See tableau.h.
+  Tableau tableau_;
 
   // Unique pointer to slang compilation (hidden from header users)
   std::unique_ptr<slang::ast::Compilation> compilation_;
@@ -805,11 +754,6 @@ class SystemVerilogEncoder
   // often.  See Result::ltl_justice and ltl_to_sat().
   std::vector<smt::TermVec> ltl_justice_;
 
-  // Cached Boolean term (`flag == 1`) for the shared LTL "first
-  // cycle" state var, created on demand by ltl_init_flag().  Null
-  // until the first LTL property is encoded.
-  smt::Term ltl_init_flag_;
-
   // Hierarchical name prefix for the current module.
   std::string prefix_;
 
@@ -843,13 +787,6 @@ class SystemVerilogEncoder
   // cleared right after, with save/restore for nested contexts.
   smt::Term current_lvalue_term_;
 
-  // Monotonic counter used to mint unique state-var names for every
-  // hidden latch sva.cpp introduces: history chains (`$past`, `|=>`/
-  // `|-> ##N`, sequence-repetition delays), the LTL tableau's promise
-  // latches (ltl_make_X/G/F/R/U) and per-property activation latches,
-  // and the before_cycle()/disable_window() cycle-counting latches.
-  uint32_t latch_counter_ = 0;
-
   // Scope of the module instance body currently being processed by
   // process_assignments().  Used to look up that module's `default
   // disable iff` condition (Compilation::getDefaultDisable walks up
@@ -860,9 +797,10 @@ class SystemVerilogEncoder
   // The `disable iff` condition (explicit on the current assert
   // statement, or the enclosing module's `default disable iff`) as a
   // Boolean SMT term, or null if none applies.  Set just before
-  // compiling one assertion's property expression and read by
-  // assertion_expr_to_bool()/ltl_to_sat() via disable_window(), so it
-  // need not be threaded through every recursive call.
+  // compiling one assertion's property expression, and passed
+  // explicitly to tableau_.disable_window() from wherever
+  // assertion_expr_to_bool()/ltl_to_sat() needs it, so it need not be
+  // threaded through every recursive call in between.
   smt::Term current_disable_cond_;
 };
 

@@ -25,6 +25,7 @@ add_library(
   statement.cpp
   expr.cpp
   sva.cpp
+  tableau.cpp
   terms.cpp
 )
 target_include_directories(pono-systemverilog PUBLIC ${INCLUDE_DIRS})

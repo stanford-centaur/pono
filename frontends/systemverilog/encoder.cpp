@@ -140,7 +140,7 @@ slang::ast::EvalContext & SystemVerilogEncoder::eval_ctx()
 // ============================================================================
 
 SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
-    : fts_(fts), solver_(fts.solver())
+    : fts_(fts), solver_(fts.solver()), tableau_(fts_, solver_)
 {
 }
 

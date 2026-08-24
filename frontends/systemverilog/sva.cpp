@@ -1,18 +1,26 @@
 /*!
  * \file sva.cpp
- * \brief SVA/LTL encoding: $past helpers, the LTL tableau, and sequences.
+ * \brief SVA/LTL AST-walking and dispatch: $past, sequences, and the
+ *        LTL tableau's leaf/operator dispatch.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
  *
- * Covers: `$past`/history-chain latching (make_history_chain, delay_bool); a
- * symbolic LTL tableau via one-step "promise" testers for X/G/F/R/U with
- * justice (fairness) conditions for the least-fixpoint operators (ltl_to_sat
- * and friends); a bounded sequence matcher for `##`, `[*n:m]`,
+ * Covers a bounded sequence matcher for `##`, `[*n:m]`,
  * intersect/within/throughout, and weak()/strong() (offsets_ending_now,
- * match_exists, weak_seq_bool); and assertion_expr_to_bool(), the top-level
- * fast path that reduces a property to a current-cycle Boolean where possible
+ * match_exists, weak_seq_bool); ltl_to_sat() and friends, which walk a
+ * property's AST and dispatch each temporal operator to the corresponding
+ * tableau_ gadget; and assertion_expr_to_bool(), the top-level fast path
+ * that reduces a property to a current-cycle Boolean where possible
  * (falling back to ltl_to_sat() for genuine temporal/liveness shapes).
+ *
+ * This file needs expr_to_term() (to convert the plain Boolean expressions
+ * that sit at the leaves of a property/sequence tree), which is entangled
+ * with the rest of SystemVerilogEncoder's declaration/wire-resolution
+ * state, so it stays here as SystemVerilogEncoder methods rather than
+ * moving into tableau.{h,cpp} alongside the pure latch-building gadgets
+ * (make_history_chain, delay_bool, init_flag, before_cycle, disable_window,
+ * make_X/G/F/R/U) those methods call into via the tableau_ member.
  *
  * SVA design decisions
  * ---------------------
@@ -57,21 +65,6 @@ using namespace smt;
 using namespace std;
 
 namespace pono {
-
-Term SystemVerilogEncoder::make_history_chain(const Term & value, uint32_t n)
-{
-  Sort sort = value->get_sort();
-  Term zero = solver_->make_term(0, sort);
-  Term link = value;
-  for (uint32_t i = 0; i < n; ++i) {
-    Term latch = fts_.make_statevar(
-        make_name("__sva_past_" + std::to_string(latch_counter_++)), sort);
-    fts_.constrain_init(solver_->make_term(Equal, latch, zero));
-    fts_.assign_next(latch, link);
-    link = latch;
-  }
-  return link;
-}
 
 namespace {
 // Detect a SequenceConcat that we can interpret as a constant
@@ -119,195 +112,14 @@ const slang::ast::AssertionExpr * resolve_named_assertion_ref(
 }  // namespace
 
 // ============================================================================
-// LTL tableau
+// LTL tableau dispatch
 // ============================================================================
 //
 // Properties that are not pure safety are translated with a standard
-// symbolic LTL tableau (temporal testers).  Every temporal operator
-// introduces a one-step "promise" tester:
-//
-//   * a free 1-bit input  n  guessing whether the operator's body
-//     holds at the *next* cycle (this is the operator's value now);
-//   * a 1-bit state  s  with  s' = n  (it remembers the guess), plus
-//     the per-cycle consistency constraint  s == body, which forces
-//     the guess made one cycle earlier to have been correct.
-//
-// Greatest-fixpoint operators (G, R) need no fairness.  Least-fixpoint
-// operators (F, strong-U) additionally emit a justice (GF) condition
-// that discharges the eventuality, ruling out lassos where a promise
-// is made forever but never fulfilled.  ltl_to_sat() pushes negation
-// to the leaves on the fly, so the testers it builds always match the
-// negation-normal form of the (negated) property.
-
-smt::Term SystemVerilogEncoder::ltl_init_flag()
-{
-  if (ltl_init_flag_) return ltl_init_flag_;
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  Term flag = fts_.make_statevar(make_name("__ltl_init_flag"), bv1);
-  fts_.constrain_init(solver_->make_term(Equal, flag, one_bv1));
-  fts_.assign_next(flag, zero_bv1);
-  ltl_init_flag_ = solver_->make_term(Equal, flag, one_bv1);
-  return ltl_init_flag_;
-}
-
-smt::Term SystemVerilogEncoder::ltl_before_cycle(uint32_t k)
-{
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  // "is cycle 0" pulse, delayed by 1..k-1 steps gives "is cycle i" for
-  // each i in [1, k); their disjunction (with the undelayed pulse) is
-  // true exactly during cycles [0, k).
-  Term pulse = ltl_init_flag();
-  Term result = pulse;
-  Term link = solver_->make_term(Ite, pulse, one_bv1, zero_bv1);
-  for (uint32_t i = 1; i < k; ++i) {
-    Term latch = fts_.make_statevar(
-        make_name("__before_cycle_" + std::to_string(latch_counter_++)), bv1);
-    fts_.constrain_init(solver_->make_term(Equal, latch, zero_bv1));
-    fts_.assign_next(latch, link);
-    result = solver_->make_term(
-        Or, result, solver_->make_term(Equal, latch, one_bv1));
-    link = latch;
-  }
-  return result;
-}
-
-smt::Term SystemVerilogEncoder::disable_window(uint32_t window)
-{
-  if (!current_disable_cond_) return Term();
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  // OR the disable condition together with its 1..window-cycle-delayed
-  // versions, so a `disable iff` that was true anywhere in an
-  // antecedent's shift window still exempts the whole property, not
-  // just the single cycle the check ends up anchored at.
-  Term result = current_disable_cond_;
-  Term link = solver_->make_term(Ite, current_disable_cond_, one_bv1, zero_bv1);
-  for (uint32_t i = 0; i < window; ++i) {
-    Term latch = fts_.make_statevar(
-        make_name("__disable_hist_" + std::to_string(latch_counter_++)), bv1);
-    fts_.constrain_init(solver_->make_term(Equal, latch, zero_bv1));
-    fts_.assign_next(latch, link);
-    result = solver_->make_term(
-        Or, result, solver_->make_term(Equal, latch, one_bv1));
-    link = latch;
-  }
-  return result;
-}
-
-smt::Term SystemVerilogEncoder::ltl_make_X(const smt::Term & phi)
-{
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  uint32_t id = latch_counter_++;
-  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
-  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
-  fts_.assign_next(s, n);  // s@(t+1) = n@t  (remember the guess)
-  // The guess made at t-1 about phi@t must have been correct.  The
-  // cycle-0 instance only pins the otherwise-unused initial s.
-  Term phi_bv = solver_->make_term(Ite, phi, one_bv1, zero_bv1);
-  fts_.add_constraint(solver_->make_term(Equal, s, phi_bv),
-                      /*to_init_and_next=*/false);
-  return solver_->make_term(Equal, n, one_bv1);  // sat(X phi) = guess
-}
-
-smt::Term SystemVerilogEncoder::ltl_make_G(const smt::Term & phi)
-{
-  // G phi == phi && X(G phi)
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  uint32_t id = latch_counter_++;
-  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
-  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
-  fts_.assign_next(s, n);
-  Term n_bool = solver_->make_term(Equal, n, one_bv1);
-  Term body = solver_->make_term(And, phi, n_bool);  // sat(G phi)
-  Term body_bv = solver_->make_term(Ite, body, one_bv1, zero_bv1);
-  fts_.add_constraint(solver_->make_term(Equal, s, body_bv),
-                      /*to_init_and_next=*/false);
-  return body;
-}
-
-smt::Term SystemVerilogEncoder::ltl_make_F(const smt::Term & phi,
-                                           smt::TermVec & justice)
-{
-  // F phi == phi || X(F phi)
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  uint32_t id = latch_counter_++;
-  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
-  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
-  fts_.assign_next(s, n);
-  Term n_bool = solver_->make_term(Equal, n, one_bv1);
-  Term body = solver_->make_term(Or, phi, n_bool);  // sat(F phi)
-  Term body_bv = solver_->make_term(Ite, body, one_bv1, zero_bv1);
-  fts_.add_constraint(solver_->make_term(Equal, s, body_bv),
-                      /*to_init_and_next=*/false);
-  // Discharge: infinitely often phi holds or we stop promising F.
-  justice.push_back(
-      solver_->make_term(Or, phi, solver_->make_term(Not, n_bool)));
-  return body;
-}
-
-smt::Term SystemVerilogEncoder::ltl_make_R(const smt::Term & a,
-                                           const smt::Term & b)
-{
-  // a R b == b && (a || X(a R b))   (greatest fixpoint, no fairness)
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  uint32_t id = latch_counter_++;
-  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
-  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
-  fts_.assign_next(s, n);
-  Term n_bool = solver_->make_term(Equal, n, one_bv1);
-  Term body = solver_->make_term(
-      And, b, solver_->make_term(Or, a, n_bool));  // sat(a R b)
-  Term body_bv = solver_->make_term(Ite, body, one_bv1, zero_bv1);
-  fts_.add_constraint(solver_->make_term(Equal, s, body_bv),
-                      /*to_init_and_next=*/false);
-  return body;
-}
-
-smt::Term SystemVerilogEncoder::ltl_make_U(const smt::Term & a,
-                                           const smt::Term & b,
-                                           smt::TermVec & justice)
-{
-  // a U b (strong) == b || (a && X(a U b))
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  uint32_t id = latch_counter_++;
-  Term n = fts_.make_inputvar(make_name("__ltl_n_" + std::to_string(id)), bv1);
-  Term s = fts_.make_statevar(make_name("__ltl_s_" + std::to_string(id)), bv1);
-  fts_.assign_next(s, n);
-  Term n_bool = solver_->make_term(Equal, n, one_bv1);
-  Term body = solver_->make_term(
-      Or, b, solver_->make_term(And, a, n_bool));  // sat(a U b)
-  Term body_bv = solver_->make_term(Ite, body, one_bv1, zero_bv1);
-  fts_.add_constraint(solver_->make_term(Equal, s, body_bv),
-                      /*to_init_and_next=*/false);
-  // Discharge: infinitely often b holds or a U b is false.
-  justice.push_back(solver_->make_term(Or, solver_->make_term(Not, body), b));
-  return body;
-}
-
-Term SystemVerilogEncoder::delay_bool(const Term & cond, uint32_t n)
-{
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-  Term zero_bv1 = solver_->make_term(0, bv1);
-  Term cond_bv = solver_->make_term(Ite, cond, one_bv1, zero_bv1);
-  Term delayed_bv = make_history_chain(cond_bv, n);
-  return solver_->make_term(Equal, delayed_bv, one_bv1);
-}
+// symbolic LTL tableau (temporal testers), built by tableau_'s
+// make_X/G/F/R/U (see tableau.h/.cpp).  ltl_to_sat() below pushes negation
+// to the leaves on the fly, so the testers it asks tableau_ to build always
+// match the negation-normal form of the (negated) property.
 
 namespace {
 // The largest total span (in cycles) offsets_ending_now() will build
@@ -355,7 +167,8 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
     Term running = b;
     for (uint32_t count = 1; count <= hi; ++count) {
       if (count > 1) {
-        running = solver_->make_term(And, running, delay_bool(b, count - 1));
+        running = solver_->make_term(
+            And, running, tableau_.delay_bool(b, count - 1, prefix_));
       }
       if (count >= lo) out[count - 1] = running;
     }
@@ -380,7 +193,8 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
   auto window_or = [&](const Term & base, uint32_t k) -> Term {
     Term result = base;
     for (uint32_t j = 1; j <= k; ++j) {
-      result = solver_->make_term(Or, result, delay_bool(base, j));
+      result =
+          solver_->make_term(Or, result, tableau_.delay_bool(base, j, prefix_));
     }
     return result;
   };
@@ -391,7 +205,8 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
   auto window_and = [&](const Term & base, uint32_t k) -> Term {
     Term result = base;
     for (uint32_t j = 1; j <= k; ++j) {
-      result = solver_->make_term(And, result, delay_bool(base, j));
+      result = solver_->make_term(
+          And, result, tableau_.delay_bool(base, j, prefix_));
     }
     return result;
   };
@@ -489,7 +304,8 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
               // element's own occurrence, then AND with this
               // element's own (unshifted) completion condition.
               Term shifted_prefix =
-                  (d + le == 0) ? acc[lp] : delay_bool(acc[lp], d + le);
+                  (d + le == 0) ? acc[lp]
+                                : tableau_.delay_bool(acc[lp], d + le, prefix_);
               Term combined =
                   solver_->make_term(And, shifted_prefix, elem_offsets[le]);
               new_acc[idx] =
@@ -633,11 +449,11 @@ smt::Term SystemVerilogEncoder::weak_seq_bool(
   // S = the sequence's own maximum span: the last possible cycle an
   // attempt that started here could still complete by.
   uint32_t s = static_cast<uint32_t>(offsets.size()) - 1;
-  Term started_s_ago = delay_bool(leading_condition(seq), s);
+  Term started_s_ago = tableau_.delay_bool(leading_condition(seq), s, prefix_);
   Term completed_in_window = me;
   for (uint32_t j = 1; j <= s; ++j) {
-    completed_in_window =
-        solver_->make_term(Or, completed_in_window, delay_bool(me, j));
+    completed_in_window = solver_->make_term(
+        Or, completed_in_window, tableau_.delay_bool(me, j, prefix_));
   }
   // Violated iff an attempt began exactly S cycles ago and no
   // completion happened anywhere from then through now; weak(seq) is
@@ -670,8 +486,8 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
         if (me) {
           // strong(seq): a genuine liveness obligation -- the sequence
           // must eventually complete a match.
-          return neg ? ltl_make_G(solver_->make_term(Not, me))
-                     : ltl_make_F(me, justice);
+          return neg ? tableau_.make_G(solver_->make_term(Not, me), prefix_)
+                     : tableau_.make_F(me, justice, prefix_);
         }
       }
       return ltl_to_sat(sw.expr, neg, justice);
@@ -718,7 +534,8 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           // G phi  (positive)  /  !G phi == F !phi  (negated)
           Term phi = ltl_to_sat(u.expr, neg, justice);
           if (!phi) return Term();
-          return neg ? ltl_make_F(phi, justice) : ltl_make_G(phi);
+          return neg ? tableau_.make_F(phi, justice, prefix_)
+                     : tableau_.make_G(phi, prefix_);
         }
 
         case UnaryAssertionOperator::Eventually:
@@ -726,7 +543,8 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           // F phi  (positive)  /  !F phi == G !phi  (negated)
           Term phi = ltl_to_sat(u.expr, neg, justice);
           if (!phi) return Term();
-          return neg ? ltl_make_G(phi) : ltl_make_F(phi, justice);
+          return neg ? tableau_.make_G(phi, prefix_)
+                     : tableau_.make_F(phi, justice, prefix_);
         }
 
         case UnaryAssertionOperator::NextTime:
@@ -734,7 +552,7 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           // !X phi == X !phi, so the negation rides along inside phi.
           Term phi = ltl_to_sat(u.expr, neg, justice);
           if (!phi) return Term();
-          return ltl_make_X(phi);
+          return tableau_.make_X(phi, prefix_);
         }
 
         default: return Term();
@@ -791,7 +609,7 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           Term l = ltl_to_sat(b.left, !neg, justice);
           Term r = ltl_to_sat(*rhs, neg, justice);
           if (!l || !r) return Term();
-          for (uint32_t i = 0; i < delay; ++i) r = ltl_make_X(r);
+          for (uint32_t i = 0; i < delay; ++i) r = tableau_.make_X(r, prefix_);
           return solver_->make_term(neg ? And : Or, l, r);
         }
 
@@ -809,9 +627,10 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
             if (!l || !r) return Term();
             // until_with: the terminating cycle must also satisfy a.
             Term term = with ? solver_->make_term(And, l, r) : r;
-            if (strong) return ltl_make_U(l, term, justice);
+            if (strong) return tableau_.make_U(l, term, justice, prefix_);
             // weak until: a W term == term R (a || term).
-            return ltl_make_R(term, solver_->make_term(Or, l, term));
+            return tableau_.make_R(
+                term, solver_->make_term(Or, l, term), prefix_);
           }
           // Negated, with operands already in negation-normal form
           // (nl = sat(!left), nr = sat(!right)):
@@ -823,12 +642,13 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           Term nr = ltl_to_sat(b.right, true, justice);
           if (!nl || !nr) return Term();
           if (!with) {
-            if (strong) return ltl_make_R(nl, nr);
-            return ltl_make_U(nr, solver_->make_term(And, nl, nr), justice);
+            if (strong) return tableau_.make_R(nl, nr, prefix_);
+            return tableau_.make_U(
+                nr, solver_->make_term(And, nl, nr), justice, prefix_);
           }
           Term nterm = solver_->make_term(Or, nl, nr);  // !(a && b)
-          if (strong) return ltl_make_R(nl, nterm);
-          return ltl_make_U(nterm, nl, justice);
+          if (strong) return tableau_.make_R(nl, nterm, prefix_);
+          return tableau_.make_U(nterm, nl, justice, prefix_);
         }
 
         default:
@@ -990,7 +810,8 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
             delay += wmax;
             rhs = inner;
             for (uint32_t i = 1; i <= wmax - wmin; ++i) {
-              rhs = solver_->make_term(Or, rhs, delay_bool(inner, i));
+              rhs = solver_->make_term(
+                  Or, rhs, tableau_.delay_bool(inner, i, prefix_));
             }
           }
         } else {
@@ -1005,18 +826,20 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
           Term one_bv1 = solver_->make_term(1, bv1);
           Term zero_bv1 = solver_->make_term(0, bv1);
           Term lhs_bv = solver_->make_term(Ite, lhs, one_bv1, zero_bv1);
-          Term delayed_bv = make_history_chain(lhs_bv, delay);
+          Term delayed_bv = tableau_.make_history_chain(lhs_bv, delay, prefix_);
           lhs = solver_->make_term(Equal, delayed_bv, one_bv1);
         }
         Term result = solver_->make_term(Implies, lhs, rhs);
         if (lhs_delay > 0) {
-          result = solver_->make_term(Or, ltl_before_cycle(lhs_delay), result);
+          result = solver_->make_term(
+              Or, tableau_.before_cycle(lhs_delay, prefix_), result);
         }
         // `disable iff`: exempt this cycle's check if the disable
         // condition held anywhere in the antecedent-to-consequent
         // shift window, not just at the single cycle the check is
         // anchored at.
-        if (Term dw = disable_window(delay)) {
+        if (Term dw = tableau_.disable_window(
+                current_disable_cond_, delay, prefix_)) {
           result = solver_->make_term(Or, dw, result);
         }
         return result;

@@ -10,7 +10,7 @@
  * struct construction, streaming concatenation, and conversions, applying
  * SystemVerilog's width/sign-extension rules uniformly via resize_to(). Also
  * implements the sampled-value system functions ($past, $stable, $changed,
- * $rose, $fell) via make_history_chain(), plus $signed/$unsigned and
+ * $rose, $fell) via tableau_.make_history_chain(), plus $signed/$unsigned and
  * $onehot/$onehot0; $isunknown is always false since this encoder's bitvector
  * model is purely 2-valued (no X/Z state).
  */
@@ -790,7 +790,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           }
         }
         if (n == 0) return val;
-        return make_history_chain(val, n);
+        return tableau_.make_history_chain(val, n, prefix_);
       }
       if (call.isSystemCall() && call.getSubroutineName() == "$stable") {
         auto args = call.arguments();
@@ -799,7 +799,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               "SystemVerilogEncoder: $stable with no value argument");
         }
         Term val = expr_to_term(*args[0]);
-        Term eq = solver_->make_term(Equal, val, make_history_chain(val, 1));
+        Term eq = solver_->make_term(
+            Equal, val, tableau_.make_history_chain(val, 1, prefix_));
         Sort bv1 = solver_->make_sort(BV, 1);
         return solver_->make_term(
             Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
@@ -814,8 +815,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               "SystemVerilogEncoder: $changed with no value argument");
         }
         Term val = expr_to_term(*args[0]);
-        Term neq =
-            solver_->make_term(Distinct, val, make_history_chain(val, 1));
+        Term neq = solver_->make_term(
+            Distinct, val, tableau_.make_history_chain(val, 1, prefix_));
         Sort bv1 = solver_->make_sort(BV, 1);
         return solver_->make_term(
             Ite, neq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
@@ -825,9 +826,9 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               || call.getSubroutineName() == "$fell")) {
         // Per the LRM, $rose/$fell only look at bit 0 of a
         // multi-bit argument. Builds a fresh 1-cycle latch chain for
-        // just that bit, via the same make_history_chain() helper
-        // $past/$stable use for "value one cycle ago" -- not a chain
-        // shared with any $past/$stable call on the full value.
+        // just that bit, via the same tableau_.make_history_chain()
+        // helper $past/$stable use for "value one cycle ago" -- not a
+        // chain shared with any $past/$stable call on the full value.
         bool is_rose = call.getSubroutineName() == "$rose";
         auto args = call.arguments();
         if (args.empty() || !args[0]) {
@@ -838,7 +839,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         Term val = expr_to_term(*args[0]);
         Sort bv1 = solver_->make_sort(BV, 1);
         Term bit0 = solver_->make_term(Op(Extract, 0, 0), val);
-        Term prev_bit0 = make_history_chain(bit0, 1);
+        Term prev_bit0 = tableau_.make_history_chain(bit0, 1, prefix_);
         Term now_val = solver_->make_term(is_rose ? 1 : 0, bv1);
         Term prev_val = solver_->make_term(is_rose ? 0 : 1, bv1);
         Term edge =

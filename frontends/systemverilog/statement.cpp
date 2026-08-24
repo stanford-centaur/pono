@@ -824,7 +824,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           // For an assumption, this is exactly the right shape too:
           // "assume P disable iff C" means P is only assumed while C is
           // false, i.e. the ever-true constraint is (C || P).
-          if (Term dw = disable_window(0)) {
+          if (Term dw =
+                  tableau_.disable_window(current_disable_cond_, 0, prefix_)) {
             prop = solver_->make_term(Or, dw, prop);
           }
           if (is_assumption) {
@@ -903,7 +904,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         // may stay 0, leaving their obligations vacuous.  This keeps
         // independent LTL properties from interfering in one system.
         Term act = fts_.make_statevar(
-            make_name("__ltl_act_" + std::to_string(latch_counter_++)), bv1);
+            make_name("__ltl_act_" + std::to_string(tableau_.next_id())), bv1);
         fts_.assign_next(act, act);
         Term act_bool = solver_->make_term(Equal, act, one_bv1);
 
@@ -914,7 +915,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         // than to the initial-state predicate.
         Term obligation = solver_->make_term(
             Implies,
-            solver_->make_term(And, ltl_init_flag(), act_bool),
+            solver_->make_term(And, tableau_.init_flag(prefix_), act_bool),
             satpsi);
         fts_.add_constraint(obligation, /*to_init_and_next=*/false);
 
