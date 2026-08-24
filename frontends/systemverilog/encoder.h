@@ -78,7 +78,7 @@ namespace pono {
 class SystemVerilogEncoder
 {
  public:
-  /** Construct an SystemVerilogEncoder that parses a SystemVerilog file and
+  /** Construct a SystemVerilogEncoder that parses a SystemVerilog file and
    * populates the given FunctionalTransitionSystem.
    *
    *  Supported SystemVerilog constructs (synthesizable subset):
