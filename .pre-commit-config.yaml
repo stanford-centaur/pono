@@ -17,7 +17,7 @@ repos:
       - id: clang-format
         exclude: "^(contrib/|tests/encoders/inputs/coreir/)"
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.3
+    rev: v0.16.4
     hooks:
       - id: ruff-format
       - id: ruff-check
@@ -40,13 +40,13 @@ repos:
     hooks:
       - id: yamlfmt
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: v1.4.0
+    rev: v1.4.1
     hooks:
       - id: tombi-format
         args: [--offline]
       - id: tombi-lint
         args: [--offline]
   - repo: https://github.com/BlankSpruce/gersemi-pre-commit
-    rev: 0.28.0
+    rev: 0.28.1
     hooks:
       - id: gersemi
