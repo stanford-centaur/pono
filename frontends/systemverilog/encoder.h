@@ -40,15 +40,18 @@
  *   - instance.cpp:       continuous assigns, always_comb/ff/initial blocks,
  *                         and per-instance (child module) processing.
  *   - statement.cpp:      the process_statement() procedural statement encoder.
- *   - sva.cpp:            SVA/LTL AST-walking and dispatch
- * (assertion_expr_to_bool, offsets_ending_now, ltl_to_sat, and friends) --
- *                         needs expr_encoder_, so it stays here rather than
- *                         moving into tableau.{h,cpp}.
+ *   - assertion_walker.h/.cpp: the AssertionWalker class -- concurrent/
+ *                         immediate assertion-statement dispatch and SVA/LTL
+ *                         AST-walking (assertion_expr_to_bool,
+ *                         offsets_ending_now, ltl_to_sat, and friends),
+ *                         depending only on ExprEncoder and Tableau. Owned by
+ *                         SystemVerilogEncoder as assertion_walker_, which
+ *                         also owns the extracted propvec()/ltl_justice().
  *   - tableau.h/.cpp:     the Tableau class -- the SVA/LTL tableau's pure
  *                         latch-building primitives, with no dependency on
  *                         the rest of this class. Owned by
  *                         SystemVerilogEncoder as tableau_ and called from
- *                         sva.cpp.
+ *                         assertion_walker.cpp.
  */
 
 #pragma once
@@ -58,6 +61,7 @@
 #include <vector>
 
 #include "core/fts.h"
+#include "frontends/systemverilog/assertion_walker.h"
 #include "frontends/systemverilog/expr_encoder.h"
 #include "frontends/systemverilog/symbol_table.h"
 #include "frontends/systemverilog/tableau.h"
@@ -77,7 +81,6 @@ class InstanceBodySymbol;
 class ProceduralBlockSymbol;
 class ContinuousAssignSymbol;
 class PortSymbol;
-class AssertionExpr;
 class ElementSelectExpression;
 }  // namespace slang::ast
 
@@ -362,105 +365,6 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
    */
   void process_instance(const slang::ast::InstanceSymbol & inst);
 
-  /** Compile an SVA AssertionExpr into a Boolean SMT term that holds
-   *  iff the assertion passes at the current cycle.  Returns a null
-   *  Term when the expression uses an unsupported operator
-   *  (e.g. liveness, sequence delays inside arbitrary positions,
-   *  etc.); the caller can then skip that assertion.
-   *  Non-overlapping implication (`|=>`) and the
-   *  `|-> ##N` pattern introduce hidden latch state vars so the
-   *  "P held N cycles ago" predicate is current-state-only.
-   *  @param ae the assertion expression to compile
-   *  @return the boolean term, or a null Term when unsupported
-   */
-  smt::Term assertion_expr_to_bool(const slang::ast::AssertionExpr & ae);
-
-  /** General bounded sequence matching: given a sequence expression
-   *  (`Simple`/`SequenceWithMatch` with a consecutive `[m:n]`
-   *  repetition, `SequenceConcat` with per-element `[m:n]` delay
-   *  ranges, `FirstMatch`, `Clocking` -- unwrapped/ignored per this
-   *  file's multiclock design decision -- or a `Binary`
-   *  intersect/within/throughout composition of two such sequences),
-   *  returns a vector indexed by relative offset `L` where entry `L`
-   *  is a Term true iff the sequence
-   *  completes a match at the *current* cycle, having started `L`
-   *  cycles earlier. A null entry means that offset is structurally
-   *  unreachable. Returns an empty vector for sequence shapes this
-   *  primitive doesn't (yet) model -- the caller should treat that the
-   *  same as an unsupported construct.
-   *
-   *  Scoped to statically-bounded sequences: an unbounded (`[*]`,
-   *  `[+]`, `[*n:$]`) or nonconsecutive/goto repetition, or an
-   *  unbounded inter-element delay (`##[m:$]`), throws a clear
-   *  PonoException rather than silently mismodeling or dropping it --
-   *  this is a permanent architectural boundary of the encoder's
-   *  compile-time-bounded model, not a "not implemented yet" gap.
-   *  @param seq the sequence expression to match
-   *  @return offsets indexed by relative start-to-end span
-   */
-  smt::TermVec offsets_ending_now(const slang::ast::AssertionExpr & seq);
-
-  /** Convenience wrapper over offsets_ending_now(): ORs together every
-   *  reachable offset, i.e. "does `seq` complete a match at the
-   *  current cycle, regardless of how long it took". Returns a null
-   *  Term if offsets_ending_now() returns no reachable offsets at all
-   *  (an unsupported sequence shape) so callers can fall back to their
-   *  existing unsupported-construct handling.
-   *  @param seq the sequence expression to match
-   *  @return the "matches now" Boolean term, or a null Term
-   */
-  smt::Term match_exists(const slang::ast::AssertionExpr & seq);
-
-  /** The Boolean condition of a sequence's own leading element --
-   *  "has an attempt to match `seq` just begun" -- used by
-   *  weak_seq_bool() to detect when an in-progress match attempt has
-   *  definitely failed. Recurses through FirstMatch/Clocking (like
-   *  offsets_ending_now()) and into a SequenceConcat's first element.
-   *  Throws for any other sequence shape (its own leading repetition,
-   *  a `SequenceWithMatch`, or a `Binary` intersect/within/throughout
-   *  as the outermost sequence) rather than guessing.
-   *  @param seq the sequence expression to inspect
-   *  @return the Boolean "an attempt just started" term
-   */
-  smt::Term leading_condition(const slang::ast::AssertionExpr & seq);
-
-  /** Builds the `weak(seq)` Boolean safety condition: `seq` carries no
-   *  obligation to ever match, but if an attempt began exactly
-   *  `S = offsets_ending_now(seq).size() - 1` cycles ago (`S` being
-   *  the sequence's own maximum span -- the last possible chance for
-   *  that attempt to complete) and no completion happened anywhere in
-   *  the intervening window, that attempt has definitely failed.
-   *  Checked at every cycle, this covers every possible attempt start
-   *  point exactly once, `S` cycles after it began. Returns a null
-   *  Term if `seq`'s shape isn't modeled by offsets_ending_now().
-   *  @param seq the sequence expression `weak(...)` wraps
-   *  @return the Boolean safety term, or a null Term
-   */
-  smt::Term weak_seq_bool(const slang::ast::AssertionExpr & seq);
-
-  /** General symbolic-tableau translation of an SVA property into the
-   *  Boolean SMT term `sat(psi)` that holds at a cycle iff the
-   *  (possibly negated) property `psi` holds starting from that cycle,
-   *  where `psi` is `ae` when `neg` is false and `!ae` when `neg` is
-   *  true.  Negation is pushed through the operators on the fly (so
-   *  the gadgets built always correspond to the operators of `psi` in
-   *  negation-normal form) -- this keeps the eventuality-fairness
-   *  conditions correct regardless of the surrounding polarity.
-   *
-   *  Each temporal operator instantiates a one-step "promise" latch
-   *  (see `tableau_`'s `make_X/G/F/R/U`) via `assign_next`
-   *  plus a current-cycle consistency constraint, and every
-   *  strong-eventuality operator (F / strong-until) appends its
-   *  discharge condition to `justice`.
-   *
-   *  Returns a null Term when the property uses an operator the
-   *  tableau does not model (sequence intersect/throughout/within/
-   *  followed-by, etc.); the caller then skips the assertion.
-   */
-  smt::Term ltl_to_sat(const slang::ast::AssertionExpr & ae,
-                       bool neg,
-                       smt::TermVec & justice);
-
   // ---------- Data members ----------
 
   FunctionalTransitionSystem & fts_;
@@ -487,15 +391,10 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   // Holds no reference back to this class.
   ExprEncoder expr_encoder_;
 
-  // Safety properties extracted from SVA assert statements.
-  smt::TermVec propvec_;
-
-  // Per-property generalized-Büchi justice sets extracted from
-  // temporal (LTL) assertions that are not pure safety.  Each entry
-  // is the justice set { j_0, ..., j_k } of one assertion: a
-  // counterexample is a lasso along which every j_i holds infinitely
-  // often.  See Result::ltl_justice and ltl_to_sat().
-  std::vector<smt::TermVec> ltl_justice_;
+  // Assertion-statement dispatch and SVA/LTL AST-walking -- see
+  // assertion_walker.h. Holds no reference back to this class; owns the
+  // extracted propvec()/ltl_justice() that Result is built from.
+  AssertionWalker assertion_walker_;
 
   // Hierarchical name prefix for the current module.
   std::string prefix_;
@@ -513,15 +412,6 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   // the scope's parent chain).  Saved/restored around recursion into
   // child instances.
   const slang::ast::Scope * current_scope_ = nullptr;
-
-  // The `disable iff` condition (explicit on the current assert
-  // statement, or the enclosing module's `default disable iff`) as a
-  // Boolean SMT term, or null if none applies.  Set just before
-  // compiling one assertion's property expression, and passed
-  // explicitly to tableau_.disable_window() from wherever
-  // assertion_expr_to_bool()/ltl_to_sat() needs it, so it need not be
-  // threaded through every recursive call in between.
-  smt::Term current_disable_cond_;
 };
 
 }  // namespace pono

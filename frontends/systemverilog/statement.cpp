@@ -47,7 +47,6 @@
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/Type.h"
 #include "slang/numeric/SVInt.h"
-#include "slang/syntax/AllSyntax.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -56,26 +55,6 @@ using namespace smt;
 using namespace std;
 
 namespace pono {
-
-namespace {
-
-// Returns the source label of a concurrent assertion statement (e.g. the
-// `p1` in `p1: assert property (...)`), or "<unnamed>" if it has none.
-std::string assertion_label(const slang::ast::Statement & stmt)
-{
-  if (auto * syntax = stmt.syntax) {
-    if (auto * ca_syntax =
-            syntax
-                ->as_if<slang::syntax::ConcurrentAssertionStatementSyntax>()) {
-      if (ca_syntax->label) {
-        return std::string(ca_syntax->label->name.valueText());
-      }
-    }
-  }
-  return "<unnamed>";
-}
-
-}  // namespace
 
 void SystemVerilogEncoder::process_dynamic_element_assign(
     const slang::ast::ElementSelectExpression & sel,
@@ -762,245 +741,17 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
     case StatementKind::ConcurrentAssertion: {
       auto & ca = stmt.as<ConcurrentAssertionStatement>();
-      // Handle 'assert', 'assume', 'restrict', and 'cover'.  'assume'/
-      // 'restrict' share the exact same property-shape handling as
-      // 'assert' below; they differ only in what happens to the
-      // resulting boolean once it's built (see the two branches further
-      // down). 'cover' is handled via reachability duality (see the
-      // "SVA design decisions" note at the top of sva.cpp): `cover
-      // property(P)` is checked exactly like `assert property(!P)`, so
-      // a "violation" of that surrogate assertion is precisely "P was
-      // reached" -- it shares the same safety fast path as assert/
-      // assume, just with the boolean negated before the shared
-      // disable-window/push logic runs.
-      // `expect (property_expr);` is a procedural blocking-wait
-      // statement (pause until the property holds), not a checked
-      // invariant -- a simulation-control construct with no
-      // synthesizable hardware meaning, the same category as `wait`
-      // below. Handle it before the dispatch so it doesn't fall
-      // through the rest of this case silently.
-      if (ca.assertionKind == AssertionKind::Expect) {
-        logger.log(1,
-                   "SystemVerilogEncoder: ignoring 'expect' property "
-                   "(simulation-only construct)");
-        break;
-      }
-      bool is_assumption = ca.assertionKind == AssertionKind::Assume
-                           || ca.assertionKind == AssertionKind::Restrict;
-      // `cover sequence(S)` shares the exact same reachability-duality
-      // treatment as `cover property(P)` below -- both just check
-      // "was propertySpec ever true", regardless of whether the
-      // source wrote `property` or `sequence`.
-      bool is_cover = ca.assertionKind == AssertionKind::CoverProperty
-                      || ca.assertionKind == AssertionKind::CoverSequence;
-      if (ca.assertionKind == AssertionKind::Assert || is_assumption
-          || is_cover) {
-        // Strip the clocking wrapper (the clock event is already
-        // baked into our per-cycle abstraction) and any explicit
-        // `disable iff` wrapper, recording its condition.  If the
-        // statement has no explicit `disable iff`, fall back to the
-        // enclosing module's `default disable iff`, if any.
-        const AssertionExpr * a = &ca.propertySpec;
-        const Expression * disable_expr = nullptr;
-        while (true) {
-          if (a->kind == AssertionExprKind::Clocking) {
-            a = &a->as<ClockingAssertionExpr>().expr;
-          } else if (a->kind == AssertionExprKind::DisableIff) {
-            auto & di = a->as<DisableIffAssertionExpr>();
-            disable_expr = &di.condition;
-            a = &di.expr;
-          } else {
-            break;
-          }
-        }
-        if (!disable_expr && current_scope_) {
-          disable_expr = compilation_->getDefaultDisable(*current_scope_);
-        }
-
-        Term saved_disable_cond = current_disable_cond_;
-        if (disable_expr) {
-          Term dc = expr_encoder_.expr_to_term(*disable_expr, prefix_);
-          current_disable_cond_ = solver_->make_term(
-              Distinct, dc, solver_->make_term(0, dc->get_sort()));
-        } else {
-          current_disable_cond_ = Term();
-        }
-
-        // Prefer the pure-safety encoding when the property reduces to
-        // a single current-cycle Boolean (plain `assert P`, `always
-        // P`, bounded `|->` / `|=>` / `##k` implications).
-        // assertion_expr_to_bool returns null as soon as a genuine
-        // liveness operator (eventually / unbounded until) appears.
-        if (Term prop = assertion_expr_to_bool(*a)) {
-          if (is_cover) {
-            // Reachability duality: negate before the disable-window
-            // exemption below runs, so a `disable iff C` on a cover
-            // property correctly means "don't count P as covered while
-            // C holds" (the composed surrogate is `!P || C`, whose own
-            // violation is exactly "P held and C did not").
-            prop = solver_->make_term(Not, prop);
-          }
-          // Catch-all `disable iff` exemption for property shapes
-          // (plain `assert P`, `always P`, ...) that don't already
-          // gate themselves more precisely inside assertion_expr_to_bool.
-          // For an assumption, this is exactly the right shape too:
-          // "assume P disable iff C" means P is only assumed while C is
-          // false, i.e. the ever-true constraint is (C || P).
-          if (Term dw =
-                  tableau_.disable_window(current_disable_cond_, 0, prefix_)) {
-            prop = solver_->make_term(Or, dw, prop);
-          }
-          if (is_assumption) {
-            // Hold at every reachable step (init and, via the transition
-            // relation, every subsequent state) -- the same "always true"
-            // primitive already used for plain state/input invariants
-            // elsewhere in the encoder, just applied to an assumption
-            // instead of a proof obligation.
-            fts_.add_constraint(prop, /*to_init_and_next=*/true);
-            logger.log(1,
-                       "SystemVerilogEncoder: extracted assumption "
-                       "constraint from {}",
-                       symbol_table_.make_name(prefix_, assertion_label(stmt)));
-          } else {
-            propvec_.push_back(prop);
-            logger.log(1,
-                       "SystemVerilogEncoder: extracted safety assertion "
-                       "property {} (index {})",
-                       symbol_table_.make_name(prefix_, assertion_label(stmt)),
-                       propvec_.size() - 1);
-          }
-          current_disable_cond_ = saved_disable_cond;
-          break;
-        }
-
-        if (is_assumption) {
-          // Temporal (non-safety) assume/restrict properties would need
-          // their own fairness-constraint machinery (assuming a GF
-          // condition rather than proving one), which nothing else in
-          // the encoder builds yet -- skip cleanly rather than attempt a
-          // partial, likely-unsound translation.
-          logger.log(1,
-                     "SystemVerilogEncoder: skipping unsupported temporal "
-                     "assume/restrict property {}",
-                     symbol_table_.make_name(prefix_, assertion_label(stmt)));
-          current_disable_cond_ = saved_disable_cond;
-          break;
-        }
-
-        if (is_cover) {
-          // A temporal/sequence-shaped cover goal (e.g. `cover property
-          // (a ##1 b)`) would need the reachability duality above
-          // extended through the same LTL tableau `ltl_to_sat()` builds
-          // for `assert`/`assume` -- negating a liveness obligation
-          // doesn't correspond to "was this ever reached" the way it
-          // does for a plain current-cycle Boolean, so that extension
-          // is out of scope here. Throw rather than silently drop.
-          throw PonoException(
-              "SystemVerilogEncoder: temporal/sequence-shaped 'cover "
-              "property' is not supported");
-        }
-
-        // Otherwise build the general LTL tableau for the *negated*
-        // property and collect its eventuality-discharge justice
-        // conditions.  A fair lasso of the resulting system (every
-        // justice condition true infinitely often) on which the
-        // negated property holds at cycle 0 is exactly a
-        // counterexample to the original assertion.
-        TermVec justice;
-        Term satpsi = ltl_to_sat(*a, /*neg=*/true, justice);
-        if (!satpsi) {
-          logger.log(1,
-                     "SystemVerilogEncoder: skipping unsupported temporal "
-                     "assertion kind {}",
-                     static_cast<int>(a->kind));
-          current_disable_cond_ = saved_disable_cond;
-          break;
-        }
-
-        Sort bv1 = solver_->make_sort(BV, 1);
-        Term one_bv1 = solver_->make_term(1, bv1);
-
-        // Per-property activation latch: a free 1-bit constant.  The
-        // justice set forces it to 1 (so this property's time-0
-        // obligation is enabled), while every *other* property's latch
-        // may stay 0, leaving their obligations vacuous.  This keeps
-        // independent LTL properties from interfering in one system.
-        Term act = fts_.make_statevar(
-            symbol_table_.make_name(
-                prefix_, "__ltl_act_" + std::to_string(tableau_.next_id())),
-            bv1);
-        fts_.assign_next(act, act);
-        Term act_bool = solver_->make_term(Equal, act, one_bv1);
-
-        // Time-0 obligation: when active, the negated property must
-        // hold at the first cycle.  Gated by the shared init flag so
-        // it constrains only cycle 0, and added to the transition
-        // relation (it references the tableau's promise inputs) rather
-        // than to the initial-state predicate.
-        Term obligation = solver_->make_term(
-            Implies,
-            solver_->make_term(And, tableau_.init_flag(prefix_), act_bool),
-            satpsi);
-        fts_.add_constraint(obligation, /*to_init_and_next=*/false);
-
-        justice.push_back(act_bool);
-        ltl_justice_.push_back(justice);
-        logger.log(1,
-                   "SystemVerilogEncoder: extracted LTL liveness property "
-                   "{} (index {}, {} justice condition(s))",
-                   symbol_table_.make_name(prefix_, assertion_label(stmt)),
-                   ltl_justice_.size() - 1,
-                   justice.size());
-        current_disable_cond_ = saved_disable_cond;
-      }
+      const Expression * default_disable_expr =
+          current_scope_ ? compilation_->getDefaultDisable(*current_scope_)
+                         : nullptr;
+      assertion_walker_.process_concurrent_assertion(
+          ca, stmt, prefix_, default_disable_expr);
       break;
     }
 
     case StatementKind::ImmediateAssertion: {
-      // A *procedural* immediate assertion (`assert (expr);`),
-      // distinct from the concurrent `assert property (...)` form
-      // handled above. Reuses the same Assert-vs-Assume/Restrict
-      // split: an assert becomes a safety property, an assume/
-      // restrict becomes a standing constraint. Guarded by the
-      // accumulated path `condition` (e.g. an enclosing `if`) rather
-      // than treated as always-active, since it's only actually
-      // reached when program flow gets there -- "if reached, expr
-      // must hold" for assert, "if reached, assume expr" for
-      // assume/restrict. Pass/fail action blocks (`assert (x) else
-      // $error(...);`) are simulation-only display statements with no
-      // synthesis meaning and are intentionally not processed, same
-      // as $display/$error elsewhere in this encoder. `cover` uses the
-      // same reachability-duality contract as the ConcurrentAssertion
-      // case above (see the "SVA design decisions" note at the top of
-      // sva.cpp): `cover (expr);` is checked exactly like
-      // `assert (!expr);`.
       auto & ia = stmt.as<ImmediateAssertionStatement>();
-      bool is_assumption = ia.assertionKind == AssertionKind::Assume
-                           || ia.assertionKind == AssertionKind::Restrict;
-      bool is_cover = ia.assertionKind == AssertionKind::CoverProperty;
-      if (ia.assertionKind == AssertionKind::Assert || is_assumption
-          || is_cover) {
-        Term cond_term = expr_encoder_.expr_to_term(ia.cond, prefix_);
-        Term bool_cond = solver_->make_term(
-            Distinct, cond_term, solver_->make_term(0, cond_term->get_sort()));
-        if (is_cover) {
-          bool_cond = solver_->make_term(Not, bool_cond);
-        }
-        Term prop = (condition == solver_->make_term(true))
-                        ? bool_cond
-                        : solver_->make_term(Implies, condition, bool_cond);
-        if (is_assumption) {
-          fts_.add_constraint(prop, /*to_init_and_next=*/true);
-          logger.log(1,
-                     "SystemVerilogEncoder: extracted assumption constraint");
-        } else {
-          propvec_.push_back(prop);
-          logger.log(1,
-                     "SystemVerilogEncoder: extracted safety assertion "
-                     "property from immediate assertion (index {})",
-                     propvec_.size() - 1);
-        }
-      }
+      assertion_walker_.process_immediate_assertion(ia, condition, prefix_);
       break;
     }
 

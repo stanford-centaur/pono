@@ -59,7 +59,8 @@ SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
       solver_(fts.solver()),
       tableau_(fts_, solver_),
       symbol_table_(fts_, solver_),
-      expr_encoder_(symbol_table_, tableau_, solver_)
+      expr_encoder_(symbol_table_, tableau_, solver_),
+      assertion_walker_(expr_encoder_, tableau_, solver_, fts_)
 {
   symbol_table_.set_driver_resolver(*this);
 }
@@ -73,7 +74,8 @@ SystemVerilogEncoder::Result SystemVerilogEncoder::encode(
 {
   SystemVerilogEncoder enc(fts);
   enc.run(filename, filelists);
-  return Result{ std::move(enc.propvec_), std::move(enc.ltl_justice_) };
+  return Result{ std::move(enc.assertion_walker_.propvec()),
+                 std::move(enc.assertion_walker_.ltl_justice()) };
 }
 
 // ============================================================================

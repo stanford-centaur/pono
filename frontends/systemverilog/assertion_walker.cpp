@@ -1,36 +1,22 @@
 /*!
- * \file sva.cpp
+ * \file assertion_walker.cpp
  * \brief SVA/LTL AST-walking and dispatch: $past, sequences, and the
  *        LTL tableau's leaf/operator dispatch.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
  *
- * Covers a bounded sequence matcher for `##`, `[*n:m]`,
- * intersect/within/throughout, and weak()/strong() (offsets_ending_now,
- * match_exists, weak_seq_bool); ltl_to_sat() and friends, which walk a
- * property's AST and dispatch each temporal operator to the corresponding
- * tableau_ gadget; and assertion_expr_to_bool(), the top-level fast path
- * that reduces a property to a current-cycle Boolean where possible
- * (falling back to ltl_to_sat() for genuine temporal/liveness shapes).
- *
- * This file needs expr_encoder_.expr_to_term() (to convert the plain Boolean
- * expressions that sit at the leaves of a property/sequence tree) and
- * SystemVerilogEncoder's own declaration/wire-resolution state (via
- * StmtContext-adjacent bookkeeping like current_disable_cond_/prefix_), so
- * it stays here as SystemVerilogEncoder methods rather than moving into
- * tableau.{h,cpp} alongside the pure latch-building gadgets
- * (make_history_chain, delay_bool, init_flag, before_cycle, disable_window,
- * make_X/G/F/R/U) those methods call into via the tableau_ member.
+ * See assertion_walker.h for what this class covers and why it holds no
+ * reference back to SystemVerilogEncoder.
  *
  * SVA design decisions
  * ---------------------
  * A few SVA constructs have no single "obviously correct" encoding given
- * this encoder's model (a single global clock, and a Result::propvec-of-
- * safety-properties / Result::ltl_justice-of-liveness-obligations interface
- * with no notion of coverage or multiple clock domains). The choices made here
- * are deliberate and documented so future changes don't accidentally drift from
- * them:
+ * this encoder's model (a single global clock, and a propvec()-of-safety-
+ * properties / ltl_justice()-of-liveness-obligations interface with no
+ * notion of coverage or multiple clock domains). The choices made here
+ * are deliberate and documented so future changes don't accidentally drift
+ * from them:
  *
  *   - `cover property (P)` / immediate `cover (P)`: modeled via
  *     reachability duality -- checked exactly like `assert property (!P)`
@@ -50,14 +36,18 @@
  *     the minimal behavior consistent with the encoder's existing single-
  *     clock assumption, not a real multi-domain/clock-ratio model.
  */
+#include "frontends/systemverilog/assertion_walker.h"
+
 #include <cstdint>
 #include <string>
 
-#include "frontends/systemverilog/encoder.h"
+#include "frontends/systemverilog/expr_encoder.h"
+#include "frontends/systemverilog/tableau.h"
 #include "slang/ast/Expression.h"
-#include "slang/ast/Symbol.h"
 #include "slang/ast/expressions/AssertionExpr.h"
 #include "slang/ast/expressions/MiscExpressions.h"
+#include "slang/ast/statements/MiscStatements.h"
+#include "slang/syntax/AllSyntax.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"
@@ -68,6 +58,7 @@ using namespace std;
 namespace pono {
 
 namespace {
+
 // Detect a SequenceConcat that we can interpret as a constant
 // k-cycle delay applied to a single inner assertion expression
 // (`##k Q`).  Returns (k, Q*) on success, std::nullopt otherwise.
@@ -110,7 +101,38 @@ const slang::ast::AssertionExpr * resolve_named_assertion_ref(
   }
   return &aie.body;
 }
+
+// Returns the source label of a concurrent assertion statement (e.g. the
+// `p1` in `p1: assert property (...)`), or "<unnamed>" if it has none.
+std::string assertion_label(const slang::ast::Statement & stmt)
+{
+  if (auto * syntax = stmt.syntax) {
+    if (auto * ca_syntax =
+            syntax
+                ->as_if<slang::syntax::ConcurrentAssertionStatementSyntax>()) {
+      if (ca_syntax->label) {
+        return std::string(ca_syntax->label->name.valueText());
+      }
+    }
+  }
+  return "<unnamed>";
+}
+
 }  // namespace
+
+AssertionWalker::AssertionWalker(ExprEncoder & expr_encoder,
+                                 Tableau & tableau,
+                                 const smt::SmtSolver & solver,
+                                 FunctionalTransitionSystem & fts)
+    : expr_encoder_(expr_encoder), tableau_(tableau), solver_(solver), fts_(fts)
+{
+}
+
+string AssertionWalker::make_name(const string & prefix, const string & name)
+{
+  if (prefix.empty()) return name;
+  return prefix + "." + name;
+}
 
 // ============================================================================
 // LTL tableau dispatch
@@ -130,8 +152,8 @@ namespace {
 constexpr uint32_t MAX_SEQ_WINDOW = 256;
 }  // namespace
 
-smt::TermVec SystemVerilogEncoder::offsets_ending_now(
-    const slang::ast::AssertionExpr & seq)
+smt::TermVec AssertionWalker::offsets_ending_now(
+    const slang::ast::AssertionExpr & seq, const string & prefix)
 {
   using namespace slang::ast;
 
@@ -142,7 +164,7 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
   auto boolean_with_repetition =
       [&](const slang::ast::Expression & expr,
           const std::optional<SequenceRepetition> & repetition) -> TermVec {
-    Term b = expr_encoder_.expr_to_term(expr, prefix_);
+    Term b = expr_encoder_.expr_to_term(expr, prefix);
     b = solver_->make_term(Distinct, b, solver_->make_term(0, b->get_sort()));
     if (!repetition) return { b };
     if (repetition->kind != SequenceRepetition::Consecutive) {
@@ -169,7 +191,7 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
     for (uint32_t count = 1; count <= hi; ++count) {
       if (count > 1) {
         running = solver_->make_term(
-            And, running, tableau_.delay_bool(b, count - 1, prefix_));
+            And, running, tableau_.delay_bool(b, count - 1, prefix));
       }
       if (count >= lo) out[count - 1] = running;
     }
@@ -195,7 +217,7 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
     Term result = base;
     for (uint32_t j = 1; j <= k; ++j) {
       result =
-          solver_->make_term(Or, result, tableau_.delay_bool(base, j, prefix_));
+          solver_->make_term(Or, result, tableau_.delay_bool(base, j, prefix));
     }
     return result;
   };
@@ -206,8 +228,8 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
   auto window_and = [&](const Term & base, uint32_t k) -> Term {
     Term result = base;
     for (uint32_t j = 1; j <= k; ++j) {
-      result = solver_->make_term(
-          And, result, tableau_.delay_bool(base, j, prefix_));
+      result =
+          solver_->make_term(And, result, tableau_.delay_bool(base, j, prefix));
     }
     return result;
   };
@@ -234,7 +256,7 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
         return boolean_with_repetition(swm.expr.as<SimpleAssertionExpr>().expr,
                                        swm.repetition);
       }
-      return offsets_ending_now(swm.expr);
+      return offsets_ending_now(swm.expr, prefix);
     }
 
     case AssertionExprKind::FirstMatch:
@@ -243,13 +265,13 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
       // whether a match exists at all, which is all this encoder's
       // callers (an implication antecedent, an intersect/within/
       // throughout operand) ever ask offsets_ending_now() for.
-      return offsets_ending_now(seq.as<FirstMatchAssertionExpr>().seq);
+      return offsets_ending_now(seq.as<FirstMatchAssertionExpr>().seq, prefix);
 
     case AssertionExprKind::Clocking:
       // Per this file's multiclock design decision: every named clock
       // is treated as the same global pono-cycle, so a nested clocking
       // change inside a sequence element is simply unwrapped.
-      return offsets_ending_now(seq.as<ClockingAssertionExpr>().expr);
+      return offsets_ending_now(seq.as<ClockingAssertionExpr>().expr, prefix);
 
     case AssertionExprKind::SequenceConcat: {
       auto & sc = seq.as<SequenceConcatExpr>();
@@ -263,7 +285,7 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
         }
         uint32_t dmin = elem.delay.min;
         uint32_t dmax = *elem.delay.max;
-        TermVec elem_offsets = offsets_ending_now(*elem.sequence);
+        TermVec elem_offsets = offsets_ending_now(*elem.sequence, prefix);
         if (elem_offsets.empty()) return {};
 
         if (i == 0) {
@@ -306,7 +328,7 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
               // element's own (unshifted) completion condition.
               Term shifted_prefix =
                   (d + le == 0) ? acc[lp]
-                                : tableau_.delay_bool(acc[lp], d + le, prefix_);
+                                : tableau_.delay_bool(acc[lp], d + le, prefix);
               Term combined =
                   solver_->make_term(And, shifted_prefix, elem_offsets[le]);
               new_acc[idx] =
@@ -326,8 +348,8 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
         case BinaryAssertionOperator::Intersect: {
           // s1 intersect s2 matches iff both match with the *same*
           // span -- AND the two offset vectors entry-by-entry.
-          TermVec v1 = offsets_ending_now(b.left);
-          TermVec v2 = offsets_ending_now(b.right);
+          TermVec v1 = offsets_ending_now(b.left, prefix);
+          TermVec v2 = offsets_ending_now(b.right, prefix);
           if (v1.empty() || v2.empty()) return {};
           size_t n = std::min(v1.size(), v2.size());
           TermVec out(n, Term());
@@ -343,8 +365,8 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
           // each of s2's own completion offsets k, "s1 matched
           // somewhere in the last k+1 cycles" is exactly window_or()
           // over s1's merged "matches here" term.
-          TermVec v1 = offsets_ending_now(b.left);
-          TermVec v2 = offsets_ending_now(b.right);
+          TermVec v1 = offsets_ending_now(b.left, prefix);
+          TermVec v2 = offsets_ending_now(b.right, prefix);
           if (v1.empty() || v2.empty()) return {};
           Term s1_matches = or_vec(v1);
           if (!s1_matches) return {};
@@ -362,9 +384,9 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
           // every cycle spanned by seq's match -- for each of seq's
           // own completion offsets k, that span is exactly the last
           // k+1 cycles, checked via window_and().
-          Term expr_bool = assertion_expr_to_bool(b.left);
+          Term expr_bool = assertion_expr_to_bool(b.left, prefix);
           if (!expr_bool) return {};
-          TermVec v2 = offsets_ending_now(b.right);
+          TermVec v2 = offsets_ending_now(b.right, prefix);
           if (v2.empty()) return {};
           TermVec out(v2.size(), Term());
           for (size_t k = 0; k < v2.size(); ++k) {
@@ -393,10 +415,10 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
   }
 }
 
-smt::Term SystemVerilogEncoder::match_exists(
-    const slang::ast::AssertionExpr & seq)
+smt::Term AssertionWalker::match_exists(const slang::ast::AssertionExpr & seq,
+                                        const string & prefix)
 {
-  TermVec offsets = offsets_ending_now(seq);
+  TermVec offsets = offsets_ending_now(seq, prefix);
   Term result;
   for (auto & t : offsets) {
     if (!t) continue;
@@ -405,8 +427,8 @@ smt::Term SystemVerilogEncoder::match_exists(
   return result;
 }
 
-smt::Term SystemVerilogEncoder::leading_condition(
-    const slang::ast::AssertionExpr & seq)
+smt::Term AssertionWalker::leading_condition(
+    const slang::ast::AssertionExpr & seq, const string & prefix)
 {
   using namespace slang::ast;
   switch (seq.kind) {
@@ -417,17 +439,17 @@ smt::Term SystemVerilogEncoder::leading_condition(
             "SystemVerilogEncoder: weak()/strong() of a sequence with its "
             "own leading repetition is not supported");
       }
-      Term t = expr_encoder_.expr_to_term(simple.expr, prefix_);
+      Term t = expr_encoder_.expr_to_term(simple.expr, prefix);
       return solver_->make_term(
           Distinct, t, solver_->make_term(0, t->get_sort()));
     }
     case AssertionExprKind::FirstMatch:
-      return leading_condition(seq.as<FirstMatchAssertionExpr>().seq);
+      return leading_condition(seq.as<FirstMatchAssertionExpr>().seq, prefix);
     case AssertionExprKind::Clocking:
-      return leading_condition(seq.as<ClockingAssertionExpr>().expr);
+      return leading_condition(seq.as<ClockingAssertionExpr>().expr, prefix);
     case AssertionExprKind::SequenceConcat:
       return leading_condition(
-          *seq.as<SequenceConcatExpr>().elements[0].sequence);
+          *seq.as<SequenceConcatExpr>().elements[0].sequence, prefix);
     default:
       throw PonoException(
           "SystemVerilogEncoder: weak()/strong() of this sequence shape is "
@@ -435,10 +457,10 @@ smt::Term SystemVerilogEncoder::leading_condition(
   }
 }
 
-smt::Term SystemVerilogEncoder::weak_seq_bool(
-    const slang::ast::AssertionExpr & seq)
+smt::Term AssertionWalker::weak_seq_bool(const slang::ast::AssertionExpr & seq,
+                                         const string & prefix)
 {
-  TermVec offsets = offsets_ending_now(seq);
+  TermVec offsets = offsets_ending_now(seq, prefix);
   if (offsets.empty()) return Term();
   Term me;
   for (auto & t : offsets) {
@@ -450,11 +472,12 @@ smt::Term SystemVerilogEncoder::weak_seq_bool(
   // S = the sequence's own maximum span: the last possible cycle an
   // attempt that started here could still complete by.
   uint32_t s = static_cast<uint32_t>(offsets.size()) - 1;
-  Term started_s_ago = tableau_.delay_bool(leading_condition(seq), s, prefix_);
+  Term started_s_ago =
+      tableau_.delay_bool(leading_condition(seq, prefix), s, prefix);
   Term completed_in_window = me;
   for (uint32_t j = 1; j <= s; ++j) {
     completed_in_window = solver_->make_term(
-        Or, completed_in_window, tableau_.delay_bool(me, j, prefix_));
+        Or, completed_in_window, tableau_.delay_bool(me, j, prefix));
   }
   // Violated iff an attempt began exactly S cycles ago and no
   // completion happened anywhere from then through now; weak(seq) is
@@ -465,15 +488,17 @@ smt::Term SystemVerilogEncoder::weak_seq_bool(
   return solver_->make_term(Not, violated);
 }
 
-smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
-                                           bool neg,
-                                           smt::TermVec & justice)
+smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
+                                      bool neg,
+                                      smt::TermVec & justice,
+                                      const string & prefix)
 {
   using namespace slang::ast;
 
   switch (ae.kind) {
     case AssertionExprKind::Clocking:
-      return ltl_to_sat(ae.as<ClockingAssertionExpr>().expr, neg, justice);
+      return ltl_to_sat(
+          ae.as<ClockingAssertionExpr>().expr, neg, justice, prefix);
 
     case AssertionExprKind::StrongWeak: {
       auto & sw = ae.as<StrongWeakAssertionExpr>();
@@ -483,32 +508,32 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       // Boolean/temporal expression) is unaffected by the qualifier
       // under this encoder's infinite-lasso semantics; just unwrap.
       if (sw.strength == StrongWeakAssertionExpr::Strong) {
-        Term me = match_exists(sw.expr);
+        Term me = match_exists(sw.expr, prefix);
         if (me) {
           // strong(seq): a genuine liveness obligation -- the sequence
           // must eventually complete a match.
-          return neg ? tableau_.make_G(solver_->make_term(Not, me), prefix_)
-                     : tableau_.make_F(me, justice, prefix_);
+          return neg ? tableau_.make_G(solver_->make_term(Not, me), prefix)
+                     : tableau_.make_F(me, justice, prefix);
         }
       }
-      return ltl_to_sat(sw.expr, neg, justice);
+      return ltl_to_sat(sw.expr, neg, justice, prefix);
     }
 
     case AssertionExprKind::Simple: {
       auto & simple = ae.as<SimpleAssertionExpr>();
       if (auto * named = resolve_named_assertion_ref(simple.expr)) {
-        return ltl_to_sat(*named, neg, justice);
+        return ltl_to_sat(*named, neg, justice, prefix);
       }
       if (simple.repetition) {
         // See the matching check in assertion_expr_to_bool(): route
         // through the general bounded sequence matcher (which throws
         // for an unbounded repeat count) instead of silently ignoring
         // the repetition.
-        Term me = match_exists(ae);
+        Term me = match_exists(ae, prefix);
         if (!me) return Term();
         return neg ? solver_->make_term(Not, me) : me;
       }
-      Term t = expr_encoder_.expr_to_term(simple.expr, prefix_);
+      Term t = expr_encoder_.expr_to_term(simple.expr, prefix);
       if (!t) return Term();
       Term zero = solver_->make_term(0, t->get_sort());
       Term b = solver_->make_term(Distinct, t, zero);
@@ -519,7 +544,7 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       // A bare `##k Q` property has the same truth value as Q under
       // our infinite-time semantics (modulo a front shift).  Unwrap.
       if (auto m = match_const_delay_seq(ae)) {
-        return ltl_to_sat(*m->second, neg, justice);
+        return ltl_to_sat(*m->second, neg, justice, prefix);
       }
       return Term();
     }
@@ -528,32 +553,32 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       auto & u = ae.as<UnaryAssertionExpr>();
       switch (u.op) {
         case UnaryAssertionOperator::Not:
-          return ltl_to_sat(u.expr, !neg, justice);
+          return ltl_to_sat(u.expr, !neg, justice, prefix);
 
         case UnaryAssertionOperator::Always:
         case UnaryAssertionOperator::SAlways: {
           // G phi  (positive)  /  !G phi == F !phi  (negated)
-          Term phi = ltl_to_sat(u.expr, neg, justice);
+          Term phi = ltl_to_sat(u.expr, neg, justice, prefix);
           if (!phi) return Term();
-          return neg ? tableau_.make_F(phi, justice, prefix_)
-                     : tableau_.make_G(phi, prefix_);
+          return neg ? tableau_.make_F(phi, justice, prefix)
+                     : tableau_.make_G(phi, prefix);
         }
 
         case UnaryAssertionOperator::Eventually:
         case UnaryAssertionOperator::SEventually: {
           // F phi  (positive)  /  !F phi == G !phi  (negated)
-          Term phi = ltl_to_sat(u.expr, neg, justice);
+          Term phi = ltl_to_sat(u.expr, neg, justice, prefix);
           if (!phi) return Term();
-          return neg ? tableau_.make_G(phi, prefix_)
-                     : tableau_.make_F(phi, justice, prefix_);
+          return neg ? tableau_.make_G(phi, prefix)
+                     : tableau_.make_F(phi, justice, prefix);
         }
 
         case UnaryAssertionOperator::NextTime:
         case UnaryAssertionOperator::SNextTime: {
           // !X phi == X !phi, so the negation rides along inside phi.
-          Term phi = ltl_to_sat(u.expr, neg, justice);
+          Term phi = ltl_to_sat(u.expr, neg, justice, prefix);
           if (!phi) return Term();
-          return tableau_.make_X(phi, prefix_);
+          return tableau_.make_X(phi, prefix);
         }
 
         default: return Term();
@@ -565,8 +590,8 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       switch (b.op) {
         case BinaryAssertionOperator::And:
         case BinaryAssertionOperator::Or: {
-          Term l = ltl_to_sat(b.left, neg, justice);
-          Term r = ltl_to_sat(b.right, neg, justice);
+          Term l = ltl_to_sat(b.left, neg, justice, prefix);
+          Term r = ltl_to_sat(b.right, neg, justice, prefix);
           if (!l || !r) return Term();
           bool is_and = (b.op == BinaryAssertionOperator::And);
           if (neg) is_and = !is_and;  // De Morgan
@@ -578,8 +603,8 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           // positively and apply the outer negation here.  (Temporal
           // operands under `iff` are not negation-normalized; such
           // properties are exotic and out of scope for fairness.)
-          Term l = ltl_to_sat(b.left, false, justice);
-          Term r = ltl_to_sat(b.right, false, justice);
+          Term l = ltl_to_sat(b.left, false, justice, prefix);
+          Term r = ltl_to_sat(b.right, false, justice, prefix);
           if (!l || !r) return Term();
           return neg ? solver_->make_term(Distinct, l, r)
                      : solver_->make_term(Equal, l, r);
@@ -587,8 +612,8 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
 
         case BinaryAssertionOperator::Implies: {
           // a implies b == !a || b ;  !(a implies b) == a && !b
-          Term l = ltl_to_sat(b.left, !neg, justice);
-          Term r = ltl_to_sat(b.right, neg, justice);
+          Term l = ltl_to_sat(b.left, !neg, justice, prefix);
+          Term r = ltl_to_sat(b.right, neg, justice, prefix);
           if (!l || !r) return Term();
           return solver_->make_term(neg ? And : Or, l, r);
         }
@@ -607,10 +632,10 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
             delay += m->first;
             rhs = m->second;
           }
-          Term l = ltl_to_sat(b.left, !neg, justice);
-          Term r = ltl_to_sat(*rhs, neg, justice);
+          Term l = ltl_to_sat(b.left, !neg, justice, prefix);
+          Term r = ltl_to_sat(*rhs, neg, justice, prefix);
           if (!l || !r) return Term();
-          for (uint32_t i = 0; i < delay; ++i) r = tableau_.make_X(r, prefix_);
+          for (uint32_t i = 0; i < delay; ++i) r = tableau_.make_X(r, prefix);
           return solver_->make_term(neg ? And : Or, l, r);
         }
 
@@ -623,15 +648,15 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           bool with = (b.op == BinaryAssertionOperator::UntilWith
                        || b.op == BinaryAssertionOperator::SUntilWith);
           if (!neg) {
-            Term l = ltl_to_sat(b.left, false, justice);
-            Term r = ltl_to_sat(b.right, false, justice);
+            Term l = ltl_to_sat(b.left, false, justice, prefix);
+            Term r = ltl_to_sat(b.right, false, justice, prefix);
             if (!l || !r) return Term();
             // until_with: the terminating cycle must also satisfy a.
             Term term = with ? solver_->make_term(And, l, r) : r;
-            if (strong) return tableau_.make_U(l, term, justice, prefix_);
+            if (strong) return tableau_.make_U(l, term, justice, prefix);
             // weak until: a W term == term R (a || term).
             return tableau_.make_R(
-                term, solver_->make_term(Or, l, term), prefix_);
+                term, solver_->make_term(Or, l, term), prefix);
           }
           // Negated, with operands already in negation-normal form
           // (nl = sat(!left), nr = sat(!right)):
@@ -639,17 +664,17 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           //   !(a W b)             = !b U (!a && !b)
           //   !(a U_strong (a&&b)) = !a R (!a || !b)
           //   !(a W (a&&b))        = (!a || !b) U !a
-          Term nl = ltl_to_sat(b.left, true, justice);
-          Term nr = ltl_to_sat(b.right, true, justice);
+          Term nl = ltl_to_sat(b.left, true, justice, prefix);
+          Term nr = ltl_to_sat(b.right, true, justice, prefix);
           if (!nl || !nr) return Term();
           if (!with) {
-            if (strong) return tableau_.make_R(nl, nr, prefix_);
+            if (strong) return tableau_.make_R(nl, nr, prefix);
             return tableau_.make_U(
-                nr, solver_->make_term(And, nl, nr), justice, prefix_);
+                nr, solver_->make_term(And, nl, nr), justice, prefix);
           }
           Term nterm = solver_->make_term(Or, nl, nr);  // !(a && b)
-          if (strong) return tableau_.make_R(nl, nterm, prefix_);
-          return tableau_.make_U(nterm, nl, justice, prefix_);
+          if (strong) return tableau_.make_R(nl, nterm, prefix);
+          return tableau_.make_U(nterm, nl, justice, prefix);
         }
 
         default:
@@ -663,8 +688,8 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
   }
 }
 
-Term SystemVerilogEncoder::assertion_expr_to_bool(
-    const slang::ast::AssertionExpr & ae)
+smt::Term AssertionWalker::assertion_expr_to_bool(
+    const slang::ast::AssertionExpr & ae, const string & prefix)
 {
   using namespace slang::ast;
 
@@ -672,22 +697,23 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
     case AssertionExprKind::Clocking: {
       // The clocking event has already been baked into our cycle
       // abstraction; just recurse into the underlying expression.
-      return assertion_expr_to_bool(ae.as<ClockingAssertionExpr>().expr);
+      return assertion_expr_to_bool(ae.as<ClockingAssertionExpr>().expr,
+                                    prefix);
     }
 
     case AssertionExprKind::Simple: {
       auto & simple = ae.as<SimpleAssertionExpr>();
       if (auto * named = resolve_named_assertion_ref(simple.expr)) {
-        return assertion_expr_to_bool(*named);
+        return assertion_expr_to_bool(*named, prefix);
       }
       if (simple.repetition) {
         // `expr[*n:m]`/`expr[+]`/`expr[*]`: route through the general
         // bounded sequence matcher (which throws for an unbounded
         // repeat count) instead of silently ignoring the repetition
         // and returning a bare `bool(expr)`.
-        return match_exists(ae);
+        return match_exists(ae, prefix);
       }
-      Term t = expr_encoder_.expr_to_term(simple.expr, prefix_);
+      Term t = expr_encoder_.expr_to_term(simple.expr, prefix);
       // Normalize to Bool: t != 0.
       Sort sort = t->get_sort();
       Term zero = solver_->make_term(0, sort);
@@ -700,7 +726,7 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
       // truth value (it just postpones when the first violation can
       // be reported), so unwrap the inner sequence.
       if (auto matched = match_const_delay_seq(ae)) {
-        return assertion_expr_to_bool(*matched->second);
+        return assertion_expr_to_bool(*matched->second, prefix);
       }
       return Term();
     }
@@ -722,15 +748,15 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
       // weak_seq_bool(). Any other shape (already a plain Boolean/
       // temporal expression) is unaffected by the qualifier; just
       // unwrap.
-      if (Term w = weak_seq_bool(sw.expr)) return w;
-      return assertion_expr_to_bool(sw.expr);
+      if (Term w = weak_seq_bool(sw.expr, prefix)) return w;
+      return assertion_expr_to_bool(sw.expr, prefix);
     }
 
     case AssertionExprKind::Unary: {
       auto & u = ae.as<UnaryAssertionExpr>();
       switch (u.op) {
         case UnaryAssertionOperator::Not: {
-          Term inner = assertion_expr_to_bool(u.expr);
+          Term inner = assertion_expr_to_bool(u.expr, prefix);
           if (!inner) return Term();
           return solver_->make_term(Not, inner);
         }
@@ -740,7 +766,7 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
           // exactly when P is true at the current cycle (the
           // "always at every cycle" closure is implicit in the
           // per-cycle property check).
-          return assertion_expr_to_bool(u.expr);
+          return assertion_expr_to_bool(u.expr, prefix);
         }
         default:
           // Eventually / SEventually / NextTime / SNextTime can't
@@ -776,8 +802,8 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
         // sequence antecedent (`a ##1 b |-> ...`,
         // `first_match(seq) |-> ...`) falls back to the general
         // bounded sequence matcher.
-        Term lhs = assertion_expr_to_bool(*lhs_inner);
-        if (!lhs) lhs = match_exists(*lhs_inner);
+        Term lhs = assertion_expr_to_bool(*lhs_inner, prefix);
+        if (!lhs) lhs = match_exists(*lhs_inner, prefix);
         if (!lhs) return Term();
 
         // Compute the consequent at its anchor cycle (offset by any
@@ -796,7 +822,7 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
         if (auto matched = match_const_delay_seq(b.right)) {
           delay += matched->first;
           rhs_inner = matched->second;
-          rhs = assertion_expr_to_bool(*rhs_inner);
+          rhs = assertion_expr_to_bool(*rhs_inner, prefix);
         } else if (b.right.kind == AssertionExprKind::SequenceConcat
                    && b.right.as<SequenceConcatExpr>().elements.size() == 1) {
           auto & elem = b.right.as<SequenceConcatExpr>().elements[0];
@@ -807,16 +833,16 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
           }
           uint32_t wmin = elem.delay.min;
           uint32_t wmax = *elem.delay.max;
-          if (Term inner = assertion_expr_to_bool(*elem.sequence)) {
+          if (Term inner = assertion_expr_to_bool(*elem.sequence, prefix)) {
             delay += wmax;
             rhs = inner;
             for (uint32_t i = 1; i <= wmax - wmin; ++i) {
               rhs = solver_->make_term(
-                  Or, rhs, tableau_.delay_bool(inner, i, prefix_));
+                  Or, rhs, tableau_.delay_bool(inner, i, prefix));
             }
           }
         } else {
-          rhs = assertion_expr_to_bool(*rhs_inner);
+          rhs = assertion_expr_to_bool(*rhs_inner, prefix);
         }
         if (!rhs) return Term();
 
@@ -827,27 +853,27 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
           Term one_bv1 = solver_->make_term(1, bv1);
           Term zero_bv1 = solver_->make_term(0, bv1);
           Term lhs_bv = solver_->make_term(Ite, lhs, one_bv1, zero_bv1);
-          Term delayed_bv = tableau_.make_history_chain(lhs_bv, delay, prefix_);
+          Term delayed_bv = tableau_.make_history_chain(lhs_bv, delay, prefix);
           lhs = solver_->make_term(Equal, delayed_bv, one_bv1);
         }
         Term result = solver_->make_term(Implies, lhs, rhs);
         if (lhs_delay > 0) {
           result = solver_->make_term(
-              Or, tableau_.before_cycle(lhs_delay, prefix_), result);
+              Or, tableau_.before_cycle(lhs_delay, prefix), result);
         }
         // `disable iff`: exempt this cycle's check if the disable
         // condition held anywhere in the antecedent-to-consequent
         // shift window, not just at the single cycle the check is
         // anchored at.
-        if (Term dw = tableau_.disable_window(
-                current_disable_cond_, delay, prefix_)) {
+        if (Term dw =
+                tableau_.disable_window(current_disable_cond_, delay, prefix)) {
           result = solver_->make_term(Or, dw, result);
         }
         return result;
       }
 
-      Term lhs = assertion_expr_to_bool(b.left);
-      Term rhs = assertion_expr_to_bool(b.right);
+      Term lhs = assertion_expr_to_bool(b.left, prefix);
+      Term rhs = assertion_expr_to_bool(b.right, prefix);
       if (!lhs || !rhs) return Term();
       switch (b.op) {
         case BinaryAssertionOperator::And:
@@ -874,6 +900,260 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
       // here).  Caller logs the skipped kind if the ltl_to_sat()
       // fallback can't reduce it either.
       return Term();
+  }
+}
+
+// ============================================================================
+// Assertion-statement dispatch (formerly two StatementKind cases in
+// statement.cpp)
+// ============================================================================
+
+void AssertionWalker::process_concurrent_assertion(
+    const slang::ast::ConcurrentAssertionStatement & ca,
+    const slang::ast::Statement & stmt,
+    const string & prefix,
+    const slang::ast::Expression * default_disable_expr)
+{
+  using namespace slang::ast;
+
+  // Handle 'assert', 'assume', 'restrict', and 'cover'.  'assume'/
+  // 'restrict' share the exact same property-shape handling as
+  // 'assert' below; they differ only in what happens to the
+  // resulting boolean once it's built (see the two branches further
+  // down). 'cover' is handled via reachability duality (see the
+  // "SVA design decisions" note at the top of this file): `cover
+  // property(P)` is checked exactly like `assert property(!P)`, so
+  // a "violation" of that surrogate assertion is precisely "P was
+  // reached" -- it shares the same safety fast path as assert/
+  // assume, just with the boolean negated before the shared
+  // disable-window/push logic runs.
+  // `expect (property_expr);` is a procedural blocking-wait
+  // statement (pause until the property holds), not a checked
+  // invariant -- a simulation-control construct with no
+  // synthesizable hardware meaning, the same category as `wait`
+  // elsewhere in this encoder. Handle it before the dispatch so it
+  // doesn't fall through the rest of this function silently.
+  if (ca.assertionKind == AssertionKind::Expect) {
+    logger.log(1,
+               "SystemVerilogEncoder: ignoring 'expect' property "
+               "(simulation-only construct)");
+    return;
+  }
+  bool is_assumption = ca.assertionKind == AssertionKind::Assume
+                       || ca.assertionKind == AssertionKind::Restrict;
+  // `cover sequence(S)` shares the exact same reachability-duality
+  // treatment as `cover property(P)` below -- both just check
+  // "was propertySpec ever true", regardless of whether the
+  // source wrote `property` or `sequence`.
+  bool is_cover = ca.assertionKind == AssertionKind::CoverProperty
+                  || ca.assertionKind == AssertionKind::CoverSequence;
+  if (ca.assertionKind != AssertionKind::Assert && !is_assumption
+      && !is_cover) {
+    return;
+  }
+
+  // Strip the clocking wrapper (the clock event is already
+  // baked into our per-cycle abstraction) and any explicit
+  // `disable iff` wrapper, recording its condition.  If the
+  // statement has no explicit `disable iff`, fall back to the
+  // caller-resolved enclosing module's `default disable iff`, if any.
+  const AssertionExpr * a = &ca.propertySpec;
+  const Expression * disable_expr = nullptr;
+  while (true) {
+    if (a->kind == AssertionExprKind::Clocking) {
+      a = &a->as<ClockingAssertionExpr>().expr;
+    } else if (a->kind == AssertionExprKind::DisableIff) {
+      auto & di = a->as<DisableIffAssertionExpr>();
+      disable_expr = &di.condition;
+      a = &di.expr;
+    } else {
+      break;
+    }
+  }
+  if (!disable_expr) disable_expr = default_disable_expr;
+
+  Term saved_disable_cond = current_disable_cond_;
+  if (disable_expr) {
+    Term dc = expr_encoder_.expr_to_term(*disable_expr, prefix);
+    current_disable_cond_ =
+        solver_->make_term(Distinct, dc, solver_->make_term(0, dc->get_sort()));
+  } else {
+    current_disable_cond_ = Term();
+  }
+
+  // Prefer the pure-safety encoding when the property reduces to
+  // a single current-cycle Boolean (plain `assert P`, `always
+  // P`, bounded `|->` / `|=>` / `##k` implications).
+  // assertion_expr_to_bool returns null as soon as a genuine
+  // liveness operator (eventually / unbounded until) appears.
+  if (Term prop = assertion_expr_to_bool(*a, prefix)) {
+    if (is_cover) {
+      // Reachability duality: negate before the disable-window
+      // exemption below runs, so a `disable iff C` on a cover
+      // property correctly means "don't count P as covered while
+      // C holds" (the composed surrogate is `!P || C`, whose own
+      // violation is exactly "P held and C did not").
+      prop = solver_->make_term(Not, prop);
+    }
+    // Catch-all `disable iff` exemption for property shapes
+    // (plain `assert P`, `always P`, ...) that don't already
+    // gate themselves more precisely inside assertion_expr_to_bool.
+    // For an assumption, this is exactly the right shape too:
+    // "assume P disable iff C" means P is only assumed while C is
+    // false, i.e. the ever-true constraint is (C || P).
+    if (Term dw = tableau_.disable_window(current_disable_cond_, 0, prefix)) {
+      prop = solver_->make_term(Or, dw, prop);
+    }
+    if (is_assumption) {
+      // Hold at every reachable step (init and, via the transition
+      // relation, every subsequent state) -- the same "always true"
+      // primitive already used for plain state/input invariants
+      // elsewhere in the encoder, just applied to an assumption
+      // instead of a proof obligation.
+      fts_.add_constraint(prop, /*to_init_and_next=*/true);
+      logger.log(1,
+                 "SystemVerilogEncoder: extracted assumption "
+                 "constraint from {}",
+                 make_name(prefix, assertion_label(stmt)));
+    } else {
+      propvec_.push_back(prop);
+      logger.log(1,
+                 "SystemVerilogEncoder: extracted safety assertion "
+                 "property {} (index {})",
+                 make_name(prefix, assertion_label(stmt)),
+                 propvec_.size() - 1);
+    }
+    current_disable_cond_ = saved_disable_cond;
+    return;
+  }
+
+  if (is_assumption) {
+    // Temporal (non-safety) assume/restrict properties would need
+    // their own fairness-constraint machinery (assuming a GF
+    // condition rather than proving one), which nothing else in
+    // the encoder builds yet -- skip cleanly rather than attempt a
+    // partial, likely-unsound translation.
+    logger.log(1,
+               "SystemVerilogEncoder: skipping unsupported temporal "
+               "assume/restrict property {}",
+               make_name(prefix, assertion_label(stmt)));
+    current_disable_cond_ = saved_disable_cond;
+    return;
+  }
+
+  if (is_cover) {
+    // A temporal/sequence-shaped cover goal (e.g. `cover property
+    // (a ##1 b)`) would need the reachability duality above
+    // extended through the same LTL tableau `ltl_to_sat()` builds
+    // for `assert`/`assume` -- negating a liveness obligation
+    // doesn't correspond to "was this ever reached" the way it
+    // does for a plain current-cycle Boolean, so that extension
+    // is out of scope here. Throw rather than silently drop.
+    throw PonoException(
+        "SystemVerilogEncoder: temporal/sequence-shaped 'cover "
+        "property' is not supported");
+  }
+
+  // Otherwise build the general LTL tableau for the *negated*
+  // property and collect its eventuality-discharge justice
+  // conditions.  A fair lasso of the resulting system (every
+  // justice condition true infinitely often) on which the
+  // negated property holds at cycle 0 is exactly a
+  // counterexample to the original assertion.
+  TermVec justice;
+  Term satpsi = ltl_to_sat(*a, /*neg=*/true, justice, prefix);
+  if (!satpsi) {
+    logger.log(1,
+               "SystemVerilogEncoder: skipping unsupported temporal "
+               "assertion kind {}",
+               static_cast<int>(a->kind));
+    current_disable_cond_ = saved_disable_cond;
+    return;
+  }
+
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term one_bv1 = solver_->make_term(1, bv1);
+
+  // Per-property activation latch: a free 1-bit constant.  The
+  // justice set forces it to 1 (so this property's time-0
+  // obligation is enabled), while every *other* property's latch
+  // may stay 0, leaving their obligations vacuous.  This keeps
+  // independent LTL properties from interfering in one system.
+  Term act = fts_.make_statevar(
+      make_name(prefix, "__ltl_act_" + std::to_string(tableau_.next_id())),
+      bv1);
+  fts_.assign_next(act, act);
+  Term act_bool = solver_->make_term(Equal, act, one_bv1);
+
+  // Time-0 obligation: when active, the negated property must
+  // hold at the first cycle.  Gated by the shared init flag so
+  // it constrains only cycle 0, and added to the transition
+  // relation (it references the tableau's promise inputs) rather
+  // than to the initial-state predicate.
+  Term obligation = solver_->make_term(
+      Implies,
+      solver_->make_term(And, tableau_.init_flag(prefix), act_bool),
+      satpsi);
+  fts_.add_constraint(obligation, /*to_init_and_next=*/false);
+
+  justice.push_back(act_bool);
+  ltl_justice_.push_back(justice);
+  logger.log(1,
+             "SystemVerilogEncoder: extracted LTL liveness property "
+             "{} (index {}, {} justice condition(s))",
+             make_name(prefix, assertion_label(stmt)),
+             ltl_justice_.size() - 1,
+             justice.size());
+  current_disable_cond_ = saved_disable_cond;
+}
+
+void AssertionWalker::process_immediate_assertion(
+    const slang::ast::ImmediateAssertionStatement & ia,
+    const smt::Term & condition,
+    const string & prefix)
+{
+  using namespace slang::ast;
+
+  // A *procedural* immediate assertion (`assert (expr);`),
+  // distinct from the concurrent `assert property (...)` form
+  // above. Reuses the same Assert-vs-Assume/Restrict split: an
+  // assert becomes a safety property, an assume/restrict becomes a
+  // standing constraint. Guarded by the accumulated path `condition`
+  // (e.g. an enclosing `if`) rather than treated as always-active,
+  // since it's only actually reached when program flow gets there --
+  // "if reached, expr must hold" for assert, "if reached, assume
+  // expr" for assume/restrict. Pass/fail action blocks (`assert (x)
+  // else $error(...);`) are simulation-only display statements with
+  // no synthesis meaning and are intentionally not processed, same as
+  // $display/$error elsewhere in this encoder. `cover` uses the same
+  // reachability-duality contract as process_concurrent_assertion()
+  // above (see the "SVA design decisions" note at the top of this
+  // file): `cover (expr);` is checked exactly like `assert (!expr);`.
+  bool is_assumption = ia.assertionKind == AssertionKind::Assume
+                       || ia.assertionKind == AssertionKind::Restrict;
+  bool is_cover = ia.assertionKind == AssertionKind::CoverProperty;
+  if (ia.assertionKind != AssertionKind::Assert && !is_assumption
+      && !is_cover) {
+    return;
+  }
+  Term cond_term = expr_encoder_.expr_to_term(ia.cond, prefix);
+  Term bool_cond = solver_->make_term(
+      Distinct, cond_term, solver_->make_term(0, cond_term->get_sort()));
+  if (is_cover) {
+    bool_cond = solver_->make_term(Not, bool_cond);
+  }
+  Term prop = (condition == solver_->make_term(true))
+                  ? bool_cond
+                  : solver_->make_term(Implies, condition, bool_cond);
+  if (is_assumption) {
+    fts_.add_constraint(prop, /*to_init_and_next=*/true);
+    logger.log(1, "SystemVerilogEncoder: extracted assumption constraint");
+  } else {
+    propvec_.push_back(prop);
+    logger.log(1,
+               "SystemVerilogEncoder: extracted safety assertion "
+               "property from immediate assertion (index {})",
+               propvec_.size() - 1);
   }
 }
 
