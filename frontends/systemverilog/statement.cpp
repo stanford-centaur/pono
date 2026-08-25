@@ -145,8 +145,8 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
   }
   if (!prev_base) return;
 
-  Term idx = expr_to_term(sel.selector());
-  Term rhs = expr_to_term(rhs_expr);
+  Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix_);
+  Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix_);
   rhs = resize_to(solver_, rhs, elem_w, sel.type->isSigned());
   Term combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
 
@@ -169,7 +169,7 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
 void SystemVerilogEncoder::refresh_loop_var_term(
     const slang::ast::ValueSymbol & sym)
 {
-  auto * cur = eval_ctx().findLocal(&sym);
+  auto * cur = expr_encoder_.eval_ctx().findLocal(&sym);
   if (!cur || !cur->isInteger()) {
     throw PonoException("SystemVerilogEncoder: local variable '"
                         + string(sym.name) + "' lost its constant value");
@@ -224,8 +224,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         if (lval_expr) {
           if (auto * base = find_lhs_base(*lval_expr)) {
             auto & vsym = base->as<ValueSymbol>();
-            if (eval_ctx().findLocal(&vsym)) {
-              if (expr.eval(eval_ctx()).bad()) {
+            if (expr_encoder_.eval_ctx().findLocal(&vsym)) {
+              if (expr.eval(expr_encoder_.eval_ctx()).bad()) {
                 throw PonoException(
                     "SystemVerilogEncoder: assignment to local variable '"
                     + string(base->name) + "' failed to constant-evaluate");
@@ -295,7 +295,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           return writes;
         }
 
-        auto desc = resolve_lvalue(lhs_expr, eval_ctx());
+        auto desc = resolve_lvalue(lhs_expr, expr_encoder_.eval_ctx());
         if (!desc) return {};
         bool base_aliased =
             symbol_table_.port_output_aliases().count(desc->base) > 0;
@@ -508,11 +508,11 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         }
 
         // Stash the slice value for any LValueReference inside rhs.
-        Term saved_lvalue = current_lvalue_term_;
-        current_lvalue_term_ = reassemble_current(writes);
+        Term saved_lvalue =
+            expr_encoder_.set_current_lvalue_term(reassemble_current(writes));
 
-        Term rhs = expr_to_term(rhs_expr);
-        current_lvalue_term_ = saved_lvalue;
+        Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix_);
+        expr_encoder_.set_current_lvalue_term(saved_lvalue);
 
         uint64_t total_w = 0;
         for (auto & w : writes) total_w = std::max(total_w, w.rhs_hi + 1);
@@ -601,7 +601,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // symbolic-guard path below for any condition that isn't
       // const-evaluable (e.g. depends on a runtime signal).
       if (cond_stmt.conditions.size() == 1) {
-        auto const_cv = cond_stmt.conditions[0].expr->eval(eval_ctx());
+        auto const_cv =
+            cond_stmt.conditions[0].expr->eval(expr_encoder_.eval_ctx());
         if (!const_cv.bad()) {
           if (const_cv.isTrue()) {
             process_statement(cond_stmt.ifTrue, ctx, condition);
@@ -615,7 +616,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // Get the condition expression.
       // ConditionalStatement has conditions span; for simple if, there
       // is one condition.
-      Term cond_term = expr_to_term(*cond_stmt.conditions[0].expr);
+      Term cond_term =
+          expr_encoder_.expr_to_term(*cond_stmt.conditions[0].expr, prefix_);
 
       // Ensure condition is a single-bit BV (for use with Ite).
       uint64_t cond_width = cond_term->get_sort()->get_width();
@@ -658,7 +660,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
     case StatementKind::Case: {
       auto & case_stmt = stmt.as<CaseStatement>();
-      Term sel = expr_to_term(case_stmt.expr);
+      Term sel = expr_encoder_.expr_to_term(case_stmt.expr, prefix_);
 
       // For casex/casez, a constant item pattern's X (casex only) or
       // Z (both; `?` is just an alias for `z` here) bits are
@@ -670,7 +672,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // in which case the caller falls back to plain equality.
       auto casex_mask = [&](const Expression & pat_expr)
           -> std::optional<std::pair<uint64_t, uint64_t>> {
-        auto cv = pat_expr.eval(eval_ctx());
+        auto cv = pat_expr.eval(expr_encoder_.eval_ctx());
         if (!cv.isInteger()) return std::nullopt;
         auto & sv = cv.integer();
         uint64_t w = pat_expr.type->getBitWidth();
@@ -718,7 +720,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             match = solver_->make_term(
                 Equal, solver_->make_term(BVAnd, sel, mask_term), value_term);
           } else {
-            Term pat = expr_to_term(*expr);
+            Term pat = expr_encoder_.expr_to_term(*expr, prefix_);
             pat = resize_to(solver_,
                             pat,
                             sel->get_sort()->get_width(),
@@ -817,7 +819,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
         Term saved_disable_cond = current_disable_cond_;
         if (disable_expr) {
-          Term dc = expr_to_term(*disable_expr);
+          Term dc = expr_encoder_.expr_to_term(*disable_expr, prefix_);
           current_disable_cond_ = solver_->make_term(
               Distinct, dc, solver_->make_term(0, dc->get_sort()));
         } else {
@@ -978,7 +980,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       bool is_cover = ia.assertionKind == AssertionKind::CoverProperty;
       if (ia.assertionKind == AssertionKind::Assert || is_assumption
           || is_cover) {
-        Term cond_term = expr_to_term(ia.cond);
+        Term cond_term = expr_encoder_.expr_to_term(ia.cond, prefix_);
         Term bool_cond = solver_->make_term(
             Distinct, cond_term, solver_->make_term(0, cond_term->get_sort()));
         if (is_cover) {
@@ -1013,7 +1015,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & sym = vds.symbol;
       slang::ConstantValue cv;
       if (auto * init = sym.getInitializer()) {
-        cv = init->eval(eval_ctx());
+        cv = init->eval(expr_encoder_.eval_ctx());
       }
       if (cv.bad()) {
         cv = sym.getType().getDefaultValue();
@@ -1022,7 +1024,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         throw PonoException("SystemVerilogEncoder: non-integer local '"
                             + string(sym.name) + "'");
       }
-      eval_ctx().createLocal(&sym, cv);
+      expr_encoder_.eval_ctx().createLocal(&sym, cv);
       auto svint = cv.integer();
       uint64_t width = sym.getType().getBitWidth();
       if (width == 0) width = svint.getBitWidth();
@@ -1037,17 +1039,17 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
     case StatementKind::ForLoop: {
       // Compile-time unroll the loop.  The initializers, stop
-      // expression, and step expressions are evaluated via eval_ctx()
-      // below and must succeed as compile-time constants; a
-      // non-constant bound throws a PonoException rather than being
-      // silently accepted.
+      // expression, and step expressions are evaluated via
+      // expr_encoder_.eval_ctx() below and must succeed as compile-time
+      // constants; a non-constant bound throws a PonoException rather than
+      // being silently accepted.
       auto & loop = stmt.as<ForLoopStatement>();
       std::vector<const ValueSymbol *> declared;
 
       auto bind_var = [&](const VariableSymbol & lv) {
         slang::ConstantValue cv;
         if (auto * init = lv.getInitializer()) {
-          cv = init->eval(eval_ctx());
+          cv = init->eval(expr_encoder_.eval_ctx());
         }
         if (cv.bad()) {
           cv = lv.getType().getDefaultValue();
@@ -1056,12 +1058,12 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           throw PonoException("SystemVerilogEncoder: non-integer for-loop var '"
                               + string(lv.name) + "'");
         }
-        eval_ctx().createLocal(&lv, cv);
+        expr_encoder_.eval_ctx().createLocal(&lv, cv);
         declared.push_back(&lv);
       };
 
       auto refresh_bv = [&](const VariableSymbol & lv) {
-        auto * cur = eval_ctx().findLocal(&lv);
+        auto * cur = expr_encoder_.eval_ctx().findLocal(&lv);
         if (!cur || !cur->isInteger()) {
           throw PonoException("SystemVerilogEncoder: for-loop var '"
                               + string(lv.name) + "' lost its constant value");
@@ -1079,7 +1081,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
       for (auto * lv : loop.loopVars) bind_var(*lv);
       for (auto * init : loop.initializers) {
-        if (init->eval(eval_ctx()).bad()) {
+        if (init->eval(expr_encoder_.eval_ctx()).bad()) {
           throw PonoException(
               "SystemVerilogEncoder: for-loop initializer eval failed");
         }
@@ -1092,7 +1094,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                               + std::to_string(MAX_ITERS) + " iterations");
         }
         if (loop.stopExpr) {
-          auto sv = loop.stopExpr->eval(eval_ctx());
+          auto sv = loop.stopExpr->eval(expr_encoder_.eval_ctx());
           if (sv.bad()) {
             throw PonoException(
                 "SystemVerilogEncoder: for-loop stop eval failed");
@@ -1119,7 +1121,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         }
         if (broke) break;
         for (auto * step : loop.steps) {
-          if (step->eval(eval_ctx()).bad()) {
+          if (step->eval(expr_encoder_.eval_ctx()).bad()) {
             throw PonoException(
                 "SystemVerilogEncoder: for-loop step eval failed");
           }
@@ -1128,7 +1130,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
       for (auto * sym : declared) {
         symbol_table_.loop_var_terms().erase(sym);
-        eval_ctx().deleteLocal(sym);
+        expr_encoder_.eval_ctx().deleteLocal(sym);
       }
       break;
     }
@@ -1164,7 +1166,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & loop = stmt.as<WhileLoopStatement>();
       constexpr size_t MAX_ITERS = 65536;
       for (size_t it = 0;; ++it) {
-        auto cv = loop.cond.eval(eval_ctx());
+        auto cv = loop.cond.eval(expr_encoder_.eval_ctx());
         if (cv.bad()) {
           throw PonoException(
               "SystemVerilogEncoder: 'while' condition is not a "
@@ -1214,7 +1216,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           }
         }
         if (broke) break;
-        auto cv = loop.cond.eval(eval_ctx());
+        auto cv = loop.cond.eval(expr_encoder_.eval_ctx());
         if (cv.bad()) {
           throw PonoException(
               "SystemVerilogEncoder: 'do-while' condition is not a "
@@ -1233,7 +1235,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // signal) is out of scope, same contract as `for`/`while`
       // bounds.
       auto & loop = stmt.as<RepeatLoopStatement>();
-      auto cv = loop.count.eval(eval_ctx());
+      auto cv = loop.count.eval(expr_encoder_.eval_ctx());
       auto n_opt = cv.bad() ? std::nullopt : cv.integer().as<uint64_t>();
       if (!n_opt) {
         throw PonoException(
@@ -1300,7 +1302,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         slang::SVInt iv(static_cast<slang::bitwidth_t>(width),
                         static_cast<uint64_t>(idx),
                         /*isSigned=*/true);
-        eval_ctx().createLocal(&iter_sym, slang::ConstantValue(iv));
+        expr_encoder_.eval_ctx().createLocal(&iter_sym,
+                                             slang::ConstantValue(iv));
         refresh_loop_var_term(iter_sym);
         bool broke = false;
         try {
@@ -1310,13 +1313,13 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           if (sig.kind != LoopControlSignal::Break
               && sig.kind != LoopControlSignal::Continue) {
             symbol_table_.loop_var_terms().erase(&iter_sym);
-            eval_ctx().deleteLocal(&iter_sym);
+            expr_encoder_.eval_ctx().deleteLocal(&iter_sym);
             throw;
           }
           broke = sig.kind == LoopControlSignal::Break;
         }
         symbol_table_.loop_var_terms().erase(&iter_sym);
-        eval_ctx().deleteLocal(&iter_sym);
+        expr_encoder_.eval_ctx().deleteLocal(&iter_sym);
         if (broke) break;
       }
       break;

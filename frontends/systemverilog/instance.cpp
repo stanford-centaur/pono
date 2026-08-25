@@ -289,7 +289,8 @@ void SystemVerilogEncoder::process_continuous_assign(
     // not a numeric value being widened.
     uint64_t total_w = lhs_expr.type->getBitWidth();
     if (total_w == 0) return;
-    Term rhs_full = resize_to(solver_, expr_to_term(rhs_expr), total_w, false);
+    Term rhs_full = resize_to(
+        solver_, expr_encoder_.expr_to_term(rhs_expr, prefix_), total_w, false);
     uint64_t covered = 0;
     for (auto * operand : lhs_expr.as<ConcatenationExpression>().operands()) {
       uint64_t seg_w = operand->type->getBitWidth();
@@ -304,7 +305,9 @@ void SystemVerilogEncoder::process_continuous_assign(
   }
 
   process_continuous_assign_operand(
-      lhs_expr, expr_to_term(rhs_expr), rhs_expr.type->isSigned());
+      lhs_expr,
+      expr_encoder_.expr_to_term(rhs_expr, prefix_),
+      rhs_expr.type->isSigned());
 }
 
 void SystemVerilogEncoder::process_continuous_assign_operand(
@@ -320,7 +323,7 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
   // nullopt here always means resolve_lvalue() couldn't statically
   // resolve this lvalue at all, so throw rather than silently
   // dropping the write.
-  auto desc = resolve_lvalue(lhs_expr, eval_ctx());
+  auto desc = resolve_lvalue(lhs_expr, expr_encoder_.eval_ctx());
   if (!desc) {
     throw PonoException(
         "SystemVerilogEncoder: unsupported continuous-assign lvalue "
@@ -486,7 +489,7 @@ void SystemVerilogEncoder::process_instance(
         uint64_t covered = 0;
         for (auto * operand :
              conn_expr->as<ConcatenationExpression>().operands()) {
-          auto odesc = resolve_lvalue(*operand, eval_ctx());
+          auto odesc = resolve_lvalue(*operand, expr_encoder_.eval_ctx());
           if (!odesc) {
             ok = false;
             break;
@@ -507,7 +510,7 @@ void SystemVerilogEncoder::process_instance(
           output_aliases_added.push_back(internal);
         }
       } else {
-        auto desc = resolve_lvalue(*conn_expr, eval_ctx());
+        auto desc = resolve_lvalue(*conn_expr, expr_encoder_.eval_ctx());
         if (desc) {
           symbol_table_.port_output_aliases()[internal] = {
             { 0, port_w - 1, desc->base, desc->lo, desc->hi }
@@ -516,7 +519,7 @@ void SystemVerilogEncoder::process_instance(
         }
       }
     } else {
-      Term term = expr_to_term(*conn_expr);
+      Term term = expr_encoder_.expr_to_term(*conn_expr, prefix_);
       term = resize_to(solver_,
                        term,
                        port.getType().getBitWidth(),

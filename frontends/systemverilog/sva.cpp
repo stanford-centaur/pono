@@ -14,11 +14,12 @@
  * that reduces a property to a current-cycle Boolean where possible
  * (falling back to ltl_to_sat() for genuine temporal/liveness shapes).
  *
- * This file needs expr_to_term() (to convert the plain Boolean expressions
- * that sit at the leaves of a property/sequence tree), which is entangled
- * with the rest of SystemVerilogEncoder's declaration/wire-resolution
- * state, so it stays here as SystemVerilogEncoder methods rather than
- * moving into tableau.{h,cpp} alongside the pure latch-building gadgets
+ * This file needs expr_encoder_.expr_to_term() (to convert the plain Boolean
+ * expressions that sit at the leaves of a property/sequence tree) and
+ * SystemVerilogEncoder's own declaration/wire-resolution state (via
+ * StmtContext-adjacent bookkeeping like current_disable_cond_/prefix_), so
+ * it stays here as SystemVerilogEncoder methods rather than moving into
+ * tableau.{h,cpp} alongside the pure latch-building gadgets
  * (make_history_chain, delay_bool, init_flag, before_cycle, disable_window,
  * make_X/G/F/R/U) those methods call into via the tableau_ member.
  *
@@ -141,7 +142,7 @@ smt::TermVec SystemVerilogEncoder::offsets_ending_now(
   auto boolean_with_repetition =
       [&](const slang::ast::Expression & expr,
           const std::optional<SequenceRepetition> & repetition) -> TermVec {
-    Term b = expr_to_term(expr);
+    Term b = expr_encoder_.expr_to_term(expr, prefix_);
     b = solver_->make_term(Distinct, b, solver_->make_term(0, b->get_sort()));
     if (!repetition) return { b };
     if (repetition->kind != SequenceRepetition::Consecutive) {
@@ -416,7 +417,7 @@ smt::Term SystemVerilogEncoder::leading_condition(
             "SystemVerilogEncoder: weak()/strong() of a sequence with its "
             "own leading repetition is not supported");
       }
-      Term t = expr_to_term(simple.expr);
+      Term t = expr_encoder_.expr_to_term(simple.expr, prefix_);
       return solver_->make_term(
           Distinct, t, solver_->make_term(0, t->get_sort()));
     }
@@ -507,7 +508,7 @@ smt::Term SystemVerilogEncoder::ltl_to_sat(const slang::ast::AssertionExpr & ae,
         if (!me) return Term();
         return neg ? solver_->make_term(Not, me) : me;
       }
-      Term t = expr_to_term(simple.expr);
+      Term t = expr_encoder_.expr_to_term(simple.expr, prefix_);
       if (!t) return Term();
       Term zero = solver_->make_term(0, t->get_sort());
       Term b = solver_->make_term(Distinct, t, zero);
@@ -686,7 +687,7 @@ Term SystemVerilogEncoder::assertion_expr_to_bool(
         // and returning a bare `bool(expr)`.
         return match_exists(ae);
       }
-      Term t = expr_to_term(simple.expr);
+      Term t = expr_encoder_.expr_to_term(simple.expr, prefix_);
       // Normalize to Bool: t != 0.
       Sort sort = t->get_sort();
       Term zero = solver_->make_term(0, sort);

@@ -6,17 +6,15 @@
  * \copyright See the LICENSE file in the top-level source directory.
  *
  * Besides the public encode() factory, run() (the pipeline it delegates to
- * right after constructing the encoder), and process_module(), this file
- * provides walk_members(), which flattens generate-for/generate-if blocks and
- * arrayed instances into the member dispatch while pushing bracket-indexed
- * hierarchical name prefixes, and eval_ctx(), which lazily builds the
- * EvalContext used to bind procedural loop counters. Anonymous-namespace
- * helpers parse dot-f list files (rejecting unsupported +/- tool directives)
- * and scan the raw syntax tree for `bind` directives, which have no
- * elaborated Symbol to catch during the normal member walk. process_module()
- * runs four ordered passes -- state-variable pre-scan, combinational-wire
- * pre-scan, variable declaration, then assignment processing -- since later
- * passes rely on symbol classifications established earlier.
+ * right after constructing the encoder), and process_module(), this file's
+ * anonymous namespace parses dot-f list files (rejecting unsupported +/-
+ * tool directives) and scans the raw syntax tree for `bind` directives,
+ * which have no elaborated Symbol to catch during the normal member walk
+ * (walk_members() itself is a free function in ast_helpers.h/.cpp).
+ * process_module() runs four ordered passes -- state-variable pre-scan,
+ * combinational-wire pre-scan, variable declaration, then assignment
+ * processing -- since later passes rely on symbol classifications
+ * established earlier.
  */
 
 #include "frontends/systemverilog/encoder.h"
@@ -52,20 +50,6 @@ using namespace std;
 
 namespace pono {
 
-slang::ast::EvalContext & SystemVerilogEncoder::eval_ctx()
-{
-  if (!eval_ctx_) {
-    // Use the slang compilation root as the AST context scope; we
-    // only use the eval context's locals stack to bind procedural
-    // loop counters, so the lookup location doesn't matter.
-    slang::ast::ASTContext ast_ctx(compilation_->getRoot(),
-                                   slang::ast::LookupLocation::min);
-    eval_ctx_ = std::make_unique<slang::ast::EvalContext>(ast_ctx);
-    eval_ctx_->pushEmptyFrame();
-  }
-  return *eval_ctx_;
-}
-
 // ============================================================================
 // Construction / destruction
 // ============================================================================
@@ -74,7 +58,8 @@ SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
     : fts_(fts),
       solver_(fts.solver()),
       tableau_(fts_, solver_),
-      symbol_table_(fts_, solver_)
+      symbol_table_(fts_, solver_),
+      expr_encoder_(symbol_table_, tableau_, solver_)
 {
   symbol_table_.set_driver_resolver(*this);
 }
@@ -186,6 +171,7 @@ void SystemVerilogEncoder::run(const string & filename,
   // Create a compilation and add every source file's syntax tree to it, so
   // they are all elaborated together.
   compilation_ = make_unique<slang::ast::Compilation>();
+  expr_encoder_.bind_compilation(*compilation_);
   for (const auto & source_file : source_files) {
     // SyntaxTree::fromFile returns an expected<shared_ptr<SyntaxTree>, ...>.
     auto tree_result = slang::syntax::SyntaxTree::fromFile(source_file);

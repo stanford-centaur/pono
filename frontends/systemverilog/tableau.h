@@ -18,7 +18,7 @@
  * ever walk a slang AST or convert a slang Expression to a Term. That work
  * (assertion_expr_to_bool(), offsets_ending_now(), ltl_to_sat(), and
  * friends -- see sva.cpp) stays on SystemVerilogEncoder, since it needs
- * expr_to_term(), which is entangled with the rest of that class's
+ * expr_encoder_.expr_to_term(), which in turn needs SymbolTable's
  * declaration/wire-resolution state. Tableau is instead used by
  * SystemVerilogEncoder as an ordinary owned member: it holds no reference
  * back to SystemVerilogEncoder, and takes no callbacks -- every call passes

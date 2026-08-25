@@ -24,7 +24,7 @@ add_library(
   declare.cpp
   instance.cpp
   statement.cpp
-  expr.cpp
+  expr_encoder.cpp
   sva.cpp
   tableau.cpp
 )

@@ -1,5 +1,5 @@
 /*!
- * \file expr.cpp
+ * \file expr_encoder.cpp
  * \brief expr_to_term(): converts slang AST expressions to SMT terms.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
@@ -14,11 +14,16 @@
  * $onehot/$onehot0; $isunknown is always false since this encoder's bitvector
  * model is purely 2-valued (no X/Z state).
  */
+#include "frontends/systemverilog/expr_encoder.h"
+
 #include <string>
 
 #include "frontends/systemverilog/ast_helpers.h"
 #include "frontends/systemverilog/bit_utils.h"
-#include "frontends/systemverilog/encoder.h"
+#include "frontends/systemverilog/symbol_table.h"
+#include "frontends/systemverilog/tableau.h"
+#include "slang/ast/ASTContext.h"
+#include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/Symbol.h"
@@ -30,6 +35,7 @@
 #include "slang/ast/expressions/Operator.h"
 #include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/expressions/SelectExpressions.h"
+#include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
@@ -37,14 +43,49 @@
 #include "slang/numeric/SVInt.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
-#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
 
 namespace pono {
 
-Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
+ExprEncoder::ExprEncoder(SymbolTable & symbol_table,
+                         Tableau & tableau,
+                         const smt::SmtSolver & solver)
+    : symbol_table_(symbol_table), tableau_(tableau), solver_(solver)
+{
+}
+
+ExprEncoder::~ExprEncoder() = default;
+
+void ExprEncoder::bind_compilation(slang::ast::Compilation & compilation)
+{
+  compilation_ = &compilation;
+}
+
+Term ExprEncoder::set_current_lvalue_term(const Term & t)
+{
+  Term prev = current_lvalue_term_;
+  current_lvalue_term_ = t;
+  return prev;
+}
+
+slang::ast::EvalContext & ExprEncoder::eval_ctx()
+{
+  if (!eval_ctx_) {
+    // Use the slang compilation root as the AST context scope; we
+    // only use the eval context's locals stack to bind procedural
+    // loop counters, so the lookup location doesn't matter.
+    slang::ast::ASTContext ast_ctx(compilation_->getRoot(),
+                                   slang::ast::LookupLocation::min);
+    eval_ctx_ = std::make_unique<slang::ast::EvalContext>(ast_ctx);
+    eval_ctx_->pushEmptyFrame();
+  }
+  return *eval_ctx_;
+}
+
+Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
+                               const string & prefix)
 {
   using namespace slang::ast;
 
@@ -130,7 +171,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         // uint64_t) -- nothing else to wildcard against, and this
         // encoder's BV model has no way for a non-literal term to
         // hold an unknown bit at all.
-        Term left = expr_to_term(binop.left());
+        Term left = expr_to_term(binop.left(), prefix);
         uint64_t result_width = expr.type->getBitWidth();
         Term eq;
         auto rhs_cv = binop.right().eval(eval_ctx());
@@ -161,7 +202,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           eq = solver_->make_term(
               Equal, solver_->make_term(BVAnd, left, mask_term), value_term);
         } else {
-          Term right = expr_to_term(binop.right());
+          Term right = expr_to_term(binop.right(), prefix);
           right = resize_to(solver_,
                             right,
                             left->get_sort()->get_width(),
@@ -179,8 +220,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         return resize_to(solver_, result, result_width, false);
       }
 
-      Term left = expr_to_term(binop.left());
-      Term right = expr_to_term(binop.right());
+      Term left = expr_to_term(binop.left(), prefix);
+      Term right = expr_to_term(binop.right(), prefix);
 
       // Both operands are signed iff the *whole* operation is signed
       // (SystemVerilog's usual arithmetic conversion rule: mixing a
@@ -378,7 +419,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
 
     case ExpressionKind::UnaryOp: {
       auto & unop = expr.as<UnaryExpression>();
-      Term operand = expr_to_term(unop.operand());
+      Term operand = expr_to_term(unop.operand(), prefix);
       uint64_t result_width = expr.type->getBitWidth();
 
       Term result;
@@ -505,7 +546,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
             "shape (only a single stream with no `with` range is "
             "supported)");
       }
-      Term base = expr_to_term(*sc.streams()[0].operand);
+      Term base = expr_to_term(*sc.streams()[0].operand, prefix);
       uint64_t slice = sc.getSliceSize();
       if (slice == 0) {
         // `{>>{x}}` (left-to-right): a single stream is unchanged.
@@ -536,7 +577,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // signed type still zero-extends, since there is no sign bit in
       // the source to replicate.
       auto & conv = expr.as<ConversionExpression>();
-      Term inner = expr_to_term(conv.operand());
+      Term inner = expr_to_term(conv.operand(), prefix);
       uint64_t target_width = expr.type->getBitWidth();
       return resize_to(
           solver_, inner, target_width, conv.operand().type->isSigned());
@@ -549,9 +590,9 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         throw PonoException("SystemVerilogEncoder: empty concatenation");
       }
       // Concatenate from MSB (first) to LSB (last).
-      Term result = expr_to_term(*operands[0]);
+      Term result = expr_to_term(*operands[0], prefix);
       for (size_t i = 1; i < operands.size(); i++) {
-        Term next = expr_to_term(*operands[i]);
+        Term next = expr_to_term(*operands[i], prefix);
         result = solver_->make_term(Concat, result, next);
       }
       return result;
@@ -559,7 +600,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
 
     case ExpressionKind::Replication: {
       auto & repl = expr.as<ReplicationExpression>();
-      Term inner = expr_to_term(repl.concat());
+      Term inner = expr_to_term(repl.concat(), prefix);
       // The count should be a compile-time constant.
       auto count_cv = repl.count().getConstant();
       if (!count_cv) {
@@ -587,7 +628,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // over the full slice) and the dynamic case (shift by idx*elem_w
       // then extract elem_w bits) handle arbitrary element widths.
       auto & sel = expr.as<ElementSelectExpression>();
-      Term val = expr_to_term(sel.value());
+      Term val = expr_to_term(sel.value(), prefix);
       auto & sel_expr = sel.selector();
       uint64_t elem_w = expr.type->getBitWidth();
       if (elem_w == 0) elem_w = 1;
@@ -614,7 +655,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       Sort val_sort = solver_->make_sort(BV, val_w);
       // Index arithmetic for a shift amount, not a value -- zero-
       // extend regardless of the index expression's own signedness.
-      Term idx = expr_to_term(sel_expr);
+      Term idx = expr_to_term(sel_expr, prefix);
       idx = resize_to(solver_, idx, val_w, false);
       Term shift_amount = idx;
       if (elem_w != 1) {
@@ -628,7 +669,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
     case ExpressionKind::RangeSelect: {
       // Range select: a[hi:lo]
       auto & sel = expr.as<RangeSelectExpression>();
-      Term val = expr_to_term(sel.value());
+      Term val = expr_to_term(sel.value(), prefix);
       auto & left_expr = sel.left();
       auto & right_expr = sel.right();
 
@@ -659,7 +700,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
             "SystemVerilogEncoder: unsupported member access on "
             + std::string(ma.member.name));
       }
-      Term base = expr_to_term(ma.value());
+      Term base = expr_to_term(ma.value(), prefix);
       auto & field = ma.member.as<FieldSymbol>();
       uint64_t w = field.getType().getBitWidth();
       uint64_t lo = field.bitOffset;
@@ -694,7 +735,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               + std::string(field.name) + "'");
         }
         Term val = resize_to(solver_,
-                             expr_to_term(*sit->second),
+                             expr_to_term(*sit->second, prefix),
                              field.getType().getBitWidth(),
                              sit->second->type->isSigned());
         parts.push_back(val);
@@ -724,7 +765,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
               "SystemVerilogEncoder: pattern-matching ternary condition "
               "('... matches ...') is not supported");
         }
-        Term c_term = expr_to_term(*c.expr);
+        Term c_term = expr_to_term(*c.expr, prefix);
         uint64_t cw = c_term->get_sort()->get_width();
         Term c_bool =
             (cw == 1)
@@ -738,8 +779,8 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
         bool_cond =
             bool_cond ? solver_->make_term(And, bool_cond, c_bool) : c_bool;
       }
-      Term then_val = expr_to_term(ternary.left());
-      Term else_val = expr_to_term(ternary.right());
+      Term then_val = expr_to_term(ternary.left(), prefix);
+      Term else_val = expr_to_term(ternary.right(), prefix);
 
       // Ensure then/else have the same width, sign-extending rather
       // than zero-extending a narrower signed branch (see BinaryOp's
@@ -778,7 +819,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
                               + std::string(call.getSubroutineName())
                               + " with no value argument");
         }
-        return expr_to_term(*args[0]);
+        return expr_to_term(*args[0], prefix);
       }
       if (call.isSystemCall() && call.getSubroutineName() == "$past") {
         auto args = call.arguments();
@@ -786,7 +827,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           throw PonoException(
               "SystemVerilogEncoder: $past with no value argument");
         }
-        Term val = expr_to_term(*args[0]);
+        Term val = expr_to_term(*args[0], prefix);
         uint32_t n = 1;
         if (args.size() >= 2 && args[1]) {
           auto cv = args[1]->eval(eval_ctx());
@@ -796,7 +837,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           }
         }
         if (n == 0) return val;
-        return tableau_.make_history_chain(val, n, prefix_);
+        return tableau_.make_history_chain(val, n, prefix);
       }
       if (call.isSystemCall() && call.getSubroutineName() == "$stable") {
         auto args = call.arguments();
@@ -804,9 +845,9 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           throw PonoException(
               "SystemVerilogEncoder: $stable with no value argument");
         }
-        Term val = expr_to_term(*args[0]);
+        Term val = expr_to_term(*args[0], prefix);
         Term eq = solver_->make_term(
-            Equal, val, tableau_.make_history_chain(val, 1, prefix_));
+            Equal, val, tableau_.make_history_chain(val, 1, prefix));
         Sort bv1 = solver_->make_sort(BV, 1);
         return solver_->make_term(
             Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
@@ -820,9 +861,9 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
           throw PonoException(
               "SystemVerilogEncoder: $changed with no value argument");
         }
-        Term val = expr_to_term(*args[0]);
+        Term val = expr_to_term(*args[0], prefix);
         Term neq = solver_->make_term(
-            Distinct, val, tableau_.make_history_chain(val, 1, prefix_));
+            Distinct, val, tableau_.make_history_chain(val, 1, prefix));
         Sort bv1 = solver_->make_sort(BV, 1);
         return solver_->make_term(
             Ite, neq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
@@ -842,10 +883,10 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
                               + std::string(call.getSubroutineName())
                               + " with no value argument");
         }
-        Term val = expr_to_term(*args[0]);
+        Term val = expr_to_term(*args[0], prefix);
         Sort bv1 = solver_->make_sort(BV, 1);
         Term bit0 = solver_->make_term(Op(Extract, 0, 0), val);
-        Term prev_bit0 = tableau_.make_history_chain(bit0, 1, prefix_);
+        Term prev_bit0 = tableau_.make_history_chain(bit0, 1, prefix);
         Term now_val = solver_->make_term(is_rose ? 1 : 0, bv1);
         Term prev_val = solver_->make_term(is_rose ? 0 : 1, bv1);
         Term edge =
@@ -872,7 +913,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
                               + std::string(call.getSubroutineName())
                               + " with no value argument");
         }
-        Term val = expr_to_term(*args[0]);
+        Term val = expr_to_term(*args[0], prefix);
         Term one = solver_->make_term(1, val->get_sort());
         Term minus_one = solver_->make_term(BVSub, val, one);
         Term at_most_one =

@@ -31,14 +31,18 @@
  *                         implements SymbolTable::DriverResolver as a
  *                         temporary shim (see symbol_table.h) until a
  *                         dedicated instance-walking class takes over.
+ *   - expr_encoder.h/.cpp: the ExprEncoder class -- expr_to_term() and its
+ *                         shared EvalContext, depending only on SymbolTable
+ *                         (to resolve a read) and Tableau (for the sampled-
+ *                         value system functions). Owned by
+ *                         SystemVerilogEncoder as expr_encoder_.
  *   - declare.cpp:        the variable-declaration pass.
  *   - instance.cpp:       continuous assigns, always_comb/ff/initial blocks,
  *                         and per-instance (child module) processing.
  *   - statement.cpp:      the process_statement() procedural statement encoder.
- *   - expr.cpp:           the expr_to_term() expression encoder.
  *   - sva.cpp:            SVA/LTL AST-walking and dispatch
  * (assertion_expr_to_bool, offsets_ending_now, ltl_to_sat, and friends) --
- *                         needs expr_to_term(), so it stays here rather than
+ *                         needs expr_encoder_, so it stays here rather than
  *                         moving into tableau.{h,cpp}.
  *   - tableau.h/.cpp:     the Tableau class -- the SVA/LTL tableau's pure
  *                         latch-building primitives, with no dependency on
@@ -54,6 +58,7 @@
 #include <vector>
 
 #include "core/fts.h"
+#include "frontends/systemverilog/expr_encoder.h"
 #include "frontends/systemverilog/symbol_table.h"
 #include "frontends/systemverilog/tableau.h"
 #include "smt-switch/smt.h"
@@ -62,7 +67,6 @@
 // to all translation units.
 namespace slang::ast {
 class Compilation;
-class Type;
 class Expression;
 class Statement;
 class Symbol;
@@ -73,7 +77,6 @@ class InstanceBodySymbol;
 class ProceduralBlockSymbol;
 class ContinuousAssignSymbol;
 class PortSymbol;
-class EvalContext;
 class AssertionExpr;
 class ElementSelectExpression;
 }  // namespace slang::ast
@@ -321,21 +324,12 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
                          StmtContext ctx,
                          const smt::Term & condition);
 
-  /** Re-derive `loop_var_terms_[&sym]` from `sym`'s current constant
-   *  value in eval_ctx() (after a for-loop step, a while/repeat/foreach
-   *  iteration, or a plain assignment to a compile-time-unrolled local).
-   *  Throws if `sym` isn't a currently-bound integer local. */
+  /** Re-derive `symbol_table_.loop_var_terms()[&sym]` from `sym`'s
+   *  current constant value in expr_encoder_.eval_ctx() (after a
+   *  for-loop step, a while/repeat/foreach iteration, or a plain
+   *  assignment to a compile-time-unrolled local).  Throws if `sym`
+   *  isn't a currently-bound integer local. */
   void refresh_loop_var_term(const slang::ast::ValueSymbol & sym);
-
-  // ---------- Expression conversion ----------
-
-  /** Convert a slang expression to an SMT term.
-   *  Handles operators, literals, variable references, concatenation,
-   *  bit-selects, ternary, etc.
-   *  @param expr the slang expression
-   *  @return the corresponding SMT term
-   */
-  smt::Term expr_to_term(const slang::ast::Expression & expr);
 
   // ---------- Helpers ----------
 
@@ -367,16 +361,6 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
    *  @param inst the child instance to process
    */
   void process_instance(const slang::ast::InstanceSymbol & inst);
-
-  /** Lazily construct and return the encoder's slang EvalContext, used
-   *  throughout statement/expression processing to evaluate
-   *  compile-time-constant expressions -- not just loop bounds and
-   *  step expressions when unrolling procedural loops, but also
-   *  things like case-statement selectors/patterns, constant
-   *  array/bit-select indices, and other constant-foldable operands
-   *  (e.g. a `**` exponent or `$past`'s cycle-count argument).
-   */
-  slang::ast::EvalContext & eval_ctx();
 
   /** Compile an SVA AssertionExpr into a Boolean SMT term that holds
    *  iff the assertion passes at the current cycle.  Returns a null
@@ -499,6 +483,10 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   // (see the private overrides below) as a temporary shim.
   SymbolTable symbol_table_;
 
+  // expr_to_term() and its shared EvalContext -- see expr_encoder.h.
+  // Holds no reference back to this class.
+  ExprEncoder expr_encoder_;
+
   // Safety properties extracted from SVA assert statements.
   smt::TermVec propvec_;
 
@@ -518,20 +506,6 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   // instances so wires redirected via port_output_aliases_ get named
   // in their owning scope rather than the child's.
   std::string parent_prefix_;
-
-  // Slang evaluation context, lazily constructed on first use to
-  // evaluate constant bounds and step expressions during for-loop
-  // unrolling.  Owned via unique_ptr because EvalContext is not
-  // default-constructible and is only forward-declared here.
-  std::unique_ptr<slang::ast::EvalContext> eval_ctx_;
-
-  // Stashed "current value of the LHS" used when expanding compound
-  // assignments (`x &= y`, `x += y`, ...).  Slang represents the
-  // implicit self-reference in the RHS as an
-  // ExpressionKind::LValueReference; expr_to_term returns this term
-  // for that case.  Set just before converting a compound RHS and
-  // cleared right after, with save/restore for nested contexts.
-  smt::Term current_lvalue_term_;
 
   // Scope of the module instance body currently being processed by
   // process_assignments().  Used to look up that module's `default
