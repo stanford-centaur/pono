@@ -34,6 +34,17 @@ TEST_P(SVUnitTests, BinaryAnd) { check_bmc("binary_and.sv", 0); }
 
 TEST_P(SVUnitTests, PastCall) { check_bmc("past_call.sv", 1); }
 
+// `$past(expr, n, enable)`'s `enable` argument gates whether each cycle's
+// sample is taken -- freezing the whole delayed history on disabled
+// cycles rather than being silently ignored (as it was before this
+// history-chain gating was added). Checked as a genuine identity against
+// a hand-rolled "sample-on-enable, else hold" register that implements
+// the same rule directly -- see the comment in past_call_enable.sv.
+TEST_P(SVUnitTests, PastCallWithEnable)
+{
+  check_bmc("past_call_enable.sv", 4, ProverResult::UNKNOWN);
+}
+
 TEST_P(SVUnitTests, SequenceDelay) { check_bmc("sequence_delay.sv", 2); }
 
 TEST_P(SVUnitTests, MultipleAssertions)

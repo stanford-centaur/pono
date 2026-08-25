@@ -49,7 +49,8 @@ string Tableau::make_name(const string & name_prefix, const string & name) const
 
 Term Tableau::make_history_chain(const Term & value,
                                  uint32_t n,
-                                 const string & name_prefix)
+                                 const string & name_prefix,
+                                 const Term & enable)
 {
   Sort sort = value->get_sort();
   Term zero = solver_->make_term(0, sort);
@@ -60,7 +61,9 @@ Term Tableau::make_history_chain(const Term & value,
                   "__sva_past_" + std::to_string(latch_counter_++)),
         sort);
     fts_.constrain_init(solver_->make_term(Equal, latch, zero));
-    fts_.assign_next(latch, link);
+    Term next_val =
+        enable ? solver_->make_term(Ite, enable, link, latch) : link;
+    fts_.assign_next(latch, next_val);
     link = latch;
   }
   return link;

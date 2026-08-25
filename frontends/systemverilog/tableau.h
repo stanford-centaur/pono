@@ -49,11 +49,18 @@ class Tableau
    *         returning `value` unchanged)
    *  @param name_prefix the hierarchical name prefix of the module this
    *         latch belongs to, used to keep its name unique
+   *  @param enable if non-null, a Bool-sorted condition gating the whole
+   *         chain: on a cycle where `enable` is false, none of the
+   *         chain's latches advance, so the entire delayed history is
+   *         held rather than shifted (`$past`'s optional `enable`
+   *         argument). Null (the default) means "always advance",
+   *         matching the chain's previous unconditional behavior.
    *  @return a Term holding `value` from `n` cycles ago
    */
   smt::Term make_history_chain(const smt::Term & value,
                                uint32_t n,
-                               const std::string & name_prefix);
+                               const std::string & name_prefix,
+                               const smt::Term & enable = smt::Term());
 
   /** Like make_history_chain(), but for a Bool-sorted (not BV-sorted)
    *  `cond` -- some solvers (e.g. Bitwuzla) can't build a state

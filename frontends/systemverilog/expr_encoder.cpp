@@ -43,6 +43,7 @@
 #include "slang/numeric/SVInt.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -836,14 +837,49 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
             if (opt) n = *opt;
           }
         }
+        // Optional `enable`: gates whether each cycle's sample is taken
+        // at all -- freezing the whole history chain (not just this
+        // call's result) on cycles where it's false, so a later $past
+        // still sees the last-enabled value rather than skipping over
+        // a disabled cycle's stale sample.
+        Term enable;
+        if (args.size() >= 3 && args[2]) {
+          Term e = expr_to_term(*args[2], prefix);
+          uint64_t ew = e->get_sort()->get_width();
+          enable = (ew == 1)
+                       ? solver_->make_term(
+                             Equal,
+                             e,
+                             solver_->make_term(1, solver_->make_sort(BV, 1)))
+                       : solver_->make_term(
+                             Distinct, e, solver_->make_term(0, e->get_sort()));
+        }
+        // Optional `clocking_event`: this encoder has no clock-domain
+        // model (single global clock is a deliberate design decision --
+        // see assertion_walker.cpp's multiclock-collapse note), so an
+        // explicit clocking event can't be honored. Logged rather than
+        // silently dropped, per this encoder's unsupported-construct
+        // contract.
+        if (args.size() >= 4 && args[3]) {
+          logger.log(1,
+                     "SystemVerilogEncoder: $past's explicit clocking_event "
+                     "argument is not modeled (single global clock); "
+                     "ignoring");
+        }
         if (n == 0) return val;
-        return tableau_.make_history_chain(val, n, prefix);
+        return tableau_.make_history_chain(val, n, prefix, enable);
       }
       if (call.isSystemCall() && call.getSubroutineName() == "$stable") {
         auto args = call.arguments();
         if (args.empty() || !args[0]) {
           throw PonoException(
               "SystemVerilogEncoder: $stable with no value argument");
+        }
+        if (args.size() >= 2 && args[1]) {
+          logger.log(1,
+                     "SystemVerilogEncoder: $stable's explicit "
+                     "clocking_event argument is not modeled (single "
+                     "global clock); ignoring");
         }
         Term val = expr_to_term(*args[0], prefix);
         Term eq = solver_->make_term(
@@ -860,6 +896,12 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
         if (args.empty() || !args[0]) {
           throw PonoException(
               "SystemVerilogEncoder: $changed with no value argument");
+        }
+        if (args.size() >= 2 && args[1]) {
+          logger.log(1,
+                     "SystemVerilogEncoder: $changed's explicit "
+                     "clocking_event argument is not modeled (single "
+                     "global clock); ignoring");
         }
         Term val = expr_to_term(*args[0], prefix);
         Term neq = solver_->make_term(
@@ -882,6 +924,13 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
           throw PonoException("SystemVerilogEncoder: "
                               + std::string(call.getSubroutineName())
                               + " with no value argument");
+        }
+        if (args.size() >= 2 && args[1]) {
+          logger.log(1,
+                     "SystemVerilogEncoder: "
+                         + std::string(call.getSubroutineName())
+                         + "'s explicit clocking_event argument is not "
+                           "modeled (single global clock); ignoring");
         }
         Term val = expr_to_term(*args[0], prefix);
         Sort bv1 = solver_->make_sort(BV, 1);
