@@ -601,29 +601,36 @@ void StatementEncoder::process_statement(
         }
       }
 
-      // Get the condition expression.
-      // ConditionalStatement has conditions span; for simple if, there
-      // is one condition.
-      Term cond_term =
-          expr_encoder_.expr_to_term(*cond_stmt.conditions[0].expr, prefix);
-
-      // Ensure condition is a single-bit BV (for use with Ite).
-      uint64_t cond_width = cond_term->get_sort()->get_width();
-      if (cond_width > 1) {
-        // Non-zero reduction: cond != 0
-        Term zero = solver_->make_term(0, cond_term->get_sort());
-        cond_term = solver_->make_term(Distinct, cond_term, zero);
-        cond_term = solver_->make_term(
-            Ite,
-            cond_term,
-            solver_->make_term(1, solver_->make_sort(BV, 1)),
-            solver_->make_term(0, solver_->make_sort(BV, 1)));
+      // Get the condition expression(s). More than one `&&&`-joined
+      // condition is legal (LRM 12.4.4); AND together the boolean
+      // reduction of each condition rather than reading only
+      // conditions[0]. A `matches` pattern on any condition introduces
+      // destructuring bind semantics this encoder doesn't implement --
+      // throw rather than silently evaluate only the plain boolean part
+      // of it (mirrors ConditionalExpression handling in
+      // expr_encoder.cpp). Each condition's nonzero-reduction is a
+      // Bool-sorted term (like LogicalAnd/LogicalOr above use); only
+      // convert back to BV1 once, after ANDing, to avoid mixing Bool
+      // and BV1 sorts under a single BV-typed `And`.
+      Term bool_cond;
+      for (auto & c : cond_stmt.conditions) {
+        if (c.pattern) {
+          throw PonoException(
+              "SystemVerilogEncoder: pattern-matching if-condition "
+              "('... matches ...') is not supported");
+        }
+        Term c_term = expr_encoder_.expr_to_term(*c.expr, prefix);
+        Term c_bool = solver_->make_term(
+            Distinct, c_term, solver_->make_term(0, c_term->get_sort()));
+        bool_cond =
+            bool_cond ? solver_->make_term(And, bool_cond, c_bool) : c_bool;
       }
 
       // Build then-condition and else-condition.
       Sort bv1 = solver_->make_sort(BV, 1);
       Term one = solver_->make_term(1, bv1);
       Term zero = solver_->make_term(0, bv1);
+      Term cond_term = solver_->make_term(Ite, bool_cond, one, zero);
 
       Term then_cond;
       Term else_cond;

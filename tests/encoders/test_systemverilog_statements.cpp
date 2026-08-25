@@ -116,6 +116,15 @@ TEST_P(SVUnitTests, PriorityIfUniqueCaseHolds)
   check_bmc("priority_if_unique_case_holds.sv", 6, ProverResult::UNKNOWN);
 }
 
+// A `&&&`-joined multi-condition `if` (`if (a &&& b) ...`, LRM 12.4.4)
+// must AND together every joined condition rather than reading only
+// conditions[0]; mirrors MultiConditionTernary's coverage of the
+// analogous ConditionalOp path for the ConditionalStatement path.
+TEST_P(SVUnitTests, MultiConditionIf)
+{
+  check_bmc("multi_cond_if.sv", 0, ProverResult::UNKNOWN);
+}
+
 // A `case` statement's `default:` arm only applies when no other item
 // matched: process_statement's Case handler gives the default arm's
 // condition as `condition AND NOT(any item matched)`, excluding every
