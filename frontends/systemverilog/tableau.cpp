@@ -24,8 +24,9 @@
  * operators (F, strong-U) additionally emit a justice (GF) condition
  * that discharges the eventuality, ruling out lassos where a promise
  * is made forever but never fulfilled.  Callers (ltl_to_sat() in
- * sva.cpp) push negation to the leaves on the fly, so the testers built
- * here always match the negation-normal form of the (negated) property.
+ * assertion_walker.cpp) push negation to the leaves on the fly, so the
+ * testers built here always match the negation-normal form of the
+ * (negated) property.
  */
 #include "frontends/systemverilog/tableau.h"
 

@@ -41,7 +41,6 @@
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
-#include "slang/syntax/AllSyntax.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "utils/exceptions.h"
 #include "utils/logger.h"

@@ -65,7 +65,8 @@ TEST_P(SVUnitTests, RestrictPropertyConstrainsTrace)
 }
 
 // `cover property (P)`: implemented via reachability duality (see the
-// design-decision note at the top of frontends/systemverilog/sva.cpp) --
+// design-decision note at the top of
+// frontends/systemverilog/assertion_walker.cpp) --
 // checked exactly like `assert property (!P)`, so finding a
 // counterexample to that surrogate assertion is precisely "P was
 // reached". `data` is free, so the cover point (data == 5) is reachable
