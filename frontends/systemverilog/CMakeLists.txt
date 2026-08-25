@@ -22,7 +22,7 @@ add_library(
   bit_utils.cpp
   symbol_table.cpp
   declarer.cpp
-  instance.cpp
+  instance_encoder.cpp
   statement_encoder.cpp
   expr_encoder.cpp
   assertion_walker.cpp

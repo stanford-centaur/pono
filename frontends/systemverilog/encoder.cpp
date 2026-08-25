@@ -63,9 +63,14 @@ SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
       declarer_(symbol_table_, fts_, solver_),
       assertion_walker_(expr_encoder_, tableau_, solver_, fts_),
       statement_encoder_(
-          symbol_table_, expr_encoder_, assertion_walker_, fts_, solver_)
+          symbol_table_, expr_encoder_, assertion_walker_, fts_, solver_),
+      instance_encoder_(symbol_table_,
+                        declarer_,
+                        statement_encoder_,
+                        expr_encoder_,
+                        fts_,
+                        solver_)
 {
-  symbol_table_.set_driver_resolver(*this);
 }
 
 SystemVerilogEncoder::~SystemVerilogEncoder() = default;
@@ -177,6 +182,7 @@ void SystemVerilogEncoder::run(const string & filename,
   // they are all elaborated together.
   compilation_ = make_unique<slang::ast::Compilation>();
   expr_encoder_.bind_compilation(*compilation_);
+  instance_encoder_.bind_compilation(*compilation_);
   for (const auto & source_file : source_files) {
     // SyntaxTree::fromFile returns an expected<shared_ptr<SyntaxTree>, ...>.
     auto tree_result = slang::syntax::SyntaxTree::fromFile(source_file);
@@ -239,9 +245,12 @@ void SystemVerilogEncoder::run(const string & filename,
 void SystemVerilogEncoder::process_module(
     const slang::ast::InstanceSymbol & inst)
 {
-  string inst_name(inst.name);
-  logger.log(1, "SystemVerilogEncoder: processing module {}", inst_name);
-  prefix_ = inst_name;
+  string prefix(inst.name);
+  logger.log(1, "SystemVerilogEncoder: processing module {}", prefix);
+  // The top-level module has no enclosing scope, so its own
+  // parent_prefix (where its own output-port aliases would live) is
+  // empty.
+  string parent_prefix;
 
   auto & body = inst.body;
 
@@ -254,19 +263,19 @@ void SystemVerilogEncoder::process_module(
   // sibling's always_ff through a hierarchical/interface-port
   // reference) doesn't get its members wrongly declared as free inputs
   // before its true driver is discovered.
-  symbol_table_.pre_scan_state_vars(body, prefix_);
+  symbol_table_.pre_scan_state_vars(body, prefix);
 
   // Second pre-pass: identify combinational wire symbols from
   // always_comb blocks, legacy `always` blocks without non-blocking
   // assignments, and continuous-assign LHS values.  Wires are not
   // independent variables -- they will be macro-substituted with their
   // defining expressions, so we must skip declaring them as input vars.
-  walk_members(body, prefix_, [&](const slang::ast::Symbol & member) {
+  walk_members(body, prefix, [&](const slang::ast::Symbol & member) {
     if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
       auto & proc = member.as<slang::ast::ProceduralBlockSymbol>();
       if (proc.procedureKind == slang::ast::ProceduralBlockKind::AlwaysComb) {
         symbol_table_.pre_scan_always_comb(
-            proc.getBody(), proc, prefix_, parent_prefix_);
+            proc.getBody(), proc, prefix, parent_prefix);
       } else if (proc.procedureKind
                  == slang::ast::ProceduralBlockKind::Always) {
         // Legacy always: combinational iff it has no non-blocking
@@ -275,7 +284,7 @@ void SystemVerilogEncoder::process_module(
         collect_nonblocking_targets(proc.getBody(), nb_targets);
         if (nb_targets.empty()) {
           symbol_table_.pre_scan_always_comb(
-              proc.getBody(), proc, prefix_, parent_prefix_);
+              proc.getBody(), proc, prefix, parent_prefix);
         }
       }
     } else if (member.kind == slang::ast::SymbolKind::ContinuousAssign) {
@@ -288,7 +297,7 @@ void SystemVerilogEncoder::process_module(
           if (!symbol_table_.state_var_symbols().count(sym)) {
             symbol_table_.wire_symbols().insert(sym);
             symbol_table_.wire_drivers()[sym] = {
-              &ca, nullptr, prefix_, parent_prefix_
+              &ca, nullptr, prefix, parent_prefix
             };
           }
         } else if (auto * base = find_lhs_base(lhs)) {
@@ -302,17 +311,17 @@ void SystemVerilogEncoder::process_module(
       }
     } else if (member.kind == slang::ast::SymbolKind::Instance) {
       symbol_table_.pre_scan_instance(member.as<slang::ast::InstanceSymbol>(),
-                                      prefix_);
+                                      prefix);
     }
   });
 
   // Third pass: declare state vars, inputs, and output-port aliases.
   // Wire symbols are skipped here -- they get their defining term
   // assigned during combinational-assignment processing.
-  declarer_.declare_variables(body, prefix_);
+  declarer_.declare_variables(body, prefix);
 
   // Fourth pass: process behavioral code and continuous assignments.
-  process_assignments(body);
+  instance_encoder_.process_assignments(body, prefix, parent_prefix);
 }
 
 }  // namespace pono

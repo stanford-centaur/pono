@@ -27,10 +27,11 @@
  *                         prescan.cpp) and resolves a symbol to its SMT
  *                         term, including on-demand wire resolution
  *                         (formerly terms.cpp's stateful half). Owned by
- *                         SystemVerilogEncoder as symbol_table_; this class
- *                         implements SymbolTable::DriverResolver as a
- *                         temporary shim (see symbol_table.h) until a
- *                         dedicated instance-walking class takes over.
+ *                         SystemVerilogEncoder as symbol_table_.
+ *                         InstanceEncoder implements its
+ *                         SymbolTable::DriverResolver interface (see
+ *                         symbol_table.h) -- the one genuinely circular
+ *                         dependency in this whole rearchitecture.
  *   - expr_encoder.h/.cpp: the ExprEncoder class -- expr_to_term() and its
  *                         shared EvalContext, depending only on SymbolTable
  *                         (to resolve a read) and Tableau (for the sampled-
@@ -39,8 +40,12 @@
  *   - declarer.h/.cpp:    the Declarer class -- the variable-declaration
  *                         pass, depending only on SymbolTable. Owned by
  *                         SystemVerilogEncoder as declarer_.
- *   - instance.cpp:       continuous assigns, always_comb/ff/initial blocks,
- *                         and per-instance (child module) processing.
+ *   - instance_encoder.h/.cpp: the InstanceEncoder class -- continuous
+ *                         assigns, always_comb/ff/initial blocks, and
+ *                         per-instance (child module) processing,
+ *                         depending on SymbolTable, Declarer,
+ *                         StatementEncoder, and ExprEncoder. Owned by
+ *                         SystemVerilogEncoder as instance_encoder_.
  *   - statement_encoder.h/.cpp: the StatementEncoder class -- the
  *                         process_statement() procedural statement encoder,
  *                         depending on SymbolTable, ExprEncoder, and
@@ -70,6 +75,7 @@
 #include "frontends/systemverilog/assertion_walker.h"
 #include "frontends/systemverilog/declarer.h"
 #include "frontends/systemverilog/expr_encoder.h"
+#include "frontends/systemverilog/instance_encoder.h"
 #include "frontends/systemverilog/statement_encoder.h"
 #include "frontends/systemverilog/symbol_table.h"
 #include "frontends/systemverilog/tableau.h"
@@ -79,24 +85,12 @@
 // to all translation units.
 namespace slang::ast {
 class Compilation;
-class Expression;
-class Statement;
-class Symbol;
-class ValueSymbol;
-class Scope;
 class InstanceSymbol;
-class InstanceBodySymbol;
-class ProceduralBlockSymbol;
-class ContinuousAssignSymbol;
-class PortSymbol;
 }  // namespace slang::ast
 
 namespace pono {
 
-// Temporarily implements SymbolTable::DriverResolver itself (see
-// symbol_table.h) until a dedicated instance-walking class exists to take
-// over that role.
-class SystemVerilogEncoder : private SymbolTable::DriverResolver
+class SystemVerilogEncoder
 {
  public:
   /** The properties extracted from a SystemVerilog design by encode(). */
@@ -202,109 +196,6 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   /** Process a top-level module instance. */
   void process_module(const slang::ast::InstanceSymbol & inst);
 
-  /** Second pass: process all behavioral and structural assignments.
-   *  Walks always blocks, continuous assigns, and initial blocks.
-   */
-  void process_assignments(const slang::ast::InstanceBodySymbol & body);
-
-  /** Process an always_ff block to extract next-state update functions. */
-  void process_always_ff(const slang::ast::ProceduralBlockSymbol & proc);
-
-  /** Shared implementation of process_always_ff(): process `body` with
-   *  StatementEncoder::StmtContext::NEXT_STATE and commit every
-   *  accumulated pending_next_updates_ entry via assign_next(). Blocking-
-   *  vs. nonblocking-assignment syntax makes no difference to this
-   *  encoding -- only the StmtContext does -- so this is also reused
-   *  directly for `always_latch` (whose writes use blocking `=`, but
-   *  need exactly the same "holds previous value when not written"
-   *  register semantics) and for a `forever @(...) ...` loop
-   *  recognized as a legacy structural spelling of `always_ff`.
-   *  @param body the statement body to process (typically a Timed
-   *              statement wrapping the event-controlled block)
-   */
-  void process_next_state_body(const slang::ast::Statement & body);
-
-  /** Process an always_comb block to extract combinational definitions. */
-  void process_always_comb(const slang::ast::ProceduralBlockSymbol & proc);
-
-  /** Process an initial block to extract initial-state constraints. */
-  void process_initial(const slang::ast::ProceduralBlockSymbol & proc);
-
-  /** Process a continuous assignment (assign statement). */
-  void process_continuous_assign(const slang::ast::ContinuousAssignSymbol & ca);
-
-  /** Process one write from a continuous assignment: `lhs_expr` is
-   *  either the assignment's whole LHS (the common case), or one
-   *  operand of a concatenation-target LHS (`assign {hi, lo} = ...`),
-   *  in which case `rhs` is already sliced down to that operand's own
-   *  width.
-   *  @param lhs_expr the (non-concatenation) lvalue expression being
-   *                  written
-   *  @param rhs the value to write, resized to lhs_expr's width
-   *  @param rhs_signed whether to sign-extend (rather than zero-
-   *         extend) `rhs` if it needs to grow to fit lhs_expr's width
-   *         -- the caller passes the *source* expression's own
-   *         signedness (false for a concatenation-target slice, which
-   *         is positional bit-splicing, not a numeric value)
-   */
-  void process_continuous_assign_operand(
-      const slang::ast::Expression & lhs_expr,
-      const smt::Term & rhs,
-      bool rhs_signed);
-
-  /** Process an always_comb block, or a continuous assign, unless it
-   *  has already been processed (either by the normal walk reaching
-   *  it, or because some earlier read forced it via
-   *  resolve_wire_on_demand()).  Every call site that would otherwise
-   *  call process_always_comb() / process_continuous_assign() directly
-   *  goes through these instead, so a driver is never processed twice.
-   */
-  void process_always_comb_once(const slang::ast::ProceduralBlockSymbol & proc);
-  void process_continuous_assign_once(
-      const slang::ast::ContinuousAssignSymbol & ca);
-
-  // ---------- SymbolTable::DriverResolver overrides ----------
-  // Temporary shim (see symbol_table.h and encoder.h's file-level doc
-  // comment) until a dedicated instance-walking class implements this
-  // for real. Switches into the driver's own recorded scope before
-  // dispatching to the *_once() methods above, since resolve_wire_on_demand()
-  // can be reached from a completely different scope than the one that
-  // drives the wire.
-  void resolve_continuous_assign(const slang::ast::ContinuousAssignSymbol & ca,
-                                 const std::string & prefix,
-                                 const std::string & parent_prefix) override
-  {
-    std::string saved_prefix = prefix_;
-    std::string saved_parent_prefix = parent_prefix_;
-    prefix_ = prefix;
-    parent_prefix_ = parent_prefix;
-    process_continuous_assign_once(ca);
-    prefix_ = saved_prefix;
-    parent_prefix_ = saved_parent_prefix;
-  }
-  void resolve_always_comb(const slang::ast::ProceduralBlockSymbol & proc,
-                           const std::string & prefix,
-                           const std::string & parent_prefix) override
-  {
-    std::string saved_prefix = prefix_;
-    std::string saved_parent_prefix = parent_prefix_;
-    prefix_ = prefix;
-    parent_prefix_ = parent_prefix;
-    process_always_comb_once(proc);
-    prefix_ = saved_prefix;
-    parent_prefix_ = saved_parent_prefix;
-  }
-
-  // ---------- Helpers ----------
-
-  /** Process a child module instance: register its port connections,
-   *  then walk its body (continuous assigns, always blocks, nested
-   *  instances) so the parent's transition system inherits all of
-   *  the child's behavior.
-   *  @param inst the child instance to process
-   */
-  void process_instance(const slang::ast::InstanceSymbol & inst);
-
   // ---------- Data members ----------
 
   FunctionalTransitionSystem & fts_;
@@ -314,17 +205,17 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   // make_history_chain, delay_bool, init_flag, before_cycle,
   // disable_window). Holds no reference back to this class -- called from
   // the AST-walking methods above (assertion_expr_to_bool(), ltl_to_sat(),
-  // and friends, in sva.cpp) with explicit Term/count/prefix_ arguments.
-  // See tableau.h.
+  // and friends, in assertion_walker.cpp) with explicit Term/count/prefix
+  // arguments. See tableau.h.
   Tableau tableau_;
 
   // Unique pointer to slang compilation (hidden from header users)
   std::unique_ptr<slang::ast::Compilation> compilation_;
 
   // Symbol classification, term binding, and on-demand wire lookup --
-  // see symbol_table.h. Holds no reference back to this class; this
-  // class instead implements symbol_table_'s DriverResolver interface
-  // (see the private overrides below) as a temporary shim.
+  // see symbol_table.h. Holds no reference back to this class;
+  // instance_encoder_ implements symbol_table_'s DriverResolver
+  // interface (see instance_encoder.h).
   SymbolTable symbol_table_;
 
   // expr_to_term() and its shared EvalContext -- see expr_encoder.h.
@@ -344,22 +235,11 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   // statement_encoder.h. Holds no reference back to this class.
   StatementEncoder statement_encoder_;
 
-  // Hierarchical name prefix for the current module.
-  std::string prefix_;
-
-  // Hierarchical name prefix for the *parent* of the module currently
-  // being processed (i.e., the prefix of the scope where output-port
-  // aliases live).  Updated as we recurse into / out of child
-  // instances so wires redirected via port_output_aliases_ get named
-  // in their owning scope rather than the child's.
-  std::string parent_prefix_;
-
-  // Scope of the module instance body currently being processed by
-  // process_assignments().  Used to look up that module's `default
-  // disable iff` condition (Compilation::getDefaultDisable walks up
-  // the scope's parent chain).  Saved/restored around recursion into
-  // child instances.
-  const slang::ast::Scope * current_scope_ = nullptr;
+  // Continuous assigns, always_comb/ff/initial blocks, and per-instance
+  // (child module) processing -- see instance_encoder.h. Holds no
+  // reference back to this class; implements symbol_table_'s
+  // DriverResolver interface for real.
+  InstanceEncoder instance_encoder_;
 };
 
 }  // namespace pono

@@ -1,29 +1,20 @@
 /*!
- * \file instance.cpp
+ * \file instance_encoder.cpp
  * \brief Per-instance pass: continuous assigns, procedural blocks, instances.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
- *
- * Processes one module instance body in two passes so combinational definitions
- * are visible to their consumers: continuous assigns and always_comb (including
- * plain `always` blocks with no nonblocking targets) first, then always_ff,
- * always_latch, and initial blocks second. Legacy `initial forever @(...)` is
- * redirected to the same NEXT_STATE handling as always_ff/always_latch.
- * process_instance() recurses into child instances, rebinding hierarchical name
- * prefixes and port connections (including concatenation- and
- * array-element-target ports) as parent-side term reads (inputs) or
- * write-redirecting aliases (outputs), then undoes those bindings on return
- * since slang may share one InstanceBody across several instantiations.
- * `checker`, `specify`, `program`, and `defparam` constructs are recognized and
- * skipped as simulation-only or functionally-inert.
  */
+#include "frontends/systemverilog/instance_encoder.h"
+
 #include <unordered_set>
 #include <vector>
 
 #include "frontends/systemverilog/ast_helpers.h"
 #include "frontends/systemverilog/bit_utils.h"
-#include "frontends/systemverilog/encoder.h"
+#include "frontends/systemverilog/declarer.h"
+#include "frontends/systemverilog/expr_encoder.h"
+#include "frontends/systemverilog/statement_encoder.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
@@ -47,8 +38,31 @@ using namespace std;
 
 namespace pono {
 
-void SystemVerilogEncoder::process_assignments(
-    const slang::ast::InstanceBodySymbol & body)
+InstanceEncoder::InstanceEncoder(SymbolTable & symbol_table,
+                                 Declarer & declarer,
+                                 StatementEncoder & statement_encoder,
+                                 ExprEncoder & expr_encoder,
+                                 FunctionalTransitionSystem & fts,
+                                 const smt::SmtSolver & solver)
+    : symbol_table_(symbol_table),
+      declarer_(declarer),
+      statement_encoder_(statement_encoder),
+      expr_encoder_(expr_encoder),
+      fts_(fts),
+      solver_(solver)
+{
+  symbol_table_.set_driver_resolver(*this);
+}
+
+void InstanceEncoder::bind_compilation(slang::ast::Compilation & compilation)
+{
+  compilation_ = &compilation;
+}
+
+void InstanceEncoder::process_assignments(
+    const slang::ast::InstanceBodySymbol & body,
+    const string & prefix,
+    const string & parent_prefix)
 {
   using namespace slang::ast;
 
@@ -63,28 +77,35 @@ void SystemVerilogEncoder::process_assignments(
   const Scope * saved_scope = current_scope_;
   current_scope_ = &body;
 
+  // walk_members() takes the prefix by mutable reference (updating it
+  // while descending into generate-for/instance-array child scopes,
+  // then restoring it), so it needs its own local copy rather than
+  // `prefix` itself.
+  string walk_prefix = prefix;
+
   // Combinational definitions are processed first so that wires have a
   // term assigned in symbol_to_term_ before any always_ff or initial
   // block (or assertion) tries to reference them.  Child instances are
   // walked here too -- a child's continuous assigns / always_comb
   // blocks may drive parent-side wires that downstream parent code
   // references.
-  walk_members(body, prefix_, [&](const Symbol & member) {
+  walk_members(body, walk_prefix, [&](const Symbol & member) {
     if (member.kind == SymbolKind::ContinuousAssign) {
-      process_continuous_assign_once(member.as<ContinuousAssignSymbol>());
+      process_continuous_assign_once(
+          member.as<ContinuousAssignSymbol>(), walk_prefix, parent_prefix);
     } else if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
       if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
-        process_always_comb_once(proc);
+        process_always_comb_once(proc, walk_prefix, parent_prefix);
       } else if (proc.procedureKind == ProceduralBlockKind::Always) {
         std::unordered_set<const Symbol *> targets;
         collect_nonblocking_targets(proc.getBody(), targets);
         if (targets.empty()) {
-          process_always_comb_once(proc);
+          process_always_comb_once(proc, walk_prefix, parent_prefix);
         }
       }
     } else if (member.kind == SymbolKind::Instance) {
-      process_instance(member.as<InstanceSymbol>());
+      process_instance(member.as<InstanceSymbol>(), walk_prefix, parent_prefix);
     } else if (member.kind == SymbolKind::CheckerInstance) {
       // `checker ... endchecker`, instantiated like a module: a
       // verification-only construct (SVA sequence/property checking
@@ -115,20 +136,23 @@ void SystemVerilogEncoder::process_assignments(
   });
 
   // Sequential and assertion-bearing blocks come second.
-  walk_members(body, prefix_, [&](const Symbol & member) {
+  walk_prefix = prefix;
+  walk_members(body, walk_prefix, [&](const Symbol & member) {
     if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
       switch (proc.procedureKind) {
-        case ProceduralBlockKind::AlwaysFF: process_always_ff(proc); break;
+        case ProceduralBlockKind::AlwaysFF:
+          process_always_ff(proc, walk_prefix);
+          break;
         case ProceduralBlockKind::Initial: {
           // `initial forever @(...) body` is a legacy structural
           // spelling of `always @(...) body` -- redirect to the same
           // NEXT_STATE processing an always_ff block gets instead of
           // treating it as an initial-state constraint.
           if (auto * forever_body = as_forever_event_body(proc.getBody())) {
-            process_next_state_body(*forever_body);
+            process_next_state_body(*forever_body, walk_prefix);
           } else {
-            process_initial(proc);
+            process_initial(proc, walk_prefix);
           }
           break;
         }
@@ -136,7 +160,7 @@ void SystemVerilogEncoder::process_assignments(
           std::unordered_set<const Symbol *> targets;
           collect_nonblocking_targets(proc.getBody(), targets);
           if (!targets.empty()) {
-            process_always_ff(proc);
+            process_always_ff(proc, walk_prefix);
           }
           break;
         }
@@ -147,7 +171,7 @@ void SystemVerilogEncoder::process_assignments(
           // when not written) -- NEXT_STATE processing doesn't care
           // which assignment operator was used, only that writes
           // should become assign_next() targets.
-          process_next_state_body(proc.getBody());
+          process_next_state_body(proc.getBody(), walk_prefix);
           break;
         default:
           // AlwaysComb handled above; Final, etc. skipped.
@@ -159,14 +183,14 @@ void SystemVerilogEncoder::process_assignments(
   current_scope_ = saved_scope;
 }
 
-void SystemVerilogEncoder::process_always_ff(
-    const slang::ast::ProceduralBlockSymbol & proc)
+void InstanceEncoder::process_always_ff(
+    const slang::ast::ProceduralBlockSymbol & proc, const string & prefix)
 {
-  process_next_state_body(proc.getBody());
+  process_next_state_body(proc.getBody(), prefix);
 }
 
-void SystemVerilogEncoder::process_next_state_body(
-    const slang::ast::Statement & body)
+void InstanceEncoder::process_next_state_body(
+    const slang::ast::Statement & body, const string & prefix)
 {
   symbol_table_.pending_next_updates().clear();
 
@@ -180,7 +204,7 @@ void SystemVerilogEncoder::process_next_state_body(
         body,
         StatementEncoder::StmtContext::NEXT_STATE,
         true_term,
-        prefix_,
+        prefix,
         default_disable_expr);
   }
   catch (const LoopControlSignal &) {
@@ -188,7 +212,7 @@ void SystemVerilogEncoder::process_next_state_body(
     // matching enclosing ForLoop/named Block. A runtime-dependent one
     // is rejected right at the statement itself (it never becomes a
     // LoopControlSignal at all -- see StatementKind::Break/Continue/
-    // Disable in statement.cpp). Only "no matching enclosing
+    // Disable in statement_encoder.cpp). Only "no matching enclosing
     // construct anywhere" reaches this catch.
     throw PonoException(
         "SystemVerilogEncoder: break/continue/disable is only supported "
@@ -205,8 +229,10 @@ void SystemVerilogEncoder::process_next_state_body(
   }
 }
 
-void SystemVerilogEncoder::process_always_comb(
-    const slang::ast::ProceduralBlockSymbol & proc)
+void InstanceEncoder::process_always_comb(
+    const slang::ast::ProceduralBlockSymbol & proc,
+    const string & prefix,
+    const string & parent_prefix)
 {
   symbol_table_.pending_comb_updates().clear();
   symbol_table_.pending_comb_aliased().clear();
@@ -219,7 +245,7 @@ void SystemVerilogEncoder::process_always_comb(
         proc.getBody(),
         StatementEncoder::StmtContext::COMBINATIONAL,
         true_term,
-        prefix_,
+        prefix,
         default_disable_expr);
   }
   catch (const LoopControlSignal &) {
@@ -235,10 +261,10 @@ void SystemVerilogEncoder::process_always_comb(
   for (auto & [sym, term] : symbol_table_.pending_comb_updates()) {
     string name;
     if (symbol_table_.pending_comb_aliased().count(sym)) {
-      name = parent_prefix_.empty() ? string(sym->name)
-                                    : parent_prefix_ + "." + string(sym->name);
+      name = parent_prefix.empty() ? string(sym->name)
+                                   : parent_prefix + "." + string(sym->name);
     } else {
-      name = symbol_table_.make_name(prefix_, string(sym->name));
+      name = symbol_table_.make_name(prefix, string(sym->name));
     }
     symbol_table_.symbol_to_term()[sym] = term;
     fts_.name_term(name, term);
@@ -248,8 +274,8 @@ void SystemVerilogEncoder::process_always_comb(
   symbol_table_.pending_comb_aliased().clear();
 }
 
-void SystemVerilogEncoder::process_initial(
-    const slang::ast::ProceduralBlockSymbol & proc)
+void InstanceEncoder::process_initial(
+    const slang::ast::ProceduralBlockSymbol & proc, const string & prefix)
 {
   Term true_term = solver_->make_term(true);
   const slang::ast::Expression * default_disable_expr =
@@ -259,7 +285,7 @@ void SystemVerilogEncoder::process_initial(
     statement_encoder_.process_statement(proc.getBody(),
                                          StatementEncoder::StmtContext::INITIAL,
                                          true_term,
-                                         prefix_,
+                                         prefix,
                                          default_disable_expr);
   }
   catch (const LoopControlSignal &) {
@@ -270,22 +296,44 @@ void SystemVerilogEncoder::process_initial(
   }
 }
 
-void SystemVerilogEncoder::process_always_comb_once(
-    const slang::ast::ProceduralBlockSymbol & proc)
+void InstanceEncoder::process_always_comb_once(
+    const slang::ast::ProceduralBlockSymbol & proc,
+    const string & prefix,
+    const string & parent_prefix)
 {
   if (!symbol_table_.processed_drivers().insert(&proc).second) return;
-  process_always_comb(proc);
+  process_always_comb(proc, prefix, parent_prefix);
 }
 
-void SystemVerilogEncoder::process_continuous_assign_once(
-    const slang::ast::ContinuousAssignSymbol & ca)
+void InstanceEncoder::process_continuous_assign_once(
+    const slang::ast::ContinuousAssignSymbol & ca,
+    const string & prefix,
+    const string & parent_prefix)
 {
   if (!symbol_table_.processed_drivers().insert(&ca).second) return;
-  process_continuous_assign(ca);
+  process_continuous_assign(ca, prefix, parent_prefix);
 }
 
-void SystemVerilogEncoder::process_continuous_assign(
-    const slang::ast::ContinuousAssignSymbol & ca)
+void InstanceEncoder::resolve_continuous_assign(
+    const slang::ast::ContinuousAssignSymbol & ca,
+    const string & prefix,
+    const string & parent_prefix)
+{
+  process_continuous_assign_once(ca, prefix, parent_prefix);
+}
+
+void InstanceEncoder::resolve_always_comb(
+    const slang::ast::ProceduralBlockSymbol & proc,
+    const string & prefix,
+    const string & parent_prefix)
+{
+  process_always_comb_once(proc, prefix, parent_prefix);
+}
+
+void InstanceEncoder::process_continuous_assign(
+    const slang::ast::ContinuousAssignSymbol & ca,
+    const string & prefix,
+    const string & parent_prefix)
 {
   using namespace slang::ast;
 
@@ -313,7 +361,7 @@ void SystemVerilogEncoder::process_continuous_assign(
     uint64_t total_w = lhs_expr.type->getBitWidth();
     if (total_w == 0) return;
     Term rhs_full = resize_to(
-        solver_, expr_encoder_.expr_to_term(rhs_expr, prefix_), total_w, false);
+        solver_, expr_encoder_.expr_to_term(rhs_expr, prefix), total_w, false);
     uint64_t covered = 0;
     for (auto * operand : lhs_expr.as<ConcatenationExpression>().operands()) {
       uint64_t seg_w = operand->type->getBitWidth();
@@ -321,7 +369,11 @@ void SystemVerilogEncoder::process_continuous_assign(
       uint64_t seg_hi = total_w - 1 - covered;
       uint64_t seg_lo = seg_hi - (seg_w - 1);
       process_continuous_assign_operand(
-          *operand, slice_bits(solver_, rhs_full, seg_lo, seg_hi), false);
+          *operand,
+          slice_bits(solver_, rhs_full, seg_lo, seg_hi),
+          false,
+          prefix,
+          parent_prefix);
       covered += seg_w;
     }
     return;
@@ -329,14 +381,18 @@ void SystemVerilogEncoder::process_continuous_assign(
 
   process_continuous_assign_operand(
       lhs_expr,
-      expr_encoder_.expr_to_term(rhs_expr, prefix_),
-      rhs_expr.type->isSigned());
+      expr_encoder_.expr_to_term(rhs_expr, prefix),
+      rhs_expr.type->isSigned(),
+      prefix,
+      parent_prefix);
 }
 
-void SystemVerilogEncoder::process_continuous_assign_operand(
+void InstanceEncoder::process_continuous_assign_operand(
     const slang::ast::Expression & lhs_expr,
     const smt::Term & rhs_arg,
-    bool rhs_signed)
+    bool rhs_signed,
+    const string & prefix,
+    const string & parent_prefix)
 {
   using namespace slang::ast;
 
@@ -389,7 +445,7 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
         new_term = rhs;
       } else {
         new_term = replace_bits(
-            solver_, symbol_table_.wire_seed_term(sym, prefix_), rhs, lo, hi);
+            solver_, symbol_table_.wire_seed_term(sym, prefix), rhs, lo, hi);
       }
       symbol_table_.symbol_to_term()[sym] = new_term;
       // Only register the debug name on a full write: a wire spliced
@@ -402,11 +458,11 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
       if (full_write) {
         string name;
         if (aliased) {
-          name = parent_prefix_.empty()
+          name = parent_prefix.empty()
                      ? string(sym->name)
-                     : parent_prefix_ + "." + string(sym->name);
+                     : parent_prefix + "." + string(sym->name);
         } else {
-          name = symbol_table_.make_name(prefix_, string(sym->name));
+          name = symbol_table_.make_name(prefix, string(sym->name));
         }
         fts_.name_term(name, new_term);
         logger.log(2,
@@ -437,8 +493,9 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
   }
 }
 
-void SystemVerilogEncoder::process_instance(
-    const slang::ast::InstanceSymbol & inst)
+void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
+                                       const string & prefix,
+                                       const string & parent_prefix)
 {
   using namespace slang::ast;
 
@@ -458,19 +515,19 @@ void SystemVerilogEncoder::process_instance(
     return;
   }
 
-  // Switch the naming context so any state vars / wires declared
-  // inside the child get hierarchical names like "<parent>.<inst>.<x>".
-  // Also track the *parent's* prefix so wires redirected via
-  // port_output_aliases_ (which live in the parent's scope) get
-  // named correctly.
-  string saved_prefix = prefix_;
-  string saved_parent_prefix = parent_prefix_;
-  parent_prefix_ = prefix_;
+  // Compute the child's own hierarchical prefix, and track the
+  // *parent's* prefix (this call's own `prefix`) so wires redirected
+  // via port_output_aliases_ (which live in the parent's scope) get
+  // named correctly. Plain local variables, not a mutated-and-restored
+  // shared member: each recursive process_instance() call down the
+  // instance tree gets its own copy on the call stack.
+  //
   // An instance-array element's name is empty (slang names only the
   // array itself); walk_members() has already pushed a "[i]"-suffixed
   // prefix for it, so don't append another separator here.
-  prefix_ =
-      inst.name.empty() ? saved_prefix : saved_prefix + "." + string(inst.name);
+  string child_prefix =
+      inst.name.empty() ? prefix : prefix + "." + string(inst.name);
+  const string & child_parent_prefix = prefix;
 
   // Bind the child's port-internal symbols to their parent-side
   // counterparts.  Inputs become parent-side terms (so reads inside
@@ -542,7 +599,7 @@ void SystemVerilogEncoder::process_instance(
         }
       }
     } else {
-      Term term = expr_encoder_.expr_to_term(*conn_expr, prefix_);
+      Term term = expr_encoder_.expr_to_term(*conn_expr, prefix);
       term = resize_to(solver_,
                        term,
                        port.getType().getBitWidth(),
@@ -558,18 +615,19 @@ void SystemVerilogEncoder::process_instance(
   // already classified every always_ff/always block in the whole
   // design tree, including this instance's, before any instance's
   // variables were declared.
-  walk_members(inst.body, prefix_, [&](const Symbol & m) {
+  string walk_prefix = child_prefix;
+  walk_members(inst.body, walk_prefix, [&](const Symbol & m) {
     if (m.kind != SymbolKind::ProceduralBlock) return;
     auto & proc = m.as<ProceduralBlockSymbol>();
     if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
       symbol_table_.pre_scan_always_comb(
-          proc.getBody(), proc, prefix_, parent_prefix_);
+          proc.getBody(), proc, walk_prefix, child_parent_prefix);
     } else if (proc.procedureKind == ProceduralBlockKind::Always) {
       std::unordered_set<const Symbol *> nb_targets;
       collect_nonblocking_targets(proc.getBody(), nb_targets);
       if (nb_targets.empty()) {
         symbol_table_.pre_scan_always_comb(
-            proc.getBody(), proc, prefix_, parent_prefix_);
+            proc.getBody(), proc, walk_prefix, child_parent_prefix);
       }
     }
   });
@@ -577,66 +635,69 @@ void SystemVerilogEncoder::process_instance(
   // Declare the child's internal (non-port) variables with the new
   // hierarchical prefix; ports are already bound through the
   // connection map above.
-  declarer_.declare_variables_internal(inst.body, prefix_);
+  declarer_.declare_variables_internal(inst.body, child_prefix);
 
   // Combinational pass over child's body (and any sub-instances).
-  walk_members(inst.body, prefix_, [&](const Symbol & m) {
+  walk_prefix = child_prefix;
+  walk_members(inst.body, walk_prefix, [&](const Symbol & m) {
     if (m.kind == SymbolKind::ContinuousAssign) {
-      process_continuous_assign_once(m.as<ContinuousAssignSymbol>());
+      process_continuous_assign_once(
+          m.as<ContinuousAssignSymbol>(), walk_prefix, child_parent_prefix);
     } else if (m.kind == SymbolKind::ProceduralBlock) {
       auto & proc = m.as<ProceduralBlockSymbol>();
       if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
-        process_always_comb_once(proc);
+        process_always_comb_once(proc, walk_prefix, child_parent_prefix);
       } else if (proc.procedureKind == ProceduralBlockKind::Always) {
         std::unordered_set<const Symbol *> targets;
         collect_nonblocking_targets(proc.getBody(), targets);
         if (targets.empty()) {
-          process_always_comb_once(proc);
+          process_always_comb_once(proc, walk_prefix, child_parent_prefix);
         }
       }
     } else if (m.kind == SymbolKind::Instance) {
-      process_instance(m.as<InstanceSymbol>());
+      process_instance(
+          m.as<InstanceSymbol>(), walk_prefix, child_parent_prefix);
     }
   });
 
   // Sequential / initial pass.
-  walk_members(inst.body, prefix_, [&](const Symbol & m) {
+  walk_prefix = child_prefix;
+  walk_members(inst.body, walk_prefix, [&](const Symbol & m) {
     if (m.kind != SymbolKind::ProceduralBlock) return;
     auto & proc = m.as<ProceduralBlockSymbol>();
     switch (proc.procedureKind) {
-      case ProceduralBlockKind::AlwaysFF: process_always_ff(proc); break;
+      case ProceduralBlockKind::AlwaysFF:
+        process_always_ff(proc, walk_prefix);
+        break;
       case ProceduralBlockKind::Initial: {
         if (auto * forever_body = as_forever_event_body(proc.getBody())) {
-          process_next_state_body(*forever_body);
+          process_next_state_body(*forever_body, walk_prefix);
         } else {
-          process_initial(proc);
+          process_initial(proc, walk_prefix);
         }
         break;
       }
       case ProceduralBlockKind::Always: {
         std::unordered_set<const Symbol *> targets;
         collect_nonblocking_targets(proc.getBody(), targets);
-        if (!targets.empty()) process_always_ff(proc);
+        if (!targets.empty()) process_always_ff(proc, walk_prefix);
         break;
       }
       case ProceduralBlockKind::AlwaysLatch:
-        process_next_state_body(proc.getBody());
+        process_next_state_body(proc.getBody(), walk_prefix);
         break;
       default: break;
     }
   });
 
-  // Restore context: undo the per-instance bindings so that a sibling
-  // (or repeated) instantiation of the same module can be processed
-  // cleanly.
+  // Undo the per-instance bindings so that a sibling (or repeated)
+  // instantiation of the same module can be processed cleanly.
   for (auto * sym : output_aliases_added) {
     symbol_table_.port_output_aliases().erase(sym);
   }
   for (auto * sym : input_terms_added) {
     symbol_table_.symbol_to_term().erase(sym);
   }
-  prefix_ = saved_prefix;
-  parent_prefix_ = saved_parent_prefix;
 }
 
 }  // namespace pono
