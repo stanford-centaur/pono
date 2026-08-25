@@ -24,6 +24,7 @@
 #include "frontends/systemverilog/ast_helpers.h"
 #include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/encoder.h"
+#include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/SemanticFacts.h"
@@ -171,8 +172,16 @@ void SystemVerilogEncoder::process_next_state_body(
 
   // Use a null condition to represent "unconditional".
   Term true_term = solver_->make_term(true);
+  const slang::ast::Expression * default_disable_expr =
+      current_scope_ ? compilation_->getDefaultDisable(*current_scope_)
+                     : nullptr;
   try {
-    process_statement(body, StmtContext::NEXT_STATE, true_term);
+    statement_encoder_.process_statement(
+        body,
+        StatementEncoder::StmtContext::NEXT_STATE,
+        true_term,
+        prefix_,
+        default_disable_expr);
   }
   catch (const LoopControlSignal &) {
     // A compile-time-constant break/continue/disable is absorbed by a
@@ -202,8 +211,16 @@ void SystemVerilogEncoder::process_always_comb(
   symbol_table_.pending_comb_updates().clear();
   symbol_table_.pending_comb_aliased().clear();
   Term true_term = solver_->make_term(true);
+  const slang::ast::Expression * default_disable_expr =
+      current_scope_ ? compilation_->getDefaultDisable(*current_scope_)
+                     : nullptr;
   try {
-    process_statement(proc.getBody(), StmtContext::COMBINATIONAL, true_term);
+    statement_encoder_.process_statement(
+        proc.getBody(),
+        StatementEncoder::StmtContext::COMBINATIONAL,
+        true_term,
+        prefix_,
+        default_disable_expr);
   }
   catch (const LoopControlSignal &) {
     throw PonoException(
@@ -235,8 +252,15 @@ void SystemVerilogEncoder::process_initial(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
   Term true_term = solver_->make_term(true);
+  const slang::ast::Expression * default_disable_expr =
+      current_scope_ ? compilation_->getDefaultDisable(*current_scope_)
+                     : nullptr;
   try {
-    process_statement(proc.getBody(), StmtContext::INITIAL, true_term);
+    statement_encoder_.process_statement(proc.getBody(),
+                                         StatementEncoder::StmtContext::INITIAL,
+                                         true_term,
+                                         prefix_,
+                                         default_disable_expr);
   }
   catch (const LoopControlSignal &) {
     throw PonoException(

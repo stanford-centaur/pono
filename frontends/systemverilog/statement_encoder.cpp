@@ -1,40 +1,26 @@
 /*!
- * \file statement.cpp
+ * \file statement_encoder.cpp
  * \brief The process_statement() switch encoding SV procedural statements.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
- *
- * Dispatches on slang::ast::StatementKind to encode assignments (plain,
- * compound, ++/--, concatenation-target and dynamic-index LHS splicing),
- * if/case/casex/casez, and concurrent/immediate assertions into the
- * FunctionalTransitionSystem. Loops (for/while/do-while/repeat/foreach) are
- * unrolled at compile time via slang's own constant evaluator, up to a fixed
- * iteration cap; a genuinely runtime-dependent loop bound, or a
- * break/continue/disable reached through a non-constant condition, is rejected
- * rather than silently mis-encoded. Local (non-state, non-wire) variables are
- * mirrored as SMT constants and kept in sync with slang's evaluator by
- * refresh_loop_var_term() after each constant-evaluated write.
- * break/continue/disable are modeled as C++ exceptions (LoopControlSignal)
- * caught by the nearest loop or matching named block. Assertions dispatch
- * assert/cover to safety properties (or an LTL tableau for genuine liveness),
- * and assume/restrict to standing constraints, honoring disable iff/default
- * disable iff.
  */
-#include "slang/ast/Statement.h"
+#include "frontends/systemverilog/statement_encoder.h"
 
 #include <algorithm>
 #include <functional>
 #include <string>
 #include <vector>
 
+#include "frontends/systemverilog/assertion_walker.h"
 #include "frontends/systemverilog/ast_helpers.h"
 #include "frontends/systemverilog/bit_utils.h"
-#include "frontends/systemverilog/encoder.h"
-#include "slang/ast/Compilation.h"
+#include "frontends/systemverilog/expr_encoder.h"
+#include "frontends/systemverilog/symbol_table.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/SemanticFacts.h"
+#include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/MiscExpressions.h"
@@ -56,11 +42,25 @@ using namespace std;
 
 namespace pono {
 
-void SystemVerilogEncoder::process_dynamic_element_assign(
+StatementEncoder::StatementEncoder(SymbolTable & symbol_table,
+                                   ExprEncoder & expr_encoder,
+                                   AssertionWalker & assertion_walker,
+                                   FunctionalTransitionSystem & fts,
+                                   const smt::SmtSolver & solver)
+    : symbol_table_(symbol_table),
+      expr_encoder_(expr_encoder),
+      assertion_walker_(assertion_walker),
+      fts_(fts),
+      solver_(solver)
+{
+}
+
+void StatementEncoder::process_dynamic_element_assign(
     const slang::ast::ElementSelectExpression & sel,
     const slang::ast::Expression & rhs_expr,
     StmtContext ctx,
-    const Term & condition)
+    const Term & condition,
+    const string & prefix)
 {
   using namespace slang::ast;
 
@@ -124,8 +124,8 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
   }
   if (!prev_base) return;
 
-  Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix_);
-  Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix_);
+  Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix);
+  Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
   rhs = resize_to(solver_, rhs, elem_w, sel.type->isSigned());
   Term combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
 
@@ -145,7 +145,7 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
           : solver_->make_term(Ite, condition, combined, prev_base);
 }
 
-void SystemVerilogEncoder::refresh_loop_var_term(
+void StatementEncoder::refresh_loop_var_term(
     const slang::ast::ValueSymbol & sym)
 {
   auto * cur = expr_encoder_.eval_ctx().findLocal(&sym);
@@ -163,9 +163,12 @@ void SystemVerilogEncoder::refresh_loop_var_term(
   symbol_table_.loop_var_terms()[&sym] = solver_->make_term(val_str, sort, 10);
 }
 
-void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
-                                             StmtContext ctx,
-                                             const Term & condition)
+void StatementEncoder::process_statement(
+    const slang::ast::Statement & stmt,
+    StmtContext ctx,
+    const Term & condition,
+    const string & prefix,
+    const slang::ast::Expression * default_disable_expr)
 {
   using namespace slang::ast;
 
@@ -362,7 +365,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                 full_write
                     ? rhs
                     : replace_bits(solver_,
-                                   symbol_table_.wire_seed_term(w.sym, prefix_),
+                                   symbol_table_.wire_seed_term(w.sym, prefix),
                                    rhs,
                                    w.lo,
                                    w.hi);
@@ -481,7 +484,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
                 lhs_expr.as<ElementSelectExpression>(),
                 rhs_expr,
                 ctx,
-                condition);
+                condition,
+                prefix);
           }
           break;
         }
@@ -490,7 +494,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         Term saved_lvalue =
             expr_encoder_.set_current_lvalue_term(reassemble_current(writes));
 
-        Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix_);
+        Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
         expr_encoder_.set_current_lvalue_term(saved_lvalue);
 
         uint64_t total_w = 0;
@@ -548,7 +552,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       auto & block = stmt.as<BlockStatement>();
       try {
         for_each_stmt_in_block(block, [&](const Statement & s) {
-          process_statement(s, ctx, condition);
+          process_statement(s, ctx, condition, prefix, default_disable_expr);
         });
       }
       catch (const LoopControlSignal & sig) {
@@ -584,9 +588,14 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             cond_stmt.conditions[0].expr->eval(expr_encoder_.eval_ctx());
         if (!const_cv.bad()) {
           if (const_cv.isTrue()) {
-            process_statement(cond_stmt.ifTrue, ctx, condition);
+            process_statement(
+                cond_stmt.ifTrue, ctx, condition, prefix, default_disable_expr);
           } else if (cond_stmt.ifFalse) {
-            process_statement(*cond_stmt.ifFalse, ctx, condition);
+            process_statement(*cond_stmt.ifFalse,
+                              ctx,
+                              condition,
+                              prefix,
+                              default_disable_expr);
           }
           break;
         }
@@ -596,7 +605,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // ConditionalStatement has conditions span; for simple if, there
       // is one condition.
       Term cond_term =
-          expr_encoder_.expr_to_term(*cond_stmt.conditions[0].expr, prefix_);
+          expr_encoder_.expr_to_term(*cond_stmt.conditions[0].expr, prefix);
 
       // Ensure condition is a single-bit BV (for use with Ite).
       uint64_t cond_width = cond_term->get_sort()->get_width();
@@ -630,16 +639,18 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         else_cond = solver_->make_term(And, condition, cond_eq_zero);
       }
 
-      process_statement(cond_stmt.ifTrue, ctx, then_cond);
+      process_statement(
+          cond_stmt.ifTrue, ctx, then_cond, prefix, default_disable_expr);
       if (cond_stmt.ifFalse) {
-        process_statement(*cond_stmt.ifFalse, ctx, else_cond);
+        process_statement(
+            *cond_stmt.ifFalse, ctx, else_cond, prefix, default_disable_expr);
       }
       break;
     }
 
     case StatementKind::Case: {
       auto & case_stmt = stmt.as<CaseStatement>();
-      Term sel = expr_encoder_.expr_to_term(case_stmt.expr, prefix_);
+      Term sel = expr_encoder_.expr_to_term(case_stmt.expr, prefix);
 
       // For casex/casez, a constant item pattern's X (casex only) or
       // Z (both; `?` is just an alias for `z` here) bits are
@@ -699,7 +710,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             match = solver_->make_term(
                 Equal, solver_->make_term(BVAnd, sel, mask_term), value_term);
           } else {
-            Term pat = expr_encoder_.expr_to_term(*expr, prefix_);
+            Term pat = expr_encoder_.expr_to_term(*expr, prefix);
             pat = resize_to(solver_,
                             pat,
                             sel->get_sort()->get_width(),
@@ -716,7 +727,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         Term full_cond = (condition == solver_->make_term(true))
                              ? item_cond
                              : solver_->make_term(And, condition, item_cond);
-        process_statement(*item.stmt, ctx, full_cond);
+        process_statement(
+            *item.stmt, ctx, full_cond, prefix, default_disable_expr);
       }
       if (case_stmt.defaultCase) {
         // Default: only when none of the other items matched.
@@ -727,7 +739,11 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             (condition == solver_->make_term(true))
                 ? not_matched
                 : solver_->make_term(And, condition, not_matched);
-        process_statement(*case_stmt.defaultCase, ctx, default_cond);
+        process_statement(*case_stmt.defaultCase,
+                          ctx,
+                          default_cond,
+                          prefix,
+                          default_disable_expr);
       }
       break;
     }
@@ -735,23 +751,21 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
     case StatementKind::Timed: {
       // Skip timing control (e.g., @(posedge clk)) and process the body.
       auto & timed = stmt.as<TimedStatement>();
-      process_statement(timed.stmt, ctx, condition);
+      process_statement(
+          timed.stmt, ctx, condition, prefix, default_disable_expr);
       break;
     }
 
     case StatementKind::ConcurrentAssertion: {
       auto & ca = stmt.as<ConcurrentAssertionStatement>();
-      const Expression * default_disable_expr =
-          current_scope_ ? compilation_->getDefaultDisable(*current_scope_)
-                         : nullptr;
       assertion_walker_.process_concurrent_assertion(
-          ca, stmt, prefix_, default_disable_expr);
+          ca, stmt, prefix, default_disable_expr);
       break;
     }
 
     case StatementKind::ImmediateAssertion: {
       auto & ia = stmt.as<ImmediateAssertionStatement>();
-      assertion_walker_.process_immediate_assertion(ia, condition, prefix_);
+      assertion_walker_.process_immediate_assertion(ia, condition, prefix);
       break;
     }
 
@@ -855,7 +869,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         for (auto * lv : loop.loopVars) refresh_bv(*lv);
         bool broke = false;
         try {
-          process_statement(loop.body, ctx, condition);
+          process_statement(
+              loop.body, ctx, condition, prefix, default_disable_expr);
         }
         catch (const LoopControlSignal & sig) {
           if (sig.kind == LoopControlSignal::Break) {
@@ -931,7 +946,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         }
         bool broke = false;
         try {
-          process_statement(loop.body, ctx, condition);
+          process_statement(
+              loop.body, ctx, condition, prefix, default_disable_expr);
         }
         catch (const LoopControlSignal & sig) {
           if (sig.kind == LoopControlSignal::Break) {
@@ -957,7 +973,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         }
         bool broke = false;
         try {
-          process_statement(loop.body, ctx, condition);
+          process_statement(
+              loop.body, ctx, condition, prefix, default_disable_expr);
         }
         catch (const LoopControlSignal & sig) {
           if (sig.kind == LoopControlSignal::Break) {
@@ -1003,7 +1020,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       for (uint64_t it = 0; it < n; ++it) {
         bool broke = false;
         try {
-          process_statement(loop.body, ctx, condition);
+          process_statement(
+              loop.body, ctx, condition, prefix, default_disable_expr);
         }
         catch (const LoopControlSignal & sig) {
           if (sig.kind == LoopControlSignal::Break) {
@@ -1058,7 +1076,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         refresh_loop_var_term(iter_sym);
         bool broke = false;
         try {
-          process_statement(loop.body, ctx, condition);
+          process_statement(
+              loop.body, ctx, condition, prefix, default_disable_expr);
         }
         catch (const LoopControlSignal & sig) {
           if (sig.kind != LoopControlSignal::Break

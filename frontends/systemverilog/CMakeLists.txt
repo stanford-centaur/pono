@@ -23,7 +23,7 @@ add_library(
   symbol_table.cpp
   declarer.cpp
   instance.cpp
-  statement.cpp
+  statement_encoder.cpp
   expr_encoder.cpp
   assertion_walker.cpp
   tableau.cpp

@@ -61,7 +61,9 @@ SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
       symbol_table_(fts_, solver_),
       expr_encoder_(symbol_table_, tableau_, solver_),
       declarer_(symbol_table_, fts_, solver_),
-      assertion_walker_(expr_encoder_, tableau_, solver_, fts_)
+      assertion_walker_(expr_encoder_, tableau_, solver_, fts_),
+      statement_encoder_(
+          symbol_table_, expr_encoder_, assertion_walker_, fts_, solver_)
 {
   symbol_table_.set_driver_resolver(*this);
 }

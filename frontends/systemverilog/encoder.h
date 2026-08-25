@@ -41,7 +41,11 @@
  *                         SystemVerilogEncoder as declarer_.
  *   - instance.cpp:       continuous assigns, always_comb/ff/initial blocks,
  *                         and per-instance (child module) processing.
- *   - statement.cpp:      the process_statement() procedural statement encoder.
+ *   - statement_encoder.h/.cpp: the StatementEncoder class -- the
+ *                         process_statement() procedural statement encoder,
+ *                         depending on SymbolTable, ExprEncoder, and
+ *                         AssertionWalker. Owned by SystemVerilogEncoder as
+ *                         statement_encoder_.
  *   - assertion_walker.h/.cpp: the AssertionWalker class -- concurrent/
  *                         immediate assertion-statement dispatch and SVA/LTL
  *                         AST-walking (assertion_expr_to_bool,
@@ -66,6 +70,7 @@
 #include "frontends/systemverilog/assertion_walker.h"
 #include "frontends/systemverilog/declarer.h"
 #include "frontends/systemverilog/expr_encoder.h"
+#include "frontends/systemverilog/statement_encoder.h"
 #include "frontends/systemverilog/symbol_table.h"
 #include "frontends/systemverilog/tableau.h"
 #include "smt-switch/smt.h"
@@ -84,7 +89,6 @@ class InstanceBodySymbol;
 class ProceduralBlockSymbol;
 class ContinuousAssignSymbol;
 class PortSymbol;
-class ElementSelectExpression;
 }  // namespace slang::ast
 
 namespace pono {
@@ -207,9 +211,9 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   void process_always_ff(const slang::ast::ProceduralBlockSymbol & proc);
 
   /** Shared implementation of process_always_ff(): process `body` with
-   *  StmtContext::NEXT_STATE and commit every accumulated
-   *  pending_next_updates_ entry via assign_next(). Blocking- vs.
-   *  nonblocking-assignment syntax makes no difference to this
+   *  StatementEncoder::StmtContext::NEXT_STATE and commit every
+   *  accumulated pending_next_updates_ entry via assign_next(). Blocking-
+   *  vs. nonblocking-assignment syntax makes no difference to this
    *  encoding -- only the StmtContext does -- so this is also reused
    *  directly for `always_latch` (whose writes use blocking `=`, but
    *  need exactly the same "holds previous value when not written"
@@ -291,59 +295,7 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
     parent_prefix_ = saved_parent_prefix;
   }
 
-  // ---------- Statement processing ----------
-
-  /** Context for statement processing: whether we are building next-state
-   *  updates (always_ff), combinational definitions (always_comb), or
-   *  initial constraints.
-   */
-  enum class StmtContext
-  {
-    NEXT_STATE,     ///< Inside always_ff (also always_latch and a legacy
-                    ///< `forever @(...)` spelling of always_ff): build
-                    ///< next-state functions
-    COMBINATIONAL,  ///< Inside always_comb: build combinational definitions
-    INITIAL         ///< Inside initial: build init constraints
-  };
-
-  /** Recursively process a statement, extracting assignments.
-   *  @param stmt the slang statement to process
-   *  @param ctx  what kind of block we are in
-   *  @param condition accumulated path condition (for if/case nesting)
-   */
-  void process_statement(const slang::ast::Statement & stmt,
-                         StmtContext ctx,
-                         const smt::Term & condition);
-
-  /** Re-derive `symbol_table_.loop_var_terms()[&sym]` from `sym`'s
-   *  current constant value in expr_encoder_.eval_ctx() (after a
-   *  for-loop step, a while/repeat/foreach iteration, or a plain
-   *  assignment to a compile-time-unrolled local).  Throws if `sym`
-   *  isn't a currently-bound integer local. */
-  void refresh_loop_var_term(const slang::ast::ValueSymbol & sym);
-
   // ---------- Helpers ----------
-
-  /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
-   *  not a compile-time constant, so resolve_lvalue() can't produce a
-   *  static bit range.  Only a direct select on a plain variable base
-   *  is supported (no nested dynamic selects).  A no-op if the base
-   *  isn't a plain variable, if it resolves through
-   *  port_output_aliases_ to anything other than a single whole-symbol
-   *  alias, if it has no current term yet, or if `ctx` doesn't apply
-   *  to it (a COMBINATIONAL write to a non-wire symbol, or any
-   *  INITIAL write, isn't needed by any currently-supported
-   *  construct).
-   *  @param sel  the dynamic element-select LHS expression
-   *  @param rhs_expr the assignment's right-hand side
-   *  @param ctx  which kind of block this assignment is in
-   *  @param condition accumulated path condition (for if/case nesting)
-   */
-  void process_dynamic_element_assign(
-      const slang::ast::ElementSelectExpression & sel,
-      const slang::ast::Expression & rhs_expr,
-      StmtContext ctx,
-      const smt::Term & condition);
 
   /** Process a child module instance: register its port connections,
    *  then walk its body (continuous assigns, always blocks, nested
@@ -387,6 +339,10 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   // assertion_walker.h. Holds no reference back to this class; owns the
   // extracted propvec()/ltl_justice() that Result is built from.
   AssertionWalker assertion_walker_;
+
+  // The process_statement() procedural statement encoder -- see
+  // statement_encoder.h. Holds no reference back to this class.
+  StatementEncoder statement_encoder_;
 
   // Hierarchical name prefix for the current module.
   std::string prefix_;
