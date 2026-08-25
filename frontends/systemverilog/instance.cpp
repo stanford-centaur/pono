@@ -36,7 +36,6 @@
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
-#include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/Type.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
@@ -554,7 +553,7 @@ void SystemVerilogEncoder::process_instance(
   // Declare the child's internal (non-port) variables with the new
   // hierarchical prefix; ports are already bound through the
   // connection map above.
-  declare_variables_internal(inst.body);
+  declarer_.declare_variables_internal(inst.body, prefix_);
 
   // Combinational pass over child's body (and any sub-instances).
   walk_members(inst.body, prefix_, [&](const Symbol & m) {

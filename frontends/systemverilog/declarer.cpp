@@ -1,23 +1,22 @@
 /*!
- * \file declare.cpp
+ * \file declarer.cpp
  * \brief Creates SMT terms for ports, registers, and free variables.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
  *
- * Ports are declared first (process_port), then remaining internal Variable and
- * Net symbols (declare_variables_internal). Each symbol is classified using the
- * pre-scan results (state_var_symbols_, wire_symbols_, port_output_aliases_):
- * registers become state vars, undriven signals become free input vars, and
- * combinational wires are skipped here -- their terms are filled in later,
- * during macro-substitution in continuous-assignment/always_comb processing. A
- * special case handles registers reached through an output-port alias chain,
- * splicing per-piece state vars keyed by the fully resolved alias root; only
- * full-width aliasing is supported today, partial-width aliasing throws.
+ * A special case handles registers reached through an output-port alias
+ * chain, splicing per-piece state vars keyed by the fully resolved alias
+ * root; only full-width aliasing is supported today, partial-width
+ * aliasing throws.
  */
+#include "frontends/systemverilog/declarer.h"
+
+#include <string>
+
 #include "frontends/systemverilog/ast_helpers.h"
 #include "frontends/systemverilog/bit_utils.h"
-#include "frontends/systemverilog/encoder.h"
+#include "frontends/systemverilog/symbol_table.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
@@ -32,28 +31,40 @@ using namespace std;
 
 namespace pono {
 
-void SystemVerilogEncoder::declare_variables(
-    const slang::ast::InstanceBodySymbol & body)
+Declarer::Declarer(SymbolTable & symbol_table,
+                   FunctionalTransitionSystem & fts,
+                   const smt::SmtSolver & solver)
+    : symbol_table_(symbol_table), fts_(fts), solver_(solver)
+{
+}
+
+void Declarer::declare_variables(const slang::ast::InstanceBodySymbol & body,
+                                 const string & prefix)
 {
   using namespace slang::ast;
 
   // Process ports first.
   for (auto port_sym : body.getPortList()) {
     if (port_sym->kind == SymbolKind::Port) {
-      process_port(port_sym->as<PortSymbol>());
+      process_port(port_sym->as<PortSymbol>(), prefix);
     }
   }
 
-  declare_variables_internal(body);
+  declare_variables_internal(body, prefix);
 }
 
-void SystemVerilogEncoder::declare_variables_internal(
-    const slang::ast::InstanceBodySymbol & body)
+void Declarer::declare_variables_internal(
+    const slang::ast::InstanceBodySymbol & body, const string & prefix)
 {
   using namespace slang::ast;
 
   // Process internal variable declarations (non-port variables).
-  walk_members(body, prefix_, [&](const Symbol & member) {
+  // walk_members() takes the prefix by mutable reference (updating it
+  // while descending into generate-for/instance-array child scopes,
+  // then restoring it), so it needs its own local copy rather than
+  // `prefix` itself.
+  string walk_prefix = prefix;
+  walk_members(body, walk_prefix, [&](const Symbol & member) {
     if (member.kind == SymbolKind::Variable) {
       auto & var = member.as<VariableSymbol>();
       // Skip if already declared via port processing.
@@ -102,7 +113,7 @@ void SystemVerilogEncoder::declare_variables_internal(
               // connection, where reusing `var.name` for every piece
               // would collide.
               string name = symbol_table_.make_name(
-                  prefix_,
+                  walk_prefix,
                   pieces.size() > 1
                       ? string(var.name) + "_" + string(root->name)
                       : string(var.name));
@@ -121,7 +132,7 @@ void SystemVerilogEncoder::declare_variables_internal(
         return;
       }
 
-      string name = symbol_table_.make_name(prefix_, string(var.name));
+      string name = symbol_table_.make_name(walk_prefix, string(var.name));
       Sort sort = type_to_sort(solver_, var.getType());
 
       if (symbol_table_.state_var_symbols().count(&var)) {
@@ -151,7 +162,7 @@ void SystemVerilogEncoder::declare_variables_internal(
       if (symbol_table_.wire_symbols().count(&net)) return;
       if (symbol_table_.port_output_aliases().count(&net)) return;
 
-      string name = symbol_table_.make_name(prefix_, string(net.name));
+      string name = symbol_table_.make_name(walk_prefix, string(net.name));
       Sort sort = type_to_sort(solver_, net.getType());
 
       Term iv = fts_.make_inputvar(name, sort);
@@ -163,11 +174,12 @@ void SystemVerilogEncoder::declare_variables_internal(
   });
 }
 
-void SystemVerilogEncoder::process_port(const slang::ast::PortSymbol & port)
+void Declarer::process_port(const slang::ast::PortSymbol & port,
+                            const string & prefix)
 {
   using namespace slang::ast;
 
-  string name = symbol_table_.make_name(prefix_, string(port.name));
+  string name = symbol_table_.make_name(prefix, string(port.name));
   Sort sort = type_to_sort(solver_, port.getType());
 
   const Symbol * internal = port.internalSymbol;

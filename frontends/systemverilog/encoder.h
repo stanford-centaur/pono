@@ -36,7 +36,9 @@
  *                         (to resolve a read) and Tableau (for the sampled-
  *                         value system functions). Owned by
  *                         SystemVerilogEncoder as expr_encoder_.
- *   - declare.cpp:        the variable-declaration pass.
+ *   - declarer.h/.cpp:    the Declarer class -- the variable-declaration
+ *                         pass, depending only on SymbolTable. Owned by
+ *                         SystemVerilogEncoder as declarer_.
  *   - instance.cpp:       continuous assigns, always_comb/ff/initial blocks,
  *                         and per-instance (child module) processing.
  *   - statement.cpp:      the process_statement() procedural statement encoder.
@@ -62,6 +64,7 @@
 
 #include "core/fts.h"
 #include "frontends/systemverilog/assertion_walker.h"
+#include "frontends/systemverilog/declarer.h"
 #include "frontends/systemverilog/expr_encoder.h"
 #include "frontends/systemverilog/symbol_table.h"
 #include "frontends/systemverilog/tableau.h"
@@ -194,21 +197,6 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
 
   /** Process a top-level module instance. */
   void process_module(const slang::ast::InstanceSymbol & inst);
-
-  /** First pass: declare state vars and inputs.  Wires are skipped --
-   *  they get their term assigned later during combinational-assignment
-   *  processing.  Walks ports and internal variable declarations.
-   */
-  void declare_variables(const slang::ast::InstanceBodySymbol & body);
-
-  /** Declare just the internal (non-port) variables of `body`.  Used
-   *  when descending into a child instance, whose ports have already
-   *  been bound through the port-connection map.
-   */
-  void declare_variables_internal(const slang::ast::InstanceBodySymbol & body);
-
-  /** Declare a single port as an input or output variable. */
-  void process_port(const slang::ast::PortSymbol & port);
 
   /** Second pass: process all behavioral and structural assignments.
    *  Walks always blocks, continuous assigns, and initial blocks.
@@ -390,6 +378,10 @@ class SystemVerilogEncoder : private SymbolTable::DriverResolver
   // expr_to_term() and its shared EvalContext -- see expr_encoder.h.
   // Holds no reference back to this class.
   ExprEncoder expr_encoder_;
+
+  // The variable-declaration pass -- see declarer.h. Holds no reference
+  // back to this class.
+  Declarer declarer_;
 
   // Assertion-statement dispatch and SVA/LTL AST-walking -- see
   // assertion_walker.h. Holds no reference back to this class; owns the

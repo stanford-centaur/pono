@@ -60,6 +60,7 @@ SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
       tableau_(fts_, solver_),
       symbol_table_(fts_, solver_),
       expr_encoder_(symbol_table_, tableau_, solver_),
+      declarer_(symbol_table_, fts_, solver_),
       assertion_walker_(expr_encoder_, tableau_, solver_, fts_)
 {
   symbol_table_.set_driver_resolver(*this);
@@ -306,7 +307,7 @@ void SystemVerilogEncoder::process_module(
   // Third pass: declare state vars, inputs, and output-port aliases.
   // Wire symbols are skipped here -- they get their defining term
   // assigned during combinational-assignment processing.
-  declare_variables(body);
+  declarer_.declare_variables(body, prefix_);
 
   // Fourth pass: process behavioral code and continuous assignments.
   process_assignments(body);

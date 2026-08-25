@@ -21,7 +21,7 @@ add_library(
   ast_helpers.cpp
   bit_utils.cpp
   symbol_table.cpp
-  declare.cpp
+  declarer.cpp
   instance.cpp
   statement.cpp
   expr_encoder.cpp
