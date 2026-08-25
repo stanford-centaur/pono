@@ -25,6 +25,12 @@ Hints
   smt-switch's own ``contrib/setup-bitwuzla.sh``) are expected under
   ``${SMT_SWITCH_DIR}/deps/install``.
 
+Requesting the ``z3`` component additionally requires a Z3 installation
+discoverable via its own CMake package config, since smt-switch's own Z3
+backend links against it directly. smt-switch's own ``contrib/setup-z3.sh``
+installs Z3 into ``${SMT_SWITCH_DIR}/deps/install``; that location is always
+preferred over a system-wide Z3 installation if both are present.
+
 Components
 ^^^^^^^^^^
 
@@ -113,14 +119,23 @@ if(SmtSwitch_FOUND AND NOT TARGET smt-switch)
     )
   endif()
 
-  foreach(
-    _comp
-    cvc5
-    btor
-    msat
-    yices2
-    z3
-  )
+  if("z3" IN_LIST SmtSwitch_FIND_COMPONENTS AND NOT TARGET smt-switch-z3)
+    add_library(smt-switch-z3 STATIC IMPORTED GLOBAL)
+    set_target_properties(smt-switch-z3 PROPERTIES IMPORTED_LOCATION "${SmtSwitch_z3_LIBRARY}")
+    # Prefer the Z3 build smt-switch's own contrib/setup-z3.sh installs into
+    # deps/install over any system-wide Z3 installation.
+    find_package(Z3 QUIET PATHS "${SMT_SWITCH_DIR}/deps/install" NO_DEFAULT_PATH)
+    if(NOT Z3_FOUND)
+      find_package(Z3 REQUIRED)
+    endif()
+    set_property(
+      TARGET smt-switch-z3
+      APPEND
+      PROPERTY INTERFACE_LINK_LIBRARIES smt-switch z3::libz3
+    )
+  endif()
+
+  foreach(_comp cvc5 btor msat yices2)
     if(_comp IN_LIST SmtSwitch_FIND_COMPONENTS AND NOT TARGET smt-switch-${_comp})
       add_library(smt-switch-${_comp} STATIC IMPORTED GLOBAL)
       set_target_properties(

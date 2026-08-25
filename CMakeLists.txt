@@ -102,10 +102,6 @@ if(WITH_Z3)
 endif()
 find_package(SmtSwitch REQUIRED COMPONENTS ${SmtSwitch_FIND_COMPONENTS})
 
-if(WITH_Z3)
-  find_package(Z3 REQUIRED)
-endif()
-
 if(WITH_MSAT_IC3IA)
   if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
     message(FATAL_ERROR "Missing ic3ia library -- try running ./contrib/setup-ic3ia.sh")
@@ -281,7 +277,6 @@ endif()
 
 if(WITH_Z3)
   target_link_libraries(pono-lib PRIVATE smt-switch-z3)
-  target_link_libraries(pono-lib PRIVATE z3::libz3)
 endif()
 
 if(WITH_MSAT_IC3IA)
