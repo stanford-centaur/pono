@@ -81,80 +81,26 @@ if(NOT FLEX_INCLUDE_DIRS)
   message(FATAL_ERROR "Missing flex headers")
 endif()
 
-if(NOT DEFINED SMT_SWITCH_DIR)
-  set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
-endif()
-
-# TODO: Use find_package
-# find package
-#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 find_package(PkgConfig REQUIRED)
 
-# Check that dependencies are there
-list(APPEND CMAKE_PREFIX_PATH "${SMT_SWITCH_DIR}/deps/install")
-
 pkg_check_modules(GMPXX REQUIRED gmpxx)
-pkg_check_modules(BITWUZLA REQUIRED bitwuzla)
 
-if(NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
-  message(FATAL_ERROR "Missing smt-switch headers -- try running ./contrib/setup-smt-switch.sh")
-endif()
-
-if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
-  message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
-endif()
-
-if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
-  message(
-    FATAL_ERROR
-    "Missing smt-switch Bitwuzla library -- try running ./contrib/setup-smt-switch.sh"
-  )
-endif()
-
-if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
-  message(
-    FATAL_ERROR
-    "Missing smt-switch cvc5 library -- try running ./contrib/setup-smt-switch.sh"
-  )
-endif()
-
+set(SmtSwitch_FIND_COMPONENTS bitwuzla cvc5)
 if(WITH_BOOLECTOR)
-  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
-    message(
-      FATAL_ERROR
-      "Missing smt-switch Boolector library -- try running ./contrib/setup-smt-switch.sh --with-btor"
-    )
-  endif()
+  list(APPEND SmtSwitch_FIND_COMPONENTS btor)
 endif()
-
 if(WITH_MSAT)
-  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
-    message(
-      FATAL_ERROR
-      "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-msat"
-    )
-  endif()
+  list(APPEND SmtSwitch_FIND_COMPONENTS msat)
 endif()
-
 if(WITH_YICES2)
-  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
-    message(
-      FATAL_ERROR
-      "Missing smt-switch Yices2 library -- try running ./contrib/setup-smt-switch.sh --with-yices2"
-    )
-  endif()
+  list(APPEND SmtSwitch_FIND_COMPONENTS yices2)
 endif()
-
 if(WITH_Z3)
-  find_package(Z3 REQUIRED)
-  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
-    message(
-      FATAL_ERROR
-      "Missing smt-switch Z3 library -- try running ./contrib/setup-smt-switch.sh --with-z3"
-    )
-  endif()
+  list(APPEND SmtSwitch_FIND_COMPONENTS z3)
 endif()
+find_package(SmtSwitch REQUIRED COMPONENTS ${SmtSwitch_FIND_COMPONENTS})
 
 if(WITH_MSAT_IC3IA)
   if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
@@ -212,7 +158,6 @@ set(
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
   ${Btor2Tools_INCLUDE_DIRS}
-  "${SMT_SWITCH_DIR}/local/include"
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
   ${GMPXX_INCLUDE_DIRS}
@@ -315,24 +260,23 @@ if(BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
 
-target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
-target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
+target_link_libraries(pono-lib PUBLIC smt-switch-bitwuzla)
+target_link_libraries(pono-lib PUBLIC smt-switch-cvc5)
 
 if(WITH_BOOLECTOR)
-  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
+  target_link_libraries(pono-lib PUBLIC smt-switch-btor)
 endif()
 
 if(WITH_MSAT)
-  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+  target_link_libraries(pono-lib PUBLIC smt-switch-msat)
 endif()
 
 if(WITH_YICES2)
-  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
+  target_link_libraries(pono-lib PUBLIC smt-switch-yices2)
 endif()
 
 if(WITH_Z3)
-  target_link_libraries(pono-lib PRIVATE "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
-  target_link_libraries(pono-lib PRIVATE z3::libz3)
+  target_link_libraries(pono-lib PRIVATE smt-switch-z3)
 endif()
 
 if(WITH_MSAT_IC3IA)
@@ -374,9 +318,8 @@ if(WITH_COREIR)
   )
 endif()
 
-target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
+target_link_libraries(pono-lib PUBLIC smt-switch)
 target_link_libraries(pono-lib PUBLIC ${Btor2Tools_LIBRARIES})
-target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
 target_link_libraries(pono-lib PUBLIC pthread)
 
@@ -400,7 +343,6 @@ target_include_directories(
     "${PROJECT_SOURCE_DIR}/core"
     "${PROJECT_SOURCE_DIR}/contrib/"
     "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-    "${SMT_SWITCH_DIR}/local/include"
 )
 
 target_link_libraries(pono-bin PUBLIC pono-lib)
