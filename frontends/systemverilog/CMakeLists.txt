@@ -20,14 +20,13 @@ add_library(
   encoder.cpp
   ast_helpers.cpp
   bit_utils.cpp
-  prescan.cpp
+  symbol_table.cpp
   declare.cpp
   instance.cpp
   statement.cpp
   expr.cpp
   sva.cpp
   tableau.cpp
-  terms.cpp
 )
 target_include_directories(pono-systemverilog PUBLIC ${INCLUDE_DIRS})
 # slang requires C++20 features in its headers; keep this PRIVATE so it

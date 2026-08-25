@@ -69,7 +69,7 @@ void SystemVerilogEncoder::process_assignments(
   // walked here too -- a child's continuous assigns / always_comb
   // blocks may drive parent-side wires that downstream parent code
   // references.
-  walk_members(body, [&](const Symbol & member) {
+  walk_members(body, prefix_, [&](const Symbol & member) {
     if (member.kind == SymbolKind::ContinuousAssign) {
       process_continuous_assign_once(member.as<ContinuousAssignSymbol>());
     } else if (member.kind == SymbolKind::ProceduralBlock) {
@@ -115,7 +115,7 @@ void SystemVerilogEncoder::process_assignments(
   });
 
   // Sequential and assertion-bearing blocks come second.
-  walk_members(body, [&](const Symbol & member) {
+  walk_members(body, prefix_, [&](const Symbol & member) {
     if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
       switch (proc.procedureKind) {
@@ -168,7 +168,7 @@ void SystemVerilogEncoder::process_always_ff(
 void SystemVerilogEncoder::process_next_state_body(
     const slang::ast::Statement & body)
 {
-  pending_next_updates_.clear();
+  symbol_table_.pending_next_updates().clear();
 
   // Use a null condition to represent "unconditional".
   Term true_term = solver_->make_term(true);
@@ -189,7 +189,7 @@ void SystemVerilogEncoder::process_next_state_body(
   }
 
   // Commit all pending next-state updates.
-  for (auto & [state_term, next_expr] : pending_next_updates_) {
+  for (auto & [state_term, next_expr] : symbol_table_.pending_next_updates()) {
     fts_.assign_next(state_term, next_expr);
     logger.log(2,
                "SystemVerilogEncoder: assign_next {} := ...",
@@ -200,8 +200,8 @@ void SystemVerilogEncoder::process_next_state_body(
 void SystemVerilogEncoder::process_always_comb(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
-  pending_comb_updates_.clear();
-  pending_comb_aliased_.clear();
+  symbol_table_.pending_comb_updates().clear();
+  symbol_table_.pending_comb_aliased().clear();
   Term true_term = solver_->make_term(true);
   try {
     process_statement(proc.getBody(), StmtContext::COMBINATIONAL, true_term);
@@ -216,20 +216,20 @@ void SystemVerilogEncoder::process_always_comb(
   // Commit accumulated wire definitions via macro substitution.
   // Aliased entries belong in the parent's scope; everything else
   // uses the current prefix.
-  for (auto & [sym, term] : pending_comb_updates_) {
+  for (auto & [sym, term] : symbol_table_.pending_comb_updates()) {
     string name;
-    if (pending_comb_aliased_.count(sym)) {
+    if (symbol_table_.pending_comb_aliased().count(sym)) {
       name = parent_prefix_.empty() ? string(sym->name)
                                     : parent_prefix_ + "." + string(sym->name);
     } else {
-      name = make_name(string(sym->name));
+      name = symbol_table_.make_name(prefix_, string(sym->name));
     }
-    symbol_to_term_[sym] = term;
+    symbol_table_.symbol_to_term()[sym] = term;
     fts_.name_term(name, term);
     logger.log(2, "SystemVerilogEncoder: always_comb (wire) {} := ...", name);
   }
-  pending_comb_updates_.clear();
-  pending_comb_aliased_.clear();
+  symbol_table_.pending_comb_updates().clear();
+  symbol_table_.pending_comb_aliased().clear();
 }
 
 void SystemVerilogEncoder::process_initial(
@@ -250,14 +250,14 @@ void SystemVerilogEncoder::process_initial(
 void SystemVerilogEncoder::process_always_comb_once(
     const slang::ast::ProceduralBlockSymbol & proc)
 {
-  if (!processed_drivers_.insert(&proc).second) return;
+  if (!symbol_table_.processed_drivers().insert(&proc).second) return;
   process_always_comb(proc);
 }
 
 void SystemVerilogEncoder::process_continuous_assign_once(
     const slang::ast::ContinuousAssignSymbol & ca)
 {
-  if (!processed_drivers_.insert(&ca).second) return;
+  if (!symbol_table_.processed_drivers().insert(&ca).second) return;
   process_continuous_assign(ca);
 }
 
@@ -327,7 +327,7 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
         "(non-constant index?)");
   }
   const Symbol * base_sym = desc->base;
-  bool aliased = port_output_aliases_.count(base_sym) > 0;
+  bool aliased = symbol_table_.port_output_aliases().count(base_sym) > 0;
 
   Term rhs_full =
       resize_to(solver_, rhs_arg, desc->hi - desc->lo + 1, rhs_signed);
@@ -337,7 +337,8 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
   // symbol/bit-range and its own slice of rhs_full; the common,
   // non-aliased (or singly-aliased) case is exactly one piece
   // spanning the whole write.
-  auto pieces = resolve_output_alias_pieces(base_sym, desc->lo, desc->hi);
+  auto pieces =
+      symbol_table_.resolve_output_alias_pieces(base_sym, desc->lo, desc->hi);
   for (auto & piece : pieces) {
     const Symbol * sym = piece.sym;
     uint64_t lo = piece.target_lo;
@@ -349,7 +350,7 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
     // instance array wired to a slice of a bus) we splice the slice
     // into whatever was previously stored under `sym`, creating a
     // fresh placeholder to splice into on the very first such write.
-    if (wire_symbols_.count(sym)) {
+    if (symbol_table_.wire_symbols().count(sym)) {
       // Check against the symbol's own declared width, not the width
       // of whatever (possibly still-partial) term is already stored
       // under it -- otherwise a first write that starts at bit 0 but
@@ -361,9 +362,10 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
       if (full_write) {
         new_term = rhs;
       } else {
-        new_term = replace_bits(solver_, wire_seed_term(sym), rhs, lo, hi);
+        new_term = replace_bits(
+            solver_, symbol_table_.wire_seed_term(sym, prefix_), rhs, lo, hi);
       }
-      symbol_to_term_[sym] = new_term;
+      symbol_table_.symbol_to_term()[sym] = new_term;
       // Only register the debug name on a full write: a wire spliced
       // together from several partial writes (e.g. separate sibling
       // instances each driving a different slice of one shared bus)
@@ -378,7 +380,7 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
                      ? string(sym->name)
                      : parent_prefix_ + "." + string(sym->name);
         } else {
-          name = make_name(string(sym->name));
+          name = symbol_table_.make_name(prefix_, string(sym->name));
         }
         fts_.name_term(name, new_term);
         logger.log(2,
@@ -392,8 +394,8 @@ void SystemVerilogEncoder::process_continuous_assign_operand(
     // partially-driven base that wasn't classified as a wire).
     // Constrain the appropriate slice via add_constraint (which
     // tolerates input vars in the term).
-    auto it = symbol_to_term_.find(sym);
-    if (it != symbol_to_term_.end()) {
+    auto it = symbol_table_.symbol_to_term().find(sym);
+    if (it != symbol_table_.symbol_to_term().end()) {
       Term lhs_term = it->second;
       uint64_t base_w = lhs_term->get_sort()->get_width();
       bool full_write = (lo == 0 && hi == base_w - 1);
@@ -501,13 +503,13 @@ void SystemVerilogEncoder::process_instance(
           covered += seg_w;
         }
         if (ok && covered == port_w && !segments.empty()) {
-          port_output_aliases_[internal] = std::move(segments);
+          symbol_table_.port_output_aliases()[internal] = std::move(segments);
           output_aliases_added.push_back(internal);
         }
       } else {
         auto desc = resolve_lvalue(*conn_expr, eval_ctx());
         if (desc) {
-          port_output_aliases_[internal] = {
+          symbol_table_.port_output_aliases()[internal] = {
             { 0, port_w - 1, desc->base, desc->lo, desc->hi }
           };
           output_aliases_added.push_back(internal);
@@ -519,7 +521,7 @@ void SystemVerilogEncoder::process_instance(
                        term,
                        port.getType().getBitWidth(),
                        conn_expr->type->isSigned());
-      symbol_to_term_[internal] = term;
+      symbol_table_.symbol_to_term()[internal] = term;
       input_terms_added.push_back(internal);
     }
   }
@@ -530,16 +532,18 @@ void SystemVerilogEncoder::process_instance(
   // already classified every always_ff/always block in the whole
   // design tree, including this instance's, before any instance's
   // variables were declared.
-  walk_members(inst.body, [&](const Symbol & m) {
+  walk_members(inst.body, prefix_, [&](const Symbol & m) {
     if (m.kind != SymbolKind::ProceduralBlock) return;
     auto & proc = m.as<ProceduralBlockSymbol>();
     if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
-      pre_scan_always_comb(proc.getBody(), proc);
+      symbol_table_.pre_scan_always_comb(
+          proc.getBody(), proc, prefix_, parent_prefix_);
     } else if (proc.procedureKind == ProceduralBlockKind::Always) {
       std::unordered_set<const Symbol *> nb_targets;
       collect_nonblocking_targets(proc.getBody(), nb_targets);
       if (nb_targets.empty()) {
-        pre_scan_always_comb(proc.getBody(), proc);
+        symbol_table_.pre_scan_always_comb(
+            proc.getBody(), proc, prefix_, parent_prefix_);
       }
     }
   });
@@ -550,7 +554,7 @@ void SystemVerilogEncoder::process_instance(
   declare_variables_internal(inst.body);
 
   // Combinational pass over child's body (and any sub-instances).
-  walk_members(inst.body, [&](const Symbol & m) {
+  walk_members(inst.body, prefix_, [&](const Symbol & m) {
     if (m.kind == SymbolKind::ContinuousAssign) {
       process_continuous_assign_once(m.as<ContinuousAssignSymbol>());
     } else if (m.kind == SymbolKind::ProceduralBlock) {
@@ -570,7 +574,7 @@ void SystemVerilogEncoder::process_instance(
   });
 
   // Sequential / initial pass.
-  walk_members(inst.body, [&](const Symbol & m) {
+  walk_members(inst.body, prefix_, [&](const Symbol & m) {
     if (m.kind != SymbolKind::ProceduralBlock) return;
     auto & proc = m.as<ProceduralBlockSymbol>();
     switch (proc.procedureKind) {
@@ -599,8 +603,12 @@ void SystemVerilogEncoder::process_instance(
   // Restore context: undo the per-instance bindings so that a sibling
   // (or repeated) instantiation of the same module can be processed
   // cleanly.
-  for (auto * sym : output_aliases_added) port_output_aliases_.erase(sym);
-  for (auto * sym : input_terms_added) symbol_to_term_.erase(sym);
+  for (auto * sym : output_aliases_added) {
+    symbol_table_.port_output_aliases().erase(sym);
+  }
+  for (auto * sym : input_terms_added) {
+    symbol_table_.symbol_to_term().erase(sym);
+  }
   prefix_ = saved_prefix;
   parent_prefix_ = saved_parent_prefix;
 }

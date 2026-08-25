@@ -17,10 +17,20 @@
  *                         compilation, and the top-level per-module
  *                         encoding dispatch (run(), process_module()).
  *   - ast_helpers.h/.cpp: free-function AST helpers (lvalue resolution, modport
- *                         canonicalization, loop-control-signal type) shared
- *                         across the files below.
- *   - prescan.cpp:        the pre-scan pass that classifies wires vs. state
- *                         vars before declaration.
+ *                         canonicalization, loop-control-signal type,
+ *                         walk_members()) shared across the files below.
+ *   - bit_utils.h/.cpp:   free-function pure bit/type helpers (type-to-sort,
+ *                         resize/replace-bits), with no dependency on this
+ *                         class at all.
+ *   - symbol_table.h/.cpp: the SymbolTable class -- classifies wires vs.
+ *                         state vars before declaration (formerly
+ *                         prescan.cpp) and resolves a symbol to its SMT
+ *                         term, including on-demand wire resolution
+ *                         (formerly terms.cpp's stateful half). Owned by
+ *                         SystemVerilogEncoder as symbol_table_; this class
+ *                         implements SymbolTable::DriverResolver as a
+ *                         temporary shim (see symbol_table.h) until a
+ *                         dedicated instance-walking class takes over.
  *   - declare.cpp:        the variable-declaration pass.
  *   - instance.cpp:       continuous assigns, always_comb/ff/initial blocks,
  *                         and per-instance (child module) processing.
@@ -35,22 +45,16 @@
  *                         the rest of this class. Owned by
  *                         SystemVerilogEncoder as tableau_ and called from
  *                         sva.cpp.
- *   - terms.cpp:          low-level bit/term helpers (type-to-sort,
- *                         resize/replace-bits, symbol lookup).
  */
 
 #pragma once
 
-#include <cstdint>
-#include <functional>
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "core/fts.h"
-#include "frontends/systemverilog/bit_utils.h"
+#include "frontends/systemverilog/symbol_table.h"
 #include "frontends/systemverilog/tableau.h"
 #include "smt-switch/smt.h"
 
@@ -76,7 +80,10 @@ class ElementSelectExpression;
 
 namespace pono {
 
-class SystemVerilogEncoder
+// Temporarily implements SymbolTable::DriverResolver itself (see
+// symbol_table.h) until a dedicated instance-walking class exists to take
+// over that role.
+class SystemVerilogEncoder : private SymbolTable::DriverResolver
 {
  public:
   /** The properties extracted from a SystemVerilog design by encode(). */
@@ -258,18 +265,37 @@ class SystemVerilogEncoder
   void process_continuous_assign_once(
       const slang::ast::ContinuousAssignSymbol & ca);
 
-  /** If `sym` is a wire whose driving continuous assign / always_comb
-   *  block lives in a scope already walked (so its home prefix_ /
-   *  parent_prefix_ are known) but hasn't been processed yet -- e.g.
-   *  a same-scope wire whose `assign` appears later in program order
-   *  than the code that reads it -- process that driver now, out of
-   *  order, so lookup_symbol() can retry.  Detects and throws on a
-   *  genuine combinational cycle.
-   *  @return true if a driver was found (and is now processed, or
-   *          already had been); false if `sym` isn't a locally-driven
-   *          wire this mechanism knows about.
-   */
-  bool resolve_wire_on_demand(const slang::ast::Symbol * sym);
+  // ---------- SymbolTable::DriverResolver overrides ----------
+  // Temporary shim (see symbol_table.h and encoder.h's file-level doc
+  // comment) until a dedicated instance-walking class implements this
+  // for real. Switches into the driver's own recorded scope before
+  // dispatching to the *_once() methods above, since resolve_wire_on_demand()
+  // can be reached from a completely different scope than the one that
+  // drives the wire.
+  void resolve_continuous_assign(const slang::ast::ContinuousAssignSymbol & ca,
+                                 const std::string & prefix,
+                                 const std::string & parent_prefix) override
+  {
+    std::string saved_prefix = prefix_;
+    std::string saved_parent_prefix = parent_prefix_;
+    prefix_ = prefix;
+    parent_prefix_ = parent_prefix;
+    process_continuous_assign_once(ca);
+    prefix_ = saved_prefix;
+    parent_prefix_ = saved_parent_prefix;
+  }
+  void resolve_always_comb(const slang::ast::ProceduralBlockSymbol & proc,
+                           const std::string & prefix,
+                           const std::string & parent_prefix) override
+  {
+    std::string saved_prefix = prefix_;
+    std::string saved_parent_prefix = parent_prefix_;
+    prefix_ = prefix;
+    parent_prefix_ = parent_prefix;
+    process_always_comb_once(proc);
+    prefix_ = saved_prefix;
+    parent_prefix_ = saved_parent_prefix;
+  }
 
   // ---------- Statement processing ----------
 
@@ -313,62 +339,6 @@ class SystemVerilogEncoder
 
   // ---------- Helpers ----------
 
-  /** Look up the SMT term for a slang symbol.
-   *  @param sym pointer to the slang symbol
-   *  @return the SMT term, or throws if not found
-   */
-  smt::Term lookup_symbol(const slang::ast::Symbol * sym);
-
-  /** One piece of a (possibly split) output-port alias resolution:
-   *  bits [rhs_lo, rhs_hi] of the caller's original write/read window
-   *  (0-indexed from the window's own low bit) correspond to bits
-   *  [target_lo, target_hi] of `sym`, a final symbol that is itself
-   *  guaranteed *not* to be a further output-port alias.
-   */
-  struct ResolvedAliasPiece
-  {
-    const slang::ast::Symbol * sym;
-    uint64_t target_lo, target_hi;
-    uint64_t rhs_lo, rhs_hi;
-  };
-
-  /** Chase port_output_aliases_ transitively for bits [lo, hi] of
-   *  `sym` (an output port that is itself connected to an outer
-   *  output port, e.g. through two levels of instantiation, through a
-   *  bus-element connection of an instance array, or through a
-   *  concatenation-target connection splitting `sym`'s bits across
-   *  several parent-side signals) to one or more final (non-aliased)
-   *  pieces. A plain, non-aliased `sym` resolves to a single piece
-   *  covering itself. Piece order is unspecified; a caller that needs
-   *  to reassemble the whole value should sort by rhs_lo.
-   *  @param sym the symbol to resolve
-   *  @param lo  the low bit of the window to resolve (relative to sym)
-   *  @param hi  the high bit of the window to resolve (relative to sym)
-   *  @param rhs_base the rhs-window bit corresponding to `lo` --
-   *              callers should omit this (recursive calls set it)
-   */
-  std::vector<ResolvedAliasPiece> resolve_output_alias_pieces(
-      const slang::ast::Symbol * sym,
-      uint64_t lo,
-      uint64_t hi,
-      uint64_t rhs_base = 0) const;
-
-  /** Build the hierarchical name for a symbol.
-   *  @param name the local name
-   *  @return the fully-qualified name with prefix
-   */
-  std::string make_name(const std::string & name) const;
-
-  /** Return the existing term for a wire-classified symbol, or --
-   *  if this is the first write it has ever received -- create a
-   *  fresh free variable sized to its declared bit width to serve as
-   *  the splice base for a partial write (e.g. one element of a
-   *  multi-driver bus written piecemeal across several instance-array
-   *  elements).  The placeholder's own value never surfaces once
-   *  every bit of the symbol has been written by some partial write.
-   */
-  smt::Term wire_seed_term(const slang::ast::Symbol * sym);
-
   /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
    *  not a compile-time constant, so resolve_lvalue() can't produce a
    *  static bit range.  Only a direct select on a plain variable base
@@ -390,66 +360,6 @@ class SystemVerilogEncoder
       StmtContext ctx,
       const smt::Term & condition);
 
-  /** Pre-scan an always_ff body to identify non-blocking assignment
-   *  targets as state variable symbols.
-   *  @param body the statement body of the always_ff block
-   */
-  void pre_scan_always_ff(const slang::ast::Statement & body);
-
-  /** Recursively pre-scan an instance body's own `always_ff`/`always`
-   *  blocks (via pre_scan_always_ff()), `always_latch` blocks (via
-   *  pre_scan_always_latch()), `initial forever @(...)` blocks (the
-   *  legacy always_ff spelling, via pre_scan_always_ff()), and every
-   *  descendant instance's body, so every register anywhere in the
-   *  design tree is known before any instance's variables are
-   *  declared -- otherwise a sibling instance visited earlier in
-   *  source order (e.g. an `interface` instance whose members are
-   *  actually driven by a later sibling's always_ff through a
-   *  hierarchical/interface-port reference) would get its members
-   *  wrongly declared as free inputs.
-   *  @param body the instance body to scan (and recurse from)
-   */
-  void pre_scan_state_vars(const slang::ast::InstanceBodySymbol & body);
-
-  /** Pre-scan a combinational always_comb body to identify blocking
-   *  assignment targets.  A target written only full-width becomes a
-   *  combinational wire symbol; a target written (even partly)
-   *  through a bit/range select, or written both full- and
-   *  partial-width, becomes a state variable instead (mirroring
-   *  pre_scan_always_latch()'s always-a-state-var rule for that
-   *  case), so the slice can later be constrained with an
-   *  add_constraint rather than needing a state term to macro-
-   *  substitute into.  Each wire target found is recorded (with the
-   *  current prefix_ / parent_prefix_) as being driven by `proc`, so a
-   *  read of it that occurs before `proc` is naturally walked can
-   *  force it to be processed on demand -- see
-   *  resolve_wire_on_demand().
-   *  @param body the statement body of the always_comb block
-   *  @param proc the enclosing always_comb block symbol
-   */
-  void pre_scan_always_comb(const slang::ast::Statement & body,
-                            const slang::ast::ProceduralBlockSymbol & proc);
-
-  /** Pre-scan an always_latch body to identify every blocking-
-   *  assignment target (full- or partial-width alike) as a state
-   *  variable. Unlike always_comb's full-vs-partial wire/state-var
-   *  split, an always_latch target is *always* a state variable, even
-   *  when a single write covers its whole width, since a latch
-   *  implicitly holds its previous value along any path that doesn't
-   *  reassign it -- exactly the same "defaults to itself" semantics
-   *  process_next_state_body()'s NEXT_STATE writes already provide.
-   *  @param body the statement body of the always_latch block
-   */
-  void pre_scan_always_latch(const slang::ast::Statement & body);
-
-  /** Pre-scan a child instance to identify any parent-side variables
-   *  that are driven by the child's output ports; those become wires
-   *  in the parent's transition system.  Also recurses into nested
-   *  instances.
-   *  @param inst the child instance to scan
-   */
-  void pre_scan_instance(const slang::ast::InstanceSymbol & inst);
-
   /** Process a child module instance: register its port connections,
    *  then walk its body (continuous assigns, always blocks, nested
    *  instances) so the parent's transition system inherits all of
@@ -457,27 +367,6 @@ class SystemVerilogEncoder
    *  @param inst the child instance to process
    */
   void process_instance(const slang::ast::InstanceSymbol & inst);
-
-  /** Invoke `fn` for every concrete member of `scope`, recursing
-   *  through generate-block scopes so the caller sees the unrolled
-   *  per-iteration members directly.  Uninstantiated generate
-   *  blocks (the unselected arm of a generate-if / generate-case)
-   *  are skipped.
-   *
-   *  Takes a type-erased `std::function` (rather than a template
-   *  parameter) specifically so its single definition can live in
-   *  exactly one systemverilog_*.cpp file while still being callable,
-   *  as an ordinary non-template member function, from every other
-   *  systemverilog_*.cpp file -- a template's definition would instead
-   *  need to be visible (and separately instantiated) in each of those
-   *  translation units, which for this method would also force this
-   *  header to fully include (rather than just forward-declare) the
-   *  slang types its body depends on.
-   *  @param scope the scope whose members should be visited
-   *  @param fn   callback invoked once per concrete member symbol
-   */
-  void walk_members(const slang::ast::Scope & scope,
-                    const std::function<void(const slang::ast::Symbol &)> & fn);
 
   /** Lazily construct and return the encoder's slang EvalContext, used
    *  throughout statement/expression processing to evaluate
@@ -604,90 +493,11 @@ class SystemVerilogEncoder
   // Unique pointer to slang compilation (hidden from header users)
   std::unique_ptr<slang::ast::Compilation> compilation_;
 
-  // Map from slang symbol pointer to the corresponding SMT term.
-  // For state variables, this maps to the current-state term.
-  // For wires (continuous-assign / always_comb targets), this maps to
-  // the defining SMT expression (macro substitution).
-  std::unordered_map<const slang::ast::Symbol *, smt::Term> symbol_to_term_;
-
-  // Set of symbols that are state variables (assigned in always_ff).
-  // Populated during the first pass so that the second pass knows
-  // which variables are registers vs. wires.
-  std::unordered_set<const slang::ast::Symbol *> state_var_symbols_;
-
-  // Set of symbols that are combinational wires (assigned in
-  // continuous_assign or always_comb).  These are macro-substituted:
-  // their term in symbol_to_term_ is the defining expression itself,
-  // not a fresh state or input variable.
-  std::unordered_set<const slang::ast::Symbol *> wire_symbols_;
-
-  // A locally-driven wire's driving statement, plus the prefix_ /
-  // parent_prefix_ its home scope was walked with -- everything
-  // resolve_wire_on_demand() needs to process that statement out of
-  // program order.  Exactly one of {ca, comb} is set.
-  struct WireDriver
-  {
-    const slang::ast::ContinuousAssignSymbol * ca = nullptr;
-    const slang::ast::ProceduralBlockSymbol * comb = nullptr;
-    std::string prefix;
-    std::string parent_prefix;
-  };
-  std::unordered_map<const slang::ast::Symbol *, WireDriver> wire_drivers_;
-
-  // Driving statements (ContinuousAssignSymbol* / ProceduralBlockSymbol*,
-  // type-erased) that have already been processed, whether by the
-  // normal walk reaching them or via resolve_wire_on_demand() -- so
-  // neither path ever processes the same driver twice.
-  std::unordered_set<const void *> processed_drivers_;
-
-  // Wires currently being resolved by resolve_wire_on_demand(), to
-  // detect a genuine combinational cycle rather than recursing
-  // forever.
-  std::unordered_set<const slang::ast::Symbol *> resolving_wires_;
-
-  // An output-port alias target: either the whole of `sym` (has_range
-  // false), or -- for an instance-array element wired to one slice of
-  // a parent-side bus signal -- bits [lo, hi] of `sym`.
-  // One segment of an output-port alias: bits [port_lo, port_hi] of
-  // the aliased port symbol map affinely onto bits [target_lo,
-  // target_hi] of `target`. A plain (non-concatenation) connection
-  // has exactly one segment spanning the port's whole width; a
-  // concatenation-target connection (`.port({hi, lo})`) has one
-  // segment per operand, each covering the corresponding slice of the
-  // port's bits.
-  struct OutputAliasSegment
-  {
-    uint64_t port_lo, port_hi;
-    const slang::ast::Symbol * target;
-    uint64_t target_lo, target_hi;
-  };
-
-  // Map from a child instance's port internal symbol to the segment(s)
-  // describing which parent-side variable(s) (and bit range(s)) its
-  // bits connect to.  Populated while processing a child instance and
-  // consulted when resolving the LHS of a continuous-assign or
-  // always_comb statement so writes to a child output port redirect to
-  // the parent-side wire(s).
-  std::unordered_map<const slang::ast::Symbol *,
-                     std::vector<OutputAliasSegment>>
-      port_output_aliases_;
-
-  // Symbols in pending_comb_updates_ that came from an alias-redirect
-  // through port_output_aliases_; their term must be named in
-  // parent_prefix_ rather than prefix_ when the always_comb block
-  // commits.
-  std::unordered_set<const slang::ast::Symbol *> pending_comb_aliased_;
-
-  // For always_ff processing: accumulated conditional next-state updates.
-  // Maps state variable term -> conditional next-state expression.
-  // After processing the block, these are committed via assign_next().
-  std::unordered_map<smt::Term, smt::Term> pending_next_updates_;
-
-  // For always_comb processing: accumulated wire-define expressions
-  // keyed by the LHS wire symbol.  After processing the block, the
-  // accumulated term is stored in symbol_to_term_.
-  std::unordered_map<const slang::ast::Symbol *, smt::Term>
-      pending_comb_updates_;
+  // Symbol classification, term binding, and on-demand wire lookup --
+  // see symbol_table.h. Holds no reference back to this class; this
+  // class instead implements symbol_table_'s DriverResolver interface
+  // (see the private overrides below) as a temporary shim.
+  SymbolTable symbol_table_;
 
   // Safety properties extracted from SVA assert statements.
   smt::TermVec propvec_;
@@ -708,15 +518,6 @@ class SystemVerilogEncoder
   // instances so wires redirected via port_output_aliases_ get named
   // in their owning scope rather than the child's.
   std::string parent_prefix_;
-
-  // Compile-time-constant local bindings: each `for`/`foreach` loop
-  // variable is mapped here to a BV term representing its current
-  // iteration value while the loop is unrolling, and a plain
-  // procedural local declaration (`int x = ...;`) is bound here too,
-  // as an immutable per-block constant.  Consulted by lookup_symbol
-  // so references resolve to the right constant in each unrolled
-  // iteration (or to the local's one bound value).
-  std::unordered_map<const slang::ast::Symbol *, smt::Term> loop_var_terms_;
 
   // Slang evaluation context, lazily constructed on first use to
   // evaluate constant bounds and step expressions during for-loop

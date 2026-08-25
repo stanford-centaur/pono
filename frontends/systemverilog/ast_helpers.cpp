@@ -21,12 +21,15 @@
 #include <string>
 #include <utility>
 
+#include "slang/ast/Scope.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/expressions/SelectExpressions.h"
 #include "slang/ast/statements/ConditionalStatements.h"
 #include "slang/ast/statements/LoopStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
+#include "slang/ast/symbols/BlockSymbols.h"
+#include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/Type.h"
@@ -298,6 +301,71 @@ const slang::ast::Statement * as_forever_event_body(
   auto & forever_stmt = s->as<ForeverLoopStatement>();
   if (forever_stmt.body.kind != StatementKind::Timed) return nullptr;
   return &forever_stmt.body;
+}
+
+void walk_members(const slang::ast::Scope & scope,
+                  std::string & prefix,
+                  const std::function<void(const slang::ast::Symbol &)> & fn)
+{
+  using namespace slang::ast;
+  for (auto & m : scope.members()) {
+    if (m.kind == SymbolKind::GenerateBlockArray) {
+      // Generate-for: walk each instantiated entry, pushing a
+      // bracket-indexed prefix so per-iteration variables get
+      // unique hierarchical names like "<top>.ctr[0].count".
+      auto & arr = m.as<GenerateBlockArraySymbol>();
+      std::string saved_prefix = prefix;
+      std::string arr_name = std::string(arr.name);
+      if (arr_name.empty()) arr_name = arr.getExternalName();
+      for (auto * entry : arr.entries) {
+        if (!entry || entry->isUninstantiated) continue;
+        std::string idx_str;
+        if (entry->arrayIndex) {
+          auto idx = *entry->arrayIndex;
+          idx.setSigned(false);
+          idx_str =
+              idx.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
+        } else {
+          idx_str = std::to_string(entry->constructIndex);
+        }
+        prefix = saved_prefix + "." + arr_name + "[" + idx_str + "]";
+        walk_members(*entry, prefix, fn);
+      }
+      prefix = saved_prefix;
+    } else if (m.kind == SymbolKind::InstanceArray) {
+      // Arrayed instantiation (`mod inst[N-1:0] (...)`): slang
+      // creates one child Instance per element, each with its own
+      // port connections already sliced to the correct bus range
+      // (see AssignmentExpressions.cpp's use of InstanceSymbol::
+      // arrayPath). Flatten them into the same dispatch as a plain
+      // Instance, pushing a bracket-indexed prefix so each element's
+      // state gets a unique hierarchical name -- the elements
+      // themselves are unnamed (only the array is named).
+      auto & arr = m.as<InstanceArraySymbol>();
+      std::string saved_prefix = prefix;
+      std::string arr_name = std::string(arr.name);
+      for (size_t i = 0; i < arr.elements.size(); ++i) {
+        auto * element = arr.elements[i];
+        if (!element) continue;
+        prefix = saved_prefix + "." + arr_name + "[" + std::to_string(i) + "]";
+        fn(*element);
+      }
+      prefix = saved_prefix;
+    } else if (m.kind == SymbolKind::GenerateBlock) {
+      // Generate-if / generate-case: a single block scope.  Push
+      // its name (or slang's synthesized "genblkN") as the suffix.
+      auto & gb = m.as<GenerateBlockSymbol>();
+      if (gb.isUninstantiated) continue;
+      std::string saved_prefix = prefix;
+      std::string block_name = std::string(gb.name);
+      if (block_name.empty()) block_name = gb.getExternalName();
+      prefix = saved_prefix + "." + block_name;
+      walk_members(gb, prefix, fn);
+      prefix = saved_prefix;
+    } else {
+      fn(m);
+    }
+  }
 }
 
 }  // namespace pono

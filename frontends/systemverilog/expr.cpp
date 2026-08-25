@@ -51,7 +51,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
   switch (expr.kind) {
     case ExpressionKind::NamedValue: {
       auto & nv = expr.as<NamedValueExpression>();
-      return lookup_symbol(&canonicalize_modport_port(nv.symbol));
+      return symbol_table_.lookup_symbol(&canonicalize_modport_port(nv.symbol));
     }
 
     case ExpressionKind::HierarchicalValue: {
@@ -63,7 +63,7 @@ Term SystemVerilogEncoder::expr_to_term(const slang::ast::Expression & expr)
       // proxy rather than the real symbol directly -- see
       // canonicalize_modport_port().
       auto & hv = expr.as<HierarchicalValueExpression>();
-      return lookup_symbol(&canonicalize_modport_port(hv.symbol));
+      return symbol_table_.lookup_symbol(&canonicalize_modport_port(hv.symbol));
     }
 
     case ExpressionKind::LValueReference: {

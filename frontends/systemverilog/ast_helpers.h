@@ -19,7 +19,9 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <optional>
+#include <string>
 #include <unordered_set>
 
 #include "slang/ast/EvalContext.h"
@@ -27,7 +29,35 @@
 #include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
 
+namespace slang::ast {
+class Scope;
+}  // namespace slang::ast
+
 namespace pono {
+
+/** Invoke `fn` for every concrete member of `scope`, recursing through
+ *  generate-block scopes so the caller sees the unrolled per-iteration
+ *  members directly. Uninstantiated generate blocks (the unselected arm
+ *  of a generate-if / generate-case) are skipped.
+ *
+ *  Takes a type-erased `std::function` (rather than a template
+ *  parameter) specifically so its single definition can live in exactly
+ *  one file while still being callable, as an ordinary non-template
+ *  function, from every other file in this directory -- a template's
+ *  definition would instead need to be visible (and separately
+ *  instantiated) in each of those translation units, which for this
+ *  function would also force this header to fully include (rather than
+ *  just forward-declare) the slang types its body depends on.
+ *  @param scope the scope whose members should be visited
+ *  @param prefix the caller's current hierarchical name prefix --
+ *         updated in place while descending into a generate-for/
+ *         instance-array's bracket-indexed child scopes, and restored
+ *         before returning
+ *  @param fn callback invoked once per concrete member symbol
+ */
+void walk_members(const slang::ast::Scope & scope,
+                  std::string & prefix,
+                  const std::function<void(const slang::ast::Symbol &)> & fn);
 
 // Helper to iterate over sub-statements of a BlockStatement body.
 // The body is a single Statement; if it is a StatementList, iterate its

@@ -95,10 +95,10 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
       (sel.value().kind == ExpressionKind::NamedValue)
           ? sel.value().as<NamedValueExpression>().symbol
           : sel.value().as<HierarchicalValueExpression>().symbol);
-  bool aliased = port_output_aliases_.count(sym) > 0;
+  bool aliased = symbol_table_.port_output_aliases().count(sym) > 0;
   {
     uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
-    auto pieces = resolve_output_alias_pieces(sym, 0, sym_w - 1);
+    auto pieces = symbol_table_.resolve_output_alias_pieces(sym, 0, sym_w - 1);
     uint64_t piece_w =
         pieces.empty()
             ? 0
@@ -117,24 +117,26 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
   uint64_t elem_w = sel.type->getBitWidth();
   if (elem_w == 0) elem_w = 1;
 
-  bool wire_comb =
-      ctx == StmtContext::COMBINATIONAL && wire_symbols_.count(sym);
+  bool wire_comb = ctx == StmtContext::COMBINATIONAL
+                   && symbol_table_.wire_symbols().count(sym);
   Term prev_base;
   Term state_term;
   if (wire_comb) {
-    auto pit = pending_comb_updates_.find(sym);
-    if (pit != pending_comb_updates_.end()) {
+    auto pit = symbol_table_.pending_comb_updates().find(sym);
+    if (pit != symbol_table_.pending_comb_updates().end()) {
       prev_base = pit->second;
     } else {
-      auto sit = symbol_to_term_.find(sym);
-      if (sit != symbol_to_term_.end()) prev_base = sit->second;
+      auto sit = symbol_table_.symbol_to_term().find(sym);
+      if (sit != symbol_table_.symbol_to_term().end()) prev_base = sit->second;
     }
   } else if (ctx == StmtContext::NEXT_STATE) {
-    auto sit = symbol_to_term_.find(sym);
-    if (sit == symbol_to_term_.end()) return;
+    auto sit = symbol_table_.symbol_to_term().find(sym);
+    if (sit == symbol_table_.symbol_to_term().end()) return;
     state_term = sit->second;
-    auto pit = pending_next_updates_.find(state_term);
-    prev_base = (pit != pending_next_updates_.end()) ? pit->second : state_term;
+    auto pit = symbol_table_.pending_next_updates().find(state_term);
+    prev_base = (pit != symbol_table_.pending_next_updates().end())
+                    ? pit->second
+                    : state_term;
   } else {
     // COMBINATIONAL non-wire / INITIAL dynamic-index writes aren't
     // needed by any currently-supported construct; leave unsupported
@@ -149,8 +151,8 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
   Term combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
 
   if (wire_comb) {
-    if (aliased) pending_comb_aliased_.insert(sym);
-    pending_comb_updates_[sym] =
+    if (aliased) symbol_table_.pending_comb_aliased().insert(sym);
+    symbol_table_.pending_comb_updates()[sym] =
         (condition == solver_->make_term(true))
             ? combined
             : solver_->make_term(Ite, condition, combined, prev_base);
@@ -158,7 +160,7 @@ void SystemVerilogEncoder::process_dynamic_element_assign(
   }
 
   // ctx == NEXT_STATE
-  pending_next_updates_[state_term] =
+  symbol_table_.pending_next_updates()[state_term] =
       (condition == solver_->make_term(true))
           ? combined
           : solver_->make_term(Ite, condition, combined, prev_base);
@@ -179,7 +181,7 @@ void SystemVerilogEncoder::refresh_loop_var_term(
   Sort sort = solver_->make_sort(BV, width);
   svint.setSigned(false);
   string val_str = svint.toString(slang::LiteralBase::Decimal, false);
-  loop_var_terms_[&sym] = solver_->make_term(val_str, sort, 10);
+  symbol_table_.loop_var_terms()[&sym] = solver_->make_term(val_str, sort, 10);
 }
 
 void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
@@ -295,9 +297,10 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
 
         auto desc = resolve_lvalue(lhs_expr, eval_ctx());
         if (!desc) return {};
-        bool base_aliased = port_output_aliases_.count(desc->base) > 0;
-        auto pieces =
-            resolve_output_alias_pieces(desc->base, desc->lo, desc->hi);
+        bool base_aliased =
+            symbol_table_.port_output_aliases().count(desc->base) > 0;
+        auto pieces = symbol_table_.resolve_output_alias_pieces(
+            desc->base, desc->lo, desc->hi);
 
         std::vector<LValueWrite> writes;
         writes.reserve(pieces.size());
@@ -311,29 +314,34 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           LValueWrite w{ sym,    base_aliased, has_range,   lo,
                          hi,     hi - lo + 1,  Term(),      false,
                          Term(), piece.rhs_lo, piece.rhs_hi };
-          w.wire_comb =
-              ctx == StmtContext::COMBINATIONAL && wire_symbols_.count(sym);
+          w.wire_comb = ctx == StmtContext::COMBINATIONAL
+                        && symbol_table_.wire_symbols().count(sym);
           if (w.wire_comb) {
-            auto pit = pending_comb_updates_.find(sym);
-            if (pit != pending_comb_updates_.end()) w.prev_base = pit->second;
+            auto pit = symbol_table_.pending_comb_updates().find(sym);
+            if (pit != symbol_table_.pending_comb_updates().end()) {
+              w.prev_base = pit->second;
+            }
           } else if (ctx == StmtContext::NEXT_STATE) {
-            auto sit = symbol_to_term_.find(sym);
-            if (sit == symbol_to_term_.end()) {
+            auto sit = symbol_table_.symbol_to_term().find(sym);
+            if (sit == symbol_table_.symbol_to_term().end()) {
               // All-or-nothing: if any piece of a (possibly split)
               // write can't resolve a state term, don't commit a
               // partial write for the others either.
               return {};
             }
             w.state_term = sit->second;
-            auto pit = pending_next_updates_.find(w.state_term);
-            w.prev_base = (pit != pending_next_updates_.end()) ? pit->second
-                                                               : w.state_term;
+            auto pit = symbol_table_.pending_next_updates().find(w.state_term);
+            w.prev_base = (pit != symbol_table_.pending_next_updates().end())
+                              ? pit->second
+                              : w.state_term;
           } else {
             // COMBINATIONAL non-wire or INITIAL: prev_base is the
             // current (constant) value of the LHS used only for
             // self-reference (compound assignment, ++/--).
-            auto sit = symbol_to_term_.find(sym);
-            if (sit != symbol_to_term_.end()) w.prev_base = sit->second;
+            auto sit = symbol_table_.symbol_to_term().find(sym);
+            if (sit != symbol_table_.symbol_to_term().end()) {
+              w.prev_base = sit->second;
+            }
           }
           writes.push_back(w);
         }
@@ -355,7 +363,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       // computed.
       auto commit_write = [&](const LValueWrite & w, const Term & rhs) {
         if (w.wire_comb) {
-          if (w.aliased) pending_comb_aliased_.insert(w.sym);
+          if (w.aliased) symbol_table_.pending_comb_aliased().insert(w.sym);
           // Compose new full-base value from prev_base + slice rhs.
           // On the very first write to this wire within the block
           // there is no prev_base yet; treat it as covering the
@@ -374,21 +382,24 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             combined =
                 full_write
                     ? rhs
-                    : replace_bits(
-                          solver_, wire_seed_term(w.sym), rhs, w.lo, w.hi);
+                    : replace_bits(solver_,
+                                   symbol_table_.wire_seed_term(w.sym, prefix_),
+                                   rhs,
+                                   w.lo,
+                                   w.hi);
           }
           if (condition == solver_->make_term(true)) {
-            pending_comb_updates_[w.sym] = combined;
+            symbol_table_.pending_comb_updates()[w.sym] = combined;
           } else {
             Term def = w.prev_base ? w.prev_base : combined;
-            pending_comb_updates_[w.sym] =
+            symbol_table_.pending_comb_updates()[w.sym] =
                 solver_->make_term(Ite, condition, combined, def);
           }
           return;
         }
 
-        auto it = symbol_to_term_.find(w.sym);
-        if (it == symbol_to_term_.end()) {
+        auto it = symbol_table_.symbol_to_term().find(w.sym);
+        if (it == symbol_table_.symbol_to_term().end()) {
           // Every non-wire write target should already have a term by
           // the time any statement is processed: locals are
           // intercepted earlier in this function (see findLocal()
@@ -420,7 +431,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
               update =
                   solver_->make_term(Ite, condition, combined, w.prev_base);
             }
-            pending_next_updates_[w.state_term] = update;
+            symbol_table_.pending_next_updates()[w.state_term] = update;
             break;
           }
           case StmtContext::COMBINATIONAL: {
@@ -847,13 +858,13 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
             logger.log(1,
                        "SystemVerilogEncoder: extracted assumption "
                        "constraint from {}",
-                       make_name(assertion_label(stmt)));
+                       symbol_table_.make_name(prefix_, assertion_label(stmt)));
           } else {
             propvec_.push_back(prop);
             logger.log(1,
                        "SystemVerilogEncoder: extracted safety assertion "
                        "property {} (index {})",
-                       make_name(assertion_label(stmt)),
+                       symbol_table_.make_name(prefix_, assertion_label(stmt)),
                        propvec_.size() - 1);
           }
           current_disable_cond_ = saved_disable_cond;
@@ -869,7 +880,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
           logger.log(1,
                      "SystemVerilogEncoder: skipping unsupported temporal "
                      "assume/restrict property {}",
-                     make_name(assertion_label(stmt)));
+                     symbol_table_.make_name(prefix_, assertion_label(stmt)));
           current_disable_cond_ = saved_disable_cond;
           break;
         }
@@ -913,7 +924,9 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         // may stay 0, leaving their obligations vacuous.  This keeps
         // independent LTL properties from interfering in one system.
         Term act = fts_.make_statevar(
-            make_name("__ltl_act_" + std::to_string(tableau_.next_id())), bv1);
+            symbol_table_.make_name(
+                prefix_, "__ltl_act_" + std::to_string(tableau_.next_id())),
+            bv1);
         fts_.assign_next(act, act);
         Term act_bool = solver_->make_term(Equal, act, one_bv1);
 
@@ -933,7 +946,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         logger.log(1,
                    "SystemVerilogEncoder: extracted LTL liveness property "
                    "{} (index {}, {} justice condition(s))",
-                   make_name(assertion_label(stmt)),
+                   symbol_table_.make_name(prefix_, assertion_label(stmt)),
                    ltl_justice_.size() - 1,
                    justice.size());
         current_disable_cond_ = saved_disable_cond;
@@ -1017,7 +1030,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       Sort sort = solver_->make_sort(BV, width);
       svint.setSigned(false);
       string val_str = svint.toString(slang::LiteralBase::Decimal, false);
-      loop_var_terms_[&sym] = solver_->make_term(val_str, sort, 10);
+      symbol_table_.loop_var_terms()[&sym] =
+          solver_->make_term(val_str, sort, 10);
       break;
     }
 
@@ -1059,7 +1073,8 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         Sort sort = solver_->make_sort(BV, width);
         svint.setSigned(false);
         string val_str = svint.toString(slang::LiteralBase::Decimal, false);
-        loop_var_terms_[&lv] = solver_->make_term(val_str, sort, 10);
+        symbol_table_.loop_var_terms()[&lv] =
+            solver_->make_term(val_str, sort, 10);
       };
 
       for (auto * lv : loop.loopVars) bind_var(*lv);
@@ -1112,7 +1127,7 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
       }
 
       for (auto * sym : declared) {
-        loop_var_terms_.erase(sym);
+        symbol_table_.loop_var_terms().erase(sym);
         eval_ctx().deleteLocal(sym);
       }
       break;
@@ -1294,13 +1309,13 @@ void SystemVerilogEncoder::process_statement(const slang::ast::Statement & stmt,
         catch (const LoopControlSignal & sig) {
           if (sig.kind != LoopControlSignal::Break
               && sig.kind != LoopControlSignal::Continue) {
-            loop_var_terms_.erase(&iter_sym);
+            symbol_table_.loop_var_terms().erase(&iter_sym);
             eval_ctx().deleteLocal(&iter_sym);
             throw;
           }
           broke = sig.kind == LoopControlSignal::Break;
         }
-        loop_var_terms_.erase(&iter_sym);
+        symbol_table_.loop_var_terms().erase(&iter_sym);
         eval_ctx().deleteLocal(&iter_sym);
         if (broke) break;
       }

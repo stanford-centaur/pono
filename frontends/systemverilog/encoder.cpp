@@ -52,75 +52,6 @@ using namespace std;
 
 namespace pono {
 
-// ============================================================================
-// Member iteration helpers
-// ============================================================================
-
-void SystemVerilogEncoder::walk_members(
-    const slang::ast::Scope & scope,
-    const std::function<void(const slang::ast::Symbol &)> & fn)
-{
-  using namespace slang::ast;
-  for (auto & m : scope.members()) {
-    if (m.kind == SymbolKind::GenerateBlockArray) {
-      // Generate-for: walk each instantiated entry, pushing a
-      // bracket-indexed prefix so per-iteration variables get
-      // unique hierarchical names like "<top>.ctr[0].count".
-      auto & arr = m.as<GenerateBlockArraySymbol>();
-      std::string saved_prefix = prefix_;
-      std::string arr_name = std::string(arr.name);
-      if (arr_name.empty()) arr_name = arr.getExternalName();
-      for (auto * entry : arr.entries) {
-        if (!entry || entry->isUninstantiated) continue;
-        std::string idx_str;
-        if (entry->arrayIndex) {
-          auto idx = *entry->arrayIndex;
-          idx.setSigned(false);
-          idx_str =
-              idx.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
-        } else {
-          idx_str = std::to_string(entry->constructIndex);
-        }
-        prefix_ = saved_prefix + "." + arr_name + "[" + idx_str + "]";
-        walk_members(*entry, fn);
-      }
-      prefix_ = saved_prefix;
-    } else if (m.kind == SymbolKind::InstanceArray) {
-      // Arrayed instantiation (`mod inst[N-1:0] (...)`): slang
-      // creates one child Instance per element, each with its own
-      // port connections already sliced to the correct bus range
-      // (see AssignmentExpressions.cpp's use of InstanceSymbol::
-      // arrayPath). Flatten them into the same dispatch as a plain
-      // Instance, pushing a bracket-indexed prefix so each element's
-      // state gets a unique hierarchical name -- the elements
-      // themselves are unnamed (only the array is named).
-      auto & arr = m.as<InstanceArraySymbol>();
-      std::string saved_prefix = prefix_;
-      std::string arr_name = std::string(arr.name);
-      for (size_t i = 0; i < arr.elements.size(); ++i) {
-        auto * element = arr.elements[i];
-        if (!element) continue;
-        prefix_ = saved_prefix + "." + arr_name + "[" + std::to_string(i) + "]";
-        fn(*element);
-      }
-      prefix_ = saved_prefix;
-    } else if (m.kind == SymbolKind::GenerateBlock) {
-      // Generate-if / generate-case: a single block scope.  Push
-      // its name (or slang's synthesized "genblkN") as the suffix.
-      auto & gb = m.as<GenerateBlockSymbol>();
-      if (gb.isUninstantiated) continue;
-      std::string saved_prefix = prefix_;
-      std::string block_name = std::string(gb.name);
-      if (block_name.empty()) block_name = gb.getExternalName();
-      prefix_ = saved_prefix + "." + block_name;
-      walk_members(gb, fn);
-      prefix_ = saved_prefix;
-    } else {
-      fn(m);
-    }
-  }
-}
-
 slang::ast::EvalContext & SystemVerilogEncoder::eval_ctx()
 {
   if (!eval_ctx_) {
@@ -140,8 +71,12 @@ slang::ast::EvalContext & SystemVerilogEncoder::eval_ctx()
 // ============================================================================
 
 SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
-    : fts_(fts), solver_(fts.solver()), tableau_(fts_, solver_)
+    : fts_(fts),
+      solver_(fts.solver()),
+      tableau_(fts_, solver_),
+      symbol_table_(fts_, solver_)
 {
+  symbol_table_.set_driver_resolver(*this);
 }
 
 SystemVerilogEncoder::~SystemVerilogEncoder() = default;
@@ -328,18 +263,19 @@ void SystemVerilogEncoder::process_module(
   // sibling's always_ff through a hierarchical/interface-port
   // reference) doesn't get its members wrongly declared as free inputs
   // before its true driver is discovered.
-  pre_scan_state_vars(body);
+  symbol_table_.pre_scan_state_vars(body, prefix_);
 
   // Second pre-pass: identify combinational wire symbols from
   // always_comb blocks, legacy `always` blocks without non-blocking
   // assignments, and continuous-assign LHS values.  Wires are not
   // independent variables -- they will be macro-substituted with their
   // defining expressions, so we must skip declaring them as input vars.
-  walk_members(body, [&](const slang::ast::Symbol & member) {
+  walk_members(body, prefix_, [&](const slang::ast::Symbol & member) {
     if (member.kind == slang::ast::SymbolKind::ProceduralBlock) {
       auto & proc = member.as<slang::ast::ProceduralBlockSymbol>();
       if (proc.procedureKind == slang::ast::ProceduralBlockKind::AlwaysComb) {
-        pre_scan_always_comb(proc.getBody(), proc);
+        symbol_table_.pre_scan_always_comb(
+            proc.getBody(), proc, prefix_, parent_prefix_);
       } else if (proc.procedureKind
                  == slang::ast::ProceduralBlockKind::Always) {
         // Legacy always: combinational iff it has no non-blocking
@@ -347,7 +283,8 @@ void SystemVerilogEncoder::process_module(
         std::unordered_set<const slang::ast::Symbol *> nb_targets;
         collect_nonblocking_targets(proc.getBody(), nb_targets);
         if (nb_targets.empty()) {
-          pre_scan_always_comb(proc.getBody(), proc);
+          symbol_table_.pre_scan_always_comb(
+              proc.getBody(), proc, prefix_, parent_prefix_);
         }
       }
     } else if (member.kind == slang::ast::SymbolKind::ContinuousAssign) {
@@ -357,21 +294,24 @@ void SystemVerilogEncoder::process_module(
         auto & lhs = ae.as<slang::ast::AssignmentExpression>().left();
         if (lhs.kind == slang::ast::ExpressionKind::NamedValue) {
           auto * sym = &lhs.as<slang::ast::NamedValueExpression>().symbol;
-          if (!state_var_symbols_.count(sym)) {
-            wire_symbols_.insert(sym);
-            wire_drivers_[sym] = { &ca, nullptr, prefix_, parent_prefix_ };
+          if (!symbol_table_.state_var_symbols().count(sym)) {
+            symbol_table_.wire_symbols().insert(sym);
+            symbol_table_.wire_drivers()[sym] = {
+              &ca, nullptr, prefix_, parent_prefix_
+            };
           }
         } else if (auto * base = find_lhs_base(lhs)) {
           // Partial-LHS continuous assign (`assign arr[i] = ...`):
           // the base needs to be a state var so process_continuous_assign
           // can constrain the slice via add_constraint.
-          if (!wire_symbols_.count(base)) {
-            state_var_symbols_.insert(base);
+          if (!symbol_table_.wire_symbols().count(base)) {
+            symbol_table_.state_var_symbols().insert(base);
           }
         }
       }
     } else if (member.kind == slang::ast::SymbolKind::Instance) {
-      pre_scan_instance(member.as<slang::ast::InstanceSymbol>());
+      symbol_table_.pre_scan_instance(member.as<slang::ast::InstanceSymbol>(),
+                                      prefix_);
     }
   });
 
