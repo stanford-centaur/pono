@@ -111,11 +111,23 @@ if(SmtSwitch_FOUND AND NOT TARGET smt-switch)
     )
     find_package(PkgConfig REQUIRED)
     list(APPEND CMAKE_PREFIX_PATH "${SMT_SWITCH_DIR}/deps/install")
-    pkg_check_modules(SMTSWITCH_BITWUZLA REQUIRED IMPORTED_TARGET bitwuzla)
+    # Deliberately not IMPORTED_TARGET: that mode resolves each transitive
+    # library name (e.g. mpfr, a public "Requires:" of bitwuzla.pc) via
+    # find_library(), which prefers .so over .a on Linux. That breaks fully
+    # static executables (PONO_STATIC_EXEC=YES) even when a static archive
+    # is available, since the linker is handed an explicit .so path instead
+    # of a bare -l flag it could resolve itself. Using the raw pkg-config
+    # flags string avoids that.
+    pkg_check_modules(SMTSWITCH_BITWUZLA REQUIRED bitwuzla)
     set_property(
       TARGET smt-switch-bitwuzla
       APPEND
-      PROPERTY INTERFACE_LINK_LIBRARIES smt-switch PkgConfig::SMTSWITCH_BITWUZLA
+      PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SMTSWITCH_BITWUZLA_INCLUDE_DIRS}
+    )
+    set_property(
+      TARGET smt-switch-bitwuzla
+      APPEND
+      PROPERTY INTERFACE_LINK_LIBRARIES smt-switch "${SMTSWITCH_BITWUZLA_LDFLAGS}"
     )
   endif()
 
