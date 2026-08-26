@@ -321,7 +321,6 @@ endif()
 target_link_libraries(pono-lib PUBLIC smt-switch)
 target_link_libraries(pono-lib PUBLIC ${Btor2Tools_LIBRARIES})
 target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
-target_link_libraries(pono-lib PUBLIC pthread)
 
 if(GOOGLE_PERF)
   target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
