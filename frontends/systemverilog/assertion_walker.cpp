@@ -599,15 +599,25 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
         }
 
         case BinaryAssertionOperator::Iff: {
-          // Children appear in both polarities, so build them
-          // positively and apply the outer negation here.  (Temporal
-          // operands under `iff` are not negation-normalized; such
-          // properties are exotic and out of scope for fairness.)
-          Term l = ltl_to_sat(b.left, false, justice, prefix);
-          Term r = ltl_to_sat(b.right, false, justice, prefix);
-          if (!l || !r) return Term();
-          return neg ? solver_->make_term(Distinct, l, r)
-                     : solver_->make_term(Equal, l, r);
+          // a iff b == (a implies b) && (b implies a); build both
+          // polarities of each operand through the recursion
+          // (unavoidable -- iff isn't monotone in either argument) so
+          // a temporal operand gets its own properly
+          // negation-normalized dual construction, the same as every
+          // other case above, instead of only ever being visited
+          // positively.
+          Term na = ltl_to_sat(b.left, true, justice, prefix);
+          Term a = ltl_to_sat(b.left, false, justice, prefix);
+          Term nb = ltl_to_sat(b.right, true, justice, prefix);
+          Term bb = ltl_to_sat(b.right, false, justice, prefix);
+          if (!na || !a || !nb || !bb) return Term();
+          Term a_implies_b = solver_->make_term(Or, na, bb);
+          Term b_implies_a = solver_->make_term(Or, nb, a);
+          if (!neg) return solver_->make_term(And, a_implies_b, b_implies_a);
+          // !(a iff b) == (a && !b) || (b && !a)
+          return solver_->make_term(Or,
+                                    solver_->make_term(And, a, nb),
+                                    solver_->make_term(And, bb, na));
         }
 
         case BinaryAssertionOperator::Implies: {

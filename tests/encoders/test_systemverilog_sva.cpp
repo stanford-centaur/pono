@@ -16,6 +16,15 @@ TEST_P(SVUnitTests, ReqAckHolds)
 
 TEST_P(SVUnitTests, UntilLiveness) { check_liveness_bmc("until_live.sv", 10); }
 
+// `iff` with a temporal (eventuality) operand on one side, forcing
+// the whole property through ltl_to_sat()'s Iff case -- previously
+// that case always visited its operands positively regardless of the
+// requested polarity, so a temporal operand never got its correct
+// negation-normalized dual construction. `done` is tied low and
+// `req` tied high, so `(s_eventually done) iff req` is a constant
+// false -- violated immediately.
+TEST_P(SVUnitTests, IffTemporal) { check_liveness_bmc("iff_temporal.sv", 2); }
+
 TEST_P(SVUnitTests, EventuallyAssertion)
 {
   check_liveness_bmc("eventually_assertion.sv", 5);
@@ -31,6 +40,10 @@ TEST_P(SVUnitTests, BinaryImplication)
 TEST_P(SVUnitTests, BinaryNonOverlap) { check_bmc("binary_nonoverlap.sv", 1); }
 
 TEST_P(SVUnitTests, BinaryAnd) { check_bmc("binary_and.sv", 0); }
+
+// Plain-boolean `iff`, exercising assertion_expr_to_bool()'s safety
+// fast path (not ltl_to_sat() -- see IffTemporal below for that).
+TEST_P(SVUnitTests, BinaryIff) { check_bmc("binary_iff.sv", 0); }
 
 TEST_P(SVUnitTests, PastCall) { check_bmc("past_call.sv", 1); }
 
