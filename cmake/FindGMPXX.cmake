@@ -25,7 +25,7 @@ pkg_check_modules(GMPXX QUIET gmpxx)
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
   GMPXX
-  REQUIRED_VARS GMPXX_LIBRARIES GMPXX_INCLUDE_DIRS
+  REQUIRED_VARS GMPXX_INCLUDE_DIRS GMPXX_LDFLAGS
   VERSION_VAR GMPXX_VERSION
 )
 
