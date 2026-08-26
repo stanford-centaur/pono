@@ -1244,6 +1244,23 @@ class resize_expr : public SMVnode
                         std::unordered_map<string, string> new_prefix,
                         ostream & s);
 };
+class signed_word : public SMVnode
+{
+  pono::SMVnode * size;
+  pono::SMVnode * ex;
+
+ public:
+  signed_word(pono::SMVnode * s, pono::SMVnode * e)
+  {
+    size = s;
+    ex = e;
+  }
+  void generate_ostream(std::string name,
+                        std::string prefix,
+                        std::unordered_map<string, module_node *> module_list,
+                        std::unordered_map<string, string> new_prefix,
+                        ostream & s);
+};
 class union_expr : public SMVnode
 {
   pono::SMVnode * ex1;
