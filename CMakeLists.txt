@@ -234,6 +234,11 @@ if(WITH_COREIR OR WITH_COREIR_EXTERN)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
+if(WITH_SLANG)
+  add_definitions(-DWITH_SLANG)
+  add_subdirectory(frontends/systemverilog)
+endif()
+
 if(WITH_MSAT)
   # need direct access to mathsat for setting options
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
@@ -304,6 +309,10 @@ if(WITH_COREIR_EXTERN)
       INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
   )
   target_link_libraries(pono-lib PUBLIC coreir verilogAST)
+endif()
+
+if(WITH_SLANG)
+  target_link_libraries(pono-lib PUBLIC pono-systemverilog)
 endif()
 
 if(WITH_COREIR)
@@ -379,6 +388,10 @@ set(CMAKE_INSTALL_MESSAGE LAZY)
 # install smt-switch
 install(TARGETS pono-lib DESTINATION lib)
 install(TARGETS pono-bin DESTINATION bin)
+
+if(WITH_SLANG)
+  install(TARGETS pono-systemverilog DESTINATION lib)
+endif()
 
 # install public headers
 install(

@@ -56,6 +56,7 @@ enum optionIndex
   RESET,
   RESET_BND,
   CLK,
+  SV_FILELIST,
   SMT_SOLVER,
   SMT_SOLVER_OPT,
   SMT_INTERPOLATOR,
@@ -355,6 +356,15 @@ const option::Descriptor usage[] = {
     Arg::NonEmpty,
     "  --clock, -c <clock name> \tSymbol to use for clock signal (only "
     "supports starting at 0 and toggling each step)" },
+  { SV_FILELIST,
+    0,
+    "f",
+    "sv-filelist",
+    Arg::NonEmpty,
+    "  --sv-filelist, -f <filename> \tPath to a SystemVerilog list file (.f "
+    "file) with one additional source file path per line ('#'/'//' lines "
+    "are comments). May be specified multiple times. Only used by the "
+    "SystemVerilog frontend." },
   { NO_IC3_PREGEN,
     0,
     "",
@@ -939,6 +949,15 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = std::stoul(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
+        case SV_FILELIST:
+#ifndef WITH_SLANG
+          throw PonoException(
+              "--sv-filelist requires the SystemVerilog frontend. Please "
+              "reconfigure Pono with './configure.sh --with-slang'.");
+#else
+          sv_filelists_.push_back(opt.arg);
+#endif
+          break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = std::stoul(opt.arg); break;

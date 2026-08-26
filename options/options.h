@@ -19,6 +19,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "core/proverresult.h"
 #include "smt-switch/smt.h"
@@ -244,6 +245,8 @@ class PonoOptions
   unsigned long reset_bnd_;
   std::string clock_name_;
   std::string filename_;
+  std::vector<std::string>
+      sv_filelists_;  ///< paths to SV dot-f list files (--sv-filelist)
   smt::SolverEnum smt_solver_;        ///< underlying smt solver
   StringMap smt_solver_opts_;         ///< options passed to smt solver
   smt::SolverEnum smt_interpolator_;  ///< smt solver for interpolation

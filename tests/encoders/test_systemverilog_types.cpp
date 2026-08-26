@@ -1,0 +1,152 @@
+#ifdef WITH_SLANG
+
+#include "sv_test_fixture.h"
+
+using namespace pono;
+using namespace smt;
+
+namespace pono_tests {
+
+// ---------------------------------------------------------------------------
+// Packed multi-dimensional arrays (array-of-vectors): constant- and
+// variable-index reads/writes on a packed array.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, PackedArrayConstIndexChain)
+{
+  check_bmc("array_const_index.sv", 7);
+}
+
+TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
+{
+  check_bmc("array_dyn_index.sv", 16);
+}
+
+// ---------------------------------------------------------------------------
+// Packed structs
+// ---------------------------------------------------------------------------
+
+// Struct-field nonblocking assignment (`p.cnt <= ...`, `s.a.x <= ...`):
+// resolve_lvalue() narrows the inner base's bit range by the field's
+// own bitOffset, mirroring the read-side MemberAccess case in
+// expr_to_term(), so the field is registered as a real assign_next()
+// target rather than staying a free state variable.
+TEST_P(SVUnitTests, PackedStructFieldState) { check_bmc("struct_state.sv", 5); }
+
+TEST_P(SVUnitTests, PackedStructNested) { check_bmc("struct_nested.sv", 4); }
+
+// Struct-typed *ports* only exercise the read-side MemberAccess path,
+// not the field-write path above.
+TEST_P(SVUnitTests, TypedefStructPort)
+{
+  check_bmc("typedef_struct_port.sv", 2);
+}
+
+// ---------------------------------------------------------------------------
+// Packed enums
+// ---------------------------------------------------------------------------
+
+// Referencing one of an enum's own named literals (IDLE/REQ/ACK):
+// lookup_symbol() resolves an EnumValueSymbol the same way it resolves
+// a ParameterSymbol (both are elaboration-time constants slang has
+// already evaluated).
+//
+// Each FSM fixture below has a `default:` case arm, exercising the
+// case-statement default-arm-only-when-no-match behavior tested more
+// directly by CaseStatementDefaultOnlyWhenNoMatch in
+// test_systemverilog_statements.cpp.
+TEST_P(SVUnitTests, PackedEnumStateMachine) { check_bmc("enum_fsm.sv", 3); }
+
+TEST_P(SVUnitTests, PackedEnumStateMachineHolds)
+{
+  check_bmc("enum_fsm_holds.sv", 5, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, PackedArrayOfEnums) { check_bmc("array_of_enums.sv", 3); }
+
+TEST_P(SVUnitTests, EnumCastFromInt) { check_bmc("enum_cast.sv", 2); }
+
+// ---------------------------------------------------------------------------
+// Packed unions
+// ---------------------------------------------------------------------------
+
+// Packed-union member access aliases at bit offset 0 for every member
+// (unlike struct members, which are packed end-to-end): writing
+// through `.b` and reading back through `.parts.hi`/`.parts.lo` is
+// bit-consistent.
+TEST_P(SVUnitTests, PackedUnionOverlap)
+{
+  check_bmc("union_overlap.sv", 6, ProverResult::UNKNOWN);
+}
+
+// Packed-union construction via `'{default: ...}` (distinct from
+// PackedUnionOverlap's member-access above) is out of scope:
+// expr_to_term()'s StructuredAssignmentPattern case only builds a
+// PackedStructType target, so a union canonical type throws a clear
+// error.
+TEST_P(SVUnitTests, Unsupported_UnionLiteral)
+{
+  expect_encode_throws("union_literal.sv");
+}
+
+// ---------------------------------------------------------------------------
+// typedef: a typedef'd plain vector is just its underlying sort.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, TypedefVectorWidth) { check_bmc("typedef_vector.sv", 5); }
+
+// ---------------------------------------------------------------------------
+// 2-state (`bit`) vs 4-state (`logic`) parity: Pono's SMT bitvector
+// model has no X/Z state, so `bit` and `logic` registers updated
+// identically are numerically indistinguishable (checked as both a
+// holding and a violated property below).
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, BitVsLogicParityHolds)
+{
+  check_bmc("bit_vs_logic_parity.sv", 10, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, BitVsLogicParityMismatchFails)
+{
+  check_bmc("bit_vs_logic_parity_mismatch.sv", 1);
+}
+
+// ---------------------------------------------------------------------------
+// `signed` types: width-extension, comparison, and division must all use
+// two's-complement signed semantics, not treat the raw bit pattern as
+// unsigned.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, SignedSignExtend)
+{
+  check_bmc("signed_sign_extend.sv", 0, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SignedCompare)
+{
+  check_bmc("signed_compare.sv", 0, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SignedDivide)
+{
+  check_bmc("signed_divide.sv", 0, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SignedCast)
+{
+  check_bmc("signed_cast.sv", 0, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SignedContextWidth)
+{
+  check_bmc("signed_context_width.sv", 0, ProverResult::UNKNOWN);
+}
+
+INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVTypesTests,
+                         SVUnitTests,
+                         testing::ValuesIn(available_solver_enums()));
+
+}  // namespace pono_tests
+
+#endif
