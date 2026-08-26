@@ -556,6 +556,15 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
       // signal (e.g. `fifo_data_out[i]`), which resolve_lvalue()
       // decomposes into a base symbol and bit range just like any
       // other constant-index select.
+      //
+      // Unlike the procedural-assignment path (which falls back to
+      // process_dynamic_element_assign() for a genuinely dynamic-index
+      // ElementSelect), a port connection has no such fallback -- it's
+      // a structural, elaboration-time binding, not a per-cycle write,
+      // so there's no mux to build. A resolve_lvalue() failure here
+      // always means the connection expression is unsupported (e.g. a
+      // non-constant index), so throw rather than silently dropping
+      // the port's write and leaving the target fully unconstrained.
       if (conn_expr->kind == ExpressionKind::Assignment) {
         conn_expr = &conn_expr->as<AssignmentExpression>().left();
       }
@@ -565,19 +574,24 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
         // operand, MSB-first (leftmost operand = most significant),
         // one segment per operand.
         std::vector<OutputAliasSegment> segments;
-        bool ok = port_w > 0;
         uint64_t covered = 0;
         for (auto * operand :
              conn_expr->as<ConcatenationExpression>().operands()) {
           auto odesc = resolve_lvalue(*operand, expr_encoder_.eval_ctx());
           if (!odesc) {
-            ok = false;
-            break;
+            throw PonoException(
+                "SystemVerilogEncoder: unsupported concatenation-target "
+                "output/inout port connection for port '"
+                + string(port.name)
+                + "' (non-constant index in a concatenation operand)");
           }
           uint64_t seg_w = odesc->hi - odesc->lo + 1;
           if (seg_w == 0 || covered + seg_w > port_w) {
-            ok = false;
-            break;
+            throw PonoException(
+                "SystemVerilogEncoder: output/inout port connection for "
+                "port '" + string(port.name)
+                + "' has a concatenation width that doesn't fit the "
+                "port width");
           }
           uint64_t seg_hi = port_w - 1 - covered;
           uint64_t seg_lo = seg_hi - (seg_w - 1);
@@ -585,18 +599,27 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
               { seg_lo, seg_hi, odesc->base, odesc->lo, odesc->hi });
           covered += seg_w;
         }
-        if (ok && covered == port_w && !segments.empty()) {
-          symbol_table_.port_output_aliases()[internal] = std::move(segments);
-          output_aliases_added.push_back(internal);
+        if (covered != port_w || segments.empty()) {
+          throw PonoException(
+              "SystemVerilogEncoder: output/inout port connection for "
+              "port '" + string(port.name)
+              + "' concatenation total width does not match the port "
+              "width");
         }
+        symbol_table_.port_output_aliases()[internal] = std::move(segments);
+        output_aliases_added.push_back(internal);
       } else {
         auto desc = resolve_lvalue(*conn_expr, expr_encoder_.eval_ctx());
-        if (desc) {
-          symbol_table_.port_output_aliases()[internal] = {
-            { 0, port_w - 1, desc->base, desc->lo, desc->hi }
-          };
-          output_aliases_added.push_back(internal);
+        if (!desc) {
+          throw PonoException(
+              "SystemVerilogEncoder: unsupported output/inout port "
+              "connection for port '"
+              + string(port.name) + "' (non-constant index?)");
         }
+        symbol_table_.port_output_aliases()[internal] = {
+          { 0, port_w - 1, desc->base, desc->lo, desc->hi }
+        };
+        output_aliases_added.push_back(internal);
       }
     } else {
       Term term = expr_encoder_.expr_to_term(*conn_expr, prefix);

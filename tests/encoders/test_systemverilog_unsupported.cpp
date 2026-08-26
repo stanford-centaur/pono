@@ -191,6 +191,28 @@ TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
   expect_encode_throws("element_select_out_of_bounds_lhs.sv");
 }
 
+// An output port connected via a dynamic (runtime-variable) bit-select
+// (`.out(bus[idx])`) has no port-connection counterpart to
+// resolve_lvalue()'s dynamic-index fallback: a port connection is a
+// structural, elaboration-time binding, not a per-cycle write, so
+// there's no mux to build. resolve_lvalue() throws a clear
+// PonoException rather than silently dropping the child's output
+// write and leaving the target fully unconstrained.
+TEST_P(SVUnitTests, Gap_DynamicIndexOutputPortConnection)
+{
+  expect_encode_throws("dynamic_index_output_port.sv");
+}
+
+// The concatenation-target output-port-connection path
+// (`.out({a, bus[idx]})`) must throw as soon as any operand's
+// resolve_lvalue() fails, for the same reason as the plain-expression
+// case above, rather than silently dropping the whole multi-piece
+// write.
+TEST_P(SVUnitTests, Gap_DynamicIndexConcatOutputPortConnection)
+{
+  expect_encode_throws("dynamic_index_concat_output_port.sv");
+}
+
 // `defparam`/`bind` are legacy simulation-era constructs with no
 // functional-logic representation: the base module they target is
 // still walked normally with its *own* defaults, so encoding succeeds
