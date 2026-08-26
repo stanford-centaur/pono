@@ -83,9 +83,7 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-find_package(PkgConfig REQUIRED)
-
-pkg_check_modules(GMPXX REQUIRED gmpxx)
+find_package(GMPXX REQUIRED)
 
 set(SmtSwitch_FIND_COMPONENTS bitwuzla cvc5)
 if(WITH_BOOLECTOR)
@@ -160,7 +158,6 @@ set(
   ${Btor2Tools_INCLUDE_DIRS}
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
-  ${GMPXX_INCLUDE_DIRS}
   ${FLEX_INCLUDE_DIRS}
 )
 
@@ -320,7 +317,7 @@ endif()
 
 target_link_libraries(pono-lib PUBLIC smt-switch)
 target_link_libraries(pono-lib PUBLIC ${Btor2Tools_LIBRARIES})
-target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
+target_link_libraries(pono-lib PUBLIC GMPXX::gmpxx)
 
 if(GOOGLE_PERF)
   target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
