@@ -229,41 +229,49 @@ TEST_P(SVUnitTests, SeqThroughout) { check_bmc("seq_throughout.sv", 1); }
 // offsets_ending_now() unwraps a nested Clocking node exactly like the
 // outer handler already does for the top-level one -- per this file's
 // documented multiclock design decision, every named clock is treated
-// as the same global pono-cycle. This reduces the property to exactly
+// as the same global pono-cycle, with no warning ever logged. A real
+// gap, not a deliberate non-goal, since multiclock designs are
+// mainstream verification-relevant SVA -- a real clock-domain-crossing
+// model (relative clock ratios, distinct per-domain sampling) would be
+// a substantially larger feature. This reduces the property to exactly
 // the same shape as a plain `a ##1 b |-> 1'b0`. `a`/`b` are free from
 // cycle 0 (neither is reset-gated); earliest match is a@0, b@1,
-// violated at cycle 1. A real clock-domain-crossing model (relative
-// clock ratios, distinct per-domain sampling) would be a substantially
-// larger feature; this is the minimal correct behavior given the
-// encoder's existing single-clock assumption.
+// violated at cycle 1. This test characterizes the silently-
+// approximated (and likely incorrect, relative to `clk2`'s real
+// timing) behavior, not a claim that it's correct.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, MulticlockProperty)
+TEST_P(SVUnitTests, Gap_MulticlockProperty)
 {
   check_bmc("multiclock_property.sv", 1);
 }
 
 // ---------------------------------------------------------------------------
-// Unbounded consecutive sequence repetition (`[*]`, `[+]`, `[*n:$]`): a
-// genuine architectural boundary of offsets_ending_now()'s compile-
-// time-bounded model, not a "not implemented yet" gap -- an unbounded
-// repeat count can't be unrolled into a finite offset vector. Must
-// throw a clear error rather than silently dropping the assertion (the
-// same contract as runtime-dependent break/continue/while conditions
-// elsewhere in this encoder).
+// Unbounded consecutive sequence repetition (`[*]`, `[+]`, `[*n:$]`) is
+// mainstream verification-relevant SVA (e.g. `req[*1:$] ##1 gnt`
+// handshake idioms), not a deliberate non-goal -- unlike a truly
+// unbounded `forever` loop, an unbounded repeat has an obvious bounded
+// approximation (unroll up to the BMC bound), so this is a real,
+// worth-fixing gap in offsets_ending_now()'s compile-time-bounded
+// model, not an inherent modeling impossibility. It currently throws
+// a clear error rather than silently dropping the assertion; encoding
+// any partial/approximate result to check a property against would
+// require implementing that bounded-unrolling approximation first, so
+// these stay throw-based for now (see Gap_CoverSequence in
+// test_systemverilog_unsupported.cpp for the same tradeoff).
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Unsupported_SequenceRepetitionStar)
+TEST_P(SVUnitTests, Gap_SequenceRepetitionStar)
 {
   expect_encode_throws("unbounded_repeat_star.sv");
 }
 
-TEST_P(SVUnitTests, Unsupported_SequenceRepetitionPlus)
+TEST_P(SVUnitTests, Gap_SequenceRepetitionPlus)
 {
   expect_encode_throws("unbounded_repeat_plus.sv");
 }
 
-TEST_P(SVUnitTests, Unsupported_SequenceRepetitionUnboundedRange)
+TEST_P(SVUnitTests, Gap_SequenceRepetitionUnboundedRange)
 {
   expect_encode_throws("unbounded_repeat_range.sv");
 }

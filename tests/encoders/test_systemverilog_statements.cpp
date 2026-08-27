@@ -83,35 +83,17 @@ TEST_P(SVUnitTests, AlwaysLatchHold)
   check_bmc("always_latch.sv", 4, ProverResult::UNKNOWN);
 }
 
-// `final` blocks run once at the end of simulation for cleanup/
-// reporting -- no synthesis meaning and no analog in this bounded/
-// infinite-trace model (there's no "end of simulation"), so they're
-// intentionally ignored, the same as $display and other simulation-
-// only constructs elsewhere in this encoder.
-TEST_P(SVUnitTests, FinalBlockIgnored)
-{
-  check_bmc("final_block.sv", 4, ProverResult::UNKNOWN);
-}
-
 // `initial forever @(posedge clk) ...` is a legacy structural spelling
 // of `always_ff @(posedge clk) ...`: as_forever_event_body() recognizes
 // this shape (a ForeverLoop whose own body is a Timed statement) and
 // redirects it to the same process_next_state_body() an always_ff
 // block gets, instead of treating it as an initial-state constraint. A
 // *bare* `forever` (no event control) doesn't match this shape and
-// remains an architectural boundary -- see Unsupported_BareForever
-// below.
+// remains an architectural boundary -- see
+// Unsupported_BareForever in test_systemverilog_unsupported.cpp.
 TEST_P(SVUnitTests, ForeverEventAsRegister)
 {
   check_bmc("forever_loop.sv", 4, ProverResult::UNKNOWN);
-}
-
-// A bare `forever` (no event control) has no static iteration bound at
-// all and can't be unrolled by the compile-time-bounded model -- a
-// genuine architectural boundary, not a "not implemented yet" gap.
-TEST_P(SVUnitTests, Unsupported_BareForever)
-{
-  expect_encode_throws("bare_forever.sv");
 }
 
 // ---------------------------------------------------------------------------
@@ -189,8 +171,7 @@ TEST_P(SVUnitTests, ForeachLoop) { check_bmc("foreach_loop.sv", 2); }
 // const-evaluable (each fixture below compares against an
 // already-unrolled `for`-loop counter), so only the branch actually
 // taken in C++ runs and the signal propagates correctly. See
-// Unsupported_BreakRuntimeDependent below for the runtime-dependent
-// case.
+// Gap_BreakRuntimeDependent below for the runtime-dependent case.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, BreakInForLoop)
@@ -209,16 +190,18 @@ TEST_P(SVUnitTests, DisableNamedBlock)
 }
 
 // A `break` guarded by a runtime signal rather than a compile-time
-// constant can't be modeled as C++-level control flow at all (the
+// constant can't be modeled as C++-level control flow today (the
 // general symbolic-guard path processes both `if` arms
-// unconditionally) -- a genuine architectural boundary of the
-// compile-time-unrolling model, not a "not implemented yet" gap, so
-// it's named like the other deliberate-non-goal Unsupported_ cases.
-// Must throw a clear PonoException rather than silently doing nothing
-// or applying the wrong verdict either way.
-TEST_P(SVUnitTests, Unsupported_BreakRuntimeDependent)
+// unconditionally) -- but a statically-bounded loop with a
+// data-dependent early exit is ordinary synthesizable RTL (e.g. a
+// priority-encoder-style search-with-break), not an inherent modeling
+// impossibility like a truly unbounded `forever`. The fixture's own
+// assertion demonstrates the correctly-encoded reachable behavior
+// (`cond` staying low lets the loop run to completion and set
+// `reg_any_set`); today this just throws instead.
+TEST_P(SVUnitTests, Gap_BreakRuntimeDependent)
 {
-  expect_encode_throws("break_runtime_dependent.sv");
+  check_bmc("break_runtime_dependent.sv", 2);
 }
 
 // Procedural immediate assertion (`assert (expr);`, distinct from

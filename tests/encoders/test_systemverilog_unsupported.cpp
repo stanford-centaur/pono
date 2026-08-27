@@ -9,9 +9,9 @@ namespace pono_tests {
 
 // ---------------------------------------------------------------------------
 // Ledger of genuinely out-of-scope IEEE 1800-2017 constructs (OOP/classes,
-// randomization, DPI, functional coverage, programs/checkers/specify,
-// fork/join/wait/force-release, non-integral types, dynamic containers,
-// defparam/bind). Each is checked via either expect_encode_throws() or
+// randomization, DPI, functional coverage, programs/specify,
+// fork/join/wait/force-release, non-integral types, dynamic containers).
+// Each is checked via either expect_encode_throws() or
 // expect_encode_succeeds_ignoring(), whichever matches how the encoder
 // actually rejects it; see the per-test comment when that isn't obvious
 // from the test name. Tests prefixed `Gap_` instead cover mainstream-RTL
@@ -39,23 +39,26 @@ TEST_P(SVUnitTests, Unsupported_CovergroupDecl)
   expect_encode_throws("covergroup_decl.sv");
 }
 
-// `program`/`checker` instances are a verification-only construct with
-// no functional-logic counterpart: process_instance() recognizes a
-// program instance via DefinitionKind::Program and skips it, and a
-// checker instance is a distinct SymbolKind::CheckerInstance the usual
-// member walk doesn't match at all -- either way logged via
-// logger.log(1, "... ignoring ... instance ...") rather than thrown,
-// per the "simulation-only constructs are dropped and logged" half of
-// encode()'s documented contract (see SystemVerilogEncoder::encode()'s
-// doc comment).
+// `program` instances are a verification-only construct with no
+// functional-logic counterpart: process_instance() recognizes a
+// program instance via DefinitionKind::Program and skips it, logged
+// via logger.log(1, "... ignoring ... instance ...") rather than
+// thrown, per the "simulation-only constructs are dropped and logged"
+// half of encode()'s documented contract (see
+// SystemVerilogEncoder::encode()'s doc comment).
 TEST_P(SVUnitTests, Unsupported_ProgramBlock)
 {
   expect_encode_succeeds_ignoring("program_block.sv");
 }
 
-TEST_P(SVUnitTests, Unsupported_CheckerBlock)
+// `checker` is IEEE 1800's standard non-invasive formal-assertion-
+// attachment mechanism, not a deliberate non-goal like `program` above
+// -- a checker instance is a distinct SymbolKind::CheckerInstance the
+// usual member walk doesn't match at all, so its own `assert property`
+// never reaches the model.
+TEST_P(SVUnitTests, Gap_CheckerBlock)
 {
-  expect_encode_succeeds_ignoring("checker_block.sv");
+  check_bmc("checker_block.sv", 1, ProverResult::FALSE);
 }
 
 // `fork`/`join` and `wait` are simulation-timing constructs with no
@@ -74,10 +77,11 @@ TEST_P(SVUnitTests, Unsupported_ForkJoin)
 // recognize either -- but since process_statement() itself also
 // doesn't process it (falling to the generic unhandled-statement-kind
 // default below), the two omissions are consistent: no write inside
-// it is ever pre-scanned *or* applied, and the skip is logged.
+// it is ever pre-scanned *or* applied, and the skip is logged. A real
+// mainstream-RTL gap, not a deliberate non-goal.
 TEST_P(SVUnitTests, Gap_PatternCase)
 {
-  expect_encode_succeeds_ignoring("pattern_case.sv");
+  check_bmc("pattern_case.sv", 2, ProverResult::UNKNOWN);
 }
 
 TEST_P(SVUnitTests, Unsupported_WaitStmt)
@@ -97,12 +101,12 @@ TEST_P(SVUnitTests, Unsupported_ExpectProperty)
 // both set the ConcurrentAssertion handler's `is_cover` flag. Since
 // `a ##1 b` is a genuinely multi-cycle sequence, it hits the
 // temporal/sequence-shaped cover-goal throw (same as
-// `cover property (a ##1 b)` already does): extending reachability
-// duality through the LTL tableau for cover goals is out of scope.
-TEST_P(SVUnitTests, Gap_CoverSequence)
-{
-  expect_encode_throws("cover_sequence.sv");
-}
+// `cover property (a ##1 b)`, which IS supported -- see CoverProperty
+// in test_systemverilog_sva.cpp): extending reachability duality
+// through the LTL tableau for cover goals is a real gap, not a
+// deliberate non-goal. check_bmc() attempts the same reachability
+// check CoverProperty uses.
+TEST_P(SVUnitTests, Gap_CoverSequence) { check_bmc("cover_sequence.sv", 1); }
 
 TEST_P(SVUnitTests, Unsupported_EventType)
 {
@@ -139,13 +143,13 @@ TEST_P(SVUnitTests, Unsupported_AssocArray)
   expect_encode_throws("assoc_array.sv");
 }
 
-// This one is a real synthesizable-RTL gap (register files / small
-// memories are mainstream, not verification-only), kept Gap_-named even
-// though it lives in this file's throw-ledger for organizational
-// consistency with the other "throws cleanly" cases.
+// A real synthesizable-RTL gap (register files / small memories are
+// mainstream, not verification-only): unpacked arrays never build an
+// SMT array sort, so the fixture's own read-after-write invariant
+// can't be checked.
 TEST_P(SVUnitTests, Gap_UnpackedRegfileMemory)
 {
-  expect_encode_throws("unpacked_regfile.sv");
+  check_bmc("unpacked_regfile.sv", 3, ProverResult::UNKNOWN);
 }
 
 // A register whose output port is aliased through an instance-array
@@ -153,12 +157,10 @@ TEST_P(SVUnitTests, Gap_UnpackedRegfileMemory)
 // width (compare gapped_bus_slice.sv's analogous wire-splicing case)
 // isn't supported: declare_variables_internal() has no splicing logic
 // for a register spread across sibling instances the way
-// process_continuous_assign() does for a wire, so it must throw
-// rather than silently never create a state var for the shared target
-// at all.
+// process_continuous_assign() does for a wire.
 TEST_P(SVUnitTests, Gap_RegisterAliasedToPartialTarget)
 {
-  expect_encode_throws("reg_bus_slice.sv");
+  check_bmc("reg_bus_slice.sv", 2, ProverResult::UNKNOWN);
 }
 
 // A range-select lvalue with a non-constant (variable) base
@@ -166,11 +168,10 @@ TEST_P(SVUnitTests, Gap_RegisterAliasedToPartialTarget)
 // in this encoder, unlike ElementSelect's single-bit dynamic-index
 // fallback (process_dynamic_element_assign()). resolve_lvalue() throws
 // a clear PonoException for this rather than silently dropping the
-// write -- the same "throw rather than silently mis-encode" contract
-// enforced everywhere else in this file.
+// write.
 TEST_P(SVUnitTests, Gap_DynamicRangeSelectLhs)
 {
-  expect_encode_throws("dynamic_range_select_lhs.sv");
+  check_bmc("dynamic_range_select_lhs.sv", 2, ProverResult::UNKNOWN);
 }
 
 // A streaming concatenation used as an assignment target
@@ -179,7 +180,7 @@ TEST_P(SVUnitTests, Gap_DynamicRangeSelectLhs)
 // already supported). resolve_lvalue() has no case for it at all.
 TEST_P(SVUnitTests, Gap_StreamingConcatLhs)
 {
-  expect_encode_throws("streaming_concat_lhs.sv");
+  check_bmc("streaming_concat_lhs.sv", 2, ProverResult::UNKNOWN);
 }
 
 // A constant element-select lvalue whose index is out of range for its
@@ -188,7 +189,7 @@ TEST_P(SVUnitTests, Gap_StreamingConcatLhs)
 // semantics.
 TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
 {
-  expect_encode_throws("element_select_out_of_bounds_lhs.sv");
+  check_bmc("element_select_out_of_bounds_lhs.sv", 2, ProverResult::UNKNOWN);
 }
 
 // A continuous assign targeting a child instance's internal (non-port)
@@ -230,22 +231,15 @@ TEST_P(SVUnitTests, Unsupported_DynamicIndexConcatOutputPortConnection)
   expect_encode_throws("dynamic_index_concat_output_port.sv");
 }
 
-// `defparam`/`bind` are legacy simulation-era constructs with no
-// functional-logic representation: the base module they target is
-// still walked normally with its *own* defaults, so encoding succeeds
-// as if the override/bind-in never appeared in the source -- logged
-// via logger.log(1, "... ignoring ...") rather than thrown. `defparam`
-// is caught as a walkable SymbolKind::DefParam member; `bind` has no
-// elaborated Symbol at all and is instead found by scanning the raw
-// syntax tree for BindDirective nodes (warn_on_bind_directives()).
-TEST_P(SVUnitTests, Unsupported_DefparamStmt)
+// `defparam` has real functional effect (it overrides a parameter,
+// here changing a counter's bit width) -- not a deliberate non-goal
+// like the constructs above. The base module is still walked normally
+// with its *own* defaults, so the override is silently never applied
+// -- logged via logger.log(1, "... ignoring ...") rather than thrown.
+// `defparam` is caught as a walkable SymbolKind::DefParam member.
+TEST_P(SVUnitTests, Gap_DefparamStmt)
 {
-  expect_encode_succeeds_ignoring("defparam_stmt.sv");
-}
-
-TEST_P(SVUnitTests, Unsupported_BindDirective)
-{
-  expect_encode_succeeds_ignoring("bind_directive.sv");
+  check_bmc("defparam_stmt.sv", 20, ProverResult::UNKNOWN);
 }
 
 // `specify` affects only timing (not functional logic), so ignoring it
@@ -269,6 +263,39 @@ TEST_P(SVUnitTests, Unsupported_SpecifyBlock)
 TEST_P(SVUnitTests, Unsupported_ForceRelease)
 {
   expect_encode_succeeds_ignoring("force_release.sv");
+}
+
+// `final` blocks run once at the end of simulation for cleanup/
+// reporting -- no synthesis meaning and no analog in this bounded/
+// infinite-trace model (there's no "end of simulation"), so they're
+// intentionally ignored, the same as $display and other simulation-
+// only constructs elsewhere in this encoder.
+TEST_P(SVUnitTests, Unsupported_FinalBlockIgnored)
+{
+  expect_encode_succeeds_ignoring("final_block.sv");
+}
+
+// A bare `forever` (no event control) has no static iteration bound at
+// all and can't be unrolled by the compile-time-bounded model -- a
+// genuine architectural boundary, not a "not implemented yet" gap. See
+// ForeverEventAsRegister in test_systemverilog_statements.cpp for the
+// supported `initial forever @(...) ...` structural spelling of a
+// register.
+TEST_P(SVUnitTests, Unsupported_BareForever)
+{
+  expect_encode_throws("bare_forever.sv");
+}
+
+// `+incdir+`/`-y`-style tool directives in a `.f` list file are
+// rejected outright rather than silently treated as filenames --
+// parse_dot_f_file() only understands bare filenames and comments,
+// a deliberate scope limitation of this encoder's `.f`-file parser
+// (an unofficial, multi-vendor EDA build-flow convention, not an IEEE
+// 1800 SystemVerilog construct), not a partially-implemented feature.
+TEST_P(SVUnitTests, Unsupported_FilelistIncdirDirective)
+{
+  expect_encode_throws("filelist_top.sv",
+                       { sv_path("filelist_bad_directive.f") });
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVUnsupportedTests,

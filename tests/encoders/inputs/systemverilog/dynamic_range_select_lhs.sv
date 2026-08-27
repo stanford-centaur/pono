@@ -14,4 +14,10 @@ module dynamic_range_select_lhs (input logic clk,
     w[base+:4] <= a;
   end
 
+  // Once a dynamic-base indexed part-select write is supported, the
+  // written 4-bit slice should hold the prior cycle's `a` for any
+  // in-range base.
+  assert property (@(posedge clk) $past(base) <= 4
+                   |-> w[$past(base)+:4] == $past(a));
+
 endmodule

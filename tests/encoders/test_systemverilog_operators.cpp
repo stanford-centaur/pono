@@ -145,12 +145,14 @@ TEST_P(SVUnitTests, MultiConditionTernary)
 }
 
 // A plain user-defined SV `function` called with a symbolic (runtime-
-// dependent) argument. expr_to_term()'s Call case only recognizes a
-// fixed list of system calls; user functions aren't inlined, so this
-// throws "unsupported call".
-TEST_P(SVUnitTests, Unsupported_UserFunctionCall)
+// dependent) argument is mainstream synthesizable RTL (real synthesis
+// tools inline it), not a deliberate non-goal -- expr_to_term()'s Call
+// case only recognizes a fixed list of system calls, so user functions
+// aren't inlined and this throws "unsupported call" instead of
+// enforcing the fixture's own `b == a + 1` invariant.
+TEST_P(SVUnitTests, Gap_UserFunctionCall)
 {
-  expect_encode_throws("user_function_call.sv");
+  check_bmc("user_function_call.sv", 0, ProverResult::UNKNOWN);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVOperatorsTests,

@@ -14,6 +14,8 @@ module pattern_case (input logic clk, input logic [3:0] x);
     endcase
   end
 
-  assert property (@(posedge clk) 1'b1);
+  // Once `matches` case items are handled, x==1 should deterministically
+  // set y to 10 one cycle later.
+  assert property (@(posedge clk) x == 4'd1 |=> y == 4'd10);
 
 endmodule

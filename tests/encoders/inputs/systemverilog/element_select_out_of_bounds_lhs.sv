@@ -13,4 +13,8 @@ module element_select_out_of_bounds_lhs (input logic clk,
     flag[10] <= a;
   end
 
+  // Per the LRM, an out-of-range constant bit-select write is a no-op:
+  // `flag` should never change (it has no other driver).
+  assert property (@(posedge clk) flag == $past(flag));
+
 endmodule

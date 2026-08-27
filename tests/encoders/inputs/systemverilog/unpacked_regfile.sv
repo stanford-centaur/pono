@@ -17,5 +17,8 @@ module unpacked_regfile (
     if (rst) mem[0] <= 8'd0;
     else mem[waddr] <= wdata;
   end
-  assert property (@(posedge clk) 1'b1);
+  // Read-after-write: once unpacked arrays are supported, a write from
+  // the prior cycle should be visible at its address this cycle.
+  assert property (@(posedge clk) (!rst && !$past(rst))
+                   |-> mem[$past(waddr)] == $past(wdata));
 endmodule

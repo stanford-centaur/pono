@@ -19,5 +19,8 @@ module defparam_stmt (input logic clk, input logic rst);
       rst
   );
   defparam l.WIDTH = 8;
-  assert property (@(posedge clk) 1'b1);
+  // With the override correctly applied, `l.count` (8 bits) can't wrap
+  // back to 0 within 20 post-reset cycles; if the override is dropped
+  // (this gap), `l.count` stays 4 bits wide and wraps at cycle 16.
+  assert property (@(posedge clk) l.count != 0);
 endmodule

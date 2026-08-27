@@ -58,17 +58,6 @@ TEST_P(SVUnitTests, Filelist)
       "filelist_top.sv", 5, ProverResult::UNKNOWN, { sv_path("filelist.f") });
 }
 
-TEST_P(SVUnitTests, FilelistUnsupportedDirective)
-{
-  SmtSolver s = create_solver(GetParam());
-  FunctionalTransitionSystem fts(s);
-  EXPECT_THROW(
-      SystemVerilogEncoder::encode(sv_path("filelist_top.sv"),
-                                   fts,
-                                   { sv_path("filelist_bad_directive.f") }),
-      PonoException);
-}
-
 TEST_P(SVUnitTests, FilelistMissingFile)
 {
   SmtSolver s = create_solver(GetParam());

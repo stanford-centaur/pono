@@ -80,13 +80,15 @@ TEST_P(SVUnitTests, PackedUnionOverlap)
 }
 
 // Packed-union construction via `'{default: ...}` (distinct from
-// PackedUnionOverlap's member-access above) is out of scope:
+// PackedUnionOverlap's member-access above) is ordinary synthesizable
+// RTL, not out of scope -- this encoder already supports packed
+// unions generally (see PackedUnionOverlap), but
 // expr_to_term()'s StructuredAssignmentPattern case only builds a
-// PackedStructType target, so a union canonical type throws a clear
-// error.
-TEST_P(SVUnitTests, Unsupported_UnionLiteral)
+// PackedStructType target, so a union canonical type throws instead of
+// enforcing the fixture's own reset-value invariant.
+TEST_P(SVUnitTests, Gap_UnionAssignmentPatternLiteral)
 {
-  expect_encode_throws("union_literal.sv");
+  check_bmc("union_literal.sv", 4, ProverResult::UNKNOWN);
 }
 
 // ---------------------------------------------------------------------------

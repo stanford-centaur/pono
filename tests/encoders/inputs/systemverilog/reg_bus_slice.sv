@@ -22,9 +22,10 @@ module reg_bus_slice (input logic clk,
   child4_reg u_hi  (.clk(clk), .in(b), .out(bus[2]));
   child4_reg u_mid (.clk(clk), .in(c), .out(bus[1]));
 
-  // Deliberately doesn't reference `bus` here: the throw must come
-  // from declare_variables_internal() itself, not from a later use of
-  // `bus` in this module.
-  assert property (@(posedge clk) 1'b1);
+  // Once register-bank splicing across sibling instances is supported,
+  // `bus` should assemble each registered instance's output one cycle
+  // after its input.
+  assert property (@(posedge clk) bus[0] == $past(a) && bus[1] == $past(c)
+                   && bus[2] == $past(b));
 
 endmodule

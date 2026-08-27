@@ -12,4 +12,8 @@ module streaming_concat_lhs (input logic clk, input logic [7:0] a);
     { >> {hi, lo} } <= a;
   end
 
+  // Once a streaming-concat-target write is supported, `hi`/`lo`
+  // should hold the prior cycle's `a` split MSB-first.
+  assert property (@(posedge clk) hi == $past(a[7:4]) && lo == $past(a[3:0]));
+
 endmodule

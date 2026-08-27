@@ -17,6 +17,6 @@ module final_block (input logic clk, input logic rst, input logic [3:0] data);
     $display("final data_reg = %d", data_reg);
   end
 
-  assert property (@(posedge clk) data_reg == data_reg);
+  assert property (@(posedge clk) rst || data_reg == $past(data));
 
 endmodule
