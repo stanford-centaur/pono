@@ -63,8 +63,14 @@ if(NOT DEFINED SMT_SWITCH_DIR)
   set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
 endif()
 
+# These are cached (as find_path()/find_library() results always are), but
+# a cache hit from an earlier configure with a different SMT_SWITCH_DIR
+# would otherwise stick around unsearched. Unsetting first forces a fresh
+# search against the current SMT_SWITCH_DIR on every configure.
+unset(SmtSwitch_INCLUDE_DIR CACHE)
 find_path(SmtSwitch_INCLUDE_DIR NAMES smt-switch/smt.h HINTS "${SMT_SWITCH_DIR}/local/include")
 
+unset(SmtSwitch_LIBRARY CACHE)
 find_library(SmtSwitch_LIBRARY NAMES smt-switch HINTS "${SMT_SWITCH_DIR}/local/lib")
 
 set(_SmtSwitch_required_vars SmtSwitch_LIBRARY SmtSwitch_INCLUDE_DIR)
@@ -72,6 +78,7 @@ set(_SmtSwitch_required_vars SmtSwitch_LIBRARY SmtSwitch_INCLUDE_DIR)
 # Components that need extra transitive link/include requirements beyond
 # just linking the core `smt-switch` target are handled individually below.
 foreach(_comp ${SmtSwitch_FIND_COMPONENTS})
+  unset(SmtSwitch_${_comp}_LIBRARY CACHE)
   find_library(
     SmtSwitch_${_comp}_LIBRARY
     NAMES smt-switch-${_comp}
