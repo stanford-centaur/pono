@@ -51,6 +51,34 @@ SymbolTable::SymbolTable(FunctionalTransitionSystem & fts,
 
 namespace {
 
+// Recurses into a concatenation-target LHS (`{carry, sum} = ...`) so
+// every operand's own base symbol is classified, mirroring
+// insert_nonblocking_lhs_targets() in ast_helpers.cpp -- a concat
+// operand that's a plain NamedValue/HierarchicalValue is a full-width
+// write of that operand, exactly like the top-level case below.
+void insert_blocking_lhs_targets(
+    const slang::ast::Expression & lhs,
+    std::unordered_set<const slang::ast::Symbol *> & full,
+    std::unordered_set<const slang::ast::Symbol *> & partial)
+{
+  using namespace slang::ast;
+  if (lhs.kind == ExpressionKind::Concatenation) {
+    for (auto * operand : lhs.as<ConcatenationExpression>().operands()) {
+      insert_blocking_lhs_targets(*operand, full, partial);
+    }
+    return;
+  }
+  if (lhs.kind == ExpressionKind::NamedValue) {
+    full.insert(
+        &canonicalize_modport_port(lhs.as<NamedValueExpression>().symbol));
+  } else if (lhs.kind == ExpressionKind::HierarchicalValue) {
+    full.insert(&canonicalize_modport_port(
+        lhs.as<HierarchicalValueExpression>().symbol));
+  } else if (auto * base = find_lhs_base(lhs)) {
+    partial.insert(base);
+  }
+}
+
 // Collect blocking-assignment targets, separating full-width LHSes
 // (wire candidates) from partial LHSes (which must be state vars so
 // the assignment handler's add_constraint slice constraints are valid).
@@ -66,17 +94,8 @@ void collect_blocking_targets(
       auto & es = stmt.as<ExpressionStatement>();
       auto & expr = es.expr;
       if (expr.kind == ExpressionKind::Assignment) {
-        auto & assign = expr.as<AssignmentExpression>();
-        auto & lhs = assign.left();
-        if (lhs.kind == ExpressionKind::NamedValue) {
-          full.insert(&canonicalize_modport_port(
-              lhs.as<NamedValueExpression>().symbol));
-        } else if (lhs.kind == ExpressionKind::HierarchicalValue) {
-          full.insert(&canonicalize_modport_port(
-              lhs.as<HierarchicalValueExpression>().symbol));
-        } else if (auto * base = find_lhs_base(lhs)) {
-          partial.insert(base);
-        }
+        insert_blocking_lhs_targets(
+            expr.as<AssignmentExpression>().left(), full, partial);
       }
       break;
     }

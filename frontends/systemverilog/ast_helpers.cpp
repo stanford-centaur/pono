@@ -24,6 +24,7 @@
 #include "slang/ast/Scope.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/MiscExpressions.h"
+#include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/expressions/SelectExpressions.h"
 #include "slang/ast/statements/ConditionalStatements.h"
 #include "slang/ast/statements/LoopStatements.h"
@@ -40,6 +41,32 @@ using namespace std;
 
 namespace pono {
 
+namespace {
+
+// Recurses into a concatenation-target LHS (`{carry, sum} <= ...`) so
+// every operand's own base symbol is classified, mirroring the
+// per-operand handling already used by begin_write() (the write-time
+// counterpart) and pre_scan_instance()'s output-port aliasing --
+// find_lhs_base() itself can't do this since a concatenation has more
+// than one base symbol and its return type is a single Symbol*.
+void insert_nonblocking_lhs_targets(
+    const slang::ast::Expression & lhs,
+    std::unordered_set<const slang::ast::Symbol *> & targets)
+{
+  using namespace slang::ast;
+  if (lhs.kind == ExpressionKind::Concatenation) {
+    for (auto * operand : lhs.as<ConcatenationExpression>().operands()) {
+      insert_nonblocking_lhs_targets(*operand, targets);
+    }
+    return;
+  }
+  if (auto * base = find_lhs_base(lhs)) {
+    targets.insert(base);
+  }
+}
+
+}  // namespace
+
 void collect_nonblocking_targets(
     const slang::ast::Statement & stmt,
     std::unordered_set<const slang::ast::Symbol *> & targets)
@@ -54,10 +81,11 @@ void collect_nonblocking_targets(
         auto & assign = expr.as<AssignmentExpression>();
         if (assign.isNonBlocking()) {
           // The LHS of a non-blocking assignment is a state variable;
-          // for partial writes (`arr[i] <= ...`) we classify the base.
-          if (auto * base = find_lhs_base(assign.left())) {
-            targets.insert(base);
-          }
+          // for partial writes (`arr[i] <= ...`) we classify the base,
+          // and for a concatenation-target write (`{carry, sum} <=
+          // ...`) every operand's own base, recursing to support
+          // nested concatenations.
+          insert_nonblocking_lhs_targets(assign.left(), targets);
         }
       }
       break;

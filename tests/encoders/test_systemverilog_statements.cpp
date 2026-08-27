@@ -50,6 +50,19 @@ TEST_P(SVUnitTests, ConcatenationLhsNextState)
   check_bmc("concat_lhs_next_state.sv", 2);
 }
 
+// A register pair written ONLY through a concat-target NB assignment
+// (no reset branch, no other plain-assignment write path anywhere
+// else) -- unlike concat_lhs_next_state.sv above, where hi/lo are also
+// written via a plain (non-concat) NB assign in the reset branch, so
+// they get classified as state vars through that unrelated path
+// regardless. This isolates the pre-scan classification gap: the
+// concat-target write's own base symbols must be recognized as state
+// vars by collect_nonblocking_targets() itself.
+TEST_P(SVUnitTests, ConcatenationLhsOnlyWrite)
+{
+  check_bmc("concat_lhs_only_write.sv", 1);
+}
+
 // Minimal, direct checks of two patterns that recur composed with other
 // constructs throughout this suite: a bare always_ff counter, and (for
 // initial_block.sv below) a design with no `rst` port at all, relying
