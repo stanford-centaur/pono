@@ -8,34 +8,29 @@ using namespace smt;
 namespace pono_tests {
 
 // ---------------------------------------------------------------------------
-// Ledger of genuinely out-of-scope IEEE 1800-2017 constructs (OOP/classes,
-// randomization, DPI, functional coverage, programs/checker/specify,
-// fork/join/wait/force-release, non-integral types, dynamic containers,
-// hierarchical/port-connection idioms that aren't real synthesizable RTL).
-// Each is checked via either expect_encode_throws() or
+// Ledger of genuinely out-of-scope IEEE 1800-2017 constructs: OOP/classes,
+// randomization, DPI, functional coverage, programs/specify,
+// fork/join/wait/force-release, non-integral types, dynamic containers, and
+// hierarchical/port-connection idioms that aren't real synthesizable RTL.
+// Every test here is checked via expect_encode_throws() or
 // expect_encode_succeeds_ignoring(), whichever matches how the encoder
-// actually rejects it; see the per-test comment when that isn't obvious
-// from the test name. Real synthesizable-RTL/verification-relevant gaps
+// actually rejects it -- see the per-test comment when that isn't obvious
+// from the test name. The filename already says "unsupported", so test
+// names don't repeat it; real synthesizable-RTL/verification-relevant gaps
 // (`Gap_`-prefixed tests) live in the topical file matching their subject
 // matter instead -- see project_sv_encoder_gaps.md for the full ranked list.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Unsupported_ClassDecl)
-{
-  expect_encode_throws("class_decl.sv");
-}
+TEST_P(SVUnitTests, ClassDecl) { expect_encode_throws("class_decl.sv"); }
 
-TEST_P(SVUnitTests, Unsupported_RandomizeConstraint)
+TEST_P(SVUnitTests, RandomizeConstraint)
 {
   expect_encode_throws("randomize_constraint.sv");
 }
 
-TEST_P(SVUnitTests, Unsupported_DpiImport)
-{
-  expect_encode_throws("dpi_import.sv");
-}
+TEST_P(SVUnitTests, DpiImport) { expect_encode_throws("dpi_import.sv"); }
 
-TEST_P(SVUnitTests, Unsupported_CovergroupDecl)
+TEST_P(SVUnitTests, CovergroupDecl)
 {
   expect_encode_throws("covergroup_decl.sv");
 }
@@ -47,7 +42,7 @@ TEST_P(SVUnitTests, Unsupported_CovergroupDecl)
 // thrown, per the "simulation-only constructs are dropped and logged"
 // half of encode()'s documented contract (see
 // SystemVerilogEncoder::encode()'s doc comment).
-TEST_P(SVUnitTests, Unsupported_ProgramBlock)
+TEST_P(SVUnitTests, ProgramBlock)
 {
   expect_encode_succeeds_ignoring("program_block.sv");
 }
@@ -56,12 +51,12 @@ TEST_P(SVUnitTests, Unsupported_ProgramBlock)
 // per-cycle counterpart in this encoder's model; process_statement()'s
 // default case logs a warning (logger.log(1, "... skipping unsupported
 // statement kind ...")) and skips them, rather than throwing.
-TEST_P(SVUnitTests, Unsupported_ForkJoin)
+TEST_P(SVUnitTests, ForkJoin)
 {
   expect_encode_succeeds_ignoring("fork_join.sv");
 }
 
-TEST_P(SVUnitTests, Unsupported_WaitStmt)
+TEST_P(SVUnitTests, WaitStmt)
 {
   expect_encode_succeeds_ignoring("wait_stmt.sv");
 }
@@ -69,45 +64,24 @@ TEST_P(SVUnitTests, Unsupported_WaitStmt)
 // `expect (property_expr);` is a procedural blocking-wait statement
 // (pause until the property holds), not a checked invariant -- the
 // same simulation-only category as `wait` above.
-TEST_P(SVUnitTests, Unsupported_ExpectProperty)
+TEST_P(SVUnitTests, ExpectProperty)
 {
   expect_encode_succeeds_ignoring("expect_property.sv");
 }
 
-TEST_P(SVUnitTests, Unsupported_EventType)
-{
-  expect_encode_throws("event_type.sv");
-}
+TEST_P(SVUnitTests, EventType) { expect_encode_throws("event_type.sv"); }
 
-TEST_P(SVUnitTests, Unsupported_RealType)
-{
-  expect_encode_throws("real_type.sv");
-}
+TEST_P(SVUnitTests, RealType) { expect_encode_throws("real_type.sv"); }
 
-TEST_P(SVUnitTests, Unsupported_StringType)
-{
-  expect_encode_throws("string_type.sv");
-}
+TEST_P(SVUnitTests, StringType) { expect_encode_throws("string_type.sv"); }
 
-TEST_P(SVUnitTests, Unsupported_ChandleType)
-{
-  expect_encode_throws("chandle_type.sv");
-}
+TEST_P(SVUnitTests, ChandleType) { expect_encode_throws("chandle_type.sv"); }
 
-TEST_P(SVUnitTests, Unsupported_DynamicArray)
-{
-  expect_encode_throws("dynamic_array.sv");
-}
+TEST_P(SVUnitTests, DynamicArray) { expect_encode_throws("dynamic_array.sv"); }
 
-TEST_P(SVUnitTests, Unsupported_QueueType)
-{
-  expect_encode_throws("queue_type.sv");
-}
+TEST_P(SVUnitTests, QueueType) { expect_encode_throws("queue_type.sv"); }
 
-TEST_P(SVUnitTests, Unsupported_AssocArray)
-{
-  expect_encode_throws("assoc_array.sv");
-}
+TEST_P(SVUnitTests, AssocArray) { expect_encode_throws("assoc_array.sv"); }
 
 // A continuous assign targeting a child instance's internal (non-port)
 // signal via a hierarchical dot-path is not real synthesizable RTL to
@@ -120,7 +94,7 @@ TEST_P(SVUnitTests, Unsupported_AssocArray)
 // and ordered by, source position), so the target has no declared term
 // yet when process_continuous_assign_operand() processes it -- it
 // throws rather than silently dropping the write either way.
-TEST_P(SVUnitTests, Unsupported_HierarchicalContinuousAssignForwardRef)
+TEST_P(SVUnitTests, HierarchicalContinuousAssignForwardRef)
 {
   expect_encode_throws("hier_continuous_assign_forward_ref.sv");
 }
@@ -133,7 +107,7 @@ TEST_P(SVUnitTests, Unsupported_HierarchicalContinuousAssignForwardRef)
 // like the hierarchical-reference case above. resolve_lvalue() throws
 // a clear PonoException rather than silently dropping the child's
 // output write and leaving the target fully unconstrained.
-TEST_P(SVUnitTests, Unsupported_DynamicIndexOutputPortConnection)
+TEST_P(SVUnitTests, DynamicIndexOutputPortConnection)
 {
   expect_encode_throws("dynamic_index_output_port.sv");
 }
@@ -143,7 +117,7 @@ TEST_P(SVUnitTests, Unsupported_DynamicIndexOutputPortConnection)
 // resolve_lvalue() fails, for the same reason as the plain-expression
 // case above, rather than silently dropping the whole multi-piece
 // write.
-TEST_P(SVUnitTests, Unsupported_DynamicIndexConcatOutputPortConnection)
+TEST_P(SVUnitTests, DynamicIndexConcatOutputPortConnection)
 {
   expect_encode_throws("dynamic_index_concat_output_port.sv");
 }
@@ -153,7 +127,7 @@ TEST_P(SVUnitTests, Unsupported_DynamicIndexConcatOutputPortConnection)
 // logger.log(1, "... ignoring specify block ...") rather than thrown)
 // doesn't corrupt any functional proof the way the assume/cover/
 // statement-kind gaps elsewhere in this suite can.
-TEST_P(SVUnitTests, Unsupported_SpecifyBlock)
+TEST_P(SVUnitTests, SpecifyBlock)
 {
   expect_encode_succeeds_ignoring("specify_block.sv");
 }
@@ -166,7 +140,7 @@ TEST_P(SVUnitTests, Unsupported_SpecifyBlock)
 // assert doesn't reference `x`, so it can't further distinguish
 // "ignored" from "applied and then reverted" -- only that neither one
 // crashes the encoder).
-TEST_P(SVUnitTests, Unsupported_ForceRelease)
+TEST_P(SVUnitTests, ForceRelease)
 {
   expect_encode_succeeds_ignoring("force_release.sv");
 }
@@ -176,7 +150,7 @@ TEST_P(SVUnitTests, Unsupported_ForceRelease)
 // infinite-trace model (there's no "end of simulation"), so they're
 // intentionally ignored, the same as $display and other simulation-
 // only constructs elsewhere in this encoder.
-TEST_P(SVUnitTests, Unsupported_FinalBlockIgnored)
+TEST_P(SVUnitTests, FinalBlockIgnored)
 {
   expect_encode_succeeds_ignoring("final_block.sv");
 }
@@ -187,10 +161,7 @@ TEST_P(SVUnitTests, Unsupported_FinalBlockIgnored)
 // ForeverEventAsRegister in test_systemverilog_statements.cpp for the
 // supported `initial forever @(...) ...` structural spelling of a
 // register.
-TEST_P(SVUnitTests, Unsupported_BareForever)
-{
-  expect_encode_throws("bare_forever.sv");
-}
+TEST_P(SVUnitTests, BareForever) { expect_encode_throws("bare_forever.sv"); }
 
 // `+incdir+`/`-y`-style tool directives in a `.f` list file are
 // rejected outright rather than silently treated as filenames --
@@ -198,7 +169,7 @@ TEST_P(SVUnitTests, Unsupported_BareForever)
 // a deliberate scope limitation of this encoder's `.f`-file parser
 // (an unofficial, multi-vendor EDA build-flow convention, not an IEEE
 // 1800 SystemVerilog construct), not a partially-implemented feature.
-TEST_P(SVUnitTests, Unsupported_FilelistIncdirDirective)
+TEST_P(SVUnitTests, FilelistIncdirDirective)
 {
   expect_encode_throws("filelist_top.sv",
                        { sv_path("filelist_bad_directive.f") });

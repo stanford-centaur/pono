@@ -119,8 +119,8 @@ TEST_P(SVUnitTests, AlwaysLatchHold)
 // redirects it to the same process_next_state_body() an always_ff
 // block gets, instead of treating it as an initial-state constraint. A
 // *bare* `forever` (no event control) doesn't match this shape and
-// remains an architectural boundary -- see
-// Unsupported_BareForever in test_systemverilog_unsupported.cpp.
+// remains an architectural boundary -- see BareForever in
+// test_systemverilog_unsupported.cpp.
 TEST_P(SVUnitTests, ForeverEventAsRegister)
 {
   check_bmc("forever_loop.sv", 4, ProverResult::UNKNOWN);
