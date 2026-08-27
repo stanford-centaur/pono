@@ -135,6 +135,21 @@ TEST_P(SVUnitTests, InterfaceModportPort)
   check_bmc("interface_modport_task.sv", 4);
 }
 
+// `bind` works: slang's elaborator splices the bound instance directly
+// into the target module's body as an ordinary child instance, so
+// Pono's regular instance walk picks up `checker_mod`'s assertion --
+// and its port connection to leaf2's internal `count` -- for free,
+// with no special-case bind handling needed in this encoder at all.
+// `warn_on_bind_directives()` (encoder.cpp) only logs an informational
+// warning; it doesn't skip anything. `checker` (a distinct
+// SymbolKind::CheckerInstance the usual member walk doesn't match at
+// all) is different -- see Gap_CheckerBlock in
+// test_systemverilog_unsupported.cpp.
+TEST_P(SVUnitTests, BindDirectiveAttachesAssertion)
+{
+  check_bmc("bind_directive.sv", 3, ProverResult::UNKNOWN);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
