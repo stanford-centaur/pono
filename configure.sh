@@ -1,32 +1,41 @@
 #!/usr/bin/env bash
-
 # Syntax and structure borrowed from cvc5's configure.sh script
+#
+# The flags listed in usage(), the variable defaults below it, and the
+# case statement in the parsing loop should be kept grouped by type
+# (directory settings, build flags, optional features/backends), then
+# alphabetically within each group, and in sync with each other.
 
 usage() {
   cat <<EOF
 Usage: $0 [<option> ...]
 
-Configures the CMAKE build environment.
+Configures the CMake build environment.
 
 -h, --help              display this message and exit
---prefix=STR            install directory       (default: /usr/local/)
---build-dir=STR         custom build directory  (default: build)
+
+Directory settings:
+--build-dir=STR         custom build directory (default: build)
+--prefix=STR            install directory (default: /usr/local)
 --smt-switch-dir=STR    custom smt-switch directory (default: deps/smt-switch)
---with-btor             build with Boolector  (default: off)
---with-msat             build with MathSAT which has a custom non-BSD compliant license.  (default : off)
-                        Required for interpolant based model checking
---with-yices2           build with Yices2 which has a custom non-BSD compliant license (default : off)
---with-z3               build with Z3 (default: off)
---with-msat-ic3ia       build with the open-source IC3IA implementation as a backend. (default: off)
---with-coreir           build the CoreIR frontend (default: off)
---with-coreir-extern    build the CoreIR frontend using an installation of coreir in /usr/local/lib (default: off)
---debug                 build debug with debug symbols (default: off)
---docs                  build HTML documentation with Doxygen (default: off)
---python                compile with python bindings (default: off)
---static-lib            build a static library (default: shared)
+
+Build flags:
+--debug                 disable optimizations and include debug symbols (default: release build)
 --static                build a static executable (default: dynamic); implies --static-lib
---with-profiling        build with gperftools for profiling (default: off)
---no-system-gtest       do not use system GTest sources; forces download (default: off)
+--static-lib            build a static library (default: shared)
+
+Optional features / backends (default: off for all):
+--docs                  build HTML documentation with Doxygen
+--no-system-gtest       do not use system GTest sources; forces download
+--python                compile with Python bindings
+--with-btor             build with Boolector
+--with-coreir           build the CoreIR frontend
+--with-coreir-extern    build the CoreIR frontend using an installation in /usr/local/lib
+--with-msat             build with MathSAT which has a custom non-BSD compliant license
+--with-msat-ic3ia       build with the open-source IC3IA implementation as a backend
+--with-profiling        build with gperftools for profiling
+--with-yices2           build with Yices2 which has a custom non-BSD compliant license
+--with-z3               build with Z3
 EOF
   exit 0
 }
@@ -38,37 +47,34 @@ die() {
 
 root_dir=$(pwd)
 
+# Directory settings
 build_dir=$root_dir/build
-smt_switch_dir=$root_dir/deps/smt-switch
 install_prefix=/usr/local
+smt_switch_dir=$root_dir/deps/smt-switch
+
+# Build flags
 build_type=Release
+static_exec=NO
+lib_type=SHARED
+
+# Optional features / backends
+docs=OFF
+system_gtest=ON
+python=OFF
 with_boolector=OFF
-with_msat=OFF
-with_yices2=OFF
-with_z3=OFF
-with_msat_ic3ia=OFF
 with_coreir=OFF
 with_coreir_extern=OFF
-docs=OFF
-python=OFF
-lib_type=SHARED
-static_exec=NO
+with_msat=OFF
+with_msat_ic3ia=OFF
 with_profiling=OFF
-system_gtest=ON
+with_yices2=OFF
+with_z3=OFF
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     -h | --help) usage ;;
-    --prefix) die "missing argument to $1 (see -h)" ;;
-    --prefix=*)
-      install_prefix=${1##*=}
-      # Check if install_prefix is an absolute path and if not, make it
-      # absolute.
-      case $install_prefix in
-        /*) ;;                                         # absolute path
-        *) install_prefix=$root_dir/$install_prefix ;; # make absolute path
-      esac
-      ;;
+
+    # Directory settings
     --build-dir) die "missing argument to $1 (see -h)" ;;
     --build-dir=*)
       build_dir=${1##*=}
@@ -77,6 +83,16 @@ while [[ $# -gt 0 ]]; do
       case $build_dir in
         /*) ;;                               # absolute path
         *) build_dir=$root_dir/$build_dir ;; # make absolute path
+      esac
+      ;;
+    --prefix) die "missing argument to $1 (see -h)" ;;
+    --prefix=*)
+      install_prefix=${1##*=}
+      # Check if install_prefix is an absolute path and if not, make it
+      # absolute.
+      case $install_prefix in
+        /*) ;;                                         # absolute path
+        *) install_prefix=$root_dir/$install_prefix ;; # make absolute path
       esac
       ;;
     --smt-switch-dir) die "missing argument to $1 (see -h)" ;;
@@ -88,29 +104,33 @@ while [[ $# -gt 0 ]]; do
         *) smt_switch_dir=$root_dir/$smt_switch_dir ;; # make absolute path
       esac
       ;;
-    --with-btor) with_boolector=ON ;;
-    --with-msat) with_msat=ON ;;
-    --with-yices2) with_yices2=ON ;;
-    --with-z3) with_z3=ON ;;
-    --with-msat-ic3ia) with_msat_ic3ia=ON ;;
-    --with-coreir) with_coreir=ON ;;
-    --with-coreir-extern) with_coreir_extern=ON ;;
+
+    # Build flags
     --debug)
       build_type=Debug
-      ;;
-    --docs) docs=ON ;;
-    --python)
-      python=ON
-      ;;
-    --static-lib)
-      lib_type=STATIC
       ;;
     --static)
       static_exec=YES
       lib_type=STATIC
       ;;
-    --with-profiling) with_profiling=ON ;;
+    --static-lib)
+      lib_type=STATIC
+      ;;
+
+    # Optional features / backends
+    --docs) docs=ON ;;
     --no-system-gtest) system_gtest=OFF ;;
+    --python)
+      python=ON
+      ;;
+    --with-btor) with_boolector=ON ;;
+    --with-coreir) with_coreir=ON ;;
+    --with-coreir-extern) with_coreir_extern=ON ;;
+    --with-msat) with_msat=ON ;;
+    --with-msat-ic3ia) with_msat_ic3ia=ON ;;
+    --with-profiling) with_profiling=ON ;;
+    --with-yices2) with_yices2=ON ;;
+    --with-z3) with_z3=ON ;;
     *) die "unexpected argument: $1" ;;
   esac
   shift
@@ -126,23 +146,27 @@ done
 # instead of leaving an earlier run's ON stuck in the cache). That in turn
 # means we don't have to wipe the build directory to get a correct
 # reconfigure.
+#
+# These are plain CMake variable names, not the bash flags above (which
+# don't all map 1:1, e.g. --with-btor -> WITH_BOOLECTOR), so they're ordered
+# purely alphabetically rather than matching the flag grouping.
 cmake_opts=(
+  -DBUILD_DOCS="$docs"
+  -DBUILD_PYTHON_BINDINGS="$python"
   -DCMAKE_BUILD_TYPE="$build_type"
+  -DCMAKE_INSTALL_PREFIX="$install_prefix"
   -DPONO_LIB_TYPE="$lib_type"
   -DPONO_STATIC_EXEC="$static_exec"
   -DSMT_SWITCH_DIR="$smt_switch_dir"
-  -DCMAKE_INSTALL_PREFIX="$install_prefix"
+  -DSYSTEM_GTEST="$system_gtest"
   -DWITH_BOOLECTOR="$with_boolector"
-  -DWITH_MSAT="$with_msat"
-  -DWITH_YICES2="$with_yices2"
-  -DWITH_Z3="$with_z3"
-  -DWITH_MSAT_IC3IA="$with_msat_ic3ia"
   -DWITH_COREIR="$with_coreir"
   -DWITH_COREIR_EXTERN="$with_coreir_extern"
-  -DBUILD_DOCS="$docs"
-  -DBUILD_PYTHON_BINDINGS="$python"
+  -DWITH_MSAT="$with_msat"
+  -DWITH_MSAT_IC3IA="$with_msat_ic3ia"
   -DWITH_PROFILING="$with_profiling"
-  -DSYSTEM_GTEST="$system_gtest"
+  -DWITH_YICES2="$with_yices2"
+  -DWITH_Z3="$with_z3"
 )
 
 echo "Running with cmake options: ${cmake_opts[*]}"
