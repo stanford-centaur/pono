@@ -208,13 +208,14 @@ TEST_P(SVUnitTests, Unsupported_HierarchicalContinuousAssignForwardRef)
 }
 
 // An output port connected via a dynamic (runtime-variable) bit-select
-// (`.out(bus[idx])`) has no port-connection counterpart to
-// resolve_lvalue()'s dynamic-index fallback: a port connection is a
-// structural, elaboration-time binding, not a per-cycle write, so
-// there's no mux to build. resolve_lvalue() throws a clear
-// PonoException rather than silently dropping the child's output
-// write and leaving the target fully unconstrained.
-TEST_P(SVUnitTests, Gap_DynamicIndexOutputPortConnection)
+// (`.out(bus[idx])`) isn't real synthesizable RTL to begin with: a
+// port connection is a structural, elaboration-time binding, not a
+// per-cycle write, so there's no mux for a dynamic index to build --
+// a deliberate non-goal rather than missed synthesizable-subset work,
+// like the hierarchical-reference case above. resolve_lvalue() throws
+// a clear PonoException rather than silently dropping the child's
+// output write and leaving the target fully unconstrained.
+TEST_P(SVUnitTests, Unsupported_DynamicIndexOutputPortConnection)
 {
   expect_encode_throws("dynamic_index_output_port.sv");
 }
@@ -224,7 +225,7 @@ TEST_P(SVUnitTests, Gap_DynamicIndexOutputPortConnection)
 // resolve_lvalue() fails, for the same reason as the plain-expression
 // case above, rather than silently dropping the whole multi-piece
 // write.
-TEST_P(SVUnitTests, Gap_DynamicIndexConcatOutputPortConnection)
+TEST_P(SVUnitTests, Unsupported_DynamicIndexConcatOutputPortConnection)
 {
   expect_encode_throws("dynamic_index_concat_output_port.sv");
 }
