@@ -358,6 +358,7 @@ if(BUILD_DOCS)
   find_package(Doxygen)
   doxygen_add_docs(
     docs
+    ALL
     core/
     engines/
     frontends/
