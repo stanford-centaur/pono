@@ -28,6 +28,26 @@ TEST_P(SVUnitTests, RangeSelectLhs)
   check_bmc("range_select_lhs.sv", 4, ProverResult::UNKNOWN);
 }
 
+// A range-select lvalue with a non-constant (variable) base
+// (`w[base +: 4]`) has no dynamic-range-select write fallback anywhere
+// in this encoder, unlike ElementSelect's single-bit dynamic-index
+// fallback (process_dynamic_element_assign()). resolve_lvalue() throws
+// a clear PonoException for this rather than silently dropping the
+// write.
+TEST_P(SVUnitTests, Gap_DynamicRangeSelectLhs)
+{
+  check_bmc("dynamic_range_select_lhs.sv", 2, ProverResult::UNKNOWN);
+}
+
+// A constant element-select lvalue whose index is out of range for its
+// base (`flag[10]` into a 4-bit `flag`) -- the LRM permits this
+// (writes are a no-op, reads return 'x), but this encoder has no such
+// semantics.
+TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
+{
+  check_bmc("element_select_out_of_bounds_lhs.sv", 2, ProverResult::UNKNOWN);
+}
+
 // Concatenation-target LHS on a plain continuous assign (`assign {hi,
 // lo} = ...;`), as opposed to a concatenation-target *port connection*
 // (already supported separately via OutputAliasSegment). Since a
@@ -61,6 +81,16 @@ TEST_P(SVUnitTests, ConcatenationLhsNextState)
 TEST_P(SVUnitTests, ConcatenationLhsOnlyWrite)
 {
   check_bmc("concat_lhs_only_write.sv", 1);
+}
+
+// A streaming concatenation used as an assignment target
+// (`{>>{hi, lo}} <= a;`) is ExpressionKind::Streaming, distinct from a
+// plain concatenation-target LHS (ExpressionKind::Concatenation,
+// already supported above). resolve_lvalue() has no case for it at
+// all.
+TEST_P(SVUnitTests, Gap_StreamingConcatLhs)
+{
+  check_bmc("streaming_concat_lhs.sv", 2, ProverResult::UNKNOWN);
 }
 
 // Minimal, direct checks of two patterns that recur composed with other
@@ -143,6 +173,20 @@ TEST_P(SVUnitTests, CaseStatementDefaultOnlyWhenNoMatch)
 TEST_P(SVUnitTests, CasexCasezWildcard)
 {
   check_bmc("casex_casez.sv", 4, ProverResult::UNKNOWN);
+}
+
+// `case (x) matches ... endcase` (StatementKind::PatternCase) is a
+// distinct statement kind from plain case/casex/casez
+// (StatementKind::Case) that pre_scan_state_vars()'s
+// collect_blocking_targets()/collect_nonblocking_targets() don't
+// recognize either -- but since process_statement() itself also
+// doesn't process it (falling to the generic unhandled-statement-kind
+// default), the two omissions are consistent: no write inside it is
+// ever pre-scanned *or* applied, and the skip is logged. A real
+// mainstream-RTL gap, not a deliberate non-goal.
+TEST_P(SVUnitTests, Gap_PatternCase)
+{
+  check_bmc("pattern_case.sv", 2, ProverResult::UNKNOWN);
 }
 
 // ---------------------------------------------------------------------------

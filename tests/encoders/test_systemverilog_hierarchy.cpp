@@ -46,6 +46,18 @@ TEST_P(SVUnitTests, GappedBusSliceFromSiblingInstances)
   check_bmc("gapped_bus_slice.sv", 4, ProverResult::UNKNOWN);
 }
 
+// A register whose output port is aliased through an instance-array
+// bus-element connection to only *part* of its target's declared
+// width (compare GappedBusSliceFromSiblingInstances's analogous
+// wire-splicing case above) isn't supported:
+// declare_variables_internal() has no splicing logic for a register
+// spread across sibling instances the way process_continuous_assign()
+// does for a wire.
+TEST_P(SVUnitTests, Gap_RegisterAliasedToPartialTarget)
+{
+  check_bmc("reg_bus_slice.sv", 2, ProverResult::UNKNOWN);
+}
+
 TEST_P(SVUnitTests, GenerateForBlock) { check_bmc("generate_block.sv", 6); }
 
 TEST_P(SVUnitTests, ForLoopPopcount) { check_bmc("for_loop.sv", 2); }
@@ -88,6 +100,18 @@ TEST_P(SVUnitTests, ParameterPositionalOverride)
 TEST_P(SVUnitTests, ParameterNamedOverride)
 {
   check_bmc("named_param_override.sv", 8);
+}
+
+// `defparam` has real functional effect (it overrides a parameter,
+// here changing a counter's bit width) -- not a deliberate non-goal
+// like the constructs in test_systemverilog_unsupported.cpp. The base
+// module is still walked normally with its *own* defaults, so the
+// override is silently never applied -- logged via
+// logger.log(1, "... ignoring ...") rather than thrown. `defparam` is
+// caught as a walkable SymbolKind::DefParam member.
+TEST_P(SVUnitTests, Gap_DefparamStmt)
+{
+  check_bmc("defparam_stmt.sv", 20, ProverResult::UNKNOWN);
 }
 
 // ---------------------------------------------------------------------------
@@ -141,13 +165,23 @@ TEST_P(SVUnitTests, InterfaceModportPort)
 // and its port connection to leaf2's internal `count` -- for free,
 // with no special-case bind handling needed in this encoder at all.
 // `warn_on_bind_directives()` (encoder.cpp) only logs an informational
-// warning; it doesn't skip anything. `checker` (a distinct
-// SymbolKind::CheckerInstance the usual member walk doesn't match at
-// all) is different -- see Gap_CheckerBlock in
-// test_systemverilog_unsupported.cpp.
+// warning; it doesn't skip anything. `checker` (below) is different --
+// a distinct SymbolKind::CheckerInstance the usual member walk doesn't
+// match at all.
 TEST_P(SVUnitTests, BindDirectiveAttachesAssertion)
 {
   check_bmc("bind_directive.sv", 3, ProverResult::UNKNOWN);
+}
+
+// `checker` is IEEE 1800's standard non-invasive formal-assertion-
+// attachment mechanism, not a deliberate non-goal like `program`/
+// `specify` in test_systemverilog_unsupported.cpp -- a checker
+// instance is a distinct SymbolKind::CheckerInstance the usual member
+// walk doesn't match at all, so its own `assert property` never
+// reaches the model.
+TEST_P(SVUnitTests, Gap_CheckerBlock)
+{
+  check_bmc("checker_block.sv", 1, ProverResult::FALSE);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,

@@ -9,14 +9,15 @@ namespace pono_tests {
 
 // ---------------------------------------------------------------------------
 // Ledger of genuinely out-of-scope IEEE 1800-2017 constructs (OOP/classes,
-// randomization, DPI, functional coverage, programs/specify,
-// fork/join/wait/force-release, non-integral types, dynamic containers).
+// randomization, DPI, functional coverage, programs/checker/specify,
+// fork/join/wait/force-release, non-integral types, dynamic containers,
+// hierarchical/port-connection idioms that aren't real synthesizable RTL).
 // Each is checked via either expect_encode_throws() or
 // expect_encode_succeeds_ignoring(), whichever matches how the encoder
 // actually rejects it; see the per-test comment when that isn't obvious
-// from the test name. Tests prefixed `Gap_` instead cover mainstream-RTL
-// features or lvalue-resolution edge cases this encoder doesn't yet
-// support -- missed synthesizable-subset work, not deliberate non-goals.
+// from the test name. Real synthesizable-RTL/verification-relevant gaps
+// (`Gap_`-prefixed tests) live in the topical file matching their subject
+// matter instead -- see project_sv_encoder_gaps.md for the full ranked list.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, Unsupported_ClassDecl)
@@ -51,16 +52,6 @@ TEST_P(SVUnitTests, Unsupported_ProgramBlock)
   expect_encode_succeeds_ignoring("program_block.sv");
 }
 
-// `checker` is IEEE 1800's standard non-invasive formal-assertion-
-// attachment mechanism, not a deliberate non-goal like `program` above
-// -- a checker instance is a distinct SymbolKind::CheckerInstance the
-// usual member walk doesn't match at all, so its own `assert property`
-// never reaches the model.
-TEST_P(SVUnitTests, Gap_CheckerBlock)
-{
-  check_bmc("checker_block.sv", 1, ProverResult::FALSE);
-}
-
 // `fork`/`join` and `wait` are simulation-timing constructs with no
 // per-cycle counterpart in this encoder's model; process_statement()'s
 // default case logs a warning (logger.log(1, "... skipping unsupported
@@ -68,20 +59,6 @@ TEST_P(SVUnitTests, Gap_CheckerBlock)
 TEST_P(SVUnitTests, Unsupported_ForkJoin)
 {
   expect_encode_succeeds_ignoring("fork_join.sv");
-}
-
-// `case (x) matches ... endcase` (StatementKind::PatternCase) is a
-// distinct statement kind from plain case/casex/casez
-// (StatementKind::Case) that pre_scan_state_vars()'s
-// collect_blocking_targets()/collect_nonblocking_targets() don't
-// recognize either -- but since process_statement() itself also
-// doesn't process it (falling to the generic unhandled-statement-kind
-// default below), the two omissions are consistent: no write inside
-// it is ever pre-scanned *or* applied, and the skip is logged. A real
-// mainstream-RTL gap, not a deliberate non-goal.
-TEST_P(SVUnitTests, Gap_PatternCase)
-{
-  check_bmc("pattern_case.sv", 2, ProverResult::UNKNOWN);
 }
 
 TEST_P(SVUnitTests, Unsupported_WaitStmt)
@@ -96,17 +73,6 @@ TEST_P(SVUnitTests, Unsupported_ExpectProperty)
 {
   expect_encode_succeeds_ignoring("expect_property.sv");
 }
-
-// `cover sequence(S)` is treated the same as `cover property(P)` --
-// both set the ConcurrentAssertion handler's `is_cover` flag. Since
-// `a ##1 b` is a genuinely multi-cycle sequence, it hits the
-// temporal/sequence-shaped cover-goal throw (same as
-// `cover property (a ##1 b)`, which IS supported -- see CoverProperty
-// in test_systemverilog_sva.cpp): extending reachability duality
-// through the LTL tableau for cover goals is a real gap, not a
-// deliberate non-goal. check_bmc() attempts the same reachability
-// check CoverProperty uses.
-TEST_P(SVUnitTests, Gap_CoverSequence) { check_bmc("cover_sequence.sv", 1); }
 
 TEST_P(SVUnitTests, Unsupported_EventType)
 {
@@ -141,55 +107,6 @@ TEST_P(SVUnitTests, Unsupported_QueueType)
 TEST_P(SVUnitTests, Unsupported_AssocArray)
 {
   expect_encode_throws("assoc_array.sv");
-}
-
-// A real synthesizable-RTL gap (register files / small memories are
-// mainstream, not verification-only): unpacked arrays never build an
-// SMT array sort, so the fixture's own read-after-write invariant
-// can't be checked.
-TEST_P(SVUnitTests, Gap_UnpackedRegfileMemory)
-{
-  check_bmc("unpacked_regfile.sv", 3, ProverResult::UNKNOWN);
-}
-
-// A register whose output port is aliased through an instance-array
-// bus-element connection to only *part* of its target's declared
-// width (compare gapped_bus_slice.sv's analogous wire-splicing case)
-// isn't supported: declare_variables_internal() has no splicing logic
-// for a register spread across sibling instances the way
-// process_continuous_assign() does for a wire.
-TEST_P(SVUnitTests, Gap_RegisterAliasedToPartialTarget)
-{
-  check_bmc("reg_bus_slice.sv", 2, ProverResult::UNKNOWN);
-}
-
-// A range-select lvalue with a non-constant (variable) base
-// (`w[base +: 4]`) has no dynamic-range-select write fallback anywhere
-// in this encoder, unlike ElementSelect's single-bit dynamic-index
-// fallback (process_dynamic_element_assign()). resolve_lvalue() throws
-// a clear PonoException for this rather than silently dropping the
-// write.
-TEST_P(SVUnitTests, Gap_DynamicRangeSelectLhs)
-{
-  check_bmc("dynamic_range_select_lhs.sv", 2, ProverResult::UNKNOWN);
-}
-
-// A streaming concatenation used as an assignment target
-// (`{>>{hi, lo}} <= a;`) is ExpressionKind::Streaming, distinct from a
-// plain concatenation-target LHS (ExpressionKind::Concatenation,
-// already supported). resolve_lvalue() has no case for it at all.
-TEST_P(SVUnitTests, Gap_StreamingConcatLhs)
-{
-  check_bmc("streaming_concat_lhs.sv", 2, ProverResult::UNKNOWN);
-}
-
-// A constant element-select lvalue whose index is out of range for its
-// base (`flag[10]` into a 4-bit `flag`) -- the LRM permits this
-// (writes are a no-op, reads return 'x), but this encoder has no such
-// semantics.
-TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
-{
-  check_bmc("element_select_out_of_bounds_lhs.sv", 2, ProverResult::UNKNOWN);
 }
 
 // A continuous assign targeting a child instance's internal (non-port)
@@ -229,17 +146,6 @@ TEST_P(SVUnitTests, Unsupported_DynamicIndexOutputPortConnection)
 TEST_P(SVUnitTests, Unsupported_DynamicIndexConcatOutputPortConnection)
 {
   expect_encode_throws("dynamic_index_concat_output_port.sv");
-}
-
-// `defparam` has real functional effect (it overrides a parameter,
-// here changing a counter's bit width) -- not a deliberate non-goal
-// like the constructs above. The base module is still walked normally
-// with its *own* defaults, so the override is silently never applied
-// -- logged via logger.log(1, "... ignoring ...") rather than thrown.
-// `defparam` is caught as a walkable SymbolKind::DefParam member.
-TEST_P(SVUnitTests, Gap_DefparamStmt)
-{
-  check_bmc("defparam_stmt.sv", 20, ProverResult::UNKNOWN);
 }
 
 // `specify` affects only timing (not functional logic), so ignoring it

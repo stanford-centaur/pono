@@ -22,6 +22,16 @@ TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
   check_bmc("array_dyn_index.sv", 16);
 }
 
+// A real synthesizable-RTL gap (register files / small memories are
+// mainstream, not verification-only), distinct from the packed-array
+// tests above: an *unpacked* array (`logic [7:0] mem [0:15];`) never
+// builds an SMT array sort, so the fixture's own read-after-write
+// invariant can't be checked.
+TEST_P(SVUnitTests, Gap_UnpackedRegfileMemory)
+{
+  check_bmc("unpacked_regfile.sv", 3, ProverResult::UNKNOWN);
+}
+
 // ---------------------------------------------------------------------------
 // Packed structs
 // ---------------------------------------------------------------------------

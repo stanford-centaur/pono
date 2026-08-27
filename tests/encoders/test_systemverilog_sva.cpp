@@ -101,6 +101,15 @@ TEST_P(SVUnitTests, CoverProperty) { check_bmc("cover_property.sv", 1); }
 // property (...)` above), same reachability-duality contract.
 TEST_P(SVUnitTests, ImmediateCover) { check_bmc("immediate_cover.sv", 1); }
 
+// `cover sequence(S)` is treated the same as `cover property(P)` --
+// both set the ConcurrentAssertion handler's `is_cover` flag. Since
+// `a ##1 b` is a genuinely multi-cycle sequence, it hits the
+// temporal/sequence-shaped cover-goal throw (same reachability-duality
+// contract as CoverProperty above, once implemented): extending
+// reachability duality through the LTL tableau for cover goals is a
+// real gap, not a deliberate non-goal.
+TEST_P(SVUnitTests, Gap_CoverSequence) { check_bmc("cover_sequence.sv", 1); }
+
 // ---------------------------------------------------------------------------
 // $rose/$fell/$changed/$onehot/$onehot0/$isunknown. $rose/$fell/$changed
 // each build their own 1-cycle latch chain via the same make_history_chain()
