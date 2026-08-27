@@ -191,6 +191,22 @@ TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
   expect_encode_throws("element_select_out_of_bounds_lhs.sv");
 }
 
+// A continuous assign targeting a child instance's internal (non-port)
+// signal via a hierarchical dot-path is not real synthesizable RTL to
+// begin with -- module ports are the only sanctioned cross-instance
+// wiring mechanism, so driving a submodule's internals directly from
+// outside its own scope is a simulation/testbench/hierarchical-deposit
+// idiom, a deliberate non-goal rather than missed synthesizable-subset
+// work. This particular fixture also appears before that instance's
+// own declaration in the same scope (declaration is interleaved with,
+// and ordered by, source position), so the target has no declared term
+// yet when process_continuous_assign_operand() processes it -- it
+// throws rather than silently dropping the write either way.
+TEST_P(SVUnitTests, Unsupported_HierarchicalContinuousAssignForwardRef)
+{
+  expect_encode_throws("hier_continuous_assign_forward_ref.sv");
+}
+
 // An output port connected via a dynamic (runtime-variable) bit-select
 // (`.out(bus[idx])`) has no port-connection counterpart to
 // resolve_lvalue()'s dynamic-index fallback: a port connection is a

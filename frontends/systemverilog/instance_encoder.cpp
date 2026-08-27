@@ -477,19 +477,35 @@ void InstanceEncoder::process_continuous_assign_operand(
     // Constrain the appropriate slice via add_constraint (which
     // tolerates input vars in the term).
     auto it = symbol_table_.symbol_to_term().find(sym);
-    if (it != symbol_table_.symbol_to_term().end()) {
-      Term lhs_term = it->second;
-      uint64_t base_w = lhs_term->get_sort()->get_width();
-      bool full_write = (lo == 0 && hi == base_w - 1);
-      Term lhs_slice = full_write
-                           ? lhs_term
-                           : solver_->make_term(Op(Extract, hi, lo), lhs_term);
-      Term eq = solver_->make_term(Equal, lhs_slice, rhs);
-      fts_.add_constraint(eq);
-      logger.log(2,
-                 "SystemVerilogEncoder: continuous assign {} = ...",
-                 fts_.get_name(lhs_term));
+    if (it == symbol_table_.symbol_to_term().end()) {
+      // A hierarchical continuous-assign target with no declared term
+      // yet means this assign's source position precedes the child
+      // instance's own declaration in the same scope (declaration is
+      // interleaved with, and ordered by, source position) -- or, for
+      // a plain (non-hierarchical) target, that it reaches into a
+      // child instance's internal (non-port) signal from outside that
+      // instance's own scope at all. Neither is real synthesizable
+      // RTL (module ports are the only sanctioned cross-instance
+      // wiring mechanism), so throw rather than silently dropping the
+      // write and leaving the target fully unconstrained.
+      throw PonoException(
+          "SystemVerilogEncoder: unsupported continuous-assign target '"
+          + string(sym->name)
+          + "' (hierarchical reference into a child instance's internal "
+            "signal, or forward reference to an instance declared later "
+            "in the same scope?)");
     }
+    Term lhs_term = it->second;
+    uint64_t base_w = lhs_term->get_sort()->get_width();
+    bool full_write = (lo == 0 && hi == base_w - 1);
+    Term lhs_slice = full_write
+                         ? lhs_term
+                         : solver_->make_term(Op(Extract, hi, lo), lhs_term);
+    Term eq = solver_->make_term(Equal, lhs_slice, rhs);
+    fts_.add_constraint(eq);
+    logger.log(2,
+               "SystemVerilogEncoder: continuous assign {} = ...",
+               fts_.get_name(lhs_term));
   }
 }
 
