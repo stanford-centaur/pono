@@ -76,34 +76,11 @@ while [[ $# -gt 0 ]]; do
 
     # Directory settings
     --build-dir) die "missing argument to $1 (see -h)" ;;
-    --build-dir=*)
-      build_dir=${1##*=}
-      # Check if build_dir is an absolute path and if not, make it
-      # absolute.
-      case $build_dir in
-        /*) ;;                               # absolute path
-        *) build_dir=$root_dir/$build_dir ;; # make absolute path
-      esac
-      ;;
+    --build-dir=*) build_dir=${1##*=} ;;
     --prefix) die "missing argument to $1 (see -h)" ;;
-    --prefix=*)
-      install_prefix=${1##*=}
-      # Check if install_prefix is an absolute path and if not, make it
-      # absolute.
-      case $install_prefix in
-        /*) ;;                                         # absolute path
-        *) install_prefix=$root_dir/$install_prefix ;; # make absolute path
-      esac
-      ;;
+    --prefix=*) install_prefix=${1##*=} ;;
     --smt-switch-dir) die "missing argument to $1 (see -h)" ;;
-    --smt-switch-dir=*)
-      smt_switch_dir=${1##*=}
-      # Check if this is an absolute path and if not, make it absolute.
-      case $smt_switch_dir in
-        /*) ;;                                         # absolute path
-        *) smt_switch_dir=$root_dir/$smt_switch_dir ;; # make absolute path
-      esac
-      ;;
+    --smt-switch-dir=*) smt_switch_dir=${1##*=} ;;
 
     # Build flags
     --debug)
