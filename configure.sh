@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# The flags listed in usage(), the cmake_vars defaults below it, and the
-# case statement in the parsing loop should be kept grouped by type
-# (directory settings, build flags, optional features/backends), then
-# alphabetically within each group, and in sync with each other.
+# The flags listed in usage(), the cmake_vars keys, and the case statement
+# in the parsing loop should be kept grouped by type (directory settings,
+# build flags, optional features/backends), then alphabetically within
+# each group, and in sync with each other.
 
 die() {
   echo "*** $0: $*" 1>&2
@@ -16,40 +16,6 @@ if ((BASH_VERSINFO[0] < 4)); then
   die "requires bash >= 4, but running under bash $BASH_VERSION (on macOS:" \
     "brew install bash, then re-run with that bash)"
 fi
-
-usage() {
-  cat <<EOF
-Usage: $0 [<option> ...]
-
-Configures the CMake build environment.
-
--h, --help              display this message and exit
-
-Directory settings:
---build-dir=STR         custom build directory (default: build)
---prefix=STR            install directory (default: /usr/local)
---smt-switch-dir=STR    custom smt-switch directory (default: deps/smt-switch)
-
-Build flags:
---debug                 disable optimizations and include debug symbols (default: release build)
---static                build a static executable (default: dynamic); implies --static-lib
---static-lib            build a static library (default: shared)
-
-Optional features / backends (default: off for all):
---docs                  build HTML documentation with Doxygen
---no-system-gtest       do not use system GTest sources; forces download
---python                compile with Python bindings
---with-btor             build with Boolector
---with-coreir           build the CoreIR frontend
---with-coreir-extern    build the CoreIR frontend using an installation in /usr/local/lib
---with-msat             build with MathSAT which has a custom non-BSD compliant license
---with-msat-ic3ia       build with the open-source IC3IA implementation as a backend
---with-profiling        build with gperftools for profiling
---with-yices2           build with Yices2 which has a custom non-BSD compliant license
---with-z3               build with Z3
-EOF
-  exit 0
-}
 
 root_dir=$(pwd)
 build_dir=$root_dir/build
@@ -76,6 +42,40 @@ declare -A cmake_vars=(
   [WITH_YICES2]=OFF
   [WITH_Z3]=OFF
 )
+
+usage() {
+  cat <<EOF
+Usage: $0 [<option> ...]
+
+Configures the CMake build environment.
+
+-h, --help              display this message and exit
+
+Directory settings:
+--build-dir=STR         custom build directory (default: ${build_dir#"$root_dir"/})
+--prefix=STR            install directory (default: ${cmake_vars[CMAKE_INSTALL_PREFIX]})
+--smt-switch-dir=STR    custom smt-switch directory (default: ${cmake_vars[SMT_SWITCH_DIR]#"$root_dir"/})
+
+Build flags:
+--debug                 disable optimizations and include debug symbols (default: ${cmake_vars[CMAKE_BUILD_TYPE],,} build)
+--static                build a static executable (default: ${cmake_vars[PONO_STATIC_EXEC],,}); implies --static-lib
+--static-lib            build a static library (default: ${cmake_vars[PONO_LIB_TYPE],,})
+
+Optional features / backends (default: false/off for all):
+--docs                  build HTML documentation with Doxygen
+--no-system-gtest       do not use system GTest sources; forces download
+--python                compile with Python bindings
+--with-btor             build with Boolector
+--with-coreir           build the CoreIR frontend
+--with-coreir-extern    build the CoreIR frontend using an installation in /usr/local/lib
+--with-msat             build with MathSAT which has a custom non-BSD compliant license
+--with-msat-ic3ia       build with the open-source IC3IA implementation as a backend
+--with-profiling        build with gperftools for profiling
+--with-yices2           build with Yices2 which has a custom non-BSD compliant license
+--with-z3               build with Z3
+EOF
+  exit 0
+}
 
 while [[ $# -gt 0 ]]; do
   case $1 in
