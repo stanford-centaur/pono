@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-DEPS=$DIR/../deps
-
-mkdir -p "$DEPS"
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+dir="$dir/../deps/mathsat"
 
 usage() {
   cat <<EOF
@@ -20,7 +18,7 @@ EOF
 
 get_msat=default
 msat_version="5.6.12"
-mast_release_url="https://mathsat.fbk.eu/release"
+msat_release_url="https://mathsat.fbk.eu/release/mathsat"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -32,7 +30,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ $get_msat == default ]]; then
-  read -rp "MathSAT is distributed under a custom (non-BSD compliant) license. By continuing you acknowledge this distinction and assume responsibility for meeting the license conditions. Continue? [y]es/[n]o: " get_msat
+  read -rp "MathSAT is distributed under a custom (non-BSD compliant) ""\
+license. By continuing you acknowledge this distinction and assume ""\
+responsibility for meeting the license conditions. Continue? ""\
+[y]es/[n]o: " get_msat
 fi
 
 if [[ $get_msat != y ]]; then
@@ -40,32 +41,32 @@ if [[ $get_msat != y ]]; then
   exit 0
 fi
 
-if [[ ! -d "$DEPS/mathsat" ]]; then
-  cd "$DEPS"
-  mkdir mathsat
+if [[ ! -d $dir ]]; then
+  mkdir -p "$dir"
+  cd "$dir"
   if [[ $OSTYPE == linux* ]]; then
-    wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-linux-x86_64.tar.gz
+    wget -O mathsat.tar.gz $msat_release_url-$msat_version-linux-x86_64.tar.gz
   elif [[ $OSTYPE == darwin* ]]; then
-    wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-macos.tar.gz
+    wget -O mathsat.tar.gz $msat_release_url-$msat_version-macos.tar.gz
   elif [[ $OSTYPE == msys* ]]; then
-    wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-win64-msvc.zip
+    wget -O mathsat.tar.gz $msat_release_url-$msat_version-win64-msvc.zip
   elif [[ $OSTYPE == cygwin* ]]; then
-    wget -O mathsat.tar.gz $mast_release_url/mathsat-$msat_version-linux-x86_64.tar.gz
+    wget -O mathsat.tar.gz $msat_release_url-$msat_version-linux-x86_64.tar.gz
   else
     echo "Unrecognized OSTYPE=$OSTYPE"
     exit 1
   fi
 
-  tar -xf mathsat.tar.gz -C mathsat --strip-components 1
+  tar -xf mathsat.tar.gz --strip-components 1
   rm mathsat.tar.gz
 
 else
-  echo "$DEPS/mathsat already exists. If you want to re-download, please remove it manually."
+  echo "$dir already exists. If you want to re-download, please remove it."
 fi
 
-if [[ -f "$DEPS/mathsat/lib/libmathsat.a" ]]; then
-  echo "It appears mathsat was setup successfully into $DEPS/mathsat."
-  echo "You may now install it with make ./configure.sh --msat && cd build && make"
+if [[ -f "$dir/lib/libmathsat.a" ]]; then
+  echo "It appears mathsat was setup successfully into $dir."
+  echo "You may now install it with ./configure.sh --msat && cd build && make"
 else
   echo "Downloading mathsat failed."
   echo "Please see their website: http://mathsat.fbk.eu/"

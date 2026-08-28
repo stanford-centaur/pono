@@ -136,8 +136,10 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-[[ $lib_type == STATIC ]] && { [[ $with_coreir == ON ]] || [[ $with_coreir_extern == ON ]]; } &&
-  die "CoreIR and static build are incompatible, must omit either '--static/--static-lib' or '--with-coreir/--with-coreir-extern'"
+[[ $lib_type == STATIC ]] &&
+  { [[ $with_coreir == ON ]] || [[ $with_coreir_extern == ON ]]; } &&
+  die "CoreIR and static build are incompatible, must omit either" \
+    "'--static/--static-lib' or '--with-coreir/--with-coreir-extern'"
 
 # Every option below is passed unconditionally, not just when it differs from
 # its default, so that re-running configure.sh on an existing build

@@ -35,6 +35,15 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
+  - repo: https://github.com/openstack/bashate
+    rev: "2.1.1"
+    hooks:
+      - id: bashate
+        # E003 (4-space indents) and E020 (function name {} declarations)
+        # conflict with this repo's conventions (2-space indents, name() {}).
+        # --error E treats every check as an error rather than a
+        # non-failing warning (all bashate codes start with "E").
+        args: [--ignore, "E003,E020", --error, "E"]
   - repo: https://github.com/google/yamlfmt
     rev: v0.21.0
     hooks:
