@@ -38,6 +38,7 @@ jobs:
         run: |
           brew update
           brew install \
+            bash \
             bison \
             flex
           echo "PATH=$(brew --prefix)/opt/bison/bin:$(brew --prefix)/opt/flex/bin:$PATH" >> "$GITHUB_ENV"
