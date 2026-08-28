@@ -84,11 +84,11 @@ while [[ $# -gt 0 ]]; do
 
     # Directory settings
     --build-dir) die "missing argument to $1 (see -h)" ;;
-    --build-dir=*) build_dir=${1##*=} ;;
+    --build-dir=*) build_dir=${1#*=} ;;
     --prefix) die "missing argument to $1 (see -h)" ;;
-    --prefix=*) cmake_vars[CMAKE_INSTALL_PREFIX]=${1##*=} ;;
+    --prefix=*) cmake_vars[CMAKE_INSTALL_PREFIX]=${1#*=} ;;
     --smt-switch-dir) die "missing argument to $1 (see -h)" ;;
-    --smt-switch-dir=*) cmake_vars[SMT_SWITCH_DIR]=${1##*=} ;;
+    --smt-switch-dir=*) cmake_vars[SMT_SWITCH_DIR]=${1#*=} ;;
 
     # Build flags
     --debug) cmake_vars[CMAKE_BUILD_TYPE]=Debug ;;
