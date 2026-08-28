@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # The flags listed in usage(), the cmake_vars keys, and the case statement
 # in the parsing loop should be kept grouped by type (directory settings,
 # build flags, optional features/backends), then alphabetically within
