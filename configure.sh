@@ -18,7 +18,7 @@ if ((BASH_VERSINFO[0] < 4)); then
     "brew install bash, then re-run with that bash)"
 fi
 
-root_dir=$(pwd)
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 build_dir=$root_dir/build
 declare -A cmake_vars=(
   # Directory settings
@@ -53,9 +53,9 @@ Configures the CMake build environment.
 -h, --help              display this message and exit
 
 Directory settings:
---build-dir=STR         custom build directory (default: ${build_dir#"$root_dir"/})
+--build-dir=STR         custom build directory (default: $build_dir)
 --prefix=STR            install directory (default: ${cmake_vars[CMAKE_INSTALL_PREFIX]})
---smt-switch-dir=STR    custom smt-switch directory (default: ${cmake_vars[SMT_SWITCH_DIR]#"$root_dir"/})
+--smt-switch-dir=STR    custom smt-switch directory (default: ${cmake_vars[SMT_SWITCH_DIR]})
 
 Build flags:
 --debug                 disable optimizations and include debug symbols (default: ${cmake_vars[CMAKE_BUILD_TYPE],,} build)
