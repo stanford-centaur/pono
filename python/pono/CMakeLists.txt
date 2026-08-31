@@ -27,4 +27,4 @@ add_custom_command(
 python_add_library(_pono_impl MODULE WITH_SOABI pono.cxx)
 target_link_libraries(_pono_impl PUBLIC pono-lib)
 # This has to be included because Cython uses the definitions from the smt-switch pxd files.
-target_include_directories(_pono_impl PRIVATE "${SMT_SWITCH_DIR}/local/include/smt-switch")
+target_include_directories(_pono_impl PRIVATE "${SmtSwitch_INCLUDE_DIR}/smt-switch")

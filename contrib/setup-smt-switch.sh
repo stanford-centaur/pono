@@ -43,24 +43,24 @@ while (($# > 0)); do
     --with-msat)
       conf_opts+=(--msat --msat-home="$(pwd)/deps/mathsat")
       incl_solver_str="mathsat, $incl_solver_str"
-      ((num_of_libs++))
+      : $((num_of_libs++))
       ;;
     --with-btor)
       with_boolector=true
       conf_opts+=(--btor)
       incl_solver_str="boolector, $incl_solver_str"
-      ((num_of_libs++))
+      : $((num_of_libs++))
       ;;
     --with-yices2)
       conf_opts+=(--yices2)
       incl_solver_str="yices2, $incl_solver_str"
-      ((num_of_libs++))
+      : $((num_of_libs++))
       ;;
     --with-z3)
       with_z3=true
       conf_opts+=(--z3)
       incl_solver_str="z3, $incl_solver_str"
-      ((num_of_libs++))
+      : $((num_of_libs++))
       ;;
     --python)
       conf_opts+=(--python)
@@ -88,7 +88,8 @@ if [[ ! -d smt-switch ]]; then
   git clone https://github.com/stanford-centaur/smt-switch
 fi
 cd smt-switch
-git checkout -f "$smt_switch_version" || echo "warning: smt-switch folder is not a git repo"
+git checkout -f "$smt_switch_version" ||
+  echo "warning: smt-switch folder is not a git repo"
 
 # Build dependencies
 ./contrib/setup-bitwuzla.sh
@@ -104,9 +105,11 @@ fi
 
 # Configure, build, test, and install smt-switch
 if [[ -d build ]]; then
-  echo "$(pwd)/build already exists, please remove it manually if you want to reconfigure smt-switch"
+  echo "$(pwd)/build already exists, please remove it manually if you" \
+    "want to reconfigure smt-switch"
 else
-  ./configure.sh --prefix=local --static --smtlib-reader --bitwuzla --cvc5 ${conf_opts[@]+"${conf_opts[@]}"}
+  ./configure.sh --prefix=local --static --smtlib-reader --bitwuzla --cvc5 \
+    ${conf_opts[@]+"${conf_opts[@]}"}
 fi
 cd build
 cmake --build . -j
@@ -117,11 +120,14 @@ cd ..
 # Check that library files are there
 lib_files=(local/lib/libsmt-switch*)
 if ((${#lib_files[@]} == num_of_libs)); then
-  echo "Smt-switch with $incl_solver_str was successfully installed to $(pwd)/local."
-  echo "You may now build pono with: ./configure.sh && cd build && cmake --build ."
+  echo "Smt-switch with $incl_solver_str was successfully installed to" \
+    "$(pwd)/local."
+  echo "You may now build pono with: ./configure.sh && cd build && cmake" \
+    "--build ."
 else
   echo "Building smt-switch failed."
   echo "You might be missing some dependencies."
-  echo "Please see the github page for installation instructions: https://github.com/stanford-centaur/smt-switch"
+  echo "Please see the github page for installation instructions:" \
+    "https://github.com/stanford-centaur/smt-switch"
   exit 1
 fi

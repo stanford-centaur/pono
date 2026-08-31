@@ -17,13 +17,13 @@ repos:
       - id: clang-format
         exclude: "^(contrib/|tests/encoders/inputs/coreir/)"
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1
+    rev: v0.16.4
     hooks:
       - id: ruff-format
       - id: ruff-check
         args: [--fix]
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.3.0
+    rev: v2.3.1
     hooks:
       - id: mypy
   - repo: https://github.com/scop/pre-commit-shfmt
@@ -35,18 +35,27 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
+  - repo: https://github.com/openstack/bashate
+    rev: "2.1.1"
+    hooks:
+      - id: bashate
+        # E003 (4-space indents) and E020 (function name {} declarations)
+        # conflict with this repo's conventions (2-space indents, name() {}).
+        # --error E treats every check as an error rather than a
+        # non-failing warning (all bashate codes start with "E").
+        args: [--ignore, "E003,E020", --error, "E"]
   - repo: https://github.com/google/yamlfmt
     rev: v0.21.0
     hooks:
       - id: yamlfmt
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: v1.2.6
+    rev: v1.4.1
     hooks:
       - id: tombi-format
         args: [--offline]
       - id: tombi-lint
         args: [--offline]
   - repo: https://github.com/BlankSpruce/gersemi-pre-commit
-    rev: 0.28.0
+    rev: 0.28.1
     hooks:
       - id: gersemi

@@ -57,7 +57,8 @@ if [[ ! -d $msat_home ]]; then
   exit 1
 fi
 
-curl -Lk https://es-static.fbk.eu/people/griggio/ic3ia/$ic3ia_version.tar.gz --output "$DEPS/$ic3ia_version.tar.gz"
+curl -Lk https://es-static.fbk.eu/people/griggio/ic3ia/$ic3ia_version.tar.gz \
+  --output "$DEPS/$ic3ia_version.tar.gz"
 
 if [[ ! -f "$DEPS/$ic3ia_version.tar.gz" ]]; then
   echo "It appears that downloading ic3ia failed."
