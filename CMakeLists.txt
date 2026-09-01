@@ -51,6 +51,14 @@ if(PONO_STATIC_EXEC STREQUAL "YES")
       "CoreIR is only available as a shared library. Disable one or the other."
     )
   endif()
+  if(NOT PONO_LIB_TYPE STREQUAL "STATIC")
+    message(
+      VERBOSE
+      "PONO_STATIC_EXEC=YES requires a static pono-lib; overriding "
+      "PONO_LIB_TYPE=${PONO_LIB_TYPE} to STATIC."
+    )
+    set(PONO_LIB_TYPE STATIC)
+  endif()
 endif()
 
 if(WITH_BOOLECTOR)

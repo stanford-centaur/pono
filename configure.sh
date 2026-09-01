@@ -94,10 +94,7 @@ while [[ $# -gt 0 ]]; do
 
     # Build flags
     --debug) cm_CMAKE_BUILD_TYPE=Debug ;;
-    --static)
-      cm_PONO_STATIC_EXEC=YES
-      cm_PONO_LIB_TYPE=STATIC
-      ;;
+    --static) cm_PONO_STATIC_EXEC=YES ;;
     --static-lib) cm_PONO_LIB_TYPE=STATIC ;;
 
     # Optional features / backends
