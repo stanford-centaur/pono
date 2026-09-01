@@ -117,13 +117,6 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-if [[ $cm_PONO_LIB_TYPE == STATIC ]]; then
-  [[ $cm_WITH_COREIR == ON ]] ||
-    [[ $cm_WITH_COREIR_EXTERN == ON ]] &&
-    die "CoreIR and static build are incompatible, must omit either" \
-      "'--static/--static-lib' or '--with-coreir/--with-coreir-extern'"
-fi
-
 # Every option below is passed unconditionally, not just when it differs from
 # its default, so that re-running configure.sh on an existing build
 # directory always overwrites CMake's cache with the currently requested
