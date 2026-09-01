@@ -64,22 +64,23 @@ if(WITH_PROFILING)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
-if(APPLE)
-  list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/bison")
-  list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/flex")
+# Try to find our custom bison build, falling back to Homebrew.
+if(IS_DIRECTORY "${PROJECT_SOURCE_DIR}/deps/bison-install")
+  set(BISON_ROOT "${PROJECT_SOURCE_DIR}/deps/bison-install")
+else()
+  execute_process(
+    COMMAND brew --prefix
+    RESULT_VARIABLE HOMEBREW_RESULT
+    OUTPUT_VARIABLE HOMEBREW_PREFIX
+    OUTPUT_QUIET
+    ERROR_QUIET
+  )
+  if(HOMEBREW_RESULT EQUAL 0 AND IS_DIRECTORY "${HOMEBREW_PREFIX}/opt/bison")
+    set(BISON_ROOT "${HOMEBREW_PREFIX}/opt/bison")
+  endif()
 endif()
-
 find_package(BISON 3.4.2 REQUIRED)
-if(BISON_FOUND)
-  get_filename_component(BISON_PARENT_DIR "${BISON_EXECUTABLE}" DIRECTORY)
-  message("-- Adding bison lib: ${BISON_PARENT_DIR}/../lib")
-  link_directories("${BISON_PARENT_DIR}/../lib/")
-endif()
-
 find_package(FLEX 2.6.4 REQUIRED)
-if(NOT FLEX_INCLUDE_DIRS)
-  message(FATAL_ERROR "Missing flex headers")
-endif()
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
@@ -158,7 +159,6 @@ set(
   ${Btor2Tools_INCLUDE_DIRS}
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
-  ${FLEX_INCLUDE_DIRS}
 )
 
 set(
