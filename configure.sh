@@ -1,48 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# The flags listed in usage(), the cmake_vars keys, and the case statement
-# in the parsing loop should be kept grouped by type (directory settings,
-# build flags, optional features/backends), then alphabetically within
-# each group, and in sync with each other.
 
+# Utility functions
 die() {
   echo "*** $0: $*" 1>&2
   exit 1
 }
-
-# Associative arrays (cmake_vars, below) require bash 4+. macOS ships bash
-# 3.2 as /bin/bash (Apple won't ship GPLv3 bash), so macOS users need a
-# newer bash from Homebrew -- see README.md.
-if ((BASH_VERSINFO[0] < 4)); then
-  die "requires bash >= 4, but running under bash $BASH_VERSION (on macOS:" \
-    "brew install bash, then re-run with that bash)"
-fi
+lowercase() {
+  printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]'
+}
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 build_dir=$root_dir/build
-declare -A cmake_vars=(
-  # Directory settings
-  [CMAKE_INSTALL_PREFIX]=/usr/local
-  [SMT_SWITCH_DIR]="$root_dir/deps/smt-switch"
 
-  # Build flags
-  [CMAKE_BUILD_TYPE]=Release
-  [PONO_LIB_TYPE]=SHARED
-  [PONO_STATIC_EXEC]=NO
+# These variables, the flags in usage(), and the case statement below should
+# stay grouped by type (directory settings, build flags, optional features),
+# alphabetical within each group, and in sync with each other.
+#
+# There is one cm_-prefixed variable per CMake variable. These should ideally
+# be in a single associative array, but macOS's default bash (3.2) doesn't
+# support those, so each variable is declared individually instead; the shared
+# prefix lets the final -D flag loop enumerate them all via ${!cm_@} without a
+# separately-maintained list of names.
 
-  # Optional features / backends
-  [BUILD_DOCS]=OFF
-  [BUILD_PYTHON_BINDINGS]=OFF
-  [SYSTEM_GTEST]=ON
-  [WITH_BOOLECTOR]=OFF
-  [WITH_COREIR]=OFF
-  [WITH_COREIR_EXTERN]=OFF
-  [WITH_MSAT]=OFF
-  [WITH_MSAT_IC3IA]=OFF
-  [WITH_PROFILING]=OFF
-  [WITH_YICES2]=OFF
-  [WITH_Z3]=OFF
-)
+# Directory settings
+cm_CMAKE_INSTALL_PREFIX=/usr/local
+cm_SMT_SWITCH_DIR="$root_dir/deps/smt-switch"
+
+# Build flags
+cm_CMAKE_BUILD_TYPE=Release
+cm_PONO_LIB_TYPE=SHARED
+cm_PONO_STATIC_EXEC=NO
+
+# Optional features / backends
+cm_BUILD_DOCS=OFF
+cm_BUILD_PYTHON_BINDINGS=OFF
+cm_SYSTEM_GTEST=ON
+cm_WITH_BOOLECTOR=OFF
+cm_WITH_COREIR=OFF
+cm_WITH_COREIR_EXTERN=OFF
+cm_WITH_MSAT=OFF
+cm_WITH_MSAT_IC3IA=OFF
+cm_WITH_PROFILING=OFF
+cm_WITH_YICES2=OFF
+cm_WITH_Z3=OFF
 
 usage() {
   cat <<EOF
@@ -54,13 +55,13 @@ Configures the CMake build environment.
 
 Directory settings:
 --build-dir=STR         custom build directory (default: $build_dir)
---prefix=STR            install directory (default: ${cmake_vars[CMAKE_INSTALL_PREFIX]})
---smt-switch-dir=STR    custom smt-switch directory (default: ${cmake_vars[SMT_SWITCH_DIR]})
+--prefix=STR            install directory (default: $cm_CMAKE_INSTALL_PREFIX)
+--smt-switch-dir=STR    custom smt-switch directory (default: $cm_SMT_SWITCH_DIR)
 
 Build flags:
---debug                 disable optimizations and include debug symbols (default: ${cmake_vars[CMAKE_BUILD_TYPE],,} build)
---static                build a static executable (default: ${cmake_vars[PONO_STATIC_EXEC],,}); implies --static-lib
---static-lib            build a static library (default: ${cmake_vars[PONO_LIB_TYPE],,})
+--debug                 disable optimizations and include debug symbols (default: $(lowercase "$cm_CMAKE_BUILD_TYPE") build)
+--static                build a static executable (default: $(lowercase "$cm_PONO_STATIC_EXEC")); implies --static-lib
+--static-lib            build a static library (default: $(lowercase "$cm_PONO_LIB_TYPE"))
 
 Optional features / backends (default: false/off for all):
 --docs                  build HTML documentation with Doxygen
@@ -79,6 +80,7 @@ EOF
 }
 
 while [[ $# -gt 0 ]]; do
+  # shellcheck disable=SC2034 # shellcheck can't trace ${!name} indirection
   case $1 in
     -h | --help) usage ;;
 
@@ -86,36 +88,38 @@ while [[ $# -gt 0 ]]; do
     --build-dir) die "missing argument to $1 (see -h)" ;;
     --build-dir=*) build_dir=${1#*=} ;;
     --prefix) die "missing argument to $1 (see -h)" ;;
-    --prefix=*) cmake_vars[CMAKE_INSTALL_PREFIX]=${1#*=} ;;
+    --prefix=*) cm_CMAKE_INSTALL_PREFIX=${1#*=} ;;
     --smt-switch-dir) die "missing argument to $1 (see -h)" ;;
-    --smt-switch-dir=*) cmake_vars[SMT_SWITCH_DIR]=${1#*=} ;;
+    --smt-switch-dir=*) cm_SMT_SWITCH_DIR=${1#*=} ;;
 
     # Build flags
-    --debug) cmake_vars[CMAKE_BUILD_TYPE]=Debug ;;
-    # ;& falls through, so --static also runs --static-lib's action below.
-    --static) cmake_vars[PONO_STATIC_EXEC]=YES ;&
-    --static-lib) cmake_vars[PONO_LIB_TYPE]=STATIC ;;
+    --debug) cm_CMAKE_BUILD_TYPE=Debug ;;
+    --static)
+      cm_PONO_STATIC_EXEC=YES
+      cm_PONO_LIB_TYPE=STATIC
+      ;;
+    --static-lib) cm_PONO_LIB_TYPE=STATIC ;;
 
     # Optional features / backends
-    --docs) cmake_vars[BUILD_DOCS]=ON ;;
-    --no-system-gtest) cmake_vars[SYSTEM_GTEST]=OFF ;;
-    --python) cmake_vars[BUILD_PYTHON_BINDINGS]=ON ;;
-    --with-btor) cmake_vars[WITH_BOOLECTOR]=ON ;;
-    --with-coreir) cmake_vars[WITH_COREIR]=ON ;;
-    --with-coreir-extern) cmake_vars[WITH_COREIR_EXTERN]=ON ;;
-    --with-msat) cmake_vars[WITH_MSAT]=ON ;;
-    --with-msat-ic3ia) cmake_vars[WITH_MSAT_IC3IA]=ON ;;
-    --with-profiling) cmake_vars[WITH_PROFILING]=ON ;;
-    --with-yices2) cmake_vars[WITH_YICES2]=ON ;;
-    --with-z3) cmake_vars[WITH_Z3]=ON ;;
+    --docs) cm_BUILD_DOCS=ON ;;
+    --no-system-gtest) cm_SYSTEM_GTEST=OFF ;;
+    --python) cm_BUILD_PYTHON_BINDINGS=ON ;;
+    --with-btor) cm_WITH_BOOLECTOR=ON ;;
+    --with-coreir) cm_WITH_COREIR=ON ;;
+    --with-coreir-extern) cm_WITH_COREIR_EXTERN=ON ;;
+    --with-msat) cm_WITH_MSAT=ON ;;
+    --with-msat-ic3ia) cm_WITH_MSAT_IC3IA=ON ;;
+    --with-profiling) cm_WITH_PROFILING=ON ;;
+    --with-yices2) cm_WITH_YICES2=ON ;;
+    --with-z3) cm_WITH_Z3=ON ;;
     *) die "unexpected argument: $1" ;;
   esac
   shift
 done
 
-if [[ ${cmake_vars[PONO_LIB_TYPE]} == STATIC ]]; then
-  [[ ${cmake_vars[WITH_COREIR]} == ON ]] ||
-    [[ ${cmake_vars[WITH_COREIR_EXTERN]} == ON ]] &&
+if [[ $cm_PONO_LIB_TYPE == STATIC ]]; then
+  [[ $cm_WITH_COREIR == ON ]] ||
+    [[ $cm_WITH_COREIR_EXTERN == ON ]] &&
     die "CoreIR and static build are incompatible, must omit either" \
       "'--static/--static-lib' or '--with-coreir/--with-coreir-extern'"
 fi
@@ -126,7 +130,7 @@ fi
 # value (e.g. omitting --with-z3 on a later run correctly turns it back off,
 # instead of leaving an earlier run's ON stuck in the cache).
 cmake_opts=()
-for cmake_var in "${!cmake_vars[@]}"; do
-  cmake_opts+=("-D$cmake_var=${cmake_vars[$cmake_var]}")
+for name in "${!cm_@}"; do
+  cmake_opts+=("-D${name#cm_}=${!name}")
 done
 cmake -S "$root_dir" -B "$build_dir" "${cmake_opts[@]}" 2>&1
