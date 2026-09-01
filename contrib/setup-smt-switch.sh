@@ -109,7 +109,7 @@ if [[ -d build ]]; then
     "want to reconfigure smt-switch"
 else
   ./configure.sh --prefix=local --static --smtlib-reader --bitwuzla --cvc5 \
-    ${conf_opts[@]+"${conf_opts[@]}"}
+    --bison-dir=../bison-install ${conf_opts[@]+"${conf_opts[@]}"}
 fi
 cd build
 cmake --build . -j
