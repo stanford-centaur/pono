@@ -24,11 +24,12 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 
 ## Setup
 
-* [optional] Install bison and flex
-  * If you don't have flex installed globally, run `./contrib/setup-flex.sh`
-  * Bison should be available in your OS package manager (Linux) or Homebrew (macOS).
-* `configure.sh` requires bash >= 4. macOS ships bash 3.2 as `/bin/bash`; install a newer version with `brew install bash` and run `configure.sh` with it.
-* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla
+* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla, cvc5, and the SMT-LIB reader
+  * Note: The SMT-LIB reader requires bison >=3.7 and flex >=2.6.4.
+    * On Linux these can usually be obtained from the distribution using `apt`, `dnf`, `pacman`, or similar.
+    * The command-line tools for XCode on macOS provide flex but the provided bison version is too old.
+    * We include the `contrib/setup-bison.sh` script that can be used to install a more up-to-date version.
+    * Alternatively, Homebrew can also be used to install a newer version of bison.
   * [optional] to build with MathSAT (required for interpolation-based model checking) you need to obtain the libraries yourself
     * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
     * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`

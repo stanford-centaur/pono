@@ -33,17 +33,9 @@ jobs:
             libmpfr-dev \
             cmake \
             ninja-build
-      - name: Install Packages (macOS)
+      - name: Install bison (macOS)
         if: runner.os == 'macOS'
-        run: |
-          brew update
-          brew install \
-            bash \
-            bison \
-            flex
-          echo "PATH=$(brew --prefix)/opt/bison/bin:$(brew --prefix)/opt/flex/bin:$PATH" >> "$GITHUB_ENV"
-          echo "CMAKE_PREFIX_PATH=$(brew --prefix)/opt/flex" >> "$GITHUB_ENV"
-          echo "CPATH=$(brew --prefix)/include" >> "$GITHUB_ENV"
+        run: contrib/setup-bison.sh
       - name: Python Environment Setup
         run: |
           python3 -m venv ./.venv
@@ -59,6 +51,7 @@ jobs:
         run: ./contrib/setup-btor2tools.sh
       - name: Setup Smt-Switch
         env:
+          CPATH: /opt/homebrew/include # let libpoly (from cvc5) find gmp headers
           DYLD_FALLBACK_LIBRARY_PATH: /opt/homebrew/lib # this lets the precompiled MathSAT binary (used in the tests) find libgmp
         run: |
           source .venv/bin/activate
