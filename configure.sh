@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Utility functions
-die() {
-  echo "*** $0: $*" 1>&2
-  exit 1
-}
-lowercase() {
-  printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]'
-}
-
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 build_dir=$root_dir/build
 
@@ -44,6 +35,10 @@ cm_WITH_MSAT_IC3IA=OFF
 cm_WITH_PROFILING=OFF
 cm_WITH_YICES2=OFF
 cm_WITH_Z3=OFF
+
+# Utility functions
+die() { echo "*** $0: $*" 1>&2 && exit 1; }
+lowercase() { printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]'; }
 
 usage() {
   cat <<EOF
