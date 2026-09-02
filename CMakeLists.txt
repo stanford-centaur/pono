@@ -43,6 +43,24 @@ else()
   set(SHARED_LIB_EXT "so")
 endif()
 
+if(PONO_STATIC_EXEC STREQUAL "YES")
+  if(WITH_COREIR OR WITH_COREIR_EXTERN)
+    message(
+      FATAL_ERROR
+      "CoreIR support and a fully static executable are incompatible, since "
+      "CoreIR is only available as a shared library. Disable one or the other."
+    )
+  endif()
+  if(NOT PONO_LIB_TYPE STREQUAL "STATIC")
+    message(
+      VERBOSE
+      "PONO_STATIC_EXEC=YES requires a static pono-lib; overriding "
+      "PONO_LIB_TYPE=${PONO_LIB_TYPE} to STATIC."
+    )
+    set(PONO_LIB_TYPE STATIC)
+  endif()
+endif()
+
 if(WITH_BOOLECTOR)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_BOOLECTOR")
 endif()
