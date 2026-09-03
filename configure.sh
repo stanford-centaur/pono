@@ -25,6 +25,10 @@ cm_CMAKE_INSTALL_PREFIX=/usr/local
 # (pkg-config) and MathSAT (a bare include path) have no module yet, so their
 # roots are applied by hand until one exists.
 cm_Bitwuzla_ROOT="$root_dir/deps/smt-switch/deps/install"
+cm_Btor2Tools_ROOT="$root_dir/deps/install"
+cm_CoreIR_ROOT="$root_dir/deps/coreir/local"
+# ic3ia has no install step, so this is a built source tree, not a prefix.
+cm_IC3IA_ROOT="$root_dir/deps/ic3ia"
 cm_MathSAT_ROOT="$root_dir/deps/mathsat"
 cm_SmtSwitch_ROOT="$root_dir/deps/smt-switch/local"
 cm_Z3_ROOT="$root_dir/deps/smt-switch/deps/install"
@@ -40,7 +44,6 @@ cm_BUILD_PYTHON_BINDINGS=OFF
 cm_SYSTEM_GTEST=ON
 cm_WITH_BOOLECTOR=OFF
 cm_WITH_COREIR=OFF
-cm_WITH_COREIR_EXTERN=OFF
 cm_WITH_MSAT=OFF
 cm_WITH_MSAT_IC3IA=OFF
 cm_WITH_PROFILING=OFF
@@ -65,6 +68,9 @@ Build and install directories:
 
 Dependency locations:
 --bitwuzla-dir=STR      Bitwuzla install prefix (default: $cm_Bitwuzla_ROOT)
+--btor2tools-dir=STR    Btor2Tools install prefix (default: $cm_Btor2Tools_ROOT)
+--coreir-dir=STR        CoreIR install prefix (default: $cm_CoreIR_ROOT)
+--ic3ia-dir=STR         built ic3ia source tree (default: $cm_IC3IA_ROOT)
 --msat-dir=STR          MathSAT install prefix (default: $cm_MathSAT_ROOT)
 --smt-switch-dir=STR    smt-switch install prefix (default: $cm_SmtSwitch_ROOT)
 --z3-dir=STR            Z3 install prefix (default: $cm_Z3_ROOT)
@@ -80,7 +86,6 @@ Optional features / backends (default: false/off for all):
 --python                compile with Python bindings
 --with-btor             build with Boolector
 --with-coreir           build the CoreIR frontend
---with-coreir-extern    build the CoreIR frontend using an installation in /usr/local/lib
 --with-msat             build with MathSAT which has a custom non-BSD compliant license
 --with-msat-ic3ia       build with the open-source IC3IA implementation as a backend
 --with-profiling        build with gperftools for profiling
@@ -104,6 +109,12 @@ while [[ $# -gt 0 ]]; do
     # Dependency locations
     --bitwuzla-dir) die "missing argument to $1 (see -h)" ;;
     --bitwuzla-dir=*) cm_Bitwuzla_ROOT=${1#*=} ;;
+    --btor2tools-dir) die "missing argument to $1 (see -h)" ;;
+    --btor2tools-dir=*) cm_Btor2Tools_ROOT=${1#*=} ;;
+    --coreir-dir) die "missing argument to $1 (see -h)" ;;
+    --coreir-dir=*) cm_CoreIR_ROOT=${1#*=} ;;
+    --ic3ia-dir) die "missing argument to $1 (see -h)" ;;
+    --ic3ia-dir=*) cm_IC3IA_ROOT=${1#*=} ;;
     --msat-dir) die "missing argument to $1 (see -h)" ;;
     --msat-dir=*) cm_MathSAT_ROOT=${1#*=} ;;
     --smt-switch-dir) die "missing argument to $1 (see -h)" ;;
@@ -122,7 +133,9 @@ while [[ $# -gt 0 ]]; do
     --python) cm_BUILD_PYTHON_BINDINGS=ON ;;
     --with-btor) cm_WITH_BOOLECTOR=ON ;;
     --with-coreir) cm_WITH_COREIR=ON ;;
-    --with-coreir-extern) cm_WITH_COREIR_EXTERN=ON ;;
+    --with-coreir-extern*)
+      die "$1 was replaced by --with-coreir --coreir-dir=STR (see -h)"
+      ;;
     --with-msat) cm_WITH_MSAT=ON ;;
     --with-msat-ic3ia) cm_WITH_MSAT_IC3IA=ON ;;
     --with-profiling) cm_WITH_PROFILING=ON ;;

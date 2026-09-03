@@ -3,7 +3,7 @@ configure_file(pono_imp.pxd pono_imp.pxd COPYONLY)
 
 # Set Cython compilation flags.
 set(CYTHON_FLAGS -3 --cplus --module-name pono._pono_impl)
-if(WITH_COREIR OR WITH_COREIR_EXTERN)
+if(WITH_COREIR)
   list(APPEND CYTHON_FLAGS --compile-time-env WITH_COREIR=ON)
 else()
   list(APPEND CYTHON_FLAGS --compile-time-env WITH_COREIR=OFF)

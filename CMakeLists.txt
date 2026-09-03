@@ -37,14 +37,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_definitions(-DPONO_SRC_DIR=${PROJECT_SOURCE_DIR})
 
-if(APPLE)
-  set(SHARED_LIB_EXT "dylib")
-else()
-  set(SHARED_LIB_EXT "so")
-endif()
-
 if(PONO_STATIC_EXEC STREQUAL "YES")
-  if(WITH_COREIR OR WITH_COREIR_EXTERN)
+  if(WITH_COREIR)
     message(
       FATAL_ERROR
       "CoreIR support and a fully static executable are incompatible, since "
@@ -78,7 +72,6 @@ if(WITH_Z3)
 endif()
 
 if(WITH_PROFILING)
-  find_library(GOOGLE_PERF profiler REQUIRED)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
@@ -102,15 +95,38 @@ find_package(FLEX 2.6.4 REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-# Install prefixes of the dependencies pono locates itself. Declared with an
-# empty default so that configure.sh stays the one place defaults live, and so
-# that leaving a backend disabled does not warn about an unused -D setting.
+# Install prefixes of the dependencies pono locates itself, one per Find
+# module in cmake/. Declared with an empty default so that configure.sh stays
+# the one place defaults live, and so that leaving a backend disabled does not
+# warn about an unused -D setting. IC3IA_ROOT is a source tree rather than an
+# install prefix, since ic3ia has no install step.
 set(Bitwuzla_ROOT "" CACHE PATH "bitwuzla install prefix")
+set(Btor2Tools_ROOT "" CACHE PATH "Btor2Tools install prefix")
+set(CoreIR_ROOT "" CACHE PATH "CoreIR install prefix")
+set(IC3IA_ROOT "" CACHE PATH "ic3ia source tree")
 set(MathSAT_ROOT "" CACHE PATH "MathSAT install prefix")
 set(SmtSwitch_ROOT "" CACHE PATH "smt-switch install prefix")
 set(Z3_ROOT "" CACHE PATH "Z3 install prefix")
 
 find_package(GMPXX REQUIRED)
+find_package(Btor2Tools REQUIRED)
+
+if(WITH_PROFILING)
+  find_package(Gperftools REQUIRED)
+endif()
+
+if(WITH_COREIR)
+  find_package(CoreIR REQUIRED)
+endif()
+
+if(WITH_MSAT OR WITH_MSAT_IC3IA)
+  # pono needs direct access to MathSAT for setting solver options.
+  find_package(MathSAT REQUIRED)
+endif()
+
+if(WITH_MSAT_IC3IA)
+  find_package(IC3IA REQUIRED)
+endif()
 
 set(SmtSwitch_FIND_COMPONENTS bitwuzla cvc5)
 if(WITH_BOOLECTOR)
@@ -126,40 +142,6 @@ if(WITH_Z3)
   list(APPEND SmtSwitch_FIND_COMPONENTS z3)
 endif()
 find_package(SmtSwitch REQUIRED COMPONENTS ${SmtSwitch_FIND_COMPONENTS})
-
-if(WITH_MSAT_IC3IA)
-  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
-    message(FATAL_ERROR "Missing ic3ia library -- try running ./contrib/setup-ic3ia.sh")
-  endif()
-endif()
-
-if(WITH_COREIR)
-  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
-    message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
-  endif()
-  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}")
-    message(
-      FATAL_ERROR
-      "Missing verilogAST library from coreir. Try running ./contrib/setup-coreir.sh"
-    )
-  endif()
-endif()
-
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/install")
-
-# Check for Btor2Tools
-find_path(Btor2Tools_INCLUDE_DIRS NAMES btor2parser.h)
-if(Btor2Tools_INCLUDE_DIRS)
-  message(STATUS "Found Btor2Tools headers: ${Btor2Tools_INCLUDE_DIRS}")
-else()
-  message(FATAL_ERROR "Missing Btor2Tools headers -- try running ./contrib/setup-btor2tools.sh")
-endif()
-find_library(Btor2Tools_LIBRARIES NAMES btor2parser)
-if(Btor2Tools_LIBRARIES)
-  message(STATUS "Found Btor2Tools library: ${Btor2Tools_LIBRARIES}")
-else()
-  message(FATAL_ERROR "Missing Btor2Tools library -- try running ./contrib/setup-btor2tools.sh")
-endif()
 
 # Generate the SMV parser using Flex/Bison
 bison_target(
@@ -182,7 +164,6 @@ set(
   "${PROJECT_SOURCE_DIR}"
   "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  ${Btor2Tools_INCLUDE_DIRS}
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
 )
@@ -252,28 +233,13 @@ set(
   "${FLEX_SMVScanner_OUTPUTS}"
 )
 
-if(WITH_COREIR OR WITH_COREIR_EXTERN)
+if(WITH_COREIR)
   add_definitions(-DWITH_COREIR)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
-if(WITH_MSAT OR WITH_MSAT_IC3IA)
-  # MathSAT has no CMake module yet, so MathSAT_ROOT is checked by hand.
-  if(NOT EXISTS "${MathSAT_ROOT}/include/mathsat.h")
-    message(
-      FATAL_ERROR
-      "Missing MathSAT headers. Set --msat-dir to a MathSAT install prefix "
-      "containing include/mathsat.h (searched: ${MathSAT_ROOT})"
-    )
-  endif()
-  # need direct access to mathsat for setting options
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${MathSAT_ROOT}/include/")
-endif()
-
 if(WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
-  # can't include ic3ia directly because some names clash e.g. ic3.h
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
 
@@ -309,51 +275,26 @@ if(WITH_Z3)
   target_link_libraries(pono-lib PRIVATE smt-switch-z3)
 endif()
 
-if(WITH_MSAT_IC3IA)
-  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
+# MathSAT::mathsat carries only an include directory; pono links MathSAT
+# itself through smt-switch. Both backends need those headers.
+if(WITH_MSAT OR WITH_MSAT_IC3IA)
+  target_link_libraries(pono-lib PUBLIC MathSAT::mathsat)
 endif()
 
-if(WITH_COREIR_EXTERN)
-  if(APPLE)
-    set(COREIR_EXTERN_PREFIX "/usr/local")
-  else()
-    set(COREIR_EXTERN_PREFIX "/usr")
-  endif()
-  add_library(coreir SHARED IMPORTED)
-  set_target_properties(
-    coreir
-    PROPERTIES
-      IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libcoreir${CMAKE_SHARED_LIBRARY_SUFFIX}"
-      INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
-  )
-  add_library(verilogAST SHARED IMPORTED)
-  set_target_properties(
-    verilogAST
-    PROPERTIES
-      IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libverilogAST${CMAKE_SHARED_LIBRARY_SUFFIX}"
-      INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
-  )
-  target_link_libraries(pono-lib PUBLIC coreir verilogAST)
+if(WITH_MSAT_IC3IA)
+  target_link_libraries(pono-lib PUBLIC IC3IA::ic3ia)
 endif()
 
 if(WITH_COREIR)
-  target_include_directories(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
-  target_link_libraries(
-    pono-lib
-    PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}"
-  )
-  target_link_libraries(
-    pono-lib
-    PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}"
-  )
+  target_link_libraries(pono-lib PUBLIC CoreIR::coreir CoreIR::verilogAST)
 endif()
 
 target_link_libraries(pono-lib PUBLIC smt-switch)
-target_link_libraries(pono-lib PUBLIC ${Btor2Tools_LIBRARIES})
+target_link_libraries(pono-lib PUBLIC Btor2Tools::btor2parser)
 target_link_libraries(pono-lib PUBLIC GMPXX::gmpxx)
 
-if(GOOGLE_PERF)
-  target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
+if(WITH_PROFILING)
+  target_link_libraries(pono-lib PUBLIC Gperftools::profiler)
 endif()
 
 enable_testing()
