@@ -10,7 +10,7 @@ Hints
 ^^^^^
 
 ``Bitwuzla_ROOT``
-  A bitwuzla install prefix, containing ``lib/pkgconfig/bitwuzla.pc``.
+  A bitwuzla install prefix whose pkgconfig directory holds ``bitwuzla.pc``.
   smt-switch's own ``contrib/setup-bitwuzla.sh`` installs one into
   ``<smt-switch checkout>/deps/install``. If unset, only the system
   pkg-config search path is used.
@@ -31,25 +31,28 @@ Result Variables
 find_package(PkgConfig REQUIRED)
 
 # pkg_check_modules() is not a find_*() command, so it ignores Bitwuzla_ROOT.
-# Extending CMAKE_PREFIX_PATH would reach it, but a find module runs in its
-# caller's directory scope, so that would leak into every later find_*() call
-# there and let this prefix satisfy unrelated lookups. Point pkg-config at the
-# prefix directly instead, and restore the environment afterwards.
-set(_Bitwuzla_saved_pkg_config_path "$ENV{PKG_CONFIG_PATH}")
+# It does consult CMAKE_PREFIX_PATH, and works out which pkgconfig
+# subdirectory a prefix uses on this platform -- lib/<arch>/pkgconfig on
+# Debian derivatives, lib64 or libdata elsewhere, then lib and share. Setting
+# PKG_CONFIG_PATH by hand instead would have to hardcode one of those.
+#
+# Restore the variable afterwards: a find module runs in its caller's
+# directory scope, so leaving it extended would let this prefix satisfy every
+# later find_*() call there, e.g. supplying a Z3 that overrides Z3_ROOT.
+set(_Bitwuzla_saved_prefix_path "${CMAKE_PREFIX_PATH}")
 if(Bitwuzla_ROOT)
-  set(ENV{PKG_CONFIG_PATH} "${Bitwuzla_ROOT}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+  list(PREPEND CMAKE_PREFIX_PATH "${Bitwuzla_ROOT}")
 endif()
 pkg_check_modules(Bitwuzla QUIET bitwuzla)
-set(ENV{PKG_CONFIG_PATH} "${_Bitwuzla_saved_pkg_config_path}")
-unset(_Bitwuzla_saved_pkg_config_path)
+set(CMAKE_PREFIX_PATH "${_Bitwuzla_saved_prefix_path}")
+unset(_Bitwuzla_saved_prefix_path)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
   Bitwuzla
   REQUIRED_VARS Bitwuzla_INCLUDE_DIRS Bitwuzla_LDFLAGS
   VERSION_VAR Bitwuzla_VERSION
-  REASON_FAILURE_MESSAGE
-    "No bitwuzla.pc found. Set --bitwuzla-dir to a prefix containing lib/pkgconfig/bitwuzla.pc."
+  REASON_FAILURE_MESSAGE "No bitwuzla.pc found. Set --bitwuzla-dir to a bitwuzla install prefix."
 )
 
 if(Bitwuzla_FOUND AND NOT TARGET Bitwuzla::bitwuzla)
