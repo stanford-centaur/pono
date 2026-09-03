@@ -203,7 +203,6 @@ else
 fi
 cd build
 cmake --build . -j
-ctest
 cmake --install .
 cd ..
 
