@@ -3,7 +3,7 @@ FindSmtSwitch
 -------------
 
 Finds an already-built smt-switch installation (https://github.com/stanford-centaur/smt-switch),
-as produced by its own ``./configure.sh --prefix=local ... && cmake --build . && cmake --install .``
+as produced by its own ``./configure.sh --prefix=... && cmake --build . && cmake --install .``
 workflow (this is what ``contrib/setup-smt-switch.sh`` runs).
 
 smt-switch does not ship CMake package config files, so this module locates
@@ -18,18 +18,27 @@ targets with these exact names) can be swapped in without changing any
 Hints
 ^^^^^
 
-``SMT_SWITCH_DIR``
-  Root of a built smt-switch checkout, i.e. the directory passed as
-  ``--prefix=local`` was run from. Headers/libraries are expected under
-  ``${SMT_SWITCH_DIR}/local``. Bitwuzla's pkg-config files (built by
-  smt-switch's own ``contrib/setup-bitwuzla.sh``) are expected under
-  ``${SMT_SWITCH_DIR}/deps/install``.
+``SmtSwitch_ROOT``
+  An smt-switch install prefix, i.e. the directory passed to smt-switch's own
+  ``--prefix``. Headers and libraries are expected directly under
+  ``${SmtSwitch_ROOT}/include`` and ``${SmtSwitch_ROOT}/lib``. Being CMake's
+  standard install prefix variable, it needs no explicit ``HINTS`` below:
+  ``find_package()`` searches it ahead of ``CMAKE_PREFIX_PATH`` and the
+  system paths.
+
+``Bitwuzla_ROOT``
+  A bitwuzla install prefix, containing ``lib/pkgconfig/bitwuzla.pc``.
+  smt-switch's own ``contrib/setup-bitwuzla.sh`` installs one into
+  ``<smt-switch checkout>/deps/install``. Only consulted when the
+  ``bitwuzla`` component is requested, and applied by hand rather than by
+  ``find_package()``, since bitwuzla is located with pkg-config.
 
 Requesting the ``z3`` component additionally requires a Z3 installation
 discoverable via its own CMake package config, since smt-switch's own Z3
-backend links against it directly. smt-switch's own ``contrib/setup-z3.sh``
-installs Z3 into ``${SMT_SWITCH_DIR}/deps/install``; that location is always
-preferred over a system-wide Z3 installation if both are present.
+backend links against it directly. Set ``Z3_ROOT`` to select one;
+smt-switch's own ``contrib/setup-z3.sh`` installs Z3 into
+``<smt-switch checkout>/deps/install``. ``Z3_ROOT`` is searched before any
+system-wide Z3 installation.
 
 Components
 ^^^^^^^^^^
@@ -59,19 +68,15 @@ Result Variables
   "smt-switch/smt.h"`` resolves).
 #]=======================================================================]
 
-if(NOT DEFINED SMT_SWITCH_DIR)
-  set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
-endif()
-
 # These are cached (as find_path()/find_library() results always are), but
-# a cache hit from an earlier configure with a different SMT_SWITCH_DIR
+# a cache hit from an earlier configure with a different SmtSwitch_ROOT
 # would otherwise stick around unsearched. Unsetting first forces a fresh
-# search against the current SMT_SWITCH_DIR on every configure.
+# search against the current SmtSwitch_ROOT on every configure.
 unset(SmtSwitch_INCLUDE_DIR CACHE)
-find_path(SmtSwitch_INCLUDE_DIR NAMES smt-switch/smt.h HINTS "${SMT_SWITCH_DIR}/local/include")
+find_path(SmtSwitch_INCLUDE_DIR NAMES smt-switch/smt.h)
 
 unset(SmtSwitch_LIBRARY CACHE)
-find_library(SmtSwitch_LIBRARY NAMES smt-switch HINTS "${SMT_SWITCH_DIR}/local/lib")
+find_library(SmtSwitch_LIBRARY NAMES smt-switch)
 
 set(_SmtSwitch_required_vars SmtSwitch_LIBRARY SmtSwitch_INCLUDE_DIR)
 
@@ -79,11 +84,7 @@ set(_SmtSwitch_required_vars SmtSwitch_LIBRARY SmtSwitch_INCLUDE_DIR)
 # just linking the core `smt-switch` target are handled individually below.
 foreach(_comp ${SmtSwitch_FIND_COMPONENTS})
   unset(SmtSwitch_${_comp}_LIBRARY CACHE)
-  find_library(
-    SmtSwitch_${_comp}_LIBRARY
-    NAMES smt-switch-${_comp}
-    HINTS "${SMT_SWITCH_DIR}/local/lib"
-  )
+  find_library(SmtSwitch_${_comp}_LIBRARY NAMES smt-switch-${_comp})
   if(SmtSwitch_${_comp}_LIBRARY)
     set(SmtSwitch_${_comp}_FOUND TRUE)
   else()
@@ -91,6 +92,18 @@ foreach(_comp ${SmtSwitch_FIND_COMPONENTS})
   endif()
   list(APPEND _SmtSwitch_required_vars SmtSwitch_${_comp}_LIBRARY)
 endforeach()
+
+# SmtSwitch_ROOT used to be SMT_SWITCH_DIR and took the root of a built
+# smt-switch checkout rather than an install prefix, so catch a value that
+# still looks like one instead of reporting it as simply not found.
+if(NOT SmtSwitch_INCLUDE_DIR AND EXISTS "${SmtSwitch_ROOT}/local/include/smt-switch/smt.h")
+  message(
+    FATAL_ERROR
+    "No smt-switch installation at ${SmtSwitch_ROOT}, but one exists at "
+    "${SmtSwitch_ROOT}/local. This now takes an install prefix rather than "
+    "the checkout it was built from. Try --smt-switch-dir=${SmtSwitch_ROOT}/local"
+  )
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
@@ -117,7 +130,11 @@ if(SmtSwitch_FOUND AND NOT TARGET smt-switch)
       PROPERTIES IMPORTED_LOCATION "${SmtSwitch_bitwuzla_LIBRARY}"
     )
     find_package(PkgConfig REQUIRED)
-    list(APPEND CMAKE_PREFIX_PATH "${SMT_SWITCH_DIR}/deps/install")
+    # pkg_check_modules() is not a find_*() command, so it does not consult
+    # Bitwuzla_ROOT on its own; it does search CMAKE_PREFIX_PATH.
+    if(Bitwuzla_ROOT)
+      list(APPEND CMAKE_PREFIX_PATH "${Bitwuzla_ROOT}")
+    endif()
     # Deliberately not IMPORTED_TARGET: that mode resolves each transitive
     # library name (e.g. mpfr, a public "Requires:" of bitwuzla.pc) via
     # find_library(), which prefers .so over .a on Linux. That breaks fully
@@ -125,7 +142,14 @@ if(SmtSwitch_FOUND AND NOT TARGET smt-switch)
     # is available, since the linker is handed an explicit .so path instead
     # of a bare -l flag it could resolve itself. Using the raw pkg-config
     # flags string avoids that.
-    pkg_check_modules(SMTSWITCH_BITWUZLA REQUIRED bitwuzla)
+    pkg_check_modules(SMTSWITCH_BITWUZLA bitwuzla)
+    if(NOT SMTSWITCH_BITWUZLA_FOUND)
+      message(
+        FATAL_ERROR
+        "Could not find bitwuzla.pc. Set --bitwuzla-dir to a bitwuzla install "
+        "prefix containing lib/pkgconfig/bitwuzla.pc (searched: ${Bitwuzla_ROOT})"
+      )
+    endif()
     set_property(
       TARGET smt-switch-bitwuzla
       APPEND
@@ -141,11 +165,17 @@ if(SmtSwitch_FOUND AND NOT TARGET smt-switch)
   if("z3" IN_LIST SmtSwitch_FIND_COMPONENTS AND NOT TARGET smt-switch-z3)
     add_library(smt-switch-z3 STATIC IMPORTED GLOBAL)
     set_target_properties(smt-switch-z3 PROPERTIES IMPORTED_LOCATION "${SmtSwitch_z3_LIBRARY}")
-    # Prefer the Z3 build smt-switch's own contrib/setup-z3.sh installs into
-    # deps/install over any system-wide Z3 installation.
-    find_package(Z3 QUIET PATHS "${SMT_SWITCH_DIR}/deps/install" NO_DEFAULT_PATH)
+    # Z3_ROOT is searched ahead of CMAKE_PREFIX_PATH and the system paths.
+    # Clear the cached config directory first, or an earlier configure's Z3
+    # would survive a change of Z3_ROOT.
+    unset(Z3_DIR CACHE)
+    find_package(Z3 QUIET)
     if(NOT Z3_FOUND)
-      find_package(Z3 REQUIRED)
+      message(
+        FATAL_ERROR
+        "Could not find Z3Config.cmake. Set --z3-dir to a Z3 install prefix "
+        "containing lib/cmake/z3 (searched: ${Z3_ROOT})"
+      )
     endif()
     set_property(
       TARGET smt-switch-z3

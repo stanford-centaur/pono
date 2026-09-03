@@ -34,6 +34,8 @@ pytest tests
 
 Key configure options: `--debug`, `--python`, `--with-msat`, `--with-yices2`, `--with-z3`, `--with-btor`, `--docs`, `--static`.
 
+Dependency locations default to the `deps/` layout the `contrib/` scripts produce, and are overridden with `--smt-switch-dir`, `--bitwuzla-dir`, `--msat-dir`, and `--z3-dir`, each taking an install prefix. These map to `<Package>_ROOT` CMake variables; `configure.sh` is the only place their defaults live.
+
 ## Architecture
 
 **Data flow:** Parse input → TransitionSystem → Apply modifiers → Choose prover engine → Unroll + send to SMT solver → Produce witness or proof.

@@ -5,8 +5,9 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 build_dir=$root_dir/build
 
 # These variables, the flags in usage(), and the case statement below should
-# stay grouped by type (directory settings, build flags, optional features),
-# alphabetical within each group, and in sync with each other.
+# stay in sync, grouped by type (build/install directories, dependency
+# locations, build flags, optional features), and alphabetical within each
+# group.
 #
 # There is one cm_-prefixed variable per CMake variable. These should ideally
 # be in a single associative array, but macOS's default bash (3.2) doesn't
@@ -14,9 +15,19 @@ build_dir=$root_dir/build
 # prefix lets the final -D flag loop enumerate them all via ${!cm_@} without a
 # separately-maintained list of names.
 
-# Directory settings
+# Build and install directories
 cm_CMAKE_INSTALL_PREFIX=/usr/local
-cm_SMT_SWITCH_DIR="$root_dir/deps/smt-switch"
+
+# Dependency locations, each named <Package>_ROOT after CMake's standard
+# install prefix input, using the package name the dependency would most
+# likely get as a CMake module. Z3Config.cmake and cmake/FindSmtSwitch.cmake
+# let find_package() honor Z3_ROOT and SmtSwitch_ROOT automatically; bitwuzla
+# (pkg-config) and MathSAT (a bare include path) have no module yet, so their
+# roots are applied by hand until one exists.
+cm_Bitwuzla_ROOT="$root_dir/deps/smt-switch/deps/install"
+cm_MathSAT_ROOT="$root_dir/deps/mathsat"
+cm_SmtSwitch_ROOT="$root_dir/deps/smt-switch/local"
+cm_Z3_ROOT="$root_dir/deps/smt-switch/deps/install"
 
 # Build flags
 cm_CMAKE_BUILD_TYPE=Release
@@ -48,10 +59,15 @@ Configures the CMake build environment.
 
 -h, --help              display this message and exit
 
-Directory settings:
+Build and install directories:
 --build-dir=STR         custom build directory (default: $build_dir)
 --prefix=STR            install directory (default: $cm_CMAKE_INSTALL_PREFIX)
---smt-switch-dir=STR    custom smt-switch directory (default: $cm_SMT_SWITCH_DIR)
+
+Dependency locations:
+--bitwuzla-dir=STR      Bitwuzla install prefix (default: $cm_Bitwuzla_ROOT)
+--msat-dir=STR          MathSAT install prefix (default: $cm_MathSAT_ROOT)
+--smt-switch-dir=STR    smt-switch install prefix (default: $cm_SmtSwitch_ROOT)
+--z3-dir=STR            Z3 install prefix (default: $cm_Z3_ROOT)
 
 Build flags:
 --debug                 disable optimizations and include debug symbols (default: $(lowercase "$cm_CMAKE_BUILD_TYPE") build)
@@ -79,13 +95,21 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     -h | --help) usage ;;
 
-    # Directory settings
+    # Build and install directories
     --build-dir) die "missing argument to $1 (see -h)" ;;
     --build-dir=*) build_dir=${1#*=} ;;
     --prefix) die "missing argument to $1 (see -h)" ;;
     --prefix=*) cm_CMAKE_INSTALL_PREFIX=${1#*=} ;;
+
+    # Dependency locations
+    --bitwuzla-dir) die "missing argument to $1 (see -h)" ;;
+    --bitwuzla-dir=*) cm_Bitwuzla_ROOT=${1#*=} ;;
+    --msat-dir) die "missing argument to $1 (see -h)" ;;
+    --msat-dir=*) cm_MathSAT_ROOT=${1#*=} ;;
     --smt-switch-dir) die "missing argument to $1 (see -h)" ;;
-    --smt-switch-dir=*) cm_SMT_SWITCH_DIR=${1#*=} ;;
+    --smt-switch-dir=*) cm_SmtSwitch_ROOT=${1#*=} ;;
+    --z3-dir) die "missing argument to $1 (see -h)" ;;
+    --z3-dir=*) cm_Z3_ROOT=${1#*=} ;;
 
     # Build flags
     --debug) cm_CMAKE_BUILD_TYPE=Debug ;;

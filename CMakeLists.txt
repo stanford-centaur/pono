@@ -102,6 +102,14 @@ find_package(FLEX 2.6.4 REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
+# Install prefixes of the dependencies pono locates itself. Declared with an
+# empty default so that configure.sh stays the one place defaults live, and so
+# that leaving a backend disabled does not warn about an unused -D setting.
+set(Bitwuzla_ROOT "" CACHE PATH "bitwuzla install prefix")
+set(MathSAT_ROOT "" CACHE PATH "MathSAT install prefix")
+set(SmtSwitch_ROOT "" CACHE PATH "smt-switch install prefix")
+set(Z3_ROOT "" CACHE PATH "Z3 install prefix")
+
 find_package(GMPXX REQUIRED)
 
 set(SmtSwitch_FIND_COMPONENTS bitwuzla cvc5)
@@ -249,16 +257,23 @@ if(WITH_COREIR OR WITH_COREIR_EXTERN)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
-if(WITH_MSAT)
+if(WITH_MSAT OR WITH_MSAT_IC3IA)
+  # MathSAT has no CMake module yet, so MathSAT_ROOT is checked by hand.
+  if(NOT EXISTS "${MathSAT_ROOT}/include/mathsat.h")
+    message(
+      FATAL_ERROR
+      "Missing MathSAT headers. Set --msat-dir to a MathSAT install prefix "
+      "containing include/mathsat.h (searched: ${MathSAT_ROOT})"
+    )
+  endif()
   # need direct access to mathsat for setting options
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
+  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${MathSAT_ROOT}/include/")
 endif()
 
 if(WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
   # can't include ic3ia directly because some names clash e.g. ic3.h
   set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
 
