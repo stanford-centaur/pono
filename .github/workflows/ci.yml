@@ -64,7 +64,7 @@ jobs:
       - name: Build
         run: |
           cd build
-          make -j
+          make -j"$(getconf _NPROCESSORS_ONLN)"
       - name: Upload built executable
         uses: actions/upload-artifact@v7
         with:
@@ -73,9 +73,13 @@ jobs:
       - name: Test C++
         id: test-cpp
         continue-on-error: true
+        env:
+          CTEST_OUTPUT_ON_FAILURE: 1
         run: |
           cd build
-          make check
+          jobs=$(getconf _NPROCESSORS_ONLN)
+          # -j parallelizes linking the test binaries, the env var running them
+          CTEST_PARALLEL_LEVEL="$jobs" make -j"$jobs" check
       - name: Upload failing test log
         if: steps.test-cpp.outcome == 'failure'
         uses: actions/upload-artifact@v7
