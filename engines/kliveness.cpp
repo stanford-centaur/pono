@@ -17,6 +17,7 @@
 
 #include "kliveness.h"
 
+#include <cassert>
 #include <map>
 
 #include "engines/bmc.h"

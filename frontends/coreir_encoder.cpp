@@ -1,5 +1,6 @@
 #include "frontends/coreir_encoder.h"
 
+#include <cassert>
 #include <iostream>
 #include <set>
 #include <sstream>

@@ -15,6 +15,8 @@
 
 #include "engines/mbic3.h"
 
+#include <cassert>
+
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"

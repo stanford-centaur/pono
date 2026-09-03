@@ -16,6 +16,7 @@
 
 #include "engines/interpolantmc.h"
 
+#include <cassert>
 #include <ctime>
 
 #include "smt-switch/exceptions.h"
