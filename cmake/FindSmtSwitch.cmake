@@ -26,12 +26,10 @@ Hints
   ``find_package()`` searches it ahead of ``CMAKE_PREFIX_PATH`` and the
   system paths.
 
-``Bitwuzla_ROOT``
-  A bitwuzla install prefix, containing ``lib/pkgconfig/bitwuzla.pc``.
-  smt-switch's own ``contrib/setup-bitwuzla.sh`` installs one into
-  ``<smt-switch checkout>/deps/install``. Only consulted when the
-  ``bitwuzla`` component is requested, and applied by hand rather than by
-  ``find_package()``, since bitwuzla is located with pkg-config.
+Requesting the ``bitwuzla`` component additionally requires a bitwuzla
+installation, since smt-switch's own bitwuzla backend links against it
+directly and is not repacked into ``libsmt-switch-bitwuzla.a``. It is located
+by ``FindBitwuzla``; set ``Bitwuzla_ROOT`` to select one.
 
 Requesting the ``z3`` component additionally requires a Z3 installation
 discoverable via its own CMake package config, since smt-switch's own Z3
@@ -129,36 +127,11 @@ if(SmtSwitch_FOUND AND NOT TARGET smt-switch)
       smt-switch-bitwuzla
       PROPERTIES IMPORTED_LOCATION "${SmtSwitch_bitwuzla_LIBRARY}"
     )
-    find_package(PkgConfig REQUIRED)
-    # pkg_check_modules() is not a find_*() command, so it does not consult
-    # Bitwuzla_ROOT on its own; it does search CMAKE_PREFIX_PATH.
-    if(Bitwuzla_ROOT)
-      list(APPEND CMAKE_PREFIX_PATH "${Bitwuzla_ROOT}")
-    endif()
-    # Deliberately not IMPORTED_TARGET: that mode resolves each transitive
-    # library name (e.g. mpfr, a public "Requires:" of bitwuzla.pc) via
-    # find_library(), which prefers .so over .a on Linux. That breaks fully
-    # static executables (PONO_STATIC_EXEC=YES) even when a static archive
-    # is available, since the linker is handed an explicit .so path instead
-    # of a bare -l flag it could resolve itself. Using the raw pkg-config
-    # flags string avoids that.
-    pkg_check_modules(SMTSWITCH_BITWUZLA bitwuzla)
-    if(NOT SMTSWITCH_BITWUZLA_FOUND)
-      message(
-        FATAL_ERROR
-        "Could not find bitwuzla.pc. Set --bitwuzla-dir to a bitwuzla install "
-        "prefix containing lib/pkgconfig/bitwuzla.pc (searched: ${Bitwuzla_ROOT})"
-      )
-    endif()
+    find_package(Bitwuzla REQUIRED)
     set_property(
       TARGET smt-switch-bitwuzla
       APPEND
-      PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SMTSWITCH_BITWUZLA_INCLUDE_DIRS}
-    )
-    set_property(
-      TARGET smt-switch-bitwuzla
-      APPEND
-      PROPERTY INTERFACE_LINK_LIBRARIES smt-switch "${SMTSWITCH_BITWUZLA_LDFLAGS}"
+      PROPERTY INTERFACE_LINK_LIBRARIES smt-switch Bitwuzla::bitwuzla
     )
   endif()
 
