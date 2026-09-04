@@ -1,25 +1,21 @@
 cmake_minimum_required(VERSION 3.18...4.0)
 
-project(pono)
+project(pono VERSION 2.1.0)
 
-set(PONO_MAJOR 0) # Major component of Pono version
-set(PONO_MINOR 1) # Minor component of Pono version
-set(PONO_RELEASE 1) # Release component of Pono version
+# Pre-release/dev suffix appended to PROJECT_VERSION. project(VERSION) accepts
+# only numeric components, so prerelease markers live here. Spelled in PEP 440
+# form ("b1", "rc1", ".dev0") so that the C++ and Python versions stay a single
+# string. Empty for final releases.
+set(PONO_VERSION_SUFFIX ".dev0")
+
+# The declared version, and the single source of truth for every version
+# pono reports: --version, the wheel, and pono.__version__.
+set(PONO_RELEASE_VERSION "${PROJECT_VERSION}${PONO_VERSION_SUFFIX}")
 
 # Generate compilation database compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Retrieve the current version via Git
-execute_process(
-  COMMAND git describe --always --dirty
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  RESULT_VARIABLE GIT_DESCRIBE_STATUS
-  OUTPUT_VARIABLE PONO_VERSION
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if(GIT_DESCRIBE_STATUS AND NOT GIT_DESCRIBE_STATUS EQUAL 0)
-  set(PONO_VERSION "v${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}")
-endif()
+include("${PROJECT_SOURCE_DIR}/cmake/PonoVersion.cmake")
 
 # handle different versions of CMake
 if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
@@ -191,7 +187,7 @@ set(
   INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  # generated Bison headers go in build directory
+  # generated headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
@@ -272,7 +268,11 @@ endif()
 
 add_library(pono-lib "${PONO_LIB_TYPE}" ${SOURCES})
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
-target_compile_definitions(pono-lib PRIVATE "-DPONO_VERSION=\"${PONO_VERSION}\"")
+
+# A target-level edge, so that both the Ninja and Makefile generators finish
+# writing version.h before starting any pono-lib object. Everything else links
+# pono-lib and inherits the ordering.
+add_dependencies(pono-lib pono-version-header)
 
 target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
@@ -336,6 +336,10 @@ add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
 set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
+
+# test_version runs the executable itself, so `check` has to build it. Wired
+# up here because pono-bin does not exist yet while tests/ is processed.
+add_dependencies(check pono-bin)
 
 target_include_directories(
   pono-bin

@@ -93,4 +93,16 @@ if(WITH_MSAT_IC3IA)
   pono_add_test(test_msat_ic3ia)
 endif()
 
+# Smoke-test the version plumbing. The dots are escaped because the property
+# below is a regex, not a literal.
+string(REPLACE "." "\\." PONO_RELEASE_VERSION_REGEX "${PONO_RELEASE_VERSION}")
+add_test(NAME test_version COMMAND pono-bin --version)
+# Anchoring on the declared version pins the contract that it comes first.
+# The property is also required rather than stylistic: it replaces ctest's
+# return-code check, and `pono --version` exits 2.
+set_tests_properties(
+  test_version
+  PROPERTIES PASS_REGULAR_EXPRESSION "^${PONO_RELEASE_VERSION_REGEX}"
+)
+
 add_subdirectory(encoders)

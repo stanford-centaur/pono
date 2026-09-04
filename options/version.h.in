@@ -1,0 +1,23 @@
+/*!
+ * \file version.h.in
+ * \brief The pono version reported by `pono --version`.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * Template for options/version.h in the build tree. The declared release
+ * version comes from project(VERSION) and PONO_VERSION_SUFFIX, while the
+ * commit provenance in parentheses is re-derived by
+ * cmake/WritePonoVersionHeader.cmake on every build.
+ */
+
+#pragma once
+
+namespace pono {
+
+/// Version reported by `pono --version`: the declared release version,
+/// followed by this build's commit provenance in parentheses where git can
+/// supply it. Machine consumers read the first whitespace-delimited token.
+inline constexpr const char * version = "@PONO_VERSION@";
+
+}  // namespace pono
