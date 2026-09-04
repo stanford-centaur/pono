@@ -30,6 +30,7 @@
 #include "engines/ic3ia.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <random>
 

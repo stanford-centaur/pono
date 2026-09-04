@@ -111,6 +111,34 @@ set(Z3_ROOT "" CACHE PATH "Z3 install prefix")
 find_package(GMPXX REQUIRED)
 find_package(Btor2Tools REQUIRED)
 
+# fmt is an implementation detail of utils/logger.h, so there is no configure
+# flag pointing at it: use a system copy when one is new enough, otherwise
+# fetch one so that building pono needs no extra setup step.
+find_package(fmt 9 QUIET)
+if(NOT fmt_FOUND)
+  # The installed utils/logger.h includes <fmt/format.h>, so a prefix built
+  # against a fetched fmt has to carry that fmt along to be usable. fmt
+  # defaults this off for a subproject build.
+  set(FMT_INSTALL ON)
+  include(FetchContent)
+  FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt
+    GIT_TAG 12.2.0
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(fmt)
+  # A fetched fmt is built in-tree, so its headers are not treated as system
+  # headers the way an imported target's are, and its deprecations would be
+  # reported against every file including utils/logger.h. Set the property on
+  # the real target since properties cannot be set through an alias.
+  get_target_property(fmt_include_dirs fmt-header-only INTERFACE_INCLUDE_DIRECTORIES)
+  set_target_properties(
+    fmt-header-only
+    PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${fmt_include_dirs}"
+  )
+endif()
+
 if(WITH_PROFILING)
   find_package(Gperftools REQUIRED)
 endif()
@@ -162,7 +190,6 @@ add_flex_bison_dependency(SMVScanner SMVParser)
 set(
   INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
-  "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
   # generated Bison headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
@@ -292,6 +319,10 @@ endif()
 target_link_libraries(pono-lib PUBLIC smt-switch)
 target_link_libraries(pono-lib PUBLIC Btor2Tools::btor2parser)
 target_link_libraries(pono-lib PUBLIC GMPXX::gmpxx)
+# PUBLIC because the installed utils/logger.h includes <fmt/format.h>. The
+# header-only target carries fmt's include directory without a library to link,
+# so this stays compatible with PONO_STATIC_EXEC.
+target_link_libraries(pono-lib PUBLIC fmt::fmt-header-only)
 
 if(WITH_PROFILING)
   target_link_libraries(pono-lib PUBLIC Gperftools::profiler)
@@ -311,7 +342,6 @@ target_include_directories(
   PUBLIC
     "${PROJECT_SOURCE_DIR}/utils"
     "${PROJECT_SOURCE_DIR}/core"
-    "${PROJECT_SOURCE_DIR}/contrib/"
     "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
 )
 
@@ -395,13 +425,6 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/smvparser.h" DESTINATION include/pono
 install(
   DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
   DESTINATION include/pono/utils
-  FILES_MATCHING
-  PATTERN "*.h"
-)
-
-install(
-  DIRECTORY "${PROJECT_SOURCE_DIR}/contrib/fmt/"
-  DESTINATION include/pono/fmt
   FILES_MATCHING
   PATTERN "*.h"
 )

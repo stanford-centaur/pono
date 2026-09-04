@@ -16,6 +16,8 @@
 
 #include "modifiers/prop_monitor.h"
 
+#include <cassert>
+
 #include "core/rts.h"
 #include "core/ts.h"
 #include "utils/logger.h"

@@ -16,6 +16,7 @@
 
 #include "engines/cegar_values.h"
 
+#include <cassert>
 #include <cmath>
 #include <unordered_set>
 

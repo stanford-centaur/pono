@@ -17,6 +17,8 @@
 
 #include "frontends/vmt_encoder.h"
 
+#include <cassert>
+
 using namespace smt;
 using namespace std;
 

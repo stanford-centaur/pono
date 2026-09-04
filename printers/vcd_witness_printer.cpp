@@ -17,6 +17,7 @@
 #include "vcd_witness_printer.h"
 
 #include <algorithm>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 
@@ -643,7 +644,7 @@ void VCDWitnessPrinter::dump_trace_to_file(
 
   GenHeader(fout);
   DumpValues(fout);
-  logger.log(0, "Trace written to " + vcd_file_name);
+  logger.log(0, "Trace written to {}", vcd_file_name);
 }  // dump_trace_to_file
 
 }  // namespace pono

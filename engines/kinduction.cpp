@@ -16,6 +16,8 @@
 
 #include "kinduction.h"
 
+#include <cassert>
+
 #include "utils/logger.h"
 
 using namespace smt;
@@ -394,10 +396,14 @@ bool KInduction::check_simple_path_lazy(int i)
 template <typename... Args>
 void KInduction::kind_log_msg(size_t level,
                               const std::string & indent,
-                              const std::string & format,
-                              const Args &... args) const
+                              fmt::format_string<Args...> format,
+                              Args &&... args) const
 {
-  logger.log(level, indent + kind_engine_name_ + " " + format, args...);
+  logger.log(level,
+             "{}{} {}",
+             indent,
+             kind_engine_name_,
+             fmt::format(format, std::forward<Args>(args)...));
 }
 
 bool KInduction::final_base_case_check(const int & cur_bound)
