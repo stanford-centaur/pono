@@ -2,6 +2,11 @@ name: CI
 on:
   push:
   workflow_dispatch: # allow manual trigger
+# Superseded runs are pointless, but let main finish: its runs are the ones
+# whose caches every branch restores from.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   pre-commit:
     runs-on: ubuntu-slim
@@ -23,6 +28,11 @@ jobs:
     runs-on: ${{ matrix.os}}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history, so that `git describe` can name the release the
+          # build descends from. fetch-tags alone would fetch the tags but
+          # not the commits in between, leaving the distance uncomputable.
+          fetch-depth: 0
       - name: Install Packages (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -68,7 +78,7 @@ jobs:
       - name: Upload built executable
         uses: actions/upload-artifact@v7
         with:
-          name: pono_${{ runner.arch }}_${{ matrix.build_type }}
+          name: pono_${{ runner.os }}_${{ runner.arch }}_${{ matrix.build_type }}
           path: ./build/pono
       - name: Test C++
         id: test-cpp
@@ -84,7 +94,7 @@ jobs:
         if: steps.test-cpp.outcome == 'failure'
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.os }}-${{ matrix.build_type }}-test-log-${{ github.run_id }}
+          name: ${{ runner.os }}-${{ matrix.build_type }}-test-log-${{ github.run_id }}
           path: build/tests/Testing/Temporary/LastTest.log
       - name: Fail pipeline due to C++ test failure
         if: steps.test-cpp.outcome == 'failure'
