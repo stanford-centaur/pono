@@ -23,11 +23,8 @@
 #include <vector>
 
 #include "optionparser.h"
+#include "options/version.h"
 #include "utils/exceptions.h"
-
-#ifndef PONO_VERSION
-#define PONO_VERSION "unknown"
-#endif
 
 using namespace std;
 
@@ -832,7 +829,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
   }
 
   if (options[VERSION]) {
-    cout << PONO_VERSION << endl;
+    cout << version << endl;
     return ERROR;
   }
 

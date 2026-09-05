@@ -44,6 +44,9 @@ __pycache__
 # Generated files
 .gdb_history
 compile_commands.json
+# INCLUDE_DIRS lists the source tree ahead of the build directory, so a stale
+# in-source copy of this would silently win over the generated one.
+options/version.h
 
 # IDE settings
 .vscode
