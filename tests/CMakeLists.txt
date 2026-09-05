@@ -11,33 +11,24 @@ else()
 endif()
 
 if(NOT GTest_FOUND)
-  # Download and unpack googletest at configure time
-  configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
-  execute_process(
-    COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download
+  # googletest is only ever a test dependency: pono never installs it and links
+  # gtest but not gmock. Both default the other way and are plain options, so
+  # setting them here shadows googletest's own option().
+  set(INSTALL_GTEST OFF)
+  set(BUILD_GMOCK OFF)
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest
+    GIT_TAG 063de7e9578f82b369302001269680b4b1553359 # v1.18.0
   )
-  if(result)
-    message(FATAL_ERROR "CMake step for googletest failed: ${result}")
-  endif()
-  execute_process(
-    COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download
-  )
-  if(result)
-    message(FATAL_ERROR "Build step for googletest failed: ${result}")
-  endif()
-  # Add googletest directly to our build. This defines
-  # the gtest and gtest_main targets.
-  add_subdirectory(
-    ${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-    ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-    EXCLUDE_FROM_ALL
-  )
-else()
+  # Defines the GTest::gtest and GTest::gtest_main targets. These stay out of
+  # the default build because add_subdirectory(tests EXCLUDE_FROM_ALL) in the
+  # top-level CMakeLists.txt makes that a directory property googletest
+  # inherits.
+  FetchContent_MakeAvailable(googletest)
 endif()
+
 if(WITH_MSAT)
   add_definitions(-DWITH_MSAT)
 endif()
@@ -58,7 +49,7 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 
 macro(pono_add_test name)
   add_executable(${name} "${CMAKE_CURRENT_SOURCE_DIR}/${name}.cpp")
-  target_link_libraries(${name} gtest gtest_main)
+  target_link_libraries(${name} GTest::gtest_main) # links GTest::gtest too
   target_link_libraries(${name} pono-test-lib) # also includes pono-lib because it's linked
   add_dependencies(check ${name})
   add_test(NAME ${name} COMMAND ${name})
