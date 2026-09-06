@@ -19,7 +19,7 @@ EOF
 }
 
 die() {
-  echo "*** configure.sh: $*" 1>&2
+  echo "*** $0: $*" 1>&2
   exit 1
 }
 
