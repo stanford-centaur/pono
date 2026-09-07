@@ -8,9 +8,10 @@
  * Besides the public encode() factory, run() (the pipeline it delegates to
  * right after constructing the encoder), and process_module(), this file's
  * anonymous namespace parses dot-f list files (rejecting unsupported +/-
- * tool directives) and scans the raw syntax tree for `bind` directives,
+ * tool directives), scans the raw syntax tree for `bind` directives,
  * which have no elaborated Symbol to catch during the normal member walk
- * (walk_members() itself is a free function in ast_helpers.h/.cpp).
+ * (walk_members() itself is a free function in ast_helpers.h/.cpp), and
+ * classifies a continuous-assign LHS during the wire pre-scan below.
  * process_module() runs four ordered passes -- state-variable pre-scan,
  * combinational-wire pre-scan, variable declaration, then assignment
  * processing -- since later passes rely on symbol classifications
@@ -36,6 +37,7 @@
 #include "slang/ast/SemanticFacts.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/MiscExpressions.h"
+#include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -158,6 +160,60 @@ void warn_on_bind_directives(const slang::syntax::SyntaxNode & node)
       warn_on_bind_directives(*child);
     }
   }
+}
+
+// Classifies a continuous-assign LHS during process_module()'s wire
+// pre-scan: a plain NamedValue base becomes a wire (macro-substituted
+// with its defining expression rather than declared as a free input
+// var); a partial LHS (constant-index/range/member-access, resolved
+// via find_lhs_base()) marks its base a state var instead, so the
+// write-processing code can constrain the slice via add_constraint().
+// Recurses into a concatenation-target LHS (`{hi, lo} = ...;`) so
+// every operand's own base symbol is classified the same way,
+// mirroring the per-operand recursion already used for procedural
+// assignment targets (collect_nonblocking_targets/
+// collect_blocking_targets) and instance output-port connections --
+// find_lhs_base() itself can't handle a concatenation, since it has
+// more than one base symbol. Throws for any other LHS shape rather
+// than silently leaving it undriven and falling through to a free
+// input var.
+void classify_continuous_assign_lhs(
+    const slang::ast::Expression & lhs,
+    const slang::ast::ContinuousAssignSymbol & ca,
+    SymbolTable & symbol_table,
+    const std::string & prefix,
+    const std::string & parent_prefix)
+{
+  using namespace slang::ast;
+  if (lhs.kind == ExpressionKind::Concatenation) {
+    for (auto * operand : lhs.as<ConcatenationExpression>().operands()) {
+      classify_continuous_assign_lhs(
+          *operand, ca, symbol_table, prefix, parent_prefix);
+    }
+    return;
+  }
+  if (lhs.kind == ExpressionKind::NamedValue) {
+    auto * sym = &lhs.as<NamedValueExpression>().symbol;
+    if (!symbol_table.state_var_symbols().count(sym)) {
+      symbol_table.wire_symbols().insert(sym);
+      symbol_table.wire_drivers()[sym] = {
+        &ca, nullptr, prefix, parent_prefix
+      };
+    }
+    return;
+  }
+  if (auto * base = find_lhs_base(lhs)) {
+    // Partial-LHS continuous assign (`assign arr[i] = ...`): the base
+    // needs to be a state var so process_continuous_assign can
+    // constrain the slice via add_constraint.
+    if (!symbol_table.wire_symbols().count(base)) {
+      symbol_table.state_var_symbols().insert(base);
+    }
+    return;
+  }
+  throw PonoException(
+      "SystemVerilogEncoder: unsupported continuous-assign lvalue shape "
+      "(non-constant index?)");
 }
 
 }  // namespace
@@ -290,23 +346,12 @@ void SystemVerilogEncoder::process_module(
       auto & ca = member.as<slang::ast::ContinuousAssignSymbol>();
       auto & ae = ca.getAssignment();
       if (ae.kind == slang::ast::ExpressionKind::Assignment) {
-        auto & lhs = ae.as<slang::ast::AssignmentExpression>().left();
-        if (lhs.kind == slang::ast::ExpressionKind::NamedValue) {
-          auto * sym = &lhs.as<slang::ast::NamedValueExpression>().symbol;
-          if (!symbol_table_.state_var_symbols().count(sym)) {
-            symbol_table_.wire_symbols().insert(sym);
-            symbol_table_.wire_drivers()[sym] = {
-              &ca, nullptr, prefix, parent_prefix
-            };
-          }
-        } else if (auto * base = find_lhs_base(lhs)) {
-          // Partial-LHS continuous assign (`assign arr[i] = ...`):
-          // the base needs to be a state var so process_continuous_assign
-          // can constrain the slice via add_constraint.
-          if (!symbol_table_.wire_symbols().count(base)) {
-            symbol_table_.state_var_symbols().insert(base);
-          }
-        }
+        classify_continuous_assign_lhs(
+            ae.as<slang::ast::AssignmentExpression>().left(),
+            ca,
+            symbol_table_,
+            prefix,
+            parent_prefix);
       }
     } else if (member.kind == slang::ast::SymbolKind::Instance) {
       symbol_table_.pre_scan_instance(member.as<slang::ast::InstanceSymbol>(),

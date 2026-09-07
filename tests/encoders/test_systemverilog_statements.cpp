@@ -58,6 +58,33 @@ TEST_P(SVUnitTests, ConcatenationLhs)
   check_bmc("concat_lhs.sv", 4, ProverResult::UNKNOWN);
 }
 
+// The wire pre-scan (process_module(), encoder.cpp) that decides
+// whether a continuous-assign LHS's base symbol is a wire has its own,
+// separate LHS-classification logic from begin_write()'s write-time
+// handling above -- confirming `hi`/`lo` are classified as wires
+// (macro-substituted, absent from inputvars()) rather than silently
+// falling through to free input vars is not otherwise observable via
+// check_bmc(), since the write-processing fallback path for an
+// unclassified variable still constrains it correctly via
+// add_constraint(); only the resulting inputvars()/named_terms()
+// bookkeeping differs.
+TEST_P(SVUnitTests, ConcatenationLhsClassifiedAsWire)
+{
+  SmtSolver s = create_solver(GetParam());
+  FunctionalTransitionSystem fts(s);
+  SystemVerilogEncoder::encode(sv_path("concat_lhs.sv"), fts);
+  TransitionSystem ts = fts;
+  const auto & named = ts.named_terms();
+  ASSERT_TRUE(named.count("concat_lhs.hi"));
+  ASSERT_TRUE(named.count("concat_lhs.lo"));
+  ASSERT_TRUE(named.count("concat_lhs.a"));
+  ASSERT_TRUE(named.count("concat_lhs.b"));
+  EXPECT_FALSE(ts.inputvars().count(named.at("concat_lhs.hi")));
+  EXPECT_FALSE(ts.inputvars().count(named.at("concat_lhs.lo")));
+  EXPECT_TRUE(ts.inputvars().count(named.at("concat_lhs.a")));
+  EXPECT_TRUE(ts.inputvars().count(named.at("concat_lhs.b")));
+}
+
 // Same shape, procedural (non-blocking) assignment form: begin_write()
 // (shared by blocking/non-blocking assignment and ++/--) special-cases
 // a top-level concatenation-target LHS the same way
