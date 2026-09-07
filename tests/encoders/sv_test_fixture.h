@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef WITH_SLANG
-
 #include <string>
 #include <vector>
 
@@ -212,5 +210,3 @@ class SVUnitTests : public ::testing::Test,
 };
 
 }  // namespace pono_tests
-
-#endif  // WITH_SLANG

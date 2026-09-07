@@ -260,7 +260,6 @@ if(WITH_COREIR)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
-add_definitions(-DWITH_SLANG)
 add_subdirectory(frontends/systemverilog)
 
 if(WITH_MSAT_IC3IA)

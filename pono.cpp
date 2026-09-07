@@ -26,10 +26,8 @@
 #include "engines/kliveness.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
-#include "frontends/vmt_encoder.h"
-#ifdef WITH_SLANG
 #include "frontends/systemverilog/encoder.h"
-#endif
+#include "frontends/vmt_encoder.h"
 #include "modifiers/control_signals.h"
 #include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
@@ -445,9 +443,7 @@ int main(int argc, char ** argv)
         assert(res == pono::UNKNOWN);
         cout << "unknown" << endl;
       }
-    }
-#ifdef WITH_SLANG
-    else if (file_ext == "sv" || file_ext == "v") {
+    } else if (file_ext == "sv" || file_ext == "v") {
       logger.log(2, "Parsing SystemVerilog file: {}", pono_options.filename_);
       FunctionalTransitionSystem fts(s);
       SystemVerilogEncoder::Result sv_result = SystemVerilogEncoder::encode(
@@ -535,9 +531,7 @@ int main(int argc, char ** argv)
         assert(res == pono::UNKNOWN);
         cout << "unknown" << endl;
       }
-    }
-#endif
-    else {
+    } else {
       throw PonoException("Unrecognized file extension " + file_ext
                           + " for file " + pono_options.filename_);
     }

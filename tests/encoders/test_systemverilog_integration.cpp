@@ -1,5 +1,3 @@
-#ifdef WITH_SLANG
-
 #include "engines/ic3bits.h"
 #include "engines/kinduction.h"
 #include "options/options.h"
@@ -81,5 +79,3 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVIntegrationTests,
                          testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests
-
-#endif

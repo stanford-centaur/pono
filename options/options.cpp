@@ -946,15 +946,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case RESET: reset_name_ = opt.arg; break;
         case RESET_BND: reset_bnd_ = std::stoul(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
-        case SV_FILELIST:
-#ifndef WITH_SLANG
-          throw PonoException(
-              "--sv-filelist requires the SystemVerilog frontend. Please "
-              "reconfigure Pono with './configure.sh --with-slang'.");
-#else
-          sv_filelists_.push_back(opt.arg);
-#endif
-          break;
+        case SV_FILELIST: sv_filelists_.push_back(opt.arg); break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = std::stoul(opt.arg); break;

@@ -1,5 +1,3 @@
-#ifdef WITH_SLANG
-
 #include "sv_test_fixture.h"
 
 using namespace pono;
@@ -160,5 +158,3 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVTypesTests,
                          testing::ValuesIn(available_solver_enums()));
 
 }  // namespace pono_tests
-
-#endif
