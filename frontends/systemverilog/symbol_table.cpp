@@ -26,6 +26,7 @@
 #include "slang/ast/statements/LoopStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/BlockSymbols.h"
+#include "slang/ast/symbols/CheckerSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
@@ -163,8 +164,8 @@ void SymbolTable::pre_scan_always_ff(const slang::ast::Statement & body)
   collect_nonblocking_targets(body, state_var_symbols_);
 }
 
-void SymbolTable::pre_scan_state_vars(
-    const slang::ast::InstanceBodySymbol & body, std::string & prefix)
+void SymbolTable::pre_scan_state_vars(const slang::ast::Scope & body,
+                                      std::string & prefix)
 {
   using namespace slang::ast;
   walk_members(body, prefix, [&](const Symbol & member) {
@@ -182,6 +183,8 @@ void SymbolTable::pre_scan_state_vars(
       }
     } else if (member.kind == SymbolKind::Instance) {
       pre_scan_state_vars(member.as<InstanceSymbol>().body, prefix);
+    } else if (member.kind == SymbolKind::CheckerInstance) {
+      pre_scan_state_vars(member.as<CheckerInstanceSymbol>().body, prefix);
     }
   });
 }

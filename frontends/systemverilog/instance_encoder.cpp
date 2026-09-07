@@ -751,40 +751,7 @@ void InstanceEncoder::process_checker_instance(
 
   string child_prefix =
       ci.name.empty() ? prefix : prefix + "." + string(ci.name);
-
-  // A checker's own local state -- a `Variable`/`Net` declared
-  // directly in its body (not one of its `AssertionPortSymbol`
-  // formals), or an `always_ff`/nonblocking-target `always` block --
-  // would need its own pre-scan/declare pass the way a module's does
-  // (SymbolTable::pre_scan_state_vars(), Declarer::declare_variables()),
-  // which this encoder does not (yet) extend into checker bodies.
-  // Throw rather than let an undeclared reference fail confusingly
-  // further down, or silently treat the state as unconstrained.
-  for (auto & m : ci.body.members()) {
-    if (m.kind == SymbolKind::Variable || m.kind == SymbolKind::Net) {
-      throw PonoException(
-          "SystemVerilogEncoder: checker instance '" + string(ci.name)
-          + "' declares its own local variable '" + string(m.name)
-          + "' -- checkers with local state are not supported");
-    }
-    if (m.kind == SymbolKind::ProceduralBlock) {
-      auto & proc = m.as<ProceduralBlockSymbol>();
-      bool is_sequential =
-          proc.procedureKind == ProceduralBlockKind::AlwaysFF
-          || proc.procedureKind == ProceduralBlockKind::AlwaysLatch;
-      if (proc.procedureKind == ProceduralBlockKind::Always) {
-        std::unordered_set<const Symbol *> targets;
-        collect_nonblocking_targets(proc.getBody(), targets);
-        is_sequential = !targets.empty();
-      }
-      if (is_sequential) {
-        throw PonoException(
-            "SystemVerilogEncoder: checker instance '" + string(ci.name)
-            + "' has its own sequential (always_ff/always_latch) block -- "
-              "checkers with local state are not supported");
-      }
-    }
-  }
+  const string & child_parent_prefix = prefix;
 
   // Unlike a module instance, a checker's formal (`AssertionPortSymbol`)
   // ports are resolved by slang itself at elaboration time: a
@@ -792,9 +759,37 @@ void InstanceEncoder::process_checker_instance(
   // directly to the actual argument's own symbol (e.g. the caller's
   // `clk` net), not to a distinct checker-local copy. So there is no
   // port-binding step to do here at all, unlike process_instance()'s
-  // alias/input-term setup above -- process_assignments() can walk
-  // this checker's body exactly like it walks a module's.
-  process_assignments(ci.body, child_prefix, parent_prefix);
+  // alias/input-term setup above.
+  //
+  // A checker's own genuinely local state -- a `Variable`/`Net`
+  // declared directly in its body, or a combinational blocking-
+  // assigned target -- is otherwise exactly like a module instance's:
+  // pre-scan its blocking-assigned wires (nonblocking-target state
+  // vars were already classified up front, whole-tree, by
+  // SystemVerilogEncoder::process_module()'s pre_scan_state_vars()
+  // call, which now also recurses into checker instances), then
+  // declare its internal variables under the checker instance's own
+  // hierarchical prefix, mirroring process_instance() above exactly.
+  string walk_prefix = child_prefix;
+  walk_members(ci.body, walk_prefix, [&](const Symbol & m) {
+    if (m.kind != SymbolKind::ProceduralBlock) return;
+    auto & proc = m.as<ProceduralBlockSymbol>();
+    if (proc.procedureKind == ProceduralBlockKind::AlwaysComb) {
+      symbol_table_.pre_scan_always_comb(
+          proc.getBody(), proc, walk_prefix, child_parent_prefix);
+    } else if (proc.procedureKind == ProceduralBlockKind::Always) {
+      std::unordered_set<const Symbol *> nb_targets;
+      collect_nonblocking_targets(proc.getBody(), nb_targets);
+      if (nb_targets.empty()) {
+        symbol_table_.pre_scan_always_comb(
+            proc.getBody(), proc, walk_prefix, child_parent_prefix);
+      }
+    }
+  });
+
+  declarer_.declare_variables_internal(ci.body, child_prefix);
+
+  process_assignments(ci.body, child_prefix, child_parent_prefix);
 }
 
 }  // namespace pono

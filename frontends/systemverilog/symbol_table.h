@@ -51,6 +51,7 @@ class ContinuousAssignSymbol;
 class ProceduralBlockSymbol;
 class InstanceSymbol;
 class InstanceBodySymbol;
+class Scope;
 class Statement;
 }  // namespace slang::ast
 
@@ -129,17 +130,22 @@ class SymbolTable
   /** Pre-scan: identify state variable symbols by scanning always_ff
    *  blocks for non-blocking assignment targets, before declaring any
    *  variables anywhere in the design -- recurses into every descendant
-   *  instance up front (not just this body's own direct members) so a
-   *  sibling instance visited earlier in source order (e.g. an
-   *  `interface` instance whose members are actually driven by a later
-   *  sibling's always_ff through a hierarchical/interface-port
-   *  reference) doesn't get its members wrongly declared as free inputs
-   *  before its true driver is discovered.
-   *  @param body the instance body to scan (and recurse from)
+   *  instance *and checker instance* up front (not just this body's own
+   *  direct members) so a sibling instance visited earlier in source
+   *  order (e.g. an `interface` instance whose members are actually
+   *  driven by a later sibling's always_ff through a hierarchical/
+   *  interface-port reference) doesn't get its members wrongly declared
+   *  as free inputs before its true driver is discovered. Takes a plain
+   *  Scope (not specifically an InstanceBodySymbol) so the same walk
+   *  also recurses into a CheckerInstanceBodySymbol, since neither this
+   *  function nor walk_members() needs anything InstanceBodySymbol-
+   *  specific.
+   *  @param body the instance (or checker-instance) body to scan (and
+   *         recurse from)
    *  @param prefix the caller's current hierarchical name prefix,
    *         threaded through the recursive member walk
    */
-  void pre_scan_state_vars(const slang::ast::InstanceBodySymbol & body,
+  void pre_scan_state_vars(const slang::ast::Scope & body,
                            std::string & prefix);
 
   /** Thin wrapper around collect_nonblocking_targets(); called for every

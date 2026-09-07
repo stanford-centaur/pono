@@ -30,6 +30,7 @@
 namespace slang::ast {
 class InstanceBodySymbol;
 class PortSymbol;
+class Scope;
 }  // namespace slang::ast
 
 namespace pono {
@@ -54,11 +55,18 @@ class Declarer
 
   /** Declare just the internal (non-port) variables of `body`.  Used
    *  when descending into a child instance, whose ports have already
-   *  been bound through the port-connection map.
-   *  @param body the instance body to declare internal variables for
+   *  been bound through the port-connection map -- and when descending
+   *  into a checker instance, whose formal ports need no declaration
+   *  at all (slang's own elaboration substitutes them). Takes a plain
+   *  Scope (not specifically an InstanceBodySymbol) so it can also
+   *  drive a CheckerInstanceBodySymbol's own local Variable/Net
+   *  members, since walk_members() needs nothing InstanceBodySymbol-
+   *  specific either.
+   *  @param body the instance (or checker-instance) body to declare
+   *         internal variables for
    *  @param prefix the hierarchical name prefix for `body`
    */
-  void declare_variables_internal(const slang::ast::InstanceBodySymbol & body,
+  void declare_variables_internal(const slang::ast::Scope & body,
                                   const std::string & prefix);
 
   /** Declare a single port as an input or output variable.

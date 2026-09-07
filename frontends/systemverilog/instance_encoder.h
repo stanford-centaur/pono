@@ -122,13 +122,15 @@ class InstanceEncoder : private SymbolTable::DriverResolver
    *  own symbol (e.g. the parent's `clk` net), not to a distinct
    *  checker-local copy -- so there is no port-binding step to do
    *  here at all, unlike process_instance()'s alias/input-term setup.
-   *  Just walks the checker's body with the same
-   *  process_assignments() every module instance gets, under a
-   *  checker-instance-qualified prefix. Throws if the checker
-   *  declares its own local state (a `Variable`/`Net` member, or an
-   *  `always_ff`/nonblocking-target `always` block) -- that would need
-   *  its own pre-scan/declare pass, which this encoder does not (yet)
-   *  extend into checker bodies.
+   *  A checker's own genuinely local state (a `Variable`/`Net`
+   *  declared directly in its body, or a combinational blocking-
+   *  assigned target) gets the same pre-scan/declare treatment
+   *  process_instance() gives a module instance's internal
+   *  variables -- nonblocking-target state vars were already
+   *  classified whole-tree by SymbolTable::pre_scan_state_vars(),
+   *  which now also recurses into checker instances. Then walks the
+   *  checker's body with the same process_assignments() every module
+   *  instance gets, under a checker-instance-qualified prefix.
    *  @param ci the checker instance to process
    *  @param prefix the hierarchical name prefix of `ci`'s enclosing
    *         scope (the checker instance's own prefix is computed from

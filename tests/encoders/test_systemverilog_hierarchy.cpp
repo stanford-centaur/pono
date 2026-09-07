@@ -196,6 +196,20 @@ TEST_P(SVUnitTests, NestedCheckerBlock)
   check_bmc("nested_checker_block.sv", 0, ProverResult::FALSE);
 }
 
+// A checker with its own local sequential state (`count`, driven by
+// an always_ff inside the checker body), not just formal-port
+// references: SymbolTable::pre_scan_state_vars() now recurses into
+// checker instances to classify `count` as a state var, and
+// process_checker_instance() declares it under the checker instance's
+// own hierarchical name (checker_local_state.chk.count) exactly like
+// a module instance's internal register. After the reset cycle, `a`
+// free each cycle can increment `count` from 0 up to 3, violating
+// `count < 3`.
+TEST_P(SVUnitTests, CheckerLocalState)
+{
+  check_bmc("checker_local_state.sv", 4, ProverResult::FALSE);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));

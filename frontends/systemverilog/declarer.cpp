@@ -53,8 +53,8 @@ void Declarer::declare_variables(const slang::ast::InstanceBodySymbol & body,
   declare_variables_internal(body, prefix);
 }
 
-void Declarer::declare_variables_internal(
-    const slang::ast::InstanceBodySymbol & body, const string & prefix)
+void Declarer::declare_variables_internal(const slang::ast::Scope & body,
+                                          const string & prefix)
 {
   using namespace slang::ast;
 
