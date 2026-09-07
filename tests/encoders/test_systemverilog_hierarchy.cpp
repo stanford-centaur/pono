@@ -163,9 +163,7 @@ TEST_P(SVUnitTests, InterfaceModportPort)
 // and its port connection to leaf2's internal `count` -- for free,
 // with no special-case bind handling needed in this encoder at all.
 // `warn_on_bind_directives()` (encoder.cpp) only logs an informational
-// warning; it doesn't skip anything. `checker` (below) is different --
-// a distinct SymbolKind::CheckerInstance the usual member walk doesn't
-// match at all.
+// warning; it doesn't skip anything.
 TEST_P(SVUnitTests, BindDirectiveAttachesAssertion)
 {
   check_bmc("bind_directive.sv", 3, ProverResult::UNKNOWN);
@@ -173,13 +171,29 @@ TEST_P(SVUnitTests, BindDirectiveAttachesAssertion)
 
 // `checker` is IEEE 1800's standard non-invasive formal-assertion-
 // attachment mechanism, not a deliberate non-goal like `program`/
-// `specify` in test_systemverilog_unsupported.cpp -- a checker
-// instance is a distinct SymbolKind::CheckerInstance the usual member
-// walk doesn't match at all, so its own `assert property` never
-// reaches the model.
-TEST_P(SVUnitTests, Gap_CheckerBlock)
+// `specify` in test_systemverilog_unsupported.cpp.
+// InstanceEncoder::process_checker_instance() walks a checker
+// instance's body exactly like a module's: a reference to one of the
+// checker's own formal (AssertionPortSymbol) ports already binds
+// directly to the caller's actual argument symbol (slang's own
+// elaboration substitutes it), so `a` here resolves straight through
+// to checker_block's own free input with no port-binding work needed
+// on this side. checker_block has an (unused) `rst` input, so
+// check_bmc's own reset-gating pushes the earliest checked cycle to
+// 1, not 0.
+TEST_P(SVUnitTests, CheckerBlock)
 {
   check_bmc("checker_block.sv", 1, ProverResult::FALSE);
+}
+
+// A checker instantiated inside a *non-top* module (as opposed to
+// checker_block.sv's top-level instantiation) -- exercises
+// process_instance()'s own CheckerInstance dispatch, distinct from
+// process_assignments()'s top-level one. No `rst` input here, so
+// (unlike CheckerBlock above) the earliest violation is at cycle 0.
+TEST_P(SVUnitTests, NestedCheckerBlock)
+{
+  check_bmc("nested_checker_block.sv", 0, ProverResult::FALSE);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,

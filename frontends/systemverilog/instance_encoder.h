@@ -16,9 +16,14 @@
  * aliases) rather than mutating shared state -- since these are plain
  * parameters rather than an ambient member, no save/restore is needed
  * around the recursion the way symbol_table_'s driver-prefix bookkeeping
- * still needs it. `checker`, `specify`, `program`, and `defparam`
- * constructs are recognized and skipped as simulation-only or
- * functionally-inert.
+ * still needs it. `program` is recognized and skipped as simulation-
+ * only; `specify` and `defparam` are recognized and skipped as
+ * functionally-inert. `checker` instances are processed for real (see
+ * process_checker_instance()) -- not skipped -- since a checker's own
+ * `assert property` statements are exactly as verification-relevant as
+ * a module's, and slang's own elaboration already resolves a checker's
+ * formal ports by substitution, so no port-binding work is needed on
+ * this side at all.
  *
  * Implements SymbolTable::DriverResolver for real (see symbol_table.h):
  * SymbolTable's on-demand wire resolution is a genuine, load-bearing
@@ -45,6 +50,7 @@
 #include "smt-switch/smt.h"
 
 namespace slang::ast {
+class CheckerInstanceSymbol;
 class Compilation;
 class ContinuousAssignSymbol;
 class Expression;
@@ -80,12 +86,16 @@ class InstanceEncoder : private SymbolTable::DriverResolver
 
   /** Second pass: process all behavioral and structural assignments.
    *  Walks always blocks, continuous assigns, and initial blocks.
-   *  @param body the instance body to process
+   *  Takes a plain Scope (not specifically an InstanceBodySymbol) so
+   *  the same walk also drives a CheckerInstanceBodySymbol's members
+   *  -- see process_checker_instance() -- since neither this function
+   *  nor walk_members() needs anything InstanceBodySymbol-specific.
+   *  @param body the instance (or checker-instance) body to process
    *  @param prefix the hierarchical name prefix for `body`
    *  @param parent_prefix the hierarchical name prefix of `body`'s
    *         enclosing scope (where output-port aliases live)
    */
-  void process_assignments(const slang::ast::InstanceBodySymbol & body,
+  void process_assignments(const slang::ast::Scope & body,
                            const std::string & prefix,
                            const std::string & parent_prefix);
 
@@ -104,6 +114,32 @@ class InstanceEncoder : private SymbolTable::DriverResolver
   void process_instance(const slang::ast::InstanceSymbol & inst,
                         const std::string & prefix,
                         const std::string & parent_prefix);
+
+  /** Process a checker instance: unlike a module instance, a checker's
+   *  formal (`AssertionPortSymbol`) ports are resolved by slang itself
+   *  at elaboration time -- a reference to a formal inside the
+   *  checker's body already binds directly to the actual argument's
+   *  own symbol (e.g. the parent's `clk` net), not to a distinct
+   *  checker-local copy -- so there is no port-binding step to do
+   *  here at all, unlike process_instance()'s alias/input-term setup.
+   *  Just walks the checker's body with the same
+   *  process_assignments() every module instance gets, under a
+   *  checker-instance-qualified prefix. Throws if the checker
+   *  declares its own local state (a `Variable`/`Net` member, or an
+   *  `always_ff`/nonblocking-target `always` block) -- that would need
+   *  its own pre-scan/declare pass, which this encoder does not (yet)
+   *  extend into checker bodies.
+   *  @param ci the checker instance to process
+   *  @param prefix the hierarchical name prefix of `ci`'s enclosing
+   *         scope (the checker instance's own prefix is computed from
+   *         this plus `ci`'s name)
+   *  @param parent_prefix the hierarchical name prefix that `prefix`
+   *         itself was computed relative to (becomes the checker
+   *         instance's own parent_prefix)
+   */
+  void process_checker_instance(const slang::ast::CheckerInstanceSymbol & ci,
+                                const std::string & prefix,
+                                const std::string & parent_prefix);
 
  private:
   void process_always_ff(const slang::ast::ProceduralBlockSymbol & proc,

@@ -186,6 +186,20 @@ TEST_P(SVUnitTests, FilelistIncdirDirective)
                        { sv_path("filelist_bad_directive.f") });
 }
 
+// A checker's own formal ports are resolved by slang's elaboration
+// (a reference inside the checker body binds directly to the actual
+// argument's own symbol, no port-binding work needed on this side --
+// see CheckerBlock in test_systemverilog_hierarchy.cpp), but a
+// variable declared directly in the checker's own body is genuine new
+// local state, needing its own pre-scan/declare pass the way a
+// module's does. This encoder doesn't extend those passes into
+// checker bodies, so process_checker_instance() throws rather than
+// leaving that state undeclared.
+TEST_P(SVUnitTests, CheckerLocalVariable)
+{
+  expect_encode_throws("checker_local_variable.sv");
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVUnsupportedTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));

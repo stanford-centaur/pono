@@ -24,6 +24,7 @@
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/symbols/BlockSymbols.h"
+#include "slang/ast/symbols/CheckerSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
@@ -59,10 +60,9 @@ void InstanceEncoder::bind_compilation(slang::ast::Compilation & compilation)
   compilation_ = &compilation;
 }
 
-void InstanceEncoder::process_assignments(
-    const slang::ast::InstanceBodySymbol & body,
-    const string & prefix,
-    const string & parent_prefix)
+void InstanceEncoder::process_assignments(const slang::ast::Scope & body,
+                                          const string & prefix,
+                                          const string & parent_prefix)
 {
   using namespace slang::ast;
 
@@ -107,16 +107,8 @@ void InstanceEncoder::process_assignments(
     } else if (member.kind == SymbolKind::Instance) {
       process_instance(member.as<InstanceSymbol>(), walk_prefix, parent_prefix);
     } else if (member.kind == SymbolKind::CheckerInstance) {
-      // `checker ... endchecker`, instantiated like a module: a
-      // verification-only construct (SVA sequence/property checking
-      // outside the DUT's own functional logic), so this instance and
-      // everything inside it -- including any of its own assertions --
-      // is simulation-only and has no functional-logic counterpart to
-      // encode.
-      logger.log(1,
-                 "SystemVerilogEncoder: ignoring checker instance '{}' "
-                 "(simulation-only construct)",
-                 string(member.name));
+      process_checker_instance(
+          member.as<CheckerInstanceSymbol>(), walk_prefix, parent_prefix);
     } else if (member.kind == SymbolKind::SpecifyBlock) {
       // `specify ... endspecify`: path delays / timing checks only,
       // no functional effect on the DUT's logic.
@@ -696,6 +688,17 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
     } else if (m.kind == SymbolKind::Instance) {
       process_instance(
           m.as<InstanceSymbol>(), walk_prefix, child_parent_prefix);
+    } else if (m.kind == SymbolKind::CheckerInstance) {
+      process_checker_instance(
+          m.as<CheckerInstanceSymbol>(), walk_prefix, child_parent_prefix);
+    } else if (m.kind == SymbolKind::SpecifyBlock) {
+      logger.log(1,
+                 "SystemVerilogEncoder: ignoring specify block (timing-only)");
+    } else if (m.kind == SymbolKind::DefParam) {
+      logger.log(1,
+                 "SystemVerilogEncoder: ignoring defparam (parameter "
+                 "overrides via `#(...)` at instantiation are supported; "
+                 "`defparam` is not)");
     }
   });
 
@@ -737,6 +740,61 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
   for (auto * sym : input_terms_added) {
     symbol_table_.symbol_to_term().erase(sym);
   }
+}
+
+void InstanceEncoder::process_checker_instance(
+    const slang::ast::CheckerInstanceSymbol & ci,
+    const string & prefix,
+    const string & parent_prefix)
+{
+  using namespace slang::ast;
+
+  string child_prefix =
+      ci.name.empty() ? prefix : prefix + "." + string(ci.name);
+
+  // A checker's own local state -- a `Variable`/`Net` declared
+  // directly in its body (not one of its `AssertionPortSymbol`
+  // formals), or an `always_ff`/nonblocking-target `always` block --
+  // would need its own pre-scan/declare pass the way a module's does
+  // (SymbolTable::pre_scan_state_vars(), Declarer::declare_variables()),
+  // which this encoder does not (yet) extend into checker bodies.
+  // Throw rather than let an undeclared reference fail confusingly
+  // further down, or silently treat the state as unconstrained.
+  for (auto & m : ci.body.members()) {
+    if (m.kind == SymbolKind::Variable || m.kind == SymbolKind::Net) {
+      throw PonoException(
+          "SystemVerilogEncoder: checker instance '" + string(ci.name)
+          + "' declares its own local variable '" + string(m.name)
+          + "' -- checkers with local state are not supported");
+    }
+    if (m.kind == SymbolKind::ProceduralBlock) {
+      auto & proc = m.as<ProceduralBlockSymbol>();
+      bool is_sequential =
+          proc.procedureKind == ProceduralBlockKind::AlwaysFF
+          || proc.procedureKind == ProceduralBlockKind::AlwaysLatch;
+      if (proc.procedureKind == ProceduralBlockKind::Always) {
+        std::unordered_set<const Symbol *> targets;
+        collect_nonblocking_targets(proc.getBody(), targets);
+        is_sequential = !targets.empty();
+      }
+      if (is_sequential) {
+        throw PonoException(
+            "SystemVerilogEncoder: checker instance '" + string(ci.name)
+            + "' has its own sequential (always_ff/always_latch) block -- "
+              "checkers with local state are not supported");
+      }
+    }
+  }
+
+  // Unlike a module instance, a checker's formal (`AssertionPortSymbol`)
+  // ports are resolved by slang itself at elaboration time: a
+  // reference to a formal inside the checker's body already binds
+  // directly to the actual argument's own symbol (e.g. the caller's
+  // `clk` net), not to a distinct checker-local copy. So there is no
+  // port-binding step to do here at all, unlike process_instance()'s
+  // alias/input-term setup above -- process_assignments() can walk
+  // this checker's body exactly like it walks a module's.
+  process_assignments(ci.body, child_prefix, parent_prefix);
 }
 
 }  // namespace pono
