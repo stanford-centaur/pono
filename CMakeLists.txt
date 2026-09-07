@@ -255,6 +255,14 @@ set(
   "${FLEX_SMVScanner_OUTPUTS}"
 )
 
+# The SystemVerilog frontend is mandatory, like the BTOR2/SMV/VMT frontends
+# whose sources are listed above -- but unlike them, it's a separate static
+# library (its own CMakeLists.txt) rather than a few files appended to
+# SOURCES, since it needs C++20 (pono-lib itself stays on C++17) and its own
+# FetchContent'd dependency (slang). Registered here, right after the other
+# mandatory frontends, and linked into pono-lib below.
+add_subdirectory(frontends/systemverilog)
+
 if(WITH_COREIR)
   add_definitions(-DWITH_COREIR)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
@@ -310,6 +318,8 @@ endif()
 if(WITH_MSAT_IC3IA)
   target_link_libraries(pono-lib PUBLIC IC3IA::ic3ia)
 endif()
+
+target_link_libraries(pono-lib PUBLIC pono-systemverilog)
 
 if(WITH_COREIR)
   target_link_libraries(pono-lib PUBLIC CoreIR::coreir CoreIR::verilogAST)
@@ -384,6 +394,8 @@ set(CMAKE_INSTALL_MESSAGE LAZY)
 # install smt-switch
 install(TARGETS pono-lib DESTINATION lib)
 install(TARGETS pono-bin DESTINATION bin)
+
+install(TARGETS pono-systemverilog DESTINATION lib)
 
 # install public headers
 install(

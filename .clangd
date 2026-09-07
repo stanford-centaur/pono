@@ -1,2 +1,9 @@
 CompileFlags:
   CompilationDatabase: build/
+  # Strip GCC-only C++20 modules-ts flags that clangd's clang parser
+  # rejects as unknown arguments.  CMake injects these for module
+  # dependency scanning when the host compiler is GCC.
+  Remove:
+    - -fmodules-ts
+    - -fmodule-mapper=*
+    - -fdeps-format=*
