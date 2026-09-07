@@ -15,6 +15,7 @@
  **/
 #include "printers/btor2_witness_printer.h"
 
+#include <cassert>
 #include <cstdint>
 #include <fstream>
 #include <iostream>

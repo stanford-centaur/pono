@@ -34,6 +34,8 @@ pytest tests
 
 Key configure options: `--debug`, `--python`, `--with-msat`, `--with-yices2`, `--with-z3`, `--with-btor`, `--docs`, `--static`.
 
+Dependency locations default to the `deps/` layout the `contrib/` scripts produce, and are overridden with `--bitwuzla-dir`, `--btor2tools-dir`, `--coreir-dir`, `--ic3ia-dir`, `--msat-dir`, `--smt-switch-dir`, and `--z3-dir`. All take an install prefix except `--ic3ia-dir`, which takes a built source tree since ic3ia has no install step. Each maps to a `<Package>_ROOT` CMake variable consumed by the matching `cmake/Find*.cmake` module; `configure.sh` is the only place their defaults live.
+
 ## Architecture
 
 **Data flow:** Parse input → TransitionSystem → Apply modifiers → Choose prover engine → Unroll + send to SMT solver → Produce witness or proof.

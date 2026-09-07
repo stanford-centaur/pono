@@ -50,12 +50,10 @@ namespace pono {
 // #define DEBUG
 #ifdef DEBUG
 #define D(...) logger.log(__VA_ARGS__)
-#define INFO(...) D(0, __VA_ARGS__)
 #else
 #define D(...) \
   do {         \
   } while (0)
-#define INFO(...) logger.log(3, __VA_ARGS__)
 #endif
 
 // ----------------------------------------------------------------

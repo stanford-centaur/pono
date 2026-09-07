@@ -16,6 +16,8 @@
 
 #include "engines/cegar_ops_uf.h"
 
+#include <cassert>
+
 #include "core/rts.h"
 #include "core/ts.h"
 #include "engines/bmc.h"

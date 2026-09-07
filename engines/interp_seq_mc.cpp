@@ -18,6 +18,8 @@
 
 #include "engines/interp_seq_mc.h"
 
+#include <cassert>
+
 #include "smt-switch/exceptions.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"

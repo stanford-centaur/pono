@@ -12,12 +12,17 @@ repos:
       - id: check-merge-conflict
       - id: check-symlinks
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v22.1.8
+    rev: v23.1.0
     hooks:
       - id: clang-format
         exclude: "^(contrib/|tests/encoders/inputs/coreir/)"
+        # identify tags a file by its last extension only, so *.h.in gets no
+        # c++ tag. Selecting by path covers the templates too, at the cost of
+        # keeping this extension list current by hand.
+        types_or: [text]
+        files: '\.(c|cc|cpp|h|hpp)(\.in)?$'
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.3
+    rev: v0.16.5
     hooks:
       - id: ruff-format
       - id: ruff-check
@@ -35,18 +40,27 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
+  - repo: https://github.com/openstack/bashate
+    rev: "2.1.1"
+    hooks:
+      - id: bashate
+        # E003 (4-space indents) and E020 (function name {} declarations)
+        # conflict with this repo's conventions (2-space indents, name() {}).
+        # --error E treats every check as an error rather than a
+        # non-failing warning (all bashate codes start with "E").
+        args: [--ignore, "E003,E020", --error, "E"]
   - repo: https://github.com/google/yamlfmt
     rev: v0.21.0
     hooks:
       - id: yamlfmt
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
       - id: tombi-format
         args: [--offline]
       - id: tombi-lint
         args: [--offline]
   - repo: https://github.com/BlankSpruce/gersemi-pre-commit
-    rev: 0.28.0
+    rev: 0.28.1
     hooks:
       - id: gersemi

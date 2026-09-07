@@ -16,6 +16,8 @@
 
 #include "modifiers/mod_ts_prop.h"
 
+#include <cassert>
+
 #include "core/rts.h"
 #include "smt-switch/utils.h"
 #include "utils/logger.h"

@@ -1,25 +1,21 @@
 cmake_minimum_required(VERSION 3.18...4.0)
 
-project(pono)
+project(pono VERSION 2.1.0)
 
-set(PONO_MAJOR 0) # Major component of Pono version
-set(PONO_MINOR 1) # Minor component of Pono version
-set(PONO_RELEASE 1) # Release component of Pono version
+# Pre-release/dev suffix appended to PROJECT_VERSION. project(VERSION) accepts
+# only numeric components, so prerelease markers live here. Spelled in PEP 440
+# form ("b1", "rc1", ".dev0") so that the C++ and Python versions stay a single
+# string. Empty for final releases.
+set(PONO_VERSION_SUFFIX ".dev0")
+
+# The declared version, and the single source of truth for every version
+# pono reports: --version, the wheel, and pono.__version__.
+set(PONO_RELEASE_VERSION "${PROJECT_VERSION}${PONO_VERSION_SUFFIX}")
 
 # Generate compilation database compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Retrieve the current version via Git
-execute_process(
-  COMMAND git describe --always --dirty
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  RESULT_VARIABLE GIT_DESCRIBE_STATUS
-  OUTPUT_VARIABLE PONO_VERSION
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if(GIT_DESCRIBE_STATUS AND NOT GIT_DESCRIBE_STATUS EQUAL 0)
-  set(PONO_VERSION "v${PONO_MAJOR}.${PONO_MINOR}.${PONO_RELEASE}")
-endif()
+include("${PROJECT_SOURCE_DIR}/cmake/PonoVersion.cmake")
 
 # handle different versions of CMake
 if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0 AND NOT APPLE)
@@ -37,10 +33,22 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_definitions(-DPONO_SRC_DIR=${PROJECT_SOURCE_DIR})
 
-if(APPLE)
-  set(SHARED_LIB_EXT "dylib")
-else()
-  set(SHARED_LIB_EXT "so")
+if(PONO_STATIC_EXEC STREQUAL "YES")
+  if(WITH_COREIR)
+    message(
+      FATAL_ERROR
+      "CoreIR support and a fully static executable are incompatible, since "
+      "CoreIR is only available as a shared library. Disable one or the other."
+    )
+  endif()
+  if(NOT PONO_LIB_TYPE STREQUAL "STATIC")
+    message(
+      VERBOSE
+      "PONO_STATIC_EXEC=YES requires a static pono-lib; overriding "
+      "PONO_LIB_TYPE=${PONO_LIB_TYPE} to STATIC."
+    )
+    set(PONO_LIB_TYPE STATIC)
+  endif()
 endif()
 
 if(WITH_BOOLECTOR)
@@ -60,135 +68,103 @@ if(WITH_Z3)
 endif()
 
 if(WITH_PROFILING)
-  find_library(GOOGLE_PERF profiler REQUIRED)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_PROFILING")
 endif()
 
-if(APPLE)
-  list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/bison")
-  list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/flex")
+# Try to find our custom bison build, falling back to Homebrew.
+if(IS_DIRECTORY "${PROJECT_SOURCE_DIR}/deps/bison-install")
+  set(BISON_ROOT "${PROJECT_SOURCE_DIR}/deps/bison-install")
+else()
+  execute_process(
+    COMMAND brew --prefix
+    RESULT_VARIABLE HOMEBREW_RESULT
+    OUTPUT_VARIABLE HOMEBREW_PREFIX
+    OUTPUT_QUIET
+    ERROR_QUIET
+  )
+  if(HOMEBREW_RESULT EQUAL 0 AND IS_DIRECTORY "${HOMEBREW_PREFIX}/opt/bison")
+    set(BISON_ROOT "${HOMEBREW_PREFIX}/opt/bison")
+  endif()
 endif()
-
 find_package(BISON 3.4.2 REQUIRED)
-if(BISON_FOUND)
-  get_filename_component(BISON_PARENT_DIR "${BISON_EXECUTABLE}" DIRECTORY)
-  message("-- Adding bison lib: ${BISON_PARENT_DIR}/../lib")
-  link_directories("${BISON_PARENT_DIR}/../lib/")
-endif()
-
 find_package(FLEX 2.6.4 REQUIRED)
-if(NOT FLEX_INCLUDE_DIRS)
-  message(FATAL_ERROR "Missing flex headers")
-endif()
 
-if(NOT DEFINED SMT_SWITCH_DIR)
-  set(SMT_SWITCH_DIR "${PROJECT_SOURCE_DIR}/deps/smt-switch")
-endif()
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-# TODO: Use find_package
-# find package
-#list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/smt-switch")
+# Install prefixes of the dependencies pono locates itself, one per Find
+# module in cmake/. Declared with an empty default so that configure.sh stays
+# the one place defaults live, and so that leaving a backend disabled does not
+# warn about an unused -D setting. IC3IA_ROOT is a source tree rather than an
+# install prefix, since ic3ia has no install step.
+set(Bitwuzla_ROOT "" CACHE PATH "bitwuzla install prefix")
+set(Btor2Tools_ROOT "" CACHE PATH "Btor2Tools install prefix")
+set(CoreIR_ROOT "" CACHE PATH "CoreIR install prefix")
+set(IC3IA_ROOT "" CACHE PATH "ic3ia source tree")
+set(MathSAT_ROOT "" CACHE PATH "MathSAT install prefix")
+set(SmtSwitch_ROOT "" CACHE PATH "smt-switch install prefix")
+set(Z3_ROOT "" CACHE PATH "Z3 install prefix")
 
-find_package(PkgConfig REQUIRED)
+find_package(GMPXX REQUIRED)
+find_package(Btor2Tools REQUIRED)
 
-# Check that dependencies are there
-list(APPEND CMAKE_PREFIX_PATH "${SMT_SWITCH_DIR}/deps/install")
-
-pkg_check_modules(GMPXX REQUIRED gmpxx)
-pkg_check_modules(BITWUZLA REQUIRED bitwuzla)
-
-if(NOT EXISTS "${SMT_SWITCH_DIR}/local/include/smt-switch/smt.h")
-  message(FATAL_ERROR "Missing smt-switch headers -- try running ./contrib/setup-smt-switch.sh")
-endif()
-
-if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
-  message(FATAL_ERROR "Missing smt-switch library -- try running ./contrib/setup-smt-switch.sh")
-endif()
-
-if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
-  message(
-    FATAL_ERROR
-    "Missing smt-switch Bitwuzla library -- try running ./contrib/setup-smt-switch.sh"
+# fmt is an implementation detail of utils/logger.h, so there is no configure
+# flag pointing at it: use a system copy when one is new enough, otherwise
+# fetch one so that building pono needs no extra setup step.
+find_package(fmt 9 QUIET)
+if(NOT fmt_FOUND)
+  # The installed utils/logger.h includes <fmt/format.h>, so a prefix built
+  # against a fetched fmt has to carry that fmt along to be usable. fmt
+  # defaults this off for a subproject build.
+  set(FMT_INSTALL ON)
+  include(FetchContent)
+  FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt
+    GIT_TAG 1be298e1bd68957e4cd352e1f676f00e07dcfb57 # 12.2.0
+  )
+  FetchContent_MakeAvailable(fmt)
+  # A fetched fmt is built in-tree, so its headers are not treated as system
+  # headers the way an imported target's are, and its deprecations would be
+  # reported against every file including utils/logger.h. Set the property on
+  # the real target since properties cannot be set through an alias.
+  get_target_property(fmt_include_dirs fmt-header-only INTERFACE_INCLUDE_DIRECTORIES)
+  set_target_properties(
+    fmt-header-only
+    PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${fmt_include_dirs}"
   )
 endif()
 
-if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
-  message(
-    FATAL_ERROR
-    "Missing smt-switch cvc5 library -- try running ./contrib/setup-smt-switch.sh"
-  )
-endif()
-
-if(WITH_BOOLECTOR)
-  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
-    message(
-      FATAL_ERROR
-      "Missing smt-switch Boolector library -- try running ./contrib/setup-smt-switch.sh --with-btor"
-    )
-  endif()
-endif()
-
-if(WITH_MSAT)
-  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
-    message(
-      FATAL_ERROR
-      "Missing smt-switch mathsat library -- try running ./contrib/setup-smt-switch.sh --with-msat"
-    )
-  endif()
-endif()
-
-if(WITH_YICES2)
-  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
-    message(
-      FATAL_ERROR
-      "Missing smt-switch Yices2 library -- try running ./contrib/setup-smt-switch.sh --with-yices2"
-    )
-  endif()
-endif()
-
-if(WITH_Z3)
-  find_package(Z3 REQUIRED)
-  if(NOT EXISTS "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
-    message(
-      FATAL_ERROR
-      "Missing smt-switch Z3 library -- try running ./contrib/setup-smt-switch.sh --with-z3"
-    )
-  endif()
-endif()
-
-if(WITH_MSAT_IC3IA)
-  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
-    message(FATAL_ERROR "Missing ic3ia library -- try running ./contrib/setup-ic3ia.sh")
-  endif()
+if(WITH_PROFILING)
+  find_package(Gperftools REQUIRED)
 endif()
 
 if(WITH_COREIR)
-  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}")
-    message(FATAL_ERROR "Missing coreir library. Try running ./contrib/setup-coreir.sh")
-  endif()
-  if(NOT EXISTS "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}")
-    message(
-      FATAL_ERROR
-      "Missing verilogAST library from coreir. Try running ./contrib/setup-coreir.sh"
-    )
-  endif()
+  find_package(CoreIR REQUIRED)
 endif()
 
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/deps/install")
+if(WITH_MSAT OR WITH_MSAT_IC3IA)
+  # pono needs direct access to MathSAT for setting solver options.
+  find_package(MathSAT REQUIRED)
+endif()
 
-# Check for Btor2Tools
-find_path(Btor2Tools_INCLUDE_DIRS NAMES btor2parser.h)
-if(Btor2Tools_INCLUDE_DIRS)
-  message(STATUS "Found Btor2Tools headers: ${Btor2Tools_INCLUDE_DIRS}")
-else()
-  message(FATAL_ERROR "Missing Btor2Tools headers -- try running ./contrib/setup-btor2tools.sh")
+if(WITH_MSAT_IC3IA)
+  find_package(IC3IA REQUIRED)
 endif()
-find_library(Btor2Tools_LIBRARIES NAMES btor2parser)
-if(Btor2Tools_LIBRARIES)
-  message(STATUS "Found Btor2Tools library: ${Btor2Tools_LIBRARIES}")
-else()
-  message(FATAL_ERROR "Missing Btor2Tools library -- try running ./contrib/setup-btor2tools.sh")
+
+set(SmtSwitch_FIND_COMPONENTS bitwuzla cvc5)
+if(WITH_BOOLECTOR)
+  list(APPEND SmtSwitch_FIND_COMPONENTS btor)
 endif()
+if(WITH_MSAT)
+  list(APPEND SmtSwitch_FIND_COMPONENTS msat)
+endif()
+if(WITH_YICES2)
+  list(APPEND SmtSwitch_FIND_COMPONENTS yices2)
+endif()
+if(WITH_Z3)
+  list(APPEND SmtSwitch_FIND_COMPONENTS z3)
+endif()
+find_package(SmtSwitch REQUIRED COMPONENTS ${SmtSwitch_FIND_COMPONENTS})
 
 # Generate the SMV parser using Flex/Bison
 bison_target(
@@ -209,14 +185,9 @@ add_flex_bison_dependency(SMVScanner SMVParser)
 set(
   INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
-  "${PROJECT_SOURCE_DIR}/contrib/"
   "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-  ${Btor2Tools_INCLUDE_DIRS}
-  "${SMT_SWITCH_DIR}/local/include"
-  # generated Bison headers go in build directory
+  # generated headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
-  ${GMPXX_INCLUDE_DIRS}
-  ${FLEX_INCLUDE_DIRS}
 )
 
 set(
@@ -284,7 +255,7 @@ set(
   "${FLEX_SMVScanner_OUTPUTS}"
 )
 
-if(WITH_COREIR OR WITH_COREIR_EXTERN)
+if(WITH_COREIR)
   add_definitions(-DWITH_COREIR)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
@@ -292,22 +263,18 @@ endif()
 add_definitions(-DWITH_SLANG)
 add_subdirectory(frontends/systemverilog)
 
-if(WITH_MSAT)
-  # need direct access to mathsat for setting options
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
-endif()
-
 if(WITH_MSAT_IC3IA)
   add_definitions(-DWITH_MSAT_IC3IA)
-  # can't include ic3ia directly because some names clash e.g. ic3.h
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/")
-  set(INCLUDE_DIRS "${INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/deps/mathsat/include/")
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/engines/msat_ic3ia.cpp")
 endif()
 
 add_library(pono-lib "${PONO_LIB_TYPE}" ${SOURCES})
 set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
-target_compile_definitions(pono-lib PRIVATE "-DPONO_VERSION=\"${PONO_VERSION}\"")
+
+# A target-level edge, so that both the Ninja and Makefile generators finish
+# writing version.h before starting any pono-lib object. Everything else links
+# pono-lib and inherits the ordering.
+add_dependencies(pono-lib pono-version-header)
 
 target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
@@ -318,75 +285,51 @@ if(BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
 
-target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-bitwuzla.a")
-target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-cvc5.a")
+target_link_libraries(pono-lib PUBLIC smt-switch-bitwuzla)
+target_link_libraries(pono-lib PUBLIC smt-switch-cvc5)
 
 if(WITH_BOOLECTOR)
-  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-btor.a")
+  target_link_libraries(pono-lib PUBLIC smt-switch-btor)
 endif()
 
 if(WITH_MSAT)
-  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-msat.a")
+  target_link_libraries(pono-lib PUBLIC smt-switch-msat)
 endif()
 
 if(WITH_YICES2)
-  target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-yices2.a")
+  target_link_libraries(pono-lib PUBLIC smt-switch-yices2)
 endif()
 
 if(WITH_Z3)
-  target_link_libraries(pono-lib PRIVATE "${SMT_SWITCH_DIR}/local/lib/libsmt-switch-z3.a")
-  target_link_libraries(pono-lib PRIVATE z3::libz3)
+  target_link_libraries(pono-lib PRIVATE smt-switch-z3)
+endif()
+
+# MathSAT::mathsat carries only an include directory; pono links MathSAT
+# itself through smt-switch. Both backends need those headers.
+if(WITH_MSAT OR WITH_MSAT_IC3IA)
+  target_link_libraries(pono-lib PUBLIC MathSAT::mathsat)
 endif()
 
 if(WITH_MSAT_IC3IA)
-  target_link_libraries(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/ic3ia/build/libic3ia.a")
-endif()
-
-if(WITH_COREIR_EXTERN)
-  if(APPLE)
-    set(COREIR_EXTERN_PREFIX "/usr/local")
-  else()
-    set(COREIR_EXTERN_PREFIX "/usr")
-  endif()
-  add_library(coreir SHARED IMPORTED)
-  set_target_properties(
-    coreir
-    PROPERTIES
-      IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libcoreir${CMAKE_SHARED_LIBRARY_SUFFIX}"
-      INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
-  )
-  add_library(verilogAST SHARED IMPORTED)
-  set_target_properties(
-    verilogAST
-    PROPERTIES
-      IMPORTED_LOCATION "${COREIR_EXTERN_PREFIX}/lib/libverilogAST${CMAKE_SHARED_LIBRARY_SUFFIX}"
-      INTERFACE_INCLUDE_DIRECTORIES "${COREIR_EXTERN_PREFIX}/include"
-  )
-  target_link_libraries(pono-lib PUBLIC coreir verilogAST)
+  target_link_libraries(pono-lib PUBLIC IC3IA::ic3ia)
 endif()
 
 target_link_libraries(pono-lib PUBLIC pono-systemverilog)
 
 if(WITH_COREIR)
-  target_include_directories(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
-  target_link_libraries(
-    pono-lib
-    PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libcoreir.${SHARED_LIB_EXT}"
-  )
-  target_link_libraries(
-    pono-lib
-    PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/lib/libverilogAST.${SHARED_LIB_EXT}"
-  )
+  target_link_libraries(pono-lib PUBLIC CoreIR::coreir CoreIR::verilogAST)
 endif()
 
-target_link_libraries(pono-lib PUBLIC "${SMT_SWITCH_DIR}/local/lib/libsmt-switch.a")
-target_link_libraries(pono-lib PUBLIC ${Btor2Tools_LIBRARIES})
-target_link_libraries(pono-lib PUBLIC "${BITWUZLA_LDFLAGS}")
-target_link_libraries(pono-lib PUBLIC "${GMPXX_LDFLAGS}")
-target_link_libraries(pono-lib PUBLIC pthread)
+target_link_libraries(pono-lib PUBLIC smt-switch)
+target_link_libraries(pono-lib PUBLIC Btor2Tools::btor2parser)
+target_link_libraries(pono-lib PUBLIC GMPXX::gmpxx)
+# PUBLIC because the installed utils/logger.h includes <fmt/format.h>. The
+# header-only target carries fmt's include directory without a library to link,
+# so this stays compatible with PONO_STATIC_EXEC.
+target_link_libraries(pono-lib PUBLIC fmt::fmt-header-only)
 
-if(GOOGLE_PERF)
-  target_link_libraries(pono-lib PUBLIC ${GOOGLE_PERF})
+if(WITH_PROFILING)
+  target_link_libraries(pono-lib PUBLIC Gperftools::profiler)
 endif()
 
 enable_testing()
@@ -398,14 +341,16 @@ add_subdirectory(tests EXCLUDE_FROM_ALL)
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
 set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
 
+# test_version runs the executable itself, so `check` has to build it. Wired
+# up here because pono-bin does not exist yet while tests/ is processed.
+add_dependencies(check pono-bin)
+
 target_include_directories(
   pono-bin
   PUBLIC
     "${PROJECT_SOURCE_DIR}/utils"
     "${PROJECT_SOURCE_DIR}/core"
-    "${PROJECT_SOURCE_DIR}/contrib/"
     "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
-    "${SMT_SWITCH_DIR}/local/include"
 )
 
 target_link_libraries(pono-bin PUBLIC pono-lib)
@@ -425,6 +370,7 @@ if(BUILD_DOCS)
   find_package(Doxygen)
   doxygen_add_docs(
     docs
+    ALL
     core/
     engines/
     frontends/
@@ -489,13 +435,6 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/smvparser.h" DESTINATION include/pono
 install(
   DIRECTORY "${PROJECT_SOURCE_DIR}/utils/"
   DESTINATION include/pono/utils
-  FILES_MATCHING
-  PATTERN "*.h"
-)
-
-install(
-  DIRECTORY "${PROJECT_SOURCE_DIR}/contrib/fmt/"
-  DESTINATION include/pono/fmt
   FILES_MATCHING
   PATTERN "*.h"
 )

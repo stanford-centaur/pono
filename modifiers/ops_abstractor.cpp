@@ -16,6 +16,8 @@
 
 #include "modifiers/ops_abstractor.h"
 
+#include <cassert>
+
 #include "core/fts.h"
 #include "core/rts.h"
 

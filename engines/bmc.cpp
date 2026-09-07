@@ -16,6 +16,8 @@
 
 #include "bmc.h"
 
+#include <cassert>
+
 #include "utils/logger.h"
 
 using namespace smt;

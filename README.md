@@ -24,17 +24,20 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 
 ## Setup
 
-* [optional] Install bison and flex
-  * If you don't have flex installed globally, run `./contrib/setup-flex.sh`
-  * Bison should be available in your OS package manager (Linux) or Homebrew (macOS).
-* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla
+* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla, cvc5, and the SMT-LIB reader
+  * Note: The SMT-LIB reader requires bison >=3.7 and flex >=2.6.4.
+    * On Linux these can usually be obtained from the distribution using `apt`, `dnf`, `pacman`, or similar.
+    * The command-line tools for XCode on macOS provide flex but the provided bison version is too old.
+    * We include the `contrib/setup-bison.sh` script that can be used to install a more up-to-date version.
+    * Alternatively, Homebrew can also be used to install a newer version of bison.
   * [optional] to build with MathSAT (required for interpolation-based model checking) you need to obtain the libraries yourself
     * note that MathSAT is under a custom non-BSD compliant license and you must assume all responsibility for meeting the conditions
-    * download the solver from https://mathsat.fbk.eu/download.html, unpack it and rename the directory to `./deps/mathsat`
-    * then add the `--with-msat` flag to the `setup-smt-switch.sh` command.
+    * download the solver from https://mathsat.fbk.eu/download.html and unpack it
+    * then add the `--with-msat` flag to the `setup-smt-switch.sh` command, along with `--msat-dir=<path>` unless you renamed the unpacked directory to `./deps/mathsat`
 * Run `./contrib/setup-btor2tools.sh`.
 * Run `./configure.sh`.
   * if building with mathsat, also include `--with-msat` as an option to `configure.sh`
+  * to build against dependencies installed elsewhere, pass their install prefixes with `--smt-switch-dir`, `--bitwuzla-dir`, `--msat-dir`, and `--z3-dir`; `setup-smt-switch.sh` prints the ones you need to repeat
 * Run `cd build`.
 * Run `make`.
 * [optional] Run `make check` to build and run the tests.

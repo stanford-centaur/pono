@@ -927,10 +927,10 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
         }
         if (args.size() >= 2 && args[1]) {
           logger.log(1,
-                     "SystemVerilogEncoder: "
-                         + std::string(call.getSubroutineName())
-                         + "'s explicit clocking_event argument is not "
-                           "modeled (single global clock); ignoring");
+                     "SystemVerilogEncoder: {}'s explicit clocking_event "
+                     "argument is not modeled (single global clock); "
+                     "ignoring",
+                     call.getSubroutineName());
         }
         Term val = expr_to_term(*args[0], prefix);
         Sort bv1 = solver_->make_sort(BV, 1);

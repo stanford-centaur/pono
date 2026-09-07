@@ -16,6 +16,8 @@
 
 #include "utils/syntax_analysis_walker.h"
 
+#include <cassert>
+
 #include "smt-switch/utils.h"
 #include "utils/container_shortcut.h"
 #include "utils/logger.h"
@@ -24,12 +26,10 @@
 // #define DEBUG
 #ifdef DEBUG
 #define D(...) logger.log(__VA_ARGS__)
-#define INFO(...) D(0, __VA_ARGS__)
 #else
 #define D(...) \
   do {         \
   } while (0)
-#define INFO(...) logger.log(3, __VA_ARGS__)
 #endif
 
 namespace pono {

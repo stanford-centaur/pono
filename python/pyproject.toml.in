@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pono"
-version = "@PONO_MAJOR@.@PONO_MINOR@.@PONO_RELEASE@"
+version = "@PONO_RELEASE_VERSION@"
 description = "Python bindings for the model checker Pono"
 readme = {text = "Python bindings for the model checker Pono", content-type = "text/plain"}
 license = "BSD-3-Clause"

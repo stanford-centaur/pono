@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <fmt/format.h>
+
 #include "engines/prover.h"
 #include "options/options.h"
 
@@ -74,8 +76,8 @@ class KInduction : public SafetyProver
   template <typename... Args>
   void kind_log_msg(size_t level,
                     const std::string & indent,
-                    const std::string & format,
-                    const Args &... args) const;
+                    fmt::format_string<Args...> format,
+                    Args &&... args) const;
   // If base case checking is skipped: run one final base check
   // covering all bounds from 0 to current one to make sure that no
   // counterexamples were missed

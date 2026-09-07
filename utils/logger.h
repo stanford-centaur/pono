@@ -16,110 +16,47 @@
 
 #pragma once
 
-// use the header only implementation
-#define FMT_HEADER_ONLY
-
 #include <iostream>
+#include <utility>
 
-#include "fmt/format.h"
+// pono's CMake target already requests the header-only build of fmt, but
+// define it here too so that including the installed copy of this header needs
+// nothing but fmt's headers. Guarded because the target defines it with a
+// value.
+#ifndef FMT_HEADER_ONLY
+#define FMT_HEADER_ONLY 1
+#endif
+
+#include <fmt/format.h>
+
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
 
 /****************************** Support for printing smt-switch objects
  * *********************************/
 
-/** Takes a string and removes the curly brackets
- *  Since fmt/format.h uses {} to denote an argument
- *  it breaks if there are curly brackets in the string
- *  @param s the string to start with
- *  @return the same string but without curly brackets
+/** Formats an smt-switch object by delegating to the std::string formatter.
+ *  Delegating means the printed text is passed as an argument rather than as a
+ *  format string, so terms containing curly brackets print verbatim, and the
+ *  inherited parse() accepts the usual string format specs.
+ *  @param type the smt-switch type to format
+ *  @param expr an expression producing the text for a value named v
  */
-std::string remove_curly_brackets(std::string s);
+#define PONO_STRING_FORMATTER(type, expr)                   \
+  template <>                                               \
+  struct fmt::formatter<type> : formatter<std::string>      \
+  {                                                         \
+    auto format(const type & v, format_context & ctx) const \
+    {                                                       \
+      return formatter<std::string>::format(expr, ctx);     \
+    }                                                       \
+  };
 
-// Term
-template <>
-struct fmt::formatter<smt::Term>
-{
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext & ctx)
-  {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const smt::Term & t, FormatContext & ctx)
-  {
-    return format_to(ctx.out(), remove_curly_brackets(t->to_string()));
-  }
-};
-
-// Sort
-template <>
-struct fmt::formatter<smt::Sort>
-{
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext & ctx)
-  {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const smt::Sort & s, FormatContext & ctx)
-  {
-    return format_to(ctx.out(), remove_curly_brackets(s->to_string()));
-  }
-};
-
-// PrimOp
-template <>
-struct fmt::formatter<smt::PrimOp>
-{
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext & ctx)
-  {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const smt::PrimOp & po, FormatContext & ctx)
-  {
-    return format_to(ctx.out(), smt::to_string(po));
-  }
-};
-
-// Op
-template <>
-struct fmt::formatter<smt::Op>
-{
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext & ctx)
-  {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const smt::Op & o, FormatContext & ctx)
-  {
-    return format_to(ctx.out(), o.to_string());
-  }
-};
-
-// Result
-template <>
-struct fmt::formatter<smt::Result>
-{
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext & ctx)
-  {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const smt::Result & r, FormatContext & ctx)
-  {
-    return format_to(ctx.out(), r.to_string());
-  }
-};
+PONO_STRING_FORMATTER(smt::Term, v->to_string())
+PONO_STRING_FORMATTER(smt::Sort, v->to_string())
+PONO_STRING_FORMATTER(smt::PrimOp, smt::to_string(v))
+PONO_STRING_FORMATTER(smt::Op, v.to_string())
+PONO_STRING_FORMATTER(smt::Result, v.to_string())
 
 /*********************** End overloaded methods for printing smt-switch objects
  * **********************/
@@ -146,11 +83,12 @@ class Log
   template <typename... Args>
   void log_to_stream(size_t level,
                      std::ostream & output_stream,
-                     const std::string & format,
-                     const Args &... args) const
+                     fmt::format_string<Args...> format,
+                     Args &&... args) const
   {
     if (level <= verbosity) {
-      output_stream << fmt::format(format, args...) << std::endl;
+      output_stream << fmt::format(format, std::forward<Args>(args)...)
+                    << std::endl;
     }
   }
 
@@ -161,26 +99,16 @@ class Log
    * @param args comma separated list of inputs for the format string
    */
   template <typename... Args>
-  void log(size_t level, const std::string & format, const Args &... args) const
+  void log(size_t level,
+           fmt::format_string<Args...> format,
+           Args &&... args) const
   {
-    log_to_stream(level, std::cerr, format, args...);
-  }
-
-  /* Logs to the terminal using Python-style format string in a range of
-   * verbosities: [lower, upper]
-   * @param lower the lower cutoff for verbosity
-   * @param upper the upper cutoff for verbosity
-   * @param format the format string
-   * @param args comma separated list of inputs for the format string
-   */
-  template <typename... Args>
-  void log(size_t lower,
-           size_t upper,
-           const std::string & format,
-           const Args &... args) const
-  {
-    if ((lower <= verbosity) && (verbosity <= upper)) {
-      std::cerr << fmt::format(format, args...) << std::endl;
+    // Formatted here rather than by delegating to log_to_stream, because
+    // passing a format_string on to a second checked overload would deduce a
+    // different Args pack and reject every call site.
+    if (level <= verbosity) {
+      std::cerr << fmt::format(format, std::forward<Args>(args)...)
+                << std::endl;
     }
   }
 

@@ -19,7 +19,8 @@ if [[ ! -d "$DEPS/btor2tools" ]]; then
   cmake --install . --prefix "$DEPS/install"
   cd "$DIR"
 else
-  echo "$DEPS/btor2tools already exists. If you want to rebuild, please remove it manually."
+  echo "$DEPS/btor2tools already exists. If you want to rebuild, please" \
+    "remove it manually."
 fi
 
 if [[ -f "$DEPS/install/lib/libbtor2parser.a" ]]; then
@@ -28,6 +29,7 @@ if [[ -f "$DEPS/install/lib/libbtor2parser.a" ]]; then
 else
   echo "Building btor2tools failed."
   echo "You might be missing some dependencies."
-  echo "Please see their github page for installation instructions: https://github.com/Boolector/btor2tools.git"
+  echo "Please see their github page for installation instructions:" \
+    "https://github.com/Boolector/btor2tools.git"
   exit 1
 fi

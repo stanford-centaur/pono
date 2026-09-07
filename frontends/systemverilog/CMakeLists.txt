@@ -35,4 +35,4 @@ target_include_directories(pono-systemverilog PUBLIC ${INCLUDE_DIRS})
 # CXX_STANDARD target property is not honored by the Ninja/Makefiles
 # generators, so the standard flag is set directly via COMPILE_OPTIONS.)
 target_compile_options(pono-systemverilog PRIVATE "${CMAKE_CXX20_STANDARD_COMPILE_OPTION}")
-target_link_libraries(pono-systemverilog PUBLIC slang::slang)
+target_link_libraries(pono-systemverilog PUBLIC slang::slang smt-switch fmt::fmt-header-only)
