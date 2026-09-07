@@ -286,53 +286,75 @@ TEST_P(SVUnitTests, Gap_SequenceRepetitionUnboundedRange)
 }
 
 // ---------------------------------------------------------------------------
-// Property-level connectives ltl_to_sat()/assertion_expr_to_bool() have no
-// gadget for -- previously silently dropped (the whole property simply
-// never checked, no thrown error) rather than throwing; now throws a
-// clear error naming the unsupported shape. Each is mainstream
-// verification-relevant SVA, not a deliberate non-goal: in-property
-// if/case could plausibly ITE-compose already-built Booleans;
-// accept_on/reject_on could plausibly reuse the disable_window()
-// machinery `disable iff` already has; intersect/within/throughout/
-// followed-by as top-level connectives (as opposed to inside a bounded
-// sequence match, which offsets_ending_now() already handles -- see
-// SeqIntersect/SeqWithin/SeqThroughout above) and a bare multi-element
-// sequence used directly as a property could plausibly delegate to
-// offsets_ending_now()/match_exists() and the existing F/G/U/R tableau
-// gadgets. None of that plausible follow-up work is attempted here, so
-// (matching Gap_UserFunctionCall's convention) these assert UNKNOWN as
-// a placeholder for "the correct answer, once implemented" rather than
-// a specifically-reasoned verdict.
+// Property-level connectives ltl_to_sat()/assertion_expr_to_bool()
+// previously had no gadget for -- silently dropped (the whole property
+// simply never checked, no thrown error) before this session started,
+// then converted to a clean throw, and now genuinely implemented by
+// composing this file's existing gadgets. `accept_on`/`reject_on` remain
+// unimplemented (see Gap_PropertyAcceptOn below) -- their formal
+// semantics (the abort condition can supersede the property's outcome
+// at *any* cycle during its evaluation, not just at a single recursive
+// call) don't localize the way the other four do, so they need their
+// own dedicated semantics research before any code is written.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_PropertyConditional)
+// In-property `if (sel) a else b`: a plain ITE composition, reduces to
+// a current-cycle Boolean via assertion_expr_to_bool()'s own
+// Conditional case, so this is an ordinary safety property (not routed
+// through the LTL/justice machinery) -- sel/a/b are all free, so BMC
+// finds a violation (e.g. sel=1, a=0) immediately.
+TEST_P(SVUnitTests, PropertyConditional)
 {
-  check_bmc("property_conditional.sv", 1, ProverResult::UNKNOWN);
+  check_bmc("property_conditional.sv", 0);
 }
 
-TEST_P(SVUnitTests, Gap_PropertyCase)
-{
-  check_bmc("property_case.sv", 1, ProverResult::UNKNOWN);
-}
+// In-property `case (sel) 0: a; 1: b; default: 1'b1; endcase`: same
+// current-cycle-Boolean fast path as PropertyConditional, generalized
+// to N branches -- sel/a/b free, BMC finds a violation (e.g. sel=0,
+// a=0) immediately.
+TEST_P(SVUnitTests, PropertyCase) { check_bmc("property_case.sv", 0); }
 
+// `accept_on`/`reject_on`/`sync_accept_on`/`sync_reject_on`: deferred,
+// see the file-level comment above this section.
 TEST_P(SVUnitTests, Gap_PropertyAcceptOn)
 {
   check_bmc("property_accept_on.sv", 1, ProverResult::UNKNOWN);
 }
 
-TEST_P(SVUnitTests, Gap_PropertyIntersectTopLevel)
+// `a intersect b` used directly as a property (as opposed to as the
+// antecedent of `|->`/`|=>`, where offsets_ending_now() already
+// handles it -- see SeqIntersect above): per the LRM a bare sequence
+// used as a property has implicit `strong` semantics ("must eventually
+// match"), so this routes through try_strong_sequence()'s match_exists()
+// + make_F() -- a genuine liveness obligation, hence check_liveness_bmc()
+// rather than check_bmc(). `a`/`b` are both free every cycle, so a
+// trace where they're never simultaneously true (e.g. always a=0)
+// violates the obligation.
+TEST_P(SVUnitTests, PropertyIntersectTopLevel)
 {
-  check_bmc("property_intersect_toplevel.sv", 1, ProverResult::UNKNOWN);
+  check_liveness_bmc("property_intersect_toplevel.sv", 3);
 }
 
-TEST_P(SVUnitTests, Gap_PropertyFollowedBy)
+// `a #-# b`: a required (not merely conditional) sequential
+// composition -- match_exists(a) (trivially "a holds now" for a
+// length-1 sequence) AND b, checked at every cycle. Reduces to a plain
+// current-cycle Boolean in principle, but this encoder doesn't (yet)
+// give FollowedBy an assertion_expr_to_bool() fast path the way
+// Conditional/Case got, so it's still routed through the LTL/justice
+// machinery -- check_liveness_bmc() rather than check_bmc(). `a`/`b`
+// free, so BMC finds a=0 (or b=0) immediately.
+TEST_P(SVUnitTests, PropertyFollowedBy)
 {
-  check_bmc("property_followed_by.sv", 1, ProverResult::UNKNOWN);
+  check_liveness_bmc("property_followed_by.sv", 3);
 }
 
-TEST_P(SVUnitTests, Gap_BareSequenceConcatProperty)
+// A bare multi-element sequence (`a ##1 b`) used directly as a
+// property: same implicit-`strong` reasoning as
+// PropertyIntersectTopLevel -- must eventually match. `a`/`b` free, so
+// a trace that never has a followed by b one cycle later violates it.
+TEST_P(SVUnitTests, BareSequenceConcatProperty)
 {
-  check_bmc("bare_sequence_concat_property.sv", 1, ProverResult::UNKNOWN);
+  check_liveness_bmc("bare_sequence_concat_property.sv", 3);
 }
 
 // Temporal (non-safety) `assume`/`restrict property` -- previously

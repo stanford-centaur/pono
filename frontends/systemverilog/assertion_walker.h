@@ -179,6 +179,24 @@ class AssertionWalker
   smt::Term weak_seq_bool(const slang::ast::AssertionExpr & seq,
                           const std::string & prefix);
 
+  /** A bounded sequence used directly as a property (no explicit
+   *  `strong`/`weak` wrapper) has implicit `strong` semantics per the
+   *  LRM: the sequence must eventually complete a match. Shares the
+   *  match_exists() + make_F/make_G construction
+   *  AssertionExprKind::StrongWeak's `Strong` case already uses for an
+   *  explicit `strong(seq)`, factored out so ltl_to_sat() can also
+   *  fall back to it for a bare sequence shape (SequenceConcat,
+   *  FirstMatch, SequenceWithMatch, or a Binary Intersect/Within/
+   *  Throughout) it has no dedicated temporal-operator gadget for.
+   *  Returns a null Term if `ae` isn't a sequence shape
+   *  offsets_ending_now() models at all, so the caller can fall
+   *  through to its own throw.
+   */
+  smt::Term try_strong_sequence(const slang::ast::AssertionExpr & ae,
+                                bool neg,
+                                smt::TermVec & justice,
+                                const std::string & prefix);
+
   /** General symbolic-tableau translation of an SVA property into the
    *  Boolean SMT term `sat(psi)` that holds at a cycle iff the
    *  (possibly negated) property `psi` holds starting from that cycle,
@@ -194,9 +212,11 @@ class AssertionWalker
    *  eventuality operator (F / strong-until) appends its discharge
    *  condition to `justice`.
    *
-   *  Returns a null Term when the property uses an operator the
-   *  tableau does not model (sequence intersect/throughout/within/
-   *  followed-by, etc.); the caller then skips the assertion.
+   *  Throws a clear PonoException when the property uses a shape this
+   *  tableau has no gadget for (`accept_on`/`reject_on`, or a nested
+   *  `disable iff` not stripped by process_concurrent_assertion()'s
+   *  top-level handling) rather than silently dropping the whole
+   *  property.
    */
   smt::Term ltl_to_sat(const slang::ast::AssertionExpr & ae,
                        bool neg,

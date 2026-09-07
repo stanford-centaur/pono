@@ -45,6 +45,7 @@
 #include <string>
 
 #include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/expr_encoder.h"
 #include "frontends/systemverilog/tableau.h"
 #include "slang/ast/Expression.h"
@@ -53,6 +54,7 @@
 #include "slang/ast/expressions/AssertionExpr.h"
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/statements/MiscStatements.h"
+#include "slang/ast/types/Type.h"
 #include "slang/syntax/AllSyntax.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
@@ -543,6 +545,20 @@ smt::Term AssertionWalker::weak_seq_bool(const slang::ast::AssertionExpr & seq,
   return solver_->make_term(Not, violated);
 }
 
+smt::Term AssertionWalker::try_strong_sequence(
+    const slang::ast::AssertionExpr & ae,
+    bool neg,
+    smt::TermVec & justice,
+    const string & prefix)
+{
+  Term me = match_exists(ae, prefix);
+  if (!me) return Term();
+  // strong(seq): a genuine liveness obligation -- the sequence must
+  // eventually complete a match.
+  return neg ? tableau_.make_G(solver_->make_term(Not, me), prefix)
+             : tableau_.make_F(me, justice, prefix);
+}
+
 smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
                                       bool neg,
                                       smt::TermVec & justice,
@@ -565,12 +581,8 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       // Boolean/temporal expression) is unaffected by the qualifier
       // under this encoder's infinite-lasso semantics; just unwrap.
       if (sw.strength == StrongWeakAssertionExpr::Strong) {
-        Term me = match_exists(sw.expr, prefix);
-        if (me) {
-          // strong(seq): a genuine liveness obligation -- the sequence
-          // must eventually complete a match.
-          return neg ? tableau_.make_G(solver_->make_term(Not, me), prefix)
-                     : tableau_.make_F(me, justice, prefix);
+        if (Term strong = try_strong_sequence(sw.expr, neg, justice, prefix)) {
+          return strong;
         }
       }
       return ltl_to_sat(sw.expr, neg, justice, prefix);
@@ -607,13 +619,15 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       // (`assert property (a ##1 b);`, as opposed to as the
       // antecedent of `|->`/`|=>`, which assertion_expr_to_bool()
       // handles via the bounded sequence matcher): per the LRM this
-      // means "the sequence must eventually match", an inherent
-      // liveness obligation this tableau has no gadget for.
+      // has implicit `strong` semantics -- the sequence must
+      // eventually complete a match.
+      if (Term strong = try_strong_sequence(ae, neg, justice, prefix)) {
+        return strong;
+      }
       throw PonoException(
           "SystemVerilogEncoder: property '" + current_assertion_label_
-          + "' uses a multi-element sequence directly as a property "
-            "(not as the antecedent of |-> or |=>), which is not "
-            "supported");
+          + "' uses a sequence shape used directly as a property that "
+            "is not supported");
     }
 
     case AssertionExprKind::Unary: {
@@ -656,6 +670,62 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
               "SystemVerilogEncoder: unsupported unary assertion operator "
               + string(toString(u.op)));
       }
+    }
+
+    case AssertionExprKind::Conditional: {
+      // In-property `if (cond) p else q`: negation distributes into
+      // whichever branch `cond` selects -- the branch structure itself
+      // doesn't change polarity, so this is a plain ITE over the two
+      // (already correctly negated) recursive results.
+      auto & c = ae.as<ConditionalAssertionExpr>();
+      Term cond = expr_encoder_.expr_to_term(c.condition, prefix);
+      Term cond_bool = solver_->make_term(
+          Distinct, cond, solver_->make_term(0, cond->get_sort()));
+      Term if_branch = ltl_to_sat(c.ifExpr, neg, justice, prefix);
+      if (!if_branch) return Term();
+      Term else_branch;
+      if (c.elseExpr) {
+        else_branch = ltl_to_sat(*c.elseExpr, neg, justice, prefix);
+        if (!else_branch) return Term();
+      } else {
+        // No else branch: per the LRM, a false condition with nothing
+        // to check is vacuously satisfied -- true when un-negated,
+        // false negated.
+        else_branch = solver_->make_term(!neg);
+      }
+      return solver_->make_term(Ite, cond_bool, if_branch, else_branch);
+    }
+
+    case AssertionExprKind::Case: {
+      // In-property `case (sel) item0: p0; item1: p1; ... endcase`:
+      // the same ITE idea as Conditional, generalized to N branches --
+      // fold the item list right-to-left into a chain of ITEs seeded
+      // by the default case's (already correctly negated) result.
+      auto & c = ae.as<CaseAssertionExpr>();
+      Term sel = expr_encoder_.expr_to_term(c.expr, prefix);
+      Term result;
+      if (c.defaultCase) {
+        result = ltl_to_sat(*c.defaultCase, neg, justice, prefix);
+        if (!result) return Term();
+      } else {
+        // No default and nothing matched: vacuously satisfied, same
+        // as Conditional's missing else branch above.
+        result = solver_->make_term(!neg);
+      }
+      uint64_t sel_w = sel->get_sort()->get_width();
+      for (auto it = c.items.rbegin(); it != c.items.rend(); ++it) {
+        Term branch = ltl_to_sat(*it->body, neg, justice, prefix);
+        if (!branch) return Term();
+        Term item_cond;
+        for (auto * match_expr : it->expressions) {
+          Term m = expr_encoder_.expr_to_term(*match_expr, prefix);
+          m = resize_to(solver_, m, sel_w, match_expr->type->isSigned());
+          Term eq = solver_->make_term(Equal, sel, m);
+          item_cond = item_cond ? solver_->make_term(Or, item_cond, eq) : eq;
+        }
+        result = solver_->make_term(Ite, item_cond, branch, result);
+      }
+      return result;
     }
 
     case AssertionExprKind::Binary: {
@@ -760,12 +830,50 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           return tableau_.make_U(nterm, nl, justice, prefix);
         }
 
+        case BinaryAssertionOperator::OverlappedFollowedBy:
+        case BinaryAssertionOperator::NonOverlappedFollowedBy: {
+          // s1 #-# p2 / s1 #=# p2 is a required (not merely
+          // conditional, unlike |->) sequential composition: s1 must
+          // match, and p2 must then hold starting at the match's own
+          // end cycle (overlapped) or one cycle later (non-
+          // overlapped). Since every property here is checked at
+          // *every* cycle (assert property(p) ~ always p), reindex so
+          // "now" is p2's own check point -- exactly the trick
+          // OverlappedImplication/NonOverlappedImplication already
+          // use above (delay the antecedent match *backward* to align
+          // with the consequent's check point, rather than shifting
+          // the consequent forward): match_exists(s1) already gives
+          // "s1 matched, ending now" for any match length; delaying
+          // that *backward* by `extra` cycles gives "s1 matched,
+          // ending `extra` cycles ago" -- exactly the antecedent this
+          // formula needs when p2 is checked now.
+          Term match = match_exists(b.left, prefix);
+          if (!match) return Term();
+          uint32_t extra =
+              (b.op == BinaryAssertionOperator::NonOverlappedFollowedBy) ? 1
+                                                                         : 0;
+          if (extra > 0) match = tableau_.delay_bool(match, extra, prefix);
+          Term p2 = ltl_to_sat(b.right, neg, justice, prefix);
+          if (!p2) return Term();
+          // sat(s1 #-# p2) = match AND p2; negated (De Morgan):
+          // !match OR sat(!p2) -- p2 is already the correctly negated
+          // term per this function's usual convention, so only
+          // `match`'s own polarity and the outer combinator branch on
+          // `neg`.
+          Term match_term = neg ? solver_->make_term(Not, match) : match;
+          return solver_->make_term(neg ? Or : And, match_term, p2);
+        }
+
         default:
-          // Intersect / Throughout / Within / FollowedBy: multi-cycle
-          // sequence operators the tableau does not model as
-          // top-level property connectives (as opposed to inside a
-          // bounded sequence match, which offsets_ending_now() does
-          // handle for Intersect/Within/Throughout).
+          // Intersect / Throughout / Within: sequence-composition
+          // operators offsets_ending_now() already models when the
+          // whole binary expression is treated as a sequence (see
+          // SeqIntersect/SeqWithin/SeqThroughout) -- try that (the
+          // same implicit-strong fallback SequenceConcat/FirstMatch/
+          // SequenceWithMatch use below) before giving up.
+          if (Term strong = try_strong_sequence(ae, neg, justice, prefix)) {
+            return strong;
+          }
           throw PonoException(
               "SystemVerilogEncoder: property '" + current_assertion_label_
               + "' uses '" + string(toString(b.op))
@@ -773,18 +881,20 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       }
     }
 
-    // FirstMatch, SequenceWithMatch, Abort (abort_property/accept_on/
-    // reject_on/sync_accept_on/sync_reject_on), Conditional (in-
-    // property `if`/`else`), Case (in-property `case`), and a nested
-    // DisableIff (one not stripped by the top-level `disable iff`
-    // handling in process_concurrent_assertion(), e.g. as one operand
-    // of a Binary/Unary operator): none of these reduce to a
-    // temporal-tester gadget this tableau builds. assertion_expr_to_bool()
-    // already tried and failed to fold this into a current-cycle
-    // Boolean before falling back here, so there is no further
-    // fallback left -- throw rather than silently dropping the whole
-    // property.
+    // FirstMatch, SequenceWithMatch: bounded sequence shapes
+    // offsets_ending_now() already models -- try treating the whole
+    // property as an implicitly-strong sequence match (the same
+    // fallback the SequenceConcat/Binary cases above use) before
+    // giving up. Abort (accept_on/reject_on/sync_accept_on/sync_
+    // reject_on) and a nested DisableIff (one not stripped by the
+    // top-level `disable iff` handling in
+    // process_concurrent_assertion(), e.g. as one operand of a
+    // Binary/Unary operator) aren't sequences at all, so this always
+    // fails for them, falling through to the throw below.
     default:
+      if (Term strong = try_strong_sequence(ae, neg, justice, prefix)) {
+        return strong;
+      }
       throw PonoException(
           "SystemVerilogEncoder: property '" + current_assertion_label_
           + "' uses an assertion expression shape (" + string(toString(ae.kind))
@@ -882,6 +992,56 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
           // a forward-shift the encoder doesn't model yet.
           return Term();
       }
+    }
+
+    case AssertionExprKind::Conditional: {
+      // Mirrors ltl_to_sat()'s Conditional case (always positive
+      // polarity here; the caller negates the whole result if
+      // needed), so a purely-Boolean if/else takes this fast,
+      // current-cycle-safety path instead of unconditionally paying
+      // for the full LTL tableau. Falls back (returns null) as soon
+      // as either branch does.
+      auto & c = ae.as<ConditionalAssertionExpr>();
+      Term if_branch = assertion_expr_to_bool(c.ifExpr, prefix);
+      if (!if_branch) return Term();
+      Term else_branch;
+      if (c.elseExpr) {
+        else_branch = assertion_expr_to_bool(*c.elseExpr, prefix);
+        if (!else_branch) return Term();
+      } else {
+        else_branch = solver_->make_term(true);
+      }
+      Term cond = expr_encoder_.expr_to_term(c.condition, prefix);
+      Term cond_bool = solver_->make_term(
+          Distinct, cond, solver_->make_term(0, cond->get_sort()));
+      return solver_->make_term(Ite, cond_bool, if_branch, else_branch);
+    }
+
+    case AssertionExprKind::Case: {
+      // Mirrors ltl_to_sat()'s Case case -- see Conditional above.
+      auto & c = ae.as<CaseAssertionExpr>();
+      Term result;
+      if (c.defaultCase) {
+        result = assertion_expr_to_bool(*c.defaultCase, prefix);
+        if (!result) return Term();
+      } else {
+        result = solver_->make_term(true);
+      }
+      Term sel = expr_encoder_.expr_to_term(c.expr, prefix);
+      uint64_t sel_w = sel->get_sort()->get_width();
+      for (auto it = c.items.rbegin(); it != c.items.rend(); ++it) {
+        Term branch = assertion_expr_to_bool(*it->body, prefix);
+        if (!branch) return Term();
+        Term item_cond;
+        for (auto * match_expr : it->expressions) {
+          Term m = expr_encoder_.expr_to_term(*match_expr, prefix);
+          m = resize_to(solver_, m, sel_w, match_expr->type->isSigned());
+          Term eq = solver_->make_term(Equal, sel, m);
+          item_cond = item_cond ? solver_->make_term(Or, item_cond, eq) : eq;
+        }
+        result = solver_->make_term(Ite, item_cond, branch, result);
+      }
+      return result;
     }
 
     case AssertionExprKind::Binary: {
@@ -1001,11 +1161,11 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
     }
 
     default:
-      // FirstMatch, SequenceWithMatch, Conditional, Case, Abort,
-      // DisableIff, etc.: shapes this current-cycle-Boolean fast path
-      // doesn't reduce (Unary is handled by its own case above, not
-      // here).  Caller logs the skipped kind if the ltl_to_sat()
-      // fallback can't reduce it either.
+      // FirstMatch, SequenceWithMatch, Abort, DisableIff, etc.: shapes
+      // this current-cycle-Boolean fast path doesn't reduce
+      // (Conditional/Case/Unary are handled by their own cases above,
+      // not here). The caller throws if the ltl_to_sat() fallback
+      // can't reduce it either.
       return Term();
   }
 }
