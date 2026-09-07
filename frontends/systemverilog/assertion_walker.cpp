@@ -603,7 +603,17 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       if (auto m = match_const_delay_seq(ae)) {
         return ltl_to_sat(*m->second, neg, justice, prefix);
       }
-      return Term();
+      // A genuine multi-element sequence used directly as a property
+      // (`assert property (a ##1 b);`, as opposed to as the
+      // antecedent of `|->`/`|=>`, which assertion_expr_to_bool()
+      // handles via the bounded sequence matcher): per the LRM this
+      // means "the sequence must eventually match", an inherent
+      // liveness obligation this tableau has no gadget for.
+      throw PonoException(
+          "SystemVerilogEncoder: property '" + current_assertion_label_
+          + "' uses a multi-element sequence directly as a property "
+            "(not as the antecedent of |-> or |=>), which is not "
+            "supported");
     }
 
     case AssertionExprKind::Unary: {
@@ -638,7 +648,13 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           return tableau_.make_X(phi, prefix);
         }
 
-        default: return Term();
+        // Every UnaryAssertionOperator value is handled above; this is
+        // defensive against a future slang operator this encoder
+        // hasn't been taught, not a currently-reachable case.
+        default:
+          throw PonoException(
+              "SystemVerilogEncoder: unsupported unary assertion operator "
+              + string(toString(u.op)));
       }
     }
 
@@ -746,12 +762,33 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
 
         default:
           // Intersect / Throughout / Within / FollowedBy: multi-cycle
-          // sequence operators the tableau does not model.
-          return Term();
+          // sequence operators the tableau does not model as
+          // top-level property connectives (as opposed to inside a
+          // bounded sequence match, which offsets_ending_now() does
+          // handle for Intersect/Within/Throughout).
+          throw PonoException(
+              "SystemVerilogEncoder: property '" + current_assertion_label_
+              + "' uses '" + string(toString(b.op))
+              + "' as a top-level connective, which is not supported");
       }
     }
 
-    default: return Term();
+    // FirstMatch, SequenceWithMatch, Abort (abort_property/accept_on/
+    // reject_on/sync_accept_on/sync_reject_on), Conditional (in-
+    // property `if`/`else`), Case (in-property `case`), and a nested
+    // DisableIff (one not stripped by the top-level `disable iff`
+    // handling in process_concurrent_assertion(), e.g. as one operand
+    // of a Binary/Unary operator): none of these reduce to a
+    // temporal-tester gadget this tableau builds. assertion_expr_to_bool()
+    // already tried and failed to fold this into a current-cycle
+    // Boolean before falling back here, so there is no further
+    // fallback left -- throw rather than silently dropping the whole
+    // property.
+    default:
+      throw PonoException(
+          "SystemVerilogEncoder: property '" + current_assertion_label_
+          + "' uses an assertion expression shape (" + string(toString(ae.kind))
+          + ") that is not supported");
   }
 }
 
@@ -1109,14 +1146,18 @@ void AssertionWalker::process_concurrent_assertion(
     // Temporal (non-safety) assume/restrict properties would need
     // their own fairness-constraint machinery (assuming a GF
     // condition rather than proving one), which nothing else in
-    // the encoder builds yet -- skip cleanly rather than attempt a
-    // partial, likely-unsound translation.
-    logger.log(1,
-               "SystemVerilogEncoder: skipping unsupported temporal "
-               "assume/restrict property {}",
-               make_name(prefix, assertion_label(stmt)));
-    current_disable_cond_ = saved_disable_cond;
-    return;
+    // the encoder builds yet. Dropping an assumption silently is
+    // worse than dropping an assertion: the model would be left
+    // *less* constrained than the source describes, so any
+    // counterexample BMC/IC3 finds afterward could be spurious
+    // (ruled out by the assumption this never applied) -- throw
+    // rather than risk reporting an unsound "bug".
+    throw PonoException(
+        "SystemVerilogEncoder: temporal (non-safety) '"
+        + std::string(ca.assertionKind == AssertionKind::Restrict ? "restrict"
+                                                                  : "assume")
+        + " property' is not supported: "
+        + make_name(prefix, assertion_label(stmt)));
   }
 
   if (is_cover) {
@@ -1141,12 +1182,14 @@ void AssertionWalker::process_concurrent_assertion(
   TermVec justice;
   Term satpsi = ltl_to_sat(*a, /*neg=*/true, justice, prefix);
   if (!satpsi) {
-    logger.log(1,
-               "SystemVerilogEncoder: skipping unsupported temporal "
-               "assertion kind {}",
-               static_cast<int>(a->kind));
-    current_disable_cond_ = saved_disable_cond;
-    return;
+    // ltl_to_sat() throws for every AssertionExprKind/operator it
+    // doesn't model; a null result here can only come from a bounded-
+    // sequence shape offsets_ending_now()/match_exists() doesn't
+    // model (a separate, already-documented gap in that primitive) --
+    // still throw rather than silently drop the whole property.
+    throw PonoException(
+        "SystemVerilogEncoder: property '" + current_assertion_label_
+        + "' uses an assertion shape this encoder cannot translate");
   }
 
   Sort bv1 = solver_->make_sort(BV, 1);

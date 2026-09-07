@@ -285,6 +285,72 @@ TEST_P(SVUnitTests, Gap_SequenceRepetitionUnboundedRange)
   expect_encode_throws("unbounded_repeat_range.sv");
 }
 
+// ---------------------------------------------------------------------------
+// Property-level connectives ltl_to_sat()/assertion_expr_to_bool() have no
+// gadget for -- previously silently dropped (the whole property simply
+// never checked, no thrown error) rather than throwing; now throws a
+// clear error naming the unsupported shape. Each is mainstream
+// verification-relevant SVA, not a deliberate non-goal: in-property
+// if/case could plausibly ITE-compose already-built Booleans;
+// accept_on/reject_on could plausibly reuse the disable_window()
+// machinery `disable iff` already has; intersect/within/throughout/
+// followed-by as top-level connectives (as opposed to inside a bounded
+// sequence match, which offsets_ending_now() already handles -- see
+// SeqIntersect/SeqWithin/SeqThroughout above) and a bare multi-element
+// sequence used directly as a property could plausibly delegate to
+// offsets_ending_now()/match_exists() and the existing F/G/U/R tableau
+// gadgets. None of that plausible follow-up work is attempted here, so
+// (matching Gap_UserFunctionCall's convention) these assert UNKNOWN as
+// a placeholder for "the correct answer, once implemented" rather than
+// a specifically-reasoned verdict.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, Gap_PropertyConditional)
+{
+  check_bmc("property_conditional.sv", 1, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, Gap_PropertyCase)
+{
+  check_bmc("property_case.sv", 1, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, Gap_PropertyAcceptOn)
+{
+  check_bmc("property_accept_on.sv", 1, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, Gap_PropertyIntersectTopLevel)
+{
+  check_bmc("property_intersect_toplevel.sv", 1, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, Gap_PropertyFollowedBy)
+{
+  check_bmc("property_followed_by.sv", 1, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, Gap_BareSequenceConcatProperty)
+{
+  check_bmc("bare_sequence_concat_property.sv", 1, ProverResult::UNKNOWN);
+}
+
+// Temporal (non-safety) `assume`/`restrict property` -- previously
+// silently dropped (logged and skipped, with the model left less
+// constrained than the source describes, risking a spurious
+// counterexample from a later `assert`); now throws instead. A real
+// gap (the dual of the justice-based proving machinery already built
+// for `assert`), not an inherent impossibility.
+TEST_P(SVUnitTests, Gap_TemporalAssumeProperty)
+{
+  check_bmc("temporal_assume_property.sv", 1, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, Gap_TemporalRestrictProperty)
+{
+  check_bmc("temporal_restrict_property.sv", 1, ProverResult::UNKNOWN);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVSvaTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
