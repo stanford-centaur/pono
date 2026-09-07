@@ -27,23 +27,29 @@
  *     obligation isn't a reachability check) and throw a clear error.
  *
  *   - Multiclock properties (a property whose sequence mentions more than
- *     one `@(posedge clkN)`): this encoder has no clock-domain-crossing
- *     model at all -- every design in this frontend's test suite already
- *     implicitly assumes one global clock advances the whole design by one
- *     cycle per sample. Rather than reject a multiclock property outright,
- *     every named clock is treated identically (each clock edge mentioned
- *     anywhere in a sequence advances the same global pono-cycle). This is
- *     the minimal behavior consistent with the encoder's existing single-
- *     clock assumption, not a real multi-domain/clock-ratio model.
+ *     one clock, or more than one edge of the same clock): this encoder
+ *     has no clock-domain-crossing model at all -- no clock dividers, no
+ *     nondeterministic per-cycle choice of which clock toggles -- every
+ *     design in this frontend's test suite already implicitly assumes one
+ *     global clock advances the whole design by one cycle per sample.
+ *     Rather than silently (or even just with a warning) collapse a
+ *     second clock onto that same global cycle, check_clock() rejects it
+ *     outright: the first `@(edge clk)` seen anywhere in the design's
+ *     properties establishes the one clock this design is allowed to
+ *     have, and any later property clocked on a different signal or a
+ *     different edge throws a clear PonoException instead.
  */
 #include "frontends/systemverilog/assertion_walker.h"
 
 #include <cstdint>
 #include <string>
 
+#include "frontends/systemverilog/ast_helpers.h"
 #include "frontends/systemverilog/expr_encoder.h"
 #include "frontends/systemverilog/tableau.h"
 #include "slang/ast/Expression.h"
+#include "slang/ast/Symbol.h"
+#include "slang/ast/TimingControl.h"
 #include "slang/ast/expressions/AssertionExpr.h"
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/statements/MiscStatements.h"
@@ -132,6 +138,49 @@ string AssertionWalker::make_name(const string & prefix, const string & name)
 {
   if (prefix.empty()) return name;
   return prefix + "." + name;
+}
+
+void AssertionWalker::check_clock(const slang::ast::TimingControl & clocking)
+{
+  using namespace slang::ast;
+
+  if (clocking.kind != TimingControlKind::SignalEvent) {
+    throw PonoException(
+        "SystemVerilogEncoder: property '" + current_assertion_label_
+        + "' has a clocking event that isn't a single edge-sensitive "
+          "signal (@*, an event list, repeat, ...) -- this encoder "
+          "requires every property to be clocked on one edge of one "
+          "signal");
+  }
+  auto & sec = clocking.as<SignalEventControl>();
+  const Symbol * sym = find_lhs_base(sec.expr);
+  if (!sym) {
+    throw PonoException(
+        "SystemVerilogEncoder: property '" + current_assertion_label_
+        + "' has a clocking event whose clock signal could not be "
+          "resolved");
+  }
+
+  if (!design_clock_sym_) {
+    design_clock_sym_ = sym;
+    design_clock_edge_ = static_cast<int>(sec.edge);
+    return;
+  }
+  if (sym != design_clock_sym_
+      || static_cast<int>(sec.edge) != design_clock_edge_) {
+    throw PonoException(
+        "SystemVerilogEncoder: property '" + current_assertion_label_
+        + "' is clocked on " + string(toString(sec.edge)) + " of '"
+        + string(sym->name) + "', but this design's clock was already "
+          "established as "
+        + string(toString(static_cast<EdgeKind>(design_clock_edge_))) + " of '"
+        + string(design_clock_sym_->name)
+        + "' by an earlier property -- multi-clock designs (distinct "
+          "clocks, or distinct edges of the same clock) are not "
+          "supported, since this encoder has no clock-domain-crossing "
+          "model (no clock dividers, no nondeterministic per-cycle "
+          "choice of which clock toggles)");
+  }
 }
 
 // ============================================================================
@@ -267,11 +316,14 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       // throughout operand) ever ask offsets_ending_now() for.
       return offsets_ending_now(seq.as<FirstMatchAssertionExpr>().seq, prefix);
 
-    case AssertionExprKind::Clocking:
-      // Per this file's multiclock design decision: every named clock
-      // is treated as the same global pono-cycle, so a nested clocking
-      // change inside a sequence element is simply unwrapped.
-      return offsets_ending_now(seq.as<ClockingAssertionExpr>().expr, prefix);
+    case AssertionExprKind::Clocking: {
+      // check_clock() throws if a nested clocking change inside a
+      // sequence element names a different clock than the property's
+      // first one -- see this file's multiclock design decision.
+      auto & clk_expr = seq.as<ClockingAssertionExpr>();
+      check_clock(clk_expr.clocking);
+      return offsets_ending_now(clk_expr.expr, prefix);
+    }
 
     case AssertionExprKind::SequenceConcat: {
       auto & sc = seq.as<SequenceConcatExpr>();
@@ -445,8 +497,11 @@ smt::Term AssertionWalker::leading_condition(
     }
     case AssertionExprKind::FirstMatch:
       return leading_condition(seq.as<FirstMatchAssertionExpr>().seq, prefix);
-    case AssertionExprKind::Clocking:
-      return leading_condition(seq.as<ClockingAssertionExpr>().expr, prefix);
+    case AssertionExprKind::Clocking: {
+      auto & clk_expr = seq.as<ClockingAssertionExpr>();
+      check_clock(clk_expr.clocking);
+      return leading_condition(clk_expr.expr, prefix);
+    }
     case AssertionExprKind::SequenceConcat:
       return leading_condition(
           *seq.as<SequenceConcatExpr>().elements[0].sequence, prefix);
@@ -496,9 +551,11 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
   using namespace slang::ast;
 
   switch (ae.kind) {
-    case AssertionExprKind::Clocking:
-      return ltl_to_sat(
-          ae.as<ClockingAssertionExpr>().expr, neg, justice, prefix);
+    case AssertionExprKind::Clocking: {
+      auto & clk_expr = ae.as<ClockingAssertionExpr>();
+      check_clock(clk_expr.clocking);
+      return ltl_to_sat(clk_expr.expr, neg, justice, prefix);
+    }
 
     case AssertionExprKind::StrongWeak: {
       auto & sw = ae.as<StrongWeakAssertionExpr>();
@@ -706,9 +763,12 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
   switch (ae.kind) {
     case AssertionExprKind::Clocking: {
       // The clocking event has already been baked into our cycle
-      // abstraction; just recurse into the underlying expression.
-      return assertion_expr_to_bool(ae.as<ClockingAssertionExpr>().expr,
-                                    prefix);
+      // abstraction; check_clock() throws if it names a different
+      // clock than the property's first one, then just recurse into
+      // the underlying expression.
+      auto & clk_expr = ae.as<ClockingAssertionExpr>();
+      check_clock(clk_expr.clocking);
+      return assertion_expr_to_bool(clk_expr.expr, prefix);
     }
 
     case AssertionExprKind::Simple: {
@@ -962,6 +1022,12 @@ void AssertionWalker::process_concurrent_assertion(
     return;
   }
 
+  // Record this property's label for check_clock()'s exception message
+  // -- design_clock_sym_/design_clock_edge_ themselves are NOT reset
+  // here: they track the one clock the whole design is allowed to
+  // have, not just this property's.
+  current_assertion_label_ = assertion_label(stmt);
+
   // Strip the clocking wrapper (the clock event is already
   // baked into our per-cycle abstraction) and any explicit
   // `disable iff` wrapper, recording its condition.  If the
@@ -971,7 +1037,9 @@ void AssertionWalker::process_concurrent_assertion(
   const Expression * disable_expr = nullptr;
   while (true) {
     if (a->kind == AssertionExprKind::Clocking) {
-      a = &a->as<ClockingAssertionExpr>().expr;
+      auto & clk_expr = a->as<ClockingAssertionExpr>();
+      check_clock(clk_expr.clocking);
+      a = &clk_expr.expr;
     } else if (a->kind == AssertionExprKind::DisableIff) {
       auto & di = a->as<DisableIffAssertionExpr>();
       disable_expr = &di.condition;

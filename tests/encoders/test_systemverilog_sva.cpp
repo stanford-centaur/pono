@@ -232,25 +232,27 @@ TEST_P(SVUnitTests, SeqThroughout) { check_bmc("seq_throughout.sv", 1); }
 
 // ---------------------------------------------------------------------------
 // A multiclock property: the antecedent `a ##1 @(posedge clk2) b` is a
-// 2-element SequenceConcat with a mid-sequence clock change.
-// offsets_ending_now() unwraps a nested Clocking node exactly like the
-// outer handler already does for the top-level one -- per this file's
-// documented multiclock design decision, every named clock is treated
-// as the same global pono-cycle, with no warning ever logged. A real
-// gap, not a deliberate non-goal, since multiclock designs are
-// mainstream verification-relevant SVA -- a real clock-domain-crossing
-// model (relative clock ratios, distinct per-domain sampling) would be
-// a substantially larger feature. This reduces the property to exactly
-// the same shape as a plain `a ##1 b |-> 1'b0`. `a`/`b` are free from
-// cycle 0 (neither is reset-gated); earliest match is a@0, b@1,
-// violated at cycle 1. This test characterizes the silently-
-// approximated (and likely incorrect, relative to `clk2`'s real
-// timing) behavior, not a claim that it's correct.
+// 2-element SequenceConcat with a mid-sequence clock change. This
+// encoder has no clock-domain-crossing model (no clock dividers, no
+// nondeterministic per-cycle choice of which clock toggles), so
+// rather than silently collapsing `clk2` onto the same global cycle
+// as `clk1` (the property's own outer clock, established first),
+// check_clock() rejects the design outright -- correctly out of
+// scope, not a gap to eventually close.
 // ---------------------------------------------------------------------------
 
-TEST_P(SVUnitTests, Gap_MulticlockProperty)
+TEST_P(SVUnitTests, MulticlockPropertyRejected)
 {
-  check_bmc("multiclock_property.sv", 1);
+  expect_encode_throws("multiclock_property.sv");
+}
+
+// Same signal, opposite edges (`@(posedge clk)` on one property,
+// `@(negedge clk)` on another): check_clock() tracks (signal, edge)
+// pairs, not just the signal, so this is rejected for the same reason
+// as MulticlockPropertyRejected above.
+TEST_P(SVUnitTests, MixedEdgePropertyRejected)
+{
+  expect_encode_throws("mixed_edge_property.sv");
 }
 
 // ---------------------------------------------------------------------------

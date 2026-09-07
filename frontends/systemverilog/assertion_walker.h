@@ -38,6 +38,8 @@ class ConcurrentAssertionStatement;
 class Expression;
 class ImmediateAssertionStatement;
 class Statement;
+class Symbol;
+class TimingControl;
 }  // namespace slang::ast
 
 namespace pono {
@@ -61,8 +63,8 @@ class AssertionWalker
    *  reduces to a current-cycle Boolean or needs the general LTL
    *  tableau.
    *  @param ca the concurrent assertion statement
-   *  @param stmt the same statement, for its source label (used only in
-   *         log messages)
+   *  @param stmt the same statement, for its source label (used in log
+   *         messages and in check_clock()'s exception message)
    *  @param prefix the caller's current hierarchical name prefix
    *  @param default_disable_expr the enclosing module's `default
    *         disable iff` condition (Compilation::getDefaultDisable),
@@ -118,11 +120,11 @@ class AssertionWalker
   /** General bounded sequence matching: given a sequence expression
    *  (`Simple`/`SequenceWithMatch` with a consecutive `[m:n]`
    *  repetition, `SequenceConcat` with per-element `[m:n]` delay
-   *  ranges, `FirstMatch`, `Clocking` -- unwrapped/ignored per this
-   *  file's multiclock design decision -- or a `Binary`
-   *  intersect/within/throughout composition of two such sequences),
-   *  returns a vector indexed by relative offset `L` where entry `L`
-   *  is a Term true iff the sequence
+   *  ranges, `FirstMatch`, `Clocking` -- checked via check_clock() and
+   *  then unwrapped -- or a `Binary` intersect/within/throughout
+   *  composition of two such sequences), returns a vector indexed by
+   *  relative offset `L` where entry `L` is a Term true iff the
+   *  sequence
    *  completes a match at the *current* cycle, having started `L`
    *  cycles earlier. A null entry means that offset is structurally
    *  unreachable. Returns an empty vector for sequence shapes this
@@ -210,6 +212,25 @@ class AssertionWalker
   static std::string make_name(const std::string & prefix,
                                const std::string & name);
 
+  /** Checks the clock named by a `Clocking` AssertionExpr node's
+   *  `clocking` control against `design_clock_sym_`/`design_clock_edge_`,
+   *  the (signal, edge) pair established by the first such clocking
+   *  event seen anywhere in the design's properties. The first call
+   *  overall just establishes that baseline; every later call throws a
+   *  clear PonoException if it names a different signal or a different
+   *  edge of the same signal -- this encoder has no clock-domain-
+   *  crossing model (no clock dividers, no nondeterministic per-cycle
+   *  choice of which clock toggles), so a genuinely multi-clock design
+   *  is rejected outright rather than silently (or even just with a
+   *  warning) collapsed onto one global cycle. See the "SVA design
+   *  decisions" note at the top of assertion_walker.cpp. Also throws
+   *  if `clocking` isn't a single edge-sensitive signal (`@*`, an
+   *  event list, `repeat`, ...), since this check can't be soundly
+   *  skipped for a shape it can't identify a clock from.
+   *  @param clocking the clocking control to inspect
+   */
+  void check_clock(const slang::ast::TimingControl & clocking);
+
   ExprEncoder & expr_encoder_;
   Tableau & tableau_;
   const smt::SmtSolver & solver_;
@@ -232,6 +253,23 @@ class AssertionWalker
   // assertion_expr_to_bool()/ltl_to_sat() via tableau_.disable_window(),
   // so it need not be threaded through every recursive call in between.
   smt::Term current_disable_cond_;
+
+  // The (signal, edge) pair established by the first clocking event
+  // seen anywhere in the design's properties (see check_clock()) --
+  // persists for the lifetime of this AssertionWalker (one whole
+  // design), not just one property, since the design has exactly one
+  // clock or none at all. design_clock_edge_ is a slang::ast::EdgeKind
+  // value stored as a plain int so this header doesn't need that
+  // enum's full definition; only meaningful once design_clock_sym_ is
+  // non-null.
+  const slang::ast::Symbol * design_clock_sym_ = nullptr;
+  int design_clock_edge_ = 0;
+
+  // The current property's source label, for check_clock()'s exception
+  // message; set at the start of each process_concurrent_assertion()
+  // call. Immediate assertions have no AssertionExpr/Clocking tree to
+  // walk, so process_immediate_assertion() never touches this.
+  std::string current_assertion_label_;
 };
 
 }  // namespace pono
