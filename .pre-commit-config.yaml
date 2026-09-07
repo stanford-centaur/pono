@@ -16,6 +16,11 @@ repos:
     hooks:
       - id: clang-format
         exclude: "^(contrib/|tests/encoders/inputs/coreir/)"
+        # identify tags a file by its last extension only, so *.h.in gets no
+        # c++ tag. Selecting by path covers the templates too, at the cost of
+        # keeping this extension list current by hand.
+        types_or: [text]
+        files: '\.(c|cc|cpp|h|hpp)(\.in)?$'
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.5
     hooks:
