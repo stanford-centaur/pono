@@ -153,6 +153,19 @@ TEST_P(SVUnitTests, FinalBlockIgnored)
   expect_encode_succeeds_ignoring("final_block.sv");
 }
 
+// `$display` (and the rest of the display/severity/file-I/O/simulation-
+// control system-task families) used as a bare statement inside an
+// ordinary procedural block: process_statement()'s Call-expression
+// handling recognizes any system call as simulation-only and skips it
+// (logged), the same as $display inside the `final` block above --
+// distinct from a user-defined task call, which has real side effects
+// this encoder can't inline and so throws instead (Gap_VoidTaskCall in
+// test_systemverilog_statements.cpp).
+TEST_P(SVUnitTests, DisplayCallStatementIgnored)
+{
+  expect_encode_succeeds_ignoring("display_call_statement.sv");
+}
+
 // A bare `forever` (no event control) has no static iteration bound at
 // all and can't be unrolled by the compile-time-bounded model -- a
 // genuine architectural boundary, not a "not implemented yet" gap. See

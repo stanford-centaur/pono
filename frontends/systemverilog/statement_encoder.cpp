@@ -23,6 +23,7 @@
 #include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/CallExpression.h"
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/expressions/SelectExpressions.h"
@@ -544,6 +545,33 @@ void StatementEncoder::process_statement(
             commit_write(w, slice_of(new_val, w.rhs_lo, w.rhs_hi));
           }
         }
+      } else if (expr.kind == ExpressionKind::Call) {
+        // A bare call statement (`task_or_func(args);`, no assignment).
+        // A system call (`$display`, `$finish`, `$fatal`, file I/O,
+        // assertion/coverage control, etc.) has no synthesis meaning and
+        // no effect on any modeled state, so it's safe to skip like the
+        // other simulation-only constructs above (final blocks,
+        // force/release, specify blocks). A user-defined task or
+        // function has a body this encoder never inlines as a
+        // statement, so any side effect it has on design state (writes
+        // to variables read elsewhere) would be silently lost -- throw
+        // instead of risking an unsound model.
+        auto & call = expr.as<CallExpression>();
+        if (call.isSystemCall()) {
+          logger.log(1,
+                     "SystemVerilogEncoder: skipping simulation-only system "
+                     "call '{}' used as a statement",
+                     call.getSubroutineName());
+        } else {
+          throw PonoException(
+              "SystemVerilogEncoder: unsupported call to '"
+              + std::string(call.getSubroutineName())
+              + "' used as a statement (side effects not modeled)");
+        }
+      } else {
+        throw PonoException(
+            "SystemVerilogEncoder: unsupported expression statement kind "
+            + std::to_string(static_cast<int>(expr.kind)));
       }
       break;
     }

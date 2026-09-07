@@ -293,6 +293,17 @@ TEST_P(SVUnitTests, ImmediateAssume)
   check_bmc("immediate_assume.sv", 4, ProverResult::UNKNOWN);
 }
 
+// A void task call used as a bare statement (`bump(a, b);`) is
+// mainstream synthesizable RTL, not a deliberate non-goal, the same as
+// Gap_UserFunctionCall's plain function call -- process_statement()'s
+// Call-expression handling doesn't inline user task bodies, so it
+// throws "unsupported call" instead of applying the task's side
+// effect on `b`.
+TEST_P(SVUnitTests, Gap_VoidTaskCall)
+{
+  check_bmc("void_task_call.sv", 0, ProverResult::UNKNOWN);
+}
+
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVStatementsTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
