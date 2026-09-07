@@ -276,11 +276,22 @@ void SymbolTable::pre_scan_instance(const slang::ast::InstanceSymbol & inst,
     }
   }
 
-  // Recurse into nested instances so any wires further down the
+  // Recurse into nested instances (and checker instances, in case a
+  // module is ever legally instantiated inside one -- the LRM's
+  // checker-body item list doesn't appear to allow it today, but this
+  // keeps the recursion consistent with pre_scan_state_vars(), which
+  // does recurse into checker instances) so any wires further down the
   // hierarchy are visible to declare_variables.
   walk_members(inst.body, prefix, [&](const Symbol & m) {
     if (m.kind == SymbolKind::Instance) {
       pre_scan_instance(m.as<InstanceSymbol>(), prefix);
+    } else if (m.kind == SymbolKind::CheckerInstance) {
+      walk_members(
+          m.as<CheckerInstanceSymbol>().body, prefix, [&](const Symbol & cm) {
+            if (cm.kind == SymbolKind::Instance) {
+              pre_scan_instance(cm.as<InstanceSymbol>(), prefix);
+            }
+          });
     }
   });
 }
