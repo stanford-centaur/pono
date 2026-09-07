@@ -139,22 +139,38 @@ class SystemVerilogEncoder
    *  Error handling contract for anything outside that subset -- every
    *  construct this encoder doesn't support falls into exactly one of
    *  two buckets, never a third "silently produces a wrong encoding"
-   *  bucket:
+   *  bucket, and never a "logs a warning but still approximates"
+   *  middle ground either:
    *    - Simulation-only constructs (no possible functional-logic
    *      meaning in a per-cycle model at all: `program`/`checker`
    *      instances, `specify` blocks, `fork`/`join`, `wait`,
-   *      `force`/`release`, `defparam`, `bind`, ...) are dropped and
-   *      logged as a warning (`logger.log(1, ...)`, visible at
-   *      verbosity >= 1) rather than encoded or rejected -- the rest
-   *      of the design is still encoded normally.
+   *      `force`/`release`, `defparam`, `bind`, `$display` and the
+   *      rest of the display/severity/file-I/O/simulation-control
+   *      system-task families, ...) are dropped and logged as a
+   *      warning (`logger.log(1, ...)`, visible at verbosity >= 1)
+   *      rather than encoded or rejected -- the rest of the design is
+   *      still encoded normally. This bucket is for constructs with
+   *      *no* synthesis/verification semantics to get wrong in the
+   *      first place.
    *    - Everything else this encoder doesn't (yet) support -- a
-   *      mainstream RTL feature not yet implemented, or a malformed/
-   *      out-of-bounds use of a feature it does implement -- throws a
-   *      PonoException instead of silently dropping or mis-encoding
-   *      it. This is enforced structurally, not just by convention:
-   *      e.g. resolve_lvalue()'s default case throws for any lvalue
-   *      expression shape it has no case for, rather than returning
-   *      nullopt and letting the caller silently no-op the write.
+   *      mainstream RTL feature not yet implemented, a malformed/
+   *      out-of-bounds use of a feature it does implement, or a
+   *      feature (like multiple clocks) this encoder's model can't
+   *      represent at all -- throws a PonoException instead of
+   *      silently dropping, mis-encoding, or merely warning about it.
+   *      A warning is not a substitute for correctness here: if a
+   *      construct has real synthesis/verification semantics, this
+   *      encoder either models it correctly or rejects it outright,
+   *      never both "log it" and "approximate it anyway". This is
+   *      enforced structurally, not just by convention: e.g.
+   *      resolve_lvalue()'s default case throws for any lvalue
+   *      expression shape it has no case for rather than returning
+   *      nullopt and letting the caller silently no-op the write, and
+   *      AssertionWalker::check_clock() throws rather than collapsing
+   *      a second clock (or a second edge of the same clock) onto the
+   *      one this encoder's single-global-clock model already
+   *      committed to (see assertion_walker.cpp's "SVA design
+   *      decisions" note).
    *  See tests/encoders/test_systemverilog_unsupported.cpp for the
    *  ledger of constructs checked against this contract, each verified
    *  empirically (not assumed) to land in the bucket its test expects.
