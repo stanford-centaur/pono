@@ -289,10 +289,8 @@ if(WITH_COREIR OR WITH_COREIR_EXTERN)
   set(SOURCES "${SOURCES}" "${PROJECT_SOURCE_DIR}/frontends/coreir_encoder.cpp")
 endif()
 
-if(WITH_SLANG)
-  add_definitions(-DWITH_SLANG)
-  add_subdirectory(frontends/systemverilog)
-endif()
+add_definitions(-DWITH_SLANG)
+add_subdirectory(frontends/systemverilog)
 
 if(WITH_MSAT)
   # need direct access to mathsat for setting options
@@ -367,9 +365,7 @@ if(WITH_COREIR_EXTERN)
   target_link_libraries(pono-lib PUBLIC coreir verilogAST)
 endif()
 
-if(WITH_SLANG)
-  target_link_libraries(pono-lib PUBLIC pono-systemverilog)
-endif()
+target_link_libraries(pono-lib PUBLIC pono-systemverilog)
 
 if(WITH_COREIR)
   target_include_directories(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}/deps/coreir/local/include")
@@ -448,9 +444,7 @@ set(CMAKE_INSTALL_MESSAGE LAZY)
 install(TARGETS pono-lib DESTINATION lib)
 install(TARGETS pono-bin DESTINATION bin)
 
-if(WITH_SLANG)
-  install(TARGETS pono-systemverilog DESTINATION lib)
-endif()
+install(TARGETS pono-systemverilog DESTINATION lib)
 
 # install public headers
 install(
