@@ -51,6 +51,12 @@ if(PONO_STATIC_EXEC STREQUAL "YES")
   endif()
 endif()
 
+# Several switches dispatch on an option enum and rely on covering every
+# enumerator, so adding one without a case has to be a compile error rather
+# than a silently skipped branch. Not implied by the default flags, which do
+# not include -Wall.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=switch")
+
 if(WITH_BOOLECTOR)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_BOOLECTOR")
 endif()

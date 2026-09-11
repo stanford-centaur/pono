@@ -96,4 +96,56 @@ set_tests_properties(
   PROPERTIES PASS_REGULAR_EXPRESSION "^${PONO_RELEASE_VERSION_REGEX}"
 )
 
+# Btor2 fairness constraints reach the prover only through the driver, so
+# these cover the wiring that the unit tests above cannot. Each asserts on
+# output rather than the return code, which is non-zero for the error cases.
+set(BTOR2_INPUT_DIR "${PROJECT_SOURCE_DIR}/tests/encoders/inputs/btor2")
+
+# The justice condition alone is violated, so proving the property depends on
+# the fair line being honored. k-induction is needed because bmc, the default
+# engine, cannot prove a property.
+add_test(
+  NAME test_justice_fairness
+  COMMAND pono-bin --justice --engine ind "${BTOR2_INPUT_DIR}/fair_frozen_mode.btor2"
+)
+set_tests_properties(test_justice_fairness PROPERTIES PASS_REGULAR_EXPRESSION "unsat\nj0")
+
+# k-liveness counts one condition, so it has to reject a fairness constraint
+# rather than silently check the justice condition alone.
+add_test(
+  NAME test_justice_fairness_klive
+  COMMAND pono-bin --justice --justice-translator klive "${BTOR2_INPUT_DIR}/fair_frozen_mode.btor2"
+)
+set_tests_properties(test_justice_fairness_klive PROPERTIES PASS_REGULAR_EXPRESSION "fairness")
+
+# Fair lines do not constrain safety checking, so checking a bad property has
+# to say that they are being ignored.
+add_test(
+  NAME test_fairness_ignored_without_justice
+  COMMAND pono-bin "${BTOR2_INPUT_DIR}/fair_with_bad_property.btor2"
+)
+set_tests_properties(
+  test_fairness_ignored_without_justice
+  PROPERTIES PASS_REGULAR_EXPRESSION "ignoring 1 fair line"
+)
+
+# Errors label the property by the kind that was requested, so a failure
+# under --justice reports j, not b.
+add_test(
+  NAME test_justice_error_label
+  COMMAND pono-bin --justice --prop 5 "${BTOR2_INPUT_DIR}/fair_frozen_mode.btor2"
+)
+set_tests_properties(test_justice_error_label PROPERTIES PASS_REGULAR_EXPRESSION "error\nj5")
+
+# The SMV and VMT encoders parse no liveness properties, so --justice has to
+# be refused instead of silently checking an invariant property.
+add_test(
+  NAME test_justice_rejected_for_smv
+  COMMAND pono-bin --justice "${PROJECT_SOURCE_DIR}/tests/encoders/inputs/smv/counter.smv"
+)
+set_tests_properties(
+  test_justice_rejected_for_smv
+  PROPERTIES PASS_REGULAR_EXPRESSION "--justice is not supported for smv"
+)
+
 add_subdirectory(encoders)

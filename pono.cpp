@@ -16,14 +16,23 @@
 
 #include <cassert>
 #include <csignal>
+#include <exception>
 #include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 
 #ifdef WITH_PROFILING
 #include <gperftools/profiler.h>
 #endif
 
 #include "core/fts.h"
+#include "core/prop.h"
+#include "core/proverresult.h"
+#include "core/rts.h"
+#include "core/ts.h"
 #include "engines/kliveness.h"
+#include "engines/prover.h"
 #include "frontends/btor2_encoder.h"
 #include "frontends/smv_encoder.h"
 #include "frontends/vmt_encoder.h"
@@ -36,8 +45,10 @@
 #include "printers/btor2_witness_printer.h"
 #include "printers/vcd_witness_printer.h"
 #include "smt-switch/logging_solver.h"
+#include "smt-switch/smt.h"
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 #include "utils/timestamp.h"
@@ -242,6 +253,11 @@ int main(int argc, char ** argv)
   // set logger verbosity -- can only be set once
   logger.set_verbosity(pono_options.verbosity_);
 
+  // Btor2 output labels a property by kind and index. Built here, next to the
+  // options, so the error paths below cannot disagree with the result path.
+  const string prop_label =
+      (pono_options.justice_ ? "j" : "b") + to_string(pono_options.prop_idx_);
+
   // For profiling: set signal handlers for common signals to abort
   // program.  This is necessary to gracefully stop profiling when,
   // e.g., an external time limit is enforced to stop the program.
@@ -317,46 +333,53 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
 
-      Term prop;
-      if (pono_options.justice_) {
-        // The selected algorithm can modify the transition system in place.
-        switch (pono_options.justice_translator_) {
-          case pono::LIVENESS_TO_SAFETY:
-            if (pono_options.static_coi_) {
-              StaticConeOfInfluence coi(fts,
-                                        justicevec[pono_options.prop_idx_],
-                                        pono_options.verbosity_);
-            }
-            prop = LivenessToSafetyTranslator{}.translate(
-                fts, justicevec[pono_options.prop_idx_]);
-            break;
-        }
-      } else {
-        prop = propvec[pono_options.prop_idx_];
-      }
-
       vector<UnorderedTermMap> cex;
-      if (pono_options.justice_
-          && pono_options.justice_translator_ == KLIVENESS) {
-        LivenessProperty justice_prop(s, justicevec[pono_options.prop_idx_]);
-        KLiveness justice_prover(justice_prop, fts, s, pono_options);
-        res = justice_prover.check_until(pono_options.bound_);
-        if (res == ProverResult::FALSE && pono_options.witness_) {
-          if (!justice_prover.witness(cex)) {
-            logger.log(0,
-                       "Only got a partial witness from engine. "
-                       "Not suitable for printing.");
+      if (pono_options.justice_) {
+        // Fairness constraints are file-global, and a counterexample must
+        // satisfy them as often as the property's own justice conditions, so
+        // both sets are checked together.
+        TermVec conditions = justicevec[pono_options.prop_idx_];
+        conditions.insert(conditions.end(),
+                          btor_enc.fairvec().begin(),
+                          btor_enc.fairvec().end());
+        switch (pono_options.justice_translator_) {
+          case pono::LIVENESS_TO_SAFETY: {
+            // These modify the transition system in place.
+            if (pono_options.static_coi_) {
+              StaticConeOfInfluence coi(
+                  fts, conditions, pono_options.verbosity_);
+            }
+            Term prop = LivenessToSafetyTranslator{}.translate(fts, conditions);
+            res = check_prop(pono_options, prop, fts, s, cex);
+            break;
+          }
+          case pono::KLIVENESS: {
+            LivenessProperty justice_prop(s, conditions);
+            KLiveness justice_prover(justice_prop, fts, s, pono_options);
+            res = justice_prover.check_until(pono_options.bound_);
+            if (res == ProverResult::FALSE && pono_options.witness_
+                && !justice_prover.witness(cex)) {
+              logger.log(0,
+                         "Only got a partial witness from engine. "
+                         "Not suitable for printing.");
+            }
+            break;
           }
         }
       } else {
+        if (!btor_enc.fairvec().empty()) {
+          logger.log(0,
+                     "Warning: ignoring {} fair line(s); fairness constraints "
+                     "only apply to justice properties (--justice).",
+                     btor_enc.fairvec().size());
+        }
+        Term prop = propvec[pono_options.prop_idx_];
         res = check_prop(pono_options, prop, fts, s, cex);
       }
       // we assume that a prover never returns 'ERROR'
       assert(res != ERROR);
 
       // print btor output
-      const string prop_label = (pono_options.justice_ ? "j" : "b")
-                                + to_string(pono_options.prop_idx_);
       if (res == FALSE) {
         cout << "sat" << endl;
         cout << prop_label << endl;
@@ -392,6 +415,11 @@ int main(int argc, char ** argv)
       }
 
     } else if (file_ext == "smv" || file_ext == "vmt" || file_ext == "smt2") {
+      if (pono_options.justice_) {
+        throw PonoException("--justice is not supported for " + file_ext
+                            + " input; the encoder for this format parses "
+                              "only invariant properties");
+      }
       logger.log(2, "Parsing SMV/VMT file: {}", pono_options.filename_);
       RelationalTransitionSystem rts(s);
       TermVec propvec;
@@ -451,20 +479,20 @@ int main(int argc, char ** argv)
   catch (PonoException & ce) {
     cerr << ce.what() << endl;
     cout << "error" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
+    cout << prop_label << endl;
     res = ProverResult::ERROR;
   }
   catch (SmtException & se) {
     cerr << se.what() << endl;
     cout << "error" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
+    cout << prop_label << endl;
     res = ProverResult::ERROR;
   }
   catch (std::exception & e) {
     cerr << "Caught generic exception..." << endl;
     cerr << e.what() << endl;
     cout << "error" << endl;
-    cout << "b" << pono_options.prop_idx_ << endl;
+    cout << prop_label << endl;
     res = ProverResult::ERROR;
   }
 #endif
