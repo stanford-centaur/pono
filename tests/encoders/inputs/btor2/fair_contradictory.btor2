@@ -1,0 +1,11 @@
+; The two fairness constraints (GF mode and GF !mode) cannot both hold on a
+; trace where mode never changes, so no trace is fair and every liveness
+; result under them holds vacuously. Pono does not flag this, matching how it
+; treats an unsatisfiable set of constraint lines in safety checking.
+1 sort bitvec 1
+2 state 1 mode
+3 next 1 2 2
+4 not 1 2
+5 justice 1 2
+6 fair 2
+7 fair 4

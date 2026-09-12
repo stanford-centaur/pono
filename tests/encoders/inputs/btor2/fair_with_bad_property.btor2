@@ -1,0 +1,9 @@
+; A safety property alongside a fair line. Fairness constrains liveness
+; checking only, so checking the bad property here ignores the fair line and
+; warns about it.
+1 sort bitvec 1
+2 state 1 mode
+3 next 1 2 2
+4 not 1 2
+5 bad 4
+6 fair 4

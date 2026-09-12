@@ -96,4 +96,16 @@ set_tests_properties(
   PROPERTIES PASS_REGULAR_EXPRESSION "^${PONO_RELEASE_VERSION_REGEX}"
 )
 
+# Tests that run the executable itself, rather than linking the library. The
+# executable's path comes from a generator expression because pono-bin is
+# defined only after this directory is processed, and the input directory is
+# passed in because the test cannot derive it.
+pono_add_test(test_justice_cli)
+target_compile_definitions(
+  test_justice_cli
+  PRIVATE
+    PONO_BIN="$<TARGET_FILE:pono-bin>"
+    PONO_INPUT_DIR="${PROJECT_SOURCE_DIR}/tests/encoders/inputs"
+)
+
 add_subdirectory(encoders)

@@ -51,6 +51,12 @@ if(PONO_STATIC_EXEC STREQUAL "YES")
   endif()
 endif()
 
+# Several switches dispatch on an option enum and rely on covering every
+# enumerator, so adding one without a case has to be a compile error rather
+# than a silently skipped branch. Not implied by the default flags, which do
+# not include -Wall.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=switch")
+
 if(WITH_BOOLECTOR)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_BOOLECTOR")
 endif()
@@ -336,9 +342,11 @@ add_subdirectory(tests EXCLUDE_FROM_ALL)
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
 set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
 
-# test_version runs the executable itself, so `check` has to build it. Wired
-# up here because pono-bin does not exist yet while tests/ is processed.
+# test_version and test_justice_cli run the executable itself, so building
+# them has to build it too, or they would test a stale or missing binary.
+# Wired up here because pono-bin does not exist yet while tests/ is processed.
 add_dependencies(check pono-bin)
+add_dependencies(test_justice_cli pono-bin)
 
 target_include_directories(
   pono-bin
