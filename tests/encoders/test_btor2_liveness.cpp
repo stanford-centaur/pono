@@ -31,6 +31,17 @@ class Btor2LivenessUnitTests : public ::testing::Test,
     return string(STRFY(PONO_SRC_DIR)) + "/tests/encoders/inputs/btor2/" + name;
   }
 
+  /** Boolector treats booleans and width-1 bitvectors as the same sort, so
+   *  terms built by bv_to_bool report back as bitvectors there. The logging
+   *  wrapper tracks sorts itself, which keeps them as the encoder built them.
+   */
+  SmtSolver make_solver() const
+  {
+    SmtSolver s = create_solver(GetParam(), GetParam() == BTOR);
+    s->set_opt("incremental", "true");
+    return s;
+  }
+
   /** The condition set a generalized-Buchi search is given for the property
    *  at index 0: its justice conditions plus the file's fairness constraints,
    *  matching how pono.cpp combines them.
@@ -49,7 +60,7 @@ class Btor2LivenessUnitTests : public ::testing::Test,
 // encoder has to convert them the same way it converts justice conditions.
 TEST_P(Btor2LivenessUnitTests, FairTermsAreBoolSorted)
 {
-  SmtSolver s = create_solver(GetParam());
+  SmtSolver s = make_solver();
   FunctionalTransitionSystem fts(s);
   BTOR2Encoder be(input_path("fair_frozen_mode.btor2"), fts);
   ASSERT_EQ(be.fairvec().size(), 1);
@@ -65,8 +76,7 @@ TEST_P(Btor2LivenessUnitTests, FairnessRestrictsCounterexample)
   const string filename = input_path("fair_frozen_mode.btor2");
   const int bound = 10;
 
-  SmtSolver justice_solver = create_solver(GetParam());
-  justice_solver->set_opt("incremental", "true");
+  SmtSolver justice_solver = make_solver();
   FunctionalTransitionSystem justice_fts(justice_solver);
   BTOR2Encoder justice_be(filename, justice_fts);
   Term justice_term = LivenessToSafetyTranslator{}.translate(
@@ -76,8 +86,7 @@ TEST_P(Btor2LivenessUnitTests, FairnessRestrictsCounterexample)
   EXPECT_EQ(justice_bmc.check_until(bound), ProverResult::FALSE);
 
   // A separate solver, because the translation adds equally named variables.
-  SmtSolver fair_solver = create_solver(GetParam());
-  fair_solver->set_opt("incremental", "true");
+  SmtSolver fair_solver = make_solver();
   FunctionalTransitionSystem fair_fts(fair_solver);
   BTOR2Encoder fair_be(filename, fair_fts);
   Term fair_term =
@@ -87,8 +96,7 @@ TEST_P(Btor2LivenessUnitTests, FairnessRestrictsCounterexample)
   EXPECT_NE(fair_bmc.check_until(bound), ProverResult::FALSE);
 
   // And no deeper counterexample exists either.
-  SmtSolver ind_solver = create_solver(GetParam());
-  ind_solver->set_opt("incremental", "true");
+  SmtSolver ind_solver = make_solver();
   FunctionalTransitionSystem ind_fts(ind_solver);
   BTOR2Encoder ind_be(filename, ind_fts);
   Term ind_term =
@@ -104,8 +112,7 @@ TEST_P(Btor2LivenessUnitTests, FairnessRestrictsCounterexample)
 // lines in safety checking.
 TEST_P(Btor2LivenessUnitTests, ContradictoryFairnessProvesVacuously)
 {
-  SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
+  SmtSolver s = make_solver();
   FunctionalTransitionSystem fts(s);
   BTOR2Encoder be(input_path("fair_contradictory.btor2"), fts);
   ASSERT_EQ(be.fairvec().size(), 2);
@@ -121,8 +128,7 @@ TEST_P(Btor2LivenessUnitTests, ContradictoryFairnessProvesVacuously)
 // than check the justice condition on its own.
 TEST_P(Btor2LivenessUnitTests, KLivenessRejectsFairness)
 {
-  SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
+  SmtSolver s = make_solver();
   FunctionalTransitionSystem fts(s);
   BTOR2Encoder be(input_path("fair_frozen_mode.btor2"), fts);
   ASSERT_EQ(be.justicevec().at(0).size(), 1);
@@ -142,8 +148,7 @@ TEST_P(Btor2LivenessUnitTests, KLivenessRejectsFairness)
 // the counterexample the fairness constraint ruled out above is found again.
 TEST_P(Btor2LivenessUnitTests, JusticeOnlyIsUnaffected)
 {
-  SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
+  SmtSolver s = make_solver();
   FunctionalTransitionSystem fts(s);
   BTOR2Encoder be(input_path("justice_only.btor2"), fts);
   EXPECT_TRUE(be.fairvec().empty());
