@@ -160,8 +160,13 @@ TEST_P(Btor2LivenessUnitTests, JusticeOnlyIsUnaffected)
   EXPECT_EQ(bmc.check_until(10), ProverResult::FALSE);
 }
 
-INSTANTIATE_TEST_SUITE_P(ParameterizedSolverBtor2LivenessUnitTests,
+// The instantiation name is prefixed to the suite name, so naming it after
+// the suite would only repeat it; there is one instantiation, so it is left
+// empty. The generator suffixes each case with its solver instead of an
+// index, which is what identifies a case in a failure report.
+INSTANTIATE_TEST_SUITE_P(,
                          Btor2LivenessUnitTests,
-                         testing::ValuesIn(available_solver_enums()));
+                         testing::ValuesIn(available_solver_enums()),
+                         testing::PrintToStringParamName());
 
 }  // namespace pono_tests
