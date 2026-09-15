@@ -8,13 +8,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
-  pre-commit:
-    runs-on: ubuntu-slim
-    steps:
-      - uses: actions/checkout@v7
-      - uses: j178/prek-action@v2
-        with:
-          extra-args: --all-files
   build:
     strategy:
       fail-fast: false
