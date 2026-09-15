@@ -107,9 +107,7 @@ TEST_P(Btor2LivenessUnitTests, FairnessRestrictsCounterexample)
 }
 
 // Fairness constraints that cannot all recur exclude every trace, so the
-// property holds for want of any fair counterexample. Pono reports this as a
-// plain proof, the same way it treats an unsatisfiable set of constraint
-// lines in safety checking.
+// property holds for want of any fair counterexample.
 TEST_P(Btor2LivenessUnitTests, ContradictoryFairnessProvesVacuously)
 {
   SmtSolver s = make_solver();
