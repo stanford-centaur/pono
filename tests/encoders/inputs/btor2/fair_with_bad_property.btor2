@@ -1,6 +1,5 @@
 ; A safety property alongside a fair line. Fairness constrains liveness
-; checking only, so checking the bad property here ignores the fair line and
-; warns about it.
+; checking only, so checking the bad property here ignores the fair line.
 1 sort bitvec 1
 2 state 1 mode
 3 next 1 2 2

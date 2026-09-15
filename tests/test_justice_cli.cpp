@@ -113,13 +113,14 @@ TEST_F(JusticeCliUnitTests, JusticeHonorsFairnessConstraints)
   EXPECT_TRUE(contains(run.output, "unsat\nj0"));
 }
 
-// Fair lines do not constrain safety checking, so checking a bad property has
-// to report that they are being ignored.
-TEST_F(JusticeCliUnitTests, FairnessIgnoredWithoutJustice)
+// Btor2 fairness constraints apply to justice properties only, so a fair line
+// has no bearing on checking a bad property. The whole output is matched
+// rather than searched, because "sat" occurs in "unsat" too.
+TEST_F(JusticeCliUnitTests, FairnessDoesNotAffectSafetyChecking)
 {
   const PonoRun run =
       run_pono({ input_path("btor2/fair_with_bad_property.btor2") });
-  EXPECT_TRUE(contains(run.output, "ignoring 1 fair line"));
+  EXPECT_EQ(run.output, "sat\nb0\n");
 }
 
 // k-liveness counts one condition, so it has to reject a fairness constraint

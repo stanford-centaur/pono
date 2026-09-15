@@ -367,12 +367,6 @@ int main(int argc, char ** argv)
           }
         }
       } else {
-        if (!btor_enc.fairvec().empty()) {
-          logger.log(0,
-                     "Warning: ignoring {} fair line(s); fairness constraints "
-                     "only apply to justice properties (--justice).",
-                     btor_enc.fairvec().size());
-        }
         Term prop = propvec[pono_options.prop_idx_];
         res = check_prop(pono_options, prop, fts, s, cex);
       }
