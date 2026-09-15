@@ -2,7 +2,7 @@
 set -euo pipefail
 
 version=3.8.2
-url=https://mirrors.ocf.berkeley.edu/gnu/bison
+url=https://mirror.us-midwest-1.nexcess.net/gnu/bison
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)/deps/bison
 if [[ -d $dir ]]; then
   echo "$dir already exists; remove it if you want to redownload bison" && exit
