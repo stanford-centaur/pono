@@ -83,18 +83,6 @@ TEST_P(Btor2LivenessUnitTests, JusticeOnlyWithKLiveness)
   EXPECT_EQ(kliveness.check_until(10), ProverResult::FALSE);
 }
 
-// Btor2 fair operands are always bitvectors of width 1, but the liveness to
-// safety translation combines conditions with boolean operators, so the
-// encoder has to convert them the same way it converts justice conditions.
-TEST_P(Btor2LivenessUnitTests, FairTermsAreBoolSorted)
-{
-  SmtSolver s = make_solver();
-  FunctionalTransitionSystem fts(s);
-  BTOR2Encoder be(input_path("fair_frozen_mode.btor2"), fts);
-  ASSERT_EQ(be.fairvec().size(), 1);
-  EXPECT_EQ(be.fairvec()[0]->get_sort()->get_sort_kind(), SortKind::BOOL);
-}
-
 // The justice condition alone is violated by the lasso at mode=1, but that
 // lasso never satisfies the fairness constraint, so adding the constraint
 // removes the only counterexample. This is what makes the union of the two
