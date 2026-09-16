@@ -26,7 +26,7 @@
  * this side at all.
  *
  * Implements SymbolTable::DriverResolver for real (see symbol_table.h):
- * SymbolTable's on-demand wire resolution is a genuine, load-bearing
+ * SymbolTable's on-demand wire resolution is a genuine, unavoidable
  * mutual dependency with this class's own driver processing, so this is
  * the one seam in the whole rearchitecture with an actual back-and-forth
  * dependency, funneled through that one small interface rather than a
