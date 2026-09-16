@@ -31,13 +31,9 @@ class Btor2LivenessUnitTests : public ::testing::Test,
     return string(STRFY(PONO_SRC_DIR)) + "/tests/encoders/inputs/btor2/" + name;
   }
 
-  /** Boolector treats booleans and width-1 bitvectors as the same sort, so
-   *  terms built by bv_to_bool report back as bitvectors there. The logging
-   *  wrapper tracks sorts itself, which keeps them as the encoder built them.
-   */
   SmtSolver make_solver() const
   {
-    SmtSolver s = create_solver(GetParam(), GetParam() == BTOR);
+    SmtSolver s = create_solver(GetParam());
     s->set_opt("incremental", "true");
     return s;
   }
