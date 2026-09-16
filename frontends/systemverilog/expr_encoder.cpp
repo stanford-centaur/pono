@@ -471,7 +471,6 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
           // Reduction XOR: parity of bits. For a BV of width n,
           // XOR all bits together.
           uint64_t w = operand->get_sort()->get_width();
-          Sort bv1 = solver_->make_sort(BV, 1);
           result = solver_->make_term(Op(Extract, 0, 0), operand);
           for (uint64_t i = 1; i < w; i++) {
             Term bit = solver_->make_term(Op(Extract, i, i), operand);

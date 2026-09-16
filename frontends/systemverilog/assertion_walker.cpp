@@ -1116,14 +1116,7 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         if (!rhs) return Term();
 
         if (delay > 0) {
-          // Materialize the antecedent as a 1-bit BV so the
-          // history chain has a value to latch.
-          Sort bv1 = solver_->make_sort(BV, 1);
-          Term one_bv1 = solver_->make_term(1, bv1);
-          Term zero_bv1 = solver_->make_term(0, bv1);
-          Term lhs_bv = solver_->make_term(Ite, lhs, one_bv1, zero_bv1);
-          Term delayed_bv = tableau_.make_history_chain(lhs_bv, delay, prefix);
-          lhs = solver_->make_term(Equal, delayed_bv, one_bv1);
+          lhs = tableau_.make_history_chain(lhs, delay, prefix);
         }
         Term result = solver_->make_term(Implies, lhs, rhs);
         if (lhs_delay > 0) {
@@ -1354,19 +1347,15 @@ void AssertionWalker::process_concurrent_assertion(
         + "' uses an assertion shape this encoder cannot translate");
   }
 
-  Sort bv1 = solver_->make_sort(BV, 1);
-  Term one_bv1 = solver_->make_term(1, bv1);
-
-  // Per-property activation latch: a free 1-bit constant.  The
-  // justice set forces it to 1 (so this property's time-0
+  // Per-property activation latch: a free Boolean constant.  The
+  // justice set forces it true (so this property's time-0
   // obligation is enabled), while every *other* property's latch
-  // may stay 0, leaving their obligations vacuous.  This keeps
+  // may stay false, leaving their obligations vacuous.  This keeps
   // independent LTL properties from interfering in one system.
   Term act = fts_.make_statevar(
       make_name(prefix, "__ltl_act_" + std::to_string(tableau_.next_id())),
-      bv1);
+      solver_->make_sort(BOOL));
   fts_.assign_next(act, act);
-  Term act_bool = solver_->make_term(Equal, act, one_bv1);
 
   // Time-0 obligation: when active, the negated property must
   // hold at the first cycle.  Gated by the shared init flag so
@@ -1375,11 +1364,11 @@ void AssertionWalker::process_concurrent_assertion(
   // than to the initial-state predicate.
   Term obligation = solver_->make_term(
       Implies,
-      solver_->make_term(And, tableau_.init_flag(prefix), act_bool),
+      solver_->make_term(And, tableau_.init_flag(prefix), act),
       satpsi);
   fts_.add_constraint(obligation, /*to_init_and_next=*/false);
 
-  justice.push_back(act_bool);
+  justice.push_back(act);
   ltl_justice_.push_back(justice);
   logger.log(1,
              "SystemVerilogEncoder: extracted LTL liveness property "

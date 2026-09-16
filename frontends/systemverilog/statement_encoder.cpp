@@ -637,9 +637,8 @@ void StatementEncoder::process_statement(
       // throw rather than silently evaluate only the plain boolean part
       // of it (mirrors ConditionalExpression handling in
       // expr_encoder.cpp). Each condition's nonzero-reduction is a
-      // Bool-sorted term (like LogicalAnd/LogicalOr above use); only
-      // convert back to BV1 once, after ANDing, to avoid mixing Bool
-      // and BV1 sorts under a single BV-typed `And`.
+      // Bool-sorted term (like LogicalAnd/LogicalOr above use), so the
+      // whole conjunction stays Bool.
       Term bool_cond;
       for (auto & c : cond_stmt.conditions) {
         if (c.pattern) {
@@ -655,23 +654,17 @@ void StatementEncoder::process_statement(
       }
 
       // Build then-condition and else-condition.
-      Sort bv1 = solver_->make_sort(BV, 1);
-      Term one = solver_->make_term(1, bv1);
-      Term zero = solver_->make_term(0, bv1);
-      Term cond_term = solver_->make_term(Ite, bool_cond, one, zero);
-
+      Term not_cond = solver_->make_term(Not, bool_cond);
       Term then_cond;
       Term else_cond;
       if (condition == solver_->make_term(true)) {
         // If the outer condition is trivially true, the condition is
         // just the if-expression.
-        then_cond = solver_->make_term(Equal, cond_term, one);
-        else_cond = solver_->make_term(Equal, cond_term, zero);
+        then_cond = bool_cond;
+        else_cond = not_cond;
       } else {
-        Term cond_eq_one = solver_->make_term(Equal, cond_term, one);
-        Term cond_eq_zero = solver_->make_term(Equal, cond_term, zero);
-        then_cond = solver_->make_term(And, condition, cond_eq_one);
-        else_cond = solver_->make_term(And, condition, cond_eq_zero);
+        then_cond = solver_->make_term(And, condition, bool_cond);
+        else_cond = solver_->make_term(And, condition, not_cond);
       }
 
       process_statement(
