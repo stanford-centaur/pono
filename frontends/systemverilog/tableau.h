@@ -7,7 +7,7 @@
  *
  * Tableau holds the SVA/LTL encoder's tableau/latch-building gadgets:
  * history-chain latching for `$past`/delayed-boolean tracking
- * (make_history_chain, delay_bool), the "first cycle" and "before cycle k"
+ * (make_history_chain), the "first cycle" and "before cycle k"
  * flags (init_flag, before_cycle), the `disable iff` shift-window OR
  * (disable_window), and the one-step "promise" testers for the LTL tableau's
  * X/G/F/R/U operators (make_X/G/F/R/U), with justice (fairness) conditions
@@ -41,10 +41,12 @@ class Tableau
 
   /** Build a chain of `n` 1-cycle latch state vars that track `value`
    *  over n cycles, returning a Term equal to the value from `n` cycles
-   *  ago.  Each latch is initialised to 0 and its next-state is the
-   *  previous link in the chain.  Used by both `$past(...)` and
-   *  sequence-delay assertion expressions.
-   *  @param value the current-cycle value to delay
+   *  ago.  Each latch is initialised to zero/false and its next-state
+   *  is the previous link in the chain.  Used by `$past(...)`, which
+   *  delays a BV of any width, and by the sequence-delay assertion
+   *  expressions, which delay a Bool.
+   *  @param value the current-cycle value to delay, Bool- or BV-sorted
+   *         (the latches and the returned Term take its sort)
    *  @param n     the number of cycles of delay (n == 0 is a no-op,
    *         returning `value` unchanged)
    *  @param name_prefix the hierarchical name prefix of the module this
@@ -62,27 +64,10 @@ class Tableau
                                const std::string & name_prefix,
                                const smt::Term & enable = smt::Term());
 
-  /** Like make_history_chain(), but for a Bool-sorted (not BV-sorted)
-   *  `cond` -- some solvers (e.g. Bitwuzla) can't build a state
-   *  variable or a zero constant of sort Bool, so this wraps `cond`
-   *  into a BV1 flag before delaying it and unwraps back to Bool
-   *  afterward, matching the pattern already used for the `|=>`/
-   *  `|-> ##N` antecedent delay.
-   *  @param cond the current-cycle Bool-sorted condition to delay
-   *  @param n    the number of cycles of delay (n == 0 is a no-op,
-   *         returning `cond` unchanged)
-   *  @param name_prefix see make_history_chain()
-   *  @return a Bool-sorted Term equal to `cond` from `n` cycles ago
-   */
-  smt::Term delay_bool(const smt::Term & cond,
-                       uint32_t n,
-                       const std::string & name_prefix);
-
-  /** Lazily create the shared "first cycle" flag: a 1-bit state var
-   *  that is 1 in the initial state and 0 forever after.  Returned as
-   *  a Boolean term (`flag == 1`).  Used to gate each LTL property's
-   *  time-0 obligation so it is only asserted at the start of the
-   *  trace.
+  /** Lazily create the shared "first cycle" flag: a Bool state var
+   *  that is true in the initial state and false forever after.  Used
+   *  to gate each LTL property's time-0 obligation so it is only
+   *  asserted at the start of the trace.
    *  @param name_prefix used to name the flag the first time this is
    *         called (i.e. for whichever module's assertion first needs
    *         it) -- ignored on every subsequent call, since the flag
@@ -160,15 +145,20 @@ class Tableau
   FunctionalTransitionSystem & fts_;
   const smt::SmtSolver & solver_;
 
+  // Sort of every latch this class mints for itself: the promise
+  // testers, the "first cycle"/"before cycle k" flags and the
+  // `disable iff` history are all one-bit conditions, so they are
+  // Bool rather than BV1 and need no conversion at either end.
+  smt::Sort boolsort_;
+
   // Monotonic counter used to mint unique state-var names for every
   // hidden latch this class introduces: history chains, the LTL
   // tableau's promise latches, and the before_cycle()/disable_window()
   // cycle-counting latches.
   uint32_t latch_counter_ = 0;
 
-  // Cached Boolean term (`flag == 1`) for the shared LTL "first
-  // cycle" state var, created on demand by init_flag().  Null until
-  // the first LTL property is encoded.
+  // The shared LTL "first cycle" state var, created on demand by
+  // init_flag().  Null until the first LTL property is encoded.
   smt::Term ltl_init_flag_;
 };
 

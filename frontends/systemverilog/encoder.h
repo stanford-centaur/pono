@@ -218,7 +218,7 @@ class SystemVerilogEncoder
   const smt::SmtSolver & solver_;
 
   // The SVA/LTL tableau's pure latch-building primitives (make_X/G/F/R/U,
-  // make_history_chain, delay_bool, init_flag, before_cycle,
+  // make_history_chain, init_flag, before_cycle,
   // disable_window). Holds no reference back to this class -- called from
   // the AST-walking methods above (assertion_expr_to_bool(), ltl_to_sat(),
   // and friends, in assertion_walker.cpp) with explicit Term/count/prefix

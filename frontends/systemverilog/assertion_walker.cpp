@@ -242,7 +242,7 @@ smt::TermVec AssertionWalker::offsets_ending_now(
     for (uint32_t count = 1; count <= hi; ++count) {
       if (count > 1) {
         running = solver_->make_term(
-            And, running, tableau_.delay_bool(b, count - 1, prefix));
+            And, running, tableau_.make_history_chain(b, count - 1, prefix));
       }
       if (count >= lo) out[count - 1] = running;
     }
@@ -267,8 +267,8 @@ smt::TermVec AssertionWalker::offsets_ending_now(
   auto window_or = [&](const Term & base, uint32_t k) -> Term {
     Term result = base;
     for (uint32_t j = 1; j <= k; ++j) {
-      result =
-          solver_->make_term(Or, result, tableau_.delay_bool(base, j, prefix));
+      result = solver_->make_term(
+          Or, result, tableau_.make_history_chain(base, j, prefix));
     }
     return result;
   };
@@ -279,8 +279,8 @@ smt::TermVec AssertionWalker::offsets_ending_now(
   auto window_and = [&](const Term & base, uint32_t k) -> Term {
     Term result = base;
     for (uint32_t j = 1; j <= k; ++j) {
-      result =
-          solver_->make_term(And, result, tableau_.delay_bool(base, j, prefix));
+      result = solver_->make_term(
+          And, result, tableau_.make_history_chain(base, j, prefix));
     }
     return result;
   };
@@ -381,8 +381,9 @@ smt::TermVec AssertionWalker::offsets_ending_now(
               // element's own occurrence, then AND with this
               // element's own (unshifted) completion condition.
               Term shifted_prefix =
-                  (d + le == 0) ? acc[lp]
-                                : tableau_.delay_bool(acc[lp], d + le, prefix);
+                  (d + le == 0)
+                      ? acc[lp]
+                      : tableau_.make_history_chain(acc[lp], d + le, prefix);
               Term combined =
                   solver_->make_term(And, shifted_prefix, elem_offsets[le]);
               new_acc[idx] =
@@ -530,11 +531,11 @@ smt::Term AssertionWalker::weak_seq_bool(const slang::ast::AssertionExpr & seq,
   // attempt that started here could still complete by.
   uint32_t s = static_cast<uint32_t>(offsets.size()) - 1;
   Term started_s_ago =
-      tableau_.delay_bool(leading_condition(seq, prefix), s, prefix);
+      tableau_.make_history_chain(leading_condition(seq, prefix), s, prefix);
   Term completed_in_window = me;
   for (uint32_t j = 1; j <= s; ++j) {
     completed_in_window = solver_->make_term(
-        Or, completed_in_window, tableau_.delay_bool(me, j, prefix));
+        Or, completed_in_window, tableau_.make_history_chain(me, j, prefix));
   }
   // Violated iff an attempt began exactly S cycles ago and no
   // completion happened anywhere from then through now; weak(seq) is
@@ -852,7 +853,8 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
           uint32_t extra =
               (b.op == BinaryAssertionOperator::NonOverlappedFollowedBy) ? 1
                                                                          : 0;
-          if (extra > 0) match = tableau_.delay_bool(match, extra, prefix);
+          if (extra > 0)
+            match = tableau_.make_history_chain(match, extra, prefix);
           Term p2 = ltl_to_sat(b.right, neg, justice, prefix);
           if (!p2) return Term();
           // sat(s1 #-# p2) = match AND p2; negated (De Morgan):
@@ -1105,7 +1107,7 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
             rhs = inner;
             for (uint32_t i = 1; i <= wmax - wmin; ++i) {
               rhs = solver_->make_term(
-                  Or, rhs, tableau_.delay_bool(inner, i, prefix));
+                  Or, rhs, tableau_.make_history_chain(inner, i, prefix));
             }
           }
         } else {
