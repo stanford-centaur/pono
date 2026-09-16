@@ -24,11 +24,7 @@ module s_always_range (
     else count <= count + 2'd1;
   end
 
-  // The explicit `always` is required: a temporal property reaching
-  // the LTL tableau is only obliged at cycle 0, so without it the
-  // reset cycle makes the implication vacuous and nothing is checked.
   assert property (@(posedge clk)
-                    always ((!rst && count == 2'd0)
-                            |-> s_always [1:3] (count != 2'd0)));
+                    (!rst && count == 2'd0) |-> s_always [1:3] (count != 2'd0));
 
 endmodule

@@ -28,6 +28,15 @@ TEST_P(SVUnitTests, EventuallyAssertion)
   check_liveness_bmc("eventually_assertion.sv", 5);
 }
 
+// A property expression is evaluated at every clock tick, so
+// `assert property (s_eventually q)` means "q infinitely often", not
+// "q at least once".  Here q holds at exactly one cycle, so the two
+// readings disagree and only the per-cycle one reports the violation.
+TEST_P(SVUnitTests, EventuallyNotRecurring)
+{
+  check_liveness_bmc("eventually_not_recurring.sv", 20);
+}
+
 // ---------------------------------------------------------------------------
 // Bounded cycle ranges on the unary property operators
 // (`eventually [m:n]`, `s_always [m:n]`, `nexttime [k]`,
@@ -60,7 +69,7 @@ TEST_P(SVUnitTests, SAlwaysRangeHolds)
 
 TEST_P(SVUnitTests, SAlwaysRangeFails)
 {
-  check_liveness_bmc("s_always_range_fails.sv", 12);
+  check_liveness_bmc("s_always_range_fails.sv", 20);
 }
 
 // `nexttime [k]` must shift k cycles, not one.  The holds variant used
@@ -73,7 +82,7 @@ TEST_P(SVUnitTests, NextTimeRangeHolds)
 
 TEST_P(SVUnitTests, NextTimeRangeFails)
 {
-  check_liveness_bmc("nexttime_range_fails.sv", 12);
+  check_liveness_bmc("nexttime_range_fails.sv", 20);
 }
 
 // `always [m:$]` -- the windowed form whose upper bound may be

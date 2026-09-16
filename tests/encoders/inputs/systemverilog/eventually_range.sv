@@ -13,7 +13,6 @@ module eventually_range (
     else count <= count + 2'd1;
   end
 
-  assert property (@(posedge clk)
-                    always (eventually [1:4] (count == 2'd3)));
+  assert property (@(posedge clk) eventually [1:4] (count == 2'd3));
 
 endmodule

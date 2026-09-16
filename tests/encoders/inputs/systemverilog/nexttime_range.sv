@@ -17,7 +17,6 @@ module nexttime_range (
   end
 
   assert property (@(posedge clk)
-                    always ((!rst && count == 2'd0)
-                            |-> nexttime [3] (count == 2'd3)));
+                    (!rst && count == 2'd0) |-> nexttime [3] (count == 2'd3));
 
 endmodule

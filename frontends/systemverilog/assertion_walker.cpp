@@ -1355,7 +1355,7 @@ void AssertionWalker::process_concurrent_assertion(
   // property and collect its eventuality-discharge justice
   // conditions.  A fair lasso of the resulting system (every
   // justice condition true infinitely often) on which the
-  // negated property holds at cycle 0 is exactly a
+  // negated property holds at some cycle is exactly a
   // counterexample to the original assertion.
   TermVec justice;
   Term satpsi = ltl_to_sat(*a, /*neg=*/true, justice, prefix);
@@ -1371,24 +1371,30 @@ void AssertionWalker::process_concurrent_assertion(
   }
 
   // Per-property activation latch: a free Boolean constant.  The
-  // justice set forces it true (so this property's time-0
-  // obligation is enabled), while every *other* property's latch
-  // may stay false, leaving their obligations vacuous.  This keeps
-  // independent LTL properties from interfering in one system.
+  // justice set forces it true (so this property's obligation is
+  // enabled), while every *other* property's latch may stay false,
+  // leaving their obligations vacuous.  This keeps independent LTL
+  // properties from interfering in one system.
   Term act = fts_.make_statevar(
       make_name(prefix, "__ltl_act_" + std::to_string(tableau_.next_id())),
       solver_->make_sort(BOOL));
   fts_.assign_next(act, act);
 
-  // Time-0 obligation: when active, the negated property must
-  // hold at the first cycle.  Gated by the shared init flag so
-  // it constrains only cycle 0, and added to the transition
-  // relation (it references the tableau's promise inputs) rather
-  // than to the initial-state predicate.
+  // The LRM evaluates a property expression at *every* clock tick,
+  // so `assert property (P)` already means `always P` -- writing the
+  // `always` out is redundant.  The safety branch above gets that
+  // closure for free (a Pono safety property means "in every
+  // reachable state"); here it has to be built, by asking for a
+  // violation *somewhere* rather than only in the first cycle.
+  Term violated = tableau_.make_F(satpsi, justice, prefix);
+
+  // Anchor that at cycle 0 via the shared init flag, and add it to
+  // the transition relation (it references the tableau's promise
+  // inputs) rather than to the initial-state predicate.
   Term obligation = solver_->make_term(
       Implies,
       solver_->make_term(And, tableau_.init_flag(prefix), act),
-      satpsi);
+      violated);
   fts_.add_constraint(obligation, /*to_init_and_next=*/false);
 
   justice.push_back(act);

@@ -118,7 +118,7 @@ class SystemVerilogEncoder
      *  directly into the transition system, so the justice sets are
      *  only meaningful against the system encode() populated.
      *  Because the per-property activation latch gates that
-     *  property's time-0 obligation, distinct LTL properties do not
+     *  property's obligation, distinct LTL properties do not
      *  interfere: checking one property's justice set leaves the
      *  others' obligations vacuous.
      */

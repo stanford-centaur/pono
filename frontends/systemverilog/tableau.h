@@ -66,8 +66,9 @@ class Tableau
 
   /** Lazily create the shared "first cycle" flag: a Bool state var
    *  that is true in the initial state and false forever after.  Used
-   *  to gate each LTL property's time-0 obligation so it is only
-   *  asserted at the start of the trace.
+   *  to anchor each LTL property's obligation ("the property is
+   *  violated at some cycle") to the start of the trace, so it is
+   *  stated once rather than re-stated at every cycle.
    *  @param name_prefix used to name the flag the first time this is
    *         called (i.e. for whichever module's assertion first needs
    *         it) -- ignored on every subsequent call, since the flag

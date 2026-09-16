@@ -17,10 +17,6 @@ module eventually_range_fails (
     else count <= count + 2'd1;
   end
 
-  // The explicit `always` is required: a temporal property reaching
-  // the LTL tableau is only obliged at cycle 0, and "at every cycle"
-  // is what makes the window bite.
-  assert property (@(posedge clk)
-                    always (eventually [2:3] (count == 2'd3)));
+  assert property (@(posedge clk) eventually [2:3] (count == 2'd3));
 
 endmodule

@@ -15,7 +15,6 @@ module s_always_range_fails (
   end
 
   assert property (@(posedge clk)
-                    always ((!rst && count == 2'd0)
-                            |-> s_always [1:4] (count != 2'd0)));
+                    (!rst && count == 2'd0) |-> s_always [1:4] (count != 2'd0));
 
 endmodule
