@@ -170,10 +170,6 @@ TEST_P(Btor2LivenessUnitTests, KLivenessRejectsFairness)
   }
 }
 
-// The instantiation name is prefixed to the suite name, so naming it after
-// the suite would only repeat it; there is one instantiation, so it is left
-// empty. The generator suffixes each case with its solver instead of an
-// index, which is what identifies a case in a failure report.
 INSTANTIATE_TEST_SUITE_P(,
                          Btor2LivenessUnitTests,
                          testing::ValuesIn(available_solver_enums()),
