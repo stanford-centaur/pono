@@ -628,44 +628,79 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
 
     case AssertionExprKind::Unary: {
       auto & u = ae.as<UnaryAssertionExpr>();
-      switch (u.op) {
-        case UnaryAssertionOperator::Not:
-          return ltl_to_sat(u.expr, !neg, justice, prefix);
-
-        case UnaryAssertionOperator::Always:
-        case UnaryAssertionOperator::SAlways: {
-          // G phi  (positive)  /  !G phi == F !phi  (negated)
-          Term phi = ltl_to_sat(u.expr, neg, justice, prefix);
-          if (!phi) return Term();
-          return neg ? tableau_.make_F(phi, justice, prefix)
-                     : tableau_.make_G(phi, prefix);
-        }
-
-        case UnaryAssertionOperator::Eventually:
-        case UnaryAssertionOperator::SEventually: {
-          // F phi  (positive)  /  !F phi == G !phi  (negated)
-          Term phi = ltl_to_sat(u.expr, neg, justice, prefix);
-          if (!phi) return Term();
-          return neg ? tableau_.make_G(phi, prefix)
-                     : tableau_.make_F(phi, justice, prefix);
-        }
-
-        case UnaryAssertionOperator::NextTime:
-        case UnaryAssertionOperator::SNextTime: {
-          // !X phi == X !phi, so the negation rides along inside phi.
-          Term phi = ltl_to_sat(u.expr, neg, justice, prefix);
-          if (!phi) return Term();
-          return tableau_.make_X(phi, prefix);
-        }
-
-        // Every UnaryAssertionOperator value is handled above; this is
-        // defensive against a future slang operator this encoder
-        // hasn't been taught, not a currently-reachable case.
-        default:
-          throw PonoException(
-              "SystemVerilogEncoder: unsupported unary assertion operator "
-              + string(toString(u.op)));
+      if (u.op == UnaryAssertionOperator::Not) {
+        return ltl_to_sat(u.expr, !neg, justice, prefix);
       }
+
+      bool is_always = u.op == UnaryAssertionOperator::Always
+                       || u.op == UnaryAssertionOperator::SAlways;
+      bool is_next = u.op == UnaryAssertionOperator::NextTime
+                     || u.op == UnaryAssertionOperator::SNextTime;
+      // Every UnaryAssertionOperator value is handled here; this is
+      // defensive against a future slang operator this encoder hasn't
+      // been taught, not a currently-reachable case.
+      if (!is_always && !is_next && u.op != UnaryAssertionOperator::Eventually
+          && u.op != UnaryAssertionOperator::SEventually) {
+        throw PonoException(
+            "SystemVerilogEncoder: unsupported unary assertion operator "
+            + string(toString(u.op)));
+      }
+
+      // Normalize the optional cycle window `[m:n]` so the unranged
+      // forms fall out of the same construction: a bare `nexttime` is
+      // `[1:1]`, and a bare `always`/`s_eventually` is `[0:$]`, which
+      // reduces to the plain G/F tester below.  The weak/strong pairs
+      // coincide here -- that distinction only bites at the end of a
+      // truncated trace, and Pono reasons about infinite behaviours.
+      uint32_t lo = u.range ? u.range->min : (is_next ? 1 : 0);
+      std::optional<uint32_t> hi =
+          u.range ? u.range->max
+                  : (is_next ? std::optional<uint32_t>(1) : std::nullopt);
+      if (hi && *hi >= MAX_SEQ_WINDOW) {
+        throw PonoException(
+            "SystemVerilogEncoder: property cycle range "
+            "exceeds "
+            + std::to_string(MAX_SEQ_WINDOW) + " cycles");
+      }
+      if (hi && *hi < lo) {
+        throw PonoException(
+            "SystemVerilogEncoder: property cycle range has a maximum "
+            "below its minimum");
+      }
+
+      // ltl_to_sat() already returns sat(!p) when `neg`, and !X == X!,
+      // so the negation rides along inside phi -- only the way the
+      // per-cycle terms are combined flips.
+      Term phi = ltl_to_sat(u.expr, neg, justice, prefix);
+      if (!phi) return Term();
+
+      if (!hi) {
+        // `always [m:$]` / `s_eventually [m:$]` (the only two operators
+        // slang lets go unbounded): shift the unbounded tester forward
+        // by m.  m == 0 is the bare `always`/`s_eventually` form.
+        Term inner = (is_always != neg) ? tableau_.make_G(phi, prefix)
+                                        : tableau_.make_F(phi, justice, prefix);
+        for (uint32_t i = 0; i < lo; ++i) {
+          inner = tableau_.make_X(inner, prefix);
+        }
+        return inner;
+      }
+
+      // Bounded window: AND (always) or OR (eventually) of phi shifted
+      // forward j cycles, for j in [lo, hi].  Built as one chain so the
+      // shared X^lo..X^j prefix is not rebuilt per j -- that is `hi`
+      // make_X() testers in total rather than O(hi^2).
+      PrimOp combine = (is_always != neg) ? And : Or;
+      Term shifted = phi;
+      for (uint32_t i = 0; i < lo; ++i) {
+        shifted = tableau_.make_X(shifted, prefix);
+      }
+      Term result = shifted;  // X^lo phi
+      for (uint32_t j = lo + 1; j <= *hi; ++j) {
+        shifted = tableau_.make_X(shifted, prefix);  // X^j phi
+        result = solver_->make_term(combine, result, shifted);
+      }
+      return result;
     }
 
     case AssertionExprKind::Conditional: {
@@ -970,6 +1005,10 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         }
         case UnaryAssertionOperator::Always:
         case UnaryAssertionOperator::SAlways: {
+          // A cycle window (`always [m:n] P`) is a forward reference
+          // this current-cycle path can't express, so leave it to the
+          // tableau rather than dropping the window.
+          if (u.range) return Term();
           // Pure safety: `always P` is true at the current cycle
           // exactly when P is true at the current cycle (the
           // "always at every cycle" closure is implicit in the
@@ -977,10 +1016,9 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
           return assertion_expr_to_bool(u.expr, prefix);
         }
         default:
-          // Eventually / SEventually / NextTime / SNextTime can't
-          // be folded into a current-cycle Boolean: liveness must
-          // come through the top-level dispatch and NextTime needs
-          // a forward-shift the encoder doesn't model yet.
+          // Eventually / SEventually / NextTime / SNextTime can't be
+          // folded into a current-cycle Boolean: they need a forward
+          // shift, which only the tableau's make_X can express.
           return Term();
       }
     }

@@ -28,6 +28,61 @@ TEST_P(SVUnitTests, EventuallyAssertion)
   check_liveness_bmc("eventually_assertion.sv", 5);
 }
 
+// ---------------------------------------------------------------------------
+// Bounded cycle ranges on the unary property operators
+// (`eventually [m:n]`, `s_always [m:n]`, `nexttime [k]`,
+// `always [m:$]`).  Each holds/fails pair below differs *only* in the
+// window, so the pair pins down that the window is honoured rather
+// than dropped -- which it silently was, encoding every one of these
+// as if unbounded.
+// ---------------------------------------------------------------------------
+
+// The regression test for the unsound direction: `count` does reach 3
+// repeatedly, so ignoring the [2:3] window leaves the true property
+// `s_eventually (count == 3)` and no violation is reported for a
+// design that genuinely fails.
+TEST_P(SVUnitTests, EventuallyRangeFails)
+{
+  check_liveness_bmc("eventually_range_fails.sv", 12);
+}
+
+TEST_P(SVUnitTests, EventuallyRangeHolds)
+{
+  check_liveness_bmc("eventually_range.sv", 12, ProverResult::UNKNOWN);
+}
+
+// Nested under an implication, i.e. where the window is relative to
+// the match point rather than to the start of the trace.
+TEST_P(SVUnitTests, SAlwaysRangeHolds)
+{
+  check_liveness_bmc("s_always_range.sv", 12, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, SAlwaysRangeFails)
+{
+  check_liveness_bmc("s_always_range_fails.sv", 12);
+}
+
+// `nexttime [k]` must shift k cycles, not one.  The holds variant used
+// to report a spurious counterexample, since a single shift lands on
+// count == 1 rather than count == 3.
+TEST_P(SVUnitTests, NextTimeRangeHolds)
+{
+  check_liveness_bmc("nexttime_range.sv", 12, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, NextTimeRangeFails)
+{
+  check_liveness_bmc("nexttime_range_fails.sv", 12);
+}
+
+// `always [m:$]` -- the windowed form whose upper bound may be
+// unbounded, encoded as m forward shifts around the ordinary G tester.
+TEST_P(SVUnitTests, AlwaysRangeUnbounded)
+{
+  check_liveness_bmc("always_range_unbounded.sv", 8, ProverResult::UNKNOWN);
+}
+
 TEST_P(SVUnitTests, AlwaysAssertion) { check_bmc("always_assertion.sv", 5); }
 
 TEST_P(SVUnitTests, BinaryImplication)
