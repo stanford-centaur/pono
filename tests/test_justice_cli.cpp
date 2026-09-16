@@ -101,6 +101,26 @@ class JusticeCliUnitTests : public ::testing::Test
   }
 };
 
+// A justice property with no fairness constraint: the lasso at mode=1
+// satisfies the condition infinitely often, so it is a counterexample.
+TEST_F(JusticeCliUnitTests, JusticeOnly)
+{
+  const PonoRun run =
+      run_pono({ "--justice", input_path("btor2/justice_only.btor2") });
+  EXPECT_EQ(run.output, "sat\nj0\n");
+}
+
+// The same property under the other translator, which counts observations of
+// the single condition rather than translating it to a safety property.
+TEST_F(JusticeCliUnitTests, JusticeOnlyWithKLiveness)
+{
+  const PonoRun run = run_pono({ "--justice",
+                                 "--justice-translator",
+                                 "klive",
+                                 input_path("btor2/justice_only.btor2") });
+  EXPECT_EQ(run.output, "sat\nj0\n");
+}
+
 // The justice condition alone is violated, so the property only holds if the
 // fair line is honored. k-induction is needed because bmc, the default
 // engine, cannot prove a property.

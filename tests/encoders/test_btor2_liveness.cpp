@@ -55,6 +55,34 @@ class Btor2LivenessUnitTests : public ::testing::Test,
   }
 };
 
+// A justice property with no fairness constraint: the lasso at mode=1
+// satisfies the condition infinitely often, so it is a counterexample.
+TEST_P(Btor2LivenessUnitTests, JusticeOnly)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_only.btor2"), fts);
+  EXPECT_TRUE(be.fairvec().empty());
+  EXPECT_EQ(all_conditions(be), be.justicevec().at(0));
+  Term prop_term =
+      LivenessToSafetyTranslator{}.translate(fts, all_conditions(be));
+  SafetyProperty prop(s, prop_term);
+  Bmc bmc(prop, fts, s);
+  EXPECT_EQ(bmc.check_until(10), ProverResult::FALSE);
+}
+
+// The same property under the other translator, which counts observations of
+// the single condition rather than translating it to a safety property.
+TEST_P(Btor2LivenessUnitTests, JusticeOnlyWithKLiveness)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_only.btor2"), fts);
+  LivenessProperty prop(s, all_conditions(be));
+  KLiveness kliveness(prop, fts, s, PonoOptions());
+  EXPECT_EQ(kliveness.check_until(10), ProverResult::FALSE);
+}
+
 // Btor2 fair operands are always bitvectors of width 1, but the liveness to
 // safety translation combines conditions with boolean operators, so the
 // encoder has to convert them the same way it converts justice conditions.
@@ -140,22 +168,6 @@ TEST_P(Btor2LivenessUnitTests, KLivenessRejectsFairness)
     EXPECT_NE(string(e.what()).find("fairness"), string::npos)
         << "message should name fairness constraints, got: " << e.what();
   }
-}
-
-// Without a fair line the condition set is just the justice conditions, so
-// the counterexample the fairness constraint ruled out above is found again.
-TEST_P(Btor2LivenessUnitTests, JusticeOnlyIsUnaffected)
-{
-  SmtSolver s = make_solver();
-  FunctionalTransitionSystem fts(s);
-  BTOR2Encoder be(input_path("justice_only.btor2"), fts);
-  EXPECT_TRUE(be.fairvec().empty());
-  EXPECT_EQ(all_conditions(be), be.justicevec().at(0));
-  Term prop_term =
-      LivenessToSafetyTranslator{}.translate(fts, all_conditions(be));
-  SafetyProperty prop(s, prop_term);
-  Bmc bmc(prop, fts, s);
-  EXPECT_EQ(bmc.check_until(10), ProverResult::FALSE);
 }
 
 // The instantiation name is prefixed to the suite name, so naming it after
