@@ -37,6 +37,21 @@ TEST_P(SVUnitTests, EventuallyNotRecurring)
   check_liveness_bmc("eventually_not_recurring.sv", 20);
 }
 
+// `disable iff` on a property that reaches the LTL tableau rather than
+// the safety fast path.  The pair differs only in the exemption, so it
+// pins down that the condition is applied at all -- it used to be
+// computed and then ignored on this path, making the assertion
+// stronger than written.
+TEST_P(SVUnitTests, DisableIffTemporalHolds)
+{
+  check_liveness_bmc("disable_iff_temporal.sv", 10, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, DisableIffTemporalFails)
+{
+  check_liveness_bmc("disable_iff_temporal_fails.sv", 10);
+}
+
 // ---------------------------------------------------------------------------
 // Bounded cycle ranges on the unary property operators
 // (`eventually [m:n]`, `s_always [m:n]`, `nexttime [k]`,

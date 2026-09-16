@@ -269,9 +269,13 @@ class AssertionWalker
   // The `disable iff` condition (explicit on the current assert
   // statement, or the enclosing module's `default disable iff`) as a
   // Boolean SMT term, or null if none applies.  Set just before
-  // compiling one assertion's property expression and read by
-  // assertion_expr_to_bool()/ltl_to_sat() via tableau_.disable_window(),
-  // so it need not be threaded through every recursive call in between.
+  // compiling one assertion's property expression, so it need not be
+  // threaded through every recursive call in between, and read via
+  // tableau_.disable_window() by assertion_expr_to_bool() (which
+  // widens it across an implication's shift window) and by both of
+  // process_concurrent_assertion()'s branches.  ltl_to_sat() itself
+  // never reads it: a temporal property's exemption is applied once,
+  // to the whole negated property.
   smt::Term current_disable_cond_;
 
   // The (signal, edge) pair established by the first clocking event

@@ -1380,13 +1380,22 @@ void AssertionWalker::process_concurrent_assertion(
       solver_->make_sort(BOOL));
   fts_.assign_next(act, act);
 
+  // `disable iff`: a cycle where the disable condition holds is
+  // exempt, so a violation there doesn't count.  Same exemption the
+  // safety branch above applies, expressed against the negated
+  // property -- `G(C || P)` negates to `F(!C && !P)`.
+  Term body = satpsi;
+  if (Term dw = tableau_.disable_window(current_disable_cond_, 0, prefix)) {
+    body = solver_->make_term(And, solver_->make_term(Not, dw), body);
+  }
+
   // The LRM evaluates a property expression at *every* clock tick,
   // so `assert property (P)` already means `always P` -- writing the
   // `always` out is redundant.  The safety branch above gets that
   // closure for free (a Pono safety property means "in every
   // reachable state"); here it has to be built, by asking for a
   // violation *somewhere* rather than only in the first cycle.
-  Term violated = tableau_.make_F(satpsi, justice, prefix);
+  Term violated = tableau_.make_F(body, justice, prefix);
 
   // Anchor that at cycle 0 via the shared init flag, and add it to
   // the transition relation (it references the tableau's promise
