@@ -646,9 +646,7 @@ void StatementEncoder::process_statement(
               "SystemVerilogEncoder: pattern-matching if-condition "
               "('... matches ...') is not supported");
         }
-        Term c_term = expr_encoder_.expr_to_term(*c.expr, prefix);
-        Term c_bool = solver_->make_term(
-            Distinct, c_term, solver_->make_term(0, c_term->get_sort()));
+        Term c_bool = expr_encoder_.expr_to_bool(*c.expr, prefix);
         bool_cond =
             bool_cond ? solver_->make_term(And, bool_cond, c_bool) : c_bool;
       }

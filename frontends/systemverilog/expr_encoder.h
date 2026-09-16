@@ -1,6 +1,6 @@
 /*!
  * \file expr_encoder.h
- * \brief expr_to_term(): converts slang AST expressions to SMT terms.
+ * \brief expr_to_term()/expr_to_bool(): slang AST expressions to SMT terms.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
@@ -44,16 +44,34 @@ class ExprEncoder
    */
   void bind_compilation(slang::ast::Compilation & compilation);
 
-  /** Convert a slang expression to an SMT term.
+  /** Convert a slang expression to a bit-vector SMT term.
    *  Handles operators, literals, variable references, concatenation,
-   *  bit-selects, ternary, etc.
+   *  bit-selects, ternary, etc.  Always BV-sorted, even for a 1-bit SV
+   *  expression, since any expression can appear where a bit-vector is
+   *  required (inside a concatenation, a part-select, a width-changing
+   *  conversion).  Callers that only want the expression's truth value
+   *  should prefer expr_to_bool().
    *  @param expr the slang expression
    *  @param prefix the caller's current hierarchical name prefix, used
    *         only for naming hidden latches introduced by the sampled-
    *         value system functions ($past/$stable/$changed/$rose/$fell)
-   *  @return the corresponding SMT term
+   *  @return the corresponding SMT term, BV-sorted
    */
   smt::Term expr_to_term(const slang::ast::Expression & expr,
+                         const std::string & prefix);
+
+  /** Convert a slang expression to a Bool SMT term giving its SV truth
+   *  value.  Equivalent to `expr_to_term(expr) != 0`, and exactly that
+   *  for an expression whose value is a bit-vector -- but an expression
+   *  that is already a predicate (a comparison, `&&`/`||`/`!`, an
+   *  and/or reduction, $rose/$fell/$stable/$changed/$onehot/...) is
+   *  returned directly, instead of being materialised as a 1-bit
+   *  bit-vector only for the caller to compare it against zero again.
+   *  @param expr the slang expression
+   *  @param prefix see expr_to_term()
+   *  @return the corresponding SMT term, Bool-sorted
+   */
+  smt::Term expr_to_bool(const slang::ast::Expression & expr,
                          const std::string & prefix);
 
   /** Sets the term expr_to_term()'s LValueReference case returns (the
@@ -74,6 +92,16 @@ class ExprEncoder
   slang::ast::EvalContext & eval_ctx();
 
  private:
+  /** The single expression-conversion switch, returning `expr`'s value
+   *  in its *natural* SMT sort: Bool for the expressions that really
+   *  are predicates, a bit-vector for everything else.  Only the two
+   *  public wrappers above call this; they adapt whichever sort comes
+   *  back, which is what keeps the operator dispatch in one place and
+   *  makes expr_to_bool() and expr_to_term() agree by construction.
+   */
+  smt::Term expr_to_term_or_bool(const slang::ast::Expression & expr,
+                                 const std::string & prefix);
+
   SymbolTable & symbol_table_;
   Tableau & tableau_;
   const smt::SmtSolver & solver_;

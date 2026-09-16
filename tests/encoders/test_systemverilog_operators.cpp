@@ -44,6 +44,46 @@ TEST_P(SVUnitTests, ShiftUnaryReductionFails)
   check_bmc("shift_unary_reduction_fails.sv", 1);
 }
 
+// A comparison is encoded in whichever sort its context wants: a
+// native Bool where only its truth value is needed, a 1-bit bit-vector
+// where an actual value is (assigned into a net, fed to a concat).
+// These two check that the two forms never disagree -- the holds
+// variant uses each comparison in both roles at once.
+TEST_P(SVUnitTests, PredicateValueAndConditionHolds)
+{
+  check_bmc("predicate_value_and_condition.sv", 6, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, PredicateValueAndConditionFails)
+{
+  check_bmc("predicate_value_and_condition_fails.sv", 1);
+}
+
+// A $past call inside a `&&` operand must be converted exactly once:
+// its history chain is not memoized, so a second conversion would add
+// a second chain of latches tracking the same value.  That is
+// invisible to any property verdict, so check the latch count.
+TEST_P(SVUnitTests, PastInLogicalAndBuildsOneChain)
+{
+  SmtSolver s = create_solver(GetParam());
+  FunctionalTransitionSystem fts(s);
+  SystemVerilogEncoder::encode(sv_path("past_in_logical_and.sv"), fts);
+
+  size_t chain_latches = 0;
+  for (const auto & sv : fts.statevars()) {
+    if (sv->to_string().find("__sva_past_") != std::string::npos) {
+      ++chain_latches;
+    }
+  }
+  // One `$past(a)`, one cycle of delay, so exactly one latch.
+  EXPECT_EQ(chain_latches, 1u);
+}
+
+TEST_P(SVUnitTests, PastInLogicalAndHolds)
+{
+  check_bmc("past_in_logical_and.sv", 6, ProverResult::UNKNOWN);
+}
+
 TEST_P(SVUnitTests, TernarySelectConcatHolds)
 {
   check_bmc("ternary_select_concat.sv", 6, ProverResult::UNKNOWN);

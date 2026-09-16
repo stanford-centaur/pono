@@ -1,6 +1,6 @@
 /*!
  * \file expr_encoder.cpp
- * \brief expr_to_term(): converts slang AST expressions to SMT terms.
+ * \brief expr_to_term()/expr_to_bool(): slang AST expressions to SMT terms.
  * \author Áron Ricardo Perez-Lopez
  * \date 2026
  * \copyright See the LICENSE file in the top-level source directory.
@@ -13,6 +13,12 @@
  * $rose, $fell) via tableau_.make_history_chain(), plus $signed/$unsigned and
  * $onehot/$onehot0; $isunknown is always false since this encoder's bitvector
  * model is purely 2-valued (no X/Z state).
+ *
+ * One switch, expr_to_term_or_bool(), converts every expression to its
+ * natural sort -- Bool for the ones that really are predicates, a bit-vector
+ * for the rest -- and the two public entry points adapt it: expr_to_term()
+ * wraps a predicate into SV's 1-bit 0/1 value, expr_to_bool() reduces a
+ * bit-vector with `!= 0`.
  */
 #include "frontends/systemverilog/expr_encoder.h"
 
@@ -49,6 +55,17 @@ using namespace smt;
 using namespace std;
 
 namespace pono {
+
+namespace {
+
+/** The all-ones constant of `t`'s sort, for the and/nand reductions. */
+Term all_ones_like(const SmtSolver & solver, const Term & t)
+{
+  Sort sort = t->get_sort();
+  return solver->make_term(string(sort->get_width(), '1'), sort, 2);
+}
+
+}  // namespace
 
 ExprEncoder::ExprEncoder(SymbolTable & symbol_table,
                          Tableau & tableau,
@@ -87,6 +104,28 @@ slang::ast::EvalContext & ExprEncoder::eval_ctx()
 
 Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
                                const string & prefix)
+{
+  Term t = expr_to_term_or_bool(expr, prefix);
+  if (!t || t->get_sort()->get_sort_kind() != BOOL) return t;
+  Sort bv1 = solver_->make_sort(BV, 1);
+  Term bv = solver_->make_term(
+      Ite, t, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+  // An SV predicate's type is always a single unsigned bit, so this
+  // resize is the identity; it is here so the BV form still honours
+  // the expression's declared width rather than assuming it.
+  return resize_to(solver_, bv, expr.type->getBitWidth(), /*is_signed=*/false);
+}
+
+Term ExprEncoder::expr_to_bool(const slang::ast::Expression & expr,
+                               const string & prefix)
+{
+  Term t = expr_to_term_or_bool(expr, prefix);
+  if (!t || t->get_sort()->get_sort_kind() == BOOL) return t;
+  return solver_->make_term(Distinct, t, solver_->make_term(0, t->get_sort()));
+}
+
+Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
+                                       const string & prefix)
 {
   using namespace slang::ast;
 
@@ -173,7 +212,6 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
         // encoder's BV model has no way for a non-literal term to
         // hold an unknown bit at all.
         Term left = expr_to_term(binop.left(), prefix);
-        uint64_t result_width = expr.type->getBitWidth();
         Term eq;
         auto rhs_cv = binop.right().eval(eval_ctx());
         uint64_t rhs_w = binop.right().type->getBitWidth();
@@ -210,15 +248,23 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
                             binop.right().type->isSigned());
           eq = solver_->make_term(Equal, left, right);
         }
-        Sort bv1 = solver_->make_sort(BV, 1);
         bool want_eq = binop.op == BinaryOperator::WildcardEquality;
-        Term result =
-            solver_->make_term(Ite,
-                               eq,
-                               solver_->make_term(want_eq ? 1 : 0, bv1),
-                               solver_->make_term(want_eq ? 0 : 1, bv1));
-        // Result is a plain 0/1 boolean -- always zero-extend.
-        return resize_to(solver_, result, result_width, false);
+        return want_eq ? eq : solver_->make_term(Not, eq);
+      }
+
+      if (binop.op == BinaryOperator::LogicalAnd
+          || binop.op == BinaryOperator::LogicalOr) {
+        // Also special-cased *before* the eager conversion below, so
+        // each operand is reduced to Bool exactly once. Converting an
+        // operand twice would not just be wasted work: a $past-family
+        // call in it mints a fresh history chain per conversion. The
+        // operands are self-determined, so skipping the common-width
+        // widening below cannot change their truth value.
+        Term l = expr_to_bool(binop.left(), prefix);
+        Term r = expr_to_bool(binop.right(), prefix);
+        if (!l || !r) return Term();
+        return solver_->make_term(
+            binop.op == BinaryOperator::LogicalAnd ? And : Or, l, r);
       }
 
       Term left = expr_to_term(binop.left(), prefix);
@@ -276,75 +322,23 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
           result = solver_->make_term(BVNot, xor_t);
           break;
         }
-        case BinaryOperator::Equality: {
-          Term eq = solver_->make_term(Equal, left, right);
-          Sort bv1 = solver_->make_sort(BV, 1);
-          result = solver_->make_term(
-              Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
-          break;
-        }
-        case BinaryOperator::Inequality: {
-          Term eq = solver_->make_term(Equal, left, right);
-          Sort bv1 = solver_->make_sort(BV, 1);
-          result = solver_->make_term(
-              Ite, eq, solver_->make_term(0, bv1), solver_->make_term(1, bv1));
-          break;
-        }
-        case BinaryOperator::LessThan: {
-          Term lt = solver_->make_term(op_signed ? BVSlt : BVUlt, left, right);
-          Sort bv1 = solver_->make_sort(BV, 1);
-          result = solver_->make_term(
-              Ite, lt, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
-          break;
-        }
-        case BinaryOperator::LessThanEqual: {
-          Term le = solver_->make_term(op_signed ? BVSle : BVUle, left, right);
-          Sort bv1 = solver_->make_sort(BV, 1);
-          result = solver_->make_term(
-              Ite, le, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
-          break;
-        }
-        case BinaryOperator::GreaterThan: {
-          Term gt = solver_->make_term(op_signed ? BVSlt : BVUlt, right, left);
-          Sort bv1 = solver_->make_sort(BV, 1);
-          result = solver_->make_term(
-              Ite, gt, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
-          break;
-        }
-        case BinaryOperator::GreaterThanEqual: {
-          Term ge = solver_->make_term(op_signed ? BVSle : BVUle, right, left);
-          Sort bv1 = solver_->make_sort(BV, 1);
-          result = solver_->make_term(
-              Ite, ge, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
-          break;
-        }
-        case BinaryOperator::LogicalAnd: {
-          // Logical AND: both operands nonzero.
-          Sort bv1 = solver_->make_sort(BV, 1);
-          Term l_nz = solver_->make_term(
-              Distinct, left, solver_->make_term(0, left->get_sort()));
-          Term r_nz = solver_->make_term(
-              Distinct, right, solver_->make_term(0, right->get_sort()));
-          Term both = solver_->make_term(And, l_nz, r_nz);
-          result = solver_->make_term(Ite,
-                                      both,
-                                      solver_->make_term(1, bv1),
-                                      solver_->make_term(0, bv1));
-          break;
-        }
-        case BinaryOperator::LogicalOr: {
-          Sort bv1 = solver_->make_sort(BV, 1);
-          Term l_nz = solver_->make_term(
-              Distinct, left, solver_->make_term(0, left->get_sort()));
-          Term r_nz = solver_->make_term(
-              Distinct, right, solver_->make_term(0, right->get_sort()));
-          Term either = solver_->make_term(Or, l_nz, r_nz);
-          result = solver_->make_term(Ite,
-                                      either,
-                                      solver_->make_term(1, bv1),
-                                      solver_->make_term(0, bv1));
-          break;
-        }
+        // Every comparison below is already a predicate, so it is
+        // returned Bool-sorted; expr_to_term() wraps it back into a
+        // 1-bit BV for the callers that want SV's 0/1 value.
+        case BinaryOperator::Equality:
+          return solver_->make_term(Equal, left, right);
+        case BinaryOperator::Inequality:
+          return solver_->make_term(Distinct, left, right);
+        case BinaryOperator::LessThan:
+          return solver_->make_term(op_signed ? BVSlt : BVUlt, left, right);
+        case BinaryOperator::LessThanEqual:
+          return solver_->make_term(op_signed ? BVSle : BVUle, left, right);
+        // `>` and `>=` are the strict/non-strict `<` with the operands
+        // swapped.
+        case BinaryOperator::GreaterThan:
+          return solver_->make_term(op_signed ? BVSlt : BVUlt, right, left);
+        case BinaryOperator::GreaterThanEqual:
+          return solver_->make_term(op_signed ? BVSle : BVUle, right, left);
         case BinaryOperator::LogicalShiftLeft:
           result = solver_->make_term(BVShl, left, right);
           break;
@@ -387,23 +381,13 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
           }
           break;
         }
-        case BinaryOperator::CaseEquality: {
-          // No X/Z representation in this encoder's pure-BV model, so
-          // case equality can never actually differ from logical
-          // equality.
-          Term eq = solver_->make_term(Equal, left, right);
-          Sort bv1 = solver_->make_sort(BV, 1);
-          result = solver_->make_term(
-              Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
-          break;
-        }
-        case BinaryOperator::CaseInequality: {
-          Term eq = solver_->make_term(Equal, left, right);
-          Sort bv1 = solver_->make_sort(BV, 1);
-          result = solver_->make_term(
-              Ite, eq, solver_->make_term(0, bv1), solver_->make_term(1, bv1));
-          break;
-        }
+        // No X/Z representation in this encoder's pure-BV model, so
+        // case (in)equality can never actually differ from logical
+        // (in)equality.
+        case BinaryOperator::CaseEquality:
+          return solver_->make_term(Equal, left, right);
+        case BinaryOperator::CaseInequality:
+          return solver_->make_term(Distinct, left, right);
         default:
           throw PonoException(
               "SystemVerilogEncoder: unsupported binary operator "
@@ -420,6 +404,15 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
 
     case ExpressionKind::UnaryOp: {
       auto & unop = expr.as<UnaryExpression>();
+
+      if (unop.op == UnaryOperator::LogicalNot) {
+        // Handled before the eager conversion below so the operand is
+        // reduced to Bool once, for the same reason `&&`/`||` are.
+        Term b = expr_to_bool(unop.operand(), prefix);
+        if (!b) return Term();
+        return solver_->make_term(Not, b);
+      }
+
       Term operand = expr_to_term(unop.operand(), prefix);
       uint64_t result_width = expr.type->getBitWidth();
 
@@ -428,45 +421,19 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
         case UnaryOperator::BitwiseNot:
           result = solver_->make_term(BVNot, operand);
           break;
-        case UnaryOperator::LogicalNot: {
-          Sort bv1 = solver_->make_sort(BV, 1);
-          Term is_zero = solver_->make_term(
-              Equal, operand, solver_->make_term(0, operand->get_sort()));
-          result = solver_->make_term(Ite,
-                                      is_zero,
-                                      solver_->make_term(1, bv1),
-                                      solver_->make_term(0, bv1));
-          break;
-        }
         case UnaryOperator::Minus:
           result = solver_->make_term(BVNeg, operand);
           break;
-        case UnaryOperator::BitwiseAnd: {
-          // Reduction AND: result is 1 if all bits are 1.
-          Sort bv1 = solver_->make_sort(BV, 1);
-          Term all_ones = solver_->make_term(
-              Equal,
-              operand,
-              solver_->make_term(string(operand->get_sort()->get_width(), '1'),
-                                 operand->get_sort(),
-                                 2));
-          result = solver_->make_term(Ite,
-                                      all_ones,
-                                      solver_->make_term(1, bv1),
-                                      solver_->make_term(0, bv1));
-          break;
-        }
-        case UnaryOperator::BitwiseOr: {
-          // Reduction OR: result is 1 if any bit is 1.
-          Sort bv1 = solver_->make_sort(BV, 1);
-          Term any_one = solver_->make_term(
+        // The and/or reductions are predicates on the whole operand, so
+        // (like the comparisons above) they are returned Bool-sorted.
+        case UnaryOperator::BitwiseAnd:
+          // Reduction AND: all bits are 1.
+          return solver_->make_term(
+              Equal, operand, all_ones_like(solver_, operand));
+        case UnaryOperator::BitwiseOr:
+          // Reduction OR: any bit is 1.
+          return solver_->make_term(
               Distinct, operand, solver_->make_term(0, operand->get_sort()));
-          result = solver_->make_term(Ite,
-                                      any_one,
-                                      solver_->make_term(1, bv1),
-                                      solver_->make_term(0, bv1));
-          break;
-        }
         case UnaryOperator::BitwiseXor: {
           // Reduction XOR: parity of bits. For a BV of width n,
           // XOR all bits together.
@@ -482,34 +449,16 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
           // Unary `+` is a no-op per the LRM.
           result = operand;
           break;
-        case UnaryOperator::BitwiseNand: {
-          // Reduction NAND: NOT(AND-reduce) -- same all-ones check as
-          // BitwiseAnd above, with the Ite branches swapped.
-          Sort bv1 = solver_->make_sort(BV, 1);
-          Term all_ones = solver_->make_term(
-              Equal,
-              operand,
-              solver_->make_term(string(operand->get_sort()->get_width(), '1'),
-                                 operand->get_sort(),
-                                 2));
-          result = solver_->make_term(Ite,
-                                      all_ones,
-                                      solver_->make_term(0, bv1),
-                                      solver_->make_term(1, bv1));
-          break;
-        }
-        case UnaryOperator::BitwiseNor: {
-          // Reduction NOR: NOT(OR-reduce) -- same any-one check as
-          // BitwiseOr above, with the Ite branches swapped.
-          Sort bv1 = solver_->make_sort(BV, 1);
-          Term any_one = solver_->make_term(
-              Distinct, operand, solver_->make_term(0, operand->get_sort()));
-          result = solver_->make_term(Ite,
-                                      any_one,
-                                      solver_->make_term(0, bv1),
-                                      solver_->make_term(1, bv1));
-          break;
-        }
+        case UnaryOperator::BitwiseNand:
+          // Reduction NAND: NOT(AND-reduce) -- the negation of the
+          // all-ones check BitwiseAnd above uses.
+          return solver_->make_term(
+              Distinct, operand, all_ones_like(solver_, operand));
+        case UnaryOperator::BitwiseNor:
+          // Reduction NOR: NOT(OR-reduce) -- the negation of the
+          // any-one check BitwiseOr above uses.
+          return solver_->make_term(
+              Equal, operand, solver_->make_term(0, operand->get_sort()));
         case UnaryOperator::BitwiseXnor: {
           // Reduction XNOR: NOT(XOR-reduce parity) -- same bit-by-bit
           // XOR fold as BitwiseXor above, negated at the end.
@@ -765,17 +714,7 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
               "SystemVerilogEncoder: pattern-matching ternary condition "
               "('... matches ...') is not supported");
         }
-        Term c_term = expr_to_term(*c.expr, prefix);
-        uint64_t cw = c_term->get_sort()->get_width();
-        Term c_bool =
-            (cw == 1)
-                ? solver_->make_term(
-                      Equal,
-                      c_term,
-                      solver_->make_term(1, solver_->make_sort(BV, 1)))
-                : solver_->make_term(Distinct,
-                                     c_term,
-                                     solver_->make_term(0, c_term->get_sort()));
+        Term c_bool = expr_to_bool(*c.expr, prefix);
         bool_cond =
             bool_cond ? solver_->make_term(And, bool_cond, c_bool) : c_bool;
       }
@@ -843,15 +782,7 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
         // a disabled cycle's stale sample.
         Term enable;
         if (args.size() >= 3 && args[2]) {
-          Term e = expr_to_term(*args[2], prefix);
-          uint64_t ew = e->get_sort()->get_width();
-          enable = (ew == 1)
-                       ? solver_->make_term(
-                             Equal,
-                             e,
-                             solver_->make_term(1, solver_->make_sort(BV, 1)))
-                       : solver_->make_term(
-                             Distinct, e, solver_->make_term(0, e->get_sort()));
+          enable = expr_to_bool(*args[2], prefix);
         }
         // Optional `clocking_event`: this encoder has no clock-domain
         // model (single global clock is a deliberate design decision --
@@ -881,11 +812,8 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
                      "global clock); ignoring");
         }
         Term val = expr_to_term(*args[0], prefix);
-        Term eq = solver_->make_term(
-            Equal, val, tableau_.make_history_chain(val, 1, prefix));
-        Sort bv1 = solver_->make_sort(BV, 1);
         return solver_->make_term(
-            Ite, eq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+            Equal, val, tableau_.make_history_chain(val, 1, prefix));
       }
       if (call.isSystemCall() && call.getSubroutineName() == "$changed") {
         // $stable's negation: the value differs from one cycle ago,
@@ -903,11 +831,8 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
                      "global clock); ignoring");
         }
         Term val = expr_to_term(*args[0], prefix);
-        Term neq = solver_->make_term(
-            Distinct, val, tableau_.make_history_chain(val, 1, prefix));
-        Sort bv1 = solver_->make_sort(BV, 1);
         return solver_->make_term(
-            Ite, neq, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+            Distinct, val, tableau_.make_history_chain(val, 1, prefix));
       }
       if (call.isSystemCall()
           && (call.getSubroutineName() == "$rose"
@@ -937,17 +862,15 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
         Term prev_bit0 = tableau_.make_history_chain(bit0, 1, prefix);
         Term now_val = solver_->make_term(is_rose ? 1 : 0, bv1);
         Term prev_val = solver_->make_term(is_rose ? 0 : 1, bv1);
-        Term edge =
-            solver_->make_term(And,
-                               solver_->make_term(Equal, bit0, now_val),
-                               solver_->make_term(Equal, prev_bit0, prev_val));
         return solver_->make_term(
-            Ite, edge, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+            And,
+            solver_->make_term(Equal, bit0, now_val),
+            solver_->make_term(Equal, prev_bit0, prev_val));
       }
       if (call.isSystemCall() && call.getSubroutineName() == "$isunknown") {
         // This encoder's SMT model is pure 2-valued bitvectors -- there
         // is no X/Z representation at all -- so nothing is ever unknown.
-        return solver_->make_term(0, solver_->make_sort(BV, 1));
+        return solver_->make_term(false);
       }
       if (call.isSystemCall()
           && (call.getSubroutineName() == "$onehot"
@@ -968,15 +891,10 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
             solver_->make_term(Equal,
                                solver_->make_term(BVAnd, val, minus_one),
                                solver_->make_term(0, val->get_sort()));
-        Term cond = at_most_one;
-        if (call.getSubroutineName() == "$onehot") {
-          Term nonzero = solver_->make_term(
-              Distinct, val, solver_->make_term(0, val->get_sort()));
-          cond = solver_->make_term(And, nonzero, at_most_one);
-        }
-        Sort bv1 = solver_->make_sort(BV, 1);
-        return solver_->make_term(
-            Ite, cond, solver_->make_term(1, bv1), solver_->make_term(0, bv1));
+        if (call.getSubroutineName() != "$onehot") return at_most_one;
+        Term nonzero = solver_->make_term(
+            Distinct, val, solver_->make_term(0, val->get_sort()));
+        return solver_->make_term(And, nonzero, at_most_one);
       }
       throw PonoException("SystemVerilogEncoder: unsupported call to "
                           + std::string(call.getSubroutineName()));

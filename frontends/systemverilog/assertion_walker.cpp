@@ -215,8 +215,7 @@ smt::TermVec AssertionWalker::offsets_ending_now(
   auto boolean_with_repetition =
       [&](const slang::ast::Expression & expr,
           const std::optional<SequenceRepetition> & repetition) -> TermVec {
-    Term b = expr_encoder_.expr_to_term(expr, prefix);
-    b = solver_->make_term(Distinct, b, solver_->make_term(0, b->get_sort()));
+    Term b = expr_encoder_.expr_to_bool(expr, prefix);
     if (!repetition) return { b };
     if (repetition->kind != SequenceRepetition::Consecutive) {
       throw PonoException(
@@ -494,9 +493,7 @@ smt::Term AssertionWalker::leading_condition(
             "SystemVerilogEncoder: weak()/strong() of a sequence with its "
             "own leading repetition is not supported");
       }
-      Term t = expr_encoder_.expr_to_term(simple.expr, prefix);
-      return solver_->make_term(
-          Distinct, t, solver_->make_term(0, t->get_sort()));
+      return expr_encoder_.expr_to_bool(simple.expr, prefix);
     }
     case AssertionExprKind::FirstMatch:
       return leading_condition(seq.as<FirstMatchAssertionExpr>().seq, prefix);
@@ -603,10 +600,8 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
         if (!me) return Term();
         return neg ? solver_->make_term(Not, me) : me;
       }
-      Term t = expr_encoder_.expr_to_term(simple.expr, prefix);
-      if (!t) return Term();
-      Term zero = solver_->make_term(0, t->get_sort());
-      Term b = solver_->make_term(Distinct, t, zero);
+      Term b = expr_encoder_.expr_to_bool(simple.expr, prefix);
+      if (!b) return Term();
       return neg ? solver_->make_term(Not, b) : b;
     }
 
@@ -679,9 +674,7 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       // doesn't change polarity, so this is a plain ITE over the two
       // (already correctly negated) recursive results.
       auto & c = ae.as<ConditionalAssertionExpr>();
-      Term cond = expr_encoder_.expr_to_term(c.condition, prefix);
-      Term cond_bool = solver_->make_term(
-          Distinct, cond, solver_->make_term(0, cond->get_sort()));
+      Term cond_bool = expr_encoder_.expr_to_bool(c.condition, prefix);
       Term if_branch = ltl_to_sat(c.ifExpr, neg, justice, prefix);
       if (!if_branch) return Term();
       Term else_branch;
@@ -932,11 +925,7 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         // and returning a bare `bool(expr)`.
         return match_exists(ae, prefix);
       }
-      Term t = expr_encoder_.expr_to_term(simple.expr, prefix);
-      // Normalize to Bool: t != 0.
-      Sort sort = t->get_sort();
-      Term zero = solver_->make_term(0, sort);
-      return solver_->make_term(Distinct, t, zero);
+      return expr_encoder_.expr_to_bool(simple.expr, prefix);
     }
 
     case AssertionExprKind::SequenceConcat: {
@@ -1013,9 +1002,7 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
       } else {
         else_branch = solver_->make_term(true);
       }
-      Term cond = expr_encoder_.expr_to_term(c.condition, prefix);
-      Term cond_bool = solver_->make_term(
-          Distinct, cond, solver_->make_term(0, cond->get_sort()));
+      Term cond_bool = expr_encoder_.expr_to_bool(c.condition, prefix);
       return solver_->make_term(Ite, cond_bool, if_branch, else_branch);
     }
 
@@ -1244,9 +1231,7 @@ void AssertionWalker::process_concurrent_assertion(
 
   Term saved_disable_cond = current_disable_cond_;
   if (disable_expr) {
-    Term dc = expr_encoder_.expr_to_term(*disable_expr, prefix);
-    current_disable_cond_ =
-        solver_->make_term(Distinct, dc, solver_->make_term(0, dc->get_sort()));
+    current_disable_cond_ = expr_encoder_.expr_to_bool(*disable_expr, prefix);
   } else {
     current_disable_cond_ = Term();
   }
@@ -1408,9 +1393,7 @@ void AssertionWalker::process_immediate_assertion(
       && !is_cover) {
     return;
   }
-  Term cond_term = expr_encoder_.expr_to_term(ia.cond, prefix);
-  Term bool_cond = solver_->make_term(
-      Distinct, cond_term, solver_->make_term(0, cond_term->get_sort()));
+  Term bool_cond = expr_encoder_.expr_to_bool(ia.cond, prefix);
   if (is_cover) {
     bool_cond = solver_->make_term(Not, bool_cond);
   }
