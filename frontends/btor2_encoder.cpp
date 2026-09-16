@@ -18,10 +18,14 @@
 
 #include <algorithm>
 #include <cassert>
-#include <iostream>
+#include <cstdio>
 #include <iterator>
+#include <unordered_set>
+#include <utility>
 
-#include "smt-switch/utils.h"
+#include "btor2parser.h"
+#include "smt-switch/smt.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -435,8 +439,8 @@ void BTOR2Encoder::parse(const std::string filename)
                      std::back_inserter(justice),
                      [&](auto t) { return bv_to_bool(t); });
     } else if (bt2_line->tag == BTOR2_TAG_fair) {
-      std::cerr << "Warning: ignoring fair term" << std::endl;
-      fairvec_.push_back(termargs[0]);
+      // Keep terms_ raw: other lines may reference this id as a bitvector.
+      fairvec_.push_back(bv_to_bool(termargs[0]));
       terms_[bt2_line->id] = termargs[0];
     } else if (bt2_line->constant) {
       terms_[bt2_line->id] = solver_->make_term(
