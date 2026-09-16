@@ -37,6 +37,7 @@ cm_Z3_ROOT="$root_dir/deps/smt-switch/deps/install"
 cm_CMAKE_BUILD_TYPE=Release
 cm_PONO_LIB_TYPE=SHARED
 cm_PONO_STATIC_EXEC=NO
+cm_PONO_STRICT=OFF
 
 # Optional features / backends
 cm_BUILD_DOCS=OFF
@@ -79,6 +80,7 @@ Build flags:
 --debug                 disable optimizations and include debug symbols (default: $(lowercase "$cm_CMAKE_BUILD_TYPE") build)
 --static                build a static executable (default: $(lowercase "$cm_PONO_STATIC_EXEC")); implies --static-lib
 --static-lib            build a static library (default: $(lowercase "$cm_PONO_LIB_TYPE"))
+--strict                treat compiler warnings as errors (default: $(lowercase "$cm_PONO_STRICT"))
 
 Optional features / backends (default: false/off for all):
 --docs                  build HTML documentation with Doxygen
@@ -126,6 +128,7 @@ while [[ $# -gt 0 ]]; do
     --debug) cm_CMAKE_BUILD_TYPE=Debug ;;
     --static) cm_PONO_STATIC_EXEC=YES ;;
     --static-lib) cm_PONO_LIB_TYPE=STATIC ;;
+    --strict) cm_PONO_STRICT=ON ;;
 
     # Optional features / backends
     --docs) cm_BUILD_DOCS=ON ;;
