@@ -1021,32 +1021,60 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
 
     case AssertionExprKind::Unary: {
       auto & u = ae.as<UnaryAssertionExpr>();
-      switch (u.op) {
-        case UnaryAssertionOperator::Not: {
-          // Negation keeps the operand's anchor, so the span rides
-          // through unchanged.
-          Term inner = assertion_expr_to_bool(u.expr, prefix, span);
-          if (!inner) return Term();
-          return solver_->make_term(Not, inner);
-        }
-        case UnaryAssertionOperator::Always:
-        case UnaryAssertionOperator::SAlways: {
-          // A cycle window (`always [m:n] P`) is a forward reference
-          // this current-cycle path can't express, so leave it to the
-          // tableau rather than dropping the window.
-          if (u.range) return Term();
-          // Pure safety: `always P` is true at the current cycle
-          // exactly when P is true at the current cycle (the
-          // "always at every cycle" closure is implicit in the
-          // per-cycle property check).
-          return assertion_expr_to_bool(u.expr, prefix, span);
-        }
-        default:
-          // Eventually / SEventually / NextTime / SNextTime can't be
-          // folded into a current-cycle Boolean: they need a forward
-          // shift, which only the tableau's make_X can express.
-          return Term();
+      if (u.op == UnaryAssertionOperator::Not) {
+        // Negation keeps the operand's anchor, so the span rides
+        // through unchanged.
+        Term inner = assertion_expr_to_bool(u.expr, prefix, span);
+        if (!inner) return Term();
+        return solver_->make_term(Not, inner);
       }
+
+      bool is_always = u.op == UnaryAssertionOperator::Always
+                       || u.op == UnaryAssertionOperator::SAlways;
+      bool is_next = u.op == UnaryAssertionOperator::NextTime
+                     || u.op == UnaryAssertionOperator::SNextTime;
+      bool is_eventually = u.op == UnaryAssertionOperator::Eventually
+                           || u.op == UnaryAssertionOperator::SEventually;
+      if (!is_always && !is_next && !is_eventually) return Term();
+
+      uint32_t lo = 0;
+      uint32_t hi = 0;
+      if (u.range) {
+        // `[m:$]` reaches arbitrarily far forward, so there is no last
+        // cycle to re-anchor to -- that one stays with the tableau.
+        if (!u.range->max) return Term();
+        lo = u.range->min;
+        hi = *u.range->max;
+      } else if (is_next) {
+        // A bare `nexttime` is `[1:1]`.
+        lo = hi = 1;
+      } else if (is_always) {
+        // Unranged `always P`: the whole-trace closure is already
+        // implicit in the per-cycle property check, so P alone is it.
+        return assertion_expr_to_bool(u.expr, prefix, span);
+      } else {
+        // Unranged `s_eventually`: unbounded, genuinely liveness.
+        return Term();
+      }
+      if (hi < lo || hi >= MAX_SEQ_WINDOW) return Term();
+
+      uint32_t inner_span = 0;
+      Term inner = assertion_expr_to_bool(u.expr, prefix, inner_span);
+      if (!inner) return Term();
+
+      // Every cycle the window names is in the past once the check is
+      // re-anchored to the window's last one, so the operand read `j`
+      // cycles after the attempt started is read `hi - j` cycles ago.
+      // `always` needs all of them, `eventually` any of them.
+      span = hi + inner_span;
+      Term result;
+      for (uint32_t j = lo; j <= hi; ++j) {
+        Term shifted = reanchor(inner, j + inner_span, span, prefix);
+        result = result
+                     ? solver_->make_term(is_always ? And : Or, result, shifted)
+                     : shifted;
+      }
+      return result;
     }
 
     case AssertionExprKind::Conditional: {
@@ -1374,10 +1402,12 @@ void AssertionWalker::process_concurrent_assertion(
   // bounded `|->` / `|=>` / `##k` implications).
   // assertion_expr_to_bool returns null as soon as a genuine liveness
   // operator (eventually / unbounded until) appears.
-  if (Term holds = assertion_expr_to_bool(*a, prefix)) {
+  uint32_t span = 0;
+  if (Term holds = assertion_expr_to_bool(*a, prefix, span)) {
     violated = solver_->make_term(Not, holds);
     per_cycle = true;
   } else {
+    span = 0;
     if (is_assumption) {
       // Temporal (non-safety) assume/restrict properties would need
       // their own fairness-constraint machinery (assuming a GF
@@ -1431,9 +1461,21 @@ void AssertionWalker::process_concurrent_assertion(
     violated = solver_->make_term(Not, violated);
   }
 
+  // If the check re-anchored itself `span` cycles forward, the first
+  // `span` cycles describe attempts that could not have started, so
+  // there is no verdict to give there.
+  if (span > 0) {
+    violated = solver_->make_term(
+        And,
+        solver_->make_term(Not, tableau_.before_cycle(span, prefix)),
+        violated);
+  }
+
   // `disable iff`: a cycle where the condition holds is exempt, so a
-  // failure there does not count.
-  if (Term dw = tableau_.disable_window(current_disable_cond_, 0, prefix)) {
+  // failure there does not count.  The window is the whole re-anchored
+  // span, not just the anchor cycle -- the attempt is aborted if the
+  // condition held anywhere along it.
+  if (Term dw = tableau_.disable_window(current_disable_cond_, span, prefix)) {
     violated = solver_->make_term(And, solver_->make_term(Not, dw), violated);
   }
 

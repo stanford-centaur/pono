@@ -37,19 +37,19 @@ TEST_P(SVUnitTests, EventuallyNotRecurring)
   check_liveness_bmc("eventually_not_recurring.sv", 20);
 }
 
-// `disable iff` on a property that reaches the LTL tableau rather than
-// the safety fast path.  The pair differs only in the exemption, so it
-// pins down that the condition is applied at all -- it used to be
-// computed and then ignored on this path, making the assertion
-// stronger than written.
+// `disable iff` on a temporal property.  The pair differs only in the
+// exemption, so it pins down that the condition is applied at all --
+// it used to be computed and then ignored whenever the property did
+// not take the safety fast path, making the assertion stronger than
+// written.
 TEST_P(SVUnitTests, DisableIffTemporalHolds)
 {
-  check_liveness_bmc("disable_iff_temporal.sv", 10, ProverResult::UNKNOWN);
+  check_bmc("disable_iff_temporal.sv", 10, ProverResult::UNKNOWN);
 }
 
 TEST_P(SVUnitTests, DisableIffTemporalFails)
 {
-  check_liveness_bmc("disable_iff_temporal_fails.sv", 10);
+  check_bmc("disable_iff_temporal_fails.sv", 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -59,6 +59,11 @@ TEST_P(SVUnitTests, DisableIffTemporalFails)
 // window, so the pair pins down that the window is honoured rather
 // than dropped -- which it silently was, encoding every one of these
 // as if unbounded.
+//
+// All but the `[m:$]` one are plain safety properties: a bounded
+// window names a last cycle, so the check re-anchors there and reads
+// backwards.  That is why these use check_bmc(), which additionally
+// pins the exact cycle the violation is found at.
 // ---------------------------------------------------------------------------
 
 // The regression test for the unsound direction: `count` does reach 3
@@ -67,24 +72,24 @@ TEST_P(SVUnitTests, DisableIffTemporalFails)
 // design that genuinely fails.
 TEST_P(SVUnitTests, EventuallyRangeFails)
 {
-  check_liveness_bmc("eventually_range_fails.sv", 12);
+  check_bmc("eventually_range_fails.sv", 3);
 }
 
 TEST_P(SVUnitTests, EventuallyRangeHolds)
 {
-  check_liveness_bmc("eventually_range.sv", 12, ProverResult::UNKNOWN);
+  check_bmc("eventually_range.sv", 12, ProverResult::UNKNOWN);
 }
 
 // Nested under an implication, i.e. where the window is relative to
 // the match point rather than to the start of the trace.
 TEST_P(SVUnitTests, SAlwaysRangeHolds)
 {
-  check_liveness_bmc("s_always_range.sv", 12, ProverResult::UNKNOWN);
+  check_bmc("s_always_range.sv", 12, ProverResult::UNKNOWN);
 }
 
 TEST_P(SVUnitTests, SAlwaysRangeFails)
 {
-  check_liveness_bmc("s_always_range_fails.sv", 20);
+  check_bmc("s_always_range_fails.sv", 5);
 }
 
 // `nexttime [k]` must shift k cycles, not one.  The holds variant used
@@ -92,12 +97,12 @@ TEST_P(SVUnitTests, SAlwaysRangeFails)
 // count == 1 rather than count == 3.
 TEST_P(SVUnitTests, NextTimeRangeHolds)
 {
-  check_liveness_bmc("nexttime_range.sv", 12, ProverResult::UNKNOWN);
+  check_bmc("nexttime_range.sv", 12, ProverResult::UNKNOWN);
 }
 
 TEST_P(SVUnitTests, NextTimeRangeFails)
 {
-  check_liveness_bmc("nexttime_range_fails.sv", 20);
+  check_bmc("nexttime_range_fails.sv", 3);
 }
 
 // `always [m:$]` -- the windowed form whose upper bound may be
