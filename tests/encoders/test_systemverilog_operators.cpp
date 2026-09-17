@@ -67,7 +67,7 @@ TEST_P(SVUnitTests, PastInLogicalAndBuildsOneChain)
 {
   SmtSolver s = create_solver(GetParam());
   FunctionalTransitionSystem fts(s);
-  SystemVerilogEncoder::encode(sv_path("past_in_logical_and.sv"), fts);
+  SystemVerilogEncoder::encode(fts, sv_path("past_in_logical_and.sv"));
 
   size_t chain_latches = 0;
   for (const auto & sv : fts.statevars()) {

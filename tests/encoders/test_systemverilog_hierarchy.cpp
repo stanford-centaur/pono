@@ -74,7 +74,7 @@ TEST_P(SVUnitTests, FilelistMissingFile)
   FunctionalTransitionSystem fts(s);
   EXPECT_THROW(
       SystemVerilogEncoder::encode(
-          sv_path("filelist_top.sv"), fts, { sv_path("filelist_missing.f") }),
+          fts, sv_path("filelist_top.sv"), { sv_path("filelist_missing.f") }),
       PonoException);
 }
 

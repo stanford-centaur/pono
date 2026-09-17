@@ -97,7 +97,7 @@ class SVUnitTests : public ::testing::Test,
     s->set_opt("produce-models", "true");
     FunctionalTransitionSystem fts(s);
     auto sv_result =
-        SystemVerilogEncoder::encode(sv_path(file), fts, filelists);
+        SystemVerilogEncoder::encode(fts, sv_path(file), filelists);
     ASSERT_EQ(sv_result.propvec.size(), 1u);
     Term prop_term = sv_result.propvec[0];
 
@@ -143,7 +143,7 @@ class SVUnitTests : public ::testing::Test,
     s->set_opt("incremental", "true");
     s->set_opt("produce-models", "true");
     FunctionalTransitionSystem fts(s);
-    auto sv_result = SystemVerilogEncoder::encode(sv_path(file), fts);
+    auto sv_result = SystemVerilogEncoder::encode(fts, sv_path(file));
     ASSERT_EQ(sv_result.propvec.size(), 0u);
     ASSERT_EQ(sv_result.ltl_justice.size(), 1u);
     TermVec justice = sv_result.ltl_justice[0];
@@ -182,7 +182,7 @@ class SVUnitTests : public ::testing::Test,
     using namespace smt;
     SmtSolver s = create_solver(GetParam());
     FunctionalTransitionSystem fts(s);
-    EXPECT_THROW(SystemVerilogEncoder::encode(sv_path(file), fts, filelists),
+    EXPECT_THROW(SystemVerilogEncoder::encode(fts, sv_path(file), filelists),
                  PonoException);
   }
 
@@ -205,7 +205,7 @@ class SVUnitTests : public ::testing::Test,
     SmtSolver s = create_solver(GetParam());
     FunctionalTransitionSystem fts(s);
     EXPECT_NO_THROW(
-        SystemVerilogEncoder::encode(sv_path(file), fts, filelists));
+        SystemVerilogEncoder::encode(fts, sv_path(file), filelists));
   }
 };
 

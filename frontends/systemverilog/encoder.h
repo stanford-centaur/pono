@@ -175,8 +175,8 @@ class SystemVerilogEncoder
    *  ledger of constructs checked against this contract, each verified
    *  empirically (not assumed) to land in the bucket its test expects.
    *
-   *  @param filename path to the SystemVerilog source file
    *  @param fts the transition system to populate
+   *  @param filename path to the SystemVerilog source file
    *  @param filelists paths to SystemVerilog list files (".f" files), each
    *         containing one additional source file path per line ('#' and
    *         "//" lines are comments). Relative paths inside a list file
@@ -185,8 +185,8 @@ class SystemVerilogEncoder
    *         as a single compilation.
    *  @return the safety properties and LTL justice sets found in the design
    */
-  static Result encode(std::string filename,
-                       FunctionalTransitionSystem & fts,
+  static Result encode(FunctionalTransitionSystem & fts,
+                       std::string filename,
                        const std::vector<std::string> & filelists = {});
 
   ~SystemVerilogEncoder();

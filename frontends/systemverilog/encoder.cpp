@@ -77,8 +77,8 @@ SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
 SystemVerilogEncoder::~SystemVerilogEncoder() = default;
 
 SystemVerilogEncoder::Result SystemVerilogEncoder::encode(
-    string filename,
     FunctionalTransitionSystem & fts,
+    string filename,
     const std::vector<std::string> & filelists)
 {
   SystemVerilogEncoder enc(fts);

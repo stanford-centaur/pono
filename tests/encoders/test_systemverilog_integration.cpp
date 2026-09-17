@@ -59,7 +59,7 @@ TEST_P(SVUnitTests, CreditLinkAssumeHonoredByIC3)
   SmtSolver s = create_solver_for(GetParam(), Engine::IC3_BITS, false);
   FunctionalTransitionSystem fts(s);
   auto sv_result =
-      SystemVerilogEncoder::encode(sv_path("integration/credit_link.sv"), fts);
+      SystemVerilogEncoder::encode(fts, sv_path("integration/credit_link.sv"));
   ASSERT_EQ(sv_result.propvec.size(), 1u);
   Term prop_term = sv_result.propvec[0];
 

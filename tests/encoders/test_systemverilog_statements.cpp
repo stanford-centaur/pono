@@ -72,7 +72,7 @@ TEST_P(SVUnitTests, ConcatenationLhsClassifiedAsWire)
 {
   SmtSolver s = create_solver(GetParam());
   FunctionalTransitionSystem fts(s);
-  SystemVerilogEncoder::encode(sv_path("concat_lhs.sv"), fts);
+  SystemVerilogEncoder::encode(fts, sv_path("concat_lhs.sv"));
   TransitionSystem ts = fts;
   const auto & named = ts.named_terms();
   ASSERT_TRUE(named.count("concat_lhs.hi"));
