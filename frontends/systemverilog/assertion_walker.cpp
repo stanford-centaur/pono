@@ -932,10 +932,34 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
   }
 }
 
+smt::Term AssertionWalker::reanchor(const Term & t,
+                                    uint32_t from,
+                                    uint32_t to,
+                                    const string & prefix)
+{
+  return from == to ? t : tableau_.make_history_chain(t, to - from, prefix);
+}
+
 smt::Term AssertionWalker::assertion_expr_to_bool(
     const slang::ast::AssertionExpr & ae, const string & prefix)
 {
+  uint32_t span = 0;
+  Term t = assertion_expr_to_bool(ae, prefix, span);
+  // A re-anchored term is only meaningful once gated with
+  // before_cycle(span).  Callers of this form have nowhere to put
+  // that gate, so decline and let them fall back to the tableau; the
+  // one caller that can gate uses the three-argument form.
+  return span == 0 ? t : Term();
+}
+
+smt::Term AssertionWalker::assertion_expr_to_bool(
+    const slang::ast::AssertionExpr & ae,
+    const string & prefix,
+    uint32_t & span)
+{
   using namespace slang::ast;
+
+  span = 0;
 
   switch (ae.kind) {
     case AssertionExprKind::Clocking: {
@@ -945,13 +969,13 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
       // the underlying expression.
       auto & clk_expr = ae.as<ClockingAssertionExpr>();
       check_clock(clk_expr.clocking);
-      return assertion_expr_to_bool(clk_expr.expr, prefix);
+      return assertion_expr_to_bool(clk_expr.expr, prefix, span);
     }
 
     case AssertionExprKind::Simple: {
       auto & simple = ae.as<SimpleAssertionExpr>();
       if (auto * named = resolve_named_assertion_ref(simple.expr)) {
-        return assertion_expr_to_bool(*named, prefix);
+        return assertion_expr_to_bool(*named, prefix, span);
       }
       if (simple.repetition) {
         // `expr[*n:m]`/`expr[+]`/`expr[*]`: route through the general
@@ -969,7 +993,7 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
       // truth value (it just postpones when the first violation can
       // be reported), so unwrap the inner sequence.
       if (auto matched = match_const_delay_seq(ae)) {
-        return assertion_expr_to_bool(*matched->second, prefix);
+        return assertion_expr_to_bool(*matched->second, prefix, span);
       }
       return Term();
     }
@@ -999,7 +1023,9 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
       auto & u = ae.as<UnaryAssertionExpr>();
       switch (u.op) {
         case UnaryAssertionOperator::Not: {
-          Term inner = assertion_expr_to_bool(u.expr, prefix);
+          // Negation keeps the operand's anchor, so the span rides
+          // through unchanged.
+          Term inner = assertion_expr_to_bool(u.expr, prefix, span);
           if (!inner) return Term();
           return solver_->make_term(Not, inner);
         }
@@ -1013,7 +1039,7 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
           // exactly when P is true at the current cycle (the
           // "always at every cycle" closure is implicit in the
           // per-cycle property check).
-          return assertion_expr_to_bool(u.expr, prefix);
+          return assertion_expr_to_bool(u.expr, prefix, span);
         }
         default:
           // Eventually / SEventually / NextTime / SNextTime can't be
@@ -1031,39 +1057,66 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
       // for the full LTL tableau. Falls back (returns null) as soon
       // as either branch does.
       auto & c = ae.as<ConditionalAssertionExpr>();
-      Term if_branch = assertion_expr_to_bool(c.ifExpr, prefix);
+      uint32_t if_span = 0;
+      Term if_branch = assertion_expr_to_bool(c.ifExpr, prefix, if_span);
       if (!if_branch) return Term();
+      uint32_t else_span = 0;
       Term else_branch;
       if (c.elseExpr) {
-        else_branch = assertion_expr_to_bool(*c.elseExpr, prefix);
+        else_branch = assertion_expr_to_bool(*c.elseExpr, prefix, else_span);
         if (!else_branch) return Term();
       } else {
         else_branch = solver_->make_term(true);
       }
-      Term cond_bool = expr_encoder_.expr_to_bool(c.condition, prefix);
+      // Bring both branches, and the condition they select between,
+      // onto whichever anchor is later.
+      span = std::max(if_span, else_span);
+      if_branch = reanchor(if_branch, if_span, span, prefix);
+      else_branch = reanchor(else_branch, else_span, span, prefix);
+      Term cond_bool = reanchor(
+          expr_encoder_.expr_to_bool(c.condition, prefix), 0, span, prefix);
       return solver_->make_term(Ite, cond_bool, if_branch, else_branch);
     }
 
     case AssertionExprKind::Case: {
       // Mirrors ltl_to_sat()'s Case case -- see Conditional above.
       auto & c = ae.as<CaseAssertionExpr>();
-      Term result;
+      // Convert every branch before building anything: they all have
+      // to agree on an anchor before the selector can choose between
+      // them.
+      uint32_t default_span = 0;
+      Term default_branch;
       if (c.defaultCase) {
-        result = assertion_expr_to_bool(*c.defaultCase, prefix);
-        if (!result) return Term();
+        default_branch =
+            assertion_expr_to_bool(*c.defaultCase, prefix, default_span);
+        if (!default_branch) return Term();
       } else {
-        result = solver_->make_term(true);
+        default_branch = solver_->make_term(true);
       }
-      Term sel = expr_encoder_.expr_to_term(c.expr, prefix);
+      TermVec bodies;
+      std::vector<uint32_t> body_spans;
+      span = default_span;
+      for (auto & item : c.items) {
+        uint32_t body_span = 0;
+        Term body = assertion_expr_to_bool(*item.body, prefix, body_span);
+        if (!body) return Term();
+        bodies.push_back(body);
+        body_spans.push_back(body_span);
+        span = std::max(span, body_span);
+      }
+
+      Term sel =
+          reanchor(expr_encoder_.expr_to_term(c.expr, prefix), 0, span, prefix);
       uint64_t sel_w = sel->get_sort()->get_width();
-      for (auto it = c.items.rbegin(); it != c.items.rend(); ++it) {
-        Term branch = assertion_expr_to_bool(*it->body, prefix);
-        if (!branch) return Term();
+      Term result = reanchor(default_branch, default_span, span, prefix);
+      for (size_t i = c.items.size(); i-- > 0;) {
+        Term branch = reanchor(bodies[i], body_spans[i], span, prefix);
         Term item_cond;
-        for (auto * match_expr : it->expressions) {
+        for (auto * match_expr : c.items[i].expressions) {
           Term m = expr_encoder_.expr_to_term(*match_expr, prefix);
           m = resize_to(solver_, m, sel_w, match_expr->type->isSigned());
-          Term eq = solver_->make_term(Equal, sel, m);
+          Term eq =
+              solver_->make_term(Equal, sel, reanchor(m, 0, span, prefix));
           item_cond = item_cond ? solver_->make_term(Or, item_cond, eq) : eq;
         }
         result = solver_->make_term(Ite, item_cond, branch, result);
@@ -1096,8 +1149,12 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         // sequence antecedent (`a ##1 b |-> ...`,
         // `first_match(seq) |-> ...`) falls back to the general
         // bounded sequence matcher.
-        Term lhs = assertion_expr_to_bool(*lhs_inner, prefix);
-        if (!lhs) lhs = match_exists(*lhs_inner, prefix);
+        uint32_t lhs_span = 0;
+        Term lhs = assertion_expr_to_bool(*lhs_inner, prefix, lhs_span);
+        if (!lhs) {
+          lhs = match_exists(*lhs_inner, prefix);
+          lhs_span = 0;
+        }
         if (!lhs) return Term();
 
         // Compute the consequent at its anchor cycle (offset by any
@@ -1113,10 +1170,11 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
             (b.op == BinaryAssertionOperator::NonOverlappedImplication) ? 1 : 0;
         const AssertionExpr * rhs_inner = &b.right;
         Term rhs;
+        uint32_t rhs_span = 0;
         if (auto matched = match_const_delay_seq(b.right)) {
           delay += matched->first;
           rhs_inner = matched->second;
-          rhs = assertion_expr_to_bool(*rhs_inner, prefix);
+          rhs = assertion_expr_to_bool(*rhs_inner, prefix, rhs_span);
         } else if (b.right.kind == AssertionExprKind::SequenceConcat
                    && b.right.as<SequenceConcatExpr>().elements.size() == 1) {
           auto & elem = b.right.as<SequenceConcatExpr>().elements[0];
@@ -1136,13 +1194,17 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
             }
           }
         } else {
-          rhs = assertion_expr_to_bool(*rhs_inner, prefix);
+          rhs = assertion_expr_to_bool(*rhs_inner, prefix, rhs_span);
         }
         if (!rhs) return Term();
 
-        if (delay > 0) {
-          lhs = tableau_.make_history_chain(lhs, delay, prefix);
-        }
+        // The consequent sits `delay` cycles after the attempt starts,
+        // and may itself have re-anchored a further `rhs_span`; the
+        // antecedent sits at `lhs_span`.  Bring both to whichever is
+        // later.
+        uint32_t anchor = std::max(lhs_span, delay + rhs_span);
+        lhs = reanchor(lhs, lhs_span, anchor, prefix);
+        rhs = reanchor(rhs, delay + rhs_span, anchor, prefix);
         Term result = solver_->make_term(Implies, lhs, rhs);
         if (lhs_delay > 0) {
           result = solver_->make_term(
@@ -1152,16 +1214,23 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         // condition held anywhere in the antecedent-to-consequent
         // shift window, not just at the single cycle the check is
         // anchored at.
-        if (Term dw =
-                tableau_.disable_window(current_disable_cond_, delay, prefix)) {
+        if (Term dw = tableau_.disable_window(
+                current_disable_cond_, anchor, prefix)) {
           result = solver_->make_term(Or, dw, result);
         }
+        // Already gated above, so the caller has nothing left to do.
+        span = 0;
         return result;
       }
 
-      Term lhs = assertion_expr_to_bool(b.left, prefix);
-      Term rhs = assertion_expr_to_bool(b.right, prefix);
+      uint32_t lhs_span = 0;
+      uint32_t rhs_span = 0;
+      Term lhs = assertion_expr_to_bool(b.left, prefix, lhs_span);
+      Term rhs = assertion_expr_to_bool(b.right, prefix, rhs_span);
       if (!lhs || !rhs) return Term();
+      span = std::max(lhs_span, rhs_span);
+      lhs = reanchor(lhs, lhs_span, span, prefix);
+      rhs = reanchor(rhs, rhs_span, span, prefix);
       switch (b.op) {
         case BinaryAssertionOperator::And:
           return solver_->make_term(And, lhs, rhs);

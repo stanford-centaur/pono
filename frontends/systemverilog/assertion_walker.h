@@ -117,6 +117,38 @@ class AssertionWalker
   smt::Term assertion_expr_to_bool(const slang::ast::AssertionExpr & ae,
                                    const std::string & prefix);
 
+  /** assertion_expr_to_bool()'s real body, additionally reporting how
+   *  far the returned term had to be *re-anchored* to stay
+   *  current-state-only.
+   *
+   *  A property expression is checked at every cycle, so a bounded
+   *  forward reference can be turned into a backward one by moving the
+   *  whole check to the last cycle the property mentions and delaying
+   *  everything else to match -- the trick `|->` already uses for its
+   *  antecedent.  `span` is how many cycles that moved the anchor: the
+   *  returned term describes an attempt that *started* `span` cycles
+   *  ago, so it is meaningless before cycle `span` and the caller must
+   *  gate it with before_cycle(span).
+   *
+   *  Composing two such terms means re-anchoring both to the later of
+   *  their two anchors -- see reanchor().
+   *  @param span out: cycles the anchor moved; 0 for a plain
+   *         current-cycle property
+   */
+  smt::Term assertion_expr_to_bool(const slang::ast::AssertionExpr & ae,
+                                   const std::string & prefix,
+                                   uint32_t & span);
+
+  /** Delay `t` -- anchored `from` cycles after its attempt started --
+   *  so it reads at anchor `to` instead, for `to >= from`.  Used to
+   *  bring the operands of a Boolean combinator onto a common anchor
+   *  before combining them.
+   */
+  smt::Term reanchor(const smt::Term & t,
+                     uint32_t from,
+                     uint32_t to,
+                     const std::string & prefix);
+
   /** General bounded sequence matching: given a sequence expression
    *  (`Simple`/`SequenceWithMatch` with a consecutive `[m:n]`
    *  repetition, `SequenceConcat` with per-element `[m:n]` delay
