@@ -169,6 +169,15 @@ bool is_primop_symmetry(smt::PrimOp);
 
 struct sygus_op
 {
+  // Spelled out because declaring the destructor, even as defaulted,
+  // deprecates the implicit copies and suppresses the implicit moves.
+  sygus_op() = default;
+  sygus_op(const sygus_op &) = default;
+  sygus_op(sygus_op &&) = default;
+  sygus_op & operator=(const sygus_op &) = default;
+  sygus_op & operator=(sygus_op &&) = default;
+  virtual ~sygus_op() = default;
+
   virtual smt::Op to_smt_op() const = 0;
 };
 
