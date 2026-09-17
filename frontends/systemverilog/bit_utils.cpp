@@ -17,6 +17,29 @@ using namespace std;
 
 namespace pono {
 
+namespace {
+
+/** Reject a non-BV term before its width is asked for.
+ *
+ *  Every helper below is bit arithmetic, and reaches for
+ *  `get_sort()->get_width()` on its first line.  That accessor is the
+ *  backend's bit-vector-size query, so handing it an array- or
+ *  Bool-sorted term aborts inside cvc5/bitwuzla rather than raising a
+ *  PonoException -- an unattributable crash instead of this encoder's
+ *  usual clean rejection.  Check first, and say which helper and which
+ *  sort.
+ */
+void require_bv(const Term & t, const char * who)
+{
+  if (t->get_sort()->get_sort_kind() != BV) {
+    throw PonoException("SystemVerilogEncoder: " + std::string(who)
+                        + " expects a bit-vector, got sort "
+                        + t->get_sort()->to_string());
+  }
+}
+
+}  // namespace
+
 Sort type_to_sort(const SmtSolver & solver, const slang::ast::Type & type)
 {
   if (type.isIntegral()) {
@@ -36,6 +59,7 @@ Term slice_bits(const SmtSolver & solver,
                 uint64_t hi)
 {
   if (!base) return Term();
+  require_bv(base, "slice_bits()");
   uint64_t w = base->get_sort()->get_width();
   if (lo == 0 && hi == w - 1) return base;
   return solver->make_term(Op(Extract, hi, lo), base);
@@ -46,6 +70,7 @@ Term resize_to(const SmtSolver & solver,
                uint64_t target_width,
                bool is_signed)
 {
+  require_bv(t, "resize_to()");
   uint64_t current_width = t->get_sort()->get_width();
   if (current_width == target_width) {
     return t;
@@ -65,6 +90,7 @@ Term replace_bits(const SmtSolver & solver,
                   uint64_t lo,
                   uint64_t hi)
 {
+  require_bv(base, "replace_bits()");
   uint64_t base_w = base->get_sort()->get_width();
   if (lo == 0 && hi == base_w - 1) return slice;
   std::vector<Term> parts;
@@ -93,6 +119,7 @@ Term replace_bits_dynamic(const SmtSolver & solver,
   // clears every bit outside the shifted elem_w-wide window
   // regardless, so the padding bits of `slice` never affect the
   // result either way.
+  require_bv(base, "replace_bits_dynamic()");
   uint64_t base_w = base->get_sort()->get_width();
   Sort base_sort = solver->make_sort(BV, base_w);
   Term idx_ext = resize_to(solver, idx, base_w, false);
