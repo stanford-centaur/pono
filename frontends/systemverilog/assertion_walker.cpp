@@ -1267,107 +1267,133 @@ void AssertionWalker::process_concurrent_assertion(
   }
   if (!disable_expr) disable_expr = default_disable_expr;
 
-  Term saved_disable_cond = current_disable_cond_;
+  // Restored on every exit, including the throws below.  Those abort
+  // the whole encode today, but one owner is one less thing to keep in
+  // sync.
+  struct DisableCondRestore
+  {
+    Term & slot;
+    Term saved;
+    ~DisableCondRestore() { slot = saved; }
+  } disable_restore{ current_disable_cond_, current_disable_cond_ };
+
   if (disable_expr) {
     current_disable_cond_ = expr_encoder_.expr_to_bool(*disable_expr, prefix);
   } else {
     current_disable_cond_ = Term();
   }
 
-  // Prefer the pure-safety encoding when the property reduces to
-  // a single current-cycle Boolean (plain `assert P`, `always
-  // P`, bounded `|->` / `|=>` / `##k` implications).
-  // assertion_expr_to_bool returns null as soon as a genuine
-  // liveness operator (eventually / unbounded until) appears.
-  if (Term prop = assertion_expr_to_bool(*a, prefix)) {
-    if (is_cover) {
-      // Reachability duality: negate before the disable-window
-      // exemption below runs, so a `disable iff C` on a cover
-      // property correctly means "don't count P as covered while
-      // C holds" (the composed surrogate is `!P || C`, whose own
-      // violation is exactly "P held and C did not").
-      prop = solver_->make_term(Not, prop);
-    }
-    // Catch-all `disable iff` exemption for property shapes
-    // (plain `assert P`, `always P`, ...) that don't already
-    // gate themselves more precisely inside assertion_expr_to_bool.
-    // For an assumption, this is exactly the right shape too:
-    // "assume P disable iff C" means P is only assumed while C is
-    // false, i.e. the ever-true constraint is (C || P).
-    if (Term dw = tableau_.disable_window(current_disable_cond_, 0, prefix)) {
-      prop = solver_->make_term(Or, dw, prop);
-    }
+  // Both encodings are built around the same thing: `violated`, the
+  // condition under which the property fails at the cycle the check is
+  // anchored at.  Everything decided *after* that -- cover duality,
+  // the `disable iff` exemption, the per-cycle closure, which vector
+  // the result lands in -- happens exactly once, below.  That is
+  // deliberate: when the two encodings each applied these for
+  // themselves, they twice ended up disagreeing (the LTL side dropped
+  // `disable iff`, and checked only cycle 0).
+  TermVec justice;
+  Term violated;
+  // Whether `violated` is a current-state-only predicate, which is
+  // exactly assertion_expr_to_bool()'s contract and is what makes a
+  // plain safety property sound.  A tableau term is not: its promise
+  // inputs are pinned by a constraint one cycle later, so at the last
+  // step of a bounded unrolling they are still free.
+  bool per_cycle;
+
+  // Prefer the pure-safety encoding when the property reduces to a
+  // single current-cycle Boolean (plain `assert P`, `always P`,
+  // bounded `|->` / `|=>` / `##k` implications).
+  // assertion_expr_to_bool returns null as soon as a genuine liveness
+  // operator (eventually / unbounded until) appears.
+  if (Term holds = assertion_expr_to_bool(*a, prefix)) {
+    violated = solver_->make_term(Not, holds);
+    per_cycle = true;
+  } else {
     if (is_assumption) {
-      // Hold at every reachable step (init and, via the transition
-      // relation, every subsequent state) -- the same "always true"
-      // primitive already used for plain state/input invariants
-      // elsewhere in the encoder, just applied to an assumption
-      // instead of a proof obligation.
-      fts_.add_constraint(prop, /*to_init_and_next=*/true);
-      logger.log(1,
-                 "SystemVerilogEncoder: extracted assumption "
-                 "constraint from {}",
-                 make_name(prefix, assertion_label(stmt)));
-    } else {
-      propvec_.push_back(prop);
-      logger.log(1,
-                 "SystemVerilogEncoder: extracted safety assertion "
-                 "property {} (index {})",
-                 make_name(prefix, assertion_label(stmt)),
-                 propvec_.size() - 1);
+      // Temporal (non-safety) assume/restrict properties would need
+      // their own fairness-constraint machinery (assuming a GF
+      // condition rather than proving one), which nothing else in
+      // the encoder builds yet. Dropping an assumption silently is
+      // worse than dropping an assertion: the model would be left
+      // *less* constrained than the source describes, so any
+      // counterexample BMC/IC3 finds afterward could be spurious
+      // (ruled out by the assumption this never applied) -- throw
+      // rather than risk reporting an unsound "bug".
+      throw PonoException(
+          "SystemVerilogEncoder: temporal (non-safety) '"
+          + std::string(ca.assertionKind == AssertionKind::Restrict ? "restrict"
+                                                                    : "assume")
+          + " property' is not supported: "
+          + make_name(prefix, current_assertion_label_));
     }
-    current_disable_cond_ = saved_disable_cond;
-    return;
+    if (is_cover) {
+      // The duality below would express this fine -- a cover's
+      // `violated` is just ltl_to_sat(*a, /*neg=*/false, ...), and its
+      // justice conditions are then the discharges of P itself, which
+      // is what "P was reached" needs.  What is missing is a way to
+      // tell the caller that this entry's verdict is inverted;
+      // Result::ltl_justice carries no such flag.  Throw until it
+      // does, rather than report a cover backwards.
+      throw PonoException(
+          "SystemVerilogEncoder: temporal/sequence-shaped 'cover "
+          "property' is not supported");
+    }
+    // Build the general LTL tableau for the *negated* property and
+    // collect its eventuality-discharge justice conditions.
+    violated = ltl_to_sat(*a, /*neg=*/true, justice, prefix);
+    if (!violated) {
+      // ltl_to_sat() throws for every AssertionExprKind/operator it
+      // doesn't model; a null result here can only come from a
+      // bounded-sequence shape offsets_ending_now()/match_exists()
+      // doesn't model (a separate, already-documented gap in that
+      // primitive) -- still throw rather than silently drop.
+      throw PonoException(
+          "SystemVerilogEncoder: property '" + current_assertion_label_
+          + "' uses an assertion shape this encoder cannot translate");
+    }
+    per_cycle = false;
+  }
+
+  // `cover property (P)` is checked as `assert property (!P)`, so in
+  // violation space it is simply the opposite polarity.  Expressed
+  // this way it no longer has to be sequenced before the exemption
+  // below, the way it did when this was written against "holds".
+  if (is_cover) {
+    violated = solver_->make_term(Not, violated);
+  }
+
+  // `disable iff`: a cycle where the condition holds is exempt, so a
+  // failure there does not count.
+  if (Term dw = tableau_.disable_window(current_disable_cond_, 0, prefix)) {
+    violated = solver_->make_term(And, solver_->make_term(Not, dw), violated);
   }
 
   if (is_assumption) {
-    // Temporal (non-safety) assume/restrict properties would need
-    // their own fairness-constraint machinery (assuming a GF
-    // condition rather than proving one), which nothing else in
-    // the encoder builds yet. Dropping an assumption silently is
-    // worse than dropping an assertion: the model would be left
-    // *less* constrained than the source describes, so any
-    // counterexample BMC/IC3 finds afterward could be spurious
-    // (ruled out by the assumption this never applied) -- throw
-    // rather than risk reporting an unsound "bug".
-    throw PonoException(
-        "SystemVerilogEncoder: temporal (non-safety) '"
-        + std::string(ca.assertionKind == AssertionKind::Restrict ? "restrict"
-                                                                  : "assume")
-        + " property' is not supported: "
-        + make_name(prefix, assertion_label(stmt)));
+    // Hold at every reachable step (init and, via the transition
+    // relation, every subsequent state) -- the same "always true"
+    // primitive already used for plain state/input invariants
+    // elsewhere in the encoder, just applied to an assumption instead
+    // of a proof obligation.
+    fts_.add_constraint(solver_->make_term(Not, violated),
+                        /*to_init_and_next=*/true);
+    logger.log(1,
+               "SystemVerilogEncoder: extracted assumption constraint "
+               "from {}",
+               make_name(prefix, current_assertion_label_));
+    return;
   }
 
-  if (is_cover) {
-    // A temporal/sequence-shaped cover goal (e.g. `cover property
-    // (a ##1 b)`) would need the reachability duality above
-    // extended through the same LTL tableau `ltl_to_sat()` builds
-    // for `assert`/`assume` -- negating a liveness obligation
-    // doesn't correspond to "was this ever reached" the way it
-    // does for a plain current-cycle Boolean, so that extension
-    // is out of scope here. Throw rather than silently drop.
-    throw PonoException(
-        "SystemVerilogEncoder: temporal/sequence-shaped 'cover "
-        "property' is not supported");
-  }
-
-  // Otherwise build the general LTL tableau for the *negated*
-  // property and collect its eventuality-discharge justice
-  // conditions.  A fair lasso of the resulting system (every
-  // justice condition true infinitely often) on which the
-  // negated property holds at some cycle is exactly a
-  // counterexample to the original assertion.
-  TermVec justice;
-  Term satpsi = ltl_to_sat(*a, /*neg=*/true, justice, prefix);
-  if (!satpsi) {
-    // ltl_to_sat() throws for every AssertionExprKind/operator it
-    // doesn't model; a null result here can only come from a bounded-
-    // sequence shape offsets_ending_now()/match_exists() doesn't
-    // model (a separate, already-documented gap in that primitive) --
-    // still throw rather than silently drop the whole property.
-    throw PonoException(
-        "SystemVerilogEncoder: property '" + current_assertion_label_
-        + "' uses an assertion shape this encoder cannot translate");
+  if (per_cycle) {
+    // A Pono safety property already means "in every reachable
+    // state", so the property expression's implicit per-cycle closure
+    // comes for free here.
+    propvec_.push_back(solver_->make_term(Not, violated));
+    logger.log(1,
+               "SystemVerilogEncoder: extracted safety assertion "
+               "property {} (index {})",
+               make_name(prefix, current_assertion_label_),
+               propvec_.size() - 1);
+    return;
   }
 
   // Per-property activation latch: a free Boolean constant.  The
@@ -1380,30 +1406,16 @@ void AssertionWalker::process_concurrent_assertion(
       solver_->make_sort(BOOL));
   fts_.assign_next(act, act);
 
-  // `disable iff`: a cycle where the disable condition holds is
-  // exempt, so a violation there doesn't count.  Same exemption the
-  // safety branch above applies, expressed against the negated
-  // property -- `G(C || P)` negates to `F(!C && !P)`.
-  Term body = satpsi;
-  if (Term dw = tableau_.disable_window(current_disable_cond_, 0, prefix)) {
-    body = solver_->make_term(And, solver_->make_term(Not, dw), body);
-  }
-
-  // The LRM evaluates a property expression at *every* clock tick,
-  // so `assert property (P)` already means `always P` -- writing the
-  // `always` out is redundant.  The safety branch above gets that
-  // closure for free (a Pono safety property means "in every
-  // reachable state"); here it has to be built, by asking for a
-  // violation *somewhere* rather than only in the first cycle.
-  Term violated = tableau_.make_F(body, justice, prefix);
-
-  // Anchor that at cycle 0 via the shared init flag, and add it to
+  // The closure the safety branch got for free has to be built here:
+  // the LRM evaluates a property expression at every clock tick, so a
+  // counterexample is a violation *somewhere*, not only in the first
+  // cycle.  Anchored at cycle 0 via the shared init flag, and added to
   // the transition relation (it references the tableau's promise
   // inputs) rather than to the initial-state predicate.
   Term obligation = solver_->make_term(
       Implies,
       solver_->make_term(And, tableau_.init_flag(prefix), act),
-      violated);
+      tableau_.make_F(violated, justice, prefix));
   fts_.add_constraint(obligation, /*to_init_and_next=*/false);
 
   justice.push_back(act);
@@ -1411,10 +1423,9 @@ void AssertionWalker::process_concurrent_assertion(
   logger.log(1,
              "SystemVerilogEncoder: extracted LTL liveness property "
              "{} (index {}, {} justice condition(s))",
-             make_name(prefix, assertion_label(stmt)),
+             make_name(prefix, current_assertion_label_),
              ltl_justice_.size() - 1,
              justice.size());
-  current_disable_cond_ = saved_disable_cond;
 }
 
 void AssertionWalker::process_immediate_assertion(
