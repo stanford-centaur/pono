@@ -78,6 +78,45 @@ TEST_P(SVUnitTests, FilelistMissingFile)
       PonoException);
 }
 
+// A module nothing instantiates is top-level, so an unused helper is
+// enough to make "the top" ambiguous.  Picking one silently would drop
+// the other module -- assertions included -- from the model entirely,
+// reporting a clean pass for a design that fails; and it would pick
+// badly, since slang orders tops alphabetically rather than by source
+// order.  multi_top.sv is named so the alphabetically-first module is
+// *not* the intended one.
+TEST_P(SVUnitTests, MultipleTopsRejected)
+{
+  expect_encode_throws("multi_top.sv");
+}
+
+// ...and --sv-top resolves it, reaching the module that was previously
+// unreachable.  `dut`'s assertion is the false one, so finding exactly
+// one property here, and a counterexample for it, is what shows the
+// right module got encoded.
+TEST_P(SVUnitTests, MultipleTopsSelectedByName)
+{
+  SmtSolver s = create_solver(GetParam());
+  s->set_opt("incremental", "true");
+  s->set_opt("produce-models", "true");
+  FunctionalTransitionSystem fts(s);
+  auto sv_result = SystemVerilogEncoder::encode(
+      fts, sv_path("multi_top.sv"), /*filelists=*/{}, /*top=*/"dut");
+  ASSERT_EQ(sv_result.propvec.size(), 1u);
+
+  TransitionSystem ts = fts;
+  Term prop_term = sv_result.propvec[0];
+  Term rst = find_reset(ts);
+  ASSERT_TRUE(rst);
+  Term reset_done = add_reset_seq(ts, rst, /*reset_bnd=*/1);
+  prop_term = ts.solver()->make_term(Implies, reset_done, prop_term);
+
+  SafetyProperty prop(ts.solver(), prop_term);
+  Bmc bmc(prop, ts, s);
+  // The counter reaches 3 four cycles after reset releases.
+  EXPECT_EQ(bmc.check_until(4), ProverResult::FALSE);
+}
+
 TEST_P(SVUnitTests, GenerateIfSelectsFastPath)
 {
   check_bmc("generate_if.sv", 4);

@@ -54,6 +54,7 @@ enum optionIndex
   RESET_BND,
   CLK,
   SV_FILELIST,
+  SV_TOP,
   SMT_SOLVER,
   SMT_SOLVER_OPT,
   SMT_INTERPOLATOR,
@@ -362,6 +363,15 @@ const option::Descriptor usage[] = {
     "file) with one additional source file path per line ('#'/'//' lines "
     "are comments). May be specified multiple times. Only used by the "
     "SystemVerilog frontend." },
+  { SV_TOP,
+    0,
+    "t",
+    "sv-top",
+    Arg::NonEmpty,
+    "  --sv-top, -t <module name> \tName of the module to check. Required "
+    "when the design has more than one top-level module (a module is "
+    "top-level when nothing instantiates it, so an unused helper counts). "
+    "Only used by the SystemVerilog frontend." },
   { NO_IC3_PREGEN,
     0,
     "",
@@ -947,6 +957,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case RESET_BND: reset_bnd_ = std::stoul(opt.arg); break;
         case CLK: clock_name_ = opt.arg; break;
         case SV_FILELIST: sv_filelists_.push_back(opt.arg); break;
+        case SV_TOP: sv_top_ = opt.arg; break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = std::stoul(opt.arg); break;

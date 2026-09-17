@@ -446,8 +446,11 @@ int main(int argc, char ** argv)
     } else if (file_ext == "sv" || file_ext == "v") {
       logger.log(2, "Parsing SystemVerilog file: {}", pono_options.filename_);
       FunctionalTransitionSystem fts(s);
-      SystemVerilogEncoder::Result sv_result = SystemVerilogEncoder::encode(
-          fts, pono_options.filename_, pono_options.sv_filelists_);
+      SystemVerilogEncoder::Result sv_result =
+          SystemVerilogEncoder::encode(fts,
+                                       pono_options.filename_,
+                                       pono_options.sv_filelists_,
+                                       pono_options.sv_top_);
       const TermVec & propvec = sv_result.propvec;
       const auto & ltl_justice_vec = sv_result.ltl_justice;
       unsigned int num_props =

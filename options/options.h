@@ -246,7 +246,9 @@ class PonoOptions
   std::string clock_name_;
   std::string filename_;
   std::vector<std::string>
-      sv_filelists_;  ///< paths to SV dot-f list files (--sv-filelist)
+      sv_filelists_;    ///< paths to SV dot-f list files (--sv-filelist)
+  std::string sv_top_;  ///< SV module to check (--sv-top); empty unless the
+                        ///< design has several top-level modules
   smt::SolverEnum smt_solver_;        ///< underlying smt solver
   StringMap smt_solver_opts_;         ///< options passed to smt solver
   smt::SolverEnum smt_interpolator_;  ///< smt solver for interpolation

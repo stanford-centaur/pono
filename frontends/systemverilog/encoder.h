@@ -183,11 +183,19 @@ class SystemVerilogEncoder
    *         resolve against that list file's directory. All files named by
    *         `filename` and every `filelists` entry are elaborated together
    *         as a single compilation.
+   *  @param top name of the module to encode. Only needed when the
+   *         elaborated design has more than one top-level module -- a
+   *         module is top-level when nothing instantiates it, so an
+   *         unused helper counts -- in which case leaving this empty is
+   *         an error rather than a guess: slang orders the candidates
+   *         alphabetically, so "the first one" is not the one the user
+   *         is likely to mean.
    *  @return the safety properties and LTL justice sets found in the design
    */
   static Result encode(FunctionalTransitionSystem & fts,
                        std::string filename,
-                       const std::vector<std::string> & filelists = {});
+                       const std::vector<std::string> & filelists = {},
+                       const std::string & top = "");
 
   ~SystemVerilogEncoder();
 
@@ -205,9 +213,11 @@ class SystemVerilogEncoder
    *  @param filename the primary SystemVerilog source file
    *  @param filelists paths to SystemVerilog list files (".f" files) naming
    *         additional source files to parse alongside `filename`
+   *  @param top see encode()
    */
   void run(const std::string & filename,
-           const std::vector<std::string> & filelists);
+           const std::vector<std::string> & filelists,
+           const std::string & top);
 
   /** Process a top-level module instance. */
   void process_module(const slang::ast::InstanceSymbol & inst);

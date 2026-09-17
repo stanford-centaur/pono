@@ -79,10 +79,11 @@ SystemVerilogEncoder::~SystemVerilogEncoder() = default;
 SystemVerilogEncoder::Result SystemVerilogEncoder::encode(
     FunctionalTransitionSystem & fts,
     string filename,
-    const std::vector<std::string> & filelists)
+    const std::vector<std::string> & filelists,
+    const std::string & top)
 {
   SystemVerilogEncoder enc(fts);
-  enc.run(filename, filelists);
+  enc.run(filename, filelists, top);
   return Result{ std::move(enc.assertion_walker_.propvec()),
                  std::move(enc.assertion_walker_.ltl_justice()) };
 }
@@ -223,7 +224,8 @@ void classify_continuous_assign_lhs(
 // ============================================================================
 
 void SystemVerilogEncoder::run(const string & filename,
-                               const std::vector<std::string> & filelists)
+                               const std::vector<std::string> & filelists,
+                               const std::string & top)
 {
   // Build the full list of source files: the primary file followed by
   // every file named in each list-file, in order.
@@ -234,8 +236,18 @@ void SystemVerilogEncoder::run(const string & filename,
   }
 
   // Create a compilation and add every source file's syntax tree to it, so
-  // they are all elaborated together.
-  compilation_ = make_unique<slang::ast::Compilation>();
+  // they are all elaborated together.  When a top module was named, let
+  // slang's own top resolution do the selecting -- it reports an
+  // unrecognized name through the usual diagnostics.  `topModules` holds
+  // string_views, so `top` has to outlive `compilation_`; it does, being
+  // this call's argument.
+  slang::Bag compilation_options;
+  if (!top.empty()) {
+    slang::ast::CompilationOptions co;
+    co.topModules.emplace(top);
+    compilation_options.set(co);
+  }
+  compilation_ = make_unique<slang::ast::Compilation>(compilation_options);
   expr_encoder_.bind_compilation(*compilation_);
   instance_encoder_.bind_compilation(*compilation_);
   for (const auto & source_file : source_files) {
@@ -282,14 +294,35 @@ void SystemVerilogEncoder::run(const string & filename,
   auto & root = compilation_->getRoot();
   auto top_instances = root.topInstances;
   if (top_instances.empty()) {
+    if (!top.empty()) {
+      throw PonoException("SystemVerilogEncoder: no top-level module named '"
+                          + top
+                          + "' -- a module is top-level only if nothing "
+                            "instantiates it");
+    }
     throw PonoException(
         "SystemVerilogEncoder: no top-level module instances found in "
         + filename);
   }
 
-  // Process the first top-level module.
-  // Multi-top designs could be supported by iterating, but for model
-  // checking we typically have a single top module.
+  // Anything nothing instantiates is a top, so an unused helper module
+  // is enough to make this ambiguous.  Picking one would be a guess --
+  // and a poor one, since slang orders them alphabetically rather than
+  // by source or command-line order -- and the modules not picked are
+  // absent from the model entirely, assertions included.  Make the user
+  // choose instead.
+  if (top_instances.size() > 1) {
+    std::string names;
+    for (auto * inst : top_instances) {
+      if (!names.empty()) names += ", ";
+      names += inst->getDefinition().name;
+    }
+    throw PonoException("SystemVerilogEncoder: " + filename + " has "
+                        + std::to_string(top_instances.size())
+                        + " top-level modules (" + names
+                        + "); name the one to check with --sv-top");
+  }
+
   process_module(*top_instances[0]);
 }
 
