@@ -147,6 +147,7 @@ class PonoOptions
         mbic3_indgen_mode(default_mbic3_indgen_mode),
         ic3_functional_preimage_(default_ic3_functional_preimage_),
         ic3_unsatcore_gen_(default_ic3_unsatcore_gen_),
+        ic3bits_partial_model_pregen_(default_ic3bits_partial_model_pregen_),
         ic3ia_reduce_preds_(default_ic3ia_reduce_preds_),
         ic3ia_track_important_vars_(default_ic3ia_track_important_vars_),
         ic3ia_sim_cex_(default_ic3ia_sim_cex_),
@@ -264,6 +265,7 @@ class PonoOptions
   bool ic3_functional_preimage_;    ///< functional preimage in IC3
   bool ic3_unsatcore_gen_;  ///< generalize a cube during relative inductiveness
                             ///< check with unsatcore
+  bool ic3bits_partial_model_pregen_;  ///< use partial-model pregen in IC3Bits
   bool ic3ia_reduce_preds_;  ///< reduce predicates with unsatcore in IC3IA
   bool ic3ia_track_important_vars_;  ///< prioritize predicates with marked
                                      ///< important variables
@@ -418,6 +420,7 @@ class PonoOptions
   static const unsigned int default_mbic3_indgen_mode = 0;
   static const bool default_ic3_functional_preimage_ = false;
   static const bool default_ic3_unsatcore_gen_ = true;
+  static const bool default_ic3bits_partial_model_pregen_ = false;
   static const bool default_ic3ia_reduce_preds_ = true;
   static const bool default_ic3ia_track_important_vars_ = true;
   static const bool default_ic3ia_sim_cex_ = true;
