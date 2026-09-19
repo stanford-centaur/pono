@@ -8,7 +8,7 @@ if [[ -d $dir ]]; then
   echo "$dir already exists; remove it if you want to redownload bison" && exit
 fi
 archive=bison-$version.tar.gz
-curl -LsS -o $archive $url/$archive
+curl -fLsS -o $archive $url/$archive
 mkdir -p "$dir"
 tar -xf $archive -C "$dir" --strip-components 1
 rm -f $archive
