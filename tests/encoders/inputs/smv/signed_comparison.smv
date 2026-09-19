@@ -1,0 +1,13 @@
+-- Comparing two signed words has to use a signed comparison: as signed
+-- operands -1 < 0 holds, while the same bit patterns read as unsigned give
+-- 15 < 0, which does not.
+-- Invariant is TRUE
+MODULE main
+  VAR
+    x : signed word[4];
+  DEFINE
+    negative := x < 0sb4_0000;
+  ASSIGN
+    init(x) := 0sb4_1111;
+    next(x) := x;
+  INVARSPEC negative;
