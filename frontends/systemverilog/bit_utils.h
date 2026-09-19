@@ -16,15 +16,60 @@
 #include "smt-switch/smt.h"
 
 namespace slang::ast {
+class FixedSizeUnpackedArrayType;
 class Type;
 }  // namespace slang::ast
 
 namespace pono {
 
-/** Convert an integral slang type to a BV sort (even for a 1-bit type).
+/** How a fixed-size unpacked array's declared SV index range maps onto
+ *  the index sort of the SMT array modelling it.
+ *
+ *  Element 0 of the SMT array is the element declared at `lower`, so
+ *  `mem[3:18]` reads `mem[i]` as `Select(mem, i - 3)`.  Every
+ *  Select/Store has to apply the same mapping -- getting it wrong in
+ *  one place is silently wrong rather than broken -- so go through
+ *  normalize_array_index() rather than re-deriving it.
+ */
+struct UnpackedArrayInfo
+{
+  uint64_t depth;          ///< number of elements
+  uint64_t lower;          ///< SV index of element 0
+  uint64_t index_width;    ///< width of the SMT array's index sort
+  smt::Sort element_sort;  ///< sort of one element
+};
+
+/** Describe `arr`'s index mapping.  Callers narrow the type first --
+ *  `type.getCanonicalType().kind == SymbolKind::FixedSizeUnpackedArrayType`
+ *  then `.as<FixedSizeUnpackedArrayType>()` -- so there is nothing here
+ *  to report absence about.
+ *
+ *  Throws for an unpacked array this encoder does not model: a negative
+ *  declared lower bound (`mem[-3:4]`, which would make the index
+ *  arithmetic signed), a multi-dimensional array, or a non-integral
+ *  element type.
+ */
+UnpackedArrayInfo unpacked_array_info(
+    const smt::SmtSolver & solver,
+    const slang::ast::FixedSizeUnpackedArrayType & arr);
+
+/** Map an SV element index onto the array's SMT index sort: subtract
+ *  the declared lower bound, then resize to the index width.
+ *
+ *  An index outside the declared range wraps, leaving the access
+ *  unconstrained -- the same latitude the LRM gives an out-of-bounds
+ *  unpacked-array access, which returns x.
+ */
+smt::Term normalize_array_index(const smt::SmtSolver & solver,
+                                const smt::Term & idx,
+                                const UnpackedArrayInfo & info);
+
+/** Convert a slang type to an SMT sort: a BV for an integral type (even
+ *  a 1-bit one), an ARRAY for a fixed-size unpacked array of an
+ *  integral element type.
  *  @param solver the solver to build the sort with
  *  @param type the slang type
- *  @return the corresponding BV sort; throws for a non-integral type
+ *  @return the corresponding sort; throws for anything else
  */
 smt::Sort type_to_sort(const smt::SmtSolver & solver,
                        const slang::ast::Type & type);

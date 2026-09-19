@@ -113,6 +113,23 @@ class StatementEncoder
       const smt::Term & condition,
       const std::string & prefix);
 
+  /** Handle an assignment whose target is a whole unpacked array
+   *  (`mem <= '0`), which is neither a bit range nor an element and so
+   *  cannot go through resolve_lvalue()/LValueDesc.
+   *
+   *  Only a compile-time-constant right-hand side is supported: it
+   *  becomes a constant array, with a Store for each element that
+   *  differs from the first, so a uniform fill stays a single term.
+   *  @return true if the assignment was handled here; false if it is
+   *          not a whole-array assignment at all, leaving the caller's
+   *          ordinary paths to deal with it
+   */
+  bool process_whole_array_assign(const slang::ast::Expression & lhs_expr,
+                                  const slang::ast::Expression & rhs_expr,
+                                  StmtContext ctx,
+                                  const smt::Term & condition,
+                                  const std::string & prefix);
+
   /** Re-derive `symbol_table_.loop_var_terms()[&sym]` from `sym`'s
    *  current constant value in expr_encoder_.eval_ctx() (after a
    *  for-loop step, a while/repeat/foreach iteration, or a plain

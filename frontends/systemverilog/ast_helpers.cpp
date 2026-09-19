@@ -204,6 +204,14 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
     }
     case ExpressionKind::ElementSelect: {
       auto & sel = lhs.as<ElementSelectExpression>();
+      // An unpacked-array element is not a bit range of its base, so
+      // LValueDesc cannot describe it. Decline, which routes the write
+      // to process_dynamic_element_assign() -- see the contract note in
+      // ast_helpers.h -- where it becomes a Store.
+      if (sel.value().type->getCanonicalType().kind
+          == SymbolKind::FixedSizeUnpackedArrayType) {
+        return std::nullopt;
+      }
       auto inner = resolve_lvalue(sel.value(), ctx);
       if (!inner) return std::nullopt;
       auto idx_cv = sel.selector().eval(ctx);

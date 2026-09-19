@@ -1,8 +1,9 @@
 // Integration test #2: a small single-write-port register file backed
 // by a *packed* multi-dimensional array (`mem`) rather than a true SV
-// unpacked array -- see Gap_UnpackedRegfileMemory in
-// test_systemverilog_unsupported.cpp for why the latter isn't
-// supported.  Combines: parameters, $clog2, a packed array-of-vectors
+// unpacked array -- the packed form is a bit range of one wide vector,
+// so this exercises the shift-and-extract path rather than the
+// Select/Store one that UnpackedRegfileMemory covers.
+// Combines: parameters, $clog2, a packed array-of-vectors
 // read/written through a *runtime* address, and a one-cycle-delayed
 // read-after-write invariant.
 //

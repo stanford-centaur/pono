@@ -1,3 +1,4 @@
+#include "engines/kinduction.h"
 #include "sv_test_fixture.h"
 
 using namespace pono;
@@ -20,14 +21,52 @@ TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
   check_bmc("array_dyn_index.sv", 16);
 }
 
-// A real synthesizable-RTL gap (register files / small memories are
-// mainstream, not verification-only), distinct from the packed-array
-// tests above: an *unpacked* array (`logic [7:0] mem [0:15];`) never
-// builds an SMT array sort, so the fixture's own read-after-write
-// invariant can't be checked.
-TEST_P(SVUnitTests, Gap_UnpackedRegfileMemory)
+// ---------------------------------------------------------------------------
+// Unpacked arrays (register files / small memories), distinct from the
+// packed-array tests above: these become a genuine SMT array sort, so
+// element access is Select/Store rather than bit arithmetic.
+//
+// Supported as registers internal to one module; the exclusions below
+// are asserted rather than assumed.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, UnpackedRegfileMemory)
 {
   check_bmc("unpacked_regfile.sv", 3, ProverResult::UNKNOWN);
+}
+
+// The read-after-write invariant is 1-inductive, so BMC alone can only
+// fail to refute it. Proving it is what distinguishes a correct
+// encoding from an over-constrained one that happens to look quiet.
+TEST_P(SVUnitTests, UnpackedRegfileMemoryProvable)
+{
+  check_prover<KInduction>("unpacked_regfile.sv", 12, ProverResult::TRUE);
+}
+
+// The other half of that guard: a memory does not preserve the address
+// *next* to the one written, so this must be refuted. A vacuous or
+// over-constrained array encoding would report no violation.
+TEST_P(SVUnitTests, UnpackedRegfileMemoryFails)
+{
+  check_bmc("unpacked_regfile_fails.sv", 2);
+}
+
+// `foreach` reset, whole-array constant assignment, and a non-zero-based
+// declared range (`mem[3:18]`, where element 0 of the SMT array is
+// mem[3]) in one design.
+TEST_P(SVUnitTests, UnpackedArrayReset)
+{
+  check_prover<KInduction>("unpacked_array_reset.sv", 12, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, UnpackedArrayPortRejected)
+{
+  expect_encode_throws("unpacked_array_port.sv");
+}
+
+TEST_P(SVUnitTests, UnpackedArrayMultiDimRejected)
+{
+  expect_encode_throws("unpacked_array_2d.sv");
 }
 
 // ---------------------------------------------------------------------------

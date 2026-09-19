@@ -32,6 +32,7 @@
 #include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
 #include "slang/numeric/SVInt.h"
 #include "smt-switch/smt.h"
@@ -75,8 +76,17 @@ void StatementEncoder::process_dynamic_element_assign(
       (sel.value().kind == ExpressionKind::NamedValue)
           ? sel.value().as<NamedValueExpression>().symbol
           : sel.value().as<HierarchicalValueExpression>().symbol);
+  // An unpacked array reaches here for *any* element write, constant
+  // index included, because its element is not a bit range of the base
+  // and so resolve_lvalue() declines it (see ast_helpers.h).
+  bool is_array = sel.value().type->getCanonicalType().kind
+                  == SymbolKind::FixedSizeUnpackedArrayType;
   bool aliased = symbol_table_.port_output_aliases().count(sym) > 0;
-  {
+  if (!is_array) {
+    // Skipped for an array: this is all bit-range arithmetic, and
+    // getBitWidth() is 0 for one, so `sym_w - 1` would wrap to
+    // UINT64_MAX. Declaration already rejects an aliased array, so
+    // there is nothing here for an array to resolve anyway.
     uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
     auto pieces = symbol_table_.resolve_output_alias_pieces(sym, 0, sym_w - 1);
     uint64_t piece_w =
@@ -128,7 +138,16 @@ void StatementEncoder::process_dynamic_element_assign(
   Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix);
   Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
   rhs = resize_to(solver_, rhs, elem_w, sel.type->isSigned());
-  Term combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
+  Term combined;
+  if (is_array) {
+    UnpackedArrayInfo info = unpacked_array_info(
+        solver_,
+        sel.value().type->getCanonicalType().as<FixedSizeUnpackedArrayType>());
+    combined = solver_->make_term(
+        Store, prev_base, normalize_array_index(solver_, idx, info), rhs);
+  } else {
+    combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
+  }
 
   if (wire_comb) {
     if (aliased) symbol_table_.pending_comb_aliased().insert(sym);
@@ -144,6 +163,82 @@ void StatementEncoder::process_dynamic_element_assign(
       (condition == solver_->make_term(true))
           ? combined
           : solver_->make_term(Ite, condition, combined, prev_base);
+}
+
+bool StatementEncoder::process_whole_array_assign(
+    const slang::ast::Expression & lhs_expr,
+    const slang::ast::Expression & rhs_expr,
+    StmtContext ctx,
+    const Term & condition,
+    const string & prefix)
+{
+  using namespace slang::ast;
+
+  if (lhs_expr.kind != ExpressionKind::NamedValue
+      && lhs_expr.kind != ExpressionKind::HierarchicalValue) {
+    return false;
+  }
+  const slang::ast::Type & lhs_type = lhs_expr.type->getCanonicalType();
+  if (lhs_type.kind != SymbolKind::FixedSizeUnpackedArrayType) return false;
+
+  const Symbol * sym = &canonicalize_modport_port(
+      (lhs_expr.kind == ExpressionKind::NamedValue)
+          ? lhs_expr.as<NamedValueExpression>().symbol
+          : lhs_expr.as<HierarchicalValueExpression>().symbol);
+
+  if (ctx != StmtContext::NEXT_STATE) {
+    throw PonoException("SystemVerilogEncoder: whole-array assignment to '"
+                        + string(sym->name)
+                        + "' is only supported in a clocked block (always_ff)");
+  }
+  auto sit = symbol_table_.symbol_to_term().find(sym);
+  if (sit == symbol_table_.symbol_to_term().end()) return false;
+  Term state_term = sit->second;
+
+  // Only a compile-time-constant whole-array value: an array-valued
+  // *expression* (`mem1 <= mem2`) would need the element-by-element
+  // copy this encoder has no way to express in one term.
+  auto cv = rhs_expr.eval(expr_encoder_.eval_ctx());
+  if (!cv.isUnpacked()) {
+    throw PonoException(
+        "SystemVerilogEncoder: whole-array assignment to '"
+        + string(sym->name)
+        + "' is only supported from a constant pattern (e.g. '0 or "
+          "'{default: 0})");
+  }
+
+  UnpackedArrayInfo info =
+      unpacked_array_info(solver_, lhs_type.as<FixedSizeUnpackedArrayType>());
+  auto elements = cv.elements();
+
+  // Fill with the first element, then Store only the ones that differ
+  // -- a uniform pattern (the common case) stays a single const array.
+  auto element_term = [&](const slang::ConstantValue & v) {
+    auto svint = v.integer();
+    svint.setSigned(false);
+    return solver_->make_term(
+        svint.toString(slang::LiteralBase::Decimal, /*includeBase=*/false),
+        info.element_sort,
+        10);
+  };
+  Term combined =
+      solver_->make_term(element_term(elements[0]), state_term->get_sort());
+  for (size_t i = 1; i < elements.size(); ++i) {
+    if (elements[i] == elements[0]) continue;
+    Term idx = solver_->make_term(i, solver_->make_sort(BV, info.index_width));
+    combined =
+        solver_->make_term(Store, combined, idx, element_term(elements[i]));
+  }
+
+  auto pit = symbol_table_.pending_next_updates().find(state_term);
+  Term prev_base = (pit != symbol_table_.pending_next_updates().end())
+                       ? pit->second
+                       : state_term;
+  symbol_table_.pending_next_updates()[state_term] =
+      (condition == solver_->make_term(true))
+          ? combined
+          : solver_->make_term(Ite, condition, combined, prev_base);
+  return true;
 }
 
 void StatementEncoder::refresh_loop_var_term(
@@ -474,6 +569,14 @@ void StatementEncoder::process_statement(
         auto & assign = expr.as<AssignmentExpression>();
         auto & lhs_expr = assign.left();
         auto & rhs_expr = assign.right();
+
+        // A whole-array assignment (`mem <= '0`) targets neither a bit
+        // range nor a single element, so LValueDesc cannot describe it
+        // and it is handled before begin_write().
+        if (process_whole_array_assign(
+                lhs_expr, rhs_expr, ctx, condition, prefix)) {
+          break;
+        }
 
         auto writes = begin_write(lhs_expr);
         if (writes.empty()) {

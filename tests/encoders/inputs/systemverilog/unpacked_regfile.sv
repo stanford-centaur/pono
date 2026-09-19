@@ -1,11 +1,13 @@
-// Out-of-scope: a true SV "memory" -- an *unpacked* array of
-// registers (`logic [7:0] mem [0:15];`), unlike the packed-array
-// tests in test_systemverilog_types.cpp. The encoder never
-// constructs an smt::ARRAY sort, and an unpacked array's type isn't
-// integral, so type_to_sort() throws. This is a common real-RTL
-// construct (register files, small memories), not just a
-// verification-only feature -- worth flagging as a gap to close, not
-// a permanent non-goal.
+// A true SV "memory" -- an *unpacked* array of registers
+// (`logic [7:0] mem[0:15];`), unlike the packed-array tests in
+// test_systemverilog_types.cpp, which are bit ranges of one wide
+// vector. This becomes an smt::ARRAY state var, so the element write
+// is a Store and the read a Select.
+//
+// The read-after-write invariant below is 1-inductive, so BMC can
+// only exhaust its bound; UnpackedRegfileMemoryProvable proves it,
+// and unpacked_regfile_fails.sv is the paired refutation that rules
+// out a vacuously over-constrained encoding.
 module unpacked_regfile (
     input logic clk,
     input logic rst,

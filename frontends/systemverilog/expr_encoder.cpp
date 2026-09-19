@@ -579,6 +579,19 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       auto & sel = expr.as<ElementSelectExpression>();
       Term val = expr_to_term(sel.value(), prefix);
       auto & sel_expr = sel.selector();
+
+      // An unpacked array is an SMT array, so an element read is one
+      // Select -- no bit arithmetic, and no need to special-case a
+      // constant index, which the solver folds anyway.
+      const slang::ast::Type & base_type = sel.value().type->getCanonicalType();
+      if (base_type.kind == SymbolKind::FixedSizeUnpackedArrayType) {
+        UnpackedArrayInfo info = unpacked_array_info(
+            solver_, base_type.as<FixedSizeUnpackedArrayType>());
+        Term idx = normalize_array_index(
+            solver_, expr_to_term(sel_expr, prefix), info);
+        return solver_->make_term(Select, val, idx);
+      }
+
       uint64_t elem_w = expr.type->getBitWidth();
       if (elem_w == 0) elem_w = 1;
 

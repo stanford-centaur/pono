@@ -31,6 +31,28 @@ using namespace std;
 
 namespace pono {
 
+namespace {
+
+/** Throw if `type` is an unpacked array.
+ *
+ *  Unpacked arrays are supported as plain registers inside one module
+ *  and nowhere else yet, so the three declaration paths that cannot
+ *  model them say so here rather than each computing a bit width that
+ *  is 0 for an array and then underflowing.
+ */
+void reject_unpacked_array(const slang::ast::Type & type,
+                           std::string_view name,
+                           const char * what)
+{
+  if (type.getCanonicalType().kind
+      == slang::ast::SymbolKind::FixedSizeUnpackedArrayType) {
+    throw PonoException("SystemVerilogEncoder: " + std::string(what) + " ('"
+                        + std::string(name) + "') is not supported");
+  }
+}
+
+}  // namespace
+
 Declarer::Declarer(SymbolTable & symbol_table,
                    FunctionalTransitionSystem & fts,
                    const smt::SmtSolver & solver)
@@ -83,6 +105,13 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
       // created here, keyed under the fully resolved alias root.
       if (symbol_table_.port_output_aliases().count(&var)) {
         if (symbol_table_.state_var_symbols().count(&var)) {
+          // Everything below is bit-range arithmetic over the alias
+          // pieces, and getBitWidth() is 0 for an unpacked array, so
+          // `var_w - 1` would wrap to UINT64_MAX and the "does this
+          // piece cover its whole target" check would then pass.
+          // Reject before that can happen.
+          reject_unpacked_array(
+              var.getType(), var.name, "an output-port-aliased register");
           uint64_t var_w = var.getType().getBitWidth();
           auto pieces =
               symbol_table_.resolve_output_alias_pieces(&var, 0, var_w - 1);
@@ -123,9 +152,9 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
               symbol_table_.symbol_to_term()[root] = sv;
               fts_.name_term(name, sv);
               logger.log(2,
-                         "SystemVerilogEncoder: state var (aliased) {} : bv{}",
+                         "SystemVerilogEncoder: state var (aliased) {} : {}",
                          name,
-                         sort->get_width());
+                         sort->to_string());
             }
           }
         }
@@ -141,9 +170,9 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
         symbol_table_.symbol_to_term()[&var] = sv;
         fts_.name_term(name, sv);
         logger.log(2,
-                   "SystemVerilogEncoder: state var {} : bv{}",
+                   "SystemVerilogEncoder: state var {} : {}",
                    name,
-                   sort->get_width());
+                   sort->to_string());
       } else {
         // No assignment found for this variable -- treat as a free
         // input.  This matches Verilog's "open" semantics where an
@@ -152,9 +181,9 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
         symbol_table_.symbol_to_term()[&var] = iv;
         fts_.name_term(name, iv);
         logger.log(2,
-                   "SystemVerilogEncoder: undriven var {} : bv{}",
+                   "SystemVerilogEncoder: undriven var {} : {}",
                    name,
-                   sort->get_width());
+                   sort->to_string());
       }
     } else if (member.kind == SymbolKind::Net) {
       auto & net = member.as<NetSymbol>();
@@ -162,6 +191,10 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
       if (symbol_table_.wire_symbols().count(&net)) return;
       if (symbol_table_.port_output_aliases().count(&net)) return;
 
+      // An unpacked-array net has no driver and so no read path; it
+      // would become a free array-sorted input var that nothing can
+      // use. Registers are the supported case.
+      reject_unpacked_array(net.getType(), net.name, "an unpacked-array net");
       string name = symbol_table_.make_name(walk_prefix, string(net.name));
       Sort sort = type_to_sort(solver_, net.getType());
 
@@ -169,7 +202,7 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
       symbol_table_.symbol_to_term()[&net] = iv;
       fts_.name_term(name, iv);
       logger.log(
-          2, "SystemVerilogEncoder: net {} : bv{}", name, sort->get_width());
+          2, "SystemVerilogEncoder: net {} : {}", name, sort->to_string());
     }
   });
 }
@@ -179,6 +212,12 @@ void Declarer::process_port(const slang::ast::PortSymbol & port,
 {
   using namespace slang::ast;
 
+  // An unpacked array crossing a module boundary would have to be
+  // spliced by the port-connection machinery in instance_encoder.cpp,
+  // which is entirely bit-range arithmetic. Registers internal to one
+  // module are the supported case.
+  reject_unpacked_array(
+      port.getType(), port.name, "an unpacked array as a module port");
   string name = symbol_table_.make_name(prefix, string(port.name));
   Sort sort = type_to_sort(solver_, port.getType());
 
@@ -190,9 +229,9 @@ void Declarer::process_port(const slang::ast::PortSymbol & port,
       symbol_table_.symbol_to_term()[&port] = iv;
       fts_.name_term(name, iv);
       logger.log(2,
-                 "SystemVerilogEncoder: input port {} : bv{}",
+                 "SystemVerilogEncoder: input port {} : {}",
                  name,
-                 sort->get_width());
+                 sort->to_string());
     } else {
       // Output/inout without internal symbol: treat as a state var if
       // pre-scan found it driven by always_ff/always/always_latch,
@@ -216,10 +255,8 @@ void Declarer::process_port(const slang::ast::PortSymbol & port,
     symbol_table_.symbol_to_term()[internal] = iv;
     symbol_table_.symbol_to_term()[&port] = iv;
     fts_.name_term(name, iv);
-    logger.log(2,
-               "SystemVerilogEncoder: input port {} : bv{}",
-               name,
-               sort->get_width());
+    logger.log(
+        2, "SystemVerilogEncoder: input port {} : {}", name, sort->to_string());
   } else {
     // Output or inout: classify based on driver kind.
     if (symbol_table_.state_var_symbols().count(internal)) {
@@ -228,9 +265,9 @@ void Declarer::process_port(const slang::ast::PortSymbol & port,
       symbol_table_.symbol_to_term()[&port] = sv;
       fts_.name_term(name, sv);
       logger.log(2,
-                 "SystemVerilogEncoder: output port (reg) {} : bv{}",
+                 "SystemVerilogEncoder: output port (reg) {} : {}",
                  name,
-                 sort->get_width());
+                 sort->to_string());
     } else if (symbol_table_.wire_symbols().count(internal)) {
       // Combinational output port: defer term creation to
       // process_continuous_assign / process_always_comb, which will
@@ -246,9 +283,9 @@ void Declarer::process_port(const slang::ast::PortSymbol & port,
       symbol_table_.symbol_to_term()[&port] = iv;
       fts_.name_term(name, iv);
       logger.log(2,
-                 "SystemVerilogEncoder: output port (undriven) {} : bv{}",
+                 "SystemVerilogEncoder: output port (undriven) {} : {}",
                  name,
-                 sort->get_width());
+                 sort->to_string());
     }
   }
 }

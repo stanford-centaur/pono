@@ -7,8 +7,10 @@
  */
 #include "frontends/systemverilog/bit_utils.h"
 
+#include <algorithm>
 #include <vector>
 
+#include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
 #include "utils/exceptions.h"
 
@@ -38,7 +40,58 @@ void require_bv(const Term & t, const char * who)
   }
 }
 
+/** Narrowest index width that can address `depth` elements. */
+uint64_t index_width_for_depth(uint64_t depth)
+{
+  uint64_t w = 1;
+  while ((uint64_t{ 1 } << w) < depth) ++w;
+  return w;
+}
+
 }  // namespace
+
+UnpackedArrayInfo unpacked_array_info(
+    const SmtSolver & solver,
+    const slang::ast::FixedSizeUnpackedArrayType & arr)
+{
+  if (arr.range.lower() < 0) {
+    throw PonoException(
+        "SystemVerilogEncoder: unpacked array with a negative index bound is "
+        "not supported");
+  }
+  if (!arr.elementType.isIntegral()) {
+    throw PonoException(
+        "SystemVerilogEncoder: only unpacked arrays of an integral element "
+        "type are supported (no multi-dimensional arrays or arrays of "
+        "structs)");
+  }
+
+  uint64_t depth = arr.range.fullWidth();
+  return UnpackedArrayInfo{ depth,
+                            static_cast<uint64_t>(arr.range.lower()),
+                            index_width_for_depth(depth),
+                            type_to_sort(solver, arr.elementType) };
+}
+
+Term normalize_array_index(const SmtSolver & solver,
+                           const Term & idx,
+                           const UnpackedArrayInfo & info)
+{
+  require_bv(idx, "normalize_array_index()");
+  if (info.lower == 0) {
+    return resize_to(solver, idx, info.index_width, /*is_signed=*/false);
+  }
+  // Subtract at a width that holds both the incoming index and the
+  // offset, so a valid index cannot wrap before the truncation below.
+  uint64_t w =
+      std::max<uint64_t>(idx->get_sort()->get_width(), info.index_width) + 1;
+  Term wide = resize_to(solver, idx, w, /*is_signed=*/false);
+  Term offset = solver->make_term(info.lower, solver->make_sort(BV, w));
+  return resize_to(solver,
+                   solver->make_term(BVSub, wide, offset),
+                   info.index_width,
+                   /*is_signed=*/false);
+}
 
 Sort type_to_sort(const SmtSolver & solver, const slang::ast::Type & type)
 {
@@ -48,6 +101,14 @@ Sort type_to_sort(const SmtSolver & solver, const slang::ast::Type & type)
       throw PonoException("SystemVerilogEncoder: zero-width integral type");
     }
     return solver->make_sort(BV, width);
+  }
+
+  const slang::ast::Type & ct = type.getCanonicalType();
+  if (ct.kind == slang::ast::SymbolKind::FixedSizeUnpackedArrayType) {
+    UnpackedArrayInfo info = unpacked_array_info(
+        solver, ct.as<slang::ast::FixedSizeUnpackedArrayType>());
+    return solver->make_sort(
+        ARRAY, solver->make_sort(BV, info.index_width), info.element_sort);
   }
 
   throw PonoException("SystemVerilogEncoder: unsupported type kind");
