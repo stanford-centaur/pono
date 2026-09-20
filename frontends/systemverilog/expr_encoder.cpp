@@ -223,35 +223,38 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
         // at each wildcard bit and compare (left & mask) == value,
         // ignoring exactly those positions. Falls back to plain
         // equality if the right operand isn't a usable compile-time
-        // constant of 1-64 bits (mask/value are tracked in a
-        // uint64_t) -- nothing else to wildcard against, and this
+        // constant -- nothing else to wildcard against, and this
         // encoder's BV model has no way for a non-literal term to
-        // hold an unknown bit at all.
+        // hold an unknown bit at all. Mask and value are bit strings
+        // so that fallback never catches an operand merely for being
+        // wide: handing one with unknown bits to the ordinary literal
+        // path stringifies an X as a decimal digit and aborts the
+        // solver.
         Term left = expr_to_term(binop.left(), prefix);
         Term eq;
         auto rhs_cv = binop.right().eval(eval_ctx());
         uint64_t rhs_w = binop.right().type->getBitWidth();
-        if (!rhs_cv.bad() && rhs_cv.isInteger() && rhs_w > 0 && rhs_w <= 64) {
+        if (!rhs_cv.bad() && rhs_cv.isInteger() && rhs_w > 0) {
           auto & sv = rhs_cv.integer();
-          uint64_t mask = 0, value = 0;
+          // MSB first, the order make_term() reads a base-2 string in.
+          string mask_bits(rhs_w, '0'), value_bits(rhs_w, '0');
           for (uint64_t i = 0; i < rhs_w; ++i) {
             slang::logic_t bit = sv[static_cast<int32_t>(i)];
             if (!bit.isUnknown()) {
-              mask |= (uint64_t{ 1 } << i);
-              if (bit.value == 1) value |= (uint64_t{ 1 } << i);
+              mask_bits[rhs_w - 1 - i] = '1';
+              if (bit.value == 1) value_bits[rhs_w - 1 - i] = '1';
             }
           }
           Sort rhs_sort = solver_->make_sort(BV, rhs_w);
           // Raw bit-pattern masks, not numeric values -- always
           // zero-extend.
-          Term mask_term =
-              resize_to(solver_,
-                        solver_->make_term(std::to_string(mask), rhs_sort, 10),
-                        left->get_sort()->get_width(),
-                        false);
+          Term mask_term = resize_to(solver_,
+                                     solver_->make_term(mask_bits, rhs_sort, 2),
+                                     left->get_sort()->get_width(),
+                                     false);
           Term value_term =
               resize_to(solver_,
-                        solver_->make_term(std::to_string(value), rhs_sort, 10),
+                        solver_->make_term(value_bits, rhs_sort, 2),
                         left->get_sort()->get_width(),
                         false);
           eq = solver_->make_term(

@@ -1,3 +1,4 @@
+#include "engines/kinduction.h"
 #include "sv_test_fixture.h"
 
 using namespace pono;
@@ -191,6 +192,15 @@ TEST_P(SVUnitTests, MultiConditionTernary)
 TEST_P(SVUnitTests, Gap_UserFunctionCall)
 {
   check_bmc("user_function_call.sv", 0, ProverResult::UNKNOWN);
+}
+
+// A wildcard pattern wider than 64 bits, via `==?`, `!=?` and a
+// casex arm. Each is asserted equivalent to comparing exactly the
+// bits the pattern pins; the low- and high-byte variants together
+// pin the bit order.
+TEST_P(SVUnitTests, WildcardWidePattern)
+{
+  check_prover<KInduction>("wildcard_wide_pattern.sv", 4, ProverResult::TRUE);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVOperatorsTests,

@@ -1009,17 +1009,21 @@ void StatementEncoder::process_statement(
       // wildcards: build a (mask, value) pair with a 0 at each
       // wildcard bit position and 1s everywhere else, so
       // (sel & mask) == value ignores exactly those positions.
-      // Returns nullopt for a non-constant pattern (nothing to mask
-      // against) or a width too large for this uint64_t-based mask,
-      // in which case the caller falls back to plain equality.
+      // Returns nullopt only for a non-constant pattern, where there
+      // is nothing to mask against and the caller falls back to plain
+      // equality. The pair is MSB-first bit strings rather than
+      // integers so that no pattern is too wide to mask: falling back
+      // on width alone would hand a pattern with unknown bits to the
+      // ordinary literal path, which stringifies an X as a decimal
+      // digit and aborts the solver.
       auto casex_mask = [&](const Expression & pat_expr)
-          -> std::optional<std::pair<uint64_t, uint64_t>> {
+          -> std::optional<std::pair<string, string>> {
         auto cv = pat_expr.eval(expr_encoder_.eval_ctx());
         if (!cv.isInteger()) return std::nullopt;
         auto & sv = cv.integer();
         uint64_t w = pat_expr.type->getBitWidth();
-        if (w == 0 || w > 64) return std::nullopt;
-        uint64_t mask = 0, value = 0;
+        if (w == 0) return std::nullopt;
+        string mask_bits(w, '0'), value_bits(w, '0');
         for (uint64_t i = 0; i < w; ++i) {
           slang::logic_t bit = sv[static_cast<int32_t>(i)];
           bool wildcard =
@@ -1027,11 +1031,11 @@ void StatementEncoder::process_statement(
                   ? bit.isUnknown()
                   : bit.value == slang::logic_t::z.value;
           if (!wildcard) {
-            mask |= (uint64_t{ 1 } << i);
-            if (bit.value == 1) value |= (uint64_t{ 1 } << i);
+            mask_bits[w - 1 - i] = '1';
+            if (bit.value == 1) value_bits[w - 1 - i] = '1';
           }
         }
-        return std::make_pair(mask, value);
+        return std::make_pair(mask_bits, value_bits);
       };
       bool is_wildcard_case =
           case_stmt.condition == CaseStatementCondition::WildcardXOrZ
@@ -1049,16 +1053,16 @@ void StatementEncoder::process_statement(
             Sort pat_sort = solver_->make_sort(BV, pat_w);
             // Raw bit-pattern masks, not numeric values -- always
             // zero-extend.
-            Term mask_term = resize_to(
-                solver_,
-                solver_->make_term(std::to_string(mv->first), pat_sort, 10),
-                sel->get_sort()->get_width(),
-                false);
-            Term value_term = resize_to(
-                solver_,
-                solver_->make_term(std::to_string(mv->second), pat_sort, 10),
-                sel->get_sort()->get_width(),
-                false);
+            Term mask_term =
+                resize_to(solver_,
+                          solver_->make_term(mv->first, pat_sort, 2),
+                          sel->get_sort()->get_width(),
+                          false);
+            Term value_term =
+                resize_to(solver_,
+                          solver_->make_term(mv->second, pat_sort, 2),
+                          sel->get_sort()->get_width(),
+                          false);
             match = solver_->make_term(
                 Equal, solver_->make_term(BVAnd, sel, mask_term), value_term);
           } else {
