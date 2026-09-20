@@ -112,9 +112,7 @@ ProverResult MsatIC3IA::prove()
   ic3ia_opts.verbosity = options_.verbosity_;
   ic3ia::Logger & l = ic3ia::Logger::get();
   l.set_verbosity(ic3ia_opts.verbosity);
-  // NOTE: assuming no LTL / liveness -- just adding because required
-  ic3ia::LiveEncoder liveenc(ic3ia_ts, ic3ia_opts);
-  ic3ia::IC3 ic3(ic3ia_ts, ic3ia_opts, liveenc);
+  ic3ia::IC3 ic3(ic3ia_ts, ic3ia_opts);
   logger.log(1, "Running open-source ic3ia as backend.");
   msat_truth_value res = ic3.prove();
 

@@ -28,9 +28,9 @@ mkdir -p "$DEPS"
 cd "$DEPS"
 
 msat_home="$DEPS/mathsat"
-ic3ia_version=ic3ia-23.05
+ic3ia_version=ic3ia-26.08
 # Digest of the ic3ia archive, update it together with the version.
-ic3ia_sha256=9693fa403ce2b0f00cd14812a99a140d82dfbfcabb7124e20c68cc4bf395f1b1
+ic3ia_sha256=154b81905290e5153a9f46c86dd155308840aa2d53b1122259e92ee55bc8cc4c
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -79,5 +79,5 @@ cd ic3ia
 mkdir build
 cd build
 cmake .. -DMATHSAT_DIR="$msat_home" -DCMAKE_BUILD_TYPE=Release
-make -j
+cmake --build . -j
 cd "$DEPS/.."
