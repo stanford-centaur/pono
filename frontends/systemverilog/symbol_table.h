@@ -158,7 +158,20 @@ class SymbolTable
    *  is_edge_triggered(body) for a plain `always`; always_ff is clocked
    *  by definition.
    */
-  void pre_scan_always_ff(const slang::ast::Statement & body, bool clocked);
+  void pre_scan_always_ff(const slang::ast::Statement & body,
+                          bool clocked,
+                          const std::string & prefix);
+
+  /** Give a state variable to each local of `body` that some path
+   *  reads before writing (see collect_hold_locals()). Such a local
+   *  holds its previous value, which is storage; every other local is
+   *  bound to the term its write computes and gets nothing here.
+   *
+   *  These are declared here rather than by Declarer, whose
+   *  walk_members() pass only sees module-scope members -- a local
+   *  declared inside a procedural block is a member of that block. */
+  void declare_hold_locals(const slang::ast::Statement & body,
+                           const std::string & prefix);
 
   /** Pre-scan an always_latch body to identify every blocking-assignment
    *  target (full- or partial-width alike) as a state variable. Unlike

@@ -203,14 +203,14 @@ TEST_P(SVUnitTests, ProceduralTemporary)
   check_prover<KInduction>("procedural_temp.sv", 12, ProverResult::TRUE);
 }
 
-TEST_P(SVUnitTests, ProceduralTemporaryCondOnlyRejected)
+// The other half: a local read where no path assigned it holds its
+// value instead, which is storage rather than an unknown. Proving
+// this is what separates holding from a fresh unconstrained value
+// each cycle, which would also encode but admit traces the hardware
+// cannot produce.
+TEST_P(SVUnitTests, ProceduralTemporaryHolds)
 {
-  expect_encode_throws("procedural_temp_cond_only.sv");
-}
-
-TEST_P(SVUnitTests, ProceduralTemporaryReadFirstRejected)
-{
-  expect_encode_throws("procedural_temp_read_first.sv");
+  check_prover<KInduction>("procedural_temp_hold.sv", 12, ProverResult::TRUE);
 }
 
 // `initial forever @(posedge clk) ...` is a legacy structural spelling

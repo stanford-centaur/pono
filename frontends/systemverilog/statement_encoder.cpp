@@ -429,7 +429,12 @@ void StatementEncoder::process_statement(
               refresh_loop_var_term(vsym);
               break;
             }
-            if (bound_local || is_block_local(vsym)) {
+            // A local with a term of its own is one the pre-scan
+            // found is read on a path that never writes it, so it
+            // holds its value and is a register; it takes the
+            // ordinary write path below.
+            if ((bound_local || is_block_local(vsym))
+                && !symbol_table_.symbol_to_term().count(&vsym)) {
               // A procedural temporary holding a runtime value. It has
               // no term of its own to write into, so binding it to the
               // value it now carries is what makes later reads of it

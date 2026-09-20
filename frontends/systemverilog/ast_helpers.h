@@ -196,6 +196,20 @@ const slang::ast::Statement * as_forever_event_body(
 // process_instance()'s walk.
 bool is_edge_triggered(const slang::ast::Statement & body);
 
+// Collects the block-locals of `body` that some execution path reads
+// before writing. Those are not temporaries at all: a variable read
+// where no path assigned it keeps its previous value, which is
+// storage (a flop in a clocked block, a latch in a combinational
+// one). Every other local is bound to the term its write computes
+// and needs no state.
+//
+// Conservative in the safe direction -- a branch contributes only
+// what all of its arms assign, and a loop body contributes nothing
+// since it may run zero times -- so it can name a local that does
+// not really need storage, never miss one that does.
+void collect_hold_locals(const slang::ast::Statement & body,
+                         std::unordered_set<const slang::ast::Symbol *> & out);
+
 // True if `sym` is declared inside a procedural block rather than at
 // module scope: a temporary with no life beyond one execution of the
 // block, so it must never be classified as a register.

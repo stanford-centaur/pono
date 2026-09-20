@@ -217,6 +217,19 @@ void InstanceEncoder::process_next_state_body(
         "on already-unrolled for-loop counters)");
   }
 
+  // A local that got storage but that no path in this block writes
+  // holds its value for good; without this it would have no
+  // next-state function and so be free every cycle, which is a looser
+  // reading than "unknown, but the same unknown".
+  std::unordered_set<const slang::ast::Symbol *> holds;
+  collect_hold_locals(body, holds);
+  for (auto * sym : holds) {
+    auto sit = symbol_table_.symbol_to_term().find(sym);
+    if (sit == symbol_table_.symbol_to_term().end()) continue;
+    if (symbol_table_.pending_next_updates().count(sit->second)) continue;
+    symbol_table_.pending_next_updates()[sit->second] = sit->second;
+  }
+
   // Commit all pending next-state updates.
   for (auto & [state_term, next_expr] : symbol_table_.pending_next_updates()) {
     fts_.assign_next(state_term, next_expr);

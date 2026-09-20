@@ -21,6 +21,7 @@
 #include <string>
 #include <utility>
 
+#include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Scope.h"
 #include "slang/ast/TimingControl.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
@@ -445,6 +446,176 @@ bool is_edge_triggered(const slang::ast::Statement & body)
     return false;
   }
   return is_edge(timing);
+}
+
+namespace {
+
+// Records every block-local read by an expression that the walk has
+// not yet seen assigned.
+struct UnassignedReadVisitor
+    : slang::ast::ASTVisitor<UnassignedReadVisitor,
+                             slang::ast::VisitFlags::Expressions>
+{
+  const std::unordered_set<const slang::ast::Symbol *> & assigned;
+  std::unordered_set<const slang::ast::Symbol *> & out;
+
+  void handle(const slang::ast::NamedValueExpression & e)
+  {
+    const slang::ast::Symbol & sym = e.symbol;
+    if (is_block_local(sym) && !assigned.count(&sym)) out.insert(&sym);
+  }
+};
+
+void scan_reads(const slang::ast::Expression & expr,
+                const std::unordered_set<const slang::ast::Symbol *> & assigned,
+                std::unordered_set<const slang::ast::Symbol *> & out)
+{
+  UnassignedReadVisitor v{ {}, assigned, out };
+  expr.visit(v);
+}
+
+// Threads a "definitely assigned so far" set through the block in
+// program order. A branch contributes only what *every* arm assigns,
+// and a loop body contributes nothing, since it may run zero times.
+void scan_hold_locals(const slang::ast::Statement & stmt,
+                      std::unordered_set<const slang::ast::Symbol *> & assigned,
+                      std::unordered_set<const slang::ast::Symbol *> & out)
+{
+  using namespace slang::ast;
+
+  auto branch = [&](const Statement & s) {
+    auto copy = assigned;
+    scan_hold_locals(s, copy, out);
+    return copy;
+  };
+
+  switch (stmt.kind) {
+    case StatementKind::ExpressionStatement: {
+      auto & expr = stmt.as<ExpressionStatement>().expr;
+      if (expr.kind == ExpressionKind::Assignment) {
+        auto & assign = expr.as<AssignmentExpression>();
+        scan_reads(assign.right(), assigned, out);
+        const Expression & lhs = assign.left();
+        if (lhs.kind == ExpressionKind::NamedValue) {
+          const Symbol & sym = lhs.as<NamedValueExpression>().symbol;
+          // Only a whole-variable write makes it definitely assigned;
+          // a partial one reads the rest of the variable.
+          if (is_block_local(sym)) assigned.insert(&sym);
+        } else {
+          scan_reads(lhs, assigned, out);
+        }
+      } else {
+        scan_reads(expr, assigned, out);
+      }
+      break;
+    }
+    case StatementKind::VariableDeclaration: {
+      auto & vds = stmt.as<VariableDeclStatement>();
+      if (auto * init = vds.symbol.getInitializer()) {
+        scan_reads(*init, assigned, out);
+        assigned.insert(&vds.symbol);
+      }
+      break;
+    }
+    case StatementKind::Block: {
+      auto & body = stmt.as<BlockStatement>().body;
+      if (body.kind == StatementKind::List) {
+        for (auto * s : body.as<StatementList>().list) {
+          scan_hold_locals(*s, assigned, out);
+        }
+      } else {
+        scan_hold_locals(body, assigned, out);
+      }
+      break;
+    }
+    case StatementKind::List:
+      for (auto * s : stmt.as<StatementList>().list) {
+        scan_hold_locals(*s, assigned, out);
+      }
+      break;
+    case StatementKind::Conditional: {
+      auto & cond = stmt.as<ConditionalStatement>();
+      for (auto & c : cond.conditions) scan_reads(*c.expr, assigned, out);
+      auto t_assigned = branch(cond.ifTrue);
+      if (!cond.ifFalse) break;
+      auto f_assigned = branch(*cond.ifFalse);
+      for (auto * sym : t_assigned) {
+        if (f_assigned.count(sym)) assigned.insert(sym);
+      }
+      break;
+    }
+    case StatementKind::Case: {
+      auto & cs = stmt.as<CaseStatement>();
+      scan_reads(cs.expr, assigned, out);
+      std::unordered_set<const Symbol *> common;
+      bool first = true;
+      for (auto & item : cs.items) {
+        for (auto * e : item.expressions) scan_reads(*e, assigned, out);
+        auto arm = branch(*item.stmt);
+        if (first) {
+          common = arm;
+          first = false;
+        } else {
+          for (auto it = common.begin(); it != common.end();) {
+            it = arm.count(*it) ? std::next(it) : common.erase(it);
+          }
+        }
+      }
+      // Without a default arm some value matches nothing, so no arm's
+      // assignments are guaranteed.
+      if (!cs.defaultCase) break;
+      auto def = branch(*cs.defaultCase);
+      if (first) {
+        common = def;
+      } else {
+        for (auto it = common.begin(); it != common.end();) {
+          it = def.count(*it) ? std::next(it) : common.erase(it);
+        }
+      }
+      for (auto * sym : common) assigned.insert(sym);
+      break;
+    }
+    case StatementKind::Timed:
+      scan_hold_locals(stmt.as<TimedStatement>().stmt, assigned, out);
+      break;
+    case StatementKind::ForLoop: {
+      // The iteration variable is supplied by the unrolling, not by
+      // any assignment in the body, so it counts as assigned there.
+      auto & loop = stmt.as<ForLoopStatement>();
+      auto inner = assigned;
+      for (auto * lv : loop.loopVars) inner.insert(lv);
+      scan_hold_locals(loop.body, inner, out);
+      break;
+    }
+    case StatementKind::ForeachLoop: {
+      auto & loop = stmt.as<ForeachLoopStatement>();
+      auto inner = assigned;
+      for (auto & dim : loop.loopDims) {
+        if (dim.loopVar) inner.insert(dim.loopVar);
+      }
+      scan_hold_locals(loop.body, inner, out);
+      break;
+    }
+    case StatementKind::WhileLoop:
+      branch(stmt.as<WhileLoopStatement>().body);
+      break;
+    case StatementKind::DoWhileLoop:
+      branch(stmt.as<DoWhileLoopStatement>().body);
+      break;
+    case StatementKind::RepeatLoop:
+      branch(stmt.as<RepeatLoopStatement>().body);
+      break;
+    default: break;
+  }
+}
+
+}  // namespace
+
+void collect_hold_locals(const slang::ast::Statement & body,
+                         std::unordered_set<const slang::ast::Symbol *> & out)
+{
+  std::unordered_set<const slang::ast::Symbol *> assigned;
+  scan_hold_locals(body, assigned, out);
 }
 
 bool is_block_local(const slang::ast::Symbol & sym)

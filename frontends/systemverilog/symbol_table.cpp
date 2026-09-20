@@ -34,6 +34,7 @@
 #include "slang/ast/types/AllTypes.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
+#include "utils/logger.h"
 
 using namespace smt;
 using namespace std;
@@ -159,12 +160,38 @@ void collect_blocking_targets(
 
 }  // namespace
 
+void SymbolTable::declare_hold_locals(const slang::ast::Statement & body,
+                                      const string & prefix)
+{
+  using namespace slang::ast;
+  std::unordered_set<const Symbol *> holds;
+  collect_hold_locals(body, holds);
+  for (auto * sym : holds) {
+    if (symbol_to_term_.count(sym)) continue;
+    auto * vsym = sym->as_if<ValueSymbol>();
+    if (!vsym) continue;
+    string name = make_name(prefix, string(sym->name));
+    Term term =
+        fts_.make_statevar(name, type_to_sort(solver_, vsym->getType()));
+    symbol_to_term_[sym] = term;
+    state_var_symbols_.insert(sym);
+    logger.log(1,
+               "SystemVerilogEncoder: inferred storage for local {}, which is "
+               "read on a path that does not write it",
+               name);
+  }
+}
+
 void SymbolTable::pre_scan_always_ff(const slang::ast::Statement & body,
-                                     bool clocked)
+                                     bool clocked,
+                                     const string & prefix)
 {
   using namespace slang::ast;
   collect_nonblocking_targets(body, state_var_symbols_);
   if (!clocked) return;
+  // A local read on a path that never wrote it keeps its previous
+  // value, which is a flop rather than a temporary.
+  declare_hold_locals(body, prefix);
   // A blocking write in a clocked block infers a register just as a
   // non-blocking one does; the operator decides only when the new
   // value becomes visible to later reads *within* the block, which
@@ -189,14 +216,16 @@ void SymbolTable::pre_scan_state_vars(const slang::ast::Scope & body,
     if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
       if (proc.procedureKind == ProceduralBlockKind::AlwaysFF) {
-        pre_scan_always_ff(proc.getBody(), /*clocked=*/true);
+        pre_scan_always_ff(proc.getBody(), /*clocked=*/true, prefix);
       } else if (proc.procedureKind == ProceduralBlockKind::Always) {
-        pre_scan_always_ff(proc.getBody(), is_edge_triggered(proc.getBody()));
+        pre_scan_always_ff(
+            proc.getBody(), is_edge_triggered(proc.getBody()), prefix);
       } else if (proc.procedureKind == ProceduralBlockKind::AlwaysLatch) {
         pre_scan_always_latch(proc.getBody());
+        declare_hold_locals(proc.getBody(), prefix);
       } else if (proc.procedureKind == ProceduralBlockKind::Initial) {
         if (auto * forever_body = as_forever_event_body(proc.getBody())) {
-          pre_scan_always_ff(*forever_body, /*clocked=*/true);
+          pre_scan_always_ff(*forever_body, /*clocked=*/true, prefix);
         }
       }
     } else if (member.kind == SymbolKind::Instance) {
