@@ -36,7 +36,7 @@ class SMVEncoder
     loc.end.line = 0;
     std::string output = preprocess().str();
     processCase();
-  };
+  }
 
  public:
   // Important members

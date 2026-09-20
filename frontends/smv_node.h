@@ -125,7 +125,9 @@ struct SMVnode
       std::string prefix,
       std::unordered_map<string, module_node *> module_list,
       std::unordered_map<string, string> new_prefix,
-      ostream & s) {};
+      ostream & s)
+  {
+  }
 };  // struct SMVNode
 
 class element_node : public SMVnode
@@ -139,7 +141,9 @@ class element_node : public SMVnode
       std::string prefix,
       std::unordered_map<std::string, module_node *> module_list,
       std::unordered_map<string, string> * new_prefix,
-      ostream & s) {};
+      ostream & s)
+  {
+  }
   virtual std::vector<SMVnode *> get_list() { return pa_li; }
 };
 

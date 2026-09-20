@@ -96,7 +96,7 @@ class ArrayAbstractor : public Abstractor
 
   // getter
   // if true, then array equality is abstracted with a UF
-  bool abstract_array_equality() const { return abstract_array_equality_; };
+  bool abstract_array_equality() const { return abstract_array_equality_; }
 
   void do_abstraction();
 
