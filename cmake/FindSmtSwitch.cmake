@@ -35,7 +35,7 @@ Requesting the ``z3`` component additionally requires a Z3 installation
 discoverable via its own CMake package config, since smt-switch's own Z3
 backend links against it directly. Set ``Z3_ROOT`` to select one;
 smt-switch's own ``contrib/setup-z3.sh`` installs Z3 into
-``<smt-switch checkout>/deps/install``. ``Z3_ROOT`` is searched before any
+``<smt-switch checkout>/deps/z3``. ``Z3_ROOT`` is searched before any
 system-wide Z3 installation.
 
 Components
