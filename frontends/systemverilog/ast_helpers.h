@@ -187,4 +187,18 @@ struct LoopControlSignal
 const slang::ast::Statement * as_forever_event_body(
     const slang::ast::Statement & stmt);
 
+// True if `body` is guarded by an edge-sensitive event control
+// (`@(posedge clk)`, `@(negedge rst_n)`, or an event list containing
+// one), i.e. the block is a register rather than combinational logic.
+// `always_ff` says so in its keyword, but a plain `always` does not --
+// only its timing control distinguishes `always @(posedge clk)` from
+// `always @(*)`, and the two must reach opposite halves of
+// process_instance()'s walk.
+bool is_edge_triggered(const slang::ast::Statement & body);
+
+// True if `sym` is declared inside a procedural block rather than at
+// module scope: a temporary with no life beyond one execution of the
+// block, so it must never be classified as a register.
+bool is_block_local(const slang::ast::Symbol & sym);
+
 }  // namespace pono

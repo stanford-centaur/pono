@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "slang/ast/Scope.h"
+#include "slang/ast/TimingControl.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/expressions/OperatorExpressions.h"
@@ -412,6 +413,45 @@ void walk_members(const slang::ast::Scope & scope,
       fn(m);
     }
   }
+}
+
+bool is_edge_triggered(const slang::ast::Statement & body)
+{
+  using namespace slang::ast;
+
+  // slang wraps a procedural block's body in a Block whose own body is
+  // the event-controlled statement; unwrap one level to reach it.
+  const Statement * s = &body;
+  if (s->kind == StatementKind::Block) {
+    const Statement * inner = &s->as<BlockStatement>().body;
+    if (inner->kind == StatementKind::List) {
+      auto & list = inner->as<StatementList>();
+      if (list.list.size() != 1) return false;
+      inner = list.list[0];
+    }
+    s = inner;
+  }
+  if (s->kind != StatementKind::Timed) return false;
+
+  auto is_edge = [](const TimingControl & tc) {
+    return tc.kind == TimingControlKind::SignalEvent
+           && tc.as<SignalEventControl>().edge != EdgeKind::None;
+  };
+  const TimingControl & timing = s->as<TimedStatement>().timing;
+  if (timing.kind == TimingControlKind::EventList) {
+    for (auto * ev : timing.as<EventListControl>().events) {
+      if (is_edge(*ev)) return true;
+    }
+    return false;
+  }
+  return is_edge(timing);
+}
+
+bool is_block_local(const slang::ast::Symbol & sym)
+{
+  using namespace slang::ast;
+  const Scope * scope = sym.getParentScope();
+  return scope && scope->asSymbol().kind == SymbolKind::StatementBlock;
 }
 
 }  // namespace pono

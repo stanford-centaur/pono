@@ -148,10 +148,17 @@ class SymbolTable
   void pre_scan_state_vars(const slang::ast::Scope & body,
                            std::string & prefix);
 
-  /** Thin wrapper around collect_nonblocking_targets(); called for every
+  /** Identify every register a clocked block infers; called for every
    *  always_ff/always block in the design.
+   *
+   *  Non-blocking targets are registers wherever they appear. Blocking
+   *  targets are too, but only when `clocked` -- a plain `always` may
+   *  be level-sensitive (`always @(*)`), where its blocking writes are
+   *  combinational and belong to pre_scan_always_comb() instead. Pass
+   *  is_edge_triggered(body) for a plain `always`; always_ff is clocked
+   *  by definition.
    */
-  void pre_scan_always_ff(const slang::ast::Statement & body);
+  void pre_scan_always_ff(const slang::ast::Statement & body, bool clocked);
 
   /** Pre-scan an always_latch body to identify every blocking-assignment
    *  target (full- or partial-width alike) as a state variable. Unlike
@@ -273,6 +280,16 @@ class SymbolTable
   {
     return pending_next_updates_;
   }
+  /** Registers written with a *blocking* `=` so far in the clocked
+   *  block being walked. A later read of one inside the same block
+   *  sees the value just written, not the register's current value --
+   *  the only way blocking and non-blocking differ once both are
+   *  known to infer a register. Cleared per block alongside
+   *  pending_next_updates_. */
+  std::unordered_set<const slang::ast::Symbol *> & blocking_next_written()
+  {
+    return blocking_next_written_;
+  }
   std::unordered_map<const slang::ast::Symbol *, smt::Term> &
   pending_comb_updates()
   {
@@ -311,6 +328,7 @@ class SymbolTable
       port_output_aliases_;
   std::unordered_set<const slang::ast::Symbol *> pending_comb_aliased_;
   std::unordered_map<smt::Term, smt::Term> pending_next_updates_;
+  std::unordered_set<const slang::ast::Symbol *> blocking_next_written_;
   std::unordered_map<const slang::ast::Symbol *, smt::Term>
       pending_comb_updates_;
   std::unordered_map<const slang::ast::Symbol *, smt::Term> loop_var_terms_;

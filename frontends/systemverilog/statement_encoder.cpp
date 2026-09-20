@@ -649,17 +649,30 @@ void StatementEncoder::process_statement(
         auto & lhs_expr = assign.left();
         auto & rhs_expr = assign.right();
 
+        // In a clocked block a blocking write is visible to later
+        // reads in the same block; record the target so lookup_symbol()
+        // hands them the pending value. Done after the write below, so
+        // this assignment's own RHS still reads the old value.
+        auto note_blocking_write = [&] {
+          if (ctx != StmtContext::NEXT_STATE || assign.isNonBlocking()) return;
+          if (auto * base = find_lhs_base(lhs_expr)) {
+            symbol_table_.blocking_next_written().insert(base);
+          }
+        };
+
         // A whole-array assignment (`mem <= '0`) targets neither a bit
         // range nor a single element, so LValueDesc cannot describe it
         // and it is handled before begin_write().
         if (process_whole_array_assign(
                 lhs_expr, rhs_expr, ctx, condition, prefix)) {
+          note_blocking_write();
           break;
         }
         // Likewise for an unpacked-array element, or a bit range
         // inside one: a Store, never a commit_write().
         if (process_array_element_assign(
                 lhs_expr, rhs_expr, ctx, condition, prefix)) {
+          note_blocking_write();
           break;
         }
 
@@ -675,6 +688,7 @@ void StatementEncoder::process_statement(
                 ctx,
                 condition,
                 prefix);
+            note_blocking_write();
           }
           break;
         }
@@ -697,6 +711,7 @@ void StatementEncoder::process_statement(
         for (auto & w : writes) {
           commit_write(w, slice_of(rhs, w.rhs_lo, w.rhs_hi));
         }
+        note_blocking_write();
       } else if (expr.kind == ExpressionKind::UnaryOp) {
         // `i++`/`--i`/etc. as a standalone statement (distinct from
         // the same operators used as a `for`-loop step expression,

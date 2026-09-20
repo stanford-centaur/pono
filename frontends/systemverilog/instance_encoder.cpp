@@ -100,7 +100,11 @@ void InstanceEncoder::process_assignments(const slang::ast::Scope & body,
       } else if (proc.procedureKind == ProceduralBlockKind::Always) {
         std::unordered_set<const Symbol *> targets;
         collect_nonblocking_targets(proc.getBody(), targets);
-        if (targets.empty()) {
+        // An edge-sensitive `always` is a register block even when it
+        // writes only with `=`, so it belongs to the sequential walk
+        // below; without the edge test a blocking-only one matches
+        // neither walk and is dropped.
+        if (targets.empty() && !is_edge_triggered(proc.getBody())) {
           process_always_comb_once(proc, walk_prefix, parent_prefix);
         }
       }
@@ -151,7 +155,7 @@ void InstanceEncoder::process_assignments(const slang::ast::Scope & body,
         case ProceduralBlockKind::Always: {
           std::unordered_set<const Symbol *> targets;
           collect_nonblocking_targets(proc.getBody(), targets);
-          if (!targets.empty()) {
+          if (!targets.empty() || is_edge_triggered(proc.getBody())) {
             process_always_ff(proc, walk_prefix);
           }
           break;
@@ -185,6 +189,7 @@ void InstanceEncoder::process_next_state_body(
     const slang::ast::Statement & body, const string & prefix)
 {
   symbol_table_.pending_next_updates().clear();
+  symbol_table_.blocking_next_written().clear();
 
   // Use a null condition to represent "unconditional".
   Term true_term = solver_->make_term(true);

@@ -1,3 +1,4 @@
+#include "engines/kinduction.h"
 #include "sv_test_fixture.h"
 
 using namespace pono;
@@ -136,6 +137,25 @@ TEST_P(SVUnitTests, InitialBlockSetsState) { check_bmc("initial_block.sv", 0); }
 TEST_P(SVUnitTests, AlwaysLatchHold)
 {
   check_bmc("always_latch.sv", 4, ProverResult::UNKNOWN);
+}
+
+// A blocking write in a clocked block infers a register too, and is
+// visible to later reads in that same block. Proving this rather than
+// failing to refute it is what separates the LRM's semantics from the
+// non-blocking reading, which would refute every conjunct but the
+// self-update.
+TEST_P(SVUnitTests, BlockingAssignInClockedBlock)
+{
+  check_prover<KInduction>(
+      "blocking_in_clocked_block.sv", 12, ProverResult::TRUE);
+}
+
+// Only its event control says whether a plain `always` writing with
+// `=` is a flop or combinational logic; the fixture asserts both
+// readings at once, so treating either as the other is refuted.
+TEST_P(SVUnitTests, BlockingAlwaysEdgeVsLevel)
+{
+  check_prover<KInduction>("blocking_always_edge.sv", 12, ProverResult::TRUE);
 }
 
 // `initial forever @(posedge clk) ...` is a legacy structural spelling

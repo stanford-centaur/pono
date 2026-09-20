@@ -159,9 +159,26 @@ void collect_blocking_targets(
 
 }  // namespace
 
-void SymbolTable::pre_scan_always_ff(const slang::ast::Statement & body)
+void SymbolTable::pre_scan_always_ff(const slang::ast::Statement & body,
+                                     bool clocked)
 {
+  using namespace slang::ast;
   collect_nonblocking_targets(body, state_var_symbols_);
+  if (!clocked) return;
+  // A blocking write in a clocked block infers a register just as a
+  // non-blocking one does; the operator decides only when the new
+  // value becomes visible to later reads *within* the block, which
+  // lookup_symbol() handles. Skipped for a level-sensitive `always`,
+  // whose blocking writes are combinational and belong to
+  // pre_scan_always_comb().
+  std::unordered_set<const Symbol *> full, partial;
+  collect_blocking_targets(body, full, partial);
+  for (auto * sym : full) {
+    if (!is_block_local(*sym)) state_var_symbols_.insert(sym);
+  }
+  for (auto * sym : partial) {
+    if (!is_block_local(*sym)) state_var_symbols_.insert(sym);
+  }
 }
 
 void SymbolTable::pre_scan_state_vars(const slang::ast::Scope & body,
@@ -171,14 +188,15 @@ void SymbolTable::pre_scan_state_vars(const slang::ast::Scope & body,
   walk_members(body, prefix, [&](const Symbol & member) {
     if (member.kind == SymbolKind::ProceduralBlock) {
       auto & proc = member.as<ProceduralBlockSymbol>();
-      if (proc.procedureKind == ProceduralBlockKind::AlwaysFF
-          || proc.procedureKind == ProceduralBlockKind::Always) {
-        pre_scan_always_ff(proc.getBody());
+      if (proc.procedureKind == ProceduralBlockKind::AlwaysFF) {
+        pre_scan_always_ff(proc.getBody(), /*clocked=*/true);
+      } else if (proc.procedureKind == ProceduralBlockKind::Always) {
+        pre_scan_always_ff(proc.getBody(), is_edge_triggered(proc.getBody()));
       } else if (proc.procedureKind == ProceduralBlockKind::AlwaysLatch) {
         pre_scan_always_latch(proc.getBody());
       } else if (proc.procedureKind == ProceduralBlockKind::Initial) {
         if (auto * forever_body = as_forever_event_body(proc.getBody())) {
-          pre_scan_always_ff(*forever_body);
+          pre_scan_always_ff(*forever_body, /*clocked=*/true);
         }
       }
     } else if (member.kind == SymbolKind::Instance) {
@@ -224,8 +242,12 @@ void SymbolTable::pre_scan_always_latch(const slang::ast::Statement & body)
 {
   std::unordered_set<const slang::ast::Symbol *> full, partial;
   collect_blocking_targets(body, full, partial);
-  for (auto * sym : full) state_var_symbols_.insert(sym);
-  for (auto * sym : partial) state_var_symbols_.insert(sym);
+  for (auto * sym : full) {
+    if (!is_block_local(*sym)) state_var_symbols_.insert(sym);
+  }
+  for (auto * sym : partial) {
+    if (!is_block_local(*sym)) state_var_symbols_.insert(sym);
+  }
 }
 
 void SymbolTable::pre_scan_instance(const slang::ast::InstanceSymbol & inst,
@@ -413,6 +435,15 @@ Term SymbolTable::lookup_symbol(const slang::ast::Symbol * sym)
 
   auto it = symbol_to_term_.find(sym);
   if (it != symbol_to_term_.end()) {
+    // Register already written with a blocking `=` earlier in the
+    // clocked block being walked: the LRM makes that value visible
+    // immediately, so a read here means the pending next-state value
+    // rather than the register's current one. A non-blocking write
+    // records no entry here, and so still reads as the old value.
+    if (blocking_next_written_.count(sym)) {
+      auto nit = pending_next_updates_.find(it->second);
+      if (nit != pending_next_updates_.end()) return nit->second;
+    }
     return it->second;
   }
 
