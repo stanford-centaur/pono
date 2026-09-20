@@ -163,8 +163,8 @@ std::pair<smt::Term, smt::Term> KLiveness::instrument_ts(
     default: throw PonoException("Unhandled k-liveness counter encoding");
   }
 
-  smt::Term counter = ts_k.make_statevar(
-      "pono_klive_counter_" + std::to_string(k), counter_sort);
+  smt::Term counter = ts_k.make_generated_statevar(
+      "klive_counter_" + std::to_string(k), counter_sort);
   smt::Term zero = ts_k.make_term(0, counter_sort);
   smt::Term one = ts_k.make_term(1, counter_sort);
 

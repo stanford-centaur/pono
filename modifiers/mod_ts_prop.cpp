@@ -58,7 +58,7 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
   conjunctive_partition(rts.init(), init_conjuncts, true);
 
   // create a pseudo initial state
-  Term pseudo_init = rts.make_statevar("__pseudo_init", boolsort);
+  Term pseudo_init = rts.make_generated_statevar("pseudo_init", boolsort);
   Term not_pseudo_init = rts.make_term(Not, pseudo_init);
 
   // guard property with it
@@ -86,7 +86,7 @@ TransitionSystem pseudo_init_and_prop(TransitionSystem & ts, Term & prop)
   rts.assign_next(pseudo_init, rts.make_term(false));
 
   // now create a property monitor
-  Term new_prop = rts.make_statevar("__prop_monitor", boolsort);
+  Term new_prop = rts.make_generated_statevar("prop_monitor", boolsort);
   if (rts.only_curr(prop)) {
     rts.add_invar(rts.make_term(Equal, new_prop, prop));
   } else {

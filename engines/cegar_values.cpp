@@ -119,8 +119,8 @@ class ValueAbstractor : public smt::IdentityWalker
         fresh_solver_->pop();
 
         // create a frozen variable
-        Term frozen_var = ts_.make_statevar(
-            "__abs_" + name_desanitize(term->to_string()), term->get_sort());
+        Term frozen_var =
+            ts_.make_generated_statevar("abs_value", term, term->get_sort());
         // will be made frozen later
         // since the transition system will be modified after this
         save_in_cache(term, frozen_var);

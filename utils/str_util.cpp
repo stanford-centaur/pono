@@ -21,6 +21,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "utils/exceptions.h"
+
 namespace pono {
 
 namespace syntax_analysis {
@@ -213,6 +215,35 @@ std::string name_desanitize(const std::string & s)
   if (s.length() > 2 && s.front() == '|' && s.back() == '|')
     return s.substr(1, s.length() - 2);  // already | |
   return s;
+}
+
+std::string generated_name(const std::string & role)
+{
+  return generated_prefix + role;
+}
+
+std::string generated_name(const std::string & role, const std::string & origin)
+{
+  return generated_prefix + role + "_" + origin;
+}
+
+std::string generated_next_name(const std::string & origin)
+{
+  return generated_name("next", origin);
+}
+
+bool is_generated_name(const std::string & name)
+{
+  return syntax_analysis::StrStartsWith(name, generated_prefix);
+}
+
+void reject_generated_name(const std::string & name)
+{
+  if (is_generated_name(name)) {
+    throw PonoException("Variable " + name
+                        + " is named like one pono generates for itself, so "
+                          "it would be left out of the witness. Rename it.");
+  }
 }
 
 }  // namespace pono

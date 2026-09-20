@@ -88,7 +88,7 @@ WalkerStepResult ArrayFinder::visit_term(Term & term)
       Sort idxsort = children[0]->get_sort()->get_indexsort();
 
       // create a witness index for this array equality
-      Term witness_idx = aae_.aa_.abs_ts().make_statevar(
+      Term witness_idx = aae_.aa_.abs_ts().make_generated_statevar(
           "wit_" + std::to_string(aae_.arrayeq_witnesses_.size()), idxsort);
       aae_.arrayeq_witnesses_[abs_arr_eq] = witness_idx;
       aae_.witnesses_to_idxsort_[witness_idx] =
@@ -491,10 +491,11 @@ void ArrayAxiomEnumerator::create_lambda_indices()
   // and is mutable
   TransitionSystem & mutable_ts = aa_.abs_ts();
   for (auto idxsort : conc_array_idx_sorts) {
-    Term lam = mutable_ts.make_statevar("lambda_" + std::to_string(lam_num++),
-                                        // always using an integer sort for
-                                        // lambdas to avoid finite domain issues
-                                        intsort);
+    Term lam = mutable_ts.make_generated_statevar(
+        "lambda_" + std::to_string(lam_num++),
+        // always using an integer sort for lambdas to avoid finite domain
+        // issues
+        intsort);
     lambdas_[idxsort] = lam;
   }
 }

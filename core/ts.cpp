@@ -44,7 +44,6 @@ void swap(TransitionSystem & ts1, TransitionSystem & ts2)
   std::swap(ts1.no_state_updates_, ts2.no_state_updates_);
   std::swap(ts1.next_map_, ts2.next_map_);
   std::swap(ts1.curr_map_, ts2.curr_map_);
-  std::swap(ts1.next_suffix_, ts2.next_suffix_);
   std::swap(ts1.functional_, ts2.functional_);
   std::swap(ts1.deterministic_, ts2.deterministic_);
   std::swap(ts1.constraints_, ts2.constraints_);
@@ -133,25 +132,24 @@ TransitionSystem::TransitionSystem(const TransitionSystem & other_ts,
     constraints_.push_back({ transfer_as(e.first, BOOL), e.second });
   }
 
-  next_suffix_ = other_ts.next_suffix_;
   functional_ = other_ts.functional_;
   deterministic_ = other_ts.deterministic_;
 }
 
 bool TransitionSystem::operator==(const TransitionSystem & other) const
 {
-  return (
-      solver_ == other.solver_ && init_ == other.init_ && trans_ == other.trans_
-      && statevars_ == other.statevars_
-      && next_statevars_ == other.next_statevars_
-      && inputvars_ == other.inputvars_ && named_terms_ == other.named_terms_
-      && term_to_name_ == other.term_to_name_
-      && state_updates_ == other.state_updates_
-      && no_state_updates_ == other.no_state_updates_
-      && next_map_ == other.next_map_ && curr_map_ == other.curr_map_
-      && next_suffix_ == other.next_suffix_ && functional_ == other.functional_
-      && deterministic_ == other.deterministic_
-      && constraints_ == other.constraints_);
+  return (solver_ == other.solver_ && init_ == other.init_
+          && trans_ == other.trans_ && statevars_ == other.statevars_
+          && next_statevars_ == other.next_statevars_
+          && inputvars_ == other.inputvars_
+          && named_terms_ == other.named_terms_
+          && term_to_name_ == other.term_to_name_
+          && state_updates_ == other.state_updates_
+          && no_state_updates_ == other.no_state_updates_
+          && next_map_ == other.next_map_ && curr_map_ == other.curr_map_
+          && functional_ == other.functional_
+          && deterministic_ == other.deterministic_
+          && constraints_ == other.constraints_);
 }
 
 bool TransitionSystem::operator!=(const TransitionSystem & other) const
@@ -275,6 +273,16 @@ void TransitionSystem::add_constraint(const Term & constraint,
 
 void TransitionSystem::name_term(const string name, const Term & t)
 {
+  // Frontends attach the design's own names here, to symbols they made under
+  // a name of their own. Pono's variables carry the generated marker in the
+  // symbol itself, so only they may be named by it.
+  const bool is_own_variable =
+      t->is_symbolic_const()
+      && is_generated_name(name_desanitize(t->to_string()));
+  if (!is_own_variable) {
+    reject_generated_name(name);
+  }
+
   auto it = named_terms_.find(name);
   if (it != named_terms_.end() && t != it->second) {
     throw PonoException("Name " + name + " has already been used.");
@@ -284,22 +292,88 @@ void TransitionSystem::name_term(const string name, const Term & t)
   term_to_name_[t] = name;
 }
 
-Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
+Term TransitionSystem::declare_inputvar(const string & name, const Sort & sort)
 {
   Term input = solver_->make_symbol(name, sort);
   add_inputvar(input);
   return input;
 }
 
-Term TransitionSystem::make_statevar(const string name, const Sort & sort)
+Term TransitionSystem::declare_statevar(const string & name, const Sort & sort)
 {
   // set to false until there is a next state update for this statevar
   deterministic_ = false;
 
   Term state = solver_->make_symbol(name, sort);
-  Term next_state = solver_->make_symbol(name + next_suffix_, sort);
+  Term next_state = solver_->make_symbol(generated_next_name(name), sort);
   add_statevar(state, next_state);
   return state;
+}
+
+Term TransitionSystem::make_inputvar(const string name, const Sort & sort)
+{
+  reject_generated_name(name);
+  return declare_inputvar(name, sort);
+}
+
+Term TransitionSystem::make_statevar(const string name, const Sort & sort)
+{
+  reject_generated_name(name);
+  return declare_statevar(name, sort);
+}
+
+// How many numbered variants of a generated name are tried before giving up.
+// A name still taken after this many stands for a bug rather than a clash.
+static constexpr size_t max_name_attempts = 1000;
+
+Term TransitionSystem::make_generated_var(const string & name,
+                                          const Sort & sort,
+                                          bool is_state)
+{
+  for (size_t attempt = 0; attempt < max_name_attempts; attempt++) {
+    const string candidate =
+        attempt ? name + "_" + std::to_string(attempt) : name;
+    try {
+      return is_state ? declare_statevar(candidate, sort)
+                      : declare_inputvar(candidate, sort);
+    }
+    // The name is taken, either in the system or in the solver behind it.
+    // Which of the two reports it says nothing about the caller's request,
+    // so both mean the same thing here: move on to the next name.
+    catch (const PonoException &) {
+    }
+    catch (const SmtException &) {
+    }
+  }
+  throw PonoException("No name was free for the generated variable " + name);
+}
+
+Term TransitionSystem::make_generated_inputvar(const string & role,
+                                               const Sort & sort)
+{
+  return make_generated_var(generated_name(role), sort, false);
+}
+
+Term TransitionSystem::make_generated_inputvar(const string & role,
+                                               const Term & origin,
+                                               const Sort & sort)
+{
+  return make_generated_var(
+      generated_name(role, name_desanitize(origin->to_string())), sort, false);
+}
+
+Term TransitionSystem::make_generated_statevar(const string & role,
+                                               const Sort & sort)
+{
+  return make_generated_var(generated_name(role), sort, true);
+}
+
+Term TransitionSystem::make_generated_statevar(const string & role,
+                                               const Term & origin,
+                                               const Sort & sort)
+{
+  return make_generated_var(
+      generated_name(role, name_desanitize(origin->to_string())), sort, true);
 }
 
 Term TransitionSystem::curr(const Term & term) const
@@ -783,7 +857,7 @@ void TransitionSystem::promote_inputvar(const Term & iv)
   // set to false until there is a next state update for this statevar
   deterministic_ = false;
   Term next_state_var = solver_->make_symbol(
-      name_desanitize(iv->to_string()) + next_suffix_, iv->get_sort());
+      generated_next_name(name_desanitize(iv->to_string())), iv->get_sort());
   add_statevar(iv, next_state_var);
 }
 

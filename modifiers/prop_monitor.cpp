@@ -37,19 +37,8 @@ smt::Term add_prop_monitor(TransitionSystem & ts, const smt::Term & prop)
   }
 
   logger.log(1, "Adding a monitor for the property");
-  smt::Term monitor;
-  size_t id = 0;
-  while (true) {
-    try {
-      monitor = ts.make_statevar("_monitor_" + std::to_string(id),
-                                 ts.make_sort(smt::BOOL));
-      break;
-    }
-    catch (SmtException & e) {
-      ++id;
-    }
-  }
-  assert(monitor);
+  smt::Term monitor =
+      ts.make_generated_statevar("monitor", ts.make_sort(smt::BOOL));
 
   // monitor starts true
   ts.constrain_init(monitor);

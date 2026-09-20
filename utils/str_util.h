@@ -14,10 +14,13 @@
  **
  **/
 
+#pragma once
+
 #include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace pono {
@@ -88,5 +91,34 @@ std::string name_sanitize(const std::string & s);
 
 /// Inverse of name_sanitize: strip a matching `|...|` pair if present.
 std::string name_desanitize(const std::string & s);
+
+/// The marker on every variable pono adds to a transition system for its own
+/// purposes, so that the witness printers can tell those apart from the ones
+/// the input design declared and leave them out.
+inline constexpr const char * generated_prefix = "pono_generated_";
+
+/// Name a variable pono generates for itself.
+/// @param role what the variable is for, e.g. "saved"
+std::string generated_name(const std::string & role);
+
+/// Name a variable pono generates to shadow one the design declared.
+/// @param role what the variable is for, e.g. "loop"
+/// @param origin the name of the variable it is derived from
+std::string generated_name(const std::string & role,
+                           const std::string & origin);
+
+/// Name the next-state twin pono makes to go with a state variable. Some
+/// input formats declare their own next-state variable instead, which keeps
+/// the name the design gave it, so this is not the only shape one can take.
+/// @param origin the name of the state variable the twin follows
+std::string generated_next_name(const std::string & origin);
+
+/// @return whether pono generated this name, rather than reading it from input
+bool is_generated_name(const std::string & name);
+
+/// Refuse a name from an input design that the witness printers would mistake
+/// for one of pono's own and drop, so a signal cannot silently go missing.
+/// @param name the name the design gave a variable
+void reject_generated_name(const std::string & name);
 
 }  // namespace pono
