@@ -52,6 +52,20 @@ TEST_P(SVUnitTests, DisableIffTemporalFails)
   check_bmc("disable_iff_temporal_fails.sv", 1);
 }
 
+// The same pairing for a property that stays on the LTL tableau
+// path. A liveness attempt's evaluation never ends, so a condition
+// that rises after it starts still aborts it; the exemption used to
+// cover only the anchor cycle and reported a violation here.
+TEST_P(SVUnitTests, DisableIffLivenessHolds)
+{
+  check_liveness_bmc("disable_iff_liveness.sv", 12, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, DisableIffLivenessFails)
+{
+  check_liveness_bmc("disable_iff_liveness_fails.sv", 12);
+}
+
 // ---------------------------------------------------------------------------
 // Bounded cycle ranges on the unary property operators
 // (`eventually [m:n]`, `s_always [m:n]`, `nexttime [k]`,

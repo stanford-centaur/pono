@@ -1471,12 +1471,28 @@ void AssertionWalker::process_concurrent_assertion(
         violated);
   }
 
-  // `disable iff`: a cycle where the condition holds is exempt, so a
-  // failure there does not count.  The window is the whole re-anchored
-  // span, not just the anchor cycle -- the attempt is aborted if the
-  // condition held anywhere along it.
-  if (Term dw = tableau_.disable_window(current_disable_cond_, span, prefix)) {
-    violated = solver_->make_term(And, solver_->make_term(Not, dw), violated);
+  // `disable iff`: an attempt aborts if the condition holds anywhere
+  // while it is being evaluated, so a failure there does not count.
+  // How far "anywhere" reaches is what the two encodings differ on.
+  if (current_disable_cond_) {
+    if (per_cycle) {
+      // The check was re-anchored to the last cycle it names, so the
+      // attempt spans the `span` cycles ending here: exempt it if the
+      // condition held at any of them.
+      Term dw = tableau_.disable_window(current_disable_cond_, span, prefix);
+      violated = solver_->make_term(And, solver_->make_term(Not, dw), violated);
+    } else {
+      // A liveness attempt is only ever violated by never completing,
+      // so its evaluation runs to infinity and any later condition
+      // still aborts it. Exempting the anchor cycle alone made the
+      // assertion stronger than written; the attempt survives exactly
+      // when the condition never holds from here on.
+      violated = solver_->make_term(
+          And,
+          violated,
+          tableau_.make_G(solver_->make_term(Not, current_disable_cond_),
+                          prefix));
+    }
   }
 
   if (is_assumption) {
