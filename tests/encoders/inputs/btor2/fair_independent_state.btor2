@@ -1,0 +1,14 @@
+; The justice condition and the fairness constraint watch different frozen
+; bits, and a third bit influences neither. A cone of influence taken over
+; both conditions keeps mode and other and drops spare; one taken over the
+; justice condition alone would drop other, which the constraint still needs.
+1 sort bitvec 1
+2 state 1 mode
+3 next 1 2 2
+4 state 1 other
+5 next 1 4 4
+6 state 1 spare
+7 not 1 6
+8 next 1 6 7
+9 justice 1 2
+10 fair 4
