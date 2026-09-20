@@ -40,8 +40,13 @@
 #include "frontends/systemverilog/expr_encoder.h"
 #include "smt-switch/smt.h"
 
+namespace slang {
+class ConstantValue;
+}
+
 namespace slang::ast {
 class ElementSelectExpression;
+class FixedSizeUnpackedArrayType;
 class Expression;
 class Statement;
 class Symbol;
@@ -129,6 +134,22 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
       StmtContext ctx,
       const smt::Term & condition,
       const std::string & prefix);
+
+  /** Build the array value a compile-time-constant assignment
+   *  pattern denotes, or a null Term if `rhs_expr` is not one. A
+   *  uniform fill stays a single constant array, with a Store only
+   *  for each element that differs from the first. */
+  smt::Term constant_array_term(
+      const slang::ast::Expression & rhs_expr,
+      const slang::ast::FixedSizeUnpackedArrayType & arr,
+      const smt::Sort & array_sort);
+
+  /** The same for an already-evaluated value, which is how it
+   *  recurses through a multi-dimensional pattern. */
+  smt::Term constant_array_value(
+      const slang::ConstantValue & cv,
+      const slang::ast::FixedSizeUnpackedArrayType & arr,
+      const smt::Sort & array_sort);
 
   /** The value a whole-array target carries so far in the block being
    *  walked, or the array's own term if nothing has written it yet.

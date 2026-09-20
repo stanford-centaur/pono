@@ -44,13 +44,16 @@ UnpackedArrayInfo unpacked_array_info(
     const SmtSolver & solver,
     const slang::ast::FixedSizeUnpackedArrayType & arr)
 {
-  if (!arr.elementType.isIntegral()) {
-    // A packed struct or union element is integral and so does pass:
-    // what this rules out is a further unpacked dimension, or an
-    // unpacked struct/union element.
+  // A further unpacked dimension is fine -- type_to_sort() recurses
+  // and builds an array of arrays. A packed struct or union element
+  // is integral and passes too; what this rules out is an element
+  // with no sort at all, such as an unpacked struct.
+  bool nested = arr.elementType.getCanonicalType().kind
+                == slang::ast::SymbolKind::FixedSizeUnpackedArrayType;
+  if (!arr.elementType.isIntegral() && !nested) {
     throw PonoException(
-        "SystemVerilogEncoder: only unpacked arrays of an integral element "
-        "type are supported, so not '"
+        "SystemVerilogEncoder: an unpacked array's element type must be "
+        "integral or another unpacked array, so not '"
         + std::string(arr.elementType.toString()) + "'");
   }
 

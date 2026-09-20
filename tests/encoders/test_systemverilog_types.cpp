@@ -116,9 +116,21 @@ TEST_P(SVUnitTests, UnpackedArraySmallForms)
       "unpacked_array_small_forms.sv", 8, ProverResult::TRUE);
 }
 
-TEST_P(SVUnitTests, UnpackedArrayMultiDimRejected)
+// More than one dimension: an array of arrays, so each index is a
+// Select going down and a Store coming back out. The dimensions are
+// unequal and neighbours in both are asserted, so an index applied
+// to the wrong dimension is refuted rather than quietly working.
+TEST_P(SVUnitTests, UnpackedArrayMultiDim)
 {
-  expect_encode_throws("unpacked_array_2d.sv");
+  // Same pinned-bitwuzla limitation as UnpackedArrayWholeOps: the
+  // `'{default: ...}` fills are constant arrays, and comparing one
+  // in the same query warns "equality over constant arrays not fully
+  // supported yet" and gives up. cvc5 proves it. Drop the special
+  // case once bitwuzla is updated.
+  ProverResult expected = GetParam() == smt::SolverEnum::BZLA
+                              ? ProverResult::UNKNOWN
+                              : ProverResult::TRUE;
+  check_prover<KInduction>("unpacked_array_2d.sv", 8, expected);
 }
 
 // Arrays built outside a clocked block: a combinational lookup

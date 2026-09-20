@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -239,6 +240,60 @@ void StatementEncoder::process_dynamic_element_assign(
           : solver_->make_term(Ite, condition, combined, prev_base);
 }
 
+smt::Term StatementEncoder::constant_array_value(
+    const slang::ConstantValue & cv,
+    const slang::ast::FixedSizeUnpackedArrayType & arr,
+    const smt::Sort & array_sort)
+{
+  using namespace slang::ast;
+  if (!cv.isUnpacked()) return Term();
+
+  UnpackedArrayInfo info = unpacked_array_info(solver_, arr);
+  auto elements = cv.elements();
+  if (elements.empty()) return Term();
+
+  // An element of a multi-dimensional array is itself an array, so
+  // the pattern nests as far as the dimensions do.
+  auto element_term = [&](const slang::ConstantValue & v) -> Term {
+    if (v.isUnpacked()) {
+      return constant_array_value(
+          v,
+          arr.elementType.getCanonicalType().as<FixedSizeUnpackedArrayType>(),
+          info.element_sort);
+    }
+    auto svint = v.integer();
+    svint.setSigned(false);
+    return solver_->make_term(
+        svint.toString(slang::LiteralBase::Decimal, /*includeBase=*/false),
+        info.element_sort,
+        10);
+  };
+
+  // Fill with the first element, then Store only the ones that
+  // differ -- a uniform pattern, which is the common case, stays a
+  // single constant array.
+  Term first = element_term(elements[0]);
+  if (!first) return Term();
+  Term filled = solver_->make_term(first, array_sort);
+  for (size_t i = 1; i < elements.size(); ++i) {
+    if (elements[i] == elements[0]) continue;
+    Term value = element_term(elements[i]);
+    if (!value) return Term();
+    Term idx = solver_->make_term(i, solver_->make_sort(BV, info.index_width));
+    filled = solver_->make_term(Store, filled, idx, value);
+  }
+  return filled;
+}
+
+smt::Term StatementEncoder::constant_array_term(
+    const slang::ast::Expression & rhs_expr,
+    const slang::ast::FixedSizeUnpackedArrayType & arr,
+    const smt::Sort & array_sort)
+{
+  return constant_array_value(
+      rhs_expr.eval(expr_encoder_.eval_ctx()), arr, array_sort);
+}
+
 smt::Term StatementEncoder::array_pending_value(const slang::ast::Symbol * sym,
                                                 const Term & state_term,
                                                 StmtContext ctx)
@@ -294,20 +349,52 @@ bool StatementEncoder::process_array_element_assign(
   // `mem[i]` and a narrower `mem[i][3:0]` / `mem[i].f` / `mem[i][2]`
   // all arrive here the same way.
   const ElementSelectExpression * elem_sel = nullptr;
-  auto desc = resolve_lvalue(lhs_expr, expr_encoder_.eval_ctx(), &elem_sel);
-  if (!elem_sel) return false;
+  std::optional<LValueDesc> desc;
+  // An element that is itself an array (`m[i] <= row`, where m has a
+  // further dimension) is no bit range of anything, so resolve_lvalue()
+  // cannot describe it; the whole element is simply replaced.
+  bool elem_is_array = lhs_expr.kind == ExpressionKind::ElementSelect
+                       && lhs_expr.type->getCanonicalType().kind
+                              == SymbolKind::FixedSizeUnpackedArrayType
+                       && lhs_expr.as<ElementSelectExpression>()
+                                  .value()
+                                  .type->getCanonicalType()
+                                  .kind
+                              == SymbolKind::FixedSizeUnpackedArrayType;
+  if (elem_is_array) {
+    elem_sel = &lhs_expr.as<ElementSelectExpression>();
+  } else {
+    desc = resolve_lvalue(lhs_expr, expr_encoder_.eval_ctx(), &elem_sel);
+    if (!elem_sel) return false;
+  }
 
-  const Expression & base_expr = elem_sel->value();
-  if (base_expr.kind != ExpressionKind::NamedValue
-      && base_expr.kind != ExpressionKind::HierarchicalValue) {
+  // What `elem_sel` indexes may itself be an element of an outer
+  // dimension (`m[i][j]` indexes `m[i]`), so peel those too. Each one
+  // becomes a Select on the way down and a Store on the way back out.
+  const Expression * base_expr = &elem_sel->value();
+  std::vector<const ElementSelectExpression *> outer;
+  while (base_expr->kind == ExpressionKind::ElementSelect
+         && base_expr->as<ElementSelectExpression>()
+                    .value()
+                    .type->getCanonicalType()
+                    .kind
+                == SymbolKind::FixedSizeUnpackedArrayType) {
+    auto & sel = base_expr->as<ElementSelectExpression>();
+    outer.push_back(&sel);
+    base_expr = &sel.value();
+  }
+  std::reverse(outer.begin(), outer.end());
+
+  if (base_expr->kind != ExpressionKind::NamedValue
+      && base_expr->kind != ExpressionKind::HierarchicalValue) {
     throw PonoException(
         "SystemVerilogEncoder: an unpacked-array element write must select on "
         "a declared array directly");
   }
   const Symbol * sym = &canonicalize_modport_port(
-      (base_expr.kind == ExpressionKind::NamedValue)
-          ? base_expr.as<NamedValueExpression>().symbol
-          : base_expr.as<HierarchicalValueExpression>().symbol);
+      (base_expr->kind == ExpressionKind::NamedValue)
+          ? base_expr->as<NamedValueExpression>().symbol
+          : base_expr->as<HierarchicalValueExpression>().symbol);
 
   // The only shape resolve_lvalue() declines without throwing is a
   // runtime-variable bit position above the element (`mem[i][j]`),
@@ -316,7 +403,7 @@ bool StatementEncoder::process_array_element_assign(
   // still resolves, and gives the offset to splice at.
   const ElementSelectExpression * dyn_bit = nullptr;
   uint64_t dyn_offset = 0;
-  if (!desc) {
+  if (!desc && !elem_is_array) {
     if (lhs_expr.kind == ExpressionKind::ElementSelect) {
       auto & outer = lhs_expr.as<ElementSelectExpression>();
       const ElementSelectExpression * within = nullptr;
@@ -342,11 +429,40 @@ bool StatementEncoder::process_array_element_assign(
                         + string(sym->name) + "' has no declared term");
   }
   Term state_term = sit->second;
-  Term prev_base = array_pending_value(sym, state_term, ctx);
+  Term whole = array_pending_value(sym, state_term, ctx);
 
-  UnpackedArrayInfo info = unpacked_array_info(
-      solver_,
-      base_expr.type->getCanonicalType().as<FixedSizeUnpackedArrayType>());
+  // Walk down to the innermost array, remembering each level so the
+  // Stores can be rebuilt outwards afterwards.
+  struct Level
+  {
+    Term array;     ///< the array this level indexes
+    Term index;     ///< normalized index into it
+    Term in_range;  ///< null when no index can miss
+  };
+  std::vector<Level> levels;
+  Term prev_base = whole;
+  for (auto * sel : outer) {
+    UnpackedArrayInfo dim = unpacked_array_info(
+        solver_,
+        sel->value().type->getCanonicalType().as<FixedSizeUnpackedArrayType>());
+    Level level;
+    level.array = prev_base;
+    level.index = normalize_array_index(
+        solver_,
+        expr_encoder_.expr_to_term(sel->selector(), prefix),
+        dim,
+        &level.in_range);
+    levels.push_back(level);
+    prev_base = solver_->make_term(Select, level.array, level.index);
+  }
+
+  // The innermost dimension is the one `elem_sel` indexes, which is
+  // the base's own type only when there are no outer dimensions.
+  UnpackedArrayInfo info =
+      unpacked_array_info(solver_,
+                          elem_sel->value()
+                              .type->getCanonicalType()
+                              .as<FixedSizeUnpackedArrayType>());
   Term in_range;
   Term idx = normalize_array_index(
       solver_,
@@ -373,27 +489,62 @@ bool StatementEncoder::process_array_element_assign(
     if (in_range) {
       spliced = solver_->make_term(Ite, in_range, spliced, prev_base);
     }
+    // Rebuild the enclosing dimensions around the innermost Store.
+    for (size_t k = levels.size(); k-- > 0;) {
+      Term outer_store =
+          solver_->make_term(Store, levels[k].array, levels[k].index, spliced);
+      spliced = levels[k].in_range
+                    ? solver_->make_term(
+                          Ite, levels[k].in_range, outer_store, levels[k].array)
+                    : outer_store;
+    }
     record_array_pending(
         sym,
         state_term,
         ctx,
         (condition == solver_->make_term(true))
             ? spliced
-            : solver_->make_term(Ite, condition, spliced, prev_base));
+            : solver_->make_term(Ite, condition, spliced, whole));
     return true;
   }
 
-  uint64_t range_w = desc->hi - desc->lo + 1;
-  Term rhs = rhs_override ? rhs_override
-                          : expr_encoder_.expr_to_term(rhs_expr, prefix);
-  rhs = resize_to(solver_, rhs, range_w, rhs_expr.type->isSigned());
-  Term new_elem = (range_w == desc->base_w)
-                      ? rhs
-                      : replace_bits(solver_,
-                                     solver_->make_term(Select, prev_base, idx),
-                                     rhs,
-                                     desc->lo,
-                                     desc->hi);
+  Term new_elem;
+  if (elem_is_array) {
+    Sort want = type_to_sort(solver_, *lhs_expr.type);
+    // An assignment pattern (`m[i] <= '{default: 0}`) is a value of
+    // the element's array sort, which expr_to_term() has no case for.
+    if (!rhs_override) {
+      new_elem = constant_array_term(
+          rhs_expr,
+          lhs_expr.type->getCanonicalType().as<FixedSizeUnpackedArrayType>(),
+          want);
+    }
+    if (!new_elem) {
+      new_elem = rhs_override ? rhs_override
+                              : expr_encoder_.expr_to_term(rhs_expr, prefix);
+    }
+    if (new_elem->get_sort() != want) {
+      throw PonoException(
+          "SystemVerilogEncoder: assigning to the array element '"
+          + string(sym->name) + "[...]' needs a value of sort "
+          + want->to_string() + ", not " + new_elem->get_sort()->to_string());
+    }
+  }
+  uint64_t range_w = elem_is_array ? 0 : desc->hi - desc->lo + 1;
+  Term rhs;
+  if (!elem_is_array) {
+    rhs = rhs_override ? rhs_override
+                       : expr_encoder_.expr_to_term(rhs_expr, prefix);
+    rhs = resize_to(solver_, rhs, range_w, rhs_expr.type->isSigned());
+  }
+  if (!elem_is_array)
+    new_elem = (range_w == desc->base_w)
+                   ? rhs
+                   : replace_bits(solver_,
+                                  solver_->make_term(Select, prev_base, idx),
+                                  rhs,
+                                  desc->lo,
+                                  desc->hi);
 
   Term combined = solver_->make_term(Store, prev_base, idx, new_elem);
   if (in_range) {
@@ -402,13 +553,22 @@ bool StatementEncoder::process_array_element_assign(
     // happens to land on.
     combined = solver_->make_term(Ite, in_range, combined, prev_base);
   }
+  // Rebuild the enclosing dimensions around the innermost Store.
+  for (size_t k = levels.size(); k-- > 0;) {
+    Term outer_store =
+        solver_->make_term(Store, levels[k].array, levels[k].index, combined);
+    combined = levels[k].in_range
+                   ? solver_->make_term(
+                         Ite, levels[k].in_range, outer_store, levels[k].array)
+                   : outer_store;
+  }
   record_array_pending(
       sym,
       state_term,
       ctx,
       (condition == solver_->make_term(true))
           ? combined
-          : solver_->make_term(Ite, condition, combined, prev_base));
+          : solver_->make_term(Ite, condition, combined, whole));
   return true;
 }
 
@@ -437,34 +597,10 @@ bool StatementEncoder::process_whole_array_assign(
   if (sit == symbol_table_.symbol_to_term().end()) return false;
   Term state_term = sit->second;
 
-  Term combined;
-  auto cv = rhs_expr.eval(expr_encoder_.eval_ctx());
-  if (cv.isUnpacked()) {
-    UnpackedArrayInfo info =
-        unpacked_array_info(solver_, lhs_type.as<FixedSizeUnpackedArrayType>());
-    auto elements = cv.elements();
-
-    // Fill with the first element, then Store only the ones that
-    // differ -- a uniform pattern (the common case) stays a single
-    // constant array.
-    auto element_term = [&](const slang::ConstantValue & v) {
-      auto svint = v.integer();
-      svint.setSigned(false);
-      return solver_->make_term(
-          svint.toString(slang::LiteralBase::Decimal, /*includeBase=*/false),
-          info.element_sort,
-          10);
-    };
-    combined =
-        solver_->make_term(element_term(elements[0]), state_term->get_sort());
-    for (size_t i = 1; i < elements.size(); ++i) {
-      if (elements[i] == elements[0]) continue;
-      Term idx =
-          solver_->make_term(i, solver_->make_sort(BV, info.index_width));
-      combined =
-          solver_->make_term(Store, combined, idx, element_term(elements[i]));
-    }
-  } else {
+  Term combined = constant_array_term(rhs_expr,
+                                      lhs_type.as<FixedSizeUnpackedArrayType>(),
+                                      state_term->get_sort());
+  if (!combined) {
     // Not constant, so it has to be another array of the same shape
     // (`b <= a`): copying one array term into another needs no
     // element-by-element expansion.
