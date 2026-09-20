@@ -252,10 +252,26 @@ void InstanceEncoder::process_always_comb(
         "on already-unrolled for-loop counters)");
   }
 
-  // Commit accumulated wire definitions via macro substitution.
-  // Aliased entries belong in the parent's scope; everything else
-  // uses the current prefix.
+  // Commit each accumulated definition. A wire is macro-substituted
+  // (aliased entries belong in the parent's scope, everything else
+  // uses the current prefix); a non-wire target already has a term of
+  // its own, so it takes a single constraint equating that term to
+  // the value the whole block computed -- one per symbol, since a
+  // constraint per write would bind the same term several times over.
   for (auto & [sym, term] : symbol_table_.pending_comb_updates()) {
+    if (!symbol_table_.wire_symbols().count(sym)) {
+      auto sit = symbol_table_.symbol_to_term().find(sym);
+      if (sit == symbol_table_.symbol_to_term().end()) {
+        throw PonoException("SystemVerilogEncoder: always_comb writes '"
+                            + string(sym->name)
+                            + "', which has no declared term");
+      }
+      fts_.add_constraint(solver_->make_term(Equal, sit->second, term));
+      logger.log(2,
+                 "SystemVerilogEncoder: always_comb (reg) {} := ...",
+                 fts_.get_name(sit->second));
+      continue;
+    }
     string name;
     if (symbol_table_.pending_comb_aliased().count(sym)) {
       name = parent_prefix.empty() ? string(sym->name)

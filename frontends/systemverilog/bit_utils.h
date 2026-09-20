@@ -127,14 +127,20 @@ smt::Term replace_bits(const smt::SmtSolver & solver,
 /** Build a partial-write term like replace_bits(), but for a
  *  runtime-variable element index (`arr[idx] = slice` where `idx` is not
  *  a compile-time constant): shifts an `elem_w`-wide window of ones into
- *  position `idx * elem_w` and uses it to mask the shifted-into-position
- *  `slice` into `base`, leaving every other element unchanged. Mirrors
- *  the shift+extract technique used for dynamic-index *reads*.
+ *  position `base_offset + idx * elem_w` and uses it to mask the
+ *  shifted-into-position `slice` into `base`, leaving every other
+ *  element unchanged. Mirrors the shift+extract technique used for
+ *  dynamic-index *reads*.
+ *
+ *  `base_offset` is where the indexed range itself starts within
+ *  `base`, which is nonzero when the select sits on a sub-range rather
+ *  than on the whole variable (`p[2][idx]`, `s.field[idx]`).
  */
 smt::Term replace_bits_dynamic(const smt::SmtSolver & solver,
                                const smt::Term & base,
                                const smt::Term & slice,
                                const smt::Term & idx,
-                               uint64_t elem_w);
+                               uint64_t elem_w,
+                               uint64_t base_offset = 0);
 
 }  // namespace pono

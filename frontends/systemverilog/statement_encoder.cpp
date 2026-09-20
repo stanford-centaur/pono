@@ -66,16 +66,31 @@ void StatementEncoder::process_dynamic_element_assign(
 {
   using namespace slang::ast;
 
-  // Only a direct `base[idx] = rhs` pattern is supported: the select
-  // must sit directly on a plain variable, not on a nested select.
-  if (sel.value().kind != ExpressionKind::NamedValue
-      && sel.value().kind != ExpressionKind::HierarchicalValue) {
-    return;
+  // The select sits either directly on a variable (`base[idx] = rhs`)
+  // or on a statically-resolvable sub-range of one (`p[2][idx] = rhs`,
+  // `s.field[idx] = rhs`), in which case the write lands at that
+  // range's own offset within the base.
+  const Symbol * sym = nullptr;
+  uint64_t base_offset = 0;
+  const Expression & inner = sel.value();
+  if (inner.kind == ExpressionKind::NamedValue
+      || inner.kind == ExpressionKind::HierarchicalValue) {
+    sym = &canonicalize_modport_port(
+        (inner.kind == ExpressionKind::NamedValue)
+            ? inner.as<NamedValueExpression>().symbol
+            : inner.as<HierarchicalValueExpression>().symbol);
+  } else {
+    auto inner_desc = resolve_lvalue(inner, expr_encoder_.eval_ctx());
+    if (!inner_desc || !inner_desc->base) {
+      // Only a *second* runtime index is left: the write position is
+      // then a product of two unknowns that this splice cannot name.
+      throw PonoException(
+          "SystemVerilogEncoder: a dynamic-index write whose base is itself "
+          "runtime-indexed is not supported");
+    }
+    sym = inner_desc->base;
+    base_offset = inner_desc->lo;
   }
-  const Symbol * sym = &canonicalize_modport_port(
-      (sel.value().kind == ExpressionKind::NamedValue)
-          ? sel.value().as<NamedValueExpression>().symbol
-          : sel.value().as<HierarchicalValueExpression>().symbol);
   bool aliased = symbol_table_.port_output_aliases().count(sym) > 0;
   uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
   auto pieces = symbol_table_.resolve_output_alias_pieces(sym, 0, sym_w - 1);
@@ -84,11 +99,14 @@ void StatementEncoder::process_dynamic_element_assign(
                      : pieces[0].sym->as<ValueSymbol>().getType().getBitWidth();
   if (pieces.size() != 1 || pieces[0].target_lo != 0
       || pieces[0].target_hi + 1 != piece_w) {
-    // Dynamic-index writes into a bus-element alias (e.g. one
-    // element of an instance array wired to a slice of a parent
-    // bus) or a concatenation-target alias aren't supported; leave
-    // unconstrained rather than risk a wrong encoding.
-    return;
+    // A dynamic-index write into a bus-element alias (one element of
+    // an instance array wired to a slice of a parent bus) or into a
+    // concatenation-target alias would have to be split across the
+    // alias segments at a position only known at runtime.
+    throw PonoException(
+        "SystemVerilogEncoder: a dynamic-index write to '" + string(sym->name)
+        + "', which is aliased to part of an output port connection, is not "
+          "supported");
   }
   sym = pieces[0].sym;
 
@@ -109,27 +127,49 @@ void StatementEncoder::process_dynamic_element_assign(
     }
   } else if (ctx == StmtContext::NEXT_STATE) {
     auto sit = symbol_table_.symbol_to_term().find(sym);
-    if (sit == symbol_table_.symbol_to_term().end()) return;
+    if (sit == symbol_table_.symbol_to_term().end()) {
+      throw PonoException("SystemVerilogEncoder: dynamic-index write to '"
+                          + string(sym->name)
+                          + "', which has no declared term");
+    }
     state_term = sit->second;
     auto pit = symbol_table_.pending_next_updates().find(state_term);
     prev_base = (pit != symbol_table_.pending_next_updates().end())
                     ? pit->second
                     : state_term;
+  } else if (ctx == StmtContext::COMBINATIONAL) {
+    // Non-wire combinational target (`always_comb begin p = '0;
+    // p[i] = 1'b1; end`): compose onto whatever the block has
+    // written so far, exactly as the wire case does. The single
+    // constraint binding it is emitted when the block ends.
+    auto pit = symbol_table_.pending_comb_updates().find(sym);
+    if (pit != symbol_table_.pending_comb_updates().end()) {
+      prev_base = pit->second;
+    } else {
+      auto sit = symbol_table_.symbol_to_term().find(sym);
+      if (sit != symbol_table_.symbol_to_term().end()) prev_base = sit->second;
+    }
   } else {
-    // COMBINATIONAL non-wire / INITIAL dynamic-index writes aren't
-    // needed by any currently-supported construct; leave unsupported
-    // rather than risk an under-constrained partial encoding.
-    return;
+    // INITIAL: constrain_init() takes a fixed slice, and a runtime
+    // index names no fixed slice.
+    throw PonoException(
+        "SystemVerilogEncoder: a dynamic-index write in an initial block ('"
+        + string(sym->name) + "') is not supported");
   }
-  if (!prev_base) return;
+  if (!prev_base) {
+    throw PonoException("SystemVerilogEncoder: dynamic-index write to '"
+                        + string(sym->name)
+                        + "' has no previous value to splice into");
+  }
 
   Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix);
   Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
   rhs = resize_to(solver_, rhs, elem_w, sel.type->isSigned());
-  Term combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
+  Term combined =
+      replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w, base_offset);
 
-  if (wire_comb) {
-    if (aliased) symbol_table_.pending_comb_aliased().insert(sym);
+  if (ctx == StmtContext::COMBINATIONAL) {
+    if (wire_comb && aliased) symbol_table_.pending_comb_aliased().insert(sym);
     symbol_table_.pending_comb_updates()[sym] =
         (condition == solver_->make_term(true))
             ? combined
@@ -438,9 +478,22 @@ void StatementEncoder::process_statement(
           for (auto * operand :
                lhs_expr.as<ConcatenationExpression>().operands()) {
             uint64_t seg_w = operand->type->getBitWidth();
-            if (seg_w == 0 || covered + seg_w > total_w) return {};
+            if (seg_w == 0 || covered + seg_w > total_w) {
+              throw PonoException(
+                  "SystemVerilogEncoder: a concatenation-target operand of "
+                  "width "
+                  + std::to_string(seg_w) + " does not fit the target's "
+                  + std::to_string(total_w) + " bits");
+            }
             auto sub = begin_write(*operand);
-            if (sub.empty()) return {};
+            if (sub.empty()) {
+              // Returning no writes here would discard the operands
+              // that *did* resolve along with this one, silently
+              // dropping the whole assignment.
+              throw PonoException(
+                  "SystemVerilogEncoder: a concatenation-target write with a "
+                  "runtime-indexed operand is not supported");
+            }
             uint64_t seg_lo = total_w - covered - seg_w;
             for (auto & w : sub) {
               w.rhs_lo += seg_lo;
@@ -592,19 +645,26 @@ void StatementEncoder::process_statement(
             break;
           }
           case StmtContext::COMBINATIONAL: {
-            // Non-wire LHS (e.g. output port reg, or a partially-
-            // written base): constrain the appropriate slice via
-            // add_constraint, which accepts terms involving input
-            // vars (so RHSes that reference input ports work).
-            Term lhs_slice =
-                full_write
-                    ? lhs_term
-                    : solver_->make_term(Op(Extract, w.hi, w.lo), lhs_term);
-            Term eq = solver_->make_term(Equal, lhs_slice, rhs);
-            if (condition != solver_->make_term(true)) {
-              eq = solver_->make_term(Implies, condition, eq);
-            }
-            fts_.add_constraint(eq);
+            // Non-wire LHS (e.g. an output-port reg, or a base that
+            // is also written partially). Accumulate the whole-base
+            // value the way the wire branch above does, rather than
+            // constraining each write's own slice as it happens:
+            // separate per-write constraints all bind the same term
+            // at once, so `p = 0; p[3] = 1;` would assert both p == 0
+            // and p[3] == 1 and make the design vacuous. One
+            // constraint per symbol is emitted when the block ends
+            // (process_always_comb()), and reads within the block see
+            // the accumulated value through lookup_symbol().
+            auto pit = symbol_table_.pending_comb_updates().find(w.sym);
+            Term prev = pit != symbol_table_.pending_comb_updates().end()
+                            ? pit->second
+                            : lhs_term;
+            Term combined =
+                full_write ? rhs : replace_bits(solver_, prev, rhs, w.lo, w.hi);
+            symbol_table_.pending_comb_updates()[w.sym] =
+                (condition == solver_->make_term(true))
+                    ? combined
+                    : solver_->make_term(Ite, condition, combined, prev);
             break;
           }
           case StmtContext::INITIAL: {

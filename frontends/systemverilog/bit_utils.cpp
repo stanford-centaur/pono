@@ -166,7 +166,8 @@ Term replace_bits_dynamic(const SmtSolver & solver,
                           const Term & base,
                           const Term & slice,
                           const Term & idx,
-                          uint64_t elem_w)
+                          uint64_t elem_w,
+                          uint64_t base_offset)
 {
   // Index arithmetic and bit masks below -- zero-extend throughout;
   // `slice` is padded before shifting into position, but `mask`
@@ -181,6 +182,10 @@ Term replace_bits_dynamic(const SmtSolver & solver,
   if (elem_w != 1) {
     Term elem_w_term = solver->make_term(elem_w, base_sort);
     shift_amount = solver->make_term(BVMul, idx_ext, elem_w_term);
+  }
+  if (base_offset != 0) {
+    shift_amount = solver->make_term(
+        BVAdd, shift_amount, solver->make_term(base_offset, base_sort));
   }
   Term elem_ones = solver->make_term(
       BVNot, solver->make_term(0, solver->make_sort(BV, elem_w)));

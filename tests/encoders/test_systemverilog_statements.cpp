@@ -158,6 +158,42 @@ TEST_P(SVUnitTests, BlockingAlwaysEdgeVsLevel)
   check_prover<KInduction>("blocking_always_edge.sv", 12, ProverResult::TRUE);
 }
 
+// Writes to one non-wire always_comb target compose in order rather
+// than each constraining its own slice. Separate constraints would
+// contradict each other and make the design vacuous, which is why
+// this is proved and paired with a refutation below.
+TEST_P(SVUnitTests, CombPartialWriteComposes)
+{
+  check_prover<KInduction>("comb_partial_write.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, CombPartialWriteFails)
+{
+  check_bmc("comb_partial_write_fails.sv", 0);
+}
+
+// `p[2][j] <= val`: the base of the runtime-indexed write is itself a
+// select, so the splice happens at that inner range's offset. The
+// untouched neighbours are asserted too -- an offset error would move
+// the write into one of them.
+TEST_P(SVUnitTests, NestedDynamicBitWrite)
+{
+  check_prover<KInduction>(
+      "nested_dynamic_bit_write.sv", 12, ProverResult::TRUE);
+}
+
+// Both of these used to drop the write with no diagnostic, leaving
+// the target free.
+TEST_P(SVUnitTests, ConcatDynamicOperandRejected)
+{
+  expect_encode_throws("concat_dynamic_operand.sv");
+}
+
+TEST_P(SVUnitTests, InitialDynamicIndexRejected)
+{
+  expect_encode_throws("initial_dynamic_index.sv");
+}
+
 // `initial forever @(posedge clk) ...` is a legacy structural spelling
 // of `always_ff @(posedge clk) ...`: as_forever_event_body() recognizes
 // this shape (a ForeverLoop whose own body is a Timed statement) and
