@@ -44,10 +44,9 @@ struct UnpackedArrayInfo
  *  then `.as<FixedSizeUnpackedArrayType>()` -- so there is nothing here
  *  to report absence about.
  *
- *  Throws for an unpacked array this encoder does not model: a negative
- *  declared lower bound (`mem[-3:4]`, which would make the index
- *  arithmetic signed), a multi-dimensional array, or a non-integral
- *  element type.
+ *  Throws only for an element type with no sort of its own, such as
+ *  an unpacked struct. A negative declared lower bound, a further
+ *  dimension, and a packed struct or union element are all modelled.
  */
 UnpackedArrayInfo unpacked_array_info(
     const smt::SmtSolver & solver,
@@ -56,11 +55,7 @@ UnpackedArrayInfo unpacked_array_info(
 /** Map an SV element index onto the array's SMT index sort: subtract
  *  the declared lower bound, then resize to the index width.
  *
- *  An index outside the declared range wraps, leaving the access
- *  unconstrained -- the same latitude the LRM gives an out-of-bounds
- *  unpacked-array access, which returns x.
- */
-/** Also reports, through `in_range` when non-null, whether the index
+ *  Also reports, through `in_range` when non-null, whether the index
  *  names a cell the array actually has. Left untouched when no index
  *  can miss -- a zero-based array whose depth fills its address
  *  space, read by an index no wider than that space. Out-of-range
@@ -130,6 +125,18 @@ smt::Term replace_bits(const smt::SmtSolver & solver,
                        const smt::Term & slice,
                        uint64_t lo,
                        uint64_t hi);
+
+/** Splice `width` bits of `slice` into `base` at a runtime bit
+ *  `position`, leaving every other bit alone. The element-indexed
+ *  form below is this with the position worked out from an index;
+ *  callers that already know the position in bits -- because it was
+ *  rebased onto some other signal -- want this one.
+ */
+smt::Term replace_bits_at(const smt::SmtSolver & solver,
+                          const smt::Term & base,
+                          const smt::Term & slice,
+                          const smt::Term & position,
+                          uint64_t width);
 
 /** Build a partial-write term like replace_bits(), but for a
  *  runtime-variable element index (`arr[idx] = slice` where `idx` is not

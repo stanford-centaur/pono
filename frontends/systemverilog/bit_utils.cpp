@@ -183,6 +183,30 @@ Term replace_bits(const SmtSolver & solver,
   return result;
 }
 
+Term replace_bits_at(const SmtSolver & solver,
+                     const Term & base,
+                     const Term & slice,
+                     const Term & position,
+                     uint64_t width)
+{
+  // Bit masks throughout -- zero-extend everything; `slice` is padded
+  // before shifting into position, but `mask` clears every bit
+  // outside the shifted width-wide window regardless, so the padding
+  // bits never affect the result either way.
+  require_bv(base, "replace_bits_at()");
+  uint64_t base_w = base->get_sort()->get_width();
+  Term shift = resize_to(solver, position, base_w, false);
+  Term ones = solver->make_term(
+      BVNot, solver->make_term(0, solver->make_sort(BV, width)));
+  Term mask =
+      solver->make_term(BVShl, resize_to(solver, ones, base_w, false), shift);
+  Term shifted =
+      solver->make_term(BVShl, resize_to(solver, slice, base_w, false), shift);
+  Term cleared = solver->make_term(BVAnd, base, solver->make_term(BVNot, mask));
+  return solver->make_term(
+      BVOr, cleared, solver->make_term(BVAnd, shifted, mask));
+}
+
 Term replace_bits_dynamic(const SmtSolver & solver,
                           const Term & base,
                           const Term & slice,
@@ -190,33 +214,19 @@ Term replace_bits_dynamic(const SmtSolver & solver,
                           uint64_t elem_w,
                           uint64_t base_offset)
 {
-  // Index arithmetic and bit masks below -- zero-extend throughout;
-  // `slice` is padded before shifting into position, but `mask`
-  // clears every bit outside the shifted elem_w-wide window
-  // regardless, so the padding bits of `slice` never affect the
-  // result either way.
   require_bv(base, "replace_bits_dynamic()");
   uint64_t base_w = base->get_sort()->get_width();
   Sort base_sort = solver->make_sort(BV, base_w);
-  Term idx_ext = resize_to(solver, idx, base_w, false);
-  Term shift_amount = idx_ext;
+  Term shift = resize_to(solver, idx, base_w, false);
   if (elem_w != 1) {
-    Term elem_w_term = solver->make_term(elem_w, base_sort);
-    shift_amount = solver->make_term(BVMul, idx_ext, elem_w_term);
+    shift =
+        solver->make_term(BVMul, shift, solver->make_term(elem_w, base_sort));
   }
   if (base_offset != 0) {
-    shift_amount = solver->make_term(
-        BVAdd, shift_amount, solver->make_term(base_offset, base_sort));
+    shift = solver->make_term(
+        BVAdd, shift, solver->make_term(base_offset, base_sort));
   }
-  Term elem_ones = solver->make_term(
-      BVNot, solver->make_term(0, solver->make_sort(BV, elem_w)));
-  Term mask = solver->make_term(
-      BVShl, resize_to(solver, elem_ones, base_w, false), shift_amount);
-  Term slice_shifted = solver->make_term(
-      BVShl, resize_to(solver, slice, base_w, false), shift_amount);
-  Term cleared = solver->make_term(BVAnd, base, solver->make_term(BVNot, mask));
-  return solver->make_term(
-      BVOr, cleared, solver->make_term(BVAnd, slice_shifted, mask));
+  return replace_bits_at(solver, base, slice, shift, elem_w);
 }
 
 }  // namespace pono

@@ -1,3 +1,4 @@
+#include "engines/kinduction.h"
 #include "sv_test_fixture.h"
 
 using namespace pono;
@@ -247,6 +248,23 @@ TEST_P(SVUnitTests, NestedCheckerBlock)
 TEST_P(SVUnitTests, CheckerLocalState)
 {
   check_bmc("checker_local_state.sv", 4, ProverResult::FALSE);
+}
+
+// A runtime-indexed write inside a child whose output port is
+// connected to a concatenation: the port's bits are spread across
+// two parent-side signals, and which one the write reaches is only
+// known at runtime, so every segment takes a guarded splice.
+TEST_P(SVUnitTests, DynamicWritePortAlias)
+{
+  check_prover<KInduction>(
+      "dynamic_write_port_alias.sv", 8, ProverResult::TRUE);
+}
+
+// Asserting only that the right half changed would also pass if
+// neither did.
+TEST_P(SVUnitTests, DynamicWritePortAliasFails)
+{
+  check_bmc("dynamic_write_port_alias_fails.sv", 2);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,

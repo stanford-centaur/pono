@@ -150,94 +150,126 @@ void StatementEncoder::process_dynamic_element_assign(
   bool aliased = symbol_table_.port_output_aliases().count(sym) > 0;
   uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
   auto pieces = symbol_table_.resolve_output_alias_pieces(sym, 0, sym_w - 1);
-  uint64_t piece_w =
-      pieces.empty() ? 0
-                     : pieces[0].sym->as<ValueSymbol>().getType().getBitWidth();
-  if (pieces.size() != 1 || pieces[0].target_lo != 0
-      || pieces[0].target_hi + 1 != piece_w) {
-    // A dynamic-index write into a bus-element alias (one element of
-    // an instance array wired to a slice of a parent bus) or into a
-    // concatenation-target alias would have to be split across the
-    // alias segments at a position only known at runtime.
-    throw PonoException(
-        "SystemVerilogEncoder: a dynamic-index write to '" + string(sym->name)
-        + "', which is aliased to part of an output port connection, is not "
-          "supported");
-  }
-  sym = pieces[0].sym;
+  if (pieces.empty()) return;
 
   uint64_t elem_w = sel.type->getBitWidth();
   if (elem_w == 0) elem_w = 1;
 
-  bool wire_comb = ctx == StmtContext::COMBINATIONAL
-                   && symbol_table_.wire_symbols().count(sym);
-  Term prev_base;
-  Term state_term;
-  if (wire_comb) {
-    auto pit = symbol_table_.pending_comb_updates().find(sym);
-    if (pit != symbol_table_.pending_comb_updates().end()) {
-      prev_base = pit->second;
-    } else {
-      auto sit = symbol_table_.symbol_to_term().find(sym);
-      if (sit != symbol_table_.symbol_to_term().end()) prev_base = sit->second;
-    }
-  } else if (ctx == StmtContext::NEXT_STATE) {
-    auto sit = symbol_table_.symbol_to_term().find(sym);
-    if (sit == symbol_table_.symbol_to_term().end()) {
-      throw PonoException("SystemVerilogEncoder: dynamic-index write to '"
-                          + string(sym->name)
-                          + "', which has no declared term");
-    }
-    state_term = sit->second;
-    auto pit = symbol_table_.pending_next_updates().find(state_term);
-    prev_base = (pit != symbol_table_.pending_next_updates().end())
-                    ? pit->second
-                    : state_term;
-  } else if (ctx == StmtContext::COMBINATIONAL) {
-    // Non-wire combinational target (`always_comb begin p = '0;
-    // p[i] = 1'b1; end`): compose onto whatever the block has
-    // written so far, exactly as the wire case does. The single
-    // constraint binding it is emitted when the block ends.
-    auto pit = symbol_table_.pending_comb_updates().find(sym);
-    if (pit != symbol_table_.pending_comb_updates().end()) {
-      prev_base = pit->second;
-    } else {
-      auto sit = symbol_table_.symbol_to_term().find(sym);
-      if (sit != symbol_table_.symbol_to_term().end()) prev_base = sit->second;
-    }
-  } else {
-    // INITIAL: constrain_init() takes a fixed slice, and a runtime
-    // index names no fixed slice.
+  if (ctx == StmtContext::INITIAL) {
+    // constrain_init() takes a fixed slice, and a runtime index names
+    // no fixed slice.
     throw PonoException(
         "SystemVerilogEncoder: a dynamic-index write in an initial block ('"
         + string(sym->name) + "') is not supported");
-  }
-  if (!prev_base) {
-    throw PonoException("SystemVerilogEncoder: dynamic-index write to '"
-                        + string(sym->name)
-                        + "' has no previous value to splice into");
   }
 
   Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix);
   Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
   rhs = resize_to(solver_, rhs, elem_w, sel.type->isSigned());
-  Term combined =
-      replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w, base_offset);
 
-  if (ctx == StmtContext::COMBINATIONAL) {
-    if (wire_comb && aliased) symbol_table_.pending_comb_aliased().insert(sym);
-    symbol_table_.pending_comb_updates()[sym] =
-        (condition == solver_->make_term(true))
-            ? combined
-            : solver_->make_term(Ite, condition, combined, prev_base);
+  // Where the write lands within `sym`, wide enough that the
+  // arithmetic below cannot wrap for any position `sym` has.
+  uint64_t pos_w = idx->get_sort()->get_width();
+  while ((uint64_t{ 1 } << pos_w) < sym_w + elem_w) ++pos_w;
+  Sort pos_sort = solver_->make_sort(BV, pos_w);
+  Term pos_in_sym = resize_to(solver_, idx, pos_w, /*is_signed=*/false);
+  if (elem_w != 1) {
+    pos_in_sym = solver_->make_term(
+        BVMul, pos_in_sym, solver_->make_term(elem_w, pos_sort));
+  }
+  if (base_offset != 0) {
+    pos_in_sym = solver_->make_term(
+        BVAdd, pos_in_sym, solver_->make_term(base_offset, pos_sort));
+  }
+
+  // Splice into one alias target, at `position` bits into it, when
+  // `guard` says the write lands there at all.
+  auto commit_to = [&](const Symbol * target,
+                       const Term & position,
+                       const Term & guard) {
+    bool wire_comb = ctx == StmtContext::COMBINATIONAL
+                     && symbol_table_.wire_symbols().count(target);
+    Term prev_base;
+    Term state_term;
+    if (ctx == StmtContext::NEXT_STATE) {
+      auto sit = symbol_table_.symbol_to_term().find(target);
+      if (sit == symbol_table_.symbol_to_term().end()) {
+        throw PonoException("SystemVerilogEncoder: dynamic-index write to '"
+                            + string(target->name)
+                            + "', which has no declared term");
+      }
+      state_term = sit->second;
+      auto pit = symbol_table_.pending_next_updates().find(state_term);
+      prev_base = (pit != symbol_table_.pending_next_updates().end())
+                      ? pit->second
+                      : state_term;
+    } else {
+      // Combinational, wire or not: compose onto whatever the block
+      // has written so far. The single constraint binding a non-wire
+      // is emitted when the block ends.
+      auto pit = symbol_table_.pending_comb_updates().find(target);
+      if (pit != symbol_table_.pending_comb_updates().end()) {
+        prev_base = pit->second;
+      } else {
+        auto sit = symbol_table_.symbol_to_term().find(target);
+        if (sit != symbol_table_.symbol_to_term().end()) {
+          prev_base = sit->second;
+        }
+      }
+    }
+    if (!prev_base) return;
+
+    Term combined = replace_bits_at(solver_, prev_base, rhs, position, elem_w);
+    if (guard) combined = solver_->make_term(Ite, guard, combined, prev_base);
+    if (condition != solver_->make_term(true)) {
+      combined = solver_->make_term(Ite, condition, combined, prev_base);
+    }
+    if (ctx == StmtContext::NEXT_STATE) {
+      symbol_table_.pending_next_updates()[state_term] = combined;
+    } else {
+      if (wire_comb && aliased) {
+        symbol_table_.pending_comb_aliased().insert(target);
+      }
+      symbol_table_.pending_comb_updates()[target] = combined;
+    }
+  };
+
+  // The ordinary case: one alias piece covering the whole symbol, so
+  // the position within the target is the position within `sym` and
+  // every write lands there.
+  uint64_t first_w = pieces[0].sym->as<ValueSymbol>().getType().getBitWidth();
+  if (pieces.size() == 1 && pieces[0].rhs_lo == 0 && pieces[0].target_lo == 0
+      && pieces[0].target_hi + 1 == first_w) {
+    commit_to(pieces[0].sym, pos_in_sym, Term());
     return;
   }
 
-  // ctx == NEXT_STATE
-  symbol_table_.pending_next_updates()[state_term] =
-      (condition == solver_->make_term(true))
-          ? combined
-          : solver_->make_term(Ite, condition, combined, prev_base);
+  // Otherwise the symbol is spread across several parent-side
+  // signals (a concatenation-target connection, or one element of an
+  // instance array wired to a slice of a shared bus). Which of them
+  // the write reaches is only known at runtime, so every piece takes
+  // a guarded splice and at most one of the guards can hold.
+  for (auto & piece : pieces) {
+    if (piece.rhs_hi - piece.rhs_lo != piece.target_hi - piece.target_lo) {
+      throw PonoException(
+          "SystemVerilogEncoder: an output-port alias segment for '"
+          + string(sym->name) + "' does not preserve its width");
+    }
+    // Lands here iff the whole element sits inside this segment.
+    Term lo_term = solver_->make_term(piece.rhs_lo, pos_sort);
+    Term hi_term = solver_->make_term(piece.rhs_hi - (elem_w - 1), pos_sort);
+    Term guard =
+        solver_->make_term(And,
+                           solver_->make_term(BVUge, pos_in_sym, lo_term),
+                           solver_->make_term(BVUle, pos_in_sym, hi_term));
+    // Rebase onto the target: same distance from the segment's start.
+    Term position = solver_->make_term(BVSub, pos_in_sym, lo_term);
+    if (piece.target_lo != 0) {
+      position = solver_->make_term(
+          BVAdd, position, solver_->make_term(piece.target_lo, pos_sort));
+    }
+    commit_to(piece.sym, position, guard);
+  }
 }
 
 smt::Term StatementEncoder::constant_array_value(
