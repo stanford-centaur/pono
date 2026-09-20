@@ -193,6 +193,19 @@ TEST_P(SVUnitTests, CombPartialWriteFails)
   check_bmc("comb_partial_write_fails.sv", 0);
 }
 
+// An `initial` block composes its writes the same way, and for the
+// same reason: separate per-write constraints leave no satisfiable
+// initial state, which refutes nothing at all.
+TEST_P(SVUnitTests, InitialPartialWriteComposes)
+{
+  check_prover<KInduction>("initial_partial_write.sv", 6, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, InitialPartialWriteFails)
+{
+  check_bmc("initial_partial_write_fails.sv", 0);
+}
+
 // `p[2][j] <= val`: the base of the runtime-indexed write is itself a
 // select, so the splice happens at that inner range's offset. The
 // untouched neighbours are asserted too -- an offset error would move

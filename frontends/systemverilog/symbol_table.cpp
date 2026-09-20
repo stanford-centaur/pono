@@ -259,7 +259,15 @@ void SymbolTable::pre_scan_always_comb(
   collect_blocking_targets(body, full, partial);
   for (auto * sym : full) {
     if (state_var_symbols_.count(sym)) continue;
-    if (partial.count(sym)) {
+    // An unpacked array is a state var wherever it is written: a wire
+    // is macro-substituted, and the array paths compose onto a term
+    // the symbol already has.
+    auto * vsym = sym->as_if<slang::ast::ValueSymbol>();
+    bool is_array =
+        vsym
+        && vsym->getType().getCanonicalType().kind
+               == slang::ast::SymbolKind::FixedSizeUnpackedArrayType;
+    if (partial.count(sym) || is_array) {
       state_var_symbols_.insert(sym);
     } else {
       wire_symbols_.insert(sym);

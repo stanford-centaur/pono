@@ -303,6 +303,7 @@ void InstanceEncoder::process_always_comb(
 void InstanceEncoder::process_initial(
     const slang::ast::ProceduralBlockSymbol & proc, const string & prefix)
 {
+  symbol_table_.pending_comb_updates().clear();
   Term true_term = solver_->make_term(true);
   const slang::ast::Expression * default_disable_expr =
       current_scope_ ? compilation_->getDefaultDisable(*current_scope_)
@@ -320,6 +321,23 @@ void InstanceEncoder::process_initial(
         "when its condition is a compile-time constant (e.g. depends only "
         "on already-unrolled for-loop counters)");
   }
+
+  // One constraint per symbol, pinning it to the value the whole
+  // block left it with -- a constraint per write would bind the same
+  // term several times over and contradict itself.
+  for (auto & [sym, term] : symbol_table_.pending_comb_updates()) {
+    auto sit = symbol_table_.symbol_to_term().find(sym);
+    if (sit == symbol_table_.symbol_to_term().end()) {
+      throw PonoException("SystemVerilogEncoder: initial block writes '"
+                          + string(sym->name)
+                          + "', which has no declared term");
+    }
+    fts_.constrain_init(solver_->make_term(Equal, sit->second, term));
+    logger.log(2,
+               "SystemVerilogEncoder: initial {} := ...",
+               fts_.get_name(sit->second));
+  }
+  symbol_table_.pending_comb_updates().clear();
 }
 
 void InstanceEncoder::process_always_comb_once(

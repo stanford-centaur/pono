@@ -44,6 +44,7 @@ namespace slang::ast {
 class ElementSelectExpression;
 class Expression;
 class Statement;
+class Symbol;
 class ValueSymbol;
 }  // namespace slang::ast
 
@@ -130,6 +131,19 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
       StmtContext ctx,
       const smt::Term & condition,
       const std::string & prefix);
+
+  /** The value a whole-array target carries so far in the block being
+   *  walked, or the array's own term if nothing has written it yet.
+   *  A clocked block accumulates by term, the others by symbol. */
+  smt::Term array_pending_value(const slang::ast::Symbol * sym,
+                                const smt::Term & state_term,
+                                StmtContext ctx);
+
+  /** Record `value` as what that target now carries. */
+  void record_array_pending(const slang::ast::Symbol * sym,
+                            const smt::Term & state_term,
+                            StmtContext ctx,
+                            const smt::Term & value);
 
   /** Handle an assignment whose target is one element of an unpacked
    *  array, or a bit range inside one (`mem[i] <= v`, `mem[i][3:0] <=

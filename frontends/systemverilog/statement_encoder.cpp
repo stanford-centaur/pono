@@ -239,6 +239,34 @@ void StatementEncoder::process_dynamic_element_assign(
           : solver_->make_term(Ite, condition, combined, prev_base);
 }
 
+smt::Term StatementEncoder::array_pending_value(const slang::ast::Symbol * sym,
+                                                const Term & state_term,
+                                                StmtContext ctx)
+{
+  // A clocked block accumulates by term, the others by symbol; both
+  // start from the array's own term when nothing has written it yet.
+  if (ctx == StmtContext::NEXT_STATE) {
+    auto it = symbol_table_.pending_next_updates().find(state_term);
+    return it == symbol_table_.pending_next_updates().end() ? state_term
+                                                            : it->second;
+  }
+  auto it = symbol_table_.pending_comb_updates().find(sym);
+  return it == symbol_table_.pending_comb_updates().end() ? state_term
+                                                          : it->second;
+}
+
+void StatementEncoder::record_array_pending(const slang::ast::Symbol * sym,
+                                            const Term & state_term,
+                                            StmtContext ctx,
+                                            const Term & value)
+{
+  if (ctx == StmtContext::NEXT_STATE) {
+    symbol_table_.pending_next_updates()[state_term] = value;
+  } else {
+    symbol_table_.pending_comb_updates()[sym] = value;
+  }
+}
+
 bool StatementEncoder::process_array_element_assign(
     const slang::ast::Expression & lhs_expr,
     const slang::ast::Expression & rhs_expr,
@@ -288,25 +316,13 @@ bool StatementEncoder::process_array_element_assign(
         "an unpacked-array element ('"
         + string(sym->name) + "') is not supported");
   }
-  if (ctx != StmtContext::NEXT_STATE) {
-    // An array left unconstrained reads as any value at all, so a
-    // dropped write here would surface as a counterexample rather
-    // than as a gap.
-    throw PonoException(
-        "SystemVerilogEncoder: writing an unpacked-array element outside a "
-        "clocked block (always_ff) is not supported ('"
-        + string(sym->name) + "')");
-  }
   auto sit = symbol_table_.symbol_to_term().find(sym);
   if (sit == symbol_table_.symbol_to_term().end()) {
     throw PonoException("SystemVerilogEncoder: write to unpacked array '"
                         + string(sym->name) + "' has no declared term");
   }
   Term state_term = sit->second;
-  auto pit = symbol_table_.pending_next_updates().find(state_term);
-  Term prev_base = (pit != symbol_table_.pending_next_updates().end())
-                       ? pit->second
-                       : state_term;
+  Term prev_base = array_pending_value(sym, state_term, ctx);
 
   UnpackedArrayInfo info = unpacked_array_info(
       solver_,
@@ -336,10 +352,13 @@ bool StatementEncoder::process_array_element_assign(
     // happens to land on.
     combined = solver_->make_term(Ite, in_range, combined, prev_base);
   }
-  symbol_table_.pending_next_updates()[state_term] =
+  record_array_pending(
+      sym,
+      state_term,
+      ctx,
       (condition == solver_->make_term(true))
           ? combined
-          : solver_->make_term(Ite, condition, combined, prev_base);
+          : solver_->make_term(Ite, condition, combined, prev_base));
   return true;
 }
 
@@ -364,11 +383,6 @@ bool StatementEncoder::process_whole_array_assign(
           ? lhs_expr.as<NamedValueExpression>().symbol
           : lhs_expr.as<HierarchicalValueExpression>().symbol);
 
-  if (ctx != StmtContext::NEXT_STATE) {
-    throw PonoException("SystemVerilogEncoder: whole-array assignment to '"
-                        + string(sym->name)
-                        + "' is only supported in a clocked block (always_ff)");
-  }
   auto sit = symbol_table_.symbol_to_term().find(sym);
   if (sit == symbol_table_.symbol_to_term().end()) return false;
   Term state_term = sit->second;
@@ -414,14 +428,14 @@ bool StatementEncoder::process_whole_array_assign(
     }
   }
 
-  auto pit = symbol_table_.pending_next_updates().find(state_term);
-  Term prev_base = (pit != symbol_table_.pending_next_updates().end())
-                       ? pit->second
-                       : state_term;
-  symbol_table_.pending_next_updates()[state_term] =
+  Term prev_base = array_pending_value(sym, state_term, ctx);
+  record_array_pending(
+      sym,
+      state_term,
+      ctx,
       (condition == solver_->make_term(true))
           ? combined
-          : solver_->make_term(Ite, condition, combined, prev_base);
+          : solver_->make_term(Ite, condition, combined, prev_base));
   return true;
 }
 
@@ -786,12 +800,22 @@ void StatementEncoder::process_statement(
             break;
           }
           case StmtContext::INITIAL: {
-            Term lhs_slice =
-                full_write
-                    ? lhs_term
-                    : solver_->make_term(Op(Extract, w.hi, w.lo), lhs_term);
-            Term eq = solver_->make_term(Equal, lhs_slice, rhs);
-            fts_.constrain_init(eq);
+            // Accumulated per symbol for the reason the combinational
+            // case is: separate per-write constraints all bind the
+            // same term at once, so `x = 0; x[3] = 1;` would assert
+            // both x == 0 and x[3] == 1 and leave no satisfiable
+            // initial state at all. process_initial() emits one
+            // constraint per symbol once the block ends.
+            auto pit = symbol_table_.pending_comb_updates().find(w.sym);
+            Term prev = pit != symbol_table_.pending_comb_updates().end()
+                            ? pit->second
+                            : lhs_term;
+            Term combined =
+                full_write ? rhs : replace_bits(solver_, prev, rhs, w.lo, w.hi);
+            symbol_table_.pending_comb_updates()[w.sym] =
+                (condition == solver_->make_term(true))
+                    ? combined
+                    : solver_->make_term(Ite, condition, combined, prev);
             break;
           }
         }

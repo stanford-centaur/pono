@@ -100,12 +100,20 @@ TEST_P(SVUnitTests, UnpackedArrayMultiDimRejected)
   expect_encode_throws("unpacked_array_2d.sv");
 }
 
-// Only clocked array writes are modelled. Dropping a combinational one
-// would leave the array unconstrained, which reads as any value at all
-// -- the failure would look like a counterexample rather than a gap.
-TEST_P(SVUnitTests, UnpackedArrayCombWriteRejected)
+// Arrays built outside a clocked block: a combinational lookup
+// table, a dynamic-index write over a whole-array default, and a
+// whole-array assignment. Writes compose in order and are pinned by
+// one constraint per array when the block ends.
+TEST_P(SVUnitTests, UnpackedArrayCombWrite)
 {
-  expect_encode_throws("unpacked_array_comb.sv");
+  check_prover<KInduction>("unpacked_array_comb.sv", 6, ProverResult::TRUE);
+}
+
+// The same for an `initial` block, which constrains the initial
+// state rather than a next one.
+TEST_P(SVUnitTests, UnpackedArrayInitialWrite)
+{
+  check_prover<KInduction>("unpacked_array_initial.sv", 6, ProverResult::TRUE);
 }
 
 // Assigning, copying and comparing whole arrays, none of which needs
