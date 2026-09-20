@@ -125,15 +125,15 @@ IC3Formula ModelBasedIC3::inductive_generalization(size_t i,
                                                    const IC3Formula & c)
 {
   // only need interpolator if in mode 2
-  assert(options_.mbic3_indgen_mode == 2 || interpolator_ == nullptr);
+  assert(options_.mbic3_indgen_mode_ == 2 || interpolator_ == nullptr);
 
   assert(!c.disjunction);
   IC3Formula gen_res;
 
   if (options_.ic3_indgen_) {
-    if (options_.mbic3_indgen_mode == 0) {
+    if (options_.mbic3_indgen_mode_ == 0) {
       return super::inductive_generalization(i, c);
-    } else if (options_.mbic3_indgen_mode == 1) {
+    } else if (options_.mbic3_indgen_mode_ == 1) {
       TermVec tmp, lits, red_lits;
       for (const auto & a : c.children) {
         tmp.push_back(ts_.next(a));
@@ -157,7 +157,7 @@ IC3Formula ModelBasedIC3::inductive_generalization(size_t i,
         curr_lits.push_back(ts_.curr(l));
       }
       gen_res = ic3formula_negate(ic3formula_conjunction(curr_lits));
-    } else if (options_.mbic3_indgen_mode == 2) {
+    } else if (options_.mbic3_indgen_mode_ == 2) {
       // TODO: consider creating a separate derived class for this mode
       interpolator_->reset_assertions();
 
@@ -362,7 +362,7 @@ void ModelBasedIC3::initialize()
   super::initialize();
 
   // only need interpolator infrastructure for mode 2 (interpolation)
-  if (options_.mbic3_indgen_mode == 2) {
+  if (options_.mbic3_indgen_mode_ == 2) {
     interpolator_ =
         create_interpolating_solver_for(options_.smt_interpolator_,
                                         engine_,

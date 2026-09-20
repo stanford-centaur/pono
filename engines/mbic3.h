@@ -32,7 +32,7 @@ class ModelBasedIC3 : public IC3Base
   typedef IC3Base super;
 
  protected:
-  // for mbic3_indgen_mode == 2
+  // for mbic3_indgen_mode_ == 2
   // interpolant based generalization
   smt::SmtSolver interpolator_;
   std::unique_ptr<smt::TermTranslator> to_interpolator_;

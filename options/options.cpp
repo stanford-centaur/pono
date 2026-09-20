@@ -940,8 +940,8 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
         case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = std::stoul(opt.arg); break;
         case MBIC3_INDGEN_MODE:
-          mbic3_indgen_mode = std::stoul(opt.arg);
-          if (!(mbic3_indgen_mode >= 0 && mbic3_indgen_mode <= 2))
+          mbic3_indgen_mode_ = std::stoul(opt.arg);
+          if (!(mbic3_indgen_mode_ >= 0 && mbic3_indgen_mode_ <= 2))
             throw PonoException(
                 "--ic3-indgen-mode value must be between 0 and 2.");
           break;
