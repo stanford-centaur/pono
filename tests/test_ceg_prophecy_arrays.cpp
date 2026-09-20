@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(
     ParameterizedCegProphecyArraysTest,
     CegProphecyArraysTest,
     testing::Combine(
-        testing::ValuesIn(filter_solver_enums({ THEORY_INT })),
+        testing::ValuesIn(filter_solver_enums({ THEORY_INT, smt::CONSTARR })),
         testing::ValuesIn(filter_interpolator_enums({ THEORY_INT }))));
 
 }  // namespace pono_tests
