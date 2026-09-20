@@ -395,7 +395,7 @@ std::vector<SolverEnum> available_solver_enums_except(
   return res;
 }
 
-std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; };
+std::vector<SolverEnum> available_interpolator_enums() { return itp_enums; }
 
 std::vector<SolverEnum> filter_solver_enums(
     const std::unordered_set<SolverAttribute> attributes)

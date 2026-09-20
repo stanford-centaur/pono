@@ -97,7 +97,7 @@ class IC3IA : public IC3
   /** Overriding the method. This will return the concrete_ts_ because ts_ is an
    *  abstraction of concrete_ts_.
    */
-  TransitionSystem & prover_interface_ts() override { return conc_ts_; };
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; }
   // pure virtual method implementations
 
   IC3Formula get_model_ic3formula() const override;

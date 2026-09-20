@@ -114,7 +114,7 @@ class ArrayAxiomEnumerator : public AxiomEnumerator
   smt::UnorderedTermSet & get_consecutive_axioms() override
   {
     return consecutive_axioms_;
-  };
+  }
 
   AxiomVec & get_nonconsecutive_axioms() override
   {

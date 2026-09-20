@@ -222,44 +222,41 @@ class TransitionSystem
 
   // getters
   /* Returns const reference to solver */
-  const smt::SmtSolver & solver() const { return solver_; };
+  const smt::SmtSolver & solver() const { return solver_; }
 
   /* Gets a non-const reference to the solver */
-  smt::SmtSolver & get_solver() { return solver_; };
+  smt::SmtSolver & get_solver() { return solver_; }
 
-  const smt::UnorderedTermSet & statevars() const { return statevars_; };
+  const smt::UnorderedTermSet & statevars() const { return statevars_; }
 
-  const smt::UnorderedTermSet & inputvars() const { return inputvars_; };
+  const smt::UnorderedTermSet & inputvars() const { return inputvars_; }
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
    */
-  smt::Term init() const { return init_; };
+  smt::Term init() const { return init_; }
 
   /* Returns the transition relation
    * @return a boolean term representing the transition relation
    */
-  smt::Term trans() const { return trans_; };
+  smt::Term trans() const { return trans_; }
 
   /* Returns the next state updates
    * @return a map of functional next state updates
    */
-  const smt::UnorderedTermMap & state_updates() const
-  {
-    return state_updates_;
-  };
+  const smt::UnorderedTermMap & state_updates() const { return state_updates_; }
 
   /* Returns the set of state variables with no update function. */
   const smt::UnorderedTermSet & statevars_with_no_update() const
   {
     return no_state_updates_;
-  };
+  }
 
   /* @return the named terms mapping */
   const std::unordered_map<std::string, smt::Term> & named_terms() const
   {
     return named_terms_;
-  };
+  }
 
   /** @return the constraints of the system
    *  Note: these do not include next-state variable updates or initial state
@@ -273,7 +270,7 @@ class TransitionSystem
   const std::vector<std::pair<smt::Term, bool>> & constraints() const
   {
     return constraints_;
-  };
+  }
 
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
@@ -283,7 +280,7 @@ class TransitionSystem
    *  however, it allows (certain) constraints still
    *  and does not require that every state has an update
    */
-  bool is_functional() const { return functional_; };
+  bool is_functional() const { return functional_; }
 
   /** Whether the system is deterministic
    * this is a stronger condition than functional
@@ -297,7 +294,7 @@ class TransitionSystem
    *       --> there exists exactly one next state
    *           if current vars and inputs are fixed
    */
-  bool is_deterministic() const { return deterministic_; };
+  bool is_deterministic() const { return deterministic_; }
 
   /** Whether the transition relation is right-total,
    * i.e., every state has a next state.

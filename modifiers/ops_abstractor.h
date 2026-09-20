@@ -37,7 +37,7 @@ class OpsAbstractor : public Abstractor
 
   void set_ops_to_abstract(const smt::UnorderedOpSet & ops_to_abstract);
 
-  void set_min_bitwidth(unsigned long w) { min_bw_ = w; };
+  void set_min_bitwidth(unsigned long w) { min_bw_ = w; }
 
   void do_abstraction();
 
