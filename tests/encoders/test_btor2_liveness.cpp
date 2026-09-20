@@ -38,13 +38,16 @@ class Btor2LivenessUnitTests : public ::testing::Test,
     return s;
   }
 
-  /** The condition set a generalized-Buchi search is given for the property
-   *  at index 0: its justice conditions plus the file's fairness constraints,
-   *  matching how pono.cpp combines them.
+  /** The condition set a generalized-Buchi search is given for a property:
+   *  its justice conditions plus the file's fairness constraints, matching
+   *  how pono.cpp combines them.
+   *  @param be the encoder holding the parsed properties
+   *  @param index which justice property to take the conditions from
+   *  @return the combined condition set
    */
-  TermVec all_conditions(const BTOR2Encoder & be) const
+  TermVec all_conditions(const BTOR2Encoder & be, size_t index = 0) const
   {
-    TermVec conditions = be.justicevec().at(0);
+    TermVec conditions = be.justicevec().at(index);
     conditions.insert(
         conditions.end(), be.fairvec().begin(), be.fairvec().end());
     return conditions;
@@ -77,6 +80,94 @@ TEST_P(Btor2LivenessUnitTests, JusticeOnlyWithKLiveness)
   LivenessProperty prop(s, all_conditions(be));
   KLiveness kliveness(prop, fts, s, PonoOptions());
   EXPECT_EQ(kliveness.check_until(10), ProverResult::FALSE);
+}
+
+// A justice condition that holds once and never again: no lasso satisfies it
+// infinitely often, so the property holds and refuting it is impossible.
+TEST_P(Btor2LivenessUnitTests, JusticeHolds)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_holds.btor2"), fts);
+  Term prop_term =
+      LivenessToSafetyTranslator{}.translate(fts, all_conditions(be));
+  SafetyProperty prop(s, prop_term);
+  KInduction ind(prop, fts, s);
+  EXPECT_EQ(ind.check_until(20), ProverResult::TRUE);
+}
+
+// The same property under k-liveness, which proves it by bounding how often
+// the condition can be observed. Its inner prover has to be one that can
+// prove, so bmc, the default, would only ever come back unknown.
+TEST_P(Btor2LivenessUnitTests, JusticeHoldsWithKLiveness)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_holds.btor2"), fts);
+  LivenessProperty prop(s, all_conditions(be));
+  PonoOptions options;
+  options.engine_ = KIND;
+  KLiveness kliveness(prop, fts, s, options);
+  EXPECT_EQ(kliveness.check_until(20), ProverResult::TRUE);
+}
+
+// A single justice property carrying two conditions, which is the generalized
+// Buchi case the translator is written for. The toggling bit satisfies both
+// infinitely often, so the property is violated.
+TEST_P(Btor2LivenessUnitTests, JusticeWithTwoConditions)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_two_conditions.btor2"), fts);
+  ASSERT_EQ(be.justicevec().at(0).size(), 2);
+  Term prop_term =
+      LivenessToSafetyTranslator{}.translate(fts, all_conditions(be));
+  SafetyProperty prop(s, prop_term);
+  Bmc bmc(prop, fts, s);
+  EXPECT_EQ(bmc.check_until(10), ProverResult::FALSE);
+}
+
+// Two conditions that cannot both recur, so the property holds. Checking them
+// one at a time would refute it, which is what makes this worth pinning: the
+// conditions have to be required together.
+TEST_P(Btor2LivenessUnitTests, JusticeWithConflictingConditions)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_conflicting_conditions.btor2"), fts);
+  ASSERT_EQ(be.justicevec().at(0).size(), 2);
+  Term prop_term =
+      LivenessToSafetyTranslator{}.translate(fts, all_conditions(be));
+  SafetyProperty prop(s, prop_term);
+  KInduction ind(prop, fts, s);
+  EXPECT_EQ(ind.check_until(20), ProverResult::TRUE);
+}
+
+// k-liveness counts observations of one condition, so a justice property with
+// two of them is out of reach even with no fairness constraint in the file.
+TEST_P(Btor2LivenessUnitTests, KLivenessRejectsTwoJusticeConditions)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_two_conditions.btor2"), fts);
+  EXPECT_TRUE(be.fairvec().empty());
+  LivenessProperty prop(s, all_conditions(be));
+  EXPECT_THROW(KLiveness(prop, fts, s, PonoOptions()), PonoException);
+}
+
+// Each justice line is its own property, so a file can hold several and they
+// need not agree. The second one here holds while the first is violated.
+TEST_P(Btor2LivenessUnitTests, SecondJusticeProperty)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_two_properties.btor2"), fts);
+  ASSERT_EQ(be.justicevec().size(), 2);
+  Term prop_term =
+      LivenessToSafetyTranslator{}.translate(fts, all_conditions(be, 1));
+  SafetyProperty prop(s, prop_term);
+  KInduction ind(prop, fts, s);
+  EXPECT_EQ(ind.check_until(20), ProverResult::TRUE);
 }
 
 // The justice condition alone is violated by the lasso at mode=1, but that
