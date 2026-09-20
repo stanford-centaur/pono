@@ -36,6 +36,7 @@ TEST_P(Btor2FileUnitTests, Encode)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/btor2/";
   filename += get<1>(GetParam());
+  filename += ".btor2";
   BTOR2Encoder be(filename, fts);
   // make sure that all inputs in bad and constraint have been promoted
   UnorderedTermSet free_vars;
@@ -59,7 +60,7 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
   FunctionalTransitionSystem fts(s);
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/mulo-test.btor2";
+  filename += "/tests/encoders/inputs/btor2/mulo_test.btor2";
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
@@ -76,13 +77,31 @@ TEST_P(Btor2UnitTests, InputConstraints)
   FunctionalTransitionSystem fts(s);
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/mulo-test.btor2";
+  filename += "/tests/encoders/inputs/btor2/mulo_test.btor2";
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
   ProverResult r = bmc.check_until(6);
   ASSERT_NE(r, ProverResult::FALSE);
+}
+
+TEST_P(Btor2UnitTests, VariablesKeepTheNamesFromTheFile)
+{
+  // options that name a variable, such as --reset, look it up by the name the
+  // file gave it rather than the one the encoder generates from the line
+  SmtSolver s = create_solver(GetParam());
+  FunctionalTransitionSystem fts(s);
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  string filename = STRFY(PONO_SRC_DIR);
+  filename += "/tests/encoders/inputs/btor2/";
+  filename += "state2input.btor2";
+  BTOR2Encoder be(filename, fts);
+  ASSERT_EQ(be.statesvec().size(), 2);
+  ASSERT_EQ(be.inputsvec().size(), 1);
+  EXPECT_EQ(fts.lookup("state2input"), be.statesvec()[0]);
+  EXPECT_EQ(fts.lookup("actualstate"), be.statesvec()[1]);
+  EXPECT_EQ(fts.lookup("in"), be.inputsvec()[0]);
 }
 
 TEST_P(Btor2UnitTests, InputProp)
@@ -93,7 +112,7 @@ TEST_P(Btor2UnitTests, InputProp)
   FunctionalTransitionSystem fts(s);
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/input-in-bad.btor2";
+  filename += "/tests/encoders/inputs/btor2/input_in_bad.btor2";
   BTOR2Encoder be(filename, fts);
   EXPECT_EQ(be.propvec().size(), 1);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
@@ -110,7 +129,7 @@ TEST_P(Btor2UnitTests, InvalidSmtlibSymbol)
   FunctionalTransitionSystem fts(s);
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/invalid-smtlib-symbol.btor2";
+  filename += "/tests/encoders/inputs/btor2/invalid_smtlib_symbol.btor2";
   BTOR2Encoder be(filename, fts);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
@@ -126,7 +145,7 @@ TEST_P(Btor2UnitTests, InitStateWithBool)
   FunctionalTransitionSystem fts(s);
   // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
   string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/bool-init.btor2";
+  filename += "/tests/encoders/inputs/btor2/bool_init.btor2";
   BTOR2Encoder be(filename, fts);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
@@ -135,14 +154,18 @@ TEST_P(Btor2UnitTests, InitStateWithBool)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParameterizedSolverBtor2FileUnitTests,
+    ,
     Btor2FileUnitTests,
     testing::Combine(testing::ValuesIn(available_solver_enums()),
                      // from test_encoder_inputs.h
-                     testing::ValuesIn(btor2_inputs)));
+                     testing::ValuesIn(btor2_inputs)),
+    [](const auto & info) {
+      return to_string(get<0>(info.param)) + "_" + get<1>(info.param);
+    });
 
-INSTANTIATE_TEST_SUITE_P(ParameterizedSolverBtor2UnitTests,
+INSTANTIATE_TEST_SUITE_P(,
                          Btor2UnitTests,
-                         testing::ValuesIn(available_solver_enums()));
+                         testing::ValuesIn(available_solver_enums()),
+                         testing::PrintToStringParamName());
 
 }  // namespace pono_tests

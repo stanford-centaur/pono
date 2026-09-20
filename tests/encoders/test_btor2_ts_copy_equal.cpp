@@ -16,7 +16,7 @@ namespace pono_tests {
 
 // BTOR2 systems that are too large to check semantic equality
 // of the terms
-const unordered_set<string> large_files({ "ridecore.btor" });
+const unordered_set<string> large_files({ "ridecore" });
 
 // Test that copying TransitionSystems to different solvers
 // doesn't change the semantics of the TransitionSystem
@@ -34,6 +34,7 @@ TEST_P(CopyUnitTests, CopyFromDefault)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/btor2/";
   filename += get<1>(GetParam());
+  filename += ".btor2";
   BTOR2Encoder be(filename, fts);
 
   SmtSolver s = create_solver(get<0>(GetParam()));
@@ -111,6 +112,7 @@ TEST_P(CopyUnitTests, CopyToDefault)
   string filename = STRFY(PONO_SRC_DIR);
   filename += "/tests/encoders/inputs/btor2/";
   filename += get<1>(GetParam());
+  filename += ".btor2";
   BTOR2Encoder be(filename, fts);
 
   // try copying the transition system
