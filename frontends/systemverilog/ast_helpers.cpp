@@ -21,6 +21,7 @@
 #include <string>
 #include <utility>
 
+#include "frontends/systemverilog/bit_utils.h"
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Scope.h"
 #include "slang/ast/TimingControl.h"
@@ -35,6 +36,7 @@
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
 #include "slang/numeric/SVInt.h"
 #include "utils/exceptions.h"
@@ -228,16 +230,33 @@ std::optional<LValueDesc> resolve_lvalue(
       if (!inner) return std::nullopt;
       auto idx_cv = sel.selector().eval(ctx);
       if (!idx_cv.isInteger()) return std::nullopt;
-      auto idx_opt = idx_cv.integer().as<uint64_t>();
+      // Signed, since a declared range may run below zero.
+      auto idx_opt = idx_cv.integer().as<int64_t>();
       if (!idx_opt) {
         throw PonoException(
             "SystemVerilogEncoder: invalid constant element-select index");
       }
-      uint64_t idx = *idx_opt;
       uint64_t elem_w = lhs.type->getBitWidth();
       if (elem_w == 0) {
         throw PonoException(
             "SystemVerilogEncoder: zero-width element-select lvalue");
+      }
+      // The declared index is the bit offset only for an [n:0]
+      // range; anything else has to be converted first.
+      uint64_t idx = 0;
+      const Type & base_type = sel.value().type->getCanonicalType();
+      if (base_type.kind == SymbolKind::PackedArrayType) {
+        if (!packed_element_ordinal(
+                base_type.as<PackedArrayType>(), *idx_opt, idx)) {
+          throw PonoException(
+              "SystemVerilogEncoder: element-select index out of bounds");
+        }
+      } else {
+        if (*idx_opt < 0) {
+          throw PonoException(
+              "SystemVerilogEncoder: element-select index out of bounds");
+        }
+        idx = static_cast<uint64_t>(*idx_opt);
       }
       uint64_t lo = inner->lo + idx * elem_w;
       uint64_t hi = lo + elem_w - 1;

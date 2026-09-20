@@ -128,6 +128,21 @@ Sort type_to_sort(const SmtSolver & solver, const slang::ast::Type & type)
   throw PonoException("SystemVerilogEncoder: unsupported type kind");
 }
 
+bool packed_element_ordinal(const slang::ast::PackedArrayType & arr,
+                            int64_t idx,
+                            uint64_t & ordinal)
+{
+  int64_t lower = arr.range.lower();
+  int64_t upper = arr.range.upper();
+  if (idx < lower || idx > upper) return false;
+  // The left bound is the most significant end either way, so a
+  // descending range counts up from its lower bound and an ascending
+  // one counts down from its upper.
+  bool descending = arr.range.left >= arr.range.right;
+  ordinal = static_cast<uint64_t>(descending ? idx - lower : upper - idx);
+  return true;
+}
+
 Term slice_bits(const SmtSolver & solver,
                 const Term & base,
                 uint64_t lo,

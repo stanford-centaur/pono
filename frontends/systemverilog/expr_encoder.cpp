@@ -766,16 +766,34 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
 
       // Try to evaluate the selector as a constant -- including the
       // case where the index is a loop counter bound via eval_ctx.
-      std::optional<uint64_t> idx_const;
+      // Signed, since a declared range may run below zero.
+      std::optional<int64_t> idx_const;
       if (sel_expr.getConstant()) {
-        idx_const = sel_expr.getConstant()->integer().as<uint64_t>();
+        idx_const = sel_expr.getConstant()->integer().as<int64_t>();
       } else {
         auto cv = sel_expr.eval(eval_ctx());
-        if (cv.isInteger()) idx_const = cv.integer().as<uint64_t>();
+        if (cv.isInteger()) idx_const = cv.integer().as<int64_t>();
       }
 
       if (idx_const) {
-        uint64_t low = *idx_const * elem_w;
+        // The declared index is not the bit offset unless the range
+        // is [n:0]; packed_element_ordinal() converts it.
+        uint64_t ordinal = 0;
+        if (base_type.kind == SymbolKind::PackedArrayType) {
+          if (!packed_element_ordinal(
+                  base_type.as<PackedArrayType>(), *idx_const, ordinal)) {
+            // Outside the declared range, which the LRM reads as X.
+            return symbol_table_.make_out_of_range_value(
+                solver_->make_sort(BV, elem_w));
+          }
+        } else {
+          if (*idx_const < 0) {
+            return symbol_table_.make_out_of_range_value(
+                solver_->make_sort(BV, elem_w));
+          }
+          ordinal = static_cast<uint64_t>(*idx_const);
+        }
+        uint64_t low = ordinal * elem_w;
         uint64_t high = low + elem_w - 1;
         return extract_maybe_out_of_range(val, high, low);
       }
@@ -788,6 +806,26 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       // extend regardless of the index expression's own signedness.
       Term idx = expr_to_term(sel_expr, prefix);
       idx = resize_to(solver_, idx, val_w, false);
+      // Same conversion as the constant case, built from terms: a
+      // descending range counts up from its lower bound, an
+      // ascending one down from its upper.
+      if (base_type.kind == SymbolKind::PackedArrayType) {
+        auto & range = base_type.as<PackedArrayType>().range;
+        if (range.left >= range.right) {
+          if (range.lower() != 0) {
+            idx = solver_->make_term(
+                BVSub,
+                idx,
+                solver_->make_term(static_cast<int64_t>(range.lower()),
+                                   val_sort));
+          }
+        } else {
+          idx = solver_->make_term(
+              BVSub,
+              solver_->make_term(static_cast<int64_t>(range.upper()), val_sort),
+              idx);
+        }
+      }
       Term shift_amount = idx;
       if (elem_w != 1) {
         Term elem_w_term = solver_->make_term(elem_w, val_sort);

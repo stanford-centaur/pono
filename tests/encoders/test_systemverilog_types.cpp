@@ -21,6 +21,19 @@ TEST_P(SVUnitTests, PackedArrayDynIndexReadWrite)
   check_bmc("array_dyn_index.sv", 16);
 }
 
+// Declared ranges other than `[n:0]`: ascending, not reaching zero,
+// and crossing zero. The index is not the bit offset in any of them.
+
+TEST_P(SVUnitTests, PackedArrayRanges)
+{
+  check_prover<KInduction>("packed_array_ranges.sv", 12, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, PackedArrayRangesFails)
+{
+  check_bmc("packed_array_ranges_fails.sv", 2);
+}
+
 // ---------------------------------------------------------------------------
 // Unpacked arrays (register files / small memories), distinct from the
 // packed-array tests above: these become a genuine SMT array sort, so

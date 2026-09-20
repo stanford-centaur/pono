@@ -17,6 +17,7 @@
 
 namespace slang::ast {
 class FixedSizeUnpackedArrayType;
+class PackedArrayType;
 class Type;
 }  // namespace slang::ast
 
@@ -86,6 +87,24 @@ smt::Sort type_to_sort(const smt::SmtSolver & solver,
  *  expr_encoder.cpp -- checks first.
  */
 void require_bv(const smt::Term & t, const char * who);
+
+/** Turn a packed array's declared SV index into an ordinal counted
+ *  from its least significant element, which is what a bit offset is
+ *  measured in.
+ *
+ *  Only `[n:0]` makes the two the same. A range that starts
+ *  elsewhere is shifted by its lower bound, and an ascending one
+ *  (`[0:n]`, whose leftmost element is the most significant) runs the
+ *  other way entirely -- so using the index itself reads and writes
+ *  the wrong element rather than failing.
+ *
+ *  @return false if `idx` is outside the declared range, leaving
+ *          `ordinal` untouched; the caller decides whether that is an
+ *          X-valued read or an error.
+ */
+bool packed_element_ordinal(const slang::ast::PackedArrayType & arr,
+                            int64_t idx,
+                            uint64_t & ordinal);
 
 /** Extract bits [lo, hi] from `base`, or return `base` unchanged when
  *  [lo, hi] already covers its whole width. Returns a null Term if
