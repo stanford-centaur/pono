@@ -63,6 +63,29 @@ TEST_F(JusticeCliUnitTests, SecondJusticeProperty)
   EXPECT_EQ(run.output, "unsat\nj1\n");
 }
 
+// Reducing to the state the justice condition depends on leaves the verdict
+// alone.
+TEST_F(JusticeCliUnitTests, JusticeWithConeOfInfluence)
+{
+  const PonoRun run =
+      run_pono({ "--justice",
+                 "--static-coi",
+                 input_path("btor2/justice_unrelated_state.btor2") });
+  EXPECT_EQ(run.output, "sat\nj0\n");
+}
+
+// k-liveness takes its own cone of influence rather than going through the
+// one the driver takes, so the reduction reaches it by a separate route.
+TEST_F(JusticeCliUnitTests, JusticeWithConeOfInfluenceAndKLiveness)
+{
+  const PonoRun run = run_pono({ "--justice",
+                                 "--justice-translator",
+                                 "klive",
+                                 "--static-coi",
+                                 input_path("btor2/justice_only.btor2") });
+  EXPECT_EQ(run.output, "sat\nj0\n");
+}
+
 // The justice condition alone is violated, so the property only holds if the
 // fair line is honored. k-induction is needed because bmc, the default
 // engine, cannot prove a property.
@@ -83,6 +106,18 @@ TEST_F(JusticeCliUnitTests, FairnessDoesNotAffectSafetyChecking)
   const PonoRun run =
       run_pono({ input_path("btor2/fair_with_bad_property.btor2") });
   EXPECT_EQ(run.output, "sat\nb0\n");
+}
+
+// The cone of influence is taken over the fairness constraints as well, so
+// the state only they watch survives it. Reducing over the justice condition
+// alone drops that state and the run dies translating the property.
+TEST_F(JusticeCliUnitTests, JusticeWithConeOfInfluenceKeepsFairnessState)
+{
+  const PonoRun run =
+      run_pono({ "--justice",
+                 "--static-coi",
+                 input_path("btor2/fair_independent_state.btor2") });
+  EXPECT_EQ(run.output, "sat\nj0\n");
 }
 
 // k-liveness counts one condition, so it has to reject a fairness constraint

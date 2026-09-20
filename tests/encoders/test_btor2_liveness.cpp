@@ -9,6 +9,7 @@
 #include "frontends/btor2_encoder.h"
 #include "gtest/gtest.h"
 #include "modifiers/liveness_to_safety_translator.h"
+#include "modifiers/static_coi.h"
 #include "options/options.h"
 #include "smt-switch/smt.h"
 #include "smt/available_solvers.h"
@@ -170,6 +171,34 @@ TEST_P(Btor2LivenessUnitTests, SecondJusticeProperty)
   EXPECT_EQ(ind.check_until(20), ProverResult::TRUE);
 }
 
+// The cone of influence keeps what the justice conditions depend on and drops
+// the rest, which has to leave the verdict alone. A state with an initial
+// value could only be dropped from the transition relation, so this one has
+// none.
+TEST_P(Btor2LivenessUnitTests, StaticConeOfInfluenceKeepsJusticeState)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("justice_unrelated_state.btor2"), fts);
+  // The encoder names states after their line number, but lists them in the
+  // order they are declared.
+  ASSERT_EQ(be.statesvec().size(), 2);
+  const Term mode = be.statesvec().at(0);
+  const Term spare = be.statesvec().at(1);
+
+  StaticConeOfInfluence coi(fts, all_conditions(be));
+  const UnorderedTermSet & statevars = fts.statevars();
+  EXPECT_EQ(statevars.size(), 1);
+  EXPECT_TRUE(statevars.find(mode) != statevars.end());
+  EXPECT_TRUE(statevars.find(spare) == statevars.end());
+
+  Term prop_term =
+      LivenessToSafetyTranslator{}.translate(fts, all_conditions(be));
+  SafetyProperty prop(s, prop_term);
+  Bmc bmc(prop, fts, s);
+  EXPECT_EQ(bmc.check_until(10), ProverResult::FALSE);
+}
+
 // The justice condition alone is violated by the lasso at mode=1, but that
 // lasso never satisfies the fairness constraint, so adding the constraint
 // removes the only counterexample. This is what makes the union of the two
@@ -222,6 +251,34 @@ TEST_P(Btor2LivenessUnitTests, ContradictoryFairnessProvesVacuously)
   SafetyProperty prop(s, prop_term);
   KInduction ind(prop, fts, s);
   EXPECT_EQ(ind.check_until(10), ProverResult::TRUE);
+}
+
+// The cone has to be taken over the fairness constraints as well, not just
+// the justice conditions. Taking it over the justice condition alone drops
+// the state the constraint watches, and the translation then refers to a
+// variable the system no longer has.
+TEST_P(Btor2LivenessUnitTests, StaticConeOfInfluenceKeepsFairnessState)
+{
+  SmtSolver s = make_solver();
+  FunctionalTransitionSystem fts(s);
+  BTOR2Encoder be(input_path("fair_independent_state.btor2"), fts);
+  ASSERT_EQ(be.statesvec().size(), 3);
+  const Term mode = be.statesvec().at(0);
+  const Term other = be.statesvec().at(1);
+  const Term spare = be.statesvec().at(2);
+
+  StaticConeOfInfluence coi(fts, all_conditions(be));
+  const UnorderedTermSet & statevars = fts.statevars();
+  EXPECT_EQ(statevars.size(), 2);
+  EXPECT_TRUE(statevars.find(mode) != statevars.end());
+  EXPECT_TRUE(statevars.find(other) != statevars.end());
+  EXPECT_TRUE(statevars.find(spare) == statevars.end());
+
+  Term prop_term =
+      LivenessToSafetyTranslator{}.translate(fts, all_conditions(be));
+  SafetyProperty prop(s, prop_term);
+  Bmc bmc(prop, fts, s);
+  EXPECT_EQ(bmc.check_until(10), ProverResult::FALSE);
 }
 
 // k-liveness counts observations of a single condition, so it cannot honor a
