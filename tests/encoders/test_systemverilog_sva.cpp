@@ -489,18 +489,15 @@ TEST_P(SVUnitTests, MixedEdgePropertyRejected)
 }
 
 // ---------------------------------------------------------------------------
-// Unbounded consecutive sequence repetition (`[*]`, `[+]`, `[*n:$]`) is
-// mainstream verification-relevant SVA (e.g. `req[*1:$] ##1 gnt`
-// handshake idioms), not a deliberate non-goal -- unlike a truly
-// unbounded `forever` loop, an unbounded repeat has an obvious bounded
-// approximation (unroll up to the BMC bound), so this is a real,
-// worth-fixing gap in offsets_ending_now()'s compile-time-bounded
-// model, not an inherent modeling impossibility. It currently throws
-// a clear error rather than silently dropping the assertion; encoding
-// any partial/approximate result to check a property against would
-// require implementing that bounded-unrolling approximation first, so
-// these stay throw-based for now (see Gap_CoverSequence in
-// test_systemverilog_unsupported.cpp for the same tradeoff).
+// Unbounded consecutive sequence repetition. Ending now, a run of at
+// least n ends with a run of exactly n, and where the run began
+// changes nothing about whether it ends here -- so `[+]` and `[*n:$]`
+// come to their bounded twins, which is what each pair below checks
+// by sharing a refutation depth.
+//
+// `[*]` is the exception: it can match nothing at all, and an offset
+// vector says how many cycles ago an attempt started, so it has no
+// entry for one that took no cycles.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, Gap_SequenceRepetitionStar)
@@ -508,14 +505,24 @@ TEST_P(SVUnitTests, Gap_SequenceRepetitionStar)
   expect_encode_throws("unbounded_repeat_star.sv");
 }
 
-TEST_P(SVUnitTests, Gap_SequenceRepetitionPlus)
+TEST_P(SVUnitTests, SequenceRepetitionPlus)
 {
-  expect_encode_throws("unbounded_repeat_plus.sv");
+  check_bmc("unbounded_repeat_plus.sv", 1);
 }
 
-TEST_P(SVUnitTests, Gap_SequenceRepetitionUnboundedRange)
+TEST_P(SVUnitTests, SequenceRepetitionPlusBounded)
 {
-  expect_encode_throws("unbounded_repeat_range.sv");
+  check_bmc("unbounded_repeat_plus_bounded.sv", 1);
+}
+
+TEST_P(SVUnitTests, SequenceRepetitionUnboundedRange)
+{
+  check_bmc("unbounded_repeat_range.sv", 1);
+}
+
+TEST_P(SVUnitTests, SequenceRepetitionUnboundedRangeBounded)
+{
+  check_bmc("unbounded_repeat_range_bounded.sv", 1);
 }
 
 // ---------------------------------------------------------------------------

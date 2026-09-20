@@ -240,13 +240,20 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       // exist ahead, which the implication case below enforces.
       return {};
     }
-    if (!repetition->range.max) {
-      throw PonoException(
-          "SystemVerilogEncoder: unbounded consecutive sequence "
-          "repetition ([*]/[+]/[*n:$]) is not supported");
-    }
     uint32_t lo = repetition->range.min;
-    uint32_t hi = *repetition->range.max;
+    if (!repetition->range.max && lo == 0) {
+      // `[*]` can match nothing at all, and an offset vector says
+      // how many cycles ago an attempt started -- it has no entry
+      // for one that took no cycles.
+      throw PonoException(
+          "SystemVerilogEncoder: a consecutive repetition that can match "
+          "emptily and has no upper bound ([*] / [*0:$]) is not supported");
+    }
+    // A run of at least `lo` ending now ends with a run of exactly
+    // `lo`, and where the run began changes nothing about whether it
+    // ends here -- so for these offsets the unbounded form and
+    // `[*lo]` say the same thing.
+    uint32_t hi = repetition->range.max ? *repetition->range.max : lo;
     if (hi >= MAX_SEQ_WINDOW) {
       throw PonoException("SystemVerilogEncoder: sequence repetition exceeds "
                           + std::to_string(MAX_SEQ_WINDOW) + " cycles");
