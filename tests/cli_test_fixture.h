@@ -86,6 +86,17 @@ class CliUnitTests : public ::testing::Test
            << output;
   }
 
+  static ::testing::AssertionResult starts_with(const string & output,
+                                                const string & expected)
+  {
+    if (output.rfind(expected, 0) == 0) {
+      return ::testing::AssertionSuccess();
+    }
+    return ::testing::AssertionFailure()
+           << "expected output to start with \"" << expected << "\":\n"
+           << output;
+  }
+
   /** Asserts that pono rejected a command line and said why.
    *
    *  The message reaches the output in either build, by different routes:

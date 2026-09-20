@@ -88,33 +88,25 @@ if(WITH_MSAT_IC3IA)
   pono_add_test(test_msat_ic3ia)
 endif()
 
-# Smoke-test the version plumbing. The dots are escaped because the property
-# below is a regex, not a literal.
-string(REPLACE "." "\\." PONO_RELEASE_VERSION_REGEX "${PONO_RELEASE_VERSION}")
-add_test(NAME test_version COMMAND pono-bin --version)
-# Anchoring on the declared version pins the contract that it comes first.
-# The property is also required rather than stylistic: it replaces ctest's
-# return-code check, and `pono --version` exits 2.
-set_tests_properties(
-  test_version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^${PONO_RELEASE_VERSION_REGEX}"
-)
-
 # Tests that run the executable itself, rather than linking the library. The
-# executable's path comes from a generator expression because pono-bin is
-# defined only after this directory is processed, and the input directory is
-# passed in because the test cannot derive it.
+# input directory and version are passed in because the test can derive
+# neither.
 macro(pono_add_cli_test name)
   pono_add_test(${name})
+  # Building the test has to build what it runs, or it would test a stale or
+  # missing binary.
+  add_dependencies(${name} pono-bin)
   target_compile_definitions(
     ${name}
     PRIVATE
       PONO_BIN="$<TARGET_FILE:pono-bin>"
       PONO_INPUT_DIR="${PROJECT_SOURCE_DIR}/tests/encoders/inputs"
+      PONO_VERSION="${PONO_RELEASE_VERSION}"
   )
 endmacro()
 
 pono_add_cli_test(test_btor2_cli)
+pono_add_cli_test(test_cli)
 pono_add_cli_test(test_justice_cli)
 
 add_subdirectory(encoders)

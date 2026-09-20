@@ -333,22 +333,8 @@ if(WITH_PROFILING)
   target_link_libraries(pono-lib PUBLIC Gperftools::profiler)
 endif()
 
-enable_testing()
-# Add tests subdirectory
-# The CMakeLists.txt file there sets up googletest
-# and builds all the parametrized tests
-add_subdirectory(tests EXCLUDE_FROM_ALL)
-
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
 set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
-
-# test_version and the pono_add_cli_test targets run the executable itself, so
-# building them has to build it too, or they would test a stale or missing
-# binary. Wired up here because pono-bin does not exist yet while tests/ is
-# processed.
-add_dependencies(check pono-bin)
-add_dependencies(test_btor2_cli pono-bin)
-add_dependencies(test_justice_cli pono-bin)
 
 target_include_directories(
   pono-bin
@@ -370,6 +356,12 @@ if("${PONO_STATIC_EXEC}" STREQUAL "YES")
     target_link_libraries(pono-bin PUBLIC -static)
   endif()
 endif()
+
+enable_testing()
+# Add tests subdirectory
+# The CMakeLists.txt file there sets up googletest
+# and builds all the parametrized tests
+add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 # Documentation
 if(BUILD_DOCS)
