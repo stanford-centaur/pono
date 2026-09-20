@@ -220,9 +220,25 @@ constexpr uint32_t MAX_SEQ_WINDOW = 256;
 }  // namespace
 
 smt::TermVec AssertionWalker::offsets_ending_now(
-    const slang::ast::AssertionExpr & seq, const string & prefix)
+    const slang::ast::AssertionExpr & seq,
+    const string & prefix,
+    bool * admits_empty)
 {
   using namespace slang::ast;
+
+  // Reports an empty match to a caller that asked about one, and
+  // refuses to hide it from a caller that did not. Composing an
+  // empty match is the concatenation rule's job; every other caller
+  // would have to drop the alternative to carry on.
+  auto report_empty = [&](const char * what) {
+    if (admits_empty) {
+      *admits_empty = true;
+      return;
+    }
+    throw PonoException(string("SystemVerilogEncoder: ") + what
+                        + " can match emptily, which this sequence "
+                          "position does not model");
+  };
 
   // A single Boolean expression, optionally with a consecutive
   // repetition (`expr[*n:m]`, `expr[+]`, `expr[*]`). Shared by both
@@ -241,6 +257,10 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       return {};
     }
     uint32_t lo = repetition->range.min;
+    if (lo == 0 && repetition->range.max) {
+      // `[*0:n]`'s empty alternative, which has no slot below.
+      report_empty("a consecutive repetition with a zero lower bound");
+    }
     if (!repetition->range.max && lo == 0) {
       // `[*]` can match nothing at all, and an offset vector says
       // how many cycles ago an attempt started -- it has no entry

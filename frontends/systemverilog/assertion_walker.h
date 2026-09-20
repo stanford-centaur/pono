@@ -170,12 +170,23 @@ class AssertionWalker
    *  PonoException rather than silently mismodeling or dropping it --
    *  this is a permanent architectural boundary of the encoder's
    *  compile-time-bounded model, not a "not implemented yet" gap.
+   *  An empty match spans no cycles at all, so it has no index in
+   *  this vector -- index `L` always describes a match occupying
+   *  `L + 1` of them. A repetition that admits one (`b[*0:n]`)
+   *  therefore cannot report it here, and reports it through
+   *  `admits_empty` instead. Since matching nothing requires nothing,
+   *  that alternative carries no condition and a bool says all there
+   *  is to say. A caller passing nullptr is one that cannot compose
+   *  an empty match, and gets a PonoException rather than a vector
+   *  quietly missing an alternative.
    *  @param seq the sequence expression to match
    *  @param prefix the current hierarchical name prefix
+   *  @param admits_empty set when `seq` also matches emptily
    *  @return offsets indexed by relative start-to-end span
    */
   smt::TermVec offsets_ending_now(const slang::ast::AssertionExpr & seq,
-                                  const std::string & prefix);
+                                  const std::string & prefix,
+                                  bool * admits_empty = nullptr);
 
   /** Convenience wrapper over offsets_ending_now(): ORs together every
    *  reachable offset, i.e. "does `seq` complete a match at the
