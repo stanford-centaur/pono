@@ -86,26 +86,26 @@ match_const_delay_seq(const slang::ast::AssertionExpr & ae)
 // `assert property (p_check);`) binds as a SimpleAssertionExpr wrapping
 // an AssertionInstanceExpression -- not a plain boolean Expression --
 // so routing it through expr_to_term() throws "unsupported expression
-// kind". Slang has already expanded the referenced item's body (with
-// any arguments substituted) into `body`; for the no-argument,
-// non-recursive case that's exactly the AssertionExpr this encoder
-// should recurse into instead. Returns nullptr if `e` isn't such a
-// reference (the caller should fall back to its normal expr_to_term()
-// path). Argumented, local-variable-bearing, or recursive property
-// instantiations are a materially harder problem (they need their own
-// binding environment) and are out of scope; throws a clear error
-// rather than silently mis-evaluating them.
+// kind". Slang has already expanded the referenced item's body with
+// its actual arguments substituted -- a reference to a formal is
+// itself an expanded instance -- so `body` is exactly the
+// AssertionExpr this encoder should recurse into, arguments or not.
+// Returns nullptr if `e` isn't such a reference (the caller should
+// fall back to its normal expr_to_term() path).
+//
+// A local variable or a recursive instantiation still throws: each
+// needs a binding environment of its own, which pre-expansion does
+// not supply, so there is nothing correct to recurse into.
 const slang::ast::AssertionExpr * resolve_named_assertion_ref(
     const slang::ast::Expression & e)
 {
   using namespace slang::ast;
   if (e.kind != ExpressionKind::AssertionInstance) return nullptr;
   auto & aie = e.as<AssertionInstanceExpression>();
-  if (aie.isRecursiveProperty || !aie.arguments.empty()
-      || !aie.localVars.empty()) {
+  if (aie.isRecursiveProperty || !aie.localVars.empty()) {
     throw PonoException(
         "SystemVerilogEncoder: named sequence/property references with "
-        "arguments, local variables, or recursion are not supported");
+        "local variables or recursion are not supported");
   }
   return &aie.body;
 }

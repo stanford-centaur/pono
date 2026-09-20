@@ -287,12 +287,63 @@ TEST_P(SVUnitTests, FirstMatchSeq) { check_bmc("first_match_seq.sv", 1); }
 // Expression. Slang has already expanded the referenced property's own
 // body (clocking, |->, etc. intact) into
 // AssertionInstanceExpression::body; assertion_expr_to_bool()/
-// ltl_to_sat()'s Simple case recurses into that, scoped to the
-// no-argument, non-recursive case (an argumented or recursive
-// property/sequence instantiation throws a clear error instead).
+// ltl_to_sat()'s Simple case recurses into that.
 TEST_P(SVUnitTests, NamedSequencePropertyDecl)
 {
   check_bmc("named_property_decl.sv", 1);
+}
+
+// The same, but parameterized -- how real SVA property libraries are
+// written. Each is paired with the property spelled out inline, and
+// the shared refutation depth is the assertion: a reference that
+// encoded but lost its arguments would not agree with its twin.
+TEST_P(SVUnitTests, NamedPropertyArgs)
+{
+  check_bmc("named_property_args.sv", 1);
+}
+
+TEST_P(SVUnitTests, NamedPropertyArgsInline)
+{
+  check_bmc("named_property_args_inline.sv", 1);
+}
+
+// An argument that is a whole subexpression, not a bare signal.
+TEST_P(SVUnitTests, NamedPropertyExprArg)
+{
+  check_bmc("named_property_expr_arg.sv", 1);
+}
+
+TEST_P(SVUnitTests, NamedPropertyExprArgInline)
+{
+  check_bmc("named_property_expr_arg_inline.sv", 1);
+}
+
+// A named sequence used directly as a property reaches the tableau
+// rather than the safety path, so the substitution has to survive
+// there too.
+TEST_P(SVUnitTests, NamedSequenceArgs)
+{
+  check_liveness_bmc("named_sequence_args.sv", 4);
+}
+
+TEST_P(SVUnitTests, NamedSequenceArgsInline)
+{
+  check_liveness_bmc("named_sequence_args_inline.sv", 4);
+}
+
+// Local variables and recursion still need a binding environment
+// that expanding the body does not supply.
+TEST_P(SVUnitTests, NamedPropertyLocalVarRejected)
+{
+  expect_encode_throws("named_property_localvar.sv");
+}
+
+// An argument can be a clocking event, which is a route into the
+// design's clock that does not look like one syntactically -- the
+// multiclock rejection has to see through it.
+TEST_P(SVUnitTests, NamedPropertyClockArgRejected)
+{
+  expect_encode_throws("named_property_clock_arg.sv");
 }
 
 // ---------------------------------------------------------------------------
