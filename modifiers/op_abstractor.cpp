@@ -67,18 +67,9 @@ void OpInpAbstractor::abstract_ts(
     op_abstracted.back().args = TermVec(t->begin(), t->end());
     op_abstracted.back().original = t;
 
-    bool succ = false;
-    do {
-      try {
-        op_abstracted.back().result = out_ts.make_inputvar(
-            "_dummy_input_cnt_" + std::to_string(dummy_input_cnt++),
-            t->get_sort());
-        succ = true;
-        dummy_inputs_.insert(op_abstracted.back().result);
-      }
-      catch (PonoException & e) {
-      }
-    } while (!succ);
+    op_abstracted.back().result = out_ts.make_generated_inputvar(
+        "dummy_input_" + std::to_string(dummy_input_cnt++), t->get_sort());
+    dummy_inputs_.insert(op_abstracted.back().result);
 
     replacement.emplace(t, op_abstracted.back().result);
   }  // for each term

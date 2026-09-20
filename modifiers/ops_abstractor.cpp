@@ -219,7 +219,7 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
           op_str += "_id" + to_string(oa_.abs_terms_.size());
           // create a new state var without next state (equivalent to an input)
           // do not use input as some engines (e.g., IC3IA) do not support it
-          res = oa_.abs_ts_.make_statevar(op_str, sort);
+          res = oa_.abs_ts_.make_generated_statevar(op_str, sort);
         } else {
           // abstract ops using uninterpreted functions
           Term abs_op;

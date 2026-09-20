@@ -5,11 +5,13 @@
 
 #include <cstdio>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "utils/str_util.h"
 
 using namespace std;
 
@@ -86,6 +88,17 @@ class CliUnitTests : public ::testing::Test
            << output;
   }
 
+  static ::testing::AssertionResult omits(const string & output,
+                                          const string & unexpected)
+  {
+    if (output.find(unexpected) == string::npos) {
+      return ::testing::AssertionSuccess();
+    }
+    return ::testing::AssertionFailure()
+           << "expected not to find \"" << unexpected << "\" in output:\n"
+           << output;
+  }
+
   static ::testing::AssertionResult starts_with(const string & output,
                                                 const string & expected)
   {
@@ -112,28 +125,38 @@ class CliUnitTests : public ::testing::Test
     EXPECT_TRUE(contains(run.output, message));
   }
 
-  /** Runs pono so that it writes a witness, and returns how the witness
-   *  names the property it refutes.
-   *  @param args the command line arguments, without the witness ones
-   *  @return the second line of the witness file, after the sat it opens with
+  /** Runs pono so that it dumps a trace to a file, and returns what it
+   *  wrote.
+   *  @param args the command line arguments, without the dumping ones
+   *  @param option the option naming the file pono should write
+   *  @param extension the suffix to give that file
+   *  @return the contents of the dumped file
    */
-  static string witness_property(vector<string> args)
+  static string dumped(vector<string> args,
+                       const string & option,
+                       const string & extension)
   {
-    const string path = testing::TempDir() + "pono_test.btor2wit";
-    args.insert(args.begin(), { "--witness", "--dump-btor2-witness", path });
+    const string path = testing::TempDir() + "pono_test" + extension;
+    args.insert(args.begin(), { "--witness", option, path });
     const PonoRun run = run_pono(args);
     EXPECT_TRUE(contains(run.output, "sat")) << "nothing was refuted";
 
-    ifstream witness(path);
-    EXPECT_TRUE(witness.is_open()) << "no witness written to " << path;
-    string result;
-    string property;
-    getline(witness, result);
-    getline(witness, property);
-    witness.close();
+    ifstream file(path);
+    EXPECT_TRUE(file.is_open()) << "nothing was written to " << path;
+    const string contents((istreambuf_iterator<char>(file)),
+                          istreambuf_iterator<char>());
+    file.close();
     remove(path.c_str());
-    EXPECT_EQ(result, "sat");
-    return property;
+    return contents;
+  }
+
+  /** Runs pono so that it writes a witness, and returns what it wrote.
+   *  @param args the command line arguments, without the witness ones
+   *  @return the contents of the witness file
+   */
+  static string witness(vector<string> args)
+  {
+    return dumped(args, "--dump-btor2-witness", ".btor2wit");
   }
 
   /** Runs pono so that it writes a waveform, and returns what it wrote.
@@ -142,18 +165,23 @@ class CliUnitTests : public ::testing::Test
    */
   static string waveform(vector<string> args)
   {
-    const string path = testing::TempDir() + "pono_test.vcd";
-    args.insert(args.begin(), { "--witness", "--vcd", path });
-    const PonoRun run = run_pono(args);
-    EXPECT_TRUE(contains(run.output, "sat")) << "nothing was refuted";
+    return dumped(args, "--vcd", ".vcd");
+  }
 
-    ifstream dumped(path);
-    EXPECT_TRUE(dumped.is_open()) << "no waveform written to " << path;
-    const string contents((istreambuf_iterator<char>(dumped)),
-                          istreambuf_iterator<char>());
-    dumped.close();
-    remove(path.c_str());
-    return contents;
+  /** Runs pono so that it writes a witness, and returns how the witness
+   *  names the property it refutes.
+   *  @param args the command line arguments, without the witness ones
+   *  @return the second line of the witness file, after the sat it opens with
+   */
+  static string witness_property(vector<string> args)
+  {
+    istringstream lines(witness(args));
+    string result;
+    string property;
+    getline(lines, result);
+    getline(lines, property);
+    EXPECT_EQ(result, "sat");
+    return property;
   }
 };
 
@@ -188,6 +216,59 @@ TEST_F(CliUnitTests, Btor2WitnessNamesTheProperty)
   EXPECT_EQ(
       witness_property({ "--justice", input_path("btor2/justice_only.btor2") }),
       "j0");
+}
+
+// Pono adds variables to the system it checks for its own bookkeeping: the
+// property monitor and pseudo initial state here, the lasso and the counters
+// elsewhere. None of them belong to the design, so no trace reports them.
+TEST_F(CliUnitTests, Btor2WaveformLeavesOutGeneratedSignals)
+{
+  const string vcd = waveform({ "--pseudo-init-prop",
+                                "-k",
+                                "3",
+                                input_path("btor2/input_in_bad.btor2") });
+  EXPECT_TRUE(omits(vcd, pono::generated_prefix));
+  EXPECT_TRUE(contains(vcd, " s $end")) << "the design's own state is gone";
+}
+
+// Both translators add state, and neither reaches the waveform.
+TEST_F(CliUnitTests, Btor2JusticeWaveformLeavesOutGeneratedSignals)
+{
+  EXPECT_TRUE(
+      omits(waveform({ "--justice", input_path("btor2/justice_only.btor2") }),
+            pono::generated_prefix));
+  EXPECT_TRUE(omits(waveform({ "--justice",
+                               "--justice-translator",
+                               "klive",
+                               input_path("btor2/justice_only.btor2") }),
+                    pono::generated_prefix));
+}
+
+TEST_F(CliUnitTests, Btor2WitnessLeavesOutGeneratedSignals)
+{
+  EXPECT_TRUE(
+      omits(witness({ "--justice", input_path("btor2/justice_only.btor2") }),
+            pono::generated_prefix));
+}
+
+// The plain text trace, which the formats without a witness form fall back
+// on, reports the design's variables only. That drops what pono generated
+// along with the next-state twin of each state, whose value is just what the
+// following step already reports.
+TEST_F(CliUnitTests, SmvTraceLeavesOutGeneratedSignals)
+{
+  const PonoRun run = run_pono(
+      { "--witness", "-k", "5", input_path("smv/counter_bitvector.smv") });
+  EXPECT_TRUE(contains(run.output, "counter : "));
+  EXPECT_TRUE(omits(run.output, pono::generated_prefix));
+}
+
+// A design that names a variable the way pono names its own would have that
+// variable left out of every trace, so the name is refused instead.
+TEST_F(CliUnitTests, Btor2RejectsADesignNamedLikeGenerated)
+{
+  expect_rejected(run_pono({ input_path("btor2/generated_name_clash.btor2") }),
+                  "is named like one pono generates for itself");
 }
 
 // A justice counterexample is a lasso, and its prefix dumps as a waveform

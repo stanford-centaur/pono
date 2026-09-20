@@ -15,8 +15,6 @@
 
 #include "modifiers/prophecy_modifier.h"
 
-#include "utils/str_util.h"
-
 using namespace smt;
 using namespace std;
 
@@ -33,9 +31,8 @@ pair<Term, Term> ProphecyModifier::get_proph(const Term & target, size_t delay)
   Term hist_var = hm_.get_hist(target, delay);
 
   // now add a prophecy variable which targets that history variable
-  string name = "proph_" + name_desanitize(target->to_string()) + "_"
-                + std::to_string(delay);
-  Term proph_var = ts_.make_statevar(name, target->get_sort());
+  Term proph_var = ts_.make_generated_statevar(
+      "proph_" + std::to_string(delay), target, target->get_sort());
   // make it frozen
   ts_.assign_next(proph_var, proph_var);
 

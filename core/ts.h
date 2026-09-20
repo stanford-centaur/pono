@@ -37,7 +37,7 @@ class TransitionSystem
 
   TransitionSystem(
       const smt::SmtSolver & s,
-      const std::string & next_state_suffix = ".pono_generated__next")
+      const std::string & next_state_suffix = ".pono_generated_next")
       : solver_(s),
         init_(s->make_term(true)),
         trans_(s->make_term(true)),
@@ -156,6 +156,44 @@ class TransitionSystem
    * Can get next state var with next(const smt::Term t)
    */
   smt::Term make_statevar(const std::string name, const smt::Sort & sort);
+
+  /* Create an input that pono needs for itself rather than one the design
+   * declared, named so that the witness printers can leave it out
+   * @param role what the input is for, e.g. "save"
+   * @param sort the sort of the input
+   * @return the input term
+   */
+  smt::Term make_generated_inputvar(const std::string & role,
+                                    const smt::Sort & sort);
+
+  /* Create an input that pono needs for itself to shadow an existing term
+   * @param role what the input is for, e.g. "absnext"
+   * @param origin the term the input stands in for, named in the new name
+   * @param sort the sort of the input
+   * @return the input term
+   */
+  smt::Term make_generated_inputvar(const std::string & role,
+                                    const smt::Term & origin,
+                                    const smt::Sort & sort);
+
+  /* Create a state that pono needs for itself rather than one the design
+   * declared, named so that the witness printers can leave it out
+   * @param role what the state is for, e.g. "saved"
+   * @param sort the sort of the state
+   * @return the current state variable
+   */
+  smt::Term make_generated_statevar(const std::string & role,
+                                    const smt::Sort & sort);
+
+  /* Create a state that pono needs for itself to shadow an existing term
+   * @param role what the state is for, e.g. "loop"
+   * @param origin the term the state tracks, named in the new name
+   * @param sort the sort of the state
+   * @return the current state variable
+   */
+  smt::Term make_generated_statevar(const std::string & role,
+                                    const smt::Term & origin,
+                                    const smt::Sort & sort);
 
   /* Map all next state variables to current state variables in the term
    * @param t the term to map
@@ -517,6 +555,31 @@ class TransitionSystem
       const smt::UnorderedTermSet & input_vars_in_coi);
 
  protected:
+  /* Create a variable under a name pono generated, moving to a numbered
+   * variant of it for as long as the name is taken
+   * @param name the preferred name, already carrying the generated prefix
+   * @param sort the sort of the variable
+   * @param is_state whether to create a state rather than an input
+   * @return the new variable
+   */
+  smt::Term make_generated_var(const std::string & name,
+                               const smt::Sort & sort,
+                               bool is_state);
+
+  /* Create an input without rejecting names that look generated
+   * @param name the name of the input
+   * @param sort the sort of the input
+   * @return the input term
+   */
+  smt::Term declare_inputvar(const std::string & name, const smt::Sort & sort);
+
+  /* Create a state without rejecting names that look generated
+   * @param name the name of the state
+   * @param sort the sort of the state
+   * @return the current state variable
+   */
+  smt::Term declare_statevar(const std::string & name, const smt::Sort & sort);
+
   // solver
   smt::SmtSolver solver_;
 

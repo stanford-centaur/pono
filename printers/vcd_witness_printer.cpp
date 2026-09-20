@@ -271,6 +271,8 @@ void VCDWitnessPrinter::check_insert_scope(std::string full_name,
   // which maybe we don't want at all
 
   if (full_name.front() == '$') return;
+  // pono's own variables are not part of the design being dumped
+  if (is_generated_name(full_name)) return;
   if (is_bad_state_pattern(full_name)) full_name = new_property_id();
 
   // clang-format off
@@ -334,6 +336,8 @@ void VCDWitnessPrinter::check_insert_scope_array(
     bool has_default,
     const smt::Term & ast)
 {
+  // pono's own variables are not part of the design being dumped
+  if (is_generated_name(full_name)) return;
   // vcd doesn't like colons in name
   std::replace(full_name.begin(), full_name.end(), ':', '_');
   auto scopes = split(full_name, ".");

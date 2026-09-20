@@ -19,6 +19,8 @@
 
 #include <cassert>
 
+#include "utils/str_util.h"
+
 using namespace smt;
 using namespace std;
 
@@ -34,6 +36,7 @@ VMTEncoder::VMTEncoder(std::string filename, RelationalTransitionSystem & rts)
 
 void VMTEncoder::new_symbol(const std::string & name, const smt::Sort & sort)
 {
+  reject_generated_name(name);
   super::new_symbol(name, sort);
   if (sort->get_sort_kind() != FUNCTION) {
     // treat as an input variable until given :next

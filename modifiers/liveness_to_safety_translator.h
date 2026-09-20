@@ -8,8 +8,6 @@
  *           Volume 66, Issue 2, pages 160–177, 2002.
  */
 
-#include <string>
-
 #include "core/ts.h"
 #include "smt-switch/smt.h"
 
@@ -17,15 +15,6 @@ namespace pono {
 class LivenessToSafetyTranslator
 {
  public:
-  /**
-   * \brief Initialize liveness-to-safety translator.
-   *
-   * \param var_prefix text that will be prepended to the names of all
-   *                   generated variables; can be useful to avoid name
-   *                   collisions
-   */
-  LivenessToSafetyTranslator(std::string var_prefix = "__pono_generated__");
-
   /**
    * \brief Perform translation of liveness property to safety.
    *
@@ -50,8 +39,5 @@ class LivenessToSafetyTranslator
    *         justice condition has been satisfied at least once in the loop
    */
   smt::Term translate(TransitionSystem & ts, smt::TermVec justice_conditions);
-
- private:
-  std::string prefix_;
 };
 }  // namespace pono
