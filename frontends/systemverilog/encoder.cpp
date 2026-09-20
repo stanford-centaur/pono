@@ -72,6 +72,9 @@ SystemVerilogEncoder::SystemVerilogEncoder(FunctionalTransitionSystem & fts)
                         fts_,
                         solver_)
 {
+  // A call inside an expression needs the callee's body walked, and
+  // only StatementEncoder can do that.
+  expr_encoder_.set_subroutine_inliner(statement_encoder_);
 }
 
 SystemVerilogEncoder::~SystemVerilogEncoder() = default;

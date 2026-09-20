@@ -57,6 +57,31 @@ StatementEncoder::StatementEncoder(SymbolTable & symbol_table,
 {
 }
 
+void StatementEncoder::inline_subroutine_body(
+    const slang::ast::Statement & body,
+    const slang::ast::Symbol & return_var,
+    const string & prefix)
+{
+  const slang::ast::Symbol * saved = current_return_var_;
+  current_return_var_ = &return_var;
+  // Every write a body like this makes is to one of its own locals,
+  // which the local-write path handles whatever the context, so the
+  // context below never decides anything; a write to anything else
+  // is refused there rather than encoded against the caller's.
+  try {
+    process_statement(body,
+                      StmtContext::COMBINATIONAL,
+                      solver_->make_term(true),
+                      prefix,
+                      nullptr);
+  }
+  catch (...) {
+    current_return_var_ = saved;
+    throw;
+  }
+  current_return_var_ = saved;
+}
+
 void StatementEncoder::process_dynamic_element_assign(
     const slang::ast::ElementSelectExpression & sel,
     const slang::ast::Expression & rhs_expr,
@@ -443,6 +468,15 @@ void StatementEncoder::process_statement(
             // found is read on a path that never writes it, so it
             // holds its value and is a register; it takes the
             // ordinary write path below.
+            if (current_return_var_ && !is_block_local(vsym)) {
+              // Inlining happens wherever the call appeared, so a
+              // write reaching out of the subroutine would land in
+              // whatever context that was, under none of the
+              // conditions guarding the call.
+              throw PonoException(
+                  "SystemVerilogEncoder: an inlined subroutine writes '"
+                  + string(base->name) + "', which is not local to it");
+            }
             if ((bound_local || is_block_local(vsym))
                 && !symbol_table_.symbol_to_term().count(&vsym)) {
               // A procedural temporary holding a runtime value. It has
@@ -898,6 +932,16 @@ void StatementEncoder::process_statement(
         throw PonoException(
             "SystemVerilogEncoder: unsupported expression statement kind "
             + std::to_string(static_cast<int>(expr.kind)));
+      }
+      break;
+    }
+
+    case StatementKind::List: {
+      // A bare sequence of statements, with no block around it to
+      // name or to absorb a `disable`. A subroutine body arrives this
+      // way, so without this the body walks to nothing at all.
+      for (auto * s : stmt.as<StatementList>().list) {
+        process_statement(*s, ctx, condition, prefix, default_disable_expr);
       }
       break;
     }
@@ -1460,6 +1504,29 @@ void StatementEncoder::process_statement(
         expr_encoder_.eval_ctx().deleteLocal(&iter_sym);
         if (broke) break;
       }
+      break;
+    }
+
+    case StatementKind::Return: {
+      auto & ret = stmt.as<ReturnStatement>();
+      if (!current_return_var_) {
+        throw PonoException(
+            "SystemVerilogEncoder: `return` outside an inlined subroutine");
+      }
+      // A void `return;` ends the call without producing a value.
+      if (!ret.expr) break;
+      if (condition != solver_->make_term(true)) {
+        // Statements after this one would still be walked, so the
+        // value would be whatever the last reached assignment left,
+        // not this one. Assigning the function name under the
+        // condition instead expresses the same thing and is modelled.
+        throw PonoException(
+            "SystemVerilogEncoder: a `return` reached only under a "
+            "runtime condition is not supported; assign the function's "
+            "name instead");
+      }
+      symbol_table_.loop_var_terms()[current_return_var_] =
+          expr_encoder_.expr_to_term(*ret.expr, prefix);
       break;
     }
 

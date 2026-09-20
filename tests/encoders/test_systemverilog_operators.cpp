@@ -183,15 +183,44 @@ TEST_P(SVUnitTests, MultiConditionTernary)
   check_bmc("multi_cond_ternary.sv", 0, ProverResult::UNKNOWN);
 }
 
-// A plain user-defined SV `function` called with a symbolic (runtime-
-// dependent) argument is mainstream synthesizable RTL (real synthesis
-// tools inline it), not a deliberate non-goal -- expr_to_term()'s Call
-// case only recognizes a fixed list of system calls, so user functions
-// aren't inlined and this throws "unsupported call" instead of
-// enforcing the fixture's own `b == a + 1` invariant.
-TEST_P(SVUnitTests, Gap_UserFunctionCall)
+// A user-defined function called with a symbolic argument: the body
+// is inlined where the call appears. Proved rather than unrefuted,
+// so the value it produces is pinned, not just its encodability.
+TEST_P(SVUnitTests, UserFunctionCall)
 {
-  check_bmc("user_function_call.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("user_function_call.sv", 4, ProverResult::TRUE);
+}
+
+// A body that is more than one return: locals, assignment to the
+// function's own name, a conditional overwrite, an unrolled loop.
+TEST_P(SVUnitTests, UserFunctionBody)
+{
+  check_prover<KInduction>("user_function_body.sv", 4, ProverResult::TRUE);
+}
+
+// Repeated, nested, and function-to-function calls, each of which
+// rebinds the same formals.
+TEST_P(SVUnitTests, UserFunctionNested)
+{
+  check_prover<KInduction>("user_function_nested.sv", 4, ProverResult::TRUE);
+}
+
+// What inlining cannot reach: a call that never stops expanding, a
+// return whose value depends on which path ran, and a call that
+// writes back to its caller.
+TEST_P(SVUnitTests, UserFunctionRecursiveRejected)
+{
+  expect_encode_throws("user_function_recursive.sv");
+}
+
+TEST_P(SVUnitTests, UserFunctionCondReturnRejected)
+{
+  expect_encode_throws("user_function_cond_return.sv");
+}
+
+TEST_P(SVUnitTests, UserFunctionOutputArgRejected)
+{
+  expect_encode_throws("user_function_output_arg.sv");
 }
 
 // A wildcard pattern wider than 64 bits, via `==?`, `!=?` and a

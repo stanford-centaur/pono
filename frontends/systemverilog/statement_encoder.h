@@ -36,6 +36,7 @@
 #include <string>
 
 #include "core/fts.h"
+#include "frontends/systemverilog/expr_encoder.h"
 #include "smt-switch/smt.h"
 
 namespace slang::ast {
@@ -51,7 +52,7 @@ class AssertionWalker;
 class ExprEncoder;
 class SymbolTable;
 
-class StatementEncoder
+class StatementEncoder : public ExprEncoder::SubroutineInliner
 {
  public:
   /** Context for statement processing: whether we are building next-state
@@ -88,6 +89,15 @@ class StatementEncoder
                          const smt::Term & condition,
                          const std::string & prefix,
                          const slang::ast::Expression * default_disable_expr);
+
+  /** Walk an inlined subroutine body, so a call in an expression can
+   *  be given a value. Formals and the return variable are bound by
+   *  ExprEncoder::inline_call() before this runs; the body's writes
+   *  land on them through the ordinary local-write path.
+   */
+  void inline_subroutine_body(const slang::ast::Statement & body,
+                              const slang::ast::Symbol & return_var,
+                              const std::string & prefix) override;
 
  private:
   /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
@@ -153,6 +163,11 @@ class StatementEncoder
    *  assignment to a compile-time-unrolled local).  Throws if `sym`
    *  isn't a currently-bound integer local. */
   void refresh_loop_var_term(const slang::ast::ValueSymbol & sym);
+
+  /** The return variable of the subroutine being inlined, which a
+   *  `return` binds. Null outside one, where `return` has nothing to
+   *  bind and a write to a non-local is perfectly ordinary. */
+  const slang::ast::Symbol * current_return_var_ = nullptr;
 
   SymbolTable & symbol_table_;
   ExprEncoder & expr_encoder_;

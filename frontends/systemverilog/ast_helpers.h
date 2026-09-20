@@ -210,9 +210,9 @@ bool is_edge_triggered(const slang::ast::Statement & body);
 void collect_hold_locals(const slang::ast::Statement & body,
                          std::unordered_set<const slang::ast::Symbol *> & out);
 
-// True if `sym` is declared inside a procedural block rather than at
-// module scope: a temporary with no life beyond one execution of the
-// block, so it must never be classified as a register.
+// True if `sym` belongs to a procedural block or a subroutine rather
+// than to module scope: a temporary with no life beyond one execution
+// or one call, so it must never be classified as a register.
 bool is_block_local(const slang::ast::Symbol & sym);
 
 }  // namespace pono

@@ -16,13 +16,17 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "smt-switch/smt.h"
 
 namespace slang::ast {
+class CallExpression;
 class Compilation;
 class EvalContext;
 class Expression;
+class Statement;
+class Symbol;
 }  // namespace slang::ast
 
 namespace pono {
@@ -79,6 +83,26 @@ class ExprEncoder
    *  y`), and returns the previous value so the caller can restore it
    *  once the compound RHS has been converted.
    */
+  /** Breaks the one cycle between expression and statement
+   *  encoding, the same way SymbolTable::DriverResolver does for
+   *  wires: inlining a call means walking the callee's body, which
+   *  only StatementEncoder can do, and a call appears inside an
+   *  expression. The implementer walks `body` with the caller's own
+   *  prefix; formals and the return variable are already bound. */
+  class SubroutineInliner
+  {
+   public:
+    virtual ~SubroutineInliner() = default;
+    virtual void inline_subroutine_body(const slang::ast::Statement & body,
+                                        const slang::ast::Symbol & return_var,
+                                        const std::string & prefix) = 0;
+  };
+
+  void set_subroutine_inliner(SubroutineInliner & inliner)
+  {
+    subroutine_inliner_ = &inliner;
+  }
+
   smt::Term set_current_lvalue_term(const smt::Term & t);
 
   /** Lazily construct and return the shared slang EvalContext, used
@@ -111,7 +135,16 @@ class ExprEncoder
   smt::Term expr_to_term_or_bool(const slang::ast::Expression & expr,
                                  const std::string & prefix);
 
+  /** Inline `call`'s user-defined callee, or throw saying why it
+   *  cannot be. Returns the call's value. */
+  smt::Term inline_call(const slang::ast::CallExpression & call,
+                        const std::string & prefix);
+
   SymbolTable & symbol_table_;
+  SubroutineInliner * subroutine_inliner_ = nullptr;
+  /** Callees currently being inlined, so recursion is reported
+   *  rather than expanded forever. */
+  std::unordered_set<const slang::ast::Symbol *> inlining_;
   Tableau & tableau_;
   const smt::SmtSolver & solver_;
   slang::ast::Compilation * compilation_ = nullptr;

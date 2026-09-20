@@ -23,6 +23,9 @@
 #include "frontends/systemverilog/expr_encoder.h"
 
 #include <string>
+#include <utility>
+#include <variant>
+#include <vector>
 
 #include "frontends/systemverilog/ast_helpers.h"
 #include "frontends/systemverilog/bit_utils.h"
@@ -43,6 +46,7 @@
 #include "slang/ast/expressions/SelectExpressions.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
+#include "slang/ast/symbols/SubroutineSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
@@ -122,6 +126,112 @@ Term ExprEncoder::expr_to_bool(const slang::ast::Expression & expr,
   Term t = expr_to_term_or_bool(expr, prefix);
   if (!t || t->get_sort()->get_sort_kind() == BOOL) return t;
   return solver_->make_term(Distinct, t, solver_->make_term(0, t->get_sort()));
+}
+
+Term ExprEncoder::inline_call(const slang::ast::CallExpression & call,
+                              const string & prefix)
+{
+  using namespace slang::ast;
+
+  auto * const * sub_ptr =
+      std::get_if<const SubroutineSymbol *>(&call.subroutine);
+  if (!sub_ptr || !*sub_ptr) {
+    throw PonoException("SystemVerilogEncoder: unsupported call to "
+                        + std::string(call.getSubroutineName()));
+  }
+  const SubroutineSymbol & sub = **sub_ptr;
+  const string name(sub.name);
+
+  auto reject = [&](const string & why) {
+    throw PonoException("SystemVerilogEncoder: cannot inline the call to '"
+                        + name + "': " + why);
+  };
+
+  if (!subroutine_inliner_) reject("no statement encoder is installed");
+  if (sub.subroutineKind != SubroutineKind::Function) {
+    reject("it is a task, which produces no value in an expression");
+  }
+  if (!sub.returnValVar) reject("it has no return variable");
+  if (inlining_.count(&sub)) {
+    // Expanding a call inside itself rebinds the same formals, so
+    // there is no point at which it stops.
+    reject("it is recursive");
+  }
+
+  // An argument the callee writes back would have to be assigned
+  // through to the caller's own variable, which an expression cannot
+  // do.
+  auto formals = sub.getArguments();
+  for (auto * formal : formals) {
+    if (formal->direction != ArgumentDirection::In) {
+      reject("argument '" + string(formal->name)
+             + "' is not an input, so the call writes back to its caller");
+    }
+  }
+  if (formals.size() != call.arguments().size()) {
+    reject(
+        "it is called with a different number of arguments than it "
+        "declares");
+  }
+
+  auto & bound = symbol_table_.loop_var_terms();
+  std::vector<std::pair<const Symbol *, Term>> saved;
+  auto remember = [&](const Symbol * sym) {
+    auto it = bound.find(sym);
+    saved.emplace_back(sym, it == bound.end() ? Term() : it->second);
+  };
+  auto restore = [&]() {
+    for (auto & entry : saved) {
+      if (entry.second) {
+        bound[entry.first] = entry.second;
+      } else {
+        bound.erase(entry.first);
+      }
+    }
+  };
+
+  // Every actual is evaluated in the caller's scope first, so a
+  // formal that shares a name with something there cannot shadow it
+  // partway through.
+  std::vector<Term> actual_terms;
+  actual_terms.reserve(formals.size());
+  for (size_t k = 0; k < formals.size(); ++k) {
+    Term a = expr_to_term(*call.arguments()[k], prefix);
+    uint64_t w = formals[k]->getType().getBitWidth();
+    if (w == 0) {
+      reject("argument '" + string(formals[k]->name) + "' has no width");
+    }
+    actual_terms.push_back(
+        resize_to(solver_, a, w, call.arguments()[k]->type->isSigned()));
+  }
+  for (size_t k = 0; k < formals.size(); ++k) {
+    remember(formals[k]);
+    bound[formals[k]] = actual_terms[k];
+  }
+  remember(sub.returnValVar);
+  bound.erase(sub.returnValVar);
+
+  inlining_.insert(&sub);
+  try {
+    subroutine_inliner_->inline_subroutine_body(
+        sub.getBody(), *sub.returnValVar, prefix);
+  }
+  catch (...) {
+    inlining_.erase(&sub);
+    restore();
+    throw;
+  }
+  inlining_.erase(&sub);
+
+  auto result_it = bound.find(sub.returnValVar);
+  Term result = result_it == bound.end() ? Term() : result_it->second;
+  // These bindings belong to this call alone; another call to the
+  // same function starts from the caller's scope again.
+  restore();
+
+  if (!result) reject("no path through it assigns a return value");
+  return resize_to(
+      solver_, result, call.type->getBitWidth(), call.type->isSigned());
 }
 
 Term ExprEncoder::extract_maybe_out_of_range(const Term & val,
@@ -998,6 +1108,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
             Distinct, val, solver_->make_term(0, val->get_sort()));
         return solver_->make_term(And, nonzero, at_most_one);
       }
+      if (!call.isSystemCall()) return inline_call(call, prefix);
       throw PonoException("SystemVerilogEncoder: unsupported call to "
                           + std::string(call.getSubroutineName()));
     }

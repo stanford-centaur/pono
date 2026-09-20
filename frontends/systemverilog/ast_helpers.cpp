@@ -622,7 +622,12 @@ bool is_block_local(const slang::ast::Symbol & sym)
 {
   using namespace slang::ast;
   const Scope * scope = sym.getParentScope();
-  return scope && scope->asSymbol().kind == SymbolKind::StatementBlock;
+  if (!scope) return false;
+  SymbolKind owner = scope->asSymbol().kind;
+  // A subroutine's formals, return value and locals live for one call
+  // exactly as a block's temporaries live for one execution, and are
+  // bound the same way while its body is inlined.
+  return owner == SymbolKind::StatementBlock || owner == SymbolKind::Subroutine;
 }
 
 }  // namespace pono
