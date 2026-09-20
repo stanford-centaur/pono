@@ -114,23 +114,24 @@ ProverResult check_prop(PonoOptions pono_options,
     ts = pseudo_init_and_prop(ts, prop);
   }
 
-  if (pono_options.promote_inputvars_) {
-    ts = promote_inputvars(ts);
-  } else if (!ts.only_curr(prop) && ts.no_next(prop)) {
-    logger.log(1, "Got input variables in property. Promoting them to states.");
-    UnorderedTermSet ivs_in_prop;
-    get_free_symbolic_consts(prop, ivs_in_prop);
-    ts = promote_inputvars(ts, ivs_in_prop);
-  }
-
+  // A property over input or next-state variables constrains transitions
+  // rather than states, which is what a monitor encodes: the monitor holds
+  // in a state iff the property held on the transition that reached it.
+  // Promoting the property's inputs instead would evaluate it in the final
+  // state too, where the inputs it reads label no transition.
   bool has_monitor = false;
   if (!ts.only_curr(prop)) {
-    logger.log(
-        1, "Got next-state variables in property. Generating a monitor state.");
+    logger.log(1,
+               "Got input or next-state variables in property. Generating a "
+               "monitor state.");
     prop = add_prop_monitor(ts, prop);
     has_monitor = true;
   }
   assert(ts.only_curr(prop));
+
+  if (pono_options.promote_inputvars_) {
+    ts = promote_inputvars(ts);
+  }
 
   if (pono_options.assume_prop_) {
     // NOTE: crucial that pseudo_init_prop and add_prop_monitor passes are
