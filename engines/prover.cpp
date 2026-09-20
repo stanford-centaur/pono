@@ -16,7 +16,6 @@
 
 #include "engines/prover.h"
 
-#include <algorithm>
 #include <cassert>
 #include <climits>
 #include <cstddef>
@@ -260,11 +259,9 @@ LivenessProver::LivenessProver(const LivenessProperty & property,
     throw PonoException("No justice conditions in the liveness property");
   }
   if (ts_.solver() != orig_property_.solver()) {
-    for_each(justice_conditions_.begin(),
-             justice_conditions_.end(),
-             [this](Term & t) {
-               return to_prover_solver_.transfer_term(t, SortKind::BOOL);
-             });
+    for (Term & condition : justice_conditions_) {
+      condition = to_prover_solver_.transfer_term(condition, SortKind::BOOL);
+    }
   }
 }
 
