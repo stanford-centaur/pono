@@ -8,6 +8,7 @@
 #include "engines/bmc.h"
 #include "engines/kinduction.h"
 #include "engines/kliveness.h"
+#include "engines/prover.h"
 #include "frontends/btor2_encoder.h"
 #include "gtest/gtest.h"
 #include "modifiers/liveness_to_safety_translator.h"
@@ -385,6 +386,56 @@ TEST_P(Btor2UnitTests, KLivenessRejectsFairness)
   catch (const PonoException & e) {
     EXPECT_NE(string(e.what()).find("fairness"), string::npos)
         << "message should name fairness constraints, got: " << e.what();
+  }
+}
+
+/** A liveness prover that checks nothing, so that a test can see what the
+ *  base class did with the property it was handed.
+ */
+class ConditionProver : public LivenessProver
+{
+ public:
+  using LivenessProver::LivenessProver;
+
+  ProverResult check_until(int k) override { return ProverResult::UNKNOWN; }
+
+  const TermVec & conditions() const { return justice_conditions_; }
+};
+
+// A property can be built in a different solver than the one checking it, in
+// which case its conditions have to be brought along: left behind, they name
+// variables the system being checked does not have.
+TEST_P(Btor2UnitTests, LivenessConditionsReachTheProverSolver)
+{
+  Encoded input(GetParam(), "justice_only");
+  SmtSolver elsewhere = make_solver(GetParam());
+  TermTranslator to_elsewhere(elsewhere);
+  TermVec conditions;
+  for (const Term & condition : all_conditions(input.be)) {
+    conditions.push_back(to_elsewhere.transfer_term(condition, BOOL));
+  }
+
+  LivenessProperty prop(elsewhere, conditions);
+  ConditionProver prover(prop, input.fts, input.solver);
+
+  // Left behind, they would still be the terms the property was built from.
+  EXPECT_NE(prover.conditions(), conditions);
+
+  if (GetParam() == BTOR) {
+    // Boolector renames a symbol each time it crosses a solver, so a
+    // condition that has been transferred never names the variables of the
+    // system it came from.
+    return;
+  }
+  UnorderedTermSet symbols;
+  for (const Term & condition : prover.conditions()) {
+    get_free_symbolic_consts(condition, symbols);
+  }
+  ASSERT_FALSE(symbols.empty());
+  for (const Term & symbol : symbols) {
+    EXPECT_TRUE(input.fts.statevars().find(symbol)
+                != input.fts.statevars().end())
+        << symbol << " is not a state variable of the system being checked";
   }
 }
 
