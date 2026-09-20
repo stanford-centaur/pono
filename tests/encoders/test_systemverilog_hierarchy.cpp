@@ -271,4 +271,30 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVHierarchyTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
 
+// ---------------------------------------------------------------------------
+// `program` instances. A program is a testbench entry point, so its
+// stimulus is left unencoded: it drives the DUT along one particular
+// scenario, and pinning the inputs to it would leave every other
+// input sequence unexplored while still reporting a proof. An
+// assertion written inside one is not stimulus, though, and is
+// encoded like any other property -- dropping it meant reporting a
+// proof over fewer properties than were written.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, ProgramAssertion) { check_bmc("program_assertion.sv", 6); }
+
+TEST_P(SVUnitTests, ProgramAssertionHolds)
+{
+  check_prover<KInduction>(
+      "program_assertion_holds.sv", 12, ProverResult::TRUE);
+}
+
+// The stimulus half: this program's body is a `$display` in an
+// `initial`, which has no per-cycle meaning and is ignored rather
+// than encoded or rejected.
+TEST_P(SVUnitTests, ProgramStimulusIgnored)
+{
+  expect_encode_succeeds_ignoring("program_block.sv");
+}
+
 }  // namespace pono_tests

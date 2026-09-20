@@ -435,6 +435,25 @@ void walk_members(const slang::ast::Scope & scope,
   }
 }
 
+bool is_concurrent_assertion_only(const slang::ast::Statement & body)
+{
+  using namespace slang::ast;
+
+  switch (body.kind) {
+    case StatementKind::ConcurrentAssertion: return true;
+    case StatementKind::Block:
+      return is_concurrent_assertion_only(body.as<BlockStatement>().body);
+    case StatementKind::List: {
+      for (auto * s : body.as<StatementList>().list) {
+        if (!is_concurrent_assertion_only(*s)) return false;
+      }
+      return true;
+    }
+    case StatementKind::Empty: return true;
+    default: return false;
+  }
+}
+
 bool is_edge_triggered(const slang::ast::Statement & body)
 {
   using namespace slang::ast;

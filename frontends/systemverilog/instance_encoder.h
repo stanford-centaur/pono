@@ -111,9 +111,17 @@ class InstanceEncoder : private SymbolTable::DriverResolver
    *         itself was computed relative to (becomes the child's own
    *         parent_prefix)
    */
+  /** @param assertions_only encode only the concurrent assertions in
+   *         `inst`'s body, leaving everything else in it unencoded.
+   *         Set for a `program` instance, whose stimulus is
+   *         simulation-only -- see process_instance()'s own comment
+   *         for why encoding that stimulus would be worse than
+   *         skipping it.
+   */
   void process_instance(const slang::ast::InstanceSymbol & inst,
                         const std::string & prefix,
-                        const std::string & parent_prefix);
+                        const std::string & parent_prefix,
+                        bool assertions_only = false);
 
   /** Process a checker instance: unlike a module instance, a checker's
    *  formal (`AssertionPortSymbol`) ports are resolved by slang itself

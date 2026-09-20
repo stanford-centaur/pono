@@ -555,24 +555,30 @@ void InstanceEncoder::process_continuous_assign_operand(
 
 void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
                                        const string & prefix,
-                                       const string & parent_prefix)
+                                       const string & parent_prefix,
+                                       bool assertions_only)
 {
   using namespace slang::ast;
 
-  // `program ... endprogram`, instantiated like a module: a
-  // verification-only construct (a testbench entry point, not
-  // synthesizable DUT logic), so this instance and everything inside
-  // it is simulation-only and has no functional-logic counterpart to
-  // encode. (`interface` instances share SymbolKind::Instance with
-  // ordinary modules too, but are a supported signal-bundle feature,
-  // not a simulation-only one -- only DefinitionKind::Program is
-  // skipped here.)
+  // `program ... endprogram`, instantiated like a module: a testbench
+  // entry point rather than synthesizable DUT logic. Its stimulus is
+  // deliberately left unencoded -- a program drives the DUT along one
+  // particular scenario, and pinning the inputs to it would leave
+  // every other input sequence unexplored while still reporting a
+  // proof. An assertion written inside one is not stimulus, though:
+  // it is an ordinary property, and dropping it means reporting that
+  // proof over fewer properties than were written. So encode those
+  // and nothing else. (`interface` instances share
+  // SymbolKind::Instance with ordinary modules too, but are a
+  // supported signal-bundle feature, not a simulation-only one --
+  // only DefinitionKind::Program is treated this way.)
   if (inst.body.getDefinition().definitionKind == DefinitionKind::Program) {
     logger.log(1,
-               "SystemVerilogEncoder: ignoring program instance '{}' "
-               "(simulation-only construct)",
+               "SystemVerilogEncoder: encoding only the concurrent "
+               "assertions of program instance '{}'; its stimulus is "
+               "simulation-only",
                string(inst.name));
-    return;
+    assertions_only = true;
   }
 
   // Compute the child's own hierarchical prefix, and track the
@@ -608,6 +614,14 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
 
     bool is_output = (port.direction == ArgumentDirection::Out
                       || port.direction == ArgumentDirection::InOut);
+    if (is_output && assertions_only) {
+      // An output of a program is stimulus, which is not being
+      // encoded. Registering an alias redirects the parent-side
+      // target to writes that will now never arrive, leaving it
+      // undeclared; leaving the port alone keeps it an ordinary
+      // unconstrained signal instead.
+      continue;
+    }
     if (is_output) {
       // Output-port connections are wrapped in an Assignment whose
       // left-hand side is the parent-side expression.  For an
@@ -771,8 +785,20 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
   declarer_.declare_variables_internal(inst.body, child_prefix);
 
   // Combinational pass over child's body (and any sub-instances).
+  // A module-scope concurrent assertion reaches the encoder as an
+  // `Always` block carrying nothing but the assertion, so this is the
+  // pass that picks one up -- which is why `assertions_only` filters
+  // here rather than skipping the walk.
   walk_prefix = child_prefix;
   walk_members(inst.body, walk_prefix, [&](const Symbol & m) {
+    if (assertions_only) {
+      if (m.kind != SymbolKind::ProceduralBlock) return;
+      auto & proc = m.as<ProceduralBlockSymbol>();
+      if (is_concurrent_assertion_only(proc.getBody())) {
+        process_always_comb_once(proc, walk_prefix, child_parent_prefix);
+      }
+      return;
+    }
     if (m.kind == SymbolKind::ContinuousAssign) {
       process_continuous_assign_once(
           m.as<ContinuousAssignSymbol>(), walk_prefix, child_parent_prefix);
@@ -804,7 +830,9 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
     }
   });
 
-  // Sequential / initial pass.
+  // Sequential / initial pass. Everything it would encode is
+  // stimulus, so there is nothing here for a program instance.
+  if (assertions_only) return;
   walk_prefix = child_prefix;
   walk_members(inst.body, walk_prefix, [&](const Symbol & m) {
     if (m.kind != SymbolKind::ProceduralBlock) return;

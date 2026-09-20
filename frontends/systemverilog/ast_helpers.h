@@ -196,6 +196,13 @@ const slang::ast::Statement * as_forever_event_body(
 // process_instance()'s walk.
 bool is_edge_triggered(const slang::ast::Statement & body);
 
+/** Whether `body` consists of concurrent assertions and nothing else
+ *  (an empty block counts). Used to pick the parts of a `program`
+ *  worth encoding: its stimulus is simulation-only, but an assertion
+ *  written inside it is an ordinary property.
+ */
+bool is_concurrent_assertion_only(const slang::ast::Statement & body);
+
 // Collects the block-locals of `body` that some execution path reads
 // before writing. Those are not temporaries at all: a variable read
 // where no path assigned it keeps its previous value, which is

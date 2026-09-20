@@ -33,18 +33,6 @@ TEST_P(SVUnitTests, CovergroupDecl)
   expect_encode_throws("covergroup_decl.sv");
 }
 
-// `program` instances are a verification-only construct with no
-// functional-logic counterpart: process_instance() recognizes a
-// program instance via DefinitionKind::Program and skips it, logged
-// via logger.log(1, "... ignoring ... instance ...") rather than
-// thrown, per the "simulation-only constructs are dropped and logged"
-// half of encode()'s documented contract (see
-// SystemVerilogEncoder::encode()'s doc comment).
-TEST_P(SVUnitTests, ProgramBlock)
-{
-  expect_encode_succeeds_ignoring("program_block.sv");
-}
-
 // `fork`/`join` and `wait` are simulation-timing constructs with no
 // per-cycle counterpart in this encoder's model; process_statement()'s
 // default case logs a warning (logger.log(1, "... skipping unsupported
