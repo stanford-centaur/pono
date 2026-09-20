@@ -1,0 +1,8 @@
+; One justice property whose two conditions cannot both recur: mode is frozen
+; at its initial value, so a trace satisfies one condition or the other but
+; never both infinitely often.
+1 sort bitvec 1
+2 state 1 mode
+3 next 1 2 2
+4 not 1 2
+5 justice 2 2 4

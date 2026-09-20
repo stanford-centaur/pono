@@ -1,0 +1,8 @@
+; One justice property with two conditions, the generalized Buchi case. The
+; bit toggles every step, so each condition holds every other step and the
+; trace satisfies both infinitely often.
+1 sort bitvec 1
+2 state 1 toggle
+3 not 1 2
+4 next 1 2 3
+5 justice 2 2 3

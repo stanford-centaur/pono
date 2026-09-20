@@ -121,6 +121,35 @@ TEST_F(JusticeCliUnitTests, JusticeOnlyWithKLiveness)
   EXPECT_EQ(run.output, "sat\nj0\n");
 }
 
+// A justice property that holds, which is the outcome the cases above cannot
+// reach: no lasso satisfies the condition infinitely often.
+TEST_F(JusticeCliUnitTests, JusticeHolds)
+{
+  const PonoRun run = run_pono({ "--justice",
+                                 "--engine",
+                                 "ind",
+                                 "--bound",
+                                 "20",
+                                 input_path("btor2/justice_holds.btor2") });
+  EXPECT_EQ(run.output, "unsat\nj0\n");
+}
+
+// Each justice line is a separate property, so --prop picks between them. The
+// two here disagree, which is what makes the selection visible.
+TEST_F(JusticeCliUnitTests, SecondJusticeProperty)
+{
+  const PonoRun run =
+      run_pono({ "--justice",
+                 "--prop",
+                 "1",
+                 "--engine",
+                 "ind",
+                 "--bound",
+                 "20",
+                 input_path("btor2/justice_two_properties.btor2") });
+  EXPECT_EQ(run.output, "unsat\nj1\n");
+}
+
 // The justice condition alone is violated, so the property only holds if the
 // fair line is honored. k-induction is needed because bmc, the default
 // engine, cannot prove a property.
