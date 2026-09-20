@@ -107,8 +107,6 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
   void inline_subroutine_body_no_return(const slang::ast::Statement & body,
                                         const std::string & prefix);
 
- public:
- private:
   /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
    *  not a compile-time constant, so resolve_lvalue() can't produce a
    *  static bit range.  Only a direct select on a plain variable base
@@ -156,11 +154,13 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
    *  element at all.  Any element write it cannot model throws:
    *  leaving an array unconstrained would read as an arbitrary value
    *  rather than as a missing feature. */
-  bool process_array_element_assign(const slang::ast::Expression & lhs_expr,
-                                    const slang::ast::Expression & rhs_expr,
-                                    StmtContext ctx,
-                                    const smt::Term & condition,
-                                    const std::string & prefix);
+  bool process_array_element_assign(
+      const slang::ast::Expression & lhs_expr,
+      const slang::ast::Expression & rhs_expr,
+      StmtContext ctx,
+      const smt::Term & condition,
+      const std::string & prefix,
+      const smt::Term & rhs_override = smt::Term());
 
   /** Handle an assignment whose target is a whole unpacked array
    *  (`mem <= '0`), which is neither a bit range nor an element and so

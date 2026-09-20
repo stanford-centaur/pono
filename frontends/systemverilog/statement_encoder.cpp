@@ -272,7 +272,8 @@ bool StatementEncoder::process_array_element_assign(
     const slang::ast::Expression & rhs_expr,
     StmtContext ctx,
     const Term & condition,
-    const string & prefix)
+    const string & prefix,
+    const Term & rhs_override)
 {
   using namespace slang::ast;
 
@@ -308,13 +309,32 @@ bool StatementEncoder::process_array_element_assign(
           ? base_expr.as<NamedValueExpression>().symbol
           : base_expr.as<HierarchicalValueExpression>().symbol);
 
+  // The only shape resolve_lvalue() declines without throwing is a
+  // runtime-variable bit position above the element (`mem[i][j]`),
+  // which is a dynamic splice within the element rather than a fixed
+  // range of it. Whatever sits between the element and that position
+  // still resolves, and gives the offset to splice at.
+  const ElementSelectExpression * dyn_bit = nullptr;
+  uint64_t dyn_offset = 0;
   if (!desc) {
-    // The only shape resolve_lvalue() declines without throwing is a
-    // runtime-variable bit position above the element (`mem[i][j]`).
-    throw PonoException(
-        "SystemVerilogEncoder: writing a runtime-variable bit position inside "
-        "an unpacked-array element ('"
-        + string(sym->name) + "') is not supported");
+    if (lhs_expr.kind == ExpressionKind::ElementSelect) {
+      auto & outer = lhs_expr.as<ElementSelectExpression>();
+      const ElementSelectExpression * within = nullptr;
+      auto inner =
+          resolve_lvalue(outer.value(), expr_encoder_.eval_ctx(), &within);
+      if (inner && within == elem_sel) {
+        dyn_bit = &outer;
+        dyn_offset = inner->lo;
+        desc = inner;
+      }
+    }
+    if (!dyn_bit) {
+      throw PonoException(
+          "SystemVerilogEncoder: writing a runtime-variable bit position "
+          "inside an unpacked-array element ('"
+          + string(sym->name) + "') is only supported directly on the "
+          + "element");
+    }
   }
   auto sit = symbol_table_.symbol_to_term().find(sym);
   if (sit == symbol_table_.symbol_to_term().end()) {
@@ -334,8 +354,38 @@ bool StatementEncoder::process_array_element_assign(
       info,
       &in_range);
 
+  if (dyn_bit) {
+    // `mem[i][j] = v`: splice at a position only known at runtime,
+    // offset by wherever the enclosing field or range starts.
+    uint64_t write_w = dyn_bit->type->getBitWidth();
+    if (write_w == 0) write_w = 1;
+    Term value = rhs_override ? rhs_override
+                              : expr_encoder_.expr_to_term(rhs_expr, prefix);
+    value = resize_to(solver_, value, write_w, rhs_expr.type->isSigned());
+    Term new_elem = replace_bits_dynamic(
+        solver_,
+        solver_->make_term(Select, prev_base, idx),
+        value,
+        expr_encoder_.expr_to_term(dyn_bit->selector(), prefix),
+        write_w,
+        dyn_offset);
+    Term spliced = solver_->make_term(Store, prev_base, idx, new_elem);
+    if (in_range) {
+      spliced = solver_->make_term(Ite, in_range, spliced, prev_base);
+    }
+    record_array_pending(
+        sym,
+        state_term,
+        ctx,
+        (condition == solver_->make_term(true))
+            ? spliced
+            : solver_->make_term(Ite, condition, spliced, prev_base));
+    return true;
+  }
+
   uint64_t range_w = desc->hi - desc->lo + 1;
-  Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
+  Term rhs = rhs_override ? rhs_override
+                          : expr_encoder_.expr_to_term(rhs_expr, prefix);
   rhs = resize_to(solver_, rhs, range_w, rhs_expr.type->isSigned());
   Term new_elem = (range_w == desc->base_w)
                       ? rhs
@@ -935,9 +985,24 @@ void StatementEncoder::process_statement(
             if (base_value
                 && base_value->getType().getCanonicalType().kind
                        == SymbolKind::FixedSizeUnpackedArrayType) {
-              throw PonoException(
-                  "SystemVerilogEncoder: '++'/'--' on an unpacked-array "
-                  "element is not supported");
+              // An array element is not a bit range of its base, so
+              // begin_write() never describes one. Read it, step it,
+              // and hand the result to the Store path.
+              bool inc = unop.op == UnaryOperator::Preincrement
+                         || unop.op == UnaryOperator::Postincrement;
+              Term cur = expr_encoder_.expr_to_term(unop.operand(), prefix);
+              Term stepped =
+                  solver_->make_term(inc ? BVAdd : BVSub,
+                                     cur,
+                                     solver_->make_term(1, cur->get_sort()));
+              if (process_array_element_assign(unop.operand(),
+                                               unop.operand(),
+                                               ctx,
+                                               condition,
+                                               prefix,
+                                               stepped)) {
+                break;
+              }
             }
             logger.log(1,
                        "SystemVerilogEncoder: skipping unsupported ++/-- "

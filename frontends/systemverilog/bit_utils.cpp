@@ -44,11 +44,6 @@ UnpackedArrayInfo unpacked_array_info(
     const SmtSolver & solver,
     const slang::ast::FixedSizeUnpackedArrayType & arr)
 {
-  if (arr.range.lower() < 0) {
-    throw PonoException(
-        "SystemVerilogEncoder: unpacked array with a negative index bound is "
-        "not supported");
-  }
   if (!arr.elementType.isIntegral()) {
     // A packed struct or union element is integral and so does pass:
     // what this rules out is a further unpacked dimension, or an
@@ -61,7 +56,7 @@ UnpackedArrayInfo unpacked_array_info(
 
   uint64_t depth = arr.range.fullWidth();
   return UnpackedArrayInfo{ depth,
-                            static_cast<uint64_t>(arr.range.lower()),
+                            static_cast<int64_t>(arr.range.lower()),
                             index_width_for_depth(depth),
                             type_to_sort(solver, arr.elementType) };
 }
@@ -85,18 +80,23 @@ Term normalize_array_index(const SmtSolver & solver,
     return resize_to(solver, idx, info.index_width, /*is_signed=*/false);
   }
 
-  // Work wide enough that `lower + depth` cannot wrap, so an index
-  // below `lower` underflows to a value the range check still
-  // rejects, and a valid one survives the truncation below.
+  // Work wide enough that the subtraction below cannot wrap for any
+  // index the array actually has, so an index outside the range
+  // underflows to a value the check still rejects and a valid one
+  // survives the truncation.
+  uint64_t magnitude = info.lower < 0 ? static_cast<uint64_t>(-info.lower)
+                                      : static_cast<uint64_t>(info.lower);
   uint64_t w = std::max<uint64_t>(idx_w, info.index_width) + 1;
-  while ((uint64_t{ 1 } << (w - 1)) < info.lower + info.depth) ++w;
+  while ((uint64_t{ 1 } << (w - 1)) < magnitude + info.depth) ++w;
   Sort wide_sort = solver->make_sort(BV, w);
-  Term wide = resize_to(solver, idx, w, /*is_signed=*/false);
+  // A negative lower bound means the declared range includes negative
+  // indices, so the index expression is a signed value and has to
+  // widen as one.
+  Term wide = resize_to(solver, idx, w, /*is_signed=*/info.lower < 0);
+  Term lower_term = solver->make_term(magnitude, wide_sort);
+  if (info.lower < 0) lower_term = solver->make_term(BVNeg, lower_term);
   Term offset =
-      info.lower == 0
-          ? wide
-          : solver->make_term(
-                BVSub, wide, solver->make_term(info.lower, wide_sort));
+      info.lower == 0 ? wide : solver->make_term(BVSub, wide, lower_term);
   if (in_range && checkable) {
     *in_range = solver->make_term(
         BVUlt, offset, solver->make_term(info.depth, wide_sort));

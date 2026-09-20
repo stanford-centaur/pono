@@ -34,7 +34,7 @@ namespace pono {
 struct UnpackedArrayInfo
 {
   uint64_t depth;          ///< number of elements
-  uint64_t lower;          ///< SV index of element 0
+  int64_t lower;           ///< SV index of element 0, which may be negative
   uint64_t index_width;    ///< width of the SMT array's index sort
   smt::Sort element_sort;  ///< sort of one element
 };

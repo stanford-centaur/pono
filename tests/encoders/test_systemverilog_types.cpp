@@ -106,6 +106,16 @@ TEST_P(SVUnitTests, UnpackedArrayPortFails)
   check_bmc("unpacked_array_port_fails.sv", 2);
 }
 
+// A negative declared lower bound, a runtime bit position inside a
+// runtime-indexed element, and `++`/`--` on an element. The negative
+// case asserts cells either side of zero, so an offset computed the
+// wrong way round is refuted rather than merely encoded.
+TEST_P(SVUnitTests, UnpackedArraySmallForms)
+{
+  check_prover<KInduction>(
+      "unpacked_array_small_forms.sv", 8, ProverResult::TRUE);
+}
+
 TEST_P(SVUnitTests, UnpackedArrayMultiDimRejected)
 {
   expect_encode_throws("unpacked_array_2d.sv");
