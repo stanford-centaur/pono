@@ -4,6 +4,7 @@
 // format it is about, and the ones holding for any format come first.
 
 #include <cstdio>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -110,6 +111,30 @@ class CliUnitTests : public ::testing::Test
     EXPECT_FALSE(run.succeeded) << "pono exited cleanly:\n" << run.output;
     EXPECT_TRUE(contains(run.output, message));
   }
+
+  /** Runs pono so that it writes a witness, and returns how the witness
+   *  names the property it refutes.
+   *  @param args the command line arguments, without the witness ones
+   *  @return the second line of the witness file, after the sat it opens with
+   */
+  static string witness_property(vector<string> args)
+  {
+    const string path = testing::TempDir() + "pono_test.btor2wit";
+    args.insert(args.begin(), { "--witness", "--dump-btor2-witness", path });
+    const PonoRun run = run_pono(args);
+    EXPECT_TRUE(contains(run.output, "sat")) << "nothing was refuted";
+
+    ifstream witness(path);
+    EXPECT_TRUE(witness.is_open()) << "no witness written to " << path;
+    string result;
+    string property;
+    getline(witness, result);
+    getline(witness, property);
+    witness.close();
+    remove(path.c_str());
+    EXPECT_EQ(result, "sat");
+    return property;
+  }
 };
 
 // The declared version comes first, ahead of the commit it was built from.
@@ -134,6 +159,15 @@ TEST_F(CliUnitTests, Btor2ResetRejectsAnUnknownName)
   const PonoRun run = run_pono(
       { "--reset", "nosuchsignal", input_path("btor2/input_in_bad.btor2") });
   expect_rejected(run, "Could not find term named: nosuchsignal");
+}
+
+// The witness file names the property the same way the result does.
+TEST_F(CliUnitTests, Btor2WitnessNamesTheProperty)
+{
+  EXPECT_EQ(witness_property({ input_path("btor2/input_in_bad.btor2") }), "b0");
+  EXPECT_EQ(
+      witness_property({ "--justice", input_path("btor2/justice_only.btor2") }),
+      "j0");
 }
 
 // A justice property with no fairness constraint: the lasso at mode=1

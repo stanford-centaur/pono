@@ -385,7 +385,7 @@ int main(int argc, char ** argv)
             dump_witness_btor(btor_enc,
                               cex,
                               fts,
-                              pono_options.prop_idx_,
+                              prop_label,
                               pono_options.btor2_witness_name_);
           }
           if (!pono_options.vcd_name_.empty()) {
