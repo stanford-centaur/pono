@@ -135,6 +135,26 @@ class CliUnitTests : public ::testing::Test
     EXPECT_EQ(result, "sat");
     return property;
   }
+
+  /** Runs pono so that it writes a waveform, and returns what it wrote.
+   *  @param args the command line arguments, without the waveform ones
+   *  @return the contents of the dumped file
+   */
+  static string waveform(vector<string> args)
+  {
+    const string path = testing::TempDir() + "pono_test.vcd";
+    args.insert(args.begin(), { "--witness", "--vcd", path });
+    const PonoRun run = run_pono(args);
+    EXPECT_TRUE(contains(run.output, "sat")) << "nothing was refuted";
+
+    ifstream dumped(path);
+    EXPECT_TRUE(dumped.is_open()) << "no waveform written to " << path;
+    const string contents((istreambuf_iterator<char>(dumped)),
+                          istreambuf_iterator<char>());
+    dumped.close();
+    remove(path.c_str());
+    return contents;
+  }
 };
 
 // The declared version comes first, ahead of the commit it was built from.
@@ -168,6 +188,24 @@ TEST_F(CliUnitTests, Btor2WitnessNamesTheProperty)
   EXPECT_EQ(
       witness_property({ "--justice", input_path("btor2/justice_only.btor2") }),
       "j0");
+}
+
+// A justice counterexample is a lasso, and its prefix dumps as a waveform
+// like any other trace. Both translators reach the same printer.
+TEST_F(CliUnitTests, Btor2JusticeWaveformHoldsTheDesign)
+{
+  EXPECT_TRUE(contains(
+      waveform({ "--justice", input_path("btor2/justice_only.btor2") }),
+      "mode"));
+}
+
+TEST_F(CliUnitTests, Btor2JusticeWaveformHoldsTheDesignWithKLiveness)
+{
+  EXPECT_TRUE(contains(waveform({ "--justice",
+                                  "--justice-translator",
+                                  "klive",
+                                  input_path("btor2/justice_only.btor2") }),
+                       "mode"));
 }
 
 // A justice property with no fairness constraint: the lasso at mode=1

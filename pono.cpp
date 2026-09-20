@@ -389,14 +389,8 @@ int main(int argc, char ** argv)
                               pono_options.btor2_witness_name_);
           }
           if (!pono_options.vcd_name_.empty()) {
-            if (pono_options.justice_) {
-              throw PonoException(
-                  "VCD generation for justice properties "
-                  "is not supported yet.");
-            } else {
-              VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
-              vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
-            }
+            VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
+            vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
           }
         }
       } else if (res == TRUE) {
