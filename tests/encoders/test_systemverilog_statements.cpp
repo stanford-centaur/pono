@@ -47,6 +47,27 @@ TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
   check_bmc("element_select_out_of_bounds_lhs.sv", 2, ProverResult::UNKNOWN);
 }
 
+// The read side of the same thing, which the write path's guard never
+// covered: bits the vector does not have read as X. Whatever the
+// select does reach must be untouched, which is what this proves --
+// the two refutations below are what stop "X" being modelled as some
+// fixed value.
+TEST_P(SVUnitTests, SelectOutOfRangeReads)
+{
+  check_prover<KInduction>("select_out_of_range.sv", 6, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, SelectOutOfRangeConstantFails)
+{
+  check_bmc("select_out_of_range_fails.sv", 0);
+}
+
+// This one was provable before: the shift fed zeros in past the end.
+TEST_P(SVUnitTests, SelectOutOfRangeDynamicFails)
+{
+  check_bmc("select_out_of_range_dynamic_fails.sv", 0);
+}
+
 // Concatenation-target LHS on a plain continuous assign (`assign {hi,
 // lo} = ...;`), as opposed to a concatenation-target *port connection*
 // (already supported separately via OutputAliasSegment). Since a

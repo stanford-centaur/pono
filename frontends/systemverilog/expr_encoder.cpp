@@ -124,6 +124,22 @@ Term ExprEncoder::expr_to_bool(const slang::ast::Expression & expr,
   return solver_->make_term(Distinct, t, solver_->make_term(0, t->get_sort()));
 }
 
+Term ExprEncoder::extract_maybe_out_of_range(const Term & val,
+                                             uint64_t hi,
+                                             uint64_t lo)
+{
+  uint64_t w = val->get_sort()->get_width();
+  if (hi < w) return solver_->make_term(Op(Extract, hi, lo), val);
+
+  uint64_t oob_lo = std::max(lo, w);
+  Term oob = symbol_table_.make_out_of_range_value(
+      solver_->make_sort(BV, hi - oob_lo + 1));
+  // Wholly past the end: nothing of the vector is being read.
+  if (lo >= w) return oob;
+  return solver_->make_term(
+      Concat, oob, solver_->make_term(Op(Extract, w - 1, lo), val));
+}
+
 Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
                                        const string & prefix)
 {
@@ -648,7 +664,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       if (idx_const) {
         uint64_t low = *idx_const * elem_w;
         uint64_t high = low + elem_w - 1;
-        return solver_->make_term(Op(Extract, high, low), val);
+        return extract_maybe_out_of_range(val, high, low);
       }
 
       // Dynamic select: shift right by (idx * elem_w) bits, then
@@ -665,7 +681,22 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
         shift_amount = solver_->make_term(BVMul, idx, elem_w_term);
       }
       Term shifted = solver_->make_term(BVLshr, val, shift_amount);
-      return solver_->make_term(Op(Extract, elem_w - 1, 0), shifted);
+      Term elem = solver_->make_term(Op(Extract, elem_w - 1, 0), shifted);
+      // The shift feeds in zeros past the end of the vector, but the
+      // LRM reads those bits as X. Only needed where the index can
+      // name an element that is not there.
+      uint64_t depth = val_w / elem_w;
+      uint64_t idx_w = expr_to_term(sel_expr, prefix)->get_sort()->get_width();
+      if (idx_w >= 64 || (uint64_t{ 1 } << idx_w) > depth) {
+        Term in_range =
+            solver_->make_term(BVUlt, idx, solver_->make_term(depth, val_sort));
+        elem = solver_->make_term(
+            Ite,
+            in_range,
+            elem,
+            symbol_table_.make_out_of_range_value(elem->get_sort()));
+      }
+      return elem;
     }
 
     case ExpressionKind::RangeSelect: {
@@ -689,7 +720,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       uint64_t hi = *hi_opt;
       uint64_t lo = *lo_opt;
       if (hi < lo) swap(hi, lo);
-      return solver_->make_term(Op(Extract, hi, lo), val);
+      return extract_maybe_out_of_range(val, hi, lo);
     }
 
     case ExpressionKind::MemberAccess: {

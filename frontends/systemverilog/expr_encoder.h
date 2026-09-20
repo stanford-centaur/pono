@@ -99,6 +99,15 @@ class ExprEncoder
    *  back, which is what keeps the operator dispatch in one place and
    *  makes expr_to_bool() and expr_to_term() agree by construction.
    */
+  /** Extract bits [lo, hi] of `val`, which may name bits the vector
+   *  does not have. The LRM reads those as X, so they come back as a
+   *  fresh unconstrained value rather than reaching the solver as an
+   *  out-of-bounds Extract (which aborts) or being shifted in as
+   *  zeros (which is silently wrong). */
+  smt::Term extract_maybe_out_of_range(const smt::Term & val,
+                                       uint64_t hi,
+                                       uint64_t lo);
+
   smt::Term expr_to_term_or_bool(const slang::ast::Expression & expr,
                                  const std::string & prefix);
 
