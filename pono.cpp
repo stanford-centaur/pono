@@ -491,39 +491,35 @@ int main(int argc, char ** argv)
             + pono_options.filename_ + " (" + to_string(num_props) + ")");
       }
 
-      Term prop;
-      if (pono_options.justice_) {
-        // The selected algorithm can modify the transition system in place.
-        switch (pono_options.justice_translator_) {
-          case pono::LIVENESS_TO_SAFETY:
-            if (pono_options.static_coi_) {
-              StaticConeOfInfluence coi(fts,
-                                        ltl_justice_vec[pono_options.prop_idx_],
-                                        pono_options.verbosity_);
-            }
-            prop = LivenessToSafetyTranslator{}.translate(
-                fts, ltl_justice_vec[pono_options.prop_idx_]);
-            break;
-        }
-      } else {
-        prop = propvec[pono_options.prop_idx_];
-      }
-
       vector<UnorderedTermMap> cex;
-      if (pono_options.justice_
-          && pono_options.justice_translator_ == KLIVENESS) {
-        LivenessProperty justice_prop(s,
-                                      ltl_justice_vec[pono_options.prop_idx_]);
-        KLiveness justice_prover(justice_prop, fts, s, pono_options);
-        res = justice_prover.check_until(pono_options.bound_);
-        if (res == ProverResult::FALSE && pono_options.witness_) {
-          if (!justice_prover.witness(cex)) {
-            logger.log(0,
-                       "Only got a partial witness from engine. "
-                       "Not suitable for printing.");
+      if (pono_options.justice_) {
+        const TermVec & conditions = ltl_justice_vec[pono_options.prop_idx_];
+        switch (pono_options.justice_translator_) {
+          case pono::LIVENESS_TO_SAFETY: {
+            // These modify the transition system in place.
+            if (pono_options.static_coi_) {
+              StaticConeOfInfluence coi(
+                  fts, conditions, pono_options.verbosity_);
+            }
+            Term prop = LivenessToSafetyTranslator{}.translate(fts, conditions);
+            res = check_prop(pono_options, prop, fts, s, cex);
+            break;
+          }
+          case pono::KLIVENESS: {
+            LivenessProperty justice_prop(s, conditions);
+            KLiveness justice_prover(justice_prop, fts, s, pono_options);
+            res = justice_prover.check_until(pono_options.bound_);
+            if (res == ProverResult::FALSE && pono_options.witness_
+                && !justice_prover.witness(cex)) {
+              logger.log(0,
+                         "Only got a partial witness from engine. "
+                         "Not suitable for printing.");
+            }
+            break;
           }
         }
       } else {
+        Term prop = propvec[pono_options.prop_idx_];
         res = check_prop(pono_options, prop, fts, s, cex);
       }
       assert(res != ERROR);
