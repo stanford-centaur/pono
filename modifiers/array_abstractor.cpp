@@ -48,7 +48,7 @@ WalkerStepResult ArrayAbstractor::AbstractionWalker::visit_term(Term & term)
   TermVec cached_children;
   Term cc;
   for (auto c : term) {
-    bool ok = query_cache(c, cc);
+    [[maybe_unused]] bool ok = query_cache(c, cc);
     assert(ok);  // in post-order so should always have a cache hit
     cached_children.push_back(cc);
   }
@@ -131,7 +131,7 @@ WalkerStepResult ArrayAbstractor::ConcretizationWalker::visit_term(Term & term)
       TermVec cached_children;
       Term cc;
       for (auto c : term) {
-        bool ok = query_cache(c, cc);
+        [[maybe_unused]] bool ok = query_cache(c, cc);
         assert(ok);
         cached_children.push_back(cc);
       }
@@ -151,7 +151,7 @@ WalkerStepResult ArrayAbstractor::ConcretizationWalker::visit_term(Term & term)
   ++it;
   while (it != term->end()) {
     Term ca;
-    bool ok = query_cache(*it, ca);
+    [[maybe_unused]] bool ok = query_cache(*it, ca);
     assert(ok);
     assert(ca);
     cached_args.push_back(ca);

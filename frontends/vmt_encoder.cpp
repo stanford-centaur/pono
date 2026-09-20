@@ -28,7 +28,7 @@ VMTEncoder::VMTEncoder(std::string filename, RelationalTransitionSystem & rts)
     : super(rts.get_solver()), filename_(filename), rts_(rts)
 {
   set_logic_all();
-  int res = parse(filename_);
+  [[maybe_unused]] int res = parse(filename_);
   assert(!res);  // 0 means success
 }
 

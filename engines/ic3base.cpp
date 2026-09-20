@@ -168,7 +168,6 @@ ProverResult IC3Base::check_until(int k)
   assert(initialized_);
 
   ProverResult res;
-  RefineResult ref_res;
   int i = reached_k_ + 1;
   assert(reached_k_ + 1 >= 0);
   while (i <= k) {
@@ -795,7 +794,7 @@ void IC3Base::predecessor_generalization_and_fix(size_t i,
     // need to make sure it does not intersect with F[i-2]
     Term formula = get_frame_term(i - 2);
     formula = solver_->make_term(And, formula, pred.term);
-    bool unsat =
+    [[maybe_unused]] bool unsat =
         reducer_.reduce_assump_unsatcore(formula, dropped, pred_children);
     assert(unsat);
     pred = ic3formula_conjunction(pred_children);
@@ -934,12 +933,13 @@ void IC3Base::fix_if_intersects_initial(TermVec & to_keep, const TermVec & rem)
   if (rem.size() != 0) {
     Term formula = solver_->make_term(And, ts_.init(), make_and(to_keep));
 
-    bool success = reducer_.reduce_assump_unsatcore(formula,
-                                                    rem,
-                                                    to_keep,
-                                                    NULL,
-                                                    options_.ic3_gen_max_iter_,
-                                                    options_.random_seed_);
+    [[maybe_unused]] bool success =
+        reducer_.reduce_assump_unsatcore(formula,
+                                         rem,
+                                         to_keep,
+                                         NULL,
+                                         options_.ic3_gen_max_iter_,
+                                         options_.random_seed_);
     assert(success);
   }
 }

@@ -159,7 +159,7 @@ static inline bool is_all_zero(const std::string & s)
     return true;
   }  // else
   std::string decimal, width;
-  bool conv_succ = extract_decimal_width(s, decimal, width);
+  [[maybe_unused]] bool conv_succ = extract_decimal_width(s, decimal, width);
   assert(conv_succ);
 
   return convert_to_boolean_and_check(decimal, width, false);
@@ -181,7 +181,7 @@ static inline bool is_all_one(const std::string & s, uint64_t w)
     return true;
   }
   std::string decimal, width;
-  bool conv_succ = extract_decimal_width(s, decimal, width);
+  [[maybe_unused]] bool conv_succ = extract_decimal_width(s, decimal, width);
   assert(conv_succ);
 
   return convert_to_boolean_and_check(decimal, width, true);

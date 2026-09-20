@@ -43,7 +43,7 @@ IC3Formula IC3::get_model_ic3formula() const
   const UnorderedTermSet & statevars = ts_.statevars();
   TermVec children;
   children.reserve(statevars.size());
-  for (const auto & sv : ts_.statevars()) {
+  for (const auto & sv : statevars) {
     if (solver_->get_value(sv) == solver_true_) {
       children.push_back(sv);
     } else {
@@ -80,7 +80,6 @@ void IC3::predecessor_generalization(size_t i,
   assert(i > 0);
   assert(!pred.disjunction);
 
-  const UnorderedTermSet & statevars = ts_.statevars();
   TermVec input_lits = get_input_values();
   TermVec next_lits = get_next_state_values();
   const TermVec & cube_lits = pred.children;

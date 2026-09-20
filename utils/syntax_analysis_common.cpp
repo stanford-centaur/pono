@@ -67,7 +67,7 @@ eval_val::eval_val(const std::string & val)
 
   if (val.find("#b") != 0) {  // then it is (_ bvX width)
     std::string width;        // width is no use
-    bool succ = extract_decimal_width(val, sv, width);
+    [[maybe_unused]] bool succ = extract_decimal_width(val, sv, width);
     assert(succ);
     return;
   }
@@ -379,7 +379,6 @@ void SyntaxStructure::CutVars(
     const std::unordered_set<std::string> & remove_vars_name)
 {
   for (auto & w_cnstr : syntax_) {
-    auto width = w_cnstr.first;
     auto & cnstr = w_cnstr.second;
     auto pos = cnstr.symbol_names.begin();
     while (pos != cnstr.symbol_names.end()) {
@@ -406,7 +405,6 @@ void SyntaxStructure::CutVars(
 void SyntaxStructure::RemoveExtract()
 {
   for (auto & width_cnstr : syntax_) {
-    auto width = width_cnstr.first;
     auto & cnstr = width_cnstr.second;
     cnstr.op_extract.clear();
   }
@@ -414,7 +412,6 @@ void SyntaxStructure::RemoveExtract()
 void SyntaxStructure::RemoveConcat()
 {
   for (auto & width_cnstr : syntax_) {
-    auto width = width_cnstr.first;
     auto & cnstr = width_cnstr.second;
     cnstr.op_concat.clear();
   }
@@ -454,7 +451,6 @@ void SyntaxStructure::AddBvultBvule()
 void SyntaxStructure::AndOrConvert()
 {
   for (auto & width_cnstr : syntax_) {
-    auto width = width_cnstr.first;
     auto & cnstr = width_cnstr.second;
     if ((IN(smt::PrimOp::BVAnd, cnstr.op_binary)
          || IN(smt::PrimOp::And, cnstr.op_binary))

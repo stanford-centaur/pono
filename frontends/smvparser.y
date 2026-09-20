@@ -354,7 +354,6 @@ var_list:
           enc.arrayint_[$1] = a->getElementType();
          }
       }else{
-          SMVnode *a = new var_node_c($1,$3,SMVnode::BasicT);
           enc.var_list_.push_back(new var_node_c($1,$3,SMVnode::BasicT));
       }
     }
@@ -690,7 +689,7 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
-              smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
+              [[maybe_unused]] smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
               if(bvs_a != bvs_b  || (ask != smt::BOOL && ask != smt::BV)){
                  throw PonoException("Expecting two booleans or two bit-vectors of the same width");
               } else{
@@ -719,7 +718,7 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
-              smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
+              [[maybe_unused]] smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
               if(bvs_a != bvs_b  || (ask != smt::BOOL && ask != smt::BV)){
                  throw PonoException("Expecting two booleans or two bit-vectors of the same width");
               } else{
@@ -748,7 +747,7 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
-              smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
+              [[maybe_unused]] smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
               if(bvs_a != bvs_b  || (ask != smt::BOOL && ask != smt::BV)){
                  throw PonoException("Expecting two booleans or two bit-vectors of the same width");
               } else{
@@ -777,7 +776,7 @@ simple_expr: constant {
                   throw PonoException("Type system violation");
               }
               smt::SortKind ask = a->getTerm()->get_sort()->get_sort_kind();
-              smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
+              [[maybe_unused]] smt::SortKind bsk = b->getTerm()->get_sort()->get_sort_kind();
               if(bvs_a != bvs_b  || (ask != smt::BOOL && ask != smt::BV)){
                  throw PonoException("Expecting two booleans or two bit-vectors of the same width");
               } else{
@@ -1240,7 +1239,7 @@ simple_expr: constant {
               if (enc.module_flat)
               {
                 smt::Term t = $3->getTerm();
-                smt::SortKind sk = t->get_sort()->get_sort_kind();
+                [[maybe_unused]] smt::SortKind sk = t->get_sort()->get_sort_kind();
                 assert(sk == smt::REAL || sk == smt::INT);
                 smt::Term res = enc.solver_->make_term(smt::To_Int, t);
                 $$ = new SMVnode(res, SMVnode::Integer);
@@ -1363,7 +1362,6 @@ simple_expr: constant {
              }
           }
           | case_expr {
-            SMVnode *a = $1;
             $$ = $1;
           }
           | complex_identifier "(" parameter_list ")"

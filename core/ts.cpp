@@ -199,7 +199,7 @@ void TransitionSystem::assign_next(const Term & state, const Term & val)
   }
 
   state_updates_[state] = val;
-  auto erased = no_state_updates_.erase(state);
+  [[maybe_unused]] auto erased = no_state_updates_.erase(state);
   // Relational transition systems might have marked the state as updated
   // outside 'assign_next', so don't require them to erase here.
   assert(!functional_ || erased);
@@ -375,12 +375,12 @@ void TransitionSystem::add_statevar(const Term & cv, const Term & nv)
   // if using an input variable, remove from set
   // will be a state variable now
   if (inputvars_.find(cv) != inputvars_.end()) {
-    bool success = inputvars_.erase(cv);
+    [[maybe_unused]] bool success = inputvars_.erase(cv);
     assert(success);
   }
 
   if (inputvars_.find(nv) != inputvars_.end()) {
-    bool success = inputvars_.erase(nv);
+    [[maybe_unused]] bool success = inputvars_.erase(nv);
     assert(success);
   }
 
