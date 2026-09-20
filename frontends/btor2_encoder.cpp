@@ -18,10 +18,14 @@
 
 #include <algorithm>
 #include <cassert>
-#include <iostream>
+#include <cstdio>
 #include <iterator>
+#include <unordered_set>
+#include <utility>
 
-#include "smt-switch/utils.h"
+#include "btor2parser.h"
+#include "smt-switch/smt.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -310,6 +314,9 @@ void BTOR2Encoder::parse(const std::string filename)
       terms_[bt2_line->id] = state;
       statesvec_.push_back(state);
       symbol_map_[new_symbol] = orig_symbol;
+      if (!orig_symbol.empty()) {
+        ts_.name_term(orig_symbol, state);
+      }
       // will be removed from this map if there's a next function for this state
       no_next_states_[num_states] = state;
       id2statenum[bt2_line->id] = num_states;
@@ -321,6 +328,9 @@ void BTOR2Encoder::parse(const std::string filename)
       terms_[bt2_line->id] = input;
       inputsvec_.push_back(input);
       symbol_map_[new_symbol] = orig_symbol;
+      if (!orig_symbol.empty()) {
+        ts_.name_term(orig_symbol, input);
+      }
     } else if (bt2_line->tag == BTOR2_TAG_output) {
       new_symbol = "output" + to_string(bt2_line->id);
       orig_symbol = bt2_line->symbol ? bt2_line->symbol : "";
@@ -435,8 +445,8 @@ void BTOR2Encoder::parse(const std::string filename)
                      std::back_inserter(justice),
                      [&](auto t) { return bv_to_bool(t); });
     } else if (bt2_line->tag == BTOR2_TAG_fair) {
-      std::cerr << "Warning: ignoring fair term" << std::endl;
-      fairvec_.push_back(termargs[0]);
+      // Keep terms_ raw: other lines may reference this id as a bitvector.
+      fairvec_.push_back(bv_to_bool(termargs[0]));
       terms_[bt2_line->id] = termargs[0];
     } else if (bt2_line->constant) {
       terms_[bt2_line->id] = solver_->make_term(

@@ -14,13 +14,14 @@ using namespace std;
 
 namespace pono_tests {
 
-const vector<string> btor2_inputs({ "counter.btor",
-                                    "counter-true.btor",
-                                    "mem.btor",
-                                    "array_neq.btor2",
-                                    "ridecore.btor",
-                                    "state2input.btor",
-                                    "WRITE_COUNTER.btor2" });
+// Named without the .btor2 extension that all of them share.
+const vector<string> btor2_inputs({ "counter",
+                                    "counter_true",
+                                    "mem",
+                                    "array_neq",
+                                    "ridecore",
+                                    "state2input",
+                                    "write_counter" });
 
 const vector<string> coreir_inputs({ "counters.json",
                                      "WrappedPE_nofloats.json",
@@ -33,6 +34,7 @@ const unordered_map<string, pono::ProverResult> smv_inputs(
       { "combined-false.smv", pono::ProverResult::FALSE },
       { "combined-true.smv", pono::ProverResult::TRUE },
       { "counter_bitvector.smv", pono::ProverResult::FALSE },
-      { "counter_boolean.smv", pono::ProverResult::FALSE } });
+      { "counter_boolean.smv", pono::ProverResult::FALSE },
+      { "signed_comparison.smv", pono::ProverResult::TRUE } });
 
 }  // namespace pono_tests

@@ -126,7 +126,7 @@ TEST_P(CegarValuesTest, HierarchicalName)
   shared_ptr<SafetyProver> ceg =
       make_shared<CegarValues<CegProphecyArrays<IC3IA>>>(prop, rts, s, opts);
 
-  ProverResult r2;
+  ProverResult r2 = ProverResult::UNKNOWN;
   ASSERT_NO_THROW(r2 = ceg->check_until(5));
   ASSERT_EQ(r2, ProverResult::TRUE);
 }

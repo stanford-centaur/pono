@@ -1,0 +1,10 @@
+; The justice condition watches mode, and spare influences nothing. Neither
+; bit is given an initial value, so the cone of influence can drop spare from
+; the system entirely rather than only from the transition relation.
+1 sort bitvec 1
+2 state 1 mode
+3 next 1 2 2
+4 state 1 spare
+5 not 1 4
+6 next 1 4 5
+7 justice 1 2

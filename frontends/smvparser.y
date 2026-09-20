@@ -894,9 +894,9 @@ simple_expr: constant {
               if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
                   res = enc.solver_->make_term(smt::Lt, a->getTerm(), b->getTerm());
               }else{
-                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                  if (bvs_a == bvs_b && bvs_a == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUlt, a->getTerm(), b->getTerm());
-                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                  } else if (bvs_a == bvs_b && bvs_a == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSlt, a->getTerm(), b->getTerm());
                   } else{
                     throw PonoException (to_string(enc.loc.end.line) +" Unsigned/Signed mismatch");
@@ -920,9 +920,9 @@ simple_expr: constant {
               }else{
                   SMVnode::Type bvs_a = a->getType();
                   SMVnode::Type bvs_b = b->getType();
-                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                  if (bvs_a == bvs_b && bvs_a == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUgt, a->getTerm(), b->getTerm());
-                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                  } else if (bvs_a == bvs_b && bvs_a == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSgt, a->getTerm(), b->getTerm());
                   } else{
                     throw PonoException (to_string(enc.loc.end.line) +" Unsigned/Signed mismatch");
@@ -944,9 +944,9 @@ simple_expr: constant {
               if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
                   res = enc.solver_->make_term(smt::Le, a->getTerm(), b->getTerm());
               }else{
-                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                  if (bvs_a == bvs_b && bvs_a == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUle, a->getTerm(), b->getTerm());
-                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                  } else if (bvs_a == bvs_b && bvs_a == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSle, a->getTerm(), b->getTerm());
                   } else{
                     throw PonoException (to_string(enc.loc.end.line) +"Unsigned/Signed bitvector mismatch");
@@ -968,9 +968,9 @@ simple_expr: constant {
               if ( (bvs_a == SMVnode::Integer) || (bvs_a == SMVnode::Real) ||(bvs_b == SMVnode::Integer) || (bvs_b == SMVnode::Real) ){
                   res = enc.solver_->make_term(smt::Ge, a->getTerm(), b->getTerm());
               }else{
-                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                  if (bvs_a == bvs_b && bvs_a == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUge, a->getTerm(), b->getTerm());
-                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                  } else if (bvs_a == bvs_b && bvs_a == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSge, a->getTerm(), b->getTerm());
                   } else{
                     throw PonoException (to_string(enc.loc.end.line) +" Unsigned/Signed mismatch");
@@ -1089,10 +1089,10 @@ simple_expr: constant {
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
-                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                  if (bvs_a == bvs_b && bvs_a == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUdiv, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Unsigned);
-                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                  } else if (bvs_a == bvs_b && bvs_a == SMVnode::Signed){
                     assert(res); //check res non-null
                     res = enc.solver_->make_term(smt::BVSdiv, a->getTerm(), b->getTerm());
                     $$ = new SMVnode(res,SMVnode::Signed);
@@ -1117,11 +1117,11 @@ simple_expr: constant {
                   if(res->get_sort()->get_sort_kind()==smt::REAL) $$ = new SMVnode(res,SMVnode::Real);
                   else $$ = new SMVnode(res,SMVnode::Integer);
               }else{
-                  if (bvs_a == bvs_b == SMVnode::Unsigned){
+                  if (bvs_a == bvs_b && bvs_a == SMVnode::Unsigned){
                     res = enc.solver_->make_term(smt::BVUrem, a->getTerm(), b->getTerm());
                     assert(res); //check res non-null
                     $$ = new SMVnode(res,SMVnode::Unsigned);
-                  } else if (bvs_a == bvs_b == SMVnode::Signed){
+                  } else if (bvs_a == bvs_b && bvs_a == SMVnode::Signed){
                     res = enc.solver_->make_term(smt::BVSmod, a->getTerm(), b->getTerm());
                     assert(res); //check res non-null
                     $$ = new SMVnode(res,SMVnode::Signed);

@@ -43,6 +43,9 @@ add_library(
 # INCLUDE_DIRS set in top-level CMakeLists.txt
 target_include_directories(pono-test-lib PUBLIC "${INCLUDE_DIRS}")
 target_link_libraries(pono-test-lib pono-lib)
+# Plain signature, so the flags reach every test executable too: they all link
+# pono-test-lib and inherit its interface.
+target_link_libraries(pono-test-lib pono-warnings)
 
 # Create `make check` target that (re-)builds tests before trying to run them.
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
@@ -79,21 +82,31 @@ pono_add_test(test_walkers)
 pono_add_test(test_pseudo_init_and_prop)
 pono_add_test(test_promote_inputvars)
 pono_add_test(test_partial_model)
+pono_add_test(test_options)
 
 if(WITH_MSAT_IC3IA)
   pono_add_test(test_msat_ic3ia)
 endif()
 
-# Smoke-test the version plumbing. The dots are escaped because the property
-# below is a regex, not a literal.
-string(REPLACE "." "\\." PONO_RELEASE_VERSION_REGEX "${PONO_RELEASE_VERSION}")
-add_test(NAME test_version COMMAND pono-bin --version)
-# Anchoring on the declared version pins the contract that it comes first.
-# The property is also required rather than stylistic: it replaces ctest's
-# return-code check, and `pono --version` exits 2.
-set_tests_properties(
-  test_version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^${PONO_RELEASE_VERSION_REGEX}"
-)
+# Tests that run the executable itself, rather than linking the library. The
+# input directory and version are passed in because the test can derive
+# neither.
+macro(pono_add_cli_test name)
+  pono_add_test(${name})
+  # Building the test has to build what it runs, or it would test a stale or
+  # missing binary.
+  add_dependencies(${name} pono-bin)
+  target_compile_definitions(
+    ${name}
+    PRIVATE
+      PONO_BIN="$<TARGET_FILE:pono-bin>"
+      PONO_INPUT_DIR="${PROJECT_SOURCE_DIR}/tests/encoders/inputs"
+      PONO_VERSION="${PONO_RELEASE_VERSION}"
+  )
+endmacro()
+
+pono_add_cli_test(test_btor2_cli)
+pono_add_cli_test(test_cli)
+pono_add_cli_test(test_justice_cli)
 
 add_subdirectory(encoders)

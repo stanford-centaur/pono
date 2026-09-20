@@ -1146,14 +1146,17 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 ProverResult PonoOptions::parse_and_set_options(std::vector<std::string> & opts,
                                                 bool expect_file)
 {
-  // add one for dummy program name
-  int size = opts.size() + 1;
-  std::vector<char *> cstrings({ std::string("pono").data() });
-  cstrings.reserve(size);
+  // The argc/argv overload skips argv[0], so pass a dummy program name.
+  // Its storage must be mutable to convert to the char ** the parser takes.
+  char prog_name[] = "pono";
+  std::vector<char *> cstrings;
+  cstrings.reserve(opts.size() + 1);
+  cstrings.push_back(prog_name);
   for (auto & o : opts) {
     cstrings.push_back(o.data());
   }
-  return parse_and_set_options(size, cstrings.data(), expect_file);
+  int argc = static_cast<int>(cstrings.size());
+  return parse_and_set_options(argc, cstrings.data(), expect_file);
 }
 
 string to_string(Engine e)

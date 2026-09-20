@@ -1,3 +1,6 @@
+# Follow sourced files; a script that sources one trips SC1091 without it.
+external-sources=true
+
 enable=add-default-case
 enable=avoid-negated-conditions
 enable=avoid-nullary-conditions

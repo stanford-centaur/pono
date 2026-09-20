@@ -4,6 +4,9 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 DEPS=$DIR/../deps
 
+# shellcheck source=contrib/utils.sh
+source "$DIR/utils.sh"
+
 usage() {
   cat <<EOF
 Usage: $0 [<option> ...]
@@ -25,7 +28,9 @@ mkdir -p "$DEPS"
 cd "$DEPS"
 
 msat_home="$DEPS/mathsat"
-ic3ia_version=ic3ia-23.05
+ic3ia_version=ic3ia-26.08
+# Digest of the ic3ia archive, update it together with the version.
+ic3ia_sha256=154b81905290e5153a9f46c86dd155308840aa2d53b1122259e92ee55bc8cc4c
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -57,13 +62,15 @@ if [[ ! -d $msat_home ]]; then
   exit 1
 fi
 
-curl -Lk https://es-static.fbk.eu/people/griggio/ic3ia/$ic3ia_version.tar.gz \
-  --output "$DEPS/$ic3ia_version.tar.gz"
+curl -fLsS -o "$DEPS/$ic3ia_version.tar.gz" \
+  https://es-static.fbk.eu/people/griggio/ic3ia/$ic3ia_version.tar.gz
 
 if [[ ! -f "$DEPS/$ic3ia_version.tar.gz" ]]; then
   echo "It appears that downloading ic3ia failed."
   exit 1
 fi
+
+verify_sha256 "$DEPS/$ic3ia_version.tar.gz" "$ic3ia_sha256"
 
 tar -xf $ic3ia_version.tar.gz
 rm $ic3ia_version.tar.gz
@@ -72,5 +79,5 @@ cd ic3ia
 mkdir build
 cd build
 cmake .. -DMATHSAT_DIR="$msat_home" -DCMAKE_BUILD_TYPE=Release
-make -j
+cmake --build . -j
 cd "$DEPS/.."

@@ -1,0 +1,6 @@
+; Same frozen mode bit as fair_frozen_mode.btor2, but with no fair line, so
+; the justice condition (GF mode) is violated by the lasso at mode=1.
+1 sort bitvec 1
+2 state 1 mode
+3 next 1 2 2
+4 justice 1 2

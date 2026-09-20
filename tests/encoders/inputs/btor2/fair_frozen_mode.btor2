@@ -1,0 +1,10 @@
+; mode is chosen nondeterministically in the initial state and never changes.
+; The justice condition (GF mode) alone admits a lasso, at mode=1, and the
+; fairness constraint (GF !mode) alone admits one, at mode=0, but no trace
+; satisfies both infinitely often.
+1 sort bitvec 1
+2 state 1 mode
+3 next 1 2 2
+4 not 1 2
+5 justice 1 2
+6 fair 4

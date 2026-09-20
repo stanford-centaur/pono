@@ -12,7 +12,7 @@ repos:
       - id: check-merge-conflict
       - id: check-symlinks
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v23.1.0
+    rev: v23.1.1
     hooks:
       - id: clang-format
         exclude: "^(contrib/|tests/encoders/inputs/coreir/)"
@@ -22,7 +22,7 @@ repos:
         types_or: [text]
         files: '\.(c|cc|cpp|h|hpp)(\.in)?$'
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.5
+    rev: v0.16.7
     hooks:
       - id: ruff-format
       - id: ruff-check
@@ -54,13 +54,13 @@ repos:
     hooks:
       - id: yamlfmt
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: v1.5.0
+    rev: v1.5.5
     hooks:
       - id: tombi-format
         args: [--offline]
       - id: tombi-lint
         args: [--offline]
   - repo: https://github.com/BlankSpruce/gersemi-pre-commit
-    rev: 0.28.1
+    rev: 0.29.0
     hooks:
       - id: gersemi

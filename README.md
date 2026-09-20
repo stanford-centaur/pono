@@ -1,4 +1,5 @@
 [![CI](https://github.com/stanford-centaur/pono/actions/workflows/ci.yml/badge.svg)](https://github.com/stanford-centaur/pono/actions/workflows/ci.yml)
+[![Lint](https://github.com/stanford-centaur/pono/actions/workflows/lint.yml/badge.svg)](https://github.com/stanford-centaur/pono/actions/workflows/lint.yml)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/stanford-centaur/pono/blob/main/LICENSE)
 
 # Pono: A Flexible and Extensible SMT-Based Model Checker
@@ -24,7 +25,7 @@ generation of [CoSA](https://github.com/cristian-mattarei/CoSA) and thus was ori
 
 ## Setup
 
-* Run `./contrib/setup-smt-switch.sh` -- it will build smt-switch with Bitwuzla, cvc5, and the SMT-LIB reader
+* Run `./contrib/setup-smt-switch.sh` — it will build smt-switch with Bitwuzla, cvc5, and the SMT-LIB reader
   * Note: The SMT-LIB reader requires bison >=3.7 and flex >=2.6.4.
     * On Linux these can usually be obtained from the distribution using `apt`, `dnf`, `pacman`, or similar.
     * The command-line tools for XCode on macOS provide flex but the provided bison version is too old.
@@ -139,6 +140,13 @@ pytest ./tests
 ```
 
 ## Documentation
+
+Besides this file, the repository documents itself in:
+
+* [gotchas.md](./gotchas.md) — solver behaviors that can surprise you when writing Pono code.
+* [RELEASING.md](./RELEASING.md) — how the version is set and how to cut a release.
+* [CLAUDE.md](./CLAUDE.md) — orientation for AI coding agents working in this repository.
+* [AUTHORS](./AUTHORS) — the designers and contributors who hold Pono's copyright.
 
 To generate documentation from the C++ source files, install [Doxygen](https://www.doxygen.nl/index.html), configure with `./configure.sh --docs`, then build the `docs` target:
 

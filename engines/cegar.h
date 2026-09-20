@@ -24,8 +24,28 @@
 
 namespace pono {
 
+/** The hooks a CEGAR algorithm must provide. Declared in a virtually
+ *  inherited base so that stacked CEGAR layers, e.g.
+ *  CegarValues<CegProphecyArrays<IC3IA>>, share one declaration.
+ */
+class CegarInterface
+{
+ protected:
+  virtual ~CegarInterface() = default;
+
+  /** Abstract the transition system -- usually only performed once
+   *  (in initialize)
+   */
+  virtual void cegar_abstract() = 0;
+  /** Refine the abstracted transition system
+   *  Typically performed in a refinement loop
+   *  @return true iff it was successfully refined
+   */
+  virtual bool cegar_refine() = 0;
+};
+
 template <class Prover_T>
-class CEGAR : public Prover_T
+class CEGAR : public Prover_T, public virtual CegarInterface
 {
   typedef Prover_T super;
 
@@ -39,16 +59,6 @@ class CEGAR : public Prover_T
   }
 
  protected:
-  /** Abstract the transition system -- usually only performed once
-   *  (in initialize)
-   */
-  virtual void cegar_abstract() = 0;
-  /** Refine the abstracted transition system
-   *  Typically performed in a refinement loop
-   *  @return true iff it was successfully refined
-   */
-  virtual bool cegar_refine() = 0;
-
   /**
    * Override the `compute_witness` method in the prover class and make it a
    * no-op. Since provers operate on the abstracted transition system, the

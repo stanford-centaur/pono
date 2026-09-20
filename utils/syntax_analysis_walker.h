@@ -35,6 +35,7 @@ class Walker
   virtual void PostChild(const smt::Term & ast) = 0;
 
  public:
+  virtual ~Walker() = default;
   void WalkDFS(const smt::Term & ast);
   void WalkBFS(const smt::Term & ast);
 };  // Walker

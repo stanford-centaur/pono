@@ -51,6 +51,10 @@ if(PONO_STATIC_EXEC STREQUAL "YES")
   endif()
 endif()
 
+# Defines pono-warnings, the interface target holding the compiler warning
+# flags, which pono's own targets link against below.
+include("${PROJECT_SOURCE_DIR}/cmake/PonoWarnings.cmake")
+
 if(WITH_BOOLECTOR)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_BOOLECTOR")
 endif()
@@ -283,6 +287,8 @@ add_dependencies(pono-lib pono-version-header)
 
 target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
+target_link_libraries(pono-lib PRIVATE pono-warnings)
+
 # Should we build python bindings
 option(BUILD_PYTHON_BINDINGS "Build Python bindings")
 
@@ -337,18 +343,8 @@ if(WITH_PROFILING)
   target_link_libraries(pono-lib PUBLIC Gperftools::profiler)
 endif()
 
-enable_testing()
-# Add tests subdirectory
-# The CMakeLists.txt file there sets up googletest
-# and builds all the parametrized tests
-add_subdirectory(tests EXCLUDE_FROM_ALL)
-
 add_executable(pono-bin "${PROJECT_SOURCE_DIR}/pono.cpp")
 set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
-
-# test_version runs the executable itself, so `check` has to build it. Wired
-# up here because pono-bin does not exist yet while tests/ is processed.
-add_dependencies(check pono-bin)
 
 target_include_directories(
   pono-bin
@@ -359,6 +355,7 @@ target_include_directories(
 )
 
 target_link_libraries(pono-bin PUBLIC pono-lib)
+target_link_libraries(pono-bin PRIVATE pono-warnings)
 
 if("${PONO_STATIC_EXEC}" STREQUAL "YES")
   if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -369,6 +366,12 @@ if("${PONO_STATIC_EXEC}" STREQUAL "YES")
     target_link_libraries(pono-bin PUBLIC -static)
   endif()
 endif()
+
+enable_testing()
+# Add tests subdirectory
+# The CMakeLists.txt file there sets up googletest
+# and builds all the parametrized tests
+add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 # Documentation
 if(BUILD_DOCS)

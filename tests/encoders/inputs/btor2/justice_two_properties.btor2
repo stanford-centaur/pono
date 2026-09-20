@@ -1,0 +1,14 @@
+; Two justice properties that disagree, so which one gets checked is visible
+; in the result. j0 is violated by the lasso at mode=1, while j1 holds because
+; the sticky bit is clear only in the initial state.
+1 sort bitvec 1
+2 zero 1
+3 one 1
+4 state 1 mode
+5 next 1 4 4
+6 state 1 sticky
+7 init 1 6 2
+8 next 1 6 3
+9 not 1 6
+10 justice 1 4
+11 justice 1 9

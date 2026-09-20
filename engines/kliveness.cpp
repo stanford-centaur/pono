@@ -17,14 +17,20 @@
 
 #include "kliveness.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <map>
+#include <string>
 
+#include "core/prop.h"
+#include "core/ts.h"
 #include "engines/bmc.h"
 #include "modifiers/liveness_to_safety_translator.h"
 #include "modifiers/mod_ts_prop.h"
 #include "modifiers/static_coi.h"
 #include "smt/available_solvers.h"
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
 namespace pono {
@@ -36,7 +42,9 @@ KLiveness::KLiveness(const LivenessProperty & p,
     : super(p, ts, solver, opt)
 {
   if (justice_conditions_.size() > 1) {
-    throw PonoException("k-liveness only supports one justice condition.");
+    throw PonoException(
+        "k-liveness only supports one liveness condition, including fairness "
+        "constraints.");
   }
   // copied from pono.cpp
   if (opt.static_coi_) {
