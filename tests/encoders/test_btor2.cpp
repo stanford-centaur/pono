@@ -17,27 +17,47 @@ using namespace std;
 
 namespace pono_tests {
 
+/** @param name the input's name, without the extension they all share
+ *  @return the path to read it from
+ */
+string input_path(const string & name)
+{
+  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
+  return string(STRFY(PONO_SRC_DIR)) + "/tests/encoders/inputs/btor2/" + name
+         + ".btor2";
+}
+
 class Btor2UnitTests : public ::testing::Test,
                        public ::testing::WithParamInterface<SolverEnum>
 {
+ protected:
+  void SetUp() override
+  {
+    s = create_solver(GetParam());
+    s->set_opt("incremental", "true");
+  }
+
+  SmtSolver s;
 };
 
 class Btor2FileUnitTests
     : public ::testing::Test,
       public ::testing::WithParamInterface<tuple<SolverEnum, string>>
 {
+ protected:
+  void SetUp() override
+  {
+    s = create_solver(get<0>(GetParam()));
+    s->set_opt("incremental", "true");
+  }
+
+  SmtSolver s;
 };
 
 TEST_P(Btor2FileUnitTests, Encode)
 {
-  SmtSolver s = create_solver(get<0>(GetParam()));
   FunctionalTransitionSystem fts(s);
-  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/";
-  filename += get<1>(GetParam());
-  filename += ".btor2";
-  BTOR2Encoder be(filename, fts);
+  BTOR2Encoder be(input_path(get<1>(GetParam())), fts);
   // make sure that all inputs in bad and constraint have been promoted
   UnorderedTermSet free_vars;
   for (const auto & c : fts.constraints()) {
@@ -55,13 +75,8 @@ TEST_P(Btor2FileUnitTests, Encode)
 
 TEST_P(Btor2UnitTests, OverflowEncoding)
 {
-  SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
   FunctionalTransitionSystem fts(s);
-  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/mulo_test.btor2";
-  BTOR2Encoder be(filename, fts);
+  BTOR2Encoder be(input_path("mulo_test"), fts);
   EXPECT_EQ(be.propvec().size(), 1);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
   KInduction kind(p, fts, s);
@@ -72,13 +87,8 @@ TEST_P(Btor2UnitTests, OverflowEncoding)
 TEST_P(Btor2UnitTests, InputConstraints)
 {
   // test BTOR2 file with constraint containing input variables
-  SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
   FunctionalTransitionSystem fts(s);
-  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/mulo_test.btor2";
-  BTOR2Encoder be(filename, fts);
+  BTOR2Encoder be(input_path("mulo_test"), fts);
   EXPECT_EQ(be.propvec().size(), 1);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
@@ -90,13 +100,8 @@ TEST_P(Btor2UnitTests, VariablesKeepTheNamesFromTheFile)
 {
   // options that name a variable, such as --reset, look it up by the name the
   // file gave it rather than the one the encoder generates from the line
-  SmtSolver s = create_solver(GetParam());
   FunctionalTransitionSystem fts(s);
-  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/";
-  filename += "state2input.btor2";
-  BTOR2Encoder be(filename, fts);
+  BTOR2Encoder be(input_path("state2input"), fts);
   ASSERT_EQ(be.statesvec().size(), 2);
   ASSERT_EQ(be.inputsvec().size(), 1);
   EXPECT_EQ(fts.lookup("state2input"), be.statesvec()[0]);
@@ -107,13 +112,8 @@ TEST_P(Btor2UnitTests, VariablesKeepTheNamesFromTheFile)
 TEST_P(Btor2UnitTests, InputProp)
 {
   // test BTOR2 file with bad containing input variables
-  SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
   FunctionalTransitionSystem fts(s);
-  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/input_in_bad.btor2";
-  BTOR2Encoder be(filename, fts);
+  BTOR2Encoder be(input_path("input_in_bad"), fts);
   EXPECT_EQ(be.propvec().size(), 1);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
@@ -124,13 +124,8 @@ TEST_P(Btor2UnitTests, InputProp)
 TEST_P(Btor2UnitTests, InvalidSmtlibSymbol)
 {
   // test BTOR2 file with invalid SMT-LIB symbol
-  SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
   FunctionalTransitionSystem fts(s);
-  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/invalid_smtlib_symbol.btor2";
-  BTOR2Encoder be(filename, fts);
+  BTOR2Encoder be(input_path("invalid_smtlib_symbol"), fts);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
   ProverResult r = bmc.check_until(0);
@@ -140,13 +135,8 @@ TEST_P(Btor2UnitTests, InvalidSmtlibSymbol)
 TEST_P(Btor2UnitTests, InitStateWithBool)
 {
   // test BTOR2 file with bool init value
-  SmtSolver s = create_solver(GetParam());
-  s->set_opt("incremental", "true");
   FunctionalTransitionSystem fts(s);
-  // PONO_SRC_DIR is a macro set using CMake PROJECT_SRC_DIR
-  string filename = STRFY(PONO_SRC_DIR);
-  filename += "/tests/encoders/inputs/btor2/bool_init.btor2";
-  BTOR2Encoder be(filename, fts);
+  BTOR2Encoder be(input_path("bool_init"), fts);
   SafetyProperty p(fts.solver(), be.propvec()[0]);
   Bmc bmc(p, fts, s);
   ProverResult r = bmc.check_until(0);
