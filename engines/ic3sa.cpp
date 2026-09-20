@@ -73,8 +73,8 @@ IC3SA::IC3SA(const SafetyProperty & prop,
     : super(prop, RelationalTransitionSystem(solver), solver, opt, engine),
       conc_ts_(ts, to_prover_solver_),
       f_unroller_(conc_ts_, 0, "_AT"),  // zero means pure-functional unrolling
-      boolsort_(solver_->make_sort(BOOL)),
-      longest_unroll_(0)
+      longest_unroll_(0),
+      boolsort_(solver_->make_sort(BOOL))
 {
   // since we passed a fresh RelationalTransitionSystem as the main TS
   // need to point orig_ts_ to the right place

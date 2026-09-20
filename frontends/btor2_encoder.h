@@ -36,7 +36,7 @@ class BTOR2Encoder
 {
  public:
   BTOR2Encoder(std::string filename, TransitionSystem & ts)
-      : ts_(ts), solver_(ts.solver())
+      : solver_(ts.solver()), ts_(ts)
   {
     preprocess(filename);
     parse(filename);
