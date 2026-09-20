@@ -66,6 +66,37 @@ TEST_P(SVUnitTests, DisableIffLivenessFails)
   check_liveness_bmc("disable_iff_liveness_fails.sv", 12);
 }
 
+// weak() over the sequence shapes leading_condition() could not name
+// the start of. Each fixture is the same sequence as the base
+// written through a different operator, so the shared refutation
+// depth is the assertion: a wrong leading condition shifts it or
+// drops the refutation.
+TEST_P(SVUnitTests, WeakSequenceBase) { check_bmc("weak_seq_fails.sv", 1); }
+
+TEST_P(SVUnitTests, WeakSequenceIntersect)
+{
+  check_bmc("weak_seq_intersect.sv", 1);
+}
+
+TEST_P(SVUnitTests, WeakSequenceThroughout)
+{
+  check_bmc("weak_seq_throughout.sv", 1);
+}
+
+TEST_P(SVUnitTests, WeakSequenceWithin) { check_bmc("weak_seq_within.sv", 1); }
+
+TEST_P(SVUnitTests, WeakSequenceLeadingRepetition)
+{
+  check_bmc("weak_seq_repetition.sv", 1);
+}
+
+// The shapes weak_seq_bool() still cannot span reach the tableau,
+// where unwrapping used to hand them the strong obligation.
+TEST_P(SVUnitTests, WeakSequenceAndRejected)
+{
+  expect_encode_throws("weak_seq_and_unsupported.sv");
+}
+
 // ---------------------------------------------------------------------------
 // Bounded cycle ranges on the unary property operators
 // (`eventually [m:n]`, `s_always [m:n]`, `nexttime [k]`,

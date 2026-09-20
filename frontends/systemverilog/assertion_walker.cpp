@@ -489,9 +489,16 @@ smt::Term AssertionWalker::leading_condition(
     case AssertionExprKind::Simple: {
       auto & simple = seq.as<SimpleAssertionExpr>();
       if (simple.repetition) {
-        throw PonoException(
-            "SystemVerilogEncoder: weak()/strong() of a sequence with its "
-            "own leading repetition is not supported");
+        // A repetition that can match emptily lets the attempt begin
+        // without this expression holding at all, so the expression
+        // no longer marks the start; every other consecutive count
+        // needs its first iteration right here.
+        if (simple.repetition->kind != SequenceRepetition::Consecutive
+            || simple.repetition->range.min == 0) {
+          throw PonoException(
+              "SystemVerilogEncoder: weak()/strong() of a sequence whose "
+              "leading repetition can match emptily is not supported");
+        }
       }
       return expr_encoder_.expr_to_bool(simple.expr, prefix);
     }
@@ -505,6 +512,45 @@ smt::Term AssertionWalker::leading_condition(
     case AssertionExprKind::SequenceConcat:
       return leading_condition(
           *seq.as<SequenceConcatExpr>().elements[0].sequence, prefix);
+    case AssertionExprKind::Binary: {
+      // Which operand's start marks the whole sequence's start, read
+      // off the same spans offsets_ending_now() builds for these.
+      auto & b = seq.as<BinaryAssertionExpr>();
+      switch (b.op) {
+        case BinaryAssertionOperator::Intersect:
+        case BinaryAssertionOperator::And:
+          // Both operands start together (intersect also ends
+          // together, which does not change where it begins).
+          return solver_->make_term(And,
+                                    leading_condition(b.left, prefix),
+                                    leading_condition(b.right, prefix));
+        case BinaryAssertionOperator::Or:
+          return solver_->make_term(Or,
+                                    leading_condition(b.left, prefix),
+                                    leading_condition(b.right, prefix));
+        case BinaryAssertionOperator::Within:
+          // The span is the right operand's; the left may match
+          // anywhere inside it, including later.
+          return leading_condition(b.right, prefix);
+        case BinaryAssertionOperator::Throughout: {
+          // The span is the right operand's, and the left is a plain
+          // expression that must hold at every cycle of it, so it
+          // holds at the first one too.
+          Term expr_bool = assertion_expr_to_bool(b.left, prefix);
+          if (!expr_bool) {
+            throw PonoException(
+                "SystemVerilogEncoder: the left operand of `throughout` must "
+                "be a plain expression");
+          }
+          return solver_->make_term(
+              And, expr_bool, leading_condition(b.right, prefix));
+        }
+        default:
+          throw PonoException(
+              "SystemVerilogEncoder: weak()/strong() of this sequence "
+              "operator is not supported");
+      }
+    }
     default:
       throw PonoException(
           "SystemVerilogEncoder: weak()/strong() of this sequence shape is "
@@ -551,6 +597,18 @@ smt::Term AssertionWalker::try_strong_sequence(
 {
   Term me = match_exists(ae, prefix);
   if (!me) return Term();
+  if (in_weak_) {
+    // Reached while unwrapping a weak() (see ltl_to_sat()'s
+    // StrongWeak case). weak_seq_bool() is what models weak
+    // correctly, and it only spans the shapes offsets_ending_now()
+    // covers; getting here means it could not, so refuse rather than
+    // attach the obligation weak explicitly withholds.
+    throw PonoException(
+        "SystemVerilogEncoder: weak() of this sequence shape is not "
+        "supported -- it reduces to neither a bounded-span check nor a "
+        "qualifier-free expression: "
+        + current_assertion_label_);
+  }
   // strong(seq): a genuine liveness obligation -- the sequence must
   // eventually complete a match.
   return neg ? tableau_.make_G(solver_->make_term(Not, me), prefix)
@@ -578,10 +636,29 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       // (strong) or not (weak)? Any other shape (already a plain
       // Boolean/temporal expression) is unaffected by the qualifier
       // under this encoder's infinite-lasso semantics; just unwrap.
+      // Unwrapping is right for a shape the qualifier cannot affect
+      // (a plain Boolean or temporal expression), but any sequence
+      // reached while unwrapping a *weak* one would pick up the
+      // strong "must eventually complete" obligation from
+      // try_strong_sequence() -- the opposite of what weak means, and
+      // not necessarily at this node: in `weak(s1 and s2)` it is the
+      // operands that acquire it. So the qualifier rides down the
+      // recursion and try_strong_sequence() refuses under it.
+      struct WeakScope
+      {
+        bool & flag;
+        bool saved;
+        ~WeakScope() { flag = saved; }
+      } weak_scope{ in_weak_, in_weak_ };
+
       if (sw.strength == StrongWeakAssertionExpr::Strong) {
+        // An explicit strong() inside a weak() is strong again.
+        in_weak_ = false;
         if (Term strong = try_strong_sequence(sw.expr, neg, justice, prefix)) {
           return strong;
         }
+      } else {
+        in_weak_ = true;
       }
       return ltl_to_sat(sw.expr, neg, justice, prefix);
     }

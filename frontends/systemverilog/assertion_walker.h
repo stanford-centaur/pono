@@ -309,6 +309,10 @@ class AssertionWalker
   // never reads it: a temporal property's exemption is applied once,
   // to the whole negated property.
   smt::Term current_disable_cond_;
+  /** Set while ltl_to_sat() is unwrapping a weak() qualifier, so a
+   *  sequence found underneath refuses the strong completion
+   *  obligation instead of silently acquiring it. */
+  bool in_weak_ = false;
 
   // The (signal, edge) pair established by the first clocking event
   // seen anywhere in the design's properties (see check_clock()) --
