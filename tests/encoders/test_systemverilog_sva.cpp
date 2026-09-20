@@ -496,17 +496,12 @@ TEST_P(SVUnitTests, MixedEdgePropertyRejected)
 // come to their bounded twins, which is what each pair below checks
 // by sharing a refutation depth.
 //
-// `[*]` is the exception, though only on its own: an empty match is
-// reported alongside the offset vector rather than in it, so `[*0:$]`
-// composes in a concatenation like any other repetition. What stays
-// rejected is a sequence that matches emptily and is *all* there is
-// to an antecedent, which then has no cycle at which it ends.
+// `[*]` composes like any other repetition, since an empty match is
+// reported alongside the offset vector rather than in it. The one
+// shape that stays rejected -- a sequence that matches emptily and is
+// *all* there is to an antecedent -- is a deliberate non-goal and
+// lives in test_systemverilog_unsupported.cpp.
 // ---------------------------------------------------------------------------
-
-TEST_P(SVUnitTests, Gap_SequenceRepetitionStar)
-{
-  expect_encode_throws("unbounded_repeat_star.sv");
-}
 
 // A zero lower bound also matches emptily. The empty match absorbs a
 // cycle of the following delay, so it is not just "one iteration
@@ -525,6 +520,47 @@ TEST_P(SVUnitTests, EmptyRepetitionMatchFails)
 TEST_P(SVUnitTests, EmptyRepetitionUnbounded)
 {
   check_prover<KInduction>("empty_repeat_unbounded.sv", 16, ProverResult::TRUE);
+}
+
+// Where else an empty-admitting repetition can sit. Each fixture
+// states the completion condition worked out by hand and proves the
+// encoder never reports a match outside it; the two `Fails` twins
+// shift that condition a cycle late, which is the error an empty
+// match invites, so none of these can be holding vacuously.
+
+TEST_P(SVUnitTests, EmptyRepetitionTrailing)
+{
+  check_prover<KInduction>("star_trailing.sv", 18, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionTrailingFails)
+{
+  check_bmc("star_trailing_fails.sv", 4);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionMidSequence)
+{
+  check_prover<KInduction>("star_middle.sv", 18, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionMidSequenceFails)
+{
+  check_bmc("star_middle_fails.sv", 4);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionDelayRange)
+{
+  check_prover<KInduction>("star_delay_range.sv", 18, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionIntersectOperand)
+{
+  check_prover<KInduction>("star_intersect.sv", 18, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionFirstMatch)
+{
+  check_prover<KInduction>("star_first_match.sv", 18, ProverResult::TRUE);
 }
 
 TEST_P(SVUnitTests, SequenceRepetitionPlus)

@@ -174,6 +174,18 @@ TEST_P(SVUnitTests, DisplayCallStatementIgnored)
 // register.
 TEST_P(SVUnitTests, BareForever) { expect_encode_throws("bare_forever.sv"); }
 
+// `a[*]` matches emptily, and on its own that is the whole
+// antecedent. An empty match occupies no cycles, so there is no cycle
+// at which the antecedent ends and hands over to the consequent. The
+// only reading left is an obligation on every cycle, which the `a`
+// then plays no part in -- rewriting the property rather than
+// encoding it, so this throws. `[*]` composed with anything else is
+// supported and tested in test_systemverilog_sva.cpp.
+TEST_P(SVUnitTests, EmptyMatchingAntecedent)
+{
+  expect_encode_throws("unbounded_repeat_star.sv");
+}
+
 // `+incdir+`/`-y`-style tool directives in a `.f` list file are
 // rejected outright rather than silently treated as filenames --
 // parse_dot_f_file() only understands bare filenames and comments,
