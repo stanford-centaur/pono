@@ -177,8 +177,10 @@ const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs)
   }
 }
 
-std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
-                                         slang::ast::EvalContext & ctx)
+std::optional<LValueDesc> resolve_lvalue(
+    const slang::ast::Expression & lhs,
+    slang::ast::EvalContext & ctx,
+    const slang::ast::ElementSelectExpression ** array_elem)
 {
   using namespace slang::ast;
   switch (lhs.kind) {
@@ -204,15 +206,23 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
     }
     case ExpressionKind::ElementSelect: {
       auto & sel = lhs.as<ElementSelectExpression>();
-      // An unpacked-array element is not a bit range of its base, so
-      // LValueDesc cannot describe it. Decline, which routes the write
-      // to process_dynamic_element_assign() -- see the contract note in
-      // ast_helpers.h -- where it becomes a Store.
+      // An unpacked-array element is not a bit range of its base. A
+      // caller that can turn it into a Store says so by passing
+      // array_elem and gets the element as a synthetic base; one that
+      // cannot gets nullopt -- see the contract note in ast_helpers.h.
       if (sel.value().type->getCanonicalType().kind
           == SymbolKind::FixedSizeUnpackedArrayType) {
-        return std::nullopt;
+        if (!array_elem) return std::nullopt;
+        *array_elem = &sel;
+        uint64_t elem_w = lhs.type->getBitWidth();
+        if (elem_w == 0) {
+          throw PonoException(
+              "SystemVerilogEncoder: zero-width unpacked-array element "
+              "lvalue");
+        }
+        return LValueDesc{ nullptr, 0, elem_w - 1, elem_w };
       }
-      auto inner = resolve_lvalue(sel.value(), ctx);
+      auto inner = resolve_lvalue(sel.value(), ctx, array_elem);
       if (!inner) return std::nullopt;
       auto idx_cv = sel.selector().eval(ctx);
       if (!idx_cv.isInteger()) return std::nullopt;
@@ -247,7 +257,7 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
       // non-constant bound throws immediately instead of silently
       // dropping the write.
       auto & sel = lhs.as<RangeSelectExpression>();
-      auto inner = resolve_lvalue(sel.value(), ctx);
+      auto inner = resolve_lvalue(sel.value(), ctx, array_elem);
       if (!inner) return std::nullopt;
       auto & left_expr = sel.left();
       auto & right_expr = sel.right();
@@ -285,7 +295,7 @@ std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
             "SystemVerilogEncoder: unsupported member access lvalue on "
             + std::string(ma.member.name));
       }
-      auto inner = resolve_lvalue(ma.value(), ctx);
+      auto inner = resolve_lvalue(ma.value(), ctx, array_elem);
       if (!inner) return std::nullopt;
       auto & field = ma.member.as<FieldSymbol>();
       uint64_t w = field.getType().getBitWidth();

@@ -53,10 +53,19 @@ Term Tableau::make_history_chain(const Term & value,
                                  const Term & enable)
 {
   Sort sort = value->get_sort();
-  // Every backend rejects make_term(0, <Bool sort>), so a Bool-sorted
-  // chain has to reach for the Bool-literal constructor instead.
-  Term zero = sort->get_sort_kind() == BOOL ? solver_->make_term(false)
-                                            : solver_->make_term(0, sort);
+  // Every backend rejects make_term(0, <sort>) for anything but a
+  // bit-vector, so the other sorts a chain can carry build their zero
+  // their own way: the Bool literal, or -- for a `$past` of a whole
+  // unpacked array -- an array whose every element is zero.
+  Term zero;
+  switch (sort->get_sort_kind()) {
+    case BOOL: zero = solver_->make_term(false); break;
+    case ARRAY:
+      zero =
+          solver_->make_term(solver_->make_term(0, sort->get_elemsort()), sort);
+      break;
+    default: zero = solver_->make_term(0, sort); break;
+  }
   Term link = value;
   for (uint32_t i = 0; i < n; ++i) {
     Term latch = fts_.make_statevar(

@@ -74,6 +74,17 @@ smt::Term normalize_array_index(const smt::SmtSolver & solver,
 smt::Sort type_to_sort(const smt::SmtSolver & solver,
                        const slang::ast::Type & type);
 
+/** Throw unless `t` is bit-vector-sorted, naming `who` and the sort.
+ *
+ *  `get_sort()->get_width()` is the backend's bit-vector-size query,
+ *  so reaching it with an array- or Bool-sorted term aborts inside
+ *  cvc5/bitwuzla rather than raising a PonoException.  Anything about
+ *  to do width arithmetic on a term that could be an unpacked array --
+ *  the bit helpers below, and the operand preparation in
+ *  expr_encoder.cpp -- checks first.
+ */
+void require_bv(const smt::Term & t, const char * who);
+
 /** Extract bits [lo, hi] from `base`, or return `base` unchanged when
  *  [lo, hi] already covers its whole width. Returns a null Term if
  *  `base` is null.

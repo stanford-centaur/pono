@@ -270,6 +270,33 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       Term left = expr_to_term(binop.left(), prefix);
       Term right = expr_to_term(binop.right(), prefix);
 
+      // Comparing two whole arrays needs no width unification: SMT
+      // array equality is native. Anything else would, so it is
+      // rejected before the arithmetic below reaches for a width the
+      // sort does not have.
+      if (left->get_sort()->get_sort_kind() == ARRAY
+          || right->get_sort()->get_sort_kind() == ARRAY) {
+        if (left->get_sort() != right->get_sort()) {
+          throw PonoException(
+              "SystemVerilogEncoder: cannot combine an unpacked array with "
+              "an operand of a different shape");
+        }
+        switch (binop.op) {
+          case BinaryOperator::Equality:
+          case BinaryOperator::CaseEquality:
+            return solver_->make_term(Equal, left, right);
+          case BinaryOperator::Inequality:
+          case BinaryOperator::CaseInequality:
+            return solver_->make_term(Distinct, left, right);
+          default:
+            throw PonoException(
+                "SystemVerilogEncoder: only equality and inequality are "
+                "supported between whole unpacked arrays");
+        }
+      }
+      require_bv(left, "a binary operator's left operand");
+      require_bv(right, "a binary operator's right operand");
+
       // Both operands are signed iff the *whole* operation is signed
       // (SystemVerilog's usual arithmetic conversion rule: mixing a
       // signed operand with an unsigned one makes the whole operation
@@ -414,6 +441,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       }
 
       Term operand = expr_to_term(unop.operand(), prefix);
+      require_bv(operand, "a unary operator's operand");
       uint64_t result_width = expr.type->getBitWidth();
 
       Term result;
@@ -733,6 +761,21 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       }
       Term then_val = expr_to_term(ternary.left(), prefix);
       Term else_val = expr_to_term(ternary.right(), prefix);
+
+      // Choosing between two whole unpacked arrays is an Ite on the
+      // array terms themselves; the width matching below would ask an
+      // array sort for its bit width and abort inside the backend.
+      if (then_val->get_sort()->get_sort_kind() == ARRAY
+          || else_val->get_sort()->get_sort_kind() == ARRAY) {
+        if (then_val->get_sort() != else_val->get_sort()) {
+          throw PonoException(
+              "SystemVerilogEncoder: a conditional expression's branches have "
+              "mismatched array sorts ("
+              + then_val->get_sort()->to_string() + " vs "
+              + else_val->get_sort()->to_string() + ")");
+        }
+        return solver_->make_term(Ite, bool_cond, then_val, else_val);
+      }
 
       // Ensure then/else have the same width, sign-extending rather
       // than zero-extending a narrower signed branch (see BinaryOp's

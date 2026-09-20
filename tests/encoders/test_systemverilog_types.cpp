@@ -59,6 +59,22 @@ TEST_P(SVUnitTests, UnpackedArrayReset)
   check_prover<KInduction>("unpacked_array_reset.sv", 12, ProverResult::TRUE);
 }
 
+// A bit select, a part select and a packed-struct field write, each
+// inside one array element. Proving the read-back is what rules out
+// the write having been dropped, which for an array would leave it
+// free rather than merely stale.
+TEST_P(SVUnitTests, UnpackedArraySubelementWrite)
+{
+  check_prover<KInduction>(
+      "unpacked_array_subelement.sv", 12, ProverResult::TRUE);
+}
+
+// Ite over two array terms, which has no bit width to match.
+TEST_P(SVUnitTests, UnpackedArraySelect)
+{
+  check_prover<KInduction>("unpacked_array_select.sv", 12, ProverResult::TRUE);
+}
+
 TEST_P(SVUnitTests, UnpackedArrayPortRejected)
 {
   expect_encode_throws("unpacked_array_port.sv");
@@ -67,6 +83,28 @@ TEST_P(SVUnitTests, UnpackedArrayPortRejected)
 TEST_P(SVUnitTests, UnpackedArrayMultiDimRejected)
 {
   expect_encode_throws("unpacked_array_2d.sv");
+}
+
+// Only clocked array writes are modelled. Dropping a combinational one
+// would leave the array unconstrained, which reads as any value at all
+// -- the failure would look like a counterexample rather than a gap.
+TEST_P(SVUnitTests, UnpackedArrayCombWriteRejected)
+{
+  expect_encode_throws("unpacked_array_comb.sv");
+}
+
+// Assigning, copying and comparing whole arrays, none of which needs
+// the array taken apart -- SMT arrays support all three natively.
+TEST_P(SVUnitTests, UnpackedArrayWholeOps)
+{
+  // The pinned bitwuzla warns "equality over constant arrays not
+  // fully supported yet" and gives up when a whole-array comparison
+  // meets the constant array the reset assigns; cvc5 proves it. Drop
+  // the special case once bitwuzla is updated.
+  ProverResult expected = GetParam() == smt::SolverEnum::BZLA
+                              ? ProverResult::UNKNOWN
+                              : ProverResult::TRUE;
+  check_prover<KInduction>("unpacked_array_whole_ops.sv", 12, expected);
 }
 
 // ---------------------------------------------------------------------------

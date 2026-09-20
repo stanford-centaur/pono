@@ -21,25 +21,6 @@ namespace pono {
 
 namespace {
 
-/** Reject a non-BV term before its width is asked for.
- *
- *  Every helper below is bit arithmetic, and reaches for
- *  `get_sort()->get_width()` on its first line.  That accessor is the
- *  backend's bit-vector-size query, so handing it an array- or
- *  Bool-sorted term aborts inside cvc5/bitwuzla rather than raising a
- *  PonoException -- an unattributable crash instead of this encoder's
- *  usual clean rejection.  Check first, and say which helper and which
- *  sort.
- */
-void require_bv(const Term & t, const char * who)
-{
-  if (t->get_sort()->get_sort_kind() != BV) {
-    throw PonoException("SystemVerilogEncoder: " + std::string(who)
-                        + " expects a bit-vector, got sort "
-                        + t->get_sort()->to_string());
-  }
-}
-
 /** Narrowest index width that can address `depth` elements. */
 uint64_t index_width_for_depth(uint64_t depth)
 {
@@ -49,6 +30,15 @@ uint64_t index_width_for_depth(uint64_t depth)
 }
 
 }  // namespace
+
+void require_bv(const Term & t, const char * who)
+{
+  if (t->get_sort()->get_sort_kind() != BV) {
+    throw PonoException("SystemVerilogEncoder: " + std::string(who)
+                        + " expects a bit-vector, got sort "
+                        + t->get_sort()->to_string());
+  }
+}
 
 UnpackedArrayInfo unpacked_array_info(
     const SmtSolver & solver,
@@ -60,10 +50,13 @@ UnpackedArrayInfo unpacked_array_info(
         "not supported");
   }
   if (!arr.elementType.isIntegral()) {
+    // A packed struct or union element is integral and so does pass:
+    // what this rules out is a further unpacked dimension, or an
+    // unpacked struct/union element.
     throw PonoException(
         "SystemVerilogEncoder: only unpacked arrays of an integral element "
-        "type are supported (no multi-dimensional arrays or arrays of "
-        "structs)");
+        "type are supported, so not '"
+        + std::string(arr.elementType.toString()) + "'");
   }
 
   uint64_t depth = arr.range.fullWidth();

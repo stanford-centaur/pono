@@ -76,33 +76,21 @@ void StatementEncoder::process_dynamic_element_assign(
       (sel.value().kind == ExpressionKind::NamedValue)
           ? sel.value().as<NamedValueExpression>().symbol
           : sel.value().as<HierarchicalValueExpression>().symbol);
-  // An unpacked array reaches here for *any* element write, constant
-  // index included, because its element is not a bit range of the base
-  // and so resolve_lvalue() declines it (see ast_helpers.h).
-  bool is_array = sel.value().type->getCanonicalType().kind
-                  == SymbolKind::FixedSizeUnpackedArrayType;
   bool aliased = symbol_table_.port_output_aliases().count(sym) > 0;
-  if (!is_array) {
-    // Skipped for an array: this is all bit-range arithmetic, and
-    // getBitWidth() is 0 for one, so `sym_w - 1` would wrap to
-    // UINT64_MAX. Declaration already rejects an aliased array, so
-    // there is nothing here for an array to resolve anyway.
-    uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
-    auto pieces = symbol_table_.resolve_output_alias_pieces(sym, 0, sym_w - 1);
-    uint64_t piece_w =
-        pieces.empty()
-            ? 0
-            : pieces[0].sym->as<ValueSymbol>().getType().getBitWidth();
-    if (pieces.size() != 1 || pieces[0].target_lo != 0
-        || pieces[0].target_hi + 1 != piece_w) {
-      // Dynamic-index writes into a bus-element alias (e.g. one
-      // element of an instance array wired to a slice of a parent
-      // bus) or a concatenation-target alias aren't supported; leave
-      // unconstrained rather than risk a wrong encoding.
-      return;
-    }
-    sym = pieces[0].sym;
+  uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
+  auto pieces = symbol_table_.resolve_output_alias_pieces(sym, 0, sym_w - 1);
+  uint64_t piece_w =
+      pieces.empty() ? 0
+                     : pieces[0].sym->as<ValueSymbol>().getType().getBitWidth();
+  if (pieces.size() != 1 || pieces[0].target_lo != 0
+      || pieces[0].target_hi + 1 != piece_w) {
+    // Dynamic-index writes into a bus-element alias (e.g. one
+    // element of an instance array wired to a slice of a parent
+    // bus) or a concatenation-target alias aren't supported; leave
+    // unconstrained rather than risk a wrong encoding.
+    return;
   }
+  sym = pieces[0].sym;
 
   uint64_t elem_w = sel.type->getBitWidth();
   if (elem_w == 0) elem_w = 1;
@@ -138,16 +126,7 @@ void StatementEncoder::process_dynamic_element_assign(
   Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix);
   Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
   rhs = resize_to(solver_, rhs, elem_w, sel.type->isSigned());
-  Term combined;
-  if (is_array) {
-    UnpackedArrayInfo info = unpacked_array_info(
-        solver_,
-        sel.value().type->getCanonicalType().as<FixedSizeUnpackedArrayType>());
-    combined = solver_->make_term(
-        Store, prev_base, normalize_array_index(solver_, idx, info), rhs);
-  } else {
-    combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
-  }
+  Term combined = replace_bits_dynamic(solver_, prev_base, rhs, idx, elem_w);
 
   if (wire_comb) {
     if (aliased) symbol_table_.pending_comb_aliased().insert(sym);
@@ -163,6 +142,100 @@ void StatementEncoder::process_dynamic_element_assign(
       (condition == solver_->make_term(true))
           ? combined
           : solver_->make_term(Ite, condition, combined, prev_base);
+}
+
+bool StatementEncoder::process_array_element_assign(
+    const slang::ast::Expression & lhs_expr,
+    const slang::ast::Expression & rhs_expr,
+    StmtContext ctx,
+    const Term & condition,
+    const string & prefix)
+{
+  using namespace slang::ast;
+
+  // Check the base symbol first: resolve_lvalue() throws on shapes
+  // begin_write() handles itself (a concatenation target, say), so it
+  // may only be consulted once the target is known to be an array.
+  const Symbol * base = find_lhs_base(lhs_expr);
+  if (!base) return false;
+  auto * base_value = base->as_if<ValueSymbol>();
+  if (!base_value
+      || base_value->getType().getCanonicalType().kind
+             != SymbolKind::FixedSizeUnpackedArrayType) {
+    return false;
+  }
+
+  // resolve_lvalue() reports the element select it bottomed out at and
+  // describes the written range *within* that element, so a plain
+  // `mem[i]` and a narrower `mem[i][3:0]` / `mem[i].f` / `mem[i][2]`
+  // all arrive here the same way.
+  const ElementSelectExpression * elem_sel = nullptr;
+  auto desc = resolve_lvalue(lhs_expr, expr_encoder_.eval_ctx(), &elem_sel);
+  if (!elem_sel) return false;
+
+  const Expression & base_expr = elem_sel->value();
+  if (base_expr.kind != ExpressionKind::NamedValue
+      && base_expr.kind != ExpressionKind::HierarchicalValue) {
+    throw PonoException(
+        "SystemVerilogEncoder: an unpacked-array element write must select on "
+        "a declared array directly");
+  }
+  const Symbol * sym = &canonicalize_modport_port(
+      (base_expr.kind == ExpressionKind::NamedValue)
+          ? base_expr.as<NamedValueExpression>().symbol
+          : base_expr.as<HierarchicalValueExpression>().symbol);
+
+  if (!desc) {
+    // The only shape resolve_lvalue() declines without throwing is a
+    // runtime-variable bit position above the element (`mem[i][j]`).
+    throw PonoException(
+        "SystemVerilogEncoder: writing a runtime-variable bit position inside "
+        "an unpacked-array element ('"
+        + string(sym->name) + "') is not supported");
+  }
+  if (ctx != StmtContext::NEXT_STATE) {
+    // An array left unconstrained reads as any value at all, so a
+    // dropped write here would surface as a counterexample rather
+    // than as a gap.
+    throw PonoException(
+        "SystemVerilogEncoder: writing an unpacked-array element outside a "
+        "clocked block (always_ff) is not supported ('"
+        + string(sym->name) + "')");
+  }
+  auto sit = symbol_table_.symbol_to_term().find(sym);
+  if (sit == symbol_table_.symbol_to_term().end()) {
+    throw PonoException("SystemVerilogEncoder: write to unpacked array '"
+                        + string(sym->name) + "' has no declared term");
+  }
+  Term state_term = sit->second;
+  auto pit = symbol_table_.pending_next_updates().find(state_term);
+  Term prev_base = (pit != symbol_table_.pending_next_updates().end())
+                       ? pit->second
+                       : state_term;
+
+  UnpackedArrayInfo info = unpacked_array_info(
+      solver_,
+      base_expr.type->getCanonicalType().as<FixedSizeUnpackedArrayType>());
+  Term idx = normalize_array_index(
+      solver_, expr_encoder_.expr_to_term(elem_sel->selector(), prefix), info);
+
+  uint64_t range_w = desc->hi - desc->lo + 1;
+  Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
+  rhs = resize_to(solver_, rhs, range_w, rhs_expr.type->isSigned());
+  Term new_elem = (range_w == desc->base_w)
+                      ? rhs
+                      : replace_bits(solver_,
+                                     solver_->make_term(Select, prev_base, idx),
+                                     rhs,
+                                     desc->lo,
+                                     desc->hi);
+
+  Term combined = solver_->make_term(Store, prev_base, idx, new_elem);
+  symbol_table_.pending_next_updates()[state_term] =
+      (condition == solver_->make_term(true))
+          ? combined
+          : solver_->make_term(Ite, condition, combined, prev_base);
+  return true;
 }
 
 bool StatementEncoder::process_whole_array_assign(
@@ -195,39 +268,45 @@ bool StatementEncoder::process_whole_array_assign(
   if (sit == symbol_table_.symbol_to_term().end()) return false;
   Term state_term = sit->second;
 
-  // Only a compile-time-constant whole-array value: an array-valued
-  // *expression* (`mem1 <= mem2`) would need the element-by-element
-  // copy this encoder has no way to express in one term.
+  Term combined;
   auto cv = rhs_expr.eval(expr_encoder_.eval_ctx());
-  if (!cv.isUnpacked()) {
-    throw PonoException(
-        "SystemVerilogEncoder: whole-array assignment to '"
-        + string(sym->name)
-        + "' is only supported from a constant pattern (e.g. '0 or "
-          "'{default: 0})");
-  }
+  if (cv.isUnpacked()) {
+    UnpackedArrayInfo info =
+        unpacked_array_info(solver_, lhs_type.as<FixedSizeUnpackedArrayType>());
+    auto elements = cv.elements();
 
-  UnpackedArrayInfo info =
-      unpacked_array_info(solver_, lhs_type.as<FixedSizeUnpackedArrayType>());
-  auto elements = cv.elements();
-
-  // Fill with the first element, then Store only the ones that differ
-  // -- a uniform pattern (the common case) stays a single const array.
-  auto element_term = [&](const slang::ConstantValue & v) {
-    auto svint = v.integer();
-    svint.setSigned(false);
-    return solver_->make_term(
-        svint.toString(slang::LiteralBase::Decimal, /*includeBase=*/false),
-        info.element_sort,
-        10);
-  };
-  Term combined =
-      solver_->make_term(element_term(elements[0]), state_term->get_sort());
-  for (size_t i = 1; i < elements.size(); ++i) {
-    if (elements[i] == elements[0]) continue;
-    Term idx = solver_->make_term(i, solver_->make_sort(BV, info.index_width));
+    // Fill with the first element, then Store only the ones that
+    // differ -- a uniform pattern (the common case) stays a single
+    // constant array.
+    auto element_term = [&](const slang::ConstantValue & v) {
+      auto svint = v.integer();
+      svint.setSigned(false);
+      return solver_->make_term(
+          svint.toString(slang::LiteralBase::Decimal, /*includeBase=*/false),
+          info.element_sort,
+          10);
+    };
     combined =
-        solver_->make_term(Store, combined, idx, element_term(elements[i]));
+        solver_->make_term(element_term(elements[0]), state_term->get_sort());
+    for (size_t i = 1; i < elements.size(); ++i) {
+      if (elements[i] == elements[0]) continue;
+      Term idx =
+          solver_->make_term(i, solver_->make_sort(BV, info.index_width));
+      combined =
+          solver_->make_term(Store, combined, idx, element_term(elements[i]));
+    }
+  } else {
+    // Not constant, so it has to be another array of the same shape
+    // (`b <= a`): copying one array term into another needs no
+    // element-by-element expansion.
+    combined = expr_encoder_.expr_to_term(rhs_expr, prefix);
+    if (combined->get_sort() != state_term->get_sort()) {
+      throw PonoException(
+          "SystemVerilogEncoder: whole-array assignment to '"
+          + string(sym->name)
+          + "' needs either a constant pattern or an array of the same "
+            "shape");
+    }
   }
 
   auto pit = symbol_table_.pending_next_updates().find(state_term);
@@ -577,6 +656,12 @@ void StatementEncoder::process_statement(
                 lhs_expr, rhs_expr, ctx, condition, prefix)) {
           break;
         }
+        // Likewise for an unpacked-array element, or a bit range
+        // inside one: a Store, never a commit_write().
+        if (process_array_element_assign(
+                lhs_expr, rhs_expr, ctx, condition, prefix)) {
+          break;
+        }
 
         auto writes = begin_write(lhs_expr);
         if (writes.empty()) {
@@ -628,6 +713,15 @@ void StatementEncoder::process_statement(
             || unop.op == UnaryOperator::Postdecrement) {
           auto writes = begin_write(unop.operand());
           if (writes.empty()) {
+            const Symbol * base = find_lhs_base(unop.operand());
+            auto * base_value = base ? base->as_if<ValueSymbol>() : nullptr;
+            if (base_value
+                && base_value->getType().getCanonicalType().kind
+                       == SymbolKind::FixedSizeUnpackedArrayType) {
+              throw PonoException(
+                  "SystemVerilogEncoder: '++'/'--' on an unpacked-array "
+                  "element is not supported");
+            }
             logger.log(1,
                        "SystemVerilogEncoder: skipping unsupported ++/-- "
                        "operand shape");

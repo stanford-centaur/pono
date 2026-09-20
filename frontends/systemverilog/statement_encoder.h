@@ -113,6 +113,23 @@ class StatementEncoder
       const smt::Term & condition,
       const std::string & prefix);
 
+  /** Handle an assignment whose target is one element of an unpacked
+   *  array, or a bit range inside one (`mem[i] <= v`, `mem[i][3:0] <=
+   *  v`, `mem[i].f <= v`).  An element is not a bit range of its base,
+   *  so none of these can go through commit_write(); each becomes a
+   *  Store, over a Select-and-splice when the write is narrower than
+   *  the element.
+   *
+   *  Returns false if `lhs_expr` does not name an unpacked-array
+   *  element at all.  Any element write it cannot model throws:
+   *  leaving an array unconstrained would read as an arbitrary value
+   *  rather than as a missing feature. */
+  bool process_array_element_assign(const slang::ast::Expression & lhs_expr,
+                                    const slang::ast::Expression & rhs_expr,
+                                    StmtContext ctx,
+                                    const smt::Term & condition,
+                                    const std::string & prefix);
+
   /** Handle an assignment whose target is a whole unpacked array
    *  (`mem <= '0`), which is neither a bit range nor an element and so
    *  cannot go through resolve_lvalue()/LValueDesc.

@@ -31,6 +31,7 @@
 
 namespace slang::ast {
 class Scope;
+class ElementSelectExpression;
 }  // namespace slang::ast
 
 namespace pono {
@@ -130,8 +131,19 @@ struct LValueDesc
 // propagates as nullopt through `inner`, since the top-level caller's
 // ElementSelect-shaped fallback only ever re-dispatches on the
 // outermost expression.
-std::optional<LValueDesc> resolve_lvalue(const slang::ast::Expression & lhs,
-                                         slang::ast::EvalContext & ctx);
+//
+// An element of an *unpacked* array is not a bit range of its base, so
+// LValueDesc cannot name it and a caller that passes no `array_elem`
+// gets nullopt. Passing one instead makes that element a synthetic
+// base: `*array_elem` is set to the select naming it, `base` comes
+// back nullptr, and `lo`/`hi`/`base_w` describe the written range
+// *within the element*, so the MemberAccess/RangeSelect/ElementSelect
+// layers above it (`mem[i].f`, `mem[i][3:0]`, `mem[i][j]`) compose
+// their offsets exactly as they do over a real symbol.
+std::optional<LValueDesc> resolve_lvalue(
+    const slang::ast::Expression & lhs,
+    slang::ast::EvalContext & ctx,
+    const slang::ast::ElementSelectExpression ** array_elem = nullptr);
 
 // Internal control-flow signal for `break`/`continue`/`disable`,
 // thrown by process_statement()'s Break/Continue/Disable cases and
