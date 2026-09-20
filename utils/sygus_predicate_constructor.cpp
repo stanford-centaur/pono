@@ -42,9 +42,9 @@ PredConstructor::PredConstructor(
     // VarTermManager & var_term_extractor
     // setup_cex_info will be in pdr class
     )
-    : to_next_(to_next_func),
-      solver_(solver),
+    : solver_(solver),
       cex_(cex),
+      to_next_(to_next_func),
       per_cex_info_(per_cex_info),
       zero(solver_->make_term(0, solver_->make_sort(smt::SortKind::BV, 1))),
       one(solver->make_term(1, solver_->make_sort(smt::SortKind::BV, 1)))

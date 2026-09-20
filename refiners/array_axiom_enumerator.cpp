@@ -46,7 +46,7 @@ string to_string(AxiomClass ac)
 
 ArrayFinder::ArrayFinder(ArrayAxiomEnumerator & aae)
     // do clear the cache -- if called again, want to add
-    : aae_(aae), super(aae.solver_, true)
+    : super(aae.solver_, true), aae_(aae)
 {
 }
 
