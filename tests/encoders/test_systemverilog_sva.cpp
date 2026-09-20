@@ -1,3 +1,4 @@
+#include "engines/kinduction.h"
 #include "sv_test_fixture.h"
 
 using namespace pono;
@@ -495,14 +496,35 @@ TEST_P(SVUnitTests, MixedEdgePropertyRejected)
 // come to their bounded twins, which is what each pair below checks
 // by sharing a refutation depth.
 //
-// `[*]` is the exception: it can match nothing at all, and an offset
-// vector says how many cycles ago an attempt started, so it has no
-// entry for one that took no cycles.
+// `[*]` is the exception, though only on its own: an empty match is
+// reported alongside the offset vector rather than in it, so `[*0:$]`
+// composes in a concatenation like any other repetition. What stays
+// rejected is a sequence that matches emptily and is *all* there is
+// to an antecedent, which then has no cycle at which it ends.
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, Gap_SequenceRepetitionStar)
 {
   expect_encode_throws("unbounded_repeat_star.sv");
+}
+
+// A zero lower bound also matches emptily. The empty match absorbs a
+// cycle of the following delay, so it is not just "one iteration
+// fewer".
+
+TEST_P(SVUnitTests, EmptyRepetitionMatch)
+{
+  check_prover<KInduction>("empty_repeat_match.sv", 16, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionMatchFails)
+{
+  check_bmc("empty_repeat_match_fails.sv", 2);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionUnbounded)
+{
+  check_prover<KInduction>("empty_repeat_unbounded.sv", 16, ProverResult::TRUE);
 }
 
 TEST_P(SVUnitTests, SequenceRepetitionPlus)

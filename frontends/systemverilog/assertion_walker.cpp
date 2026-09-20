@@ -236,8 +236,9 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       return;
     }
     throw PonoException(string("SystemVerilogEncoder: ") + what
-                        + " can match emptily, which this sequence "
-                          "position does not model");
+                        + " can match emptily, and an empty match occupies "
+                          "no cycles, so there is no cycle at which this "
+                          "position could say it completed");
   };
 
   // A single Boolean expression, optionally with a consecutive
@@ -257,17 +258,12 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       return {};
     }
     uint32_t lo = repetition->range.min;
-    if (lo == 0 && repetition->range.max) {
-      // `[*0:n]`'s empty alternative, which has no slot below.
+    if (lo == 0) {
+      // The empty alternative, which has no slot below. Reporting it
+      // separately leaves exactly `[*1:hi]` behind, so `[*0:$]` needs
+      // nothing beyond what `[*1:$]` already does.
       report_empty("a consecutive repetition with a zero lower bound");
-    }
-    if (!repetition->range.max && lo == 0) {
-      // `[*]` can match nothing at all, and an offset vector says
-      // how many cycles ago an attempt started -- it has no entry
-      // for one that took no cycles.
-      throw PonoException(
-          "SystemVerilogEncoder: a consecutive repetition that can match "
-          "emptily and has no upper bound ([*] / [*0:$]) is not supported");
+      lo = 1;
     }
     // A run of at least `lo` ending now ends with a run of exactly
     // `lo`, and where the run began changes nothing about whether it
@@ -351,7 +347,7 @@ smt::TermVec AssertionWalker::offsets_ending_now(
         return boolean_with_repetition(swm.expr.as<SimpleAssertionExpr>().expr,
                                        swm.repetition);
       }
-      return offsets_ending_now(swm.expr, prefix);
+      return offsets_ending_now(swm.expr, prefix, admits_empty);
     }
 
     case AssertionExprKind::FirstMatch:
@@ -360,7 +356,8 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       // whether a match exists at all, which is all this encoder's
       // callers (an implication antecedent, an intersect/within/
       // throughout operand) ever ask offsets_ending_now() for.
-      return offsets_ending_now(seq.as<FirstMatchAssertionExpr>().seq, prefix);
+      return offsets_ending_now(
+          seq.as<FirstMatchAssertionExpr>().seq, prefix, admits_empty);
 
     case AssertionExprKind::Clocking: {
       // check_clock() throws if a nested clocking change inside a
@@ -368,12 +365,30 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       // first one -- see this file's multiclock design decision.
       auto & clk_expr = seq.as<ClockingAssertionExpr>();
       check_clock(clk_expr.clocking);
-      return offsets_ending_now(clk_expr.expr, prefix);
+      return offsets_ending_now(clk_expr.expr, prefix, admits_empty);
     }
 
     case AssertionExprKind::SequenceConcat: {
       auto & sc = seq.as<SequenceConcatExpr>();
       TermVec acc;
+      // Whether everything accumulated so far also matches emptily.
+      // An empty match imposes no condition, so there is nothing to
+      // store beyond the fact that it is available.
+      bool acc_empty = false;
+
+      // ORs `t` into `v` at index `idx`, growing `v` to fit. The
+      // empty-match cases below land at smaller indices than the
+      // plain ones, so the reachable width is easier to discover this
+      // way than to compute up front.
+      auto emit = [&](TermVec & v, size_t idx, const Term & t) {
+        if (idx >= MAX_SEQ_WINDOW) {
+          throw PonoException("SystemVerilogEncoder: sequence window exceeds "
+                              + std::to_string(MAX_SEQ_WINDOW) + " cycles");
+        }
+        if (idx >= v.size()) v.resize(idx + 1, Term());
+        v[idx] = v[idx] ? solver_->make_term(Or, v[idx], t) : t;
+      };
+
       for (size_t i = 0; i < sc.elements.size(); ++i) {
         auto & elem = sc.elements[i];
         if (!elem.delay.max) {
@@ -383,43 +398,52 @@ smt::TermVec AssertionWalker::offsets_ending_now(
         }
         uint32_t dmin = elem.delay.min;
         uint32_t dmax = *elem.delay.max;
-        TermVec elem_offsets = offsets_ending_now(*elem.sequence, prefix);
-        if (elem_offsets.empty()) return {};
+        bool elem_empty = false;
+        TermVec elem_offsets =
+            offsets_ending_now(*elem.sequence, prefix, &elem_empty);
+        // No offsets *and* no empty match is an unmodeled shape; no
+        // offsets with one is `b[*0]`, which matches only emptily.
+        if (elem_offsets.empty() && !elem_empty) return {};
 
         if (i == 0) {
           // The delay before the very first element just relabels how
           // far back "the sequence's start" is, with no extra
           // condition to AND in.
-          size_t new_size = elem_offsets.size() - 1 + dmax + 1;
-          if (new_size > MAX_SEQ_WINDOW) {
-            throw PonoException("SystemVerilogEncoder: sequence window exceeds "
-                                + std::to_string(MAX_SEQ_WINDOW) + " cycles");
-          }
-          acc.assign(new_size, Term());
           for (size_t l = 0; l < elem_offsets.size(); ++l) {
             if (!elem_offsets[l]) continue;
             for (uint32_t d = dmin; d <= dmax; ++d) {
-              size_t idx = l + d;
-              acc[idx] = acc[idx]
-                             ? solver_->make_term(Or, acc[idx], elem_offsets[l])
-                             : elem_offsets[l];
+              emit(acc, l + d, elem_offsets[l]);
+            }
+          }
+          if (elem_empty) {
+            // A leading delay is genuinely `d` cycles of run-up, so
+            // an empty first element leaves just those cycles -- and
+            // with no delay either, nothing at all.
+            for (uint32_t d = dmin; d <= dmax; ++d) {
+              if (d == 0) {
+                acc_empty = true;
+              } else {
+                emit(acc, d - 1, solver_->make_term(true));
+              }
             }
           }
           continue;
         }
 
-        size_t new_size = acc.size() - 1 + dmax + (elem_offsets.size() - 1) + 1;
-        if (new_size > MAX_SEQ_WINDOW) {
-          throw PonoException("SystemVerilogEncoder: sequence window exceeds "
-                              + std::to_string(MAX_SEQ_WINDOW) + " cycles");
-        }
-        TermVec new_acc(new_size, Term());
-        for (size_t lp = 0; lp < acc.size(); ++lp) {
-          if (!acc[lp]) continue;
-          for (uint32_t d = dmin; d <= dmax; ++d) {
+        TermVec new_acc;
+        bool new_acc_empty = false;
+        for (uint32_t d = dmin; d <= dmax; ++d) {
+          // An inter-element delay counts from the prefix's last
+          // cycle, so with no such cycle the LRM spends one less of
+          // it: `(empty ##n s)` is `##(n-1) s`, and `(s ##n empty)`
+          // is `s ##(n-1) 1`. Both collapse to `d - 1` run-up
+          // cycles, or none at all when the delay is already zero.
+          uint32_t dd = d == 0 ? 0 : d - 1;
+
+          for (size_t lp = 0; lp < acc.size(); ++lp) {
+            if (!acc[lp]) continue;
             for (size_t le = 0; le < elem_offsets.size(); ++le) {
               if (!elem_offsets[le]) continue;
-              size_t idx = lp + d + le;
               // Bring the (already-anchored-at-"now") prefix condition
               // back by (d + le) cycles so it aligns with this
               // element's own occurrence, then AND with this
@@ -428,15 +452,43 @@ smt::TermVec AssertionWalker::offsets_ending_now(
                   (d + le == 0)
                       ? acc[lp]
                       : tableau_.make_history_chain(acc[lp], d + le, prefix);
-              Term combined =
-                  solver_->make_term(And, shifted_prefix, elem_offsets[le]);
-              new_acc[idx] =
-                  new_acc[idx] ? solver_->make_term(Or, new_acc[idx], combined)
-                               : combined;
+              emit(new_acc,
+                   lp + d + le,
+                   solver_->make_term(And, shifted_prefix, elem_offsets[le]));
+            }
+            if (elem_empty) {
+              // The match ends where the prefix did, plus whatever
+              // run-up cycles the delay still spends after it.
+              Term shifted_prefix =
+                  dd == 0 ? acc[lp]
+                          : tableau_.make_history_chain(acc[lp], dd, prefix);
+              emit(new_acc, lp + dd, shifted_prefix);
+            }
+          }
+
+          if (acc_empty) {
+            for (size_t le = 0; le < elem_offsets.size(); ++le) {
+              if (!elem_offsets[le]) continue;
+              // Nothing precedes this element, so it carries the
+              // match on its own.
+              emit(new_acc, dd + le, elem_offsets[le]);
+            }
+            if (elem_empty) {
+              // Both sides empty: only the run-up cycles remain.
+              if (dd == 0) {
+                new_acc_empty = true;
+              } else {
+                emit(new_acc, dd - 1, solver_->make_term(true));
+              }
             }
           }
         }
         acc = std::move(new_acc);
+        acc_empty = new_acc_empty;
+      }
+
+      if (acc_empty) {
+        report_empty("this sequence concatenation");
       }
       return acc;
     }
