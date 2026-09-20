@@ -227,6 +227,11 @@ std::string generated_name(const std::string & role, const std::string & origin)
   return generated_prefix + role + "_" + origin;
 }
 
+std::string generated_next_name(const std::string & origin)
+{
+  return generated_name("next", origin);
+}
+
 bool is_generated_name(const std::string & name)
 {
   return syntax_analysis::StrStartsWith(name, generated_prefix);

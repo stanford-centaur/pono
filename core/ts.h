@@ -35,13 +35,10 @@ class TransitionSystem
   {
   }
 
-  TransitionSystem(
-      const smt::SmtSolver & s,
-      const std::string & next_state_suffix = ".pono_generated_next")
+  TransitionSystem(const smt::SmtSolver & s)
       : solver_(s),
         init_(s->make_term(true)),
         trans_(s->make_term(true)),
-        next_suffix_(next_state_suffix),
         functional_(false),
         deterministic_(false)
   {
@@ -619,9 +616,6 @@ class TransitionSystem
 
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
-
-  // Text appended to generate names for next-state variables.
-  std::string next_suffix_;
 
   // whether the TransitionSystem is functional
   bool functional_;

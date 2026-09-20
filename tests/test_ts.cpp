@@ -193,6 +193,11 @@ TEST_P(TSUnitTests, GeneratedVarsCarryTheMarker)
   const Term loop = rts.make_generated_statevar("loop", x, bvsort);
   EXPECT_TRUE(is_generated_name(name_desanitize(loop->to_string())));
   EXPECT_NE(loop->to_string().find("x"), string::npos);
+
+  // The next-state twin is a shadow like any other, including the one made
+  // for a variable the design declared.
+  EXPECT_TRUE(is_generated_name(name_desanitize(rts.next(x)->to_string())));
+  EXPECT_TRUE(is_generated_name(name_desanitize(rts.next(saved)->to_string())));
 }
 
 // Asking twice for the same role is not a collision, since the caller cares

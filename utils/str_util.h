@@ -107,6 +107,12 @@ std::string generated_name(const std::string & role);
 std::string generated_name(const std::string & role,
                            const std::string & origin);
 
+/// Name the next-state twin pono makes to go with a state variable. Some
+/// input formats declare their own next-state variable instead, which keeps
+/// the name the design gave it, so this is not the only shape one can take.
+/// @param origin the name of the state variable the twin follows
+std::string generated_next_name(const std::string & origin);
+
 /// @return whether pono generated this name, rather than reading it from input
 bool is_generated_name(const std::string & name);
 
