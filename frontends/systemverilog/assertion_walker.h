@@ -40,6 +40,7 @@ class ImmediateAssertionStatement;
 class Statement;
 class Symbol;
 class TimingControl;
+struct SequenceRepetition;
 }  // namespace slang::ast
 
 namespace pono {
@@ -224,6 +225,22 @@ class AssertionWalker
    *  offsets_ending_now() models at all, so the caller can fall
    *  through to its own throw.
    */
+  /** Encode a goto (`b[->n]`) or nonconsecutive (`b[=n]`) repetition
+   *  as the eventuality it is: reaching the n-th occurrence of `b`.
+   *  Returns a null Term for a consecutive repetition, which the
+   *  bounded matcher spans on its own.
+   *
+   *  Only meaningful where a match merely has to exist somewhere
+   *  ahead -- as a consequent, or as a property in its own right. An
+   *  antecedent has to say the match ends *now*, which is a count
+   *  over unbounded history rather than an eventuality.
+   */
+  smt::Term goto_repetition(const slang::ast::Expression & expr,
+                            const slang::ast::SequenceRepetition & rep,
+                            bool neg,
+                            smt::TermVec & justice,
+                            const std::string & prefix);
+
   smt::Term try_strong_sequence(const slang::ast::AssertionExpr & ae,
                                 bool neg,
                                 smt::TermVec & justice,

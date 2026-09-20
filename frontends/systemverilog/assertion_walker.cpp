@@ -234,9 +234,11 @@ smt::TermVec AssertionWalker::offsets_ending_now(
     Term b = expr_encoder_.expr_to_bool(expr, prefix);
     if (!repetition) return { b };
     if (repetition->kind != SequenceRepetition::Consecutive) {
-      throw PonoException(
-          "SystemVerilogEncoder: nonconsecutive/goto sequence repetition "
-          "([->]/[=]) is not supported");
+      // Counting occurrences that need not be adjacent spans no
+      // finite window. Decline, and ltl_to_sat() reads it as the
+      // eventuality it is -- but only where a match merely has to
+      // exist ahead, which the implication case below enforces.
+      return {};
     }
     if (!repetition->range.max) {
       throw PonoException(
@@ -605,6 +607,99 @@ smt::Term AssertionWalker::weak_seq_bool(const slang::ast::AssertionExpr & seq,
   return solver_->make_term(Not, violated);
 }
 
+namespace {
+
+// Whether `ae` counts occurrences that need not be adjacent
+// anywhere inside it. Such a count is an eventuality, which is the
+// right reading for a consequent and the wrong one for an
+// antecedent, so the implication case checks before recursing.
+bool has_goto_repetition(const slang::ast::AssertionExpr & ae)
+{
+  using namespace slang::ast;
+  switch (ae.kind) {
+    case AssertionExprKind::Simple: {
+      auto & simple = ae.as<SimpleAssertionExpr>();
+      return simple.repetition
+             && simple.repetition->kind != SequenceRepetition::Consecutive;
+    }
+    case AssertionExprKind::SequenceWithMatch: {
+      auto & swm = ae.as<SequenceWithMatchExpr>();
+      if (swm.repetition
+          && swm.repetition->kind != SequenceRepetition::Consecutive) {
+        return true;
+      }
+      return has_goto_repetition(swm.expr);
+    }
+    case AssertionExprKind::FirstMatch:
+      return has_goto_repetition(ae.as<FirstMatchAssertionExpr>().seq);
+    case AssertionExprKind::Clocking:
+      return has_goto_repetition(ae.as<ClockingAssertionExpr>().expr);
+    case AssertionExprKind::SequenceConcat: {
+      for (auto & e : ae.as<SequenceConcatExpr>().elements) {
+        if (has_goto_repetition(*e.sequence)) return true;
+      }
+      return false;
+    }
+    case AssertionExprKind::Binary: {
+      auto & b = ae.as<BinaryAssertionExpr>();
+      return has_goto_repetition(b.left) || has_goto_repetition(b.right);
+    }
+    default: return false;
+  }
+}
+
+}  // namespace
+
+smt::Term AssertionWalker::goto_repetition(
+    const slang::ast::Expression & expr,
+    const slang::ast::SequenceRepetition & rep,
+    bool neg,
+    smt::TermVec & justice,
+    const string & prefix)
+{
+  using namespace slang::ast;
+  if (rep.kind == SequenceRepetition::Consecutive) return Term();
+
+  // `b[->n]` matches at the n-th occurrence of b; `b[=n]` may run on
+  // past it, but its earliest match ends there too, and a consequent
+  // only has to match somewhere -- so both come to the same thing
+  // here.
+  if (!rep.range.max || *rep.range.max != rep.range.min) {
+    throw PonoException(
+        "SystemVerilogEncoder: a goto or nonconsecutive repetition with a "
+        "range of counts ([->m:n] / [=m:n]) is not supported");
+  }
+  uint32_t count = rep.range.min;
+  if (count == 0) {
+    throw PonoException(
+        "SystemVerilogEncoder: a goto or nonconsecutive repetition of zero "
+        "occurrences is not supported");
+  }
+  if (count > MAX_SEQ_WINDOW) {
+    throw PonoException("SystemVerilogEncoder: repetition count exceeds "
+                        + std::to_string(MAX_SEQ_WINDOW));
+  }
+
+  Term b = expr_encoder_.expr_to_bool(expr, prefix);
+  if (!b) return Term();
+  Term nb = solver_->make_term(Not, b);
+
+  // Positively, the n-th occurrence is reached:
+  //   P(1) = F b,  P(k) = F(b && X P(k-1))
+  // Negated, that is its negation-normal form, which discharges no
+  // eventuality and so emits no justice:
+  //   N(1) = G !b, N(k) = G(!b || X N(k-1))
+  Term acc =
+      neg ? tableau_.make_G(nb, prefix) : tableau_.make_F(b, justice, prefix);
+  for (uint32_t k = 2; k <= count; ++k) {
+    Term next = tableau_.make_X(acc, prefix);
+    acc = neg ? tableau_.make_G(solver_->make_term(Or, nb, next), prefix)
+              : tableau_.make_F(
+                    solver_->make_term(And, b, next), justice, prefix);
+  }
+  return acc;
+}
+
 smt::Term AssertionWalker::try_strong_sequence(
     const slang::ast::AssertionExpr & ae,
     bool neg,
@@ -685,6 +780,10 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
         return ltl_to_sat(*named, neg, justice, prefix);
       }
       if (simple.repetition) {
+        if (Term counted = goto_repetition(
+                simple.expr, *simple.repetition, neg, justice, prefix)) {
+          return counted;
+        }
         // See the matching check in assertion_expr_to_bool(): route
         // through the general bounded sequence matcher (which throws
         // for an unbounded repeat count) instead of silently ignoring
@@ -924,6 +1023,15 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
             delay += u->first;
             rhs = u->second;
             unbounded = true;
+          }
+          if (has_goto_repetition(b.left)) {
+            // An antecedent has to say its match ends *now*, which
+            // for a count of non-adjacent occurrences is a fact
+            // about unbounded history, not an eventuality -- so the
+            // reading ltl_to_sat() would give it is the wrong one.
+            throw PonoException(
+                "SystemVerilogEncoder: a goto or nonconsecutive repetition "
+                "in an implication's antecedent is not supported");
           }
           Term l = ltl_to_sat(b.left, !neg, justice, prefix);
           Term r = ltl_to_sat(*rhs, neg, justice, prefix);

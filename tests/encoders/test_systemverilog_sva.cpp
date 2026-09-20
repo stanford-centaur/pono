@@ -88,6 +88,37 @@ TEST_P(SVUnitTests, UnboundedDelayMinimumFails)
   check_liveness_bmc("unbounded_delay_min.sv", 12);
 }
 
+// `gnt[->n]` and `gnt[=n]`: reaching the n-th occurrence, which is
+// an eventuality rather than a finite window. Paired both ways, and
+// the count is exercised separately -- a count that collapsed to one
+// occurrence would still pass the n=1 pair.
+TEST_P(SVUnitTests, GotoRepetitionHolds)
+{
+  check_liveness_bmc("goto_repetition.sv", 12, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, GotoRepetitionFails)
+{
+  check_liveness_bmc("goto_repetition_fails.sv", 12);
+}
+
+TEST_P(SVUnitTests, GotoRepetitionCountFails)
+{
+  check_liveness_bmc("goto_repetition_count.sv", 14);
+}
+
+TEST_P(SVUnitTests, GotoRepetitionCountHolds)
+{
+  check_liveness_bmc(
+      "goto_repetition_count_holds.sv", 14, ProverResult::UNKNOWN);
+}
+
+// An antecedent needs its match to end now, which this cannot say.
+TEST_P(SVUnitTests, GotoRepetitionAntecedentRejected)
+{
+  expect_encode_throws("goto_repetition_antecedent.sv");
+}
+
 // weak() over the sequence shapes leading_condition() could not name
 // the start of. Each fixture is the same sequence as the base
 // written through a different operator, so the shared refutation
