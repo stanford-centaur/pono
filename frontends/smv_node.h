@@ -112,6 +112,8 @@ struct SMVnode
     ele_type = element;
   }
 
+  virtual ~SMVnode() = default;
+
   Nodetype getNodeType() { return nt; }
   NodeMtype getNodeMType() { return mt; }
   Vartype getVarType() { return vt; }
