@@ -90,9 +90,20 @@ TEST_P(SVUnitTests, UnpackedArrayOutOfRangeFails)
   check_bmc("unpacked_array_out_of_range_fails.sv", 0);
 }
 
-TEST_P(SVUnitTests, UnpackedArrayPortRejected)
+// An unpacked array crossing a module boundary: passed into a
+// submodule, read there, and driven back out of another. A whole
+// array has no bits to splice, so each connection is one term shared
+// by both sides.
+TEST_P(SVUnitTests, UnpackedArrayPort)
 {
-  expect_encode_throws("unpacked_array_port.sv");
+  check_prover<KInduction>("unpacked_array_port.sv", 8, ProverResult::TRUE);
+}
+
+// Without this, an array the child never actually reached would
+// satisfy the holds case above just as well.
+TEST_P(SVUnitTests, UnpackedArrayPortFails)
+{
+  check_bmc("unpacked_array_port_fails.sv", 2);
 }
 
 TEST_P(SVUnitTests, UnpackedArrayMultiDimRejected)

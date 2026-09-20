@@ -212,12 +212,10 @@ void Declarer::process_port(const slang::ast::PortSymbol & port,
 {
   using namespace slang::ast;
 
-  // An unpacked array crossing a module boundary would have to be
-  // spliced by the port-connection machinery in instance_encoder.cpp,
-  // which is entirely bit-range arithmetic. Registers internal to one
-  // module are the supported case.
-  reject_unpacked_array(
-      port.getType(), port.name, "an unpacked array as a module port");
+  // Nothing below is bit-range arithmetic: the port becomes one
+  // variable of whatever sort its type maps to, so an unpacked array
+  // needs no special handling here. Connecting one to a child
+  // instance is where the splicing lives -- see process_instance().
   string name = symbol_table_.make_name(prefix, string(port.name));
   Sort sort = type_to_sort(solver_, port.getType());
 

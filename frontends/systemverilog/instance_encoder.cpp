@@ -668,6 +668,43 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
         }
         symbol_table_.port_output_aliases()[internal] = std::move(segments);
         output_aliases_added.push_back(internal);
+      } else if (port.getType().getCanonicalType().kind
+                 == SymbolKind::FixedSizeUnpackedArrayType) {
+        // A whole array has no bits to splice across alias segments,
+        // so the child's port variable and the parent's array are
+        // simply the same term, and the child's writes land on it
+        // directly. The parent's array is a state variable because
+        // the child drives it; nothing in the parent does, so no
+        // other pass would have made it one.
+        const Symbol * target = find_lhs_base(*conn_expr);
+        if (!target) {
+          throw PonoException(
+              "SystemVerilogEncoder: the array connected to output port '"
+              + string(port.name) + "' is not a plain variable");
+        }
+        Sort port_sort = type_to_sort(solver_, port.getType());
+        auto it = symbol_table_.symbol_to_term().find(target);
+        Term shared;
+        if (it != symbol_table_.symbol_to_term().end()) {
+          shared = it->second;
+          if (shared->get_sort() != port_sort) {
+            throw PonoException(
+                "SystemVerilogEncoder: the array connected to output port '"
+                + string(port.name) + "' has sort "
+                + shared->get_sort()->to_string() + ", but the port is "
+                + port_sort->to_string());
+          }
+        } else {
+          shared = fts_.make_statevar(
+              symbol_table_.make_name(prefix, string(target->name)), port_sort);
+          symbol_table_.symbol_to_term()[target] = shared;
+          symbol_table_.state_var_symbols().insert(target);
+          symbol_table_.wire_symbols().erase(target);
+        }
+        // Only the child's own symbol is undone afterwards; the
+        // parent keeps its array.
+        symbol_table_.symbol_to_term()[internal] = shared;
+        input_terms_added.push_back(internal);
       } else {
         auto desc = resolve_lvalue(*conn_expr, expr_encoder_.eval_ctx());
         if (!desc) {
@@ -683,10 +720,23 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
       }
     } else {
       Term term = expr_encoder_.expr_to_term(*conn_expr, prefix);
-      term = resize_to(solver_,
-                       term,
-                       port.getType().getBitWidth(),
-                       conn_expr->type->isSigned());
+      if (term->get_sort()->get_sort_kind() == ARRAY) {
+        // An unpacked array is passed whole -- there is no width to
+        // reconcile, only the requirement that both sides agree.
+        Sort port_sort = type_to_sort(solver_, port.getType());
+        if (term->get_sort() != port_sort) {
+          throw PonoException(
+              "SystemVerilogEncoder: the array connected to port '"
+              + string(port.name) + "' has sort "
+              + term->get_sort()->to_string() + ", but the port is "
+              + port_sort->to_string());
+        }
+      } else {
+        term = resize_to(solver_,
+                         term,
+                         port.getType().getBitWidth(),
+                         conn_expr->type->isSigned());
+      }
       symbol_table_.symbol_to_term()[internal] = term;
       input_terms_added.push_back(internal);
     }
