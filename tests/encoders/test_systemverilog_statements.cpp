@@ -194,6 +194,25 @@ TEST_P(SVUnitTests, InitialDynamicIndexRejected)
   expect_encode_throws("initial_dynamic_index.sv");
 }
 
+// A temporary declared inside a procedural block is bound to the
+// value it carries, not turned into a register. An uninitialized
+// 4-state one used to be forced to its all-X default and stringified
+// into the solver, which aborted with no source location at all.
+TEST_P(SVUnitTests, ProceduralTemporary)
+{
+  check_prover<KInduction>("procedural_temp.sv", 12, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, ProceduralTemporaryCondOnlyRejected)
+{
+  expect_encode_throws("procedural_temp_cond_only.sv");
+}
+
+TEST_P(SVUnitTests, ProceduralTemporaryReadFirstRejected)
+{
+  expect_encode_throws("procedural_temp_read_first.sv");
+}
+
 // `initial forever @(posedge clk) ...` is a legacy structural spelling
 // of `always_ff @(posedge clk) ...`: as_forever_event_body() recognizes
 // this shape (a ForeverLoop whose own body is a Timed statement) and

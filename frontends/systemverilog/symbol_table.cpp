@@ -502,6 +502,13 @@ Term SymbolTable::lookup_symbol(const slang::ast::Symbol * sym)
     return solver_->make_term(val_str, sort, 10);
   }
 
+  if (is_block_local(*sym)) {
+    // A procedural temporary is bound by the write that gives it a
+    // value; reaching here means it is read first, which in the LRM
+    // reads as X and has no counterpart in this 2-valued model.
+    throw PonoException("SystemVerilogEncoder: the local variable '"
+                        + string(sym->name) + "' is read before it is written");
+  }
   throw PonoException("SystemVerilogEncoder: unknown symbol '"
                       + string(sym->name) + "'");
 }

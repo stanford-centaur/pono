@@ -421,13 +421,52 @@ void StatementEncoder::process_statement(
         if (lval_expr) {
           if (auto * base = find_lhs_base(*lval_expr)) {
             auto & vsym = base->as<ValueSymbol>();
-            if (expr_encoder_.eval_ctx().findLocal(&vsym)) {
-              if (expr.eval(expr_encoder_.eval_ctx()).bad()) {
-                throw PonoException(
-                    "SystemVerilogEncoder: assignment to local variable '"
-                    + string(base->name) + "' failed to constant-evaluate");
-              }
+            bool bound_local =
+                expr_encoder_.eval_ctx().findLocal(&vsym) != nullptr;
+            if (bound_local && !expr.eval(expr_encoder_.eval_ctx()).bad()) {
+              // Still a compile-time constant, so keep folding it:
+              // loop bounds and unrolled conditions depend on that.
               refresh_loop_var_term(vsym);
+              break;
+            }
+            if (bound_local || is_block_local(vsym)) {
+              // A procedural temporary holding a runtime value. It has
+              // no term of its own to write into, so binding it to the
+              // value it now carries is what makes later reads of it
+              // mean that value.
+              if (expr.kind != ExpressionKind::Assignment) {
+                throw PonoException(
+                    "SystemVerilogEncoder: '++'/'--' on the local variable '"
+                    + string(base->name)
+                    + "' needs a compile-time-constant value");
+              }
+              auto & assign = expr.as<AssignmentExpression>();
+              if (assign.left().kind != ExpressionKind::NamedValue) {
+                throw PonoException(
+                    "SystemVerilogEncoder: a partial write to the local "
+                    "variable '"
+                    + string(base->name) + "' is not supported");
+              }
+              Term val = expr_encoder_.expr_to_term(assign.right(), prefix);
+              val = resize_to(solver_,
+                              val,
+                              vsym.getType().getBitWidth(),
+                              assign.right().type->isSigned());
+              auto & bound = symbol_table_.loop_var_terms();
+              auto prev = bound.find(&vsym);
+              if (condition != solver_->make_term(true)) {
+                if (prev == bound.end()) {
+                  throw PonoException(
+                      "SystemVerilogEncoder: the local variable '"
+                      + string(base->name)
+                      + "' is written only under a runtime condition, so it "
+                        "has no value on the other path");
+                }
+                val = solver_->make_term(Ite, condition, val, prev->second);
+              }
+              // A constant binding would now be stale.
+              expr_encoder_.eval_ctx().deleteLocal(&vsym);
+              bound[&vsym] = val;
               break;
             }
           }
@@ -1076,27 +1115,39 @@ void StatementEncoder::process_statement(
       // via slang's constant evaluator and refreshes loop_var_terms_.
       auto & vds = stmt.as<VariableDeclStatement>();
       auto & sym = vds.symbol;
+      const Expression * init = sym.getInitializer();
       slang::ConstantValue cv;
-      if (auto * init = sym.getInitializer()) {
-        cv = init->eval(expr_encoder_.eval_ctx());
+      if (init) cv = init->eval(expr_encoder_.eval_ctx());
+      if (cv.bad() && !init) cv = sym.getType().getDefaultValue();
+
+      // A constant initial value (or a 2-state type's zero default)
+      // also binds the slang-side local, so the unrolling machinery
+      // can keep folding this variable in loop bounds and conditions.
+      if (cv.isInteger() && !cv.integer().hasUnknown()) {
+        expr_encoder_.eval_ctx().createLocal(&sym, cv);
+        auto svint = cv.integer();
+        uint64_t width = sym.getType().getBitWidth();
+        if (width == 0) width = svint.getBitWidth();
+        if (width == 0) width = 32;
+        Sort sort = solver_->make_sort(BV, width);
+        svint.setSigned(false);
+        string val_str = svint.toString(slang::LiteralBase::Decimal, false);
+        symbol_table_.loop_var_terms()[&sym] =
+            solver_->make_term(val_str, sort, 10);
+        break;
       }
-      if (cv.bad()) {
-        cv = sym.getType().getDefaultValue();
+      // An initializer that isn't elaboration-time constant is still
+      // perfectly good logic; bind the term it computes.
+      if (init) {
+        symbol_table_.loop_var_terms()[&sym] =
+            expr_encoder_.expr_to_term(*init, prefix);
+        break;
       }
-      if (!cv.isInteger()) {
-        throw PonoException("SystemVerilogEncoder: non-integer local '"
-                            + string(sym.name) + "'");
-      }
-      expr_encoder_.eval_ctx().createLocal(&sym, cv);
-      auto svint = cv.integer();
-      uint64_t width = sym.getType().getBitWidth();
-      if (width == 0) width = svint.getBitWidth();
-      if (width == 0) width = 32;
-      Sort sort = solver_->make_sort(BV, width);
-      svint.setSigned(false);
-      string val_str = svint.toString(slang::LiteralBase::Decimal, false);
-      symbol_table_.loop_var_terms()[&sym] =
-          solver_->make_term(val_str, sort, 10);
+      // No initializer: a 4-state local's default is all-X, which
+      // this encoder's 2-valued model cannot represent and must not
+      // invent a number for. Leave the variable unbound -- the write
+      // that gives it a value binds it, and a read before then is
+      // reported by lookup_symbol().
       break;
     }
 
