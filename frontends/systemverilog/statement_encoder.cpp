@@ -256,8 +256,12 @@ bool StatementEncoder::process_array_element_assign(
   UnpackedArrayInfo info = unpacked_array_info(
       solver_,
       base_expr.type->getCanonicalType().as<FixedSizeUnpackedArrayType>());
+  Term in_range;
   Term idx = normalize_array_index(
-      solver_, expr_encoder_.expr_to_term(elem_sel->selector(), prefix), info);
+      solver_,
+      expr_encoder_.expr_to_term(elem_sel->selector(), prefix),
+      info,
+      &in_range);
 
   uint64_t range_w = desc->hi - desc->lo + 1;
   Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
@@ -271,6 +275,12 @@ bool StatementEncoder::process_array_element_assign(
                                      desc->hi);
 
   Term combined = solver_->make_term(Store, prev_base, idx, new_elem);
+  if (in_range) {
+    // The LRM ignores a write outside the declared range; letting it
+    // through would corrupt whichever real cell the truncated index
+    // happens to land on.
+    combined = solver_->make_term(Ite, in_range, combined, prev_base);
+  }
   symbol_table_.pending_next_updates()[state_term] =
       (condition == solver_->make_term(true))
           ? combined

@@ -615,9 +615,21 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       if (base_type.kind == SymbolKind::FixedSizeUnpackedArrayType) {
         UnpackedArrayInfo info = unpacked_array_info(
             solver_, base_type.as<FixedSizeUnpackedArrayType>());
+        Term in_range;
         Term idx = normalize_array_index(
-            solver_, expr_to_term(sel_expr, prefix), info);
-        return solver_->make_term(Select, val, idx);
+            solver_, expr_to_term(sel_expr, prefix), info, &in_range);
+        Term elem = solver_->make_term(Select, val, idx);
+        if (in_range) {
+          // Reading outside the declared range gives X, and the
+          // truncated index would otherwise return some real cell's
+          // value instead.
+          elem = solver_->make_term(
+              Ite,
+              in_range,
+              elem,
+              symbol_table_.make_out_of_range_value(info.element_sort));
+        }
+        return elem;
       }
 
       uint64_t elem_w = expr.type->getBitWidth();

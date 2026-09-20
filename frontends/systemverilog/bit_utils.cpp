@@ -68,22 +68,40 @@ UnpackedArrayInfo unpacked_array_info(
 
 Term normalize_array_index(const SmtSolver & solver,
                            const Term & idx,
-                           const UnpackedArrayInfo & info)
+                           const UnpackedArrayInfo & info,
+                           Term * in_range)
 {
   require_bv(idx, "normalize_array_index()");
-  if (info.lower == 0) {
+  uint64_t idx_w = idx->get_sort()->get_width();
+
+  // Can the source index name something outside the declared range?
+  // Only then is a check worth building: a zero-based array whose
+  // depth fills its address space cannot be missed by an index no
+  // wider than that space.
+  bool checkable = info.lower != 0 || idx_w > info.index_width
+                   || info.depth != (uint64_t{ 1 } << info.index_width);
+
+  if (info.lower == 0 && !checkable) {
     return resize_to(solver, idx, info.index_width, /*is_signed=*/false);
   }
-  // Subtract at a width that holds both the incoming index and the
-  // offset, so a valid index cannot wrap before the truncation below.
-  uint64_t w =
-      std::max<uint64_t>(idx->get_sort()->get_width(), info.index_width) + 1;
+
+  // Work wide enough that `lower + depth` cannot wrap, so an index
+  // below `lower` underflows to a value the range check still
+  // rejects, and a valid one survives the truncation below.
+  uint64_t w = std::max<uint64_t>(idx_w, info.index_width) + 1;
+  while ((uint64_t{ 1 } << (w - 1)) < info.lower + info.depth) ++w;
+  Sort wide_sort = solver->make_sort(BV, w);
   Term wide = resize_to(solver, idx, w, /*is_signed=*/false);
-  Term offset = solver->make_term(info.lower, solver->make_sort(BV, w));
-  return resize_to(solver,
-                   solver->make_term(BVSub, wide, offset),
-                   info.index_width,
-                   /*is_signed=*/false);
+  Term offset =
+      info.lower == 0
+          ? wide
+          : solver->make_term(
+                BVSub, wide, solver->make_term(info.lower, wide_sort));
+  if (in_range && checkable) {
+    *in_range = solver->make_term(
+        BVUlt, offset, solver->make_term(info.depth, wide_sort));
+  }
+  return resize_to(solver, offset, info.index_width, /*is_signed=*/false);
 }
 
 Sort type_to_sort(const SmtSolver & solver, const slang::ast::Type & type)

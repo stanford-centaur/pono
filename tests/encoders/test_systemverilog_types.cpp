@@ -75,6 +75,21 @@ TEST_P(SVUnitTests, UnpackedArraySelect)
   check_prover<KInduction>("unpacked_array_select.sv", 12, ProverResult::TRUE);
 }
 
+// An index outside the declared range: the write is ignored and the
+// read is X, and neither may touch a real cell. The paired
+// refutation below is what rules out the phantom cell the truncated
+// index used to create.
+TEST_P(SVUnitTests, UnpackedArrayOutOfRange)
+{
+  check_prover<KInduction>(
+      "unpacked_array_out_of_range.sv", 12, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, UnpackedArrayOutOfRangeFails)
+{
+  check_bmc("unpacked_array_out_of_range_fails.sv", 0);
+}
+
 TEST_P(SVUnitTests, UnpackedArrayPortRejected)
 {
   expect_encode_throws("unpacked_array_port.sv");

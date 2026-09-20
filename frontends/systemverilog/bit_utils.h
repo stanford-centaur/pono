@@ -60,9 +60,16 @@ UnpackedArrayInfo unpacked_array_info(
  *  unconstrained -- the same latitude the LRM gives an out-of-bounds
  *  unpacked-array access, which returns x.
  */
+/** Also reports, through `in_range` when non-null, whether the index
+ *  names a cell the array actually has. Left untouched when no index
+ *  can miss -- a zero-based array whose depth fills its address
+ *  space, read by an index no wider than that space. Out-of-range
+ *  accesses must consult it: the truncation to `index_width` would
+ *  otherwise silently fold, say, `m[23]` of a `m[3:18]` onto `m[7]`. */
 smt::Term normalize_array_index(const smt::SmtSolver & solver,
                                 const smt::Term & idx,
-                                const UnpackedArrayInfo & info);
+                                const UnpackedArrayInfo & info,
+                                smt::Term * in_range = nullptr);
 
 /** Convert a slang type to an SMT sort: a BV for an integral type (even
  *  a 1-bit one), an ARRAY for a fixed-size unpacked array of an

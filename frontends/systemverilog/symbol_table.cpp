@@ -160,6 +160,12 @@ void collect_blocking_targets(
 
 }  // namespace
 
+Term SymbolTable::make_out_of_range_value(const smt::Sort & sort)
+{
+  return fts_.make_inputvar("__oob_read_" + std::to_string(oob_read_counter_++),
+                            sort);
+}
+
 void SymbolTable::declare_hold_locals(const slang::ast::Statement & body,
                                       const string & prefix)
 {
