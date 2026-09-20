@@ -66,6 +66,28 @@ TEST_P(SVUnitTests, DisableIffLivenessFails)
   check_liveness_bmc("disable_iff_liveness_fails.sv", 12);
 }
 
+// `req |-> ##[1:$] gnt`. An unbounded wait spans no finite window,
+// so the property goes to the tableau, where the delay fixes where
+// the wait starts and F carries it onward. Each is paired: an F
+// whose eventuality is never discharged would satisfy the holds
+// case, and one that is vacuously true would satisfy it too.
+TEST_P(SVUnitTests, UnboundedDelayHolds)
+{
+  check_liveness_bmc("unbounded_delay.sv", 12, ProverResult::UNKNOWN);
+}
+
+TEST_P(SVUnitTests, UnboundedDelayFails)
+{
+  check_liveness_bmc("unbounded_delay_fails.sv", 12);
+}
+
+// The minimum has to survive the trip to the tableau: a grant one
+// cycle after the request is too early for `##[2:$]`.
+TEST_P(SVUnitTests, UnboundedDelayMinimumFails)
+{
+  check_liveness_bmc("unbounded_delay_min.sv", 12);
+}
+
 // weak() over the sequence shapes leading_condition() could not name
 // the start of. Each fixture is the same sequence as the base
 // written through a different operator, so the shared refutation

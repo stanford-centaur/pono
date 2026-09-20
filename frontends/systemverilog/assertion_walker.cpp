@@ -82,6 +82,22 @@ match_const_delay_seq(const slang::ast::AssertionExpr & ae)
   return std::make_pair(e.delay.min, &*e.sequence);
 }
 
+// The same shape, but for a delay with no upper bound (`##[m:$] Q`).
+// Returns (m, Q*): the inner expression must hold at some cycle m or
+// more from here, which is an eventuality and so belongs to the
+// tableau rather than to the bounded sequence matcher.
+std::optional<std::pair<uint32_t, const slang::ast::AssertionExpr *>>
+match_unbounded_delay_seq(const slang::ast::AssertionExpr & ae)
+{
+  using namespace slang::ast;
+  if (ae.kind != AssertionExprKind::SequenceConcat) return std::nullopt;
+  auto & sc = ae.as<SequenceConcatExpr>();
+  if (sc.elements.size() != 1) return std::nullopt;
+  auto & e = sc.elements[0];
+  if (e.delay.max) return std::nullopt;
+  return std::make_pair(e.delay.min, &*e.sequence);
+}
+
 // A named `sequence`/`property` declaration referenced by name (e.g.
 // `assert property (p_check);`) binds as a SimpleAssertionExpr wrapping
 // an AssertionInstanceExpression -- not a plain boolean Expression --
@@ -332,9 +348,9 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       for (size_t i = 0; i < sc.elements.size(); ++i) {
         auto & elem = sc.elements[i];
         if (!elem.delay.max) {
-          throw PonoException(
-              "SystemVerilogEncoder: unbounded sequence delay (##[m:$]) is "
-              "not supported");
+          // No finite window spans this, so there are no offsets to
+          // report; ltl_to_sat() takes it from here.
+          return {};
         }
         uint32_t dmin = elem.delay.min;
         uint32_t dmax = *elem.delay.max;
@@ -688,6 +704,16 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       if (auto m = match_const_delay_seq(ae)) {
         return ltl_to_sat(*m->second, neg, justice, prefix);
       }
+      if (auto u = match_unbounded_delay_seq(ae)) {
+        Term inner = ltl_to_sat(*u->second, neg, justice, prefix);
+        if (!inner) return Term();
+        inner = neg ? tableau_.make_G(inner, prefix)
+                    : tableau_.make_F(inner, justice, prefix);
+        for (uint32_t i = 0; i < u->first; ++i) {
+          inner = tableau_.make_X(inner, prefix);
+        }
+        return inner;
+      }
       // A genuine multi-element sequence used directly as a property
       // (`assert property (a ##1 b);`, as opposed to as the
       // antecedent of `|->`/`|=>`, which assertion_expr_to_bool()
@@ -887,13 +913,28 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
               (b.op == BinaryAssertionOperator::NonOverlappedImplication) ? 1
                                                                           : 0;
           const AssertionExpr * rhs = &b.right;
+          // `##[m:$] Q` says Q holds at some cycle m or more away,
+          // which is an eventuality: the delay fixes where the wait
+          // starts, and F carries it the rest of the way.
+          bool unbounded = false;
           if (auto m = match_const_delay_seq(b.right)) {
             delay += m->first;
             rhs = m->second;
+          } else if (auto u = match_unbounded_delay_seq(b.right)) {
+            delay += u->first;
+            rhs = u->second;
+            unbounded = true;
           }
           Term l = ltl_to_sat(b.left, !neg, justice, prefix);
           Term r = ltl_to_sat(*rhs, neg, justice, prefix);
           if (!l || !r) return Term();
+          if (unbounded) {
+            // Negated, "never at or after m" is a safety obligation
+            // and discharges nothing, so only the positive form
+            // contributes a justice condition.
+            r = neg ? tableau_.make_G(r, prefix)
+                    : tableau_.make_F(r, justice, prefix);
+          }
           for (uint32_t i = 0; i < delay; ++i) r = tableau_.make_X(r, prefix);
           return solver_->make_term(neg ? And : Or, l, r);
         }
@@ -1284,9 +1325,10 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
                    && b.right.as<SequenceConcatExpr>().elements.size() == 1) {
           auto & elem = b.right.as<SequenceConcatExpr>().elements[0];
           if (!elem.delay.max) {
-            throw PonoException(
-                "SystemVerilogEncoder: unbounded sequence delay (##[m:$]) "
-                "is not supported");
+            // An unbounded wait is an eventuality, so there is no
+            // current-cycle Boolean to return. Decline, and the
+            // caller falls through to the tableau, which has an F.
+            return Term();
           }
           uint32_t wmin = elem.delay.min;
           uint32_t wmax = *elem.delay.max;
