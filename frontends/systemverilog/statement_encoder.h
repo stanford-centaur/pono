@@ -34,6 +34,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_set>
 
 #include "core/fts.h"
 #include "frontends/systemverilog/expr_encoder.h"
@@ -100,6 +101,13 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
                               const std::string & prefix) override;
 
  private:
+  /** The same walk for a body that produces no value, which is what
+   *  a task call as a statement needs. */
+  void inline_subroutine_body_no_return(const slang::ast::Statement & body,
+                                        const std::string & prefix);
+
+ public:
+ private:
   /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
    *  not a compile-time constant, so resolve_lvalue() can't produce a
    *  static bit range.  Only a direct select on a plain variable base
@@ -165,9 +173,19 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
   void refresh_loop_var_term(const slang::ast::ValueSymbol & sym);
 
   /** The return variable of the subroutine being inlined, which a
-   *  `return` binds. Null outside one, where `return` has nothing to
-   *  bind and a write to a non-local is perfectly ordinary. */
+   *  `return` binds. Null outside one, and also inside a task, which
+   *  has no return value. */
   const slang::ast::Symbol * current_return_var_ = nullptr;
+
+  /** Whether a subroutine body is being inlined at all, which is
+   *  what decides that a write reaching outside it is an error --
+   *  a task has no return variable, so that cannot be the test. */
+  bool in_subroutine_ = false;
+
+  /** Tasks currently being inlined, so recursion is reported rather
+   *  than expanded forever. Functions are tracked separately, by
+   *  ExprEncoder, which owns their call sites. */
+  std::unordered_set<const slang::ast::Symbol *> inlining_tasks_;
 
   SymbolTable & symbol_table_;
   ExprEncoder & expr_encoder_;

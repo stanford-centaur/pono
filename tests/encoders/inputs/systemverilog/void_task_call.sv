@@ -1,10 +1,12 @@
 // A void task call used as a bare statement (`bump(a, b);`, no
-// assignment) inside an always_ff block. Task bodies aren't inlined
-// by this encoder (the same limitation Gap_UserFunctionCall documents
-// for a plain function call in expression context), so the task's
-// side effect on `b` is not applied -- process_statement() throws
-// "unsupported call" rather than silently dropping it, so the
-// fixture's own `b == a + 1` invariant can't be checked either way.
+// assignment) inside an always_ff block. The body is inlined and the
+// output argument is written back to the caller's own variable,
+// which is the whole point of a task.
+//
+// That copy-out is a blocking write inside a clocked block, so `b`
+// is a flop: it holds the *previous* `a` plus one. The property says
+// so, rather than the `b == a + 1` this fixture used to carry, which
+// no run ever reached.
 module void_task_call (
     input logic clk,
     input logic rst,
@@ -21,5 +23,6 @@ module void_task_call (
     else bump(a, b);
   end
 
-  assert property (@(posedge clk) rst || b == a + 4'd1);
+  assert property (@(posedge clk) (!rst && !$past(rst))
+                   |-> b == $past(a) + 4'd1);
 endmodule

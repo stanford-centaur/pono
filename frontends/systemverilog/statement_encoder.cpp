@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <functional>
 #include <string>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "frontends/systemverilog/assertion_walker.h"
@@ -31,6 +33,7 @@
 #include "slang/ast/statements/LoopStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/BlockSymbols.h"
+#include "slang/ast/symbols/SubroutineSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
@@ -57,13 +60,38 @@ StatementEncoder::StatementEncoder(SymbolTable & symbol_table,
 {
 }
 
+void StatementEncoder::inline_subroutine_body_no_return(
+    const slang::ast::Statement & body, const string & prefix)
+{
+  bool saved_in = in_subroutine_;
+  const slang::ast::Symbol * saved_ret = current_return_var_;
+  in_subroutine_ = true;
+  current_return_var_ = nullptr;
+  try {
+    process_statement(body,
+                      StmtContext::COMBINATIONAL,
+                      solver_->make_term(true),
+                      prefix,
+                      nullptr);
+  }
+  catch (...) {
+    in_subroutine_ = saved_in;
+    current_return_var_ = saved_ret;
+    throw;
+  }
+  in_subroutine_ = saved_in;
+  current_return_var_ = saved_ret;
+}
+
 void StatementEncoder::inline_subroutine_body(
     const slang::ast::Statement & body,
     const slang::ast::Symbol & return_var,
     const string & prefix)
 {
   const slang::ast::Symbol * saved = current_return_var_;
+  bool saved_in = in_subroutine_;
   current_return_var_ = &return_var;
+  in_subroutine_ = true;
   // Every write a body like this makes is to one of its own locals,
   // which the local-write path handles whatever the context, so the
   // context below never decides anything; a write to anything else
@@ -77,9 +105,11 @@ void StatementEncoder::inline_subroutine_body(
   }
   catch (...) {
     current_return_var_ = saved;
+    in_subroutine_ = saved_in;
     throw;
   }
   current_return_var_ = saved;
+  in_subroutine_ = saved_in;
 }
 
 void StatementEncoder::process_dynamic_element_assign(
@@ -468,7 +498,7 @@ void StatementEncoder::process_statement(
             // found is read on a path that never writes it, so it
             // holds its value and is a register; it takes the
             // ordinary write path below.
-            if (current_return_var_ && !is_block_local(vsym)) {
+            if (in_subroutine_ && !is_block_local(vsym)) {
               // Inlining happens wherever the call appeared, so a
               // write reaching out of the subroutine would land in
               // whatever context that was, under none of the
@@ -923,10 +953,135 @@ void StatementEncoder::process_statement(
                      "call '{}' used as a statement",
                      call.getSubroutineName());
         } else {
-          throw PonoException(
-              "SystemVerilogEncoder: unsupported call to '"
-              + std::string(call.getSubroutineName())
-              + "' used as a statement (side effects not modeled)");
+          // A task's whole purpose is what it writes back, so inline
+          // the body and then perform those writes here, in the
+          // caller's own context and under the condition guarding the
+          // call.
+          auto * const * sub_ptr =
+              std::get_if<const SubroutineSymbol *>(&call.subroutine);
+          if (!sub_ptr || !*sub_ptr) {
+            throw PonoException("SystemVerilogEncoder: unsupported call to '"
+                                + std::string(call.getSubroutineName())
+                                + "' used as a statement");
+          }
+          const SubroutineSymbol & sub = **sub_ptr;
+          const string sub_name(sub.name);
+          auto reject = [&](const string & why) {
+            throw PonoException(
+                "SystemVerilogEncoder: cannot inline the call to '" + sub_name
+                + "': " + why);
+          };
+          if (inlining_tasks_.count(&sub)) reject("it is recursive");
+          auto formals = sub.getArguments();
+          if (formals.size() != call.arguments().size()) {
+            reject(
+                "it is called with a different number of arguments than "
+                "it declares");
+          }
+          for (auto * formal : formals) {
+            if (formal->direction == ArgumentDirection::Ref) {
+              reject("argument '" + string(formal->name)
+                     + "' is passed by reference");
+            }
+          }
+
+          // slang hands an output/inout actual over as the copy-out
+          // assignment itself, whose left side is the caller's own
+          // variable -- both the read and the write-back want that.
+          auto actual_of = [&](size_t k) -> const Expression & {
+            const Expression * a = call.arguments()[k];
+            if (a->kind == ExpressionKind::Assignment) {
+              return a->as<AssignmentExpression>().left();
+            }
+            return *a;
+          };
+
+          auto & bound = symbol_table_.loop_var_terms();
+          std::vector<std::pair<const Symbol *, Term>> saved_bindings;
+          auto remember = [&](const Symbol * sym) {
+            auto it = bound.find(sym);
+            saved_bindings.emplace_back(
+                sym, it == bound.end() ? Term() : it->second);
+          };
+          auto restore_bindings = [&]() {
+            for (auto & entry : saved_bindings) {
+              if (entry.second) {
+                bound[entry.first] = entry.second;
+              } else {
+                bound.erase(entry.first);
+              }
+            }
+          };
+
+          // Read every actual first, in the caller's scope.
+          std::vector<Term> incoming(formals.size());
+          for (size_t k = 0; k < formals.size(); ++k) {
+            if (formals[k]->direction == ArgumentDirection::Out) continue;
+            uint64_t w = formals[k]->getType().getBitWidth();
+            if (w == 0) {
+              reject("argument '" + string(formals[k]->name)
+                     + "' has no width");
+            }
+            const Expression & actual = actual_of(k);
+            incoming[k] = resize_to(solver_,
+                                    expr_encoder_.expr_to_term(actual, prefix),
+                                    w,
+                                    actual.type->isSigned());
+          }
+          for (size_t k = 0; k < formals.size(); ++k) {
+            remember(formals[k]);
+            if (incoming[k]) {
+              bound[formals[k]] = incoming[k];
+            } else {
+              bound.erase(formals[k]);
+            }
+          }
+
+          inlining_tasks_.insert(&sub);
+          try {
+            inline_subroutine_body_no_return(sub.getBody(), prefix);
+          }
+          catch (...) {
+            inlining_tasks_.erase(&sub);
+            restore_bindings();
+            throw;
+          }
+          inlining_tasks_.erase(&sub);
+
+          // Deliver each written-back argument to the caller's own
+          // variable, collecting the values before any write so one
+          // argument cannot be read back through another.
+          std::vector<std::pair<size_t, Term>> outgoing;
+          for (size_t k = 0; k < formals.size(); ++k) {
+            if (formals[k]->direction == ArgumentDirection::In) continue;
+            auto it = bound.find(formals[k]);
+            if (it == bound.end()) {
+              restore_bindings();
+              reject("no path through it assigns argument '"
+                     + string(formals[k]->name) + "'");
+            }
+            outgoing.emplace_back(k, it->second);
+          }
+          restore_bindings();
+
+          for (auto & out : outgoing) {
+            auto writes = begin_write(actual_of(out.first));
+            if (writes.empty()) {
+              reject("argument '" + string(formals[out.first]->name)
+                     + "' is written back to something this encoder cannot "
+                       "assign to");
+            }
+            uint64_t total_w = 0;
+            for (auto & w : writes) total_w = std::max(total_w, w.rhs_hi + 1);
+            Term value = resize_to(solver_,
+                                   out.second,
+                                   total_w,
+                                   formals[out.first]->getType().isSigned());
+            for (auto & w : writes) {
+              commit_write(w, slice_of(value, w.rhs_lo, w.rhs_hi));
+            }
+          }
+          break;
         }
       } else {
         throw PonoException(

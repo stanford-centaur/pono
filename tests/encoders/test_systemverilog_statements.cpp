@@ -389,15 +389,31 @@ TEST_P(SVUnitTests, ImmediateAssume)
   check_bmc("immediate_assume.sv", 4, ProverResult::UNKNOWN);
 }
 
-// A void task call used as a bare statement (`bump(a, b);`) is
-// mainstream synthesizable RTL, not a deliberate non-goal, the same as
-// Gap_UserFunctionCall's plain function call -- process_statement()'s
-// Call-expression handling doesn't inline user task bodies, so it
-// throws "unsupported call" instead of applying the task's side
-// effect on `b`.
-TEST_P(SVUnitTests, Gap_VoidTaskCall)
+// A void task call used as a bare statement (`bump(a, b);`): the
+// body is inlined and its output argument written back to the
+// caller's variable.
+TEST_P(SVUnitTests, VoidTaskCall)
 {
-  check_bmc("void_task_call.sv", 0, ProverResult::UNKNOWN);
+  check_prover<KInduction>("void_task_call.sv", 8, ProverResult::TRUE);
+}
+
+// The argument directions the write-back has to distinguish, and a
+// call on only one path, whose write-back must be guarded by that
+// condition rather than applied unconditionally.
+TEST_P(SVUnitTests, TaskCallArgumentDirections)
+{
+  check_prover<KInduction>("task_call_args.sv", 8, ProverResult::TRUE);
+}
+
+// What copy-in copy-out inlining cannot model.
+TEST_P(SVUnitTests, TaskCallRecursiveRejected)
+{
+  expect_encode_throws("task_call_recursive.sv");
+}
+
+TEST_P(SVUnitTests, TaskCallRefArgRejected)
+{
+  expect_encode_throws("task_call_ref_arg.sv");
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVStatementsTests,
