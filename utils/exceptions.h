@@ -52,7 +52,7 @@ class PonoException : public std::exception
    *          is in possession of the Exception object. Callers must
    *          not attempt to free the memory.
    */
-  virtual const char * what() const throw() { return msg.c_str(); }
+  const char * what() const throw() override { return msg.c_str(); }
 
  protected:
   /** Error message.

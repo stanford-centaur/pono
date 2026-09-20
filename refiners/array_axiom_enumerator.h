@@ -66,7 +66,7 @@ class ArrayFinder : public smt::IdentityWalker
   ArrayFinder(ArrayAxiomEnumerator & aae);
 
  protected:
-  smt::WalkerStepResult visit_term(smt::Term & term);
+  smt::WalkerStepResult visit_term(smt::Term & term) override;
 
   ArrayAxiomEnumerator & aae_;
 };

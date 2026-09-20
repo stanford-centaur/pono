@@ -49,7 +49,7 @@ class OpsAbstractor : public Abstractor
     smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
 
    protected:
-    smt::WalkerStepResult visit_term(smt::Term & t);
+    smt::WalkerStepResult visit_term(smt::Term & t) override;
     OpsAbstractor & oa_;
   };
   friend class AbstractionWalker;
@@ -61,7 +61,7 @@ class OpsAbstractor : public Abstractor
     smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
 
    protected:
-    smt::WalkerStepResult visit_term(smt::Term & t);
+    smt::WalkerStepResult visit_term(smt::Term & t) override;
     OpsAbstractor & oa_;
   };
   friend class ConcretizationWalker;
