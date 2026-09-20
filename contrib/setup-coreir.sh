@@ -44,9 +44,18 @@ if [[ ! -d "$DEPS/coreir" ]]; then
   cd coreir
   git checkout -f $COREIR_VERSION
   cd build
-  cmake .. -DCMAKE_INSTALL_PREFIX="$DEPS/coreir/local"
-  make -j"$(nproc)"
-  make install
+  # CoreIR and the verilogAST subproject it configures both ask for CMake
+  # 2.8.12, which CMake 4 refuses outright. This has to come from the
+  # environment rather than -D, so that the nested configure inherits it.
+  export CMAKE_POLICY_VERSION_MINIMUM=3.5
+  # CoreIR builds itself with -Werror and trips warnings newer compilers
+  # report. It assigns CMAKE_CXX_FLAGS outright, so the override has to ride
+  # on the per-configuration flags, which land after it on the command line.
+  cmake .. -DCMAKE_INSTALL_PREFIX="$DEPS/coreir/local" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-error"
+  cmake --build . -j
+  cmake --install .
   if [[ $ENABLE_PYTHON != default ]]; then
     echo "Pip installing coreir Python bindings"
     git clone https://github.com/leonardt/pycoreir.git
