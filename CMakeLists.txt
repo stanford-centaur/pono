@@ -172,26 +172,36 @@ flex_target(
   ${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp
 )
 
-# Flex's skeleton ends several of its own statements with a stray semicolon,
-# which the rules in smvparser.l cannot influence. The positive form is what
-# gets probed: a compiler without the warning reports the -Wno- as
-# unrecognized rather than ignoring it.
-pono_filter_supported_flags(extra_semi_stmt -Wextra-semi-stmt)
-if(extra_semi_stmt)
-  set_source_files_properties(
-    "${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp"
-    PROPERTIES COMPILE_OPTIONS -Wno-extra-semi-stmt
-  )
-endif()
+# Warnings the Flex and Bison skeletons raise about their own output, which
+# the rules in smvparser.l and smvparser.y cannot influence. The positive
+# forms are what get probed: a compiler without the warning reports the -Wno-
+# as unrecognized rather than ignoring it.
+#
+# The parser's unreachable breaks are the one case the grammar has a hand in:
+# Bison ends every action with a break, and the actions for the constructs
+# pono rejects end in a throw. Reaching the break would mean accepting them.
+pono_filter_supported_flags(
+  lexer_warnings
+  -Wextra-semi-stmt # a ; that forms an empty statement
+  -Wmisleading-indentation # a statement indented under an if it is not in
+)
+pono_filter_supported_flags(
+  parser_warnings
+  -Wunreachable-code-break # a break after an action that throws
+  -Wunused-but-set-variable # yynerrs_, which the skeleton never reads
+)
+list(TRANSFORM lexer_warnings REPLACE "^-W" "-Wno-")
+list(TRANSFORM parser_warnings REPLACE "^-W" "-Wno-")
+set_source_files_properties(
+  "${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp"
+  PROPERTIES COMPILE_OPTIONS "${lexer_warnings}"
+)
+set_source_files_properties(
+  "${CMAKE_CURRENT_BINARY_DIR}/smvparser.cpp"
+  PROPERTIES COMPILE_OPTIONS "${parser_warnings}"
+)
 
 add_flex_bison_dependency(SMVScanner SMVParser)
-
-set(
-  INCLUDE_DIRS
-  "${PROJECT_SOURCE_DIR}"
-  # generated headers go in build directory
-  "${CMAKE_CURRENT_BINARY_DIR}"
-)
 
 set(
   SOURCES
@@ -276,15 +286,21 @@ set_target_properties(pono-lib PROPERTIES OUTPUT_NAME pono)
 # pono-lib and inherits the ordering.
 add_dependencies(pono-lib pono-version-header)
 
-target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
+target_include_directories(pono-lib PUBLIC "${PROJECT_SOURCE_DIR}")
 
-# Vendored, so its warnings are not ours to act on. SYSTEM keeps the compiler
-# quiet about it while leaving our own headers fully diagnosed. Consumers pick
-# this up through pono-lib.
+# Generated and vendored headers, whose warnings are not ours to act on.
+# SYSTEM keeps the compiler quiet about them. Consumers pick this up through
+# pono-lib. Everything in the build directory is generated: smvparser.h,
+# location.hh and version.h.
+#
+# A header that a system header includes counts as one too, and smvparser.h
+# includes frontends/smv_node.h. Warnings in smv_node.h therefore reach us
+# only from the sources that include it themselves, which today is enough to
+# report every one of them.
 target_include_directories(
   pono-lib
   SYSTEM
-  PUBLIC "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+  PUBLIC "${CMAKE_CURRENT_BINARY_DIR}" "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
 )
 
 target_link_libraries(pono-lib PRIVATE pono-warnings)
