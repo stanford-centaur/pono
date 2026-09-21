@@ -65,7 +65,7 @@ class OpInpAbstractor : public OpAbstractor
                   TransitionSystem & abs_ts,
                   const OpSet & op_to_abstract,
                   const smt::Term & prop,  // it is okay to use bad
-                  int verbosity);
+                  size_t verbosity);
 
   // return true if it can refine
   // otherwise return false
@@ -93,7 +93,7 @@ class OpInpAbstractor : public OpAbstractor
                    TransitionSystem & out_ts,
                    const OpSet & op_to_abstract,
                    const smt::Term & prop,  // it is okay to use bad
-                   int verbosity);
+                   size_t verbosity);
 
   std::unique_ptr<Unroller> unroller_;
 

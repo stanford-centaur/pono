@@ -110,7 +110,7 @@ bool static extract_decimal_width(const std::string & s,
   return true;
 }
 
-static std::string get_all_one(unsigned width)
+static std::string get_all_one(uint64_t width)
 {
   std::vector<char> out = { 1 };
 

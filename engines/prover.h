@@ -33,6 +33,11 @@ namespace pono {
  */
 size_t timestep(int k);
 
+/** Narrows a bound to the signed form check_until() takes.
+ *  @throws PonoException if it does not fit.
+ */
+int prover_bound(size_t k);
+
 class BaseProver
 {
  public:

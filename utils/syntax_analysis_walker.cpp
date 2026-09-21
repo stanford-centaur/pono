@@ -778,7 +778,7 @@ unsigned TermLearner::replace_hierachically(const smt::Term & orig,
       "  [ReplaceInHierarchy] {} --> {} ",
       orig->to_string(),
       repl->to_string());
-  unsigned orig_score = score_(orig), repl_score = score_(repl);
+  uint64_t orig_score = score_(orig), repl_score = score_(repl);
   RD1(3, "  [ReplaceInHierarchy] score {} --> {} ", orig_score, repl_score);
   if (repl_score
       >= orig_score * syntactic_score_factor + syntactic_score_delta) {

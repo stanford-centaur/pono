@@ -130,7 +130,7 @@ ProverResult KLiveness::check_until(int k)
         return res;
       }
       if (options_.klive_lockstep_bmc_
-          && find_lasso_by_bmc(safety_prover->witness_length())) {
+          && find_lasso_by_bmc(prover_bound(safety_prover->witness_length()))) {
         return res;
       }
     }
@@ -173,7 +173,7 @@ std::pair<smt::Term, smt::Term> KLiveness::instrument_ts(
     case KLivenessCounterEncoding::BV_BINARY:
       counter_init = zero;
       counter_incr = ts_k.make_term(smt::PrimOp::BVAdd, counter, one);
-      count_to_val = ts_k.make_term(k, counter_sort);
+      count_to_val = ts_k.make_term(prover_bound(k), counter_sort);
       break;
     case KLivenessCounterEncoding::BV_ONE_HOT:
       counter_init = one;
@@ -184,7 +184,7 @@ std::pair<smt::Term, smt::Term> KLiveness::instrument_ts(
     case KLivenessCounterEncoding::INTEGER:
       counter_init = zero;
       counter_incr = ts_k.make_term(smt::PrimOp::Plus, counter, one);
-      count_to_val = ts_k.make_term(k, counter_sort);
+      count_to_val = ts_k.make_term(prover_bound(k), counter_sort);
       break;
     default: throw PonoException("Unhandled k-liveness counter encoding");
   }

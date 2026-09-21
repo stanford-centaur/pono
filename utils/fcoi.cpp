@@ -27,7 +27,7 @@ using namespace std;
 namespace pono {
 
 FunctionalConeOfInfluence::FunctionalConeOfInfluence(
-    const TransitionSystem & ts, int verbosity)
+    const TransitionSystem & ts, size_t verbosity)
     : ts_(ts), verbosity_(verbosity), local_logger_(verbosity_)
 {
   if (!ts_.is_functional()) {
@@ -71,8 +71,8 @@ void FunctionalConeOfInfluence::compute_coi(const TermVec & terms)
      already collected. The loop breaks when no new state/input
      variables were found. Every term is visited at most once during
      the whole COI analysis. */
-  unsigned int num_statevars;
-  unsigned int num_inputvars;
+  size_t num_statevars;
+  size_t num_inputvars;
   unsigned int iterations = 0;
   do {
     iterations++;

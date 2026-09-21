@@ -147,7 +147,7 @@ TEST_P(Btor2FileUnitTests, Encode)
   for (const auto & p : input.be.propvec()) {
     get_free_symbolic_consts(p, free_vars);
   }
-  int num_input =
+  const auto num_input =
       count_if(free_vars.begin(), free_vars.end(), [&input](const Term & v) {
         return input.fts.is_input_var(v);
       });

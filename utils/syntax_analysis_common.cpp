@@ -119,7 +119,7 @@ bool PerVarsetInfo::TermLearnerInsertTerm(const smt::Term & new_term)
   if (!ins_res.second)  // if already exists, will not insert
     return false;
 
-  unsigned width = get_width(new_term);
+  uint64_t width = get_width(new_term);
   assert(IN(width, terms));  // concat -> extract does not change this
   bool is_val = (new_term->is_value());
   if (is_val)

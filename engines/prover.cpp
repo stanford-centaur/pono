@@ -41,6 +41,14 @@ size_t timestep(int k)
   return static_cast<size_t>(k);
 }
 
+int prover_bound(size_t k)
+{
+  if (k > INT_MAX) {
+    throw PonoException("Bound is too large: " + std::to_string(k));
+  }
+  return static_cast<int>(k);
+}
+
 BaseProver::BaseProver(const TransitionSystem & ts,
                        const SmtSolver & solver,
                        PonoOptions opt,
