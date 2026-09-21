@@ -58,7 +58,7 @@ class FunctionalUnroller : public Unroller
    *  @param k the time to unroll the term at
    *  @return the unrolled term
    */
-  smt::Term at_time(const smt::Term & t, unsigned int k) override;
+  smt::Term at_time(const smt::Term & t, size_t k) override;
 
   /** Provides extra constraints for a functional unrolling
    *  with intermittent fresh symbols
@@ -69,7 +69,7 @@ class FunctionalUnroller : public Unroller
    *  However, we then need to add equality constraints to
    *  give those symbols meaning
    */
-  smt::Term extra_constraints_at(unsigned int k)
+  smt::Term extra_constraints_at(size_t k)
   {
     if (k >= extra_constraints_.size()) {
       throw PonoException("Haven't unrolled enough for extra_constraints at "
@@ -88,6 +88,6 @@ class FunctionalUnroller : public Unroller
 
   // overridden to use the interval_ parameter as described in constructor
   // documentation
-  smt::UnorderedTermMap & var_cache_at_time(unsigned int k) override;
+  smt::UnorderedTermMap & var_cache_at_time(size_t k) override;
 };
 }  // namespace pono

@@ -127,7 +127,7 @@ struct Arg : public option::Arg
                          const char * msg2)
   {
     fprintf(stderr, "%s", msg1);
-    fwrite(opt.name, opt.namelen, 1, stderr);
+    fwrite(opt.name, static_cast<size_t>(opt.namelen), 1, stderr);
     fprintf(stderr, "%s", msg2);
   }
 
@@ -775,6 +775,19 @@ const option::Descriptor usage[] = {
 
 namespace pono {
 
+/** Parses an option argument that has to fit in the unsigned int its
+ *  consumers take.
+ *  @throws PonoException if it does not.
+ */
+static unsigned int parse_uint(const char * arg)
+{
+  const unsigned long value = std::stoul(arg);
+  if (value > UINT_MAX) {
+    throw PonoException(std::string("Option value out of range: ") + arg);
+  }
+  return static_cast<unsigned int>(value);
+}
+
 const std::unordered_set<Engine> ic3_variants_set({ IC3_BOOL,
                                                     IC3_BITS,
                                                     MBIC3,
@@ -851,7 +864,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
 
   // try-catch block used to detect incompatible options.
   try {
-    for (int i = 0; i < parse.optionsCount(); ++i) {
+    for (size_t i = 0; i < static_cast<size_t>(parse.optionsCount()); ++i) {
       option::Option & opt = buffer[i];
       switch (opt.index()) {
         case HELP:
@@ -866,7 +879,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
           break;
         case PROP: prop_idx_ = std::stoul(opt.arg); break;
         case VERBOSITY: verbosity_ = std::stoul(opt.arg); break;
-        case RANDOM_SEED: random_seed_ = std::stoul(opt.arg); break;
+        case RANDOM_SEED: random_seed_ = parse_uint(opt.arg); break;
         case VCDNAME:
           vcd_name_ = opt.arg;
           witness_ = true;  // implicitly enabling witness
@@ -938,7 +951,7 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
         case CLK: clock_name_ = opt.arg; break;
         case NO_IC3_PREGEN: ic3_pregen_ = false; break;
         case NO_IC3_INDGEN: ic3_indgen_ = false; break;
-        case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = std::stoul(opt.arg); break;
+        case IC3_GEN_MAX_ITER: ic3_gen_max_iter_ = parse_uint(opt.arg); break;
         case MBIC3_INDGEN_MODE:
           mbic3_indgen_mode_ = std::stoul(opt.arg);
           if (!(mbic3_indgen_mode_ >= 0 && mbic3_indgen_mode_ <= 2))

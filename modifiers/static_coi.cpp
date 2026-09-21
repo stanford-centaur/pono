@@ -28,7 +28,7 @@ namespace pono {
 
 StaticConeOfInfluence::StaticConeOfInfluence(TransitionSystem & ts,
                                              const TermVec & to_keep,
-                                             int verbosity)
+                                             size_t verbosity)
     : ts_(ts), verbosity_(verbosity), coi_(ts_, verbosity_)
 {
   logger.log(1, "Starting static cone-of-influence (COI) analysis:");

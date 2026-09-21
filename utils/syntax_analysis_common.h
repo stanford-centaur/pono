@@ -39,7 +39,7 @@ class VarTermManager;
 struct PerVarsetInfo
 {
   // --- type definition --- //
-  typedef std::map<unsigned, smt::TermVec> width_term_map_t;
+  typedef std::map<uint64_t, smt::TermVec> width_term_map_t;
   struct state_t
   {
     enum stage_t
@@ -58,7 +58,7 @@ struct PerVarsetInfo
     explicit state_t(stage_t s) : stage(s), partial_width_done(0) {}
   };  // class state_t
 
-  std::map<unsigned, PerWidthInfo> terms;
+  std::map<uint64_t, PerWidthInfo> terms;
   std::unordered_set<std::string> terms_strings;
   // --- more info --- //
 
@@ -127,8 +127,8 @@ struct PerCexInfo
 {
   struct term_const_num
   {
-    unsigned term_num;
-    unsigned const_num;
+    size_t term_num;
+    size_t const_num;
     term_const_num() : term_num(0), const_num(0) {}
   };
 
@@ -137,10 +137,10 @@ struct PerCexInfo
   std::unordered_set<std::string> predicates_str;
   // std::unordered_map<smt::Term, smt::Term> pred_next_to_pred_curr;
   const PerVarsetInfo & varset_info;  // reference from VarTermManager
-  unsigned prev_refine_constraint_count;
-  std::map<unsigned, term_const_num> prev_per_width_term_num;
+  size_t prev_refine_constraint_count;
+  std::map<uint64_t, term_const_num> prev_per_width_term_num;
 
-  PerCexInfo(const PerVarsetInfo & info, unsigned constraint_count)
+  PerCexInfo(const PerVarsetInfo & info, size_t constraint_count)
       : varset_info(info), prev_refine_constraint_count(constraint_count)
   {
   }
@@ -311,7 +311,7 @@ class SyntaxStructure
 typedef std::unordered_map<uint64_t, BvConstructs> SyntaxStructureT;
 
 typedef std::function<smt::Term(const smt::Term &)> to_next_t;
-typedef std::function<unsigned(const smt::Term &)> score_t;
+typedef std::function<uint64_t(const smt::Term &)> score_t;
 // function signature that can convert convert ast to next
 
 }  // namespace syntax_analysis

@@ -38,7 +38,7 @@ FunctionalUnroller::FunctionalUnroller(const TransitionSystem & ts,
   }
 }
 
-Term FunctionalUnroller::at_time(const Term & t, unsigned int k)
+Term FunctionalUnroller::at_time(const Term & t, size_t k)
 {
   if (!ts_.no_next(t)) {
     throw PonoException(
@@ -47,14 +47,14 @@ Term FunctionalUnroller::at_time(const Term & t, unsigned int k)
   return super::at_time(t, k);
 }
 
-UnorderedTermMap & FunctionalUnroller::var_cache_at_time(unsigned int k)
+UnorderedTermMap & FunctionalUnroller::var_cache_at_time(size_t k)
 {
   const UnorderedTermMap & state_updates = ts_.state_updates();
   while (time_cache_.size() <= k) {
     time_cache_.push_back(UnorderedTermMap());
     extra_constraints_.push_back(true_);
     UnorderedTermMap & subst = time_cache_.back();
-    const unsigned int t = time_cache_.size() - 1;
+    const size_t t = time_cache_.size() - 1;
     assert(extra_constraints_.size() == t + 1);
 
     // create new state variables instead of substituting

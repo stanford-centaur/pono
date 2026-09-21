@@ -34,9 +34,10 @@ std::string IntToStrCustomBase(uint64_t value, unsigned base, bool uppercase)
   if (value == 0) return "0";
   std::string ret;
   while (value != 0) {
-    unsigned digit_val = value % base;
-    char digit = (digit_val < 10) ? ('0' + digit_val)
-                                  : ((uppercase ? 'A' : 'a') + digit_val - 10);
+    const uint64_t digit_val = value % base;
+    const char digit = static_cast<char>(
+        (digit_val < 10) ? ('0' + digit_val)
+                         : ((uppercase ? 'A' : 'a') + digit_val - 10));
     ret = digit + ret;
     value /= base;
   }
@@ -158,7 +159,7 @@ void mul2(std::vector<char> & v)
 {
   char carry = 0;
   for (auto pos = v.begin(); pos != v.end(); ++pos) {
-    *pos = (*pos) * 2 + carry;
+    *pos = static_cast<char>((*pos) * 2 + carry);
     if (*pos >= 10) {
       carry = *pos / 10;
       *pos = *pos % 10;

@@ -33,7 +33,7 @@ OpInpAbstractor::OpInpAbstractor(
     TransitionSystem & abs_ts,
     const OpSet & op_to_abstract,
     const smt::Term & prop,  // it is okay to use bad
-    int verbosity)
+    size_t verbosity)
     : OpAbstractor(conc_ts, abs_ts)
 {
   abstract_ts(conc_ts, abs_ts, op_to_abstract, prop, verbosity);
@@ -45,7 +45,7 @@ void OpInpAbstractor::abstract_ts(
     TransitionSystem & out_ts,
     const OpSet & op_to_abstract,
     const smt::Term & prop,  // it is okay to use bad
-    int verbosity)
+    size_t verbosity)
 {
   // copy if not done outside
   if (out_ts.inputvars().empty() && out_ts.statevars().empty()) out_ts = in_ts;

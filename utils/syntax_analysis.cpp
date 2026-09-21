@@ -337,7 +337,7 @@ void VarTermManager::insert_vars_only(PerVarsetInfo & term_cache_item /*OUT*/,
                                       const smt::UnorderedTermSet & varset)
 {
   for (const auto & v : varset) {
-    unsigned width;
+    uint64_t width;
     if (v->get_sort()->get_sort_kind() == smt::SortKind::BOOL)
       width = 1;
     else if (v->get_sort()->get_sort_kind() == smt::SortKind::BV)
@@ -355,7 +355,7 @@ void VarTermManager::insert_vars_and_extracts(
     smt::SmtSolver & solver_)
 {
   for (const auto & v : varset) {
-    unsigned width;
+    uint64_t width;
     if (v->get_sort()->get_sort_kind() == smt::SortKind::BOOL)
       width = 1;
     else if (v->get_sort()->get_sort_kind() == smt::SortKind::BV)
@@ -411,7 +411,7 @@ void VarTermManager::const_to_per_varset(
 }  // const_to_per_varset
 
 unsigned VarTermManager::insert_from_termsmap_w_width(
-    const std::map<unsigned, smt::TermVec> & terms /*IN*/,
+    const std::map<uint64_t, smt::TermVec> & terms /*IN*/,
     PerVarsetInfo & term_cache_item /*OUT*/,
     unsigned width_bound_low /*IN*/,
     unsigned width_bound_high /*IN*/)

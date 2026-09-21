@@ -110,7 +110,7 @@ bool static extract_decimal_width(const std::string & s,
   return true;
 }
 
-static std::string get_all_one(unsigned width)
+static std::string get_all_one(uint64_t width)
 {
   std::vector<char> out = { 1 };
 
@@ -130,7 +130,7 @@ bool static convert_to_boolean_and_check(const std::string & decimal,
                                          const std::string & width,
                                          bool _0or1)
 {
-  static std::unordered_map<unsigned, std::string> width2fullones;
+  static std::unordered_map<uint64_t, std::string> width2fullones;
 
   if (!_0or1) {
     for (auto c : decimal)

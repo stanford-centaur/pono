@@ -166,7 +166,7 @@ ProverResult check_prop(PonoOptions pono_options,
     // HACK MSAT_IC3IA does not support check_until
     r = prover->prove();
   } else {
-    r = prover->check_until(pono_options.bound_ + has_monitor);
+    r = prover->check_until(prover_bound(pono_options.bound_ + has_monitor));
   }
 
   if (r == FALSE && pono_options.witness_) {
@@ -325,7 +325,7 @@ int main(int argc, char ** argv)
       BTOR2Encoder btor_enc(pono_options.filename_, fts);
       const TermVec & propvec = btor_enc.propvec();
       const auto & justicevec = btor_enc.justicevec();
-      unsigned int num_props =
+      size_t num_props =
           pono_options.justice_ ? justicevec.size() : propvec.size();
       if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(
@@ -357,7 +357,7 @@ int main(int argc, char ** argv)
           case pono::KLIVENESS: {
             LivenessProperty justice_prop(s, conditions);
             KLiveness justice_prover(justice_prop, fts, s, pono_options);
-            res = justice_prover.check_until(pono_options.bound_);
+            res = justice_prover.check_until(prover_bound(pono_options.bound_));
             if (res == ProverResult::FALSE && pono_options.witness_
                 && !justice_prover.witness(cex)) {
               logger.log(0,
@@ -420,7 +420,7 @@ int main(int argc, char ** argv)
         VMTEncoder vmt_enc(pono_options.filename_, rts);
         propvec = vmt_enc.propvec();
       }
-      unsigned int num_props = propvec.size();
+      size_t num_props = propvec.size();
       if (pono_options.prop_idx_ >= num_props) {
         throw PonoException(
             "Property index " + to_string(pono_options.prop_idx_)

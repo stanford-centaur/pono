@@ -233,7 +233,7 @@ class PonoOptions
   unsigned long prop_idx_;
   unsigned long bound_;
   unsigned long verbosity_;
-  unsigned long random_seed_;
+  unsigned int random_seed_;
   bool witness_;
   bool justice_;  ///< check justice property at given index, else safety
   JusticeTranslator
@@ -256,10 +256,10 @@ class PonoOptions
   bool check_invar_;  ///< check invariants (if available) when run through CLI
   bool check_trans_total_;  ///< check if transition relation is right-total
   // ic3 options
-  bool ic3_pregen_;                 ///< generalize counterexamples in IC3
-  bool ic3_indgen_;                 ///< inductive generalization in IC3
-  unsigned long ic3_gen_max_iter_;  ///< max iterations in ic3 generalization. 0
-                                    ///< means unbounded
+  bool ic3_pregen_;                ///< generalize counterexamples in IC3
+  bool ic3_indgen_;                ///< inductive generalization in IC3
+  unsigned int ic3_gen_max_iter_;  ///< max iterations in ic3 generalization. 0
+                                   ///< means unbounded
   unsigned long mbic3_indgen_mode_;  ///< inductive generalization mode [0,2]
   bool ic3_functional_preimage_;     ///< functional preimage in IC3
   bool ic3_unsatcore_gen_;  ///< generalize a cube during relative inductiveness

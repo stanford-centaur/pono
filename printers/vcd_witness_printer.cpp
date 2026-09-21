@@ -203,7 +203,7 @@ VCDWitnessPrinter::VCDWitnessPrinter(
         smt::Term tmp = array_assign_pos->second;
         smt::TermVec store_children(3);
         while (tmp->get_op() == smt::Store) {
-          int num = 0;
+          size_t num = 0;
           for (auto c : tmp) {
             store_children[num] = c;
             num++;
@@ -457,7 +457,7 @@ void VCDWitnessPrinter::dump_all(
     smt::Term memvalue = pos->second;
     smt::TermVec store_children(3);
     while (memvalue->get_op() == smt::Store) {
-      int num = 0;
+      size_t num = 0;
       for (auto c : memvalue) {
         store_children[num] = c;
         num++;
@@ -541,7 +541,7 @@ void VCDWitnessPrinter::dump_diff(
     smt::Term memvalue = pos->second;
     smt::TermVec store_children(3);
     while (memvalue->get_op() == smt::Store) {  // peel the (store (store ...))
-      int num = 0;
+      size_t num = 0;
       for (auto c : memvalue) {
         store_children[num] = c;
         num++;

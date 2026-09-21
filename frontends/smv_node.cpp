@@ -33,7 +33,7 @@ void pono::module_node::preprocess(
   if (par_li.size() != id_li.size()) {
     throw PonoException("module declaration wrong");
   }
-  for (int i = 0; i < id_li.size(); i++) {
+  for (size_t i = 0; i < id_li.size(); i++) {
     std::string s = par_li[i];
     new_par[s] = id_li[i];
   }
@@ -204,7 +204,7 @@ void pono::var_node::preprocess(
     std::unordered_map<string, string> * new_prefix,
     ostream & s)
 {
-  for (int i = 0; i < ex_li.size(); i++) {
+  for (size_t i = 0; i < ex_li.size(); i++) {
     var_node_c * temp = ex_li[i];
     if (temp->getVarType() == ModuleT) {
       unordered_map<string, module_node *>::iterator it =
@@ -231,8 +231,8 @@ void pono::var_node::generate_ostream(
 {
   if (!ex_li.empty()) {
     s << "VAR" << endl;
-    for (int i = ex_li.size() - 1; i > -1; i--) {
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -246,8 +246,8 @@ void pono::ivar_node::generate_ostream(
 {
   if (!ex_li.empty()) {
     s << "IVAR" << endl;
-    for (int i = ex_li.size() - 1; i > -1; i--) {
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -261,8 +261,8 @@ void pono::frozenvar_node::generate_ostream(
 {
   if (!ex_li.empty()) {
     s << "FROZENVAR" << endl;
-    for (int i = ex_li.size() - 1; i > -1; i--) {
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -276,8 +276,8 @@ void pono::fun_node::generate_ostream(
 {
   if (!ex_li.empty()) {
     s << "FUN" << endl;
-    for (int i = ex_li.size() - 1; i > -1; i--) {
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -291,8 +291,8 @@ void pono::define_node::generate_ostream(
 {
   if (!ex_li.empty()) {
     s << "DEFINE" << endl;
-    for (int i = ex_li.size() - 1; i > -1; i--) {
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -306,8 +306,8 @@ void pono::assign_node::generate_ostream(
 {
   if (!ex_li.empty()) {
     s << "ASSIGN" << endl;
-    for (int i = ex_li.size() - 1; i > -1; i--) {
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -320,9 +320,9 @@ void pono::init_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    for (int i = ex_li.size() - 1; i > -1; i--) {
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
       s << "INIT" << endl;
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -335,9 +335,9 @@ void pono::trans_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    for (int i = ex_li.size() - 1; i > -1; i--) {
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
       s << "TRANS" << endl;
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -350,9 +350,9 @@ void pono::invar_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    for (int i = ex_li.size() - 1; i > -1; i--) {
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
       s << "INVAR" << endl;
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -365,9 +365,9 @@ void pono::invarspec_node::generate_ostream(
     ostream & s)
 {
   if (!ex_li.empty()) {
-    for (int i = ex_li.size() - 1; i > -1; i--) {
+    for (auto it = ex_li.rbegin(); it != ex_li.rend(); ++it) {
       s << "INVARSPEC" << endl;
-      ex_li[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
+      (*it)->generate_ostream(name, prefix, module_list, new_prefix, s);
     }
   }
 }
@@ -944,7 +944,7 @@ void pono::case_expr::generate_ostream(
     ostream & s)
 {
   s << " case ";
-  for (int i = 0; i < ex_l.size(); i++) {
+  for (size_t i = 0; i < ex_l.size(); i++) {
     ex_l[i]->generate_ostream(name, prefix, module_list, new_prefix, s);
     s << endl;
   }

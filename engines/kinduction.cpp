@@ -17,7 +17,9 @@
 #include "kinduction.h"
 
 #include <cassert>
+#include <climits>
 
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -101,7 +103,11 @@ ProverResult KInduction::check_until(int k)
 
   // number of steps by which current bound is increased; default bound_step_ ==
   // 1
-  const int bound_step_ = options_.kind_bound_step_;
+  // The bound is carried signed from here on, so the option has to fit in it.
+  if (options_.kind_bound_step_ > INT_MAX) {
+    throw PonoException("K-induction bound step option is too large");
+  }
+  const int bound_step_ = static_cast<int>(options_.kind_bound_step_);
 
   // Eager simple path checking not yet implemented for interval unrolling.
   if (bound_step_ != 1 && options_.kind_eager_simple_path_check_)
@@ -173,7 +179,7 @@ ProverResult KInduction::check_until(int k)
 
       for (int j = reached_k_ + 1; j <= i; j++) {
         smt::Term neg_init_at_j =
-            unroller_.at_time(solver_->make_term(Not, ts_.init()), j);
+            unroller_.at_time(solver_->make_term(Not, ts_.init()), timestep(j));
         smt::Term clause =
             solver_->make_term(PrimOp::Or, sel_neg_init_terms_, neg_init_at_j);
         // permanently add term '(sel_neg_init_terms_ OR neg_init_at_j)'
@@ -210,7 +216,7 @@ ProverResult KInduction::check_until(int k)
     // for inductive case and base case: add bad state predicate
     if (!options_.kind_no_ind_check_ || !options_.kind_no_ind_check_property_
         || !options_.kind_one_time_base_check_)
-      solver_->assert_formula(unroller_.at_time(bad_, i));
+      solver_->assert_formula(unroller_.at_time(bad_, timestep(i)));
 
     // inductive case check
     if (!options_.kind_no_ind_check_property_) {
@@ -258,12 +264,12 @@ ProverResult KInduction::check_until(int k)
       // next base case checks and inductive case checks (initial
       // states) because we proved in base check that it is implied when
       // assuming initial state predicate
-      solver_->assert_formula(unroller_.at_time(ts_.trans(), j));
+      solver_->assert_formula(unroller_.at_time(ts_.trans(), timestep(j)));
       // add negated bad state term using selector term as part of disjunction
       Term disj = solver_->make_term(
           PrimOp::Or,
           sel_neg_bad_state_terms_,
-          unroller_.at_time(solver_->make_term(Not, bad_), j));
+          unroller_.at_time(solver_->make_term(Not, bad_), timestep(j)));
       solver_->assert_formula(disj);
     }
 
@@ -286,8 +292,8 @@ Term KInduction::simple_path_constraint(int i, int j)
     if (i > 0 && j > 0 && no_next_states.find(v) != no_next_states.end()) {
       continue;
     }
-    Term vi = unroller_.at_time(v, i);
-    Term vj = unroller_.at_time(v, j);
+    Term vi = unroller_.at_time(v, timestep(i));
+    Term vj = unroller_.at_time(v, timestep(j));
     Term eq = solver_->make_term(PrimOp::Equal, vi, vj);
     Term neq = solver_->make_term(PrimOp::Not, eq);
     disj = solver_->make_term(PrimOp::Or, disj, neq);
@@ -430,8 +436,8 @@ bool KInduction::final_base_case_check(const int & cur_bound)
     // 'i' is unsat when the inductive check is unsat at bound 'i'?
     query = unroller_.at_time(bad_, 0);
     for (int frame = 1; frame <= cur_bound; frame++) {
-      query =
-          solver_->make_term(PrimOp::Or, query, unroller_.at_time(bad_, frame));
+      query = solver_->make_term(
+          PrimOp::Or, query, unroller_.at_time(bad_, timestep(frame)));
     }
   } else {
     // solver stack contains: Init(0) & Tr(0,1) & ... & Tr(n-1,n) ...
@@ -445,11 +451,11 @@ bool KInduction::final_base_case_check(const int & cur_bound)
     // - ...
     // - Init(0) & TR(0,1) & ... & TR(n-1,n) & Bad(n)
     // that is: Init(0) & (Bad(0) | (TR(0, 1) & (Bad(1) | (...))))
-    query = unroller_.at_time(bad_, cur_bound);
+    query = unroller_.at_time(bad_, timestep(cur_bound));
     for (int i = cur_bound - 1; i >= 0; --i) {
-      Term tr_from_i = unroller_.at_time(ts_.trans(), i);
+      Term tr_from_i = unroller_.at_time(ts_.trans(), timestep(i));
       query = solver_->make_term(PrimOp::And, tr_from_i, query);
-      Term bad_i = unroller_.at_time(bad_, i);
+      Term bad_i = unroller_.at_time(bad_, timestep(i));
       query = solver_->make_term(PrimOp::Or, bad_i, query);
     }
     query = solver_->make_term(PrimOp::And, init0_, query);

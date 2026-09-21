@@ -17,7 +17,9 @@
 #include "bmc.h"
 
 #include <cassert>
+#include <climits>
 
+#include "utils/exceptions.h"
 #include "utils/logger.h"
 
 using namespace smt;
@@ -32,8 +34,12 @@ Bmc::Bmc(const SafetyProperty & p,
     : super(p, ts, solver, opt, engine)
 {
   bin_search_frames_ = 0;
-  bound_step_ = opt.bmc_bound_step_;
-  bound_start_ = opt.bmc_bound_start_;
+  // check_until() takes the bound signed, so the options have to fit in it.
+  if (opt.bmc_bound_step_ > INT_MAX || opt.bmc_bound_start_ > INT_MAX) {
+    throw PonoException("BMC bound option is too large");
+  }
+  bound_step_ = static_cast<int>(opt.bmc_bound_step_);
+  bound_start_ = static_cast<int>(opt.bmc_bound_start_);
 }
 
 void Bmc::initialize()
@@ -94,11 +100,11 @@ bool Bmc::step(int i)
     logger.log(2, "  BMC reached_k = {}, i = {} ", reached_k_, i);
     for (int j = reached_k_ == -1 ? 1 : reached_k_ + 1; j <= i; j++) {
       logger.log(2, "  BMC adding transition for j-1 = {}", j - 1);
-      solver_->assert_formula(unroller_.at_time(ts_.trans(), j - 1));
+      solver_->assert_formula(unroller_.at_time(ts_.trans(), timestep(j - 1)));
       if (options_.bmc_neg_init_step_) {
         logger.log(2, "  BMC adding negated init constraint for step {}", j);
-        Term not_init =
-            solver_->make_term(PrimOp::Not, unroller_.at_time(ts_.init(), j));
+        Term not_init = solver_->make_term(
+            PrimOp::Not, unroller_.at_time(ts_.init(), timestep(j)));
         solver_->assert_formula(not_init);
       }
     }
@@ -117,13 +123,13 @@ bool Bmc::step(int i)
     clause = solver_->make_term(false);
     for (int j = reached_k_ + 1; j <= i; j++) {
       logger.log(2, "  BMC adding bad state constraint for j = {}", j);
-      clause =
-          solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
+      clause = solver_->make_term(
+          PrimOp::Or, clause, unroller_.at_time(bad_, timestep(j)));
     }
   } else {
     // Add a single bad state predicate (bugs might be missed)
     logger.log(2, "  BMC adding bad state constraint for i = {}", i);
-    clause = unroller_.at_time(bad_, i);
+    clause = unroller_.at_time(bad_, timestep(i));
   }
 
   solver_->assert_formula(clause);
@@ -196,13 +202,15 @@ bool Bmc::step(int i)
         for (int j = reached_k_ + 1; j <= i; j++) {
           logger.log(
               2, "  BMC adding negated bad state constraint for j = {}", j);
-          not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
+          not_bad = solver_->make_term(PrimOp::Not,
+                                       unroller_.at_time(bad_, timestep(j)));
           solver_->assert_formula(not_bad);
         }
       } else {
         logger.log(
             2, "  BMC adding negated bad state constraint for i = {}", i);
-        not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, i));
+        not_bad = solver_->make_term(PrimOp::Not,
+                                     unroller_.at_time(bad_, timestep(i)));
         solver_->assert_formula(not_bad);
       }
     }
@@ -225,7 +233,7 @@ int Bmc::bmc_interval_get_cex_ub(const int lb, const int ub)
 
   int j;
   for (j = lb; j <= ub; j++) {
-    Term bad_state_at_j = unroller_.at_time(bad_, j);
+    Term bad_state_at_j = unroller_.at_time(bad_, timestep(j));
     logger.log(2,
                "    BMC get cex upper bound, checking value of bad state "
                "constraint j = {}",
@@ -250,7 +258,8 @@ void Bmc::bmc_interval_block_cex_ub(const int start, const int end)
              start,
              end);
   for (int k = start; k <= end; k++) {
-    Term not_bad = solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, k));
+    Term not_bad =
+        solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, timestep(k)));
     logger.log(
         3,
         "    BMC adding permanent blocking bad state constraint for k = {}",
@@ -301,7 +310,7 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
                  "adding blocking bad state constraint for j = {}",
                  j);
       Term not_bad =
-          solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
+          solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, timestep(j)));
       solver_->assert_formula(not_bad);
     }
 
@@ -358,8 +367,8 @@ bool Bmc::find_shortest_cex_binary_search(const int upper_bound)
                    "  BMC binary search, finding shortest cex---"
                    "adding blocking bad state constraint for j = {}",
                    j);
-        Term not_bad =
-            solver_->make_term(PrimOp::Not, unroller_.at_time(bad_, j));
+        Term not_bad = solver_->make_term(PrimOp::Not,
+                                          unroller_.at_time(bad_, timestep(j)));
         solver_->assert_formula(not_bad);
       }
 
@@ -420,8 +429,8 @@ bool Bmc::find_shortest_cex_binary_search_less_inc(const int upper_bound)
                  "  BMC binary search, finding shortest cex---"
                  "adding bad state constraint for j = {}",
                  j);
-      clause =
-          solver_->make_term(PrimOp::Or, clause, unroller_.at_time(bad_, j));
+      clause = solver_->make_term(
+          PrimOp::Or, clause, unroller_.at_time(bad_, timestep(j)));
     }
     solver_->assert_formula(clause);
 
@@ -487,7 +496,7 @@ void Bmc::find_shortest_cex_linear_search(const int upper_bound)
         2,
         "  BMC finding shortest cex---adding bad state constraint for j = {}",
         j);
-    solver_->assert_formula(unroller_.at_time(bad_, j));
+    solver_->assert_formula(unroller_.at_time(bad_, timestep(j)));
     if (solver_->check_sat().is_sat()) {
       break;
     } else

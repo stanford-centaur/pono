@@ -50,7 +50,7 @@ static pono_time_duration timestamp_diff(pono_time_stamp begin,
 static std::string time_duration_to_sec_string(pono_time_duration d)
 {
   std::ostringstream out;
-  out << d.count() * 1e-9;
+  out << static_cast<double>(d.count()) * 1e-9;
   return out.str();
 }
 

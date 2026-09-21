@@ -34,7 +34,7 @@ Unroller::Unroller(const TransitionSystem & ts, const string & time_identifier)
   num_vars_ += ts_.inputvars().size();
 }
 
-Term Unroller::at_time(const Term & t, unsigned int k)
+Term Unroller::at_time(const Term & t, size_t k)
 {
   UnorderedTermMap & cache = var_cache_at_time(k);
 
@@ -80,7 +80,7 @@ size_t Unroller::get_curr_time(const smt::Term & t) const
   return min;
 }
 
-Term Unroller::var_at_time(const Term & v, unsigned int k)
+Term Unroller::var_at_time(const Term & v, size_t k)
 {
   assert(v->is_symbolic_const());
 
@@ -104,12 +104,12 @@ Term Unroller::var_at_time(const Term & v, unsigned int k)
   return timed_v;
 }
 
-UnorderedTermMap & Unroller::var_cache_at_time(unsigned int k)
+UnorderedTermMap & Unroller::var_cache_at_time(size_t k)
 {
   while (time_cache_.size() <= k) {
     time_cache_.push_back(UnorderedTermMap());
     UnorderedTermMap & subst = time_cache_.back();
-    const unsigned int t = time_cache_.size() - 1;
+    const size_t t = time_cache_.size() - 1;
 
     for (auto v : ts_.statevars()) {
       Term vn = ts_.next(v);

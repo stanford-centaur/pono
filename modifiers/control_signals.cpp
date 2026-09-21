@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 
 #include "utils/exceptions.h"
 
@@ -69,9 +70,13 @@ Term add_reset_seq(TransitionSystem & ts,
                         + reset_symbol->get_sort()->to_string());
   }
 
-  uint32_t num_bits = ceil(log2(reset_bnd)) + 1;
+  uint32_t num_bits = static_cast<uint32_t>(ceil(log2(reset_bnd))) + 1;
   Sort bvsort = s->make_sort(BV, num_bits);
-  Term reset_bnd_term = s->make_term(reset_bnd, bvsort);
+  if (reset_bnd > INT64_MAX) {
+    throw PonoException("Reset bound is too large: "
+                        + std::to_string(reset_bnd));
+  }
+  Term reset_bnd_term = s->make_term(static_cast<int64_t>(reset_bnd), bvsort);
   Term reset_counter = ts.make_generated_statevar("reset_counter", bvsort);
 
   Term in_reset = s->make_term(BVUlt, reset_counter, reset_bnd_term);

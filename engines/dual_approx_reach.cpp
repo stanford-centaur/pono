@@ -136,7 +136,7 @@ bool DualApproxReach::step(int i)
     return step_0();
   }
 
-  update_term_map(i);
+  update_term_map(timestep(i));
   if (!local_strengthen() && (i == 1 || !global_strengthen())) {
     concrete_cex_ = true;
     return false;

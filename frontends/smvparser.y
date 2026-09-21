@@ -8,6 +8,17 @@
     using namespace std;
     int case_start = 0;
     bool case_true = false;
+
+    /* A bit-vector width or index in the input is never negative, but the
+       grammar carries integer tokens signed, so check rather than assume. */
+    static uint64_t bv_index(int n)
+    {
+      if (n < 0) {
+        throw PonoException("Negative bit-vector width or index: "
+                            + std::to_string(n));
+      }
+      return static_cast<uint64_t>(n);
+    }
 %}
 
 %code requires{
@@ -530,9 +541,9 @@ constant: boolean_constant {
 
 word_value: word_index1 integer_val "_" integer_val {
       if(enc.module_flat){
-          smt::Sort sort_ = enc.solver_->make_sort(smt::BV, stoi($2));
+          smt::Sort sort_ = enc.solver_->make_sort(smt::BV, bv_index(stoi($2)));
           std::string temp = $1;
-          int base = 2;
+          uint64_t base = 2;
           switch (temp[1]){
             case 'b':
               base = 2;
@@ -554,10 +565,10 @@ word_value: word_index1 integer_val "_" integer_val {
         } }
         | word_index2 integer_val "_" integer_val {
         if(enc.module_flat){
-          smt::Sort sort_ = enc.solver_->make_sort(smt::BV, stoi($2));
+          smt::Sort sort_ = enc.solver_->make_sort(smt::BV, bv_index(stoi($2)));
           std::string temp = $1;
           SMVnode::Type bvt;
-          int base = 2;
+          uint64_t base = 2;
           switch (temp[1]){
             case 'u':
               bvt = SMVnode::Unsigned;
@@ -1190,7 +1201,7 @@ simple_expr: constant {
                 SMVnode *a = $1;
                 SMVnode::Type bvs_a = a->getType();
                 if(bvs_a == SMVnode::Unsigned || bvs_a == SMVnode::Signed){
-                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Extract, stoi($3),stoi($5)), a->getTerm());
+                  smt::Term res = enc.solver_->make_term(smt::Op(smt::Extract, bv_index(stoi($3)), bv_index(stoi($5))), a->getTerm());
                   assert(res); //check res non-null
                   $$ = new SMVnode(res,SMVnode::Unsigned);
                 }else{
@@ -1341,7 +1352,7 @@ simple_expr: constant {
             if(enc.module_flat){
              SMVnode *a = $8;
              type_node *b = $6;
-             smt::Sort arraysort = enc.solver_->make_sort(smt::BV,$4);
+             smt::Sort arraysort = enc.solver_->make_sort(smt::BV, bv_index($4));
              smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort,b->getSort());
              smt::Term const_arr = enc.solver_->make_term(a->getTerm(),sort_);
              $$ = new SMVnode(const_arr,SMVnode::WordArray, a->getType());
@@ -1406,9 +1417,9 @@ case_expr: TOK_CASE case_body TOK_ESAC {
           smt::Term cond = term_last.first->getTerm();
           smt::Term final_term = term_last.second->getTerm();
           enc.caseterm_.pop_back();
-          int total_num = enc.caseterm_.size();
+          size_t total_num = enc.caseterm_.size();
           SMVnode::Type t = SMVnode::Default;
-          for (int i = 0; i < total_num; i++){
+          for (size_t i = 0; i < total_num; i++){
             std::pair<SMVnode*,SMVnode*> term_pair = enc.caseterm_.back();
             enc.caseterm_.pop_back();
             case_true = true;
@@ -1501,7 +1512,7 @@ type_identifier: real_type{
 
 word_type: signed_word sizev {
   if(enc.module_flat){
-        smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
+        smt::Sort sort_ = enc.solver_->make_sort(smt::BV, bv_index($2));
         $$ =  new type_node(sort_,SMVnode::Signed);
   }else{
     string n = "signed word [" + std::to_string($2) + "]";
@@ -1510,7 +1521,7 @@ word_type: signed_word sizev {
 }
           | unsigned_word sizev{
             if(enc.module_flat){
-            smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
+            smt::Sort sort_ = enc.solver_->make_sort(smt::BV, bv_index($2));
             $$ =  new type_node (sort_,SMVnode::Unsigned);
     }else{
         string n = "unsigned word [" + std::to_string($2) + "]";
@@ -1519,7 +1530,7 @@ word_type: signed_word sizev {
 }
           | tok_word sizev{
     if(enc.module_flat){
-        smt::Sort sort_ = enc.solver_->make_sort(smt::BV, $2);
+        smt::Sort sort_ = enc.solver_->make_sort(smt::BV, bv_index($2));
         $$ =  new type_node (sort_,SMVnode::Unsigned);
     }else{
         string n = "word [" + std::to_string($2) + "]";
@@ -1529,7 +1540,7 @@ word_type: signed_word sizev {
 
 array_type: arrayword sizev of type_identifier{
             if(enc.module_flat){
-              smt::Sort arraysort = enc.solver_->make_sort(smt::BV,$2);
+              smt::Sort arraysort = enc.solver_->make_sort(smt::BV, bv_index($2));
               SMVnode *a = $4;
               smt::Sort sort_ = enc.solver_->make_sort(smt::ARRAY, arraysort,a->getSort());
               $$ = new type_node(sort_,SMVnode::WordArray,a->getType());
