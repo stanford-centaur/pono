@@ -89,6 +89,9 @@ SystemVerilogEncoder::Result SystemVerilogEncoder::encode(
 {
   SystemVerilogEncoder enc(fts);
   enc.run(filename, filelists, top);
+  // Only now is it known which properties a temporal assumption has
+  // to constrain -- one written last still constrains the first.
+  enc.assertion_walker_.apply_fairness_assumptions();
   return Result{ std::move(enc.assertion_walker_.propvec()),
                  std::move(enc.assertion_walker_.ltl_justice()) };
 }

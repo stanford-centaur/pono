@@ -2214,21 +2214,50 @@ void AssertionWalker::process_concurrent_assertion(
   } else {
     span = 0;
     if (is_assumption) {
-      // Temporal (non-safety) assume/restrict properties would need
-      // their own fairness-constraint machinery (assuming a GF
-      // condition rather than proving one), which nothing else in
-      // the encoder builds yet. Dropping an assumption silently is
-      // worse than dropping an assertion: the model would be left
-      // *less* constrained than the source describes, so any
-      // counterexample BMC/IC3 finds afterward could be spurious
-      // (ruled out by the assumption this never applied) -- throw
-      // rather than risk reporting an unsound "bug".
-      throw PonoException(
-          "SystemVerilogEncoder: temporal (non-safety) '"
-          + std::string(ca.assertionKind == AssertionKind::Restrict ? "restrict"
-                                                                    : "assume")
-          + " property' is not supported: "
-          + make_name(prefix, current_assertion_label_));
+      // A temporal assumption is a fairness constraint, and it is
+      // built from the tableau of the property *itself* rather than
+      // its negation: the assert path wants the runs that violate a
+      // property, this one wants the runs that satisfy it.
+      //
+      // Requiring sat(P) at every cycle is the LRM's per-tick
+      // reading, and it settles the whole assumption except for the
+      // promises the tableau is allowed to make and never keep.
+      // Those are exactly its eventualities, and the discharge
+      // conditions ltl_to_sat() collects for them become fairness
+      // conditions on any counterexample --
+      // apply_fairness_assumptions() distributes them once the
+      // design has been walked, since assertions written earlier are
+      // constrained by this too.
+      if (current_disable_cond_) {
+        throw PonoException(
+            "SystemVerilogEncoder: a `disable iff` on the temporal "
+            "assumption '"
+            + make_name(prefix, current_assertion_label_)
+            + "' is not supported -- aborting a fairness constraint part "
+              "way through would make it hold over some suffixes and not "
+              "others, which a justice condition cannot say");
+      }
+      TermVec fairness;
+      Term satisfied = ltl_to_sat(*a, /*neg=*/false, fairness, prefix);
+      if (!satisfied) {
+        throw PonoException(
+            "SystemVerilogEncoder: assumption '"
+            + make_name(prefix, current_assertion_label_)
+            + "' uses an assertion shape this encoder cannot translate");
+      }
+      fts_.add_constraint(satisfied, /*to_init_and_next=*/false);
+      fairness_justice_.insert(
+          fairness_justice_.end(), fairness.begin(), fairness.end());
+      if (fairness_assumption_label_.empty()) {
+        fairness_assumption_label_ =
+            make_name(prefix, current_assertion_label_);
+      }
+      logger.log(1,
+                 "SystemVerilogEncoder: extracted fairness assumption "
+                 "from {} ({} condition(s))",
+                 make_name(prefix, current_assertion_label_),
+                 fairness.size());
+      return;
     }
     if (is_cover) {
       // The duality below would express this fine -- a cover's
@@ -2358,6 +2387,33 @@ void AssertionWalker::process_concurrent_assertion(
              make_name(prefix, current_assertion_label_),
              ltl_justice_.size() - 1,
              justice.size());
+}
+
+void AssertionWalker::apply_fairness_assumptions()
+{
+  if (fairness_justice_.empty()) return;
+
+  if (!propvec_.empty()) {
+    throw PonoException(
+        "SystemVerilogEncoder: the temporal assumption '"
+        + fairness_assumption_label_
+        + "' cannot be applied to this design's safety properties. It rules "
+          "out infinite traces, and a safety counterexample is a finite "
+          "prefix -- every one of which extends to some trace the assumption "
+          "allows or to one it does not, which only a fair-reachability "
+          "check could tell apart. Reporting a counterexample the assumption "
+          "may have excluded would be worse than refusing here.");
+  }
+
+  for (TermVec & justice : ltl_justice_) {
+    justice.insert(
+        justice.end(), fairness_justice_.begin(), fairness_justice_.end());
+  }
+  logger.log(1,
+             "SystemVerilogEncoder: applied {} fairness condition(s) to {} "
+             "liveness property/properties",
+             fairness_justice_.size(),
+             ltl_justice_.size());
 }
 
 void AssertionWalker::process_immediate_assertion(

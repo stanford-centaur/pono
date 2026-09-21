@@ -136,6 +136,20 @@ class SVUnitTests : public ::testing::Test,
       size_t bound,
       pono::ProverResult expected = pono::ProverResult::FALSE)
   {
+    check_liveness_prover<pono::Bmc>(file, bound, expected);
+  }
+
+  // Generalization of check_liveness_bmc() over any SafetyProver-
+  // shaped engine, the liveness counterpart of check_prover().  BMC
+  // can only fail to find a lasso, which does not distinguish a
+  // fairness assumption that bites from one that was dropped; an
+  // inductive engine on the translated property settles it.
+  template <typename EngineT>
+  void check_liveness_prover(
+      const std::string & file,
+      size_t bound,
+      pono::ProverResult expected = pono::ProverResult::FALSE)
+  {
     using namespace pono;
     using namespace smt;
 
@@ -167,8 +181,8 @@ class SVUnitTests : public ::testing::Test,
     }
 
     SafetyProperty prop(ts.solver(), safety_term);
-    Bmc bmc(prop, ts, s);
-    EXPECT_EQ(bmc.check_until(bound), expected);
+    EngineT engine(prop, ts, s);
+    EXPECT_EQ(engine.check_until(bound), expected);
   }
 
   // Assert that encoding `file` throws a PonoException (the clean-

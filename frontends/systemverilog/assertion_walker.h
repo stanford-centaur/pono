@@ -104,6 +104,21 @@ class AssertionWalker
    */
   std::vector<smt::TermVec> & ltl_justice() { return ltl_justice_; }
 
+  /** Fold the fairness conditions contributed by temporal
+   *  `assume`/`restrict` properties into every liveness property's
+   *  justice set, so a counterexample lasso has to satisfy the
+   *  assumptions as well as violate the property. Call once, after
+   *  the whole design has been walked: an assumption constrains the
+   *  assertions written before it as much as those written after.
+   *
+   *  Throws if the design also has a safety property. A fairness
+   *  assumption rules out infinite traces, and there is no finite
+   *  prefix it can rule out -- so it cannot restrict a safety
+   *  counterexample, and reporting one that the assumption might
+   *  have excluded would be worse than refusing.
+   */
+  void apply_fairness_assumptions();
+
  private:
   /** Compile an SVA AssertionExpr into a Boolean SMT term that holds
    *  iff the assertion passes at the current cycle.  Returns a null
@@ -407,6 +422,18 @@ class AssertionWalker
   // counterexample is a lasso along which every j_i holds infinitely
   // often.  See SystemVerilogEncoder::Result::ltl_justice.
   std::vector<smt::TermVec> ltl_justice_;
+
+  // Fairness conditions from temporal `assume`/`restrict` properties.
+  // Each assumption's tableau is constrained to hold at every cycle
+  // when it is walked, which settles everything about it that a
+  // finite prefix can settle; these are what is left -- the promises
+  // the tableau may make and never keep, which only an infinite
+  // trace can rule out. apply_fairness_assumptions() hands them to
+  // the properties.
+  smt::TermVec fairness_justice_;
+  // The first such assumption's name, for the message thrown when a
+  // safety property cannot honour it.
+  std::string fairness_assumption_label_;
 
   // The `disable iff` condition (explicit on the current assert
   // statement, or the enclosing module's `default disable iff`) as a

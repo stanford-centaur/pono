@@ -800,20 +800,76 @@ TEST_P(SVUnitTests, BareSequenceConcatProperty)
   check_bmc("bare_sequence_concat_property.sv", 1);
 }
 
-// Temporal (non-safety) `assume`/`restrict property` -- previously
-// silently dropped (logged and skipped, with the model left less
-// constrained than the source describes, risking a spurious
-// counterexample from a later `assert`); now throws instead. A real
-// gap (the dual of the justice-based proving machinery already built
-// for `assert`), not an inherent impossibility.
-TEST_P(SVUnitTests, Gap_TemporalAssumeProperty)
+// Temporal (non-safety) `assume`/`restrict property`: a fairness
+// constraint. The assumption's own tableau is required at every
+// cycle, and the eventualities it may promise and never keep become
+// justice conditions on the counterexample lasso, alongside the
+// property's own.
+//
+// Each of these is proved rather than merely left unrefuted. BMC can
+// only fail to find a lasso, which looks identical whether the
+// assumption bites or was dropped on the floor.
+TEST_P(SVUnitTests, TemporalAssumeProperty)
 {
-  check_bmc("temporal_assume_property.sv", 1, ProverResult::UNKNOWN);
+  check_liveness_prover<KInduction>(
+      "temporal_assume_property.sv", 20, ProverResult::TRUE);
 }
 
-TEST_P(SVUnitTests, Gap_TemporalRestrictProperty)
+TEST_P(SVUnitTests, TemporalAssumeAbsent)
 {
-  check_bmc("temporal_restrict_property.sv", 1, ProverResult::UNKNOWN);
+  check_liveness_bmc("temporal_assume_absent.sv", 5);
+}
+
+// The negative that keeps the positives honest: an assumption whose
+// tableau could not be satisfied would empty the model and prove
+// everything, including this.
+TEST_P(SVUnitTests, TemporalAssumeUnrelated)
+{
+  check_liveness_bmc("temporal_assume_unrelated.sv", 5);
+}
+
+TEST_P(SVUnitTests, TemporalRestrictProperty)
+{
+  check_liveness_prover<KInduction>(
+      "temporal_restrict_property.sv", 20, ProverResult::TRUE);
+}
+
+// The construct's actual use: an acknowledgement the design cannot
+// force and the environment has to promise.
+TEST_P(SVUnitTests, FairnessHandshake)
+{
+  check_liveness_prover<KInduction>(
+      "fairness_handshake.sv", 20, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, FairnessHandshakeUnfair)
+{
+  check_liveness_bmc("fairness_handshake_unfair.sv", 5);
+}
+
+// An assumption constrains the assertions written before it too,
+// which is why the conditions are distributed after the walk.
+TEST_P(SVUnitTests, FairnessAssumeAfterAssert)
+{
+  check_liveness_prover<KInduction>(
+      "fairness_assume_after_assert.sv", 20, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, FairnessTwoAssumptions)
+{
+  check_liveness_prover<KInduction>(
+      "fairness_two_assumptions.sv", 20, ProverResult::TRUE);
+}
+
+// What a fairness constraint cannot reach.
+TEST_P(SVUnitTests, Unsupported_TemporalAssumeWithSafety)
+{
+  expect_encode_throws("temporal_assume_with_safety.sv");
+}
+
+TEST_P(SVUnitTests, Unsupported_TemporalAssumeDisableIff)
+{
+  expect_encode_throws("temporal_assume_disable_iff.sv");
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVSvaTests,
