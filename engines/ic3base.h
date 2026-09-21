@@ -88,13 +88,6 @@ struct IC3Formula
     std::sort(children.begin(), children.end());
   }
 
-  IC3Formula(const IC3Formula & other)
-      : term(other.term),
-        children(other.children),
-        disjunction(other.disjunction)
-  {
-  }
-
   virtual ~IC3Formula() = default;
 
   /** Returns true iff this IC3Formula has not been initialized */
