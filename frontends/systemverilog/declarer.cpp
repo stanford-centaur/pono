@@ -191,10 +191,10 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
       if (symbol_table_.wire_symbols().count(&net)) return;
       if (symbol_table_.port_output_aliases().count(&net)) return;
 
-      // An unpacked-array net has no driver and so no read path; it
-      // would become a free array-sorted input var that nothing can
-      // use. Registers are the supported case.
-      reject_unpacked_array(net.getType(), net.name, "an unpacked-array net");
+      // An unpacked-array net becomes a free array-sorted variable,
+      // which is exactly an undriven net: its elements read as
+      // unknowns until a continuous assign constrains them, one
+      // element at a time or all at once.
       string name = symbol_table_.make_name(walk_prefix, string(net.name));
       Sort sort = type_to_sort(solver_, net.getType());
 

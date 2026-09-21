@@ -333,4 +333,23 @@ TEST_P(SVUnitTests, UnpackedPatternNonConstantFails)
   check_bmc("unpacked_pattern_nonconstant_fails.sv", 2);
 }
 
+// Unpacked-array nets. Driving one is a constraint rather than an
+// assignment, and what is left undriven stays free -- which is what
+// an undriven net is.
+
+TEST_P(SVUnitTests, UnpackedArrayNet)
+{
+  check_prover<KInduction>("unpacked_array_net.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, UnpackedArrayNetUndrivenIsFree)
+{
+  check_bmc("unpacked_array_net_fails.sv", 1);
+}
+
+TEST_P(SVUnitTests, UnpackedArrayOutPort)
+{
+  check_prover<KInduction>("unpacked_array_out_port.sv", 8, ProverResult::TRUE);
+}
+
 }  // namespace pono_tests

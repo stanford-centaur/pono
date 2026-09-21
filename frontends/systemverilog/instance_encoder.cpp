@@ -22,13 +22,16 @@
 #include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/expressions/OperatorExpressions.h"
+#include "slang/ast/expressions/SelectExpressions.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/CheckerSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
+#include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
@@ -439,6 +442,55 @@ void InstanceEncoder::process_continuous_assign_operand(
     const string & parent_prefix)
 {
   using namespace slang::ast;
+
+  // An unpacked array is not a bit range, so resolve_lvalue() has
+  // nothing to say about it. Driving one continuously is a
+  // constraint rather than an assignment: the whole array equals the
+  // right-hand side, or one element of it does. Elements left
+  // undriven stay free, which is what an undriven net is.
+  {
+    const Expression * target = &lhs_expr;
+    const Expression * index = nullptr;
+    if (target->kind == ExpressionKind::ElementSelect) {
+      auto & sel = target->as<ElementSelectExpression>();
+      if (sel.value().type->getCanonicalType().kind
+          == SymbolKind::FixedSizeUnpackedArrayType) {
+        index = &sel.selector();
+        target = &sel.value();
+      }
+    }
+    bool whole_array = !index
+                       && target->type->getCanonicalType().kind
+                              == SymbolKind::FixedSizeUnpackedArrayType;
+    if (whole_array && target->kind == ExpressionKind::NamedValue) {
+      // A wire takes its value from its driver, so for a whole-array
+      // one this assign *is* the definition -- there is no term yet
+      // to constrain.
+      const Symbol * sym =
+          &canonicalize_modport_port(target->as<NamedValueExpression>().symbol);
+      if (!symbol_table_.symbol_to_term().count(sym)) {
+        symbol_table_.symbol_to_term()[sym] = rhs_arg;
+        return;
+      }
+    }
+    if (index || whole_array) {
+      Term array = expr_encoder_.expr_to_term(*target, prefix);
+      Term driven = array;
+      if (index) {
+        auto & arr =
+            target->type->getCanonicalType().as<FixedSizeUnpackedArrayType>();
+        UnpackedArrayInfo info = unpacked_array_info(solver_, arr);
+        Term idx = resize_to(solver_,
+                             expr_encoder_.expr_to_term(*index, prefix),
+                             info.index_width,
+                             index->type->isSigned());
+        driven = solver_->make_term(
+            Select, array, normalize_array_index(solver_, idx, info));
+      }
+      fts_.add_constraint(solver_->make_term(Equal, driven, rhs_arg));
+      return;
+    }
+  }
 
   // Unlike the procedural-assignment path (which falls back to
   // process_dynamic_element_assign() for a genuinely dynamic-index
