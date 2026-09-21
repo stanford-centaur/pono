@@ -1,9 +1,15 @@
 // `case (x) matches ... endcase` (pattern-matching case,
 // StatementKind::PatternCase) is a distinct statement kind from plain
-// `case`/`casex`/`casez` (StatementKind::Case). process_statement()'s
-// main switch has no explicit case for it, so it falls to the generic
-// unhandled-statement-kind default, which logs a warning and skips it.
-module pattern_case (input logic clk, input logic [3:0] x);
+// `case`/`casex`/`casez` (StatementKind::Case), and its items are
+// patterns rather than values to compare against.
+//
+// A constant pattern is the degenerate case, testing equality just as
+// a plain case item would -- which is what makes it the right shape
+// to pin the basic wiring with.
+module pattern_case (
+    input logic clk,
+    input logic [3:0] x
+);
 
   logic [3:0] y;
 
@@ -14,8 +20,6 @@ module pattern_case (input logic clk, input logic [3:0] x);
     endcase
   end
 
-  // Once `matches` case items are handled, x==1 should deterministically
-  // set y to 10 one cycle later.
   assert property (@(posedge clk) x == 4'd1 |=> y == 4'd10);
 
 endmodule

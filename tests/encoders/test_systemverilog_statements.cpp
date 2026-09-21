@@ -361,17 +361,50 @@ TEST_P(SVUnitTests, CasexCasezWildcard)
 }
 
 // `case (x) matches ... endcase` (StatementKind::PatternCase) is a
-// distinct statement kind from plain case/casex/casez
-// (StatementKind::Case) that pre_scan_state_vars()'s
-// collect_blocking_targets()/collect_nonblocking_targets() don't
-// recognize either -- but since process_statement() itself also
-// doesn't process it (falling to the generic unhandled-statement-kind
-// default), the two omissions are consistent: no write inside it is
-// ever pre-scanned *or* applied, and the skip is logged. A real
-// mainstream-RTL gap, not a deliberate non-goal.
-TEST_P(SVUnitTests, Gap_PatternCase)
+// distinct statement kind from plain `case`/`casex`/`casez`, matching
+// each item's *pattern* rather than comparing values. A constant
+// pattern is the degenerate case and pins the basic wiring.
+TEST_P(SVUnitTests, PatternCase)
 {
-  check_bmc("pattern_case.sv", 2, ProverResult::UNKNOWN);
+  check_prover<KInduction>("pattern_case.sv", 6, ProverResult::TRUE);
+}
+
+// A `.v` variable pattern binds what it matched for the arm to read,
+// and matches anything -- so the items have to be first-match-wins
+// (or the catch-all would overwrite the constant arm above it) and
+// the case counts as exhaustive with no `default` present.
+TEST_P(SVUnitTests, PatternCaseFirstMatchWins)
+{
+  check_prover<KInduction>(
+      "pattern_case_first_match.sv", 6, ProverResult::TRUE);
+}
+
+// A structure pattern over a packed struct, mixing a constant field
+// test with a binding one.
+TEST_P(SVUnitTests, PatternCaseStructurePattern)
+{
+  check_prover<KInduction>("pattern_case_structure.sv", 6, ProverResult::TRUE);
+}
+
+// A `&&&` filter, which reads the name its own item's pattern bound
+// and so needs that binding in scope while the guard is built.
+TEST_P(SVUnitTests, PatternCaseFilter)
+{
+  check_prover<KInduction>("pattern_case_filter.sv", 6, ProverResult::TRUE);
+}
+
+// Not exhaustive and no `default`, so the target holds its value on
+// the paths that assign nothing -- the latch synthesis infers.
+TEST_P(SVUnitTests, PatternCaseIncompleteLatches)
+{
+  check_prover<KInduction>("pattern_case_incomplete.sv", 6, ProverResult::TRUE);
+}
+
+// A `tagged` pattern needs a tagged union's discriminant, which is
+// not modeled.
+TEST_P(SVUnitTests, Unsupported_PatternCaseTagged)
+{
+  expect_encode_throws("pattern_case_tagged.sv");
 }
 
 // ---------------------------------------------------------------------------

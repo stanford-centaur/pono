@@ -22,6 +22,7 @@
 #include "frontends/systemverilog/symbol_table.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
+#include "slang/ast/Patterns.h"
 #include "slang/ast/SemanticFacts.h"
 #include "slang/ast/Statement.h"
 #include "slang/ast/Symbol.h"
@@ -773,6 +774,73 @@ bool StatementEncoder::process_whole_array_assign(
           ? combined
           : solver_->make_term(Ite, condition, combined, prev_base));
   return true;
+}
+
+Term StatementEncoder::pattern_match(
+    const slang::ast::Pattern & pat,
+    const Term & value,
+    const string & prefix,
+    std::vector<std::pair<const slang::ast::Symbol *, Term>> & bindings)
+{
+  using namespace slang::ast;
+
+  switch (pat.kind) {
+    case PatternKind::Wildcard:
+      // `.*` places no constraint at all.
+      return solver_->make_term(true);
+
+    case PatternKind::Variable: {
+      // `.name` matches anything and names what it matched, so the
+      // arm's statement can read it.
+      auto & vp = pat.as<VariablePattern>();
+      bindings.emplace_back(&vp.variable, value);
+      return solver_->make_term(true);
+    }
+
+    case PatternKind::Constant: {
+      auto & cp = pat.as<ConstantPattern>();
+      Term lit = expr_encoder_.expr_to_term(cp.expr, prefix);
+      lit = resize_to(solver_,
+                      lit,
+                      value->get_sort()->get_width(),
+                      cp.expr.type->isSigned());
+      return solver_->make_term(Equal, value, lit);
+    }
+
+    case PatternKind::Structure: {
+      // Each field pattern applies to that field's own bits, found
+      // the same way a packed-struct member read finds them.
+      auto & sp = pat.as<StructurePattern>();
+      Term all;
+      for (auto & fp : sp.patterns) {
+        uint64_t w = value_width(fp.field->getType());
+        if (w == 0) {
+          throw PonoException(
+              "SystemVerilogEncoder: a pattern over field '"
+              + std::string(fp.field->name)
+              + "' cannot be matched, since the field has no bits");
+        }
+        uint64_t lo = fp.field->bitOffset;
+        Term slice = slice_bits(solver_, value, lo, lo + w - 1);
+        Term one = pattern_match(*fp.pattern, slice, prefix, bindings);
+        all = all ? solver_->make_term(And, all, one) : one;
+      }
+      return all ? all : solver_->make_term(true);
+    }
+
+    case PatternKind::Tagged:
+      // A tagged union's discriminant is the thing being matched
+      // here, and this encoder has no union representation carrying
+      // one -- see the unpacked-union exclusion.
+      throw PonoException(
+          "SystemVerilogEncoder: a `tagged` pattern is not supported, since "
+          "a tagged union's discriminant is not modeled");
+
+    default:
+      throw PonoException("SystemVerilogEncoder: unsupported pattern kind "
+                          + std::to_string(static_cast<int>(pat.kind))
+                          + " in a `case ... matches`");
+  }
 }
 
 void StatementEncoder::refresh_loop_var_term(
@@ -1656,6 +1724,89 @@ void StatementEncoder::process_statement(
       if (cond_stmt.ifFalse) {
         process_statement(
             *cond_stmt.ifFalse, ctx, else_cond, prefix, default_disable_expr);
+      }
+      break;
+    }
+
+    case StatementKind::PatternCase: {
+      // `case (x) matches` tests each item's *pattern* rather than
+      // comparing values, and a pattern can bind names the arm then
+      // reads. Unlike the plain Case below, the arms are guarded
+      // first-match-wins: a pattern can match anything at all (`.v`
+      // does), so without it a later arm would run alongside the one
+      // that actually matched.
+      auto & pc = stmt.as<PatternCaseStatement>();
+      if (pc.condition != CaseStatementCondition::Normal) {
+        throw PonoException(
+            "SystemVerilogEncoder: only a plain `case ... matches` is "
+            "supported; the wildcard and `inside` forms compare pattern "
+            "bits in ways a structural match does not");
+      }
+      Term sel = expr_encoder_.expr_to_term(pc.expr, prefix);
+      Term true_term = solver_->make_term(true);
+      Term earlier_matched;
+      auto & bound = symbol_table_.loop_var_terms();
+      for (auto & item : pc.items) {
+        std::vector<std::pair<const Symbol *, Term>> bindings;
+        Term match = pattern_match(*item.pattern, sel, prefix, bindings);
+        if (item.filter) {
+          // `matches ... &&& expr`: an extra guard, which may read
+          // the names the pattern just bound.
+          std::vector<std::pair<const Symbol *, Term>> saved;
+          for (auto & b : bindings) {
+            auto it = bound.find(b.first);
+            saved.emplace_back(b.first,
+                               it == bound.end() ? Term() : it->second);
+            bound[b.first] = b.second;
+          }
+          Term guard = expr_encoder_.expr_to_bool(*item.filter, prefix);
+          for (auto & sv : saved) {
+            if (sv.second) {
+              bound[sv.first] = sv.second;
+            } else {
+              bound.erase(sv.first);
+            }
+          }
+          match = solver_->make_term(And, match, guard);
+        }
+        Term arm_cond =
+            earlier_matched
+                ? solver_->make_term(
+                      And, match, solver_->make_term(Not, earlier_matched))
+                : match;
+        earlier_matched = earlier_matched
+                              ? solver_->make_term(Or, earlier_matched, match)
+                              : match;
+        Term full_cond = (condition == true_term)
+                             ? arm_cond
+                             : solver_->make_term(And, condition, arm_cond);
+
+        std::vector<std::pair<const Symbol *, Term>> saved;
+        for (auto & b : bindings) {
+          auto it = bound.find(b.first);
+          saved.emplace_back(b.first, it == bound.end() ? Term() : it->second);
+          bound[b.first] = b.second;
+        }
+        process_statement(
+            *item.stmt, ctx, full_cond, prefix, default_disable_expr);
+        for (auto & sv : saved) {
+          if (sv.second) {
+            bound[sv.first] = sv.second;
+          } else {
+            bound.erase(sv.first);
+          }
+        }
+      }
+      if (pc.defaultCase) {
+        Term not_matched = earlier_matched
+                               ? solver_->make_term(Not, earlier_matched)
+                               : true_term;
+        Term default_cond =
+            (condition == true_term)
+                ? not_matched
+                : solver_->make_term(And, condition, not_matched);
+        process_statement(
+            *pc.defaultCase, ctx, default_cond, prefix, default_disable_expr);
       }
       break;
     }

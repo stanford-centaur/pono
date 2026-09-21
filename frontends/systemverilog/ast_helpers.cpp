@@ -23,6 +23,7 @@
 
 #include "frontends/systemverilog/bit_utils.h"
 #include "slang/ast/ASTVisitor.h"
+#include "slang/ast/Patterns.h"
 #include "slang/ast/Scope.h"
 #include "slang/ast/TimingControl.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
@@ -119,6 +120,16 @@ void collect_nonblocking_targets(
     }
     case StatementKind::Case: {
       auto & cs = stmt.as<CaseStatement>();
+      for (auto & item : cs.items) {
+        collect_nonblocking_targets(*item.stmt, targets);
+      }
+      if (cs.defaultCase) {
+        collect_nonblocking_targets(*cs.defaultCase, targets);
+      }
+      break;
+    }
+    case StatementKind::PatternCase: {
+      auto & cs = stmt.as<PatternCaseStatement>();
       for (auto & item : cs.items) {
         collect_nonblocking_targets(*item.stmt, targets);
       }
@@ -531,6 +542,26 @@ void scan_reads(const slang::ast::Expression & expr,
 // Threads a "definitely assigned so far" set through the block in
 // program order. A branch contributes only what *every* arm assigns,
 // and a loop body contributes nothing, since it may run zero times.
+// Whether `pat` matches every possible value, which decides whether a
+// `case ... matches` arm covers what no other arm does -- the role a
+// `default` plays for a plain case. `.name` and `.*` always match; a
+// structure pattern does exactly when all of its field patterns do.
+bool pattern_is_irrefutable(const slang::ast::Pattern & pat)
+{
+  using namespace slang::ast;
+  switch (pat.kind) {
+    case PatternKind::Wildcard:
+    case PatternKind::Variable: return true;
+    case PatternKind::Structure: {
+      for (auto & fp : pat.as<StructurePattern>().patterns) {
+        if (!pattern_is_irrefutable(*fp.pattern)) return false;
+      }
+      return true;
+    }
+    default: return false;
+  }
+}
+
 void scan_hold_locals(const slang::ast::Statement & stmt,
                       std::unordered_set<const slang::ast::Symbol *> & assigned,
                       std::unordered_set<const slang::ast::Symbol *> & out)
@@ -600,6 +631,53 @@ void scan_hold_locals(const slang::ast::Statement & stmt,
       for (auto * sym : t_assigned) {
         if (f_assigned.count(sym)) assigned.insert(sym);
       }
+      break;
+    }
+    case StatementKind::PatternCase: {
+      // The patterns themselves read nothing beyond the selector: a
+      // constant pattern is constant, and a pattern variable is bound
+      // by the match rather than read from storage.
+      auto & pcs = stmt.as<PatternCaseStatement>();
+      scan_reads(pcs.expr, assigned, out);
+      std::unordered_set<const Symbol *> pcommon;
+      bool pfirst = true;
+      for (auto & item : pcs.items) {
+        if (item.filter) scan_reads(*item.filter, assigned, out);
+        auto arm = branch(*item.stmt);
+        if (pfirst) {
+          pcommon = arm;
+          pfirst = false;
+        } else {
+          for (auto it = pcommon.begin(); it != pcommon.end();) {
+            it = arm.count(*it) ? std::next(it) : pcommon.erase(it);
+          }
+        }
+      }
+      // An arm whose pattern matches everything covers what no other
+      // arm does, so it stands in for a `default`. Without one of the
+      // two some value matches nothing, and then no arm's assignments
+      // are guaranteed.
+      bool exhaustive = pcs.defaultCase != nullptr;
+      for (auto & item : pcs.items) {
+        if (!item.filter && pattern_is_irrefutable(*item.pattern)) {
+          exhaustive = true;
+          break;
+        }
+      }
+      if (!exhaustive) break;
+      if (!pcs.defaultCase) {
+        for (auto * sym : pcommon) assigned.insert(sym);
+        break;
+      }
+      auto pdef = branch(*pcs.defaultCase);
+      if (pfirst) {
+        pcommon = pdef;
+      } else {
+        for (auto it = pcommon.begin(); it != pcommon.end();) {
+          it = pdef.count(*it) ? std::next(it) : pcommon.erase(it);
+        }
+      }
+      for (auto * sym : pcommon) assigned.insert(sym);
       break;
     }
     case StatementKind::Case: {

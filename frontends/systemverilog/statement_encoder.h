@@ -35,6 +35,8 @@
 
 #include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "core/fts.h"
 #include "frontends/systemverilog/expr_encoder.h"
@@ -46,6 +48,7 @@ class ConstantValue;
 
 namespace slang::ast {
 class ElementSelectExpression;
+class Pattern;
 class FixedSizeUnpackedArrayType;
 class Expression;
 class Statement;
@@ -141,6 +144,21 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
    *         `+:`, and one less than the width, negated, for `-:`,
    *         whose base names the *top* of the range
    */
+  /** The condition under which `pat` matches `value`, and the
+   *  pattern variables it binds along the way, appended to
+   *  `bindings` as (symbol, term) pairs for the caller to install
+   *  while it walks the matching arm's statement.
+   *
+   *  A pattern is a structural test, so this recurses: a structure
+   *  pattern slices `value` by each field's own bit offset and
+   *  applies that field's pattern to the slice.
+   */
+  smt::Term pattern_match(
+      const slang::ast::Pattern & pat,
+      const smt::Term & value,
+      const std::string & prefix,
+      std::vector<std::pair<const slang::ast::Symbol *, smt::Term>> & bindings);
+
   void process_dynamic_write(const slang::ast::Expression & base_expr,
                              const slang::ast::Expression & index_expr,
                              const slang::ast::Type & write_type,

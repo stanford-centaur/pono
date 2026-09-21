@@ -126,6 +126,14 @@ void collect_blocking_targets(
         collect_blocking_targets(*cs.defaultCase, full, partial);
       break;
     }
+    case StatementKind::PatternCase: {
+      auto & pcs = stmt.as<PatternCaseStatement>();
+      for (auto & item : pcs.items)
+        collect_blocking_targets(*item.stmt, full, partial);
+      if (pcs.defaultCase)
+        collect_blocking_targets(*pcs.defaultCase, full, partial);
+      break;
+    }
     case StatementKind::Timed: {
       auto & ts = stmt.as<TimedStatement>();
       collect_blocking_targets(ts.stmt, full, partial);
