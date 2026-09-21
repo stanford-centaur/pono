@@ -234,6 +234,73 @@ Term ExprEncoder::inline_call(const slang::ast::CallExpression & call,
       solver_, result, call.type->getBitWidth(), call.type->isSigned());
 }
 
+namespace {
+// Split a constant into the bits it pins and the values it pins them
+// to, MSB first -- the order make_term() reads a base-2 string in.
+// An x or z bit pins nothing, which is what makes the comparison a
+// wildcard one.
+void wildcard_mask_bits(const slang::SVInt & sv,
+                        uint64_t width,
+                        string & mask_bits,
+                        string & value_bits)
+{
+  mask_bits.assign(width, '0');
+  value_bits.assign(width, '0');
+  for (uint64_t i = 0; i < width; ++i) {
+    slang::logic_t bit = sv[static_cast<int32_t>(i)];
+    if (bit.isUnknown()) continue;
+    mask_bits[width - 1 - i] = '1';
+    if (bit.value == 1) value_bits[width - 1 - i] = '1';
+  }
+}
+}  // namespace
+
+Term ExprEncoder::inside_match(const Term & left,
+                               const slang::ast::Expression & elem,
+                               const string & prefix)
+{
+  using namespace slang::ast;
+  uint64_t left_w = left->get_sort()->get_width();
+
+  if (elem.kind == ExpressionKind::ValueRange) {
+    // `[lo:hi]` is inclusive at both ends. Signedness follows the
+    // bound, as it does for a written-out comparison.
+    auto & vr = elem.as<ValueRangeExpression>();
+    auto bound = [&](const Expression & e) {
+      return resize_to(
+          solver_, expr_to_term(e, prefix), left_w, e.type->isSigned());
+    };
+    bool is_signed = vr.left().type->isSigned() && vr.right().type->isSigned();
+    Term lo = bound(vr.left());
+    Term hi = bound(vr.right());
+    return solver_->make_term(
+        And,
+        solver_->make_term(is_signed ? BVSle : BVUle, lo, left),
+        solver_->make_term(is_signed ? BVSle : BVUle, left, hi));
+  }
+
+  // A constant member masks off its own x and z bits; anything else
+  // has no unknown bits to mask and compares plainly.
+  auto cv = elem.eval(eval_ctx());
+  uint64_t elem_w = elem.type->getBitWidth();
+  if (!cv.bad() && cv.isInteger() && elem_w > 0) {
+    string mask_bits, value_bits;
+    wildcard_mask_bits(cv.integer(), elem_w, mask_bits, value_bits);
+    Sort elem_sort = solver_->make_sort(BV, elem_w);
+    // Raw bit patterns, not numeric values -- always zero-extend.
+    Term mask = resize_to(
+        solver_, solver_->make_term(mask_bits, elem_sort, 2), left_w, false);
+    Term value = resize_to(
+        solver_, solver_->make_term(value_bits, elem_sort, 2), left_w, false);
+    return solver_->make_term(
+        Equal, solver_->make_term(BVAnd, left, mask), value);
+  }
+
+  Term right = resize_to(
+      solver_, expr_to_term(elem, prefix), left_w, elem.type->isSigned());
+  return solver_->make_term(Equal, left, right);
+}
+
 Term ExprEncoder::literal_term(const slang::SVInt & val, uint64_t width)
 {
   Sort sort = solver_->make_sort(BV, width);
@@ -337,6 +404,23 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
                           width);
     }
 
+    case ExpressionKind::Inside: {
+      // `x inside {a, b, [lo:hi]}` is the or-reduction of the
+      // members' comparisons (LRM 11.4.13).
+      auto & ins = expr.as<InsideExpression>();
+      Term left = expr_to_term(ins.left(), prefix);
+      Term result;
+      for (auto * elem : ins.rangeList()) {
+        Term m = inside_match(left, *elem, prefix);
+        result = result ? solver_->make_term(Or, result, m) : m;
+      }
+      if (!result) {
+        // An empty set matches nothing.
+        return solver_->make_term(false);
+      }
+      return result;
+    }
+
     case ExpressionKind::BinaryOp: {
       auto & binop = expr.as<BinaryExpression>();
 
@@ -368,15 +452,8 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
         uint64_t rhs_w = binop.right().type->getBitWidth();
         if (!rhs_cv.bad() && rhs_cv.isInteger() && rhs_w > 0) {
           auto & sv = rhs_cv.integer();
-          // MSB first, the order make_term() reads a base-2 string in.
-          string mask_bits(rhs_w, '0'), value_bits(rhs_w, '0');
-          for (uint64_t i = 0; i < rhs_w; ++i) {
-            slang::logic_t bit = sv[static_cast<int32_t>(i)];
-            if (!bit.isUnknown()) {
-              mask_bits[rhs_w - 1 - i] = '1';
-              if (bit.value == 1) value_bits[rhs_w - 1 - i] = '1';
-            }
-          }
+          string mask_bits, value_bits;
+          wildcard_mask_bits(sv, rhs_w, mask_bits, value_bits);
           Sort rhs_sort = solver_->make_sort(BV, rhs_w);
           // Raw bit-pattern masks, not numeric values -- always
           // zero-extend.

@@ -1483,7 +1483,8 @@ void StatementEncoder::process_statement(
         for (uint64_t i = 0; i < w; ++i) {
           slang::logic_t bit = sv[static_cast<int32_t>(i)];
           bool wildcard =
-              (case_stmt.condition == CaseStatementCondition::WildcardXOrZ)
+              (case_stmt.condition == CaseStatementCondition::WildcardXOrZ
+               || case_stmt.condition == CaseStatementCondition::Inside)
                   ? bit.isUnknown()
                   : bit.value == slang::logic_t::z.value;
           if (!wildcard) {
@@ -1493,9 +1494,15 @@ void StatementEncoder::process_statement(
         }
         return std::make_pair(mask_bits, value_bits);
       };
+      // `case ... inside` matches by set membership, which for an
+      // integral selector is wildcard equality (LRM 11.4.13) -- the
+      // same masking casex needs, over both x and z.
+      bool is_inside_case =
+          case_stmt.condition == CaseStatementCondition::Inside;
       bool is_wildcard_case =
           case_stmt.condition == CaseStatementCondition::WildcardXOrZ
-          || case_stmt.condition == CaseStatementCondition::WildcardJustZ;
+          || case_stmt.condition == CaseStatementCondition::WildcardJustZ
+          || is_inside_case;
 
       Term any_item_matched;
       for (auto & item : case_stmt.items) {
@@ -1503,6 +1510,17 @@ void StatementEncoder::process_statement(
         Term item_cond;
         for (auto expr : item.expressions) {
           Term match;
+          if (expr->kind == ExpressionKind::ValueRange) {
+            // `case (x) inside [lo:hi]:` -- a range rather than a
+            // value, which only set membership admits.
+            item_cond =
+                item_cond ? solver_->make_term(
+                                Or,
+                                item_cond,
+                                expr_encoder_.inside_match(sel, *expr, prefix))
+                          : expr_encoder_.inside_match(sel, *expr, prefix);
+            continue;
+          }
           auto mv = is_wildcard_case ? casex_mask(*expr) : std::nullopt;
           if (mv) {
             uint64_t pat_w = expr->type->getBitWidth();

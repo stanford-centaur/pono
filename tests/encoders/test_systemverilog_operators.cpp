@@ -257,4 +257,31 @@ TEST_P(SVUnitTests, XzLiteralsAreIndependent)
   check_bmc("xz_literal_independent.sv", 1);
 }
 
+// ---------------------------------------------------------------------------
+// `inside` set membership (LRM 11.4.13): an or-reduction of the
+// members' comparisons, with an integral member matched by wildcard
+// equality and a `[lo:hi]` member by an inclusive range. Both the
+// expression form and `case ... inside` share the same rule.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, InsideExpression)
+{
+  check_prover<KInduction>("inside_expression.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, InsideExpressionFails)
+{
+  check_bmc("inside_expression_fails.sv", 0);
+}
+
+TEST_P(SVUnitTests, CaseInsideRange)
+{
+  check_prover<KInduction>("case_inside_range.sv", 12, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, CaseInsideRangeFails)
+{
+  check_bmc("case_inside_range_fails.sv", 2);
+}
+
 }  // namespace pono_tests

@@ -119,6 +119,14 @@ class ExprEncoder
    */
   slang::ast::EvalContext & eval_ctx();
 
+  /** "`left` matches this member of an `inside` set". Per LRM
+   *  11.4.13 an integral comparison uses wildcard equality, so an x
+   *  or z bit in the *set value* is a don't-care (one on the left is
+   *  not), and a `[lo:hi]` member is an inclusive range instead. */
+  smt::Term inside_match(const smt::Term & left,
+                         const slang::ast::Expression & elem,
+                         const std::string & prefix);
+
  private:
   /** The single expression-conversion switch, returning `expr`'s value
    *  in its *natural* SMT sort: Bool for the expressions that really
