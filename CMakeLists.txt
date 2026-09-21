@@ -189,7 +189,6 @@ add_flex_bison_dependency(SMVScanner SMVParser)
 set(
   INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
-  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
   # generated headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
 )
@@ -279,6 +278,15 @@ add_dependencies(pono-lib pono-version-header)
 
 target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
+# Vendored, so its warnings are not ours to act on. SYSTEM keeps the compiler
+# quiet about it while leaving our own headers fully diagnosed. Consumers pick
+# this up through pono-lib.
+target_include_directories(
+  pono-lib
+  SYSTEM
+  PUBLIC "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+)
+
 target_link_libraries(pono-lib PRIVATE pono-warnings)
 
 # Should we build python bindings
@@ -338,10 +346,7 @@ set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
 
 target_include_directories(
   pono-bin
-  PUBLIC
-    "${PROJECT_SOURCE_DIR}/utils"
-    "${PROJECT_SOURCE_DIR}/core"
-    "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+  PUBLIC "${PROJECT_SOURCE_DIR}/utils" "${PROJECT_SOURCE_DIR}/core"
 )
 
 target_link_libraries(pono-bin PUBLIC pono-lib)
