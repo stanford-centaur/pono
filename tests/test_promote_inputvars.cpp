@@ -79,6 +79,10 @@ TEST_P(PromoteInputvarsTests, PromoteInputsInProp)
 {
   UnorderedTermSet ivs_in_prop;
   get_free_symbolic_consts(prop, ivs_in_prop);
+  // the monitor has to come first: a property reading an input holds on the
+  // transitions that input labels, so promoting it and then checking the
+  // promoted property in every state would check one state too many
+  prop = add_prop_monitor(ts, prop);
   ts = promote_inputvars(ts, ivs_in_prop);
 
   SafetyProperty p(s, prop);
@@ -89,12 +93,30 @@ TEST_P(PromoteInputvarsTests, PromoteInputsInProp)
 
 TEST_P(PromoteInputvarsTests, PromoteAllInputs)
 {
+  prop = add_prop_monitor(ts, prop);
   ts = promote_inputvars(ts);
 
   SafetyProperty p(s, prop);
   KInduction kind(p, ts, s);
   ProverResult r = kind.check_until(20);
   ASSERT_EQ(r, TRUE);
+}
+
+TEST_P(PromoteInputvarsTests, PromotionKeepsConstraintWindow)
+{
+  // the constraint reads an input, so it is enforced on the transitions that
+  // input labels and not in the initial state
+  ASSERT_EQ(ts.constraints().size(), 1);
+  EXPECT_FALSE(ts.constraints().at(0).second);
+  Term init_before = ts.init();
+
+  // promoting the input turns it into a state variable, but that must not
+  // widen the constraint to hold in the initial state as well
+  TransitionSystem promoted = promote_inputvars(ts);
+  EXPECT_TRUE(promoted.inputvars().empty());
+  ASSERT_EQ(promoted.constraints().size(), 1);
+  EXPECT_FALSE(promoted.constraints().at(0).second);
+  EXPECT_EQ(promoted.init(), init_before);
 }
 
 INSTANTIATE_TEST_SUITE_P(

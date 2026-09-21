@@ -241,7 +241,10 @@ void TransitionSystem::constrain_inputs(const Term & constraint)
 
   if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
-    constraints_.push_back({ constraint, true });
+    // Records false: the constraint was applied to trans_ only. Input
+    // variables label transitions, so there is no instance of this
+    // constraint in the initial state to record a true for.
+    constraints_.push_back({ constraint, false });
   } else {
     throw PonoException("Cannot have next-states in an input constraint.");
   }
@@ -265,7 +268,13 @@ void TransitionSystem::add_constraint(const Term & constraint,
     constraints_.push_back({ constraint, to_init_and_next });
   } else if (no_next(constraint)) {
     trans_ = solver_->make_term(And, trans_, constraint);
-    constraints_.push_back({ constraint, to_init_and_next });
+    // The constraint mentions input variables, so it constrains the
+    // transitions those inputs label and nothing else: to_init_and_next
+    // cannot be honored. Record what was applied rather than what was
+    // asked for, so that promoting the inputs later re-adds the
+    // constraint over the same time steps instead of widening it to the
+    // initial and final states.
+    constraints_.push_back({ constraint, false });
   } else {
     throw PonoException("Constraint cannot have next states");
   }

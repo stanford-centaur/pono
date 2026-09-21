@@ -35,6 +35,7 @@ const unordered_map<string, pono::ProverResult> smv_inputs(
       { "combined-true.smv", pono::ProverResult::TRUE },
       { "counter_bitvector.smv", pono::ProverResult::FALSE },
       { "counter_boolean.smv", pono::ProverResult::FALSE },
-      { "signed_comparison.smv", pono::ProverResult::TRUE } });
+      { "signed_comparison.smv", pono::ProverResult::TRUE },
+      { "input_assign.smv", pono::ProverResult::FALSE } });
 
 }  // namespace pono_tests

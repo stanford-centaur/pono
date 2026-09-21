@@ -430,4 +430,21 @@ TEST_F(CliUnitTests, SmvJusticeIsRejected)
   expect_rejected(run_pono({ "--justice", input_path("smv/counter.smv") }),
                   "--justice is not supported for smv");
 }
+
+// Promoting input variables to state variables is there to suit the engines,
+// so it must not change what a constraint reading an input means: that
+// constraint holds on the transitions the input labels either way.
+TEST_F(CliUnitTests, SmvInputConstraintSurvivesPromotingInputs)
+{
+  const string input = input_path("smv/input_assign.smv");
+  const vector<string> bound({ "-e", "bmc", "-k", "3" });
+  vector<string> promoting(bound);
+  promoting.push_back("--promote-inputvars");
+  promoting.push_back(input);
+  vector<string> plain(bound);
+  plain.push_back(input);
+
+  EXPECT_TRUE(contains(run_pono(plain).output, "Property 0 is FALSE"));
+  EXPECT_TRUE(contains(run_pono(promoting).output, "Property 0 is FALSE"));
+}
 }  // namespace pono_tests

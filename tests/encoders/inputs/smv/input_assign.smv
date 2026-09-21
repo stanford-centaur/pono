@@ -1,0 +1,11 @@
+-- A flat ASSIGN whose right-hand side reads an input variable.
+-- The assignment constrains y only on the transitions that "i" labels, so y
+-- is unconstrained in the initial state and the invariant does not hold.
+MODULE main
+  IVAR
+    i : unsigned word[4];
+  VAR
+    y : unsigned word[4];
+  ASSIGN
+    y := i & 0ub4_0001;
+  INVARSPEC y < 0ub4_0010;

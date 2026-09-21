@@ -116,6 +116,8 @@ class TransitionSystem
   void add_invar(const smt::Term & constraint);
 
   /** Add a constraint over inputs
+   * Input variables label transitions, so the constraint is enforced on
+   * each transition of a trace and not in its first or last state.
    * @param constraint to add (should not contain any next-state variables)
    */
   void constrain_inputs(const smt::Term & constraint);
@@ -126,8 +128,13 @@ class TransitionSystem
    *   constrain_inputs
    *  @param constraint the constraint to add
    *  @param to_init_and_next whether it should be added to init and
-   *         over next state variables as well
-   *         (if it only contains state variables)
+   *         over next state variables as well. Only possible if the
+   *         constraint contains state variables alone: that makes it
+   *         hold in every state of a trace rather than only on its
+   *         transitions. Ignored for a constraint over inputs, which
+   *         have no instance in the initial state and no next-state
+   *         version. Promote the inputs first (promote_inputvars_in) to
+   *         enforce such a constraint everywhere.
    * throws an exception if it has next states (should go in trans)
    */
   void add_constraint(const smt::Term & constraint,
@@ -303,9 +310,10 @@ class TransitionSystem
    * constraints
    *  Returned as a vector of pairs where for each element:
    *    first: is the constraint
-   *    second: is a boolean saying whether it can be added over init / next
+   *    second: is a boolean saying whether it was added over init / next
    * states This allows you to re-add the constraints by unpacking them and
-   * passing to add_constraint, e.g. add_constraint(e.first, e.second)
+   * passing to add_constraint, e.g. add_constraint(e.first, e.second),
+   * which reproduces the time steps the constraint was enforced over
    */
   const std::vector<std::pair<smt::Term, bool>> & constraints() const
   {
@@ -636,13 +644,15 @@ class TransitionSystem
   // For a functional system, you could now rebuild trans by AND-ing
   // together all the equalities from state_updates_
   // and these constraints
-  // the boolean tells you whether it _can_ be added to next states
-  // (the TransitionSystem will still check if it makes sense to add to
-  // next states)
-  // but this is crucial for some use cases: e.g. assuming the property
+  // the boolean tells you whether it _was_ added to init and next states
+  // and so holds in every state rather than only on transitions
+  // this is crucial for some use cases: e.g. assuming the property
   // in the pre-state. It is very unsound to assume the property over
   // the init or next state variables, so the associated boolean for
   // that constraint would be false
+  // re-adding a constraint preserves this boolean, so that promoting a
+  // constraint's input variables to state variables does not widen the
+  // time steps it is enforced over
   std::vector<std::pair<smt::Term, bool>> constraints_;
   ///< constraints added via
   ///< add_invar/constrain_inputs/add_constraint
