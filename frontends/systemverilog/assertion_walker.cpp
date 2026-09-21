@@ -289,6 +289,19 @@ smt::TermVec AssertionWalker::offsets_ending_now(
     return out;
   };
 
+  // ORs `t` into `v` at index `idx`, growing `v` to fit. Both the
+  // empty-match cases and a repetition's shorter counts land at
+  // smaller indices than the plain ones, so the reachable width is
+  // easier to discover this way than to compute up front.
+  auto emit = [&](TermVec & v, size_t idx, const Term & t) {
+    if (idx >= MAX_SEQ_WINDOW) {
+      throw PonoException("SystemVerilogEncoder: sequence window exceeds "
+                          + std::to_string(MAX_SEQ_WINDOW) + " cycles");
+    }
+    if (idx >= v.size()) v.resize(idx + 1, Term());
+    v[idx] = v[idx] ? solver_->make_term(Or, v[idx], t) : t;
+  };
+
   // ORs together every non-null entry of a TermVec (the "does it
   // complete here at all" merge, without recomputing offsets_ending_now
   // -- used by Within below).
@@ -333,19 +346,66 @@ smt::TermVec AssertionWalker::offsets_ending_now(
 
     case AssertionExprKind::SequenceWithMatch: {
       auto & swm = seq.as<SequenceWithMatchExpr>();
-      // A parenthesized sequence with its own repetition
-      // (`(seq)[*n:m]`) would need to convolve `seq`'s own offset
-      // vector with itself count times -- out of scope; only a plain
-      // Boolean operand with repetition is handled today.
       if (swm.repetition) {
-        if (swm.expr.kind != AssertionExprKind::Simple
-            || swm.expr.as<SimpleAssertionExpr>().repetition) {
-          throw PonoException(
-              "SystemVerilogEncoder: repetition of a non-Boolean sequence "
-              "is not supported");
+        // A plain Boolean operand reads its own repetition directly.
+        if (swm.expr.kind == AssertionExprKind::Simple
+            && !swm.expr.as<SimpleAssertionExpr>().repetition) {
+          return boolean_with_repetition(
+              swm.expr.as<SimpleAssertionExpr>().expr, swm.repetition);
         }
-        return boolean_with_repetition(swm.expr.as<SimpleAssertionExpr>().expr,
-                                       swm.repetition);
+        auto & rep = *swm.repetition;
+        if (rep.kind != SequenceRepetition::Consecutive) {
+          // Counting non-adjacent matches of a whole sequence spans
+          // no finite window; decline and let ltl_to_sat() read it
+          // as the eventuality it is.
+          return {};
+        }
+        // `(seq)[*k]` is `seq` concatenated with itself k times at
+        // `##1`, so its offsets are `seq`'s own convolved with
+        // themselves -- the same combination the SequenceConcat case
+        // below performs, with the delay fixed at one.
+        uint32_t lo = rep.range.min;
+        if (lo == 0) {
+          report_empty("a repetition of a sequence with a zero lower bound");
+          lo = 1;
+        }
+        if (!rep.range.max) {
+          throw PonoException(
+              "SystemVerilogEncoder: an unbounded repetition of a whole "
+              "sequence ((seq)[*n:$]) is not supported");
+        }
+        uint32_t hi = *rep.range.max;
+        TermVec base = offsets_ending_now(swm.expr, prefix);
+        if (base.empty()) return {};
+
+        TermVec out;
+        TermVec acc = base;
+        for (uint32_t k = 1; k <= hi; ++k) {
+          if (k > 1) {
+            TermVec next;
+            for (size_t la = 0; la < acc.size(); ++la) {
+              if (!acc[la]) continue;
+              for (size_t lb = 0; lb < base.size(); ++lb) {
+                if (!base[lb]) continue;
+                // Bring the prefix back so it lines up with where
+                // this repetition's own match sits.
+                Term shifted = tableau_.make_history_chain(
+                    acc[la], static_cast<uint32_t>(1 + lb), prefix);
+                emit(next,
+                     la + 1 + lb,
+                     solver_->make_term(And, shifted, base[lb]));
+              }
+            }
+            acc = std::move(next);
+            if (acc.empty()) return {};
+          }
+          if (k >= lo) {
+            for (size_t i = 0; i < acc.size(); ++i) {
+              if (acc[i]) emit(out, i, acc[i]);
+            }
+          }
+        }
+        return out;
       }
       return offsets_ending_now(swm.expr, prefix, admits_empty);
     }
@@ -375,19 +435,6 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       // An empty match imposes no condition, so there is nothing to
       // store beyond the fact that it is available.
       bool acc_empty = false;
-
-      // ORs `t` into `v` at index `idx`, growing `v` to fit. The
-      // empty-match cases below land at smaller indices than the
-      // plain ones, so the reachable width is easier to discover this
-      // way than to compute up front.
-      auto emit = [&](TermVec & v, size_t idx, const Term & t) {
-        if (idx >= MAX_SEQ_WINDOW) {
-          throw PonoException("SystemVerilogEncoder: sequence window exceeds "
-                              + std::to_string(MAX_SEQ_WINDOW) + " cycles");
-        }
-        if (idx >= v.size()) v.resize(idx + 1, Term());
-        v[idx] = v[idx] ? solver_->make_term(Or, v[idx], t) : t;
-      };
 
       for (size_t i = 0; i < sc.elements.size(); ++i) {
         auto & elem = sc.elements[i];

@@ -715,4 +715,26 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVSvaTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
 
+// ---------------------------------------------------------------------------
+// Consecutive repetition of a whole sequence, `(seq)[*n]`, which the
+// LRM makes `seq` concatenated with itself at `##1` -- so its offsets
+// are `seq`'s own convolved with themselves.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, SequenceRepetition)
+{
+  check_prover<KInduction>("sequence_repetition.sv", 20, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, SequenceRepetitionFails)
+{
+  check_bmc("sequence_repetition_fails.sv", 5);
+}
+
+TEST_P(SVUnitTests, SequenceRepetitionRange)
+{
+  check_prover<KInduction>(
+      "sequence_repetition_range.sv", 20, ProverResult::TRUE);
+}
+
 }  // namespace pono_tests
