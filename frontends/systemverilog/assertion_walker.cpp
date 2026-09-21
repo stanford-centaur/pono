@@ -385,6 +385,26 @@ smt::TermVec AssertionWalker::offsets_ending_now(
   switch (seq.kind) {
     case AssertionExprKind::Simple: {
       auto & simple = seq.as<SimpleAssertionExpr>();
+      if (auto * named = resolve_named_assertion_ref(simple.expr)) {
+        // A named sequence used as an operand of another one --
+        // `inner(x)` inside `outer`. The two property-level callers
+        // resolve this already; reaching it as a *sequence* landed
+        // on expr_to_bool() instead, which knows nothing of
+        // assertion instances and reported a bare slang enum index.
+        if (simple.repetition) {
+          // `inner(x)[*2]` repeats a whole sequence, which is the
+          // convolution SequenceWithMatch performs rather than the
+          // per-cycle one boolean_with_repetition() would apply to
+          // the reference. Refuse rather than quietly use the wrong
+          // one.
+          throw PonoException(
+              "SystemVerilogEncoder: a repetition applied to a named "
+              "sequence reference is not supported -- write the "
+              "repetition inside the sequence, or wrap the reference in "
+              "parentheses");
+        }
+        return offsets_ending_now(*named, prefix, admits_empty, unbounded_end);
+      }
       return boolean_with_repetition(simple.expr, simple.repetition);
     }
 
@@ -905,6 +925,11 @@ bool admits_empty_match(const slang::ast::AssertionExpr & ae)
   switch (ae.kind) {
     case AssertionExprKind::Simple: {
       auto & simple = ae.as<SimpleAssertionExpr>();
+      if (!simple.repetition) {
+        if (auto * named = resolve_named_assertion_ref(simple.expr)) {
+          return admits_empty_match(*named);
+        }
+      }
       return simple.repetition
              && simple.repetition->kind == SequenceRepetition::Consecutive
              && simple.repetition->range.min == 0;
@@ -951,6 +976,11 @@ bool has_goto_repetition(const slang::ast::AssertionExpr & ae)
   switch (ae.kind) {
     case AssertionExprKind::Simple: {
       auto & simple = ae.as<SimpleAssertionExpr>();
+      if (!simple.repetition) {
+        if (auto * named = resolve_named_assertion_ref(simple.expr)) {
+          return has_goto_repetition(*named);
+        }
+      }
       return simple.repetition
              && simple.repetition->kind != SequenceRepetition::Consecutive;
     }

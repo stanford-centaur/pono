@@ -437,17 +437,49 @@ TEST_P(SVUnitTests, NamedPropertyExprArgInline)
   check_bmc("named_property_expr_arg_inline.sv", 1);
 }
 
-// A named sequence used directly as a property reaches the tableau
-// rather than the safety path, so the substitution has to survive
-// there too.
+// A named sequence used directly as a property. Until the reference
+// resolved as a sequence, offsets_ending_now() could not see through
+// it, so this fell past the bare-sequence branch to the tableau
+// while its inline twin took the safety path -- the same property,
+// encoded two different ways. They now agree, down to the depth.
 TEST_P(SVUnitTests, NamedSequenceArgs)
 {
-  check_liveness_bmc("named_sequence_args.sv", 4);
+  check_bmc("named_sequence_args.sv", 1);
 }
 
 TEST_P(SVUnitTests, NamedSequenceArgsInline)
 {
   check_bmc("named_sequence_args_inline.sv", 1);
+}
+
+// A named assertion referenced from inside another one, reached as a
+// sequence operand rather than as a whole property. Each pair is the
+// assertion: the reference must behave as its body written out.
+TEST_P(SVUnitTests, NamedAssertionNested)
+{
+  check_bmc("named_assertion_nested.sv", 2);
+}
+
+TEST_P(SVUnitTests, NamedAssertionNestedInlined)
+{
+  check_bmc("named_assertion_nested_inlined.sv", 2);
+}
+
+TEST_P(SVUnitTests, NamedAssertionNestedDeep)
+{
+  check_bmc("named_assertion_nested_deep.sv", 3);
+}
+
+TEST_P(SVUnitTests, NamedAssertionNestedDeepInlined)
+{
+  check_bmc("named_assertion_nested_deep_inlined.sv", 3);
+}
+
+// A repetition on the reference is a different operator from a
+// repetition on a Boolean, so it is refused rather than guessed.
+TEST_P(SVUnitTests, Unsupported_NamedAssertionReferenceRepetition)
+{
+  expect_encode_throws("named_assertion_reference_repetition.sv");
 }
 
 // Local variables and recursion still need a binding environment
