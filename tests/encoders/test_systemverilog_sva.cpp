@@ -539,6 +539,29 @@ TEST_P(SVUnitTests, EmptyRepetitionUnbounded)
   check_prover<KInduction>("empty_repeat_unbounded.sv", 16, ProverResult::TRUE);
 }
 
+// An empty-matching sequence as the *whole* antecedent. It matches at
+// every cycle, so the implication is unconditional -- degenerate, but
+// well defined, so it encodes with a warning rather than throwing.
+// The `Equiv` twin shares its refutation depth with the consequent
+// alone, and the `Nonempty` one shows the collapse does not reach a
+// repetition that cannot match emptily.
+
+TEST_P(SVUnitTests, EmptyMatchingAntecedent)
+{
+  check_bmc("unbounded_repeat_star.sv", 6);
+}
+
+TEST_P(SVUnitTests, EmptyMatchingAntecedentEquiv)
+{
+  check_bmc("unbounded_repeat_star_equiv.sv", 6);
+}
+
+TEST_P(SVUnitTests, NonemptyRepetitionAntecedentStillGuards)
+{
+  check_prover<KInduction>(
+      "nonempty_repeat_antecedent.sv", 16, ProverResult::TRUE);
+}
+
 // Where else an empty-admitting repetition can sit. Each fixture
 // states the completion condition worked out by hand and proves the
 // encoder never reports a match outside it; the two `Fails` twins

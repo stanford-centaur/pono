@@ -692,6 +692,56 @@ namespace {
 // anywhere inside it. Such a count is an eventuality, which is the
 // right reading for a consequent and the wrong one for an
 // antecedent, so the implication case checks before recursing.
+// Whether `ae` has a match that occupies no cycles at all. Such a
+// sequence matches at every cycle, so as an antecedent it makes the
+// implication unconditional and the rest of the sequence inert --
+// degenerate, but well defined, and the LRM's.
+bool admits_empty_match(const slang::ast::AssertionExpr & ae)
+{
+  using namespace slang::ast;
+  switch (ae.kind) {
+    case AssertionExprKind::Simple: {
+      auto & simple = ae.as<SimpleAssertionExpr>();
+      return simple.repetition
+             && simple.repetition->kind == SequenceRepetition::Consecutive
+             && simple.repetition->range.min == 0;
+    }
+    case AssertionExprKind::SequenceWithMatch: {
+      auto & swm = ae.as<SequenceWithMatchExpr>();
+      if (swm.repetition) {
+        return swm.repetition->kind == SequenceRepetition::Consecutive
+               && swm.repetition->range.min == 0;
+      }
+      return admits_empty_match(swm.expr);
+    }
+    case AssertionExprKind::FirstMatch:
+      return admits_empty_match(ae.as<FirstMatchAssertionExpr>().seq);
+    case AssertionExprKind::Clocking:
+      return admits_empty_match(ae.as<ClockingAssertionExpr>().expr);
+    case AssertionExprKind::SequenceConcat: {
+      // Empty overall only if nothing in it takes a cycle, delays
+      // included.
+      for (auto & e : ae.as<SequenceConcatExpr>().elements) {
+        if (e.delay.min != 0) return false;
+        if (!admits_empty_match(*e.sequence)) return false;
+      }
+      return true;
+    }
+    case AssertionExprKind::Binary: {
+      auto & b = ae.as<BinaryAssertionExpr>();
+      switch (b.op) {
+        case BinaryAssertionOperator::Or:
+          return admits_empty_match(b.left) || admits_empty_match(b.right);
+        case BinaryAssertionOperator::And:
+        case BinaryAssertionOperator::Intersect:
+          return admits_empty_match(b.left) && admits_empty_match(b.right);
+        default: return false;
+      }
+    }
+    default: return false;
+  }
+}
+
 bool has_goto_repetition(const slang::ast::AssertionExpr & ae)
 {
   using namespace slang::ast;
@@ -818,12 +868,9 @@ smt::Term AssertionWalker::goto_repetition(
   // `b[->n]` matches at the n-th occurrence of b; `b[=n]` may run on
   // past it, but its earliest match ends there too, and a consequent
   // only has to match somewhere -- so both come to the same thing
-  // here.
-  if (!rep.range.max || *rep.range.max != rep.range.min) {
-    throw PonoException(
-        "SystemVerilogEncoder: a goto or nonconsecutive repetition with a "
-        "range of counts ([->m:n] / [=m:n]) is not supported");
-  }
+  // here. A range of counts likewise: the earliest match of
+  // `[->m:n]` is at the m-th occurrence, and an upper bound cannot
+  // make a match arrive sooner.
   uint32_t count = rep.range.min;
   if (count == 0) {
     throw PonoException(
@@ -1180,7 +1227,17 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
             unbounded = true;
           }
           Term l;
-          if (has_goto_repetition(b.left)) {
+          if (admits_empty_match(b.left)) {
+            // Matching no cycles at all, the antecedent matches at
+            // every one of them, so the implication is unconditional
+            // and nothing else in the antecedent can narrow it.
+            logger.log(0,
+                       "SystemVerilogEncoder: the antecedent of property "
+                       "'{}' matches emptily, so it holds at every cycle "
+                       "and the rest of it has no effect",
+                       current_assertion_label_);
+            l = solver_->make_term(neg);
+          } else if (has_goto_repetition(b.left)) {
             // An antecedent has to say its match ends *now*, which is
             // not the eventuality ltl_to_sat() would read such a
             // count as. goto_match_now_seq() counts instead.
@@ -1565,6 +1622,16 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         // `first_match(seq) |-> ...`) falls back to the general
         // bounded sequence matcher.
         uint32_t lhs_span = 0;
+        if (admits_empty_match(*lhs_inner)) {
+          // See the matching case in ltl_to_sat(): an empty match
+          // makes the antecedent unconditionally true.
+          logger.log(0,
+                     "SystemVerilogEncoder: the antecedent of property "
+                     "'{}' matches emptily, so it holds at every cycle "
+                     "and the rest of it has no effect",
+                     current_assertion_label_);
+          return assertion_expr_to_bool(b.right, prefix);
+        }
         Term lhs = assertion_expr_to_bool(*lhs_inner, prefix, lhs_span);
         if (!lhs) {
           lhs = match_exists(*lhs_inner, prefix);
