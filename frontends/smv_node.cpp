@@ -34,8 +34,8 @@ void pono::module_node::preprocess(
     throw PonoException("module declaration wrong");
   }
   for (size_t i = 0; i < id_li.size(); i++) {
-    std::string s = par_li[i];
-    new_par[s] = id_li[i];
+    const std::string & par = par_li[i];
+    new_par[par] = id_li[i];
   }
   (*new_prefix)[module_name] = prefix;
   par_name = parent;
@@ -210,9 +210,10 @@ void pono::var_node::preprocess(
       unordered_map<string, module_node *>::iterator it =
           module_list.find(temp->getmodtype()->getName());
       if (it != module_list.end()) {
-        std::string prefix = (*new_prefix)[module] + ex_li[i]->getName() + ".";
+        std::string sub_prefix =
+            (*new_prefix)[module] + ex_li[i]->getName() + ".";
         it->second->preprocess(module,
-                               prefix,
+                               sub_prefix,
                                new_prefix,
                                module_list,
                                temp->getmodtype()->get_list(),

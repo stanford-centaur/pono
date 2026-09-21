@@ -833,8 +833,8 @@ unsigned TermLearner::replace_hierachically_w_parent(
         if (c == orig) child_pos.push_back(idx);
         ++idx;
       }  // find child pos
-      for (auto idx : child_pos) {
-        old_children[idx] = repl;
+      for (auto pos : child_pos) {
+        old_children[pos] = repl;
         auto new_parent = (solver_->make_term(p->get_op(), old_children));
 
         bool is_new_term = varset_info.TermLearnerInsertTerm(new_parent);

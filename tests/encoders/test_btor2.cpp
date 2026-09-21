@@ -445,7 +445,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::ValuesIn(available_solver_enums()),
                      // from test_encoder_inputs.h
                      testing::ValuesIn(btor2_inputs)),
-    [](const auto & info) {
+    // info is the TestParamInfo the macro declares around this lambda.
+    [&](const auto &) {
       return to_string(get<0>(info.param)) + "_" + get<1>(info.param);
     });
 

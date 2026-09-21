@@ -579,11 +579,11 @@ bool IC3Base::rel_ind_check(size_t i,
     // might need to be re-added if it
     // ends up intersecting with initial
     assert(assumps_.size() == c.children.size());
-    for (size_t i = 0; i < assumps_.size(); ++i) {
-      if (core.find(assumps_.at(i)) == core.end()) {
-        rem.push_back(c.children.at(i));
+    for (size_t j = 0; j < assumps_.size(); ++j) {
+      if (core.find(assumps_.at(j)) == core.end()) {
+        rem.push_back(c.children.at(j));
       } else {
-        gen.push_back(c.children.at(i));
+        gen.push_back(c.children.at(j));
       }
     }
 

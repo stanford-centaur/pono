@@ -301,9 +301,9 @@ void VCDWitnessPrinter::check_insert_scope(std::string full_name,
   VCDScope * root = &root_scope_;
   for (size_t idx = 0; idx < scopes.size() - 1; ++idx) {
     const auto & next_scope = scopes.at(idx);
-    auto pos = root->subscopes.find(next_scope);
-    if (pos != root->subscopes.end()) {  // we find it
-      root = &(pos->second);
+    auto scope_pos = root->subscopes.find(next_scope);
+    if (scope_pos != root->subscopes.end()) {  // we find it
+      root = &(scope_pos->second);
     } else {  // we need to insert this scope
       root->subscopes.emplace(next_scope, VCDScope());
       root = &(root->subscopes.at(next_scope));
