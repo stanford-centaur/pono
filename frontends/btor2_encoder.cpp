@@ -212,7 +212,7 @@ void BTOR2Encoder::preprocess(const std::string & filename)
 
   Btor2LineIterator bt2_it = btor2parser_iter_init(reader);
 
-  std::unordered_set<uint64_t> unamed_state_ids;
+  std::unordered_set<int64_t> unamed_state_ids;
   while (Btor2Line * bt2_line = btor2parser_iter_next(&bt2_it)) {
     if (bt2_line->tag == BTOR2_TAG_state) {
       if (!bt2_line->symbol) {  // if we see state has no name, record it

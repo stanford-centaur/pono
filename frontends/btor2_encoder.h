@@ -84,15 +84,16 @@ class BTOR2Encoder
   smt::TermVec inputsvec_;
   smt::TermVec statesvec_;
   std::map<uint64_t, smt::Term> no_next_states_;
-  // record the renaming done by the `preprocess` pass
-  std::unordered_map<uint64_t, std::string> state_renaming_table_;
+  // record the renaming done by the `preprocess` pass, keyed by line id
+  std::unordered_map<int64_t, std::string> state_renaming_table_;
   // a mapping from the internally-assigned names ("intput/state{btor2_id}")
   // to the original names in Btor2
   std::unordered_map<std::string, std::string> symbol_map_;
   smt::UnorderedTermSet initialized_states_;
 
-  std::unordered_map<int, smt::Sort> sorts_;
-  std::unordered_map<int, smt::Term> terms_;
+  // Keyed by the Btor2 line id, which btor2parser reports as int64_t.
+  std::unordered_map<int64_t, smt::Sort> sorts_;
+  std::unordered_map<int64_t, smt::Term> terms_;
 
   // properties, justice, and fairness constraints
   smt::TermVec propvec_;
