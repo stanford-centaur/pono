@@ -71,7 +71,7 @@ class SubTermCollector : public smt::IdentityWalker
       const
   {
     return subterms_;
-  };
+  }
 
   const smt::UnorderedTermSet & get_predicates() const { return predicates_; }
 

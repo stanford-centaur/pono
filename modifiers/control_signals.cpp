@@ -20,7 +20,6 @@
 #include <cmath>
 
 #include "utils/exceptions.h"
-#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -42,9 +41,8 @@ void toggle_clock(TransitionSystem & ts, const Term & clock_symbol)
   Term clk_state = clock_symbol;
   assert(!ts.is_next_var(clk_state));
   if (!ts.is_curr_var(clk_state)) {
-    clk_state = ts.make_statevar(
-        name_desanitize(clock_symbol->to_string()) + "__state__",
-        clock_symbol->get_sort());
+    clk_state = ts.make_generated_statevar(
+        "clock", clock_symbol, clock_symbol->get_sort());
     ts.constrain_inputs(s->make_term(Equal, clock_symbol, clk_state));
   }
   assert(sk == BV || sk == BOOL);
@@ -74,7 +72,7 @@ Term add_reset_seq(TransitionSystem & ts,
   uint32_t num_bits = ceil(log2(reset_bnd)) + 1;
   Sort bvsort = s->make_sort(BV, num_bits);
   Term reset_bnd_term = s->make_term(reset_bnd, bvsort);
-  Term reset_counter = ts.make_statevar("__internal_cosa2_reset_cnt__", bvsort);
+  Term reset_counter = ts.make_generated_statevar("reset_counter", bvsort);
 
   Term in_reset = s->make_term(BVUlt, reset_counter, reset_bnd_term);
   Term reset_done = s->make_term(Not, in_reset);

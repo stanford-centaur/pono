@@ -26,7 +26,7 @@ class SMVEncoder
 {
  public:
   SMVEncoder(std::string filename, pono::RelationalTransitionSystem & rts)
-      : rts_(rts), solver_(rts.solver())
+      : solver_(rts.solver()), rts_(rts)
   {
     module_flat = false;
     file = filename;
@@ -36,7 +36,7 @@ class SMVEncoder
     loc.end.line = 0;
     std::string output = preprocess().str();
     processCase();
-  };
+  }
 
  public:
   // Important members

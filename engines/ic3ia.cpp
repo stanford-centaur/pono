@@ -351,7 +351,7 @@ RefineResult IC3IA::refine()
 
   // add all the new predicates
   for (auto const & p : fresh_preds) {
-    bool new_pred = add_predicate(p);
+    [[maybe_unused]] bool new_pred = add_predicate(p);
     // expect all predicates to be new (e.g. unseen)
     // they were already filtered above
     assert(new_pred);

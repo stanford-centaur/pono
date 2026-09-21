@@ -1,0 +1,7 @@
+; A design that names a state the way pono names the variables it generates
+; for itself. Reporting it would be indistinguishable from reporting pono's
+; own bookkeeping, so the name is refused rather than silently left out.
+1 sort bitvec 1
+2 state 1 pono_generated_saved
+3 next 1 2 2
+4 bad 2

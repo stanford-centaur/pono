@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "smt/available_solvers.h"
 #include "utils/exceptions.h"
+#include "utils/str_util.h"
 
 using namespace pono;
 using namespace smt;
@@ -17,7 +18,9 @@ class TSUnitTests : public ::testing::Test,
  protected:
   void SetUp() override
   {
-    s = create_solver(GetParam());
+    // Boolector renames the symbols it is given, so it needs the logging
+    // wrapper to report a variable under the name it was made with.
+    s = create_solver(GetParam(), GetParam() == BTOR);
     bvsort = s->make_sort(BV, 8);
   }
   SmtSolver s;
@@ -171,6 +174,56 @@ TEST_P(TSUnitTests, RTS_ConstrainTrans)
   Term next_x = rts.next(x);
   rts.constrain_trans(rts.make_term(BVUge, x, next_x));
   EXPECT_TRUE(rts.statevars_with_no_update().empty());
+}
+
+// Pono marks the variables it adds for itself so the witness printers can
+// tell them from the design's, which requires the marker to be on the name
+// and the role the caller asked for to still be readable in it.
+TEST_P(TSUnitTests, GeneratedVarsCarryTheMarker)
+{
+  RelationalTransitionSystem rts(s);
+  const Term saved = rts.make_generated_statevar("saved", bvsort);
+  EXPECT_TRUE(is_generated_name(name_desanitize(saved->to_string())));
+  EXPECT_NE(saved->to_string().find("saved"), string::npos);
+
+  const Term x = rts.make_statevar("x", bvsort);
+  EXPECT_FALSE(is_generated_name(name_desanitize(x->to_string())));
+
+  // A shadow of another variable names the variable it was derived from.
+  const Term loop = rts.make_generated_statevar("loop", x, bvsort);
+  EXPECT_TRUE(is_generated_name(name_desanitize(loop->to_string())));
+  EXPECT_NE(loop->to_string().find("x"), string::npos);
+
+  // The next-state twin is a shadow like any other, including the one made
+  // for a variable the design declared.
+  EXPECT_TRUE(is_generated_name(name_desanitize(rts.next(x)->to_string())));
+  EXPECT_TRUE(is_generated_name(name_desanitize(rts.next(saved)->to_string())));
+}
+
+// Asking twice for the same role is not a collision, since the caller cares
+// about getting a variable rather than about the name it ends up with.
+TEST_P(TSUnitTests, GeneratedVarsMoveAsideForEachOther)
+{
+  RelationalTransitionSystem rts(s);
+  const Term first = rts.make_generated_statevar("monitor", bvsort);
+  const Term second = rts.make_generated_statevar("monitor", bvsort);
+  EXPECT_NE(first, second);
+  EXPECT_TRUE(is_generated_name(name_desanitize(second->to_string())));
+}
+
+// A design variable named the way pono names its own would be left out of
+// every trace, so it is refused rather than silently dropped.
+TEST_P(TSUnitTests, DesignVarsCannotLookGenerated)
+{
+  RelationalTransitionSystem rts(s);
+  const string taken = string(generated_prefix) + "saved";
+  EXPECT_THROW(rts.make_statevar(taken, bvsort), PonoException);
+  EXPECT_THROW(rts.make_inputvar(taken, bvsort), PonoException);
+
+  // Frontends name a variable they made under a name of their own, which is
+  // the other way a design's name reaches the system.
+  const Term x = rts.make_statevar("x", bvsort);
+  EXPECT_THROW(rts.name_term(taken, x), PonoException);
 }
 
 INSTANTIATE_TEST_SUITE_P(ParameterizedSolverTSUnitTests,

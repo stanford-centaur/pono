@@ -24,14 +24,17 @@ cm_CMAKE_INSTALL_PREFIX=/usr/local
 # let find_package() honor Z3_ROOT and SmtSwitch_ROOT automatically; bitwuzla
 # (pkg-config) and MathSAT (a bare include path) have no module yet, so their
 # roots are applied by hand until one exists.
-cm_Bitwuzla_ROOT="$root_dir/deps/smt-switch/deps/install"
+# bitwuzla.pc names cadical in Requires:, which smt-switch installs under
+# a prefix of its own, so this *_ROOT holds the list of both.
+cm_Bitwuzla_ROOT="$root_dir/deps/smt-switch/deps/bitwuzla"
+cm_Bitwuzla_ROOT+=";$root_dir/deps/smt-switch/deps/cadical"
 cm_Btor2Tools_ROOT="$root_dir/deps/install"
 cm_CoreIR_ROOT="$root_dir/deps/coreir/local"
 # ic3ia has no install step, so this is a built source tree, not a prefix.
 cm_IC3IA_ROOT="$root_dir/deps/ic3ia"
 cm_MathSAT_ROOT="$root_dir/deps/mathsat"
 cm_SmtSwitch_ROOT="$root_dir/deps/smt-switch/local"
-cm_Z3_ROOT="$root_dir/deps/smt-switch/deps/install"
+cm_Z3_ROOT="$root_dir/deps/smt-switch/deps/z3"
 
 # Build flags
 cm_CMAKE_BUILD_TYPE=Release

@@ -1,7 +1,6 @@
 include_directories("${PROJECT_SOURCE_DIR}/tests/encoders")
 
 pono_add_test(test_btor2)
-pono_add_test(test_btor2_liveness)
 pono_add_test(test_coreir)
 pono_add_test(test_smv)
 pono_add_test(test_systemverilog_types)

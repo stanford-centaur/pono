@@ -31,6 +31,6 @@ void print_witness_btor(const BTOR2Encoder & btor_enc,
 void dump_witness_btor(const BTOR2Encoder & btor_enc,
                        std::vector<smt::UnorderedTermMap> & cex,
                        const TransitionSystem & ts,
-                       const unsigned int prop_idx,
+                       const std::string & prop_label,
                        const std::string & witness_filename);
 }  // namespace pono

@@ -36,15 +36,15 @@ class BTOR2Encoder
 {
  public:
   BTOR2Encoder(std::string filename, TransitionSystem & ts)
-      : ts_(ts), solver_(ts.solver())
+      : solver_(ts.solver()), ts_(ts)
   {
     preprocess(filename);
     parse(filename);
-  };
+  }
 
-  const smt::TermVec & propvec() const { return propvec_; };
-  const std::vector<smt::TermVec> & justicevec() const { return justicevec_; };
-  const smt::TermVec & fairvec() const { return fairvec_; };
+  const smt::TermVec & propvec() const { return propvec_; }
+  const std::vector<smt::TermVec> & justicevec() const { return justicevec_; }
+  const smt::TermVec & fairvec() const { return fairvec_; }
   const smt::TermVec & inputsvec() const { return inputsvec_; }
   const smt::TermVec & statesvec() const { return statesvec_; }
   const std::map<uint64_t, smt::Term> & no_next_statevars() const

@@ -384,7 +384,8 @@ bool CegProphecyArrays<Prover_T>::cegar_refine()
     abs_bmc_formula = get_bmc_formula(reached_k_ + 1);
 
     // search for axioms again but don't include nonconsecutive ones
-    bool ok = aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
+    [[maybe_unused]] bool ok =
+        aae_.enumerate_axioms(abs_bmc_formula, reached_k_ + 1, false);
     // should be guaranteed to rule out counterexamples at this bound
     assert(ok);
     consecutive_axioms = aae_.get_consecutive_axioms();
@@ -459,7 +460,7 @@ void CegProphecyArrays<Prover_T>::reduce_consecutive_axioms(
   for (auto l : assumps) {
     if (core.find(l) == core.end()) {
       // if not in core, then remove from axioms
-      size_t num_erased = consec_ax.erase(label2ax.at(l));
+      [[maybe_unused]] size_t num_erased = consec_ax.erase(label2ax.at(l));
       assert(num_erased);  // expecting axiom to be in set
     }
   }

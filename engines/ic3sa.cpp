@@ -73,8 +73,8 @@ IC3SA::IC3SA(const SafetyProperty & prop,
     : super(prop, RelationalTransitionSystem(solver), solver, opt, engine),
       conc_ts_(ts, to_prover_solver_),
       f_unroller_(conc_ts_, 0, "_AT"),  // zero means pure-functional unrolling
-      boolsort_(solver_->make_sort(BOOL)),
-      longest_unroll_(0)
+      longest_unroll_(0),
+      boolsort_(solver_->make_sort(BOOL))
 {
   // since we passed a fresh RelationalTransitionSystem as the main TS
   // need to point orig_ts_ to the right place
@@ -713,8 +713,6 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
 {
   // now add to the cube expressing this partition
   for (const auto & sortelem : ec) {
-    const Sort & sort = sortelem.first;
-
     // TODO: play around with heuristics for the representative
     //       to add disequalities over
     //       e.g. we're not adding all possible disequalities,
@@ -727,7 +725,7 @@ void IC3SA::construct_partition(const EquivalenceClasses & ec,
     TermVec representatives;
     Term lit;
     for (const auto & elem : sortelem.second) {
-      const Term & val = elem.first;
+      [[maybe_unused]] const Term & val = elem.first;
       assert(val->is_value());
 
       const UnorderedTermSet & terms = elem.second;

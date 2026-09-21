@@ -88,25 +88,18 @@ if(WITH_MSAT_IC3IA)
   pono_add_test(test_msat_ic3ia)
 endif()
 
-# Tests that run the executable itself, rather than linking the library. The
-# input directory and version are passed in because the test can derive
-# neither.
-macro(pono_add_cli_test name)
-  pono_add_test(${name})
-  # Building the test has to build what it runs, or it would test a stale or
-  # missing binary.
-  add_dependencies(${name} pono-bin)
-  target_compile_definitions(
-    ${name}
-    PRIVATE
-      PONO_BIN="$<TARGET_FILE:pono-bin>"
-      PONO_INPUT_DIR="${PROJECT_SOURCE_DIR}/tests/encoders/inputs"
-      PONO_VERSION="${PONO_RELEASE_VERSION}"
-  )
-endmacro()
-
-pono_add_cli_test(test_btor2_cli)
-pono_add_cli_test(test_cli)
-pono_add_cli_test(test_justice_cli)
+# Runs the executable itself, rather than linking the library. The input
+# directory and version are passed in because the test can derive neither.
+pono_add_test(test_cli)
+# Building the test has to build what it runs, or it would test a stale or
+# missing binary.
+add_dependencies(test_cli pono-bin)
+target_compile_definitions(
+  test_cli
+  PRIVATE
+    PONO_BIN="$<TARGET_FILE:pono-bin>"
+    PONO_INPUT_DIR="${PROJECT_SOURCE_DIR}/tests/encoders/inputs"
+    PONO_VERSION="${PONO_RELEASE_VERSION}"
+)
 
 add_subdirectory(encoders)

@@ -6,14 +6,8 @@
 
 #include "core/ts.h"
 #include "smt-switch/smt.h"
-#include "utils/str_util.h"
 
 namespace pono {
-LivenessToSafetyTranslator::LivenessToSafetyTranslator(std::string var_prefix)
-    : prefix_(var_prefix)
-{
-}
-
 smt::Term LivenessToSafetyTranslator::translate(TransitionSystem & ts,
                                                 smt::TermVec justice_conditions)
 {
@@ -25,11 +19,11 @@ smt::Term LivenessToSafetyTranslator::translate(TransitionSystem & ts,
 
   // Add oracle input. When this becomes true, we "save" the current state,
   // then continue until we find the same state again.
-  auto save_input = ts.make_inputvar(prefix_ + "save", boolsort);
+  auto save_input = ts.make_generated_inputvar("save", boolsort);
 
   // Add "saved" state. This indicates whether we have already saved a state,
   // i.e., whether we are inside a loop.
-  auto saved_state = ts.make_statevar(prefix_ + "saved", boolsort);
+  auto saved_state = ts.make_generated_statevar("saved", boolsort);
   // Starts as false.
   ts.constrain_init(ts.solver()->make_term(smt::Equal, saved_state, false_val));
   // saved' = saved \/ save
@@ -39,9 +33,8 @@ smt::Term LivenessToSafetyTranslator::translate(TransitionSystem & ts,
   // Add "loop" states. These keep track of the first state in the loop.
   std::vector<std::pair<smt::Term, smt::Term>> loop_states;
   for (auto statevar : orig_statevars) {
-    auto loop_state = ts.make_statevar(
-        name_desanitize(statevar->to_string()) + prefix_ + "_loop",
-        statevar->get_sort());
+    auto loop_state =
+        ts.make_generated_statevar("loop", statevar, statevar->get_sort());
     loop_states.push_back({ statevar, loop_state });
     // loop_i' = (save /\ !saved) ? state_i : loop_i;
     ts.assign_next(loop_state,
@@ -60,7 +53,7 @@ smt::Term LivenessToSafetyTranslator::translate(TransitionSystem & ts,
   smt::TermVec justice_states;
   for (std::size_t i = 0; i < justice_conditions.size(); i++) {
     auto justice_state =
-        ts.make_statevar(prefix_ + "justice_" + std::to_string(i), boolsort);
+        ts.make_generated_statevar("justice_" + std::to_string(i), boolsort);
     justice_states.push_back(justice_state);
     ts.constrain_init(
         ts.solver()->make_term(smt::Equal, justice_state, false_val));

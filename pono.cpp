@@ -52,6 +52,7 @@
 #include "utils/exceptions.h"
 #include "utils/logger.h"
 #include "utils/make_provers.h"
+#include "utils/str_util.h"
 #include "utils/timestamp.h"
 #include "utils/ts_analysis.h"
 
@@ -386,18 +387,12 @@ int main(int argc, char ** argv)
             dump_witness_btor(btor_enc,
                               cex,
                               fts,
-                              pono_options.prop_idx_,
+                              prop_label,
                               pono_options.btor2_witness_name_);
           }
           if (!pono_options.vcd_name_.empty()) {
-            if (pono_options.justice_) {
-              throw PonoException(
-                  "VCD generation for justice properties "
-                  "is not supported yet.");
-            } else {
-              VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
-              vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
-            }
+            VCDWitnessPrinter vcdprinter(fts, cex, btor_enc.get_symbol_map());
+            vcdprinter.dump_trace_to_file(pono_options.vcd_name_);
           }
         }
       } else if (res == TRUE) {
@@ -450,7 +445,15 @@ int main(int argc, char ** argv)
         assert(pono_options.witness_ || cex.size() == 0);
         for (size_t t = 0; t < cex.size(); t++) {
           cout << "AT TIME " << t << endl;
-          for (auto elem : cex[t]) {
+          for (const auto & elem : cex[t]) {
+            // report the design's own variables, the way the waveform does:
+            // a next-state variable repeats the following step, and the rest
+            // of what pono generated is not part of the design at all
+            if (rts.is_next_var(elem.first)
+                || is_generated_name(
+                    name_desanitize(elem.first->to_string()))) {
+              continue;
+            }
             cout << "\t" << elem.first << " : " << elem.second << endl;
           }
         }

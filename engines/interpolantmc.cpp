@@ -35,17 +35,17 @@ InterpolantMC::InterpolantMC(const SafetyProperty & p,
                              PonoOptions opt,
                              Engine engine)
     : super(p, ts, solver, opt, engine),
+      use_frontier_simpl_(opt.interp_frontier_set_simpl_),
+      interp_props_(opt.interp_props_),
+      unroll_eagerly_(opt.interp_eager_unroll_),
+      interp_backward_(opt.interp_backward_),
       interpolator_(
           create_interpolating_solver_for(options_.smt_interpolator_,
                                           engine_,
                                           options_.printing_smt_interpolator_,
                                           options_.smt_interpolator_opts_)),
       to_interpolator_(interpolator_),
-      to_solver_(solver_),
-      use_frontier_simpl_(opt.interp_frontier_set_simpl_),
-      interp_props_(opt.interp_props_),
-      unroll_eagerly_(opt.interp_eager_unroll_),
-      interp_backward_(opt.interp_backward_)
+      to_solver_(solver_)
 {
 }
 

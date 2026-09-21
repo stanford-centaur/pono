@@ -23,7 +23,6 @@
 #include "smt-switch/utils.h"
 #include "smt/available_solvers.h"
 #include "utils/logger.h"
-#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -214,8 +213,8 @@ UnorderedTermSet ImplicitPredicateAbstractor::do_abstraction()
     // for incrementality
     // only create new variables if not present in cache
     if (abstraction_cache_.find(nv) == abstraction_cache_.end()) {
-      Term abs_nv = abs_rts_.make_inputvar(
-          name_desanitize(nv->to_string()) + "^", nv->get_sort());
+      Term abs_nv =
+          abs_rts_.make_generated_inputvar("absnext", nv, nv->get_sort());
       // map next var to this abstracted next var
       update_term_cache(nv, abs_nv);
     }

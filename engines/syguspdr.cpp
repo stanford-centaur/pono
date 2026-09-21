@@ -460,11 +460,12 @@ IC3Formula SygusPdr::inductive_generalization(size_t i, const IC3Formula & c)
       else
         assert(!pre_full_model);
 
-      bool succ = propose_new_terms(failed_at_init ? pre_model : pre_full_model,
-                                    post_model,
-                                    F_T_not_cex,
-                                    Init_prime,
-                                    failed_at_init);
+      [[maybe_unused]] bool succ =
+          propose_new_terms(failed_at_init ? pre_model : pre_full_model,
+                            post_model,
+                            F_T_not_cex,
+                            Init_prime,
+                            failed_at_init);
       assert(succ);
       delete pre_full_model;
       pre_full_model = NULL;
@@ -597,7 +598,7 @@ bool SygusPdr::propose_new_terms(syntax_analysis::IC3FormulaModel * pre_model,
                                  const smt::Term & Init_prime,
                                  bool failed_at_init)
 {
-  unsigned proposing_new_terms_round = 0;
+  [[maybe_unused]] unsigned proposing_new_terms_round = 0;
   unsigned n_new_terms;
 
   do {
@@ -836,8 +837,8 @@ SygusPdr::ExtractPartialModel(const Term & p)
     D(4,
       "[PartialModel] assumptions (mapped): {}",
       constraints_curr_var_.size());
-    unsigned idx = 0;
-    for (const auto & c : constraints_curr_var_)
+    [[maybe_unused]] unsigned idx = 0;
+    for ([[maybe_unused]] const auto & c : constraints_curr_var_)
       D(4, "[PartialModel] assumption #{} : {}", idx++, c->to_string());
     constraints_curr_var_.push_back(bad_state_no_nxt);
     partial_model_getter.GetVarListForAsts(constraints_curr_var_, varlist);
@@ -848,7 +849,7 @@ SygusPdr::ExtractPartialModel(const Term & p)
 
   {
     D(4, "[PartialModel] before cutting vars: ");
-    for (const auto & v : varlist)
+    for ([[maybe_unused]] const auto & v : varlist)
       D(4,
         "[PartialModel] {} := {} ",
         v->to_string(),

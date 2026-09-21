@@ -20,7 +20,6 @@
 
 #include "core/rts.h"
 #include "utils/exceptions.h"
-#include "utils/str_util.h"
 
 using namespace smt;
 using namespace std;
@@ -48,7 +47,7 @@ WalkerStepResult ArrayAbstractor::AbstractionWalker::visit_term(Term & term)
   TermVec cached_children;
   Term cc;
   for (auto c : term) {
-    bool ok = query_cache(c, cc);
+    [[maybe_unused]] bool ok = query_cache(c, cc);
     assert(ok);  // in post-order so should always have a cache hit
     cached_children.push_back(cc);
   }
@@ -59,8 +58,8 @@ WalkerStepResult ArrayAbstractor::AbstractionWalker::visit_term(Term & term)
   if (sk == ARRAY && op.is_null()) {
     // constant array
     Term val = *(term->begin());
-    string name = "constarr" + name_desanitize(val->to_string());
-    res = aa_.abs_ts_.make_statevar(name, aa_.abstract_array_sort(sort));
+    res = aa_.abs_ts_.make_generated_statevar(
+        "constarr", val, aa_.abstract_array_sort(sort));
   } else if (op == Select) {
     assert(cached_children.size() == 2);
     Term read_uf = aa_.get_read_uf(cached_children[0]->get_sort());
@@ -131,7 +130,7 @@ WalkerStepResult ArrayAbstractor::ConcretizationWalker::visit_term(Term & term)
       TermVec cached_children;
       Term cc;
       for (auto c : term) {
-        bool ok = query_cache(c, cc);
+        [[maybe_unused]] bool ok = query_cache(c, cc);
         assert(ok);
         cached_children.push_back(cc);
       }
@@ -151,7 +150,7 @@ WalkerStepResult ArrayAbstractor::ConcretizationWalker::visit_term(Term & term)
   ++it;
   while (it != term->end()) {
     Term ca;
-    bool ok = query_cache(*it, ca);
+    [[maybe_unused]] bool ok = query_cache(*it, ca);
     assert(ok);
     assert(ca);
     cached_args.push_back(ca);
@@ -284,8 +283,8 @@ void ArrayAbstractor::abstract_vars()
   for (auto sv : conc_ts_.statevars()) {
     sort = sv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
-      abs_var = abs_ts_.make_statevar("abs_" + name_desanitize(sv->to_string()),
-                                      abstract_array_sort(sort));
+      abs_var =
+          abs_ts_.make_generated_statevar("abs", sv, abstract_array_sort(sort));
       update_term_cache(sv, abs_var);
       update_term_cache(conc_ts_.next(sv), abs_ts_.next(abs_var));
     } else {
@@ -295,8 +294,8 @@ void ArrayAbstractor::abstract_vars()
   for (auto iv : conc_ts_.inputvars()) {
     sort = iv->get_sort();
     if (sort->get_sort_kind() == ARRAY) {
-      abs_var = abs_ts_.make_inputvar("abs_" + name_desanitize(iv->to_string()),
-                                      abstract_array_sort(sort));
+      abs_var =
+          abs_ts_.make_generated_inputvar("abs", iv, abstract_array_sort(sort));
       update_term_cache(iv, abs_var);
     } else {
       abs_ts_.add_inputvar(iv);

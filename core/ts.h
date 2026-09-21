@@ -35,13 +35,10 @@ class TransitionSystem
   {
   }
 
-  TransitionSystem(
-      const smt::SmtSolver & s,
-      const std::string & next_state_suffix = ".pono_generated__next")
+  TransitionSystem(const smt::SmtSolver & s)
       : solver_(s),
         init_(s->make_term(true)),
         trans_(s->make_term(true)),
-        next_suffix_(next_state_suffix),
         functional_(false),
         deterministic_(false)
   {
@@ -157,6 +154,44 @@ class TransitionSystem
    */
   smt::Term make_statevar(const std::string name, const smt::Sort & sort);
 
+  /* Create an input that pono needs for itself rather than one the design
+   * declared, named so that the witness printers can leave it out
+   * @param role what the input is for, e.g. "save"
+   * @param sort the sort of the input
+   * @return the input term
+   */
+  smt::Term make_generated_inputvar(const std::string & role,
+                                    const smt::Sort & sort);
+
+  /* Create an input that pono needs for itself to shadow an existing term
+   * @param role what the input is for, e.g. "absnext"
+   * @param origin the term the input stands in for, named in the new name
+   * @param sort the sort of the input
+   * @return the input term
+   */
+  smt::Term make_generated_inputvar(const std::string & role,
+                                    const smt::Term & origin,
+                                    const smt::Sort & sort);
+
+  /* Create a state that pono needs for itself rather than one the design
+   * declared, named so that the witness printers can leave it out
+   * @param role what the state is for, e.g. "saved"
+   * @param sort the sort of the state
+   * @return the current state variable
+   */
+  smt::Term make_generated_statevar(const std::string & role,
+                                    const smt::Sort & sort);
+
+  /* Create a state that pono needs for itself to shadow an existing term
+   * @param role what the state is for, e.g. "loop"
+   * @param origin the term the state tracks, named in the new name
+   * @param sort the sort of the state
+   * @return the current state variable
+   */
+  smt::Term make_generated_statevar(const std::string & role,
+                                    const smt::Term & origin,
+                                    const smt::Sort & sort);
+
   /* Map all next state variables to current state variables in the term
    * @param t the term to map
    * @return the term with all current state variables
@@ -222,44 +257,41 @@ class TransitionSystem
 
   // getters
   /* Returns const reference to solver */
-  const smt::SmtSolver & solver() const { return solver_; };
+  const smt::SmtSolver & solver() const { return solver_; }
 
   /* Gets a non-const reference to the solver */
-  smt::SmtSolver & get_solver() { return solver_; };
+  smt::SmtSolver & get_solver() { return solver_; }
 
-  const smt::UnorderedTermSet & statevars() const { return statevars_; };
+  const smt::UnorderedTermSet & statevars() const { return statevars_; }
 
-  const smt::UnorderedTermSet & inputvars() const { return inputvars_; };
+  const smt::UnorderedTermSet & inputvars() const { return inputvars_; }
 
   /* Returns the initial state constraints
    * @return a boolean term constraining the initial state
    */
-  smt::Term init() const { return init_; };
+  smt::Term init() const { return init_; }
 
   /* Returns the transition relation
    * @return a boolean term representing the transition relation
    */
-  smt::Term trans() const { return trans_; };
+  smt::Term trans() const { return trans_; }
 
   /* Returns the next state updates
    * @return a map of functional next state updates
    */
-  const smt::UnorderedTermMap & state_updates() const
-  {
-    return state_updates_;
-  };
+  const smt::UnorderedTermMap & state_updates() const { return state_updates_; }
 
   /* Returns the set of state variables with no update function. */
   const smt::UnorderedTermSet & statevars_with_no_update() const
   {
     return no_state_updates_;
-  };
+  }
 
   /* @return the named terms mapping */
   const std::unordered_map<std::string, smt::Term> & named_terms() const
   {
     return named_terms_;
-  };
+  }
 
   /** @return the constraints of the system
    *  Note: these do not include next-state variable updates or initial state
@@ -273,7 +305,7 @@ class TransitionSystem
   const std::vector<std::pair<smt::Term, bool>> & constraints() const
   {
     return constraints_;
-  };
+  }
 
   /** Whether the transition system is functional
    *  NOTE: This does *not* actually analyze the transition relation
@@ -283,7 +315,7 @@ class TransitionSystem
    *  however, it allows (certain) constraints still
    *  and does not require that every state has an update
    */
-  bool is_functional() const { return functional_; };
+  bool is_functional() const { return functional_; }
 
   /** Whether the system is deterministic
    * this is a stronger condition than functional
@@ -297,7 +329,7 @@ class TransitionSystem
    *       --> there exists exactly one next state
    *           if current vars and inputs are fixed
    */
-  bool is_deterministic() const { return deterministic_; };
+  bool is_deterministic() const { return deterministic_; }
 
   /** Whether the transition relation is right-total,
    * i.e., every state has a next state.
@@ -520,6 +552,31 @@ class TransitionSystem
       const smt::UnorderedTermSet & input_vars_in_coi);
 
  protected:
+  /* Create a variable under a name pono generated, moving to a numbered
+   * variant of it for as long as the name is taken
+   * @param name the preferred name, already carrying the generated prefix
+   * @param sort the sort of the variable
+   * @param is_state whether to create a state rather than an input
+   * @return the new variable
+   */
+  smt::Term make_generated_var(const std::string & name,
+                               const smt::Sort & sort,
+                               bool is_state);
+
+  /* Create an input without rejecting names that look generated
+   * @param name the name of the input
+   * @param sort the sort of the input
+   * @return the input term
+   */
+  smt::Term declare_inputvar(const std::string & name, const smt::Sort & sort);
+
+  /* Create a state without rejecting names that look generated
+   * @param name the name of the state
+   * @param sort the sort of the state
+   * @return the current state variable
+   */
+  smt::Term declare_statevar(const std::string & name, const smt::Sort & sort);
+
   // solver
   smt::SmtSolver solver_;
 
@@ -559,9 +616,6 @@ class TransitionSystem
 
   // maps next back to curr
   smt::UnorderedTermMap curr_map_;
-
-  // Text appended to generate names for next-state variables.
-  std::string next_suffix_;
 
   // whether the TransitionSystem is functional
   bool functional_;

@@ -92,7 +92,7 @@ class IC3SA : public IC3
    *       initialization doesn't work correctly, and ts_ is replaced by
    *       a functional system when it should be relational
    */
-  TransitionSystem & prover_interface_ts() override { return conc_ts_; };
+  TransitionSystem & prover_interface_ts() override { return conc_ts_; }
 
   // virtual method implementations
 
