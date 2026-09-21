@@ -152,6 +152,30 @@ class InstanceEncoder : private SymbolTable::DriverResolver
                                 const std::string & parent_prefix);
 
  private:
+  /** Whether `value`, the definition a combinational block accumulated
+   *  for a target, can still be influenced by that target's own
+   *  previous value -- which is what makes it a latch rather than
+   *  plain combinational logic.
+   *
+   *  Asked of the solver rather than of the syntax, because the
+   *  previous value is *always* there syntactically: the accumulated
+   *  value falls back to it wherever no arm wrote, and whether that
+   *  fallback is reachable is the whole question. `case (s) 1'b0: ...
+   *  1'b1: ...` covers every value of `s` and so cannot reach it, but
+   *  no amount of looking at the arms in isolation says so.
+   *
+   *  Substituting two distinct fresh values for the target and asking
+   *  whether the results can differ settles it exactly, and settles
+   *  it the same way for `if`/`else`, wildcards, ranges and patterns.
+   *  Conservative if the solver cannot answer: a latch is what this
+   *  encoder did before the question was asked at all.
+   */
+  bool holds_previous_value(const smt::Term & target, const smt::Term & value);
+
+  /** Names the fresh values holds_previous_value() substitutes, which
+   *  have to differ between calls. */
+  uint64_t latch_probe_counter_ = 0;
+
   void process_always_ff(const slang::ast::ProceduralBlockSymbol & proc,
                          const std::string & prefix);
 

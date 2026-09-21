@@ -242,6 +242,31 @@ void InstanceEncoder::process_next_state_body(
   }
 }
 
+bool InstanceEncoder::holds_previous_value(const Term & target,
+                                           const Term & value)
+{
+  Sort sort = target->get_sort();
+  string base = "__latch_probe_" + std::to_string(latch_probe_counter_++);
+  Term a = solver_->make_symbol(base + "_a", sort);
+  Term b = solver_->make_symbol(base + "_b", sort);
+  UnorderedTermMap with_a{ { target, a } };
+  UnorderedTermMap with_b{ { target, b } };
+  Term differ = solver_->make_term(Distinct,
+                                   solver_->substitute(value, with_a),
+                                   solver_->substitute(value, with_b));
+  bool can_differ = true;
+  try {
+    solver_->push();
+    solver_->assert_formula(differ);
+    can_differ = !solver_->check_sat().is_unsat();
+    solver_->pop();
+  }
+  catch (const std::exception &) {
+    return true;
+  }
+  return can_differ;
+}
+
 void InstanceEncoder::process_always_comb(
     const slang::ast::ProceduralBlockSymbol & proc,
     const string & prefix,
@@ -282,14 +307,21 @@ void InstanceEncoder::process_always_comb(
                             + string(sym->name)
                             + "', which has no declared term");
       }
-      if (symbol_table_.latch_symbols().count(sym)) {
-        // Assigned on some paths and not others, so it keeps its old
-        // value on the rest -- which a same-cycle equality cannot
-        // say. The accumulated value already falls back to the
-        // symbol's own term where nothing wrote it, so as a
-        // next-state update it is exactly the latch synthesis infers
-        // here. Warned about for the same reason a synthesis tool
-        // warns: in an `always_comb` it is rarely intended.
+      // A path that writes nothing leaves the accumulated value
+      // falling back to the symbol's own term, and the scan that
+      // spotted that is syntactic: it counts a `case` with no
+      // `default` as leaving a path open even when the arms between
+      // them cover every value. Believing it there would turn plain
+      // combinational logic into a register, delaying it a cycle --
+      // which proves properties the design does not have. So ask
+      // whether that fallback can actually be reached.
+      if (symbol_table_.latch_symbols().count(sym)
+          && holds_previous_value(sit->second, term)) {
+        // It can, so the target really does keep its old value on
+        // those paths -- which a same-cycle equality cannot say, and
+        // a next-state update says exactly. Warned about for the same
+        // reason a synthesis tool warns: in an `always_comb` a latch
+        // is rarely intended.
         logger.log(0,
                    "SystemVerilogEncoder: '{}' is assigned on only some "
                    "paths through a combinational block, so it holds its "

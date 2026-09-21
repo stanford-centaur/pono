@@ -556,6 +556,33 @@ TEST_P(SVUnitTests, InitialDynamicWriteRestIsFree)
 
 // A combinational block that assigns on some paths but not others
 // infers a latch, as synthesis does -- per variable, so an
+// A `case` covering every value of its selector with no `default`.
+// The definite-assignment scan is syntactic and reads that as a path
+// that writes nothing, so it marks the target a latch -- which would
+// make a combinational signal a register and delay it a cycle.
+// Whether the fallback to the old value is reachable is a question
+// for the solver, and here it is not.
+TEST_P(SVUnitTests, CaseFullCoverageIsCombinational)
+{
+  check_prover<KInduction>("case_full_coverage.sv", 6, ProverResult::TRUE);
+}
+
+// The same design, claiming what only the register reading would
+// satisfy. Inferring a latch would *prove* this -- a false proof of
+// behaviour the design does not have, which is the worse half of
+// getting the previous test wrong.
+TEST_P(SVUnitTests, CaseFullCoverageIsNotDelayed)
+{
+  check_bmc("case_full_coverage_delayed.sv", 1, ProverResult::FALSE);
+}
+
+// The shape it shows up as in practice: an enum state fully
+// enumerated, no `default`.
+TEST_P(SVUnitTests, CaseEnumFullCoverageIsCombinational)
+{
+  check_prover<KInduction>("case_enum_full_coverage.sv", 6, ProverResult::TRUE);
+}
+
 // unconditionally-assigned target in the same block stays a wire.
 
 TEST_P(SVUnitTests, AlwaysCombLatch)
