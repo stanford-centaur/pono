@@ -938,14 +938,48 @@ void StatementEncoder::process_statement(
         // concatenation's numbering -- exactly mirroring how a
         // concatenation-target *port connection* is split into one
         // OutputAliasSegment per operand.
-        if (lhs_expr.kind == ExpressionKind::Concatenation) {
-          uint64_t total_w = lhs_expr.type->getBitWidth();
+        // A streaming concatenation target (`{>>{hi, lo}} <= a;`) is
+        // the same positional split over its stream expressions --
+        // what differs is only which bits of the RHS reach them,
+        // which the caller sorts out by un-re-ordering the RHS
+        // first. A Streaming expression's own type is void, so its
+        // width comes from the bitstream.
+        if (lhs_expr.kind == ExpressionKind::Concatenation
+            || lhs_expr.kind == ExpressionKind::Streaming) {
+          bool streaming = lhs_expr.kind == ExpressionKind::Streaming;
+          std::vector<const Expression *> operands;
+          uint64_t total_w = 0;
+          if (streaming) {
+            auto & sc = lhs_expr.as<StreamingConcatenationExpression>();
+            total_w = sc.getBitstreamWidth();
+            for (auto & stream : sc.streams()) {
+              if (stream.withExpr) {
+                throw PonoException(
+                    "SystemVerilogEncoder: a `with` range in a streaming "
+                    "concatenation target is not supported");
+              }
+              operands.push_back(stream.operand);
+            }
+          } else {
+            total_w = lhs_expr.type->getBitWidth();
+            for (auto * operand :
+                 lhs_expr.as<ConcatenationExpression>().operands()) {
+              operands.push_back(operand);
+            }
+          }
           if (total_w == 0) return {};
           std::vector<LValueWrite> writes;
           uint64_t covered = 0;
-          for (auto * operand :
-               lhs_expr.as<ConcatenationExpression>().operands()) {
-            uint64_t seg_w = operand->type->getBitWidth();
+          for (const Expression * operand : operands) {
+            // Ahead of the width check, which would otherwise report
+            // a non-integral target as a zero-width one.
+            if (streaming && !operand->type->isIntegral()) {
+              throw PonoException(
+                  "SystemVerilogEncoder: only an integral target can be "
+                  "unpacked from a stream; '"
+                  + std::string(operand->type->toString()) + "' cannot");
+            }
+            uint64_t seg_w = value_width(*operand->type);
             if (seg_w == 0 || covered + seg_w > total_w) {
               throw PonoException(
                   "SystemVerilogEncoder: a concatenation-target operand of "
@@ -1270,12 +1304,34 @@ void StatementEncoder::process_statement(
 
         uint64_t total_w = 0;
         for (auto & w : writes) total_w = std::max(total_w, w.rhs_hi + 1);
-        // A concatenation-target LHS is always unsigned per the LRM
-        // (positional bit-splicing, not a numeric value); otherwise
-        // use the RHS expression's own signedness.
-        bool rhs_signed = lhs_expr.kind != ExpressionKind::Concatenation
-                          && rhs_expr.type->isSigned();
-        rhs = resize_to(solver_, rhs, total_w, rhs_signed);
+        if (lhs_expr.kind == ExpressionKind::Streaming) {
+          // A stream is consumed from its most significant end, the
+          // opposite of the truncation every other target wants, and
+          // a source with too few bits is an error rather than
+          // something to pad (LRM 11.4.14.3 -- slang rejects it
+          // before this point). What is left is the stream the `<<`
+          // re-ordering produced, so run that backwards to recover
+          // the bits the targets are cut from.
+          uint64_t rhs_w = rhs->get_sort()->get_width();
+          if (rhs_w < total_w) {
+            throw PonoException(
+                "SystemVerilogEncoder: a streaming-concatenation target "
+                "needs " + std::to_string(total_w) + " bits but the source "
+                "supplies only " + std::to_string(rhs_w));
+          }
+          rhs = slice_bits(solver_, rhs, rhs_w - total_w, rhs_w - 1);
+          rhs = stream_unreorder(
+              solver_,
+              rhs,
+              lhs_expr.as<StreamingConcatenationExpression>().getSliceSize());
+        } else {
+          // A concatenation-target LHS is always unsigned per the LRM
+          // (positional bit-splicing, not a numeric value); otherwise
+          // use the RHS expression's own signedness.
+          bool rhs_signed = lhs_expr.kind != ExpressionKind::Concatenation
+                            && rhs_expr.type->isSigned();
+          rhs = resize_to(solver_, rhs, total_w, rhs_signed);
+        }
         for (auto & w : writes) {
           commit_write(w, slice_of(rhs, w.rhs_lo, w.rhs_hi));
         }

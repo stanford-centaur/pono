@@ -118,6 +118,32 @@ bool packed_element_ordinal(const slang::ast::PackedArrayType & arr,
  */
 uint64_t value_width(const slang::ast::Type & type);
 
+/** Re-order a bit stream into `slice`-wide blocks, as a `<<`
+ *  streaming concatenation does (LRM 11.4.14.2). Blocks are cut from
+ *  the right-hand end, so when `slice` does not divide the width it
+ *  is the *left-most* block that is short; the block order is then
+ *  reversed, leaving that short block at the right-hand end.
+ *
+ *  `slice` is zero for `>>`, which re-orders nothing, and so is a
+ *  no-op here.
+ */
+smt::Term stream_reorder(const smt::SmtSolver & solver,
+                         const smt::Term & value,
+                         uint64_t slice);
+
+/** Undo stream_reorder(), recovering the generic stream that a `<<`
+ *  produced -- the operation a streaming concatenation performs when
+ *  it is an assignment target (LRM 11.4.14.3).
+ *
+ *  The two are the same permutation only when `slice` divides the
+ *  width. Otherwise the short block sits at the opposite end, so
+ *  this cuts it from the right-hand end first and moves it to the
+ *  left.
+ */
+smt::Term stream_unreorder(const smt::SmtSolver & solver,
+                           const smt::Term & value,
+                           uint64_t slice);
+
 /** Extract bits [lo, hi] from `base`, or return `base` unchanged when
  *  [lo, hi] already covers its whole width. Returns a null Term if
  *  `base` is null.

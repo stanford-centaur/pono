@@ -57,6 +57,22 @@ TEST_P(SVUnitTests, Gap_RegisterAliasedToPartialTarget)
   check_bmc("reg_bus_slice.sv", 2, ProverResult::UNKNOWN);
 }
 
+// A streaming concatenation as an output-port connection. `>>`
+// re-orders nothing, so it splits into output-alias segments exactly
+// as a plain concatenation connection does.
+TEST_P(SVUnitTests, StreamingConcatPortConnection)
+{
+  check_prover<KInduction>("streaming_concat_port.sv", 4, ProverResult::TRUE);
+}
+
+// `<<` moves bits across the boundaries between the stream's
+// expressions, and an alias segment is one contiguous range per
+// symbol, so there is nothing to describe the result with.
+TEST_P(SVUnitTests, Unsupported_StreamingConcatPortReversed)
+{
+  expect_encode_throws("streaming_concat_port_reversed.sv");
+}
+
 TEST_P(SVUnitTests, GenerateForBlock) { check_bmc("generate_block.sv", 6); }
 
 TEST_P(SVUnitTests, ForLoopPopcount) { check_bmc("for_loop.sv", 2); }

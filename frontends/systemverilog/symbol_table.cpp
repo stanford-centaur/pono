@@ -370,6 +370,11 @@ void SymbolTable::pre_scan_instance(const slang::ast::InstanceSymbol & inst,
            conn_expr->as<ConcatenationExpression>().operands()) {
         mark_wire(*operand);
       }
+    } else if (conn_expr->kind == ExpressionKind::Streaming) {
+      for (auto & stream :
+           conn_expr->as<StreamingConcatenationExpression>().streams()) {
+        mark_wire(*stream.operand);
+      }
     } else {
       mark_wire(*conn_expr);
     }

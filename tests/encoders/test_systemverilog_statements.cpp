@@ -149,13 +149,46 @@ TEST_P(SVUnitTests, ConcatenationLhsOnlyWrite)
 }
 
 // A streaming concatenation used as an assignment target
-// (`{>>{hi, lo}} <= a;`) is ExpressionKind::Streaming, distinct from a
-// plain concatenation-target LHS (ExpressionKind::Concatenation,
-// already supported above). resolve_lvalue() has no case for it at
-// all.
-TEST_P(SVUnitTests, Gap_StreamingConcatLhs)
+// (`{>>{hi, lo}} <= a;`) is ExpressionKind::Streaming, distinct from
+// a plain concatenation-target LHS (ExpressionKind::Concatenation,
+// handled above) -- but it splits the same way, since `>>` re-orders
+// nothing.
+TEST_P(SVUnitTests, StreamingConcatLhs)
 {
-  check_bmc("streaming_concat_lhs.sv", 2, ProverResult::UNKNOWN);
+  check_prover<KInduction>("streaming_concat_lhs.sv", 6, ProverResult::TRUE);
+}
+
+// The `<<` direction, with a slice size that does not divide the
+// width -- where packing and unpacking are different permutations
+// rather than the same one applied twice -- and a target streaming
+// two expressions rather than one.
+TEST_P(SVUnitTests, StreamingConcatReorder)
+{
+  check_prover<KInduction>(
+      "streaming_concat_reorder.sv", 6, ProverResult::TRUE);
+}
+
+// The same target in a continuous assignment, with a source wider
+// than the target: a stream is consumed from its most significant
+// end, not truncated at the bottom.
+TEST_P(SVUnitTests, StreamingConcatContinuousAssign)
+{
+  check_prover<KInduction>(
+      "streaming_concat_continuous.sv", 4, ProverResult::TRUE);
+}
+
+// Streaming an unpacked array means walking its elements in `foreach`
+// order, which positional bit-splicing cannot express.
+TEST_P(SVUnitTests, Unsupported_StreamingConcatUnpackedTarget)
+{
+  expect_encode_throws("streaming_concat_unpacked_target.sv");
+}
+
+// A `with` range sizes dynamically sized stream data, which is out of
+// scope here.
+TEST_P(SVUnitTests, Unsupported_StreamingConcatWithRange)
+{
+  expect_encode_throws("streaming_concat_with_range.sv");
 }
 
 // Minimal, direct checks of two patterns that recur composed with other

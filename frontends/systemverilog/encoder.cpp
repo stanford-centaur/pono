@@ -196,6 +196,15 @@ void classify_continuous_assign_lhs(
     }
     return;
   }
+  if (lhs.kind == ExpressionKind::Streaming) {
+    // Same set of driven symbols as the plain concatenation above;
+    // the stream re-ordering only decides which bits reach which.
+    for (auto & stream : lhs.as<StreamingConcatenationExpression>().streams()) {
+      classify_continuous_assign_lhs(
+          *stream.operand, ca, symbol_table, prefix, parent_prefix);
+    }
+    return;
+  }
   if (lhs.kind == ExpressionKind::NamedValue) {
     auto * sym = &lhs.as<NamedValueExpression>().symbol;
     if (!symbol_table.state_var_symbols().count(sym)) {

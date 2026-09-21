@@ -739,38 +739,33 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
     }
 
     case ExpressionKind::Streaming: {
-      // Scoped to a single stream with no `with` sub-range clause --
-      // covers real synthesizable usage of streaming concatenation
-      // (reversing/regrouping one packed value's bits or byte-lanes,
-      // e.g. `{<<{a}}`), not the LRM's full generality (multiple
-      // streams, `with` ranges, dynamically-sized queues/arrays).
+      // The generic stream of LRM 11.4.14.1 -- each stream expression
+      // in turn, leftmost first -- then the block re-ordering of
+      // 11.4.14.2. `with` ranges and dynamically sized operands
+      // belong to the parts of streaming this encoder has no
+      // representation for.
       auto & sc = expr.as<StreamingConcatenationExpression>();
-      if (sc.streams().size() != 1 || sc.streams()[0].withExpr) {
+      Term generic;
+      for (auto & stream : sc.streams()) {
+        if (stream.withExpr) {
+          throw PonoException(
+              "SystemVerilogEncoder: a `with` range in a streaming "
+              "concatenation is not supported");
+        }
+        if (!stream.operand->type->isIntegral()) {
+          throw PonoException(
+              "SystemVerilogEncoder: only an integral operand can be "
+              "streamed; '"
+              + std::string(stream.operand->type->toString()) + "' cannot");
+        }
+        Term piece = expr_to_term(*stream.operand, prefix);
+        generic = generic ? solver_->make_term(Concat, generic, piece) : piece;
+      }
+      if (!generic) {
         throw PonoException(
-            "SystemVerilogEncoder: unsupported streaming concatenation "
-            "shape (only a single stream with no `with` range is "
-            "supported)");
+            "SystemVerilogEncoder: empty streaming concatenation");
       }
-      Term base = expr_to_term(*sc.streams()[0].operand, prefix);
-      uint64_t slice = sc.getSliceSize();
-      if (slice == 0) {
-        // `{>>{x}}` (left-to-right): a single stream is unchanged.
-        return base;
-      }
-      uint64_t w = base->get_sort()->get_width();
-      if (w % slice != 0) {
-        throw PonoException(
-            "SystemVerilogEncoder: streaming concatenation slice size "
-            "does not evenly divide operand width");
-      }
-      // `{<<{x}}` (right-to-left): reassemble slice-wide chunks in
-      // reverse order, taken from x's LSB to MSB.
-      Term result;
-      for (uint64_t lo = 0; lo < w; lo += slice) {
-        Term piece = solver_->make_term(Op(Extract, lo + slice - 1, lo), base);
-        result = result ? solver_->make_term(Concat, result, piece) : piece;
-      }
-      return result;
+      return stream_reorder(solver_, generic, sc.getSliceSize());
     }
 
     case ExpressionKind::Conversion: {

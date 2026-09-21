@@ -178,6 +178,78 @@ bool packed_element_ordinal(const slang::ast::PackedArrayType & arr,
   return true;
 }
 
+namespace {
+
+// The block partition both re-orderings work on: `q` whole blocks and
+// a remainder of `rem` bits. Reports false when there is nothing to
+// re-order -- a `>>` stream, or a single block covering everything.
+bool stream_blocks(const Term & value,
+                   uint64_t slice,
+                   uint64_t & width,
+                   uint64_t & q,
+                   uint64_t & rem)
+{
+  require_bv(value, "stream re-ordering");
+  width = value->get_sort()->get_width();
+  if (slice == 0 || slice >= width) return false;
+  rem = width % slice;
+  q = (width - rem) / slice;
+  return q > 1 || rem != 0;
+}
+
+Term concat_all(const SmtSolver & solver, const std::vector<Term> & pieces)
+{
+  Term result;
+  for (const Term & p : pieces) {
+    result = result ? solver->make_term(Concat, result, p) : p;
+  }
+  return result;
+}
+
+}  // namespace
+
+Term stream_reorder(const SmtSolver & solver,
+                    const Term & value,
+                    uint64_t slice)
+{
+  uint64_t width = 0, q = 0, rem = 0;
+  if (!stream_blocks(value, slice, width, q, rem)) return value;
+  // Blocks numbered from the right of the input come out left-first,
+  // and the short left-over -- the input's top `rem` bits -- last.
+  std::vector<Term> pieces;
+  pieces.reserve(q + 1);
+  for (uint64_t i = 0; i < q; i++) {
+    pieces.push_back(
+        solver->make_term(Op(Extract, (i + 1) * slice - 1, i * slice), value));
+  }
+  if (rem) {
+    pieces.push_back(
+        solver->make_term(Op(Extract, width - 1, q * slice), value));
+  }
+  return concat_all(solver, pieces);
+}
+
+Term stream_unreorder(const SmtSolver & solver,
+                      const Term & value,
+                      uint64_t slice)
+{
+  uint64_t width = 0, q = 0, rem = 0;
+  if (!stream_blocks(value, slice, width, q, rem)) return value;
+  // The mirror image: the short block is the input's *bottom* `rem`
+  // bits and belongs at the top, ahead of the whole blocks taken
+  // right to left.
+  std::vector<Term> pieces;
+  pieces.reserve(q + 1);
+  if (rem) {
+    pieces.push_back(solver->make_term(Op(Extract, rem - 1, 0), value));
+  }
+  for (uint64_t i = 0; i < q; i++) {
+    pieces.push_back(solver->make_term(
+        Op(Extract, rem + (i + 1) * slice - 1, rem + i * slice), value));
+  }
+  return concat_all(solver, pieces);
+}
+
 Term slice_bits(const SmtSolver & solver,
                 const Term & base,
                 uint64_t lo,

@@ -52,7 +52,9 @@ namespace {
 // per-operand handling already used by begin_write() (the write-time
 // counterpart) and pre_scan_instance()'s output-port aliasing --
 // find_lhs_base() itself can't do this since a concatenation has more
-// than one base symbol and its return type is a single Symbol*.
+// than one base symbol and its return type is a single Symbol*. A
+// streaming concatenation target writes the same set of symbols; the
+// re-ordering only moves bits between them.
 void insert_nonblocking_lhs_targets(
     const slang::ast::Expression & lhs,
     std::unordered_set<const slang::ast::Symbol *> & targets)
@@ -61,6 +63,12 @@ void insert_nonblocking_lhs_targets(
   if (lhs.kind == ExpressionKind::Concatenation) {
     for (auto * operand : lhs.as<ConcatenationExpression>().operands()) {
       insert_nonblocking_lhs_targets(*operand, targets);
+    }
+    return;
+  }
+  if (lhs.kind == ExpressionKind::Streaming) {
+    for (auto & stream : lhs.as<StreamingConcatenationExpression>().streams()) {
+      insert_nonblocking_lhs_targets(*stream.operand, targets);
     }
     return;
   }

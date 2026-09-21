@@ -426,18 +426,56 @@ void InstanceEncoder::process_continuous_assign(
   // recurse into process_continuous_assign_operand() once per operand,
   // exactly mirroring how a concatenation-target *port connection* is
   // already split into one OutputAliasSegment per operand.
-  if (lhs_expr.kind == ExpressionKind::Concatenation) {
+  // A streaming concatenation target (`assign {>>{hi, lo}} = ...;`)
+  // splits the same way; what it adds is that the source is consumed
+  // from its most significant end and then un-re-ordered.
+  if (lhs_expr.kind == ExpressionKind::Concatenation
+      || lhs_expr.kind == ExpressionKind::Streaming) {
+    bool streaming = lhs_expr.kind == ExpressionKind::Streaming;
+    std::vector<const Expression *> operands;
+    uint64_t total_w = 0;
+    if (streaming) {
+      auto & sc = lhs_expr.as<StreamingConcatenationExpression>();
+      total_w = sc.getBitstreamWidth();
+      for (auto & stream : sc.streams()) {
+        if (stream.withExpr) {
+          throw PonoException(
+              "SystemVerilogEncoder: a `with` range in a streaming "
+              "concatenation target is not supported");
+        }
+        operands.push_back(stream.operand);
+      }
+    } else {
+      total_w = lhs_expr.type->getBitWidth();
+      for (auto * operand : lhs_expr.as<ConcatenationExpression>().operands()) {
+        operands.push_back(operand);
+      }
+    }
+    if (total_w == 0) return;
     // A concatenation's own type -- and so each slice written through
     // it -- is always unsigned per the LRM, regardless of the RHS
     // expression's own signedness: this is positional bit-splicing,
     // not a numeric value being widened.
-    uint64_t total_w = lhs_expr.type->getBitWidth();
-    if (total_w == 0) return;
-    Term rhs_full = resize_to(
-        solver_, expr_encoder_.expr_to_term(rhs_expr, prefix), total_w, false);
+    Term rhs_full = expr_encoder_.expr_to_term(rhs_expr, prefix);
+    if (streaming) {
+      uint64_t rhs_w = rhs_full->get_sort()->get_width();
+      if (rhs_w < total_w) {
+        throw PonoException(
+            "SystemVerilogEncoder: a streaming-concatenation target needs "
+            + std::to_string(total_w) + " bits but the source supplies only "
+            + std::to_string(rhs_w));
+      }
+      rhs_full = slice_bits(solver_, rhs_full, rhs_w - total_w, rhs_w - 1);
+      rhs_full = stream_unreorder(
+          solver_,
+          rhs_full,
+          lhs_expr.as<StreamingConcatenationExpression>().getSliceSize());
+    } else {
+      rhs_full = resize_to(solver_, rhs_full, total_w, false);
+    }
     uint64_t covered = 0;
-    for (auto * operand : lhs_expr.as<ConcatenationExpression>().operands()) {
-      uint64_t seg_w = operand->type->getBitWidth();
+    for (const Expression * operand : operands) {
+      uint64_t seg_w = value_width(*operand->type);
       if (seg_w == 0 || covered + seg_w > total_w) break;
       uint64_t seg_hi = total_w - 1 - covered;
       uint64_t seg_lo = seg_hi - (seg_w - 1);
@@ -734,14 +772,45 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
         conn_expr = &conn_expr->as<AssignmentExpression>().left();
       }
       uint64_t port_w = value_width(port.getType());
-      if (conn_expr->kind == ExpressionKind::Concatenation) {
+      if (conn_expr->kind == ExpressionKind::Concatenation
+          || conn_expr->kind == ExpressionKind::Streaming) {
         // `.port({hi, lo})`: split the port's bits across each
         // operand, MSB-first (leftmost operand = most significant),
         // one segment per operand.
+        std::vector<const Expression *> operands;
+        if (conn_expr->kind == ExpressionKind::Streaming) {
+          // `>>` re-orders nothing, so a stream of operands lands on
+          // the port exactly as a concatenation of them would. `<<`
+          // moves bits across operand boundaries, and an alias is one
+          // contiguous port range per symbol, so there is no segment
+          // list that describes it.
+          auto & sc = conn_expr->as<StreamingConcatenationExpression>();
+          if (sc.getSliceSize() != 0) {
+            throw PonoException(
+                "SystemVerilogEncoder: a `<<` streaming concatenation "
+                "connected to output/inout port '"
+                + string(port.name)
+                + "' re-orders bits across its operands, which an output "
+                  "alias cannot describe; `>>` is supported");
+          }
+          for (auto & stream : sc.streams()) {
+            if (stream.withExpr) {
+              throw PonoException(
+                  "SystemVerilogEncoder: a `with` range in a streaming "
+                  "concatenation connected to output/inout port '"
+                  + string(port.name) + "' is not supported");
+            }
+            operands.push_back(stream.operand);
+          }
+        } else {
+          for (auto * operand :
+               conn_expr->as<ConcatenationExpression>().operands()) {
+            operands.push_back(operand);
+          }
+        }
         std::vector<OutputAliasSegment> segments;
         uint64_t covered = 0;
-        for (auto * operand :
-             conn_expr->as<ConcatenationExpression>().operands()) {
+        for (const Expression * operand : operands) {
           auto odesc = resolve_lvalue(*operand, expr_encoder_.eval_ctx());
           if (!odesc) {
             throw PonoException(
