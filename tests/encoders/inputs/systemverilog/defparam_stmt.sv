@@ -1,5 +1,13 @@
-// Out-of-scope: legacy `defparam` parameter override, as opposed to
-// the `#(...)` styles covered in test_systemverilog_hierarchy.cpp.
+// A legacy `defparam` parameter override, as opposed to the `#(...)`
+// styles covered elsewhere in test_systemverilog_hierarchy.cpp.
+//
+// slang's elaborator applies the override before the encoder sees the
+// design, the same way it splices in a `bind`, so nothing here needs
+// its own handling. What this has to check is that the override really
+// reached the model rather than the declared default: only an 8-bit
+// counter ever equals 20, since a 4-bit one wraps at 16. A
+// counterexample is therefore the override having been applied, and
+// its depth says which cycle the counter got there.
 module leaf #(
     parameter WIDTH = 4
 ) (
@@ -13,14 +21,17 @@ module leaf #(
   end
 endmodule
 
-module defparam_stmt (input logic clk, input logic rst);
+module defparam_stmt (
+    input logic clk,
+    input logic rst
+);
+
   leaf l (
       clk,
       rst
   );
   defparam l.WIDTH = 8;
-  // With the override correctly applied, `l.count` (8 bits) can't wrap
-  // back to 0 within 20 post-reset cycles; if the override is dropped
-  // (this gap), `l.count` stays 4 bits wide and wraps at cycle 16.
-  assert property (@(posedge clk) l.count != 0);
+
+  assert property (@(posedge clk) l.count != 8'd20);
+
 endmodule

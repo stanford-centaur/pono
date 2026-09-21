@@ -170,16 +170,16 @@ TEST_P(SVUnitTests, ParameterNamedOverride)
   check_bmc("named_param_override.sv", 8);
 }
 
-// `defparam` has real functional effect (it overrides a parameter,
-// here changing a counter's bit width) -- not a deliberate non-goal
-// like the constructs in test_systemverilog_unsupported.cpp. The base
-// module is still walked normally with its *own* defaults, so the
-// override is silently never applied -- logged via
-// logger.log(1, "... ignoring ...") rather than thrown. `defparam` is
-// caught as a walkable SymbolKind::DefParam member.
-TEST_P(SVUnitTests, Gap_DefparamStmt)
+// `defparam` overrides a parameter, here a counter's bit width.
+// slang's elaborator applies it before the encoder sees the design,
+// the same way it splices in a `bind`, so there is nothing on this
+// side to do -- but the override still has to be shown to have
+// reached the model rather than the declared default. Only an 8-bit
+// counter equals 20; the declared 4-bit one wraps at 16 and never
+// does, which would leave this UNKNOWN instead.
+TEST_P(SVUnitTests, DefparamStmt)
 {
-  check_bmc("defparam_stmt.sv", 20, ProverResult::UNKNOWN);
+  check_bmc("defparam_stmt.sv", 21, ProverResult::FALSE);
 }
 
 // ---------------------------------------------------------------------------
