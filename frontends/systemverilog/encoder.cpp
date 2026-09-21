@@ -402,6 +402,20 @@ void SystemVerilogEncoder::process_module(
 
   // Fourth pass: process behavioral code and continuous assignments.
   instance_encoder_.process_assignments(body, prefix, parent_prefix);
+
+  // A variable an initial block writes and nothing else drives keeps
+  // that value: in the transition system a state var with no update
+  // is treated as an input and would drift, so give it one that
+  // holds. Done here, after every block has been processed, because
+  // only now is it settled that nothing else assigns it.
+  for (const slang::ast::Symbol * sym : symbol_table_.initial_written()) {
+    auto it = symbol_table_.symbol_to_term().find(sym);
+    if (it == symbol_table_.symbol_to_term().end()) continue;
+    const smt::Term & term = it->second;
+    if (!fts_.is_curr_var(term)) continue;
+    if (fts_.state_updates().find(term) != fts_.state_updates().end()) continue;
+    fts_.assign_next(term, term);
+  }
 }
 
 }  // namespace pono

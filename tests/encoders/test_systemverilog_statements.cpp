@@ -433,4 +433,18 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVStatementsTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
 
+// A variable whose only driver is an `initial` block: state rather
+// than a free input, and given an update that holds, since a state
+// var without one is treated as an input and would drift.
+
+TEST_P(SVUnitTests, InitialOnlyDriver)
+{
+  check_prover<KInduction>("initial_only_driver.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, InitialOnlyDriverUnwrittenIsFree)
+{
+  check_bmc("initial_only_driver_fails.sv", 1);
+}
+
 }  // namespace pono_tests

@@ -238,6 +238,26 @@ void SymbolTable::pre_scan_state_vars(const slang::ast::Scope & body,
       } else if (proc.procedureKind == ProceduralBlockKind::Initial) {
         if (auto * forever_body = as_forever_event_body(proc.getBody())) {
           pre_scan_always_ff(*forever_body, /*clocked=*/true, prefix);
+        } else {
+          // A variable an initial block writes is storage: it holds
+          // that value from time 0. Classifying it here is what lets
+          // constrain_init() name it -- left as an input var, the
+          // initial assignment reaches the core as a constraint over
+          // something that is not a state variable, and the error
+          // that comes back says nothing about the initial block it
+          // came from.
+          std::unordered_set<const Symbol *> full, partial;
+          collect_blocking_targets(proc.getBody(), full, partial);
+          for (auto * sym : full) {
+            if (is_block_local(*sym)) continue;
+            state_var_symbols_.insert(sym);
+            initial_written_.insert(sym);
+          }
+          for (auto * sym : partial) {
+            if (is_block_local(*sym)) continue;
+            state_var_symbols_.insert(sym);
+            initial_written_.insert(sym);
+          }
         }
       }
     } else if (member.kind == SymbolKind::Instance) {

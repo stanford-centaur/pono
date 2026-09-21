@@ -166,6 +166,15 @@ class SymbolTable
    *  what produced it (`tag` becomes part of the variable's name).
    *  Fresh per occurrence, which is the loosest and so the soundest
    *  reading of "could be anything". */
+  /** Symbols an `initial` block writes. One whose value nothing
+   *  else drives has to hold it, which can only be decided once
+   *  every block has been processed -- see add_initial_only_holds().
+   */
+  std::unordered_set<const slang::ast::Symbol *> & initial_written()
+  {
+    return initial_written_;
+  }
+
   smt::Term make_unknown_value(const smt::Sort & sort, const std::string & tag);
 
   /** A read of an unpacked-array cell outside the declared range,
@@ -352,6 +361,8 @@ class SymbolTable
   std::unordered_set<const slang::ast::Symbol *> pending_comb_aliased_;
   std::unordered_map<smt::Term, smt::Term> pending_next_updates_;
   std::unordered_set<const slang::ast::Symbol *> blocking_next_written_;
+  std::unordered_set<const slang::ast::Symbol *> initial_written_;
+
   uint64_t unknown_counter_ = 0;
   std::unordered_map<const slang::ast::Symbol *, smt::Term>
       pending_comb_updates_;

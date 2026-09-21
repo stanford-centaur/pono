@@ -335,7 +335,17 @@ void InstanceEncoder::process_initial(
                           + string(sym->name)
                           + "', which has no declared term");
     }
-    fts_.constrain_init(solver_->make_term(Equal, sit->second, term));
+    Term init_eq = solver_->make_term(Equal, sit->second, term);
+    if (!fts_.only_curr(init_eq)) {
+      // An initial block runs before any input has a meaning, so a
+      // value it depends on has to be part of the design's state.
+      // The core rejects anything else, in terms that say nothing
+      // about the block this came from.
+      throw PonoException(
+          "SystemVerilogEncoder: the initial value of '" + string(sym->name)
+          + "' depends on an input, which has no value at time 0");
+    }
+    fts_.constrain_init(init_eq);
     logger.log(2,
                "SystemVerilogEncoder: initial {} := ...",
                fts_.get_name(sit->second));
