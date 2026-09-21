@@ -120,19 +120,22 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
                 value_width(piece.sym->as<ValueSymbol>().getType());
             bool piece_full =
                 (piece.target_lo == 0 && piece.target_hi + 1 == target_w);
-            // A piece that only covers *part* of its own target's
-            // width (e.g. one element of an instance array wired to a
-            // slice of a shared register) has no splicing logic here
-            // the way process_continuous_assign() has for a wire --
-            // throw rather than silently never create a state var for
-            // the shared target at all.
             if (!piece_full) {
-              throw PonoException(
-                  "SystemVerilogEncoder: register '" + string(var.name)
-                  + "' is output-port-aliased to only part of '"
-                  + string(piece.sym->name)
-                  + "' (e.g. one element of an instance array wired to "
-                    "a slice of a shared register) -- not supported");
+              // One contributor among several to a shared target --
+              // one element of an instance array wired to a slice of
+              // a register bank, say. Aliasing the write straight
+              // onto the target cannot work here: each sibling would
+              // claim the whole target's next-state function, and
+              // only one of them can have it.
+              //
+              // So the register keeps a state var of its own and
+              // splices its bits into the target instead, which is
+              // how a comb wire driven from several sibling instances
+              // is already assembled. Whether the contributors
+              // between them cover the whole target is settled later,
+              // once every instance has been seen.
+              splice_aliased_register(var, pieces, walk_prefix);
+              return;
             }
             if (!symbol_table_.symbol_to_term().count(piece.sym)) {
               const Symbol * root = piece.sym;
@@ -205,6 +208,42 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
           2, "SystemVerilogEncoder: net {} : {}", name, sort->to_string());
     }
   });
+}
+
+void Declarer::splice_aliased_register(
+    const slang::ast::VariableSymbol & var,
+    const std::vector<ResolvedAliasPiece> & pieces,
+    const string & prefix)
+{
+  string name = symbol_table_.make_name(prefix, string(var.name));
+  Sort sort = type_to_sort(solver_, var.getType());
+  Term sv = fts_.make_statevar(name, sort);
+  symbol_table_.symbol_to_term()[&var] = sv;
+  fts_.name_term(name, sv);
+  logger.log(2,
+             "SystemVerilogEncoder: state var (spliced into a shared "
+             "target) {} : {}",
+             name,
+             sort->to_string());
+
+  for (const ResolvedAliasPiece & piece : pieces) {
+    // The target starts as a free value and each contributor
+    // overwrites its own bits, so a fully covered target has none of
+    // that free value left in it.
+    Term target = symbol_table_.wire_seed_term(piece.sym, prefix);
+    symbol_table_.symbol_to_term()[piece.sym] =
+        replace_bits(solver_,
+                     target,
+                     slice_bits(solver_, sv, piece.rhs_lo, piece.rhs_hi),
+                     piece.target_lo,
+                     piece.target_hi);
+    symbol_table_.spliced_alias_ranges()[piece.sym].push_back(
+        { piece.target_lo, piece.target_hi });
+  }
+
+  // The write has somewhere of its own to go now, so it must not be
+  // redirected at the target as well.
+  symbol_table_.port_output_aliases().erase(&var);
 }
 
 void Declarer::process_port(const slang::ast::PortSymbol & port,

@@ -47,14 +47,28 @@ TEST_P(SVUnitTests, GappedBusSliceFromSiblingInstances)
 
 // A register whose output port is aliased through an instance-array
 // bus-element connection to only *part* of its target's declared
-// width (compare GappedBusSliceFromSiblingInstances's analogous
-// wire-splicing case above) isn't supported:
-// declare_variables_internal() has no splicing logic for a register
-// spread across sibling instances the way process_continuous_assign()
-// does for a wire.
-TEST_P(SVUnitTests, Gap_RegisterAliasedToPartialTarget)
+// width -- the register analogue of
+// GappedBusSliceFromSiblingInstances above. Aliasing the write onto
+// the target cannot work with several contributors, since each would
+// claim the whole target's next-state function, so each register
+// keeps a state var of its own and splices its bits in.
+TEST_P(SVUnitTests, RegisterAliasedToPartialTarget)
 {
-  check_bmc("reg_bus_slice.sv", 2, ProverResult::UNKNOWN);
+  check_prover<KInduction>("reg_bus_slice.sv", 6, ProverResult::TRUE);
+}
+
+// The hole the splicing has to notice: a bit no contributor writes
+// keeps the free value the target was seeded with.
+TEST_P(SVUnitTests, Unsupported_RegisterBankUncoveredBit)
+{
+  expect_encode_throws("reg_bus_slice_uncovered.sv");
+}
+
+// And the opposite: two registers claiming the same bits are two
+// drivers on one signal, which nothing here resolves.
+TEST_P(SVUnitTests, Unsupported_RegisterBankDoubleDriver)
+{
+  expect_encode_throws("reg_bus_slice_double_driver.sv");
 }
 
 // A streaming concatenation as an output-port connection. `>>`

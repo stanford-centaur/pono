@@ -287,6 +287,24 @@ class SymbolTable
   // See the file-level doc comment for why these are exposed directly
   // rather than wrapped in narrower named operations.
 
+  /** Which bit ranges of a shared target have been spliced into it by
+   *  an output-port-aliased *register*, one contributor at a time.
+   *
+   *  A register aliased to only part of its target keeps its own state
+   *  var and writes its bits into the target, the way a comb wire
+   *  driven from several sibling instances is assembled. Nothing along
+   *  that path can tell whether the contributors between them cover
+   *  the whole target, so the ranges are recorded here and checked
+   *  once every instance has been processed -- an uncovered bit would
+   *  otherwise be left free rather than reported.
+   */
+  std::unordered_map<const slang::ast::Symbol *,
+                     std::vector<std::pair<uint64_t, uint64_t>>> &
+  spliced_alias_ranges()
+  {
+    return spliced_alias_ranges_;
+  }
+
   std::unordered_map<const slang::ast::Symbol *, smt::Term> & symbol_to_term()
   {
     return symbol_to_term_;
@@ -368,6 +386,9 @@ class SymbolTable
                      std::vector<OutputAliasSegment>>
       port_output_aliases_;
   std::unordered_set<const slang::ast::Symbol *> pending_comb_aliased_;
+  std::unordered_map<const slang::ast::Symbol *,
+                     std::vector<std::pair<uint64_t, uint64_t>>>
+      spliced_alias_ranges_;
   std::unordered_map<smt::Term, smt::Term> pending_next_updates_;
   std::unordered_set<const slang::ast::Symbol *> blocking_next_written_;
   std::unordered_set<const slang::ast::Symbol *> latch_symbols_;

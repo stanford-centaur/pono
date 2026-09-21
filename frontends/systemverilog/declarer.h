@@ -23,6 +23,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "core/fts.h"
 #include "smt-switch/smt.h"
@@ -31,11 +32,13 @@ namespace slang::ast {
 class InstanceBodySymbol;
 class PortSymbol;
 class Scope;
+class VariableSymbol;
 }  // namespace slang::ast
 
 namespace pono {
 
 class SymbolTable;
+struct ResolvedAliasPiece;
 
 class Declarer
 {
@@ -77,6 +80,26 @@ class Declarer
                     const std::string & prefix);
 
  private:
+  /** Give an output-port-aliased register that covers only part of
+   *  its target a state var of its own, and splice its bits into the
+   *  target rather than aliasing the write onto it.
+   *
+   *  Aliasing cannot work once a target has several contributors:
+   *  each sibling instance would claim the whole target's next-state
+   *  function. Splicing composes instead, which is exactly how a comb
+   *  wire driven from several sibling instances is already assembled
+   *  -- including the ordering it inherits, where a read of the
+   *  target before its contributors have been walked fails rather
+   *  than seeing a half-built value.
+   *
+   *  Records what each contributor covers so the coverage check after
+   *  every instance has been processed can tell whether the target
+   *  ended up whole.
+   */
+  void splice_aliased_register(const slang::ast::VariableSymbol & var,
+                               const std::vector<ResolvedAliasPiece> & pieces,
+                               const std::string & prefix);
+
   SymbolTable & symbol_table_;
   FunctionalTransitionSystem & fts_;
   const smt::SmtSolver & solver_;

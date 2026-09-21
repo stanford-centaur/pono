@@ -20,6 +20,7 @@
 
 #include "frontends/systemverilog/encoder.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -29,6 +30,7 @@
 #include <vector>
 
 #include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/bit_utils.h"
 #include "slang/ast/ASTContext.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
@@ -411,6 +413,37 @@ void SystemVerilogEncoder::process_module(
 
   // Fourth pass: process behavioral code and continuous assignments.
   instance_encoder_.process_assignments(body, prefix, parent_prefix);
+
+  // A register bank assembled from sibling instances is only sound if
+  // its contributors cover it. Any bit none of them wrote still holds
+  // the free value the target was seeded with, and would drift every
+  // cycle with nothing to say so. Checked here because only now is it
+  // settled which instances contribute.
+  for (auto & [root, ranges] : symbol_table_.spliced_alias_ranges()) {
+    uint64_t root_w =
+        value_width(root->as<slang::ast::ValueSymbol>().getType());
+    std::vector<std::pair<uint64_t, uint64_t>> sorted = ranges;
+    std::sort(sorted.begin(), sorted.end());
+    uint64_t covered = 0;
+    for (auto & [lo, hi] : sorted) {
+      if (lo < covered) {
+        throw PonoException(
+            "SystemVerilogEncoder: bit " + std::to_string(lo) + " of '"
+            + std::string(root->name)
+            + "' is driven by more than one register in a sibling "
+              "instance, and there is no resolving two drivers here");
+      }
+      if (lo > covered) break;
+      covered = hi + 1;
+    }
+    if (covered != root_w) {
+      throw PonoException(
+          "SystemVerilogEncoder: bit " + std::to_string(covered) + " of '"
+          + std::string(root->name)
+          + "' has no driver, though registers in sibling instances drive "
+            "other bits of it -- an undriven bit would be free every cycle");
+    }
+  }
 
   // A variable an initial block writes and nothing else drives keeps
   // that value: in the transition system a state var with no update
