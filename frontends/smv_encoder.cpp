@@ -32,7 +32,6 @@ smt::Term pono::SMVEncoder::parseString(std::string newline)
 // case condition check preprocess
 void pono::SMVEncoder::processCase()
 {
-  std::future_status status;
   for (int i = 0; i < casecheck_.size(); i++) {
     solver_->push();
     Term bad_ = solver_->make_term(smt::PrimOp::Not, casecheck_[i]);

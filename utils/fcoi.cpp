@@ -231,8 +231,8 @@ void FunctionalConeOfInfluence::compute_coi_next_state_funcs()
     const smt::UnorderedTermMap & state_updates = ts_.state_updates();
     Term next_func = NULL;
     /* May find state variables without next-function. */
-    auto elem = ts_.state_updates().find(state_var);
-    if (elem != ts_.state_updates().end()) next_func = elem->second;
+    auto elem = state_updates.find(state_var);
+    if (elem != state_updates.end()) next_func = elem->second;
 
     assert(new_coi_state_vars.empty());
     assert(new_coi_input_vars.empty());

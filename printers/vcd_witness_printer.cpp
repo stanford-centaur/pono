@@ -149,7 +149,7 @@ static std::string as_decimal(std::string val)
     res = tokens[0];
     // get rid of ")"
     std::string width_str = tokens[1].substr(0, tokens[1].length() - 1);
-    size_t width = std::stoull(width_str);
+    [[maybe_unused]] size_t width = std::stoull(width_str);
     mpz_class cval(res);
     res = cval.get_str(10);
     return res;

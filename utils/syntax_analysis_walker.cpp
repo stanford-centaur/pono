@@ -788,7 +788,8 @@ unsigned TermLearner::replace_hierachically(const smt::Term & orig,
 
   unsigned ret =
       replace_hierachically_w_parent(orig, repl, varset_info, new_terms);
-  for (const auto & nt : new_terms) RD1(3, "{}", nt->to_string());
+  for ([[maybe_unused]] const auto & nt : new_terms)
+    RD1(3, "{}", nt->to_string());
   RD1(3, "ret = {}", ret);
   assert(ret == new_terms.size());
   if (ret != 0) {
