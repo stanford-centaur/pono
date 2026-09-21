@@ -202,7 +202,7 @@ void SygusPdr::initialize()
                : (test_ts_has_op({ BVAdd, BVSub })
                       ? SyGuSTermMode::FROM_DESIGN_LEARN_EXT
                       : (test_ts_has_op({ BVUle, BVUlt })
-                             ? SyGuSTermMode::VAR_C_EXT
+                             ? SyGuSTermMode::VAR_C_EQ_LT
                              : SyGuSTermMode::VAR_C_EXT)));
     }
   }
