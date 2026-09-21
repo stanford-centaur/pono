@@ -27,6 +27,12 @@
 
 namespace pono {
 
+/** Converts a bound the engines carry signed, so that -1 can stand for "no
+ *  bound reached yet", into the timestep the unroller takes.
+ *  @throws PonoException if k is negative, which is not a timestep.
+ */
+size_t timestep(int k);
+
 class BaseProver
 {
  public:

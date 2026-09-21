@@ -149,7 +149,7 @@ bool InterpolantMC::step(const int i)
     return step_0();
   }
 
-  Term bad_i = unroller_.at_time(bad_, i);
+  Term bad_i = unroller_.at_time(bad_, timestep(i));
   if (interp_props_ == InterpPropsEnum::INTERP_FIRST_AND_LAST_PROPS) {
     // Only take the first and last properties; the rest are skipped.
     bad_disjuncts_ = solver_->make_term(Or, unroller_.at_time(bad_, 1), bad_i);
@@ -236,12 +236,12 @@ bool InterpolantMC::step(const int i)
     // Therefore, the safe bound can be extended to interp_count + i - 1.
     for (int j = 0; j < interp_count; ++j) {
       transB_ = solver_->make_term(
-          And, transB_, unroller_.at_time(ts_.trans(), i + j));
+          And, transB_, unroller_.at_time(ts_.trans(), timestep(i + j)));
     }
     reached_k_ = interp_count + i - 1;
   } else {
-    transB_ =
-        solver_->make_term(And, transB_, unroller_.at_time(ts_.trans(), i));
+    transB_ = solver_->make_term(
+        And, transB_, unroller_.at_time(ts_.trans(), timestep(i)));
     reached_k_ = i;
   }
 

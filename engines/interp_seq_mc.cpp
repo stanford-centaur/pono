@@ -133,8 +133,8 @@ bool InterpSeqMC::step(int i)
   }
 
   // construct the transition formula at current time step
-  update_term_map(i);
-  const smt::Term trans_i = unroller_.at_time(ts_.trans(), i - 1);
+  update_term_map(timestep(i));
+  const smt::Term trans_i = unroller_.at_time(ts_.trans(), timestep(i - 1));
   trans_seq_.push_back(trans_i);
   if (i == 1) {
     // for convenience, we conjoin TR(0, 1) with Init(0)
@@ -144,7 +144,7 @@ bool InterpSeqMC::step(int i)
   }
   int_trans_seq_.push_back(to_interpolator_.transfer_term(trans_seq_.back()));
 
-  Term bad_i = unroller_.at_time(bad_, i);
+  Term bad_i = unroller_.at_time(bad_, timestep(i));
   Term int_bad_i = to_interpolator_.transfer_term(bad_i);
 
   // temporarily push `bad` to `trans_seq` to avoid copying the whole vector
@@ -284,8 +284,9 @@ void InterpSeqMC::check_itp_sequence(const TermVec & int_formulas,
   assert(int_formulas.size() == int_itp_seq.size() + 1);
   assert(solver_->get_context_level() == start_context_level_);
   for (size_t i = 0; i < int_itp_seq.size(); ++i) {
-    TermVec int_a_vec(int_formulas.begin(), int_formulas.begin() + i + 1);
-    TermVec int_b_vec(int_formulas.begin() + i + 1, int_formulas.end());
+    const auto split = static_cast<TermVec::difference_type>(i + 1);
+    TermVec int_a_vec(int_formulas.begin(), int_formulas.begin() + split);
+    TermVec int_b_vec(int_formulas.begin() + split, int_formulas.end());
     Term int_a = (int_a_vec.size() == 1)
                      ? int_a_vec.at(0)
                      : interpolator_->make_term(And, int_a_vec);

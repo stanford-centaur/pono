@@ -33,6 +33,14 @@ using namespace std;
 
 namespace pono {
 
+size_t timestep(int k)
+{
+  if (k < 0) {
+    throw PonoException("Negative timestep: " + std::to_string(k));
+  }
+  return static_cast<size_t>(k);
+}
+
 BaseProver::BaseProver(const TransitionSystem & ts,
                        const SmtSolver & solver,
                        PonoOptions opt,
