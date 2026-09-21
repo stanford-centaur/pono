@@ -788,6 +788,22 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
               + string(port.name) + "' is not a plain variable");
         }
         Sort port_sort = type_to_sort(solver_, port.getType());
+        // The two sides share one term, so the connection has to be
+        // the whole of the target array rather than a part of it. A
+        // slice would otherwise give the parent's array the *port's*
+        // sort, and the parent's own accesses would then index it
+        // with a width the array does not have -- which reaches the
+        // solver as a sort mismatch rather than an error naming the
+        // port.
+        auto * target_value = target->as_if<ValueSymbol>();
+        if (!target_value
+            || type_to_sort(solver_, target_value->getType()) != port_sort) {
+          throw PonoException(
+              "SystemVerilogEncoder: output port '" + string(port.name)
+              + "' is connected to part of '" + string(target->name)
+              + "' rather than the whole of it; an unpacked array is "
+                "passed whole");
+        }
         auto it = symbol_table_.symbol_to_term().find(target);
         Term shared;
         if (it != symbol_table_.symbol_to_term().end()) {
