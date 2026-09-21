@@ -125,7 +125,10 @@ SmtSolver create_solver_base(SolverEnum se, bool logging, bool printing = false)
 #endif
 #ifdef WITH_YICES2
     case YICES2: {
-      s = Yices2SolverFactory::create(logging);
+      // Yices cannot walk a term, which pono does whenever it takes a system
+      // apart, so the wrapper that remembers how each term was built is not
+      // optional here the way it is for the other backends.
+      s = Yices2SolverFactory::create(true);
       break;
     }
 #endif

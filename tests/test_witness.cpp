@@ -45,6 +45,12 @@ TEST_P(WitnessUnitTests, SimpleDefaultSolver)
 
 TEST_P(WitnessUnitTests, ArraysDefaultSolver)
 {
+  // The system is built with the default solver, but its terms are handed to
+  // this one to check, which it cannot do without constant arrays.
+  if (!solver_has_attribute(GetParam(), smt::CONSTARR)) {
+    GTEST_SKIP() << GetParam() << " does not support constant arrays";
+  }
+
   // use default solver
   FunctionalTransitionSystem fts;
   Sort bvsort4 = fts.make_sort(BV, 4);
