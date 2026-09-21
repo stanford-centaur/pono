@@ -300,13 +300,11 @@ TEST_P(SVUnitTests, CoverProperty) { check_bmc("cover_property.sv", 1); }
 TEST_P(SVUnitTests, ImmediateCover) { check_bmc("immediate_cover.sv", 1); }
 
 // `cover sequence(S)` is treated the same as `cover property(P)` --
-// both set the ConcurrentAssertion handler's `is_cover` flag. Since
-// `a ##1 b` is a genuinely multi-cycle sequence, it hits the
-// temporal/sequence-shaped cover-goal throw (same reachability-duality
-// contract as CoverProperty above, once implemented): extending
-// reachability duality through the LTL tableau for cover goals is a
-// real gap, not a deliberate non-goal.
-TEST_P(SVUnitTests, Gap_CoverSequence) { check_bmc("cover_sequence.sv", 1); }
+// both set the ConcurrentAssertion handler's `is_cover` flag. A
+// multi-cycle sequence goal reaches the same reachability duality as
+// CoverProperty, now that a bare sequence is a per-cycle check
+// anchored at the attempt's own tick rather than an eventuality.
+TEST_P(SVUnitTests, CoverSequence) { check_bmc("cover_sequence.sv", 1); }
 
 // ---------------------------------------------------------------------------
 // $rose/$fell/$changed/$onehot/$onehot0/$isunknown. $rose/$fell/$changed
@@ -399,7 +397,7 @@ TEST_P(SVUnitTests, NamedSequenceArgs)
 
 TEST_P(SVUnitTests, NamedSequenceArgsInline)
 {
-  check_liveness_bmc("named_sequence_args_inline.sv", 4);
+  check_bmc("named_sequence_args_inline.sv", 1);
 }
 
 // Local variables and recursion still need a binding environment
@@ -685,7 +683,7 @@ TEST_P(SVUnitTests, Gap_PropertyAcceptOn)
 // violates the obligation.
 TEST_P(SVUnitTests, PropertyIntersectTopLevel)
 {
-  check_liveness_bmc("property_intersect_toplevel.sv", 3);
+  check_bmc("property_intersect_toplevel.sv", 0);
 }
 
 // `a #-# b`: a required (not merely conditional) sequential
@@ -707,7 +705,7 @@ TEST_P(SVUnitTests, PropertyFollowedBy)
 // a trace that never has a followed by b one cycle later violates it.
 TEST_P(SVUnitTests, BareSequenceConcatProperty)
 {
-  check_liveness_bmc("bare_sequence_concat_property.sv", 3);
+  check_bmc("bare_sequence_concat_property.sv", 1);
 }
 
 // Temporal (non-safety) `assume`/`restrict property` -- previously

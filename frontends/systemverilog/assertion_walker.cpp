@@ -2168,7 +2168,50 @@ void AssertionWalker::process_concurrent_assertion(
   // assertion_expr_to_bool returns null as soon as a genuine liveness
   // operator (eventually / unbounded until) appears.
   uint32_t span = 0;
-  if (Term holds = assertion_expr_to_bool(*a, prefix, span)) {
+  Term holds = assertion_expr_to_bool(*a, prefix, span);
+  if (!holds) {
+    // A bare sequence used as a property. An evaluation attempt is a
+    // search for a match *beginning at this clock tick* (LRM 16.10),
+    // not for one beginning anywhere, so this is not an eventuality.
+    // Weak and strong differ only over whether the remaining ticks
+    // exist -- 16.13.1's worked example spells out that weak still
+    // requires the sequence's first element at the attempt's own
+    // tick -- and on the infinite traces Pono reasons about they
+    // always do, so the two coincide here.
+    //
+    // Offsets are anchored at "ends now", so the attempt that began
+    // `width` ticks ago has its span-(L+1) match ending
+    // `width - L` ticks ago. Reporting that span lets the caller
+    // gate the first `width` cycles, where no such attempt has
+    // started yet.
+    Term unbounded;
+    TermVec offsets;
+    try {
+      offsets = offsets_ending_now(*a, prefix, nullptr, &unbounded);
+    }
+    catch (const PonoException &) {
+      // Not every property is a sequence, and the matcher rejects
+      // rather than declines for some of them. The tableau below
+      // still has its own handling, and its own throw if it has
+      // none, so let it answer instead of failing here.
+      offsets.clear();
+    }
+    if (!unbounded && !offsets.empty()) {
+      uint32_t width = static_cast<uint32_t>(offsets.size()) - 1;
+      Term started_then;
+      for (size_t l = 0; l < offsets.size(); ++l) {
+        if (!offsets[l]) continue;
+        Term at = reanchor(offsets[l], static_cast<uint32_t>(l), width, prefix);
+        started_then =
+            started_then ? solver_->make_term(Or, started_then, at) : at;
+      }
+      if (started_then) {
+        holds = started_then;
+        span = width;
+      }
+    }
+  }
+  if (holds) {
     violated = solver_->make_term(Not, holds);
     per_cycle = true;
   } else {
