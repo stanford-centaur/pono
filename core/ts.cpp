@@ -839,7 +839,11 @@ void TransitionSystem::drop_state_updates(const TermVec & svs)
   }
 
   /* Add global constraints added to previous 'trans_'. */
-  for (const auto & e : constraints_) {
+  /* add_constraint appends to constraints_, so iterate over a copy and
+     let it repopulate the member, as rebuild_trans_based_on_coi does. */
+  std::vector<std::pair<smt::Term, bool>> prev_constraints = constraints_;
+  constraints_.clear();
+  for (const auto & e : prev_constraints) {
     add_constraint(e.first, e.second);
   }
 }
