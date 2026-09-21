@@ -86,7 +86,7 @@ class ImplicitPredicateAbstractor : public Abstractor
       reducer_->reset_assertions();
       red_can_reset_ = true;
     }
-    catch (SmtException & e) {
+    catch (SmtException &) {
       red_can_reset_ = false;
     }
     return red_can_reset_;

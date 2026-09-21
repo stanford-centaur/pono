@@ -350,7 +350,7 @@ void BTOR2Encoder::parse(const std::string filename)
       try {
         ts_.name_term(new_symbol, termargs[0]);
       }
-      catch (PonoException & e) {
+      catch (PonoException &) {
         new_symbol = "_out_" + new_symbol;
         ts_.name_term(new_symbol, termargs[0]);
       }
