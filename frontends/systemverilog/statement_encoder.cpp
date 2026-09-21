@@ -155,13 +155,12 @@ void StatementEncoder::process_dynamic_element_assign(
   uint64_t elem_w = sel.type->getBitWidth();
   if (elem_w == 0) elem_w = 1;
 
-  if (ctx == StmtContext::INITIAL) {
-    // constrain_init() takes a fixed slice, and a runtime index names
-    // no fixed slice.
-    throw PonoException(
-        "SystemVerilogEncoder: a dynamic-index write in an initial block ('"
-        + string(sym->name) + "') is not supported");
-  }
+  // An initial write needs no fixed slice after all. The splice
+  // below composes onto the variable's own term, so the constraint
+  // reads "r equals r with these bits replaced" -- a tautology
+  // everywhere else and a definition exactly where the write lands,
+  // which is what pins the selected bits while leaving the rest of
+  // the initial value free.
 
   Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix);
   Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);

@@ -447,4 +447,18 @@ TEST_P(SVUnitTests, InitialOnlyDriverUnwrittenIsFree)
   check_bmc("initial_only_driver_fails.sv", 1);
 }
 
+// A runtime-indexed initial write needs no fixed slice: splicing
+// onto the variable's own term pins the selected bits and leaves
+// the rest of the initial value free.
+
+TEST_P(SVUnitTests, InitialDynamicWrite)
+{
+  check_prover<KInduction>("initial_dynamic_write.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, InitialDynamicWriteRestIsFree)
+{
+  check_bmc("initial_dynamic_write_fails.sv", 0);
+}
+
 }  // namespace pono_tests
