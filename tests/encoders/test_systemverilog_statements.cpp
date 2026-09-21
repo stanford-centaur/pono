@@ -400,11 +400,20 @@ TEST_P(SVUnitTests, PatternCaseIncompleteLatches)
   check_prover<KInduction>("pattern_case_incomplete.sv", 6, ProverResult::TRUE);
 }
 
-// A `tagged` pattern needs a tagged union's discriminant, which is
-// not modeled.
-TEST_P(SVUnitTests, Unsupported_PatternCaseTagged)
+// A `tagged` pattern matches on a tagged union's discriminant, which
+// a packed one keeps at a defined position (LRM 7.3.2): the tag in
+// the top bits holding the member's declaration index, each member
+// right-justified below.
+TEST_P(SVUnitTests, PatternCaseTagged)
 {
-  expect_encode_throws("pattern_case_tagged.sv");
+  check_prover<KInduction>("pattern_case_tagged.sv", 6, ProverResult::TRUE);
+}
+
+// The tag has to be what decides it. Reading the payload alone would
+// make the last arm always win, which this refutes.
+TEST_P(SVUnitTests, PatternCaseTaggedIgnoringTagFails)
+{
+  check_bmc("pattern_case_tagged_ignored.sv", 0, ProverResult::FALSE);
 }
 
 // ---------------------------------------------------------------------------

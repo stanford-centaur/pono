@@ -118,6 +118,30 @@ bool packed_element_ordinal(const slang::ast::PackedArrayType & arr,
  */
 uint64_t value_width(const slang::ast::Type & type);
 
+/** How a packed tagged union is laid out, per LRM 7.3.2: the tag
+ *  occupies the top `tag_width` bits and holds the member's
+ *  declaration index, each member is right-justified in the low bits
+ *  of its own width, and the bits between the two are undefined.
+ *  Members need not be the same width, so the union is as wide as the
+ *  tag plus the widest of them.
+ *
+ *  `tag_width` is zero for a single-member union, where there is
+ *  nothing to tell apart.
+ *
+ *  @param what what is being encoded, for the message when `type` is
+ *         not a packed tagged union -- an unpacked one has no
+ *         required representation at all (LRM 7.3), so there is no
+ *         position its tag could be read from.
+ */
+struct TaggedUnionLayout
+{
+  uint64_t total_width;
+  uint64_t tag_width;
+};
+
+TaggedUnionLayout tagged_union_layout(const slang::ast::Type & type,
+                                      const char * what);
+
 /** Re-order a bit stream into `slice`-wide blocks, as a `<<`
  *  streaming concatenation does (LRM 11.4.14.2). Blocks are cut from
  *  the right-hand end, so when `slice` does not divide the width it

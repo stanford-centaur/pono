@@ -993,6 +993,50 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       return extract_maybe_out_of_range(val, hi, lo);
     }
 
+    case ExpressionKind::TaggedUnion: {
+      // `tagged Valid (v)`: build the packed layout of LRM 7.3.2 --
+      // the member's declaration index in the top bits, the value
+      // right-justified below, and whatever is left between them
+      // undefined. Modelling that gap as a fresh unconstrained value
+      // rather than zeros keeps a reader from depending on bits the
+      // standard declines to give a value.
+      auto & tu = expr.as<TaggedUnionExpression>();
+      auto layout =
+          tagged_union_layout(*expr.type, "a `tagged` union expression");
+      auto & field = tu.member.as<FieldSymbol>();
+
+      Term result;
+      if (layout.tag_width > 0) {
+        result = solver_->make_term(static_cast<uint64_t>(field.fieldIndex),
+                                    solver_->make_sort(BV, layout.tag_width));
+      }
+      uint64_t value_w = tu.valueExpr ? value_width(*tu.valueExpr->type) : 0;
+      if (value_w > layout.total_width - layout.tag_width) {
+        throw PonoException(
+            "SystemVerilogEncoder: the value given for union member '"
+            + std::string(field.name) + "' is wider than the union holds");
+      }
+      uint64_t gap = layout.total_width - layout.tag_width - value_w;
+      if (gap > 0) {
+        Term undefined = symbol_table_.make_unknown_value(
+            solver_->make_sort(BV, gap), "tagged_pad");
+        result =
+            result ? solver_->make_term(Concat, result, undefined) : undefined;
+      }
+      if (tu.valueExpr) {
+        Term payload = expr_to_term(*tu.valueExpr, prefix);
+        payload = resize_to(
+            solver_, payload, value_w, tu.valueExpr->type->isSigned());
+        result = result ? solver_->make_term(Concat, result, payload) : payload;
+      }
+      if (!result) {
+        throw PonoException(
+            "SystemVerilogEncoder: a `tagged` union expression for '"
+            + std::string(field.name) + "' produced no bits");
+      }
+      return result;
+    }
+
     case ExpressionKind::MemberAccess: {
       // Packed-struct field read (`s.field`): extract the field's bit
       // range, using the FieldSymbol's own bitOffset (LSB-relative,

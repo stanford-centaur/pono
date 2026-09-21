@@ -208,6 +208,23 @@ Term concat_all(const SmtSolver & solver, const std::vector<Term> & pieces)
 
 }  // namespace
 
+TaggedUnionLayout tagged_union_layout(const slang::ast::Type & type,
+                                      const char * what)
+{
+  using namespace slang::ast;
+  const Type & canon = type.getCanonicalType();
+  if (canon.kind != SymbolKind::PackedUnionType
+      || !canon.as<PackedUnionType>().isTagged) {
+    throw PonoException(std::string("SystemVerilogEncoder: ") + what
+                        + " needs a packed tagged union, and '"
+                        + type.toString()
+                        + "' is not one -- an unpacked union has no required "
+                          "representation, so its tag has no position to read");
+  }
+  auto & pu = canon.as<PackedUnionType>();
+  return { pu.getBitWidth(), pu.tagBits };
+}
+
 Term stream_reorder(const SmtSolver & solver,
                     const Term & value,
                     uint64_t slice)

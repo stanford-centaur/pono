@@ -779,6 +779,7 @@ bool StatementEncoder::process_whole_array_assign(
 Term StatementEncoder::pattern_match(
     const slang::ast::Pattern & pat,
     const Term & value,
+    const slang::ast::Type & value_type,
     const string & prefix,
     std::vector<std::pair<const slang::ast::Symbol *, Term>> & bindings)
 {
@@ -822,19 +823,52 @@ Term StatementEncoder::pattern_match(
         }
         uint64_t lo = fp.field->bitOffset;
         Term slice = slice_bits(solver_, value, lo, lo + w - 1);
-        Term one = pattern_match(*fp.pattern, slice, prefix, bindings);
+        Term one = pattern_match(
+            *fp.pattern, slice, fp.field->getType(), prefix, bindings);
         all = all ? solver_->make_term(And, all, one) : one;
       }
       return all ? all : solver_->make_term(true);
     }
 
-    case PatternKind::Tagged:
-      // A tagged union's discriminant is the thing being matched
-      // here, and this encoder has no union representation carrying
-      // one -- see the unpacked-union exclusion.
-      throw PonoException(
-          "SystemVerilogEncoder: a `tagged` pattern is not supported, since "
-          "a tagged union's discriminant is not modeled");
+    case PatternKind::Tagged: {
+      // `tagged Valid .n` matches only while the tag says Valid, and
+      // then binds the payload. Both sit at known positions in a
+      // packed tagged union (LRM 7.3.2): the tag in the top bits
+      // holding the member's declaration index, the member itself
+      // right-justified below. The undefined bits between are never
+      // read.
+      auto & tp = pat.as<TaggedPattern>();
+      auto layout = tagged_union_layout(value_type, "a `tagged` pattern");
+      auto & field = tp.member;
+      Term match;
+      if (layout.tag_width == 0) {
+        // A single-member union has no tag, so there is nothing the
+        // pattern could fail to match.
+        match = solver_->make_term(true);
+      } else {
+        Term tag = solver_->make_term(Op(Extract,
+                                         layout.total_width - 1,
+                                         layout.total_width - layout.tag_width),
+                                      value);
+        Term want =
+            solver_->make_term(static_cast<uint64_t>(field.fieldIndex),
+                               solver_->make_sort(BV, layout.tag_width));
+        match = solver_->make_term(Equal, tag, want);
+      }
+      if (tp.valuePattern) {
+        uint64_t w = value_width(field.getType());
+        if (w == 0) {
+          throw PonoException("SystemVerilogEncoder: the union member '"
+                              + std::string(field.name)
+                              + "' has no value to match a pattern against");
+        }
+        Term payload = slice_bits(solver_, value, 0, w - 1);
+        Term inner = pattern_match(
+            *tp.valuePattern, payload, field.getType(), prefix, bindings);
+        match = solver_->make_term(And, match, inner);
+      }
+      return match;
+    }
 
     default:
       throw PonoException("SystemVerilogEncoder: unsupported pattern kind "
@@ -1748,7 +1782,8 @@ void StatementEncoder::process_statement(
       auto & bound = symbol_table_.loop_var_terms();
       for (auto & item : pc.items) {
         std::vector<std::pair<const Symbol *, Term>> bindings;
-        Term match = pattern_match(*item.pattern, sel, prefix, bindings);
+        Term match =
+            pattern_match(*item.pattern, sel, *pc.expr.type, prefix, bindings);
         if (item.filter) {
           // `matches ... &&& expr`: an extra guard, which may read
           // the names the pattern just bound.

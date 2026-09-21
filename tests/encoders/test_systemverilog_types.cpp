@@ -239,6 +239,29 @@ TEST_P(SVUnitTests, PackedUnionOverlap)
 // unions generally (see PackedUnionOverlap), but
 // expr_to_term()'s StructuredAssignmentPattern case only builds a
 // PackedStructType target, so a union canonical type throws instead of
+// Building a tagged union value, the other half of matching one --
+// the same LRM 7.3.2 layout in the other direction, with the bits
+// the standard leaves undefined left unconstrained rather than
+// zeroed.
+TEST_P(SVUnitTests, TaggedUnionConstruction)
+{
+  check_prover<KInduction>("tagged_union_construct.sv", 6, ProverResult::TRUE);
+}
+
+// A `void` member, which exists so the tag can carry everything.
+TEST_P(SVUnitTests, TaggedUnionVoidMember)
+{
+  check_prover<KInduction>("tagged_union_void.sv", 6, ProverResult::TRUE);
+}
+
+// The packed qualifier is what makes any of this possible: an
+// unpacked union has no required representation, so its tag has no
+// position to read.
+TEST_P(SVUnitTests, Unsupported_UnpackedTaggedUnion)
+{
+  expect_encode_throws("unpacked_tagged_union.sv");
+}
+
 // enforcing the fixture's own reset-value invariant.
 TEST_P(SVUnitTests, Gap_UnionAssignmentPatternLiteral)
 {

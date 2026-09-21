@@ -116,6 +116,26 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
   void inline_subroutine_body_no_return(const slang::ast::Statement & body,
                                         const std::string & prefix);
 
+  /** The condition under which `pat` matches `value`, and the
+   *  pattern variables it binds along the way, appended to
+   *  `bindings` as (symbol, term) pairs for the caller to install
+   *  while it walks the matching arm's statement.
+   *
+   *  A pattern is a structural test, so this recurses: a structure
+   *  pattern slices `value` by each field's own bit offset and
+   *  applies that field's pattern to the slice, and a tagged one
+   *  reads the union's tag before recursing into its payload.
+   *
+   *  @param value_type what `value` holds, which a tagged pattern
+   *         needs in order to find the tag
+   */
+  smt::Term pattern_match(
+      const slang::ast::Pattern & pat,
+      const smt::Term & value,
+      const slang::ast::Type & value_type,
+      const std::string & prefix,
+      std::vector<std::pair<const slang::ast::Symbol *, smt::Term>> & bindings);
+
   /** Handle `base[idx] = rhs` (nonblocking or blocking) when `idx` is
    *  not a compile-time constant, so resolve_lvalue() can't produce a
    *  static bit range.  Only a direct select on a plain variable base
@@ -126,13 +146,8 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
    *  to it (a COMBINATIONAL write to a non-wire symbol, or any
    *  INITIAL write, isn't needed by any currently-supported
    *  construct).
-   *  @param sel  the dynamic element-select LHS expression
-   *  @param rhs_expr the assignment's right-hand side
-   *  @param ctx  which kind of block this assignment is in
-   *  @param condition accumulated path condition (for if/case nesting)
-   *  @param prefix the current hierarchical name prefix
-   */
-  /** @param base_expr what is being written into
+   *
+   *  @param base_expr what is being written into
    *  @param index_expr the runtime position, in elements for a
    *         element select and in bits for an indexed range select
    *  @param write_type the type of the slice being written, whose
@@ -144,21 +159,6 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
    *         `+:`, and one less than the width, negated, for `-:`,
    *         whose base names the *top* of the range
    */
-  /** The condition under which `pat` matches `value`, and the
-   *  pattern variables it binds along the way, appended to
-   *  `bindings` as (symbol, term) pairs for the caller to install
-   *  while it walks the matching arm's statement.
-   *
-   *  A pattern is a structural test, so this recurses: a structure
-   *  pattern slices `value` by each field's own bit offset and
-   *  applies that field's pattern to the slice.
-   */
-  smt::Term pattern_match(
-      const slang::ast::Pattern & pat,
-      const smt::Term & value,
-      const std::string & prefix,
-      std::vector<std::pair<const slang::ast::Symbol *, smt::Term>> & bindings);
-
   void process_dynamic_write(const slang::ast::Expression & base_expr,
                              const slang::ast::Expression & index_expr,
                              const slang::ast::Type & write_type,
