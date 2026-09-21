@@ -1,0 +1,314 @@
+/*!
+ * \file declarer.cpp
+ * \brief Creates SMT terms for ports, registers, and free variables.
+ * \author Áron Ricardo Perez-Lopez
+ * \date 2026
+ * \copyright See the LICENSE file in the top-level source directory.
+ *
+ * A special case handles registers reached through an output-port alias
+ * chain, splicing per-piece state vars keyed by the fully resolved alias
+ * root; only full-width aliasing is supported today, partial-width
+ * aliasing throws.
+ */
+#include "frontends/systemverilog/declarer.h"
+
+#include <string>
+
+#include "frontends/systemverilog/ast_helpers.h"
+#include "frontends/systemverilog/bit_utils.h"
+#include "frontends/systemverilog/symbol_table.h"
+#include "slang/ast/Symbol.h"
+#include "slang/ast/symbols/InstanceSymbols.h"
+#include "slang/ast/symbols/PortSymbols.h"
+#include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/ast/types/Type.h"
+#include "smt-switch/smt.h"
+#include "utils/exceptions.h"
+#include "utils/logger.h"
+
+using namespace smt;
+using namespace std;
+
+namespace pono {
+
+namespace {
+
+/** Throw if `type` is an unpacked array.
+ *
+ *  Unpacked arrays are supported as plain registers inside one module
+ *  and nowhere else yet, so the three declaration paths that cannot
+ *  model them say so here rather than each computing a bit width that
+ *  is 0 for an array and then underflowing.
+ */
+void reject_unpacked_array(const slang::ast::Type & type,
+                           std::string_view name,
+                           const char * what)
+{
+  if (type.getCanonicalType().kind
+      == slang::ast::SymbolKind::FixedSizeUnpackedArrayType) {
+    throw PonoException("SystemVerilogEncoder: " + std::string(what) + " ('"
+                        + std::string(name) + "') is not supported");
+  }
+}
+
+}  // namespace
+
+Declarer::Declarer(SymbolTable & symbol_table,
+                   FunctionalTransitionSystem & fts,
+                   const smt::SmtSolver & solver)
+    : symbol_table_(symbol_table), fts_(fts), solver_(solver)
+{
+}
+
+void Declarer::declare_variables(const slang::ast::InstanceBodySymbol & body,
+                                 const string & prefix)
+{
+  using namespace slang::ast;
+
+  // Process ports first.
+  for (auto port_sym : body.getPortList()) {
+    if (port_sym->kind == SymbolKind::Port) {
+      process_port(port_sym->as<PortSymbol>(), prefix);
+    }
+  }
+
+  declare_variables_internal(body, prefix);
+}
+
+void Declarer::declare_variables_internal(const slang::ast::Scope & body,
+                                          const string & prefix)
+{
+  using namespace slang::ast;
+
+  // Process internal variable declarations (non-port variables).
+  // walk_members() takes the prefix by mutable reference (updating it
+  // while descending into generate-for/instance-array child scopes,
+  // then restoring it), so it needs its own local copy rather than
+  // `prefix` itself.
+  string walk_prefix = prefix;
+  walk_members(body, walk_prefix, [&](const Symbol & member) {
+    if (member.kind == SymbolKind::Variable) {
+      auto & var = member.as<VariableSymbol>();
+      // Skip if already declared via port processing.
+      if (symbol_table_.symbol_to_term().count(&var)) return;
+      // Wires get their term assigned during combinational-assignment
+      // processing (macro substitution), not declared upfront.
+      if (symbol_table_.wire_symbols().count(&var)) return;
+      // Output ports of a child instance: the port-internal Variable
+      // appears here as a member of the child's body, but its term is
+      // really the parent-side wire reached through the alias map --
+      // skip declaring a separate term for it.  A register is the
+      // exception: unlike a comb wire (whose term is filled in later
+      // via macro substitution when its driving assignment is
+      // processed), no later pass ever assigns a term to a bare
+      // pass-through symbol, so a register's state var must be
+      // created here, keyed under the fully resolved alias root.
+      if (symbol_table_.port_output_aliases().count(&var)) {
+        if (symbol_table_.state_var_symbols().count(&var)) {
+          // Everything below is bit-range arithmetic over the alias
+          // pieces, and getBitWidth() is 0 for an unpacked array, so
+          // `var_w - 1` would wrap to UINT64_MAX and the "does this
+          // piece cover its whole target" check would then pass.
+          // Reject before that can happen.
+          reject_unpacked_array(
+              var.getType(), var.name, "an output-port-aliased register");
+          uint64_t var_w = value_width(var.getType());
+          auto pieces =
+              symbol_table_.resolve_output_alias_pieces(&var, 0, var_w - 1);
+          for (auto & piece : pieces) {
+            uint64_t target_w =
+                value_width(piece.sym->as<ValueSymbol>().getType());
+            bool piece_full =
+                (piece.target_lo == 0 && piece.target_hi + 1 == target_w);
+            if (!piece_full) {
+              // One contributor among several to a shared target --
+              // one element of an instance array wired to a slice of
+              // a register bank, say. Aliasing the write straight
+              // onto the target cannot work here: each sibling would
+              // claim the whole target's next-state function, and
+              // only one of them can have it.
+              //
+              // So the register keeps a state var of its own and
+              // splices its bits into the target instead, which is
+              // how a comb wire driven from several sibling instances
+              // is already assembled. Whether the contributors
+              // between them cover the whole target is settled later,
+              // once every instance has been seen.
+              splice_aliased_register(var, pieces, walk_prefix);
+              return;
+            }
+            if (!symbol_table_.symbol_to_term().count(piece.sym)) {
+              const Symbol * root = piece.sym;
+              // Matches the pre-existing (single-target) naming
+              // exactly when there's only one piece; disambiguated by
+              // the target's own name for a concatenation-target
+              // connection, where reusing `var.name` for every piece
+              // would collide.
+              string name = symbol_table_.make_name(
+                  walk_prefix,
+                  pieces.size() > 1
+                      ? string(var.name) + "_" + string(root->name)
+                      : string(var.name));
+              Sort sort =
+                  type_to_sort(solver_, root->as<ValueSymbol>().getType());
+              Term sv = fts_.make_statevar(name, sort);
+              symbol_table_.symbol_to_term()[root] = sv;
+              fts_.name_term(name, sv);
+              logger.log(2,
+                         "SystemVerilogEncoder: state var (aliased) {} : {}",
+                         name,
+                         sort->to_string());
+            }
+          }
+        }
+        return;
+      }
+
+      string name = symbol_table_.make_name(walk_prefix, string(var.name));
+      Sort sort = type_to_sort(solver_, var.getType());
+
+      if (symbol_table_.state_var_symbols().count(&var)) {
+        // This is a register: create a state variable.
+        Term sv = fts_.make_statevar(name, sort);
+        symbol_table_.symbol_to_term()[&var] = sv;
+        fts_.name_term(name, sv);
+        logger.log(2,
+                   "SystemVerilogEncoder: state var {} : {}",
+                   name,
+                   sort->to_string());
+      } else {
+        // No assignment found for this variable -- treat as a free
+        // input.  This matches Verilog's "open" semantics where an
+        // undriven net is unconstrained.
+        Term iv = fts_.make_inputvar(name, sort);
+        symbol_table_.symbol_to_term()[&var] = iv;
+        fts_.name_term(name, iv);
+        logger.log(2,
+                   "SystemVerilogEncoder: undriven var {} : {}",
+                   name,
+                   sort->to_string());
+      }
+    } else if (member.kind == SymbolKind::Net) {
+      auto & net = member.as<NetSymbol>();
+      if (symbol_table_.symbol_to_term().count(&net)) return;
+      if (symbol_table_.wire_symbols().count(&net)) return;
+      if (symbol_table_.port_output_aliases().count(&net)) return;
+
+      // An unpacked-array net becomes a free array-sorted variable,
+      // which is exactly an undriven net: its elements read as
+      // unknowns until a continuous assign constrains them, one
+      // element at a time or all at once.
+      string name = symbol_table_.make_name(walk_prefix, string(net.name));
+      Sort sort = type_to_sort(solver_, net.getType());
+
+      Term iv = fts_.make_inputvar(name, sort);
+      symbol_table_.symbol_to_term()[&net] = iv;
+      fts_.name_term(name, iv);
+      logger.log(
+          2, "SystemVerilogEncoder: net {} : {}", name, sort->to_string());
+    }
+  });
+}
+
+void Declarer::splice_aliased_register(
+    const slang::ast::VariableSymbol & var,
+    const std::vector<ResolvedAliasPiece> & pieces,
+    const string & prefix)
+{
+  string name = symbol_table_.make_name(prefix, string(var.name));
+  Sort sort = type_to_sort(solver_, var.getType());
+  Term sv = fts_.make_statevar(name, sort);
+  symbol_table_.symbol_to_term()[&var] = sv;
+  fts_.name_term(name, sv);
+  logger.log(2,
+             "SystemVerilogEncoder: state var (spliced into a shared "
+             "target) {} : {}",
+             name,
+             sort->to_string());
+
+  for (const ResolvedAliasPiece & piece : pieces) {
+    // The target starts as a free value and each contributor
+    // overwrites its own bits, so a fully covered target has none of
+    // that free value left in it.
+    Term target = symbol_table_.wire_seed_term(piece.sym, prefix);
+    symbol_table_.symbol_to_term()[piece.sym] =
+        replace_bits(solver_,
+                     target,
+                     slice_bits(solver_, sv, piece.rhs_lo, piece.rhs_hi),
+                     piece.target_lo,
+                     piece.target_hi);
+    symbol_table_.spliced_alias_ranges()[piece.sym].push_back(
+        { piece.target_lo, piece.target_hi });
+  }
+
+  // The write has somewhere of its own to go now, so it must not be
+  // redirected at the target as well.
+  symbol_table_.port_output_aliases().erase(&var);
+}
+
+void Declarer::process_port(const slang::ast::PortSymbol & port,
+                            const string & prefix)
+{
+  using namespace slang::ast;
+
+  // Nothing below is bit-range arithmetic: the port becomes one
+  // variable of whatever sort its type maps to, so an unpacked array
+  // needs no special handling here. Connecting one to a child
+  // instance is where the splicing lives -- see process_instance().
+
+  // An empty slot in a port list connects to nothing inside the
+  // instance and has no type to give a sort. Checked before the type
+  // is read, which would otherwise report the void as an unsupported
+  // type kind with nothing to say it came from a port.
+  const Symbol * internal = port_internal_symbol(port);
+  if (!internal) return;
+
+  string name = symbol_table_.make_name(prefix, string(port.name));
+  Sort sort = type_to_sort(solver_, port.getType());
+
+  // The port and the symbol it connects to are one signal, and get
+  // one term under the port's name. For an explicit port
+  // (`output .o(w)`) the two names differ, and it is the outward one
+  // that wins -- the same choice the ordinary case makes without
+  // having to, since there the two names are equal.
+  if (port.direction == ArgumentDirection::In) {
+    Term iv = fts_.make_inputvar(name, sort);
+    symbol_table_.symbol_to_term()[internal] = iv;
+    symbol_table_.symbol_to_term()[&port] = iv;
+    fts_.name_term(name, iv);
+    logger.log(
+        2, "SystemVerilogEncoder: input port {} : {}", name, sort->to_string());
+  } else {
+    // Output or inout: classify based on driver kind.
+    if (symbol_table_.state_var_symbols().count(internal)) {
+      Term sv = fts_.make_statevar(name, sort);
+      symbol_table_.symbol_to_term()[internal] = sv;
+      symbol_table_.symbol_to_term()[&port] = sv;
+      fts_.name_term(name, sv);
+      logger.log(2,
+                 "SystemVerilogEncoder: output port (reg) {} : {}",
+                 name,
+                 sort->to_string());
+    } else if (symbol_table_.wire_symbols().count(internal)) {
+      // Combinational output port: defer term creation to
+      // process_continuous_assign / process_always_comb, which will
+      // populate symbol_to_term_ for `internal` once its driving
+      // assignment is processed.  Expressions elsewhere reference
+      // `internal` directly (per slang, the port symbol itself is
+      // never referenceable), so no entry for `&port` is needed.
+      logger.log(
+          2, "SystemVerilogEncoder: output port (wire) {}: deferred", name);
+    } else {
+      Term iv = fts_.make_inputvar(name, sort);
+      symbol_table_.symbol_to_term()[internal] = iv;
+      symbol_table_.symbol_to_term()[&port] = iv;
+      fts_.name_term(name, iv);
+      logger.log(2,
+                 "SystemVerilogEncoder: output port (undriven) {} : {}",
+                 name,
+                 sort->to_string());
+    }
+  }
+}
+
+}  // namespace pono

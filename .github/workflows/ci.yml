@@ -29,12 +29,26 @@ jobs:
           fetch-depth: 0
       - name: Install Packages (Linux)
         if: runner.os == 'Linux'
+        # fmt and tomlplusplus are not build dependencies -- both are
+        # fetched when absent. They are here so this job, the only one
+        # that really links statically, meets the system copies a
+        # developer machine has rather than always taking the fetch
+        # path.
+        #
+        # tomlplusplus is the one that bites: the packaged copy is a
+        # shared object, which is unlinkable here, so this build only
+        # passes because slang is kept from finding it. fmt is packaged
+        # without a static archive, so the static probe skips it either
+        # way and the version floor it is checked against goes
+        # unexercised until some job configures without --static.
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libbison-dev \
             libfl-dev \
+            libfmt-dev \
             libmpfr-dev \
+            libtomlplusplus-dev \
             cmake \
             ninja-build
       - name: Install bison (macOS)
