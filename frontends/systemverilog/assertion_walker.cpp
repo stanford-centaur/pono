@@ -766,8 +766,64 @@ smt::TermVec AssertionWalker::offsets_ending_now(
           return out;
         }
 
+        case BinaryAssertionOperator::Or: {
+          // The match set of `s1 or s2` is the union of the two
+          // (LRM 16.9.7), and a union of match sets is a slotwise OR
+          // of the vectors that index them.
+          bool e1 = false, e2 = false;
+          TermVec v1 = offsets_ending_now(b.left, prefix, &e1);
+          TermVec v2 = offsets_ending_now(b.right, prefix, &e2);
+          if ((v1.empty() && !e1) || (v2.empty() && !e2)) return {};
+          if (e1 || e2) report_empty("this sequence disjunction");
+          TermVec out;
+          for (size_t k = 0; k < v1.size(); ++k) {
+            if (v1[k]) emit(out, k, v1[k]);
+          }
+          for (size_t k = 0; k < v2.size(); ++k) {
+            if (v2[k]) emit(out, k, v2[k]);
+          }
+          return out;
+        }
+
+        case BinaryAssertionOperator::And: {
+          // Both operands match from the same start, and the
+          // composite ends wherever the later of the two ends (LRM
+          // 16.9.5, formally F.3.4.2.4's
+          // `((s1 ##1 1[*0:$]) intersect s2) or (s1 intersect (s2
+          // ##1 1[*0:$]))`). So for a composite span of k, one
+          // operand supplies a span-k match and the other a span-j
+          // one for some j <= k -- the latter having ended k - j
+          // cycles ago, which is what puts their starts together.
+          bool e1 = false, e2 = false;
+          TermVec v1 = offsets_ending_now(b.left, prefix, &e1);
+          TermVec v2 = offsets_ending_now(b.right, prefix, &e2);
+          if ((v1.empty() && !e1) || (v2.empty() && !e2)) return {};
+          // An operand's empty match is the j = 0 case with nothing
+          // to require of the shorter side, leaving the longer one's
+          // span as the composite's.
+          if (e1 && e2) report_empty("this sequence conjunction");
+          TermVec out;
+          auto combine = [&](const TermVec & longer,
+                             const TermVec & shorter,
+                             bool shorter_empty) {
+            for (size_t k = 0; k < longer.size(); ++k) {
+              if (!longer[k]) continue;
+              if (shorter_empty) emit(out, k, longer[k]);
+              for (size_t j = 0; j <= k && j < shorter.size(); ++j) {
+                if (!shorter[j]) continue;
+                Term ended_then = tableau_.make_history_chain(
+                    shorter[j], static_cast<uint32_t>(k - j), prefix);
+                emit(out, k, solver_->make_term(And, longer[k], ended_then));
+              }
+            }
+          };
+          combine(v1, v2, e2);
+          combine(v2, v1, e1);
+          return out;
+        }
+
         default:
-          // And/Or/Iff/Implies/Until*/FollowedBy/etc. as a *sequence*
+          // Iff/Implies/Until*/FollowedBy/etc. as a *sequence*
           // operand aren't sequence-composition operators in the SVA
           // sense (they combine boolean/property values, not match
           // spans) -- not something offsets_ending_now() is ever

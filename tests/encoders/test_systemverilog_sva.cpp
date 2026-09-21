@@ -137,10 +137,9 @@ TEST_P(SVUnitTests, NonconsecutiveRepetitionAntecedent)
   check_bmc("nonconsec_repetition_antecedent.sv", 7);
 }
 
-// weak() over the sequence shapes leading_condition() could not name
-// the start of. Each fixture is the same sequence as the base
-// written through a different operator, so the shared refutation
-// depth is the assertion: a wrong leading condition shifts it or
+// weak() over sequence shapes written through different operators.
+// Each fixture is the same sequence as the base, so the shared
+// refutation depth is the assertion: a misplaced span shifts it or
 // drops the refutation.
 TEST_P(SVUnitTests, WeakSequenceBase) { check_bmc("weak_seq_fails.sv", 1); }
 
@@ -161,11 +160,48 @@ TEST_P(SVUnitTests, WeakSequenceLeadingRepetition)
   check_bmc("weak_seq_repetition.sv", 1);
 }
 
-// The shapes weak_seq_bool() still cannot span reach the tableau,
-// where unwrapping used to hand them the strong obligation.
-TEST_P(SVUnitTests, WeakSequenceAndRejected)
+// `and`/`or` over multi-cycle operands, which used to reach the
+// tableau and be handed the strong obligation weak withholds. The
+// `and` pair is the assertion: operands of spans 1 and 2 sharing a
+// start are the 3-cycle chain, so both refute at depth 2.
+TEST_P(SVUnitTests, WeakSequenceAnd) { check_bmc("weak_seq_and.sv", 2); }
+
+TEST_P(SVUnitTests, WeakSequenceAndChain)
 {
-  expect_encode_throws("weak_seq_and_unsupported.sv");
+  check_bmc("weak_seq_and_chain.sv", 2);
+}
+
+TEST_P(SVUnitTests, WeakSequenceOr) { check_bmc("weak_seq_or.sv", 2); }
+
+// Where `and` places the composite's end, and where it insists the
+// operands begin, read off a design whose signals are each true at
+// exactly one cycle. The consequent is 1'b0, so the refutation depth
+// is the antecedent's own end cycle.
+TEST_P(SVUnitTests, SeqAndCommonStart)
+{
+  check_bmc("seq_and_common_start.sv", 3);
+}
+
+// The two negatives, proved rather than left unrefuted: a bounded
+// run cannot distinguish "never matches" from "has not matched yet",
+// which is exactly what a too-permissive `and` would need it to.
+TEST_P(SVUnitTests, SeqAndNoCommonStart)
+{
+  check_prover<KInduction>(
+      "seq_and_no_common_start.sv", 20, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, SeqAndOneOperandOnly)
+{
+  check_prover<KInduction>(
+      "seq_and_one_operand_only.sv", 20, ProverResult::TRUE);
+}
+
+// `or` over that same rejected pair: a union asks nothing about the
+// other operand's start, so it matches where `and` does not.
+TEST_P(SVUnitTests, SeqOrIndependentMatches)
+{
+  check_bmc("seq_or_independent_matches.sv", 3);
 }
 
 // ---------------------------------------------------------------------------
