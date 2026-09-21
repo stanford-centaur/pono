@@ -82,7 +82,7 @@ class TermExtractor : public Walker
       const std::unordered_set<smt::Term> & varset,
       bool collect_constants,
       unsigned level,
-      std::map<unsigned, std::vector<smt::Term>> & width_to_term_table,
+      std::map<uint64_t, std::vector<smt::Term>> & width_to_term_table,
       std::unordered_set<smt::Term> & all_terms_set
       // std::unordered_set<smt::Term> & related_terms_set
       )
@@ -95,7 +95,7 @@ class TermExtractor : public Walker
   {
   }
 
-  // const std::map<unsigned, std::vector<smt::Term>> & GetTermsByWidth() const
+  // const std::map<uint64_t, std::vector<smt::Term>> & GetTermsByWidth() const
   // {
   //   return width_to_terms_;
   // }
@@ -103,7 +103,7 @@ class TermExtractor : public Walker
   // {
   //   return all_terms_;
   // }
-  const std::map<unsigned, std::vector<smt::Term>> & GetConstants() const
+  const std::map<uint64_t, std::vector<smt::Term>> & GetConstants() const
   {
     return width_to_constants_;
   }
@@ -117,8 +117,8 @@ class TermExtractor : public Walker
   bool collect_constants_;
   unsigned level_;
 
-  std::map<unsigned, std::vector<smt::Term>> & width_to_terms_;
-  std::map<unsigned, std::vector<smt::Term>>
+  std::map<uint64_t, std::vector<smt::Term>> & width_to_terms_;
+  std::map<uint64_t, std::vector<smt::Term>>
       width_to_constants_;  // const is not needed, as you may not always need
                             // it
   std::unordered_set<smt::Term> & all_terms_;
@@ -138,8 +138,8 @@ class TermScore : public Walker
   // ----------- TYPE --------------- //
   struct term_score_t
   {
-    unsigned score;
-    term_score_t(unsigned s) : score(s) {}
+    uint64_t score;
+    term_score_t(uint64_t s) : score(s) {}
   };
 
   typedef std::unordered_map<smt::Term, term_score_t> score_map_t;
@@ -190,7 +190,7 @@ class ConstantExtractor : public Walker
 {
  public:
   // ----------- TYPE --------------- //
-  typedef std::map<unsigned, std::vector<smt::Term>> width_constant_map_t;
+  typedef std::map<uint64_t, std::vector<smt::Term>> width_constant_map_t;
 
   ConstantExtractor(width_constant_map_t & out,
                     std::unordered_set<std::string> & cnstr_strs)
@@ -215,7 +215,7 @@ class SliceExtractor : public Walker
 {
  public:
   using width_term_map_t = PerVarsetInfo::width_term_map_t;
-  // typedef std::map<unsigned, PerWidthInfo> width_terms_map_t;
+  // typedef std::map<uint64_t, PerWidthInfo> width_terms_map_t;
   typedef std::pair<unsigned, unsigned> ext_position_t;
   typedef std::unordered_map<smt::Term, std::set<ext_position_t>> sv2exts_t;
 

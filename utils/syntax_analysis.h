@@ -57,7 +57,7 @@ class VarTermManager
 
  protected:
   std::unordered_set<std::string> constants_strings_;
-  std::map<unsigned, std::vector<smt::Term>> width_to_constants_;
+  std::map<uint64_t, std::vector<smt::Term>> width_to_constants_;
   terms_cache_t terms_cache_;  // include constants here
 
   std::vector<smt::Term> terms_to_check_;
@@ -76,7 +76,7 @@ class VarTermManager
                            unsigned & nterm_walked);
 
   unsigned insert_from_termsmap_w_width(
-      const std::map<unsigned, smt::TermVec> & terms /*IN*/,
+      const std::map<uint64_t, smt::TermVec> & terms /*IN*/,
       PerVarsetInfo & term_cache_item /*OUT*/,
       unsigned width_bound_low /*IN*/,
       unsigned width_bound_high /*IN*/);

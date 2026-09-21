@@ -100,7 +100,7 @@ bool eval_val::operator<(const eval_val & r) const
 }  // eval_val::operator<
 
 // --------------------  PerVarsetInfo ----------------
-static unsigned get_width(const smt::Term & t)
+static uint64_t get_width(const smt::Term & t)
 {
   auto sort_kind = t->get_sort()->get_sort_kind();
   if (sort_kind == smt::SortKind::BOOL)
