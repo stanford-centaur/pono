@@ -788,21 +788,95 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
               + string(port.name) + "' is not a plain variable");
         }
         Sort port_sort = type_to_sort(solver_, port.getType());
-        // The two sides share one term, so the connection has to be
-        // the whole of the target array rather than a part of it. A
-        // slice would otherwise give the parent's array the *port's*
-        // sort, and the parent's own accesses would then index it
-        // with a width the array does not have -- which reaches the
-        // solver as a sort mismatch rather than an error naming the
-        // port.
         auto * target_value = target->as_if<ValueSymbol>();
-        if (!target_value
-            || type_to_sort(solver_, target_value->getType()) != port_sort) {
+        if (!target_value) {
           throw PonoException(
-              "SystemVerilogEncoder: output port '" + string(port.name)
-              + "' is connected to part of '" + string(target->name)
-              + "' rather than the whole of it; an unpacked array is "
-                "passed whole");
+              "SystemVerilogEncoder: the array connected to output port '"
+              + string(port.name) + "' is not a plain variable");
+        }
+        Sort target_sort = type_to_sort(solver_, target_value->getType());
+
+        // A slice cannot share the parent's term -- the two have
+        // different lengths. Give the port its own array and tie it
+        // to the parent's, element by element: the count is known at
+        // elaboration, so this is a fixed handful of equalities
+        // rather than anything dynamic.
+        if (target_sort != port_sort) {
+          if (conn_expr->kind != ExpressionKind::RangeSelect) {
+            throw PonoException(
+                "SystemVerilogEncoder: output port '" + string(port.name)
+                + "' is connected to part of '" + string(target->name)
+                + "' that is not a contiguous element range");
+          }
+          auto & rs = conn_expr->as<RangeSelectExpression>();
+          auto & base_ct = rs.value().type->getCanonicalType();
+          auto lc = rs.left().eval(expr_encoder_.eval_ctx());
+          auto rc = rs.right().eval(expr_encoder_.eval_ctx());
+          if (rs.getSelectionKind() != RangeSelectionKind::Simple
+              || base_ct.kind != SymbolKind::FixedSizeUnpackedArrayType
+              || !lc.isInteger() || !rc.isInteger()) {
+            throw PonoException(
+                "SystemVerilogEncoder: output port '" + string(port.name)
+                + "' is connected to a slice of '" + string(target->name)
+                + "' whose bounds are not elaboration-time constants");
+          }
+          auto lv = lc.integer().as<int64_t>();
+          auto rv = rc.integer().as<int64_t>();
+          if (!lv || !rv) {
+            throw PonoException("SystemVerilogEncoder: output port '"
+                                + string(port.name)
+                                + "' has a slice bound that does not fit");
+          }
+          auto & base_arr = base_ct.as<FixedSizeUnpackedArrayType>();
+          UnpackedArrayInfo base_info = unpacked_array_info(solver_, base_arr);
+          UnpackedArrayInfo port_info =
+              unpacked_array_info(solver_,
+                                  port.getType()
+                                      .getCanonicalType()
+                                      .as<FixedSizeUnpackedArrayType>());
+          // Normalized indices count up from the declared range's
+          // lower bound, so the slice's own low end is the offset
+          // into the parent however either range is written.
+          int64_t low = std::min(*lv, *rv);
+          int64_t offset = low - base_arr.range.lower();
+          if (offset < 0
+              || static_cast<uint64_t>(offset) + port_info.depth
+                     > base_info.depth) {
+            throw PonoException(
+                "SystemVerilogEncoder: output port '" + string(port.name)
+                + "' is connected to a slice of '" + string(target->name)
+                + "' that runs outside it");
+          }
+
+          auto pit = symbol_table_.symbol_to_term().find(target);
+          Term parent_term;
+          if (pit != symbol_table_.symbol_to_term().end()) {
+            parent_term = pit->second;
+          } else {
+            parent_term = fts_.make_statevar(
+                symbol_table_.make_name(prefix, string(target->name)),
+                target_sort);
+            symbol_table_.symbol_to_term()[target] = parent_term;
+            symbol_table_.state_var_symbols().insert(target);
+            symbol_table_.wire_symbols().erase(target);
+          }
+          Term child_term = fts_.make_statevar(
+              symbol_table_.make_name(child_prefix, string(internal->name)),
+              port_sort);
+          Sort port_idx = solver_->make_sort(BV, port_info.index_width);
+          Sort base_idx = solver_->make_sort(BV, base_info.index_width);
+          for (uint64_t k = 0; k < port_info.depth; ++k) {
+            fts_.add_constraint(solver_->make_term(
+                Equal,
+                solver_->make_term(
+                    Select, child_term, solver_->make_term(k, port_idx)),
+                solver_->make_term(Select,
+                                   parent_term,
+                                   solver_->make_term(offset + k, base_idx))));
+          }
+          symbol_table_.symbol_to_term()[internal] = child_term;
+          input_terms_added.push_back(internal);
+          continue;
         }
         auto it = symbol_table_.symbol_to_term().find(target);
         Term shared;

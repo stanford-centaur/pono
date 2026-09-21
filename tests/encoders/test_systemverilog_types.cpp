@@ -368,4 +368,21 @@ TEST_P(SVUnitTests, UnpackedStructFieldsDoNotOverlap)
   check_bmc("unpacked_struct_fails.sv", 2);
 }
 
+// An unpacked array connected to a slice of a parent array: the two
+// have different lengths, so the port gets its own array tied to
+// the parent's element by element. (A *concatenation* target is not
+// legal SystemVerilog for an unpacked array at all -- slang rejects
+// it as not assignable.)
+
+TEST_P(SVUnitTests, UnpackedArrayPortSlice)
+{
+  check_prover<KInduction>(
+      "unpacked_array_port_slice.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, UnpackedArrayPortSliceOffsetIsReal)
+{
+  check_bmc("unpacked_array_port_slice_fails.sv", 1);
+}
+
 }  // namespace pono_tests

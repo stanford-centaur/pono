@@ -178,18 +178,6 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVUnsupportedTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
 
-// An unpacked array crosses a port as one term, so only the whole
-// of one can be connected. A slice is refused rather than binding
-// the parent's array to the port's sort, which left the parent
-// indexing its own array with the wrong width and reached the
-// solver as a sort mismatch. (A *concatenation* target is not legal
-// SystemVerilog for an unpacked array at all -- slang rejects it as
-// not assignable -- so there is nothing here to refuse.)
-TEST_P(SVUnitTests, UnpackedArrayPortSlice)
-{
-  expect_encode_throws("unpacked_array_port_slice.sv");
-}
-
 // A struct field that is itself an unpacked array has no flat
 // layout to give it a bit range in, so the struct has no sort. An
 // unpacked *union* is refused for a different reason: its fields
