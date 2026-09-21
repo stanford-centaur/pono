@@ -11,6 +11,16 @@ FetchContent_Declare(
 set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
 set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
 set(SLANG_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
+# tomlplusplus is header-only by default, but a distro may build it in
+# its compiled mode instead -- Arch ships libtomlplusplus.so and no
+# archive -- and slang's FIND_PACKAGE_ARGS would then take a shared
+# object a fully static pono cannot link. Nothing recommends the system
+# copy here the way an archived fmt is worth keeping: the fetched
+# tomlplusplus is an INTERFACE target, so it costs a clone and no link
+# at all.
+if(PONO_LINK_STATIC)
+  set(CMAKE_DISABLE_FIND_PACKAGE_tomlplusplus ON)
+endif()
 FetchContent_MakeAvailable(slang)
 message(STATUS "slang fetched via FetchContent")
 
