@@ -2,11 +2,12 @@ name: Lint
 on:
   push:
   workflow_dispatch: # allow manual trigger
-# Superseded runs are pointless, but let main finish: its runs are the ones
-# whose caches every branch restores from.
+# Superseded runs are pointless on branches, but main needs a run per commit:
+# giving each of its commits its own group keeps them from queueing, where a
+# pending run is cancelled as soon as the next one arrives.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: true
 jobs:
   pre-commit:
     runs-on: ubuntu-slim
