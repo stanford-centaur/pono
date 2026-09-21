@@ -2228,34 +2228,39 @@ void AssertionWalker::process_concurrent_assertion(
       // apply_fairness_assumptions() distributes them once the
       // design has been walked, since assertions written earlier are
       // constrained by this too.
+      // `restrict` and `assume` are one path -- both are assumptions,
+      // and only simulation tells them apart. The keyword still goes
+      // in every message: an unnamed property reports as `<unnamed>`,
+      // which in a design holding both is the only way to say which
+      // statement is meant.
+      string kind =
+          ca.assertionKind == AssertionKind::Restrict ? "restrict" : "assume";
+      string named = kind + " property '"
+                     + make_name(prefix, current_assertion_label_) + "'";
       if (current_disable_cond_) {
         throw PonoException(
-            "SystemVerilogEncoder: a `disable iff` on the temporal "
-            "assumption '"
-            + make_name(prefix, current_assertion_label_)
-            + "' is not supported -- aborting a fairness constraint part "
+            "SystemVerilogEncoder: a `disable iff` on the temporal " + named
+            + " is not supported -- aborting a fairness constraint part "
               "way through would make it hold over some suffixes and not "
               "others, which a justice condition cannot say");
       }
       TermVec fairness;
       Term satisfied = ltl_to_sat(*a, /*neg=*/false, fairness, prefix);
       if (!satisfied) {
-        throw PonoException(
-            "SystemVerilogEncoder: assumption '"
-            + make_name(prefix, current_assertion_label_)
-            + "' uses an assertion shape this encoder cannot translate");
+        throw PonoException("SystemVerilogEncoder: " + named
+                            + " uses an assertion shape this encoder cannot "
+                              "translate");
       }
       fts_.add_constraint(satisfied, /*to_init_and_next=*/false);
       fairness_justice_.insert(
           fairness_justice_.end(), fairness.begin(), fairness.end());
       if (fairness_assumption_label_.empty()) {
-        fairness_assumption_label_ =
-            make_name(prefix, current_assertion_label_);
+        fairness_assumption_label_ = named;
       }
       logger.log(1,
-                 "SystemVerilogEncoder: extracted fairness assumption "
-                 "from {} ({} condition(s))",
-                 make_name(prefix, current_assertion_label_),
+                 "SystemVerilogEncoder: extracted fairness constraint from "
+                 "{} ({} condition(s))",
+                 named,
                  fairness.size());
       return;
     }
@@ -2395,9 +2400,8 @@ void AssertionWalker::apply_fairness_assumptions()
 
   if (!propvec_.empty()) {
     throw PonoException(
-        "SystemVerilogEncoder: the temporal assumption '"
-        + fairness_assumption_label_
-        + "' cannot be applied to this design's safety properties. It rules "
+        "SystemVerilogEncoder: the temporal " + fairness_assumption_label_
+        + " cannot be applied to this design's safety properties. It rules "
           "out infinite traces, and a safety counterexample is a finite "
           "prefix -- every one of which extends to some trace the assumption "
           "allows or to one it does not, which only a fair-reachability "

@@ -431,8 +431,9 @@ class AssertionWalker
   // trace can rule out. apply_fairness_assumptions() hands them to
   // the properties.
   smt::TermVec fairness_justice_;
-  // The first such assumption's name, for the message thrown when a
-  // safety property cannot honour it.
+  // The first such assumption, named as the source spells it
+  // (`assume property 'top.p'`), for the message thrown when a safety
+  // property cannot honour it.
   std::string fairness_assumption_label_;
 
   // The `disable iff` condition (explicit on the current assert

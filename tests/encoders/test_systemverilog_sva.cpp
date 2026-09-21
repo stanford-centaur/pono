@@ -861,6 +861,15 @@ TEST_P(SVUnitTests, FairnessTwoAssumptions)
       "fairness_two_assumptions.sv", 20, ProverResult::TRUE);
 }
 
+// `restrict` is an assumption too, and shares the whole path with
+// `assume`; here both kinds pool their conditions, and the assertion
+// is shaped so only the `restrict`'s can carry it.
+TEST_P(SVUnitTests, FairnessAssumeAndRestrict)
+{
+  check_liveness_prover<KInduction>(
+      "fairness_assume_and_restrict.sv", 20, ProverResult::TRUE);
+}
+
 // What a fairness constraint cannot reach.
 TEST_P(SVUnitTests, Unsupported_TemporalAssumeWithSafety)
 {
