@@ -444,19 +444,26 @@ TEST_P(SVUnitTests, StrongSeqObligation)
   check_liveness_bmc("strong_seq.sv", 5);
 }
 
-// weak(seq) carries no obligation to ever match, but an attempt that
-// *did* begin must not be a definite, provable failure -- see
-// weak_seq_bool(): an attempt began exactly S cycles ago (S = the
-// sequence's own max span) and nothing completed anywhere in that
-// window. Here, `a` never firing means no attempt ever began at all
-// (vacuously fine), and once it does fire, the continuation `##1 1'b1`
-// is an unconditional truth that can never itself fail -- so the
-// property holds vacuously forever, a genuine tautology (confirmed by
-// weak_seq_bool()'s formula reducing to a logical contradiction for
-// this shape), not merely "unproven within this bound".
-TEST_P(SVUnitTests, WeakSeqVacuousHold)
+// weak(seq) withholds the obligation to match only for the attempts
+// still in flight at the end of the trace. Every attempt older than
+// the sequence's own maximum span S has had every cycle it could
+// ever use, so weak_seq_bool() checks the one that began S cycles
+// ago. `a ##1 1'b1` cannot fail after its leading element, which
+// makes this exactly as strong as `a`, and `a` is free.
+TEST_P(SVUnitTests, WeakSeqLeadingElementRequired)
 {
-  check_bmc("weak_seq.sv", 4, ProverResult::UNKNOWN);
+  check_bmc("weak_seq.sv", 1);
+}
+
+// The discriminating pair for that: the same sequence and design as
+// BareSequenceConcatProperty with `weak` written out, refuted at the
+// same depth. Anchoring the check on where the leading element held
+// -- rather than on every tick -- made the wrapped form prove while
+// the unwrapped one was refuted, though the LRM defines them as the
+// same property.
+TEST_P(SVUnitTests, WeakSeqMatchesBareSequence)
+{
+  check_bmc("weak_seq_never_matches.sv", 1);
 }
 
 // ---------------------------------------------------------------------------

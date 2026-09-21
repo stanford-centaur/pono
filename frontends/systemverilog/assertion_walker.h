@@ -222,27 +222,20 @@ class AssertionWalker
                          const std::string & prefix,
                          bool allow_unbounded = false);
 
-  /** The Boolean condition of a sequence's own leading element --
-   *  "has an attempt to match `seq` just begun" -- used by
-   *  weak_seq_bool() to detect when an in-progress match attempt has
-   *  definitely failed. Recurses through FirstMatch/Clocking (like
-   *  offsets_ending_now()) and into a SequenceConcat's first element.
-   *  Throws for any other sequence shape (its own leading repetition,
-   *  a `SequenceWithMatch`, or a `Binary` intersect/within/throughout
-   *  as the outermost sequence) rather than guessing.
-   */
-  smt::Term leading_condition(const slang::ast::AssertionExpr & seq,
-                              const std::string & prefix);
-
-  /** Builds the `weak(seq)` Boolean safety condition: `seq` carries no
-   *  obligation to ever match, but if an attempt began exactly
-   *  `S = offsets_ending_now(seq).size() - 1` cycles ago (`S` being
-   *  the sequence's own maximum span -- the last possible chance for
-   *  that attempt to complete) and no completion happened anywhere in
-   *  the intervening window, that attempt has definitely failed.
-   *  Checked at every cycle, this covers every possible attempt start
-   *  point exactly once, `S` cycles after it began. Returns a null
-   *  Term if `seq`'s shape isn't modeled by offsets_ending_now().
+  /** Builds the `weak(seq)` Boolean safety condition. An attempt to
+   *  match `seq` begins at every cycle, and for a bounded `seq` it
+   *  either completes within the sequence's own maximum span
+   *  `S = offsets_ending_now(seq).size() - 1` or can never complete,
+   *  so weak and strong coincide (LRM 1800-2009 F.5.3.1: `weak(R)`
+   *  holds iff no finite prefix witnesses inability to match, and
+   *  past cycle `S` the prefix has decided it). The check is
+   *  therefore anchored `S` cycles behind: at each cycle it asks
+   *  whether the attempt that began `S` cycles ago completed, which
+   *  covers every attempt exactly once. Anchoring it there is also
+   *  what keeps it weak rather than strong -- the `S` attempts still
+   *  in flight at the end of a trace are never asked.
+   *  Returns a null Term if `seq`'s shape isn't modeled by
+   *  offsets_ending_now().
    */
   smt::Term weak_seq_bool(const slang::ast::AssertionExpr & seq,
                           const std::string & prefix);

@@ -799,112 +799,38 @@ smt::Term AssertionWalker::match_exists(const slang::ast::AssertionExpr & seq,
   return result;
 }
 
-smt::Term AssertionWalker::leading_condition(
-    const slang::ast::AssertionExpr & seq, const string & prefix)
-{
-  using namespace slang::ast;
-  switch (seq.kind) {
-    case AssertionExprKind::Simple: {
-      auto & simple = seq.as<SimpleAssertionExpr>();
-      if (simple.repetition) {
-        // A repetition that can match emptily lets the attempt begin
-        // without this expression holding at all, so the expression
-        // no longer marks the start; every other consecutive count
-        // needs its first iteration right here.
-        if (simple.repetition->kind != SequenceRepetition::Consecutive
-            || simple.repetition->range.min == 0) {
-          throw PonoException(
-              "SystemVerilogEncoder: weak()/strong() of a sequence whose "
-              "leading repetition can match emptily is not supported");
-        }
-      }
-      return expr_encoder_.expr_to_bool(simple.expr, prefix);
-    }
-    case AssertionExprKind::FirstMatch:
-      return leading_condition(seq.as<FirstMatchAssertionExpr>().seq, prefix);
-    case AssertionExprKind::Clocking: {
-      auto & clk_expr = seq.as<ClockingAssertionExpr>();
-      check_clock(clk_expr.clocking);
-      return leading_condition(clk_expr.expr, prefix);
-    }
-    case AssertionExprKind::SequenceConcat:
-      return leading_condition(
-          *seq.as<SequenceConcatExpr>().elements[0].sequence, prefix);
-    case AssertionExprKind::Binary: {
-      // Which operand's start marks the whole sequence's start, read
-      // off the same spans offsets_ending_now() builds for these.
-      auto & b = seq.as<BinaryAssertionExpr>();
-      switch (b.op) {
-        case BinaryAssertionOperator::Intersect:
-        case BinaryAssertionOperator::And:
-          // Both operands start together (intersect also ends
-          // together, which does not change where it begins).
-          return solver_->make_term(And,
-                                    leading_condition(b.left, prefix),
-                                    leading_condition(b.right, prefix));
-        case BinaryAssertionOperator::Or:
-          return solver_->make_term(Or,
-                                    leading_condition(b.left, prefix),
-                                    leading_condition(b.right, prefix));
-        case BinaryAssertionOperator::Within:
-          // The span is the right operand's; the left may match
-          // anywhere inside it, including later.
-          return leading_condition(b.right, prefix);
-        case BinaryAssertionOperator::Throughout: {
-          // The span is the right operand's, and the left is a plain
-          // expression that must hold at every cycle of it, so it
-          // holds at the first one too.
-          Term expr_bool = assertion_expr_to_bool(b.left, prefix);
-          if (!expr_bool) {
-            throw PonoException(
-                "SystemVerilogEncoder: the left operand of `throughout` must "
-                "be a plain expression");
-          }
-          return solver_->make_term(
-              And, expr_bool, leading_condition(b.right, prefix));
-        }
-        default:
-          throw PonoException(
-              "SystemVerilogEncoder: weak()/strong() of this sequence "
-              "operator is not supported");
-      }
-    }
-    default:
-      throw PonoException(
-          "SystemVerilogEncoder: weak()/strong() of this sequence shape is "
-          "not supported");
-  }
-}
-
 smt::Term AssertionWalker::weak_seq_bool(const slang::ast::AssertionExpr & seq,
                                          const string & prefix)
 {
   TermVec offsets = offsets_ending_now(seq, prefix);
   if (offsets.empty()) return Term();
-  Term me;
-  for (auto & t : offsets) {
-    if (!t) continue;
-    me = me ? solver_->make_term(Or, me, t) : t;
-  }
-  if (!me) return Term();
 
-  // S = the sequence's own maximum span: the last possible cycle an
-  // attempt that started here could still complete by.
+  // S = the sequence's own maximum span: the last cycle an attempt
+  // that started here could still complete at.
   uint32_t s = static_cast<uint32_t>(offsets.size()) - 1;
-  Term started_s_ago =
-      tableau_.make_history_chain(leading_condition(seq, prefix), s, prefix);
-  Term completed_in_window = me;
-  for (uint32_t j = 1; j <= s; ++j) {
-    completed_in_window = solver_->make_term(
-        Or, completed_in_window, tableau_.make_history_chain(me, j, prefix));
+  // offsets[k] says "a match of span k ends now", so a match of the
+  // attempt that began S cycles ago is offsets[k] as it stood S - k
+  // cycles ago. Bringing each one back by its own amount is what
+  // pins them all to the same start; merging them undelayed would
+  // instead accept a match that began later than the attempt under
+  // check, and so never fail.
+  Term completed;
+  for (uint32_t k = 0; k <= s; ++k) {
+    if (!offsets[k]) continue;
+    Term ends_here = tableau_.make_history_chain(offsets[k], s - k, prefix);
+    completed =
+        completed ? solver_->make_term(Or, completed, ends_here) : ends_here;
   }
-  // Violated iff an attempt began exactly S cycles ago and no
-  // completion happened anywhere from then through now; weak(seq) is
-  // the negation -- no obligation to ever attempt, but an attempt that
-  // did begin must not be a definite, provable failure.
-  Term violated = solver_->make_term(
-      And, started_s_ago, solver_->make_term(Not, completed_in_window));
-  return solver_->make_term(Not, violated);
+  if (!completed) return Term();
+
+  // Before cycle S there is no attempt that far back to ask about,
+  // and the history latches all read zero, which would otherwise
+  // report a violation the trace has not had time to commit.
+  if (s > 0) {
+    completed =
+        solver_->make_term(Or, tableau_.before_cycle(s, prefix), completed);
+  }
+  return completed;
 }
 
 namespace {
@@ -1770,11 +1696,11 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         // strong sequence as if it were always-true right now.
         return Term();
       }
-      // weak(seq): no obligation to ever match, but an attempt that
-      // did begin must not be a definite, provable failure -- see
-      // weak_seq_bool(). Any other shape (already a plain Boolean/
-      // temporal expression) is unaffected by the qualifier; just
-      // unwrap.
+      // weak(seq): the attempt that began S cycles ago must have
+      // completed, leaving the last S attempts still in flight --
+      // see weak_seq_bool(). Any other shape (already a plain
+      // Boolean/temporal expression) is unaffected by the qualifier;
+      // just unwrap.
       if (Term w = weak_seq_bool(sw.expr, prefix)) return w;
       return assertion_expr_to_bool(sw.expr, prefix);
     }
