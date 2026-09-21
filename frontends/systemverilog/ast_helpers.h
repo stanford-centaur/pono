@@ -32,6 +32,7 @@
 namespace slang::ast {
 class Scope;
 class ElementSelectExpression;
+class PortSymbol;
 }  // namespace slang::ast
 
 namespace pono {
@@ -98,6 +99,21 @@ void collect_nonblocking_targets(
 // symbol identity. A no-op for every other symbol kind.
 const slang::ast::Symbol & canonicalize_signal_alias(
     const slang::ast::Symbol & sym);
+
+// The instance-internal symbol a port connects to, which is what
+// every part of the encoder keys a port on: the declaration that
+// gives it a term, and the instance connection that binds it to the
+// parent side. Usually PortSymbol::internalSymbol, which slang fills
+// in for every ordinary port. An explicit port (`output .o(w)`)
+// names its internal signal through an expression instead and leaves
+// that field null; so does an empty slot in a port list, which
+// connects to nothing at all and returns nullptr here.
+// Throws for an explicit port bound to anything but a whole signal:
+// one bound to a select or a concatenation stands for part of a
+// symbol, or parts of several, and there is no single term for the
+// two sides to share.
+const slang::ast::Symbol * port_internal_symbol(
+    const slang::ast::PortSymbol & port);
 
 // Identifies the base ValueSymbol underlying a (possibly nested)
 // bit/range-select or struct-member-access LHS.  Returns nullptr if

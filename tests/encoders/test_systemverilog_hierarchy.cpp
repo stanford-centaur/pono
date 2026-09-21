@@ -341,4 +341,54 @@ TEST_P(SVUnitTests, InoutPortUndrivenIsFree)
   check_bmc("inout_port_fails.sv", 1);
 }
 
+// An explicit (named) port -- `output .o(w)` -- names its internal
+// signal through an expression, leaving the internalSymbol field
+// slang fills in for every ordinary port null. Both connection
+// directions used to read that field and skip the port without a
+// word. Each pair is the assertion: the explicit spelling must
+// behave as the ordinary one does.
+
+TEST_P(SVUnitTests, ExplicitPortOut)
+{
+  check_prover<KInduction>("explicit_port_out.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, ExplicitPortOutPlain)
+{
+  check_prover<KInduction>("explicit_port_out_plain.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, ExplicitPortIn)
+{
+  check_prover<KInduction>("explicit_port_in.sv", 8, ProverResult::TRUE);
+}
+
+// The negative that makes the positive mean something: an unbound
+// input would leave the child reading a free variable, which
+// satisfies the positive on some trace but cannot survive the
+// child inverting what it was handed.
+TEST_P(SVUnitTests, ExplicitPortInFails)
+{
+  check_bmc("explicit_port_in_fails.sv", 0);
+}
+
+// An explicit port standing for part of a signal, or for parts of
+// several, has no single internal symbol to bind to.
+TEST_P(SVUnitTests, Unsupported_ExplicitPortPartial)
+{
+  expect_encode_throws("explicit_port_partial.sv");
+}
+
+TEST_P(SVUnitTests, Unsupported_ExplicitPortConcat)
+{
+  expect_encode_throws("explicit_port_concat.sv");
+}
+
+// An empty slot in a port list connects to nothing and has no type
+// to read; the rest of the module still encodes.
+TEST_P(SVUnitTests, NullPortSlot)
+{
+  check_prover<KInduction>("null_port_slot.sv", 8, ProverResult::TRUE);
+}
+
 }  // namespace pono_tests

@@ -36,6 +36,7 @@
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/MemberSymbols.h"
+#include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
@@ -213,6 +214,34 @@ const slang::ast::Symbol & canonicalize_signal_alias(
     return *signal;
   }
   return sym;
+}
+
+const slang::ast::Symbol * port_internal_symbol(
+    const slang::ast::PortSymbol & port)
+{
+  using namespace slang::ast;
+  if (port.internalSymbol) return port.internalSymbol;
+  if (port.isNullPort) return nullptr;
+
+  const Expression * expr = port.getInternalExpr();
+  if (expr) {
+    // Only a whole-signal reference. getSymbolReference() would also
+    // answer for a select, naming the signal the select is taken
+    // from -- which is a wider symbol than the port stands for, and
+    // binding the two would hand the port every bit of it.
+    if (expr->kind == ExpressionKind::NamedValue) {
+      return &canonicalize_signal_alias(
+          expr->as<NamedValueExpression>().symbol);
+    }
+    if (expr->kind == ExpressionKind::HierarchicalValue) {
+      return &canonicalize_signal_alias(
+          expr->as<HierarchicalValueExpression>().symbol);
+    }
+  }
+  throw PonoException(
+      "SystemVerilogEncoder: the explicit port '" + std::string(port.name)
+      + "' does not name a whole signal, and a port standing for less than "
+        "one symbol has no term to share with what connects to it");
 }
 
 const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs)

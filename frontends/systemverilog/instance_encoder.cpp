@@ -757,7 +757,11 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
     auto & port = pc->port.as<PortSymbol>();
     auto * conn_expr = pc->getExpression();
     if (!conn_expr) continue;
-    auto * internal = port.internalSymbol;
+    // An explicit port names its internal signal through an
+    // expression rather than the internalSymbol field; reading that
+    // field directly skipped the connection without a word, leaving
+    // the child's side of it an unconstrained variable.
+    auto * internal = port_internal_symbol(port);
     if (!internal) continue;
 
     bool is_output = (port.direction == ArgumentDirection::Out

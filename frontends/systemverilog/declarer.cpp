@@ -255,38 +255,22 @@ void Declarer::process_port(const slang::ast::PortSymbol & port,
   // variable of whatever sort its type maps to, so an unpacked array
   // needs no special handling here. Connecting one to a child
   // instance is where the splicing lives -- see process_instance().
+
+  // An empty slot in a port list connects to nothing inside the
+  // instance and has no type to give a sort. Checked before the type
+  // is read, which would otherwise report the void as an unsupported
+  // type kind with nothing to say it came from a port.
+  const Symbol * internal = port_internal_symbol(port);
+  if (!internal) return;
+
   string name = symbol_table_.make_name(prefix, string(port.name));
   Sort sort = type_to_sort(solver_, port.getType());
 
-  const Symbol * internal = port.internalSymbol;
-  if (!internal) {
-    // Port with no internal symbol -- create based on direction.
-    if (port.direction == ArgumentDirection::In) {
-      Term iv = fts_.make_inputvar(name, sort);
-      symbol_table_.symbol_to_term()[&port] = iv;
-      fts_.name_term(name, iv);
-      logger.log(2,
-                 "SystemVerilogEncoder: input port {} : {}",
-                 name,
-                 sort->to_string());
-    } else {
-      // Output/inout without internal symbol: treat as a state var if
-      // pre-scan found it driven by always_ff/always/always_latch,
-      // otherwise as an (unconstrained) input var.
-      if (symbol_table_.state_var_symbols().count(&port)) {
-        Term sv = fts_.make_statevar(name, sort);
-        symbol_table_.symbol_to_term()[&port] = sv;
-        fts_.name_term(name, sv);
-      } else {
-        Term iv = fts_.make_inputvar(name, sort);
-        symbol_table_.symbol_to_term()[&port] = iv;
-        fts_.name_term(name, iv);
-      }
-    }
-    return;
-  }
-
-  // Port has an internal symbol -- use it.
+  // The port and the symbol it connects to are one signal, and get
+  // one term under the port's name. For an explicit port
+  // (`output .o(w)`) the two names differ, and it is the outward one
+  // that wins -- the same choice the ordinary case makes without
+  // having to, since there the two names are equal.
   if (port.direction == ArgumentDirection::In) {
     Term iv = fts_.make_inputvar(name, sort);
     symbol_table_.symbol_to_term()[internal] = iv;
