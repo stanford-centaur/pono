@@ -160,6 +160,20 @@ TEST_P(SVUnitTests, WeakSequenceLeadingRepetition)
   check_bmc("weak_seq_repetition.sv", 1);
 }
 
+// A leading repetition that can match emptily, which leaves no cycle
+// marking where an attempt began -- once the only question is which
+// attempt is being checked, that no longer matters. Paired with the
+// unwrapped spelling at the same depth.
+TEST_P(SVUnitTests, WeakSequenceEmptyLeadingRepetition)
+{
+  check_bmc("weak_seq_empty_leading.sv", 2);
+}
+
+TEST_P(SVUnitTests, BareSequenceEmptyLeadingRepetition)
+{
+  check_bmc("bare_seq_empty_leading.sv", 2);
+}
+
 // `and`/`or` over multi-cycle operands, which used to reach the
 // tableau and be handed the strong obligation weak withholds. The
 // `and` pair is the assertion: operands of spans 1 and 2 sharing a
