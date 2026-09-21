@@ -10,9 +10,12 @@ Hints
 ^^^^^
 
 ``Bitwuzla_ROOT``
-  A bitwuzla install prefix whose pkgconfig directory holds ``bitwuzla.pc``.
-  smt-switch's own ``contrib/setup-bitwuzla.sh`` installs one into
-  ``<smt-switch checkout>/deps/install``. If unset, only the system
+  A bitwuzla install prefix whose pkgconfig directory holds ``bitwuzla.pc``,
+  or a list of prefixes. ``bitwuzla.pc`` names cadical in ``Requires:``, and
+  smt-switch's ``contrib/setup-*.sh`` give every dependency a prefix of its
+  own, so a build against those needs both
+  ``<smt-switch checkout>/deps/bitwuzla`` and
+  ``<smt-switch checkout>/deps/cadical``. If unset, only the system
   pkg-config search path is used.
 
 Imported Targets
