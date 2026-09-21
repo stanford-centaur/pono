@@ -219,12 +219,37 @@ namespace {
 constexpr uint32_t MAX_SEQ_WINDOW = 256;
 }  // namespace
 
+smt::Term AssertionWalker::ever_held(const Term & x, const string & prefix)
+{
+  Term latch = fts_.make_statevar(
+      prefix + "__sva_ever_" + std::to_string(ever_counter_++),
+      solver_->make_sort(BOOL));
+  fts_.constrain_init(solver_->make_term(Not, latch));
+  fts_.assign_next(latch, solver_->make_term(Or, latch, x));
+  // The latch itself lags by a cycle, so include this cycle's own x.
+  return solver_->make_term(Or, latch, x);
+}
+
 smt::TermVec AssertionWalker::offsets_ending_now(
     const slang::ast::AssertionExpr & seq,
     const string & prefix,
-    bool * admits_empty)
+    bool * admits_empty,
+    Term * unbounded_end)
 {
   using namespace slang::ast;
+
+  // Reports a match whose start is an unbounded distance back.
+  // Returns false when the caller did not ask for one, meaning it
+  // should decline the whole sequence rather than answer without
+  // it: a sequence that can match arbitrarily late is an
+  // eventuality everywhere except an antecedent, and declining is
+  // what routes it to the tableau that models one.
+  auto report_unbounded = [&](const Term & t) {
+    if (!unbounded_end) return false;
+    *unbounded_end =
+        *unbounded_end ? solver_->make_term(Or, *unbounded_end, t) : t;
+    return true;
+  };
 
   // Reports an empty match to a caller that asked about one, and
   // refuses to hide it from a caller that did not. Composing an
@@ -252,9 +277,13 @@ smt::TermVec AssertionWalker::offsets_ending_now(
     if (!repetition) return { b };
     if (repetition->kind != SequenceRepetition::Consecutive) {
       // Counting occurrences that need not be adjacent spans no
-      // finite window. Decline, and ltl_to_sat() reads it as the
-      // eventuality it is -- but only where a match merely has to
-      // exist ahead, which the implication case below enforces.
+      // finite window, but a counter still says when a match ends.
+      // Where even that is no use -- a consequent, where a match
+      // merely has to exist ahead -- there is no caller to report it
+      // to, and declining lets ltl_to_sat() read it as the
+      // eventuality it is.
+      if (!unbounded_end) return {};
+      (void)report_unbounded(goto_match_now(expr, *repetition, prefix));
       return {};
     }
     uint32_t lo = repetition->range.min;
@@ -435,22 +464,91 @@ smt::TermVec AssertionWalker::offsets_ending_now(
       // An empty match imposes no condition, so there is nothing to
       // store beyond the fact that it is available.
       bool acc_empty = false;
+      // "What we have so far matches, ending now, having started an
+      // unbounded distance back" -- the one thing an offset vector
+      // cannot index. Null until something unbounded appears.
+      Term acc_unbounded;
+
+      // ORs `t` into the running unbounded match.
+      auto add_unbounded = [&](Term & slot, const Term & t) {
+        slot = slot ? solver_->make_term(Or, slot, t) : t;
+      };
+      // "The bounded part of `v` completes at this cycle", for
+      // handing to ever_held(): once a match's start is unbounded,
+      // only where it *ends* still matters.
+      auto vec_ends_now = [&](const TermVec & v) -> Term {
+        Term r;
+        for (auto & t : v) {
+          if (t) r = r ? solver_->make_term(Or, r, t) : t;
+        }
+        return r;
+      };
 
       for (size_t i = 0; i < sc.elements.size(); ++i) {
         auto & elem = sc.elements[i];
-        if (!elem.delay.max) {
-          // No finite window spans this, so there are no offsets to
-          // report; ltl_to_sat() takes it from here.
-          return {};
-        }
         uint32_t dmin = elem.delay.min;
-        uint32_t dmax = *elem.delay.max;
+        bool open_delay = !elem.delay.max;
+        uint32_t dmax = open_delay ? dmin : *elem.delay.max;
         bool elem_empty = false;
-        TermVec elem_offsets =
-            offsets_ending_now(*elem.sequence, prefix, &elem_empty);
-        // No offsets *and* no empty match is an unmodeled shape; no
-        // offsets with one is `b[*0]`, which matches only emptily.
-        if (elem_offsets.empty() && !elem_empty) return {};
+        Term elem_unbounded;
+        TermVec elem_offsets = offsets_ending_now(
+            *elem.sequence, prefix, &elem_empty, &elem_unbounded);
+        // No offsets, no empty match and nothing unbounded is an
+        // unmodeled shape; no offsets with an empty match is
+        // `b[*0]`, which matches only emptily.
+        if (elem_offsets.empty() && !elem_empty && !elem_unbounded) return {};
+
+        if (elem_unbounded && !unbounded_end) return {};
+        if (elem_unbounded && (i > 0 || acc_unbounded)) {
+          // An unbounded-span element *after* something else would
+          // need the prefix matched against occurrences counted from
+          // where that prefix ended, which no amount of delaying it
+          // expresses.
+          throw PonoException(
+              "SystemVerilogEncoder: a match whose start is an unbounded "
+              "distance back cannot follow another element in a sequence");
+        }
+        if (open_delay && (acc_empty || elem_unbounded)) {
+          throw PonoException(
+              "SystemVerilogEncoder: an unbounded delay next to a match "
+              "that occupies no cycles, or to one of unbounded span, is "
+              "not supported");
+        }
+
+        if (open_delay) {
+          if (!unbounded_end) return {};
+          // `prefix ##[m:$] elem`: the prefix's end is no longer a
+          // fixed distance back, so only the fact that it happened
+          // is kept -- one latch -- and the element supplies the
+          // end. An element of span le + 1 started le cycles ago, so
+          // the prefix must have ended at or before m + le cycles
+          // ago.
+          Term prefix_end = acc_unbounded ? acc_unbounded : vec_ends_now(acc);
+          if (!prefix_end) return {};
+          Term ever_end = ever_held(prefix_end, prefix);
+          Term next_unbounded;
+          for (size_t le = 0; le < elem_offsets.size(); ++le) {
+            if (!elem_offsets[le]) continue;
+            Term started_after = tableau_.make_history_chain(
+                ever_end, static_cast<uint32_t>(dmin + le), prefix);
+            add_unbounded(
+                next_unbounded,
+                solver_->make_term(And, started_after, elem_offsets[le]));
+          }
+          if (!next_unbounded) return {};
+          acc.clear();
+          acc_empty = false;
+          acc_unbounded = next_unbounded;
+          continue;
+        }
+
+        if (i == 0 && elem_unbounded) {
+          // A leading delay only moves where the attempt started,
+          // and a match whose start is already unbounded is
+          // indifferent to that.
+          acc_unbounded = elem_unbounded;
+          if (elem_offsets.empty() && !elem_empty) continue;
+        }
 
         if (i == 0) {
           // The delay before the very first element just relabels how
@@ -479,6 +577,7 @@ smt::TermVec AssertionWalker::offsets_ending_now(
 
         TermVec new_acc;
         bool new_acc_empty = false;
+        Term next_unbounded;
         for (uint32_t d = dmin; d <= dmax; ++d) {
           // An inter-element delay counts from the prefix's last
           // cycle, so with no such cycle the LRM spends one less of
@@ -513,6 +612,25 @@ smt::TermVec AssertionWalker::offsets_ending_now(
             }
           }
 
+          if (acc_unbounded) {
+            // The prefix's end is a definite cycle even though its
+            // start is not, so the same shift applies -- the result
+            // just stays unbounded.
+            for (size_t le = 0; le < elem_offsets.size(); ++le) {
+              if (!elem_offsets[le]) continue;
+              Term shifted = tableau_.make_history_chain(
+                  acc_unbounded, static_cast<uint32_t>(d + le), prefix);
+              add_unbounded(next_unbounded,
+                            solver_->make_term(And, shifted, elem_offsets[le]));
+            }
+            if (elem_empty) {
+              add_unbounded(next_unbounded,
+                            dd == 0 ? acc_unbounded
+                                    : tableau_.make_history_chain(
+                                          acc_unbounded, dd, prefix));
+            }
+          }
+
           if (acc_empty) {
             for (size_t le = 0; le < elem_offsets.size(); ++le) {
               if (!elem_offsets[le]) continue;
@@ -532,11 +650,13 @@ smt::TermVec AssertionWalker::offsets_ending_now(
         }
         acc = std::move(new_acc);
         acc_empty = new_acc_empty;
+        acc_unbounded = next_unbounded;
       }
 
       if (acc_empty) {
         report_empty("this sequence concatenation");
       }
+      if (acc_unbounded && !report_unbounded(acc_unbounded)) return {};
       return acc;
     }
 
@@ -614,10 +734,13 @@ smt::TermVec AssertionWalker::offsets_ending_now(
 }
 
 smt::Term AssertionWalker::match_exists(const slang::ast::AssertionExpr & seq,
-                                        const string & prefix)
+                                        const string & prefix,
+                                        bool allow_unbounded)
 {
-  TermVec offsets = offsets_ending_now(seq, prefix);
-  Term result;
+  Term unbounded;
+  TermVec offsets = offsets_ending_now(
+      seq, prefix, nullptr, allow_unbounded ? &unbounded : nullptr);
+  Term result = unbounded;
   for (auto & t : offsets) {
     if (!t) continue;
     result = result ? solver_->make_term(Or, result, t) : t;
@@ -1288,13 +1411,16 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
             // An antecedent has to say its match ends *now*, which is
             // not the eventuality ltl_to_sat() would read such a
             // count as. goto_match_now_seq() counts instead.
+            // A bare count reads straight off its counter; composed
+            // with anything else, the sequence matcher carries the
+            // same counter through as an unbounded-span match.
             Term match = goto_match_now_seq(b.left, prefix);
             if (!match) {
-              throw PonoException(
-                  "SystemVerilogEncoder: a goto or nonconsecutive repetition "
-                  "composed with anything else in an implication's "
-                  "antecedent is not supported");
+              match = match_exists(b.left,
+                                   prefix,
+                                   /*allow_unbounded=*/true);
             }
+            if (!match) return Term();
             l = neg ? match : solver_->make_term(Not, match);
           } else {
             l = ltl_to_sat(b.left, !neg, justice, prefix);
@@ -1681,7 +1807,7 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         }
         Term lhs = assertion_expr_to_bool(*lhs_inner, prefix, lhs_span);
         if (!lhs) {
-          lhs = match_exists(*lhs_inner, prefix);
+          lhs = match_exists(*lhs_inner, prefix, /*allow_unbounded=*/true);
           lhs_span = 0;
         }
         if (!lhs) {

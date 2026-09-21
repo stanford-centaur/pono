@@ -737,4 +737,29 @@ TEST_P(SVUnitTests, SequenceRepetitionRange)
       "sequence_repetition_range.sv", 20, ProverResult::TRUE);
 }
 
+// ---------------------------------------------------------------------------
+// Sequences whose match starts an unbounded distance back -- an
+// unbounded inter-element delay, or a counted repetition composed
+// with another element. No window of offsets spans one, but where it
+// *ends* is still a definite cycle, which is all an implication's
+// antecedent needs. Elsewhere such a sequence is an eventuality, and
+// the matcher declines so the tableau models it instead.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, UnboundedDelayAntecedent)
+{
+  check_prover<KInduction>(
+      "unbounded_delay_antecedent.sv", 20, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, UnboundedDelayAntecedentFails)
+{
+  check_bmc("unbounded_delay_antecedent_fails.sv", 3);
+}
+
+TEST_P(SVUnitTests, GotoThenElementAntecedent)
+{
+  check_prover<KInduction>("goto_then_antecedent.sv", 20, ProverResult::TRUE);
+}
+
 }  // namespace pono_tests

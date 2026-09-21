@@ -181,12 +181,27 @@ class AssertionWalker
    *  quietly missing an alternative.
    *  @param seq the sequence expression to match
    *  @param prefix the current hierarchical name prefix
+   *  A match whose start is an unbounded distance back has no index
+   *  here either, for the same reason an empty one has none: the
+   *  index *is* the distance. Such a match is reported through
+   *  `unbounded_end`, as a Boolean "a match ends at this cycle".
+   *  That is everything an implication's antecedent needs, and a
+   *  caller passing nullptr gets a PonoException rather than a
+   *  vector quietly missing those matches.
    *  @param admits_empty set when `seq` also matches emptily
+   *  @param unbounded_end set to "a match of unbounded span ends
+   *         now", when `seq` has one
    *  @return offsets indexed by relative start-to-end span
    */
   smt::TermVec offsets_ending_now(const slang::ast::AssertionExpr & seq,
                                   const std::string & prefix,
-                                  bool * admits_empty = nullptr);
+                                  bool * admits_empty = nullptr,
+                                  smt::Term * unbounded_end = nullptr);
+
+  /** "`x` has held at some cycle at or before this one" -- one latch,
+   *  which is all it takes to remember an event whose distance in the
+   *  past is not bounded. */
+  smt::Term ever_held(const smt::Term & x, const std::string & prefix);
 
   /** Convenience wrapper over offsets_ending_now(): ORs together every
    *  reachable offset, i.e. "does `seq` complete a match at the
@@ -195,8 +210,15 @@ class AssertionWalker
    *  (an unsupported sequence shape) so callers can fall back to their
    *  existing unsupported-construct handling.
    */
+  /** @param allow_unbounded also report a match whose start is an
+   *         unbounded distance back. Only an implication's
+   *         antecedent may ask: everywhere else a sequence that can
+   *         match arbitrarily late is an eventuality, and answering
+   *         "it ends now" would read it as a safety obligation
+   *         instead. */
   smt::Term match_exists(const slang::ast::AssertionExpr & seq,
-                         const std::string & prefix);
+                         const std::string & prefix,
+                         bool allow_unbounded = false);
 
   /** The Boolean condition of a sequence's own leading element --
    *  "has an attempt to match `seq` just begun" -- used by
@@ -346,6 +368,9 @@ class AssertionWalker
   void check_clock(const slang::ast::TimingControl & clocking);
 
   ExprEncoder & expr_encoder_;
+  // Distinguishes the latches ever_held() builds.
+  uint64_t ever_counter_ = 0;
+
   // Distinguishes the counters goto_match_now() builds.
   uint64_t goto_counter_ = 0;
 
