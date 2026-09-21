@@ -16,6 +16,7 @@
 
 #include "options/options.h"
 
+#include <algorithm>
 #include <climits>
 #include <cstring>
 #include <iostream>
@@ -829,9 +830,12 @@ ProverResult PonoOptions::parse_and_set_options(int argc,
   argc -= (argc > 0);
   argv += (argc > 0);  // skip program name argv[0] if present
   option::Stats stats(usage, argc, argv);
-  std::vector<option::Option> options(stats.options_max);
-  std::vector<option::Option> buffer(stats.buffer_max);
-  option::Parser parse(usage, argc, argv, &options[0], &buffer[0]);
+  // Stats counts a sentinel slot, so both of these are at least one. Saying
+  // so here is what lets the compiler see that the arrays are never empty,
+  // and so that the parser cannot be handed a null to walk.
+  std::vector<option::Option> options(std::max(1u, stats.options_max));
+  std::vector<option::Option> buffer(std::max(1u, stats.buffer_max));
+  option::Parser parse(usage, argc, argv, options.data(), buffer.data());
 
   if (parse.error()) return ERROR;
 

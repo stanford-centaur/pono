@@ -70,6 +70,8 @@ class Unroller
    *    get_time(x@4 + y@6) -> throws exception
    *     because this could not have been an unrolled transition system term
    *     since those are only over current, next and inputs.
+   *    get_time(4) -> throws exception
+   *     because a term without variables is at no particular time.
    */
   size_t get_curr_time(const smt::Term & t) const;
 

@@ -73,12 +73,11 @@ int pono::SMVEncoder::parse_flat(std::istream & s)
 // modular SMV preprocess
 std::stringstream pono::SMVEncoder::preprocess()
 {
-  module_node * main_n;
-  if (module_list.find("main") != module_list.end()) {
-    main_n = module_list.find("main")->second;
-  } else {
+  auto main_pos = module_list.find("main");
+  if (main_pos == module_list.end()) {
     throw PonoException("no main module found");
   }
+  module_node * main_n = main_pos->second;
   std::stringstream str;
   str << "MODULE main" << std::endl;
   main_n->process_main(module_list, str);
