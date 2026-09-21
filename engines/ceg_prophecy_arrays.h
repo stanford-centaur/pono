@@ -22,6 +22,7 @@
 
 #include "core/unroller.h"
 #include "engines/cegar.h"
+#include "engines/prover.h"
 #include "modifiers/array_abstractor.h"
 #include "modifiers/prophecy_modifier.h"
 #include "options/options.h"
@@ -53,7 +54,7 @@ class CegProphecyArrays : public CEGAR<Prover_T>
   size_t witness_length() const override
   {
     // regardless of super class want this to be the witness length
-    return reached_k_ + 1;
+    return timestep(reached_k_ + 1);
   }
 
  protected:

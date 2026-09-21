@@ -238,7 +238,7 @@ void TermExtractor::PostChild(const smt::Term & ast)
 
   walked_nodes_.emplace(ast, node_info_t());
 
-  unsigned width;
+  uint64_t width;
   auto sort_kind = ast->get_sort()->get_sort_kind();
   if (sort_kind == smt::SortKind::BOOL)
     width = 1;  // also make it bv?
@@ -315,7 +315,7 @@ void TermScore::PreChild(const smt::Term & ast)
 void TermScore::PostChild(const smt::Term & ast)
 {
   // for all its child, add parent pointer to the map
-  unsigned width = 1;
+  uint64_t width = 1;
   if (ast->get_sort()->get_sort_kind() == smt::SortKind::BOOL)
     width = 1;
   else if (ast->get_sort()->get_sort_kind() == smt::SortKind::BV)
@@ -388,7 +388,7 @@ void ConstantExtractor::PostChild(const smt::Term & ast)
 
   if (!ast->is_value()) return;
 
-  unsigned width;
+  uint64_t width;
   auto sort_kind = ast->get_sort()->get_sort_kind();
   if (sort_kind == smt::SortKind::BOOL)
     width = 1;  // also make it bv?
@@ -436,7 +436,7 @@ void SliceExtractor::PostChild(const smt::Term & ast)
     // get its varset
     smt::UnorderedTermSet varset;
     smt::get_free_symbolic_consts(ast, varset);
-    unsigned l = op.idx0, r = op.idx1;
+    uint64_t l = op.idx0, r = op.idx1;
 
     bool has_related_vars = false;
     for (const auto & sv : varset) {
@@ -589,8 +589,8 @@ unsigned TermLearner::concat_to_extract(/*INOUT*/ PerVarsetInfo & varset_info)
           && t->begin() != t->end()
           && (get_op(t).prim_op == smt::PrimOp::Concat)) {
         ARG2()
-        unsigned sep = a2->get_sort()->get_width();
-        unsigned msb = a1->get_sort()->get_width() + sep;
+        uint64_t sep = a2->get_sort()->get_width();
+        uint64_t msb = a1->get_sort()->get_width() + sep;
         // assert(sep>=1);
         extract_positions.push_back(std::make_pair(sep - 1, 0));
         extract_positions.push_back(std::make_pair(msb - 1, sep));
@@ -602,7 +602,7 @@ unsigned TermLearner::concat_to_extract(/*INOUT*/ PerVarsetInfo & varset_info)
         auto new_term = solver_->make_term(
             smt::Op(smt::PrimOp::Extract, pos.first, pos.second), t);
         parent_extractor_.RegisterNewParentRelation(t, new_term);
-        nterm += varset_info.TermLearnerInsertTerm(new_term) ? 1 : 0;
+        nterm += varset_info.TermLearnerInsertTerm(new_term) ? 1u : 0u;
       }  // for each position
     }  // for each term
   }  // for each width
@@ -778,7 +778,7 @@ unsigned TermLearner::replace_hierachically(const smt::Term & orig,
       "  [ReplaceInHierarchy] {} --> {} ",
       orig->to_string(),
       repl->to_string());
-  unsigned orig_score = score_(orig), repl_score = score_(repl);
+  uint64_t orig_score = score_(orig), repl_score = score_(repl);
   RD1(3, "  [ReplaceInHierarchy] score {} --> {} ", orig_score, repl_score);
   if (repl_score
       >= orig_score * syntactic_score_factor + syntactic_score_delta) {
@@ -833,8 +833,8 @@ unsigned TermLearner::replace_hierachically_w_parent(
         if (c == orig) child_pos.push_back(idx);
         ++idx;
       }  // find child pos
-      for (auto idx : child_pos) {
-        old_children[idx] = repl;
+      for (auto pos : child_pos) {
+        old_children[pos] = repl;
         auto new_parent = (solver_->make_term(p->get_op(), old_children));
 
         bool is_new_term = varset_info.TermLearnerInsertTerm(new_parent);
@@ -855,7 +855,7 @@ unsigned TermLearner::replace_hierachically_w_parent(
       }
     }  // replace_child_in_parent
     // avoid replace 1-0
-    nterm += new_terms.size();
+    nterm += static_cast<unsigned>(new_terms.size());
     if (nterm > 0xff) continue;
     if (p->get_sort()->get_sort_kind() == smt::SortKind::BOOL
         || (p->get_sort()->get_sort_kind() == smt::SortKind::BV

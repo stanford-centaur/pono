@@ -33,7 +33,7 @@ class ArrayAbstractor : public Abstractor
     smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
 
    protected:
-    smt::WalkerStepResult visit_term(smt::Term & term);
+    smt::WalkerStepResult visit_term(smt::Term & term) override;
     ArrayAbstractor & aa_;
   };
 
@@ -45,7 +45,7 @@ class ArrayAbstractor : public Abstractor
     smt::Term visit(smt::Term & t) { return IdentityWalker::visit(t); }
 
    protected:
-    smt::WalkerStepResult visit_term(smt::Term & term);
+    smt::WalkerStepResult visit_term(smt::Term & term) override;
     ArrayAbstractor & aa_;
   };
 

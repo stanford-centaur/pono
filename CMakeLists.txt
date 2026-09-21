@@ -33,6 +33,13 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_definitions(-DPONO_SRC_DIR=${PROJECT_SOURCE_DIR})
 
+# Whether pono-bin is actually linked with -static. PONO_STATIC_EXEC asks for
+# that, but static libraries cannot be built on Macs, so the request only
+# draws a warning there. The fmt provisioning below and the link flag on
+# pono-bin both read this instead of repeating the platform test.
+# See: https://developer.apple.com/library/archive/qa/qa1118/_index.html
+set(PONO_LINK_STATIC OFF)
+
 if(PONO_STATIC_EXEC STREQUAL "YES")
   if(WITH_COREIR)
     message(
@@ -48,6 +55,11 @@ if(PONO_STATIC_EXEC STREQUAL "YES")
       "PONO_LIB_TYPE=${PONO_LIB_TYPE} to STATIC."
     )
     set(PONO_LIB_TYPE STATIC)
+  endif()
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    message(WARNING "Static executables are not supported on macOS")
+  else()
+    set(PONO_LINK_STATIC ON)
   endif()
 endif()
 
@@ -111,32 +123,8 @@ set(Z3_ROOT "" CACHE PATH "Z3 install prefix")
 find_package(GMPXX REQUIRED)
 find_package(Btor2Tools REQUIRED)
 
-# fmt is an implementation detail of utils/logger.h, so there is no configure
-# flag pointing at it: use a system copy when one is new enough, otherwise
-# fetch one so that building pono needs no extra setup step.
-find_package(fmt 9 QUIET)
-if(NOT fmt_FOUND)
-  # The installed utils/logger.h includes <fmt/format.h>, so a prefix built
-  # against a fetched fmt has to carry that fmt along to be usable. fmt
-  # defaults this off for a subproject build.
-  set(FMT_INSTALL ON)
-  include(FetchContent)
-  FetchContent_Declare(
-    fmt
-    GIT_REPOSITORY https://github.com/fmtlib/fmt
-    GIT_TAG 1be298e1bd68957e4cd352e1f676f00e07dcfb57 # 12.2.0
-  )
-  FetchContent_MakeAvailable(fmt)
-  # A fetched fmt is built in-tree, so its headers are not treated as system
-  # headers the way an imported target's are, and its deprecations would be
-  # reported against every file including utils/logger.h. Set the property on
-  # the real target since properties cannot be set through an alias.
-  get_target_property(fmt_include_dirs fmt-header-only INTERFACE_INCLUDE_DIRECTORIES)
-  set_target_properties(
-    fmt-header-only
-    PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${fmt_include_dirs}"
-  )
-endif()
+# Defines fmt::fmt-header-only, from a system fmt or a fetched one.
+include("${PROJECT_SOURCE_DIR}/cmake/PonoFmt.cmake")
 
 if(WITH_PROFILING)
   find_package(Gperftools REQUIRED)
@@ -189,7 +177,6 @@ add_flex_bison_dependency(SMVScanner SMVParser)
 set(
   INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}"
-  "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
   # generated headers go in build directory
   "${CMAKE_CURRENT_BINARY_DIR}"
 )
@@ -287,6 +274,15 @@ add_dependencies(pono-lib pono-version-header)
 
 target_include_directories(pono-lib PUBLIC ${INCLUDE_DIRS})
 
+# Vendored, so its warnings are not ours to act on. SYSTEM keeps the compiler
+# quiet about it while leaving our own headers fully diagnosed. Consumers pick
+# this up through pono-lib.
+target_include_directories(
+  pono-lib
+  SYSTEM
+  PUBLIC "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+)
+
 target_link_libraries(pono-lib PRIVATE pono-warnings)
 
 # Should we build python bindings
@@ -348,23 +344,14 @@ set_target_properties(pono-bin PROPERTIES OUTPUT_NAME pono)
 
 target_include_directories(
   pono-bin
-  PUBLIC
-    "${PROJECT_SOURCE_DIR}/utils"
-    "${PROJECT_SOURCE_DIR}/core"
-    "${PROJECT_SOURCE_DIR}/contrib/optionparser-1.7/src"
+  PUBLIC "${PROJECT_SOURCE_DIR}/utils" "${PROJECT_SOURCE_DIR}/core"
 )
 
 target_link_libraries(pono-bin PUBLIC pono-lib)
 target_link_libraries(pono-bin PRIVATE pono-warnings)
 
-if("${PONO_STATIC_EXEC}" STREQUAL "YES")
-  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    # Static libraries cannot be built on Macs.
-    # See: https://developer.apple.com/library/archive/qa/qa1118/_index.html
-    message(WARNING "Static executables are not supported on macOS")
-  else()
-    target_link_libraries(pono-bin PUBLIC -static)
-  endif()
+if(PONO_LINK_STATIC)
+  target_link_libraries(pono-bin PUBLIC -static)
 endif()
 
 enable_testing()

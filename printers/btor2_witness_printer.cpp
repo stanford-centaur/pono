@@ -117,7 +117,7 @@ bool appears_in_ts_coi(const smt::Term & term, const TransitionSystem & ts)
 void print_btor_val_at_time(
     std::size_t btor_id,
     smt::Term term,
-    unsigned int time,
+    size_t time,
     const TransitionSystem & ts,
     const smt::UnorderedTermMap & valmap,
     const std::unordered_map<std::string, std::string> & symbol_map,
@@ -144,7 +144,7 @@ void print_btor_val_at_time(
     smt::TermVec store_children(3);
     std::unordered_set<std::uint64_t> written_ids;
     while (tmp->get_op() == smt::Store) {
-      int num = 0;
+      size_t num = 0;
       for (auto c : tmp) {
         store_children[num] = c;
         num++;
@@ -196,7 +196,7 @@ void print_btor_val_at_time(
 void print_btor_vals_at_time(
     const smt::TermVec & vec,
     const smt::UnorderedTermMap & valmap,
-    unsigned int time,
+    size_t time,
     const TransitionSystem & ts,
     const std::unordered_map<std::string, std::string> & symbol_map,
     std::ostream & output_stream,
@@ -216,7 +216,7 @@ void print_btor_vals_at_time(
 void print_btor_vals_at_time(
     const std::map<uint64_t, smt::Term> m,
     const smt::UnorderedTermMap & valmap,
-    unsigned int time,
+    size_t time,
     const TransitionSystem & ts,
     const std::unordered_map<std::string, std::string> & symbol_map,
     std::ostream & output_stream)

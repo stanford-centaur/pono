@@ -10,13 +10,18 @@ from libcpp.vector cimport vector
 from pono_imp cimport TransitionSystem as c_TransitionSystem
 from pono_imp cimport RelationalTransitionSystem as c_RelationalTransitionSystem
 from pono_imp cimport FunctionalTransitionSystem as c_FunctionalTransitionSystem
-from pono_imp cimport Property as c_Property
+from pono_imp cimport AbstractProperty as c_AbstractProperty
+from pono_imp cimport SafetyProperty as c_SafetyProperty
+from pono_imp cimport LivenessProperty as c_LivenessProperty
 from pono_imp cimport Unroller as c_Unroller
 from pono_imp cimport ProverResult as c_ProverResult
 from pono_imp cimport UNKNOWN as c_UNKNOWN
 from pono_imp cimport FALSE as c_FALSE
 from pono_imp cimport TRUE as c_TRUE
-from pono_imp cimport Prover as c_Prover
+from pono_imp cimport BaseProver as c_BaseProver
+from pono_imp cimport SafetyProver as c_SafetyProver
+from pono_imp cimport LivenessProver as c_LivenessProver
+from pono_imp cimport KLiveness as c_KLiveness
 from pono_imp cimport Bmc as c_Bmc
 from pono_imp cimport KInduction as c_KInduction
 from pono_imp cimport BmcSimplePath as c_BmcSimplePath
@@ -406,11 +411,25 @@ cdef class FunctionalTransitionSystem(__AbstractTransitionSystem):
         return res
 
 
-cdef class Property:
-    cdef c_Property* cp
+cdef class __AbstractProperty:
+    # this pointer is allocated and deallocated by derived classes
+    cdef c_AbstractProperty* cap
     cdef SmtSolver _solver
+
+    @property
+    def solver(self):
+        return self._solver
+
+    @property
+    def name(self):
+        return dref(self.cap).name().decode()
+
+
+cdef class SafetyProperty(__AbstractProperty):
+    cdef c_SafetyProperty* cp
     def __cinit__(self, SmtSolver s, Term p):
-        self.cp = new c_Property(s.css, p.ct)
+        self.cp = new c_SafetyProperty(s.css, p.ct)
+        self.cap = self.cp
         self._solver = s
 
     def __dealloc__(self):
@@ -422,9 +441,33 @@ cdef class Property:
         p.ct = dref(self.cp).prop()
         return p
 
+
+cdef class LivenessProperty(__AbstractProperty):
+    cdef c_LivenessProperty* clp
+    def __cinit__(self, SmtSolver s, conditions):
+        cdef c_TermVec c_conditions
+        for t in conditions:
+            c_conditions.push_back((<Term?> t).ct)
+        self.clp = new c_LivenessProperty(s.css, c_conditions)
+        self.cap = self.clp
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.clp
+
     @property
-    def solver(self):
-        return self._solver
+    def terms(self):
+        out = []
+        cdef vector[c_Term] conditions = dref(self.clp).terms()
+        for c in conditions:
+            t = Term(self._solver)
+            t.ct = c
+            out.append(t)
+        return out
+
+
+# The name this property went by before liveness properties existed.
+Property = SafetyProperty
 
 
 cdef class Unroller:
@@ -437,7 +480,7 @@ cdef class Unroller:
     def __dealloc__(self):
         del self.cu
 
-    def at_time(self, Term t, unsigned int k):
+    def at_time(self, Term t, size_t k):
         cdef Term term = Term(self._solver)
         term.ct = dref(self.cu).at_time(t.ct, k)
         return term
@@ -453,8 +496,8 @@ cdef class Unroller:
 
 cdef class __AbstractProver:
     # this pointer is allocated and deallocated by derived classes
-    cdef c_Prover* cp
-    cdef Property _property
+    cdef c_BaseProver* cp
+    cdef __AbstractProperty _property
     cdef __AbstractTransitionSystem _ts
     cdef SmtSolver _solver
 
@@ -495,11 +538,6 @@ cdef class __AbstractProver:
 
         return w
 
-    def invar(self):
-        cdef Term inv = Term(self._solver)
-        inv.ct = dref(self.cp).invar()
-        return inv
-
     def prove(self):
         '''
         Tries to prove property unboundedly, returns True, False or None (if unknown)
@@ -513,106 +551,140 @@ cdef class __AbstractProver:
         elif r == (<int> c_TRUE):
             return True
 
+    def witness_length(self):
+        return dref(self.cp).witness_length()
+
     @property
     def prop(self):
         return self._property
 
 
-cdef class Bmc(__AbstractProver):
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_Bmc(p.cp[0], ts.cts[0], s.css)
+cdef class __AbstractSafetyProver(__AbstractProver):
+    # the same object as cp, typed for the safety-only interface
+    cdef c_SafetyProver* csp
+
+    def invar(self):
+        cdef Term inv = Term(self._solver)
+        inv.ct = dref(self.csp).invar()
+        return inv
+
+
+cdef class Bmc(__AbstractSafetyProver):
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_Bmc(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
         self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
-        del self.cp
+        del self.csp
 
 
-cdef class KInduction(__AbstractProver):
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_KInduction(p.cp[0], ts.cts[0], s.css)
+cdef class KInduction(__AbstractSafetyProver):
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_KInduction(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
         self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
-        del self.cp
+        del self.csp
 
 
-cdef class BmcSimplePath(__AbstractProver):
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_BmcSimplePath(p.cp[0], ts.cts[0], s.css)
+cdef class BmcSimplePath(__AbstractSafetyProver):
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_BmcSimplePath(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
         self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
-        del self.cp
+        del self.csp
 
 
-cdef class IC3(__AbstractProver):
+cdef class IC3(__AbstractSafetyProver):
     '''
     Boolean IC3 variant
     '''
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_IC3(p.cp[0], ts.cts[0], s.css)
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_IC3(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
         self._solver = s
 
     def __dealloc__(self):
-        del self.cp
+        del self.csp
 
 
-cdef class IC3Bits(__AbstractProver):
+cdef class IC3Bits(__AbstractSafetyProver):
     '''
     IC3 variant that splits bit-vectors into individual booleans.
     '''
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_IC3Bits(p.cp[0], ts.cts[0], s.css)
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_IC3Bits(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
         self._solver = s
 
     def __dealloc__(self):
-        del self.cp
+        del self.csp
 
 
-cdef class IC3IA(__AbstractProver):
+cdef class IC3IA(__AbstractSafetyProver):
     '''
     IC3 via Implicit Predicate Abstraction
     '''
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_IC3IA(p.cp[0], ts.cts[0], s.css)
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_IC3IA(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
         self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
-        del self.cp
+        del self.csp
 
 
-cdef class IC3SA(__AbstractProver):
+cdef class IC3SA(__AbstractSafetyProver):
     '''
     Syntax-Guided Abstraction IC3
     See "Model Checking of Verilog RTL using IC3 with Syntax-Guided Abstraction"
          by Aman Goel and Karem Sakallah in Nasa Formal Methods 2019
     '''
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_IC3SA(p.cp[0], ts.cts[0], s.css)
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_IC3SA(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
         self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
-        del self.cp
+        del self.csp
 
 
-cdef class InterpolantMC(__AbstractProver):
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_InterpolantMC(p.cp[0], ts.cts[0], s.css)
+cdef class InterpolantMC(__AbstractSafetyProver):
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_InterpolantMC(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
         self._ts = ts
         self._solver = s
 
     def __dealloc__(self):
-        del self.cp
+        del self.csp
 
 
-cdef class ModelBasedIC3(__AbstractProver):
-    def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-        self.cp = new c_ModelBasedIC3(p.cp[0], ts.cts[0], s.css)
+cdef class ModelBasedIC3(__AbstractSafetyProver):
+    def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+        self.csp = new c_ModelBasedIC3(p.cp[0], ts.cts[0], s.css)
+        self.cp = self.csp
+        self._ts = ts
+        self._solver = s
+
+    def __dealloc__(self):
+        del self.csp
+
+
+cdef class KLiveness(__AbstractProver):
+    def __cinit__(self, LivenessProperty p, __AbstractTransitionSystem ts,
+                  SmtSolver s):
+        self.cp = new c_KLiveness(p.clp[0], ts.cts[0], s.css)
+        self._property = p
         self._ts = ts
         self._solver = s
 
@@ -621,14 +693,15 @@ cdef class ModelBasedIC3(__AbstractProver):
 
 
 IF WITH_MSAT_IC3IA == "ON":
-    cdef class MsatIC3IA(__AbstractProver):
-        def __cinit__(self, Property p, __AbstractTransitionSystem ts, SmtSolver s):
-            self.cp = new c_MsatIC3IA(p.cp[0], ts.cts[0], s.css)
+    cdef class MsatIC3IA(__AbstractSafetyProver):
+        def __cinit__(self, SafetyProperty p, __AbstractTransitionSystem ts, SmtSolver s):
+            self.csp = new c_MsatIC3IA(p.cp[0], ts.cts[0], s.css)
+            self.cp = self.csp
             self._ts = ts
             self._solver = s
 
         def __dealloc__(self):
-            del self.cp
+            del self.csp
 
 
 cdef class BTOR2Encoder:

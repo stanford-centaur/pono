@@ -200,8 +200,8 @@ TEST_P(UtilsUnitTests, RemoveItes)
     }
   }
 
-  for (const auto & a : assertions) {
-    s->assert_formula(a);
+  for (const auto & assertion : assertions) {
+    s->assert_formula(assertion);
   }
 
   // check that these terms are equivalent under this path

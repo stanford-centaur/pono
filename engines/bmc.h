@@ -43,9 +43,9 @@ class Bmc : public SafetyProver
 
  private:
   // BMC bound to start with (default: 0)
-  unsigned int bound_start_;
+  int bound_start_;
   // Value by which to increase BMC bound (default: 1)
-  unsigned int bound_step_;
+  int bound_step_;
   // Used in binary search for cex: number of times we called 'solver->push()'
   unsigned int bin_search_frames_;
   // Get an upper bound on the cex, which is located in interval '[lb,ub]'

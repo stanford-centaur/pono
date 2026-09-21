@@ -60,7 +60,7 @@ namespace pono {
 // Helper functions
 // ----------------------------------------------------------------
 
-unsigned SygusPdr::GetScore(const Term & t)
+uint64_t SygusPdr::GetScore(const Term & t)
 {
   const auto & score_map = term_score_walker_.GetScoreMap();
   auto pos = score_map.find(t);
@@ -265,7 +265,7 @@ void SygusPdr::initialize()
   // cache two lambda functions for sygus enum
   to_next_func_ = [this](const Term & v) -> Term { return this->ts_.next(v); };
 
-  score_func_ = [this](const Term & v) -> unsigned {
+  score_func_ = [this](const Term & v) -> uint64_t {
     return this->GetScore(v);
   };
 
@@ -681,18 +681,18 @@ syntax_analysis::PerCexInfo & SygusPdr::setup_cex_info(
     if (reset_due_to_more_refinement)
       per_cex_info.prev_per_width_term_num[width].term_num = 0;
     // when to update this ? after predicates are generated
-    unsigned nc = per_cex_info.prev_per_width_term_num[width].const_num;
-    unsigned nt = per_cex_info.prev_per_width_term_num[width].term_num;
+    size_t nc = per_cex_info.prev_per_width_term_num[width].const_num;
+    size_t nt = per_cex_info.prev_per_width_term_num[width].term_num;
 
     auto nt_end = width_term_const_pair.second.terms.size();
     auto nc_end = width_term_const_pair.second.constants.size();
     // cache the terms and constants value under the cex
-    for (unsigned tidx = nt; tidx < nt_end; ++tidx) {
+    for (size_t tidx = nt; tidx < nt_end; ++tidx) {
       const auto & t = width_term_const_pair.second.terms.at(tidx);
       per_cex_info.terms_val_under_cex.emplace(
           t, syntax_analysis::eval_val(solver_->get_value(t)->to_string()));
     }
-    for (unsigned cidx = nc; cidx < nc_end; ++cidx) {
+    for (size_t cidx = nc; cidx < nc_end; ++cidx) {
       const auto & c = width_term_const_pair.second.constants.at(cidx);
       per_cex_info.terms_val_under_cex.emplace(c, c->to_string());
     }
@@ -964,7 +964,7 @@ RefineResult SygusPdr::refine()
 //  May Block
 
 bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block,
-                                        unsigned fidx)
+                                        size_t fidx)
 {
   assert(!solver_context_);
   ProofGoalQueue proof_goals;

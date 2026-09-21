@@ -27,6 +27,17 @@
 
 namespace pono {
 
+/** Converts a bound the engines carry signed, so that -1 can stand for "no
+ *  bound reached yet", into the timestep the unroller takes.
+ *  @throws PonoException if k is negative, which is not a timestep.
+ */
+size_t timestep(int k);
+
+/** Narrows a bound to the signed form check_until() takes.
+ *  @throws PonoException if it does not fit.
+ */
+int prover_bound(size_t k);
+
 class BaseProver
 {
  public:

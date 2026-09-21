@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <unordered_set>
 
 #include "core/rts.h"
@@ -77,7 +78,8 @@ class ValueAbstractor : public smt::IdentityWalker
       SortKind sk = sort->get_sort_kind();
       if (term->is_value() && (sk == REAL || sk == INT || sk == BV)) {
         // don't even consider bitwidths that are too small
-        if (sk == BV && sort->get_width() < ceil(log2(cutoff_))) {
+        if (sk == BV
+            && static_cast<double>(sort->get_width()) < ceil(log2(cutoff_))) {
           save_in_cache(term, term);
           return Walker_Continue;
         }
@@ -92,7 +94,12 @@ class ValueAbstractor : public smt::IdentityWalker
         Op lt = (sk == BV) ? BVUlt : Lt;
         Op gt = (sk == BV) ? BVUgt : Gt;
 
-        Term cutoff_term = fresh_solver_->make_term(cutoff_, sort);
+        if (cutoff_ > INT64_MAX) {
+          throw PonoException("Value abstraction cutoff is too large: "
+                              + std::to_string(cutoff_));
+        }
+        Term cutoff_term =
+            fresh_solver_->make_term(static_cast<int64_t>(cutoff_), sort);
         Term neg_cutoff_term =
             fresh_solver_->make_term(minus, zero, cutoff_term);
 

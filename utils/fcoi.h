@@ -30,7 +30,7 @@ class FunctionalConeOfInfluence
    *  The cone-of-influence will keep all the variables from terms in
    *    to_keep and any variables that influence those variables.
    */
-  FunctionalConeOfInfluence(const TransitionSystem & ts, int verbosity = 1);
+  FunctionalConeOfInfluence(const TransitionSystem & ts, size_t verbosity = 1);
 
   // TODO if this is used incrementally, consider caching
   //      some info. could be optional
@@ -78,7 +78,7 @@ class FunctionalConeOfInfluence
   void compute_coi_next_state_funcs();
 
   const TransitionSystem & ts_;
-  int verbosity_;
+  size_t verbosity_;
 
   Log local_logger_;  ///< local instance of a logger to respect this verbosity
 

@@ -46,6 +46,11 @@ class TransitionSystem
 
   friend void swap(TransitionSystem & ts1, TransitionSystem & ts2);
 
+  /** Copy constructor, which operator= below also uses to make its
+   *  by-value parameter.
+   */
+  TransitionSystem(const TransitionSystem & other_ts) = default;
+
   /** Copy assignment using
    *  copy-and-swap idiom
    */

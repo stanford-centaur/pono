@@ -206,7 +206,7 @@ VCDWitnessPrinter::VCDWitnessPrinter(
         smt::Term tmp = array_assign_pos->second;
         smt::TermVec store_children(3);
         while (tmp->get_op() == smt::Store) {
-          int num = 0;
+          size_t num = 0;
           for (auto c : tmp) {
             store_children[num] = c;
             num++;
@@ -304,9 +304,9 @@ void VCDWitnessPrinter::check_insert_scope(std::string full_name,
   VCDScope * root = &root_scope_;
   for (size_t idx = 0; idx < scopes.size() - 1; ++idx) {
     const auto & next_scope = scopes.at(idx);
-    auto pos = root->subscopes.find(next_scope);
-    if (pos != root->subscopes.end()) {  // we find it
-      root = &(pos->second);
+    auto scope_pos = root->subscopes.find(next_scope);
+    if (scope_pos != root->subscopes.end()) {  // we find it
+      root = &(scope_pos->second);
     } else {  // we need to insert this scope
       root->subscopes.emplace(next_scope, VCDScope());
       root = &(root->subscopes.at(next_scope));
@@ -460,7 +460,7 @@ void VCDWitnessPrinter::dump_all(
     smt::Term memvalue = pos->second;
     smt::TermVec store_children(3);
     while (memvalue->get_op() == smt::Store) {
-      int num = 0;
+      size_t num = 0;
       for (auto c : memvalue) {
         store_children[num] = c;
         num++;
@@ -544,7 +544,7 @@ void VCDWitnessPrinter::dump_diff(
     smt::Term memvalue = pos->second;
     smt::TermVec store_children(3);
     while (memvalue->get_op() == smt::Store) {  // peel the (store (store ...))
-      int num = 0;
+      size_t num = 0;
       for (auto c : memvalue) {
         store_children[num] = c;
         num++;

@@ -88,14 +88,12 @@ struct IC3Formula
     std::sort(children.begin(), children.end());
   }
 
-  IC3Formula(const IC3Formula & other)
-      : term(other.term),
-        children(other.children),
-        disjunction(other.disjunction)
-  {
-  }
-
   virtual ~IC3Formula() = default;
+
+  // Declaring the destructor deprecates the implicit copy operations, and
+  // the memberwise ones are what this wants.
+  IC3Formula(const IC3Formula & other) = default;
+  IC3Formula & operator=(const IC3Formula & other) = default;
 
   /** Returns true iff this IC3Formula has not been initialized */
   bool is_null() const { return (term == nullptr); }
@@ -148,7 +146,7 @@ class ProofGoalQueue
 
   void clear();
   void new_proof_goal(const IC3Formula & c,
-                      unsigned int t,
+                      size_t t,
                       const ProofGoal * n = NULL);
   ProofGoal * top();
   void pop();

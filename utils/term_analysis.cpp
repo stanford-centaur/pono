@@ -83,7 +83,7 @@ void get_combinations_helper(const vector<TermVec> & options,
         throw PonoException("Each element of options must be non-empty");
       }
 
-      for (int k = options[i].size() - 1; k >= 0; --k) {
+      for (size_t k = options[i].size(); k-- > 0;) {
         // each element of out should be the same length
         // exactly i because that's how far into the options we've gotten
         assert(out[j].size() == i);

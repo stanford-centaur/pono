@@ -82,7 +82,7 @@ void ProofGoalQueue::clear()
 }
 
 void ProofGoalQueue::new_proof_goal(const IC3Formula & c,
-                                    unsigned int t,
+                                    size_t t,
                                     const ProofGoal * n)
 {
   ProofGoal * pg = new ProofGoal(c, t, n);
@@ -338,7 +338,8 @@ IC3Formula IC3Base::inductive_generalization(size_t i, const IC3Formula & c)
       continue;
     }
 
-    gen.children.erase(gen.children.begin() + j);
+    gen.children.erase(gen.children.begin()
+                       + static_cast<TermVec::difference_type>(j));
 
     // TODO: decide if it's too expensive to create fresh
     //       IC3Formula each time -- which sorts the elements
@@ -578,11 +579,11 @@ bool IC3Base::rel_ind_check(size_t i,
     // might need to be re-added if it
     // ends up intersecting with initial
     assert(assumps_.size() == c.children.size());
-    for (size_t i = 0; i < assumps_.size(); ++i) {
-      if (core.find(assumps_.at(i)) == core.end()) {
-        rem.push_back(c.children.at(i));
+    for (size_t j = 0; j < assumps_.size(); ++j) {
+      if (core.find(assumps_.at(j)) == core.end()) {
+        rem.push_back(c.children.at(j));
       } else {
-        gen.push_back(c.children.at(i));
+        gen.push_back(c.children.at(j));
       }
     }
 

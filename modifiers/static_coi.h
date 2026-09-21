@@ -31,16 +31,16 @@ class StaticConeOfInfluence
    */
   StaticConeOfInfluence(TransitionSystem & ts,
                         const smt::TermVec & to_keep,
-                        int verbosity = 0);
+                        size_t verbosity = 0);
 
  protected:
   TransitionSystem & ts_;
-  int verbosity_;
+  size_t verbosity_;
 
   FunctionalConeOfInfluence coi_;  ///< class for computing symbols in
                                    ///< cone-of-influence of terms
 
-  unsigned int orig_num_statevars_;
-  unsigned int orig_num_inputvars_;
+  size_t orig_num_statevars_;
+  size_t orig_num_inputvars_;
 };
 }  // namespace pono

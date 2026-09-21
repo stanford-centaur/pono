@@ -147,7 +147,7 @@ TEST_P(Btor2FileUnitTests, Encode)
   for (const auto & p : input.be.propvec()) {
     get_free_symbolic_consts(p, free_vars);
   }
-  int num_input =
+  const auto num_input =
       count_if(free_vars.begin(), free_vars.end(), [&input](const Term & v) {
         return input.fts.is_input_var(v);
       });
@@ -445,7 +445,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::ValuesIn(available_solver_enums()),
                      // from test_encoder_inputs.h
                      testing::ValuesIn(btor2_inputs)),
-    [](const auto & info) {
+    // info is the TestParamInfo the macro declares around this lambda.
+    [&](const auto &) {
       return to_string(get<0>(info.param)) + "_" + get<1>(info.param);
     });
 

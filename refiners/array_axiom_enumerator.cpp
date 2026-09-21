@@ -232,11 +232,12 @@ bool ArrayAxiomEnumerator::enumerate_axioms(const Term & abs_trace_formula,
     // from the property violation (at bound_)
     // this will result in less auxiliary variables to make the axiom
     // consecutive
-    int k = bound_;
-    while (include_nonconsecutive && !found_lemmas && k >= 0) {
+    size_t k = bound_;
+    while (include_nonconsecutive && !found_lemmas) {
       found_lemmas |= check_nonconsecutive_axioms(ARRAYEQ_READ, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(STORE_READ, only_curr, k);
       found_lemmas |= check_nonconsecutive_axioms(CONSTARR, only_curr, k);
+      if (k == 0) break;
       k--;
     }
 

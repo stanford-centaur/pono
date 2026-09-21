@@ -184,8 +184,8 @@ void PredConstructor::terms_to_predicates()
     const auto & terms = terms_consts.terms;
     const auto & constants = terms_consts.constants;
 
-    unsigned nc = per_cex_info_.prev_per_width_term_num[width].const_num;
-    unsigned nt = per_cex_info_.prev_per_width_term_num[width].term_num;
+    size_t nc = per_cex_info_.prev_per_width_term_num[width].const_num;
+    size_t nt = per_cex_info_.prev_per_width_term_num[width].term_num;
     auto nt_size = terms.size();
     auto nc_size = constants.size();
 
@@ -195,7 +195,7 @@ void PredConstructor::terms_to_predicates()
                 // value
       const auto & c = constants.at(cidx);
       const auto & cval = value_map.at(c);
-      for (unsigned tidx =
+      for (size_t tidx =
                (cidx < nc
                     ? nt   // if c is an old one, we will start from new terms
                     : 0);  // else we can also use old terms
@@ -209,8 +209,8 @@ void PredConstructor::terms_to_predicates()
 
         // use_lt
         if (use_lt && width > 1 && !(cval == tval)) {
-          auto pred_curr = (cval < tval) ? smart_LT(c, t) : smart_LT(t, c);
-          ADD_PRED(pred_curr)
+          auto pred_lt = (cval < tval) ? smart_LT(c, t) : smart_LT(t, c);
+          ADD_PRED(pred_lt)
         }
 
         if (use_lte && width > 1) {
@@ -240,9 +240,8 @@ void PredConstructor::terms_to_predicates()
 
         // use_lt
         if (use_lt && width > 1 && !(tval1 == tval2)) {
-          auto pred_curr =
-              (tval1 < tval2) ? smart_LT(t1, t2) : smart_LT(t2, t1);
-          ADD_PRED(pred_curr)
+          auto pred_lt = (tval1 < tval2) ? smart_LT(t1, t2) : smart_LT(t2, t1);
+          ADD_PRED(pred_lt)
         }
 
         if (use_lte && width > 1) {

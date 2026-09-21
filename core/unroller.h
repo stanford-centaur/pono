@@ -47,7 +47,7 @@ class Unroller
    *  @param k the time to unroll the term at
    *  @return the unrolled term
    */
-  virtual smt::Term at_time(const smt::Term & t, unsigned int k);
+  virtual smt::Term at_time(const smt::Term & t, size_t k);
 
   smt::Term untime(const smt::Term & t) const;
 
@@ -74,8 +74,8 @@ class Unroller
   size_t get_curr_time(const smt::Term & t) const;
 
  protected:
-  smt::Term var_at_time(const smt::Term & v, unsigned int k);
-  virtual smt::UnorderedTermMap & var_cache_at_time(unsigned int k);
+  smt::Term var_at_time(const smt::Term & v, size_t k);
+  virtual smt::UnorderedTermMap & var_cache_at_time(size_t k);
 
   const TransitionSystem & ts_;
   const smt::SmtSolver solver_;

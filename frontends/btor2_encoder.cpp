@@ -34,9 +34,9 @@ using namespace std;
 namespace pono {
 
 // Maps for use in conversion
-const unordered_map<Btor2Tag, int> basemap({ { BTOR2_TAG_const, 2 },
-                                             { BTOR2_TAG_constd, 10 },
-                                             { BTOR2_TAG_consth, 16 } });
+const unordered_map<Btor2Tag, uint64_t> basemap({ { BTOR2_TAG_const, 2 },
+                                                  { BTOR2_TAG_constd, 10 },
+                                                  { BTOR2_TAG_consth, 16 } });
 
 const unordered_map<Btor2Tag, smt::PrimOp> bvopmap({
     { BTOR2_TAG_add, BVAdd },
@@ -127,6 +127,19 @@ const unordered_map<Btor2Tag, smt::PrimOp> boolopmap({
     //{ BTOR2_TAG_neq, Distinct }
 });
 
+/* A bit index or extension amount is never negative, but btor2parser reports
+   every line argument as a signed id, so check rather than assume: a negative
+   one is malformed input, and widening it silently would turn it into a
+   nonsensically large index. */
+static uint64_t bit_index(int64_t arg)
+{
+  if (arg < 0) {
+    throw PonoException("Negative bit index in Btor2 input: "
+                        + std::to_string(arg));
+  }
+  return static_cast<uint64_t>(arg);
+}
+
 Term BTOR2Encoder::bool_to_bv(const Term & t) const
 {
   if (t->get_sort()->get_sort_kind() == BOOL) {
@@ -212,7 +225,7 @@ void BTOR2Encoder::preprocess(const std::string & filename)
 
   Btor2LineIterator bt2_it = btor2parser_iter_init(reader);
 
-  std::unordered_set<uint64_t> unamed_state_ids;
+  std::unordered_set<int64_t> unamed_state_ids;
   while (Btor2Line * bt2_line = btor2parser_iter_next(&bt2_it)) {
     if (bt2_line->tag == BTOR2_TAG_state) {
       if (!bt2_line->symbol) {  // if we see state has no name, record it
@@ -519,20 +532,26 @@ void BTOR2Encoder::parse(const std::string filename)
       }
     } else if (bt2_line->tag == BTOR2_TAG_slice) {
       terms_[bt2_line->id] =
-          solver_->make_term(Op(Extract, bt2_line->args[1], bt2_line->args[2]),
+          solver_->make_term(Op(Extract,
+                                bit_index(bt2_line->args[1]),
+                                bit_index(bt2_line->args[2])),
                              bool_to_bv(termargs[0]));
     } else if (bt2_line->tag == BTOR2_TAG_sext) {
-      terms_[bt2_line->id] = solver_->make_term(
-          Op(Sign_Extend, bt2_line->args[1]), bool_to_bv(termargs[0]));
+      terms_[bt2_line->id] =
+          solver_->make_term(Op(Sign_Extend, bit_index(bt2_line->args[1])),
+                             bool_to_bv(termargs[0]));
     } else if (bt2_line->tag == BTOR2_TAG_uext) {
-      terms_[bt2_line->id] = solver_->make_term(
-          Op(Zero_Extend, bt2_line->args[1]), bool_to_bv(termargs[0]));
+      terms_[bt2_line->id] =
+          solver_->make_term(Op(Zero_Extend, bit_index(bt2_line->args[1])),
+                             bool_to_bv(termargs[0]));
     } else if (bt2_line->tag == BTOR2_TAG_rol) {
-      terms_[bt2_line->id] = solver_->make_term(
-          Op(Rotate_Left, bt2_line->args[1]), bool_to_bv(termargs[0]));
+      terms_[bt2_line->id] =
+          solver_->make_term(Op(Rotate_Left, bit_index(bt2_line->args[1])),
+                             bool_to_bv(termargs[0]));
     } else if (bt2_line->tag == BTOR2_TAG_ror) {
-      terms_[bt2_line->id] = solver_->make_term(
-          Op(Rotate_Right, bt2_line->args[1]), bool_to_bv(termargs[0]));
+      terms_[bt2_line->id] =
+          solver_->make_term(Op(Rotate_Right, bit_index(bt2_line->args[1])),
+                             bool_to_bv(termargs[0]));
     } else if (bt2_line->tag == BTOR2_TAG_inc) {
       Term t = bool_to_bv(termargs[0]);
       terms_[bt2_line->id] =
@@ -582,11 +601,11 @@ void BTOR2Encoder::parse(const std::string filename)
       terms_[bt2_line->id] = solver_->make_term(Distinct, t, zero);
     } else if (bt2_line->tag == BTOR2_TAG_redxor) {
       Term t = bool_to_bv(termargs[0]);
-      unsigned int width = t->get_sort()->get_width();
+      uint64_t width = t->get_sort()->get_width();
       Term res = solver_->make_term(Op(Extract, width - 1, width - 1), t);
-      for (int i = width - 2; i >= 0; i--) {
+      for (uint64_t i = width - 1; i > 0; i--) {
         res = solver_->make_term(
-            BVXor, res, solver_->make_term(Op(Extract, i, i), t));
+            BVXor, res, solver_->make_term(Op(Extract, i - 1, i - 1), t));
       }
       terms_[bt2_line->id] = res;
     } else if (bt2_line->tag == BTOR2_TAG_ite) {
@@ -600,7 +619,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Term t0 = bool_to_bv(termargs[0]);
       Term t1 = bool_to_bv(termargs[1]);
 
-      int orig_width = t0->get_sort()->get_width();
+      uint64_t orig_width = t0->get_sort()->get_width();
 
       t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
       t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
@@ -613,7 +632,7 @@ void BTOR2Encoder::parse(const std::string filename)
       // From https://www.doc.ic.ac.uk/~eedwards/compsys/arithmetic/index.html
       Term t0 = bool_to_bv(termargs[0]);
       Term t1 = bool_to_bv(termargs[1]);
-      int width = t0->get_sort()->get_width();
+      uint64_t width = t0->get_sort()->get_width();
       Term sum = solver_->make_term(BVAdd, t0, t1);
       // overflow occurs if
       // both operands are positive and the result is negative or
@@ -628,7 +647,7 @@ void BTOR2Encoder::parse(const std::string filename)
     } else if (bt2_line->tag == BTOR2_TAG_sdivo) {
       Term t0 = bool_to_bv(termargs[0]);
       Term t1 = bool_to_bv(termargs[1]);
-      int width = t0->get_sort()->get_width();
+      uint64_t width = t0->get_sort()->get_width();
       Sort sort = solver_->make_sort(BV, width);
       Term sum = solver_->make_term(BVAdd, t0, t1);
       // overflow occurs if
@@ -649,7 +668,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Term t0 = bool_to_bv(termargs[0]);
       Term t1 = bool_to_bv(termargs[1]);
 
-      int orig_width = t0->get_sort()->get_width();
+      uint64_t orig_width = t0->get_sort()->get_width();
 
       t0 = solver_->make_term(Op(Zero_Extend, orig_width), t0);
       t1 = solver_->make_term(Op(Zero_Extend, orig_width), t1);
@@ -666,7 +685,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Term t0 = bool_to_bv(termargs[0]);
       Term t1 = bool_to_bv(termargs[1]);
 
-      int orig_width = t0->get_sort()->get_width();
+      uint64_t orig_width = t0->get_sort()->get_width();
 
       t0 = solver_->make_term(Op(Zero_Extend, orig_width), t0);
       t1 = solver_->make_term(Op(Zero_Extend, orig_width), t1);
@@ -681,14 +700,16 @@ void BTOR2Encoder::parse(const std::string filename)
           solver_->make_term(
               BVAshr,
               lo,
-              solver_->make_term(orig_width - 1,
+              // Unlike the extract indices above, this width is the
+              // constant's value, which make_term takes signed.
+              solver_->make_term(static_cast<int64_t>(orig_width) - 1,
                                  solver_->make_sort(BV, orig_width))));
     } else if (bt2_line->tag == BTOR2_TAG_usubo) {
       // From
       // https://github.com/Boolector/boolector/blob/cd757d099433d95ffdb2a839504b220eff18ee51/src/btorexp.c#L1236
       Term t0 = bool_to_bv(termargs[0]);
       Term t1 = bool_to_bv(termargs[1]);
-      unsigned int width = t0->get_sort()->get_width();
+      uint64_t width = t0->get_sort()->get_width();
       Sort sort = solver_->make_sort(BV, width + 1);
       t0 = solver_->make_term(Op(Zero_Extend, 1), t0);
       t1 = solver_->make_term(Op(Zero_Extend, 1), t1);
@@ -707,7 +728,7 @@ void BTOR2Encoder::parse(const std::string filename)
       Term t0 = bool_to_bv(termargs[0]);
       Term t1 = bool_to_bv(termargs[1]);
 
-      int width = t0->get_sort()->get_width();
+      uint64_t width = t0->get_sort()->get_width();
 
       Term diff = solver_->make_term(BVSub, t0, t1);
       Term t0_top = solver_->make_term(Op(Extract, width - 1, width - 1), t0);
@@ -759,7 +780,7 @@ void BTOR2Encoder::parse(const std::string filename)
           throw PonoException("Unexpected sort");
         }
       } else {
-        for (int i = 0; i < termargs.size(); i++) {
+        for (size_t i = 0; i < termargs.size(); i++) {
           termargs[i] = bool_to_bv(termargs[i]);
         }
         terms_[bt2_line->id] =
