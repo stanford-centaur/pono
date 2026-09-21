@@ -510,13 +510,12 @@ smt::TermVec AssertionWalker::offsets_ending_now(
           }
           Term prefix_end = acc_unbounded ? acc_unbounded : vec_ends_now(acc);
           if (!prefix_end || inner->kind != AssertionExprKind::Simple
-              || !inner->as<SimpleAssertionExpr>().repetition || open_delay
-              || dmin == 0) {
+              || !inner->as<SimpleAssertionExpr>().repetition || open_delay) {
             throw PonoException(
                 "SystemVerilogEncoder: this shape places a match whose start "
                 "is an unbounded distance back after another element, which "
                 "is only modeled for a plain counted repetition at a "
-                "non-zero constant or bounded delay");
+                "constant or bounded delay");
           }
           auto & inner_simple = inner->as<SimpleAssertionExpr>();
           Term after;
@@ -525,11 +524,12 @@ smt::TermVec AssertionWalker::offsets_ending_now(
             // end plus the delay, so the register set is keyed on
             // the prefix's end brought back d - 1 cycles.
             Term window_start =
-                d == 1 ? prefix_end
+                d <= 1 ? prefix_end
                        : tableau_.make_history_chain(prefix_end, d - 1, prefix);
             Term m = goto_match_after(inner_simple.expr,
                                       *inner_simple.repetition,
                                       window_start,
+                                      /*overlap=*/d == 0,
                                       prefix);
             if (!m) return {};
             after = after ? solver_->make_term(Or, after, m) : m;
@@ -1044,6 +1044,7 @@ smt::Term AssertionWalker::goto_match_after(
     const slang::ast::Expression & expr,
     const slang::ast::SequenceRepetition & rep,
     const Term & window_start,
+    bool overlap,
     const string & prefix)
 {
   using namespace slang::ast;
@@ -1086,10 +1087,24 @@ smt::Term AssertionWalker::goto_match_after(
   // An occurrence raises the count, so every record moves one slot
   // further back and slot 0 restarts on the new count. Without one,
   // slot 0 simply accumulates.
-  fts_.assign_next(r[0],
-                   solver_->make_term(
-                       Or, window_start, solver_->make_term(And, not_a, r[0])));
-  for (uint32_t i = 1; i <= n; ++i) {
+  //
+  // When the window opens on `window_start`'s own cycle, a record
+  // made at an occurrence belongs to the count *before* it, so it
+  // joins the slot being shifted out rather than the fresh one.
+  Term slot0_in = solver_->make_term(Or, window_start, r[0]);
+  if (overlap) {
+    fts_.assign_next(r[0], solver_->make_term(And, not_a, slot0_in));
+    fts_.assign_next(r[1],
+                     solver_->make_term(Or,
+                                        solver_->make_term(And, a, slot0_in),
+                                        solver_->make_term(And, not_a, r[1])));
+  } else {
+    fts_.assign_next(
+        r[0],
+        solver_->make_term(
+            Or, window_start, solver_->make_term(And, not_a, r[0])));
+  }
+  for (uint32_t i = overlap ? 2 : 1; i <= n; ++i) {
     fts_.assign_next(r[i],
                      solver_->make_term(Or,
                                         solver_->make_term(And, a, r[i - 1]),
@@ -1099,7 +1114,15 @@ smt::Term AssertionWalker::goto_match_after(
   // At a cycle that is itself an occurrence the count has just
   // risen, so the window wanted is one slot nearer than otherwise.
   // `[->n]` ends on an occurrence; `[=n]` may end anywhere after it.
-  Term on_occurrence = solver_->make_term(And, a, r[n - 1]);
+  // With an overlapping window the prefix may also have ended at
+  // this very cycle -- too recent for a register to hold, and only
+  // ever the right window when one occurrence is wanted, since this
+  // cycle's own occurrence is then the whole count.
+  Term reached = r[n - 1];
+  if (overlap && n == 1) {
+    reached = solver_->make_term(Or, reached, window_start);
+  }
+  Term on_occurrence = solver_->make_term(And, a, reached);
   if (rep.kind == SequenceRepetition::GoTo) return on_occurrence;
   return solver_->make_term(
       Or, on_occurrence, solver_->make_term(And, not_a, r[n]));

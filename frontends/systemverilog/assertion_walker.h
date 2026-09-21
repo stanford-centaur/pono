@@ -296,9 +296,15 @@ class AssertionWalker
    *  `n + 1` of them suffice, because only counts within n of the
    *  current one are ever asked about.
    */
+  /** @param overlap the window opens on `window_start`'s own cycle
+   *         rather than the one after it (`##0`), so a record made
+   *         there belongs to the count *before* that cycle's own
+   *         occurrence, and the window can still be the one opening
+   *         now. */
   smt::Term goto_match_after(const slang::ast::Expression & expr,
                              const slang::ast::SequenceRepetition & rep,
                              const smt::Term & window_start,
+                             bool overlap,
                              const std::string & prefix);
 
   /** goto_match_now() for a whole antecedent, unwrapping a nested

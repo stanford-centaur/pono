@@ -798,4 +798,20 @@ TEST_P(SVUnitTests, GotoAfterElementDelay)
       "goto_after_element_delay.sv", 40, ProverResult::TRUE);
 }
 
+// At `##0` the window opens on the prefix's own last cycle, so a
+// record made there belongs to the count before that cycle's
+// occurrence -- and the window may be the one opening now, which no
+// register has seen yet.
+
+TEST_P(SVUnitTests, GotoAfterElementOverlap)
+{
+  check_prover<KInduction>(
+      "goto_after_element_overlap.sv", 40, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, GotoAfterElementOverlapFails)
+{
+  check_bmc("goto_after_element_overlap_fails.sv", 4);
+}
+
 }  // namespace pono_tests
