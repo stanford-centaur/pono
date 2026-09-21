@@ -209,8 +209,8 @@ void PredConstructor::terms_to_predicates()
 
         // use_lt
         if (use_lt && width > 1 && !(cval == tval)) {
-          auto pred_curr = (cval < tval) ? smart_LT(c, t) : smart_LT(t, c);
-          ADD_PRED(pred_curr)
+          auto pred_lt = (cval < tval) ? smart_LT(c, t) : smart_LT(t, c);
+          ADD_PRED(pred_lt)
         }
 
         if (use_lte && width > 1) {
@@ -240,9 +240,8 @@ void PredConstructor::terms_to_predicates()
 
         // use_lt
         if (use_lt && width > 1 && !(tval1 == tval2)) {
-          auto pred_curr =
-              (tval1 < tval2) ? smart_LT(t1, t2) : smart_LT(t2, t1);
-          ADD_PRED(pred_curr)
+          auto pred_lt = (tval1 < tval2) ? smart_LT(t1, t2) : smart_LT(t2, t1);
+          ADD_PRED(pred_lt)
         }
 
         if (use_lte && width > 1) {

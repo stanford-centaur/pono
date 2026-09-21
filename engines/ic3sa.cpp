@@ -814,13 +814,13 @@ UnorderedTermSet IC3SA::add_to_term_abstraction(const Term & term)
   }
 
   for (const auto & elem : stc.get_subterms()) {
-    for (const auto & term : elem.second) {
+    for (const auto & subterm : elem.second) {
       // TODO : figure out if we need to promote all input vars
       //        for this algorithm to work
       //        not sure it's okay to just drop terms containing inputs
-      if (ts_.only_curr(term)) {
-        if (term_abstraction_[elem.first].insert(term).second) {
-          new_terms.insert(term);
+      if (ts_.only_curr(subterm)) {
+        if (term_abstraction_[elem.first].insert(subterm).second) {
+          new_terms.insert(subterm);
         }
       }
     }

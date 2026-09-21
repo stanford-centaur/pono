@@ -38,8 +38,8 @@ void pono::SMVEncoder::processCase()
     solver_->assert_formula(bad_);
     auto fut = std::async(
         launch::async,
-        [](smt::SmtSolver solver_) {
-          Result r = solver_->check_sat();
+        [](smt::SmtSolver solver) {
+          Result r = solver->check_sat();
           return r.is_unsat();
         },
         solver_);

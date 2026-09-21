@@ -370,8 +370,8 @@ void VarTermManager::insert_vars_and_extracts(
       // make the extract
       for (unsigned idx = 0; idx < width; ++idx) {
         auto t = solver_->make_term(smt::Op(smt::PrimOp::Extract, idx, idx), v);
-        auto res = term_cache_item.terms_strings.insert(t->to_string());
-        if (res.second) term_cache_item.terms[1].terms.push_back(t);
+        auto extract_res = term_cache_item.terms_strings.insert(t->to_string());
+        if (extract_res.second) term_cache_item.terms[1].terms.push_back(t);
       }  // for each bit
     }  // if width > 1
   }  // for each var

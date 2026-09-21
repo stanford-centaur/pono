@@ -212,8 +212,8 @@ bool InterpolantMC::step(const int i)
       solver_->assert_formula(solver_->make_term(
           And, init0_, solver_->make_term(And, solver_trans, bad_i)));
 
-      Result r = solver_->check_sat();
-      if (!r.is_sat()) {
+      Result replay_res = solver_->check_sat();
+      if (!replay_res.is_sat()) {
         throw PonoException("Internal error: Expecting satisfiable result");
       }
       return false;
