@@ -245,24 +245,29 @@ std::optional<LValueDesc> resolve_lvalue(
       // range; anything else has to be converted first.
       uint64_t idx = 0;
       const Type & base_type = sel.value().type->getCanonicalType();
+      // An index outside the declared range names no bit range, and
+      // the LRM ignores a write there. Declining hands it to the
+      // dynamic splice, which masks by the shifted width and so
+      // leaves the value untouched for a position past the end.
       if (base_type.kind == SymbolKind::PackedArrayType) {
         if (!packed_element_ordinal(
                 base_type.as<PackedArrayType>(), *idx_opt, idx)) {
-          throw PonoException(
-              "SystemVerilogEncoder: element-select index out of bounds");
+          return std::nullopt;
         }
       } else {
-        if (*idx_opt < 0) {
-          throw PonoException(
-              "SystemVerilogEncoder: element-select index out of bounds");
-        }
+        if (*idx_opt < 0) return std::nullopt;
         idx = static_cast<uint64_t>(*idx_opt);
       }
       uint64_t lo = inner->lo + idx * elem_w;
       uint64_t hi = lo + elem_w - 1;
       if (hi > inner->hi) {
-        throw PonoException(
-            "SystemVerilogEncoder: element-select index out of bounds");
+        // The LRM ignores a write outside the target's range. There
+        // is no bit range to describe, so decline: the dynamic
+        // splice the caller falls back to masks by the shifted
+        // width, and a position past the end shifts that mask away
+        // entirely, leaving the value untouched -- which is the
+        // ignoring, for free.
+        return std::nullopt;
       }
       return LValueDesc{ inner->base, lo, hi, inner->base_w };
     }

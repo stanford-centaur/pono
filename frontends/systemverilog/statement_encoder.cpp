@@ -176,6 +176,30 @@ void StatementEncoder::process_dynamic_write(
   while ((uint64_t{ 1 } << pos_w) < sym_w + elem_w) ++pos_w;
   Sort pos_sort = solver_->make_sort(BV, pos_w);
   Term pos_in_sym = resize_to(solver_, idx, pos_w, /*is_signed=*/false);
+  // A declared index is the bit position only for an `[n:0]` range.
+  // The read side rebases the same way (see expr_encoder's dynamic
+  // element select); without it a write into, say, `logic [7:4] r`
+  // lands four bits too high and silently misses.
+  {
+    const slang::ast::Type & bt = base_expr.type->getCanonicalType();
+    if (bt.kind == SymbolKind::PackedArrayType) {
+      auto & range = bt.as<PackedArrayType>().range;
+      if (range.left >= range.right) {
+        if (range.lower() != 0) {
+          pos_in_sym = solver_->make_term(
+              BVSub,
+              pos_in_sym,
+              solver_->make_term(static_cast<int64_t>(range.lower()),
+                                 pos_sort));
+        }
+      } else {
+        pos_in_sym = solver_->make_term(
+            BVSub,
+            solver_->make_term(static_cast<int64_t>(range.upper()), pos_sort),
+            pos_in_sym);
+      }
+    }
+  }
   if (scale_by_width && elem_w != 1) {
     pos_in_sym = solver_->make_term(
         BVMul, pos_in_sym, solver_->make_term(elem_w, pos_sort));

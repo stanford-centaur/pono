@@ -39,12 +39,30 @@ TEST_P(SVUnitTests, DynamicRangeSelectLhs)
 }
 
 // A constant element-select lvalue whose index is out of range for its
-// base (`flag[10]` into a 4-bit `flag`) -- the LRM permits this
-// (writes are a no-op, reads return 'x), but this encoder has no such
-// semantics.
-TEST_P(SVUnitTests, Gap_ElementSelectOutOfBoundsLhs)
+// base (`flag[10]` into a 4-bit `flag`). The LRM makes the write a
+// no-op, which the dynamic-position splice gives for free: a position
+// past the end shifts the write mask away entirely.
+TEST_P(SVUnitTests, ElementSelectOutOfBoundsLhs)
 {
-  check_bmc("element_select_out_of_bounds_lhs.sv", 2, ProverResult::UNKNOWN);
+  check_prover<KInduction>(
+      "element_select_out_of_bounds_lhs.sv", 6, ProverResult::TRUE);
+}
+
+// A runtime-indexed write into a packed range that does not start at
+// zero (`logic [7:4] r; r[i] <= ...`). The declared index is a bit
+// position only for an `[n:0]` range, so without rebasing the write
+// lands four bits too high and quietly misses.
+TEST_P(SVUnitTests, DynamicWriteNonZeroBasedRange)
+{
+  check_prover<KInduction>("dynamic_write_rebased.sv", 8, ProverResult::TRUE);
+}
+
+// The ascending twin, where the rebasing runs the other way: for
+// `logic [4:7] r`, bit position and declared index count in opposite
+// directions.
+TEST_P(SVUnitTests, DynamicWriteAscendingRange)
+{
+  check_prover<KInduction>("dynamic_write_ascending.sv", 8, ProverResult::TRUE);
 }
 
 // The read side of the same thing, which the write path's guard never
