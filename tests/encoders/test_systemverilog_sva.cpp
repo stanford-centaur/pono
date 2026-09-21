@@ -539,6 +539,21 @@ TEST_P(SVUnitTests, EmptyRepetitionUnbounded)
   check_prover<KInduction>("empty_repeat_unbounded.sv", 16, ProverResult::TRUE);
 }
 
+// At `##0` an empty match yields no match at all (LRM 16.9.2.1),
+// unlike `##1` where it absorbs the delay -- so the empty branch
+// drops out rather than acting as an identity.
+
+TEST_P(SVUnitTests, EmptyRepetitionZeroDelay)
+{
+  check_prover<KInduction>(
+      "empty_repeat_zero_delay.sv", 20, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, EmptyRepetitionZeroDelayFails)
+{
+  check_bmc("empty_repeat_zero_delay_fails.sv", 2);
+}
+
 // An empty-matching sequence as the *whole* antecedent. It matches at
 // every cycle, so the implication is unconditional -- degenerate, but
 // well defined, so it encodes with a warning rather than throwing.

@@ -633,9 +633,12 @@ smt::TermVec AssertionWalker::offsets_ending_now(
                    lp + d + le,
                    solver_->make_term(And, shifted_prefix, elem_offsets[le]));
             }
-            if (elem_empty) {
+            if (elem_empty && d != 0) {
               // The match ends where the prefix did, plus whatever
-              // run-up cycles the delay still spends after it.
+              // run-up cycles the delay still spends after it. At
+              // `##0` there is nothing to spend and the LRM gives
+              // `seq ##0 empty` no match at all, so the empty
+              // alternative simply drops out (LRM 16.9.2.1).
               Term shifted_prefix =
                   dd == 0 ? acc[lp]
                           : tableau_.make_history_chain(acc[lp], dd, prefix);
@@ -662,7 +665,9 @@ smt::TermVec AssertionWalker::offsets_ending_now(
             }
           }
 
-          if (acc_empty) {
+          // `empty ##0 seq` likewise has no match, so an empty
+          // prefix contributes only across a non-zero delay.
+          if (acc_empty && d != 0) {
             for (size_t le = 0; le < elem_offsets.size(); ++le) {
               if (!elem_offsets[le]) continue;
               // Nothing precedes this element, so it carries the
