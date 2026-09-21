@@ -60,7 +60,7 @@ namespace pono {
 // Helper functions
 // ----------------------------------------------------------------
 
-unsigned SygusPdr::GetScore(const Term & t)
+uint64_t SygusPdr::GetScore(const Term & t)
 {
   const auto & score_map = term_score_walker_.GetScoreMap();
   auto pos = score_map.find(t);
@@ -964,7 +964,7 @@ RefineResult SygusPdr::refine()
 //  May Block
 
 bool SygusPdr::try_recursive_block_goal(const IC3Formula & to_block,
-                                        unsigned fidx)
+                                        size_t fidx)
 {
   assert(!solver_context_);
   ProofGoalQueue proof_goals;

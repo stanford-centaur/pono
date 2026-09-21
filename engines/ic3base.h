@@ -148,7 +148,7 @@ class ProofGoalQueue
 
   void clear();
   void new_proof_goal(const IC3Formula & c,
-                      unsigned int t,
+                      size_t t,
                       const ProofGoal * n = NULL);
   ProofGoal * top();
   void pop();

@@ -94,7 +94,7 @@ class SygusPdr : public IC3Base
                                const IC3Formula & c,
                                IC3Formula & out);
 
-  bool try_recursive_block_goal(const IC3Formula & to_block, unsigned fidx);
+  bool try_recursive_block_goal(const IC3Formula & to_block, size_t fidx);
 
   // -----------------------------------------------------------------
   // SyGuS related functions
@@ -123,7 +123,7 @@ class SygusPdr : public IC3Base
   std::unique_ptr<syntax_analysis::OpExtractor> op_extract_;
 
   syntax_analysis::TermScore term_score_walker_;
-  unsigned GetScore(const smt::Term & t);
+  uint64_t GetScore(const smt::Term & t);
 
   syntax_analysis::ParentExtract parent_of_terms_;
   syntax_analysis::VarTermManager sygus_term_manager_;

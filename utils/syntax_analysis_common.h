@@ -127,8 +127,8 @@ struct PerCexInfo
 {
   struct term_const_num
   {
-    unsigned term_num;
-    unsigned const_num;
+    size_t term_num;
+    size_t const_num;
     term_const_num() : term_num(0), const_num(0) {}
   };
 
@@ -137,10 +137,10 @@ struct PerCexInfo
   std::unordered_set<std::string> predicates_str;
   // std::unordered_map<smt::Term, smt::Term> pred_next_to_pred_curr;
   const PerVarsetInfo & varset_info;  // reference from VarTermManager
-  unsigned prev_refine_constraint_count;
+  size_t prev_refine_constraint_count;
   std::map<uint64_t, term_const_num> prev_per_width_term_num;
 
-  PerCexInfo(const PerVarsetInfo & info, unsigned constraint_count)
+  PerCexInfo(const PerVarsetInfo & info, size_t constraint_count)
       : varset_info(info), prev_refine_constraint_count(constraint_count)
   {
   }
