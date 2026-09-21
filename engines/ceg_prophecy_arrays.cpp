@@ -624,7 +624,6 @@ template <class Prover_T>
 void CegProphecyArrays<Prover_T>::add_important_var(const Term & v)
 {
   // No-Op
-  ;
 }
 
 template <>

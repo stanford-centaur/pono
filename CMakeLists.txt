@@ -172,6 +172,18 @@ flex_target(
   ${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp
 )
 
+# Flex's skeleton ends several of its own statements with a stray semicolon,
+# which the rules in smvparser.l cannot influence. The positive form is what
+# gets probed: a compiler without the warning reports the -Wno- as
+# unrecognized rather than ignoring it.
+pono_filter_supported_flags(extra_semi_stmt -Wextra-semi-stmt)
+if(extra_semi_stmt)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_BINARY_DIR}/smvlexer.cpp"
+    PROPERTIES COMPILE_OPTIONS -Wno-extra-semi-stmt
+  )
+endif()
+
 add_flex_bison_dependency(SMVScanner SMVParser)
 
 set(

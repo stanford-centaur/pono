@@ -248,7 +248,7 @@ WalkerStepResult OpsAbstractor::AbstractionWalker::visit_term(Term & term)
         // should not reach
         assert(false);
         break;
-    };
+    }
   }
 
   assert(res);
