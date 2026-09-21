@@ -246,6 +246,23 @@ Term stream_reorder(const SmtSolver & solver,
   return concat_all(solver, pieces);
 }
 
+uint64_t stream_reorder_bit(uint64_t g, uint64_t width, uint64_t slice)
+{
+  if (slice == 0 || slice >= width) return g;
+  uint64_t rem = width % slice;
+  uint64_t q = (width - rem) / slice;
+  if (q <= 1 && rem == 0) return g;
+  // Reading stream_reorder()'s concatenation off as positions: whole
+  // block `i` is the generic stream's bits [(i+1)*s-1 : i*s] and
+  // lands at [width-(i+1)*s + s-1 : width-(i+1)*s], first block
+  // highest. The short left-over -- the generic stream's top `rem`
+  // bits -- goes last, so it ends up at the bottom.
+  if (g >= q * slice) return g - q * slice;
+  uint64_t block = g / slice;
+  uint64_t offset = g % slice;
+  return width - (block + 1) * slice + offset;
+}
+
 Term stream_unreorder(const SmtSolver & solver,
                       const Term & value,
                       uint64_t slice)

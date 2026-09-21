@@ -81,10 +81,34 @@ TEST_P(SVUnitTests, StreamingConcatPortConnection)
 
 // `<<` moves bits across the boundaries between the stream's
 // expressions, and an alias segment is one contiguous range per
-// symbol, so there is nothing to describe the result with.
-TEST_P(SVUnitTests, Unsupported_StreamingConcatPortReversed)
+// `<<` on a port connection. An operand is no longer one contiguous
+// range of the port, but each block it is cut into is, so this needs
+// more alias segments rather than a new representation. Checked
+// against the procedural `<<`, which unpacks the same value by a
+// separate route, so agreement is evidence about the permutation
+// rather than about one implementation of it.
+TEST_P(SVUnitTests, StreamingPortLshift)
 {
-  expect_encode_throws("streaming_concat_port_reversed.sv");
+  check_prover<KInduction>("streaming_port_lshift.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, StreamingPortLshiftShortBlock)
+{
+  check_prover<KInduction>(
+      "streaming_port_lshift_short_block.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, StreamingPortLshiftUneven)
+{
+  check_prover<KInduction>(
+      "streaming_port_lshift_uneven.sv", 8, ProverResult::TRUE);
+}
+
+// Without this, a port path that ignored the slice entirely would
+// pass all three positives.
+TEST_P(SVUnitTests, StreamingPortLshiftMismatch)
+{
+  check_bmc("streaming_port_lshift_mismatch.sv", 0);
 }
 
 TEST_P(SVUnitTests, GenerateForBlock) { check_bmc("generate_block.sv", 6); }

@@ -63,6 +63,62 @@ void InstanceEncoder::bind_compilation(slang::ast::Compilation & compilation)
   compilation_ = &compilation;
 }
 
+namespace {
+
+// Re-express alias segments given in generic-stream coordinates as
+// segments of the `<<` re-ordered port. Both coordinate systems run
+// low bit to high within a segment, and the re-ordering moves whole
+// blocks without turning them over, so each run of bits that stays
+// contiguous in both is one output segment -- there are just more of
+// them than operands now, one per piece of an operand that a block
+// boundary cuts.
+//
+// Walking bit by bit and coalescing, rather than intersecting
+// intervals, keeps this honest about the short block: it sits at the
+// opposite end from the one it was cut from, and is the case an
+// interval calculation gets subtly wrong.
+std::vector<OutputAliasSegment> reblock_stream_segments(
+    const std::vector<OutputAliasSegment> & generic,
+    uint64_t port_w,
+    uint64_t slice)
+{
+  std::vector<OutputAliasSegment> out;
+  for (const OutputAliasSegment & seg : generic) {
+    bool open = false;
+    uint64_t run_port_lo = 0, run_port_hi = 0;
+    uint64_t run_target_lo = 0, run_target_hi = 0;
+    for (uint64_t g = seg.port_lo; g <= seg.port_hi; ++g) {
+      uint64_t p = stream_reorder_bit(g, port_w, slice);
+      uint64_t t = seg.target_lo + (g - seg.port_lo);
+      if (open && p == run_port_hi + 1 && t == run_target_hi + 1) {
+        run_port_hi = p;
+        run_target_hi = t;
+        continue;
+      }
+      if (open) {
+        out.push_back({ run_port_lo,
+                        run_port_hi,
+                        seg.target,
+                        run_target_lo,
+                        run_target_hi });
+      }
+      run_port_lo = run_port_hi = p;
+      run_target_lo = run_target_hi = t;
+      open = true;
+    }
+    if (open) {
+      out.push_back({ run_port_lo,
+                      run_port_hi,
+                      seg.target,
+                      run_target_lo,
+                      run_target_hi });
+    }
+  }
+  return out;
+}
+
+}  // namespace
+
 void InstanceEncoder::process_assignments(const slang::ast::Scope & body,
                                           const string & prefix,
                                           const string & parent_prefix)
@@ -814,21 +870,12 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
         // operand, MSB-first (leftmost operand = most significant),
         // one segment per operand.
         std::vector<const Expression *> operands;
+        // Zero for `>>` and for a plain concatenation, both of which
+        // re-order nothing.
+        uint64_t slice = 0;
         if (conn_expr->kind == ExpressionKind::Streaming) {
-          // `>>` re-orders nothing, so a stream of operands lands on
-          // the port exactly as a concatenation of them would. `<<`
-          // moves bits across operand boundaries, and an alias is one
-          // contiguous port range per symbol, so there is no segment
-          // list that describes it.
           auto & sc = conn_expr->as<StreamingConcatenationExpression>();
-          if (sc.getSliceSize() != 0) {
-            throw PonoException(
-                "SystemVerilogEncoder: a `<<` streaming concatenation "
-                "connected to output/inout port '"
-                + string(port.name)
-                + "' re-orders bits across its operands, which an output "
-                  "alias cannot describe; `>>` is supported");
-          }
+          slice = sc.getSliceSize();
           for (auto & stream : sc.streams()) {
             if (stream.withExpr) {
               throw PonoException(
@@ -875,6 +922,13 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
               "port '" + string(port.name)
               + "' concatenation total width does not match the port "
               "width");
+        }
+        // The operands were laid out against the generic stream. A
+        // `<<` re-orders that into the port's own bits, so a segment
+        // spanning a block boundary is no longer one port range and
+        // has to be cut where the blocks are.
+        if (slice != 0) {
+          segments = reblock_stream_segments(segments, port_w, slice);
         }
         symbol_table_.port_output_aliases()[internal] = std::move(segments);
         output_aliases_added.push_back(internal);

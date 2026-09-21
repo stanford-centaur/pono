@@ -1,9 +1,9 @@
 // A streaming concatenation as an output-port connection. `>>`
 // re-orders nothing, so the port's bits land on the stream's
 // expressions exactly as a plain concatenation connection would --
-// one output-alias segment per expression. (`<<` would move bits
-// across those boundaries, which a segment list cannot describe; see
-// streaming_concat_port_reversed.sv.)
+// one output-alias segment per expression. (`<<` moves bits across
+// those boundaries, so it needs a segment per block instead -- see
+// streaming_port_lshift.sv.)
 module streaming_concat_port_child (
     output logic [7:0] o
 );

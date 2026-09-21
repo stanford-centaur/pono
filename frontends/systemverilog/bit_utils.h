@@ -155,6 +155,17 @@ smt::Term stream_reorder(const smt::SmtSolver & solver,
                          const smt::Term & value,
                          uint64_t slice);
 
+/** Where bit `g` of the generic stream lands in the `<<` re-ordered
+ *  value stream_reorder() builds from it -- the same permutation,
+ *  one bit at a time, for callers that need to name positions rather
+ *  than build a term. A port connection is the one such caller: an
+ *  output alias is a map between bit ranges, so it has to say where
+ *  the blocks went instead of re-ordering a value.
+ *
+ *  `slice` is zero for `>>`, and the identity, as it is there.
+ */
+uint64_t stream_reorder_bit(uint64_t g, uint64_t width, uint64_t slice);
+
 /** Undo stream_reorder(), recovering the generic stream that a `<<`
  *  produced -- the operation a streaming concatenation performs when
  *  it is an assignment target (LRM 11.4.14.3).
