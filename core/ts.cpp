@@ -942,8 +942,10 @@ void TransitionSystem::replace_terms(const UnorderedTermMap & to_replace)
 
   vector<pair<Term, bool>> new_constraints;
   new_constraints.reserve(constraints_.size());
+  Term constraint;
   for (const auto & e : constraints_) {
-    new_constraints.push_back(e);
+    constraint = e.first;
+    new_constraints.push_back({ sw.visit(constraint), e.second });
   }
   constraints_ = new_constraints;
 }
