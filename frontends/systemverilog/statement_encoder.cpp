@@ -113,8 +113,12 @@ void StatementEncoder::inline_subroutine_body(
   in_subroutine_ = saved_in;
 }
 
-void StatementEncoder::process_dynamic_element_assign(
-    const slang::ast::ElementSelectExpression & sel,
+void StatementEncoder::process_dynamic_write(
+    const slang::ast::Expression & base_expr,
+    const slang::ast::Expression & index_expr,
+    const slang::ast::Type & write_type,
+    bool scale_by_width,
+    int64_t pos_bias,
     const slang::ast::Expression & rhs_expr,
     StmtContext ctx,
     const Term & condition,
@@ -128,7 +132,7 @@ void StatementEncoder::process_dynamic_element_assign(
   // range's own offset within the base.
   const Symbol * sym = nullptr;
   uint64_t base_offset = 0;
-  const Expression & inner = sel.value();
+  const Expression & inner = base_expr;
   if (inner.kind == ExpressionKind::NamedValue
       || inner.kind == ExpressionKind::HierarchicalValue) {
     sym = &canonicalize_modport_port(
@@ -152,7 +156,7 @@ void StatementEncoder::process_dynamic_element_assign(
   auto pieces = symbol_table_.resolve_output_alias_pieces(sym, 0, sym_w - 1);
   if (pieces.empty()) return;
 
-  uint64_t elem_w = value_width(*sel.type);
+  uint64_t elem_w = value_width(write_type);
   if (elem_w == 0) elem_w = 1;
 
   // An initial write needs no fixed slice after all. The splice
@@ -162,9 +166,9 @@ void StatementEncoder::process_dynamic_element_assign(
   // which is what pins the selected bits while leaving the rest of
   // the initial value free.
 
-  Term idx = expr_encoder_.expr_to_term(sel.selector(), prefix);
+  Term idx = expr_encoder_.expr_to_term(index_expr, prefix);
   Term rhs = expr_encoder_.expr_to_term(rhs_expr, prefix);
-  rhs = resize_to(solver_, rhs, elem_w, sel.type->isSigned());
+  rhs = resize_to(solver_, rhs, elem_w, write_type.isSigned());
 
   // Where the write lands within `sym`, wide enough that the
   // arithmetic below cannot wrap for any position `sym` has.
@@ -172,9 +176,20 @@ void StatementEncoder::process_dynamic_element_assign(
   while ((uint64_t{ 1 } << pos_w) < sym_w + elem_w) ++pos_w;
   Sort pos_sort = solver_->make_sort(BV, pos_w);
   Term pos_in_sym = resize_to(solver_, idx, pos_w, /*is_signed=*/false);
-  if (elem_w != 1) {
+  if (scale_by_width && elem_w != 1) {
     pos_in_sym = solver_->make_term(
         BVMul, pos_in_sym, solver_->make_term(elem_w, pos_sort));
+  }
+  if (pos_bias > 0) {
+    pos_in_sym = solver_->make_term(
+        BVAdd,
+        pos_in_sym,
+        solver_->make_term(static_cast<uint64_t>(pos_bias), pos_sort));
+  } else if (pos_bias < 0) {
+    pos_in_sym = solver_->make_term(
+        BVSub,
+        pos_in_sym,
+        solver_->make_term(static_cast<uint64_t>(-pos_bias), pos_sort));
   }
   if (base_offset != 0) {
     pos_in_sym = solver_->make_term(
@@ -1181,12 +1196,42 @@ void StatementEncoder::process_statement(
           // runtime-variable index (`arr[idx] = rhs`) needs a
           // dynamic-position splice instead of a static bit range.
           if (lhs_expr.kind == ExpressionKind::ElementSelect) {
-            process_dynamic_element_assign(
-                lhs_expr.as<ElementSelectExpression>(),
-                rhs_expr,
-                ctx,
-                condition,
-                prefix);
+            auto & sel = lhs_expr.as<ElementSelectExpression>();
+            process_dynamic_write(sel.value(),
+                                  sel.selector(),
+                                  *sel.type,
+                                  /*scale_by_width=*/true,
+                                  /*pos_bias=*/0,
+                                  rhs_expr,
+                                  ctx,
+                                  condition,
+                                  prefix);
+            note_blocking_write();
+          } else if (lhs_expr.kind == ExpressionKind::RangeSelect) {
+            // `r[i +: w]` and `r[i -: w]`: a fixed-width window at a
+            // runtime position, which is the same splice an element
+            // select needs, only already counted in bits. `-:` names
+            // the top of its window, so the position is that many
+            // bits lower.
+            auto & rs = lhs_expr.as<RangeSelectExpression>();
+            uint64_t w = value_width(*rs.type);
+            bool down =
+                rs.getSelectionKind() == RangeSelectionKind::IndexedDown;
+            if (rs.getSelectionKind() == RangeSelectionKind::Simple) {
+              throw PonoException(
+                  "SystemVerilogEncoder: a range-select write with "
+                  "non-constant `[hi:lo]` bounds is not supported; `+:` or "
+                  "`-:` names a fixed width and is");
+            }
+            process_dynamic_write(rs.value(),
+                                  rs.left(),
+                                  *rs.type,
+                                  /*scale_by_width=*/false,
+                                  down ? -static_cast<int64_t>(w - 1) : 0,
+                                  rhs_expr,
+                                  ctx,
+                                  condition,
+                                  prefix);
             note_blocking_write();
           }
           break;

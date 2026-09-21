@@ -27,15 +27,15 @@ TEST_P(SVUnitTests, RangeSelectLhs)
   check_bmc("range_select_lhs.sv", 4, ProverResult::UNKNOWN);
 }
 
-// A range-select lvalue with a non-constant (variable) base
-// (`w[base +: 4]`) has no dynamic-range-select write fallback anywhere
-// in this encoder, unlike ElementSelect's single-bit dynamic-index
-// fallback (process_dynamic_element_assign()). resolve_lvalue() throws
-// a clear PonoException for this rather than silently dropping the
-// write.
-TEST_P(SVUnitTests, Gap_DynamicRangeSelectLhs)
+// A range-select lvalue with a non-constant base (`w[base +: 4]`):
+// a fixed-width window at a runtime position, which is the same
+// splice a runtime-indexed element select needs, only counted in
+// bits rather than elements. The read side shifts the window down
+// and truncates.
+TEST_P(SVUnitTests, DynamicRangeSelectLhs)
 {
-  check_bmc("dynamic_range_select_lhs.sv", 2, ProverResult::UNKNOWN);
+  check_prover<KInduction>(
+      "dynamic_range_select_lhs.sv", 12, ProverResult::TRUE);
 }
 
 // A constant element-select lvalue whose index is out of range for its

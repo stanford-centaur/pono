@@ -50,6 +50,7 @@ class FixedSizeUnpackedArrayType;
 class Expression;
 class Statement;
 class Symbol;
+class Type;
 class ValueSymbol;
 }  // namespace slang::ast
 
@@ -128,12 +129,27 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
    *  @param condition accumulated path condition (for if/case nesting)
    *  @param prefix the current hierarchical name prefix
    */
-  void process_dynamic_element_assign(
-      const slang::ast::ElementSelectExpression & sel,
-      const slang::ast::Expression & rhs_expr,
-      StmtContext ctx,
-      const smt::Term & condition,
-      const std::string & prefix);
+  /** @param base_expr what is being written into
+   *  @param index_expr the runtime position, in elements for a
+   *         element select and in bits for an indexed range select
+   *  @param write_type the type of the slice being written, whose
+   *         width says how much of the base the write covers
+   *  @param scale_by_width multiply the index by that width, which
+   *         an element select needs and a `+:`/`-:` does not, since
+   *         its base already counts in bits
+   *  @param pos_bias added to the position afterwards: zero for
+   *         `+:`, and one less than the width, negated, for `-:`,
+   *         whose base names the *top* of the range
+   */
+  void process_dynamic_write(const slang::ast::Expression & base_expr,
+                             const slang::ast::Expression & index_expr,
+                             const slang::ast::Type & write_type,
+                             bool scale_by_width,
+                             int64_t pos_bias,
+                             const slang::ast::Expression & rhs_expr,
+                             StmtContext ctx,
+                             const smt::Term & condition,
+                             const std::string & prefix);
 
   /** Build the array value a compile-time-constant assignment
    *  pattern denotes, or a null Term if `rhs_expr` is not one. A

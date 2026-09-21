@@ -283,8 +283,11 @@ std::optional<LValueDesc> resolve_lvalue(
       auto & left_expr = sel.left();
       auto & right_expr = sel.right();
       if (!left_expr.getConstant() || !right_expr.getConstant()) {
-        throw PonoException(
-            "SystemVerilogEncoder: non-constant range select lvalue bounds");
+        // A runtime position names no fixed bit range, so there is
+        // nothing to describe here. Declining sends the caller to
+        // the dynamic splice, the same route a runtime-indexed
+        // element select takes.
+        return std::nullopt;
       }
       auto hi_opt = left_expr.getConstant()->integer().as<uint64_t>();
       auto lo_opt = right_expr.getConstant()->integer().as<uint64_t>();

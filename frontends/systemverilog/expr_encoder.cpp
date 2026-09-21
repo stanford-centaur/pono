@@ -958,6 +958,31 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
 
       // Both bounds should be compile-time constants for synthesizable code.
       if (!left_expr.getConstant() || !right_expr.getConstant()) {
+        // Except for `[base +: w]` and `[base -: w]`, whose width is
+        // constant even when the base is not: a fixed-width window
+        // at a runtime position, which is the base shifted down to
+        // the bottom and truncated. `-:` names the top of its
+        // window, so it starts that many bits lower.
+        auto kind = sel.getSelectionKind();
+        if (kind == RangeSelectionKind::IndexedUp
+            || kind == RangeSelectionKind::IndexedDown) {
+          uint64_t w = value_width(*sel.type);
+          uint64_t val_w = val->get_sort()->get_width();
+          Term pos = resize_to(solver_,
+                               expr_to_term(left_expr, prefix),
+                               val_w,
+                               left_expr.type->isSigned());
+          if (kind == RangeSelectionKind::IndexedDown && w > 1) {
+            pos = solver_->make_term(
+                BVSub,
+                pos,
+                solver_->make_term(w - 1, solver_->make_sort(BV, val_w)));
+          }
+          Term shifted = solver_->make_term(BVLshr, val, pos);
+          return w == val_w
+                     ? shifted
+                     : solver_->make_term(Op(Extract, w - 1, 0), shifted);
+        }
         throw PonoException(
             "SystemVerilogEncoder: non-constant range select bounds");
       }
