@@ -111,11 +111,11 @@ class AssertionWalker
    *  the whole design has been walked: an assumption constrains the
    *  assertions written before it as much as those written after.
    *
-   *  Throws if the design also has a safety property. A fairness
-   *  assumption rules out infinite traces, and there is no finite
-   *  prefix it can rule out -- so it cannot restrict a safety
-   *  counterexample, and reporting one that the assumption might
-   *  have excluded would be worse than refusing.
+   *  Safety properties are left alone: a safety counterexample is a
+   *  finite trace and no finite trace contradicts a fairness
+   *  constraint, which is the same split BTOR2 makes between `fair`
+   *  and `bad`. Logged where a design has both, since the reader of
+   *  a counterexample cannot otherwise tell.
    */
   void apply_fairness_assumptions();
 
@@ -432,8 +432,8 @@ class AssertionWalker
   // the properties.
   smt::TermVec fairness_justice_;
   // The first such assumption, named as the source spells it
-  // (`assume property 'top.p'`), for the message thrown when a safety
-  // property cannot honour it.
+  // (`assume property 'top.p'`), for the note logged where a design
+  // mixes fairness with safety properties.
   std::string fairness_assumption_label_;
 
   // The `disable iff` condition (explicit on the current assert

@@ -870,10 +870,20 @@ TEST_P(SVUnitTests, FairnessAssumeAndRestrict)
       "fairness_assume_and_restrict.sv", 20, ProverResult::TRUE);
 }
 
-// What a fairness constraint cannot reach.
-TEST_P(SVUnitTests, Unsupported_TemporalAssumeWithSafety)
+// Where a fairness constraint stops, shown on one design asked both
+// ways. No finite trace contradicts `s_eventually a`, so the safety
+// property is refuted; the liveness one, which is about infinite
+// traces, is proved. Same design, same assumption -- and the split
+// BTOR2 already makes between `fair` and `bad`.
+TEST_P(SVUnitTests, FairnessNotAppliedToSafety)
 {
-  expect_encode_throws("temporal_assume_with_safety.sv");
+  check_bmc("fairness_not_applied_to_safety.sv", 1);
+}
+
+TEST_P(SVUnitTests, FairnessAppliedToLiveness)
+{
+  check_liveness_prover<KInduction>(
+      "fairness_applied_to_liveness.sv", 20, ProverResult::TRUE);
 }
 
 TEST_P(SVUnitTests, Unsupported_TemporalAssumeDisableIff)

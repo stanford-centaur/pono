@@ -2398,15 +2398,31 @@ void AssertionWalker::apply_fairness_assumptions()
 {
   if (fairness_justice_.empty()) return;
 
+  // Fairness reaches liveness properties and not safety ones, which
+  // is the same split the BTOR2 frontend makes: `fair` joins a
+  // property's justice conditions, and a `bad` state is checked
+  // without it (pono.cpp's justice_ branch). LRM 1800-2009 F.5.3.1
+  // draws no such line itself -- an assert holds on every *feasible*
+  // word -- but which words are in scope decides it, and on the
+  // finite words a safety counterexample lives in, F.5.3.2 makes
+  // `s_eventually a` weakly satisfied by all of them. So every
+  // finite prefix is feasible and the assumption asks nothing of it.
+  //
+  // What that gives up is the case where the prefix reaches a region
+  // the fairness condition can never again be met in: no fair trace
+  // extends it, so the counterexample is not one. Telling that apart
+  // needs a fair-reachability check, which is what makes this a
+  // choice of semantics rather than an oversight -- said out loud,
+  // since a reader of the counterexample cannot see it.
   if (!propvec_.empty()) {
-    throw PonoException(
-        "SystemVerilogEncoder: the temporal " + fairness_assumption_label_
-        + " cannot be applied to this design's safety properties. It rules "
-          "out infinite traces, and a safety counterexample is a finite "
-          "prefix -- every one of which extends to some trace the assumption "
-          "allows or to one it does not, which only a fair-reachability "
-          "check could tell apart. Reporting a counterexample the assumption "
-          "may have excluded would be worse than refusing here.");
+    logger.log(0,
+               "SystemVerilogEncoder: the temporal {} constrains this "
+               "design's {} liveness propert(ies) and not its {} safety "
+               "one(s) -- a safety counterexample is a finite trace, and "
+               "no finite trace contradicts a fairness constraint",
+               fairness_assumption_label_,
+               ltl_justice_.size(),
+               propvec_.size());
   }
 
   for (TermVec & justice : ltl_justice_) {
