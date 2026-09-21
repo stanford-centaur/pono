@@ -43,16 +43,16 @@ class PonoException : public std::exception
   explicit PonoException(const std::string & message) : msg(message) {}
 
   /** Destructor.
-   * Virtual to allow for subclassing.
+   * Overrides std::exception's so that subclasses destruct through it.
    */
-  virtual ~PonoException() throw() {}
+  ~PonoException() override = default;
 
   /** Returns a pointer to the (constant) error description.
    *  @return A pointer to a const char*. The underlying memory
    *          is in possession of the Exception object. Callers must
    *          not attempt to free the memory.
    */
-  const char * what() const throw() override { return msg.c_str(); }
+  const char * what() const noexcept override { return msg.c_str(); }
 
  protected:
   /** Error message.
