@@ -1,30 +1,72 @@
 # Warning policy for pono's own targets, carried by an INTERFACE target that
 # each of them links privately.
 
-include(CheckCXXCompilerFlag)
-
 add_library(pono-warnings INTERFACE)
 
-# Adds the flag to pono-warnings if this compiler accepts it, which lets one
-# list serve both GCC and Clang: a spelling the compiler does not know is
-# skipped. Only positive forms can be probed this way, because both compilers
-# accept an unknown -Wno-* silently.
-function(pono_add_warning_flag flag)
+# Off by default, so that warnings a future compiler adds cannot break an
+# end-user build.
+option(PONO_STRICT "Treat compiler warnings as errors")
+
+# Sets <out_var> to the flags among its arguments that this compiler accepts,
+# which lets one list serve both GCC and Clang: a spelling the compiler does
+# not know is skipped. Only positive forms can be filtered this way, because
+# both compilers accept an unknown -Wno-* silently.
+#
+# One compiler run per flag answers this. Recognizing an option needs no link
+# step and no headers, so a syntax-only pass over a trivial source is enough.
+function(pono_filter_supported_flags out_var)
+  # CXX="ccache g++" reaches us split in two, and the first half alone is not
+  # a compiler.
+  separate_arguments(argv1 NATIVE_COMMAND "${CMAKE_CXX_COMPILER_ARG1}")
+  set(compiler "${CMAKE_CXX_COMPILER}" ${argv1})
+
   # Probe with -Wall on, as the real build has it: some warnings are inert
   # without the group that implies them, and GCC reports those as ignored,
   # which the probe would read as unsupported (-Wformat-security is one).
-  set(CMAKE_REQUIRED_FLAGS "-Wall")
+  set(context -Wall)
   # Clang merely warns about an unknown -W flag, so without this every probe
   # would report success. GCC rejects unknown -W flags on its own and does not
   # recognize this option.
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    string(APPEND CMAKE_REQUIRED_FLAGS " -Werror=unknown-warning-option")
+    list(APPEND context -Werror=unknown-warning-option)
   endif()
-  string(MAKE_C_IDENTIFIER "pono_accepts_${flag}" have_flag)
-  check_cxx_compiler_flag("${flag}" "${have_flag}")
-  if(${have_flag})
-    target_compile_options(pono-warnings INTERFACE "${flag}")
+
+  set(source "${CMAKE_BINARY_DIR}/CMakeFiles/pono-flag-probe.cpp")
+  file(WRITE "${source}" "int main(void) { return 0; }\n")
+
+  # A compiler that cannot run here at all rejects every flag, which looks
+  # exactly like a compiler that supports none of them. Say so, rather than
+  # building unwarned in silence.
+  execute_process(
+    COMMAND ${compiler} ${context} -fsyntax-only "${source}"
+    RESULT_VARIABLE status
+    OUTPUT_QUIET
+    ERROR_QUIET
+  )
+  if(NOT status EQUAL 0)
+    message(
+      WARNING
+      "Cannot run ${CMAKE_CXX_COMPILER} to find out which warning flags it "
+      "takes, so pono is built without its warning set."
+    )
+    set(${out_var} "" PARENT_SCOPE)
+    return()
   endif()
+
+  set(supported "")
+  foreach(flag IN LISTS ARGN)
+    execute_process(
+      COMMAND ${compiler} ${context} "${flag}" -fsyntax-only "${source}"
+      RESULT_VARIABLE status
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
+    if(status EQUAL 0)
+      list(APPEND supported "${flag}")
+    endif()
+  endforeach()
+
+  set(${out_var} "${supported}" PARENT_SCOPE)
 endfunction()
 
 # The broad groups, then individual warnings outside them that have caught real
@@ -65,16 +107,6 @@ set(
   -Wvla # a variable-length array
 )
 
-foreach(flag IN LISTS pono_warnings)
-  pono_add_warning_flag("${flag}")
-endforeach()
-
-# Set directly, since both compilers accept any -Wno-* silently and so cannot
-# be probed for it, and after the loop so it wins over the -Wextra that turns
-# it on. Every parameter it reports is held in place by a virtual, template or
-# callback signature, leaving nothing to act on.
-target_compile_options(pono-warnings INTERFACE -Wno-unused-parameter)
-
 # Fatal in every build, not only under PONO_STRICT. Each of these marks a
 # construct that is a bug wherever it appears, whose consequence is silent
 # misbehavior or undefined behavior rather than style.
@@ -113,14 +145,62 @@ set(
   varargs # va_arg used with a type it cannot receive
 )
 
-foreach(name IN LISTS pono_fatal_warnings)
-  pono_add_warning_flag("-Werror=${name}")
-endforeach()
+list(TRANSFORM pono_fatal_warnings PREPEND "-Werror=" OUTPUT_VARIABLE pono_fatal_flags)
+set(pono_candidate_flags ${pono_warnings} ${pono_fatal_flags})
 
-# Off by default, so that warnings a future compiler adds cannot break an
-# end-user build.
-option(PONO_STRICT "Treat compiler warnings as errors")
+# Filtering spends a compiler run per flag, so the answer is cached and only
+# redone when something it depends on changes. The compiler's size and
+# timestamp are part of that: CMake keeps the version it detected when the
+# cache was first written, so an in-place upgrade would otherwise go
+# unnoticed. Clear PONO_WARNING_FLAGS_SIGNATURE to force a fresh look.
+get_filename_component(pono_cxx_path "${CMAKE_CXX_COMPILER}" REALPATH)
+file(TIMESTAMP "${pono_cxx_path}" pono_cxx_mtime UTC)
+file(SIZE "${pono_cxx_path}" pono_cxx_size)
+string(
+  SHA256 pono_warning_signature
+  "${CMAKE_CXX_COMPILER}|${CMAKE_CXX_COMPILER_ARG1}|${CMAKE_CXX_COMPILER_ID}\
+|${CMAKE_CXX_COMPILER_VERSION}|${pono_cxx_mtime}|${pono_cxx_size}\
+|${pono_candidate_flags}"
+)
 
+# Accepting none of them is a legitimate answer, so what decides whether the
+# cache can be reused is that both entries exist, not that they are non-empty.
+if(
+  NOT DEFINED PONO_WARNING_FLAGS
+  OR NOT DEFINED PONO_WARNING_FLAGS_SIGNATURE
+  OR NOT PONO_WARNING_FLAGS_SIGNATURE STREQUAL pono_warning_signature
+)
+  # Every flag in the lists above is a GCC or Clang spelling, as is the
+  # -fsyntax-only the filter probes with.
+  if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|.*Clang)$")
+    pono_filter_supported_flags(pono_supported_flags ${pono_candidate_flags})
+  else()
+    set(pono_supported_flags "")
+  endif()
+  set(
+    PONO_WARNING_FLAGS
+    "${pono_supported_flags}"
+    CACHE INTERNAL
+    "Warning flags this compiler accepts, of the ones pono asks for"
+  )
+  set(
+    PONO_WARNING_FLAGS_SIGNATURE
+    "${pono_warning_signature}"
+    CACHE INTERNAL
+    "Compiler and flag list that PONO_WARNING_FLAGS was determined for"
+  )
+endif()
+
+target_compile_options(pono-warnings INTERFACE ${PONO_WARNING_FLAGS})
+
+# Set directly, since both compilers accept any -Wno-* silently and so cannot
+# be filtered for it, and after the flags above so it wins over the -Wextra
+# that turns it on. Every parameter it reports is held in place by a virtual,
+# template or callback signature, leaving nothing to act on.
+target_compile_options(pono-warnings INTERFACE -Wno-unused-parameter)
+
+# Not filtered: -Werror predates every GCC and Clang that can build pono, and
+# leaving PONO_STRICT out of the signature keeps toggling it free.
 if(PONO_STRICT)
-  pono_add_warning_flag(-Werror)
+  target_compile_options(pono-warnings INTERFACE -Werror)
 endif()
