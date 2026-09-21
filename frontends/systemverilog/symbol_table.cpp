@@ -498,7 +498,7 @@ Term SymbolTable::lookup_symbol(const slang::ast::Symbol * sym)
   // instance array wired to a slice of a parent-side bus), each
   // segment resolved all the way to its own non-aliased root.
   if (port_output_aliases_.count(sym)) {
-    uint64_t width = sym->as<ValueSymbol>().getType().getBitWidth();
+    uint64_t width = value_width(sym->as<ValueSymbol>().getType());
     auto pieces = resolve_output_alias_pieces(sym, 0, width - 1);
     std::sort(pieces.begin(),
               pieces.end(),
@@ -610,7 +610,7 @@ Term SymbolTable::wire_seed_term(const slang::ast::Symbol * sym,
 {
   auto it = symbol_to_term_.find(sym);
   if (it != symbol_to_term_.end()) return it->second;
-  uint64_t width = sym->as<slang::ast::ValueSymbol>().getType().getBitWidth();
+  uint64_t width = value_width(sym->as<slang::ast::ValueSymbol>().getType());
   if (width == 0) width = 1;
   Term iv = fts_.make_inputvar(make_name(prefix, string(sym->name)),
                                solver_->make_sort(BV, width));

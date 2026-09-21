@@ -106,6 +106,18 @@ bool packed_element_ordinal(const slang::ast::PackedArrayType & arr,
                             int64_t idx,
                             uint64_t & ordinal);
 
+/** How many bits a value of this type occupies, which is not always
+ *  its bit width: an unpacked struct has none of its own, but it has
+ *  a *selectable* width -- the space its fields' own bitOffsets are
+ *  measured in, and so the one a field's bit range lives in.
+ *
+ *  Use this wherever the question is how wide a variable, field,
+ *  element or port is. `getBitWidth()` still answers for an
+ *  expression's result, a literal or a loop counter, all of which
+ *  are integral by construction.
+ */
+uint64_t value_width(const slang::ast::Type & type);
+
 /** Extract bits [lo, hi] from `base`, or return `base` unchanged when
  *  [lo, hi] already covers its whole width. Returns a null Term if
  *  `base` is null.

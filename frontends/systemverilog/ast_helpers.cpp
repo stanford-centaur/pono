@@ -191,7 +191,7 @@ std::optional<LValueDesc> resolve_lvalue(
     case ExpressionKind::NamedValue: {
       auto * sym =
           &canonicalize_modport_port(lhs.as<NamedValueExpression>().symbol);
-      uint64_t w = lhs.type->getBitWidth();
+      uint64_t w = value_width(*lhs.type);
       if (w == 0) {
         throw PonoException("SystemVerilogEncoder: zero-width lvalue '"
                             + string(sym->name) + "'");
@@ -201,7 +201,7 @@ std::optional<LValueDesc> resolve_lvalue(
     case ExpressionKind::HierarchicalValue: {
       auto * sym = &canonicalize_modport_port(
           lhs.as<HierarchicalValueExpression>().symbol);
-      uint64_t w = lhs.type->getBitWidth();
+      uint64_t w = value_width(*lhs.type);
       if (w == 0) {
         throw PonoException("SystemVerilogEncoder: zero-width lvalue '"
                             + string(sym->name) + "'");
@@ -218,7 +218,7 @@ std::optional<LValueDesc> resolve_lvalue(
           == SymbolKind::FixedSizeUnpackedArrayType) {
         if (!array_elem) return std::nullopt;
         *array_elem = &sel;
-        uint64_t elem_w = lhs.type->getBitWidth();
+        uint64_t elem_w = value_width(*lhs.type);
         if (elem_w == 0) {
           throw PonoException(
               "SystemVerilogEncoder: zero-width unpacked-array element "
@@ -236,7 +236,7 @@ std::optional<LValueDesc> resolve_lvalue(
         throw PonoException(
             "SystemVerilogEncoder: invalid constant element-select index");
       }
-      uint64_t elem_w = lhs.type->getBitWidth();
+      uint64_t elem_w = value_width(*lhs.type);
       if (elem_w == 0) {
         throw PonoException(
             "SystemVerilogEncoder: zero-width element-select lvalue");
@@ -319,7 +319,7 @@ std::optional<LValueDesc> resolve_lvalue(
       auto inner = resolve_lvalue(ma.value(), ctx, array_elem);
       if (!inner) return std::nullopt;
       auto & field = ma.member.as<FieldSymbol>();
-      uint64_t w = field.getType().getBitWidth();
+      uint64_t w = value_width(field.getType());
       if (w == 0) {
         throw PonoException("SystemVerilogEncoder: zero-width field lvalue '"
                             + string(field.name) + "'");

@@ -148,11 +148,11 @@ void StatementEncoder::process_dynamic_element_assign(
     base_offset = inner_desc->lo;
   }
   bool aliased = symbol_table_.port_output_aliases().count(sym) > 0;
-  uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
+  uint64_t sym_w = value_width(sym->as<ValueSymbol>().getType());
   auto pieces = symbol_table_.resolve_output_alias_pieces(sym, 0, sym_w - 1);
   if (pieces.empty()) return;
 
-  uint64_t elem_w = sel.type->getBitWidth();
+  uint64_t elem_w = value_width(*sel.type);
   if (elem_w == 0) elem_w = 1;
 
   // An initial write needs no fixed slice after all. The splice
@@ -236,7 +236,7 @@ void StatementEncoder::process_dynamic_element_assign(
   // The ordinary case: one alias piece covering the whole symbol, so
   // the position within the target is the position within `sym` and
   // every write lands there.
-  uint64_t first_w = pieces[0].sym->as<ValueSymbol>().getType().getBitWidth();
+  uint64_t first_w = value_width(pieces[0].sym->as<ValueSymbol>().getType());
   if (pieces.size() == 1 && pieces[0].rhs_lo == 0 && pieces[0].target_lo == 0
       && pieces[0].target_hi + 1 == first_w) {
     commit_to(pieces[0].sym, pos_in_sym, Term());
@@ -947,7 +947,7 @@ void StatementEncoder::process_statement(
           const Symbol * sym = piece.sym;
           uint64_t lo = piece.target_lo;
           uint64_t hi = piece.target_hi;
-          uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
+          uint64_t sym_w = value_width(sym->as<ValueSymbol>().getType());
           bool has_range = !(lo == 0 && hi + 1 == sym_w);
 
           LValueWrite w{ sym,    base_aliased, has_range,   lo,
@@ -1016,7 +1016,7 @@ void StatementEncoder::process_statement(
           if (w.prev_base) {
             combined = replace_bits(solver_, w.prev_base, rhs, w.lo, w.hi);
           } else {
-            uint64_t sym_w = w.sym->as<ValueSymbol>().getType().getBitWidth();
+            uint64_t sym_w = value_width(w.sym->as<ValueSymbol>().getType());
             bool full_write = !w.has_range && w.lo == 0 && w.hi + 1 == sym_w;
             combined =
                 full_write

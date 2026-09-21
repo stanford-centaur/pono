@@ -560,7 +560,7 @@ void InstanceEncoder::process_continuous_assign_operand(
       // under it -- otherwise a first write that starts at bit 0 but
       // doesn't cover the whole symbol gets mistaken for a full write,
       // corrupting the width of later, non-adjacent slice writes.
-      uint64_t sym_w = sym->as<ValueSymbol>().getType().getBitWidth();
+      uint64_t sym_w = value_width(sym->as<ValueSymbol>().getType());
       bool full_write = (lo == 0 && hi + 1 == sym_w);
       Term new_term;
       if (full_write) {
@@ -733,7 +733,7 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
       if (conn_expr->kind == ExpressionKind::Assignment) {
         conn_expr = &conn_expr->as<AssignmentExpression>().left();
       }
-      uint64_t port_w = port.getType().getBitWidth();
+      uint64_t port_w = value_width(port.getType());
       if (conn_expr->kind == ExpressionKind::Concatenation) {
         // `.port({hi, lo})`: split the port's bits across each
         // operand, MSB-first (leftmost operand = most significant),

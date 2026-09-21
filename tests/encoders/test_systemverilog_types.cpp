@@ -352,4 +352,20 @@ TEST_P(SVUnitTests, UnpackedArrayOutPort)
   check_prover<KInduction>("unpacked_array_out_port.sv", 8, ProverResult::TRUE);
 }
 
+// Unpacked structs. No bit width of their own, but a selectable
+// one -- the space each field's bitOffset is measured in -- so a
+// flat layout there makes a field a bit range, as for a packed
+// struct. Covers a plain variable, an array element, and a whole
+// copy; the fields differ in width so an overlapping offset shows.
+
+TEST_P(SVUnitTests, UnpackedStruct)
+{
+  check_prover<KInduction>("unpacked_struct.sv", 10, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, UnpackedStructFieldsDoNotOverlap)
+{
+  check_bmc("unpacked_struct_fails.sv", 2);
+}
+
 }  // namespace pono_tests

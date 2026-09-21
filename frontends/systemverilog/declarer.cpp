@@ -112,12 +112,12 @@ void Declarer::declare_variables_internal(const slang::ast::Scope & body,
           // Reject before that can happen.
           reject_unpacked_array(
               var.getType(), var.name, "an output-port-aliased register");
-          uint64_t var_w = var.getType().getBitWidth();
+          uint64_t var_w = value_width(var.getType());
           auto pieces =
               symbol_table_.resolve_output_alias_pieces(&var, 0, var_w - 1);
           for (auto & piece : pieces) {
             uint64_t target_w =
-                piece.sym->as<ValueSymbol>().getType().getBitWidth();
+                value_width(piece.sym->as<ValueSymbol>().getType());
             bool piece_full =
                 (piece.target_lo == 0 && piece.target_hi + 1 == target_w);
             // A piece that only covers *part* of its own target's

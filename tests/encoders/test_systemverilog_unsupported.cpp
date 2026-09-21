@@ -190,4 +190,13 @@ TEST_P(SVUnitTests, UnpackedArrayPortSlice)
   expect_encode_throws("unpacked_array_port_slice.sv");
 }
 
+// A struct field that is itself an unpacked array has no flat
+// layout to give it a bit range in, so the struct has no sort. An
+// unpacked *union* is refused for a different reason: its fields
+// overlap rather than concatenate, which a flat layout cannot say.
+TEST_P(SVUnitTests, UnpackedStructNonIntegralField)
+{
+  expect_encode_throws("unpacked_struct_nonintegral.sv");
+}
+
 }  // namespace pono_tests

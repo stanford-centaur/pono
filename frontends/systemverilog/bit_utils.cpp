@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
 #include "slang/ast/types/Type.h"
 #include "utils/exceptions.h"
@@ -46,14 +47,18 @@ UnpackedArrayInfo unpacked_array_info(
 {
   // A further unpacked dimension is fine -- type_to_sort() recurses
   // and builds an array of arrays. A packed struct or union element
-  // is integral and passes too; what this rules out is an element
-  // with no sort at all, such as an unpacked struct.
-  bool nested = arr.elementType.getCanonicalType().kind
-                == slang::ast::SymbolKind::FixedSizeUnpackedArrayType;
-  if (!arr.elementType.isIntegral() && !nested) {
+  // is integral and passes too, and an unpacked struct has a flat
+  // layout of its own. What this rules out is an element with no
+  // sort at all; type_to_sort() reports which, since it is the one
+  // that knows why.
+  auto elem_kind = arr.elementType.getCanonicalType().kind;
+  bool composite =
+      elem_kind == slang::ast::SymbolKind::FixedSizeUnpackedArrayType
+      || elem_kind == slang::ast::SymbolKind::UnpackedStructType;
+  if (!arr.elementType.isIntegral() && !composite) {
     throw PonoException(
         "SystemVerilogEncoder: an unpacked array's element type must be "
-        "integral or another unpacked array, so not '"
+        "integral, an unpacked struct, or another unpacked array, so not '"
         + std::string(arr.elementType.toString()) + "'");
   }
 
@@ -125,7 +130,37 @@ Sort type_to_sort(const SmtSolver & solver, const slang::ast::Type & type)
         ARRAY, solver->make_sort(BV, info.index_width), info.element_sort);
   }
 
+  if (ct.kind == slang::ast::SymbolKind::UnpackedStructType) {
+    // An unpacked struct has no bit width of its own, but it does
+    // have a selectable one -- the space its fields' own bitOffsets
+    // are measured in. Laying it out flat in that space is what
+    // makes a field a bit range, which is how a packed struct is
+    // already read and written.
+    auto & st = ct.as<slang::ast::UnpackedStructType>();
+    for (auto * field : st.fields) {
+      if (!field->getType().isIntegral()) {
+        throw PonoException(
+            "SystemVerilogEncoder: field '" + std::string(field->name)
+            + "' of an unpacked struct is not integral, so the struct has "
+              "no flat layout to give it a bit range in");
+      }
+    }
+    if (st.selectableWidth == 0) {
+      throw PonoException("SystemVerilogEncoder: zero-width unpacked struct");
+    }
+    return solver->make_sort(BV, st.selectableWidth);
+  }
+
   throw PonoException("SystemVerilogEncoder: unsupported type kind");
+}
+
+uint64_t value_width(const slang::ast::Type & type)
+{
+  const slang::ast::Type & ct = type.getCanonicalType();
+  if (ct.kind == slang::ast::SymbolKind::UnpackedStructType) {
+    return ct.as<slang::ast::UnpackedStructType>().selectableWidth;
+  }
+  return type.getBitWidth();
 }
 
 bool packed_element_ordinal(const slang::ast::PackedArrayType & arr,

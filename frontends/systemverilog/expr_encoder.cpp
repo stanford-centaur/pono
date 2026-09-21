@@ -985,7 +985,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       }
       Term base = expr_to_term(ma.value(), prefix);
       auto & field = ma.member.as<FieldSymbol>();
-      uint64_t w = field.getType().getBitWidth();
+      uint64_t w = value_width(field.getType());
       uint64_t lo = field.bitOffset;
       uint64_t hi = lo + w - 1;
       return solver_->make_term(Op(Extract, hi, lo), base);
@@ -1019,7 +1019,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
         }
         Term val = resize_to(solver_,
                              expr_to_term(*sit->second, prefix),
-                             field.getType().getBitWidth(),
+                             value_width(field.getType()),
                              sit->second->type->isSigned());
         parts.push_back(val);
       }
