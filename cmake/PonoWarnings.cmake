@@ -69,6 +69,12 @@ foreach(flag IN LISTS pono_warnings)
   pono_add_warning_flag("${flag}")
 endforeach()
 
+# Set directly, since both compilers accept any -Wno-* silently and so cannot
+# be probed for it, and after the loop so it wins over the -Wextra that turns
+# it on. Every parameter it reports is held in place by a virtual, template or
+# callback signature, leaving nothing to act on.
+target_compile_options(pono-warnings INTERFACE -Wno-unused-parameter)
+
 # Fatal in every build, not only under PONO_STRICT. Each of these marks a
 # construct that is a bug wherever it appears, whose consequence is silent
 # misbehavior or undefined behavior rather than style.
