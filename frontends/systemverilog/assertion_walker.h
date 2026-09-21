@@ -283,6 +283,24 @@ class AssertionWalker
                            const slang::ast::SequenceRepetition & rep,
                            const std::string & prefix);
 
+  /** "A match of a goto/nonconsecutive repetition of `expr` ends at
+   *  this cycle, counted from a window that opens the cycle after
+   *  `window_start`" -- what a count *following* another element
+   *  needs, where goto_match_now() counts from the beginning of time.
+   *
+   *  Writing A(t) for the number of occurrences through t, a window
+   *  opening after cycle q holds exactly n of them at cycle k when
+   *  A(q) = A(k) - n. So the question is whether `window_start` ever
+   *  held at a cycle whose occurrence count was n less than now --
+   *  answered by a register per count, shifted as the count rises.
+   *  `n + 1` of them suffice, because only counts within n of the
+   *  current one are ever asked about.
+   */
+  smt::Term goto_match_after(const slang::ast::Expression & expr,
+                             const slang::ast::SequenceRepetition & rep,
+                             const smt::Term & window_start,
+                             const std::string & prefix);
+
   /** goto_match_now() for a whole antecedent, unwrapping a nested
    *  clocking event to reach the repetition. Returns a null Term
    *  unless the antecedent is exactly such a repetition -- composing

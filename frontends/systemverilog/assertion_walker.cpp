@@ -500,13 +500,44 @@ smt::TermVec AssertionWalker::offsets_ending_now(
 
         if (elem_unbounded && !unbounded_end) return {};
         if (elem_unbounded && (i > 0 || acc_unbounded)) {
-          // An unbounded-span element *after* something else would
-          // need the prefix matched against occurrences counted from
-          // where that prefix ended, which no amount of delaying it
-          // expresses.
-          throw PonoException(
-              "SystemVerilogEncoder: a match whose start is an unbounded "
-              "distance back cannot follow another element in a sequence");
+          // A count *following* something else counts from where
+          // that something ended, not from the beginning of time, so
+          // the bare counter this element already built is the wrong
+          // one -- rebuild it against the prefix's end.
+          const AssertionExpr * inner = elem.sequence;
+          while (inner->kind == AssertionExprKind::Clocking) {
+            inner = &inner->as<ClockingAssertionExpr>().expr;
+          }
+          Term prefix_end = acc_unbounded ? acc_unbounded : vec_ends_now(acc);
+          if (!prefix_end || inner->kind != AssertionExprKind::Simple
+              || !inner->as<SimpleAssertionExpr>().repetition || open_delay
+              || dmin == 0) {
+            throw PonoException(
+                "SystemVerilogEncoder: this shape places a match whose start "
+                "is an unbounded distance back after another element, which "
+                "is only modeled for a plain counted repetition at a "
+                "non-zero constant or bounded delay");
+          }
+          auto & inner_simple = inner->as<SimpleAssertionExpr>();
+          Term after;
+          for (uint32_t d = dmin; d <= dmax; ++d) {
+            // The counting window opens the cycle after the prefix's
+            // end plus the delay, so the register set is keyed on
+            // the prefix's end brought back d - 1 cycles.
+            Term window_start =
+                d == 1 ? prefix_end
+                       : tableau_.make_history_chain(prefix_end, d - 1, prefix);
+            Term m = goto_match_after(inner_simple.expr,
+                                      *inner_simple.repetition,
+                                      window_start,
+                                      prefix);
+            if (!m) return {};
+            after = after ? solver_->make_term(Or, after, m) : m;
+          }
+          acc.clear();
+          acc_empty = false;
+          acc_unbounded = after;
+          continue;
         }
         if (open_delay && (acc_empty || elem_unbounded)) {
           throw PonoException(
@@ -1007,6 +1038,71 @@ smt::Term AssertionWalker::goto_match_now(
     return solver_->make_term(And, b, reached_with_now);
   }
   return reached_with_now;
+}
+
+smt::Term AssertionWalker::goto_match_after(
+    const slang::ast::Expression & expr,
+    const slang::ast::SequenceRepetition & rep,
+    const Term & window_start,
+    const string & prefix)
+{
+  using namespace slang::ast;
+  if (rep.kind == SequenceRepetition::Consecutive) return Term();
+
+  // As for a bare count, an upper bound cannot bring a match sooner.
+  uint32_t n = rep.range.min;
+  if (n == 0) {
+    throw PonoException(
+        "SystemVerilogEncoder: a goto or nonconsecutive repetition of zero "
+        "occurrences is not supported");
+  }
+  if (n > MAX_SEQ_WINDOW) {
+    throw PonoException("SystemVerilogEncoder: repetition count exceeds "
+                        + std::to_string(MAX_SEQ_WINDOW));
+  }
+
+  Term a = expr_encoder_.expr_to_bool(expr, prefix);
+  if (!a) return Term();
+  Term not_a = solver_->make_term(Not, a);
+  Sort boolsort = solver_->make_sort(BOOL);
+
+  // r[i] at cycle k: "`window_start` held at some cycle q <= k-1
+  // whose occurrence count was i less than the count at k-1". Being
+  // registers they lag by a cycle, which is what keeps q strictly
+  // before k -- the window has to contain the occurrences, so it
+  // cannot open at k itself.
+  std::vector<Term> r;
+  r.reserve(n + 1);
+  for (uint32_t i = 0; i <= n; ++i) {
+    Term latch = fts_.make_statevar(prefix + "__sva_goto_after_"
+                                        + std::to_string(goto_counter_) + "_"
+                                        + std::to_string(i),
+                                    boolsort);
+    fts_.constrain_init(solver_->make_term(Not, latch));
+    r.push_back(latch);
+  }
+  ++goto_counter_;
+
+  // An occurrence raises the count, so every record moves one slot
+  // further back and slot 0 restarts on the new count. Without one,
+  // slot 0 simply accumulates.
+  fts_.assign_next(r[0],
+                   solver_->make_term(
+                       Or, window_start, solver_->make_term(And, not_a, r[0])));
+  for (uint32_t i = 1; i <= n; ++i) {
+    fts_.assign_next(r[i],
+                     solver_->make_term(Or,
+                                        solver_->make_term(And, a, r[i - 1]),
+                                        solver_->make_term(And, not_a, r[i])));
+  }
+
+  // At a cycle that is itself an occurrence the count has just
+  // risen, so the window wanted is one slot nearer than otherwise.
+  // `[->n]` ends on an occurrence; `[=n]` may end anywhere after it.
+  Term on_occurrence = solver_->make_term(And, a, r[n - 1]);
+  if (rep.kind == SequenceRepetition::GoTo) return on_occurrence;
+  return solver_->make_term(
+      Or, on_occurrence, solver_->make_term(And, not_a, r[n]));
 }
 
 smt::Term AssertionWalker::goto_match_now_seq(

@@ -778,4 +778,24 @@ TEST_P(SVUnitTests, UnboundedDelayConsequentHolds)
       "unbounded_delay_consequent_holds.sv", 12, ProverResult::UNKNOWN);
 }
 
+// A counted repetition *following* another element counts from where
+// that element ended, not from the beginning of time -- one register
+// per occurrence count, shifted as the count rises.
+
+TEST_P(SVUnitTests, GotoAfterElement)
+{
+  check_prover<KInduction>("goto_after_element.sv", 40, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, GotoAfterElementFails)
+{
+  check_bmc("goto_after_element_fails.sv", 9);
+}
+
+TEST_P(SVUnitTests, GotoAfterElementDelay)
+{
+  check_prover<KInduction>(
+      "goto_after_element_delay.sv", 40, ProverResult::TRUE);
+}
+
 }  // namespace pono_tests
