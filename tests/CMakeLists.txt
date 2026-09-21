@@ -40,8 +40,7 @@ add_library(
   "${CMAKE_CURRENT_SOURCE_DIR}/common_ts.cpp"
 )
 
-# INCLUDE_DIRS set in top-level CMakeLists.txt
-target_include_directories(pono-test-lib PUBLIC "${INCLUDE_DIRS}")
+target_include_directories(pono-test-lib PUBLIC "${PROJECT_SOURCE_DIR}")
 target_link_libraries(pono-test-lib pono-lib)
 # Plain signature, so the flags reach every test executable too: they all link
 # pono-test-lib and inherit its interface.
