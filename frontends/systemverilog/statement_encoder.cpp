@@ -301,6 +301,15 @@ smt::Term StatementEncoder::constant_array_value(
         10);
   };
 
+  // A pattern lists its values left to right, which is the order of
+  // the *declared* indices -- so for a descending range the first
+  // value belongs to the highest index, and position counts the
+  // opposite way from the normalized index the array sort uses.
+  bool descending = arr.range.left >= arr.range.right;
+  auto normalized = [&](size_t i) {
+    return descending ? elements.size() - 1 - i : i;
+  };
+
   // Fill with the first element, then Store only the ones that
   // differ -- a uniform pattern, which is the common case, stays a
   // single constant array.
@@ -311,7 +320,8 @@ smt::Term StatementEncoder::constant_array_value(
     if (elements[i] == elements[0]) continue;
     Term value = element_term(elements[i]);
     if (!value) return Term();
-    Term idx = solver_->make_term(i, solver_->make_sort(BV, info.index_width));
+    Term idx = solver_->make_term(normalized(i),
+                                  solver_->make_sort(BV, info.index_width));
     filled = solver_->make_term(Store, filled, idx, value);
   }
   return filled;

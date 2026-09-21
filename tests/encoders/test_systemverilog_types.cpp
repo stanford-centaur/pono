@@ -303,4 +303,19 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVTypesTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
 
+// A constant pattern lists its values in declared-index order, which
+// runs the opposite way from the normalized index a descending range
+// uses -- so filling by position reverses the array.
+
+TEST_P(SVUnitTests, UnpackedArrayDescendingPattern)
+{
+  check_prover<KInduction>(
+      "unpacked_array_descending.sv", 10, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, UnpackedArrayDescendingPatternFails)
+{
+  check_bmc("unpacked_array_descending_fails.sv", 2);
+}
+
 }  // namespace pono_tests
