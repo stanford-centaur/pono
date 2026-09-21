@@ -762,4 +762,20 @@ TEST_P(SVUnitTests, GotoThenElementAntecedent)
   check_prover<KInduction>("goto_then_antecedent.sv", 20, ProverResult::TRUE);
 }
 
+// In a consequent or as a bare property, an unbounded-span sequence
+// is an eventuality rather than a safety obligation: the matcher
+// declines and the tableau carries it, with "a match ends at this
+// cycle" as the condition F must discharge.
+
+TEST_P(SVUnitTests, UnboundedDelayConsequentFails)
+{
+  check_liveness_bmc("unbounded_delay_consequent.sv", 4);
+}
+
+TEST_P(SVUnitTests, UnboundedDelayConsequentHolds)
+{
+  check_liveness_bmc(
+      "unbounded_delay_consequent_holds.sv", 12, ProverResult::UNKNOWN);
+}
+
 }  // namespace pono_tests

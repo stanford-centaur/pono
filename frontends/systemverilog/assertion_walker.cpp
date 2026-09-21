@@ -1078,7 +1078,11 @@ smt::Term AssertionWalker::try_strong_sequence(
     smt::TermVec & justice,
     const string & prefix)
 {
-  Term me = match_exists(ae, prefix);
+  // A match whose start is an unbounded distance back counts here:
+  // the obligation is that the sequence completes at some point, and
+  // "a match ends at this cycle" is exactly what F needs, however
+  // far back that match began.
+  Term me = match_exists(ae, prefix, /*allow_unbounded=*/true);
   if (!me) return Term();
   if (in_weak_) {
     // Reached while unwrapping a weak() (see ltl_to_sat()'s
