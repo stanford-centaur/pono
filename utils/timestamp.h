@@ -37,17 +37,17 @@ typedef std::chrono::time_point<pono_clock> pono_time_stamp;
 typedef std::chrono::duration<long long int, std::nano> pono_time_duration;
 
 // take current time stamp
-static pono_time_stamp timestamp() { return pono_clock::now(); }
+inline pono_time_stamp timestamp() { return pono_clock::now(); }
 
 // compute duration in nanoseconds between two given time stamps
-static pono_time_duration timestamp_diff(pono_time_stamp begin,
+inline pono_time_duration timestamp_diff(pono_time_stamp begin,
                                          pono_time_stamp end)
 {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 }
 
 // convert duration in nanoseconds computed by 'timestamp_diff' to a string
-static std::string time_duration_to_sec_string(pono_time_duration d)
+inline std::string time_duration_to_sec_string(pono_time_duration d)
 {
   std::ostringstream out;
   out << static_cast<double>(d.count()) * 1e-9;
