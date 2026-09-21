@@ -561,6 +561,29 @@ TEST_P(SVUnitTests, InitialDynamicWriteRestIsFree)
 // that writes nothing, so it marks the target a latch -- which would
 // make a combinational signal a register and delay it a cycle.
 // Whether the fallback to the old value is reachable is a question
+// A clocking block's own variables, read and driven. Each names the
+// signal the block samples or drives, and with the default skews that
+// happens at the clock edge -- the only moment this encoder has.
+TEST_P(SVUnitTests, ClockingBlockSignals)
+{
+  check_prover<KInduction>("clocking_block_signals.sv", 6, ProverResult::TRUE);
+}
+
+// Guards against `cb.d` resolving to something free instead of to
+// `d`: an unconstrained value would fail nothing in particular, so
+// only a claim that must be refuted catches it.
+TEST_P(SVUnitTests, ClockingBlockSignalsAreNotFree)
+{
+  check_bmc("clocking_block_signals_delayed.sv", 1, ProverResult::FALSE);
+}
+
+// An explicit skew places the sample inside the cycle, and there is
+// no inside the cycle here.
+TEST_P(SVUnitTests, Unsupported_ClockingBlockSkew)
+{
+  expect_encode_throws("clocking_block_skew.sv");
+}
+
 // for the solver, and here it is not.
 TEST_P(SVUnitTests, CaseFullCoverageIsCombinational)
 {

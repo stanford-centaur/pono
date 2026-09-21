@@ -363,7 +363,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
   switch (expr.kind) {
     case ExpressionKind::NamedValue: {
       auto & nv = expr.as<NamedValueExpression>();
-      return symbol_table_.lookup_symbol(&canonicalize_modport_port(nv.symbol));
+      return symbol_table_.lookup_symbol(&canonicalize_signal_alias(nv.symbol));
     }
 
     case ExpressionKind::HierarchicalValue: {
@@ -373,9 +373,9 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
       // provided the referenced instance has been encoded already.
       // A modport-qualified access resolves to a ModportPortSymbol
       // proxy rather than the real symbol directly -- see
-      // canonicalize_modport_port().
+      // canonicalize_signal_alias().
       auto & hv = expr.as<HierarchicalValueExpression>();
-      return symbol_table_.lookup_symbol(&canonicalize_modport_port(hv.symbol));
+      return symbol_table_.lookup_symbol(&canonicalize_signal_alias(hv.symbol));
     }
 
     case ExpressionKind::LValueReference: {

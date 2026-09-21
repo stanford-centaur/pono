@@ -9,7 +9,7 @@
  * (for_each_stmt_in_block, collect_nonblocking_targets) walks
  * block/conditional/case/loop bodies to find non-blocking-assignment targets
  * during pre-scan and process_instance(). LHS/lvalue resolution
- * (canonicalize_modport_port, find_lhs_base, resolve_lvalue, LValueDesc) maps
+ * (canonicalize_signal_alias, find_lhs_base, resolve_lvalue, LValueDesc) maps
  * an assignment's left-hand side through modport indirection down to a base
  * Symbol and constant bit range. Compile-time control flow (LoopControlSignal,
  * as_forever_event_body) lets process_statement() model break/continue/disable
@@ -96,7 +96,7 @@ void collect_nonblocking_targets(
 // ModportPortSymbol::internalSymbol so every access path -- with or
 // without a modport qualifier -- converges on the same underlying
 // symbol identity. A no-op for every other symbol kind.
-const slang::ast::Symbol & canonicalize_modport_port(
+const slang::ast::Symbol & canonicalize_signal_alias(
     const slang::ast::Symbol & sym);
 
 // Identifies the base ValueSymbol underlying a (possibly nested)

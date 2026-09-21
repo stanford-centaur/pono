@@ -136,7 +136,7 @@ void StatementEncoder::process_dynamic_write(
   const Expression & inner = base_expr;
   if (inner.kind == ExpressionKind::NamedValue
       || inner.kind == ExpressionKind::HierarchicalValue) {
-    sym = &canonicalize_modport_port(
+    sym = &canonicalize_signal_alias(
         (inner.kind == ExpressionKind::NamedValue)
             ? inner.as<NamedValueExpression>().symbol
             : inner.as<HierarchicalValueExpression>().symbol);
@@ -534,7 +534,7 @@ bool StatementEncoder::process_array_element_assign(
         "SystemVerilogEncoder: an unpacked-array element write must select on "
         "a declared array directly");
   }
-  const Symbol * sym = &canonicalize_modport_port(
+  const Symbol * sym = &canonicalize_signal_alias(
       (base_expr->kind == ExpressionKind::NamedValue)
           ? base_expr->as<NamedValueExpression>().symbol
           : base_expr->as<HierarchicalValueExpression>().symbol);
@@ -731,7 +731,7 @@ bool StatementEncoder::process_whole_array_assign(
   const slang::ast::Type & lhs_type = lhs_expr.type->getCanonicalType();
   if (lhs_type.kind != SymbolKind::FixedSizeUnpackedArrayType) return false;
 
-  const Symbol * sym = &canonicalize_modport_port(
+  const Symbol * sym = &canonicalize_signal_alias(
       (lhs_expr.kind == ExpressionKind::NamedValue)
           ? lhs_expr.as<NamedValueExpression>().symbol
           : lhs_expr.as<HierarchicalValueExpression>().symbol);

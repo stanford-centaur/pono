@@ -28,9 +28,11 @@
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/CheckerSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
+#include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/ValueSymbol.h"
+#include "slang/ast/symbols/VariableSymbols.h"
 #include "slang/ast/types/AllTypes.h"
 #include "smt-switch/smt.h"
 #include "utils/exceptions.h"
@@ -72,9 +74,9 @@ void insert_blocking_lhs_targets(
   }
   if (lhs.kind == ExpressionKind::NamedValue) {
     full.insert(
-        &canonicalize_modport_port(lhs.as<NamedValueExpression>().symbol));
+        &canonicalize_signal_alias(lhs.as<NamedValueExpression>().symbol));
   } else if (lhs.kind == ExpressionKind::HierarchicalValue) {
-    full.insert(&canonicalize_modport_port(
+    full.insert(&canonicalize_signal_alias(
         lhs.as<HierarchicalValueExpression>().symbol));
   } else if (auto * base = find_lhs_base(lhs)) {
     partial.insert(base);
@@ -500,6 +502,13 @@ Term SymbolTable::lookup_symbol(const slang::ast::Symbol * sym)
   auto lvt = loop_var_terms_.find(sym);
   if (lvt != loop_var_terms_.end()) {
     return lvt->second;
+  }
+
+  // `cb.d` reaches here as the clocking block's own variable rather
+  // than the signal it samples, since a member access does not go
+  // through the alias canonicalization an ordinary name does.
+  if (sym->kind == SymbolKind::ClockVar) {
+    return lookup_symbol(&canonicalize_signal_alias(*sym));
   }
 
   // If `sym` is a child instance's output-port internal, reconstruct

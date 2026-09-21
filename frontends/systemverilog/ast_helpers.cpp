@@ -9,7 +9,7 @@
  * (for_each_stmt_in_block, collect_nonblocking_targets) walks
  * block/conditional/case/loop bodies to find non-blocking-assignment targets
  * during pre-scan and process_instance(). LHS/lvalue resolution
- * (canonicalize_modport_port, find_lhs_base, resolve_lvalue, LValueDesc) maps
+ * (canonicalize_signal_alias, find_lhs_base, resolve_lvalue, LValueDesc) maps
  * an assignment's left-hand side through modport indirection down to a base
  * Symbol and constant bit range. Compile-time control flow (LoopControlSignal,
  * as_forever_event_body) lets process_statement() model break/continue/disable
@@ -170,13 +170,47 @@ void collect_nonblocking_targets(
   }
 }
 
-const slang::ast::Symbol & canonicalize_modport_port(
+const slang::ast::Symbol & canonicalize_signal_alias(
     const slang::ast::Symbol & sym)
 {
   using namespace slang::ast;
   if (sym.kind == SymbolKind::ModportPort) {
     auto & mp = sym.as<ModportPortSymbol>();
     if (mp.internalSymbol) return *mp.internalSymbol;
+  }
+  if (sym.kind == SymbolKind::ClockVar) {
+    // A clocking block's variable names the signal it samples or
+    // drives rather than storage of its own. With the default skews
+    // that happens at the clock edge, which is the only moment this
+    // encoder has -- so reading or writing through the block is
+    // reading or writing the signal. An explicit skew puts it
+    // somewhere else inside the cycle, and there is no inside the
+    // cycle here.
+    auto & cv = sym.as<ClockVarSymbol>();
+    bool skewed = cv.inputSkew.hasValue() || cv.outputSkew.hasValue();
+    if (auto * parent = sym.getParentScope()) {
+      auto & block = parent->asSymbol();
+      if (block.kind == SymbolKind::ClockingBlock) {
+        auto & cb = block.as<ClockingBlockSymbol>();
+        skewed = skewed || cb.getDefaultInputSkew().hasValue()
+                 || cb.getDefaultOutputSkew().hasValue();
+      }
+    }
+    if (skewed) {
+      throw PonoException(
+          "SystemVerilogEncoder: the clocking block variable '"
+          + std::string(sym.name)
+          + "' has an explicit skew, which places it somewhere inside the "
+            "clock cycle -- this encoder advances a whole cycle at a time "
+            "and has nowhere to put that");
+    }
+    const Expression * init = cv.getInitializer();
+    const Symbol * signal = init ? init->getSymbolReference() : nullptr;
+    if (!signal) {
+      throw PonoException("SystemVerilogEncoder: the clocking block variable '"
+                          + std::string(sym.name) + "' does not name a signal");
+    }
+    return *signal;
   }
   return sym;
 }
@@ -186,9 +220,9 @@ const slang::ast::Symbol * find_lhs_base(const slang::ast::Expression & lhs)
   using namespace slang::ast;
   switch (lhs.kind) {
     case ExpressionKind::NamedValue:
-      return &canonicalize_modport_port(lhs.as<NamedValueExpression>().symbol);
+      return &canonicalize_signal_alias(lhs.as<NamedValueExpression>().symbol);
     case ExpressionKind::HierarchicalValue:
-      return &canonicalize_modport_port(
+      return &canonicalize_signal_alias(
           lhs.as<HierarchicalValueExpression>().symbol);
     case ExpressionKind::ElementSelect:
       return find_lhs_base(lhs.as<ElementSelectExpression>().value());
@@ -209,7 +243,7 @@ std::optional<LValueDesc> resolve_lvalue(
   switch (lhs.kind) {
     case ExpressionKind::NamedValue: {
       auto * sym =
-          &canonicalize_modport_port(lhs.as<NamedValueExpression>().symbol);
+          &canonicalize_signal_alias(lhs.as<NamedValueExpression>().symbol);
       uint64_t w = value_width(*lhs.type);
       if (w == 0) {
         throw PonoException("SystemVerilogEncoder: zero-width lvalue '"
@@ -218,7 +252,7 @@ std::optional<LValueDesc> resolve_lvalue(
       return LValueDesc{ sym, 0, w - 1, w };
     }
     case ExpressionKind::HierarchicalValue: {
-      auto * sym = &canonicalize_modport_port(
+      auto * sym = &canonicalize_signal_alias(
           lhs.as<HierarchicalValueExpression>().symbol);
       uint64_t w = value_width(*lhs.type);
       if (w == 0) {

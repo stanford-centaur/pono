@@ -488,6 +488,23 @@ TEST_P(SVUnitTests, SeqThroughout) { check_bmc("seq_throughout.sv", 1); }
 // as `clk1` (the property's own outer clock, established first),
 // check_clock() rejects the design outright -- correctly out of
 // scope, not a gap to eventually close.
+// A named clocking block as an assertion's clocking event. slang
+// binds `@(cb)` as a reference to the block rather than to a signal,
+// so the clock is the event the block was declared with. (A `default
+// clocking` block needs nothing here: slang substitutes its event
+// during elaboration, so the assertion arrives already clocked.)
+TEST_P(SVUnitTests, NamedClockingBlockEvent)
+{
+  check_prover<KInduction>("clocking_block_event.sv", 6, ProverResult::TRUE);
+}
+
+// Resolving that reference recurses, so a block on another clock
+// reaches the multiclock check rather than slipping past it.
+TEST_P(SVUnitTests, Unsupported_ClockingBlockOnSecondClock)
+{
+  expect_encode_throws("clocking_block_second_clock.sv");
+}
+
 // ---------------------------------------------------------------------------
 
 TEST_P(SVUnitTests, MulticlockPropertyRejected)

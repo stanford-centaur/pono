@@ -563,7 +563,7 @@ void InstanceEncoder::process_continuous_assign_operand(
       // one this assign *is* the definition -- there is no term yet
       // to constrain.
       const Symbol * sym =
-          &canonicalize_modport_port(target->as<NamedValueExpression>().symbol);
+          &canonicalize_signal_alias(target->as<NamedValueExpression>().symbol);
       if (!symbol_table_.symbol_to_term().count(sym)) {
         symbol_table_.symbol_to_term()[sym] = rhs_arg;
         return;

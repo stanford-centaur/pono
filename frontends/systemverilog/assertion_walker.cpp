@@ -54,6 +54,7 @@
 #include "slang/ast/expressions/AssertionExpr.h"
 #include "slang/ast/expressions/MiscExpressions.h"
 #include "slang/ast/statements/MiscStatements.h"
+#include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/types/Type.h"
 #include "slang/syntax/AllSyntax.h"
 #include "smt-switch/smt.h"
@@ -171,6 +172,19 @@ void AssertionWalker::check_clock(const slang::ast::TimingControl & clocking)
           "signal");
   }
   auto & sec = clocking.as<SignalEventControl>();
+
+  // `@(cb)` names a clocking block rather than a signal -- slang binds
+  // it as a void-typed reference to the block -- and the clock is the
+  // event the block itself was declared with. Recursing applies every
+  // check below to that event, so a block declared on something this
+  // encoder cannot use is rejected the same way writing it out would
+  // be.
+  if (const Symbol * ref = sec.expr.getSymbolReference();
+      ref && ref->kind == SymbolKind::ClockingBlock) {
+    check_clock(ref->as<ClockingBlockSymbol>().getEvent());
+    return;
+  }
+
   const Symbol * sym = find_lhs_base(sec.expr);
   if (!sym) {
     throw PonoException(
