@@ -765,12 +765,11 @@ TEST_P(SVUnitTests, SequenceRepetitionUnboundedRangeBounded)
 // previously had no gadget for -- silently dropped (the whole property
 // simply never checked, no thrown error) before this session started,
 // then converted to a clean throw, and now genuinely implemented by
-// composing this file's existing gadgets. `accept_on`/`reject_on` remain
-// unimplemented (see Gap_PropertyAcceptOn below) -- their formal
-// semantics (the abort condition can supersede the property's outcome
-// at *any* cycle during its evaluation, not just at a single recursive
-// call) don't localize the way the other four do, so they need their
-// own dedicated semantics research before any code is written.
+// composing this file's existing gadgets. `accept_on`/`reject_on` are
+// among them: an accept is the waiver `disable iff` already expresses,
+// threaded through the same member so each shape gates its own attempt
+// window, and a reject is its opposite. A temporal operand is still
+// refused.
 // ---------------------------------------------------------------------------
 
 // In-property `if (sel) a else b`: a plain ITE composition, reduces to
@@ -789,11 +788,51 @@ TEST_P(SVUnitTests, PropertyConditional)
 // a=0) immediately.
 TEST_P(SVUnitTests, PropertyCase) { check_bmc("property_case.sv", 0); }
 
-// `accept_on`/`reject_on`/`sync_accept_on`/`sync_reject_on`: deferred,
-// see the file-level comment above this section.
-TEST_P(SVUnitTests, Gap_PropertyAcceptOn)
+// `accept_on`/`reject_on`/`sync_accept_on`/`sync_reject_on`. An
+// accept waives the operand's failure across the cycles an attempt
+// spans; a reject causes one. The four operators are two actions,
+// since the sync forms coincide with the async ones where there is
+// no time between clock ticks.
+TEST_P(SVUnitTests, PropertyAcceptOn) { check_bmc("property_accept_on.sv", 0); }
+
+// The pair that separates the two actions: one design, opposite
+// actions, opposite verdicts.
+TEST_P(SVUnitTests, PropertyAcceptOnAlways)
 {
-  check_bmc("property_accept_on.sv", 1, ProverResult::UNKNOWN);
+  check_prover<KInduction>(
+      "property_accept_on_always.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, PropertyRejectOn) { check_bmc("property_reject_on.sv", 0); }
+
+// How far the abort reaches, on a design where the pulse sits at the
+// attempt's first cycle and the failure at its last. An implication
+// gates itself and reports no span, so an abort deriving its own
+// window from that report would waive only the cycle the check lands
+// on and refute this.
+TEST_P(SVUnitTests, PropertyAcceptOnWindow)
+{
+  check_prover<KInduction>(
+      "property_accept_on_window.sv", 25, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, PropertyAcceptOnOutsideWindow)
+{
+  check_bmc("property_accept_on_outside_window.sv", 1);
+}
+
+TEST_P(SVUnitTests, PropertySyncAcceptOn)
+{
+  check_prover<KInduction>(
+      "property_sync_accept_on.sv", 25, ProverResult::TRUE);
+}
+
+// A temporal operand needs its eventualities waived from the abort
+// onward while its safety part still holds before it, which is a
+// split of the property the tableau does not expose.
+TEST_P(SVUnitTests, Unsupported_PropertyAcceptOnTemporal)
+{
+  expect_encode_throws("property_accept_on_temporal.sv");
 }
 
 // `a intersect b` used directly as a property (as opposed to as the

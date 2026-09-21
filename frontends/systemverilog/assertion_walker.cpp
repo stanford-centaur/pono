@@ -1683,16 +1683,31 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
       }
     }
 
+    case AssertionExprKind::Abort:
+      // A per-cycle operand is handled by assertion_expr_to_bool()
+      // above, which is where an abort reduces cleanly. Getting here
+      // means the operand is temporal, and a true-padded truncation
+      // forgives its eventualities while still holding it to its
+      // safety part before the abort -- a split of the property this
+      // encoder does not have, since the tableau gives one term for
+      // both. Approximating either way is a wrong answer rather than
+      // a missing one.
+      throw PonoException(
+          "SystemVerilogEncoder: property '" + current_assertion_label_
+          + "' aborts a temporal property, which needs its eventualities "
+            "waived from the abort onward while its safety part still "
+            "holds before it -- only a per-cycle property is supported "
+            "here");
+
     // FirstMatch, SequenceWithMatch: bounded sequence shapes
     // offsets_ending_now() already models -- try treating the whole
     // property as an implicitly-strong sequence match (the same
     // fallback the SequenceConcat/Binary cases above use) before
-    // giving up. Abort (accept_on/reject_on/sync_accept_on/sync_
-    // reject_on) and a nested DisableIff (one not stripped by the
+    // giving up. A nested DisableIff (one not stripped by the
     // top-level `disable iff` handling in
     // process_concurrent_assertion(), e.g. as one operand of a
-    // Binary/Unary operator) aren't sequences at all, so this always
-    // fails for them, falling through to the throw below.
+    // Binary/Unary operator) isn't a sequence at all, so this always
+    // fails for it, falling through to the throw below.
     default:
       if (Term strong = try_strong_sequence(ae, neg, justice, prefix)) {
         return strong;
@@ -2067,6 +2082,70 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
           // general LTL tableau in ltl_to_sat() instead.
           return Term();
       }
+    }
+
+    case AssertionExprKind::Abort: {
+      // accept_on/reject_on/sync_accept_on/sync_reject_on. LRM
+      // 1800-2009 F.5.3.1: `accept_on(b) P` holds iff P does, or
+      // some cycle has b and P holds on the word truncated just
+      // before it and padded with true. For a property that reduces
+      // to a per-cycle check that padding cannot rescue a failure
+      // already observed, and forgives everything from b onward --
+      // so the check is the same one, waived across the cycles this
+      // attempt spans if b held in any of them.
+      //
+      // That is disable_window(), which `disable iff` uses for the
+      // same reason. The two are not the same operator -- an abort
+      // makes the property *true* where a disable makes it
+      // un-evaluated (LRM 24867-24872) -- but an assert cannot tell
+      // those apart, and `reject_on` is where the difference shows,
+      // since it forces failure rather than waiving it.
+      //
+      // `isSync` is not read: the sync forms differ only in being
+      // evaluated at clock ticks rather than at any simulation time
+      // step (LRM 24857-24865), and this encoder has no time between
+      // ticks -- the same argument that merges Eventually with
+      // SEventually.
+      auto & ab = ae.as<AbortAssertionExpr>();
+      Term cond = expr_encoder_.expr_to_bool(ab.condition, prefix);
+
+      if (ab.action == AbortAssertionExpr::Accept) {
+        // An accept is a waiver over the attempt's own window, which
+        // is what current_disable_cond_ already carries -- and only
+        // the shape being checked knows how wide that window is. An
+        // implication, for one, spans its antecedent to its
+        // consequent, gates itself across that, and then reports a
+        // span of zero because it has nothing left for the caller to
+        // do. Deriving a window out here instead would have waived
+        // just the cycle the check lands on.
+        Term saved = current_disable_cond_;
+        current_disable_cond_ =
+            saved ? solver_->make_term(Or, saved, cond) : cond;
+        uint32_t inner_span = 0;
+        Term inner = assertion_expr_to_bool(ab.expr, prefix, inner_span);
+        current_disable_cond_ = saved;
+        if (!inner) return Term();
+        span = inner_span;
+        // A shape that reported a span did not gate itself, so it is
+        // gated here instead. One that did reports zero, and this
+        // adds a cycle already inside the window it used.
+        return solver_->make_term(
+            Or, inner, tableau_.disable_window(cond, inner_span, prefix));
+      }
+
+      // A reject is the opposite of a waiver: the abort *causes* the
+      // failure, so it is not threaded into the disable condition --
+      // the operand keeps whatever `disable iff` was already in
+      // scope, and the abort is required not to have fired.
+      uint32_t inner_span = 0;
+      Term inner = assertion_expr_to_bool(ab.expr, prefix, inner_span);
+      if (!inner) return Term();
+      span = inner_span;
+      return solver_->make_term(
+          And,
+          inner,
+          solver_->make_term(
+              Not, tableau_.disable_window(cond, inner_span, prefix)));
     }
 
     default:
