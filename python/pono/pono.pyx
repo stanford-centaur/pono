@@ -437,7 +437,7 @@ cdef class Unroller:
     def __dealloc__(self):
         del self.cu
 
-    def at_time(self, Term t, unsigned int k):
+    def at_time(self, Term t, size_t k):
         cdef Term term = Term(self._solver)
         term.ct = dref(self.cu).at_time(t.ct, k)
         return term
