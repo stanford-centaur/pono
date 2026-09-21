@@ -286,7 +286,7 @@ class type_node : public SMVnode
     st = s;
     bvt = Default;
   }
-  std::string getName() { return type_name; }
+  std::string getName() override { return type_name; }
   std::vector<SMVnode *> get_list() { return ex_li; }
   Type getType() { return bvt; }
   Type getElementType() { return ele_type; }
@@ -296,7 +296,7 @@ class type_node : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class var_node_c : public SMVnode
@@ -313,13 +313,13 @@ class var_node_c : public SMVnode
     id = n;
     vt = vr;
   }
-  std::string getName() { return id; }
+  std::string getName() override { return id; }
   pono::type_node * getmodtype() { return ty; }
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class ivar_node_c : public SMVnode
@@ -337,7 +337,7 @@ class ivar_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class frozenvar_node_c : public SMVnode
@@ -355,7 +355,7 @@ class frozenvar_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class fun_node_c : public SMVnode
@@ -373,7 +373,7 @@ class fun_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class define_node_c : public SMVnode
@@ -391,7 +391,7 @@ class define_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class assign_node_c : public SMVnode
@@ -411,7 +411,7 @@ class assign_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class init_node_c : public SMVnode
@@ -424,7 +424,7 @@ class init_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class trans_node_c : public SMVnode
@@ -437,7 +437,7 @@ class trans_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class invar_node_c : public SMVnode
@@ -450,7 +450,7 @@ class invar_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class invarspec_node_c : public SMVnode
 {
@@ -462,7 +462,7 @@ class invarspec_node_c : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class var_node : public element_node
@@ -479,13 +479,13 @@ class var_node : public element_node
                   std::string prefix,
                   std::unordered_map<std::string, module_node *> module_list,
                   std::unordered_map<string, string> * new_prefix,
-                  ostream & s);
+                  ostream & s) override;
 
   void generate_ostream(std::string name,
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class ivar_node : public element_node
@@ -498,9 +498,9 @@ class ivar_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 
-  std::vector<SMVnode *> get_list() { return ex_li; }
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class frozenvar_node : public element_node
@@ -517,9 +517,9 @@ class frozenvar_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 
-  std::vector<SMVnode *> get_list() { return ex_li; }
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class fun_node : public element_node
@@ -536,9 +536,9 @@ class fun_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 
-  std::vector<SMVnode *> get_list() { return ex_li; }
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class define_node : public element_node
@@ -556,9 +556,9 @@ class define_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 
-  std::vector<SMVnode *> get_list() { return ex_li; }
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class assign_node : public element_node
@@ -576,9 +576,9 @@ class assign_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 
-  std::vector<SMVnode *> get_list() { return ex_li; }
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class init_node : public element_node
@@ -596,9 +596,9 @@ class init_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 
-  std::vector<SMVnode *> get_list() { return ex_li; }
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class trans_node : public element_node
@@ -616,9 +616,9 @@ class trans_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 
-  std::vector<SMVnode *> get_list() { return ex_li; }
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class invar_node : public element_node
@@ -636,8 +636,8 @@ class invar_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
-  std::vector<SMVnode *> get_list() { return ex_li; }
+                        ostream & s) override;
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class invarspec_node : public element_node
@@ -655,9 +655,9 @@ class invarspec_node : public element_node
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 
-  std::vector<SMVnode *> get_list() { return ex_li; }
+  std::vector<SMVnode *> get_list() override { return ex_li; }
 };
 
 class constant : public SMVnode
@@ -670,7 +670,7 @@ class constant : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class identifier : public SMVnode
@@ -683,7 +683,7 @@ class identifier : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class par_expr : public SMVnode
 {
@@ -695,7 +695,7 @@ class par_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class not_expr : public SMVnode
 {
@@ -707,7 +707,7 @@ class not_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class and_expr : public SMVnode
 {
@@ -724,7 +724,7 @@ class and_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class or_expr : public SMVnode
 {
@@ -741,7 +741,7 @@ class or_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class xor_expr : public SMVnode
 {
@@ -758,7 +758,7 @@ class xor_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class xnor_expr : public SMVnode
 {
@@ -775,7 +775,7 @@ class xnor_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class imp_expr : public SMVnode
 {
@@ -792,7 +792,7 @@ class imp_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class iff_expr : public SMVnode
 {
@@ -809,7 +809,7 @@ class iff_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class eq_expr : public SMVnode
 {
@@ -826,7 +826,7 @@ class eq_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class neq_expr : public SMVnode
 {
@@ -843,7 +843,7 @@ class neq_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class lt_expr : public SMVnode
 {
@@ -860,7 +860,7 @@ class lt_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class gt_expr : public SMVnode
 {
@@ -877,7 +877,7 @@ class gt_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class lte_expr : public SMVnode
@@ -895,7 +895,7 @@ class lte_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class gte_expr : public SMVnode
 {
@@ -912,7 +912,7 @@ class gte_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class uminus_expr : public SMVnode
 {
@@ -924,7 +924,7 @@ class uminus_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class add_expr : public SMVnode
 {
@@ -941,7 +941,7 @@ class add_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class sub_expr : public SMVnode
 {
@@ -958,7 +958,7 @@ class sub_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class mul_expr : public SMVnode
 {
@@ -975,7 +975,7 @@ class mul_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class div_expr : public SMVnode
 {
@@ -992,7 +992,7 @@ class div_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class mod_expr : public SMVnode
 {
@@ -1009,7 +1009,7 @@ class mod_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class sr_expr : public SMVnode
 {
@@ -1026,7 +1026,7 @@ class sr_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class sl_expr : public SMVnode
 {
@@ -1043,7 +1043,7 @@ class sl_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class subscript_expr : public SMVnode
@@ -1061,7 +1061,7 @@ class subscript_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class sel_expr : public SMVnode
 {
@@ -1080,7 +1080,7 @@ class sel_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class con_expr : public SMVnode
 {
@@ -1097,7 +1097,7 @@ class con_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class read_expr : public SMVnode
@@ -1115,7 +1115,7 @@ class read_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class write_expr : public SMVnode
@@ -1135,7 +1135,7 @@ class write_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class apply_expr : public SMVnode
@@ -1153,7 +1153,7 @@ class apply_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class word1_expr : public SMVnode
@@ -1166,7 +1166,7 @@ class word1_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class bool_expr : public SMVnode
 {
@@ -1178,7 +1178,7 @@ class bool_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class toint_expr : public SMVnode
 {
@@ -1190,7 +1190,7 @@ class toint_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class signed_expr : public SMVnode
 {
@@ -1202,7 +1202,7 @@ class signed_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class unsigned_expr : public SMVnode
 {
@@ -1214,7 +1214,7 @@ class unsigned_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class extend_expr : public SMVnode
 {
@@ -1231,7 +1231,7 @@ class extend_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class resize_expr : public SMVnode
 {
@@ -1248,7 +1248,7 @@ class resize_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class union_expr : public SMVnode
 {
@@ -1265,7 +1265,7 @@ class union_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class set_expr : public SMVnode
 {
@@ -1277,7 +1277,7 @@ class set_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class in_expr : public SMVnode
 {
@@ -1294,7 +1294,7 @@ class in_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class ite_expr : public SMVnode
 {
@@ -1313,7 +1313,7 @@ class ite_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class floor_expr : public SMVnode
 {
@@ -1325,7 +1325,7 @@ class floor_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class constarray_type_expr : public SMVnode
@@ -1343,7 +1343,7 @@ class constarray_type_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class constarray_word_expr : public SMVnode
@@ -1363,7 +1363,7 @@ class constarray_word_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class constarray_int_expr : public SMVnode
@@ -1381,7 +1381,7 @@ class constarray_int_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class case_expr : public SMVnode
@@ -1394,7 +1394,7 @@ class case_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 class case_body_ex : public SMVnode
@@ -1412,7 +1412,7 @@ class case_body_ex : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 class next_expr : public SMVnode
 {
@@ -1424,7 +1424,7 @@ class next_expr : public SMVnode
                         std::string prefix,
                         std::unordered_map<string, module_node *> module_list,
                         std::unordered_map<string, string> new_prefix,
-                        ostream & s);
+                        ostream & s) override;
 };
 
 }  // namespace pono
