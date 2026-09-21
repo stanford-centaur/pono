@@ -14,9 +14,17 @@ set(SLANG_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(slang)
 message(STATUS "slang fetched via FetchContent")
 
+# An OBJECT library rather than a STATIC one: these objects belong to
+# pono-lib and are linked straight into it. As a separate archive they
+# were mutually dependent with it -- calling into TransitionSystem
+# while pono-lib linked them back in -- which a linker taking one pass
+# over each archive can only resolve if it happens to reach them in
+# the right order. CMake will not let the two declare that cycle,
+# since it is allowed only between static libraries and pono-lib is
+# shared by default.
 add_library(
   pono-systemverilog
-  STATIC
+  OBJECT
   encoder.cpp
   ast_helpers.cpp
   bit_utils.cpp

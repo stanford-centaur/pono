@@ -398,8 +398,6 @@ set(CMAKE_INSTALL_MESSAGE LAZY)
 install(TARGETS pono-lib DESTINATION lib)
 install(TARGETS pono-bin DESTINATION bin)
 
-install(TARGETS pono-systemverilog DESTINATION lib)
-
 # install public headers
 install(
   DIRECTORY "${PROJECT_SOURCE_DIR}/core/"
