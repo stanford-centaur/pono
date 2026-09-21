@@ -283,6 +283,11 @@ void SymbolTable::pre_scan_always_comb(
   // semantics correct.
   std::unordered_set<const slang::ast::Symbol *> full, partial;
   collect_blocking_targets(body, full, partial);
+  // What the block assigns on every path. A full-width target
+  // missing from this keeps its old value on some path, which is a
+  // latch rather than a wire -- a wire has no old value to keep.
+  std::unordered_set<const slang::ast::Symbol *> definite;
+  collect_definitely_assigned(body, definite);
   for (auto * sym : full) {
     if (state_var_symbols_.count(sym)) continue;
     // An unpacked array is a state var wherever it is written: a wire
@@ -295,6 +300,9 @@ void SymbolTable::pre_scan_always_comb(
                == slang::ast::SymbolKind::FixedSizeUnpackedArrayType;
     if (partial.count(sym) || is_array) {
       state_var_symbols_.insert(sym);
+    } else if (!definite.count(sym)) {
+      state_var_symbols_.insert(sym);
+      latch_symbols_.insert(sym);
     } else {
       wire_symbols_.insert(sym);
       wire_drivers_[sym] = { nullptr, &proc, prefix, parent_prefix };

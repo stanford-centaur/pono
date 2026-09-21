@@ -536,9 +536,13 @@ void scan_hold_locals(const slang::ast::Statement & stmt,
         const Expression & lhs = assign.left();
         if (lhs.kind == ExpressionKind::NamedValue) {
           const Symbol & sym = lhs.as<NamedValueExpression>().symbol;
-          // Only a whole-variable write makes it definitely assigned;
-          // a partial one reads the rest of the variable.
-          if (is_block_local(sym)) assigned.insert(&sym);
+          // Only a whole-variable write makes it definitely
+          // assigned; a partial one reads the rest of the variable.
+          // Tracked for every symbol, not just block-local ones, so
+          // that collect_definitely_assigned() can see module-level
+          // targets too -- which cannot disturb the hold-local
+          // result, since only a block-local read is ever reported.
+          assigned.insert(&sym);
         } else {
           scan_reads(lhs, assigned, out);
         }
@@ -654,6 +658,16 @@ void collect_hold_locals(const slang::ast::Statement & body,
 {
   std::unordered_set<const slang::ast::Symbol *> assigned;
   scan_hold_locals(body, assigned, out);
+}
+
+void collect_definitely_assigned(
+    const slang::ast::Statement & body,
+    std::unordered_set<const slang::ast::Symbol *> & out)
+{
+  // Same walk, kept for what it threads rather than what it reports:
+  // `assigned` is the set that survives every branch.
+  std::unordered_set<const slang::ast::Symbol *> reads;
+  scan_hold_locals(body, out, reads);
 }
 
 bool is_block_local(const slang::ast::Symbol & sym)

@@ -461,4 +461,23 @@ TEST_P(SVUnitTests, InitialDynamicWriteRestIsFree)
   check_bmc("initial_dynamic_write_fails.sv", 0);
 }
 
+// A combinational block that assigns on some paths but not others
+// infers a latch, as synthesis does -- per variable, so an
+// unconditionally-assigned target in the same block stays a wire.
+
+TEST_P(SVUnitTests, AlwaysCombLatch)
+{
+  check_prover<KInduction>("always_comb_latch.sv", 12, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, AlwaysCombLatchIsNotAWire)
+{
+  check_bmc("always_comb_latch_fails.sv", 1);
+}
+
+TEST_P(SVUnitTests, AlwaysCombFullyAssigned)
+{
+  check_prover<KInduction>("always_comb_full.sv", 12, ProverResult::TRUE);
+}
+
 }  // namespace pono_tests

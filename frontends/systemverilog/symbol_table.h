@@ -170,6 +170,15 @@ class SymbolTable
    *  else drives has to hold it, which can only be decided once
    *  every block has been processed -- see add_initial_only_holds().
    */
+  /** Symbols a combinational block assigns on some paths but not
+   *  all. Real synthesis infers a latch for one of these, so its
+   *  definition becomes a next-state update that falls back to the
+   *  symbol's own value rather than a same-cycle equality. */
+  std::unordered_set<const slang::ast::Symbol *> & latch_symbols()
+  {
+    return latch_symbols_;
+  }
+
   std::unordered_set<const slang::ast::Symbol *> & initial_written()
   {
     return initial_written_;
@@ -361,6 +370,8 @@ class SymbolTable
   std::unordered_set<const slang::ast::Symbol *> pending_comb_aliased_;
   std::unordered_map<smt::Term, smt::Term> pending_next_updates_;
   std::unordered_set<const slang::ast::Symbol *> blocking_next_written_;
+  std::unordered_set<const slang::ast::Symbol *> latch_symbols_;
+
   std::unordered_set<const slang::ast::Symbol *> initial_written_;
 
   uint64_t unknown_counter_ = 0;

@@ -214,6 +214,16 @@ bool is_concurrent_assertion_only(const slang::ast::Statement & body);
 // what all of its arms assign, and a loop body contributes nothing
 // since it may run zero times -- so it can name a local that does
 // not really need storage, never miss one that does.
+/** The symbols `body` assigns on *every* path through it. A branch
+ *  contributes only what all of its arms assign, and a loop body
+ *  nothing, since it may run zero times. Anything a block assigns
+ *  but that is missing here keeps its old value on some path --
+ *  which in a combinational block is a latch.
+ */
+void collect_definitely_assigned(
+    const slang::ast::Statement & body,
+    std::unordered_set<const slang::ast::Symbol *> & out);
+
 void collect_hold_locals(const slang::ast::Statement & body,
                          std::unordered_set<const slang::ast::Symbol *> & out);
 

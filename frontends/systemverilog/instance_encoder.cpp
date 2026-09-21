@@ -282,6 +282,22 @@ void InstanceEncoder::process_always_comb(
                             + string(sym->name)
                             + "', which has no declared term");
       }
+      if (symbol_table_.latch_symbols().count(sym)) {
+        // Assigned on some paths and not others, so it keeps its old
+        // value on the rest -- which a same-cycle equality cannot
+        // say. The accumulated value already falls back to the
+        // symbol's own term where nothing wrote it, so as a
+        // next-state update it is exactly the latch synthesis infers
+        // here. Warned about for the same reason a synthesis tool
+        // warns: in an `always_comb` it is rarely intended.
+        logger.log(0,
+                   "SystemVerilogEncoder: '{}' is assigned on only some "
+                   "paths through a combinational block, so it holds its "
+                   "value on the rest -- modeled as the latch this infers",
+                   string(sym->name));
+        fts_.assign_next(sit->second, term);
+        continue;
+      }
       fts_.add_constraint(solver_->make_term(Equal, sit->second, term));
       logger.log(2,
                  "SystemVerilogEncoder: always_comb (reg) {} := ...",
