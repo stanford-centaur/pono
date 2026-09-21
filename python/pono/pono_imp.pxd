@@ -77,11 +77,17 @@ cdef extern from "core/fts.h" namespace "pono":
 
 
 cdef extern from "core/prop.h" namespace "pono":
-    cdef cppclass Property:
-        Property(const c_SmtSolver& s, c_Term p) except +
-        const c_Term prop() except +
+    cdef cppclass AbstractProperty:
         const c_SmtSolver & solver() except +
         string name()
+
+    cdef cppclass SafetyProperty(AbstractProperty):
+        SafetyProperty(const c_SmtSolver& s, c_Term p) except +
+        const c_Term prop() except +
+
+    cdef cppclass LivenessProperty(AbstractProperty):
+        LivenessProperty(const c_SmtSolver& s, const c_TermVec & conditions) except +
+        const c_TermVec & terms() except +
 
 cdef extern from "core/unroller.h" namespace "pono":
     cdef cppclass Unroller:
@@ -101,81 +107,95 @@ cdef extern from "core/proverresult.h" namespace "pono":
 
 
 cdef extern from "engines/prover.h" namespace "pono":
-    cdef cppclass Prover:
-        Prover(const Property & p, const TransitionSystem & ts,
-               c_SmtSolver & s) except +
+    cdef cppclass BaseProver:
         void initialize() except +
+        void reset_env() except +
         ProverResult check_until(int k) except +
         bint witness(vector[c_UnorderedTermMap] & out) except +
-        c_Term invar() except +
+        size_t witness_length() except +
         ProverResult prove() except +
+
+    cdef cppclass SafetyProver(BaseProver):
+        SafetyProver(const SafetyProperty & p, const TransitionSystem & ts,
+               c_SmtSolver & s) except +
+        c_Term invar() except +
+
+    cdef cppclass LivenessProver(BaseProver):
+        LivenessProver(const LivenessProperty & p, const TransitionSystem & ts,
+               c_SmtSolver & s) except +
+
+
+cdef extern from "engines/kliveness.h" namespace "pono":
+    cdef cppclass KLiveness(LivenessProver):
+        KLiveness(const LivenessProperty & p, const TransitionSystem & ts,
+                  c_SmtSolver & s) except +
 
 
 cdef extern from "engines/bmc.h" namespace "pono":
-    cdef cppclass Bmc(Prover):
-        Bmc(const Property & p, const TransitionSystem & ts,
+    cdef cppclass Bmc(SafetyProver):
+        Bmc(const SafetyProperty & p, const TransitionSystem & ts,
             c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/kinduction.h" namespace "pono":
-    cdef cppclass KInduction(Prover):
-        KInduction(const Property & p, const TransitionSystem & ts,
+    cdef cppclass KInduction(SafetyProver):
+        KInduction(const SafetyProperty & p, const TransitionSystem & ts,
                    c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/bmc_simplepath.h" namespace "pono":
     cdef cppclass BmcSimplePath(KInduction):
-        BmcSimplePath(const Property & p, const TransitionSystem & ts,
+        BmcSimplePath(const SafetyProperty & p, const TransitionSystem & ts,
                       c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/ic3.h" namespace "pono":
-    cdef cppclass IC3(Prover):
-        IC3(const Property & p, const TransitionSystem & ts,
+    cdef cppclass IC3(SafetyProver):
+        IC3(const SafetyProperty & p, const TransitionSystem & ts,
             c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/ic3bits.h" namespace "pono":
-    cdef cppclass IC3Bits(Prover):
-        IC3Bits(const Property & p, const TransitionSystem & ts,
+    cdef cppclass IC3Bits(SafetyProver):
+        IC3Bits(const SafetyProperty & p, const TransitionSystem & ts,
                 c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/ic3ia.h" namespace "pono":
-    cdef cppclass IC3IA(Prover):
-        IC3IA(const Property & p, const TransitionSystem & ts,
+    cdef cppclass IC3IA(SafetyProver):
+        IC3IA(const SafetyProperty & p, const TransitionSystem & ts,
               c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/ic3sa.h" namespace "pono":
-    cdef cppclass IC3SA(Prover):
-        IC3SA(const Property & p, const TransitionSystem & ts,
+    cdef cppclass IC3SA(SafetyProver):
+        IC3SA(const SafetyProperty & p, const TransitionSystem & ts,
               c_SmtSolver & solver) except +
 
 
 cdef extern from "engines/interpolantmc.h" namespace "pono":
-    cdef cppclass InterpolantMC(Prover):
-        InterpolantMC(const Property & p, const TransitionSystem & ts,
+    cdef cppclass InterpolantMC(SafetyProver):
+        InterpolantMC(const SafetyProperty & p, const TransitionSystem & ts,
                       c_SmtSolver & s) except +
 
 
 cdef extern from "engines/interp_seq_mc.h" namespace "pono":
-    cdef cppclass InterpSeqMC(Prover):
-        InterpSeqMC(const Property & p, const TransitionSystem & ts,
+    cdef cppclass InterpSeqMC(SafetyProver):
+        InterpSeqMC(const SafetyProperty & p, const TransitionSystem & ts,
                       c_SmtSolver & s) except +
 
 
 cdef extern from "engines/mbic3.h" namespace "pono":
-    cdef cppclass ModelBasedIC3(Prover):
-        ModelBasedIC3(const Property & p, const TransitionSystem & ts,
+    cdef cppclass ModelBasedIC3(SafetyProver):
+        ModelBasedIC3(const SafetyProperty & p, const TransitionSystem & ts,
                       c_SmtSolver & solver) except +
 
 
 # WITH_MSAT_IC3IA is set in python/CMakeLists.txt via the --compile-time-env flag of Cython
 IF WITH_MSAT_IC3IA == "ON":
     cdef extern from "engines/msat_ic3ia.h" namespace "pono":
-        cdef cppclass MsatIC3IA(Prover):
-            MsatIC3IA(const Property & p, const TransitionSystem & ts,
+        cdef cppclass MsatIC3IA(SafetyProver):
+            MsatIC3IA(const SafetyProperty & p, const TransitionSystem & ts,
                       c_SmtSolver & s) except +
 
 
