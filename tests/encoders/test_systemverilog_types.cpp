@@ -318,4 +318,19 @@ TEST_P(SVUnitTests, UnpackedArrayDescendingPatternFails)
   check_bmc("unpacked_array_descending_fails.sv", 2);
 }
 
+// A pattern whose values are not elaboration-time constants: one
+// term per element, built as stores over a seed rather than folded
+// into a single constant array.
+
+TEST_P(SVUnitTests, UnpackedPatternNonConstant)
+{
+  check_prover<KInduction>(
+      "unpacked_pattern_nonconstant.sv", 10, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, UnpackedPatternNonConstantFails)
+{
+  check_bmc("unpacked_pattern_nonconstant_fails.sv", 2);
+}
+
 }  // namespace pono_tests

@@ -327,6 +327,68 @@ smt::Term StatementEncoder::constant_array_value(
   return filled;
 }
 
+smt::Term StatementEncoder::array_from_pattern(
+    const slang::ast::Expression & expr,
+    const slang::ast::FixedSizeUnpackedArrayType & arr,
+    const Term & seed,
+    const string & prefix)
+{
+  using namespace slang::ast;
+  if (expr.kind != ExpressionKind::SimpleAssignmentPattern
+      && expr.kind != ExpressionKind::StructuredAssignmentPattern
+      && expr.kind != ExpressionKind::ReplicatedAssignmentPattern) {
+    return Term();
+  }
+
+  UnpackedArrayInfo info = unpacked_array_info(solver_, arr);
+  // The three pattern kinds share a base, but it is abstract and so
+  // not reachable through as<>(); each concrete one exposes the same
+  // element list.
+  std::span<const Expression * const> elements;
+  switch (expr.kind) {
+    case ExpressionKind::SimpleAssignmentPattern:
+      elements = expr.as<SimpleAssignmentPatternExpression>().elements();
+      break;
+    case ExpressionKind::StructuredAssignmentPattern:
+      elements = expr.as<StructuredAssignmentPatternExpression>().elements();
+      break;
+    default:
+      elements = expr.as<ReplicatedAssignmentPatternExpression>().elements();
+      break;
+  }
+  if (elements.empty() || elements.size() != info.depth) return Term();
+
+  // Same ordering as the constant case: a pattern lists its values
+  // in declared-index order, which for a descending range runs the
+  // opposite way from the normalized index.
+  bool descending = arr.range.left >= arr.range.right;
+  auto normalized = [&](size_t i) {
+    return descending ? elements.size() - 1 - i : i;
+  };
+
+  Sort idx_sort = solver_->make_sort(BV, info.index_width);
+  Term filled = seed;
+  for (size_t i = 0; i < elements.size(); ++i) {
+    Term idx = solver_->make_term(normalized(i), idx_sort);
+    Term value;
+    if (info.element_sort->get_sort_kind() == ARRAY) {
+      // An element of a multi-dimensional array is itself an array,
+      // so a nested pattern recurses as far as the dimensions do --
+      // seeded with the element it is replacing.
+      value = array_from_pattern(
+          *elements[i],
+          arr.elementType.getCanonicalType().as<FixedSizeUnpackedArrayType>(),
+          solver_->make_term(Select, seed, idx),
+          prefix);
+    } else {
+      value = expr_encoder_.expr_to_term(*elements[i], prefix);
+    }
+    if (!value) return Term();
+    filled = solver_->make_term(Store, filled, idx, value);
+  }
+  return filled;
+}
+
 smt::Term StatementEncoder::constant_array_term(
     const slang::ast::Expression & rhs_expr,
     const slang::ast::FixedSizeUnpackedArrayType & arr,
@@ -643,9 +705,17 @@ bool StatementEncoder::process_whole_array_assign(
                                       lhs_type.as<FixedSizeUnpackedArrayType>(),
                                       state_term->get_sort());
   if (!combined) {
-    // Not constant, so it has to be another array of the same shape
-    // (`b <= a`): copying one array term into another needs no
-    // element-by-element expansion.
+    // A pattern whose values are not all elaboration-time constants
+    // still has one term per element, so it builds as stores.
+    combined = array_from_pattern(rhs_expr,
+                                  lhs_type.as<FixedSizeUnpackedArrayType>(),
+                                  state_term,
+                                  prefix);
+  }
+  if (!combined) {
+    // Not constant and not a pattern, so it has to be another array
+    // of the same shape (`b <= a`): copying one array term into
+    // another needs no element-by-element expansion.
     combined = expr_encoder_.expr_to_term(rhs_expr, prefix);
     if (combined->get_sort() != state_term->get_sort()) {
       throw PonoException(

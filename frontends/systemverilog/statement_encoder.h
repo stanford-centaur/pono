@@ -194,6 +194,21 @@ class StatementEncoder : public ExprEncoder::SubroutineInliner
    *          not a whole-array assignment at all, leaving the caller's
    *          ordinary paths to deal with it
    */
+  /** An assignment pattern whose elements are not all
+   *  elaboration-time constants: one term per element, stored over
+   *  `seed`. Every element is written, so `seed` only supplies the
+   *  sort -- pass the array's own term. A constant array cannot
+   *  serve here even for a uniform pattern, since not every solver
+   *  accepts one built from a symbolic value.
+   *
+   *  Returns a null Term if `expr` is not an assignment pattern of
+   *  the right shape. */
+  smt::Term array_from_pattern(
+      const slang::ast::Expression & expr,
+      const slang::ast::FixedSizeUnpackedArrayType & arr,
+      const smt::Term & seed,
+      const std::string & prefix);
+
   bool process_whole_array_assign(const slang::ast::Expression & lhs_expr,
                                   const slang::ast::Expression & rhs_expr,
                                   StmtContext ctx,
