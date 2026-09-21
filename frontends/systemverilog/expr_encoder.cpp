@@ -234,6 +234,44 @@ Term ExprEncoder::inline_call(const slang::ast::CallExpression & call,
       solver_, result, call.type->getBitWidth(), call.type->isSigned());
 }
 
+Term ExprEncoder::literal_term(const slang::SVInt & val, uint64_t width)
+{
+  Sort sort = solver_->make_sort(BV, width);
+
+  if (!val.hasUnknown()) {
+    // Reinterpret the value as unsigned so that toString emits the raw
+    // two's-complement bit pattern as a positive decimal.  Without
+    // setSigned(false), signed-negative values would stringify as
+    // "-N", which smt-switch's base-10 parser rejects.
+    slang::SVInt unsigned_val = val;
+    unsigned_val.setSigned(false);
+    return solver_->make_term(unsigned_val.toString(slang::LiteralBase::Decimal,
+                                                    /*includeBase=*/false),
+                              sort,
+                              10);
+  }
+
+  // Pin the bits the literal does give, and let a fresh unconstrained
+  // value supply the rest. MSB first, the order make_term() reads a
+  // base-2 string in.
+  string value_bits(width, '0'), unknown_bits(width, '0');
+  for (uint64_t i = 0; i < width; ++i) {
+    slang::logic_t bit = val[static_cast<int32_t>(i)];
+    if (bit.isUnknown()) {
+      unknown_bits[width - 1 - i] = '1';
+    } else if (bit.value == 1) {
+      value_bits[width - 1 - i] = '1';
+    }
+  }
+
+  Term unknown =
+      solver_->make_term(BVAnd,
+                         symbol_table_.make_unknown_value(sort, "xz_literal"),
+                         solver_->make_term(unknown_bits, sort, 2));
+  return solver_->make_term(
+      BVOr, solver_->make_term(value_bits, sort, 2), unknown);
+}
+
 Term ExprEncoder::extract_maybe_out_of_range(const Term & val,
                                              uint64_t hi,
                                              uint64_t lo)
@@ -287,31 +325,16 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
     }
 
     case ExpressionKind::IntegerLiteral: {
-      auto & lit = expr.as<IntegerLiteral>();
       uint64_t width = expr.type->getBitWidth();
       if (width == 0) width = 32;  // Default integer width.
-      Sort sort = solver_->make_sort(BV, width);
-      // Reinterpret the value as unsigned so that toString emits the raw
-      // two's-complement bit pattern as a positive decimal.  Without
-      // setSigned(false), signed-negative values would stringify as
-      // "-N", which smt-switch's base-10 parser rejects.
-      auto val = lit.getValue();
-      val.setSigned(false);
-      string val_str =
-          val.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
-      return solver_->make_term(val_str, sort, 10);
+      return literal_term(expr.as<IntegerLiteral>().getValue(), width);
     }
 
     case ExpressionKind::UnbasedUnsizedIntegerLiteral: {
-      auto & lit = expr.as<UnbasedUnsizedIntegerLiteral>();
       uint64_t width = expr.type->getBitWidth();
       if (width == 0) width = 1;
-      Sort sort = solver_->make_sort(BV, width);
-      auto val = lit.getValue();
-      val.setSigned(false);
-      string val_str =
-          val.toString(slang::LiteralBase::Decimal, /*includeBase=*/false);
-      return solver_->make_term(val_str, sort, 10);
+      return literal_term(expr.as<UnbasedUnsizedIntegerLiteral>().getValue(),
+                          width);
     }
 
     case ExpressionKind::BinaryOp: {
@@ -322,9 +345,9 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
         // Must special-case *before* the generic eager left/right
         // conversion below: a right operand with unknown bits (e.g.
         // `4'b10??`) would otherwise hit the generic (wildcard-
-        // unaware) IntegerLiteral case first and crash trying to hand
-        // an X-containing decimal string to the solver, the same bug
-        // casex/casez's item patterns had. Per the LRM, only the
+        // unaware) IntegerLiteral case, which reads an unknown bit as
+        // an unconstrained one. Here it has to be ignored instead --
+        // an unconstrained bit still has to match. Per the LRM, only the
         // *right* operand's X/Z bits are wildcards, so left is always
         // safe to convert normally; only convert right if we end up
         // needing it for the plain-equality fallback below. Reuses
@@ -337,9 +360,8 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
         // encoder's BV model has no way for a non-literal term to
         // hold an unknown bit at all. Mask and value are bit strings
         // so that fallback never catches an operand merely for being
-        // wide: handing one with unknown bits to the ordinary literal
-        // path stringifies an X as a decimal digit and aborts the
-        // solver.
+        // wide: the ordinary literal path would read its unknown bits
+        // as unconstrained rather than as wildcards.
         Term left = expr_to_term(binop.left(), prefix);
         Term eq;
         auto rhs_cv = binop.right().eval(eval_ctx());

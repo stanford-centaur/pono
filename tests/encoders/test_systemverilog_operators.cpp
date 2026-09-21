@@ -236,4 +236,25 @@ INSTANTIATE_TEST_SUITE_P(ParameterizedSolverSVOperatorsTests,
                          SVUnitTests,
                          testing::ValuesIn(available_solver_enums()));
 
+// ---------------------------------------------------------------------------
+// `x` and `z` bits in a literal. Modelled as unconstrained bits, in
+// keeping with how this encoder treats X everywhere else, rather than
+// reaching the solver as a decimal string containing an `x`.
+// ---------------------------------------------------------------------------
+
+TEST_P(SVUnitTests, XzLiteralKnownBits)
+{
+  check_prover<KInduction>("xz_literal.sv", 12, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, XzLiteralUnknownBitsAreFree)
+{
+  check_bmc("xz_literal_fails.sv", 1);
+}
+
+TEST_P(SVUnitTests, XzLiteralsAreIndependent)
+{
+  check_bmc("xz_literal_independent.sv", 1);
+}
+
 }  // namespace pono_tests

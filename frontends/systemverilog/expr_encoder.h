@@ -20,6 +20,10 @@
 
 #include "smt-switch/smt.h"
 
+namespace slang {
+class SVInt;
+}  // namespace slang
+
 namespace slang::ast {
 class CallExpression;
 class Compilation;
@@ -131,6 +135,12 @@ class ExprEncoder
   smt::Term extract_maybe_out_of_range(const smt::Term & val,
                                        uint64_t hi,
                                        uint64_t lo);
+
+  /** `val` as a term of `width` bits. An x or z bit becomes a fresh
+   *  unconstrained bit -- this encoder models X as an unconstrained
+   *  value throughout, and the alternative is handing the solver a
+   *  decimal string with an `x` in it, which aborts it. */
+  smt::Term literal_term(const slang::SVInt & val, uint64_t width);
 
   smt::Term expr_to_term_or_bool(const slang::ast::Expression & expr,
                                  const std::string & prefix);

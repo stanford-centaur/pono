@@ -1470,8 +1470,8 @@ void StatementEncoder::process_statement(
       // equality. The pair is MSB-first bit strings rather than
       // integers so that no pattern is too wide to mask: falling back
       // on width alone would hand a pattern with unknown bits to the
-      // ordinary literal path, which stringifies an X as a decimal
-      // digit and aborts the solver.
+      // ordinary literal path, which reads them as unconstrained bits
+      // that still have to match rather than as wildcards.
       auto casex_mask = [&](const Expression & pat_expr)
           -> std::optional<std::pair<string, string>> {
         auto cv = pat_expr.eval(expr_encoder_.eval_ctx());

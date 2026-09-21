@@ -162,10 +162,14 @@ class SymbolTable
                           bool clocked,
                           const std::string & prefix);
 
-  /** A fresh unconstrained value standing in for a read of an
-   *  unpacked-array cell outside the declared range, which the LRM
-   *  gives as X. Fresh per read, which is the loosest and so the
-   *  soundest reading of "could be anything". */
+  /** A fresh unconstrained value standing in for an X, named after
+   *  what produced it (`tag` becomes part of the variable's name).
+   *  Fresh per occurrence, which is the loosest and so the soundest
+   *  reading of "could be anything". */
+  smt::Term make_unknown_value(const smt::Sort & sort, const std::string & tag);
+
+  /** A read of an unpacked-array cell outside the declared range,
+   *  which the LRM gives as X. */
   smt::Term make_out_of_range_value(const smt::Sort & sort);
 
   /** Give a state variable to each local of `body` that some path
@@ -348,7 +352,7 @@ class SymbolTable
   std::unordered_set<const slang::ast::Symbol *> pending_comb_aliased_;
   std::unordered_map<smt::Term, smt::Term> pending_next_updates_;
   std::unordered_set<const slang::ast::Symbol *> blocking_next_written_;
-  uint64_t oob_read_counter_ = 0;
+  uint64_t unknown_counter_ = 0;
   std::unordered_map<const slang::ast::Symbol *, smt::Term>
       pending_comb_updates_;
   std::unordered_map<const slang::ast::Symbol *, smt::Term> loop_var_terms_;
