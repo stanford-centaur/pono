@@ -1077,7 +1077,7 @@ void IC3Base::reset_solver()
       }
     }
   }
-  catch (SmtException & e) {
+  catch (SmtException &) {
     logger.log(1,
                "Failed to reset solver (underlying solver must not support "
                "it). Disabling solver resets for rest of run.");
@@ -1107,7 +1107,7 @@ Term IC3Base::label(const Term & t)
             solver_->make_sort(BOOL));
         break;
       }
-      catch (IncorrectUsageException & e) {
+      catch (IncorrectUsageException &) {
         ++i;
       }
       catch (SmtException & e) {

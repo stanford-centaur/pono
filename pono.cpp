@@ -193,7 +193,7 @@ ProverResult check_prop(PonoOptions pono_options,
     try {
       invar = prover->invar();
     }
-    catch (PonoException & e) {
+    catch (PonoException &) {
       std::cout << "Engine " << pono_options.engine_
                 << " does not support getting the invariant." << std::endl;
     }

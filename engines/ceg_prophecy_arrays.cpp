@@ -565,7 +565,7 @@ Term CegProphecyArrays<Prover_T>::label(const Term & t)
           super::solver_->make_sort(BOOL));
       break;
     }
-    catch (IncorrectUsageException & e) {
+    catch (IncorrectUsageException &) {
       ++i;
     }
     catch (SmtException & e) {
