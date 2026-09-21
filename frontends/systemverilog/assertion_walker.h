@@ -46,12 +46,14 @@ struct SequenceRepetition;
 namespace pono {
 
 class ExprEncoder;
+class SymbolTable;
 class Tableau;
 
 class AssertionWalker
 {
  public:
-  AssertionWalker(ExprEncoder & expr_encoder,
+  AssertionWalker(SymbolTable & symbol_table,
+                  ExprEncoder & expr_encoder,
                   Tableau & tableau,
                   const smt::SmtSolver & solver,
                   FunctionalTransitionSystem & fts);
@@ -373,9 +375,9 @@ class AssertionWalker
                                const std::string & name);
 
   /** Checks the clock named by a `Clocking` AssertionExpr node's
-   *  `clocking` control against `design_clock_sym_`/`design_clock_edge_`,
-   *  the (signal, edge) pair established by the first such clocking
-   *  event seen anywhere in the design's properties. The first call
+   *  `clocking` control against the design's one clock, which
+   *  SymbolTable records for everything that names one -- a
+   *  sampled-value function's clocking-event argument included. The first call
    *  overall just establishes that baseline; every later call throws a
    *  clear PonoException if it names a different signal or a different
    *  edge of the same signal -- this encoder has no clock-domain-
@@ -391,6 +393,7 @@ class AssertionWalker
    */
   void check_clock(const slang::ast::TimingControl & clocking);
 
+  SymbolTable & symbol_table_;
   ExprEncoder & expr_encoder_;
   // Distinguishes the latches ever_held() builds.
   uint64_t ever_counter_ = 0;
@@ -427,17 +430,6 @@ class AssertionWalker
    *  sequence found underneath refuses the strong completion
    *  obligation instead of silently acquiring it. */
   bool in_weak_ = false;
-
-  // The (signal, edge) pair established by the first clocking event
-  // seen anywhere in the design's properties (see check_clock()) --
-  // persists for the lifetime of this AssertionWalker (one whole
-  // design), not just one property, since the design has exactly one
-  // clock or none at all. design_clock_edge_ is a slang::ast::EdgeKind
-  // value stored as a plain int so this header doesn't need that
-  // enum's full definition; only meaningful once design_clock_sym_ is
-  // non-null.
-  const slang::ast::Symbol * design_clock_sym_ = nullptr;
-  int design_clock_edge_ = 0;
 
   // The current property's source label, for check_clock()'s exception
   // message; set at the start of each process_concurrent_assertion()

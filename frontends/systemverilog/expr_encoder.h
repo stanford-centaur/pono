@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 
 #include "smt-switch/smt.h"
@@ -79,6 +80,21 @@ class ExprEncoder
    *  @param prefix see expr_to_term()
    *  @return the corresponding SMT term, Bool-sorted
    */
+  /** Check a sampled-value function's optional `clocking_event`
+   *  argument against the design's one clock.
+   *
+   *  Naming that same clock is redundant rather than wrong -- every
+   *  sample here is already taken on it -- so it is accepted and
+   *  dropped. Naming any other clock is the thing a property clocked
+   *  on a second clock is already rejected for, and going unchecked
+   *  here meant the two disagreed: the property refused while the
+   *  function quietly answered as though the clocks were the same.
+   *
+   *  A null or omitted argument is no argument at all.
+   */
+  void check_sampled_clock(const slang::ast::Expression * arg,
+                           std::string_view fn);
+
   smt::Term expr_to_bool(const slang::ast::Expression & expr,
                          const std::string & prefix);
 

@@ -492,6 +492,24 @@ TEST_P(SVUnitTests, SeqThroughout) { check_bmc("seq_throughout.sv", 1); }
 // binds `@(cb)` as a reference to the block rather than to a signal,
 // so the clock is the event the block was declared with. (A `default
 // clocking` block needs nothing here: slang substitutes its event
+// A sampled-value function's `clocking_event` argument naming the
+// clock the design already runs on: redundant rather than wrong, so
+// it is checked and dropped. Also covers `$past`'s omitted `enable`
+// slot, which has to read as "not supplied".
+TEST_P(SVUnitTests, SampledValueClockingEvent)
+{
+  check_prover<KInduction>("sampled_clocking_event.sv", 6, ProverResult::TRUE);
+}
+
+// Naming a second clock used to be accepted and ignored, which made
+// this design prove that the two clocks agree while a property on
+// that same clock was rejected. Both paths now share one record of
+// the design's clock.
+TEST_P(SVUnitTests, Unsupported_SampledValueSecondClock)
+{
+  expect_encode_throws("sampled_clocking_event_second_clock.sv");
+}
+
 // during elaboration, so the assertion arrives already clocked.)
 TEST_P(SVUnitTests, NamedClockingBlockEvent)
 {

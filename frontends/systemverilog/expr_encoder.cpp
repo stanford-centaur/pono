@@ -120,6 +120,43 @@ Term ExprEncoder::expr_to_term(const slang::ast::Expression & expr,
   return resize_to(solver_, bv, expr.type->getBitWidth(), /*is_signed=*/false);
 }
 
+void ExprEncoder::check_sampled_clock(const slang::ast::Expression * arg,
+                                      std::string_view fn)
+{
+  using namespace slang::ast;
+  if (!arg || arg->kind == ExpressionKind::EmptyArgument) return;
+  if (arg->kind != ExpressionKind::ClockingEvent) {
+    throw PonoException("SystemVerilogEncoder: " + std::string(fn)
+                        + "'s clocking-event argument is not a clocking "
+                          "event");
+  }
+  const TimingControl & tc = arg->as<ClockingEventExpression>().timingControl;
+  if (tc.kind != TimingControlKind::SignalEvent) {
+    throw PonoException(
+        "SystemVerilogEncoder: " + std::string(fn)
+        + " is sampled on a clocking event that is not a single "
+          "edge-sensitive signal");
+  }
+  auto & sec = tc.as<SignalEventControl>();
+  const Symbol * sym = find_lhs_base(sec.expr);
+  if (!sym) {
+    throw PonoException("SystemVerilogEncoder: " + std::string(fn)
+                        + " is sampled on a clocking event whose clock "
+                          "signal could not be resolved");
+  }
+  if (!symbol_table_.note_design_clock(sym, static_cast<int>(sec.edge))) {
+    throw PonoException(
+        "SystemVerilogEncoder: " + std::string(fn) + " is sampled on "
+        + std::string(toString(sec.edge)) + " of '" + std::string(sym->name)
+        + "', but this design's clock was already established as "
+        + std::string(toString(static_cast<EdgeKind>(
+              symbol_table_.design_clock_edge())))
+        + " of '" + std::string(symbol_table_.design_clock_sym()->name)
+        + "' -- this encoder has no clock-domain model, so a sampled "
+          "value cannot come from a second clock");
+  }
+}
+
 Term ExprEncoder::expr_to_bool(const slang::ast::Expression & expr,
                                const string & prefix)
 {
@@ -1194,7 +1231,8 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
         // still sees the last-enabled value rather than skipping over
         // a disabled cycle's stale sample.
         Term enable;
-        if (args.size() >= 3 && args[2]) {
+        if (args.size() >= 3 && args[2]
+            && args[2]->kind != ExpressionKind::EmptyArgument) {
           enable = expr_to_bool(*args[2], prefix);
         }
         // Optional `clocking_event`: this encoder has no clock-domain
@@ -1203,12 +1241,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
         // explicit clocking event can't be honored. Logged rather than
         // silently dropped, per this encoder's unsupported-construct
         // contract.
-        if (args.size() >= 4 && args[3]) {
-          logger.log(1,
-                     "SystemVerilogEncoder: $past's explicit clocking_event "
-                     "argument is not modeled (single global clock); "
-                     "ignoring");
-        }
+        if (args.size() >= 4) check_sampled_clock(args[3], "$past");
         if (n == 0) return val;
         return tableau_.make_history_chain(val, n, prefix, enable);
       }
@@ -1218,12 +1251,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
           throw PonoException(
               "SystemVerilogEncoder: $stable with no value argument");
         }
-        if (args.size() >= 2 && args[1]) {
-          logger.log(1,
-                     "SystemVerilogEncoder: $stable's explicit "
-                     "clocking_event argument is not modeled (single "
-                     "global clock); ignoring");
-        }
+        if (args.size() >= 2) check_sampled_clock(args[1], "$stable");
         Term val = expr_to_term(*args[0], prefix);
         return solver_->make_term(
             Equal, val, tableau_.make_history_chain(val, 1, prefix));
@@ -1237,12 +1265,7 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
           throw PonoException(
               "SystemVerilogEncoder: $changed with no value argument");
         }
-        if (args.size() >= 2 && args[1]) {
-          logger.log(1,
-                     "SystemVerilogEncoder: $changed's explicit "
-                     "clocking_event argument is not modeled (single "
-                     "global clock); ignoring");
-        }
+        if (args.size() >= 2) check_sampled_clock(args[1], "$changed");
         Term val = expr_to_term(*args[0], prefix);
         return solver_->make_term(
             Distinct, val, tableau_.make_history_chain(val, 1, prefix));
@@ -1262,12 +1285,8 @@ Term ExprEncoder::expr_to_term_or_bool(const slang::ast::Expression & expr,
                               + std::string(call.getSubroutineName())
                               + " with no value argument");
         }
-        if (args.size() >= 2 && args[1]) {
-          logger.log(1,
-                     "SystemVerilogEncoder: {}'s explicit clocking_event "
-                     "argument is not modeled (single global clock); "
-                     "ignoring",
-                     call.getSubroutineName());
+        if (args.size() >= 2) {
+          check_sampled_clock(args[1], call.getSubroutineName());
         }
         Term val = expr_to_term(*args[0], prefix);
         Sort bv1 = solver_->make_sort(BV, 1);

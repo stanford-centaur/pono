@@ -305,6 +305,35 @@ class SymbolTable
     return spliced_alias_ranges_;
   }
 
+  /** The one clock signal and edge this design is allowed to have,
+   *  established by whichever property or sampled-value function
+   *  names one first, and null until then.
+   *
+   *  Kept here rather than in AssertionWalker because more than one
+   *  place has to agree about it: a property's clocking event and a
+   *  `$rose(a, @(posedge clk))`'s belong to the same design, and
+   *  checking only the first left the second free to name a clock
+   *  the design does not have. `edge` is a slang::ast::EdgeKind held
+   *  as an int so this header needs none of slang's enums.
+   */
+  const slang::ast::Symbol * design_clock_sym() const
+  {
+    return design_clock_sym_;
+  }
+  int design_clock_edge() const { return design_clock_edge_; }
+
+  /** Record this clock if none is established yet, and report
+   *  whether it agrees with the one that is. */
+  bool note_design_clock(const slang::ast::Symbol * sym, int edge)
+  {
+    if (!design_clock_sym_) {
+      design_clock_sym_ = sym;
+      design_clock_edge_ = edge;
+      return true;
+    }
+    return sym == design_clock_sym_ && edge == design_clock_edge_;
+  }
+
   std::unordered_map<const slang::ast::Symbol *, smt::Term> & symbol_to_term()
   {
     return symbol_to_term_;
@@ -389,6 +418,8 @@ class SymbolTable
   std::unordered_map<const slang::ast::Symbol *,
                      std::vector<std::pair<uint64_t, uint64_t>>>
       spliced_alias_ranges_;
+  const slang::ast::Symbol * design_clock_sym_ = nullptr;
+  int design_clock_edge_ = 0;
   std::unordered_map<smt::Term, smt::Term> pending_next_updates_;
   std::unordered_set<const slang::ast::Symbol *> blocking_next_written_;
   std::unordered_set<const slang::ast::Symbol *> latch_symbols_;

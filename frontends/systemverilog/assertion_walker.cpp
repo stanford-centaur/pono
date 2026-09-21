@@ -47,6 +47,7 @@
 #include "frontends/systemverilog/ast_helpers.h"
 #include "frontends/systemverilog/bit_utils.h"
 #include "frontends/systemverilog/expr_encoder.h"
+#include "frontends/systemverilog/symbol_table.h"
 #include "frontends/systemverilog/tableau.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/Symbol.h"
@@ -145,11 +146,16 @@ std::string assertion_label(const slang::ast::Statement & stmt)
 
 }  // namespace
 
-AssertionWalker::AssertionWalker(ExprEncoder & expr_encoder,
+AssertionWalker::AssertionWalker(SymbolTable & symbol_table,
+                                 ExprEncoder & expr_encoder,
                                  Tableau & tableau,
                                  const smt::SmtSolver & solver,
                                  FunctionalTransitionSystem & fts)
-    : expr_encoder_(expr_encoder), tableau_(tableau), solver_(solver), fts_(fts)
+    : symbol_table_(symbol_table),
+      expr_encoder_(expr_encoder),
+      tableau_(tableau),
+      solver_(solver),
+      fts_(fts)
 {
 }
 
@@ -193,20 +199,15 @@ void AssertionWalker::check_clock(const slang::ast::TimingControl & clocking)
           "resolved");
   }
 
-  if (!design_clock_sym_) {
-    design_clock_sym_ = sym;
-    design_clock_edge_ = static_cast<int>(sec.edge);
-    return;
-  }
-  if (sym != design_clock_sym_
-      || static_cast<int>(sec.edge) != design_clock_edge_) {
+  if (!symbol_table_.note_design_clock(sym, static_cast<int>(sec.edge))) {
     throw PonoException(
         "SystemVerilogEncoder: property '" + current_assertion_label_
         + "' is clocked on " + string(toString(sec.edge)) + " of '"
         + string(sym->name) + "', but this design's clock was already "
           "established as "
-        + string(toString(static_cast<EdgeKind>(design_clock_edge_))) + " of '"
-        + string(design_clock_sym_->name)
+        + string(toString(
+              static_cast<EdgeKind>(symbol_table_.design_clock_edge())))
+        + " of '" + string(symbol_table_.design_clock_sym()->name)
         + "' by an earlier property -- multi-clock designs (distinct "
           "clocks, or distinct edges of the same clock) are not "
           "supported, since this encoder has no clock-domain-crossing "
