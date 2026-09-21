@@ -614,6 +614,19 @@ void InstanceEncoder::process_instance(const slang::ast::InstanceSymbol & inst,
 
     bool is_output = (port.direction == ArgumentDirection::Out
                       || port.direction == ArgumentDirection::InOut);
+    if (port.direction == ArgumentDirection::InOut) {
+      // Only the child's drive is modelled. That is exactly right
+      // while nothing else drives the net, which covers an `inout`
+      // used in one direction at a time; what it cannot represent is
+      // the parent driving back, since resolving two drivers onto
+      // one net is not something this encoder has any notion of.
+      logger.log(0,
+                 "SystemVerilogEncoder: inout port '{}' of instance '{}' "
+                 "is modeled as an output -- the child drives it and "
+                 "anything driving it from outside is not modeled",
+                 string(port.name),
+                 string(inst.name));
+    }
     if (is_output && assertions_only) {
       // An output of a program is stimulus, which is not being
       // encoded. Registering an alias redirects the parent-side

@@ -297,4 +297,18 @@ TEST_P(SVUnitTests, ProgramStimulusIgnored)
   expect_encode_succeeds_ignoring("program_block.sv");
 }
 
+// An `inout` port. Only the child's drive is modelled -- right while
+// nothing drives the net from outside, and unable to represent the
+// parent driving back, which is logged rather than left silent.
+
+TEST_P(SVUnitTests, InoutPort)
+{
+  check_prover<KInduction>("inout_port.sv", 8, ProverResult::TRUE);
+}
+
+TEST_P(SVUnitTests, InoutPortUndrivenIsFree)
+{
+  check_bmc("inout_port_fails.sv", 1);
+}
+
 }  // namespace pono_tests

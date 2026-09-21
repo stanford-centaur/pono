@@ -388,6 +388,12 @@ vector<ResolvedAliasPiece> SymbolTable::resolve_output_alias_pieces(
     return { { sym, lo, hi, rhs_base, rhs_base + (hi - lo) } };
   }
   std::vector<ResolvedAliasPiece> result;
+  // Every bit of the requested window has to land on some segment.
+  // A concatenation-target connection is checked to cover its port
+  // exactly, so a hole here means the window reaches past what was
+  // registered -- and a write to a bit that resolves nowhere is a
+  // constraint dropped, leaving the target free to be anything.
+  uint64_t covered = 0;
   for (auto & seg : alias_it->second) {
     // Intersect the caller's [lo, hi] window (in sym's own numbering)
     // with this segment's own [port_lo, port_hi] coverage.
@@ -404,6 +410,15 @@ vector<ResolvedAliasPiece> SymbolTable::resolve_output_alias_pieces(
     auto sub = resolve_output_alias_pieces(
         seg.target, tlo, thi, rhs_base + (ilo - lo));
     result.insert(result.end(), sub.begin(), sub.end());
+    covered += span + 1;
+  }
+  if (covered != hi - lo + 1) {
+    throw PonoException(
+        "SystemVerilogEncoder: bits [" + std::to_string(lo) + ":"
+        + std::to_string(hi) + "] of output-port-aliased '"
+        + string(sym->name)
+        + "' are not all covered by its registered alias segments, so a "
+          "write to them would resolve nowhere");
   }
   return result;
 }
