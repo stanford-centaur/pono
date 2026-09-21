@@ -729,6 +729,82 @@ bool has_goto_repetition(const slang::ast::AssertionExpr & ae)
 
 }  // namespace
 
+smt::Term AssertionWalker::goto_match_now(
+    const slang::ast::Expression & expr,
+    const slang::ast::SequenceRepetition & rep,
+    const string & prefix)
+{
+  using namespace slang::ast;
+  if (rep.kind == SequenceRepetition::Consecutive) return Term();
+
+  uint32_t count = rep.range.min;
+  if (count == 0) {
+    throw PonoException(
+        "SystemVerilogEncoder: a goto or nonconsecutive repetition of zero "
+        "occurrences is not supported");
+  }
+  if (count > MAX_SEQ_WINDOW) {
+    throw PonoException("SystemVerilogEncoder: repetition count exceeds "
+                        + std::to_string(MAX_SEQ_WINDOW));
+  }
+
+  Term b = expr_encoder_.expr_to_bool(expr, prefix);
+  if (!b) return Term();
+
+  // Wide enough to hold `count` itself, where the counter stops. It
+  // must saturate rather than wrap: a wrap would take the total back
+  // below `count` and quietly stop the antecedent firing.
+  uint64_t width = 1;
+  while ((uint64_t{ 1 } << width) <= count) ++width;
+  Sort sort = solver_->make_sort(BV, width);
+  Term limit = solver_->make_term(count, sort);
+  Term one = solver_->make_term(1, sort);
+
+  Term seen = fts_.make_statevar(
+      prefix + "__sva_goto_seen_" + std::to_string(goto_counter_++), sort);
+  fts_.constrain_init(
+      solver_->make_term(Equal, seen, solver_->make_term(0, sort)));
+  Term bumped = solver_->make_term(Ite,
+                                   solver_->make_term(BVUlt, seen, limit),
+                                   solver_->make_term(BVAdd, seen, one),
+                                   seen);
+  fts_.assign_next(seen, solver_->make_term(Ite, b, bumped, seen));
+
+  // `seen` counts occurrences strictly before this cycle, so the
+  // total through now is `seen + b`.
+  Term reached_before = solver_->make_term(BVUge, seen, limit);
+  Term reached_with_now = solver_->make_term(
+      Or,
+      reached_before,
+      solver_->make_term(
+          And,
+          b,
+          solver_->make_term(
+              BVUge, seen, solver_->make_term(count - 1, sort))));
+
+  // `[->n]` ends on the occurrence itself; `[=n]` may end later.
+  if (rep.kind == SequenceRepetition::GoTo) {
+    return solver_->make_term(And, b, reached_with_now);
+  }
+  return reached_with_now;
+}
+
+smt::Term AssertionWalker::goto_match_now_seq(
+    const slang::ast::AssertionExpr & seq, const string & prefix)
+{
+  using namespace slang::ast;
+  const AssertionExpr * e = &seq;
+  while (e->kind == AssertionExprKind::Clocking) {
+    auto & ck = e->as<ClockingAssertionExpr>();
+    check_clock(ck.clocking);
+    e = &ck.expr;
+  }
+  if (e->kind != AssertionExprKind::Simple) return Term();
+  auto & simple = e->as<SimpleAssertionExpr>();
+  if (!simple.repetition) return Term();
+  return goto_match_now(simple.expr, *simple.repetition, prefix);
+}
+
 smt::Term AssertionWalker::goto_repetition(
     const slang::ast::Expression & expr,
     const slang::ast::SequenceRepetition & rep,
@@ -1103,16 +1179,22 @@ smt::Term AssertionWalker::ltl_to_sat(const slang::ast::AssertionExpr & ae,
             rhs = u->second;
             unbounded = true;
           }
+          Term l;
           if (has_goto_repetition(b.left)) {
-            // An antecedent has to say its match ends *now*, which
-            // for a count of non-adjacent occurrences is a fact
-            // about unbounded history, not an eventuality -- so the
-            // reading ltl_to_sat() would give it is the wrong one.
-            throw PonoException(
-                "SystemVerilogEncoder: a goto or nonconsecutive repetition "
-                "in an implication's antecedent is not supported");
+            // An antecedent has to say its match ends *now*, which is
+            // not the eventuality ltl_to_sat() would read such a
+            // count as. goto_match_now_seq() counts instead.
+            Term match = goto_match_now_seq(b.left, prefix);
+            if (!match) {
+              throw PonoException(
+                  "SystemVerilogEncoder: a goto or nonconsecutive repetition "
+                  "composed with anything else in an implication's "
+                  "antecedent is not supported");
+            }
+            l = neg ? match : solver_->make_term(Not, match);
+          } else {
+            l = ltl_to_sat(b.left, !neg, justice, prefix);
           }
-          Term l = ltl_to_sat(b.left, !neg, justice, prefix);
           Term r = ltl_to_sat(*rhs, neg, justice, prefix);
           if (!l || !r) return Term();
           if (unbounded) {
@@ -1486,6 +1568,15 @@ smt::Term AssertionWalker::assertion_expr_to_bool(
         Term lhs = assertion_expr_to_bool(*lhs_inner, prefix, lhs_span);
         if (!lhs) {
           lhs = match_exists(*lhs_inner, prefix);
+          lhs_span = 0;
+        }
+        if (!lhs) {
+          // A count of non-adjacent occurrences spans no finite
+          // window, so neither of those reaches it -- but a counter
+          // still makes "a match ends now" a current-cycle Boolean,
+          // which keeps the whole implication a safety property
+          // rather than pushing it onto the tableau.
+          lhs = goto_match_now_seq(*lhs_inner, prefix);
           lhs_span = 0;
         }
         if (!lhs) return Term();

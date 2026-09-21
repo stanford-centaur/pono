@@ -236,6 +236,40 @@ class AssertionWalker
    *  offsets_ending_now() models at all, so the caller can fall
    *  through to its own throw.
    */
+  /** "A match of a goto (`b[->n]`) or nonconsecutive (`b[=n]`)
+   *  repetition ends at this cycle" -- what an implication's
+   *  antecedent needs, as opposed to the eventuality
+   *  goto_repetition() builds for a consequent.
+   *
+   *  Attempts start at every cycle, and as the start moves back the
+   *  number of occurrences in the window grows one at a time, so
+   *  every count from 1 up to the running total is achievable. A
+   *  match of exactly `n` therefore exists precisely when the
+   *  running total has reached `n` -- a fact about unbounded
+   *  history, but one a counter summarizes in
+   *  ceil(log2(n + 1)) bits. `[->n]` additionally requires the
+   *  occurrence to be *this* cycle; `[=n]` may run on past it.
+   *
+   *  The same argument makes an upper bound irrelevant: `[->m:n]`
+   *  needs some achievable count in [m, n], and `m` itself is
+   *  achievable as soon as the total reaches it.
+   *
+   *  Returns a null Term for a consecutive repetition, which the
+   *  offset machinery handles instead.
+   */
+  smt::Term goto_match_now(const slang::ast::Expression & expr,
+                           const slang::ast::SequenceRepetition & rep,
+                           const std::string & prefix);
+
+  /** goto_match_now() for a whole antecedent, unwrapping a nested
+   *  clocking event to reach the repetition. Returns a null Term
+   *  unless the antecedent is exactly such a repetition -- composing
+   *  one with anything else would need the surrounding sequence's
+   *  offsets, which is the very thing a count of non-adjacent
+   *  occurrences has none of. */
+  smt::Term goto_match_now_seq(const slang::ast::AssertionExpr & seq,
+                               const std::string & prefix);
+
   /** Encode a goto (`b[->n]`) or nonconsecutive (`b[=n]`) repetition
    *  as the eventuality it is: reaching the n-th occurrence of `b`.
    *  Returns a null Term for a consecutive repetition, which the
@@ -312,6 +346,9 @@ class AssertionWalker
   void check_clock(const slang::ast::TimingControl & clocking);
 
   ExprEncoder & expr_encoder_;
+  // Distinguishes the counters goto_match_now() builds.
+  uint64_t goto_counter_ = 0;
+
   Tableau & tableau_;
   const smt::SmtSolver & solver_;
   FunctionalTransitionSystem & fts_;

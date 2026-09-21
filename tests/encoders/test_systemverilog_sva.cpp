@@ -114,10 +114,27 @@ TEST_P(SVUnitTests, GotoRepetitionCountHolds)
       "goto_repetition_count_holds.sv", 14, ProverResult::UNKNOWN);
 }
 
-// An antecedent needs its match to end now, which this cannot say.
-TEST_P(SVUnitTests, GotoRepetitionAntecedentRejected)
+// A goto or nonconsecutive count as an antecedent. It needs its match
+// to end *now*, which no bounded window of offsets can say -- but a
+// saturating counter can, and it keeps the implication a plain safety
+// property rather than pushing it onto the tableau.
+
+TEST_P(SVUnitTests, GotoRepetitionAntecedent)
 {
-  expect_encode_throws("goto_repetition_antecedent.sv");
+  check_bmc("goto_repetition_antecedent.sv", 6);
+}
+
+TEST_P(SVUnitTests, GotoRepetitionAntecedentEndsOnOccurrence)
+{
+  check_prover<KInduction>(
+      "goto_repetition_antecedent_holds.sv", 20, ProverResult::TRUE);
+}
+
+// `[=n]` shares the counter but drops the "ends on an occurrence"
+// half, so it fires a cycle later too.
+TEST_P(SVUnitTests, NonconsecutiveRepetitionAntecedent)
+{
+  check_bmc("nonconsec_repetition_antecedent.sv", 7);
 }
 
 // weak() over the sequence shapes leading_condition() could not name
